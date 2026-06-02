@@ -159,6 +159,22 @@ interface CreateAttachmentData {
 }
 
 /**
+ * Input to `linkClassroomCourse` (the SpartBoard dashboard "Link to Google
+ * Classroom" flow). `accessToken` is the teacher's own
+ * `classroom.courses.readonly` token — the SAME token that listed their courses
+ * client-side — used here to RE-VERIFY teaching authority server-side.
+ * `teacherUid` is intentionally absent: it's taken from `request.auth.uid`, not
+ * the client, so a caller can never claim to be a different teacher.
+ */
+interface LinkClassroomCourseData {
+  accessToken?: unknown;
+  courseId?: unknown;
+  classlinkClassId?: unknown;
+  classlinkOrgId?: unknown;
+  rosterId?: unknown;
+}
+
+/**
  * `EmbedUri` view-URI objects + title, per addOnAttachments.create.
  *
  * Grade-sync fields (`studentWorkReviewUri` + `maxPoints`) are added together:
@@ -331,6 +347,82 @@ export const classroomAddonNet = {
     } catch (err) {
       console.warn('[classroomAddonLoginV1] userinfo fetch failed:', err);
       return null;
+    }
+  },
+
+  /**
+   * List the Google Classroom course ids the access token's owner TEACHES
+   * (`courses.list?teacherId=me`). This is the trust anchor for
+   * `linkClassroomCourse`: Classroom only returns a course here if the
+   * authenticated user is a teacher of it, so membership in this list proves
+   * teaching authority that Firestore rules can't verify. Paginated with a
+   * generous cap so a teacher with many courses is fully covered without an
+   * unbounded loop. Any upstream/network failure returns `ok: false` so the
+   * caller fails CLOSED (never links on an unverifiable token). Seam so tests
+   * can stub it without a live Classroom call.
+   */
+  async listTeacherCourseIds(
+    accessToken: string
+  ): Promise<{ ok: boolean; status: number; courseIds: string[] }> {
+    const courseIds: string[] = [];
+    let pageToken: string | undefined;
+    let pages = 0;
+    // A single teacher having >2500 active courses is implausible; the cap is a
+    // runaway guard, not an expected limit.
+    const MAX_PAGES = 25;
+    try {
+      do {
+        const qs = new URLSearchParams({
+          teacherId: 'me',
+          courseStates: 'ACTIVE',
+          pageSize: '100',
+        });
+        if (pageToken) qs.set('pageToken', pageToken);
+        const res = await fetch(`${CLASSROOM_API}/courses?${qs.toString()}`, {
+          headers: bearer(accessToken),
+          signal: AbortSignal.timeout(API_TIMEOUT_MS),
+        });
+        if (!res.ok) {
+          console.warn(`[classroomAddon] listTeacherCourseIds ${res.status}`);
+          return { ok: false, status: res.status, courseIds: [] };
+        }
+        const body = (await res.json()) as {
+          courses?: { id?: string }[];
+          nextPageToken?: string;
+        } | null;
+        // A 200 with a null / non-object body shouldn't happen for
+        // courses.list, but guard rather than deref it (and treat it as an
+        // empty final page rather than throwing into the catch, which would
+        // discard course ids already collected from earlier pages).
+        if (body && typeof body === 'object') {
+          for (const c of body.courses ?? []) {
+            if (typeof c.id === 'string') courseIds.push(c.id);
+          }
+          pageToken = body.nextPageToken;
+        } else {
+          pageToken = undefined;
+        }
+        pages += 1;
+      } while (pageToken && pages < MAX_PAGES);
+      // If we stopped because of the page cap while more pages remained, the
+      // enumeration is INCOMPLETE — fail closed rather than treat the truncated
+      // list as authoritative, which could wrongly deny a teacher whose course
+      // sits beyond the cap. (Practically unreachable — a teacher with >2500
+      // active courses doesn't exist — but it keeps the trust anchor honest.)
+      if (pageToken) {
+        console.warn(
+          '[classroomAddon] listTeacherCourseIds hit the page cap with more ' +
+            'pages remaining; treating the enumeration as unverifiable.'
+        );
+        return { ok: false, status: 0, courseIds: [] };
+      }
+      return { ok: true, status: 200, courseIds };
+    } catch (err) {
+      console.warn(
+        '[classroomAddon] listTeacherCourseIds fetch failed (network/timeout):',
+        err
+      );
+      return { ok: false, status: 0, courseIds: [] };
     }
   },
 
@@ -860,6 +952,137 @@ export const createClassroomAttachment = onCall(
     // composer (→ PERMISSION_DENIED). The teacher sets the due date once, in
     // that composer (the screen this add-on iframe is embedded in).
     return { attachmentId: createResult.id };
+  }
+);
+
+/**
+ * linkClassroomCourse — server-gated creator of
+ * `classroom_course_links/{courseId}`, called from the SpartBoard dashboard's
+ * "Link to Google Classroom" flow (NOT inside a Classroom iframe, so there's no
+ * getAddOnContext launch to lean on — the trust anchor is a server-side
+ * Classroom course-list check instead).
+ *
+ * WHY THIS EXISTS: the link doc maps a Google courseId → a ClassLink section,
+ * and `classroomAddonLoginV1` mints every student's class-gate `classIds` from
+ * whatever class this doc names. Firestore rules can only check
+ * `teacherUid == auth.uid`; they CANNOT verify the caller actually teaches the
+ * Google course. So a client `create` let any authed user squat ANY courseId
+ * (first-write-wins → mis-route a victim course's students AND lock the real
+ * teacher out, since `update` requires the existing teacherUid). The rules now
+ * block client writes; this CF is the only writer.
+ *
+ * TRUST ANCHOR: re-run the caller's OWN `courses?teacherId=me` query
+ * server-side with their `classroom.courses.readonly` token (the same token
+ * that listed the courses they picked from). Classroom only returns a course in
+ * that list if the user is a teacher of it, so the chosen courseId must appear
+ * there — a forged/borrowed courseId won't. `teacherUid` is taken from
+ * `request.auth.uid` (never the client). An existing link owned by a DIFFERENT
+ * teacher is never overwritten (`already-exists`), preserving the no-hijack
+ * invariant.
+ */
+export const linkClassroomCourse = onCall(
+  {
+    memory: '256MiB',
+    // Public IAM invoker like the other add-on callables: the Firebase Auth
+    // check happens IN the callable framework (the ID token is in the request),
+    // not at the IAM layer, so the endpoint must be reachable. Auth is still
+    // enforced below — an unauthenticated caller is rejected before any work.
+    invoker: 'public',
+    cors: ALLOWED_ORIGINS,
+  },
+  async (request) => {
+    const data = (request.data ?? {}) as LinkClassroomCourseData;
+
+    // teacherUid comes from the authenticated caller, never the client payload.
+    const callerUid = request.auth?.uid ?? '';
+    if (!callerUid) {
+      throw new HttpsError(
+        'unauthenticated',
+        'You must be signed in to link a class.'
+      );
+    }
+
+    const accessToken =
+      typeof data.accessToken === 'string' ? data.accessToken : '';
+    const courseId = typeof data.courseId === 'string' ? data.courseId : '';
+    if (!accessToken) {
+      throw new HttpsError(
+        'invalid-argument',
+        'accessToken is required (your Google Classroom courses token).'
+      );
+    }
+    if (!courseId) {
+      throw new HttpsError('invalid-argument', 'courseId is required.');
+    }
+    // Link payload. classlinkClassId/OrgId are null for a roster with no
+    // ClassLink linkage (it still links to the Google course by id); rosterId
+    // ties the link back to the SpartBoard roster the teacher chose.
+    const classlinkClassId =
+      typeof data.classlinkClassId === 'string' ? data.classlinkClassId : null;
+    const classlinkOrgId =
+      typeof data.classlinkOrgId === 'string' ? data.classlinkOrgId : null;
+    const rosterId = typeof data.rosterId === 'string' ? data.rosterId : null;
+
+    // TRUST ANCHOR: prove the caller teaches this Google course. Fail CLOSED on
+    // any upstream error (never link on an unverifiable token).
+    const teacherCourses =
+      await classroomAddonNet.listTeacherCourseIds(accessToken);
+    if (!teacherCourses.ok) {
+      throw new HttpsError(
+        'unauthenticated',
+        `Could not verify your Google Classroom courses (status ${teacherCourses.status}).`
+      );
+    }
+    if (!teacherCourses.courseIds.includes(courseId)) {
+      // Opaque on purpose: don't reveal whether the course exists to someone who
+      // doesn't teach it.
+      console.warn(
+        `[linkClassroomCourse] uid=${callerUid} is not a teacher of course ${courseId}.`
+      );
+      throw new HttpsError(
+        'permission-denied',
+        'You can only link a Google Classroom course that you teach.'
+      );
+    }
+
+    const db = admin.firestore();
+    const ref = db.doc(`classroom_course_links/${courseId}`);
+    const existing = await ref.get();
+    if (existing.exists) {
+      const prior = existing.data() as CourseLink;
+      if (
+        typeof prior?.teacherUid === 'string' &&
+        prior.teacherUid &&
+        prior.teacherUid !== callerUid
+      ) {
+        // A co-teacher may also genuinely teach this course, but silently
+        // re-pointing an existing link would re-route the original teacher's
+        // students. Preserve the existing no-hijack invariant.
+        console.warn(
+          `[linkClassroomCourse] course ${courseId} already linked by a ` +
+            `different teacher; refusing to overwrite.`
+        );
+        throw new HttpsError(
+          'already-exists',
+          'This Google Classroom course is already linked by another teacher.'
+        );
+      }
+    }
+
+    // Admin SDK write — bypasses the now read-only client rules. createdAt is set
+    // only on first create; merge:true preserves it (and any other fields) on a
+    // same-teacher re-link.
+    const payload: Record<string, unknown> = {
+      classlinkClassId,
+      classlinkOrgId,
+      teacherUid: callerUid,
+      rosterId,
+      updatedAt: Date.now(),
+    };
+    if (!existing.exists) payload.createdAt = Date.now();
+    await ref.set(payload, { merge: true });
+
+    return { ok: true, courseId };
   }
 );
 

@@ -81,3 +81,5 @@ verification/
 # Local data / Drive-sync artifacts — never commit (may contain student PII)
 Data/
 .tmp.driveupload/
+# Local in-app quiz exports (".quiz.json" downloads) — quiz content, not repo source
+Quizzes/
