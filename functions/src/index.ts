@@ -4304,5 +4304,6 @@ export {
   pushClassroomGradesForAssignment,
 } from './classroomAddonAuth';
 
-// Schoology LTI 1.3 — see functions/src/lti/. Phase A: the public JWKS endpoint.
+// Schoology LTI 1.3 — see functions/src/lti/.
 export { ltiJwks } from './lti/endpoints';
+export { ltiLogin, ltiLaunch, ltiExchange } from './lti/launchEndpoints';

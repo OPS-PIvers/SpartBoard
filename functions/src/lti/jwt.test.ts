@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SignJWT, generateKeyPair, type KeyLike } from 'jose';
-import { verifyLaunchJwt, deriveRole } from './jwt';
+import { verifyLaunchJwt, deriveRole, launchRedirectTarget } from './jwt';
 import {
   LTI,
   SCHOOLOGY_ISSUER,
@@ -218,5 +218,32 @@ describe('deriveRole', () => {
 
   it('prefers teacher when both instructor and learner roles are present', () => {
     expect(deriveRole([INSTRUCTOR, LEARNER])).toBe('teacher');
+  });
+});
+
+describe('launchRedirectTarget', () => {
+  it('routes any deep-linking launch to the teacher picker', () => {
+    expect(launchRedirectTarget('teacher', true)).toEqual({
+      path: '/lti/teacher',
+      deeplink: true,
+    });
+    expect(launchRedirectTarget('unknown', true)).toEqual({
+      path: '/lti/teacher',
+      deeplink: true,
+    });
+  });
+
+  it('routes an instructor resource-link launch to the teacher grader', () => {
+    expect(launchRedirectTarget('teacher', false)).toEqual({
+      path: '/lti/teacher',
+      deeplink: false,
+    });
+  });
+
+  it('routes a learner resource-link launch to the student runner', () => {
+    expect(launchRedirectTarget('student', false)).toEqual({
+      path: '/lti/student',
+      deeplink: false,
+    });
   });
 });

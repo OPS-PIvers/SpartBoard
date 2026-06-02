@@ -38,6 +38,20 @@
         }
       },
       {
+        "source": "/lti/login",
+        "function": {
+          "functionId": "ltiLogin",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/lti/launch",
+        "function": {
+          "functionId": "ltiLaunch",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

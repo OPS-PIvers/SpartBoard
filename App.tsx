@@ -76,6 +76,12 @@ const ClassroomAddonTeacherReview = lazy(() =>
     default: module.ClassroomAddonTeacherReview,
   }))
 );
+// Schoology LTI 1.3 launch surface (validated-launch view; runner/picker land later).
+const LtiLaunchPage = lazy(() =>
+  import('./components/lti/LtiLaunchPage').then((module) => ({
+    default: module.LtiLaunchPage,
+  }))
+);
 const ActivityWallStudentApp = lazy(() =>
   import('./components/activityWall/ActivityWallStudentApp').then((module) => ({
     default: module.ActivityWallStudentApp,
@@ -380,6 +386,10 @@ const App: React.FC = () => {
   // Google OAuth + custom-token sign-in, so no teacher providers are mounted.
   const isClassroomAddonRoute = pathname.startsWith('/classroom-addon/');
 
+  // Schoology LTI 1.3 launch routes (/lti/login + /lti/launch are Cloud Functions
+  // via hosting rewrites; /lti/student + /lti/teacher are this SPA surface).
+  const isLtiRoute = pathname.startsWith('/lti/');
+
   // Short-link resolver. Runs outside every provider so anonymous visitors
   // can follow admin-created /r/:code links without triggering Firebase
   // Auth, dashboard listeners, or any other heavy setup. The resolver does
@@ -505,6 +515,20 @@ const App: React.FC = () => {
       <DialogProvider>
         <Suspense fallback={<FullPageLoader />}>
           <ClassroomAddonStudentSpike />
+        </Suspense>
+        <DialogContainer />
+      </DialogProvider>
+    );
+  }
+
+  // Schoology LTI 1.3 launch surface. Anonymous entry; the page exchanges the
+  // one-time launch code for the validated context (and, for a Learner launch, a
+  // studentRole custom token it signs in with). Only DialogProvider needed.
+  if (isLtiRoute) {
+    return (
+      <DialogProvider>
+        <Suspense fallback={<FullPageLoader />}>
+          <LtiLaunchPage />
         </Suspense>
         <DialogContainer />
       </DialogProvider>

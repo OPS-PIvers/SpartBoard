@@ -198,3 +198,16 @@ export async function verifyLaunchJwt(
     name: asString(payload.name),
   };
 }
+
+/**
+ * Where ltiLaunch sends the browser after validating: deep-linking → teacher picker,
+ * Instructor resource-link → grader, Learner → runner. Pure (unit-tested).
+ */
+export function launchRedirectTarget(
+  role: LtiRole,
+  isDeepLinking: boolean
+): { path: string; deeplink: boolean } {
+  if (isDeepLinking) return { path: '/lti/teacher', deeplink: true };
+  if (role === 'teacher') return { path: '/lti/teacher', deeplink: false };
+  return { path: '/lti/student', deeplink: false };
+}
