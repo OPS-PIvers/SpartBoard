@@ -64,6 +64,19 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   const [progress, setProgress] = useState(0); // 0-1 for guided auto-advance
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
   const [answeredSteps, setAnsweredSteps] = useState<Set<string>>(new Set());
+  // Ref kept in sync with the latest `answeredSteps` value on every render.
+  // The setInterval callback in startTimer closes over this ref rather than
+  // `answeredSteps` directly — if it captured the state value, every call to
+  // `setAnsweredSteps` would cause `startTimer` to be recreated (answeredSteps
+  // is in its deps), which would restart the timer (resetting progress to 0)
+  // each time the student answered a question in guided mode.
+  const answeredStepsRef = useRef(answeredSteps);
+  // Keep the ref in sync after every render so the setInterval callback in
+  // startTimer always reads the latest value without needing answeredSteps in
+  // startTimer's dependency array (which would restart the timer on every answer).
+  useEffect(() => {
+    answeredStepsRef.current = answeredSteps;
+  });
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
     if (
       typeof window === 'undefined' ||
@@ -227,18 +240,20 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       setProgress(progressRef.current);
       if (progressRef.current >= 1) {
         if (timerRef.current) clearInterval(timerRef.current);
-        // Don't auto-advance if it's a question that hasn't been answered
+        // Don't auto-advance if it's a question that hasn't been answered.
+        // Read from the ref (not the state closure) so answering a question
+        // doesn't recreate startTimer and restart the timer from zero.
         if (
           currentStep?.interactionType === 'question' &&
           currentStep.id &&
-          !answeredSteps.has(currentStep.id)
+          !answeredStepsRef.current.has(currentStep.id)
         ) {
           return;
         }
         goNext();
       }
     }, interval);
-  }, [currentStep, answeredSteps, goNext]);
+  }, [currentStep, answeredStepsRef, goNext]);
 
   useEffect(() => {
     if (mode === 'guided' && playing) {
