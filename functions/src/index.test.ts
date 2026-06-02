@@ -685,6 +685,108 @@ describe('checkUrlCompatibility', () => {
     expect(result.uncertain).toBe(true);
     expect(result.error).toContain('Network error on head request');
   });
+
+  // Regression: IPv6 loopback and private-range addresses were not covered
+  // by the IPv4-only blocklist patterns, letting a user submit
+  // `https://[::1]/...` to probe internal services (SSRF). The fix adds
+  // IPv6 patterns to the blocklist so these throw `invalid-argument` before
+  // `axios.head` is ever called.
+  it('blocks IPv6 loopback [::1] to prevent SSRF', async () => {
+    const mockHead = vi.mocked(axios.head);
+    // Should never reach axios — the guard must throw first.
+    mockHead.mockResolvedValue({ headers: {} });
+
+    const handler = checkUrlCompatibility as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+
+    await expect(
+      handler({ url: 'https://[::1]/internal' }, { auth: { uid: '123' } })
+    ).rejects.toThrow(/private or reserved/i);
+    expect(mockHead).not.toHaveBeenCalled();
+  });
+
+  it('blocks IPv4-mapped IPv6 address [::ffff:127.0.0.1] to prevent SSRF', async () => {
+    const mockHead = vi.mocked(axios.head);
+    mockHead.mockResolvedValue({ headers: {} });
+
+    const handler = checkUrlCompatibility as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+
+    await expect(
+      handler(
+        { url: 'https://[::ffff:127.0.0.1]/internal' },
+        { auth: { uid: '123' } }
+      )
+    ).rejects.toThrow(/private or reserved/i);
+    expect(mockHead).not.toHaveBeenCalled();
+  });
+
+  it('blocks IPv4-compatible IPv6 address [::127.0.0.1] to prevent SSRF', async () => {
+    const mockHead = vi.mocked(axios.head);
+    mockHead.mockResolvedValue({ headers: {} });
+
+    const handler = checkUrlCompatibility as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+
+    await expect(
+      handler(
+        { url: 'https://[::127.0.0.1]/internal' },
+        { auth: { uid: '123' } }
+      )
+    ).rejects.toThrow(/private or reserved/i);
+    expect(mockHead).not.toHaveBeenCalled();
+  });
+
+  it('blocks ULA IPv6 range [fc00::1] to prevent SSRF', async () => {
+    const mockHead = vi.mocked(axios.head);
+    mockHead.mockResolvedValue({ headers: {} });
+
+    const handler = checkUrlCompatibility as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+
+    await expect(
+      handler({ url: 'https://[fc00::1]/internal' }, { auth: { uid: '123' } })
+    ).rejects.toThrow(/private or reserved/i);
+    expect(mockHead).not.toHaveBeenCalled();
+  });
+
+  it('blocks link-local IPv6 range [fe80::1] to prevent SSRF', async () => {
+    const mockHead = vi.mocked(axios.head);
+    mockHead.mockResolvedValue({ headers: {} });
+
+    const handler = checkUrlCompatibility as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+
+    await expect(
+      handler({ url: 'https://[fe80::1]/internal' }, { auth: { uid: '123' } })
+    ).rejects.toThrow(/private or reserved/i);
+    expect(mockHead).not.toHaveBeenCalled();
+  });
+
+  it('blocks deprecated site-local IPv6 range [fec0::1] to prevent SSRF', async () => {
+    const mockHead = vi.mocked(axios.head);
+    mockHead.mockResolvedValue({ headers: {} });
+
+    const handler = checkUrlCompatibility as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+
+    await expect(
+      handler({ url: 'https://[fec0::1]/internal' }, { auth: { uid: '123' } })
+    ).rejects.toThrow(/private or reserved/i);
+    expect(mockHead).not.toHaveBeenCalled();
+  });
 });
 
 describe('adminAnalytics', () => {

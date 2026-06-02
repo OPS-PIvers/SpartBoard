@@ -45,6 +45,12 @@ interface WrittenResponseEditorProps {
   /** Disable editing (e.g. when the quiz is paused or submitted). */
   disabled?: boolean;
   /**
+   * When true, copy / cut / paste are blocked inside the editor (test
+   * integrity). Paste is fully suppressed rather than stripped-to-plain-text,
+   * and copy/cut from the editor are prevented. Default false.
+   */
+  blockClipboard?: boolean;
+  /**
    * When true, the toolbar exposes list controls and the editor grows to a
    * multi-paragraph height. Short-answer questions stay single-paragraph.
    */
@@ -56,6 +62,11 @@ interface WrittenResponseEditorProps {
    * caret/selection.
    */
   questionKey: string;
+  /**
+   * Render the editor on a LIGHT surface (async / self-paced quiz). Defaults
+   * to the dark teacher-paced treatment so existing call sites are unchanged.
+   */
+  light?: boolean;
 }
 
 const countWords = (html: string): number => {
@@ -88,7 +99,16 @@ const KEYBOARD_RESIZE_STEP_PX = 32;
 
 const WrittenResponseEditorInner: React.FC<
   Omit<WrittenResponseEditorProps, 'questionKey'>
-> = ({ value, onChange, placeholder, maxWords, disabled, isEssay }) => {
+> = ({
+  value,
+  onChange,
+  placeholder,
+  maxWords,
+  disabled,
+  isEssay,
+  blockClipboard,
+  light = false,
+}) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [wordCount, setWordCount] = useState(() => countWords(value));
@@ -237,12 +257,30 @@ const WrittenResponseEditorInner: React.FC<
   // Strip formatting from pasted content so students can't inject styled
   // HTML by copy/pasting from rich sources. We only allow plain text on
   // paste; the toolbar buttons are the only path to formatting.
+  //
+  // When `blockClipboard` is on (teacher enabled "Block Copy & Paste"),
+  // paste is suppressed entirely — preventDefault and bail before inserting.
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
     e.preventDefault();
+    if (blockClipboard) return;
     const text = e.clipboardData.getData('text/plain');
     if (!text) return;
     // Insert as plain text at the current selection.
     document.execCommand('insertText', false, text);
+  };
+
+  // Block copy/cut from inside the editor when clipboard is locked. (Paste is
+  // handled above.) A no-op handler otherwise so the native clipboard works.
+  const handleClipboardCopyCut = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (blockClipboard) e.preventDefault();
+  };
+
+  // Drag-and-drop is the other channel for importing externally-composed text,
+  // so block native drops when clipboard is locked. In-app this also bubbles
+  // to QuizStudentApp's container guard, but keeping it here makes the editor
+  // self-contained for any other caller.
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    if (blockClipboard) e.preventDefault();
   };
 
   const exec = (command: string) => {
@@ -272,11 +310,18 @@ const WrittenResponseEditorInner: React.FC<
 
   return (
     <div className="flex flex-col gap-2 w-full" ref={containerRef}>
-      <div className="flex items-center gap-1 px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-t-2xl">
+      <div
+        className={`flex items-center gap-1 px-2 py-1.5 border rounded-t-2xl ${
+          light
+            ? 'bg-slate-50 border-slate-200'
+            : 'bg-slate-800 border-slate-700'
+        }`}
+      >
         <ToolbarButton
           label="Bold"
           onClick={() => exec('bold')}
           disabled={disabled}
+          light={light}
         >
           <Bold className="w-4 h-4" />
         </ToolbarButton>
@@ -284,6 +329,7 @@ const WrittenResponseEditorInner: React.FC<
           label="Italic"
           onClick={() => exec('italic')}
           disabled={disabled}
+          light={light}
         >
           <Italic className="w-4 h-4" />
         </ToolbarButton>
@@ -291,16 +337,20 @@ const WrittenResponseEditorInner: React.FC<
           label="Underline"
           onClick={() => exec('underline')}
           disabled={disabled}
+          light={light}
         >
           <Underline className="w-4 h-4" />
         </ToolbarButton>
         {isEssay && (
           <>
-            <div className="w-px h-5 bg-slate-700 mx-1" />
+            <div
+              className={`w-px h-5 mx-1 ${light ? 'bg-slate-200' : 'bg-slate-700'}`}
+            />
             <ToolbarButton
               label="Bulleted list"
               onClick={() => handleListToggle('ul')}
               disabled={disabled}
+              light={light}
             >
               <List className="w-4 h-4" />
             </ToolbarButton>
@@ -308,6 +358,7 @@ const WrittenResponseEditorInner: React.FC<
               label="Numbered list"
               onClick={() => handleListToggle('ol')}
               disabled={disabled}
+              light={light}
             >
               <ListOrdered className="w-4 h-4" />
             </ToolbarButton>
@@ -316,7 +367,11 @@ const WrittenResponseEditorInner: React.FC<
         <div className="flex-1" />
         <span
           className={`text-xs font-mono px-2 py-0.5 rounded ${
-            overCap ? 'bg-amber-500/20 text-amber-300' : 'text-slate-500'
+            overCap
+              ? light
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-amber-500/20 text-amber-300'
+              : 'text-slate-500'
           }`}
           aria-live="polite"
         >
@@ -342,11 +397,20 @@ const WrittenResponseEditorInner: React.FC<
           suppressContentEditableWarning
           onInput={handleInput}
           onPaste={handlePaste}
+          onCopy={handleClipboardCopyCut}
+          onCut={handleClipboardCopyCut}
+          onDrop={handleDrop}
           spellCheck
-          className={`w-full px-5 py-4 bg-slate-800 border-2 border-t-0 ${
+          className={`w-full px-5 py-4 border-2 border-t-0 ${
+            light ? 'bg-white' : 'bg-slate-800'
+          } ${
             disabled
-              ? 'border-slate-700 text-slate-400 cursor-not-allowed'
-              : 'border-slate-700 text-white focus:outline-none focus:border-violet-500 focus-visible:ring-2 focus-visible:ring-violet-400'
+              ? light
+                ? 'border-slate-200 text-slate-400 cursor-not-allowed'
+                : 'border-slate-700 text-slate-400 cursor-not-allowed'
+              : light
+                ? 'border-slate-300 text-slate-900 focus:outline-none focus:border-brand-blue-light focus-visible:ring-2 focus-visible:ring-brand-blue-light'
+                : 'border-slate-700 text-white focus:outline-none focus:border-violet-500 focus-visible:ring-2 focus-visible:ring-violet-400'
           } rounded-b-2xl text-sm leading-relaxed overflow-y-auto`}
           style={{
             wordBreak: 'break-word',
@@ -372,7 +436,11 @@ const WrittenResponseEditorInner: React.FC<
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
             onKeyDown={handleHandleKeyDown}
-            className="absolute bottom-1.5 right-2 flex items-center justify-center w-7 h-5 rounded text-slate-500 hover:text-slate-300 hover:bg-slate-700/70 cursor-ns-resize touch-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+            className={`absolute bottom-1.5 right-2 flex items-center justify-center w-7 h-5 rounded cursor-ns-resize touch-none focus-visible:outline-none focus-visible:ring-2 ${
+              light
+                ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus-visible:ring-brand-blue-light'
+                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/70 focus-visible:ring-violet-400'
+            }`}
           >
             <GripHorizontal className="w-4 h-4" />
           </button>
@@ -380,7 +448,9 @@ const WrittenResponseEditorInner: React.FC<
       </div>
 
       {overCap && (
-        <p className="text-xs text-amber-400 italic">
+        <p
+          className={`text-xs italic ${light ? 'text-amber-700' : 'text-amber-400'}`}
+        >
           You&apos;re past the suggested word cap. Your teacher may take this
           into account when grading.
         </p>
@@ -393,8 +463,9 @@ const ToolbarButton: React.FC<{
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  light?: boolean;
   children: React.ReactNode;
-}> = ({ label, onClick, disabled, children }) => (
+}> = ({ label, onClick, disabled, light = false, children }) => (
   <button
     type="button"
     aria-label={label}
@@ -406,7 +477,11 @@ const ToolbarButton: React.FC<{
       e.preventDefault();
     }}
     onClick={onClick}
-    className="p-1.5 rounded text-slate-300 hover:bg-slate-700 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+    className={`p-1.5 rounded focus-visible:outline-none focus-visible:ring-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors ${
+      light
+        ? 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-brand-blue-light'
+        : 'text-slate-300 hover:bg-slate-700 hover:text-white focus-visible:ring-violet-400'
+    }`}
   >
     {children}
   </button>

@@ -50,6 +50,7 @@ import {
   useQuizSessionStudent,
   normalizeAnswer,
   SessionEndedError,
+  AttemptLimitReachedError,
 } from '@/hooks/useQuizSession';
 import {
   shufflePublicQuestions,
@@ -97,7 +98,26 @@ const WrittenResponseEditor = React.lazy(() =>
 
 // ─── Root component ───────────────────────────────────────────────────────────
 
-export const QuizStudentApp: React.FC = () => {
+interface QuizStudentAppProps {
+  /**
+   * True when rendered inside the Google Classroom add-on iframe. Changes the
+   * results lockout to an in-iframe "see your teacher" screen instead of
+   * redirecting to the standalone /my-assignments page (which isn't designed
+   * for the partitioned iframe). Threaded down to the results screens.
+   */
+  embedded?: boolean;
+  /**
+   * Watermark label for the otherwise-nameless studentRole (Classroom SSO)
+   * session. Standalone routes (/join, /quiz, /my-assignments) leave this unset
+   * and fall back to the auth displayName / PIN.
+   */
+  watermarkNameOverride?: string;
+}
+
+export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
+  embedded = false,
+  watermarkNameOverride,
+}) => {
   // preview mode — see hooks/usePreviewMode
   const previewMode = usePreviewMode();
 
@@ -166,7 +186,13 @@ export const QuizStudentApp: React.FC = () => {
     );
   }
 
-  return <QuizJoinFlow isStudentRole={isStudentRole} />;
+  return (
+    <QuizJoinFlow
+      isStudentRole={isStudentRole}
+      embedded={embedded}
+      watermarkNameOverride={watermarkNameOverride}
+    />
+  );
 };
 
 // ─── Preview lobby ────────────────────────────────────────────────────────────
@@ -233,9 +259,11 @@ const QuizPreviewLobby: React.FC = () => {
 
 // ─── Join flow ────────────────────────────────────────────────────────────────
 
-const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
-  isStudentRole,
-}) => {
+const QuizJoinFlow: React.FC<{
+  isStudentRole: boolean;
+  embedded: boolean;
+  watermarkNameOverride?: string;
+}> = ({ isStudentRole, embedded, watermarkNameOverride }) => {
   const params = new URLSearchParams(window.location.search);
   const urlCode = params.get('code') ?? '';
 
@@ -332,14 +360,28 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
         await joinQuizSession(urlCode, undefined, undefined);
         setJoined(true);
       } catch (err) {
-        // If the session has already ended, fall back to read-only review
-        // mode so the student can see their published score / responses /
-        // answers from the `/my-assignments` Completed list. Branch on the
-        // typed sentinel rather than the error message — the latter would
-        // silently break the fallback if the copy ever changes. Other join
-        // failures (no such code, network error, etc.) bubble up to the
-        // existing error UI.
-        if (err instanceof SessionEndedError) {
+        // Fall back to read-only review mode in two cases so the student can
+        // see their published score / responses / answers:
+        //   1. SessionEndedError — the session is over (the /my-assignments
+        //      Completed path).
+        //   2. AttemptLimitReachedError — the student already completed this
+        //      quiz and is at the attempt cap, but the session is STILL active
+        //      (a Google Classroom async attachment never gets "ended" by a
+        //      live teacher). Without this, a completed student who reopens a
+        //      published assignment hits the generic "attempt limit reached"
+        //      error screen and can never reach the published-results gate —
+        //      the exact symptom of grades being published but invisible until
+        //      the teacher manually ends the session. Re-join threw BEFORE any
+        //      reset, so the response is still `status: 'completed'` and the
+        //      active-session gate renders PublishedScoreReview.
+        // Branch on the typed sentinels rather than the error message — the
+        // latter would silently break the fallback if the copy ever changes.
+        // Other join failures (no such code, network error, etc.) bubble up to
+        // the existing error UI.
+        if (
+          err instanceof SessionEndedError ||
+          err instanceof AttemptLimitReachedError
+        ) {
           try {
             await subscribeForReview(urlCode);
             setJoined(true);
@@ -529,16 +571,18 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
     if (isStudentRole) {
       const ssoError = error ?? ssoAutoJoinError;
       if (ssoError) {
+        // SSO students arrive from /my-assignments or the Classroom add-on —
+        // always the async/self-paced flow, so this surface is LIGHT.
         return (
-          <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-4 p-6">
-            <AlertCircle className="w-10 h-10 text-red-400" />
-            <p className="text-slate-300 text-sm text-center max-w-sm">
+          <div className="min-h-screen bg-gradient-to-b from-white to-slate-100 flex flex-col items-center justify-center gap-4 p-6">
+            <AlertCircle className="w-10 h-10 text-red-500" />
+            <p className="text-slate-600 text-sm text-center max-w-sm">
               {ssoError}
             </p>
           </div>
         );
       }
-      return <FullPageLoader message="Joining quiz…" />;
+      return <FullPageLoader message="Joining quiz…" light />;
     }
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6">
@@ -645,6 +689,28 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
     myResponse &&
     (myResponse.status === 'completed' || atCap)
   ) {
+    // If the teacher has PUBLISHED results to students (scoreVisibility set on
+    // the archived assignment via "Publish Scores"), a completed student should
+    // see their results immediately — even while the session is still 'active'.
+    // A self-paced / async assignment (e.g. a Google Classroom attachment) never
+    // gets "ended" by a live teacher, so without this a completed student is
+    // stranded on the "waiting for the teacher to end the quiz" screen and can
+    // never see the score the teacher already published. Until results are
+    // published (scoreVisibility 'none'), fall back to the submitted-wait
+    // screen as before. Mirrors the post-end ResultsScreen branch.
+    const publishedVisibility = session.scoreVisibility ?? 'none';
+    if (publishedVisibility !== 'none' && myResponse.status === 'completed') {
+      return (
+        <PublishedScoreReview
+          session={session}
+          myResponse={myResponse}
+          visibility={publishedVisibility}
+          pin={pin}
+          embedded={embedded}
+          watermarkNameOverride={watermarkNameOverride}
+        />
+      );
+    }
     return (
       <QuizSubmittedWaitScreen
         session={session}
@@ -661,10 +727,28 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
     // arrives would briefly use `attempt-0` and then visibly reorder once
     // the real attempt index loaded — confusing on retakes.
     if (!myResponse) {
+      // Self-paced / async loads onto the LIGHT quiz that follows; live stays dark.
+      const lightLoad = session.sessionMode === 'student';
       return (
-        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
-          <div className="w-12 h-12 border-2 border-violet-500/30 border-t-violet-400 rounded-full animate-spin mb-4" />
-          <p className="text-slate-400 text-sm">Loading your quiz…</p>
+        <div
+          className={`min-h-screen flex flex-col items-center justify-center p-6 text-center ${
+            lightLoad
+              ? 'bg-gradient-to-b from-white to-slate-100'
+              : 'bg-slate-900'
+          }`}
+        >
+          <div
+            className={`w-12 h-12 border-2 rounded-full animate-spin mb-4 ${
+              lightLoad
+                ? 'border-brand-blue-primary/30 border-t-brand-blue-primary'
+                : 'border-violet-500/30 border-t-violet-400'
+            }`}
+          />
+          <p
+            className={`text-sm ${lightLoad ? 'text-slate-500' : 'text-slate-400'}`}
+          >
+            Loading your quiz…
+          </p>
         </div>
       );
     }
@@ -718,6 +802,8 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
       totalQuestions={session.totalQuestions}
       pin={pin}
       myStudentUid={myResponse?.studentUid}
+      embedded={embedded}
+      watermarkNameOverride={watermarkNameOverride}
     />
   );
 };
@@ -748,6 +834,33 @@ const WaitingRoom: React.FC<{
         </p>
       </div>
     )}
+  </div>
+);
+
+// ─── Success pill (post-submit / complete acknowledgement) ───────────────────
+//
+// The "Quiz complete!" / "Waiting for teacher…" confirmation card. Shared by
+// the self-paced (LIGHT) and teacher-paced (DARK) flows, so the palette is
+// chosen by the `light` flag the caller passes.
+const SuccessPill: React.FC<{ light: boolean; children: React.ReactNode }> = ({
+  light,
+  children,
+}) => (
+  <div
+    className={`p-4 border rounded-2xl flex items-center justify-center gap-3 ${
+      light
+        ? 'bg-emerald-50 border-emerald-200'
+        : 'bg-emerald-500/15 border-emerald-500/30'
+    }`}
+  >
+    <CheckCircle2
+      className={`w-5 h-5 shrink-0 ${light ? 'text-emerald-600' : 'text-emerald-400'}`}
+    />
+    <p
+      className={`text-sm font-bold ${light ? 'text-emerald-700' : 'text-emerald-300'}`}
+    >
+      {children}
+    </p>
   </div>
 );
 
@@ -829,6 +942,26 @@ const ActiveQuiz: React.FC<{
 
   // The Visibility Tracker — only active when tabWarningsEnabled
   const tabWarningsEnabled = session.tabWarningsEnabled !== false;
+
+  // Test integrity: when the teacher enabled "Block Copy & Paste", suppress
+  // copy/cut/paste — and drag-and-drop, the other channel for importing text
+  // composed elsewhere — across the question + answer area. Default off
+  // (clipboard allowed). The drop guard is safe alongside the Matching/
+  // Ordering inputs because those use dnd-kit's pointer sensors, not native
+  // HTML5 drag events.
+  const blockCopyPaste = session.blockCopyPaste === true;
+  const handleBlockedClipboard = (e: React.ClipboardEvent<HTMLDivElement>) =>
+    e.preventDefault();
+  const handleBlockedDrop = (e: React.DragEvent<HTMLDivElement>) =>
+    e.preventDefault();
+  const clipboardGuards = blockCopyPaste
+    ? {
+        onCopy: handleBlockedClipboard,
+        onCut: handleBlockedClipboard,
+        onPaste: handleBlockedClipboard,
+        onDrop: handleBlockedDrop,
+      }
+    : undefined;
 
   useEffect(() => {
     if (!tabWarningsEnabled) return; // Skip entirely when disabled
@@ -1615,8 +1748,16 @@ const ActiveQuiz: React.FC<{
 
   if (!currentQuestion) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
+      <div
+        className={`min-h-screen flex items-center justify-center ${
+          isStudentPaced
+            ? 'bg-gradient-to-b from-white to-slate-100'
+            : 'bg-slate-900'
+        }`}
+      >
+        <Loader2
+          className={`w-8 h-8 animate-spin ${isStudentPaced ? 'text-brand-blue-primary' : 'text-violet-400'}`}
+        />
       </div>
     );
   }
@@ -1813,6 +1954,61 @@ const ActiveQuiz: React.FC<{
   const options =
     currentQuestion.type === 'MC' ? (currentQuestion.choices ?? []) : [];
 
+  // ─── Light / dark theme tokens ──────────────────────────────────────────────
+  // The async / self-paced assignment experience renders LIGHT (matching the
+  // Classroom add-on surfaces and the brand spec's "light mode for student-
+  // facing"); the LIVE / teacher-paced quiz stays dark and immersive. Both
+  // modes share this ActiveQuiz shell, so the surfaces that can appear in
+  // either pull their classes from these tokens. The self-paced-only branches
+  // below (the brand-blue NEXT/SUBMIT buttons and "complete" cards) render only
+  // when `light`, so they use the light palette directly; the violet teacher-
+  // paced affordances and the gamified AnswerFeedbackBanner stay dark.
+  const light = isStudentPaced;
+  const appBg = light
+    ? 'bg-gradient-to-b from-white to-slate-100'
+    : 'bg-slate-900';
+  const headingText = light ? 'text-slate-900' : 'text-white';
+  const backBtnCls = light
+    ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+    : 'text-slate-400 hover:text-white hover:bg-slate-800';
+  const progressTrack = light ? 'bg-slate-200' : 'bg-slate-800';
+  const progressFill = light ? 'bg-brand-blue-primary' : 'bg-violet-500';
+  const unlockedBannerCls = light
+    ? 'bg-amber-50 border-amber-200 text-amber-800'
+    : 'bg-amber-500/20 border-amber-500/40 text-amber-200';
+  const mcSelectedCls = light
+    ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary'
+    : 'border-violet-500 bg-violet-500/20 text-white';
+  const mcUnselectedCls = light
+    ? 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+    : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 hover:bg-slate-700/50';
+  const fibInputCls = light
+    ? 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus:border-brand-blue-light'
+    : 'bg-slate-800 border-slate-700 text-white focus:border-violet-500';
+  const editorFallbackCls = light
+    ? 'bg-white border-slate-200'
+    : 'bg-slate-800 border-slate-700';
+  const stickyCtaBg = light ? 'bg-white/85' : 'bg-slate-900/85';
+  const typeBadgeCls = light
+    ? currentQuestion.type === 'MC'
+      ? 'bg-blue-100 text-blue-700'
+      : currentQuestion.type === 'FIB'
+        ? 'bg-amber-100 text-amber-700'
+        : currentQuestion.type === 'Matching'
+          ? 'bg-purple-100 text-purple-700'
+          : currentQuestion.type === 'Ordering'
+            ? 'bg-teal-100 text-teal-700'
+            : 'bg-rose-100 text-rose-700'
+    : currentQuestion.type === 'MC'
+      ? 'bg-blue-500/20 text-blue-400'
+      : currentQuestion.type === 'FIB'
+        ? 'bg-amber-500/20 text-amber-400'
+        : currentQuestion.type === 'Matching'
+          ? 'bg-purple-500/20 text-purple-400'
+          : currentQuestion.type === 'Ordering'
+            ? 'bg-teal-500/20 text-teal-400'
+            : 'bg-rose-500/20 text-rose-400';
+
   return (
     // `overflow-x-hidden` is a defensive backstop so an oversized child
     // (a long unbreakable token in a student answer, a misconfigured
@@ -1821,7 +2017,9 @@ const ActiveQuiz: React.FC<{
     // Chromebook. The max-width caps above keep content well-anchored
     // on widescreens; this guarantees the narrow-viewport path stays
     // scroll-free regardless of what's rendered inside.
-    <div className="h-screen overflow-y-auto overflow-x-hidden bg-slate-900 relative">
+    <div
+      className={`h-screen overflow-y-auto overflow-x-hidden relative ${appBg}`}
+    >
       {/* The "your teacher unlocked your attempt" prompt — covers the quiz
           UI on first render after a teacher unlock so the student knows
           what happened before they touch anything. */}
@@ -1852,7 +2050,9 @@ const ActiveQuiz: React.FC<{
       {/* Persistent "one strike and you're out" banner — visible for the
           duration of the resumed attempt so the rule stays top-of-mind. */}
       {myResponse?.unlocked && !showResumeModal && (
-        <div className="sticky top-0 z-10 flex items-start gap-2 px-4 py-2 bg-amber-500/20 border-b border-amber-500/40 text-amber-200 text-xs">
+        <div
+          className={`sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b text-xs ${unlockedBannerCls}`}
+        >
           <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
           <span>
             Your teacher unlocked your attempt.{' '}
@@ -1889,14 +2089,15 @@ const ActiveQuiz: React.FC<{
       )}
 
       {/* Progress bar */}
-      <div className="h-1 bg-slate-800">
+      <div className={`h-1 ${progressTrack}`}>
         <div
-          className="h-full bg-violet-500 transition-all"
+          className={`h-full transition-all ${progressFill}`}
           style={{ width: `${progress}%` }}
         />
       </div>
 
       <div
+        {...clipboardGuards}
         className={`flex flex-col p-6 mx-auto w-full ${
           // Per-type width caps. Tuned for the personal-device viewport
           // a student actually uses (laptop / Chromebook / tablet), not
@@ -1926,7 +2127,7 @@ const ActiveQuiz: React.FC<{
                   type="button"
                   onClick={handleBack}
                   aria-label="Previous question"
-                  className="p-1 -ml-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  className={`p-1 -ml-1 rounded transition-colors ${backBtnCls}`}
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -1937,24 +2138,22 @@ const ActiveQuiz: React.FC<{
           </div>
           {timeLeft !== null && !submitted && (
             <div
-              className={`flex items-center gap-1.5 text-sm font-bold ${timeLeft <= 5 ? 'text-red-400' : 'text-amber-400'}`}
+              className={`flex items-center gap-1.5 text-sm font-bold ${
+                timeLeft <= 5
+                  ? light
+                    ? 'text-red-500'
+                    : 'text-red-400'
+                  : light
+                    ? 'text-amber-600'
+                    : 'text-amber-400'
+              }`}
             >
               <Timer className="w-4 h-4" />
               {timeLeft}s
             </div>
           )}
           <span
-            className={`text-xs px-2 py-0.5 rounded font-medium ${
-              currentQuestion.type === 'MC'
-                ? 'bg-blue-500/20 text-blue-400'
-                : currentQuestion.type === 'FIB'
-                  ? 'bg-amber-500/20 text-amber-400'
-                  : currentQuestion.type === 'Matching'
-                    ? 'bg-purple-500/20 text-purple-400'
-                    : currentQuestion.type === 'Ordering'
-                      ? 'bg-teal-500/20 text-teal-400'
-                      : 'bg-rose-500/20 text-rose-400'
-            }`}
+            className={`text-xs px-2 py-0.5 rounded font-medium ${typeBadgeCls}`}
           >
             {currentQuestion.type === 'MC'
               ? 'Multiple Choice'
@@ -1971,7 +2170,9 @@ const ActiveQuiz: React.FC<{
         </div>
 
         {/* Question */}
-        <h2 className="text-xl font-bold text-white mb-8 leading-snug break-words">
+        <h2
+          className={`text-xl font-bold mb-8 leading-snug break-words ${headingText}`}
+        >
           {currentQuestion.text}
         </h2>
 
@@ -1993,9 +2194,7 @@ const ActiveQuiz: React.FC<{
               let cls =
                 'w-full text-left px-5 py-4 rounded-2xl border-2 text-sm font-medium transition-all ';
               if (!isLocked) {
-                cls += isSelected
-                  ? 'border-violet-500 bg-violet-500/20 text-white'
-                  : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 hover:bg-slate-700/50';
+                cls += isSelected ? mcSelectedCls : mcUnselectedCls;
               } else {
                 cls += isSelected
                   ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
@@ -2016,12 +2215,7 @@ const ActiveQuiz: React.FC<{
             <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
               {isStudentPaced ? (
                 submitted && currentIndex >= session.totalQuestions - 1 ? (
-                  <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <p className="text-emerald-300 text-sm font-bold">
-                      Quiz complete!
-                    </p>
-                  </div>
+                  <SuccessPill light={light}>Quiz complete!</SuccessPill>
                 ) : submitted &&
                   autoSubmitTriggeredFor === currentQuestion.id ? (
                   // Timeout-auto-submit fallback: timer expired without an
@@ -2030,7 +2224,7 @@ const ActiveQuiz: React.FC<{
                   // revisits (which keep the editable NEXT button below).
                   <button
                     onClick={handleNext}
-                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                    className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                   >
                     NEXT QUESTION <ArrowRight className="w-5 h-5" />
                   </button>
@@ -2043,7 +2237,7 @@ const ActiveQuiz: React.FC<{
                         void handleSubmitAndAdvance(submittableAnswer)
                       }
                       disabled={!submittableAnswer || submitting}
-                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                      className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                     >
                       {submitting ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -2084,14 +2278,11 @@ const ActiveQuiz: React.FC<{
                     streakCount={streakCount}
                     streakEnabled={session.streakBonusEnabled}
                   />
-                  <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <p className="text-emerald-300 text-sm font-bold">
-                      {currentIndex < session.totalQuestions - 1
-                        ? 'Waiting for teacher…'
-                        : 'Quiz complete!'}
-                    </p>
-                  </div>
+                  <SuccessPill light={light}>
+                    {currentIndex < session.totalQuestions - 1
+                      ? 'Waiting for teacher…'
+                      : 'Quiz complete!'}
+                  </SuccessPill>
                 </div>
               )}
             </div>
@@ -2106,7 +2297,7 @@ const ActiveQuiz: React.FC<{
               onChange={(e) => setCacheForCurrent(e.target.value)}
               disabled={submitted && !isStudentPaced}
               placeholder="Type your answer…"
-              className="w-full px-5 py-4 bg-slate-800 border-2 border-slate-700 rounded-2xl text-white text-sm focus:outline-none focus:ring-0 focus:border-violet-500 disabled:opacity-50"
+              className={`w-full px-5 py-4 border-2 rounded-2xl text-sm focus:outline-none focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
               onKeyDown={(e) => {
                 if (e.key !== 'Enter') return;
                 const trimmed = (submittableAnswer ?? '').trim();
@@ -2121,17 +2312,12 @@ const ActiveQuiz: React.FC<{
             <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
               {isStudentPaced ? (
                 submitted && currentIndex >= session.totalQuestions - 1 ? (
-                  <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <p className="text-emerald-300 text-sm font-bold">
-                      Quiz complete!
-                    </p>
-                  </div>
+                  <SuccessPill light={light}>Quiz complete!</SuccessPill>
                 ) : submitted &&
                   autoSubmitTriggeredFor === currentQuestion.id ? (
                   <button
                     onClick={handleNext}
-                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                    className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                   >
                     NEXT QUESTION <ArrowRight className="w-5 h-5" />
                   </button>
@@ -2146,7 +2332,7 @@ const ActiveQuiz: React.FC<{
                         )
                       }
                       disabled={!(submittableAnswer ?? '').trim() || submitting}
-                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                      className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                     >
                       {submitting ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -2188,14 +2374,11 @@ const ActiveQuiz: React.FC<{
                     streakCount={streakCount}
                     streakEnabled={session.streakBonusEnabled}
                   />
-                  <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <p className="text-emerald-300 text-sm font-bold">
-                      {currentIndex < session.totalQuestions - 1
-                        ? 'Waiting for teacher…'
-                        : 'Quiz complete!'}
-                    </p>
-                  </div>
+                  <SuccessPill light={light}>
+                    {currentIndex < session.totalQuestions - 1
+                      ? 'Waiting for teacher…'
+                      : 'Quiz complete!'}
+                  </SuccessPill>
                 </div>
               )}
             </div>
@@ -2242,7 +2425,9 @@ const ActiveQuiz: React.FC<{
           <div className="space-y-4">
             <React.Suspense
               fallback={
-                <div className="h-48 bg-slate-800 border border-slate-700 rounded-2xl flex items-center justify-center">
+                <div
+                  className={`h-48 border rounded-2xl flex items-center justify-center ${editorFallbackCls}`}
+                >
                   <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
                 </div>
               }
@@ -2274,6 +2459,8 @@ const ActiveQuiz: React.FC<{
                 maxWords={currentQuestion.maxWords}
                 disabled={submitted && !isStudentPaced}
                 isEssay={currentQuestion.type === 'essay'}
+                blockClipboard={blockCopyPaste}
+                light={light}
               />
             </React.Suspense>
 
@@ -2282,7 +2469,9 @@ const ActiveQuiz: React.FC<{
               `sticky bottom-0` the Submit button rides below the fold and
               students miss it.
             */}
-            <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3 sticky bottom-0 z-10 bg-slate-900/85 backdrop-blur-sm pt-3 pb-2 -mx-2 px-2 rounded-xl">
+            <div
+              className={`animate-in fade-in slide-in-from-bottom-2 space-y-3 sticky bottom-0 z-10 backdrop-blur-sm pt-3 pb-2 -mx-2 px-2 rounded-xl ${stickyCtaBg}`}
+            >
               {isStudentPaced ? (
                 submitted && currentIndex >= session.totalQuestions - 1 ? (
                   <QuizCompleteCard />
@@ -2305,7 +2494,7 @@ const ActiveQuiz: React.FC<{
                         )
                       }
                       disabled={submitting}
-                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                      className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                     >
                       {submitting ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -2463,6 +2652,7 @@ const StructuredQuestionInput: React.FC<{
               savedAnswer={savedAnswer}
               onChange={handleAnswerChange}
               disabled={submitting}
+              light={isStudentPaced}
             />
           ) : (
             <OrderingResponseInput
@@ -2470,6 +2660,7 @@ const StructuredQuestionInput: React.FC<{
               savedAnswer={savedAnswer}
               onChange={handleAnswerChange}
               disabled={submitting}
+              light={isStudentPaced}
             />
           )}
 
@@ -2481,7 +2672,7 @@ const StructuredQuestionInput: React.FC<{
             disabled={!canSubmit || submitting}
             className={`w-full py-4 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-all ${
               isStudentPaced
-                ? 'bg-emerald-600 hover:bg-emerald-500 font-black shadow-lg active:scale-95'
+                ? 'bg-brand-blue-primary hover:bg-brand-blue-dark font-black shadow-lg active:scale-95'
                 : 'bg-violet-600 hover:bg-violet-500'
             }`}
           >
@@ -2511,17 +2702,14 @@ const StructuredQuestionInput: React.FC<{
             // without an answer; give the student a way to advance.
             <button
               onClick={onNext}
-              className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+              className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
             >
               NEXT QUESTION <ArrowRight className="w-5 h-5" />
             </button>
           ) : (
-            <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-              <p className="text-emerald-300 text-sm font-bold">
-                {!isLastQuestion ? 'Waiting for teacher…' : 'Quiz complete!'}
-              </p>
-            </div>
+            <SuccessPill light={isStudentPaced}>
+              {!isLastQuestion ? 'Waiting for teacher…' : 'Quiz complete!'}
+            </SuccessPill>
           )}
         </div>
       )}
@@ -2534,9 +2722,9 @@ const StructuredQuestionInput: React.FC<{
 const SaveErrorBanner: React.FC<{ message: string }> = ({ message }) => (
   <div
     role="alert"
-    className="p-3 bg-red-500/20 border border-red-500/40 rounded-xl text-red-300 text-sm flex items-center gap-2"
+    className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2"
   >
-    <AlertCircle className="w-4 h-4 shrink-0" />
+    <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
     <span>{message}</span>
   </div>
 );
@@ -2552,24 +2740,18 @@ const WrittenSubmittedCard: React.FC<{ isWaiting: boolean }> = ({
   isWaiting,
 }) => (
   <div className="flex flex-col gap-3">
-    <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
-      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-      <p className="text-emerald-300 text-sm font-bold">
-        {isWaiting
-          ? 'Waiting for teacher…'
-          : 'Response submitted — your teacher will grade this.'}
-      </p>
-    </div>
+    <SuccessPill light={false}>
+      {isWaiting
+        ? 'Waiting for teacher…'
+        : 'Response submitted — your teacher will grade this.'}
+    </SuccessPill>
     {!isWaiting && <ReturnToAssignmentsButton />}
   </div>
 );
 
 const QuizCompleteCard: React.FC = () => (
   <div className="flex flex-col gap-3">
-    <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
-      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-      <p className="text-emerald-300 text-sm font-bold">Quiz complete!</p>
-    </div>
+    <SuccessPill light>Quiz complete!</SuccessPill>
     <ReturnToAssignmentsButton />
   </div>
 );
@@ -2756,6 +2938,9 @@ const ResultsScreen: React.FC<{
   pin: string;
   /** Auth uid — used by `StudentLeaderboard` to highlight the SSO student's row. */
   myStudentUid?: string;
+  /** Forwarded to PublishedScoreReview — see QuizStudentAppProps. */
+  embedded?: boolean;
+  watermarkNameOverride?: string;
 }> = ({
   session,
   myResponse,
@@ -2763,6 +2948,8 @@ const ResultsScreen: React.FC<{
   totalQuestions,
   pin,
   myStudentUid,
+  embedded = false,
+  watermarkNameOverride,
 }) => {
   const visibility = session.scoreVisibility ?? 'none';
   const showReview = visibility !== 'none' && !!myResponse;
@@ -2774,6 +2961,8 @@ const ResultsScreen: React.FC<{
         myResponse={myResponse}
         visibility={visibility}
         pin={pin}
+        embedded={embedded}
+        watermarkNameOverride={watermarkNameOverride}
       />
     );
   }
@@ -2849,7 +3038,54 @@ const PublishedScoreReview: React.FC<{
   >;
   visibility: NonNullable<QuizSession['scoreVisibility']>;
   pin: string;
-}> = ({ session, myResponse, visibility, pin }) => {
+  /**
+   * Inside the Classroom add-on iframe: on tab-warning lockout, render an
+   * in-iframe "see your teacher" screen instead of redirecting to the
+   * standalone /my-assignments page (which the partitioned iframe can't host).
+   */
+  embedded?: boolean;
+  /**
+   * Watermark label for the nameless Classroom SSO session. Falls back to the
+   * auth displayName / PIN / "Student" when unset (standalone routes).
+   */
+  watermarkNameOverride?: string;
+}> = ({
+  session,
+  myResponse,
+  visibility,
+  pin,
+  embedded = false,
+  watermarkNameOverride,
+}) => {
+  // Async / self-paced assignments (e.g. a Google Classroom attachment) review
+  // their results on a LIGHT surface — matching the add-on + brand spec; a LIVE
+  // teacher-paced quiz that has ended keeps the dark, immersive treatment.
+  const light = session.sessionMode === 'student';
+  const pageBg = light
+    ? 'bg-gradient-to-b from-white to-slate-100'
+    : 'bg-slate-900';
+  const headingText = light ? 'text-slate-900' : 'text-white';
+  const subtleText = light ? 'text-slate-500' : 'text-slate-400';
+  const faintText = light ? 'text-slate-400' : 'text-slate-500';
+  const prepText = light ? 'text-slate-600' : 'text-slate-300';
+  const scoreCardCls = light
+    ? 'border-slate-200 bg-white shadow-sm shadow-slate-900/5'
+    : 'border-slate-700 bg-slate-800';
+  const answerCardBase = light ? 'bg-white' : 'bg-slate-800/60';
+  const neutralBorder = light ? 'border-slate-200' : 'border-slate-700';
+  const correctBorder = light ? 'border-emerald-300' : 'border-emerald-500/40';
+  const incorrectBorder = light ? 'border-red-300' : 'border-red-500/40';
+  const numBadgeCls = light
+    ? 'bg-slate-100 text-slate-600'
+    : 'bg-slate-700 text-slate-200';
+  const qTextCls = light ? 'text-slate-900' : 'text-slate-100';
+  const answerCorrectText = light ? 'text-emerald-700' : 'text-emerald-300';
+  const answerIncorrectText = light ? 'text-red-600' : 'text-red-300';
+  const answerNeutralText = light ? 'text-slate-700' : 'text-slate-200';
+  const trophyCls = light ? 'text-amber-500' : 'text-amber-400';
+  const checkIconCls = light ? 'text-emerald-600' : 'text-emerald-400';
+  const xIconCls = light ? 'text-red-500' : 'text-red-400';
+
   const showResponses =
     visibility === 'score-and-responses' ||
     visibility === 'score-responses-and-answers';
@@ -2898,15 +3134,20 @@ const PublishedScoreReview: React.FC<{
   // listener will swap in the real publish time on its next snapshot.
   const [fallbackPublishedAt] = useState(() => Date.now());
   const publishedAt = session.scorePublishedAt ?? fallbackPublishedAt;
-  // Treat blank/whitespace-only displayName as missing so we still fall through
-  // to the PIN label when an SSO provider returns an empty string.
+  // Prefer an explicit override (the Classroom SSO session is nameless, so the
+  // add-on passes the roster-resolved / userinfo name down). Otherwise treat a
+  // blank/whitespace-only displayName as missing and fall through to the PIN
+  // label, then a generic "Student".
+  const trimmedOverride = watermarkNameOverride?.trim() ?? '';
   const trimmedDisplayName = auth.currentUser?.displayName?.trim() ?? '';
   const watermarkStudentName =
-    trimmedDisplayName.length > 0
-      ? trimmedDisplayName
-      : pin
-        ? `PIN ${pin}`
-        : 'Student';
+    trimmedOverride.length > 0
+      ? trimmedOverride
+      : trimmedDisplayName.length > 0
+        ? trimmedDisplayName
+        : pin
+          ? `PIN ${pin}`
+          : 'Student';
 
   // ─── Tab-switch warning protection ─────────────────────────────────────────
   // Listens for visibility/focus loss; each return increments the warning
@@ -2944,8 +3185,14 @@ const PublishedScoreReview: React.FC<{
   // tab that actually contains the locked row (active-tab would hide it).
   // No react-router in this app — match the existing `window.location.assign`
   // pattern used by `ReturnToAssignmentsButton`.
+  //
+  // Skipped when `embedded`: inside the Classroom add-on iframe, navigating to
+  // the standalone /my-assignments page would load it INSIDE the partitioned
+  // iframe (it expects the /student/login SSO lifecycle, not the add-on
+  // handshake). Instead the render below short-circuits to an in-iframe locked
+  // screen.
   useEffect(() => {
-    if (!lockedOut) return;
+    if (!lockedOut || embedded) return;
     try {
       window.sessionStorage.setItem('sb_my_assignments_filter', 'completed');
     } catch {
@@ -2953,7 +3200,30 @@ const PublishedScoreReview: React.FC<{
       // open on its default filter, which is fine.
     }
     window.location.assign('/my-assignments');
-  }, [lockedOut]);
+  }, [lockedOut, embedded]);
+
+  // In-iframe lockout screen for the Classroom add-on. Mirrors the locked-card
+  // messaging from /my-assignments but stays inside the iframe. Pure terminal
+  // state — no results are rendered once locked.
+  if (lockedOut && embedded) {
+    return (
+      <div className={`h-screen overflow-y-auto ${pageBg}`}>
+        <div className="min-h-full flex flex-col items-center justify-center gap-4 p-6 text-center">
+          <ShieldAlert
+            className={`h-12 w-12 ${light ? 'text-amber-500' : 'text-amber-400'}`}
+            aria-hidden="true"
+          />
+          <h1 className={`text-2xl font-black ${headingText}`}>
+            Results locked
+          </h1>
+          <p className={`max-w-sm text-sm ${subtleText}`}>
+            You left the results page too many times, so it&rsquo;s locked. Ask
+            your teacher to unlock your results.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Per-question cards dominate this view (snapshot + teacher
   // annotations + score + comment block), so the container is sized
@@ -2963,11 +3233,14 @@ const PublishedScoreReview: React.FC<{
   // `overflow-x-hidden` is the same horizontal-scroll backstop the
   // active-quiz screen uses — see comment there for why.
   return (
-    <div className="h-screen overflow-y-auto overflow-x-hidden bg-slate-900 px-4 py-8 sm:px-6 sm:py-12">
+    <div
+      className={`h-screen overflow-y-auto overflow-x-hidden px-4 py-8 sm:px-6 sm:py-12 ${pageBg}`}
+    >
       {watermarkEnabled && (
         <ResultsWatermark
           studentName={watermarkStudentName}
           publishedAt={publishedAt}
+          light={light}
         />
       )}
       <ResultsTabWarningModal
@@ -2978,23 +3251,25 @@ const PublishedScoreReview: React.FC<{
       />
       <div className="mx-auto w-full max-w-6xl">
         <header className="mb-6 flex flex-col items-center text-center">
-          <Trophy className="mb-4 h-12 w-12 text-amber-400" />
-          <h1 className="text-2xl font-black text-white sm:text-3xl">
+          <Trophy className={`mb-4 h-12 w-12 ${trophyCls}`} />
+          <h1 className={`text-2xl font-black sm:text-3xl ${headingText}`}>
             Your Results
           </h1>
-          <p className="mt-1 text-sm text-slate-400">{session.quizTitle}</p>
+          <p className={`mt-1 text-sm ${subtleText}`}>{session.quizTitle}</p>
           {pin && (
-            <p className="mt-1 text-xs text-slate-500">
-              PIN <span className="font-mono text-slate-300">{pin}</span>
+            <p className={`mt-1 text-xs ${faintText}`}>
+              PIN <span className={`font-mono ${prepText}`}>{pin}</span>
             </p>
           )}
         </header>
 
         {/* Score card — present at every visibility level. */}
-        <section className="mb-6 rounded-2xl border border-slate-700 bg-slate-800 p-6 text-center">
+        <section
+          className={`mb-6 rounded-2xl border p-6 text-center ${scoreCardCls}`}
+        >
           {scorePercent !== null ? (
             <>
-              <p className="text-5xl font-black text-white sm:text-6xl">
+              <p className={`text-5xl font-black sm:text-6xl ${headingText}`}>
                 {scorePercent}%
               </p>
               {/* Per-question tally counts only fully-correct answers, so
@@ -3005,13 +3280,13 @@ const PublishedScoreReview: React.FC<{
                   category error. Hide the line on essay-only quizzes; on
                   mixed quizzes it counts only the auto-graded subset. */}
               {autoGradedCount > 0 && (
-                <p className="mt-2 text-sm text-slate-400">
+                <p className={`mt-2 text-sm ${subtleText}`}>
                   {correctCount} of {autoGradedCount} fully correct
                 </p>
               )}
             </>
           ) : (
-            <p className="text-sm text-slate-300">
+            <p className={`text-sm ${prepText}`}>
               Your score is being prepared. Check back soon.
             </p>
           )}
@@ -3019,7 +3294,9 @@ const PublishedScoreReview: React.FC<{
 
         {showResponses && (
           <section>
-            <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
+            <h2
+              className={`mb-3 text-xs font-bold uppercase tracking-[0.14em] ${subtleText}`}
+            >
               Your Answers
             </h2>
             <div className="flex flex-col gap-3">
@@ -3051,26 +3328,30 @@ const PublishedScoreReview: React.FC<{
                 return (
                   <article
                     key={q.id}
-                    className={`rounded-xl border bg-slate-800/60 p-4 ${
+                    className={`rounded-xl border p-4 ${answerCardBase} ${
                       isCorrect
-                        ? 'border-emerald-500/40'
+                        ? correctBorder
                         : isIncorrect
-                          ? 'border-red-500/40'
-                          : 'border-slate-700'
+                          ? incorrectBorder
+                          : neutralBorder
                     }`}
                   >
                     <header className="mb-2 flex items-start gap-2">
-                      <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-700 font-mono text-[11px] font-bold text-slate-200">
+                      <span
+                        className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-bold ${numBadgeCls}`}
+                      >
                         {idx + 1}
                       </span>
-                      <p className="flex-1 min-w-0 break-words text-sm font-semibold text-slate-100">
+                      <p
+                        className={`flex-1 min-w-0 break-words text-sm font-semibold ${qTextCls}`}
+                      >
                         {q.text}
                       </p>
                       {isCorrect && (
-                        <Check className="h-5 w-5 shrink-0 text-emerald-400" />
+                        <Check className={`h-5 w-5 shrink-0 ${checkIconCls}`} />
                       )}
                       {isIncorrect && (
-                        <XIcon className="h-5 w-5 shrink-0 text-red-400" />
+                        <XIcon className={`h-5 w-5 shrink-0 ${xIconCls}`} />
                       )}
                     </header>
                     <div className="ml-7 space-y-1.5">
@@ -3080,18 +3361,19 @@ const PublishedScoreReview: React.FC<{
                           grade={writtenGrade}
                           showResponse={showResponses}
                           maxPoints={q.points ?? 1}
+                          light={light}
                         />
                       ) : (
                         <>
-                          <p className="text-xs text-slate-400">
+                          <p className={`text-xs ${subtleText}`}>
                             Your answer:{' '}
                             <span
                               className={`font-mono ${
                                 isCorrect
-                                  ? 'text-emerald-300'
+                                  ? answerCorrectText
                                   : isIncorrect
-                                    ? 'text-red-300'
-                                    : 'text-slate-200'
+                                    ? answerIncorrectText
+                                    : answerNeutralText
                               }`}
                             >
                               {studentAnswer
@@ -3100,9 +3382,11 @@ const PublishedScoreReview: React.FC<{
                             </span>
                           </p>
                           {showAnswers && correctAnswer && (
-                            <p className="text-xs text-slate-400">
+                            <p className={`text-xs ${subtleText}`}>
                               Correct answer:{' '}
-                              <span className="font-mono text-emerald-300">
+                              <span
+                                className={`font-mono ${answerCorrectText}`}
+                              >
                                 {formatAnswerForDisplay(correctAnswer, q.type)}
                               </span>
                             </p>
@@ -3118,7 +3402,7 @@ const PublishedScoreReview: React.FC<{
         )}
 
         {!showResponses && (
-          <p className="text-center text-xs text-slate-500">
+          <p className={`text-center text-xs ${faintText}`}>
             Your teacher published your score. Detailed responses aren&apos;t
             shared for this assignment.
           </p>
@@ -3145,7 +3429,9 @@ export const WrittenAnswerReview: React.FC<{
   grade: WrittenAnswerGrade | undefined;
   showResponse: boolean;
   maxPoints: number;
-}> = ({ studentAnswer, grade, showResponse, maxPoints }) => {
+  /** LIGHT for the async/self-paced review; dark for a live-ended quiz. */
+  light?: boolean;
+}> = ({ studentAnswer, grade, showResponse, maxPoints, light = false }) => {
   if (!showResponse) {
     return null;
   }
@@ -3162,6 +3448,7 @@ export const WrittenAnswerReview: React.FC<{
           mode="read"
           snapshot={snapshot}
           annotations={annotations}
+          light={light}
         />
       ) : (
         <p className="text-xs text-slate-500 italic">— no response</p>
@@ -3173,20 +3460,42 @@ export const WrittenAnswerReview: React.FC<{
             // the teacher's written feedback is the most visible thing
             // after the student's own answer — it's the part students
             // most need to read.
-            <div className="rounded-lg border border-violet-400/40 bg-violet-500/10 px-3 py-2.5">
-              <p className="text-[10px] font-black uppercase tracking-wider text-violet-300 mb-1">
+            <div
+              className={`rounded-lg border px-3 py-2.5 ${
+                light
+                  ? 'border-brand-blue-primary/20 bg-brand-blue-lighter'
+                  : 'border-violet-400/40 bg-violet-500/10'
+              }`}
+            >
+              <p
+                className={`text-[10px] font-black uppercase tracking-wider mb-1 ${
+                  light ? 'text-brand-blue-primary' : 'text-violet-300'
+                }`}
+              >
                 Teacher Comment
               </p>
-              <p className="text-sm text-slate-100 leading-relaxed whitespace-pre-wrap">
+              <p
+                className={`text-sm leading-relaxed whitespace-pre-wrap ${
+                  light ? 'text-slate-800' : 'text-slate-100'
+                }`}
+              >
                 {grade.overallComment}
               </p>
             </div>
           )}
-          <div className="flex items-baseline justify-between gap-2 pt-1 border-t border-slate-700/60">
+          <div
+            className={`flex items-baseline justify-between gap-2 pt-1 border-t ${
+              light ? 'border-slate-200' : 'border-slate-700/60'
+            }`}
+          >
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
               Score
             </span>
-            <span className="font-mono text-base font-black text-slate-100">
+            <span
+              className={`font-mono text-base font-black ${
+                light ? 'text-slate-900' : 'text-slate-100'
+              }`}
+            >
               {grade.pointsAwarded} / {maxPoints}
             </span>
           </div>
@@ -3311,9 +3620,20 @@ const QuizSubmittedWaitScreen: React.FC<{
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
-const FullPageLoader: React.FC<{ message: string }> = ({ message }) => (
-  <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-4">
-    <Loader2 className="w-10 h-10 text-violet-400 animate-spin" />
-    <p className="text-slate-400 text-sm">{message}</p>
+const FullPageLoader: React.FC<{ message: string; light?: boolean }> = ({
+  message,
+  light = false,
+}) => (
+  <div
+    className={`min-h-screen flex flex-col items-center justify-center gap-4 ${
+      light ? 'bg-gradient-to-b from-white to-slate-100' : 'bg-slate-900'
+    }`}
+  >
+    <Loader2
+      className={`w-10 h-10 animate-spin ${light ? 'text-brand-blue-primary' : 'text-violet-400'}`}
+    />
+    <p className={`text-sm ${light ? 'text-slate-500' : 'text-slate-400'}`}>
+      {message}
+    </p>
   </div>
 );

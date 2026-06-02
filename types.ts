@@ -2570,6 +2570,13 @@ export type QuizSessionMode = 'teacher' | 'auto' | 'student';
  */
 export interface BaseSessionOptions {
   tabWarningsEnabled?: boolean;
+  /**
+   * Block copy / cut / paste in the student answer UI. Adds a layer of test
+   * integrity alongside tab-switch detection — a student can't switch to
+   * another tab, compose an answer there, then paste a block of text back in.
+   * Default false (copy/paste allowed) preserves the pre-existing behavior.
+   */
+  blockCopyPaste?: boolean;
   showResultToStudent?: boolean;
   showCorrectAnswerToStudent?: boolean;
   showCorrectOnBoard?: boolean;
@@ -2689,6 +2696,12 @@ export interface QuizSession {
   // ─── Toggles (Phase 1) ─────────────────────────────────────────────────────
   /** Whether tab-switch detection is active on student devices (default true) */
   tabWarningsEnabled?: boolean;
+  /**
+   * Block copy / cut / paste in the student quiz UI (default false). Mirrored
+   * from the assignment's `sessionOptions.blockCopyPaste` so the student
+   * client doesn't need a second fetch.
+   */
+  blockCopyPaste?: boolean;
   /** Show right/wrong indicator to students after they submit (default false) */
   showResultToStudent?: boolean;
   /** Reveal the correct answer text to students after submit (default false) */

@@ -25,8 +25,25 @@
 import React, { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { signInWithCustomToken } from 'firebase/auth';
-import { auth, functions } from '@/config/firebase';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+} from 'firebase/firestore';
+import { ClipboardList, ClipboardCheck, Video, ArrowRight } from 'lucide-react';
+import { auth, db, functions } from '@/config/firebase';
 import { ensureGis, requestAccessToken } from './gisOAuth';
+import {
+  AddonShell,
+  AddonHeader,
+  AddonCard,
+  AddonButton,
+  AddonStatus,
+  AddonError,
+} from './AddonShell';
 
 // QuizStudentApp is the real quiz runner. It reads `?code=` from the URL and,
 // because our handshake already signed the student in with a studentRole custom
@@ -50,7 +67,7 @@ const VideoActivityStudentApp = lazy(() =>
 );
 
 const FullPage: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="flex min-h-screen items-center justify-center bg-slate-900 text-slate-100">
+  <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 font-sans text-slate-100">
     {children}
   </div>
 );
@@ -68,6 +85,13 @@ interface ClassroomAddonLoginResult {
   studentRole: boolean;
   customToken?: string;
   submissionId?: string;
+  /**
+   * Transient display name (roster-resolved, else Google userinfo) for the
+   * results watermark. The studentRole session is otherwise nameless, so
+   * without this the watermark falls back to a generic "Student" label. Never
+   * persisted — held in component state only and passed to the runner.
+   */
+  displayName?: string;
 }
 
 interface SessionInfo {
@@ -75,6 +99,14 @@ interface SessionInfo {
   isAnonymous: boolean;
   studentRole: boolean;
   classIds: unknown;
+}
+
+/** Normalize a quiz join code to the stored form (uppercase alphanumerics). */
+function normalizeCode(code: string): string {
+  return code
+    .trim()
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toUpperCase();
 }
 
 export const ClassroomAddonStudentSpike: React.FC = () => {
@@ -98,7 +130,11 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
   const sessionId = params.get('sessionId') ?? '';
   const isVideoActivity = kind === 'va' && sessionId !== '';
 
-  const [log, setLog] = useState<string[]>([]);
+  // User-facing progress line + sticky error banner (replace the spike's
+  // always-visible session dump + scrolling log; no raw diagnostics are ever
+  // shown to students).
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [session, setSession] = useState<SessionInfo | null>(null);
   // True only after a handshake completes IN THIS page load. We gate the runner
@@ -106,9 +142,19 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
   // session from another student/course can never mount the runner with the
   // wrong classIds — the student always re-handshakes for THIS attachment.
   const [handshakeDone, setHandshakeDone] = useState(false);
+  // Best-effort CTA hint: true when this device's persisted student already
+  // completed THIS quiz AND the teacher has published scores — so we label the
+  // button "View results" instead of "Open quiz". The click still re-handshakes
+  // and re-verifies identity, so a stale hint (shared device) self-corrects to
+  // the right runner screen.
+  const [resultsReady, setResultsReady] = useState(false);
+  // Transient display name from the handshake (roster-resolved, else userinfo).
+  // Passed to the runner so the results watermark can identify this student —
+  // the studentRole session itself carries no name. Never persisted.
+  const [studentName, setStudentName] = useState<string | null>(null);
 
   const append = useCallback((line: string) => {
-    setLog((prev) => [...prev, `${new Date().toLocaleTimeString()}  ${line}`]);
+    setStatusMsg(line);
   }, []);
 
   // Report whatever Firebase session is already present on mount — this is the
@@ -148,12 +194,60 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
     };
   }, []);
 
+  // A persisted studentRole session lets us pre-check this student's state for
+  // the CTA label without forcing the OAuth popup first. Null unless present.
+  const studentUid = session?.studentRole ? session.uid : null;
+  useEffect(() => {
+    // Reset so the label recomputes cleanly when the session/code change.
+    setResultsReady(false);
+    // Quiz only — the VA completion screen surfaces its own published score.
+    if (isVideoActivity || !code || !studentUid) return;
+    let active = true;
+    void (async () => {
+      try {
+        // Resolve the quiz session by join code (same lookup students use to
+        // join — no extra auth needed).
+        const sessSnap = await getDocs(
+          query(
+            collection(db, 'quiz_sessions'),
+            where('code', '==', normalizeCode(code))
+          )
+        );
+        if (!active || sessSnap.empty) return;
+        const sessDoc = sessSnap.docs[0];
+        const published =
+          ((sessDoc.data().scoreVisibility as string | undefined) ?? 'none') !==
+          'none';
+        if (!published) return;
+        // Read THIS student's own response (doc id == their pseudonym uid).
+        const respSnap = await getDoc(
+          doc(db, 'quiz_sessions', sessDoc.id, 'responses', studentUid)
+        );
+        if (!active) return;
+        const completed =
+          respSnap.exists() &&
+          (respSnap.data().status as string | undefined) === 'completed';
+        if (completed) setResultsReady(true);
+      } catch {
+        // Best-effort hint only — fall back to the default "Open quiz" label.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [isVideoActivity, code, studentUid]);
+
   const runHandshake = useCallback(async () => {
     setBusy(true);
+    setErrorMsg(null);
     try {
       if (!courseId || !itemId) {
         append(
           'Missing courseId/itemId in the URL — set them as query params.'
+        );
+        setErrorMsg(
+          'This assignment is missing its Classroom context. Re-open it from ' +
+            'the Classroom assignment.'
         );
         return;
       }
@@ -194,15 +288,48 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
       append(
         `submissionId=${data.submissionId}. Signing in with custom token…`
       );
+      // Capture the transient watermark name BEFORE sign-in so it's ready when
+      // the runner mounts. Held in state only — never persisted.
+      if (data.displayName) setStudentName(data.displayName);
       await signInWithCustomToken(auth, data.customToken);
       append('Signed in.');
+      // For a video activity, VideoActivityStudentApp reads its sessionId from
+      // the pathname (`/activity/:sessionId`). Rewrite the URL in place HERE — in
+      // the handshake handler, BEFORE the re-render that mounts the runner — so
+      // the child mounts on the correct path. Doing this during render would be
+      // an impure side effect; a post-render effect would run AFTER the child has
+      // already read the stale path (parent effects fire after child mount).
+      // Idempotent, and the query string is preserved.
+      const vaPath = `/activity/${sessionId}`;
+      if (
+        isVideoActivity &&
+        typeof window !== 'undefined' &&
+        window.location.pathname !== vaPath
+      ) {
+        window.history.replaceState(
+          null,
+          '',
+          `${vaPath}${window.location.search}`
+        );
+      }
       setHandshakeDone(true);
     } catch (err) {
-      append(`ERROR: ${err instanceof Error ? err.message : String(err)}`);
+      const message = err instanceof Error ? err.message : String(err);
+      append(`ERROR: ${message}`);
+      setErrorMsg(`Something went wrong: ${message}`);
     } finally {
       setBusy(false);
     }
-  }, [append, courseId, itemId, itemType, attachmentId, loginHint]);
+  }, [
+    append,
+    courseId,
+    itemId,
+    itemType,
+    attachmentId,
+    loginHint,
+    isVideoActivity,
+    sessionId,
+  ]);
 
   // Render the runner only after a handshake completed in THIS page load (not on
   // a merely-persisted session) so a stale session from another student/course
@@ -212,23 +339,10 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
   const handshakeReady = handshakeDone && session?.studentRole === true;
 
   if (handshakeReady && isVideoActivity) {
-    // VideoActivityStudentApp reads its sessionId from the pathname
-    // (`/activity/:sessionId`). Rewrite the URL in place so it mounts exactly
-    // as it does on the `/activity` route — same providers (DialogProvider),
-    // same SSO-auto-join path — while preserving the query string for any
-    // params the runner inspects. Idempotent: only rewrites when the path
-    // isn't already `/activity/<sessionId>`.
-    const targetPath = `/activity/${sessionId}`;
-    if (
-      typeof window !== 'undefined' &&
-      window.location.pathname !== targetPath
-    ) {
-      window.history.replaceState(
-        null,
-        '',
-        `${targetPath}${window.location.search}`
-      );
-    }
+    // The URL was rewritten to `/activity/:sessionId` in runHandshake (BEFORE
+    // this mount), so VideoActivityStudentApp reads the right sessionId from the
+    // pathname and mounts exactly as on the `/activity` route — same providers
+    // (DialogProvider), same SSO-auto-join path.
     return (
       <Suspense
         fallback={
@@ -251,104 +365,91 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
           </FullPage>
         }
       >
-        <QuizStudentApp />
+        {/* embedded: this runs inside Classroom's add-on iframe, so the results
+            lockout must show an in-iframe message instead of redirecting to the
+            standalone /my-assignments page. watermarkNameOverride identifies the
+            otherwise-nameless studentRole session on the results watermark. */}
+        <QuizStudentApp
+          embedded
+          watermarkNameOverride={studentName ?? undefined}
+        />
       </Suspense>
     );
   }
 
   const hasRunner = isVideoActivity || code !== '';
+  const RunnerIcon = isVideoActivity
+    ? Video
+    : resultsReady
+      ? ClipboardCheck
+      : ClipboardList;
+
+  // Label reflects the student's state: "View results" once their teacher has
+  // published their completed quiz; "Open" (not "Start") otherwise, since it
+  // covers both a first attempt and returning mid-quiz.
+  const startLabel = busy
+    ? resultsReady
+      ? 'Opening results…'
+      : 'Opening…'
+    : hasRunner
+      ? resultsReady
+        ? 'View results'
+        : isVideoActivity
+          ? 'Open activity'
+          : 'Open quiz'
+      : 'Sign in';
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 p-6 font-sans">
-      <div className="mx-auto max-w-2xl space-y-4">
-        <div>
-          <h1 className="text-xl font-bold">SpartBoard — Classroom Add-on</h1>
-          <p className="text-sm text-slate-400">
-            Sign in to start your{' '}
-            {isVideoActivity ? 'video activity' : 'assignment'}. This confirms
-            who you are inside Classroom.
-          </p>
-        </div>
+    <AddonShell maxWidthClassName="max-w-md">
+      <AddonHeader
+        icon={RunnerIcon}
+        title={
+          resultsReady
+            ? 'Your quiz results'
+            : isVideoActivity
+              ? 'Your video activity'
+              : 'Your quiz'
+        }
+        subtitle={
+          resultsReady
+            ? 'Your teacher published your results — open them below.'
+            : 'Sign in with your school account to begin — this confirms who you are inside Classroom.'
+        }
+      />
 
-        <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm">
-          <div className="grid grid-cols-[8rem_1fr] gap-y-1">
-            <span className="text-slate-400">courseId</span>
-            <span className="font-mono break-all">
-              {courseId === '' ? '(missing)' : courseId}
-            </span>
-            <span className="text-slate-400">itemId</span>
-            <span className="font-mono break-all">
-              {itemId === '' ? '(missing)' : itemId}
-            </span>
-            <span className="text-slate-400">itemType</span>
-            <span className="font-mono">{itemType}</span>
-            <span className="text-slate-400">attachmentId</span>
-            <span className="font-mono break-all">
-              {attachmentId === '' ? '(missing)' : attachmentId}
-            </span>
-            <span className="text-slate-400">kind</span>
-            <span className="font-mono">
-              {isVideoActivity ? 'video-activity' : 'quiz'}
-            </span>
-            <span className="text-slate-400">login_hint</span>
-            <span className="font-mono break-all">{loginHint ?? '(none)'}</span>
+      <AddonCard className="p-6">
+        <div className="flex flex-col items-center gap-5 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-blue-lighter ring-1 ring-brand-blue-light/20">
+            <RunnerIcon
+              className="h-7 w-7 text-brand-blue-primary"
+              aria-hidden="true"
+            />
           </div>
-        </div>
-
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={() => void runHandshake()}
-            disabled={busy}
-            className="rounded bg-blue-500 px-4 py-2 font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
-          >
-            {busy
-              ? 'Working…'
+          <p className="max-w-xs text-sm text-slate-500">
+            {resultsReady
+              ? 'Your results are ready. Open them to see your score.'
               : hasRunner
-                ? isVideoActivity
-                  ? 'Start activity'
-                  : 'Start quiz'
-                : 'Sign in'}
-          </button>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="rounded border border-white/20 px-4 py-2 font-medium transition hover:bg-white/10"
+                ? 'When you’re ready, open your assignment below. Your progress saves automatically.'
+                : 'Sign in below to continue.'}
+          </p>
+          <AddonButton
+            onClick={() => void runHandshake()}
+            loading={busy}
+            className="w-full"
           >
-            Reload
-          </button>
+            {startLabel}
+            {!busy && hasRunner && (
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            )}
+          </AddonButton>
         </div>
+      </AddonCard>
 
-        <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm">
-          <h2 className="mb-2 font-semibold">Current Firebase session</h2>
-          {session ? (
-            <div className="grid grid-cols-[8rem_1fr] gap-y-1">
-              <span className="text-slate-400">uid</span>
-              <span className="font-mono break-all">{session.uid}</span>
-              <span className="text-slate-400">isAnonymous</span>
-              <span className="font-mono">{String(session.isAnonymous)}</span>
-              <span className="text-slate-400">studentRole</span>
-              <span className="font-mono">{String(session.studentRole)}</span>
-              <span className="text-slate-400">classIds</span>
-              <span className="font-mono break-all">
-                {JSON.stringify(session.classIds)}
-              </span>
-            </div>
-          ) : (
-            <p className="text-slate-400">
-              No Firebase user yet — sign in above to begin.
-            </p>
-          )}
-        </div>
-
-        <div className="rounded-lg border border-white/10 bg-black/30 p-4">
-          <h2 className="mb-2 text-sm font-semibold">Log</h2>
-          <pre className="whitespace-pre-wrap break-all font-mono text-xs text-slate-300">
-            {log.length ? log.join('\n') : '(no output yet)'}
-          </pre>
-        </div>
+      <div className="mt-4 space-y-2">
+        <AddonError message={errorMsg} />
+        {busy && <AddonStatus message={statusMsg} busy />}
       </div>
-    </div>
+    </AddonShell>
   );
 };
 

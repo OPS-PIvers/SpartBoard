@@ -176,6 +176,13 @@ export interface AssignmentSettingsToggleGroupProps {
    */
   excludeSections?: AssignmentSettingsSection[];
   /**
+   * Show the "Block Copy & Paste" toggle directly under Tab Switch Detection
+   * in the integrity section. Quiz opts in (it has free-text answer fields a
+   * student could paste into); Video Activity has no text inputs and leaves
+   * this off. Defaults to false.
+   */
+  showCopyPasteToggle?: boolean;
+  /**
    * Optional content rendered after the standard sections. Quiz uses this
    * for the gamification block; VA uses this for rewind/penalty/score
    * visibility. The trailing block can use the exported `SectionHeader`
@@ -197,6 +204,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
   excludeSections,
   trailingSlot,
   integritySectionLabel,
+  showCopyPasteToggle = false,
 }) => {
   const update = <K extends keyof BaseSessionOptions>(
     key: K,
@@ -237,6 +245,14 @@ export const AssignmentSettingsToggleGroup: React.FC<
             onChange={(v) => update('tabWarningsEnabled', v)}
             hint="Warn students who leave the assignment tab"
           />
+          {showCopyPasteToggle && (
+            <ToggleRow
+              label="Block Copy & Paste"
+              checked={options.blockCopyPaste ?? false}
+              onChange={(v) => update('blockCopyPaste', v)}
+              hint="Stops students pasting answers from other tabs"
+            />
+          )}
         </>
       )}
 

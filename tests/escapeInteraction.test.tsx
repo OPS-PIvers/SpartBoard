@@ -398,4 +398,105 @@ describe('Global Escape Interaction', () => {
       })
     );
   });
+
+  /**
+   * Regression: the global Delete key handler in DashboardView called
+   * e.preventDefault() before checking whether the active element was an
+   * input/textarea/contentEditable. This silently swallowed Delete keystrokes
+   * in any text field on the board (widget settings inputs, title editors, etc.),
+   * because the window-level native listener fired even when the user was typing.
+   *
+   * Fix: added an `isTypingField` guard that returns early (without preventDefault)
+   * when Delete is pressed while a form field has focus, matching the pattern
+   * already used for the Escape key handler above it.
+   */
+  it('does not call preventDefault when Delete is pressed while a text input is focused', () => {
+    const dashboard = createMockDashboard([]);
+
+    render(
+      <DashboardContext.Provider
+        value={
+          {
+            ...mockContextValue,
+            activeDashboard: dashboard,
+          } as DashboardContextValue
+        }
+      >
+        <DashboardView />
+        <input data-testid="text-input" />
+      </DashboardContext.Provider>
+    );
+
+    const input = screen.getByTestId('text-input');
+    input.focus();
+    expect(document.activeElement).toBe(input);
+
+    // Fire Delete from the window (as the global keydown handler receives it).
+    const deleteEvent = new KeyboardEvent('keydown', {
+      key: 'Delete',
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      window.dispatchEvent(deleteEvent);
+    });
+
+    // The global handler must NOT call preventDefault while an input is focused —
+    // doing so blocks the browser from deleting the character the user intended.
+    expect(deleteEvent.defaultPrevented).toBe(false);
+  });
+
+  it('does call preventDefault and dispatch widget-keyboard-action when Delete is pressed outside a text input', () => {
+    const widgets: WidgetData[] = [
+      {
+        id: 'w1',
+        type: 'clock',
+        x: 0,
+        y: 0,
+        w: 100,
+        h: 100,
+        z: 1,
+        flipped: false,
+        config: {},
+      } as unknown as WidgetData,
+    ];
+    const dashboard = createMockDashboard(widgets);
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+    render(
+      <DashboardContext.Provider
+        value={
+          {
+            ...mockContextValue,
+            activeDashboard: dashboard,
+          } as DashboardContextValue
+        }
+      >
+        <DashboardView />
+      </DashboardContext.Provider>
+    );
+
+    // No input focused — focus is on document.body.
+    expect(document.activeElement).toBe(document.body);
+
+    const deleteEvent = new KeyboardEvent('keydown', {
+      key: 'Delete',
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      window.dispatchEvent(deleteEvent);
+    });
+
+    // The handler should prevent default (browser may otherwise navigate back).
+    expect(deleteEvent.defaultPrevented).toBe(true);
+
+    // And it should dispatch a widget-keyboard-action for the top widget.
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'widget-keyboard-action',
+        detail: expect.objectContaining({ key: 'Delete', widgetId: 'w1' }),
+      })
+    );
+  });
 });

@@ -1,20 +1,29 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { WidgetData } from '@/types';
 import { RandomWidget } from '@/components/widgets/random/RandomWidget';
 
 const mockUpdateWidget = vi.fn();
+const mockUpdateDashboard = vi.fn();
+
+// Mutable reference so individual tests can swap in a different activeDashboard
+// between the pick click and the deferred performUpdate call (stale-closure test).
+let mockActiveDashboard: {
+  widgets: { id: string; type: string; config: Record<string, unknown> }[];
+} = {
+  widgets: [],
+};
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
     updateWidget: mockUpdateWidget,
-    updateDashboard: vi.fn(),
+    updateDashboard: mockUpdateDashboard,
     rosters: [],
     activeRosterId: null,
-    activeDashboard: {
-      widgets: [],
-    },
+    activeDashboard: mockActiveDashboard,
+    addToast: vi.fn(),
+    addWidget: vi.fn(),
   }),
 }));
 
@@ -69,6 +78,12 @@ describe('RandomWidget', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockActiveDashboard = { widgets: [] };
+  });
+
+  afterEach(() => {
+    // Restore real timers if a test installed fake ones
+    vi.useRealTimers();
   });
 
   it('renders the remaining count when in single mode', () => {
@@ -308,6 +323,101 @@ describe('RandomWidget', () => {
         .getAttribute('data-font-size');
 
       expect(fontSize).toBe('min(15cqw, 60cqh)');
+    });
+  });
+
+  describe('autoStartTimer stale-closure fix', () => {
+    // Regression test for the stale-closure bug in handlePick's performUpdate.
+    //
+    // PROBLEM: performUpdate is defined inside handlePick and closes over
+    // `activeDashboard` at the moment the teacher clicks Pick. For the flash
+    // animation the callback fires ~1.7 s later (21 × 80 ms). If the dashboard
+    // mutates in the interim — e.g. a time-tool widget is added, removed, or
+    // replaced — the stale snapshot is used to locate the time-tool widget,
+    // so autoStartTimer silently targets the wrong (or non-existent) widget.
+    //
+    // FIX: an `activeDashboardRef` is kept in sync with the latest value on
+    // every render (same pattern as `soundEnabledRef` / `studentsRef`).
+    // performUpdate reads `activeDashboardRef.current` instead of the
+    // closure-captured `activeDashboard`.
+    //
+    // TEST SCENARIO:
+    //  1. Dashboard starts with time-tool widget id "timer-old".
+    //  2. Teacher clicks Pick (animation starts, flash runs for 21 ticks).
+    //  3. BEFORE the animation ends, the dashboard is replaced with a new
+    //     object containing time-tool widget id "timer-new" (simulating a
+    //     real-time Firestore update / another widget being removed + re-added).
+    //  4. Animation finishes → performUpdate fires.
+    //  STALE (broken): updateWidget called with "timer-old"   ← test FAILS
+    //  FIXED (correct): updateWidget called with "timer-new"  ← test PASSES
+    it('reads the live activeDashboard when autoStartTimer fires after a flash animation', () => {
+      vi.useFakeTimers();
+
+      // Step 1 – dashboard has timer-old at click time.
+      const oldTimerWidget = {
+        id: 'timer-old',
+        type: 'time-tool',
+        config: { isRunning: false },
+      };
+      mockActiveDashboard = { widgets: [oldTimerWidget] };
+
+      const autoTimerWidget: WidgetData = {
+        id: 'random-1',
+        type: 'random',
+        x: 0,
+        y: 0,
+        w: 400,
+        h: 400,
+        z: 1,
+        flipped: false,
+        config: {
+          mode: 'single',
+          firstNames: 'Alice\nBob',
+          lastNames: '',
+          remainingStudents: [],
+          lastResult: null,
+          autoStartTimer: true,
+          visualStyle: 'flash',
+          soundEnabled: false,
+        },
+      };
+
+      const { rerender } = render(<RandomWidget widget={autoTimerWidget} />);
+
+      // Step 2 – click Pick to start the flash animation.
+      const pickButton = screen.getByTitle('Randomize');
+      fireEvent.click(pickButton);
+
+      // Step 3 – dashboard mutates before the animation ends:
+      // Firestore delivers an update that replaces timer-old with timer-new.
+      const newTimerWidget = {
+        id: 'timer-new',
+        type: 'time-tool',
+        config: { isRunning: false },
+      };
+      mockActiveDashboard = { widgets: [newTimerWidget] };
+      // Re-render so the component receives the updated activeDashboard and
+      // can update its ref before performUpdate fires.
+      act(() => {
+        rerender(<RandomWidget widget={autoTimerWidget} />);
+      });
+
+      // Step 4 – advance fake timers past the 21-tick flash animation
+      // (21 ticks × 80 ms = 1 680 ms; use 2 000 ms to be safe).
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+
+      // The autoStartTimer branch should have called updateWidget with the
+      // CURRENT time-tool widget id ("timer-new"), not the stale one.
+      const timerCalls = mockUpdateWidget.mock.calls.filter(
+        (args: unknown[]) => args[0] === 'timer-new' || args[0] === 'timer-old'
+      );
+      expect(timerCalls.length).toBeGreaterThan(0);
+      // Every timer call must target the live widget ("timer-new").
+      for (const args of timerCalls) {
+        expect(args[0]).toBe('timer-new');
+      }
     });
   });
 });
