@@ -550,6 +550,19 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         byStudentUid
       );
 
+      // buildScoreboardTeams drops responses that can't be scored yet (answer
+      // key still loading / id drift), so `completed` can be non-empty while
+      // `newTeams` is empty. Bail before touching the widget — otherwise we'd
+      // overwrite an already-populated scoreboard with an empty roster and toast
+      // a misleading "0 students" success.
+      if (newTeams.length === 0) {
+        addToast(
+          'No scoreable students yet — the answer key may still be loading.',
+          'info'
+        );
+        return;
+      }
+
       const existingScoreboard = activeDashboard?.widgets.find(
         (w) => w.type === 'scoreboard'
       );
@@ -1720,9 +1733,14 @@ const OverviewTab: React.FC<{
             const count = completedScores.filter(
               (s) => s >= b.min && s <= b.max
             ).length;
+            // Denominator is the SCOREABLE population (what completedScores
+            // counts), not all completed responses — otherwise unscoreable
+            // responses (answer key still loading / id drift) inflate the
+            // denominator so the buckets under-sum and read as all-0% next to a
+            // non-zero "Finished" tile. See canScoreResponse / completedScores.
             const pct =
-              completed.length > 0
-                ? Math.round((count / completed.length) * 100)
+              completedScores.length > 0
+                ? Math.round((count / completedScores.length) * 100)
                 : 0;
 
             return (
@@ -2001,15 +2019,15 @@ const StudentsTab: React.FC<{
         responses
           .slice()
           .sort((a, b) => {
-            const scoreA =
-              a.status === 'completed' || a.status === 'in-progress'
-                ? getDisplayScore(a, questions, session)
+            // Match the row's display gate (below): an unscoreable response
+            // renders "—", so rank it with not-started (-1) rather than letting
+            // its phantom 0 sort it in among genuine low scores.
+            const rankScore = (r: QuizResponse) =>
+              (r.status === 'completed' || r.status === 'in-progress') &&
+              canScoreResponse(r, questions)
+                ? getDisplayScore(r, questions, session)
                 : -1;
-            const scoreB =
-              b.status === 'completed' || b.status === 'in-progress'
-                ? getDisplayScore(b, questions, session)
-                : -1;
-            return scoreB - scoreA;
+            return rankScore(b) - rankScore(a);
           })
           .map((r) => {
             const score = getDisplayScore(r, questions, session);

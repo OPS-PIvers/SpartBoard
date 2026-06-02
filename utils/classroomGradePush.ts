@@ -19,7 +19,10 @@
  */
 
 import { httpsCallable, type Functions } from 'firebase/functions';
-import { getEarnedPoints } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
+import {
+  getEarnedPoints,
+  canScoreResponse,
+} from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import type { QuizQuestion, QuizResponse } from '@/types';
 
 /** A single PII-free grade entry: ClassLink pseudonym → earned points. */
@@ -33,12 +36,20 @@ export interface ClassroomGradeEntry {
  * shared by the dashboard monitor (QuizResults) and the in-iframe grader
  * (TeacherReviewRoute) so their scaling can't drift.
  *
- * One entry per COMPLETED response with a resolvable pseudonym. The current quiz
- * total can drift from the Classroom denominator (`maxPoints`, frozen at attach
- * time) if the quiz was edited after attaching, so each student's CORRECTNESS
- * points are scaled onto `maxPoints`, then rounded and clamped to [0, maxPoints].
- * A non-finite earned score (e.g. a malformed question) is treated as 0 so NaN
- * can never propagate into the payload (the CF would otherwise reject it).
+ * One entry per COMPLETED response with a resolvable pseudonym THAT CAN ACTUALLY
+ * BE SCORED. The current quiz total can drift from the Classroom denominator
+ * (`maxPoints`, frozen at attach time) if the quiz was edited after attaching, so
+ * each student's CORRECTNESS points are scaled onto `maxPoints`, then rounded and
+ * clamped to [0, maxPoints]. A non-finite earned score (e.g. a malformed
+ * question) is treated as 0 so NaN can never propagate into the payload (the CF
+ * would otherwise reject it).
+ *
+ * Responses `canScoreResponse` rejects (the answer key hasn't loaded, or a
+ * synced-quiz id drift means no answer maps to a loaded question) are EXCLUDED
+ * rather than pushed: `getEarnedPoints` would silently return 0 for them, and
+ * unlike the "—" placeholder the teacher views render, a phantom 0 written to the
+ * real Classroom gradebook is persistent and hard to notice/undo. Omitting a
+ * student is the safe default — better no grade than a wrong 0.
  *
  * Grades are intentionally correctness-based: `getEarnedPoints` is called with NO
  * session, so speed/streak bonuses are excluded. A Classroom gradebook grade
@@ -57,7 +68,14 @@ export function buildQuizClassroomGradeEntries(
 ): ClassroomGradeEntry[] {
   const currentTotal = questions.reduce((s, q) => s + (q.points ?? 1), 0);
   return responses
-    .filter((r) => r.status === 'completed' && !!r.studentUid)
+    .filter(
+      (r) =>
+        r.status === 'completed' &&
+        !!r.studentUid &&
+        // Skip responses we can't actually score (answer key not loaded /
+        // question-id drift) so a phantom 0 never reaches the gradebook.
+        canScoreResponse(r, questions)
+    )
     .map((r) => {
       // No session arg → correctness points only (no speed/streak bonus); see
       // the function doc for why the gradebook grade excludes gamification.

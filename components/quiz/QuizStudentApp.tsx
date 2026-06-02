@@ -298,7 +298,6 @@ const QuizJoinFlow: React.FC<{
   const [ssoGate, setSsoGate] = useState<'pending' | 'gate' | 'pin'>(() =>
     QUIZ_SSO_REDIRECT_ENABLED && !!urlCode && !embedded ? 'pending' : 'pin'
   );
-  const ssoGateCheckedRef = useRef(false);
 
   const {
     session,
@@ -422,12 +421,12 @@ const QuizJoinFlow: React.FC<{
     void run();
   }, [isStudentRole, urlCode, joined, joinQuizSession, subscribeForReview]);
 
-  // Resolve the SSO gate once. SSO students skip it (the auto-join effect
-  // handles them). Otherwise look up the session to learn whether it's
-  // ClassLink-rostered; any failure falls back to the PIN path (fail-open) so
-  // a flaky lookup never blocks a student from joining. This is the only added
-  // read, and it runs solely when the flag is on (otherwise ssoGate starts at
-  // 'pin' and this effect returns immediately).
+  // Resolve the SSO gate. SSO students skip it (the auto-join effect handles
+  // them). Otherwise look up the session to learn whether it's ClassLink-
+  // rostered; any failure falls back to the PIN path (fail-open) so a flaky
+  // lookup never blocks a student from joining. This is the only added read,
+  // and it runs solely when the flag is on (otherwise ssoGate starts at 'pin'
+  // and this effect returns immediately).
   useEffect(() => {
     if (ssoGate !== 'pending') return;
     // SSO students are handled by the auto-join effect, and the render branch
@@ -436,8 +435,12 @@ const QuizJoinFlow: React.FC<{
     // would be a synchronous derived-state reset inside an effect (the
     // remaining 'pending' value is simply never rendered for SSO students).
     if (isStudentRole) return;
-    if (ssoGateCheckedRef.current) return;
-    ssoGateCheckedRef.current = true;
+    // No run-once ref here: the `ssoGate !== 'pending'` guard already stops a
+    // re-run once the gate resolves, and `cancelled` makes StrictMode's
+    // double-invoke safe (run #1 is cancelled, run #2 resolves). A ref set
+    // before the await would instead DEADLOCK under StrictMode — run #2 would
+    // early-return on the ref while run #1's setState is suppressed by
+    // `cancelled`, stranding the student on the 'pending' loader forever.
     let cancelled = false;
     void (async () => {
       try {
