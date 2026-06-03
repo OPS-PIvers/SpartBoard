@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plc } from '@/types';
-import { PlcQuizzesBody } from '../bodies/PlcQuizzesBody';
+import { PlcQuizzesBody } from '@/components/plc/bodies/PlcQuizzesBody';
 
 interface PlcQuizLibraryTabProps {
   plc: Plc;

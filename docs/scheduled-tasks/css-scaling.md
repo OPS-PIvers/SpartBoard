@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-31_
+_Last audited: 2026-06-03_
 _Last action: 2026-05-31_
 
 ---
@@ -21,6 +21,12 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-03: Merged dev-paul into scheduled-tasks. Scanned all newly modified widget files: QuizWidget/utils/resolveDisplayName.ts (new — utility-only, no CSS), QuizWidget/components/QuizLiveMonitor.tsx (modified — all sizing uses cqmin inline styles, clean), VideoActivityWidget/components/Results.tsx (modified — all sizing uses cqmin inline styles, clean). QuizResults.tsx period-filter `text-sm` known violation: file grew significantly in merge, line number has shifted from ~968 to ~1530 — updating the open item line reference. No new anti-patterns introduced. All pre-existing open items remain valid._
+
+_2026-06-02: No new widget commits since 2026-06-01 (rebase onto dev-paul aborted; working from scheduled-tasks HEAD). No new anti-patterns introduced. All pre-existing open items remain valid: NextUp maxWidth:120px pixel cap (:327), ActivityWall inline-editor checkbox h-4 w-4 (:1352), CarRiderPro/First5 overlay button (completed 2026-05-30), GraphicOrganizer min-h-[50px] (completed 2026-05-31), PollWidget progress bar uncapped height (:161), EmbedWidget portaled toolbar, QuizResults period-filter text-sm, RevealGridWidget hardcoded spacing, multi-widget group spacing item, MiniApp internal dialog text sizes. All intentional cqh/cqw fill-better deviations (Clock, Checklist, Countdown, InstructionalRoutines, MusicWidget, TrafficLight) re-confirmed present per journal guidance._
+
+_2026-06-01: Scanned all Widget.tsx files for anti-patterns. New dev-paul commits since 2026-05-31 absorbed via merge: SettingsPanel null-guards, LunchCount/Settings.tsx cleanup, Countdown/Widget.tsx fix, RandomWidget.tsx refactor — none introduce new front-face widget violations. TWO NEW items detected: (1) NextUp/Widget.tsx:327 — hardcoded `maxWidth: '120px'` pixel cap on the session-name `<h3>` in the header (new issue, distinct from existing group item line numbers). (2) ActivityWall/Widget.tsx:1352 — `h-4 w-4` Tailwind classes on a native `<input type="checkbox">` inside the inline activity-editor UI, which is rendered in front-face content inside the `skipScaling: true` container-query context. Intentional cqh/cqw deviations in Countdown (min(42cqh,55cqw)), ClockWidget, TrafficLightWidget, and MusicWidget all re-confirmed present; per journal guidance (fill-better formula preference) these are left as-is. Countdown's prior Completed entry ("resolved outside journal workflow") was inaccurate — the cqh/cqw formulas persisted by design, so Countdown joins Clock/Checklist as a documented WON'T FIX case._
 
 _2026-05-31: Scanned widget files changed in dev-paul since 2026-05-30. New dev-paul commits touching widget files: Fix SmartNotebook placed assets stranding on page reorder/delete (#1759 — SmartNotebook/Widget.tsx), fix(spotify) eliminate Web Playback SDK 'ready' vs Connect registration race (#1758 — MusicWidget/PersonalSpotify sub-components). SmartNotebook/Widget.tsx diff inspected — changes are logic-only (stranded asset cleanup on page reorder/delete); no new Tailwind text-size classes, no new pixel-cap violations, no hardcoded icon sizes added to front-face content. SmartNotebook has `skipScaling: true` so CQ rules apply, but no front-face sizing changes in this commit. Spotify/music changes are within MusicWidget sub-components; MusicWidget cqh-only sizing is documented as acceptable (fill-better formula for short/wide layout). No new anti-patterns detected. All pre-existing open items remain valid._
 
@@ -58,6 +64,20 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
+### LOW NextUp session-name header has hardcoded `maxWidth: '120px'` pixel cap
+
+- **Detected:** 2026-06-01
+- **File:** components/widgets/NextUp/Widget.tsx:327
+- **Detail:** The session-name `<h3>` in the widget header uses `style={{ maxWidth: '120px' }}`. Widget has `skipScaling: true`. The 120px cap causes the session name to be severely truncated at large widget sizes — at 600+ px wide the header has plenty of room but the name still hard-clips at 120px. This is a different issue from the existing NextUp group item (lines :295/:331 etc., which tracks gap/padding/spacing utilities).
+- **Fix:** Replace the hardcoded pixel cap with a scaled equivalent: `style={{ maxWidth: 'min(120px, 30cqmin)' }}`. This preserves the cap at default widget size while allowing the header to grow on larger widgets.
+
+### LOW ActivityWall inline activity-editor checkbox uses hardcoded `h-4 w-4` icon size
+
+- **Detected:** 2026-06-01
+- **File:** components/widgets/ActivityWall/Widget.tsx:1352
+- **Detail:** The inline activity-editor (rendered inside the widget's front-face content, not inside a Modal overlay) has a `<input type="checkbox">` with `className="h-4 w-4 accent-brand-blue-primary"`. Widget has `skipScaling: true`. The `h-4 w-4` (16 px) size is fixed and does not scale with the container. This is distinct from the `max-h-[75vh]` uses at lines 2101-2110, which are inside a fullscreen Modal and exempt.
+- **Fix:** Native checkbox size via CSS is limited — the `h-4 w-4` classes drive the rendered size on Chromium but may be overridden by OS styles. Best approach: wrap in a `<label>` with `style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}` and visually hide the native input (`sr-only`), replacing it with a styled div. If keeping the native checkbox, at minimum remove the hardcoded size classes and rely on `accent-color` alone.
+
 ### LOW CarRiderPro and First5 share a hardcoded external-link overlay button (group)
 
 - **Detected:** 2026-05-29
@@ -89,7 +109,7 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ### LOW QuizResults period-filter `<select>` uses hardcoded `text-sm`
 
 - **Detected:** 2026-04-27
-- **File:** components/widgets/QuizWidget/components/QuizResults.tsx:968 (line shifted from :607 as of 2026-05-05 merge)
+- **File:** components/widgets/QuizWidget/components/QuizResults.tsx:1530 (line shifted from :968 as of 2026-06-03 merge)
 - **Detail:** The period filter `<select>` in the quiz results view uses `text-sm` (hardcoded Tailwind). The QuizWidget has `skipScaling: true`, so this element is inside a CSS container-query context. Introduced by the 2026-04-26 commit `fix(quiz): persist Results export URL on assignment doc (#1419)`. QuizResults grew significantly in the 2026-05-05 merge (matching/ordering editor addition) — line number has shifted.
 - **Fix:** Replace `text-sm` with an inline style: `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`. The surrounding `px-2 py-1` padding on the same element should also be converted: `style={{ padding: 'min(4px, 1.5cqmin) min(8px, 2.5cqmin)' }}`.
 

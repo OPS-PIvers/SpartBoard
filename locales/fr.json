@@ -697,6 +697,25 @@
     "dashboard": {
       "emptyBoardHint": "Faites glisser des outils depuis le Dock ci-dessous pour commencer",
       "switchBoardsHint": "Utilisez les commandes de navigation en bas à gauche pour changer de tableau"
+    },
+    "stickers": {
+      "collectionTitle": "Collection d'autocollants",
+      "clearAll": "Effacer tous les autocollants du tableau",
+      "wait": "Veuillez patienter...",
+      "dropOrPaste": "Déposer ou coller une image",
+      "toAddCustom": "pour ajouter des autocollants personnalisés",
+      "essentials": "Essentiels",
+      "globalCollection": "Collection globale",
+      "myCollection": "Ma collection",
+      "dragOrClick": "Glisser ou cliquer pour ajouter",
+      "deleteSticker": "Supprimer l'autocollant",
+      "dragFromLibrary": "Faites glisser les autocollants de la bibliothèque vers le tableau",
+      "stickerAdded": "Autocollant ajouté au tableau !",
+      "filterAll": "Tout",
+      "filterFavorites": "Favoris",
+      "filterMine": "Mes autocollants",
+      "reorganizeSticker": "Réorganiser",
+      "favoriteSticker": "Ajouter aux favoris"
     }
   },
   "boardBreadcrumb": {

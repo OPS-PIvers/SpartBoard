@@ -33,8 +33,8 @@ import { Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { PlcVideoActivitiesBody } from './PlcVideoActivitiesBody';
-import { PlcAssignmentsInProgressSubTab } from '../tabs/PlcAssignmentsInProgressSubTab';
-import { PlcAssignmentsCompletedSubTab } from '../tabs/PlcAssignmentsCompletedSubTab';
+import { PlcAssignmentsInProgressSubTab } from '@/components/plc/tabs/PlcAssignmentsInProgressSubTab';
+import { PlcAssignmentsCompletedSubTab } from '@/components/plc/tabs/PlcAssignmentsCompletedSubTab';
 import { PlcNewVideoActivityAssignmentModal } from '../PlcNewVideoActivityAssignmentModal';
 
 type SubTabId = 'library' | 'inProgress' | 'completed';

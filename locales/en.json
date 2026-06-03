@@ -820,7 +820,12 @@
       "dragOrClick": "Drag or Click to add",
       "deleteSticker": "Delete Sticker",
       "dragFromLibrary": "Drag stickers from library to the board",
-      "stickerAdded": "Sticker added to board!"
+      "stickerAdded": "Sticker added to board!",
+      "filterAll": "All",
+      "filterFavorites": "Favorites",
+      "filterMine": "Mine",
+      "reorganizeSticker": "Reorder",
+      "favoriteSticker": "Favorite"
     },
     "onboarding": {
       "title": "Getting Started",

@@ -4,6 +4,109 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-03
+
+- PRs reviewed: 17
+  - #1809 — fix(a11y): give shared ToggleRow switches an accessible name + real disabled state (head `claude/sweet-sagan-rzk2U`, base `dev-paul`)
+  - #1814 — fix(classroom-addon): verify teacher via single courses.teachers.get (head `claude/clever-goodall-Z5E0O`, base `dev-paul`)
+  - #1815 — fix(video-activity): guard teacher monitor against phantom 0% (head `claude/festive-tesla-w7CjN`, base `dev-paul`)
+  - #1816 — harden classroom_course_links writes + add unlink correction path (head `claude/kind-noether-5eLsy`, base `dev-paul`)
+  - #1817 — fix(classes): paginate + time-box Google Classroom course list (head `claude/sharp-hypatia-GjAJO`, base `dev-paul`)
+  - #1820 — docs(changelog): release entry for 2026-06-02 (head `claude/vibrant-darwin-Pldtm`, base `dev-paul`)
+  - #1821 — feat(lti): Schoology LTI 1.3 integration (Spike 0 + Phase 1) (head `feat/schoology-lti`, base `dev-paul`)
+  - #1822 — refactor(D3): SettingsLabel in MathToolInstance/Settings (head `nightly/unify-settings-labels-2026-06-03`, base `dev-paul`)
+  - #1823 — refactor(D4): convert plc tabs↔bodies cross-subdir imports to @/ (head `nightly/unify-import-paths-plc-tabs-bodies-2026-06-03`, base `dev-paul`)
+  - #1824 — docs(unifier): run 7 memory log (head `nightly/unifier-log-2026-06-03`, base `dev-paul`)
+  - #1825 — fix(NumberLine): epsilon guard for fraction labels (head `nightly/widgets-2026-06-03`, base `dev-paul`)
+  - #1826 — fix(annotation): prevent double-commit of path (head `nightly/dashboard-layout-2026-06-03`, base `dev-paul`)
+  - #1827 — fix(quizScoreboard): deduplicate answers by questionId (head `nightly/state-data-2026-06-03`, base `dev-paul`)
+  - #1828 — fix(i18n): add widgets.stickers translations to DE and FR (head `nightly/admin-config-2026-06-03`, base `dev-paul`)
+  - #1829 — fix(invites): reject email addresses where domain begins with a dot (head `nightly/build-tooling-2026-06-03`, base `dev-paul`)
+  - #1830 — docs(nightly): debugger run log — run 8 (head `nightly/debugger-log-2026-06-03`, base `dev-paul`)
+  - #1831 — audit(scheduled-tasks): Wednesday daily + weekly E audits (head `scheduled-tasks`, base `dev-paul`)
+- Comments processed: 12 total — 8 fixed, 4 explained
+  - #1814 (classroomAddonAuth.ts, gemini): **explained** — already addressed by the author in 066d873 (response-body drain added); thread left unresolved but fix is in.
+  - #1815 (Results.tsx, gemini): **explained** — already addressed by the author in 8fcc0b8 (empty-session early return returns `avgScore: null`); thread left unresolved but fix is in.
+  - #1824 (unifier.md, gemini): **explained** — the requested "2 instances at lines ~67, ~171" wording is already present on the branch (comment is outdated).
+  - #1826 (AnnotationCanvas.tsx, gemini ×2): **fixed** — added a render-body-synced `drawingStateRef`; window pointerup/pointercancel listeners now read it and the effect deps reduce to `[isDrawing]`, so listeners register once per stroke (targeted `react-hooks/refs` disable, per #1802 precedent).
+  - #1828 (de.json / fr.json / widgetStickersLocales.test.ts, gemini ×3): **fixed** — added `filterAll`/`filterFavorites`/`filterMine`/`reorganizeSticker`/`favoriteSticker` to all four locales and to `REQUIRED_WIDGET_STICKERS_KEYS`.
+  - #1829 (organizationInvites.ts + .test.ts, gemini ×2): **fixed** — the dot-domain check now uses `indexOf('.', atIdx + 1) < atIdx + 2`, rejecting `user@.co.uk`; extended the regression test.
+  - #1830 (debugger.md, gemini ×2): **fixed** — escaped the absolute-value pipes (`\|...\|`) and restored the table to 4 columns.
+  - #1831 (ai-integration.md, gemini): **fixed** — corrected the client caller name to `recommendVideoForActivity`.
+- Fixes pushed: 6
+  - #1829 / `nightly/build-tooling-2026-06-03` — reject email domains beginning with a dot for multi-dot TLDs (+ test).
+  - #1828 / `nightly/admin-config-2026-06-03` — add missing filter/favorite/reorder sticker keys to all locales (+ test array).
+  - #1830 / `nightly/debugger-log-2026-06-03` — escape pipes in NumberLine epsilon-guard log entry, restore 4-column table.
+  - #1826 / `nightly/dashboard-layout-2026-06-03` — sync drawing state via ref so window listeners register once per stroke.
+  - #1831 / `scheduled-tasks` — correct ai-integration.md caller name to `recommendVideoForActivity` (this commit).
+  - (Each fix verified: type-check ✓ lint ✓ tests ✓ / format-check ✓ for doc-only changes.)
+- Reviews posted: 17 (one structured review per open PR)
+  - Notable: #1821 (Schoology LTI) — Ready with notes; no blocking issues found in the JWT/rules surfaces reviewed (RS256 pinned, all secret LTI collections server-only, dedicated rules test), but recommended a human security sign-off given size + LTI/OIDC/grade-writeback sensitivity. #1816 & #1814 both rewrite the `linkClassroomCourse` trust-anchor/transaction seam — flagged to confirm clean merge order. All other PRs assessed Ready or Ready-with-minor-notes.
+- Notes:
+  - Branch-safety: all 17 PR heads are feature/nightly/`scheduled-tasks` branches (none are `main` or `dev-*`), so all were pushable. Fixes pushed only to the respective PR head branches; no pushes to `main` or `dev-paul`.
+  - This log + the #1831 doc fix are committed and pushed to `scheduled-tasks` per task instructions (it is a fair-game branch; pushing updates open PR #1831, which is the intended target of its own review-comment fix).
+
+## 2026-06-02
+
+- PRs reviewed: 8
+  - #1800 — fix(classroom-addon): address review feedback on PR #1798 (head `claude/serene-meitner-EzK6N`, base `dev-paul`)
+  - #1801 — fix(widgets): GuidedLearningPlayer auto-advance timer resets on every answer (head `nightly/widgets-2026-06-02`, base `dev-paul`)
+  - #1802 — fix(draggable-window): settings panel placeholder flashes on first flip (head `nightly/dashboard-layout-2026-06-02`, base `dev-paul`)
+  - #1803 — fix(quiz): publishAssignmentScores inflates pointsMax on duplicate question ids (head `nightly/state-data-2026-06-02`, base `dev-paul`)
+  - #1804 — fix(i18n): add missing widgetWindow action keys to DE and FR locales (head `nightly/admin-config-2026-06-02`, base `dev-paul`)
+  - #1805 — fix(analytics): blooms-ai usage silently dropped from admin analytics (head `nightly/build-tooling-2026-06-02`, base `dev-paul`)
+  - #1806 — docs(nightly): debugger run log for 2026-06-02 (run 7) (head `nightly/debugger-log-2026-06-02`, base `dev-paul`)
+  - #1807 — fix(deps): pin path-to-regexp to patched versions to close HIGH ReDoS advisories (head `deps/path-to-regexp-redos-fix`, base `dev-paul`)
+- Comments processed: 6 total — 3 fixed, 3 explained
+  - #1800 (AddonShell.tsx, gemini): **fixed** — `AddonSelect` `onBlur` now guards `e.relatedTarget` for null before the `contains` check, so a non-focusable blur target (e.g. the dropdown scrollbar) no longer prematurely closes the popover.
+  - #1800 (TeacherReviewRoute.tsx, gemini): **explained** — code already resets `quizData` to null when `quizId` is absent; the suggested `useSyncedState` hook is a new shared abstraction (architectural call) and the cross-quiz-transition case is an edge case for this single-session route.
+  - #1801 (GuidedLearningPlayer.tsx, gemini): **fixed** — replaced the post-paint `useEffect` ref sync with a synchronous render-body assignment per CLAUDE.md, plus a targeted `react-hooks/refs` disable for the v7 false-positive.
+  - #1802 (DraggableWindow.tsx, gemini): **fixed** — corrected the `shouldRenderSettings` latch comment to describe the actual `!shouldRenderSettings` guard instead of a nonexistent `prevFlipped` (comment-only).
+  - #1804 (widgetWindowLocales.test.ts, gemini): **explained** — recursive full-parity refactor is a test-design enhancement that would broaden scope beyond the PR's 9 keys and risk surfacing unrelated pre-existing gaps; left for a human.
+  - #1806 (debugger.md, gemini): **explained** — reviewer's `.values()` suggestion is incorrect; #1803 iterates `questionsById` directly with `[qId, q]` destructuring (≡ `.entries()`), so the existing wording is accurate.
+- Fixes pushed: 3
+  - #1800 / `claude/serene-meitner-EzK6N` — guard `AddonSelect` `onBlur` against null `relatedTarget` (type-check ✓ lint ✓).
+  - #1801 / `nightly/widgets-2026-06-02` — sync `answeredStepsRef` in render body instead of `useEffect` (type-check ✓ lint ✓ tests ✓ 3946 pass).
+  - #1802 / `nightly/dashboard-layout-2026-06-02` — correct `shouldRenderSettings` latch comment (lint ✓ format ✓).
+- Reviews posted: 8 (one structured `## Automated Code Review` comment per PR above)
+- Notes:
+  - Branch-safety: no PR targets `main`; all eight head branches are non-`main`/non-`dev-*` and pushable. Pushes went only to the three PR head branches with actionable fixes. This log committed on `scheduled-tasks` per task instructions (not a `dev-*`/`main` branch).
+
+## 2026-06-01
+
+- PRs reviewed: 11
+  - #1791 — test(hooks): add useStarterPacks coverage (head `claude/compassionate-noether-ukcDO`, base `dev-paul`)
+  - #1790 — docs(debugger): nightly run log 2026-06-01 (head `nightly/debugger-log-2026-06-01`, base `dev-paul`)
+  - #1789 — fix(functions): block IPv6 private/loopback in checkUrlCompatibility SSRF guard (head `nightly/build-tooling-2026-06-01`, base `dev-paul`)
+  - #1788 — fix(i18n): add missing admin namespace to DE/ES/FR (head `nightly/admin-config-2026-06-01`, base `dev-paul`)
+  - #1787 — fix: dedup questions in VA publishAssignmentScores (head `nightly/state-data-2026-06-01`, base `dev-paul`)
+  - #1786 — fix(DashboardView): guard global Delete handler against focused inputs (head `nightly/dashboard-layout-2026-06-01`, base `dev-paul`)
+  - #1785 — fix(RandomWidget): activeDashboardRef stale-closure fix (head `nightly/widgets-2026-06-01`, base `dev-paul`)
+  - #1784 — chore: unifier run 6 log (head `nightly/unifier-log-2026-06-01`, base `dev-paul`)
+  - #1783 — D3: SpecialistSchedule/Settings.tsx 10 labels → SettingsLabel (head `nightly/unify-settings-labels-2026-06-01`, base `dev-paul`)
+  - #1782 — D4: plc/home/cards ../../sections → @/ alias (head `nightly/unify-import-paths-plc-2026-06-01`, base `dev-paul`)
+  - #1781 — Fix SettingsPanel Escape, i18n, widget migrations (head `dev-paul`, base `main` — read-only)
+- Comments processed: 11 total — 8 fixed, 3 explained
+  - #1789 (2): broadened IPv6 block to `/^\[::/` + added `[::127.0.0.1]` regression test — both fixed
+  - #1788 (1): deep-path `toHaveProperty` refactor (dropped unsafe `as unknown as LocaleFile` casts) — fixed
+  - #1787 (1): added `scoredQuestionIds` Set dedup to the grading loop + regression test — fixed
+  - #1786 (2): switched both Delete tests to `defaultPrevented` instead of monkey-patching `preventDefault` — both fixed
+  - #1785 (1): jigsaw `setTimeout` now reads `activeDashboardRef.current?.sharedGroups` — fixed
+  - #1784 (3): grep `-E`/order-independent pipes/`<path-to-main-repo>` placeholder in doc snippets — all fixed
+  - #1791 (2): afterEach import + `vi.restoreAllMocks()` block already present in branch — explained, no change
+- Fixes pushed: 6
+  - #1789 / `nightly/build-tooling-2026-06-01` — consolidate IPv6 SSRF patterns into `/^\[::/` (+ IPv4-compatible test); functions tests + type-check + lint green
+  - #1788 / `nightly/admin-config-2026-06-01` — type-safe deep-path `toHaveProperty` in locale parity tests
+  - #1787 / `nightly/state-data-2026-06-01` — dedup grading loop via `scoredQuestionIds` Set + regression test
+  - #1786 / `nightly/dashboard-layout-2026-06-01` — assert `KeyboardEvent.defaultPrevented` in Delete-key tests
+  - #1785 / `nightly/widgets-2026-06-01` — jigsaw branch reads `activeDashboardRef.current`
+  - #1784 / `nightly/unifier-log-2026-06-01` — portable, path-agnostic backlog grep snippets
+- Reviews posted: 11 (structured review comment on every open PR)
+- Notes:
+  - Branch-safety: #1781 head `dev-paul` matches `dev-*` → treated read-only (review comment only, no push). All other heads (`nightly/*`, `claude/*`) are pushable. #1781's one prior inline thread was already author-resolved.
+  - #1781 CI status reads `pending` (0 checks reported) on head SHA — flagged in the review to confirm green before merging to `main`.
+  - `scheduled-tasks` is not the head of any open PR this run, so this log is committed and pushed to `scheduled-tasks` directly.
+
 ## 2026-05-29
 
 - PRs reviewed:

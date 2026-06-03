@@ -36,6 +36,23 @@ import {
 const CLASSROOM_COURSES_READONLY_SCOPE =
   'https://www.googleapis.com/auth/classroom.courses.readonly';
 
+/** `courses.list` page size for the client's course picker. */
+const COURSES_PAGE_SIZE = 100;
+
+/**
+ * Runaway guard on pagination: a single teacher with >2500 active courses is
+ * implausible, so this is a cap to avoid an unbounded loop — not an expected
+ * limit.
+ */
+const MAX_COURSE_PAGES = 25;
+
+/**
+ * Per-request timeout for the Classroom course listing. Mirrors `API_TIMEOUT_MS`
+ * in the server-side add-on CF so a hung Classroom call can't pin the dropdown's
+ * loading spinner forever — it surfaces a retryable error instead.
+ */
+const COURSES_API_TIMEOUT_MS = 10000;
+
 /** Minimal shape of a Google Classroom course we care about. */
 interface GoogleClassroomCourse {
   id: string;
@@ -61,6 +78,24 @@ interface LinkClassroomCourseParams {
 interface LinkClassroomCourseResult {
   ok: boolean;
   courseId: string;
+}
+
+/**
+ * Args for the `unlinkClassroomCourse` Cloud Function — the correction path for
+ * a wrong/stale course→roster mapping. Like the link CF, the delete is written
+ * server-side (client deletes to classroom_course_links are blocked by the
+ * rules) and the CF re-verifies — with the teacher's own courses token — that
+ * the caller actually teaches the Google course before removing the link.
+ */
+interface UnlinkClassroomCourseParams {
+  accessToken: string;
+  courseId: string;
+}
+
+interface UnlinkClassroomCourseResult {
+  ok: boolean;
+  courseId: string;
+  removed: boolean;
 }
 
 interface SidebarClassesProps {
@@ -105,6 +140,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
   const [courseLoadError, setCourseLoadError] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUnlinking, setIsUnlinking] = useState(false);
   // The `classroom.courses.readonly` token used to LIST the teacher's courses is
   // the same one the link CF needs to RE-VERIFY teaching authority server-side.
   // Captured here so confirming the link reuses it (no second OAuth popup);
@@ -124,15 +160,56 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
       );
       // Reused at confirm time to verify teaching authority server-side.
       coursesAccessTokenRef.current = token;
-      const res = await fetch(
-        'https://classroom.googleapis.com/v1/courses?teacherId=me&courseStates=ACTIVE',
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!res.ok) {
-        throw new Error(`Classroom API returned ${res.status}`);
-      }
-      const data = (await res.json()) as { courses?: GoogleClassroomCourse[] };
-      setCourses(data.courses ?? []);
+      // Page through ALL the teacher's active courses (a teacher with many
+      // courses would otherwise be truncated to the first page), following
+      // `nextPageToken` until exhausted, capped by MAX_COURSE_PAGES so a buggy
+      // token loop can't spin unbounded.
+      const all: GoogleClassroomCourse[] = [];
+      let pageToken: string | undefined;
+      let pages = 0;
+      do {
+        const qs = new URLSearchParams({
+          teacherId: 'me',
+          courseStates: 'ACTIVE',
+          pageSize: String(COURSES_PAGE_SIZE),
+        });
+        if (pageToken) qs.set('pageToken', pageToken);
+        // Time-box each request so a slow/hung Classroom call surfaces a
+        // retryable error instead of pinning the loading spinner forever.
+        let res: Response;
+        try {
+          res = await fetch(
+            `https://classroom.googleapis.com/v1/courses?${qs.toString()}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+              signal: AbortSignal.timeout(COURSES_API_TIMEOUT_MS),
+            }
+          );
+        } catch (fetchErr) {
+          // AbortSignal.timeout rejects with a DOMException('TimeoutError') —
+          // which isn't an `Error` in every engine — so match either type.
+          if (
+            (fetchErr instanceof DOMException || fetchErr instanceof Error) &&
+            (fetchErr.name === 'TimeoutError' || fetchErr.name === 'AbortError')
+          ) {
+            throw new Error(
+              'Timed out loading your Google Classroom courses. Please try again.'
+            );
+          }
+          throw fetchErr;
+        }
+        if (!res.ok) {
+          throw new Error(`Classroom API returned ${res.status}`);
+        }
+        const data = (await res.json()) as {
+          courses?: GoogleClassroomCourse[];
+          nextPageToken?: string;
+        };
+        for (const c of data.courses ?? []) all.push(c);
+        pageToken = data.nextPageToken;
+        pages += 1;
+      } while (pageToken && pages < MAX_COURSE_PAGES);
+      setCourses(all);
       setCourseLoadState('loaded');
     } catch (err) {
       setCourseLoadError(
@@ -154,6 +231,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     setSelectedCourseId(null);
     setCourseLoadError(null);
     setIsSaving(false);
+    setIsUnlinking(false);
     coursesAccessTokenRef.current = null;
   }, []);
 
@@ -232,6 +310,66 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     closeLinkModal,
     user?.email,
   ]);
+
+  const handleUnlink = useCallback(async () => {
+    const courseId = linkingRoster?.googleClassroomCourseId;
+    if (!linkingRoster || !courseId) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) {
+      addToast(
+        t('sidebar.classes.linkGoogleClassroom.notSignedIn', {
+          defaultValue: 'You must be signed in to link a class.',
+        }),
+        'error'
+      );
+      return;
+    }
+    setIsUnlinking(true);
+    try {
+      // The link doc is removed by the `unlinkClassroomCourse` Cloud Function,
+      // not a direct delete: client deletes to classroom_course_links are blocked
+      // by the rules, and the CF re-verifies — with the teacher's own courses
+      // token — that the caller actually teaches this course before removing the
+      // link (a verified co-teacher may also clear a departed colleague's link).
+      let accessToken = coursesAccessTokenRef.current;
+      if (!accessToken) {
+        await ensureGis();
+        accessToken = await requestAccessToken(
+          CLASSROOM_COURSES_READONLY_SCOPE,
+          user?.email ?? undefined
+        );
+        coursesAccessTokenRef.current = accessToken;
+      }
+      const unlinkCourse = httpsCallable<
+        UnlinkClassroomCourseParams,
+        UnlinkClassroomCourseResult
+      >(functions, 'unlinkClassroomCourse');
+      await unlinkCourse({ accessToken, courseId });
+      // Clear the roster's local mirror so the UI shows it as unlinked again
+      // (the canonical mapping lives in classroom_course_links, now removed).
+      await updateRoster(linkingRoster.id, { googleClassroomCourseId: '' });
+      addToast(
+        t('sidebar.classes.linkGoogleClassroom.unlinkSuccess', {
+          defaultValue: 'Unlinked from Google Classroom.',
+        }),
+        'success'
+      );
+      closeLinkModal();
+    } catch (err) {
+      addToast(
+        t('sidebar.classes.linkGoogleClassroom.unlinkFailed', {
+          defaultValue: 'Failed to unlink from Google Classroom.',
+        }),
+        'error'
+      );
+      // The CF surfaces an actionable message (e.g. "you can only unlink a course
+      // you teach") — show it in the modal.
+      setCourseLoadError(
+        err instanceof Error ? err.message : 'Failed to unlink from Classroom.'
+      );
+      setIsUnlinking(false);
+    }
+  }, [linkingRoster, addToast, t, updateRoster, closeLinkModal, user?.email]);
 
   const editingRoster: ClassRoster | null =
     editingRosterId && editingRosterId !== 'new'
@@ -564,24 +702,46 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
             defaultValue: 'Link to Google Classroom',
           })}
           footer={
-            <div className="flex items-center justify-end gap-2">
-              <button
-                onClick={closeLinkModal}
-                disabled={isSaving}
-                className="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50"
-              >
-                {t('common.cancel', { defaultValue: 'Cancel' })}
-              </button>
-              <button
-                onClick={() => void handleConfirmLink()}
-                disabled={!selectedCourseId || isSaving}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {t('sidebar.classes.linkGoogleClassroom.confirm', {
-                  defaultValue: 'Link Class',
-                })}
-              </button>
+            <div className="flex items-center justify-between gap-2">
+              {/* Unlink (correction path) — only when this roster is already
+                  linked. Removes the canonical classroom_course_links mapping via
+                  the unlinkClassroomCourse CF so a wrong/stale link can be fixed
+                  without Firestore Console access. */}
+              <div>
+                {linkingRoster.googleClassroomCourseId && (
+                  <button
+                    onClick={() => void handleUnlink()}
+                    disabled={isSaving || isUnlinking}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isUnlinking && (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    )}
+                    {t('sidebar.classes.linkGoogleClassroom.unlink', {
+                      defaultValue: 'Unlink',
+                    })}
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={closeLinkModal}
+                  disabled={isSaving || isUnlinking}
+                  className="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50"
+                >
+                  {t('common.cancel', { defaultValue: 'Cancel' })}
+                </button>
+                <button
+                  onClick={() => void handleConfirmLink()}
+                  disabled={!selectedCourseId || isSaving || isUnlinking}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {t('sidebar.classes.linkGoogleClassroom.confirm', {
+                    defaultValue: 'Link Class',
+                  })}
+                </button>
+              </div>
             </div>
           }
         >

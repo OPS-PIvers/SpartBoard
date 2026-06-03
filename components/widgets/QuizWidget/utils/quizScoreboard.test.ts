@@ -387,6 +387,57 @@ describe('quizScoreboard', () => {
         expect(getEarnedPoints(response, questions)).toBe(1);
       });
     });
+
+    describe('duplicate answer deduplication (arrayUnion race)', () => {
+      it('credits a question only once when the answers array contains duplicate questionIds', () => {
+        // Firestore arrayUnion races (or Drive-sync double-writes) can produce
+        // two identical answer entries for the same questionId. Without dedup
+        // the question is graded twice and the student's score is inflated.
+        const questions = [makeQuestion('q1', 'A', 5)];
+        const response = makeResponse('01', [
+          { questionId: 'q1', answer: 'A', answeredAt: 100 },
+          { questionId: 'q1', answer: 'A', answeredAt: 101 }, // duplicate
+        ]);
+        // Should earn 5 pts (one question, answered correctly once), not 10.
+        expect(getEarnedPoints(response, questions)).toBe(5);
+      });
+
+      it('getResponseScore stays at most 100% when duplicate answers exist', () => {
+        const questions = [makeQuestion('q1', 'A')];
+        const response = makeResponse('01', [
+          { questionId: 'q1', answer: 'A', answeredAt: 100 },
+          { questionId: 'q1', answer: 'A', answeredAt: 101 }, // duplicate
+        ]);
+        // Without dedup: earned=2, max=1 → 200%. With dedup: earned=1, max=1 → 100%.
+        expect(getResponseScore(response, questions)).toBe(100);
+      });
+
+      it('keeps the chronologically-first answer when duplicates disagree', () => {
+        // The earlier answer is the "real" one; the later duplicate may be a
+        // stale autosave echo. The first (by answeredAt) should win.
+        // Use streakBonusEnabled to expose the duplicate: without dedup the
+        // second (wrong) duplicate resets the streak to 0 before q2 is scored,
+        // turning q2's 1.5x multiplier into 1x → total differs.
+        const questions = [
+          makeQuestion('q1', 'A', 2),
+          makeQuestion('q2', 'B', 2),
+        ];
+        const session = makeSession({ streakBonusEnabled: true });
+        const response = makeResponse('01', [
+          { questionId: 'q1', answer: 'A', answeredAt: 100 }, // correct
+          { questionId: 'q1', answer: 'wrong', answeredAt: 150 }, // duplicate, wrong — resets streak without dedup
+          { questionId: 'q2', answer: 'B', answeredAt: 200 }, // correct
+        ]);
+        // With dedup (only answeredAt=100 for q1 counted):
+        //   q1: 2pts × 1.0 = 2 (streak=1)
+        //   q2: 2pts × 1.5 = 3 (streak=2) → total = 5
+        // Without dedup:
+        //   q1(correct): 2pts × 1.0 = 2 (streak=1)
+        //   q1(wrong duplicate): 0pts, streak resets to 0
+        //   q2: 2pts × 1.0 = 2 (streak=1, not 2) → total = 4
+        expect(getEarnedPoints(response, questions, session)).toBe(5);
+      });
+    });
   });
 
   describe('getResponseScore', () => {

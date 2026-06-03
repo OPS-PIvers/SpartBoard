@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-31_
+_Last audited: 2026-06-03_
 _Last action: never_
 
 ---
@@ -15,6 +15,12 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-03. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Codebase clean after merging dev-paul: fix(quiz) unblock removeStudent when response has no attempt ledger (#1818), fix(classroom-addon) gate in-iframe grader pre-flight on canScoreResponse, fix(quiz) address Gemini review on #1813, fix(quiz) guard false-0 scoring + flag-gated SSO join redirect for wrong-period fork (#1812), plus new files: classlinkShared.ts, classroomAddonAuth.ts, quizCode.ts, studentJoinRouting.ts, runClassroomGradePush.ts, resolveDisplayName.ts, and new tests for all. All changes type-safe and lint-clean._
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-02. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). No new commits since 2026-06-01 (rebase onto dev-paul aborted; working from scheduled-tasks HEAD). Codebase clean._
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-01. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Codebase clean after merging dev-paul: fix(SettingsPanel) null-guard e.target in pointerdown and Escape keydown handlers, fix(SettingsPanel) prevent click-outside from being dropped after parent re-renders, fix(test) eliminate MaterialsConfigurationPanel flaky 5s timeout, plus new test files. All changes type-safe and lint-clean._
 
 _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-05-31. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Dev-paul changes since 2026-05-30 (Fix SmartNotebook placed assets #1759, fix(spotify) ready/Connect race #1758, test/docs commits) are not yet merged into scheduled-tasks (rebase blocked by journal-file conflicts). The SmartNotebook and Spotify changes are type-safe per PR CI. Current scheduled-tasks HEAD remains fully type-safe and lint-clean._
 

@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-05-26_
-_Last action: 2026-05-19_
+_Last audited: 2026-06-02_
+_Last action: 2026-06-02_
 
 ---
 
@@ -139,14 +139,22 @@ _Nothing currently in progress._
   - `@types/node`: 24.12.2 → **25.9.0** (major — verify Node 24 compat)
   - `jsdom`: 27.4.0 → **29.1.1** (2 majors ahead — test environment only; also resolves ws CVE)
   - `lint-staged`: 16.2.7 → **17.0.5** (major — check husky integration compatibility)
-  - `@google/genai`: 1.51.0 → **2.6.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade; latest bumped from 2.4.0 → 2.6.0 as of 2026-05-26)
-    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → 19.2.6, `firebase-tools` 15.8.0 → 15.18.0, `firebase` 12.8.0 → 12.13.0, `firebase-admin` 13.6.0 → 13.10.0, `@playwright/test` 1.58.0 → 1.60.0, `@typescript-eslint/*` 8.54.0 → 8.60.0, `vitest`/`@vitest/coverage-v8` 4.0.18 → 4.1.7, `hono` 4.12.15 → 4.12.23, `dompurify` 3.4.2 → 3.4.5, `eslint-plugin-react-hooks` 7.0.1 → 7.1.1. (Updated 2026-05-26)
+  - `@google/genai`: 1.51.0 → **2.7.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade; bumped from 2.6.0 → 2.7.0 as of 2026-06-02)
+    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → 19.2.7, `firebase-tools` 15.8.0 → 15.19.0, `firebase` 12.8.0 → 12.14.0, `firebase-admin` 13.6.0 → 13.10.0, `@playwright/test` 1.58.0 → 1.60.0, `@typescript-eslint/*` 8.54.0 → 8.60.1, `vitest`/`@vitest/coverage-v8` 4.0.18 → 4.1.8, `hono` 4.12.15 → 4.12.23, `dompurify` 3.4.2 → 3.4.7, `eslint-plugin-react-hooks` 7.0.1 → 7.1.1, `vite` 6.4.2 → 8.0.16 (now 2 majors behind), `eslint` 9.39.2 → 10.4.1, `@eslint/js` 9.39.2 → 10.0.1. (Updated 2026-06-02)
     These should not be done in a single commit — each needs its own migration PR with testing.
 - **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 6 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix. `@google/genai` major bump warrants dedicated testing of all AI generation flows (quiz, mini-app, widget builder, OCR, etc.). jsdom update to v29 also resolves the ws CVE tracked separately.
 
 ---
 
 ## Completed
+
+### HIGH `path-to-regexp` HIGH ReDoS via `firebase-functions@7.2.5 > express` (root)
+
+- **Detected:** 2026-06-02
+- **Completed:** 2026-06-02
+- **File:** package.json (`pnpm.overrides`)
+- **Detail:** `path-to-regexp` had two HIGH advisories reported by root `pnpm audit`: (1) GHSA-37ch-88jc-xwx2 — ReDoS via multiple route parameters in `<0.1.13`, reached via `.>firebase-functions>express>path-to-regexp` (resolved to the vulnerable `0.1.12`); and (2) GHSA-j3q9-mxjg-w52f — DoS via sequential optional groups in `>=8.0.0 <8.4.0`, reached via `.>@google/genai>@modelcontextprotocol/sdk>express>router>path-to-regexp` (resolved to the vulnerable `8.3.0`). Investigation showed `express@4.22.1` declares `path-to-regexp: ~0.1.12` (permits `0.1.13`) and `router@2.2.0` declares `path-to-regexp: ^8.x` (permits `8.4.x`), so both ranges already allow the patched versions — the root lockfile was simply stale. Confirmed by the functions/ workspace, which (with a more recently regenerated lockfile and no path-to-regexp override) already resolved `0.1.13` and `8.4.2` cleanly; `pnpm audit` in functions/ reports no path-to-regexp advisory. A blanket `"path-to-regexp"` override was NOT used because the `0.1.x` line (express@4) and the `8.x` line (express@5/router) have incompatible APIs; pinning all resolutions to one version would break express@4.
+- **Resolution:** Added two version-scoped entries to root `package.json` `pnpm.overrides`: `"path-to-regexp@0.1": "^0.1.13"` (pins the express@4 chain to the patched `0.1.13`) and `"path-to-regexp@8": "^8.4.0"` (pins the express@5/router chain to the patched `8.4.2`). The unrelated `1.9.0` resolution (via `superstatic > firebase-tools`, not flagged) is left untouched. After `pnpm install`, `pnpm why path-to-regexp` reports `0.1.13`, `1.9.0`, and `8.4.2`; `pnpm audit | grep -c path-to-regexp` returns 0 (both HIGH advisories cleared). functions/ needed no change. Verified clean: `pnpm type-check` (0 errors), `pnpm lint --max-warnings 0` (0 errors/warnings), `pnpm format:check` (package.json clean), `pnpm build` (succeeded, 31.6s). The `8.x` resolution is downstream of the separate MCP SDK Open item, but clearing it here was a trivial same-package, same-fix side effect of refreshing path-to-regexp, so both HIGH advisories were closed together.
 
 ### HIGH `lodash-es@4.17.23` code injection via `@imgly/background-removal` — in production dep chain
 
