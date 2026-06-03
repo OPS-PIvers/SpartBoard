@@ -179,20 +179,29 @@ describe('normalizeInvite', () => {
     expect('error' in r2).toBe(true);
   });
 
-  it('rejects emails whose domain starts with a dot (e.g. user@.com)', () => {
-    // Regression: the previous check used `email.indexOf('.', atIdx)` where
-    // `atIdx` points at the `@` character itself. For `user@.com` that search
-    // finds the dot in `.com` (position atIdx+1) and returns a non-negative
-    // index — incorrectly treating the address as valid. An address whose
-    // domain part begins with a dot has an empty first label and is rejected
-    // by every real mail server, so inviting it creates an unclaim-able member
-    // doc and may queue an email to an undeliverable address.
-    const r = normalizeInvite({
+  it('rejects emails whose domain starts with a dot (e.g. user@.com, user@.co.uk)', () => {
+    // Regression: the previous check used `email.indexOf('.', atIdx + 2) < 0`,
+    // which only verified that *some* dot exists at or after atIdx + 2. For a
+    // multi-dot domain like `user@.co.uk` the first label is empty but the
+    // second dot (`.uk`) sits past atIdx + 2, so the address was incorrectly
+    // accepted. The fix locates the first dot after the @ and requires it to
+    // be at index >= atIdx + 2, so any domain beginning with a dot is rejected.
+    // An address whose domain part begins with a dot has an empty first label
+    // and is rejected by every real mail server, so inviting it creates an
+    // unclaim-able member doc and may queue an email to an undeliverable address.
+    const r1 = normalizeInvite({
       email: 'user@.com',
       roleId: 'teacher',
       buildingIds: [],
     });
-    expect('error' in r).toBe(true);
+    expect('error' in r1).toBe(true);
+
+    const r2 = normalizeInvite({
+      email: 'user@.co.uk',
+      roleId: 'teacher',
+      buildingIds: [],
+    });
+    expect('error' in r2).toBe(true);
   });
 
   it('rejects missing roleId', () => {

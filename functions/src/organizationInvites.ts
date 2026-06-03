@@ -205,11 +205,12 @@ export function normalizeInvite(
   // Minimal email shape check: must contain @ with a non-empty local part,
   // and the domain part (after @) must contain a dot that is not its first
   // character (i.e. the domain must have at least one label before the TLD).
-  // Using atIdx + 2 as the search offset ensures the dot occurs after at
-  // least one domain character — addresses like "user@.com" have an empty
-  // first label and are rejected by every real mail server.
+  // Checking that the first dot after the @ is at least at index atIdx + 2
+  // ensures the dot occurs after at least one domain character — addresses
+  // like "user@.com" or "user@.co.uk" have an empty first label and are
+  // rejected by every real mail server.
   const atIdx = email.indexOf('@');
-  if (atIdx < 1 || email.indexOf('.', atIdx + 2) < 0) {
+  if (atIdx < 1 || email.indexOf('.', atIdx + 1) < atIdx + 2) {
     return { error: { email, reason: 'Malformed email address.' } };
   }
 
