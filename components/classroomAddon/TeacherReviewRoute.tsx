@@ -65,6 +65,7 @@ import {
 } from '@/utils/runClassroomGradePush';
 import { requestClassroomTeacherToken } from './gisOAuth';
 import { logError } from '@/utils/logError';
+import { isGoogleSession } from '@/utils/googleSession';
 import {
   isWrittenQuestionType,
   type QuizData,
@@ -103,8 +104,31 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
   const loginHint = params.get('login_hint') ?? undefined;
 
   const { user, signInWithGoogle, googleAccessToken, orgId } = useAuth();
-  const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
-  const { publishAssignmentScores } = useQuizAssignments(user?.uid);
+
+  // The teacher view loads the teacher's OWN Drive-backed quiz (questions +
+  // answers) to grade/publish and push grades, so it needs a real Google sign-in
+  // (uid + Drive token) — NOT just any Firebase session. Classroom opens this in
+  // a cross-origin iframe where partitioned-storage auth can restore a leftover
+  // `studentRole` custom-token session from a prior student launch in the same
+  // partition; that has a uid (empty library) but no `google.com` provider and no
+  // Drive token. Gating on `!!user` would skip the sign-in card and strand the
+  // teacher on an ungradeable empty library. Require a Google session + Drive
+  // token so the sign-in card shows until the teacher signs in as themselves.
+  const teacherReady = isGoogleSession(user) && !!googleAccessToken;
+
+  // Only subscribe to the teacher's library/assignments once they're a real
+  // Google session. Passing a stale-session uid (e.g. a restored studentRole
+  // user) would open Firestore listeners under a uid whose library the gated UI
+  // never shows — wasted reads. The library hooks treat an undefined uid as "no
+  // library" (they reset to empty), so this just defers the subscription until
+  // the teacher signs in. (Mirrors the deep-link picker, PR #1837.)
+  const libraryUid = teacherReady ? user?.uid : undefined;
+  const {
+    quizzes,
+    loadQuizData,
+    loading: quizzesLoading,
+  } = useQuiz(libraryUid);
+  const { publishAssignmentScores } = useQuizAssignments(libraryUid);
 
   const [busy, setBusy] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -392,13 +416,17 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
     );
   }
 
-  if (!user) {
+  if (!teacherReady) {
     return (
       <AddonShell maxWidthClassName="max-w-md">
         <AddonHeader
           icon={GraduationCap}
           title="Grade this assignment"
-          subtitle="Sign in with your school Google account to review and grade student work right here."
+          subtitle={
+            user
+              ? 'Sign in with your teacher Google account to review and grade student work right here.'
+              : 'Sign in with your school Google account to review and grade student work right here.'
+          }
         />
         <AddonCard className="p-6">
           <AddonButton

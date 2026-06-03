@@ -61,6 +61,7 @@ import {
 } from '@/utils/classroomGradePush';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
 import { logError } from '@/utils/logError';
+import { isGoogleSession } from '@/utils/googleSession';
 import { type QuizData } from '@/types';
 import {
   AddonShell,
@@ -102,7 +103,30 @@ export const LtiTeacherGrader: React.FC<{
   pushAuth: string;
 }> = ({ quizCode, resourceLinkId, pushAuth }) => {
   const { user, signInWithGoogle, googleAccessToken, orgId } = useAuth();
-  const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
+
+  // The grader loads the teacher's OWN Drive-backed quiz (answers + points) to
+  // compute scores and push them, so it needs a real Google sign-in (uid + Drive
+  // token) — NOT just any Firebase session. Schoology launches this in a
+  // cross-origin iframe where partitioned-storage auth can restore a leftover
+  // `studentRole` custom-token session from a prior student launch in the same
+  // partition; that has a uid (empty library) but no `google.com` provider and
+  // no Drive token. Gating on `!!user` would skip the sign-in card and strand the
+  // teacher on an ungradeable empty library. Require a Google session + Drive
+  // token so the sign-in card shows until the teacher signs in as themselves.
+  const teacherReady = isGoogleSession(user) && !!googleAccessToken;
+
+  // Only subscribe to the teacher's library once they're a real Google session.
+  // Passing a stale-session uid (e.g. a restored studentRole user) would open a
+  // Firestore listener under a uid whose library the gated UI never shows —
+  // wasted reads. useQuiz treats an undefined uid as "no library" (resets to
+  // empty), so this just defers the subscription until the teacher signs in.
+  // (Mirrors the deep-link picker, PR #1837.)
+  const libraryUid = teacherReady ? user?.uid : undefined;
+  const {
+    quizzes,
+    loadQuizData,
+    loading: quizzesLoading,
+  } = useQuiz(libraryUid);
 
   const [busy, setBusy] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -334,13 +358,17 @@ export const LtiTeacherGrader: React.FC<{
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  if (!user) {
+  if (!teacherReady) {
     return (
       <AddonShell maxWidthClassName="max-w-md">
         <AddonHeader
           icon={GraduationCap}
           title="Grade this assignment"
-          subtitle="Sign in with your school Google account to review and push grades right here."
+          subtitle={
+            user
+              ? 'Sign in with your teacher Google account to review and push grades right here.'
+              : 'Sign in with your school Google account to review and push grades right here.'
+          }
         />
         <AddonCard className="p-6">
           <AddonButton

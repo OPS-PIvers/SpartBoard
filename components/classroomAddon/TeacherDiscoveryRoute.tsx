@@ -45,6 +45,7 @@ import {
 } from '@/utils/videoActivityBehavior';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { logError } from '@/utils/logError';
+import { isGoogleSession } from '@/utils/googleSession';
 import { ensureGis, requestAccessToken } from './gisOAuth';
 import {
   ClipboardList,
@@ -145,15 +146,38 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   const existingAttachmentId = params.get('attachmentId') ?? '';
 
   const { user, signInWithGoogle, googleAccessToken } = useAuth();
-  const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
-  const { createAssignment } = useQuizAssignments(user?.uid);
+
+  // The discovery route lists + loads the teacher's OWN Drive-backed quiz /
+  // video-activity library and then attaches it, so it needs a real Google
+  // sign-in (uid + Drive token) — NOT just any Firebase session. Inside the
+  // Classroom add-on's cross-origin iframe, partitioned-storage auth can restore
+  // a leftover `studentRole` custom-token session from a prior student launch in
+  // the same partition; that has a uid (empty library) but no `google.com`
+  // provider and no Drive token. Gating on `!!user` would show that stale session
+  // an empty picker and skip the sign-in card. Require a Google session + Drive
+  // token so the sign-in card shows until the teacher signs in as themselves.
+  const teacherReady = isGoogleSession(user) && !!googleAccessToken;
+
+  // Only subscribe to the teacher's library/assignments once they're a real
+  // Google session. Passing a stale-session uid (e.g. a restored studentRole
+  // user) would open Firestore listeners under a uid whose library the gated UI
+  // never shows — wasted reads. The library hooks treat an undefined uid as "no
+  // library" (they reset to empty), so this just defers the subscription until
+  // the teacher signs in. (Mirrors the deep-link picker, PR #1837.)
+  const libraryUid = teacherReady ? user?.uid : undefined;
+  const {
+    quizzes,
+    loadQuizData,
+    loading: quizzesLoading,
+  } = useQuiz(libraryUid);
+  const { createAssignment } = useQuizAssignments(libraryUid);
   const {
     activities,
     loadActivityData,
     loading: activitiesLoading,
-  } = useVideoActivity(user?.uid);
+  } = useVideoActivity(libraryUid);
   const { createAssignment: createVideoActivityAssignment } =
-    useVideoActivityAssignments(user?.uid);
+    useVideoActivityAssignments(libraryUid);
   // PLC list for the quiz "Share with PLC" picker. usePlcs() reads `useAuth`
   // (mounted on this route) — no DashboardProvider required.
   const { plcs } = usePlcs();
@@ -757,11 +781,12 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
             </p>
           </div>
         </AddonCard>
-      ) : !user ? (
+      ) : !teacherReady ? (
         <AddonCard className="p-6">
           <p className="mb-4 text-sm text-slate-500">
-            Sign in with your school Google account to load your SpartBoard
-            library.
+            {user
+              ? 'Sign in with your teacher Google account to load your SpartBoard library.'
+              : 'Sign in with your school Google account to load your SpartBoard library.'}
           </p>
           <AddonButton onClick={() => void signIn()} loading={busy}>
             Sign in to SpartBoard
