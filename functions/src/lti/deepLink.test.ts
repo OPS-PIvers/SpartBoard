@@ -51,6 +51,7 @@ describe('buildDeepLinkResponseClaims', () => {
     ];
     const claims = buildDeepLinkResponseClaims({
       deploymentId: 'dep-1',
+      nonce: 'nonce-123',
       data: 'opaque-xyz',
       contentItems: items,
     });
@@ -59,14 +60,17 @@ describe('buildDeepLinkResponseClaims', () => {
     expect(claims[LTI.DEPLOYMENT_ID]).toBe('dep-1');
     expect(claims[LTI.DL_CONTENT_ITEMS]).toEqual(items);
     expect(claims[LTI.DL_DATA]).toBe('opaque-xyz');
+    expect(claims.nonce).toBe('nonce-123');
   });
 
-  it('omits data when absent', () => {
+  it('omits data when absent but still sets a nonce', () => {
     const claims = buildDeepLinkResponseClaims({
       deploymentId: 'd',
+      nonce: 'n',
       contentItems: [],
     });
     expect(LTI.DL_DATA in claims).toBe(false);
+    expect(claims.nonce).toBe('n');
   });
 });
 
