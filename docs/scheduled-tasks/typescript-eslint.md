@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-02_
+_Last audited: 2026-06-03_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-03. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Codebase clean after merging dev-paul: fix(quiz) unblock removeStudent when response has no attempt ledger (#1818), fix(classroom-addon) gate in-iframe grader pre-flight on canScoreResponse, fix(quiz) address Gemini review on #1813, fix(quiz) guard false-0 scoring + flag-gated SSO join redirect for wrong-period fork (#1812), plus new files: classlinkShared.ts, classroomAddonAuth.ts, quizCode.ts, studentJoinRouting.ts, runClassroomGradePush.ts, resolveDisplayName.ts, and new tests for all. All changes type-safe and lint-clean._
 
 _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-02. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). No new commits since 2026-06-01 (rebase onto dev-paul aborted; working from scheduled-tasks HEAD). Codebase clean._
 

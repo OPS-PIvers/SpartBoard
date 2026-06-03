@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-02_
+_Last audited: 2026-06-03_
 _Last action: 2026-05-31_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-03: Merged dev-paul into scheduled-tasks. Scanned all newly modified widget files: QuizWidget/utils/resolveDisplayName.ts (new — utility-only, no CSS), QuizWidget/components/QuizLiveMonitor.tsx (modified — all sizing uses cqmin inline styles, clean), VideoActivityWidget/components/Results.tsx (modified — all sizing uses cqmin inline styles, clean). QuizResults.tsx period-filter `text-sm` known violation: file grew significantly in merge, line number has shifted from ~968 to ~1530 — updating the open item line reference. No new anti-patterns introduced. All pre-existing open items remain valid._
 
 _2026-06-02: No new widget commits since 2026-06-01 (rebase onto dev-paul aborted; working from scheduled-tasks HEAD). No new anti-patterns introduced. All pre-existing open items remain valid: NextUp maxWidth:120px pixel cap (:327), ActivityWall inline-editor checkbox h-4 w-4 (:1352), CarRiderPro/First5 overlay button (completed 2026-05-30), GraphicOrganizer min-h-[50px] (completed 2026-05-31), PollWidget progress bar uncapped height (:161), EmbedWidget portaled toolbar, QuizResults period-filter text-sm, RevealGridWidget hardcoded spacing, multi-widget group spacing item, MiniApp internal dialog text sizes. All intentional cqh/cqw fill-better deviations (Clock, Checklist, Countdown, InstructionalRoutines, MusicWidget, TrafficLight) re-confirmed present per journal guidance._
 
@@ -107,7 +109,7 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ### LOW QuizResults period-filter `<select>` uses hardcoded `text-sm`
 
 - **Detected:** 2026-04-27
-- **File:** components/widgets/QuizWidget/components/QuizResults.tsx:968 (line shifted from :607 as of 2026-05-05 merge)
+- **File:** components/widgets/QuizWidget/components/QuizResults.tsx:1530 (line shifted from :968 as of 2026-06-03 merge)
 - **Detail:** The period filter `<select>` in the quiz results view uses `text-sm` (hardcoded Tailwind). The QuizWidget has `skipScaling: true`, so this element is inside a CSS container-query context. Introduced by the 2026-04-26 commit `fix(quiz): persist Results export URL on assignment doc (#1419)`. QuizResults grew significantly in the 2026-05-05 merge (matching/ordering editor addition) — line number has shifted.
 - **Fix:** Replace `text-sm` with an inline style: `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`. The surrounding `px-2 py-1` padding on the same element should also be converted: `style={{ padding: 'min(4px, 1.5cqmin) min(8px, 2.5cqmin)' }}`.
 
