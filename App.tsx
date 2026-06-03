@@ -76,6 +76,18 @@ const ClassroomAddonTeacherReview = lazy(() =>
     default: module.ClassroomAddonTeacherReview,
   }))
 );
+// Schoology LTI 1.3 launch surface (validated-launch view; runner/picker land later).
+const LtiLaunchPage = lazy(() =>
+  import('@/components/lti/LtiLaunchPage').then((module) => ({
+    default: module.LtiLaunchPage,
+  }))
+);
+// Schoology LTI 1.3 deep-linking teacher resource picker (/lti/teacher?mode=deeplink).
+const LtiDeepLinkPicker = lazy(() =>
+  import('@/components/lti/LtiDeepLinkPicker').then((module) => ({
+    default: module.LtiDeepLinkPicker,
+  }))
+);
 const ActivityWallStudentApp = lazy(() =>
   import('./components/activityWall/ActivityWallStudentApp').then((module) => ({
     default: module.ActivityWallStudentApp,
@@ -380,6 +392,10 @@ const App: React.FC = () => {
   // Google OAuth + custom-token sign-in, so no teacher providers are mounted.
   const isClassroomAddonRoute = pathname.startsWith('/classroom-addon/');
 
+  // Schoology LTI 1.3 launch routes (/lti/login + /lti/launch are Cloud Functions
+  // via hosting rewrites; /lti/student + /lti/teacher are this SPA surface).
+  const isLtiRoute = pathname.startsWith('/lti/');
+
   // Short-link resolver. Runs outside every provider so anonymous visitors
   // can follow admin-created /r/:code links without triggering Firebase
   // Auth, dashboard listeners, or any other heavy setup. The resolver does
@@ -506,6 +522,46 @@ const App: React.FC = () => {
         <Suspense fallback={<FullPageLoader />}>
           <ClassroomAddonStudentSpike />
         </Suspense>
+        <DialogContainer />
+      </DialogProvider>
+    );
+  }
+
+  // Schoology LTI 1.3 launch surface. Anonymous entry; the page exchanges the
+  // one-time launch code for the validated context (and, for a Learner launch, a
+  // studentRole custom token it signs in with).
+  //
+  // Provider scoping by route:
+  //   - /lti/teacher?mode=deeplink → the teacher resource PICKER
+  //     (LtiDeepLinkPicker), which loads the teacher's SpartBoard quiz library.
+  //   - /lti/teacher (instructor resource-link launch) → LtiLaunchPage, which on
+  //     an instructor launch mounts the in-iframe GRADER (LtiTeacherGrader) — it
+  //     loads the teacher's quiz library too.
+  // Both teacher cases need AuthProvider (the uid + Drive token), mirroring the
+  // Classroom teacher-discovery attach flow (AuthProvider, but no
+  // DashboardProvider). So ALL /lti/teacher routes get AuthProvider.
+  //   - /lti/student → LtiLaunchPage's student runner only; it never calls
+  //     useAuth, so it stays on DialogProvider alone (no teacher Firestore
+  //     listeners for anonymous students).
+  if (isLtiRoute) {
+    const isLtiTeacher = pathname.startsWith('/lti/teacher');
+    const isLtiDeepLink =
+      isLtiTeacher &&
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('mode') === 'deeplink';
+    return (
+      <DialogProvider>
+        {isLtiTeacher ? (
+          <AuthProvider>
+            <Suspense fallback={<FullPageLoader />}>
+              {isLtiDeepLink ? <LtiDeepLinkPicker /> : <LtiLaunchPage />}
+            </Suspense>
+          </AuthProvider>
+        ) : (
+          <Suspense fallback={<FullPageLoader />}>
+            <LtiLaunchPage />
+          </Suspense>
+        )}
         <DialogContainer />
       </DialogProvider>
     );
