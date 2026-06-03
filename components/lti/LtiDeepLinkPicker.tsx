@@ -29,6 +29,7 @@
 import React, {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -49,7 +50,7 @@ import {
   AddonStatus,
   AddonError,
   AddonSelect,
-} from '../classroomAddon/AddonShell';
+} from '@/components/classroomAddon/AddonShell';
 
 /**
  * Raw LTI `deep_linking_settings` claim. Only the fields we consume are typed;
@@ -136,6 +137,7 @@ export const LtiDeepLinkPicker: React.FC = () => {
   const [selectedQuizId, setSelectedQuizId] = useState('');
   const [contextId, setContextId] = useState<string | null>(null);
   const ranRef = useRef(false);
+  const quizSelectId = useId();
 
   const { user, signInWithGoogle } = useAuth();
   const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
@@ -323,13 +325,13 @@ export const LtiDeepLinkPicker: React.FC = () => {
         <div className="space-y-4">
           <AddonCard className="p-4">
             <label
-              htmlFor="lti-quiz-select"
+              htmlFor={quizSelectId}
               className="mb-1.5 block text-sm font-medium text-slate-700"
             >
               Quiz
             </label>
             <AddonSelect
-              id="lti-quiz-select"
+              id={quizSelectId}
               ariaLabel="Quiz"
               value={selectedQuizId}
               onChange={setSelectedQuizId}

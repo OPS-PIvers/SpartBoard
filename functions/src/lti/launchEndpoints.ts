@@ -199,12 +199,13 @@ export const ltiLaunch = onRequest(
         // Surface the quiz/VA identity from the content item's custom claim so the
         // runner can SSO-auto-join (the quiz code is a join code, not a secret).
         const custom = claims.custom;
-        const kind = typeof custom.kind === 'string' ? custom.kind : 'quiz';
+        const kind =
+          typeof custom['kind'] === 'string' ? custom['kind'] : 'quiz';
         url.searchParams.set('kind', kind);
-        if (kind === 'va' && typeof custom.session_id === 'string') {
-          url.searchParams.set('sessionId', custom.session_id);
-        } else if (typeof custom.quiz_code === 'string') {
-          url.searchParams.set('code', custom.quiz_code);
+        if (kind === 'va' && typeof custom['session_id'] === 'string') {
+          url.searchParams.set('sessionId', custom['session_id']);
+        } else if (typeof custom['quiz_code'] === 'string') {
+          url.searchParams.set('code', custom['quiz_code']);
         }
       }
 

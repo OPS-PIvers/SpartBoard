@@ -68,7 +68,7 @@ import {
   AddonButton,
   AddonStatus,
   AddonError,
-} from '../classroomAddon/AddonShell';
+} from '@/components/classroomAddon/AddonShell';
 
 /** Per-student AGS push result the `ltiPushGradesForAssignmentV1` callable returns. */
 interface LtiPushGradeResult {
@@ -154,14 +154,22 @@ export const LtiTeacherGrader: React.FC<{
   // carries quizId; match it to the teacher's library for the Drive id. Mirrors
   // TeacherReviewRoute's loader exactly.
   const [quizData, setQuizData] = useState<QuizData | null>(null);
+  // Which quizId the loaded `quizData` belongs to. The resolved quizId normally
+  // settles just once, but if it ever changes — or the loader bails early
+  // (library still loading, quiz not in this teacher's library, or no Drive id)
+  // — drop the stale quiz synchronously during render (React's "adjust state
+  // while rendering" reset, not a setState-in-effect) so the score math can
+  // never show a previous quiz's questions/answers while the new one loads.
+  const [quizDataForQuizId, setQuizDataForQuizId] = useState<string | null>(
+    null
+  );
+  const currentQuizId = session?.quizId ?? null;
+  if (quizData !== null && quizDataForQuizId !== currentQuizId) {
+    setQuizData(null);
+  }
   useEffect(() => {
     const quizId = session?.quizId;
-    if (!quizId) {
-      // No session/quiz resolved (yet, or it changed) — drop any stale quiz so
-      // the score math can't show a previous quiz's questions/answers.
-      setQuizData(null);
-      return;
-    }
+    if (!quizId) return;
     // Wait for the library to finish loading rather than for a non-empty list —
     // an empty library is a legitimate "not found" signal, not "still loading".
     if (quizzesLoading || !googleAccessToken) return;
@@ -181,7 +189,10 @@ export const LtiTeacherGrader: React.FC<{
     void (async () => {
       try {
         const data = await loadQuizData(meta.driveFileId);
-        if (active) setQuizData(data);
+        if (active) {
+          setQuizData(data);
+          setQuizDataForQuizId(quizId);
+        }
       } catch (err) {
         if (!active) return;
         logError('LtiTeacherGrader.loadQuiz', err, { quizId });

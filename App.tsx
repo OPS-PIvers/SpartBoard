@@ -78,13 +78,13 @@ const ClassroomAddonTeacherReview = lazy(() =>
 );
 // Schoology LTI 1.3 launch surface (validated-launch view; runner/picker land later).
 const LtiLaunchPage = lazy(() =>
-  import('./components/lti/LtiLaunchPage').then((module) => ({
+  import('@/components/lti/LtiLaunchPage').then((module) => ({
     default: module.LtiLaunchPage,
   }))
 );
 // Schoology LTI 1.3 deep-linking teacher resource picker (/lti/teacher?mode=deeplink).
 const LtiDeepLinkPicker = lazy(() =>
-  import('./components/lti/LtiDeepLinkPicker').then((module) => ({
+  import('@/components/lti/LtiDeepLinkPicker').then((module) => ({
     default: module.LtiDeepLinkPicker,
   }))
 );
