@@ -77,23 +77,20 @@ describe.each([
   { code: 'de', locale: de },
   { code: 'es', locale: es },
   { code: 'fr', locale: fr },
-])(
-  '$code locale — widgets.stickers parity with EN',
-  ({ code, locale }) => {
-    it(`${code}: has a widgets.stickers section`, () => {
+])('$code locale — widgets.stickers parity with EN', ({ code, locale }) => {
+  it(`${code}: has a widgets.stickers section`, () => {
+    expect(
+      locale,
+      `${code}.widgets.stickers section is entirely missing`
+    ).toHaveProperty(['widgets', 'stickers']);
+  });
+
+  it(`${code}: has all required widgets.stickers keys`, () => {
+    for (const key of REQUIRED_WIDGET_STICKERS_KEYS) {
       expect(
         locale,
-        `${code}.widgets.stickers section is entirely missing`
-      ).toHaveProperty(['widgets', 'stickers']);
-    });
-
-    it(`${code}: has all required widgets.stickers keys`, () => {
-      for (const key of REQUIRED_WIDGET_STICKERS_KEYS) {
-        expect(
-          locale,
-          `${code}.widgets.stickers.${key} is missing`
-        ).toHaveProperty(['widgets', 'stickers', key]);
-      }
-    });
-  }
-);
+        `${code}.widgets.stickers.${key} is missing`
+      ).toHaveProperty(['widgets', 'stickers', key]);
+    }
+  });
+});
