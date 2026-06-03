@@ -25,8 +25,8 @@ import { Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useQuiz } from '@/hooks/useQuiz';
 import { PlcQuizLibraryBody } from './PlcQuizLibraryBody';
-import { PlcAssignmentsInProgressSubTab } from '../tabs/PlcAssignmentsInProgressSubTab';
-import { PlcAssignmentsCompletedSubTab } from '../tabs/PlcAssignmentsCompletedSubTab';
+import { PlcAssignmentsInProgressSubTab } from '@/components/plc/tabs/PlcAssignmentsInProgressSubTab';
+import { PlcAssignmentsCompletedSubTab } from '@/components/plc/tabs/PlcAssignmentsCompletedSubTab';
 import { PlcNewQuizAssignmentModal } from '../PlcNewQuizAssignmentModal';
 
 type SubTabId = 'library' | 'inProgress' | 'completed';
