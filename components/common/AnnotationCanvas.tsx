@@ -24,6 +24,13 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentPath, setCurrentPath] = useState<Point[]>([]);
 
+  // Guards against double-commit when both the canvas's onPointerUp handler (handleEnd)
+  // and the window-level fallback listener (commit) fire for the same pointerup event.
+  // Both handlers see isDrawing=true from their stale closures because React's setState
+  // is async and not visible within the same synchronous event dispatch. This ref is set
+  // synchronously by whichever handler runs first, making the second a no-op.
+  const committedRef = useRef(false);
+
   // Draw function
   const draw = useCallback(
     (ctx: CanvasRenderingContext2D, allPaths: Path[], current: Point[]) => {
@@ -109,6 +116,7 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
       console.warn('Failed to set pointer capture in AnnotationCanvas:', _err);
     }
 
+    committedRef.current = false;
     setIsDrawing(true);
     const pos = getPos(e);
     setCurrentPath([pos]);
@@ -123,6 +131,11 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
 
   const handleEnd = (e: React.PointerEvent) => {
     if (!isDrawing) return;
+    // Guard: mark committed synchronously so the window-level fallback listener
+    // (commit) is a no-op if it fires for the same event. Both handlers see
+    // isDrawing=true from stale closures because setState is async.
+    if (committedRef.current) return;
+    committedRef.current = true;
     e.stopPropagation();
 
     const targetElement = e.currentTarget as HTMLElement;
@@ -148,9 +161,18 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
   // (older Safari touch, iframe contexts, security-restricted
   // environments) so the stroke can always finalize. Active only while
   // a stroke is in progress so the listeners don't outlive the gesture.
+  //
+  // committedRef prevents double-commit: when capture succeeds, pointerup
+  // bubbles to window AFTER handleEnd fires (React root delegation runs
+  // before window listeners in the bubbling order). Both handlers see
+  // isDrawing=true from stale closures because setState is async. The ref
+  // is set synchronously in whichever handler fires first, making the
+  // second a no-op.
   useEffect(() => {
     if (!isDrawing) return;
     const commit = () => {
+      if (committedRef.current) return;
+      committedRef.current = true;
       setIsDrawing(false);
       if (currentPath.length > 0) {
         onPathsChange([...paths, { points: currentPath, color, width }]);
