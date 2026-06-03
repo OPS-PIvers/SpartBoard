@@ -4357,8 +4357,12 @@ export interface GraphicOrganizerConfig {
 }
 export interface CarRiderProConfig {
   iframeUrl?: string;
-  cardColor?: string;
-  cardOpacity?: number;
+  // NOTE: The Car Rider Pro widget is an iframe wrapper for an external
+  // district portal; the iframe fills the entire widget surface, so
+  // surface-color appearance controls (cardColor/cardOpacity) have no
+  // visible effect. If header/frame appearance customization is ever
+  // added, declare the supporting fields here at that time rather than
+  // leaving dead config fields that imply unsupported customization.
 }
 
 export type BlendingBoardConfig = Record<string, never>;

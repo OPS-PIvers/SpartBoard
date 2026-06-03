@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plc } from '@/types';
-import { NotesBody } from '../bodies/NotesBody';
+import { NotesBody } from '@/components/plc/bodies/NotesBody';
 
 interface PlcNotesTabProps {
   plc: Plc;

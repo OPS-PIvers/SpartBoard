@@ -225,8 +225,19 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                 } else if (displayMode === 'fractions') {
                   // Simple fraction conversion if step suggests a common denominator (e.g. 0.25 -> 4)
                   const denom = Math.round(1 / safeStep);
-                  if (denom > 1 && denom <= 100 && (val * denom) % 1 === 0) {
-                    labelText = fractionLabel(val * denom, denom);
+                  // Use Math.round + epsilon guard instead of strict modulo check:
+                  // `val * denom` accumulates floating-point error (e.g. 3 × 0.1
+                  // yields 0.30000000000000004, so `(val*denom)%1 !== 0` even
+                  // though the tick is a perfect tenth). Round to the nearest
+                  // integer and confirm it's within 1e-9 of the raw product.
+                  const rawNumerator = val * denom;
+                  const roundedNumerator = Math.round(rawNumerator);
+                  const isFractional =
+                    denom > 1 &&
+                    denom <= 100 &&
+                    Math.abs(rawNumerator - roundedNumerator) < 1e-9;
+                  if (isFractional) {
+                    labelText = fractionLabel(roundedNumerator, denom);
                   } else {
                     labelText = Number(val.toFixed(4)).toString(); // Fallback
                   }

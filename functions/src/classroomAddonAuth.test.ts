@@ -765,11 +765,13 @@ describe('createClassroomAttachment (spike)', () => {
 });
 
 // linkClassroomCourse — server-gated creator of classroom_course_links/{courseId}.
-// The trust anchor is listTeacherCourseIds (the caller's OWN teacher course
-// list): the chosen courseId MUST appear there, or the link is refused. These
-// tests pin the squatting fix — a non-teacher can't claim a course, teacherUid
-// is always the authenticated caller (never the client payload), and an existing
-// link owned by a different teacher is never overwritten.
+// The trust anchor is verifyTeacherOfCourse (a single courses.teachers.get call
+// for the EXACT courseId): 200 → the caller teaches it (link allowed), 404 → not
+// a teacher (permission-denied), any other outcome → UNVERIFIABLE (fail closed,
+// unauthenticated). These tests pin the squatting fix — a non-teacher can't claim
+// a course, teacherUid is always the authenticated caller (never the client
+// payload), and an existing link owned by a different teacher is never
+// overwritten.
 const callLink = linkClassroomCourse as unknown as (req: {
   data: unknown;
   auth?: { uid: string } | null;
@@ -789,9 +791,9 @@ function findLinkWrite() {
 
 describe('linkClassroomCourse (course-squatting fix)', () => {
   it('writes the link for a verified teacher of the course', async () => {
-    const listSpy = vi
-      .spyOn(classroomAddonNet, 'listTeacherCourseIds')
-      .mockResolvedValue({ ok: true, status: 200, courseIds: ['C0', 'C1'] });
+    const verifySpy = vi
+      .spyOn(classroomAddonNet, 'verifyTeacherOfCourse')
+      .mockResolvedValue({ ok: true, status: 200, isTeacher: true });
 
     const res = await callLink({
       data: linkData,
@@ -799,7 +801,8 @@ describe('linkClassroomCourse (course-squatting fix)', () => {
     });
 
     expect(res).toMatchObject({ ok: true, courseId: 'C1' });
-    expect(listSpy).toHaveBeenCalledWith('teacher-courses-token');
+    // Verified against the EXACT courseId with the caller's token (one call).
+    expect(verifySpy).toHaveBeenCalledWith('teacher-courses-token', 'C1');
     const write = findLinkWrite();
     expect(write?.data).toMatchObject({
       classlinkClassId: 'CL-SECTION-1',
@@ -831,9 +834,8 @@ describe('linkClassroomCourse (course-squatting fix)', () => {
   it('refuses to link a course the caller does not teach (squat attempt)', async () => {
     vi.spyOn(classroomAddonNet, 'listTeacherCourseIds').mockResolvedValue({
       ok: true,
-      status: 200,
-      // The caller teaches OTHER courses, but NOT the courseId they're claiming.
-      courseIds: ['SOME-OTHER-COURSE'],
+      status: 404,
+      isTeacher: false,
     });
 
     await expect(
@@ -843,10 +845,10 @@ describe('linkClassroomCourse (course-squatting fix)', () => {
   });
 
   it('always records teacherUid from the authenticated caller, never the client payload', async () => {
-    vi.spyOn(classroomAddonNet, 'listTeacherCourseIds').mockResolvedValue({
+    vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
       ok: true,
       status: 200,
-      courseIds: ['C1'],
+      isTeacher: true,
     });
 
     await callLink({
@@ -864,10 +866,10 @@ describe('linkClassroomCourse (course-squatting fix)', () => {
       teacherUid: 'original-teacher',
     };
     // Even a genuine co-teacher (passes the teacher check) can't steal it.
-    vi.spyOn(classroomAddonNet, 'listTeacherCourseIds').mockResolvedValue({
+    vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
       ok: true,
       status: 200,
-      courseIds: ['C1'],
+      isTeacher: true,
     });
 
     await expect(
@@ -882,10 +884,10 @@ describe('linkClassroomCourse (course-squatting fix)', () => {
       teacherUid: 'teacher-1',
       createdAt: 111,
     } as Record<string, unknown>;
-    vi.spyOn(classroomAddonNet, 'listTeacherCourseIds').mockResolvedValue({
+    vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
       ok: true,
       status: 200,
-      courseIds: ['C1'],
+      isTeacher: true,
     });
 
     await callLink({ data: linkData, auth: { uid: 'teacher-1' } });
@@ -899,11 +901,11 @@ describe('linkClassroomCourse (course-squatting fix)', () => {
     expect(typeof write?.data.updatedAt).toBe('number');
   });
 
-  it('fails closed when the teacher course-list check errors (never links on an unverifiable token)', async () => {
-    vi.spyOn(classroomAddonNet, 'listTeacherCourseIds').mockResolvedValue({
+  it('fails closed when the teacher check is unverifiable (never links on an unverifiable token)', async () => {
+    vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
       ok: false,
       status: 401,
-      courseIds: [],
+      isTeacher: false,
     });
 
     await expect(
@@ -912,13 +914,61 @@ describe('linkClassroomCourse (course-squatting fix)', () => {
     expect(findLinkWrite()).toBeUndefined();
   });
 
+  it('distinguishes a 404 (not a teacher → permission-denied) from an unverifiable non-404 (→ fail closed)', async () => {
+    // 404 is the ONLY non-2xx that means "definitively not a teacher" — it maps
+    // to permission-denied. Every other non-2xx (403 insufficient scope, 5xx,
+    // network 0) is UNVERIFIABLE and must fail closed as `unauthenticated`,
+    // never be misread as a clean "not a teacher" deny. Both paths write
+    // nothing.
+    const verifySpy = vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse');
+
+    // 404 → permission-denied.
+    verifySpy.mockResolvedValueOnce({
+      ok: true,
+      status: 404,
+      isTeacher: false,
+    });
+    await expect(
+      callLink({ data: linkData, auth: { uid: 'teacher-1' } })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+
+    // 403 (insufficient scope) → fail closed, NOT permission-denied.
+    verifySpy.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      isTeacher: false,
+    });
+    await expect(
+      callLink({ data: linkData, auth: { uid: 'teacher-1' } })
+    ).rejects.toMatchObject({ code: 'unauthenticated' });
+
+    // 5xx → fail closed.
+    verifySpy.mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      isTeacher: false,
+    });
+    await expect(
+      callLink({ data: linkData, auth: { uid: 'teacher-1' } })
+    ).rejects.toMatchObject({ code: 'unauthenticated' });
+
+    // Network failure (status 0) → fail closed.
+    verifySpy.mockResolvedValueOnce({ ok: false, status: 0, isTeacher: false });
+    await expect(
+      callLink({ data: linkData, auth: { uid: 'teacher-1' } })
+    ).rejects.toMatchObject({ code: 'unauthenticated' });
+
+    // Not one of these four attempts wrote a link doc.
+    expect(findLinkWrite()).toBeUndefined();
+  });
+
   it('rejects an unauthenticated caller before any Classroom call', async () => {
-    const listSpy = vi.spyOn(classroomAddonNet, 'listTeacherCourseIds');
+    const verifySpy = vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse');
 
     await expect(
       callLink({ data: linkData, auth: null })
     ).rejects.toMatchObject({ code: 'unauthenticated' });
-    expect(listSpy).not.toHaveBeenCalled();
+    expect(verifySpy).not.toHaveBeenCalled();
     expect(findLinkWrite()).toBeUndefined();
   });
 
@@ -1202,77 +1252,76 @@ describe('classroomAddonNet.patchStudentSubmissionGrade URL construction', () =>
   });
 });
 
-// The teacher course-list seam — the trust anchor for linkClassroomCourse. The
-// linkClassroomCourse tests stub it, so these pin the real URL/pagination it
-// builds and that it degrades safely on a weird upstream body (the parse guard).
-describe('classroomAddonNet.listTeacherCourseIds (real seam)', () => {
+// The single-course teacher-verification seam — the trust anchor for
+// linkClassroomCourse. The linkClassroomCourse tests stub it, so these pin the
+// real URL it builds (courses.teachers.get, one call — NOT a teacherId=me
+// enumeration) and the 200 / 404 / other-status mapping that drives the
+// fail-closed semantics.
+describe('classroomAddonNet.verifyTeacherOfCourse (real seam)', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('GETs courses?teacherId=me&courseStates=ACTIVE and paginates, collecting ids', async () => {
-    const urls: string[] = [];
+  it('GETs /courses/{courseId}/teachers/me once and maps 200 → isTeacher:true', async () => {
+    let calledUrl = '';
     const fetchMock = vi.fn(async (url: unknown) => {
-      const u = url as string;
-      urls.push(u);
-      // The second page (token present) is the last — no nextPageToken.
-      if (u.includes('pageToken=PAGE2')) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ courses: [{ id: 'C3' }] }),
-        };
-      }
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({
-          courses: [{ id: 'C1' }, { id: 'C2' }],
-          nextPageToken: 'PAGE2',
-        }),
-      };
+      calledUrl = url as string;
+      return { ok: true, status: 200, json: async () => ({ userId: 'me' }) };
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const res = await classroomAddonNet.listTeacherCourseIds('tok');
+    const res = await classroomAddonNet.verifyTeacherOfCourse('tok', 'C1');
 
-    expect(res).toEqual({
-      ok: true,
-      status: 200,
-      courseIds: ['C1', 'C2', 'C3'],
-    });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(urls[0]).toContain('https://classroom.googleapis.com/v1/courses?');
-    expect(urls[0]).toContain('teacherId=me');
-    expect(urls[0]).toContain('courseStates=ACTIVE');
-    expect(urls[1]).toContain('pageToken=PAGE2');
-  });
-
-  it('treats a null/non-object 200 body as an empty final page (no crash)', async () => {
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => null,
-    }));
-    vi.stubGlobal('fetch', fetchMock);
-
-    const res = await classroomAddonNet.listTeacherCourseIds('tok');
-
-    expect(res).toEqual({ ok: true, status: 200, courseIds: [] });
+    expect(res).toEqual({ ok: true, status: 200, isTeacher: true });
+    // Exactly one call — no enumeration / pagination of the teacher's catalog.
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(calledUrl).toBe(
+      'https://classroom.googleapis.com/v1/courses/C1/teachers/me'
+    );
+    // State-agnostic: there is no courseStates filter on this endpoint.
+    expect(calledUrl).not.toContain('courseStates');
+    expect(calledUrl).not.toContain('teacherId=me');
   });
 
-  it('fails closed (ok:false) on a non-2xx response', async () => {
+  it('maps a 404 to a DEFINITIVE not-a-teacher answer (ok:true, isTeacher:false)', async () => {
     const fetchMock = vi.fn(async () => ({
       ok: false,
-      status: 401,
+      status: 404,
       json: async () => ({}),
     }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const res = await classroomAddonNet.listTeacherCourseIds('tok');
+    const res = await classroomAddonNet.verifyTeacherOfCourse('tok', 'C1');
 
-    expect(res).toEqual({ ok: false, status: 401, courseIds: [] });
+    // ok:true (definitive) but isTeacher:false — the caller turns this into
+    // permission-denied.
+    expect(res).toEqual({ ok: true, status: 404, isTeacher: false });
+  });
+
+  it('fails closed (ok:false) on a non-404 non-2xx response', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 403,
+      json: async () => ({}),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await classroomAddonNet.verifyTeacherOfCourse('tok', 'C1');
+
+    // 403/5xx are UNVERIFIABLE → ok:false (the caller fails closed), never
+    // misread as a clean "not a teacher".
+    expect(res).toEqual({ ok: false, status: 403, isTeacher: false });
+  });
+
+  it('fails closed (ok:false, status 0) on a network failure', async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new Error('network down');
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await classroomAddonNet.verifyTeacherOfCourse('tok', 'C1');
+
+    expect(res).toEqual({ ok: false, status: 0, isTeacher: false });
   });
 });
 

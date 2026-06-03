@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-05-27_
+_Last audited: 2026-06-03_
 _Last action: 2026-05-01_
 
 ---
@@ -46,6 +46,13 @@ _Nothing currently in progress._
 - **Detail:** The pattern `XConfigurationPanel as unknown as BuildingConfigPanel` is used for 11 existing panels. When `StationsConfigurationPanel` is added (see ui-unification.md), it will be added with the same double-cast, further extending this pattern. The root issue (noted in the existing LOW item below) is that no shared interface for building config panels exists. Each new widget addition copies the pattern without improving type safety.
 - **Fix:** When adding StationsConfigurationPanel, simultaneously fix the existing LOW item — define a `BuildingConfigPanelComponent` interface and have each panel implement it explicitly, eliminating `as unknown as`. This upgrades the safety of the entire map.
 
+### LOW `as unknown as` double-casts in VideoActivityWidget/Results.tsx — generics workaround for exporter
+
+- **Detected:** 2026-06-03
+- **File:** components/widgets/VideoActivityWidget/components/Results.tsx:210, :216
+- **Detail:** Two `as unknown as` casts were added in the June 3 merge: `questions as unknown as Parameters<typeof drive.exportResultsToSheet>[2]` and `gradeVideoActivityAnswer as unknown as NonNullable<ExporterOptions>['gradeFn']`. Both are class (c) — workarounds for the shared `exportResultsToSheet` function not being generic over question/grading types. A code comment at :205 already documents the intent: "function become generic too and remove the cast." Severity is LOW because the types do conform at runtime and the casts are documented.
+- **Fix:** Make `exportResultsToSheet` generic over the question type and grading function type so the casts become unnecessary. This is a refactor of the drive export utility (likely `hooks/useGoogleDrive.ts` or similar), not just the call site.
+
 ### LOW useScreenRecord and useLiveSession exceed 5 state/ref calls
 
 - **Detected:** 2026-04-24
@@ -54,6 +61,8 @@ _Nothing currently in progress._
 - **Fix:** For `useScreenRecord`, group `{ isRecording, duration, error }` into a single `useState` object to reduce the state surface. The 4 refs are all distinct external handles and should remain individual. For `useLiveSession`, group `{ studentId, studentPin }` (always set/cleared together) into a single state object. Severity is LOW because the individual state declarations are cohesive and readable.
 
 ---
+
+_2026-06-03: Audited Object.assign patterns (DashboardContext has zero Object.assign calls — mergeWidgetConfig extraction complete), as unknown as casts (2 new instances in VideoActivityWidget/Results.tsx at lines 210 and 216 — both class (c) generics workarounds for shared exporter function; code comment documents intent), hook complexity (useQuizSession: 22 calls up from 21; useVideoActivitySession: 18 calls up from 17 — small growth, existing open item still valid), new utility files from merge (studentJoinRouting.ts, runClassroomGradePush.ts, quizCode.ts — all stateless pure utilities, no state density concern), nested ternaries (1 pre-existing 4-level ternary in QuizResults.tsx — no new instances). One new LOW item added for VideoActivity casts._
 
 _2026-05-27: Audited Object.assign patterns (mergeWidgetConfig helper already extracted — no new duplication), as unknown as casts (7 new instances in ai_security.ts added as MEDIUM item above), hook complexity (useQuizSession 21 calls / useVideoActivitySession 17 calls — unchanged from prior audits; useSpotifyWebPlayback added at 14 calls), prop drilling (minimal, context APIs used correctly), nested ternaries (~15 instances in admin UI labels — LOW severity, unchanged). One new MEDIUM item added._
 

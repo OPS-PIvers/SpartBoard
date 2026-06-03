@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   gradeVideoActivityAnswer,
   computeVideoActivityScorePct,
+  canScoreVideoActivityResponse,
 } from '@/utils/videoActivityGrading';
 import type { VideoActivityQuestion } from '@/types';
 
@@ -365,5 +366,94 @@ describe('computeVideoActivityScorePct', () => {
     // Without the fix: max = 4 (counted twice), earned = 2, score = 50.
     // With the fix:    max = 2 (counted once),  earned = 2, score = 100.
     expect(score).toBe(100);
+  });
+});
+
+describe('canScoreVideoActivityResponse', () => {
+  const qs = [
+    q({ id: 'q1', type: 'MC', correctAnswer: 'a' }),
+    q({ id: 'q2', type: 'MC', correctAnswer: 'b' }),
+  ];
+
+  it('returns false when the question set has not loaded (empty questions)', () => {
+    // The teacher Results view scores against `session.questions`; before that
+    // hydrates from Firestore every completed response would score a phantom 0.
+    expect(
+      canScoreVideoActivityResponse([], [{ questionId: 'q1', answer: 'a' }])
+    ).toBe(false);
+  });
+
+  it('returns true for a response whose answers match loaded questions', () => {
+    expect(
+      canScoreVideoActivityResponse(qs, [{ questionId: 'q1', answer: 'a' }])
+    ).toBe(true);
+  });
+
+  it('treats a zero-answer response as scoreable (genuine 0, not a missing key)', () => {
+    expect(canScoreVideoActivityResponse(qs, [])).toBe(true);
+  });
+
+  it('returns false when no answer maps to a loaded question id (synced ID drift)', () => {
+    expect(
+      canScoreVideoActivityResponse(qs, [
+        { questionId: 'old-q1', answer: 'a' },
+        { questionId: 'old-q2', answer: 'b' },
+      ])
+    ).toBe(false);
+  });
+
+  it('returns true when at least one answer maps to a loaded question (partial drift)', () => {
+    expect(
+      canScoreVideoActivityResponse(qs, [
+        { questionId: 'q1', answer: 'a' },
+        { questionId: 'old-q2', answer: 'b' },
+      ])
+    ).toBe(true);
+  });
+});
+
+describe('class-average / gradebook exclusion (phantom-0 guard)', () => {
+  const qs = [q({ id: 'q1', type: 'MC', correctAnswer: 'a', points: 1 })];
+
+  // Mirrors the Results.tsx aggregate loop: a completed response is only folded
+  // into the class average when `canScoreVideoActivityResponse` says it can be
+  // scored. This is the behavior the monitor relies on so an unscoreable
+  // response can't drag the average toward a phantom 0. Returns `null` when
+  // nothing is scoreable, which the tile renders as "—" rather than "0%".
+  function classAverage(
+    questions: VideoActivityQuestion[],
+    completed: { answers: { questionId: string; answer: string }[] }[]
+  ): number | null {
+    let sum = 0;
+    let scored = 0;
+    for (const r of completed) {
+      if (canScoreVideoActivityResponse(questions, r.answers)) {
+        sum += computeVideoActivityScorePct(questions, r.answers);
+        scored++;
+      }
+    }
+    return scored > 0 ? Math.round(sum / scored) : null;
+  }
+
+  it('excludes a drifted (unscoreable) response from the average', () => {
+    const scored = { answers: [{ questionId: 'q1', answer: 'a' }] }; // 100%
+    const drifted = { answers: [{ questionId: 'gone', answer: 'a' }] }; // phantom 0
+    // Without the guard: (100 + 0) / 2 = 50. With it: 100 / 1 = 100.
+    expect(classAverage(qs, [scored, drifted])).toBe(100);
+  });
+
+  it('yields null (rendered as "—") when the question set has not loaded', () => {
+    const r = { answers: [{ questionId: 'q1', answer: 'a' }] };
+    // Every response is unscoreable, so the average has no scored members and
+    // is null — the tile shows "—" instead of a misleading 0% "everyone failed".
+    expect(classAverage([], [r])).toBeNull();
+  });
+
+  it('still counts a genuine empty submission as a real 0 in the average', () => {
+    const perfect = { answers: [{ questionId: 'q1', answer: 'a' }] }; // 100%
+    const empty = { answers: [] as { questionId: string; answer: string }[] }; // real 0
+    // A no-answer submission is a true 0, not a missing-key artifact — it stays
+    // in the mean: (100 + 0) / 2 = 50.
+    expect(classAverage(qs, [perfect, empty])).toBe(50);
   });
 });

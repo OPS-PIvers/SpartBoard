@@ -4304,3 +4304,11 @@ export {
   unlinkClassroomCourse,
   pushClassroomGradesForAssignment,
 } from './classroomAddonAuth';
+
+// Schoology LTI 1.3 — see functions/src/lti/.
+export { ltiJwks } from './lti/endpoints';
+export { ltiLogin, ltiLaunch, ltiExchange } from './lti/launchEndpoints';
+export {
+  ltiSignDeepLinkResponseV1,
+  ltiPushGradesForAssignmentV1,
+} from './lti/serviceEndpoints';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plc } from '@/types';
-import { PlcVideoActivitiesTabsBody } from '../bodies/PlcVideoActivitiesTabsBody';
+import { PlcVideoActivitiesTabsBody } from '@/components/plc/bodies/PlcVideoActivitiesTabsBody';
 
 interface PlcVideoActivitiesTabProps {
   plc: Plc;

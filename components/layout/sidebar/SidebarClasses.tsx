@@ -36,6 +36,23 @@ import {
 const CLASSROOM_COURSES_READONLY_SCOPE =
   'https://www.googleapis.com/auth/classroom.courses.readonly';
 
+/** `courses.list` page size — matches the server-side `listTeacherCourseIds`. */
+const COURSES_PAGE_SIZE = 100;
+
+/**
+ * Runaway guard on pagination: a single teacher with >2500 active courses is
+ * implausible, so this is a cap to avoid an unbounded loop — not an expected
+ * limit. Mirrors the CF's `MAX_PAGES`.
+ */
+const MAX_COURSE_PAGES = 25;
+
+/**
+ * Per-request timeout for the Classroom course listing. Mirrors `API_TIMEOUT_MS`
+ * in the server-side add-on CF so a hung Classroom call can't pin the dropdown's
+ * loading spinner forever — it surfaces a retryable error instead.
+ */
+const COURSES_API_TIMEOUT_MS = 10000;
+
 /** Minimal shape of a Google Classroom course we care about. */
 interface GoogleClassroomCourse {
   id: string;
@@ -143,15 +160,56 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
       );
       // Reused at confirm time to verify teaching authority server-side.
       coursesAccessTokenRef.current = token;
-      const res = await fetch(
-        'https://classroom.googleapis.com/v1/courses?teacherId=me&courseStates=ACTIVE',
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!res.ok) {
-        throw new Error(`Classroom API returned ${res.status}`);
-      }
-      const data = (await res.json()) as { courses?: GoogleClassroomCourse[] };
-      setCourses(data.courses ?? []);
+      // Page through ALL the teacher's active courses (a teacher with many
+      // courses would otherwise be truncated to the first page), following
+      // `nextPageToken` until exhausted, capped by MAX_COURSE_PAGES so a buggy
+      // token loop can't spin unbounded.
+      const all: GoogleClassroomCourse[] = [];
+      let pageToken: string | undefined;
+      let pages = 0;
+      do {
+        const qs = new URLSearchParams({
+          teacherId: 'me',
+          courseStates: 'ACTIVE',
+          pageSize: String(COURSES_PAGE_SIZE),
+        });
+        if (pageToken) qs.set('pageToken', pageToken);
+        // Time-box each request so a slow/hung Classroom call surfaces a
+        // retryable error instead of pinning the loading spinner forever.
+        let res: Response;
+        try {
+          res = await fetch(
+            `https://classroom.googleapis.com/v1/courses?${qs.toString()}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+              signal: AbortSignal.timeout(COURSES_API_TIMEOUT_MS),
+            }
+          );
+        } catch (fetchErr) {
+          // AbortSignal.timeout rejects with a DOMException('TimeoutError') —
+          // which isn't an `Error` in every engine — so match either type.
+          if (
+            (fetchErr instanceof DOMException || fetchErr instanceof Error) &&
+            (fetchErr.name === 'TimeoutError' || fetchErr.name === 'AbortError')
+          ) {
+            throw new Error(
+              'Timed out loading your Google Classroom courses. Please try again.'
+            );
+          }
+          throw fetchErr;
+        }
+        if (!res.ok) {
+          throw new Error(`Classroom API returned ${res.status}`);
+        }
+        const data = (await res.json()) as {
+          courses?: GoogleClassroomCourse[];
+          nextPageToken?: string;
+        };
+        for (const c of data.courses ?? []) all.push(c);
+        pageToken = data.nextPageToken;
+        pages += 1;
+      } while (pageToken && pages < MAX_COURSE_PAGES);
+      setCourses(all);
       setCourseLoadState('loaded');
     } catch (err) {
       setCourseLoadError(
