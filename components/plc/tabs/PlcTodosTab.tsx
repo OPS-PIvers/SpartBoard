@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plc } from '@/types';
-import { TodosBody } from '../bodies/TodosBody';
+import { TodosBody } from '@/components/plc/bodies/TodosBody';
 
 interface PlcTodosTabProps {
   plc: Plc;

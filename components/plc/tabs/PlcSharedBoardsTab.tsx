@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plc } from '@/types';
-import { PlcSharedBoardsBody } from '../bodies/PlcSharedBoardsBody';
+import { PlcSharedBoardsBody } from '@/components/plc/bodies/PlcSharedBoardsBody';
 
 interface PlcSharedBoardsTabProps {
   plc: Plc;
