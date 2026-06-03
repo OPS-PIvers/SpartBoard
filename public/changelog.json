@@ -1,6 +1,17 @@
 {
   "entries": [
     {
+      "version": "2026.06.03.2",
+      "date": "2026-06-03",
+      "title": "Adding a SpartBoard quiz to Schoology",
+      "details": [
+        {
+          "type": "fix",
+          "text": "Schoology — adding a SpartBoard quiz to your course now finishes cleanly. Previously, even when the quiz was added successfully, you could be shown a confusing error and left on a blank page. Now the quiz is added without that error and you're taken straight back to your course's materials, with a \"Return to your course\" link as a backup in case the automatic redirect doesn't happen."
+        }
+      ]
+    },
+    {
       "version": "2026.06.03",
       "date": "2026-06-03",
       "title": "Google Classroom linking, scoring, and widget fixes",
