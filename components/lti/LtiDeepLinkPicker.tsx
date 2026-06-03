@@ -155,9 +155,17 @@ const LtiDeepLinkLauncher: React.FC = () => {
           });
         }
       } else if (msg.type === DL_HANDOFF_RESPONSE) {
-        setSubmitted(true);
-        setStatusMsg('Returning to Schoology…');
-        postDeepLinkResponse(msg.response.returnUrl, msg.response.jwt);
+        try {
+          postDeepLinkResponse(msg.response.returnUrl, msg.response.jwt);
+          setSubmitted(true);
+          setStatusMsg('Returning to Schoology…');
+        } catch (err) {
+          setErrorMsg(
+            err instanceof Error
+              ? err.message
+              : 'Failed to return to Schoology.'
+          );
+        }
       }
     };
     window.addEventListener('message', onMessage);

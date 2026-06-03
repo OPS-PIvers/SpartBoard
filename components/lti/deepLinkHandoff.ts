@@ -121,11 +121,34 @@ export function postHandoffMessage(
  * navigate); submitting navigates the current window back to the platform.
  * Used by the launcher (navigates the Schoology iframe) and, as a fallback when
  * the opener is gone, by the window itself.
+ *
+ * SECURITY: the return URL is platform-supplied (validated server-side before
+ * signing), but we re-validate it here — inline, so the guard dominates the
+ * `form.action` sink — against the same https + schoology.com allowlist the
+ * server uses (`isSchoologyReturnUrl`), then submit the PARSED href. A
+ * tampered/forged value — a `javascript:`/`data:` scheme (DOM XSS) or a foreign
+ * host (open redirect) — is rejected, never assigned to the form.
  */
 export function postDeepLinkResponse(returnUrl: string, jwt: string): void {
+  let parsed: URL | null = null;
+  try {
+    parsed = new URL(returnUrl);
+  } catch {
+    parsed = null;
+  }
+  if (
+    !parsed ||
+    parsed.protocol !== 'https:' ||
+    !/(^|\.)schoology\.com$/.test(parsed.hostname)
+  ) {
+    throw new Error(
+      'Refusing to submit the deep-link response: invalid or non-Schoology return URL.'
+    );
+  }
+
   const form = document.createElement('form');
   form.method = 'POST';
-  form.action = returnUrl;
+  form.action = parsed.href;
   const input = document.createElement('input');
   input.type = 'hidden';
   input.name = 'JWT';
