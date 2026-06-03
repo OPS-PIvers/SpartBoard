@@ -816,10 +816,10 @@ describe('linkClassroomCourse (course-squatting fix)', () => {
   });
 
   it('performs the no-hijack check + write inside a transaction (TOCTOU fix)', async () => {
-    vi.spyOn(classroomAddonNet, 'listTeacherCourseIds').mockResolvedValue({
+    vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
       ok: true,
       status: 200,
-      courseIds: ['C1'],
+      isTeacher: true,
     });
 
     await callLink({ data: linkData, auth: { uid: 'teacher-1' } });
@@ -832,7 +832,7 @@ describe('linkClassroomCourse (course-squatting fix)', () => {
   });
 
   it('refuses to link a course the caller does not teach (squat attempt)', async () => {
-    vi.spyOn(classroomAddonNet, 'listTeacherCourseIds').mockResolvedValue({
+    vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
       ok: true,
       status: 404,
       isTeacher: false,
@@ -1015,9 +1015,9 @@ describe('unlinkClassroomCourse (correction path)', () => {
       classlinkClassId: 'CL-SECTION-1',
       teacherUid: 'teacher-1',
     };
-    const listSpy = vi
-      .spyOn(classroomAddonNet, 'listTeacherCourseIds')
-      .mockResolvedValue({ ok: true, status: 200, courseIds: ['C0', 'C1'] });
+    const verifySpy = vi
+      .spyOn(classroomAddonNet, 'verifyTeacherOfCourse')
+      .mockResolvedValue({ ok: true, status: 200, isTeacher: true });
 
     const res = await callUnlink({
       data: unlinkData,
@@ -1026,7 +1026,7 @@ describe('unlinkClassroomCourse (correction path)', () => {
 
     expect(res).toMatchObject({ ok: true, courseId: 'C1', removed: true });
     // Teaching authority is re-verified server-side with the caller's own token.
-    expect(listSpy).toHaveBeenCalledWith('teacher-courses-token');
+    expect(verifySpy).toHaveBeenCalledWith('teacher-courses-token', 'C1');
     // The delete is transactional (deterministic vs a concurrent link/unlink).
     expect(transactionCount).toBe(1);
     expect(findLinkDelete()).toBeDefined();
@@ -1039,10 +1039,10 @@ describe('unlinkClassroomCourse (correction path)', () => {
       teacherUid: 'departed-teacher',
     };
     // The caller is a co-teacher who genuinely teaches the course.
-    vi.spyOn(classroomAddonNet, 'listTeacherCourseIds').mockResolvedValue({
+    vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
       ok: true,
       status: 200,
-      courseIds: ['C1'],
+      isTeacher: true,
     });
 
     const res = await callUnlink({
@@ -1062,11 +1062,11 @@ describe('unlinkClassroomCourse (correction path)', () => {
       classlinkClassId: 'CL-SECTION-1',
       teacherUid: 'teacher-1',
     };
-    vi.spyOn(classroomAddonNet, 'listTeacherCourseIds').mockResolvedValue({
+    vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
       ok: true,
-      status: 200,
-      // The caller teaches OTHER courses, but NOT the one they're unlinking.
-      courseIds: ['SOME-OTHER-COURSE'],
+      // A definitive "not a teacher of this course" answer (Classroom 404).
+      status: 404,
+      isTeacher: false,
     });
 
     await expect(
@@ -1079,10 +1079,10 @@ describe('unlinkClassroomCourse (correction path)', () => {
 
   it('fails closed when the teacher course-list check errors (never unlinks on an unverifiable token)', async () => {
     courseLinkDoc = { teacherUid: 'teacher-1' };
-    vi.spyOn(classroomAddonNet, 'listTeacherCourseIds').mockResolvedValue({
+    vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
       ok: false,
       status: 401,
-      courseIds: [],
+      isTeacher: false,
     });
 
     await expect(
@@ -1092,21 +1092,21 @@ describe('unlinkClassroomCourse (correction path)', () => {
   });
 
   it('rejects an unauthenticated caller before any Classroom call', async () => {
-    const listSpy = vi.spyOn(classroomAddonNet, 'listTeacherCourseIds');
+    const verifySpy = vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse');
 
     await expect(
       callUnlink({ data: unlinkData, auth: null })
     ).rejects.toMatchObject({ code: 'unauthenticated' });
-    expect(listSpy).not.toHaveBeenCalled();
+    expect(verifySpy).not.toHaveBeenCalled();
     expect(findLinkDelete()).toBeUndefined();
   });
 
   it('is idempotent: unlinking a course with no existing link is a no-op (removed:false)', async () => {
     courseLinkDoc = null; // not linked
-    vi.spyOn(classroomAddonNet, 'listTeacherCourseIds').mockResolvedValue({
+    vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
       ok: true,
       status: 200,
-      courseIds: ['C1'],
+      isTeacher: true,
     });
 
     const res = await callUnlink({
@@ -1120,7 +1120,7 @@ describe('unlinkClassroomCourse (correction path)', () => {
   });
 
   it('requires accessToken and courseId', async () => {
-    const listSpy = vi.spyOn(classroomAddonNet, 'listTeacherCourseIds');
+    const verifySpy = vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse');
 
     await expect(
       callUnlink({
@@ -1135,7 +1135,7 @@ describe('unlinkClassroomCourse (correction path)', () => {
       })
     ).rejects.toMatchObject({ code: 'invalid-argument' });
     // Malformed input is rejected before any teacher-verification call.
-    expect(listSpy).not.toHaveBeenCalled();
+    expect(verifySpy).not.toHaveBeenCalled();
   });
 });
 

@@ -36,13 +36,13 @@ import {
 const CLASSROOM_COURSES_READONLY_SCOPE =
   'https://www.googleapis.com/auth/classroom.courses.readonly';
 
-/** `courses.list` page size — matches the server-side `listTeacherCourseIds`. */
+/** `courses.list` page size for the client's course picker. */
 const COURSES_PAGE_SIZE = 100;
 
 /**
  * Runaway guard on pagination: a single teacher with >2500 active courses is
  * implausible, so this is a cap to avoid an unbounded loop — not an expected
- * limit. Mirrors the CF's `MAX_PAGES`.
+ * limit.
  */
 const MAX_COURSE_PAGES = 25;
 

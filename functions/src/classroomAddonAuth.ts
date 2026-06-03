@@ -1057,12 +1057,12 @@ export const linkClassroomCourse = onCall(
  * common "wrong rosterId, same teacher" fix doesn't even need this — the owner
  * just re-links the correct roster (the same-teacher merge updates `rosterId`).
  *
- * TRUST ANCHOR: identical to `linkClassroomCourse` — re-run the caller's OWN
- * `courses?teacherId=me` query server-side with their
- * `classroom.courses.readonly` token. Only a VERIFIED teacher of the Google
- * course may unlink it; any upstream/verification error fails CLOSED (never
- * deletes on an unverifiable token). `request.auth.uid` is the only identity
- * source. Never a client-direct delete.
+ * TRUST ANCHOR: identical to `linkClassroomCourse` — a single server-side
+ * `courses.teachers.get` call (`GET /courses/{courseId}/teachers/me`) with the
+ * caller's `classroom.courses.readonly` token. Only a VERIFIED teacher of the
+ * Google course may unlink it; any upstream/verification error fails CLOSED
+ * (never deletes on an unverifiable token). `request.auth.uid` is the only
+ * identity source. Never a client-direct delete.
  *
  * CO-TEACHER TAKEOVER — DOCUMENTED DECISION: a verified teacher of the course
  * who is NOT the current owner (e.g. cleaning up after a colleague left the
@@ -1113,17 +1113,21 @@ export const unlinkClassroomCourse = onCall(
       throw new HttpsError('invalid-argument', 'courseId is required.');
     }
 
-    // TRUST ANCHOR: prove the caller teaches this Google course. Fail CLOSED on
-    // any upstream error (never unlink on an unverifiable token).
-    const teacherCourses =
-      await classroomAddonNet.listTeacherCourseIds(accessToken);
-    if (!teacherCourses.ok) {
+    // TRUST ANCHOR: prove the caller teaches this Google course with a single
+    // courses.teachers.get call (mirrors linkClassroomCourse). Fail CLOSED on
+    // any UNVERIFIABLE outcome (network/timeout/401/403/5xx) — never unlink on a
+    // token we couldn't get a definitive answer for.
+    const verification = await classroomAddonNet.verifyTeacherOfCourse(
+      accessToken,
+      courseId
+    );
+    if (!verification.ok) {
       throw new HttpsError(
         'unauthenticated',
-        `Could not verify your Google Classroom courses (status ${teacherCourses.status}).`
+        `Could not verify that you teach this Google Classroom course (status ${verification.status}).`
       );
     }
-    if (!teacherCourses.courseIds.includes(courseId)) {
+    if (!verification.isTeacher) {
       // Opaque on purpose: don't reveal whether the course exists to someone who
       // doesn't teach it.
       console.warn(
