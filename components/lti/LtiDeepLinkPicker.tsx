@@ -1,26 +1,31 @@
 /**
  * Schoology LTI 1.3 Deep Linking — teacher resource picker.
  *
- * Route: /lti/teacher?mode=deeplink  (Schoology opens this iframe when a teacher
- * clicks "Add Material → SpartBoard"; the browser arrives via a 302 from the
- * ltiLaunch Cloud Function carrying a one-time `?lc=<launchCode>`.)
+ * Route: /lti/teacher?mode=deeplink  (Schoology opens this in an iframe when a
+ * teacher clicks "Add Material → SpartBoard"; the browser arrives via a 302 from
+ * the ltiLaunch Cloud Function carrying a one-time `?lc=<launchCode>`.)
  *
- * Flow: exchange the launch code → the teacher signs in (Google) → load THEIR
- * quiz library → pick one → create a class-targeted assignment → sign the
- * LtiDeepLinkingResponse → auto-POST it to `deep_link_return_url`, which Schoology
- * consumes to create the graded material.
+ * Why the two modes below: the teacher's Google OAuth CANNOT run inside the
+ * Schoology iframe. Every context OPENED FROM the iframe — an in-iframe popup, a
+ * `window.open` window, even a severed `noopener` tab — inherits Schoology's
+ * storage partition, so Google Workspace Context-Aware Access denies the token
+ * ("Account Restricted"). The ONLY first-party context is one where SpartBoard
+ * is the TOP-LEVEL document (no longer a child of the iframe).
  *
- * IMPORTANT — Context-Aware Access dependency: the teacher's Google sign-in runs
- * inside Schoology's iframe. That only works if the Orono Workspace admin has
- * EXEMPTED the SpartBoard OAuth app from the Context-Aware Access rule (or marked
- * it Trusted under API Controls → App Access Control). Without that, Google
- * returns "Account Restricted" (access_not_configured) at the token step. We
- * proved this can't be worked around client-side: any context opened FROM the
- * iframe (in-iframe popup, window.open, even a severed `noopener` tab) inherits
- * the iframe's storage partition and is denied; only a context with no
- * creation-relationship to the iframe is first-party. So the fix lives in the
- * Workspace admin console, and this picker is the clean in-iframe experience for
- * once the app is exempted. (Students are unaffected — server-minted token.)
+ *  - LAUNCHER (when framed, i.e. inside Schoology): a thin screen whose "Continue
+ *    to sign in" button navigates the ENTIRE top-level tab to this same launch
+ *    URL (`window.top.location`). It does NOT consume the one-time launch code —
+ *    the top-level instance does.
+ *  - FLOW (when NOT framed, i.e. after the top redirect): SpartBoard is now the
+ *    top-level document → first-party → Google sign-in passes CAA. It exchanges
+ *    the launch code, loads the teacher's quiz library, creates the assignment,
+ *    signs the LtiDeepLinkingResponse, and form-POSTs it back to Schoology. That
+ *    POST navigates THIS SAME TAB back into the course, so the whole round trip
+ *    happens in one tab — the teacher never leaves and never has to refresh.
+ *
+ * The make-or-break dependency is whether Schoology's iframe sandbox permits
+ * top-navigation (`allow-top-navigation[-by-user-activation]`). If it blocks the
+ * redirect, the launcher's button silently fails and this approach is dead.
  *
  * UI reuses the Classroom add-on's light-theme AddonShell kit.
  */
@@ -33,7 +38,7 @@ import React, {
   useState,
 } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { ClipboardList, CheckCircle2, Send } from 'lucide-react';
+import { ClipboardList, CheckCircle2, Send, LogIn } from 'lucide-react';
 import { functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useQuiz } from '@/hooks/useQuiz';
@@ -89,11 +94,22 @@ type Phase = 'exchanging' | 'ready' | 'error';
 const NO_CODE_MESSAGE =
   'No launch code found. Add SpartBoard from inside a Schoology course.';
 
+/** True when we're rendered inside a frame (the Schoology iframe), not a tab. */
+function isFramed(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.top !== window.self;
+  } catch {
+    // Cross-origin access throwing means we're framed by another origin.
+    return true;
+  }
+}
+
 /**
  * Deliver the signed LTI deep-linking response: an auto-submitting hidden-form
  * POST to the platform's `deep_link_return_url` carrying a single `JWT` field.
  * The form is attached just long enough to submit (a detached form cannot
- * navigate); submitting navigates this iframe back to Schoology.
+ * navigate); submitting navigates this tab back to Schoology.
  *
  * SECURITY: the return URL is platform-supplied (validated server-side before
  * signing), but we re-validate it here — inline, so the guard dominates the
@@ -131,7 +147,76 @@ function postDeepLinkResponse(returnUrl: string, jwt: string): void {
   form.submit();
 }
 
-export const LtiDeepLinkPicker: React.FC = () => {
+/**
+ * Shown inside the Schoology iframe. Navigates the entire top-level tab to this
+ * same launch URL, where SpartBoard loads first-party (Google OAuth passes CAA).
+ * Does NOT exchange the one-time launch code — the top-level instance does.
+ */
+const LtiDeepLinkLauncher: React.FC = () => {
+  const [redirecting, setRedirecting] = useState(false);
+  const hasCode =
+    typeof window !== 'undefined' &&
+    !!new URLSearchParams(window.location.search).get('lc');
+
+  const continueTopLevel = useCallback(() => {
+    // Navigate window.top to this same launch URL. A cross-origin child may SET
+    // window.top.location (top navigation is permitted by the same-origin policy)
+    // UNLESS the platform's iframe sandbox forbids it (no
+    // allow-top-navigation[-by-user-activation]). A sandbox block fails silently
+    // (no throw), so success is observed by the tab actually navigating away.
+    setRedirecting(true);
+    try {
+      if (window.top) {
+        window.top.location.href = window.location.href;
+      }
+    } catch {
+      // Some browsers raise a SecurityError instead of failing silently.
+      setRedirecting(false);
+    }
+  }, []);
+
+  return (
+    <AddonShell>
+      <AddonHeader
+        icon={ClipboardList}
+        title="Add a SpartBoard quiz"
+        subtitle="Pick a quiz from your library. Students take it inside Schoology and their score posts back to the gradebook."
+      />
+
+      {!hasCode ? (
+        <AddonError message={NO_CODE_MESSAGE} />
+      ) : (
+        <AddonCard className="p-6">
+          <p className="mb-4 text-sm leading-relaxed text-slate-500">
+            Schoology runs SpartBoard in a frame, where Google sign-in is
+            blocked. Continue to open SpartBoard in this tab, sign in, and pick
+            your quiz — you’ll come right back to this course when you’re done.
+          </p>
+          <AddonButton
+            onClick={continueTopLevel}
+            icon={LogIn}
+            loading={redirecting}
+          >
+            Continue to sign in
+          </AddonButton>
+          {redirecting && (
+            <p className="mt-3 text-xs text-slate-400">
+              Opening SpartBoard… If this page doesn’t change, your browser
+              blocked the redirect — let your SpartBoard admin know.
+            </p>
+          )}
+        </AddonCard>
+      )}
+    </AddonShell>
+  );
+};
+
+/**
+ * Runs as the top-level document (first-party) after the launcher's redirect:
+ * exchange launch code → sign in → pick → create assignment → sign response →
+ * POST it back to Schoology (which navigates this tab back into the course).
+ */
+const LtiDeepLinkFlow: React.FC = () => {
   // Derive the launch code during render so the "missing code" case is initial
   // state, never a synchronous setState inside an effect.
   const code =
@@ -307,12 +392,12 @@ export const LtiDeepLinkPicker: React.FC = () => {
 
       setSubmitted(true);
       setStatusMsg('Returning to Schoology…');
-      // Auto-submitting form POST navigates this iframe back to the platform,
-      // which creates the graded material.
+      // Auto-submitting form POST navigates this tab back to the platform, which
+      // creates the graded material.
       postDeepLinkResponse(data.returnUrl, data.jwt);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logError('LtiDeepLinkPicker.addQuiz', err, { quizId: selectedQuiz.id });
+      logError('LtiDeepLinkFlow.addQuiz', err, { quizId: selectedQuiz.id });
       setErrorMsg(`Couldn't add the quiz: ${message}`);
       setStatusMsg(null);
       setSubmitted(false);
@@ -398,6 +483,14 @@ export const LtiDeepLinkPicker: React.FC = () => {
       )}
     </AddonShell>
   );
+};
+
+/**
+ * Dispatcher: inside the Schoology iframe → the launcher (which redirects the
+ * top-level tab to SpartBoard); as the top-level document → the real picker flow.
+ */
+export const LtiDeepLinkPicker: React.FC = () => {
+  return isFramed() ? <LtiDeepLinkLauncher /> : <LtiDeepLinkFlow />;
 };
 
 export default LtiDeepLinkPicker;
