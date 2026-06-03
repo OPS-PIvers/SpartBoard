@@ -41,6 +41,14 @@ export function buildQuizContentItem(opts: {
 
 export function buildDeepLinkResponseClaims(opts: {
   deploymentId: string;
+  /**
+   * A fresh nonce for THIS response message. LTI 1.3 requires every message JWT
+   * — including the deep-linking response — to carry a `nonce`; Schoology rejects
+   * the response without it ("Invalid parameter: nonce is required"). It is the
+   * tool's own nonce for the response, NOT the launch nonce echoed back, so the
+   * caller generates a random value per response.
+   */
+  nonce: string;
   data?: string;
   contentItems: ContentItem[];
 }): Record<string, unknown> {
@@ -49,6 +57,7 @@ export function buildDeepLinkResponseClaims(opts: {
     [LTI.VERSION]: '1.3.0',
     [LTI.DEPLOYMENT_ID]: opts.deploymentId,
     [LTI.DL_CONTENT_ITEMS]: opts.contentItems,
+    nonce: opts.nonce,
   };
   // Echo the platform's opaque `data` exactly when present (DL spec requirement).
   if (opts.data) claims[LTI.DL_DATA] = opts.data;
