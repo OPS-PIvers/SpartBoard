@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
 _Last audited: 2026-05-27_
-_Last action: 2026-05-29 — MEDIUM UrlConfigurationPanel hex palette deduplicated against URL_COLORS_
+_Last action: 2026-06-03 — MEDIUM CarRiderProConfig dead `cardColor`/`cardOpacity` fields removed_
 
 ---
 
@@ -15,13 +15,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### MEDIUM `CarRiderProConfig` declares `cardColor` / `cardOpacity` but no code reads or renders them
-
-- **Detected:** 2026-04-15
-- **File:** types.ts (`CarRiderProConfig`), components/widgets/CarRiderPro/Widget.tsx, components/widgets/CarRiderPro/Settings.tsx
-- **Detail:** `CarRiderProConfig` in types.ts declares `cardColor?: string` and `cardOpacity?: number`. Neither the widget (`CarRiderPro/Widget.tsx`) nor the settings panel (`CarRiderPro/Settings.tsx`) references these fields anywhere. The widget is an iframe wrapper for an external Car Rider Pro service — the iframe fills the full widget surface so surface-color controls have no effect. There is no entry in `WIDGET_APPEARANCE_COMPONENTS` for `car-rider-pro`. The dead fields create confusion: developers reading the type will assume the widget supports appearance customization when it does not.
-- **Fix:** Remove `cardColor` and `cardOpacity` from `CarRiderProConfig` in types.ts. If appearance customization is a future intent for the header/frame area, document it as a TODO comment rather than leaving dead interface fields.
 
 ### MEDIUM `LunchCount/Settings.tsx` and `SpecialistSchedule/Settings.tsx` use raw `<select>` elements
 
@@ -76,6 +69,14 @@ _Nothing currently in progress._
 
 ## Completed
 
+### MEDIUM `CarRiderProConfig` declares `cardColor` / `cardOpacity` but no code reads or renders them
+
+- **Detected:** 2026-04-15
+- **Completed:** 2026-06-03
+- **File:** types.ts (`CarRiderProConfig`)
+- **Detail:** `CarRiderProConfig` declared `cardColor?: string` and `cardOpacity?: number`, but nothing consumed them. The widget (`CarRiderPro/Widget.tsx`) is an iframe wrapper for an external district portal — the iframe fills the entire widget surface, so surface-color controls have no visible effect. There is no `car-rider-pro` entry in `WIDGET_APPEARANCE_COMPONENTS`, and the admin building-default panel uses a separate `CarRiderProGlobalConfig` (url only) via `CarRiderConfigurationPanel.tsx`. `utils/adminBuildingConfig.ts` has no `car-rider-pro` case (the `cardColor`/`cardOpacity` reads there belong to the `number-line` case). The dead fields implied appearance customization the widget does not support.
+- **Resolution:** Removed `cardColor` and `cardOpacity` from `CarRiderProConfig` in types.ts, replacing them with an explanatory comment documenting why the iframe-only widget has no surface-color controls and instructing future devs to declare supporting fields only when/if header-frame appearance customization is actually added. Verified the two fields had no readers across `components/`, `config/`, `context/`, `utils/`, and `tests/` before removal. `pnpm run type-check` (0 errors — confirms nothing read the removed optional fields), `pnpm exec eslint types.ts --max-warnings 0`, and `pnpm exec prettier --check types.ts` all clean.
+
 ### MEDIUM `UrlConfigurationPanel.tsx` uses hardcoded hex color palette instead of design system references
 
 - **Detected:** 2026-04-15
@@ -91,6 +92,8 @@ _Nothing currently in progress._
 - **File:** components/widgets/WidgetRegistry.ts, components/widgets/SpecialistSchedule/Settings.tsx
 - **Detail:** `SpecialistScheduleConfig` declared `fontFamily`, `fontColor`, `textSizePreset`, `cardColor`, and `cardOpacity` and the widget consumed all five, but `specialist-schedule` was absent from `WIDGET_APPEARANCE_COMPONENTS`. The appearance controls were buried in the flip panel's `general` tab instead of getting the standard dedicated Appearance tab in DraggableWindow.
 - **Resolution:** Added `SpecialistScheduleAppearanceSettings` export to `components/widgets/SpecialistSchedule/Settings.tsx` rendering `TypographySettings`, `TextSizePresetSettings`, and `SurfaceColorSettings` via a shared `update` helper (matching the `NeedDoPutThenAppearanceSettings` reference pattern). Registered it in `WIDGET_APPEARANCE_COMPONENTS` so `WidgetRenderer.tsx` now surfaces the dedicated Appearance tab. Removed the now-redundant `general` tab from the flip panel — the only content there was the three appearance primitives, so the tab union narrowed to `'schedules' | 'recurring'` with `'schedules'` as the new default. `pnpm exec tsc --noEmit`, `pnpm exec eslint`, `pnpm exec prettier --check`, and `pnpm exec vitest run tests/components` (1056 tests across 127 files) all clean.
+
+_2026-06-03: Weekly action pass. Selected the highest-priority safe Open item (code-structure HIGH and both code-structure MEDIUM refactors are blocked/architecturally-significant — see code-structure.md). Completed the first ui-unification MEDIUM: removed dead `cardColor`/`cardOpacity` from `CarRiderProConfig`. Confirmed types.ts and CarRiderPro files were not modified in the last 5 branch commits. Remaining Open items re-confirmed valid; no new snowflakes detected in this pass._
 
 _2026-05-27: Audited all recently added Settings.tsx files (Stations, SmartNotebook, drawing-widget toolbar — skipScaling:false so not a CQ concern), WIDGET_APPEARANCE_COMPONENTS cross-referenced against types.ts appearance fields. New commits since 2026-05-22 did not add new widget types requiring appearance panels. Two new open items added: ExpectationsWidget custom toggle, Countdown/AnalyticsManager hardcoded brand hex. All pre-existing open items remain valid._
 

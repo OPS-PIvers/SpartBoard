@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-31_
+_Last audited: 2026-06-03_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,12 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-03: Full audit of all 64 WidgetType values. Merged dev-paul into scheduled-tasks today — new files include resolveDisplayName.ts, quizCode.ts, classlinkShared.ts, classroomAddonAuth.ts, studentJoinRouting.ts, runClassroomGradePush.ts — none touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. All 64 WidgetTypes correctly registered. Zero new gaps. Note: prior 2026-06-02 entry said "63" — corrected to 64 per 2026-05-20 canonical count (stations was always present at line 64)._
+
+_2026-06-02: Full audit of all 63 WidgetType values. No new commits to types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts since 2026-06-01 (rebase onto dev-paul aborted due to journal conflicts — working from current scheduled-tasks HEAD). WIDGET_COMPONENTS contains all 63 types (sticker intentional WidgetRenderer special-case per JSDoc). WIDGET_SCALING_CONFIG is `Record<WidgetType, ScalingConfig>` enforced by TypeScript. RevealGrid barrel aliases ('Widget'/'Settings' via index.ts re-export) confirmed correct. All 63 WidgetTypes correctly registered. Zero new gaps._
+
+_2026-06-01: Full audit of all 63 WidgetType values. New dev-paul commits since 2026-05-31 absorbed via merge: fix(SettingsPanel) null-guard e.target in pointerdown handler, docs(changelog) release entry for 2026-05-31, chore unifier run 5 log, fix(test) eliminate MaterialsConfigurationPanel flaky timeout, fix(SettingsPanel) prevent click-outside after parent re-renders, plus new test files (MaterialsConfigurationPanel.test.tsx, DraggableWindow.test.tsx, SettingsPanel.test.tsx, RandomWidget.test.tsx, dockBoardNavLocales.test.ts, sidebarClassesRestrictionsLocales.test.ts, plcContributions.test.ts). None touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. All 63 WidgetTypes correctly registered. Zero new gaps. RevealGrid barrel aliases ('Widget'/'Settings') confirmed intentional and functional._
 
 _2026-05-31: Full audit of all 63 WidgetType values. New dev-paul commits since 2026-05-30: Fix SmartNotebook placed assets stranding on page reorder/delete (#1759 — SmartNotebook/Widget.tsx), fix(spotify) eliminate Web Playback SDK 'ready' vs Connect registration race (#1758 — MusicWidget sub-components), test(spotify) queue-and-flush null-device path, docs(spotify/changelog) minor docs. None touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. All 63 WidgetTypes correctly registered. Zero new gaps._
 
