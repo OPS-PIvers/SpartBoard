@@ -380,9 +380,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const email = user?.email;
 
       const runRefreshChain = async (): Promise<string | null> => {
-        // Prefer GIS silent refresh when the client ID env var is configured.
-        // google.accounts is loaded asynchronously via the GIS script tag in index.html.
-        if (clientId && email && typeof window.google !== 'undefined') {
+        // GIS `requestAccessToken({ prompt: '' })` is only truly silent when the
+        // user has a live Google session; with no session it surfaces a popup,
+        // and the browser BLOCKS popups that aren't tied to a user gesture — and
+        // our background timers + startup effect call this with silent=true. A
+        // blocked popup can't mint the Drive/Sheets access token, so the quiz
+        // library (and every other Drive read) silently stalls. Gate the GIS
+        // interactive request behind `!silent`: background refreshes use ONLY
+        // the popup-free backend refresh_token path below. When that can't
+        // produce a token the call returns null and `DriveDisconnectBanner`
+        // prompts the teacher to reconnect from a real click — which runs the
+        // code flow (access_type:offline) and captures a refresh_token, so
+        // every subsequent background refresh then succeeds silently server-side.
+        if (
+          !silent &&
+          clientId &&
+          email &&
+          typeof window.google !== 'undefined'
+        ) {
           let gisToken: string | null = null;
           try {
             gisToken = await new Promise<string | null>((resolve) => {
