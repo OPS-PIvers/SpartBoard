@@ -1,6 +1,17 @@
 {
   "entries": [
     {
+      "version": "2026.06.02.3",
+      "date": "2026-06-02",
+      "title": "Removing a student from a live quiz",
+      "details": [
+        {
+          "type": "fix",
+          "text": "Live quiz — removing a student from a session no longer fails with a \"Missing or insufficient permissions\" error. This could happen for students whose attempt hadn't recorded the usual progress — for example, a student who joined with a PIN, a blank attempt that was auto-submitted after sitting idle, a student who joined but never started, or an older response from before recent quiz updates. Removing any of these students now works the first time."
+        }
+      ]
+    },
+    {
       "version": "2026.06.02.2",
       "date": "2026-06-02",
       "title": "Quiz grading accuracy fixes",
