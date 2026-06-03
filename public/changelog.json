@@ -1,6 +1,44 @@
 {
   "entries": [
     {
+      "version": "2026.06.03.2",
+      "date": "2026-06-03",
+      "title": "Schoology integration and Google sign-in fixes",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Schoology",
+          "items": [
+            {
+              "text": "Attach a SpartBoard quiz to a Schoology assignment, and your students take it right inside Schoology."
+            },
+            {
+              "text": "Each student's score posts back to your Schoology gradebook as the points they earned."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "subtitle": "Google sign-in",
+          "items": [
+            {
+              "text": "SpartBoard no longer triggers a blocked Google sign-in popup while it quietly refreshes your access to Drive and Sheets in the background."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Schoology — you can now attach a SpartBoard quiz to a Schoology assignment. From an assignment, choose Add Material → SpartBoard, sign in with your Google account, and pick a quiz from your library; your students open and take it right inside Schoology, and each student's score posts back to your Schoology gradebook as the points they earned (a 17 out of 20 quiz reads as 17/20, not a percentage). After you attach the quiz, SpartBoard returns you to your Schoology course on its own — no extra tabs to close. Your school's Schoology administrator needs to add SpartBoard before it shows up in the Add Material list."
+        },
+        {
+          "type": "fix",
+          "text": "Google sign-in — SpartBoard no longer fires a Google sign-in popup in the background while quietly refreshing your access to Google Drive and Sheets. Previously that automatic refresh could open a popup with no click behind it, which your browser blocks, leaving Drive-backed features (like loading a quiz or syncing a board) stuck waiting. When your access genuinely needs renewing, you now see a calm \"Reconnect\" banner you can click instead of a popup that never appears."
+        }
+      ]
+    },
+    {
       "version": "2026.06.03",
       "date": "2026-06-03",
       "title": "Google Classroom linking, scoring, and widget fixes",
