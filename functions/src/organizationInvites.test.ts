@@ -179,6 +179,22 @@ describe('normalizeInvite', () => {
     expect('error' in r2).toBe(true);
   });
 
+  it('rejects emails whose domain starts with a dot (e.g. user@.com)', () => {
+    // Regression: the previous check used `email.indexOf('.', atIdx)` where
+    // `atIdx` points at the `@` character itself. For `user@.com` that search
+    // finds the dot in `.com` (position atIdx+1) and returns a non-negative
+    // index — incorrectly treating the address as valid. An address whose
+    // domain part begins with a dot has an empty first label and is rejected
+    // by every real mail server, so inviting it creates an unclaim-able member
+    // doc and may queue an email to an undeliverable address.
+    const r = normalizeInvite({
+      email: 'user@.com',
+      roleId: 'teacher',
+      buildingIds: [],
+    });
+    expect('error' in r).toBe(true);
+  });
+
   it('rejects missing roleId', () => {
     const result = normalizeInvite({
       email: 'user@ex.com',

@@ -202,9 +202,14 @@ export function normalizeInvite(
     };
   }
   const email = rawEmail.toLowerCase();
-  // Minimal email shape check: must contain @ and at least one . after @.
+  // Minimal email shape check: must contain @ with a non-empty local part,
+  // and the domain part (after @) must contain a dot that is not its first
+  // character (i.e. the domain must have at least one label before the TLD).
+  // Using atIdx + 2 as the search offset ensures the dot occurs after at
+  // least one domain character — addresses like "user@.com" have an empty
+  // first label and are rejected by every real mail server.
   const atIdx = email.indexOf('@');
-  if (atIdx < 1 || email.indexOf('.', atIdx) < 0) {
+  if (atIdx < 1 || email.indexOf('.', atIdx + 2) < 0) {
     return { error: { email, reason: 'Malformed email address.' } };
   }
 
