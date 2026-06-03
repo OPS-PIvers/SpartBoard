@@ -108,6 +108,9 @@ describe('LtiTeacherGrader — Google-session gate', () => {
     // ...and the library listener is deferred — no Firestore subscription under
     // the stale (student) uid (#1837 reviewer concern).
     expect(useQuiz).toHaveBeenCalledWith(undefined);
+    // ...and the join-code resolution effect is suppressed too: it now gates on
+    // `teacherReady`, so a stale session triggers zero Firestore reads.
+    expect(getDocs).not.toHaveBeenCalled();
   });
 
   it('shows the sign-in card with the school-account copy for an anonymous (null) session', async () => {
@@ -142,5 +145,9 @@ describe('LtiTeacherGrader — Google-session gate', () => {
     expect(
       screen.getByText(/sign in with your teacher google account/i)
     ).toBeInTheDocument();
+    // A Google session without a Drive token is not `teacherReady`, so the
+    // library listener stays deferred (undefined) — a tokenless session must not
+    // open a Firestore listener under the teacher's library.
+    expect(useQuiz).toHaveBeenCalledWith(undefined);
   });
 });

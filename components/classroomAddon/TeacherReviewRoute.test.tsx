@@ -8,6 +8,7 @@ import { useQuiz } from '@/hooks/useQuiz';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useQuizSessionTeacher } from '@/hooks/useQuizSession';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
+import { getDocs } from 'firebase/firestore';
 
 // The teacher-view grader runs inside the Google Classroom add-on's cross-origin
 // iframe. The sign-in gate only depends on the auth hook + the Drive token;
@@ -113,6 +114,9 @@ describe('ClassroomAddonTeacherReview (Classroom in-iframe grader) — Google-se
     // opened under the stale (student) uid (#1837 reviewer concern).
     expect(useQuiz).toHaveBeenCalledWith(undefined);
     expect(useQuizAssignments).toHaveBeenCalledWith(undefined);
+    // ...and the join-code resolution effect is suppressed too: it now gates on
+    // `teacherReady`, so a stale session triggers zero Firestore reads.
+    expect(getDocs).not.toHaveBeenCalled();
   });
 
   it('shows the sign-in card with the school-account copy for an anonymous (null) session', async () => {
@@ -148,5 +152,10 @@ describe('ClassroomAddonTeacherReview (Classroom in-iframe grader) — Google-se
     expect(
       screen.getByText(/sign in with your teacher google account/i)
     ).toBeInTheDocument();
+    // A Google session without a Drive token is not `teacherReady`, so the
+    // library listeners stay deferred (undefined) — a tokenless session must not
+    // open Firestore listeners under the teacher's library.
+    expect(useQuiz).toHaveBeenCalledWith(undefined);
+    expect(useQuizAssignments).toHaveBeenCalledWith(undefined);
   });
 });

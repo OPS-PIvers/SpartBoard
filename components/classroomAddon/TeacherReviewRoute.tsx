@@ -139,9 +139,13 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [resolvingSession, setResolvingSession] = useState(true);
   useEffect(() => {
-    if (kind !== 'quiz' || !code || !user) {
+    if (kind !== 'quiz' || !code || !teacherReady) {
       // Clear any prior session id so a stale one (after logout / a code change)
       // can't keep useQuizSessionTeacher subscribed to the previous session.
+      // Gate on `teacherReady` (not a bare `!user`): a restored studentRole
+      // session has a truthy `user` but is rejected by the sign-in card, so it
+      // must not drive a join-code lookup or keep downstream session listeners
+      // alive under an auth session the UI never shows.
       setSessionId(null);
       setResolvingSession(false);
       return;
@@ -169,7 +173,7 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [kind, code, user]);
+  }, [kind, code, teacherReady]);
 
   const {
     session,

@@ -179,8 +179,11 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   const { createAssignment: createVideoActivityAssignment } =
     useVideoActivityAssignments(libraryUid);
   // PLC list for the quiz "Share with PLC" picker. usePlcs() reads `useAuth`
-  // (mounted on this route) — no DashboardProvider required.
-  const { plcs } = usePlcs();
+  // (mounted on this route) — no DashboardProvider required. Gate the snapshot
+  // on `teacherReady` so a restored studentRole session (truthy `user`, but
+  // shown the sign-in card) doesn't open a live PLC listener under the wrong
+  // uid before the teacher signs in — same deferral as the library hooks above.
+  const { plcs } = usePlcs({ enabled: teacherReady });
 
   // User-facing progress line (the latest step) + a sticky error banner. These
   // replace the spike's always-visible scrolling log; no raw diagnostics are

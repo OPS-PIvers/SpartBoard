@@ -137,9 +137,13 @@ export const LtiTeacherGrader: React.FC<{
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [resolvingSession, setResolvingSession] = useState(true);
   useEffect(() => {
-    if (!quizCode || !user) {
+    if (!quizCode || !teacherReady) {
       // Clear any prior session id so a stale one (after logout / a code change)
       // can't keep useQuizSessionTeacher subscribed to the previous session.
+      // Gate on `teacherReady` (not a bare `!user`): a restored studentRole
+      // session has a truthy `user` but is rejected by the sign-in card, so it
+      // must not drive a join-code lookup or keep downstream session listeners
+      // alive under an auth session the UI never shows.
       setSessionId(null);
       setResolvingSession(false);
       return;
@@ -167,7 +171,7 @@ export const LtiTeacherGrader: React.FC<{
     return () => {
       active = false;
     };
-  }, [quizCode, user]);
+  }, [quizCode, teacherReady]);
 
   const {
     session,

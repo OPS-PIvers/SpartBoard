@@ -100,10 +100,15 @@ describe('ClassroomAddonTeacherSpike (Classroom add-on discovery) — Google-ses
     expect(
       screen.getByText(/sign in with your teacher google account/i)
     ).toBeInTheDocument();
-    // ...and the library listeners are deferred — no Firestore subscription is
-    // opened under the stale (student) uid (#1837 reviewer concern).
+    // ...and ALL library listeners are deferred — no Firestore subscription is
+    // opened under the stale (student) uid (#1837 reviewer concern). The route
+    // loads both the quiz and the video-activity libraries, so assert both.
     expect(useQuiz).toHaveBeenCalledWith(undefined);
     expect(useQuizAssignments).toHaveBeenCalledWith(undefined);
+    expect(useVideoActivity).toHaveBeenCalledWith(undefined);
+    expect(useVideoActivityAssignments).toHaveBeenCalledWith(undefined);
+    // ...and the PLC snapshot is disabled so it can't open under the stale uid.
+    expect(usePlcs).toHaveBeenCalledWith({ enabled: false });
   });
 
   it('shows the sign-in card with the school-account copy for an anonymous (null) session', () => {
@@ -124,9 +129,13 @@ describe('ClassroomAddonTeacherSpike (Classroom add-on discovery) — Google-ses
     // The working Classroom attach flow must still reach the picker.
     expect(libraryPicker()).toBeInTheDocument();
     expect(signInButton()).not.toBeInTheDocument();
-    // ...and the library subscribes under the teacher's own uid.
+    // ...and BOTH libraries subscribe under the teacher's own uid.
     expect(useQuiz).toHaveBeenCalledWith(GOOGLE_USER.uid);
     expect(useQuizAssignments).toHaveBeenCalledWith(GOOGLE_USER.uid);
+    expect(useVideoActivity).toHaveBeenCalledWith(GOOGLE_USER.uid);
+    expect(useVideoActivityAssignments).toHaveBeenCalledWith(GOOGLE_USER.uid);
+    // ...and the PLC snapshot is enabled for the real teacher session.
+    expect(usePlcs).toHaveBeenCalledWith({ enabled: true });
   });
 
   it('shows the sign-in card for a Google session whose Drive token is missing/expired', () => {
@@ -140,5 +149,13 @@ describe('ClassroomAddonTeacherSpike (Classroom add-on discovery) — Google-ses
     expect(
       screen.getByText(/sign in with your teacher google account/i)
     ).toBeInTheDocument();
+    // A Google session without a Drive token is not `teacherReady`, so every
+    // library hook must still be deferred (undefined) — no listeners open until
+    // the token is re-granted.
+    expect(useQuiz).toHaveBeenCalledWith(undefined);
+    expect(useQuizAssignments).toHaveBeenCalledWith(undefined);
+    expect(useVideoActivity).toHaveBeenCalledWith(undefined);
+    expect(useVideoActivityAssignments).toHaveBeenCalledWith(undefined);
+    expect(usePlcs).toHaveBeenCalledWith({ enabled: false });
   });
 });
