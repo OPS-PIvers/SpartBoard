@@ -152,6 +152,48 @@ export function getScoreSuffix(session?: QuizScoringSession): string {
 }
 
 /**
+ * Whether a response can be meaningfully scored against the given question set.
+ *
+ * Guards the "false 0" failure mode. Scores are computed on read by grading
+ * each answer against `questions[].correctAnswer` — so if the question set is
+ * the wrong one, `getEarnedPoints` silently yields 0 (every `qMap.get` misses
+ * and the answer is skipped). That 0 then renders as a real "0%"/"0 pts",
+ * which reads as a student who failed rather than a scoring artifact. Two
+ * cases produce it:
+ *
+ *   1. **Answer key not loaded** — `questions` is empty. The teacher's view
+ *      loads the full quiz (with `correctAnswer`) from Drive asynchronously;
+ *      before it resolves (or if the Drive fetch fails / the Google token
+ *      lapsed) the array is empty and EVERY completed response scores 0.
+ *   2. **Question-id drift** — a completed response's answers reference no
+ *      question in the loaded set (e.g. a PLC-synced quiz whose question IDs
+ *      were regenerated after the student submitted). Grading skips all of
+ *      them and the response scores 0 despite real answers.
+ *
+ * Callers should render a pending / "—" indicator (not a score) when this
+ * returns false, and ranking helpers should keep these out of the numeric
+ * leaderboard rather than seating them at 0.
+ *
+ * A response with zero answers is treated as gradable: its 0 is a genuine
+ * "didn't answer", not a missing-key artifact, so the caller can still show 0.
+ */
+export function canScoreResponse(
+  r: QuizResponse,
+  questions: QuizQuestion[]
+): boolean {
+  // Case 1: the answer key hasn't loaded — nothing can be graded yet.
+  if (questions.length === 0) return false;
+  const answers = r.answers ?? [];
+  // A genuine empty submission is scoreable (it's a real 0, not a missing key).
+  if (answers.length === 0) return true;
+  // Case 2: at least one answer must map to a loaded question. Partial drift
+  // (some ids match, some don't) is still gradable — the matched answers score
+  // and the unmatched ones are skipped, same as today.
+  const ids = new Set(questions.map((q) => q.id));
+  return answers.some((a) => ids.has(a.questionId));
+}
+
+/**
  * Composite-key separator used by `buildPinToNameMap` /
  * `buildPinToExportNameMap`. Map keys are `${classPeriod}${PIN_KEY_SEP}${pin}`
  * so that the same PIN in two different rosters resolves to two different
@@ -342,29 +384,35 @@ export function buildScoreboardTeams(
   session?: QuizSession | null,
   byStudentUid?: Map<string, StudentName>
 ): ScoreboardTeam[] {
-  return completedResponses
-    .map((r) => ({
-      response: r,
-      score: getDisplayScore(r, questions, session),
-    }))
-    .sort((a, b) => b.score - a.score)
-    .map(({ response, score }) => {
-      const resolvedName = resolveResponseDisplayName(
-        response,
-        pinToName,
-        byStudentUid
-      );
-      const pinModeName = response.pin ? `PIN ${response.pin}` : resolvedName;
-      return {
-        id: responseTeamId(response),
-        name: mode === 'name' ? resolvedName : pinModeName,
-        score,
-        color:
-          SCOREBOARD_COLORS[
-            responseColorIndex(response, SCOREBOARD_COLORS.length)
-          ],
-      };
-    });
+  return (
+    completedResponses
+      // Keep responses that can't be scored yet (answer key not loaded, or
+      // question-id drift) off the board entirely rather than seating them at a
+      // phantom 0 — see `canScoreResponse`.
+      .filter((r) => canScoreResponse(r, questions))
+      .map((r) => ({
+        response: r,
+        score: getDisplayScore(r, questions, session),
+      }))
+      .sort((a, b) => b.score - a.score)
+      .map(({ response, score }) => {
+        const resolvedName = resolveResponseDisplayName(
+          response,
+          pinToName,
+          byStudentUid
+        );
+        const pinModeName = response.pin ? `PIN ${response.pin}` : resolvedName;
+        return {
+          id: responseTeamId(response),
+          name: mode === 'name' ? resolvedName : pinModeName,
+          score,
+          color:
+            SCOREBOARD_COLORS[
+              responseColorIndex(response, SCOREBOARD_COLORS.length)
+            ],
+        };
+      })
+  );
 }
 
 /**
@@ -381,20 +429,26 @@ export function buildLiveLeaderboard(
   pinToName: Record<string, string>,
   byStudentUid?: Map<string, StudentName>
 ): QuizLeaderboardEntry[] {
-  return responses
-    .filter((response) => response.status !== 'joined')
-    .map((response) => ({
-      // `pin` is set only for anonymous joiners; SSO joiners use `studentUid`
-      // for self-identification on the student-side leaderboard view.
-      ...(response.pin ? { pin: response.pin } : {}),
-      studentUid: response.studentUid,
-      name: resolveResponseDisplayName(response, pinToName, byStudentUid),
-      score: getDisplayScore(response, questions, session),
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 10)
-    .map((entry, index) => ({
-      ...entry,
-      rank: index + 1,
-    }));
+  return (
+    responses
+      .filter((response) => response.status !== 'joined')
+      // Drop responses we can't score yet (answer key not loaded, or question-id
+      // drift) so the leaderboard never ranks a real submission at a phantom 0.
+      // Legitimately-empty in-progress responses still score 0 as before.
+      .filter((response) => canScoreResponse(response, questions))
+      .map((response) => ({
+        // `pin` is set only for anonymous joiners; SSO joiners use `studentUid`
+        // for self-identification on the student-side leaderboard view.
+        ...(response.pin ? { pin: response.pin } : {}),
+        studentUid: response.studentUid,
+        name: resolveResponseDisplayName(response, pinToName, byStudentUid),
+        score: getDisplayScore(response, questions, session),
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10)
+      .map((entry, index) => ({
+        ...entry,
+        rank: index + 1,
+      }))
+  );
 }

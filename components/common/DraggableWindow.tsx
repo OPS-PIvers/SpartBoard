@@ -253,6 +253,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     selecting: boolean;
   }>({ start: null, end: null, selecting: false });
   const customGridRef = useRef(customGrid);
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync (CLAUDE.md: "assign refs directly in render body"); react-hooks/refs v7 incorrectly cascades this as an error when any setState is called during render
   customGridRef.current = customGrid;
   const occupiedCells = useMemo(() => {
     const set = new Set<string>();
@@ -345,6 +346,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   if (!showTools && showSnapMenu) {
     setShowSnapMenu(false);
     setSnapPreviewZone(null);
+    // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync inside "adjust state while rendering" block; false positive from react-hooks/refs v7
     snapPreviewZoneRef.current = null;
   }
 
@@ -357,15 +359,18 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     h: number;
   } | null>(null);
 
-  // OPTIMIZATION: Lazy initialization of settings
-  // Latch to true once the widget is flipped for the first time so the settings
-  // chunk is never unmounted after being loaded (prevents re-mount cost).
-  useEffect(() => {
-    if (widget.flipped && !shouldRenderSettings) {
-      setShouldRenderSettings(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [widget.flipped]);
+  // Adjusting state while rendering (React docs pattern): latch shouldRenderSettings
+  // to true once widget.flipped transitions from false → true. Checking
+  // !shouldRenderSettings keeps this to a single extra render when the widget is
+  // first opened and avoids infinite-loop risk (React bails out when state didn't change).
+  // Inline rather than useEffect so it fires in the same synchronous render pass —
+  // the SettingsPanel therefore always mounts with shouldRenderSettings=true
+  // and the "Standard settings available." placeholder is never visible, even
+  // on slow hardware or projectors where a post-paint effect would produce a
+  // one-frame flash.
+  if (widget.flipped && !shouldRenderSettings) {
+    setShouldRenderSettings(true);
+  }
 
   // Maximized-state FAB kebab (replaces the pill toolbar while full-screen) and
   // a mirror of the Dock's screen-recording status, kept in sync via window
@@ -499,6 +504,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   }, [tempTitle, title, widget.id, updateWidget]);
 
   const stateRef = useRef({ isEditingTitle, saveTitle });
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync for stale-closure prevention (CLAUDE.md pattern); false positive from react-hooks/refs v7
   stateRef.current = { isEditingTitle, saveTitle };
 
   const handleCloseTools = useCallback(() => {
@@ -1992,7 +1998,14 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     }
   };
 
-  // Fallback to widget state if not dragging/resizing or if position-aware
+  // Fallback to widget state if not dragging/resizing or if position-aware.
+  // dragState is a performance ref updated in pointer handlers; reading it
+  // during render to derive position is the intended pattern (direct DOM
+  // manipulation path). The react-hooks/refs disable comments in this block
+  // silence false positives that cascade from the "adjust state while
+  // rendering" latch above — the original code was exempt before that latch
+  // was added because the React Compiler's analysis took a different path.
+  /* eslint-disable react-hooks/refs */
   const shouldUseDragState =
     (isDragging || isResizing) &&
     !POSITION_AWARE_WIDGETS.includes(widget.type) &&
@@ -2057,6 +2070,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           : shouldUseDragState && dragState.current
             ? dragState.current.h
             : (override?.h ?? widget.h),
+        /* eslint-enable react-hooks/refs */
         zIndex: isMaximized ? Z_INDEX.maximized : widget.z,
         display: 'flex',
         flexDirection: 'column',

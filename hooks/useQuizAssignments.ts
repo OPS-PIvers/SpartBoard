@@ -2013,10 +2013,18 @@ export const useQuizAssignments = (
         // — the inner `.some` would otherwise become a noticeable stall on
         // PLC-shared assignments with hundreds of submissions × dozens of
         // questions.
+        //
+        // Iterate questionsById (already deduped) rather than the raw
+        // quizData.questions array. A duplicate question id in the raw array
+        // (possible when a Drive export writes the same question twice via an
+        // arrayUnion-style race) would cause pointsMax to count the same
+        // question's points more than once, inflating the denominator and
+        // deflating every student's published score. Mirrors the identical
+        // fix in publishAssignmentScores for Video Activity (#1728, #1787).
         const answeredQuestionIds = new Set<string>();
         for (const a of answers) answeredQuestionIds.add(a.questionId);
-        for (const q of quizData.questions) {
-          if (!answeredQuestionIds.has(q.id)) {
+        for (const [qId, q] of questionsById) {
+          if (!answeredQuestionIds.has(qId)) {
             pointsMax += q.points ?? 1;
           }
         }

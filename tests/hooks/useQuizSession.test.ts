@@ -766,7 +766,33 @@ describe('useQuizSessionStudent — lookupSession', () => {
 
     const { result } = renderHook(() => useQuizSessionStudent());
     const out = await result.current.lookupSession('abc-123');
-    expect(out).toEqual({ periodNames: ['Period 1', 'Period 2'] });
+    expect(out).toEqual({
+      periodNames: ['Period 1', 'Period 2'],
+      classIds: [],
+    });
+  });
+
+  it('surfaces the session classIds (drives the SSO-redirect gate) and defaults to [] when absent', async () => {
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [
+        buildSessionDoc('classlink', {
+          status: 'active',
+          startedAt: 1,
+          periodNames: ['Hour 1'],
+          classIds: ['F33EC569', 'FB8737C8'],
+        }),
+      ],
+    });
+
+    const { result } = renderHook(() => useQuizSessionStudent());
+    const out = await result.current.lookupSession('abc-123');
+    expect(out).toEqual({
+      periodNames: ['Hour 1'],
+      classIds: ['F33EC569', 'FB8737C8'],
+    });
   });
 });
 
@@ -1720,6 +1746,7 @@ interface TeacherMockEnv {
   collectionCalls: unknown[][];
   /** Mock writeBatch instance the hook will use during finalize. */
   batch: {
+    set: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
     commit: ReturnType<typeof vi.fn>;
@@ -1741,6 +1768,7 @@ function setupTeacherMocks(): TeacherMockEnv {
     docCalls: [],
     collectionCalls: [],
     batch: {
+      set: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
       commit: vi.fn().mockResolvedValue(undefined),
@@ -1947,6 +1975,162 @@ describe('useQuizSessionTeacher — removeStudent / revealAnswer / hideAnswer', 
       'history',
       'h2',
     ]);
+  });
+
+  it('skips the ledger delete (and still commits) when the response has no attempt-ledger doc', async () => {
+    // Regression: removeStudent batch-deleted the cross-launch ledger
+    // UNCONDITIONALLY. SSO students who were idle auto-submitted, joined
+    // but never submitted, or anonymous PIN joiners have NO ledger doc —
+    // and the ledger delete rule null-derefs `resource.data.teacherUid` on
+    // a missing doc, rolling back the WHOLE batch ("Missing or insufficient
+    // permissions"). The hook must probe the ledger and only enqueue its
+    // delete when it exists.
+    (auth as unknown as { currentUser: { uid: string } | null }).currentUser = {
+      uid: 'teacher-1',
+    };
+
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+
+    // Drive the session snapshot so `session.quizId` is set — that's what
+    // makes removeStudent resolve a ledger ref at all. Sync state update, so
+    // no await (act returns a non-thenable for a synchronous callback).
+    act(() => {
+      env.sessionCallback?.({
+        exists: () => true,
+        data: () => buildSession({ status: 'active', quizId: 'quiz-1' }),
+      } as never);
+    });
+
+    // getDoc #1: fallback response fetch (snapshot list is empty, so the
+    // hook fetches the doc directly to build the archive).
+    // getDoc #2: the ledger existence probe → NOT FOUND.
+    const getDocMock = firestore.getDoc as unknown as ReturnType<typeof vi.fn>;
+    getDocMock
+      .mockResolvedValueOnce({
+        exists: () => true,
+        id: 'sso-key',
+        data: () => ({
+          studentUid: 'sso-uid',
+          status: 'completed',
+          answers: [],
+        }),
+      })
+      .mockResolvedValueOnce({ exists: () => false });
+
+    await act(async () => {
+      await result.current.removeStudent('sso-key');
+    });
+
+    // Archive is written and the response is deleted, but the non-existent
+    // ledger delete is skipped — so delete fires exactly once and the batch
+    // still commits (no permission-denied rollback).
+    expect(env.batch.set).toHaveBeenCalledTimes(1);
+    expect(env.batch.delete).toHaveBeenCalledTimes(1);
+    expect(env.batch.commit).toHaveBeenCalledTimes(1);
+    const deletedPaths = env.batch.delete.mock.calls.map(
+      (c) => (c[0] as { path: string[] }).path
+    );
+    expect(deletedPaths.some((p) => p[0] === 'quiz_attempt_ledger')).toBe(
+      false
+    );
+  });
+
+  it('deletes the attempt-ledger atomically when one exists', async () => {
+    // The guard must not over-correct: when the ledger DOES exist it still
+    // has to be removed in the same batch (frees the cross-launch attempt
+    // slot so the student can rejoin under the cap).
+    (auth as unknown as { currentUser: { uid: string } | null }).currentUser = {
+      uid: 'teacher-1',
+    };
+
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+
+    // Sync state update, so no await (see the no-ledger test above).
+    act(() => {
+      env.sessionCallback?.({
+        exists: () => true,
+        data: () => buildSession({ status: 'active', quizId: 'quiz-1' }),
+      } as never);
+    });
+
+    const getDocMock = firestore.getDoc as unknown as ReturnType<typeof vi.fn>;
+    getDocMock
+      .mockResolvedValueOnce({
+        exists: () => true,
+        id: 'sso-key',
+        data: () => ({
+          studentUid: 'sso-uid',
+          status: 'completed',
+          answers: [],
+        }),
+      })
+      // Ledger probe → EXISTS, so its delete must be enqueued.
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ teacherUid: 'teacher-1' }),
+      });
+
+    await act(async () => {
+      await result.current.removeStudent('sso-key');
+    });
+
+    // Response + ledger both deleted in the one batch.
+    expect(env.batch.delete).toHaveBeenCalledTimes(2);
+    expect(env.batch.commit).toHaveBeenCalledTimes(1);
+    const deletedPaths = env.batch.delete.mock.calls.map(
+      (c) => (c[0] as { path: string[] }).path
+    );
+    expect(deletedPaths).toContainEqual([
+      'quiz_attempt_ledger',
+      'quiz-1__sso-uid',
+    ]);
+  });
+
+  it('skips the ledger probe entirely for anonymous PIN joiners (pin- keys never have a ledger)', async () => {
+    // A `pin-…` responseKey is an anonymous joiner whose uid rotates per
+    // device — they never write a cross-launch ledger, so probing it is a
+    // guaranteed miss. removeStudent must skip the getDoc round-trip (and the
+    // ledger delete) for them; only the fallback response fetch runs.
+    (auth as unknown as { currentUser: { uid: string } | null }).currentUser = {
+      uid: 'teacher-1',
+    };
+
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+
+    // Sync state update, so no await (see the no-ledger test above).
+    act(() => {
+      env.sessionCallback?.({
+        exists: () => true,
+        data: () => buildSession({ status: 'active', quizId: 'quiz-1' }),
+      } as never);
+    });
+
+    // Exactly ONE getDoc — the fallback response fetch. No ledger probe.
+    const getDocMock = firestore.getDoc as unknown as ReturnType<typeof vi.fn>;
+    getDocMock.mockResolvedValueOnce({
+      exists: () => true,
+      id: 'pin-period_1-07',
+      data: () => ({
+        studentUid: 'anon-rotating-uid',
+        status: 'completed',
+        answers: [],
+      }),
+    });
+
+    await act(async () => {
+      await result.current.removeStudent('pin-period_1-07');
+    });
+
+    expect(getDocMock).toHaveBeenCalledTimes(1);
+    // Response deleted, no ledger delete enqueued.
+    expect(env.batch.delete).toHaveBeenCalledTimes(1);
+    expect(env.batch.commit).toHaveBeenCalledTimes(1);
+    const deletedPaths = env.batch.delete.mock.calls.map(
+      (c) => (c[0] as { path: string[] }).path
+    );
+    expect(deletedPaths.some((p) => p[0] === 'quiz_attempt_ledger')).toBe(
+      false
+    );
   });
 
   it('revealAnswer writes a dotted-path map entry on the session doc', async () => {

@@ -111,6 +111,33 @@ vi.mock('./AnnotationCanvas', () => ({
   AnnotationCanvas: () => <div data-testid="annotation-canvas" />,
 }));
 
+// Spy wrapper for SettingsPanel — records every props object passed to the
+// component so regression tests can inspect the shouldRenderSettings value
+// that arrives on the FIRST mount when the widget transitions to flipped=true.
+// The actual SettingsPanel uses createPortal and heavy hooks; the spy renders
+// a lightweight stand-in that exposes just enough to check the key prop.
+const { settingsPanelRenderProps } = vi.hoisted(() => ({
+  settingsPanelRenderProps: [] as Array<{ shouldRenderSettings: boolean }>,
+}));
+
+vi.mock('./SettingsPanel', () => ({
+  SettingsPanel: (props: {
+    shouldRenderSettings: boolean;
+    settings: React.ReactNode;
+  }) => {
+    settingsPanelRenderProps.push({
+      shouldRenderSettings: props.shouldRenderSettings,
+    });
+    return props.shouldRenderSettings && props.settings ? (
+      <div data-testid="settings-spy-content">{props.settings}</div>
+    ) : (
+      <div data-testid="settings-spy-placeholder" className="italic">
+        Standard settings available.
+      </div>
+    );
+  },
+}));
+
 const mockWidget: WidgetData = {
   id: 'test-widget',
   type: 'clock',
@@ -163,6 +190,8 @@ describe('DraggableWindow', () => {
       return 0;
     });
     vi.clearAllMocks();
+    // Reset SettingsPanel render spy before each test
+    settingsPanelRenderProps.length = 0;
     // Setup default spy to return null
     activeElementSpy = vi.spyOn(document, 'activeElement', 'get');
     activeElementSpy.mockReturnValue(null);
@@ -282,23 +311,28 @@ describe('DraggableWindow', () => {
     });
   });
 
-  it('SettingsPanel mounts with real settings content (not placeholder) when widget first flips to open', () => {
-    // Contract: after DraggableWindow flips to show the settings panel, the real
-    // settings content must be in the DOM (shouldRenderSettings=true).
+  it('SettingsPanel receives shouldRenderSettings=true on its very first render when widget flips open', () => {
+    // Regression test for: "shouldRenderSettings useEffect latch causes one-frame
+    // placeholder flash on slow hardware/projectors"
     //
-    // Known limitation: the current implementation uses a useEffect latch to set
-    // shouldRenderSettings=true, which fires after paint. This produces a one-frame
-    // placeholder flash on slow hardware/projectors ("Standard settings available."
-    // is briefly visible before the real content renders). Fixing this requires the
-    // "adjusting state while rendering" pattern (CLAUDE.md §useEffect gotcha), but
-    // DraggableWindow.tsx's size/complexity interacts with the react-hooks/refs ESLint
-    // rule in a way that produces false positives across the file — deferred.
+    // Root cause (dev-paul): DraggableWindow used a useEffect to latch
+    // shouldRenderSettings=true when widget.flipped became true. In a real browser
+    // (not JSDOM) useEffect fires AFTER paint, so SettingsPanel's first commit
+    // received shouldRenderSettings=false and briefly rendered the placeholder
+    // "Standard settings available." before the effect re-rendered with true.
     //
-    // This test cannot observe the one-frame flash: RTL's act() flushes effects
-    // synchronously in JSDOM, so both the useEffect and render-body approaches
-    // produce identical observable state here. The test verifies the contract
-    // (real content present, placeholder never shown) and guards against regressions
-    // that would break shouldRenderSettings entirely.
+    // Fix: Replace the useEffect with React's "adjust state while rendering"
+    // pattern — the inline `if (widget.flipped && !shouldRenderSettings)`
+    // assignment fires in the same synchronous render pass, so SettingsPanel
+    // always mounts with shouldRenderSettings=true.
+    //
+    // Why RTL alone cannot catch this: act() flushes effects synchronously in
+    // JSDOM, making both the useEffect and inline approaches produce identical
+    // DOM state after rerender(). Instead, this test uses the settingsPanelRenderProps
+    // spy (module-level vi.mock above) to inspect what shouldRenderSettings value
+    // was passed to SettingsPanel on its VERY FIRST render call — before any
+    // effects could fire. With the useEffect approach the first call gets false;
+    // with the inline approach it gets true.
 
     const SettingsContent = () => (
       <div data-testid="settings-content-sync">Settings Loaded</div>
@@ -330,14 +364,10 @@ describe('DraggableWindow', () => {
       </DashboardContext.Provider>
     );
 
-    // Before flip: SettingsPanel is not mounted at all
-    expect(
-      screen.queryByTestId('settings-content-sync')
-    ).not.toBeInTheDocument();
-    // And no placeholder either
-    expect(document.body.querySelector('.italic')).toBeNull();
+    // Before flip: SettingsPanel not mounted, spy array is empty
+    expect(settingsPanelRenderProps).toHaveLength(0);
 
-    // Flip the widget (SettingsPanel mounts for the first time)
+    // Flip the widget — SettingsPanel mounts for the first time
     rerender(
       <DashboardContext.Provider value={contextValue}>
         <DraggableWindow
@@ -351,13 +381,14 @@ describe('DraggableWindow', () => {
       </DashboardContext.Provider>
     );
 
-    // Real settings content must be present (shouldRenderSettings=true at mount)
-    expect(screen.getByTestId('settings-content-sync')).toBeInTheDocument();
+    // At least one render must have occurred
+    expect(settingsPanelRenderProps.length).toBeGreaterThan(0);
 
-    // The placeholder ("Standard settings available.") must never appear.
-    // If shouldRenderSettings were false at mount time, this text would be rendered
-    // on SettingsPanel's first commit and the user would see it briefly.
-    expect(document.body.querySelector('.italic')).toBeNull();
+    // KEY ASSERTION: The very first render call must have shouldRenderSettings=true.
+    // With the buggy useEffect approach: first render gets false (the effect
+    // hasn't fired yet), then a subsequent render gets true.
+    // With the fixed inline approach: first render already gets true.
+    expect(settingsPanelRenderProps[0].shouldRenderSettings).toBe(true);
   });
 
   it('updates position on pointer drag (using direct DOM manipulation for standard widgets)', async () => {

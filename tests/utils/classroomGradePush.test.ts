@@ -20,6 +20,12 @@ const { getEarnedPointsMock } = vi.hoisted(() => ({
 }));
 vi.mock('@/components/widgets/QuizWidget/utils/quizScoreboard', () => ({
   getEarnedPoints: getEarnedPointsMock,
+  // The builder now drops responses canScoreResponse rejects (answer key not
+  // loaded / question-id drift → a phantom 0). Stub it off a per-response flag
+  // so a test can mark one unscoreable; default true keeps the scaling tests
+  // focused on scaling rather than the (separately tested) scoreability rule.
+  canScoreResponse: (r: unknown) =>
+    (r as { __scoreable?: boolean }).__scoreable !== false,
 }));
 
 import { buildQuizClassroomGradeEntries } from '@/utils/classroomGradePush';
@@ -28,13 +34,23 @@ import { buildQuizClassroomGradeEntries } from '@/utils/classroomGradePush';
 const q = (points: number): QuizQuestion =>
   ({ id: `q${points}`, type: 'MC', points }) as unknown as QuizQuestion;
 
-/** Minimal response carrying status/studentUid + a stubbed earned score. */
+/**
+ * Minimal response carrying status/studentUid + a stubbed earned score.
+ * `scoreable` defaults true; pass false to simulate an unscoreable response
+ * (the mocked canScoreResponse reads `__scoreable`).
+ */
 const resp = (
   studentUid: string,
   status: QuizResponse['status'],
-  earned: number
+  earned: number,
+  scoreable = true
 ): QuizResponse =>
-  ({ studentUid, status, __earned: earned }) as unknown as QuizResponse;
+  ({
+    studentUid,
+    status,
+    __earned: earned,
+    __scoreable: scoreable,
+  }) as unknown as QuizResponse;
 
 describe('buildQuizClassroomGradeEntries', () => {
   it('is an identity scale when the quiz total equals maxPoints', () => {
@@ -102,6 +118,22 @@ describe('buildQuizClassroomGradeEntries', () => {
       10
     );
     expect(grades).toEqual([{ pseudonymUid: 'u1', pointsEarned: 5 }]);
+  });
+
+  it('excludes a completed response that cannot be scored (no phantom 0 to the gradebook)', () => {
+    // A completed response whose answers map to no loaded question (synced-quiz
+    // id drift, or answer key not loaded) scores a phantom 0 via getEarnedPoints.
+    // It must be OMITTED from the push — not written as 0/maxPoints to the real
+    // Classroom gradebook, where it is persistent and hard to notice/undo.
+    const grades = buildQuizClassroomGradeEntries(
+      [
+        resp('u1', 'completed', 8),
+        resp('drift', 'completed', 0, /* scoreable */ false),
+      ],
+      [q(10)],
+      10
+    );
+    expect(grades).toEqual([{ pseudonymUid: 'u1', pointsEarned: 8 }]);
   });
 
   it('scales on correctness points only — getEarnedPoints is called with NO session (excludes speed/streak bonuses)', () => {

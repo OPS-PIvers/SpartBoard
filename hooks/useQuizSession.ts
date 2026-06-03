@@ -47,6 +47,7 @@ import {
   GradeResult,
 } from '@/types';
 import { resolvePeriodNames } from '@/utils/periodCompat';
+import { normalizeQuizCode } from '@/utils/quizCode';
 
 // Re-export for backward compatibility with callers that imported
 // QuizSessionOptions from this module before it was moved into types.ts.
@@ -852,6 +853,31 @@ export const useQuizSessionTeacher = (
         await historyBatch.commit();
       }
 
+      // Probe the cross-launch ledger BEFORE opening the batch so we only
+      // enqueue its delete when it actually exists. A ledger doc is written
+      // ONLY for non-anonymous (SSO/studentRole) joiners that finalize via
+      // `completeQuiz` (see the `writeLedger` guard). Several common states
+      // therefore have NO ledger: anonymous PIN joiners, idle/force
+      // auto-submitted blanks (`autoSubmitted: true` — never ran the ledger
+      // transaction), joined-but-never-submitted stubs, and legacy
+      // pre-ledger responses. The ledger `delete` rule dereferences
+      // `resource.data.teacherUid` with no `resource == null` short-circuit,
+      // so a `batch.delete()` against a missing ledger is REJECTED and rolls
+      // back the entire archive+delete batch — which surfaces to the teacher
+      // as a "Missing or insufficient permissions" toast when removing such a
+      // student. Mirror `unlockStudentAttempt`'s probe-then-touch pattern.
+      //
+      // Skip the probe entirely for anonymous PIN joiners (`pin-…` keys):
+      // their uids rotate per device so they NEVER write a ledger, making the
+      // read a guaranteed miss — so we save the round-trip and just don't
+      // enqueue the delete. The other no-ledger cases (SSO idle auto-submit,
+      // joined-only, legacy) live in the SSO uid keyspace, so the existence
+      // probe still covers them.
+      const ledgerSnap =
+        ledgerRef && !responseKey.startsWith('pin-')
+          ? await getDoc(ledgerRef)
+          : null;
+
       // Archive the response before delete so partial answers survive
       // the teacher's "remove" action. The deterministic key model
       // means we can't soft-delete in place (the slot must be free for
@@ -889,7 +915,10 @@ export const useQuizSessionTeacher = (
         });
       }
       batch.delete(responseRef);
-      if (ledgerRef) batch.delete(ledgerRef);
+      // Only delete the ledger when it exists (see the probe above) — a
+      // delete against a non-existent ledger doc is rejected by the rules
+      // and would roll back the whole batch.
+      if (ledgerRef && ledgerSnap?.exists()) batch.delete(ledgerRef);
       await batch.commit();
     },
     [sessionId, responses, session?.quizId]
@@ -1169,7 +1198,9 @@ export interface UseQuizSessionStudentResult {
    * Returns the session's periodNames so the UI can show a period picker
    * before the student commits to joining.
    */
-  lookupSession: (code: string) => Promise<{ periodNames: string[] } | null>;
+  lookupSession: (
+    code: string
+  ) => Promise<{ periodNames: string[]; classIds: string[] } | null>;
   /**
    * Join a quiz session.
    *
@@ -1350,16 +1381,15 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   }, [sessionIdState, responseKeyState]);
 
   const lookupSession = useCallback(
-    async (code: string): Promise<{ periodNames: string[] } | null> => {
+    async (
+      code: string
+    ): Promise<{ periodNames: string[]; classIds: string[] } | null> => {
       // Populate the hook's `error` state on failure so callers' .catch
       // handlers (which only console.warn) still produce visible UI feedback.
       // Without this a network/Firestore failure during code lookup silently
       // strands the student on the join form with no spinner and no error.
       try {
-        const normCode = code
-          .trim()
-          .replace(/[^a-zA-Z0-9]/g, '')
-          .toUpperCase();
+        const normCode = normalizeQuizCode(code);
         if (!normCode) return null;
         setError(null);
         const snap = await getDocs(
@@ -1384,7 +1414,16 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // resolvePeriodNames normalises legacy periodName + new periodNames
         // into a typed string[], avoiding the `any[]` from Firestore's
         // DocumentData bleed-through.
-        return { periodNames: resolvePeriodNames(sessionData) };
+        return {
+          periodNames: resolvePeriodNames(sessionData),
+          // ClassLink-rostered sessions carry `classIds`; the join screen uses
+          // this to steer anonymous joiners to SSO (where identity = their own
+          // auth.uid) instead of the PIN+period path, which can fork a
+          // submission onto the wrong roster slot when the period is wrong.
+          classIds: Array.isArray(sessionData.classIds)
+            ? sessionData.classIds
+            : [],
+        };
       } catch (err) {
         const msg =
           err instanceof Error
@@ -1411,10 +1450,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       // legitimate snapshots in the new one.
       lastHistorySnapshotAtRef.current.clear();
       try {
-        const normCode = code
-          .trim()
-          .replace(/[^a-zA-Z0-9]/g, '')
-          .toUpperCase();
+        const normCode = normalizeQuizCode(code);
         if (!normCode) throw new Error('Invalid code');
 
         // Ensure we have an anonymous Firebase Auth session so Firestore
@@ -2350,10 +2386,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       setLoading(true);
       setError(null);
       try {
-        const normCode = code
-          .trim()
-          .replace(/[^a-zA-Z0-9]/g, '')
-          .toUpperCase();
+        const normCode = normalizeQuizCode(code);
         if (!normCode) throw new Error('Invalid code');
 
         const currentUser = auth.currentUser;
