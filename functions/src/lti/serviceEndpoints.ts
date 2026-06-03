@@ -9,6 +9,7 @@
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
+import { randomBytes } from 'node:crypto';
 import * as admin from 'firebase-admin';
 
 import {
@@ -86,6 +87,7 @@ export const ltiSignDeepLinkResponseV1 = onCall(
     });
     const claims = buildDeepLinkResponseClaims({
       deploymentId: cfg.deploymentId,
+      nonce: randomBytes(16).toString('hex'),
       data: typeof data.dlData === 'string' ? data.dlData : undefined,
       contentItems: [item],
     });
