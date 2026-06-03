@@ -116,7 +116,7 @@ export const ToggleRow: React.FC<ToggleRowProps> = ({
   disabled,
   compact = false,
 }) => (
-  <div className={disabled ? 'opacity-40 pointer-events-none' : ''}>
+  <div className={disabled ? 'opacity-40' : ''}>
     <div className="flex items-center justify-between">
       <span
         className={
@@ -127,7 +127,26 @@ export const ToggleRow: React.FC<ToggleRowProps> = ({
       >
         {label}
       </span>
-      <Toggle checked={checked} onChange={onChange} size="sm" showLabels />
+      {/*
+        Forward `label` so the switch gets an accessible name (Toggle maps
+        `label` to `aria-label`). Without it, screen readers announce the
+        switch as just "switch, off". The visible "ON"/"OFF" text is driven
+        by `showLabels`, not `label`, so this does not double up the label.
+
+        Forward `disabled` to the switch itself (not just the wrapper). The
+        old `pointer-events-none` wrapper blocked the mouse but left the
+        button keyboard-focusable/activatable and gave assistive tech no
+        disabled state. The `disabled` attribute removes it from the tab
+        order and announces it correctly.
+      */}
+      <Toggle
+        checked={checked}
+        onChange={onChange}
+        size="sm"
+        showLabels
+        label={label}
+        disabled={disabled}
+      />
     </div>
     {hint && <p className="text-xxs text-slate-500 mt-0.5">{hint}</p>}
   </div>

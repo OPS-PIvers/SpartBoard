@@ -35,6 +35,38 @@ describe('QuizBehaviorSettingsPanel', () => {
     expect(screen.getByText('Block Copy & Paste')).toBeInTheDocument();
   });
 
+  it('gives each toggle-row switch an accessible name (a11y)', () => {
+    render(
+      <QuizBehaviorSettingsPanel value={defaultValue} onChange={vi.fn()} />
+    );
+    // ToggleRow forwards its visible label to the switch's aria-label, so the
+    // switch is discoverable by name instead of being announced as just
+    // "switch, off". Regression guard for the missing accessible name.
+    expect(
+      screen.getByRole('switch', { name: /Block Copy & Paste/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('switch', { name: /Tab Switch Detection/i })
+    ).toBeInTheDocument();
+  });
+
+  it('forwards disabled to the switch so disabled rows are truly disabled (a11y)', () => {
+    // sessionMode 'teacher' (the default) makes "Shuffle Questions" unavailable,
+    // so ToggleRow renders it disabled. The switch must expose a real disabled
+    // state — not just a pointer-events-none wrapper — so keyboard and AT users
+    // cannot focus or activate it.
+    render(
+      <QuizBehaviorSettingsPanel value={defaultValue} onChange={vi.fn()} />
+    );
+    // Expand the "Question Randomization" disclosure to reveal its rows.
+    fireEvent.click(
+      screen.getByRole('button', { name: /Question Randomization/i })
+    );
+    expect(
+      screen.getByRole('switch', { name: /Shuffle Questions/i })
+    ).toBeDisabled();
+  });
+
   it('reflects an existing blockCopyPaste: true value as a checked switch', () => {
     const value: QuizBehaviorSettings = {
       ...DEFAULT_QUIZ_BEHAVIOR,
