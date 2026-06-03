@@ -697,6 +697,25 @@
     "dashboard": {
       "emptyBoardHint": "Ziehen Sie Werkzeuge aus dem Dock unten, um zu beginnen",
       "switchBoardsHint": "Verwenden Sie die Tafelnavigation unten links, um zwischen Tafeln zu wechseln"
+    },
+    "stickers": {
+      "collectionTitle": "Sticker-Sammlung",
+      "clearAll": "Alle Sticker vom Board löschen",
+      "wait": "Warten...",
+      "dropOrPaste": "Bild ablegen oder einfügen",
+      "toAddCustom": "um benutzerdefinierte Sticker hinzuzufügen",
+      "essentials": "Grundlagen",
+      "globalCollection": "Globale Sammlung",
+      "myCollection": "Meine Sammlung",
+      "dragOrClick": "Ziehen oder klicken zum Hinzufügen",
+      "deleteSticker": "Sticker löschen",
+      "dragFromLibrary": "Sticker aus der Bibliothek auf das Board ziehen",
+      "stickerAdded": "Sticker zum Board hinzugefügt!",
+      "filterAll": "Alle",
+      "filterFavorites": "Favoriten",
+      "filterMine": "Meine",
+      "reorganizeSticker": "Neu anordnen",
+      "favoriteSticker": "Favorisieren"
     }
   },
   "boardBreadcrumb": {
