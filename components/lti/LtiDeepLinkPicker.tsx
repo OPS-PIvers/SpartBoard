@@ -19,13 +19,14 @@
  *  - FLOW (when NOT framed, i.e. after the top redirect): SpartBoard is now the
  *    top-level document → first-party → Google sign-in passes CAA. It exchanges
  *    the launch code, loads the teacher's quiz library, creates the assignment,
- *    signs the LtiDeepLinkingResponse, and form-POSTs it back to Schoology. That
- *    POST navigates THIS SAME TAB back into the course, so the whole round trip
- *    happens in one tab — the teacher never leaves and never has to refresh.
+ *    signs the LtiDeepLinkingResponse, delivers it (see postDeepLinkResponse),
+ *    then sends the tab back to the teacher's Schoology course materials. The
+ *    launch replaced the course tab to reach this first-party context, so the
+ *    flow restores the teacher to the course itself — one tab, no manual return.
  *
- * The make-or-break dependency is whether Schoology's iframe sandbox permits
- * top-navigation (`allow-top-navigation[-by-user-activation]`). If it blocks the
- * redirect, the launcher's button silently fails and this approach is dead.
+ * Schoology's iframe DOES permit the top-navigation this relies on (verified
+ * live); the deep-link RESPONSE is delivered via a hidden iframe rather than a
+ * top-level POST — see postDeepLinkResponse for why.
  *
  * UI reuses the Classroom add-on's light-theme AddonShell kit.
  */
@@ -108,8 +109,19 @@ function isFramed(): boolean {
 /**
  * Deliver the signed LTI deep-linking response: an auto-submitting hidden-form
  * POST to the platform's `deep_link_return_url` carrying a single `JWT` field.
- * The form is attached just long enough to submit (a detached form cannot
- * navigate); submitting navigates this tab back to Schoology.
+ *
+ * Why a hidden IFRAME instead of a top-level navigation: Schoology's
+ * `content-return` page is built to run inside its Add-Materials iframe. The
+ * FIRST POST creates the material (HTTP 200), but the returned page then submits
+ * ITSELF again — harmless inside Schoology's own frame, but loaded TOP-LEVEL
+ * (this flow is top-level for sign-in) that re-POST replays our single-use JWT
+ * and Schoology rejects it 401 "Duplicate timestamp/nonce", which the teacher
+ * would see. Targeting a sandboxed hidden iframe keeps the material-creating
+ * POST exactly as a first-party `schoology.com` request (the return URL is a
+ * Schoology-signed token carrying the teacher uid + course), while the page's
+ * self-resubmit and any 401 stay contained and invisible. `onDelivered` fires on
+ * the iframe's first load (the POST round-trip completed → material created), so
+ * the caller can then navigate the tab back to the course.
  *
  * SECURITY: the return URL is platform-supplied (validated server-side before
  * signing), but we re-validate it here — inline, so the guard dominates the
@@ -118,7 +130,11 @@ function isFramed(): boolean {
  * tampered/forged value — a `javascript:`/`data:` scheme (DOM XSS) or a foreign
  * host (open redirect) — is rejected, never assigned to the form.
  */
-function postDeepLinkResponse(returnUrl: string, jwt: string): void {
+function postDeepLinkResponse(
+  returnUrl: string,
+  jwt: string,
+  onDelivered: () => void
+): void {
   let parsed: URL | null = null;
   try {
     parsed = new URL(returnUrl);
@@ -135,14 +151,39 @@ function postDeepLinkResponse(returnUrl: string, jwt: string): void {
     );
   }
 
+  // Sandboxed so Schoology's returned page can run its scripts/auto-submit but
+  // CANNOT bust out to navigate our top-level tab; allow-same-origin keeps its
+  // real schoology.com origin so it can read its own session.
+  const iframe = document.createElement('iframe');
+  iframe.name = 'lti-dl-return';
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.style.display = 'none';
+  iframe.sandbox.add('allow-same-origin', 'allow-scripts', 'allow-forms');
+
   const form = document.createElement('form');
   form.method = 'POST';
   form.action = parsed.href;
+  form.target = 'lti-dl-return';
   const input = document.createElement('input');
   input.type = 'hidden';
   input.name = 'JWT';
   input.value = jwt;
   form.appendChild(input);
+
+  // Fire onDelivered exactly once — on the iframe's first load (POST processed →
+  // material created), or a generous timeout fallback if the load never fires.
+  // Waiting matters: navigating the tab away before the POST round-trips would
+  // abort the in-flight request and the material would never be created.
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    onDelivered();
+  };
+  iframe.addEventListener('load', finish, { once: true });
+  window.setTimeout(finish, 5000);
+
+  document.body.appendChild(iframe);
   document.body.appendChild(form);
   form.submit();
 }
@@ -235,6 +276,9 @@ const LtiDeepLinkFlow: React.FC = () => {
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  // The Schoology course-materials URL we send the teacher back to once the
+  // material is created (also offered as a manual link if auto-redirect stalls).
+  const [returnHref, setReturnHref] = useState<string | null>(null);
   const [selectedQuizId, setSelectedQuizId] = useState('');
   const quizSelectId = useId();
   const ranRef = useRef(false);
@@ -390,11 +434,32 @@ const LtiDeepLinkFlow: React.FC = () => {
         maxPoints: created.maxPoints,
       });
 
+      // Where to send the teacher once the material is created: their Schoology
+      // course materials. The launch replaced the course tab to get a first-party
+      // sign-in context, so we restore them to the course ourselves. Guard the URL
+      // inline (same https + schoology.com allowlist as the response POST, fixed
+      // path, encoded course id) so window.location can't be pointed off-platform.
+      let courseUrl: string | null = null;
+      try {
+        const u = new URL(returnUrl);
+        if (
+          u.protocol === 'https:' &&
+          /(^|\.)schoology\.com$/.test(u.hostname)
+        ) {
+          courseUrl = `${u.origin}/course/${encodeURIComponent(contextId)}/materials`;
+        }
+      } catch {
+        courseUrl = null;
+      }
+
+      setReturnHref(courseUrl);
       setSubmitted(true);
-      setStatusMsg('Returning to Schoology…');
-      // Auto-submitting form POST navigates this tab back to the platform, which
-      // creates the graded material.
-      postDeepLinkResponse(data.returnUrl, data.jwt);
+      setStatusMsg('Adding the quiz and returning to your course…');
+      // Deliver the signed response into a hidden iframe (this is the POST that
+      // creates the material); when it round-trips, send the tab to the course.
+      postDeepLinkResponse(returnUrl, data.jwt, () => {
+        if (courseUrl) window.location.assign(courseUrl);
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logError('LtiDeepLinkFlow.addQuiz', err, { quizId: selectedQuiz.id });
@@ -422,9 +487,21 @@ const LtiDeepLinkFlow: React.FC = () => {
         <AddonCard className="p-5">
           <div className="flex items-start gap-3">
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
-            <p className="text-sm leading-relaxed text-slate-600">
-              Adding your quiz to Schoology…
-            </p>
+            <div className="text-sm leading-relaxed text-slate-600">
+              <p>Quiz added — taking you back to your course…</p>
+              {returnHref && (
+                <p className="mt-2 text-slate-500">
+                  Not redirected?{' '}
+                  <a
+                    href={returnHref}
+                    className="font-medium text-blue-600 underline"
+                  >
+                    Return to your course
+                  </a>
+                  .
+                </p>
+              )}
+            </div>
           </div>
         </AddonCard>
       ) : !teacherReady ? (
