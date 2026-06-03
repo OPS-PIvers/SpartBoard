@@ -58,9 +58,17 @@ export function getEarnedPoints(
   let totalPoints = 0;
   let streak = 0;
 
+  // Deduplicate by questionId: credit only the first (chronologically earliest)
+  // answer per question. Firestore arrayUnion races and Drive-sync double-writes
+  // can produce duplicate entries; without this guard a student's score is
+  // inflated (same fix applied to computeVideoActivityScorePct, #1728/#1777).
+  const seenQuestionIds = new Set<string>();
+
   for (const ans of sortedAnswers) {
     const q = qMap.get(ans.questionId);
     if (!q) continue;
+    if (seenQuestionIds.has(ans.questionId)) continue;
+    seenQuestionIds.add(ans.questionId);
 
     // Written types (`short`/`essay`) get their points from the response's
     // top-level `grading` map. Without this thread-through, scoreboard
