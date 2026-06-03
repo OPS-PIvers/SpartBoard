@@ -217,7 +217,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 | LOW      | OPEN            | `components/widgets/MathTools/Settings.tsx`           | 1 instance at line ~32                                                                                                                      |
 | LOW      | OPEN            | `components/widgets/RecessGear/Settings.tsx`          | 1 instance at line ~54                                                                                                                      |
 | LOW      | NEEDS REVIEW    | `components/widgets/ExpectationsWidget/Settings.tsx`  | 1 instance at line ~14 — MISSING `font-black`, has `flex items-center gap-2`; may be intentional lighter weight (use SettingsLabel icon form if converting) |
-| LOW      | NEEDS REVIEW    | `components/widgets/SoundWidget/Settings.tsx`         | 1 instance at line ~171 — MISSING `font-black`; may be intentional lighter weight                                                           |
+| LOW      | NEEDS REVIEW    | `components/widgets/SoundWidget/Settings.tsx`         | 2 instances at lines ~67, ~171 — both MISSING `font-black`; may be intentional lighter weight                                               |
 | LOW      | NEEDS REVIEW    | `components/widgets/LunchCount/SubmitReportModal.tsx` | Lines 105, 111, 123 are read-only data display `<span>` elements (outside D3 scope); line 196 is `<label htmlFor>` on a textarea in a submit modal — not a settings back-face panel; human decision needed on whether SubmitReportModal labels fall under D3 |
 
 ### D4 — Import Path Convention
