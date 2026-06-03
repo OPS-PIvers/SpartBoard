@@ -1,6 +1,108 @@
 {
   "entries": [
     {
+      "version": "2026.06.03",
+      "date": "2026-06-03",
+      "title": "Google Classroom linking, scoring, and widget fixes",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Google Classroom",
+          "items": [
+            {
+              "text": "Linked a class to the wrong roster? A new Unlink button in the Link to Google Classroom window lets you undo the link and reconnect the course to the right roster."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Accessibility",
+          "items": [
+            {
+              "text": "Screen readers now announce the name and on/off state of the toggle switches in your quiz, video-activity, and PLC settings."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "subtitle": "Google Classroom",
+          "items": [
+            {
+              "text": "The course picker now lists all of your classes and no longer spins forever when Classroom is slow, and linking works for brand-new and end-of-year (archived) courses too."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "subtitle": "Quiz & activity scoring",
+          "items": [
+            {
+              "text": "A duplicate answer can no longer score a question twice, so a quiz total stays capped at its real maximum."
+            },
+            {
+              "text": "The Video Activity monitor shows a neutral dash instead of a misleading 0% before responses can be scored, and keeps unscored work out of your class average and gradebook."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "text": "Number Line: fraction labels now stay consistent across the whole axis instead of mixing fractions and decimals."
+            },
+            {
+              "text": "Annotation: drawing over your screen no longer occasionally records the same stroke twice."
+            },
+            {
+              "text": "Sticker Book: buttons and messages now appear in German and French."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Google Classroom — you can now fix a mislinked course. The Link to Google Classroom window has a new Unlink button, so if a class was matched to the wrong roster (or the teacher who linked it has left the district), you can clear that link and reconnect the course to the correct roster instead of being stuck with it."
+        },
+        {
+          "type": "fix",
+          "text": "Google Classroom — the course picker in the Link to Google Classroom window now lists all of your classes instead of only the first page, so the class you're looking for is no longer missing with no explanation. If Classroom is slow to respond, the window now offers a retry instead of leaving the loading spinner stuck forever."
+        },
+        {
+          "type": "fix",
+          "text": "Google Classroom — linking a course no longer wrongly rejects you as \"not the teacher\" when the course is brand-new (just created) or archived at the end of the year. Those courses can now be linked the same as active ones."
+        },
+        {
+          "type": "fix",
+          "text": "Quiz scoring — a duplicate copy of a student's answer for the same question can no longer be counted twice. Previously a rare duplicate (from a sync hiccup) could award a question's points twice and push a student's total above 100%; each question now counts once and the total stays capped at its real maximum."
+        },
+        {
+          "type": "fix",
+          "text": "Video Activity monitor — a completed response no longer shows a misleading 0% (and no longer drags down your class average) before it can actually be scored — for example while the activity's questions are still loading, or when an answer doesn't match a loaded question. Those responses now show a neutral \"—\" and are kept out of the class average, and a phantom 0 is never sent to your Google Classroom gradebook. A genuinely empty submission still counts as a real 0."
+        },
+        {
+          "type": "fix",
+          "text": "Number Line widget — in fractions mode, all tick labels now display as fractions consistently. Previously a few ticks (such as some of the tenths) could fall back to decimals, so the same axis mixed labels like \"1/10\" and \"0.3\"."
+        },
+        {
+          "type": "fix",
+          "text": "Annotation — drawing over your screen no longer occasionally records the same stroke twice, which could leave a duplicate line on the board."
+        },
+        {
+          "type": "fix",
+          "text": "Sticker Book widget — the buttons and on-screen messages (such as clearing all stickers, deleting a sticker, and the drag-from-library hint) now appear in German and French instead of showing raw text labels."
+        },
+        {
+          "type": "fix",
+          "text": "Invitations — an invite to an obviously invalid email address (one whose domain begins with a dot, like \"name@.com\") is now rejected up front, instead of creating a member who can never claim the invite and queuing an undeliverable email."
+        },
+        {
+          "type": "improvement",
+          "text": "Accessibility — the toggle switches in the quiz, video-activity, and PLC settings panels (such as \"Tab Switch Detection\" and \"Block Copy & Paste\") are now announced by screen readers with their actual name and on/off state, and a switch that's unavailable is correctly announced as disabled."
+        }
+      ]
+    },
+    {
       "version": "2026.06.02.3",
       "date": "2026-06-02",
       "title": "Removing a student from a live quiz",
