@@ -43,6 +43,7 @@ import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { getQuizBehavior } from '@/utils/quizBehavior';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
 import { logError } from '@/utils/logError';
+import { isGoogleSession } from '@/utils/googleSession';
 import {
   AddonShell,
   AddonHeader,
@@ -145,9 +146,20 @@ export const LtiDeepLinkPicker: React.FC = () => {
     Map<string, { quizCode: string; maxPoints: number }>
   >(new Map());
 
-  const { user, signInWithGoogle } = useAuth();
+  const { user, signInWithGoogle, googleAccessToken } = useAuth();
   const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
   const { createAssignment } = useQuizAssignments(user?.uid);
+
+  // The picker lists + loads the teacher's OWN Drive-backed quiz library, so it
+  // needs a real Google sign-in (uid + Drive token) — NOT just any Firebase
+  // session. Inside Schoology's cross-origin iframe, partitioned-storage auth
+  // can restore a leftover `studentRole` custom-token session from a prior
+  // student launch; that has a uid (empty library) but no `google.com` provider
+  // and no Drive token. Gating on `!!user` showed that stale session the (empty)
+  // dropdown and skipped the sign-in card entirely — the reported bug. Require a
+  // Google session + Drive token so the sign-in card shows until the teacher
+  // signs in as themselves.
+  const teacherReady = isGoogleSession(user) && !!googleAccessToken;
 
   const selectedQuiz = useMemo(
     () => quizzes.find((q) => q.id === selectedQuizId),
@@ -326,11 +338,12 @@ export const LtiDeepLinkPicker: React.FC = () => {
             </p>
           </div>
         </AddonCard>
-      ) : !user ? (
+      ) : !teacherReady ? (
         <AddonCard className="p-6">
           <p className="mb-4 text-sm text-slate-500">
-            Sign in with your school Google account to load your SpartBoard quiz
-            library.
+            {user
+              ? 'Sign in with your teacher Google account to load your SpartBoard quiz library.'
+              : 'Sign in with your school Google account to load your SpartBoard quiz library.'}
           </p>
           <AddonButton onClick={() => void signIn()} loading={busy}>
             Sign in to SpartBoard
