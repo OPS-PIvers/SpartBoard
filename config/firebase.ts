@@ -17,8 +17,26 @@ export const isConfigured = !!apiKey;
  * IMPORTANT SECURITY WARNING:
  * - This must only ever be used in development or automated testing.
  * - It must NEVER be enabled in production, as it bypasses normal auth.
+ *
+ * Defense-in-depth: the bypass is honored ONLY when the app is served from a
+ * localhost origin (local `pnpm dev` and the Playwright E2E `vite preview`
+ * server, both on localhost:3000). On ANY deployed origin — spartboard.web.app,
+ * *.firebaseapp.com, dev-preview channels — it is force-disabled at runtime,
+ * regardless of how the bundle was built. So even if a production bundle is
+ * accidentally built with VITE_AUTH_BYPASS=true and shipped via a manual
+ * `firebase deploy`, the deployed app can never authenticate as the mock user.
+ *
+ * This is a runtime ORIGIN check rather than `import.meta.env.PROD` on purpose:
+ * the E2E suite runs a *production* build (`vite build && vite preview`) on
+ * localhost and legitimately needs the bypass, so a `!PROD` guard would break
+ * it. Origin distinguishes "served locally for dev/test" from "deployed".
  */
-export const isAuthBypass = import.meta.env.VITE_AUTH_BYPASS === 'true';
+const isLocalhostOrigin =
+  typeof window !== 'undefined' &&
+  /^(localhost|127\.0\.0\.1|\[::1\]|::1)$/.test(window.location.hostname);
+
+export const isAuthBypass =
+  import.meta.env.VITE_AUTH_BYPASS === 'true' && isLocalhostOrigin;
 
 let app: FirebaseApp;
 let auth: Auth;
