@@ -710,7 +710,12 @@
       "dragOrClick": "Ziehen oder klicken zum Hinzufügen",
       "deleteSticker": "Sticker löschen",
       "dragFromLibrary": "Sticker aus der Bibliothek auf das Board ziehen",
-      "stickerAdded": "Sticker zum Board hinzugefügt!"
+      "stickerAdded": "Sticker zum Board hinzugefügt!",
+      "filterAll": "Alle",
+      "filterFavorites": "Favoriten",
+      "filterMine": "Meine",
+      "reorganizeSticker": "Neu anordnen",
+      "favoriteSticker": "Favorisieren"
     }
   },
   "boardBreadcrumb": {

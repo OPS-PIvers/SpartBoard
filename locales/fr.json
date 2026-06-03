@@ -710,7 +710,12 @@
       "dragOrClick": "Glisser ou cliquer pour ajouter",
       "deleteSticker": "Supprimer l'autocollant",
       "dragFromLibrary": "Faites glisser les autocollants de la bibliothèque vers le tableau",
-      "stickerAdded": "Autocollant ajouté au tableau !"
+      "stickerAdded": "Autocollant ajouté au tableau !",
+      "filterAll": "Tout",
+      "filterFavorites": "Favoris",
+      "filterMine": "Mes autocollants",
+      "reorganizeSticker": "Réorganiser",
+      "favoriteSticker": "Ajouter aux favoris"
     }
   },
   "boardBreadcrumb": {

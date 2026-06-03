@@ -36,8 +36,12 @@ import es from '@/locales/es.json';
 import fr from '@/locales/fr.json';
 
 /**
- * Keys within widgets.stickers that StickerBookWidget.tsx calls t() on without
- * a defaultValue fallback — these show raw key paths to non-EN users if absent.
+ * Keys within widgets.stickers that StickerBookWidget.tsx resolves via t().
+ * The first group is called without a defaultValue fallback — those show raw
+ * key paths to non-EN users if absent. The filter/favorite/reorder keys are
+ * called with an English defaultValue, so they degrade to English (not a raw
+ * key) when missing, but they are tracked here too so every locale stays in
+ * full parity rather than silently falling back to English.
  */
 const REQUIRED_WIDGET_STICKERS_KEYS = [
   'collectionTitle',
@@ -52,6 +56,11 @@ const REQUIRED_WIDGET_STICKERS_KEYS = [
   'deleteSticker',
   'dragFromLibrary',
   'stickerAdded',
+  'filterAll',
+  'filterFavorites',
+  'filterMine',
+  'reorganizeSticker',
+  'favoriteSticker',
 ] as const;
 
 // ─── EN baseline ─────────────────────────────────────────────────────────────
