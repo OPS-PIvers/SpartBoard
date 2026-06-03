@@ -1,49 +1,41 @@
 /**
- * Schoology LTI 1.3 Deep Linking — teacher resource picker (Spike 1).
+ * Schoology LTI 1.3 Deep Linking — teacher resource picker.
  *
- * Route: /lti/teacher?mode=deeplink
- * Schoology opens this iframe for a `LtiDeepLinkingRequest` instructor launch
- * (the teacher clicked "Add Material → SpartBoard" in a course). The browser
- * arrives via a 302 from the ltiLaunch Cloud Function carrying a one-time
- * `?lc=<launchCode>`.
+ * Route: /lti/teacher?mode=deeplink  (Schoology opens this iframe when a teacher
+ * clicks "Add Material → SpartBoard"; the browser arrives via a 302 from the
+ * ltiLaunch Cloud Function carrying a one-time `?lc=<launchCode>`.)
  *
- * Flow (mirrors the Google Classroom add-on TeacherDiscoveryRoute "attach"
- * pipe, adapted for LTI deep linking):
- *   1. Exchange the launch code (`ltiExchange` callable) for the validated
- *      deep-linking context — specifically `deepLinking.deep_link_return_url`
- *      and the opaque `deepLinking.data` round-trip string.
- *   2. The teacher signs into SpartBoard (Google) and we load THEIR quiz
- *      library via `useQuiz` — exactly as TeacherDiscoveryRoute does.
- *   3. The teacher picks one quiz. We load its content from Drive and compute
- *      `maxPoints` = total question points (so Schoology's gradebook column
- *      reads e.g. 17/20, not a percentage) — the same computation as the
- *      Classroom attach flow.
- *   4. `ltiSignDeepLinkResponseV1` signs a JWT deep-linking response carrying
- *      the chosen quiz. We deliver it the LTI way: auto-submit a hidden HTML
- *      form POST to `deep_link_return_url` with a single `JWT` field. Schoology
- *      consumes the response and creates the graded material.
+ * Two modes, dispatched on the `handoff` query param:
  *
- * UI reuses the Classroom add-on's light-theme AddonShell kit (Schoology's
- * chrome is light), matching the add-on's teacher screens.
+ *  - LAUNCHER (default, in the Schoology iframe): the teacher's Google OAuth
+ *    CANNOT run here — a sign-in popup spawned from Schoology's partitioned
+ *    iframe is denied by Google Workspace Context-Aware Access ("Account
+ *    Restricted"). So the iframe is a thin launcher: it exchanges the one-time
+ *    launch code for the deep-link context, opens a TOP-LEVEL window to do the
+ *    real work (LtiDeepLinkWindow), and — when that window hands back the signed
+ *    LtiDeepLinkingResponse — form-POSTs it to Schoology to finish the attach.
+ *
+ *  - WINDOW (`handoff=1`, opened top-level by the launcher): LtiDeepLinkWindow,
+ *    where the first-party Google sign-in + quiz pick + response signing happen.
+ *
+ * See deepLinkHandoff.ts for the cross-window protocol + rationale. UI reuses the
+ * Classroom add-on's light-theme AddonShell kit (Schoology's chrome is light).
  */
-import React, {
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { ClipboardList, CheckCircle2, Send } from 'lucide-react';
+import { ClipboardList, CheckCircle2, ExternalLink } from 'lucide-react';
 import { functions } from '@/config/firebase';
-import { useAuth } from '@/context/useAuth';
-import { useQuiz } from '@/hooks/useQuiz';
-import { useQuizAssignments } from '@/hooks/useQuizAssignments';
-import { getQuizBehavior } from '@/utils/quizBehavior';
-import { quizMaxPoints } from '@/utils/quizMaxPoints';
-import { logError } from '@/utils/logError';
-import { isGoogleSession } from '@/utils/googleSession';
+import {
+  DL_HANDOFF_READY,
+  DL_HANDOFF_RESPONSE,
+  DL_HANDOFF_CONTEXT,
+  DL_HANDOFF_WINDOW_PATH,
+  type DlHandoffContext,
+  parseHandoffMessage,
+  postHandoffMessage,
+  postDeepLinkResponse,
+} from './deepLinkHandoff';
+import { LtiDeepLinkWindow } from './LtiDeepLinkWindow';
 import {
   AddonShell,
   AddonHeader,
@@ -51,7 +43,6 @@ import {
   AddonButton,
   AddonStatus,
   AddonError,
-  AddonSelect,
 } from '@/components/classroomAddon/AddonShell';
 
 /**
@@ -64,29 +55,11 @@ interface DeepLinkingSettings {
   data?: string;
 }
 
-/** Subset of the `ltiExchange` result this picker depends on. */
+/** Subset of the `ltiExchange` result this launcher depends on. */
 interface LtiExchangeResult {
-  role: 'student' | 'teacher' | 'unknown';
-  messageType: string;
   isDeepLinking: boolean;
-  studentRole: boolean;
   contextId?: string | null;
   deepLinking?: DeepLinkingSettings;
-}
-
-/** Pinned contract for the deep-link response signer (built server-side). */
-interface SignDeepLinkResponseParams {
-  returnUrl: string;
-  dlData?: string;
-  kind: 'quiz';
-  quizCode: string;
-  title: string;
-  maxPoints?: number;
-}
-
-interface SignDeepLinkResponseResult {
-  jwt: string;
-  returnUrl: string;
 }
 
 type Phase = 'exchanging' | 'ready' | 'error';
@@ -95,92 +68,33 @@ const NO_CODE_MESSAGE =
   'No launch code found. Add SpartBoard from inside a Schoology course.';
 
 /**
- * Deliver the signed LTI deep-linking response. Per the spec, this is an
- * auto-submitting HTML form POST to the platform's `deep_link_return_url`
- * carrying a single `JWT` field. We build the form detached, attach it to the
- * document just long enough to submit (a detached form cannot navigate), and
- * submit it — which navigates the iframe back to Schoology.
+ * In-iframe launcher: exchanges the launch code, then hands off to a top-level
+ * window for the (Context-Aware-Access-sensitive) Google sign-in + quiz pick,
+ * and completes the deep-link return when the window posts back the signed JWT.
  */
-function postDeepLinkResponse(returnUrl: string, jwt: string): void {
-  const form = document.createElement('form');
-  form.method = 'POST';
-  form.action = returnUrl;
-  // No target → submit navigates this (iframe) window back to the platform.
-  const input = document.createElement('input');
-  input.type = 'hidden';
-  input.name = 'JWT';
-  input.value = jwt;
-  form.appendChild(input);
-  document.body.appendChild(form);
-  form.submit();
-}
-
-export const LtiDeepLinkPicker: React.FC = () => {
-  // Derive the launch code during render (stable for this page load) so the
-  // "missing code" case is handled via initial state — never a synchronous
-  // setState inside an effect (the repo lints react-hooks/set-state-in-effect).
+const LtiDeepLinkLauncher: React.FC = () => {
+  // Derive the launch code during render so the "missing code" case is initial
+  // state, never a synchronous setState inside an effect.
   const code =
     typeof window === 'undefined'
       ? ''
       : (new URLSearchParams(window.location.search).get('lc') ?? '');
 
   const [phase, setPhase] = useState<Phase>(code ? 'exchanging' : 'error');
-  const [deepLinking, setDeepLinking] = useState<DeepLinkingSettings | null>(
-    null
-  );
   const [errorMsg, setErrorMsg] = useState<string | null>(
     code ? null : NO_CODE_MESSAGE
   );
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  // Latches once the response form is submitted so the picker shows a terminal
-  // "returning to Schoology" state instead of an interactive picker.
+  const [launched, setLaunched] = useState(false);
+  // Latches once the response form is submitted (terminal "returning" state).
   const [submitted, setSubmitted] = useState(false);
-  const [selectedQuizId, setSelectedQuizId] = useState('');
-  const [contextId, setContextId] = useState<string | null>(null);
+
+  // Deep-link context lives in a ref so the (mount-once) message listener always
+  // reads the latest without re-subscribing. Populated by the exchange below.
+  const ctxRef = useRef<DlHandoffContext | null>(null);
   const ranRef = useRef(false);
-  const quizSelectId = useId();
-  // Caches the created assignment per quiz id so a retry after a failed
-  // deep-link POST reuses it instead of creating a second orphaned session.
-  const createdRef = useRef<
-    Map<string, { quizCode: string; maxPoints: number }>
-  >(new Map());
-
-  const { user, signInWithGoogle, googleAccessToken } = useAuth();
-
-  // The picker lists + loads the teacher's OWN Drive-backed quiz library, so it
-  // needs a real Google sign-in (uid + Drive token) — NOT just any Firebase
-  // session. Inside Schoology's cross-origin iframe, partitioned-storage auth
-  // can restore a leftover `studentRole` custom-token session from a prior
-  // student launch; that has a uid (empty library) but no `google.com` provider
-  // and no Drive token. Gating on `!!user` showed that stale session the (empty)
-  // dropdown and skipped the sign-in card entirely — the reported bug. Require a
-  // Google session + Drive token so the sign-in card shows until the teacher
-  // signs in as themselves.
-  const teacherReady = isGoogleSession(user) && !!googleAccessToken;
-
-  // Only subscribe to the teacher's library/assignments once they're a real
-  // Google session. Passing a stale-session uid (e.g. a restored studentRole
-  // user) would open Firestore listeners under a uid whose library the gated UI
-  // never shows — wasted reads. Both hooks treat an undefined uid as "no
-  // library" (they reset to empty), so this just defers the subscription until
-  // the teacher signs in. (Reviewer suggestion, PR #1835/#1836.)
-  const libraryUid = teacherReady ? user?.uid : undefined;
-  const {
-    quizzes,
-    loadQuizData,
-    loading: quizzesLoading,
-  } = useQuiz(libraryUid);
-  const { createAssignment } = useQuizAssignments(libraryUid);
-
-  const selectedQuiz = useMemo(
-    () => quizzes.find((q) => q.id === selectedQuizId),
-    [quizzes, selectedQuizId]
-  );
 
   // Exchange the one-time launch code for the validated deep-linking context.
-  // Effect is the right tool here: it synchronizes with an external system (the
-  // Cloud Function) on mount. Run-once via ref guard.
   useEffect(() => {
     if (!code || ranRef.current) return;
     ranRef.current = true;
@@ -192,7 +106,8 @@ export const LtiDeepLinkPicker: React.FC = () => {
           'ltiExchange'
         );
         const { data } = await exchange({ code });
-        if (!data.isDeepLinking || !data.deepLinking?.deep_link_return_url) {
+        const returnUrl = data.deepLinking?.deep_link_return_url;
+        if (!data.isDeepLinking || !returnUrl) {
           setErrorMsg(
             'This launch is not a deep-linking request. Add SpartBoard from ' +
               'the course materials menu.'
@@ -200,8 +115,20 @@ export const LtiDeepLinkPicker: React.FC = () => {
           setPhase('error');
           return;
         }
-        setDeepLinking(data.deepLinking);
-        setContextId(data.contextId ?? null);
+        if (!data.contextId) {
+          setErrorMsg(
+            'Missing course context — re-open SpartBoard from the course.'
+          );
+          setPhase('error');
+          return;
+        }
+        ctxRef.current = {
+          returnUrl,
+          ...(data.deepLinking?.data !== undefined
+            ? { dlData: data.deepLinking.data }
+            : {}),
+          contextId: data.contextId,
+        };
         setPhase('ready');
       } catch (e) {
         setErrorMsg(
@@ -212,122 +139,60 @@ export const LtiDeepLinkPicker: React.FC = () => {
     })();
   }, [code]);
 
-  const signIn = useCallback(async () => {
-    setBusy(true);
-    setErrorMsg(null);
-    try {
-      setStatusMsg('Signing in to SpartBoard…');
-      await signInWithGoogle();
-      setStatusMsg('Signed in. Pick a quiz to add.');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setErrorMsg(`Couldn't sign in: ${message}`);
-      setStatusMsg(null);
-    } finally {
-      setBusy(false);
-    }
-  }, [signInWithGoogle]);
-
-  const addQuiz = useCallback(async () => {
-    if (!selectedQuiz) {
-      setStatusMsg('Pick a quiz first.');
-      return;
-    }
-    const returnUrl = deepLinking?.deep_link_return_url;
-    if (!returnUrl) {
-      setErrorMsg(
-        'Missing the Schoology return URL — re-open SpartBoard from the ' +
-          'course materials menu.'
-      );
-      return;
-    }
-    if (!contextId) {
-      setErrorMsg(
-        'Missing course context — re-open SpartBoard from the course.'
-      );
-      return;
-    }
-
-    setBusy(true);
-    setErrorMsg(null);
-    try {
-      // Reuse a previously-created assignment for this quiz on retry, so a failed
-      // deep-link POST never spawns a SECOND orphaned session + join code. The
-      // create step (load quiz → maxPoints → createAssignment) runs at most once
-      // per quiz; only the idempotent sign + POST re-runs.
-      let created = createdRef.current.get(selectedQuiz.id);
-      if (!created) {
-        setStatusMsg(`Loading "${selectedQuiz.title}"…`);
-        const quizData = await loadQuizData(selectedQuiz.driveFileId);
-
-        // The gradebook scale = the quiz's total points, so a 17/20 quiz reads as
-        // 17/20 in Schoology (not a percentage out of 100). Shared with the
-        // grader via quizMaxPoints so the attach denominator and the push
-        // denominator can't drift. Same computation as the Classroom attach flow.
-        const maxPoints = quizMaxPoints(quizData.questions);
-
-        // Create a class-targeted quiz session (join code) the student runner
-        // joins by — exactly like the Classroom attach flow. classIds scope the
-        // session to this Schoology course so a studentRole token
-        // (classIds: ['schoology:<id>']) passes the Firestore class-gate.
-        setStatusMsg('Creating the assignment…');
-        const { sessionMode, sessionOptions, attemptLimit } =
-          getQuizBehavior(selectedQuiz);
-        const { code: quizCode } = await createAssignment(
-          {
-            id: selectedQuiz.id,
-            title: selectedQuiz.title,
-            driveFileId: selectedQuiz.driveFileId,
-            questions: quizData.questions,
-          },
-          {
-            className: 'Schoology',
-            sessionMode,
-            sessionOptions,
-            attemptLimit,
-          },
-          {
-            classIds: [`schoology:${contextId}`],
-            initialStatus: 'active',
-          }
-        );
-        created = { quizCode, maxPoints };
-        createdRef.current.set(selectedQuiz.id, created);
+  // Listen for the handoff window: reply to its READY with the deep-link context,
+  // and on its signed RESPONSE, navigate this iframe back to Schoology.
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      const msg = parseHandoffMessage(event);
+      if (!msg) return;
+      if (msg.type === DL_HANDOFF_READY) {
+        const ctx = ctxRef.current;
+        const source = event.source as Window | null;
+        if (ctx && source) {
+          postHandoffMessage(source, {
+            type: DL_HANDOFF_CONTEXT,
+            context: ctx,
+          });
+        }
+      } else if (msg.type === DL_HANDOFF_RESPONSE) {
+        try {
+          postDeepLinkResponse(msg.response.returnUrl, msg.response.jwt);
+          setSubmitted(true);
+          setStatusMsg('Returning to Schoology…');
+        } catch (err) {
+          setErrorMsg(
+            err instanceof Error
+              ? err.message
+              : 'Failed to return to Schoology.'
+          );
+        }
       }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
 
-      setStatusMsg('Adding the quiz to Schoology…');
-      const sign = httpsCallable<
-        SignDeepLinkResponseParams,
-        SignDeepLinkResponseResult
-      >(functions, 'ltiSignDeepLinkResponseV1');
-      const { data } = await sign({
-        returnUrl,
-        ...(deepLinking?.data !== undefined
-          ? { dlData: deepLinking.data }
-          : {}),
-        kind: 'quiz',
-        quizCode: created.quizCode,
-        title: selectedQuiz.title,
-        maxPoints: created.maxPoints,
-      });
-
-      setSubmitted(true);
-      setStatusMsg('Returning to Schoology…');
-      // Deliver the signed response: auto-submitting form POST navigates this
-      // iframe back to the platform, which creates the graded material.
-      postDeepLinkResponse(data.returnUrl, data.jwt);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      logError('LtiDeepLinkPicker.addQuiz', err, {
-        quizId: selectedQuiz.id,
-      });
-      setErrorMsg(`Couldn't add the quiz: ${message}`);
-      setStatusMsg(null);
-      setSubmitted(false);
-    } finally {
-      setBusy(false);
+  const openWindow = useCallback(() => {
+    setErrorMsg(null);
+    const win = window.open(
+      DL_HANDOFF_WINDOW_PATH,
+      'spartboard_lti_deeplink',
+      'popup,width=560,height=720'
+    );
+    if (!win) {
+      setErrorMsg(
+        'Your browser blocked the SpartBoard window. Allow pop-ups for ' +
+          'Schoology, then click again.'
+      );
+      return;
     }
-  }, [selectedQuiz, deepLinking, loadQuizData, createAssignment, contextId]);
+    win.focus();
+    setLaunched(true);
+    setStatusMsg(
+      'Sign in and pick your quiz in the SpartBoard window. It returns here ' +
+        'automatically when you’re done.'
+    );
+  }, []);
 
   return (
     <AddonShell>
@@ -350,62 +215,39 @@ export const LtiDeepLinkPicker: React.FC = () => {
             </p>
           </div>
         </AddonCard>
-      ) : !teacherReady ? (
+      ) : (
         <AddonCard className="p-6">
-          <p className="mb-4 text-sm text-slate-500">
-            {user
-              ? 'Sign in with your teacher Google account to load your SpartBoard quiz library.'
-              : 'Sign in with your school Google account to load your SpartBoard quiz library.'}
+          <p className="mb-4 text-sm leading-relaxed text-slate-500">
+            Choosing a quiz opens a SpartBoard window where you sign in and
+            pick. It closes and finishes here automatically. (Schoology runs
+            SpartBoard in a frame, so sign-in has to happen in its own window.)
           </p>
-          <AddonButton onClick={() => void signIn()} loading={busy}>
-            Sign in to SpartBoard
+          <AddonButton onClick={openWindow} icon={ExternalLink}>
+            {launched ? 'Reopen the SpartBoard window' : 'Choose a quiz'}
           </AddonButton>
         </AddonCard>
-      ) : (
-        <div className="space-y-4">
-          <AddonCard className="p-4">
-            <label
-              htmlFor={quizSelectId}
-              className="mb-1.5 block text-sm font-medium text-slate-700"
-            >
-              Quiz
-            </label>
-            <AddonSelect
-              id={quizSelectId}
-              ariaLabel="Quiz"
-              value={selectedQuizId}
-              onChange={setSelectedQuizId}
-              disabled={busy || quizzesLoading}
-              placeholder={
-                quizzesLoading
-                  ? 'Loading your quizzes…'
-                  : quizzes.length === 0
-                    ? 'No quizzes in your library yet'
-                    : 'Select a quiz…'
-              }
-              options={quizzes.map((q) => ({ value: q.id, label: q.title }))}
-            />
-          </AddonCard>
-
-          <AddonButton
-            onClick={() => void addQuiz()}
-            loading={busy}
-            disabled={!selectedQuizId}
-            icon={Send}
-          >
-            Add quiz to Schoology
-          </AddonButton>
-        </div>
       )}
 
       {phase !== 'error' && (
         <div className="mt-4 space-y-2">
           <AddonError message={errorMsg} />
-          <AddonStatus message={statusMsg} busy={busy} />
+          <AddonStatus message={statusMsg} />
         </div>
       )}
     </AddonShell>
   );
+};
+
+/**
+ * Dispatcher: the top-level handoff window (`?handoff=1`) renders the real
+ * picker; the in-Schoology iframe renders the launcher.
+ */
+export const LtiDeepLinkPicker: React.FC = () => {
+  const isHandoffWindow =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('handoff') === '1';
+
+  return isHandoffWindow ? <LtiDeepLinkWindow /> : <LtiDeepLinkLauncher />;
 };
 
 export default LtiDeepLinkPicker;
