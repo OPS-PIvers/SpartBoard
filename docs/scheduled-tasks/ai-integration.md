@@ -24,7 +24,7 @@ _Last action: never_
 | `video-activity`           | `generateVideoActivity`     | utils/ai.ts `generateVideoActivity`                 | per-function rate limit            | ✓                  | ✓                  | feature perm checked                      |
 | `transcription`            | `transcribeVideoWithGemini` | utils/ai.ts `transcribeVideoWithGemini`             | per-function rate limit            | ✓                  | ✓                  | feature perm checked                      |
 | `guided-learning`          | `generateGuidedLearning`    | GuidedLearning/components/GuidedLearningAIGenerator | None (admin-only server check)     | ✓                  | ✓                  | `isAdmin` check in Widget.tsx (not perm)  |
-| `video-activity-recommend` | `generateWithAI`            | utils/ai.ts `generateVideoActivityRecommendation`   | global only                        | ✓                  | ✓                  | ✗ **AIData interface gap (see LOW item)** |
+| `video-activity-recommend` | `generateWithAI`            | utils/ai.ts `recommendVideoForActivity`             | global only                        | ✓                  | ✓                  | ✗ **AIData interface gap (see LOW item)** |
 
 ---
 

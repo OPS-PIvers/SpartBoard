@@ -4,6 +4,48 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-03
+
+- PRs reviewed: 17
+  - #1809 — fix(a11y): give shared ToggleRow switches an accessible name + real disabled state (head `claude/sweet-sagan-rzk2U`, base `dev-paul`)
+  - #1814 — fix(classroom-addon): verify teacher via single courses.teachers.get (head `claude/clever-goodall-Z5E0O`, base `dev-paul`)
+  - #1815 — fix(video-activity): guard teacher monitor against phantom 0% (head `claude/festive-tesla-w7CjN`, base `dev-paul`)
+  - #1816 — harden classroom_course_links writes + add unlink correction path (head `claude/kind-noether-5eLsy`, base `dev-paul`)
+  - #1817 — fix(classes): paginate + time-box Google Classroom course list (head `claude/sharp-hypatia-GjAJO`, base `dev-paul`)
+  - #1820 — docs(changelog): release entry for 2026-06-02 (head `claude/vibrant-darwin-Pldtm`, base `dev-paul`)
+  - #1821 — feat(lti): Schoology LTI 1.3 integration (Spike 0 + Phase 1) (head `feat/schoology-lti`, base `dev-paul`)
+  - #1822 — refactor(D3): SettingsLabel in MathToolInstance/Settings (head `nightly/unify-settings-labels-2026-06-03`, base `dev-paul`)
+  - #1823 — refactor(D4): convert plc tabs↔bodies cross-subdir imports to @/ (head `nightly/unify-import-paths-plc-tabs-bodies-2026-06-03`, base `dev-paul`)
+  - #1824 — docs(unifier): run 7 memory log (head `nightly/unifier-log-2026-06-03`, base `dev-paul`)
+  - #1825 — fix(NumberLine): epsilon guard for fraction labels (head `nightly/widgets-2026-06-03`, base `dev-paul`)
+  - #1826 — fix(annotation): prevent double-commit of path (head `nightly/dashboard-layout-2026-06-03`, base `dev-paul`)
+  - #1827 — fix(quizScoreboard): deduplicate answers by questionId (head `nightly/state-data-2026-06-03`, base `dev-paul`)
+  - #1828 — fix(i18n): add widgets.stickers translations to DE and FR (head `nightly/admin-config-2026-06-03`, base `dev-paul`)
+  - #1829 — fix(invites): reject email addresses where domain begins with a dot (head `nightly/build-tooling-2026-06-03`, base `dev-paul`)
+  - #1830 — docs(nightly): debugger run log — run 8 (head `nightly/debugger-log-2026-06-03`, base `dev-paul`)
+  - #1831 — audit(scheduled-tasks): Wednesday daily + weekly E audits (head `scheduled-tasks`, base `dev-paul`)
+- Comments processed: 12 total — 8 fixed, 4 explained
+  - #1814 (classroomAddonAuth.ts, gemini): **explained** — already addressed by the author in 066d873 (response-body drain added); thread left unresolved but fix is in.
+  - #1815 (Results.tsx, gemini): **explained** — already addressed by the author in 8fcc0b8 (empty-session early return returns `avgScore: null`); thread left unresolved but fix is in.
+  - #1824 (unifier.md, gemini): **explained** — the requested "2 instances at lines ~67, ~171" wording is already present on the branch (comment is outdated).
+  - #1826 (AnnotationCanvas.tsx, gemini ×2): **fixed** — added a render-body-synced `drawingStateRef`; window pointerup/pointercancel listeners now read it and the effect deps reduce to `[isDrawing]`, so listeners register once per stroke (targeted `react-hooks/refs` disable, per #1802 precedent).
+  - #1828 (de.json / fr.json / widgetStickersLocales.test.ts, gemini ×3): **fixed** — added `filterAll`/`filterFavorites`/`filterMine`/`reorganizeSticker`/`favoriteSticker` to all four locales and to `REQUIRED_WIDGET_STICKERS_KEYS`.
+  - #1829 (organizationInvites.ts + .test.ts, gemini ×2): **fixed** — the dot-domain check now uses `indexOf('.', atIdx + 1) < atIdx + 2`, rejecting `user@.co.uk`; extended the regression test.
+  - #1830 (debugger.md, gemini ×2): **fixed** — escaped the absolute-value pipes (`\|...\|`) and restored the table to 4 columns.
+  - #1831 (ai-integration.md, gemini): **fixed** — corrected the client caller name to `recommendVideoForActivity`.
+- Fixes pushed: 6
+  - #1829 / `nightly/build-tooling-2026-06-03` — reject email domains beginning with a dot for multi-dot TLDs (+ test).
+  - #1828 / `nightly/admin-config-2026-06-03` — add missing filter/favorite/reorder sticker keys to all locales (+ test array).
+  - #1830 / `nightly/debugger-log-2026-06-03` — escape pipes in NumberLine epsilon-guard log entry, restore 4-column table.
+  - #1826 / `nightly/dashboard-layout-2026-06-03` — sync drawing state via ref so window listeners register once per stroke.
+  - #1831 / `scheduled-tasks` — correct ai-integration.md caller name to `recommendVideoForActivity` (this commit).
+  - (Each fix verified: type-check ✓ lint ✓ tests ✓ / format-check ✓ for doc-only changes.)
+- Reviews posted: 17 (one structured review per open PR)
+  - Notable: #1821 (Schoology LTI) — Ready with notes; no blocking issues found in the JWT/rules surfaces reviewed (RS256 pinned, all secret LTI collections server-only, dedicated rules test), but recommended a human security sign-off given size + LTI/OIDC/grade-writeback sensitivity. #1816 & #1814 both rewrite the `linkClassroomCourse` trust-anchor/transaction seam — flagged to confirm clean merge order. All other PRs assessed Ready or Ready-with-minor-notes.
+- Notes:
+  - Branch-safety: all 17 PR heads are feature/nightly/`scheduled-tasks` branches (none are `main` or `dev-*`), so all were pushable. Fixes pushed only to the respective PR head branches; no pushes to `main` or `dev-paul`.
+  - This log + the #1831 doc fix are committed and pushed to `scheduled-tasks` per task instructions (it is a fair-game branch; pushing updates open PR #1831, which is the intended target of its own review-comment fix).
+
 ## 2026-06-02
 
 - PRs reviewed: 8
