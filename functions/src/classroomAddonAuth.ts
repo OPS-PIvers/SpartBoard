@@ -167,6 +167,19 @@ interface LinkClassroomCourseData {
 }
 
 /**
+ * Input to `unlinkClassroomCourse` (the correction path for a wrong/stale
+ * course→roster mapping). `accessToken` is the teacher's own
+ * `classroom.courses.readonly` token — the SAME token that listed their courses
+ * — used here to RE-VERIFY teaching authority server-side before any delete.
+ * As with `linkClassroomCourse`, the caller's identity is taken from
+ * `request.auth.uid`, never the client payload.
+ */
+interface UnlinkClassroomCourseData {
+  accessToken?: unknown;
+  courseId?: unknown;
+}
+
+/**
  * `EmbedUri` view-URI objects + title, per addOnAttachments.create.
  *
  * Grade-sync fields (`studentWorkReviewUri` + `maxPoints`) are added together:
@@ -978,42 +991,181 @@ export const linkClassroomCourse = onCall(
 
     const db = admin.firestore();
     const ref = db.doc(`classroom_course_links/${courseId}`);
-    const existing = await ref.get();
-    if (existing.exists) {
-      const prior = existing.data() as CourseLink;
-      if (
-        typeof prior?.teacherUid === 'string' &&
-        prior.teacherUid &&
-        prior.teacherUid !== callerUid
-      ) {
-        // A co-teacher may also genuinely teach this course, but silently
-        // re-pointing an existing link would re-route the original teacher's
-        // students. Preserve the existing no-hijack invariant.
-        console.warn(
-          `[linkClassroomCourse] course ${courseId} already linked by a ` +
-            `different teacher; refusing to overwrite.`
-        );
-        throw new HttpsError(
-          'already-exists',
-          'This Google Classroom course is already linked by another teacher.'
-        );
-      }
-    }
 
-    // Admin SDK write — bypasses the now read-only client rules. createdAt is set
-    // only on first create; merge:true preserves it (and any other fields) on a
-    // same-teacher re-link.
-    const payload: Record<string, unknown> = {
-      classlinkClassId,
-      classlinkOrgId,
-      teacherUid: callerUid,
-      rosterId,
-      updatedAt: Date.now(),
-    };
-    if (!existing.exists) payload.createdAt = Date.now();
-    await ref.set(payload, { merge: true });
+    // TOCTOU FIX: run the no-hijack check + write inside a single transaction.
+    // The old read-then-write was not atomic, so two co-teachers clicking "Link"
+    // on the SAME never-linked course within the same window could BOTH pass the
+    // "exists?" check and write (last-writer-wins). It was benign (both racers
+    // still cleared teacher-verification above, so a non-teaching squatter could
+    // never win — it only decided which authorized co-teacher owned the link),
+    // but the transaction makes it deterministic: the read locks the doc, so the
+    // first writer commits the create and the second's read now sees it and is
+    // either merged (same teacher) or rejected with `already-exists` (a different
+    // teacher). Teacher verification stays OUTSIDE the transaction — it's a
+    // network call, and the transaction body may be retried on contention.
+    await db.runTransaction(async (tx) => {
+      const existing = await tx.get(ref);
+      if (existing.exists) {
+        const prior = existing.data() as CourseLink;
+        if (
+          typeof prior?.teacherUid === 'string' &&
+          prior.teacherUid &&
+          prior.teacherUid !== callerUid
+        ) {
+          // A co-teacher may also genuinely teach this course, but silently
+          // re-pointing an existing link would re-route the original teacher's
+          // students. Preserve the no-hijack invariant — the EXPLICIT correction
+          // path for a stale/wrong link is `unlinkClassroomCourse`.
+          console.warn(
+            `[linkClassroomCourse] course ${courseId} already linked by a ` +
+              `different teacher; refusing to overwrite.`
+          );
+          throw new HttpsError(
+            'already-exists',
+            'This Google Classroom course is already linked by another teacher.'
+          );
+        }
+      }
+
+      // Admin SDK write — bypasses the now read-only client rules. createdAt is
+      // set only on first create; merge:true preserves it (and any other fields)
+      // on a same-teacher re-link (e.g. the owner correcting the rosterId).
+      const payload: Record<string, unknown> = {
+        classlinkClassId,
+        classlinkOrgId,
+        teacherUid: callerUid,
+        rosterId,
+        updatedAt: Date.now(),
+      };
+      if (!existing.exists) payload.createdAt = Date.now();
+      tx.set(ref, payload, { merge: true });
+    });
 
     return { ok: true, courseId };
+  }
+);
+
+/**
+ * unlinkClassroomCourse — server-gated REMOVER of
+ * `classroom_course_links/{courseId}`, the correction path the squatting fix
+ * deliberately left out. The rules block client deletes and there was no delete
+ * CF, so a wrong mapping (a wrong `rosterId`, or a teacher who LEFT the district)
+ * was permanent without direct Firestore Console access — and
+ * `linkClassroomCourse`'s `already-exists` guard blocks even a legitimate
+ * co-teacher from re-pointing it. This CF clears the link so it can be recreated
+ * cleanly through `linkClassroomCourse` (which then stamps a fresh owner). The
+ * common "wrong rosterId, same teacher" fix doesn't even need this — the owner
+ * just re-links the correct roster (the same-teacher merge updates `rosterId`).
+ *
+ * TRUST ANCHOR: identical to `linkClassroomCourse` — a single server-side
+ * `courses.teachers.get` call (`GET /courses/{courseId}/teachers/me`) with the
+ * caller's `classroom.courses.readonly` token. Only a VERIFIED teacher of the
+ * Google course may unlink it; any upstream/verification error fails CLOSED
+ * (never deletes on an unverifiable token). `request.auth.uid` is the only
+ * identity source. Never a client-direct delete.
+ *
+ * CO-TEACHER TAKEOVER — DOCUMENTED DECISION: a verified teacher of the course
+ * who is NOT the current owner (e.g. cleaning up after a colleague left the
+ * district) IS permitted to remove the link. This is the deliberate escape
+ * hatch the `linkClassroomCourse` no-hijack guard intentionally lacks, and it's
+ * safe because:
+ *   - it is still gated on SERVER-side teaching verification, so a non-teacher
+ *     can NEVER reach the delete (the squatting-fix invariant holds);
+ *   - removal is an EXPLICIT, destructive action on the SAME course the caller
+ *     provably teaches — NOT a silent re-point during the normal link flow; and
+ *   - it only DELETES; it never assigns ownership to the caller. Re-linking goes
+ *     back through `linkClassroomCourse`, which re-runs verification and stamps a
+ *     fresh `teacherUid`.
+ * Each takeover (a different teacher's link being removed) is logged for the
+ * audit trail. Restricting unlink to the owner ONLY would re-create the exact
+ * "permanent stale link after a teacher leaves" gap this CF exists to close.
+ */
+export const unlinkClassroomCourse = onCall(
+  {
+    memory: '256MiB',
+    // Same public-IAM rationale as linkClassroomCourse: the Firebase Auth check
+    // runs in the callable framework, not at IAM; auth is still enforced below.
+    invoker: 'public',
+    cors: ALLOWED_ORIGINS,
+  },
+  async (request) => {
+    const data = (request.data ?? {}) as UnlinkClassroomCourseData;
+
+    // Identity comes from the authenticated caller, never the client payload.
+    const callerUid = request.auth?.uid ?? '';
+    if (!callerUid) {
+      throw new HttpsError(
+        'unauthenticated',
+        'You must be signed in to unlink a class.'
+      );
+    }
+
+    const accessToken =
+      typeof data.accessToken === 'string' ? data.accessToken : '';
+    const courseId = typeof data.courseId === 'string' ? data.courseId : '';
+    if (!accessToken) {
+      throw new HttpsError(
+        'invalid-argument',
+        'accessToken is required (your Google Classroom courses token).'
+      );
+    }
+    if (!courseId) {
+      throw new HttpsError('invalid-argument', 'courseId is required.');
+    }
+
+    // TRUST ANCHOR: prove the caller teaches this Google course with a single
+    // courses.teachers.get call (mirrors linkClassroomCourse). Fail CLOSED on
+    // any UNVERIFIABLE outcome (network/timeout/401/403/5xx) — never unlink on a
+    // token we couldn't get a definitive answer for.
+    const verification = await classroomAddonNet.verifyTeacherOfCourse(
+      accessToken,
+      courseId
+    );
+    if (!verification.ok) {
+      throw new HttpsError(
+        'unauthenticated',
+        `Could not verify that you teach this Google Classroom course (status ${verification.status}).`
+      );
+    }
+    if (!verification.isTeacher) {
+      // Opaque on purpose: don't reveal whether the course exists to someone who
+      // doesn't teach it.
+      console.warn(
+        `[unlinkClassroomCourse] uid=${callerUid} is not a teacher of course ${courseId}.`
+      );
+      throw new HttpsError(
+        'permission-denied',
+        'You can only unlink a Google Classroom course that you teach.'
+      );
+    }
+
+    const db = admin.firestore();
+    const ref = db.doc(`classroom_course_links/${courseId}`);
+
+    // Transactional read-then-delete so the removal is deterministic against a
+    // concurrent link/unlink, and so we report whether a doc was actually
+    // cleared. Idempotent: a missing link is a no-op (`removed: false`), never an
+    // error — a double-click or stale UI shouldn't surface a failure.
+    const removed = await db.runTransaction(async (tx) => {
+      const existing = await tx.get(ref);
+      if (!existing.exists) return false;
+      const prior = existing.data() as CourseLink;
+      const priorUid =
+        typeof prior?.teacherUid === 'string' ? prior.teacherUid : '';
+      if (priorUid && priorUid !== callerUid) {
+        // Co-teacher takeover (see the documented decision above): a DIFFERENT
+        // verified teacher of the SAME course is removing the link. Logged for
+        // the audit trail.
+        console.warn(
+          `[unlinkClassroomCourse] course ${courseId} link owned by ` +
+            `${priorUid} removed by verified co-teacher ${callerUid}.`
+        );
+      }
+      tx.delete(ref);
+      return true;
+    });
+
+    return { ok: true, courseId, removed };
   }
 );
 
