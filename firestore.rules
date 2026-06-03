@@ -703,13 +703,13 @@ service cloud.firestore {
     }
 
     // PII-free grade-sync keys (pseudonym sub -> resourceLink). Written by the
-    // launch exchange CF (Admin SDK) so the AGS grade-push path can resolve a
-    // student's `lineitem` + score URLs from their pseudonymous LTI `sub`
-    // without storing any roster PII. Authenticated read for the grade-push
-    // path; writes are SERVER-ONLY (the CF owns the AGS endpoint mapping).
+    // launch exchange CF and read by the AGS grade-push CF — BOTH via the Admin
+    // SDK, which bypasses these rules. No client path ever reads or writes them,
+    // so deny all client access: a doc carries the student's LTI `sub` + AGS
+    // line-item/score URLs, which no authenticated user (least of all an
+    // anonymous studentRole session) should be able to enumerate.
     match /lti_grade_links/{pseudonymUid}/resources/{resourceLinkId} {
-      allow read: if request.auth != null;
-      allow write: if false;
+      allow read, write: if false;
     }
 
     // Server-internal grade-push authorizations (LIVE-token model). Minted by the

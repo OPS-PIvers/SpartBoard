@@ -94,10 +94,17 @@ export const LtiLaunchPage: React.FC = () => {
           'ltiExchange'
         );
         const { data } = await exchange({ code });
-        setResult(data);
-        if (data.studentRole && data.customToken) {
+        // A Learner launch MUST carry a custom token. Without it, proceeding
+        // would mount the quiz runner as an anonymous/wrong identity instead of
+        // the SSO student — so treat a missing token as a hard failure rather
+        // than silently signing in as no one.
+        if (data.studentRole) {
+          if (!data.customToken) {
+            throw new Error('Student sign-in token missing from launch.');
+          }
           await signInWithCustomToken(auth, data.customToken);
         }
+        setResult(data);
         setPhase('done');
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Launch validation failed.');

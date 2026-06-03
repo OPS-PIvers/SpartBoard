@@ -41,6 +41,7 @@ import { useAuth } from '@/context/useAuth';
 import { useQuiz } from '@/hooks/useQuiz';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { getQuizBehavior } from '@/utils/quizBehavior';
+import { quizMaxPoints } from '@/utils/quizMaxPoints';
 import { logError } from '@/utils/logError';
 import {
   AddonShell,
@@ -138,6 +139,11 @@ export const LtiDeepLinkPicker: React.FC = () => {
   const [contextId, setContextId] = useState<string | null>(null);
   const ranRef = useRef(false);
   const quizSelectId = useId();
+  // Caches the created assignment per quiz id so a retry after a failed
+  // deep-link POST reuses it instead of creating a second orphaned session.
+  const createdRef = useRef<
+    Map<string, { quizCode: string; maxPoints: number }>
+  >(new Map());
 
   const { user, signInWithGoogle } = useAuth();
   const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
@@ -211,50 +217,59 @@ export const LtiDeepLinkPicker: React.FC = () => {
       );
       return;
     }
+    if (!contextId) {
+      setErrorMsg(
+        'Missing course context — re-open SpartBoard from the course.'
+      );
+      return;
+    }
 
     setBusy(true);
     setErrorMsg(null);
     try {
-      setStatusMsg(`Loading "${selectedQuiz.title}"…`);
-      const quizData = await loadQuizData(selectedQuiz.driveFileId);
+      // Reuse a previously-created assignment for this quiz on retry, so a failed
+      // deep-link POST never spawns a SECOND orphaned session + join code. The
+      // create step (load quiz → maxPoints → createAssignment) runs at most once
+      // per quiz; only the idempotent sign + POST re-runs.
+      let created = createdRef.current.get(selectedQuiz.id);
+      if (!created) {
+        setStatusMsg(`Loading "${selectedQuiz.title}"…`);
+        const quizData = await loadQuizData(selectedQuiz.driveFileId);
 
-      // The gradebook scale = the quiz's total points, so a 17/20 quiz reads as
-      // 17/20 in Schoology (not a percentage out of 100). Fall back to 100 only
-      // when the quiz has no questions/points to sum. Same computation as the
-      // Classroom attach flow (TeacherDiscoveryRoute.attachQuiz).
-      const maxPoints =
-        quizData.questions.reduce((sum, q) => sum + (q.points ?? 1), 0) || 100;
+        // The gradebook scale = the quiz's total points, so a 17/20 quiz reads as
+        // 17/20 in Schoology (not a percentage out of 100). Shared with the
+        // grader via quizMaxPoints so the attach denominator and the push
+        // denominator can't drift. Same computation as the Classroom attach flow.
+        const maxPoints = quizMaxPoints(quizData.questions);
 
-      if (!contextId) {
-        throw new Error(
-          'Missing course context — re-open SpartBoard from the course.'
+        // Create a class-targeted quiz session (join code) the student runner
+        // joins by — exactly like the Classroom attach flow. classIds scope the
+        // session to this Schoology course so a studentRole token
+        // (classIds: ['schoology:<id>']) passes the Firestore class-gate.
+        setStatusMsg('Creating the assignment…');
+        const { sessionMode, sessionOptions, attemptLimit } =
+          getQuizBehavior(selectedQuiz);
+        const { code: quizCode } = await createAssignment(
+          {
+            id: selectedQuiz.id,
+            title: selectedQuiz.title,
+            driveFileId: selectedQuiz.driveFileId,
+            questions: quizData.questions,
+          },
+          {
+            className: 'Schoology',
+            sessionMode,
+            sessionOptions,
+            attemptLimit,
+          },
+          {
+            classIds: [`schoology:${contextId}`],
+            initialStatus: 'active',
+          }
         );
+        created = { quizCode, maxPoints };
+        createdRef.current.set(selectedQuiz.id, created);
       }
-      // Create a class-targeted quiz session (join code) the student runner joins
-      // by — exactly like the Classroom attach flow. classIds scope the session to
-      // this Schoology course so a studentRole token (classIds: ['schoology:<id>'])
-      // passes the Firestore class-gate.
-      setStatusMsg('Creating the assignment…');
-      const { sessionMode, sessionOptions, attemptLimit } =
-        getQuizBehavior(selectedQuiz);
-      const { code: quizCode } = await createAssignment(
-        {
-          id: selectedQuiz.id,
-          title: selectedQuiz.title,
-          driveFileId: selectedQuiz.driveFileId,
-          questions: quizData.questions,
-        },
-        {
-          className: 'Schoology',
-          sessionMode,
-          sessionOptions,
-          attemptLimit,
-        },
-        {
-          classIds: [`schoology:${contextId}`],
-          initialStatus: 'active',
-        }
-      );
 
       setStatusMsg('Adding the quiz to Schoology…');
       const sign = httpsCallable<
@@ -267,9 +282,9 @@ export const LtiDeepLinkPicker: React.FC = () => {
           ? { dlData: deepLinking.data }
           : {}),
         kind: 'quiz',
-        quizCode,
+        quizCode: created.quizCode,
         title: selectedQuiz.title,
-        maxPoints,
+        maxPoints: created.maxPoints,
       });
 
       setSubmitted(true);

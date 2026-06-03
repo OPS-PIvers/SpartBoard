@@ -8,15 +8,18 @@
 //                                                         deny all client R/W
 //   lti_course_links/{contextId}                       — authed read,
 //                                                         server-only write
-//   lti_grade_links/{pseudonymUid}/resources/{rid}     — authed read,
-//                                                         server-only write
+//   lti_grade_links/{pseudonymUid}/resources/{rid}     — server-internal,
+//                                                         deny all client R/W
 //
-// Contract: the two server-internal collections (OIDC handshake state +
-// one-time launch codes) are transient secrets the Admin SDK owns, so clients
-// can neither read nor write them. The two link collections expose READ to any
-// authenticated caller (the teacher monitor / grade-push path needs them) but
-// WRITE is server-only — rules cannot validate an LTI launch, so a client write
-// would let any authed user squat a context_id or forge a grade-sync endpoint.
+// Contract: three collections are owned end-to-end by the Admin SDK — OIDC
+// handshake state + one-time launch codes (transient secrets) AND the
+// grade-sync links (the launch CF writes them and the grade-push CF reads them,
+// both server-side; a link carries a student's LTI `sub` + AGS endpoint URLs, so
+// no client should enumerate them). Clients can neither read nor write those
+// three. Only lti_course_links exposes READ to any authenticated caller (the
+// teacher monitor needs link state); its WRITE is server-only — rules cannot
+// validate an LTI launch, so a client write would let any authed user squat a
+// context_id.
 //
 // These collections do NOT use the studentRole class-gate helpers (they carry
 // no `classId`/`classIds` targeting), so studentRole contexts are exercised
@@ -190,8 +193,9 @@ describe('LTI collections — unauthenticated client', () => {
 
 // ---------------------------------------------------------------------------
 // Authenticated (teacher / non-student) client.
-//   READ allowed on the two link collections.
-//   READ denied on the two server-internal collections.
+//   READ allowed on lti_course_links only.
+//   READ denied on the three server-internal collections (state, codes,
+//     grade-links).
 //   WRITE denied on all four.
 // ---------------------------------------------------------------------------
 
@@ -200,8 +204,8 @@ describe('LTI collections — authenticated (non-student) client', () => {
     await assertSucceeds(getDoc(doc(asTeacher(), COURSE_LINK_PATH)));
   });
 
-  it('can read lti_grade_links resource', async () => {
-    await assertSucceeds(getDoc(doc(asTeacher(), GRADE_LINK_PATH)));
+  it('cannot read lti_grade_links resource (server-internal)', async () => {
+    await assertFails(getDoc(doc(asTeacher(), GRADE_LINK_PATH)));
   });
 
   it('cannot read lti_oidc_state (server-internal)', async () => {
@@ -236,9 +240,9 @@ describe('LTI collections — authenticated (non-student) client', () => {
 // ---------------------------------------------------------------------------
 // studentRole-authed client. These collections don't use the class-gate
 // helpers, so a studentRole token behaves exactly like any other authed
-// caller: reads allowed on the two link collections, denied on the two
-// server-internal collections, writes denied everywhere. Kept light per the
-// "don't over-test" note.
+// caller: read allowed on lti_course_links, denied on the three server-internal
+// collections (state, codes, grade-links), writes denied everywhere. Kept light
+// per the "don't over-test" note.
 // ---------------------------------------------------------------------------
 
 describe('LTI collections — studentRole-authed client', () => {
@@ -246,8 +250,8 @@ describe('LTI collections — studentRole-authed client', () => {
     await assertSucceeds(getDoc(doc(asStudentRole(), COURSE_LINK_PATH)));
   });
 
-  it('can read lti_grade_links resource', async () => {
-    await assertSucceeds(getDoc(doc(asStudentRole(), GRADE_LINK_PATH)));
+  it('cannot read lti_grade_links resource (server-internal)', async () => {
+    await assertFails(getDoc(doc(asStudentRole(), GRADE_LINK_PATH)));
   });
 
   it('cannot read lti_oidc_state (server-internal)', async () => {

@@ -8,6 +8,10 @@ import { signToolJwt } from './toolKey';
 
 const ASSERTION_TYPE = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer';
 const NET_TIMEOUT_MS = 15000;
+// Refresh the cached bearer a full minute before expiry. The margin must exceed
+// NET_TIMEOUT_MS (15s) so an in-flight score POST can't outlive the token it was
+// issued under and 401 mid-request.
+const TOKEN_REFRESH_MARGIN_MS = 60_000;
 
 interface TokenCacheEntry {
   token: string;
@@ -34,9 +38,14 @@ export interface AgsTokenOptions {
 export async function getAgsAccessToken(
   opts: AgsTokenOptions
 ): Promise<string> {
+  // Key the cache by (client, token endpoint, scope-set) — not scope alone — so a
+  // client_id or token-URL change never serves a token minted for a different
+  // config from a warm instance.
   const scopeKey = opts.scopes.slice().sort().join(' ');
-  const cached = tokenCache.get(scopeKey);
-  if (cached && cached.expiresAt > Date.now() + 10_000) return cached.token;
+  const cacheKey = `${opts.clientId}\n${opts.tokenUrl}\n${scopeKey}`;
+  const cached = tokenCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now() + TOKEN_REFRESH_MARGIN_MS)
+    return cached.token;
 
   const assertion = await signToolJwt(opts.privatePem, {
     issuer: opts.clientId,
@@ -73,7 +82,7 @@ export async function getAgsAccessToken(
   }
   const ttlMs =
     (typeof json.expires_in === 'number' ? json.expires_in : 3600) * 1000;
-  tokenCache.set(scopeKey, {
+  tokenCache.set(cacheKey, {
     token: json.access_token,
     expiresAt: Date.now() + ttlMs,
   });
@@ -83,9 +92,14 @@ export async function getAgsAccessToken(
 /** AGS scores endpoint = the line item URL + `/scores`, before any query string. */
 export function scoresUrl(lineitemUrl: string): string {
   const q = lineitemUrl.indexOf('?');
-  return q < 0
-    ? `${lineitemUrl}/scores`
-    : `${lineitemUrl.slice(0, q)}/scores${lineitemUrl.slice(q)}`;
+  const query = q < 0 ? '' : lineitemUrl.slice(q);
+  // Strip any trailing slash(es) on the path so a line item URL that ends in `/`
+  // yields `.../lineitem/scores`, not a 404-prone `.../lineitem//scores`.
+  const base = (q < 0 ? lineitemUrl : lineitemUrl.slice(0, q)).replace(
+    /\/+$/,
+    ''
+  );
+  return `${base}/scores${query}`;
 }
 
 export interface AgsScore {

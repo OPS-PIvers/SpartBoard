@@ -59,6 +59,7 @@ import {
   buildQuizClassroomGradeEntries,
   type ClassroomGradeEntry,
 } from '@/utils/classroomGradePush';
+import { quizMaxPoints } from '@/utils/quizMaxPoints';
 import { logError } from '@/utils/logError';
 import { type QuizData } from '@/types';
 import {
@@ -184,6 +185,9 @@ export const LtiTeacherGrader: React.FC<{
       );
       return;
     }
+    // The quiz resolved in the library — clear any stale "not in your library"
+    // message a transient earlier snapshot may have set.
+    setErrorMsg(null);
     if (!meta.driveFileId) return;
     let active = true;
     void (async () => {
@@ -238,10 +242,7 @@ export const LtiTeacherGrader: React.FC<{
   // (not a percentage). Fall back to 100 only when the quiz has no points to
   // sum. Same computation as LtiDeepLinkPicker.addQuiz (the attach flow that
   // froze this same denominator into Schoology's line item).
-  const maxPoints = useMemo(
-    () => questions.reduce((sum, q) => sum + (q.points ?? 1), 0) || 100,
-    [questions]
-  );
+  const maxPoints = useMemo(() => quizMaxPoints(questions), [questions]);
 
   // Count of completed responses that can ACTUALLY be scored AND carry a
   // resolvable pseudonym — i.e. exactly what buildQuizClassroomGradeEntries
@@ -287,8 +288,17 @@ export const LtiTeacherGrader: React.FC<{
         grades: buildQuizClassroomGradeEntries(responses, questions, maxPoints),
         pushAuth,
       });
-      const failed = data.results.filter((r) => !r.ok).length;
-      const skipped = Math.max(0, data.total - data.pushed - failed);
+      // Bucket the non-pushed entries: a student who never opened the assignment
+      // in Schoology (no line item yet) is a benign SKIP; anything else (invalid
+      // entry, missing line item, or a non-2xx AGS POST) is a real FAILURE to
+      // retry. Deriving skipped from total−pushed−failed would mislabel every
+      // never-launched student as a connection failure (pushed+failed always
+      // equals total, so it would report 0 skipped).
+      const notPushed = data.results.filter((r) => !r.ok);
+      const skipped = notPushed.filter(
+        (r) => r.reason === 'student never launched'
+      ).length;
+      const failed = notPushed.length - skipped;
       const parts = [
         `Pushed ${data.pushed} grade${data.pushed === 1 ? '' : 's'} to Schoology.`,
       ];

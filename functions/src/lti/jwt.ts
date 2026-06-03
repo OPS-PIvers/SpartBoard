@@ -115,6 +115,11 @@ export async function verifyLaunchJwt(
     issuer,
     audience: opts.clientId,
     clockTolerance: opts.clockToleranceSec ?? 60,
+    // Pin the signature algorithm. Schoology signs LTI id_tokens with RS256;
+    // without an explicit allowlist jose accepts whatever the resolved JWKS key
+    // permits, so pinning here is defense-in-depth against algorithm
+    // substitution if the key source ever changes.
+    algorithms: ['RS256'],
   };
   // Branch so TS resolves the correct jwtVerify overload (key vs key-getter).
   const { payload } =
