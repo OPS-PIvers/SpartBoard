@@ -162,9 +162,9 @@ describe('AnnotationCanvas', () => {
     // window listener). Wrapping in act() would flush effects synchronously, removing the
     // listener before the dispatch, which would not reproduce the real-browser scenario.
 
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
     const suppressActWarning = vi
       .spyOn(console, 'error')
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
       .mockImplementation(() => {});
     window.dispatchEvent(
       new PointerEvent('pointerup', { bubbles: true, pointerId: 1 })
