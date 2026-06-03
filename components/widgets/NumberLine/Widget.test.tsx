@@ -119,6 +119,45 @@ describe('NumberLineWidget', () => {
     expect(screen.getAllByText('-1')[0]).toBeInTheDocument();
   });
 
+  it('shows fraction labels for all tenths ticks when step=0.1 (floating-point epsilon guard)', () => {
+    // step=0.1 causes floating-point accumulation: min + 3*0.1 = 0.30000000000000004.
+    // Multiplying by denom=10 gives 3.0000000000000004, so (val*denom)%1 !== 0 with
+    // strict equality — the affected ticks fall back to decimal labels ("0.3", "0.6",
+    // "0.7") instead of fractional ones ("3/10", "6/10", "7/10"). The fix must use
+    // an epsilon check so every tenth is consistently formatted as a fraction.
+    vi.spyOn(DashboardContext, 'useDashboard').mockReturnValue(
+      defaultDashboardMock
+    );
+
+    const widget: WidgetData = {
+      ...baseWidget,
+      config: {
+        ...baseWidget.config,
+        min: 0,
+        max: 1,
+        step: 0.1,
+        displayMode: 'fractions',
+        markers: [],
+        jumps: [],
+        showArrows: true,
+      },
+    };
+
+    render(<NumberLineWidget widget={widget} />);
+
+    // All three ticks that fail with strict (val*denom)%1===0 must show as fractions.
+    // Confirming all three together verifies the epsilon fix, not just one lucky tick.
+    expect(screen.getByText('3/10')).toBeInTheDocument();
+    expect(screen.getByText('6/10')).toBeInTheDocument();
+    expect(screen.getByText('7/10')).toBeInTheDocument();
+    // Sanity-check: non-problematic ticks still show correctly.
+    expect(screen.getByText('1/10')).toBeInTheDocument();
+    expect(screen.getByText('5/10')).toBeInTheDocument(); // fractionLabel does not simplify fractions
+    // 0 and 1 are whole-number endpoints
+    expect(screen.getByText('0')).toBeInTheDocument();
+    expect(screen.getAllByText('1')[0]).toBeInTheDocument();
+  });
+
   it('caps number of ticks if range is too large compared to step', () => {
     vi.spyOn(DashboardContext, 'useDashboard').mockReturnValue(
       defaultDashboardMock
