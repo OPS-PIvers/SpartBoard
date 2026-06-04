@@ -118,6 +118,16 @@ describe('ltiResolveNamesForAssignmentV1 — security gate', () => {
     );
   });
 
+  it('rejects a token with no email (defense-in-depth teacher gate)', async () => {
+    await expectCode(
+      callResolve({
+        auth: { uid: 'teacher-1', token: {} },
+        data: { sessionId: 's1' },
+      }),
+      'permission-denied'
+    );
+  });
+
   it('rejects when the session is owned by a different teacher', async () => {
     sessionDoc = { exists: true, data: () => ({ teacherUid: 'someone-else' }) };
     await expectCode(
@@ -172,6 +182,27 @@ describe('ltiResolveNamesForAssignmentV1 — resolution', () => {
     const uidB = ltiStudentUid('sub-B', 'test-hmac-secret');
     expect(res.names[uidA]).toEqual({ givenName: 'Ada', familyName: 'L' });
     expect(res.names[uidB]).toEqual({ givenName: 'Bob', familyName: 'H' });
+  });
+
+  it('throws `unavailable` when every context fetch fails (real NRPS outage, not empty)', async () => {
+    contextDocs = [
+      {
+        id: 'ctx-1',
+        data: () => ({ contextMembershipsUrl: 'https://lms/m1' }),
+      },
+    ];
+    // First-page error → fetchNrpsMembers throws → resolver records the failure;
+    // with no context successfully fetched it must surface, not return {}.
+    vi.spyOn(nrpsNet, 'fetchMembershipPage').mockResolvedValue({
+      ok: false,
+      status: 403,
+      members: [],
+      nextUrl: null,
+    });
+    await expectCode(
+      callResolve({ auth: TEACHER, data: { sessionId: 's1' } }),
+      'unavailable'
+    );
   });
 
   it('unions members across multiple contexts (multi-section attach)', async () => {

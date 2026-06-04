@@ -247,9 +247,11 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
-    // Teachers only. Students carry `studentRole` and never own a session, but
-    // short-circuit them explicitly (mirrors getPseudonymsForAssignmentV1).
-    if (request.auth.token.studentRole === true) {
+    // Teachers only. Teachers authenticate with standard Firebase Auth (email
+    // present on the token); students never have email and carry `studentRole`.
+    // Require email + reject studentRole (mirrors getPseudonymsForAssignmentV1)
+    // — defense in depth on top of the session-ownership gate below.
+    if (!request.auth.token.email || request.auth.token.studentRole === true) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
     const data = (request.data ?? {}) as { sessionId?: unknown };
@@ -314,6 +316,8 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
     // partial map is strictly better than none.
     const names: Record<string, { givenName: string; familyName: string }> = {};
     let withName = 0;
+    let contextsFetched = 0;
+    let contextsFailed = 0;
     for (const doc of ctxSnap.docs) {
       const url =
         typeof doc.data().contextMembershipsUrl === 'string'
@@ -322,6 +326,7 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
       if (!url) continue;
       try {
         const members = await fetchNrpsMembers(url, accessToken);
+        contextsFetched += 1;
         for (const m of members) {
           const uid = ltiStudentUid(m.userId, hmacSecret);
           names[uid] = {
@@ -331,15 +336,42 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
           if (m.givenName || m.familyName) withName += 1;
         }
       } catch (err) {
+        contextsFailed += 1;
         console.warn(`[ltiResolveNames] context ${doc.id} fetch failed:`, err);
       }
     }
 
-    // PII-free diagnostics: counts only, never names. `withName` confirms the
-    // platform is releasing names in the membership payload (the one unknown).
+    // If EVERY context with a URL failed, this is a real NRPS outage (scope
+    // denied on the membership endpoint, expired/invalid URL, platform down) —
+    // NOT the benign "no LTI students" case (which already returned {} above
+    // when there were no contexts). Throw so the client's catch fires
+    // (observability + cache eviction → retry on the next monitor open) instead
+    // of silently rendering every student as "Student", which is byte-identical
+    // to an empty resolve.
+    if (contextsFetched === 0 && contextsFailed > 0) {
+      throw new HttpsError(
+        'unavailable',
+        'Could not reach the Schoology roster service.'
+      );
+    }
+
+    const total = Object.keys(names).length;
+    // Members present but ZERO names = the platform connected yet is WITHHOLDING
+    // names (the NRPS name-release / privacy config — the one unknown this whole
+    // feature depends on). Warn (not info) so it's greppable/alertable: the fix
+    // is in the Schoology app config, not the code.
+    if (total > 0 && withName === 0) {
+      console.warn(
+        `[ltiResolveNames] session=${sessionId} platform returned ${total} ` +
+          `members but ZERO names — check the Schoology NRPS name-release config`
+      );
+    }
+
+    // PII-free diagnostics: counts only, never names.
     console.log(
       `[ltiResolveNames] session=${sessionId} contexts=${ctxSnap.size} ` +
-        `members=${Object.keys(names).length} withName=${withName}`
+        `fetched=${contextsFetched} failed=${contextsFailed} ` +
+        `members=${total} withName=${withName}`
     );
     return { names };
   }
