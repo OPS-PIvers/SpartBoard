@@ -16,17 +16,10 @@ import { httpsCallable } from 'firebase/functions';
 import { signInWithCustomToken } from 'firebase/auth';
 import { CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
 import { auth, functions } from '@/config/firebase';
-import { LTI_GRADER_ENABLED } from '@/config/constants';
 
 const QuizStudentApp = lazy(() =>
   import('@/components/quiz/QuizStudentApp').then((m) => ({
     default: m.QuizStudentApp,
-  }))
-);
-// Flag-gated instructor grader (pushes auto-graded scores to Schoology via AGS).
-const LtiTeacherGrader = lazy(() =>
-  import('@/components/lti/LtiTeacherGrader').then((m) => ({
-    default: m.LtiTeacherGrader,
   }))
 );
 
@@ -42,14 +35,6 @@ interface LtiExchangeResult {
   email: string | null;
   studentRole: boolean;
   customToken?: string;
-  /**
-   * Server-issued AGS push credential for an instructor resource-link launch
-   * (absent for student / deep-linking launches). The grader forwards it to
-   * `ltiPushGradesForAssignmentV1` to write line-item Scores.
-   */
-  pushAuth?: string;
-  /** Custom claim carried on an instructor launch — the attached quiz's join code. */
-  custom?: { quiz_code?: string } | null;
 }
 
 type Phase = 'working' | 'done' | 'error';
@@ -132,37 +117,10 @@ export const LtiLaunchPage: React.FC = () => {
     );
   }
 
-  // Instructor resource-link launch (a teacher opened an already-attached quiz):
-  // hand off to the in-iframe grader so they can push the auto-graded scores to
-  // Schoology's gradebook. Flag-gated OFF — until then the instructor launch
-  // keeps the validated-launch diagnostic card below. Requires the server-issued
-  // `pushAuth` (AGS credential) and the attached quiz's join code. This page
-  // never calls `useAuth`; the grader does, and it's mounted only on
-  // /lti/teacher, which App.tsx wraps in AuthProvider.
-  if (
-    LTI_GRADER_ENABLED &&
-    phase === 'done' &&
-    result?.role === 'teacher' &&
-    !result.isDeepLinking &&
-    result.pushAuth &&
-    result.custom?.quiz_code
-  ) {
-    return (
-      <Suspense
-        fallback={
-          <div className="flex min-h-screen items-center justify-center bg-slate-50">
-            <Loader2 className="h-10 w-10 animate-spin text-brand-blue-primary" />
-          </div>
-        }
-      >
-        <LtiTeacherGrader
-          quizCode={result.custom.quiz_code}
-          resourceLinkId={result.resourceLinkId ?? ''}
-          pushAuth={result.pushAuth}
-        />
-      </Suspense>
-    );
-  }
+  // Instructor resource-link launch (a teacher opened an already-attached quiz)
+  // keeps the validated-launch diagnostic card below. Grading is done from the
+  // SpartBoard dashboard Results view ("Push to Schoology"), gated on session
+  // ownership — there's no separate in-iframe grader.
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
@@ -198,7 +156,7 @@ export const LtiLaunchPage: React.FC = () => {
                   ? 'Deep-linking request received — the resource picker arrives in Spike 1.'
                   : result.studentRole
                     ? 'Signed in as a student — the quiz runner is wired up next.'
-                    : 'Instructor launch — the grader is wired up next.'}
+                    : 'Instructor launch validated — grade this assignment from the SpartBoard dashboard Results view.'}
               </p>
             </div>
 

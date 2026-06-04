@@ -534,11 +534,11 @@ const App: React.FC = () => {
   // Provider scoping by route:
   //   - /lti/teacher?mode=deeplink → the teacher resource PICKER
   //     (LtiDeepLinkPicker), which loads the teacher's SpartBoard quiz library.
-  //   - /lti/teacher (instructor resource-link launch) → LtiLaunchPage, which on
-  //     an instructor launch mounts the in-iframe GRADER (LtiTeacherGrader) — it
-  //     loads the teacher's quiz library too.
-  // Both teacher cases need AuthProvider (the uid + Drive token), mirroring the
-  // Classroom teacher-discovery attach flow (AuthProvider, but no
+  //   - /lti/teacher (instructor resource-link launch) → LtiLaunchPage, which
+  //     shows the validated-launch diagnostic card (grading is done from the
+  //     SpartBoard dashboard Results view, gated on session ownership).
+  // The deep-link picker needs AuthProvider (the uid + Drive token), mirroring
+  // the Classroom teacher-discovery attach flow (AuthProvider, but no
   // DashboardProvider). So ALL /lti/teacher routes get AuthProvider.
   //   - /lti/student → LtiLaunchPage's student runner only; it never calls
   //     useAuth, so it stays on DialogProvider alone (no teacher Firestore

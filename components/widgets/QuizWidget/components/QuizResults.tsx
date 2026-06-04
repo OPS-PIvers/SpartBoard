@@ -31,6 +31,7 @@ import {
   RefreshCw,
   Lock,
   GraduationCap,
+  Send,
 } from 'lucide-react';
 import { QuizResponse, QuizData, QuizQuestion, QuizConfig } from '@/types';
 import { useAuth } from '@/context/useAuth';
@@ -68,8 +69,13 @@ import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
 import { PlcTab } from '@/components/common/library/PlcTab';
 import { WrittenResponseGrader } from './WrittenResponseGrader';
 import { doc, updateDoc } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
-import { buildQuizClassroomGradeEntries } from '@/utils/classroomGradePush';
+import { quizMaxPoints } from '@/utils/quizMaxPoints';
+import {
+  buildQuizClassroomGradeEntries,
+  type ClassroomGradeEntry,
+} from '@/utils/classroomGradePush';
 import {
   runClassroomGradePush,
   createToastGradePushHandlers,
@@ -237,6 +243,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   const { plcs, clearPlcSharedSheetUrl, setPlcSharedSheetUrl } = usePlcs();
   const [exporting, setExporting] = useState(false);
   const [pushingGrades, setPushingGrades] = useState(false);
+  const [pushingSchoologyGrades, setPushingSchoologyGrades] = useState(false);
   const [exportUrl, setExportUrl] = useState<string | null>(
     initialExportUrl ?? null
   );
@@ -1132,6 +1139,97 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     });
   };
 
+  // Push the SpartBoard quiz scores into the linked Schoology gradebook via
+  // AGS. Only available when this assignment was launched from Schoology
+  // (`session.ltiAttachment` present — set server-side on first student
+  // launch). An assignment is EITHER a Classroom add-on attachment OR a
+  // Schoology LTI launch, never both, so this is a separate, independent
+  // action from `handlePushGrades`. Unlike Classroom, there's no client token
+  // mint or resource-link to pass — the CF derives the AGS resource link from
+  // the session and clamps scores server-side; we only send the grade payload.
+  // The denominator (`maxPoints`) is the quiz's total points (the single
+  // source of truth `quizMaxPoints` computes), and each student's CORRECTNESS
+  // points are scaled onto it by `buildQuizClassroomGradeEntries` (no
+  // speed/streak bonus) — the same builder Classroom uses, so written-response
+  // grades flow into Schoology for free via `getEarnedPoints`.
+  const ltiAttachment = session?.ltiAttachment ?? null;
+  const schoologyGrades = useMemo(() => {
+    if (!ltiAttachment) return [] as ClassroomGradeEntry[];
+    return buildQuizClassroomGradeEntries(
+      completed,
+      quiz.questions,
+      quizMaxPoints(quiz.questions)
+    );
+  }, [ltiAttachment, completed, quiz.questions]);
+  const handlePushSchoologyGrades = async () => {
+    if (!ltiAttachment || !session?.id) return;
+    const maxPoints = quizMaxPoints(quiz.questions);
+    const grades = buildQuizClassroomGradeEntries(
+      completed,
+      quiz.questions,
+      maxPoints
+    );
+    if (grades.length === 0) {
+      addToast('No completed responses to push yet.', 'info');
+      return;
+    }
+    setPushingSchoologyGrades(true);
+    try {
+      const push = httpsCallable<
+        {
+          sessionId: string;
+          kind: 'quiz';
+          maxPoints: number;
+          grades: ClassroomGradeEntry[];
+        },
+        {
+          results: {
+            pseudonymUid: string;
+            ok: boolean;
+            status?: number;
+            reason?: string;
+          }[];
+          pushed: number;
+          total: number;
+        }
+      >(functions, 'ltiPushGradesForAssignmentV1');
+      const { data } = await push({
+        sessionId: session.id,
+        kind: 'quiz',
+        maxPoints,
+        grades,
+      });
+      const { results, pushed } = data;
+      const notPushed = results.filter((r) => !r.ok);
+      const skipped = notPushed.filter(
+        (r) => r.reason === 'student never launched'
+      ).length;
+      const failed = notPushed.length - skipped;
+      const parts = [
+        `Pushed ${pushed} grade${pushed === 1 ? '' : 's'} to Schoology.`,
+      ];
+      if (skipped > 0) {
+        parts.push(`(${skipped} skipped — not opened in Schoology yet.)`);
+      }
+      if (failed > 0) {
+        parts.push(
+          `(${failed} failed to push — check your connection and try again.)`
+        );
+      }
+      addToast(parts.join(' '), failed > 0 ? 'error' : 'success');
+    } catch (err) {
+      logError('QuizResults.pushSchoologyGrades', err, {
+        sessionId: session?.id,
+      });
+      addToast(
+        'Could not push grades to Schoology — check your connection and try again.',
+        'error'
+      );
+    } finally {
+      setPushingSchoologyGrades(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full font-sans">
       {/* Header */}
@@ -1298,6 +1396,37 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               />
             )}
             PUSH GRADES
+          </button>
+        )}
+        {ltiAttachment && (
+          <button
+            onClick={() => void handlePushSchoologyGrades()}
+            disabled={pushingSchoologyGrades || schoologyGrades.length === 0}
+            className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-md active:scale-95 shrink-0"
+            style={{
+              gap: 'min(6px, 1.5cqmin)',
+              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+              fontSize: 'min(11px, 3.5cqmin)',
+            }}
+            title="Write grades to this assignment's Schoology gradebook (matches the quiz score exactly)."
+          >
+            {pushingSchoologyGrades ? (
+              <Loader2
+                className="animate-spin"
+                style={{
+                  width: 'min(14px, 4cqmin)',
+                  height: 'min(14px, 4cqmin)',
+                }}
+              />
+            ) : (
+              <Send
+                style={{
+                  width: 'min(14px, 4cqmin)',
+                  height: 'min(14px, 4cqmin)',
+                }}
+              />
+            )}
+            Push to Schoology
           </button>
         )}
         {exportUrl ? (

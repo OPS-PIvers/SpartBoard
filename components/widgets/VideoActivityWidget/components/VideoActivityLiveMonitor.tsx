@@ -37,6 +37,7 @@ import {
   useAssignmentPseudonymsMulti,
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
+import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { logError } from '@/utils/logError';
 
@@ -467,11 +468,29 @@ export const VideoActivityLiveMonitor: React.FC<
       return session.classIds;
     return session.classId ? [session.classId] : [];
   }, [session.classIds, session.classId]);
-  const { byStudentUid } = useAssignmentPseudonymsMulti(
+  const { byStudentUid: classLinkNames } = useAssignmentPseudonymsMulti(
     session.id,
     sessionClassIds,
     orgId
   );
+  // Schoology LTI students aren't in any ClassLink roster, so resolve their
+  // names on-read via NRPS and merge in. ClassLink (the district's
+  // authoritative roster) wins on the rare uid collision. Gated on `ltiNrps`
+  // so non-LTI sessions never make the call. `kind: 'va'` namespaces the
+  // resolver/cache away from the quiz path. Mirrors QuizLiveMonitor.
+  const ltiNames = useLtiSessionNames(
+    session.id,
+    session.ltiNrps === true,
+    'va'
+  );
+  const byStudentUid = useMemo(() => {
+    if (ltiNames.size === 0) return classLinkNames;
+    const merged = new Map(classLinkNames);
+    for (const [uid, name] of ltiNames) {
+      if (!merged.has(uid)) merged.set(uid, name);
+    }
+    return merged;
+  }, [classLinkNames, ltiNames]);
   const questions = session.questions;
   const [ending, setEnding] = useState(false);
   const [toggling, setToggling] = useState(false);
