@@ -1,6 +1,79 @@
 {
   "entries": [
     {
+      "version": "2026.06.04",
+      "date": "2026-06-04",
+      "title": "Quiz reliability, widget fixes, and building defaults",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Admin building defaults",
+          "items": [
+            {
+              "text": "Admins can set building-wide default colors for the Concept Web and Checklist widgets — plus a default font for Checklist — so widgets match across classrooms."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "subtitle": "Quizzes & activities",
+          "items": [
+            {
+              "text": "Students are no longer locked out of an assignment just because they finished a different assignment built from the same library quiz."
+            },
+            {
+              "text": "Your quiz library and Google Drive content load reliably again instead of getting stuck behind a blocked sign-in pop-up."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "subtitle": "Classroom widgets",
+          "items": [
+            {
+              "text": "Breathing exercises now resume from where you paused instead of restarting the cycle."
+            },
+            {
+              "text": "Widget keyboard shortcuts like Escape and Delete now work even when a button or field inside the widget has focus."
+            },
+            {
+              "text": "The Lunch Count widget is now fully translated in German, Spanish, and French."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Admin building defaults — you can now set building-wide appearance defaults for the Concept Web and Checklist widgets: card color and transparency for both, plus a default font and text color for Checklist. Every new widget of that type in the building starts with the look you chose, so widgets stay consistent across classrooms without each teacher styling them by hand."
+        },
+        {
+          "type": "fix",
+          "text": "Quiz & activity attempt limits now apply per assignment instead of per quiz. If you built several assignments from the same library quiz, a student who finished one is no longer locked out of the rest — each assignment can be completed on its own, while re-attempts of the same assignment are still blocked. A student who opens an assignment that has already closed now sees a clear \"This quiz session has already ended\" message, and a student whose class hasn't been added yet still gets the friendly \"ask your teacher to enroll you\" hint instead of a raw permissions error."
+        },
+        {
+          "type": "fix",
+          "text": "Your quiz library and other Google Drive content now load reliably. A background sign-in renewal could quietly try to open a pop-up the browser blocked, leaving the quiz library stuck loading; that hourly renewal now happens silently in the background, and if your Google connection genuinely needs reauthorizing you'll get the usual reconnect prompt to click rather than a silent stall."
+        },
+        {
+          "type": "fix",
+          "text": "Breathing widget — pausing and resuming now continues from the exact point in the breath cycle where you paused, instead of jumping back to the start of an inhale."
+        },
+        {
+          "type": "fix",
+          "text": "Widget keyboard shortcuts now work no matter what's focused inside a widget. Pressing Escape or Delete (and the other widget shortcuts) while your cursor was in a button or text field inside a widget used to do nothing; those shortcuts now act on the widget as expected."
+        },
+        {
+          "type": "fix",
+          "text": "Lunch Count widget — its labels and messages (such as the \"Hot Lunch\" label and the sync notifications) now appear in German, Spanish, and French instead of showing raw text codes."
+        },
+        {
+          "type": "fix",
+          "text": "Published quiz scores are no longer inflated by a duplicated answer. When you publish a quiz's scores, a question that was accidentally recorded twice (from a sync hiccup) now counts only once toward the total, so the finalized score matches the student's actual performance."
+        }
+      ]
+    },
+    {
       "version": "2026.06.03",
       "date": "2026-06-03",
       "title": "Google Classroom linking, scoring, and widget fixes",
