@@ -2,6 +2,7 @@ import React from 'react';
 import { ConceptWebGlobalConfig, GlobalFontFamily } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import { HexColorField } from './HexColorField';
 interface Props {
   config: Record<string, unknown>;
   onChange: (newConfig: Record<string, unknown>) => void;
@@ -133,6 +134,50 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
             <option value="comic">Comic</option>
             <option value="handwritten">Handwritten</option>
           </select>
+        </div>
+
+        <div className="border-t border-slate-200 pt-5">
+          <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest mb-1">
+            Appearance Defaults
+          </h3>
+          <p className="text-xs text-slate-500 mb-4 font-bold">
+            Set the default node surface colour and opacity for new Concept Web
+            widgets in this building. Teachers can still change these per
+            widget.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 uppercase mb-2">
+                Default Surface Colour
+              </label>
+              <HexColorField
+                value={buildingConfig.cardColor}
+                onChange={(cardColor) => updateBuildingConfig({ cardColor })}
+                fallback="#ffffff"
+                ariaLabel="Pick default node surface colour"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 uppercase mb-2">
+                Default Surface Opacity (
+                {Math.round((buildingConfig.cardOpacity ?? 1) * 100)}%)
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={buildingConfig.cardOpacity ?? 1}
+                onChange={(e) =>
+                  updateBuildingConfig({
+                    cardOpacity: parseFloat(e.target.value),
+                  })
+                }
+                className="w-full accent-brand-blue-primary"
+                aria-label="Default node surface opacity"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

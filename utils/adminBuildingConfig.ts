@@ -21,6 +21,30 @@ const isHexColor = (value: unknown): value is string =>
   typeof value === 'string' && HEX_COLOR_RE.test(value.trim());
 
 /**
+ * The `GlobalFontFamily` union values, used to validate per-building
+ * `fontFamily` defaults so an admin can only persist a font the widgets
+ * actually know how to render. Mirrors the `GlobalFontFamily` type in
+ * `types.ts` — kept as a runtime array because TypeScript unions are
+ * erased at runtime and the validator needs a membership check.
+ */
+const VALID_FONT_FAMILIES = [
+  'sans',
+  'serif',
+  'mono',
+  'handwritten',
+  'rounded',
+  'fun',
+  'comic',
+  'slab',
+  'retro',
+  'marker',
+  'cursive',
+] as const;
+const isGlobalFontFamily = (value: unknown): value is string =>
+  typeof value === 'string' &&
+  (VALID_FONT_FAMILIES as readonly string[]).includes(value);
+
+/**
  * Extracts building-level config overrides for a widget type from the admin's
  * feature_permissions config. These are applied between widget defaults and
  * explicit overrides so that per-building admin settings pre-configure new
@@ -116,19 +140,6 @@ export const getAdminBuildingConfig = (
     }
     case 'numberLine': {
       const validDisplayModes = ['integers', 'decimals', 'fractions'] as const;
-      const validFontFamilies = [
-        'sans',
-        'serif',
-        'mono',
-        'handwritten',
-        'rounded',
-        'fun',
-        'comic',
-        'slab',
-        'retro',
-        'marker',
-        'cursive',
-      ] as const;
       if (typeof raw.min === 'number' && Number.isFinite(raw.min))
         out.min = raw.min;
       if (typeof raw.max === 'number' && Number.isFinite(raw.max))
@@ -153,11 +164,7 @@ export const getAdminBuildingConfig = (
         raw.cardOpacity <= 1
       )
         out.cardOpacity = raw.cardOpacity;
-      if (
-        typeof raw.fontFamily === 'string' &&
-        (validFontFamilies as readonly string[]).includes(raw.fontFamily)
-      )
-        out.fontFamily = raw.fontFamily;
+      if (isGlobalFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
       if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
       break;
     }
@@ -226,6 +233,16 @@ export const getAdminBuildingConfig = (
       }
       if (raw.scaleMultiplier !== undefined)
         out.scaleMultiplier = raw.scaleMultiplier;
+      if (isGlobalFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
+      if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
+      if (
+        typeof raw.cardOpacity === 'number' &&
+        Number.isFinite(raw.cardOpacity) &&
+        raw.cardOpacity >= 0 &&
+        raw.cardOpacity <= 1
+      )
+        out.cardOpacity = raw.cardOpacity;
+      if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
       break;
     case 'sound':
       if (raw.visual) out.visual = raw.visual;
@@ -347,7 +364,17 @@ export const getAdminBuildingConfig = (
           Math.min(50, Math.round(raw.defaultNodeHeight))
         );
       }
-      if (typeof raw.fontFamily === 'string') out.fontFamily = raw.fontFamily;
+      if (isGlobalFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
+      if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
+      if (
+        typeof raw.cardOpacity === 'number' &&
+        Number.isFinite(raw.cardOpacity) &&
+        raw.cardOpacity >= 0 &&
+        raw.cardOpacity <= 1
+      )
+        out.cardOpacity = raw.cardOpacity;
+      // No `fontColor` default: ConceptWeb's widget renders node text with a
+      // hardcoded `text-slate-800` and never reads `config.fontColor`.
       break;
     case 'classes':
       if (typeof raw.classLinkEnabled === 'boolean') {
