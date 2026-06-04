@@ -166,7 +166,6 @@ const LtiDeepLinkFlow: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(
     code ? null : NO_CODE_MESSAGE
   );
-  const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [selectedQuizId, setSelectedQuizId] = useState('');
@@ -264,10 +263,9 @@ const LtiDeepLinkFlow: React.FC = () => {
   }, [signInWithGoogle]);
 
   const addQuiz = useCallback(async () => {
-    if (!selectedQuiz) {
-      setStatusMsg('Pick a quiz first.');
-      return;
-    }
+    // The "Add quiz" button is disabled until a quiz is selected, so this is a
+    // defensive guard only.
+    if (!selectedQuiz) return;
     const returnUrl = deepLinking?.deep_link_return_url;
     if (!returnUrl) {
       setErrorMsg(
@@ -291,7 +289,6 @@ const LtiDeepLinkFlow: React.FC = () => {
       // step runs at most once per quiz; only the idempotent sign re-runs.
       let created = createdRef.current.get(selectedQuiz.id);
       if (!created) {
-        setStatusMsg(`Loading "${selectedQuiz.title}"…`);
         const quizData = await loadQuizData(selectedQuiz.driveFileId);
 
         // Gradebook scale = the quiz's total points, so a 17/20 quiz reads 17/20
@@ -301,7 +298,6 @@ const LtiDeepLinkFlow: React.FC = () => {
         // Class-targeted session (join code) the student runner joins by —
         // classIds scope it to this Schoology course so a studentRole token
         // (classIds: ['schoology:<id>']) passes the Firestore class-gate.
-        setStatusMsg('Creating the assignment…');
         const { sessionMode, sessionOptions, attemptLimit } =
           getQuizBehavior(selectedQuiz);
         const { code: quizCode } = await createAssignment(
@@ -326,7 +322,6 @@ const LtiDeepLinkFlow: React.FC = () => {
         createdRef.current.set(selectedQuiz.id, created);
       }
 
-      setStatusMsg('Adding the quiz to Schoology…');
       const sign = httpsCallable<
         SignDeepLinkResponseParams,
         SignDeepLinkResponseResult
@@ -343,7 +338,6 @@ const LtiDeepLinkFlow: React.FC = () => {
       });
 
       setSubmitted(true);
-      setStatusMsg('Returning to Schoology…');
       // Auto-submitting form POST navigates this browsing context back to the
       // platform, which creates the graded material. Framed (the normal case),
       // this navigates the Schoology iframe, so the content-return page runs in
@@ -353,7 +347,6 @@ const LtiDeepLinkFlow: React.FC = () => {
       const message = err instanceof Error ? err.message : String(err);
       logError('LtiDeepLinkFlow.addQuiz', err, { quizId: selectedQuiz.id });
       setErrorMsg(`Couldn't add the quiz: ${message}`);
-      setStatusMsg(null);
       setSubmitted(false);
     } finally {
       setBusy(false);
@@ -447,9 +440,8 @@ const LtiDeepLinkFlow: React.FC = () => {
       )}
 
       {phase !== 'error' && !submitted && (
-        <div className="mt-4 space-y-2">
+        <div className="mt-4">
           <AddonError message={errorMsg} />
-          <AddonStatus message={statusMsg} busy={busy} />
         </div>
       )}
     </AddonShell>
