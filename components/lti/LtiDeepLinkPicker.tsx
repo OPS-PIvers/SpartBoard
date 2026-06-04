@@ -65,6 +65,7 @@ import {
 } from '@/utils/videoActivityBehavior';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
+import { videoActivityMaxPoints } from '@/utils/videoActivityGrading';
 import { logError } from '@/utils/logError';
 import { isGoogleSession } from '@/utils/googleSession';
 import {
@@ -458,7 +459,8 @@ const LtiDeepLinkFlow: React.FC = () => {
         const quizData = await loadQuizData(selectedQuiz.driveFileId);
 
         // Gradebook scale = the quiz's total points, so a 17/20 quiz reads 17/20
-        // in Schoology (not a percentage). Shared with the grader via quizMaxPoints.
+        // in Schoology (not a percentage). Shared with the Results push via
+        // quizMaxPoints so the line item and the push denominator can't drift.
         const maxPoints = quizMaxPoints(quizData.questions);
 
         // Respect the quiz's OWN configured behavior (session mode, per-attempt
@@ -544,12 +546,10 @@ const LtiDeepLinkFlow: React.FC = () => {
         );
 
         // Gradebook scale = the activity's total points, so pushed grades read
-        // identically in Schoology (not a percentage). Fall back to 100 only
-        // when the activity has no questions/points to sum — mirrors the
-        // Classroom add-on's VA path.
-        const maxPoints =
-          activityData.questions.reduce((s, q) => s + (q.points ?? 1), 0) ||
-          100;
+        // identically in Schoology (not a percentage). Shared with the VA
+        // Results push via videoActivityMaxPoints so the line item and the push
+        // denominator can't drift.
+        const maxPoints = videoActivityMaxPoints(activityData.questions);
 
         // Respect the activity's OWN configured behavior, mirroring the normal
         // VA assign flow: `sessionOptions` + `attemptLimit` come from the

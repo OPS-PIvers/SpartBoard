@@ -16,14 +16,7 @@
  * only, not functionality.
  */
 
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { doc, getDoc } from 'firebase/firestore';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Plus,
   FileUp,
@@ -105,7 +98,6 @@ import {
 } from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
-import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
@@ -1967,72 +1959,6 @@ const AssignmentsList: React.FC<{
 
 /* ─── Archive row wrapper (per-row hooks for view-count fetch) ────────────── */
 
-/**
- * Cached one-time read of a session's `periodNames`. Schoology LTI assignments
- * carry no `periodNames` on the assignment doc — the section title is written
- * only to the matching `/quiz_sessions/{sessionId}` doc at first student launch
- * (see functions `nrpsStore.ts`). This lets an archive row recover the section
- * name (e.g. "Math 7") instead of falling back to "No classes".
- *
- * Cost shape mirrors `useSessionViewCount`: one `getDoc` per session, gated
- * behind a module-level cache and fired only when the row would otherwise show
- * "No classes" (the `enabled` flag). No live listener — the section title is
- * stamped once at launch and never changes, so a snapshot read suffices.
- */
-const sessionPeriodNamesCache = new Map<string, string[] | null>();
-const sessionPeriodNamesInflight = new Map<string, Promise<void>>();
-
-function useSessionPeriodNames(
-  sessionId: string,
-  enabled: boolean
-): string[] | null {
-  const [, setRevision] = useState(0);
-  useEffect(() => {
-    if (!enabled || !sessionId) return;
-    if (sessionPeriodNamesCache.has(sessionId)) return;
-    if (sessionPeriodNamesInflight.has(sessionId)) {
-      let cancelled = false;
-      void sessionPeriodNamesInflight.get(sessionId)?.then(() => {
-        if (!cancelled) setRevision((r) => r + 1);
-      });
-      return () => {
-        cancelled = true;
-      };
-    }
-    let cancelled = false;
-    const inFlight = getDoc(doc(db, 'quiz_sessions', sessionId))
-      .then((snap) => {
-        const data = snap.data();
-        const raw = Array.isArray(data?.periodNames) ? data.periodNames : null;
-        const names = raw
-          ? raw.filter((p): p is string => typeof p === 'string' && !!p)
-          : null;
-        sessionPeriodNamesCache.set(
-          sessionId,
-          names && names.length > 0 ? names : null
-        );
-      })
-      .catch(() => {
-        // Soft-fail: cache `null` so a transient read error doesn't loop, and
-        // the row keeps its existing "No classes" label rather than blanking.
-        sessionPeriodNamesCache.set(sessionId, null);
-      })
-      .finally(() => {
-        sessionPeriodNamesInflight.delete(sessionId);
-      });
-    sessionPeriodNamesInflight.set(sessionId, inFlight);
-    void inFlight.then(() => {
-      if (!cancelled) setRevision((r) => r + 1);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionId, enabled]);
-
-  if (!enabled) return null;
-  return sessionPeriodNamesCache.get(sessionId) ?? null;
-}
-
 interface QuizArchiveRowProps {
   assignment: QuizAssignment;
   mode: 'active' | 'archive';
@@ -2072,18 +1998,11 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   const assignmentIsViewOnly = a.mode === 'view-only';
   const { primary, secondaries } = buildActions(a, mode);
   const status = resolveStatus(a.status, assignmentIsViewOnly);
-  const assignmentPeriods =
-    a.periodNames ?? (a.periodName ? [a.periodName] : []);
-  // Schoology LTI assignments carry no `periodNames` on the assignment doc —
-  // the section title lives only on the session (written at first launch).
-  // Fall back to it ONLY when the assignment has no periods AND the card would
-  // otherwise read "No classes", so we never add a Firestore read for a
-  // normally roster-targeted assignment. `a.id === sessionId` (1:1).
-  const wantsSessionFallback =
-    assignmentPeriods.length === 0 && mode === 'active';
-  const sessionPeriods = useSessionPeriodNames(a.id, wantsSessionFallback);
-  const periods =
-    assignmentPeriods.length > 0 ? assignmentPeriods : (sessionPeriods ?? []);
+  // Schoology LTI assignments get `periodNames` written onto the assignment doc
+  // too (by the picker at creation and the launch-exchange CF as a backstop), so
+  // the section shows here with no extra client read — same source as a
+  // roster-targeted assignment.
+  const periods = a.periodNames ?? (a.periodName ? [a.periodName] : []);
   const urlLive = a.status !== 'inactive';
   const noPeriods = periods.length === 0 && mode === 'active';
   const periodLabel =

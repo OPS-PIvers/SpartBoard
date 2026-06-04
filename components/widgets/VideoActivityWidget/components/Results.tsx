@@ -31,6 +31,7 @@ import {
   gradeVideoActivityAnswer,
   computeVideoActivityScorePct,
   canScoreVideoActivityResponse,
+  videoActivityMaxPoints,
 } from '@/utils/videoActivityGrading';
 import {
   runClassroomGradePush,
@@ -40,6 +41,13 @@ import {
   NOTHING_TO_PUSH_TOAST,
 } from '@/utils/runClassroomGradePush';
 import { requestClassroomTeacherToken } from '@/components/classroomAddon/gisOAuth';
+import {
+  bucketLtiPushResults,
+  formatLtiPushToast,
+  ltiPushErrorMessage,
+  type LtiPushGradesRequest,
+  type LtiPushGradesData,
+} from '@/utils/ltiGradePush';
 import { functions } from '@/config/firebase';
 import { httpsCallable } from 'firebase/functions';
 import {
@@ -374,11 +382,10 @@ export const Results: React.FC<ResultsProps> = ({
     }
 
     // The gradebook denominator = the activity's summed question points (= the
-    // line item `scoreMaximum` the picker set at deep-link time). Identical
-    // formula to LtiDeepLinkPicker.addVideoActivity, so scoreGiven/scoreMaximum
-    // always match the Schoology column. Falls back to 100 when the activity has
-    // no point-bearing questions.
-    const maxPoints = questions.reduce((s, q) => s + (q.points ?? 1), 0) || 100;
+    // line item `scoreMaximum` the picker set at deep-link time). Shared with
+    // LtiDeepLinkPicker.addVideoActivity via videoActivityMaxPoints, so
+    // scoreGiven/scoreMaximum always match the Schoology column.
+    const maxPoints = videoActivityMaxPoints(questions);
     const grades = eligible.map((r) => {
       const pct = getStudentScore(r);
       const safePct = Number.isFinite(pct) ? pct : 0;
@@ -391,75 +398,26 @@ export const Results: React.FC<ResultsProps> = ({
 
     setPushingSchoology(true);
     try {
-      const callable = httpsCallable<
-        {
-          sessionId: string;
-          kind: 'va';
-          maxPoints: number;
-          grades: { pseudonymUid: string; pointsEarned: number }[];
-        },
-        {
-          results: {
-            pseudonymUid: string;
-            ok: boolean;
-            status?: number;
-            reason?: string;
-          }[];
-          pushed: number;
-          total: number;
-        }
-      >(functions, 'ltiPushGradesForAssignmentV1');
-      const res = await callable({
+      const callable = httpsCallable<LtiPushGradesRequest, LtiPushGradesData>(
+        functions,
+        'ltiPushGradesForAssignmentV1'
+      );
+      const { data } = await callable({
         sessionId: session.id,
         kind: 'va',
         maxPoints,
         grades,
       });
-
-      const results = res.data?.results ?? [];
-      const pushed = res.data?.pushed ?? 0;
-      // not-ok with reason "student never launched" is a benign skip (the
-      // student opened the assignment in SpartBoard but never via Schoology, so
-      // there's no AGS line item for them yet). Everything else not-ok is a
-      // real failure.
-      const skipped = results.filter(
-        (g) => !g.ok && g.reason === 'student never launched'
-      ).length;
-      const failed = results.filter(
-        (g) => !g.ok && g.reason !== 'student never launched'
-      ).length;
-
-      if (pushed > 0) {
-        addToast(
-          `Pushed ${pushed} grade${pushed === 1 ? '' : 's'} to Schoology.`,
-          'success'
-        );
-      }
-      if (skipped > 0) {
-        addToast(
-          `${skipped} student${skipped === 1 ? '' : 's'} not opened in Schoology yet — push again after they launch.`,
-          'info'
-        );
-      }
-      if (failed > 0) {
-        addToast(
-          `${failed} grade${failed === 1 ? '' : 's'} failed to push — check your connection and try again.`,
-          'error'
-        );
-      }
-      // Nothing reported back at all (e.g. every entry invalid) — surface a
-      // neutral message rather than silently doing nothing.
-      if (pushed === 0 && skipped === 0 && failed === 0) {
-        addToast('No grades were pushed to Schoology.', 'info');
-      }
+      const bucket = bucketLtiPushResults(data);
+      addToast(
+        formatLtiPushToast(bucket),
+        bucket.failed > 0 ? 'error' : 'success'
+      );
     } catch (err) {
       logError('VideoActivityResults.pushSchoologyGrades', err, {
         sessionId: session?.id,
       });
-      addToast(
-        'Could not push grades to Schoology — check your connection and try again.',
-        'error'
-      );
+      addToast(ltiPushErrorMessage(err), 'error');
     } finally {
       setPushingSchoology(false);
     }

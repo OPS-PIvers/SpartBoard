@@ -77,6 +77,13 @@ import {
   type ClassroomGradeEntry,
 } from '@/utils/classroomGradePush';
 import {
+  bucketLtiPushResults,
+  formatLtiPushToast,
+  ltiPushErrorMessage,
+  type LtiPushGradesRequest,
+  type LtiPushGradesData,
+} from '@/utils/ltiGradePush';
+import {
   runClassroomGradePush,
   createToastGradePushHandlers,
   hasValidMaxPoints,
@@ -1175,56 +1182,26 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     }
     setPushingSchoologyGrades(true);
     try {
-      const push = httpsCallable<
-        {
-          sessionId: string;
-          kind: 'quiz';
-          maxPoints: number;
-          grades: ClassroomGradeEntry[];
-        },
-        {
-          results: {
-            pseudonymUid: string;
-            ok: boolean;
-            status?: number;
-            reason?: string;
-          }[];
-          pushed: number;
-          total: number;
-        }
-      >(functions, 'ltiPushGradesForAssignmentV1');
+      const push = httpsCallable<LtiPushGradesRequest, LtiPushGradesData>(
+        functions,
+        'ltiPushGradesForAssignmentV1'
+      );
       const { data } = await push({
         sessionId: session.id,
         kind: 'quiz',
         maxPoints,
         grades,
       });
-      const { results, pushed } = data;
-      const notPushed = results.filter((r) => !r.ok);
-      const skipped = notPushed.filter(
-        (r) => r.reason === 'student never launched'
-      ).length;
-      const failed = notPushed.length - skipped;
-      const parts = [
-        `Pushed ${pushed} grade${pushed === 1 ? '' : 's'} to Schoology.`,
-      ];
-      if (skipped > 0) {
-        parts.push(`(${skipped} skipped — not opened in Schoology yet.)`);
-      }
-      if (failed > 0) {
-        parts.push(
-          `(${failed} failed to push — check your connection and try again.)`
-        );
-      }
-      addToast(parts.join(' '), failed > 0 ? 'error' : 'success');
+      const bucket = bucketLtiPushResults(data);
+      addToast(
+        formatLtiPushToast(bucket),
+        bucket.failed > 0 ? 'error' : 'success'
+      );
     } catch (err) {
       logError('QuizResults.pushSchoologyGrades', err, {
         sessionId: session?.id,
       });
-      addToast(
-        'Could not push grades to Schoology — check your connection and try again.',
-        'error'
-      );
+      addToast(ltiPushErrorMessage(err), 'error');
     } finally {
       setPushingSchoologyGrades(false);
     }

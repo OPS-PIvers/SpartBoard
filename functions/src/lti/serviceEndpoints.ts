@@ -209,12 +209,25 @@ export const ltiPushGradesForAssignmentV1 = onCall(
     }
 
     const cfg = await getLtiPlatformConfig(db);
-    const accessToken = await getAgsAccessToken({
-      clientId: cfg.clientId,
-      tokenUrl: cfg.tokenUrl,
-      privatePem: LTI_TOOL_PRIVATE_KEY.value(),
-      scopes: [AGS_SCOPE_SCORE],
-    });
+    let accessToken: string;
+    try {
+      accessToken = await getAgsAccessToken({
+        clientId: cfg.clientId,
+        tokenUrl: cfg.tokenUrl,
+        privatePem: LTI_TOOL_PRIVATE_KEY.value(),
+        scopes: [AGS_SCOPE_SCORE],
+      });
+    } catch (err) {
+      // The one network dependency most likely to fail org-wide (Schoology
+      // token endpoint down / key misconfig / scope denied). Log a greppable
+      // line and surface a clean error instead of leaking the raw mint failure
+      // — mirrors the NRPS resolver's token-mint handling.
+      console.error('[ltiPushGrades] AGS token mint failed:', err);
+      throw new HttpsError(
+        'internal',
+        'Could not authorize the Schoology gradebook service.'
+      );
+    }
     const timestamp = new Date().toISOString();
 
     // Resolve each student's OWN line item (per-section for linked/merged courses)

@@ -5,12 +5,15 @@
  *       directly by session id) and files the NRPS membership under it;
  *   (2) it denormalizes the Schoology section onto the session — periodNames
  *       (union), classPeriodByClassId['schoology:<ctx>'], ltiAttachment, ltiNrps;
- *   (3) it is idempotent + write-bounded (a repeat launch from the same context
- *       writes NOTHING — no monitor snapshot churn);
- *   (4) it still denormalizes section + attachment when NRPS is OFF (no
+ *   (3) for a quiz it ALSO mirrors periodNames onto the teacher's archive doc
+ *       (users/{teacherUid}/quiz_assignments/{sessionId}) so the manager card
+ *       reads the section with no extra client read; VA does NOT;
+ *   (4) all writes go through ONE atomic batch (membership URL + ltiNrps can't
+ *       desync), and a repeat launch from a known context writes NOTHING;
+ *   (5) it still denormalizes section + attachment when NRPS is OFF (no
  *       membership URL), but does NOT set ltiNrps or write a membership doc;
- *   (5) it never persists a name/email (PII gate);
- *   (6) it's a no-op when no target session matches.
+ *   (6) it never persists a name/email (PII gate);
+ *   (7) it's a no-op when no target session matches.
  */
 
 /* eslint-disable @typescript-eslint/require-await -- the structural Admin-SDK
@@ -29,7 +32,6 @@ interface SessionRow {
   id: string;
   data: Record<string, unknown>;
 }
-
 interface Write {
   path: string;
   data: Record<string, unknown>;
@@ -41,67 +43,57 @@ let quizSessions: SessionRow[];
 let vaSessions: Map<string, Record<string, unknown>>;
 // Existing membership context docs by full path.
 let contextDocs: Map<string, Record<string, unknown>>;
+// Writes recorded when the batch commits.
 let writes: Write[];
 
-function makeDb() {
-  const ctxDocRef = (sessionId: string, contextId: string) => {
-    const path = `${LTI_SESSION_MEMBERSHIPS_COLLECTION}/${sessionId}/contexts/${contextId}`;
-    return {
-      get: async () => ({
-        exists: contextDocs.has(path),
-        data: () => contextDocs.get(path),
-      }),
-      set: async (data: Record<string, unknown>) => {
-        contextDocs.set(path, { ...(contextDocs.get(path) ?? {}), ...data });
-        writes.push({ path, data });
-      },
-    };
-  };
+function docRef(path: string) {
   return {
-    collection: (name: string) => {
-      if (name === QUIZ_SESSIONS_COLLECTION) {
+    path,
+    get: async () => {
+      if (path.startsWith(`${LTI_SESSION_MEMBERSHIPS_COLLECTION}/`)) {
         return {
-          where: (_field: string, _op: string, value: string) => ({
-            get: async () => ({
-              docs: quizSessions
-                .filter((s) => s.data.code === value)
-                .map((s) => ({ id: s.id, data: () => s.data })),
-            }),
-          }),
-          doc: (id: string) => ({
-            set: async (data: Record<string, unknown>) => {
-              writes.push({ path: `${QUIZ_SESSIONS_COLLECTION}/${id}`, data });
-            },
-          }),
+          exists: contextDocs.has(path),
+          data: () => contextDocs.get(path),
         };
       }
-      if (name === VIDEO_ACTIVITY_SESSIONS_COLLECTION) {
+      if (path.startsWith(`${VIDEO_ACTIVITY_SESSIONS_COLLECTION}/`)) {
+        const id = path.split('/')[1];
         return {
-          doc: (id: string) => ({
-            get: async () => ({
-              id,
-              exists: vaSessions.has(id),
-              data: () => vaSessions.get(id),
-            }),
-            set: async (data: Record<string, unknown>) => {
-              writes.push({
-                path: `${VIDEO_ACTIVITY_SESSIONS_COLLECTION}/${id}`,
-                data,
-              });
-            },
-          }),
+          id,
+          exists: vaSessions.has(id),
+          data: () => vaSessions.get(id),
         };
       }
-      if (name === LTI_SESSION_MEMBERSHIPS_COLLECTION) {
-        return {
-          doc: (sessionId: string) => ({
-            collection: () => ({
-              doc: (contextId: string) => ctxDocRef(sessionId, contextId),
-            }),
-          }),
-        };
-      }
-      throw new Error(`unexpected collection ${name}`);
+      throw new Error(`unexpected get on ${path}`);
+    },
+    collection: (sub: string) => ({
+      doc: (id: string) => docRef(`${path}/${sub}/${id}`),
+    }),
+  };
+}
+
+function makeDb() {
+  return {
+    collection: (name: string) => ({
+      where: (field: string, _op: string, value: string) => ({
+        get: async () => ({
+          docs: quizSessions
+            .filter((s) => s.data[field] === value)
+            .map((s) => ({ id: s.id, data: () => s.data })),
+        }),
+      }),
+      doc: (id: string) => docRef(`${name}/${id}`),
+    }),
+    batch: () => {
+      const ops: Write[] = [];
+      return {
+        set: (ref: { path: string }, data: Record<string, unknown>) => {
+          ops.push({ path: ref.path, data });
+        },
+        commit: async () => {
+          writes.push(...ops);
+        },
+      };
     },
   };
 }
@@ -119,13 +111,8 @@ const QUIZ_ARGS = {
   deploymentId: 'dep-1',
 };
 
-function sessionWrite(): Write | undefined {
-  return writes.find((w) => w.path.startsWith(`${QUIZ_SESSIONS_COLLECTION}/`));
-}
-function ctxWrite(): Write | undefined {
-  return writes.find((w) =>
-    w.path.startsWith(`${LTI_SESSION_MEMBERSHIPS_COLLECTION}/`)
-  );
+function writeAt(prefix: string): Write | undefined {
+  return writes.find((w) => w.path.startsWith(prefix));
 }
 
 beforeEach(() => {
@@ -136,22 +123,29 @@ beforeEach(() => {
 });
 
 describe('persistLtiLaunchContext — quiz', () => {
-  it('files the membership and denormalizes the section onto the joinable session', async () => {
+  it('files membership + denormalizes the session + mirrors periodNames to the archive doc', async () => {
     quizSessions = [
       {
         id: 'sess-1',
-        data: { code: 'ABC123', status: 'active', startedAt: 100 },
+        data: {
+          code: 'ABC123',
+          status: 'active',
+          startedAt: 100,
+          teacherUid: 'teacher-1',
+        },
       },
     ];
     const sessionId = await persistLtiLaunchContext(db(), QUIZ_ARGS);
     expect(sessionId).toBe('sess-1');
 
-    // Membership doc filed under the resolved session + context.
-    const ctx = ctxWrite();
+    // Membership doc under the resolved session + context.
+    const ctx = writeAt(
+      `${LTI_SESSION_MEMBERSHIPS_COLLECTION}/sess-1/contexts/`
+    );
     expect(ctx?.path).toBe(
       `${LTI_SESSION_MEMBERSHIPS_COLLECTION}/sess-1/contexts/ctx-1`
     );
-    // PII gate: only the URL + title + ids are persisted — never a name/email.
+    // PII gate: only the URL + title + ids — never a name/email.
     expect(Object.keys(ctx?.data ?? {}).sort()).toEqual([
       'contextMembershipsUrl',
       'contextTitle',
@@ -159,21 +153,22 @@ describe('persistLtiLaunchContext — quiz', () => {
       'updatedAt',
     ]);
     expect(ctx?.data.contextMembershipsUrl).toBe(QUIZ_ARGS.membershipUrl);
-    expect(ctx?.data.contextTitle).toBe('Math 7');
 
     // Session denormalization.
-    const sess = sessionWrite();
-    expect(sess?.path).toBe(`${QUIZ_SESSIONS_COLLECTION}/sess-1`);
+    const sess = writeAt(`${QUIZ_SESSIONS_COLLECTION}/sess-1`);
     expect(sess?.data).toMatchObject({
       periodNames: ['Math 7'],
       classPeriodByClassId: { 'schoology:ctx-1': 'Math 7' },
       ltiAttachment: { resourceLinkId: 'rl-1', contextId: 'ctx-1' },
       ltiNrps: true,
     });
+
+    // Archive-doc mirror (so the manager card needs no extra read).
+    const archive = writeAt('users/teacher-1/quiz_assignments/sess-1');
+    expect(archive?.data).toEqual({ periodNames: ['Math 7'] });
   });
 
   it('is idempotent — a repeat launch from the same context writes nothing', async () => {
-    // Session already carries everything this launch would set.
     quizSessions = [
       {
         id: 'sess-1',
@@ -181,6 +176,7 @@ describe('persistLtiLaunchContext — quiz', () => {
           code: 'ABC123',
           status: 'active',
           startedAt: 100,
+          teacherUid: 'teacher-1',
           periodNames: ['Math 7'],
           classPeriodByClassId: { 'schoology:ctx-1': 'Math 7' },
           ltiAttachment: { resourceLinkId: 'rl-1', contextId: 'ctx-1' },
@@ -188,20 +184,15 @@ describe('persistLtiLaunchContext — quiz', () => {
         },
       },
     ];
-    // Membership doc already present + unchanged.
     contextDocs.set(
       `${LTI_SESSION_MEMBERSHIPS_COLLECTION}/sess-1/contexts/ctx-1`,
-      {
-        contextMembershipsUrl: QUIZ_ARGS.membershipUrl,
-        contextTitle: 'Math 7',
-      }
+      { contextMembershipsUrl: QUIZ_ARGS.membershipUrl, contextTitle: 'Math 7' }
     );
-
     await persistLtiLaunchContext(db(), QUIZ_ARGS);
     expect(writes).toHaveLength(0);
   });
 
-  it('unions a second section into periodNames + classPeriodByClassId', async () => {
+  it('unions a second section into periodNames + classPeriodByClassId + archive', async () => {
     quizSessions = [
       {
         id: 'sess-1',
@@ -209,6 +200,7 @@ describe('persistLtiLaunchContext — quiz', () => {
           code: 'ABC123',
           status: 'active',
           startedAt: 100,
+          teacherUid: 'teacher-1',
           periodNames: ['Math 7'],
           classPeriodByClassId: { 'schoology:ctx-1': 'Math 7' },
           ltiAttachment: { resourceLinkId: 'rl-1', contextId: 'ctx-1' },
@@ -216,44 +208,67 @@ describe('persistLtiLaunchContext — quiz', () => {
         },
       },
     ];
-    const sessionId = await persistLtiLaunchContext(db(), {
+    await persistLtiLaunchContext(db(), {
       ...QUIZ_ARGS,
       contextId: 'ctx-2',
       contextTitle: 'Math 8',
       membershipUrl: 'https://lms/contexts/ctx-2/memberships',
     });
-    expect(sessionId).toBe('sess-1');
-    const sess = sessionWrite();
+    const sess = writeAt(`${QUIZ_SESSIONS_COLLECTION}/sess-1`);
     expect(sess?.data.periodNames).toEqual(['Math 7', 'Math 8']);
     expect(sess?.data.classPeriodByClassId).toEqual({
       'schoology:ctx-1': 'Math 7',
       'schoology:ctx-2': 'Math 8',
     });
-    // ltiAttachment is NOT clobbered (first section wins).
+    // ltiAttachment NOT clobbered (first section wins).
     expect(sess?.data.ltiAttachment).toBeUndefined();
+    // Archive mirror gets the unioned list too.
+    expect(writeAt('users/teacher-1/quiz_assignments/sess-1')?.data).toEqual({
+      periodNames: ['Math 7', 'Math 8'],
+    });
   });
 
-  it('denormalizes section + attachment even when NRPS is OFF (no membership)', async () => {
+  it('denormalizes section + attachment + archive even when NRPS is OFF (no membership)', async () => {
     quizSessions = [
       {
         id: 'sess-1',
-        data: { code: 'ABC123', status: 'active', startedAt: 100 },
+        data: {
+          code: 'ABC123',
+          status: 'active',
+          startedAt: 100,
+          teacherUid: 'teacher-1',
+        },
       },
     ];
     const { membershipUrl: _omit, ...noNrps } = QUIZ_ARGS;
     void _omit;
     await persistLtiLaunchContext(db(), noNrps);
 
-    // No membership doc written.
-    expect(ctxWrite()).toBeUndefined();
-    const sess = sessionWrite();
+    expect(writeAt(`${LTI_SESSION_MEMBERSHIPS_COLLECTION}/`)).toBeUndefined();
+    const sess = writeAt(`${QUIZ_SESSIONS_COLLECTION}/sess-1`);
     expect(sess?.data).toMatchObject({
       periodNames: ['Math 7'],
       classPeriodByClassId: { 'schoology:ctx-1': 'Math 7' },
       ltiAttachment: { resourceLinkId: 'rl-1', contextId: 'ctx-1' },
     });
-    // ltiNrps is NOT set without an NRPS membership endpoint.
     expect(sess?.data.ltiNrps).toBeUndefined();
+    // Archive mirror still happens (it's keyed off the section change, not NRPS).
+    expect(writeAt('users/teacher-1/quiz_assignments/sess-1')?.data).toEqual({
+      periodNames: ['Math 7'],
+    });
+  });
+
+  it('skips the archive mirror when the session has no teacherUid', async () => {
+    quizSessions = [
+      {
+        id: 'sess-1',
+        data: { code: 'ABC123', status: 'active', startedAt: 1 },
+      },
+    ];
+    await persistLtiLaunchContext(db(), QUIZ_ARGS);
+    expect(writeAt('users/')).toBeUndefined();
+    // The session denormalization still happens.
+    expect(writeAt(`${QUIZ_SESSIONS_COLLECTION}/sess-1`)).toBeTruthy();
   });
 
   it('picks the most-recent joinable session and ignores ended ones', async () => {
@@ -265,16 +280,14 @@ describe('persistLtiLaunchContext — quiz', () => {
         data: { code: 'ABC123', status: 'ended', startedAt: 999 },
       },
     ];
-    const sessionId = await persistLtiLaunchContext(db(), QUIZ_ARGS);
-    expect(sessionId).toBe('new');
+    expect(await persistLtiLaunchContext(db(), QUIZ_ARGS)).toBe('new');
   });
 
   it('is a no-op when no joinable session matches', async () => {
     quizSessions = [
       { id: 'ended', data: { code: 'ABC123', status: 'ended', startedAt: 1 } },
     ];
-    const sessionId = await persistLtiLaunchContext(db(), QUIZ_ARGS);
-    expect(sessionId).toBeNull();
+    expect(await persistLtiLaunchContext(db(), QUIZ_ARGS)).toBeNull();
     expect(writes).toHaveLength(0);
   });
 
@@ -299,32 +312,30 @@ describe('persistLtiLaunchContext — video activity', () => {
     deploymentId: 'dep-1',
   };
 
-  it('files under the VA session id directly and denormalizes it', async () => {
+  it('files under the VA session id and denormalizes it (no archive mirror)', async () => {
     vaSessions.set('va-1', { teacherUid: 't1', status: 'active' });
-    const sessionId = await persistLtiLaunchContext(db(), VA_ARGS);
-    expect(sessionId).toBe('va-1');
+    expect(await persistLtiLaunchContext(db(), VA_ARGS)).toBe('va-1');
 
-    const ctx = ctxWrite();
-    expect(ctx?.path).toBe(
-      `${LTI_SESSION_MEMBERSHIPS_COLLECTION}/va-1/contexts/ctx-9`
-    );
-    const sess = writes.find((w) =>
-      w.path.startsWith(`${VIDEO_ACTIVITY_SESSIONS_COLLECTION}/`)
-    );
-    expect(sess?.path).toBe(`${VIDEO_ACTIVITY_SESSIONS_COLLECTION}/va-1`);
-    expect(sess?.data).toMatchObject({
+    expect(
+      writeAt(`${LTI_SESSION_MEMBERSHIPS_COLLECTION}/va-1/contexts/`)?.path
+    ).toBe(`${LTI_SESSION_MEMBERSHIPS_COLLECTION}/va-1/contexts/ctx-9`);
+    expect(
+      writeAt(`${VIDEO_ACTIVITY_SESSIONS_COLLECTION}/va-1`)?.data
+    ).toMatchObject({
       periodNames: ['Science 6'],
       classPeriodByClassId: { 'schoology:ctx-9': 'Science 6' },
       ltiAttachment: { resourceLinkId: 'rl-9', contextId: 'ctx-9' },
       ltiNrps: true,
     });
+    // VA's manager card labels by activity title — no quiz_assignments mirror.
+    expect(writeAt('users/')).toBeUndefined();
   });
 
   it('is a no-op when the VA session id is missing or unknown', async () => {
     expect(
       await persistLtiLaunchContext(db(), { ...VA_ARGS, sessionId: '' })
     ).toBeNull();
-    expect(await persistLtiLaunchContext(db(), VA_ARGS)).toBeNull(); // not in vaSessions
+    expect(await persistLtiLaunchContext(db(), VA_ARGS)).toBeNull();
     expect(writes).toHaveLength(0);
   });
 });

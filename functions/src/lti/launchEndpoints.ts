@@ -323,26 +323,39 @@ export const ltiExchange = onCall(
     // block the student from taking the assignment.
     const membershipUrl =
       (launch.nrps as NrpsEndpoint | null)?.contextMembershipsUrl ?? null;
-    if (launch.contextId) {
-      const kind = launch.custom?.['kind'] === 'va' ? 'va' : 'quiz';
-      const quizCode =
-        typeof launch.custom?.['quiz_code'] === 'string'
-          ? launch.custom['quiz_code']
-          : '';
-      const vaSessionId =
-        typeof launch.custom?.['session_id'] === 'string'
-          ? launch.custom['session_id']
-          : '';
+    const contextId = launch.contextId;
+    if (contextId) {
+      // Shared (kind-agnostic) launch context; the discriminated id field is
+      // supplied per-branch below so an illegal kind/id pairing can't be built.
+      const common = {
+        contextId,
+        contextTitle: launch.contextTitle,
+        resourceLinkId: launch.resourceLinkId,
+        membershipUrl,
+        deploymentId: launch.deploymentId,
+      };
       try {
-        await persistLtiLaunchContext(db, {
-          kind,
-          ...(kind === 'va' ? { sessionId: vaSessionId } : { quizCode }),
-          contextId: launch.contextId,
-          contextTitle: launch.contextTitle,
-          resourceLinkId: launch.resourceLinkId,
-          membershipUrl,
-          deploymentId: launch.deploymentId,
-        });
+        if (launch.custom?.['kind'] === 'va') {
+          const sessionId =
+            typeof launch.custom?.['session_id'] === 'string'
+              ? launch.custom['session_id']
+              : '';
+          await persistLtiLaunchContext(db, {
+            kind: 'va',
+            sessionId,
+            ...common,
+          });
+        } else {
+          const quizCode =
+            typeof launch.custom?.['quiz_code'] === 'string'
+              ? launch.custom['quiz_code']
+              : '';
+          await persistLtiLaunchContext(db, {
+            kind: 'quiz',
+            quizCode,
+            ...common,
+          });
+        }
       } catch (err) {
         console.warn(
           '[ltiExchange] LTI launch-context persist failed (non-fatal)',

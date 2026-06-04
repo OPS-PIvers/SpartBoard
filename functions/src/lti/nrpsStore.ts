@@ -23,6 +23,14 @@
 //                                   id is only known server-side, at launch).
 //       - ltiNrps                ← routing flag: the monitor calls the NRPS name
 //                                   resolver only for flagged sessions.
+//   • For a quiz, periodNames is ALSO mirrored onto the teacher's archive doc
+//     (`users/{teacherUid}/quiz_assignments/{sessionId}`) so the QuizManager
+//     card shows the section with ZERO extra client reads (the archive is
+//     already streamed) — matching how the Classroom path stores it there.
+//
+// All the writes above are committed in a SINGLE batch so the membership URL and
+// the `ltiNrps` flag can never desync (a half-write would leave names silently
+// unresolvable — the membership filed but the monitor never told to resolve it).
 //
 // Section TITLES are class/section names (e.g. "Math 7"), NOT student PII — the
 // Google Classroom path already stores the equivalent roster names. No student
@@ -43,6 +51,9 @@ type Db = admin.firestore.Firestore;
 
 export const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
 export const VIDEO_ACTIVITY_SESSIONS_COLLECTION = 'video_activity_sessions';
+/** `users/{teacherUid}/quiz_assignments/{assignmentId}` (assignmentId == sessionId). */
+export const USERS_COLLECTION = 'users';
+export const QUIZ_ASSIGNMENTS_SUBCOLLECTION = 'quiz_assignments';
 /** `lti_session_memberships/{sessionId}/contexts/{contextId}` */
 export const LTI_SESSION_MEMBERSHIPS_COLLECTION = 'lti_session_memberships';
 
@@ -53,13 +64,12 @@ export type LtiSessionKind = 'quiz' | 'va';
 // SAME session the student's responses land in.
 const JOINABLE_QUIZ_STATUSES = new Set(['waiting', 'active', 'paused']);
 
-export interface PersistLtiLaunchContextArgs {
-  /** Which runner the launch targets (selects the session collection). */
-  kind: LtiSessionKind;
-  /** The quiz join code embedded in the deep-link (`custom.quiz_code`) — kind='quiz'. */
-  quizCode?: string;
-  /** The video-activity session id (`custom.session_id`) — kind='va'. */
-  sessionId?: string;
+/**
+ * Fields common to both launch kinds, plus a discriminated `kind`→id pairing so
+ * an illegal combination (e.g. `kind: 'va'` with a `quizCode`) is unrepresentable
+ * at the type level — the function's runtime guards then stay as defense-in-depth.
+ */
+export type PersistLtiLaunchContextArgs = {
   /** The Schoology context (course) id from the launch. */
   contextId: string;
   /** The Schoology context (course/section) title from the launch, if released. */
@@ -74,7 +84,18 @@ export interface PersistLtiLaunchContextArgs {
   membershipUrl?: string | null;
   /** Launch deployment id, stored for diagnostics / future multi-deployment. */
   deploymentId: string;
-}
+} & (
+  | {
+      kind: 'quiz';
+      /** The quiz join code embedded in the deep-link (`custom.quiz_code`). */
+      quizCode: string;
+    }
+  | {
+      kind: 'va';
+      /** The video-activity session id (`custom.session_id`). */
+      sessionId: string;
+    }
+);
 
 /**
  * Resolve the target session for a Schoology launch and persist the PII-free
@@ -105,14 +126,14 @@ export async function persistLtiLaunchContext(
   let sessionId: string;
   let sessionData: admin.firestore.DocumentData;
   if (kind === 'va') {
-    const sid = (args.sessionId ?? '').trim();
+    const sid = args.sessionId.trim();
     if (!sid) return null;
     const snap = await db.collection(collectionName).doc(sid).get();
     if (!snap.exists) return null;
     sessionId = snap.id;
     sessionData = snap.data() ?? {};
   } else {
-    const normCode = normalizeQuizCode(args.quizCode ?? '');
+    const normCode = normalizeQuizCode(args.quizCode);
     if (!normCode) return null;
     const snap = await db
       .collection(collectionName)
@@ -136,6 +157,13 @@ export async function persistLtiLaunchContext(
     sessionData = sessionDoc.data() ?? {};
   }
 
+  // Everything below is committed atomically (one batch) so the membership URL
+  // and the `ltiNrps` flag can't desync into a silent "names never resolve"
+  // half-write. The batch stays empty (no commit) when nothing changed, so a
+  // repeat launch from a known context produces zero writes / no snapshot churn.
+  const batch = db.batch();
+  let hasWrites = false;
+
   // ── File the NRPS membership URL (only when NRPS is enabled) ─────────────────
   const membershipUrl = args.membershipUrl ?? null;
   if (membershipUrl) {
@@ -152,7 +180,8 @@ export async function persistLtiLaunchContext(
       ex?.contextMembershipsUrl !== membershipUrl ||
       ex?.contextTitle !== (args.contextTitle ?? null)
     ) {
-      await ctxRef.set(
+      batch.set(
+        ctxRef,
         {
           contextMembershipsUrl: membershipUrl,
           contextTitle: args.contextTitle ?? null,
@@ -161,11 +190,15 @@ export async function persistLtiLaunchContext(
         },
         { merge: true }
       );
+      hasWrites = true;
     }
   }
 
   // ── Denormalize the section + attachment onto the session (idempotent) ───────
   const update: Record<string, unknown> = {};
+  // The section union, computed once so the session and the archive doc stay in
+  // lockstep. Null when the title is absent or already present (no change).
+  let nextPeriodNames: string[] | null = null;
 
   if (args.contextTitle) {
     const currentPeriods = Array.isArray(sessionData.periodNames)
@@ -174,7 +207,8 @@ export async function persistLtiLaunchContext(
         )
       : [];
     if (!currentPeriods.includes(args.contextTitle)) {
-      update.periodNames = [...currentPeriods, args.contextTitle];
+      nextPeriodNames = [...currentPeriods, args.contextTitle];
+      update.periodNames = nextPeriodNames;
     }
 
     const classId = `schoology:${contextId}`;
@@ -206,10 +240,35 @@ export async function persistLtiLaunchContext(
   }
 
   if (Object.keys(update).length > 0) {
-    await db.collection(collectionName).doc(sessionId).set(update, {
+    batch.set(db.collection(collectionName).doc(sessionId), update, {
       merge: true,
     });
+    hasWrites = true;
   }
+
+  // ── Mirror the section onto the teacher's quiz archive doc (quiz only) ───────
+  // The QuizManager card reads the archive doc's `periodNames`; mirroring it here
+  // (only when the section set actually changed) lets the card show the Schoology
+  // section with NO extra client read. The doc id is the sessionId (1:1). VA's
+  // manager card labels by activity title, so it needs no equivalent write.
+  if (kind === 'quiz' && nextPeriodNames) {
+    const teacherUid =
+      typeof sessionData.teacherUid === 'string' ? sessionData.teacherUid : '';
+    if (teacherUid) {
+      batch.set(
+        db
+          .collection(USERS_COLLECTION)
+          .doc(teacherUid)
+          .collection(QUIZ_ASSIGNMENTS_SUBCOLLECTION)
+          .doc(sessionId),
+        { periodNames: nextPeriodNames },
+        { merge: true }
+      );
+      hasWrites = true;
+    }
+  }
+
+  if (hasWrites) await batch.commit();
 
   return sessionId;
 }
