@@ -25,6 +25,9 @@
             },
             {
               "text": "Keyboard shortcuts for a widget now work even when your cursor is in one of the widget's own buttons or fields."
+            },
+            {
+              "text": "Quiz grades: duplicate-recorded questions from sync glitches no longer double-count toward a student's published score."
             }
           ]
         }
