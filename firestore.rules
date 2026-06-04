@@ -713,13 +713,6 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Server-internal grade-push authorizations (LIVE-token model). Minted by the
-    // instructor-launch exchange CF and validated by the AGS push CF — both via the
-    // Admin SDK. Never client-visible, so deny all client access.
-    match /lti_grade_push_auth/{token} {
-      allow read, write: if false;
-    }
-
     // PII-free NRPS membership endpoints, keyed by quiz session → context. The
     // launch-exchange CF writes the context's `context_memberships_url` here and
     // the name-resolver CF reads it — BOTH via the Admin SDK, which bypasses

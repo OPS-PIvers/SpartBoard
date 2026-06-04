@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   XCircle,
   GraduationCap,
+  Send,
 } from 'lucide-react';
 import {
   PlcLinkage,
@@ -30,6 +31,7 @@ import {
   gradeVideoActivityAnswer,
   computeVideoActivityScorePct,
   canScoreVideoActivityResponse,
+  videoActivityMaxPoints,
 } from '@/utils/videoActivityGrading';
 import {
   runClassroomGradePush,
@@ -39,11 +41,21 @@ import {
   NOTHING_TO_PUSH_TOAST,
 } from '@/utils/runClassroomGradePush';
 import { requestClassroomTeacherToken } from '@/components/classroomAddon/gisOAuth';
+import {
+  bucketLtiPushResults,
+  formatLtiPushToast,
+  ltiPushErrorMessage,
+  type LtiPushGradesRequest,
+  type LtiPushGradesData,
+} from '@/utils/ltiGradePush';
 import { functions } from '@/config/firebase';
+import { httpsCallable } from 'firebase/functions';
 import {
   useAssignmentPseudonymsMulti,
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
+import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
+import { logError } from '@/utils/logError';
 
 interface ResultsProps {
   session: VideoActivitySession;
@@ -80,15 +92,33 @@ export const Results: React.FC<ResultsProps> = ({
       return session.classIds;
     return session.classId ? [session.classId] : [];
   }, [session.classIds, session.classId]);
-  const { byStudentUid } = useAssignmentPseudonymsMulti(
+  const { byStudentUid: classLinkNames } = useAssignmentPseudonymsMulti(
     session.id,
     sessionClassIds,
     orgId
   );
+  // Schoology LTI students aren't in any ClassLink roster — resolve their names
+  // on-read via NRPS and merge in (ClassLink wins on the rare uid collision).
+  // Gated on `ltiNrps` so non-LTI sessions never make the call. `kind: 'va'`
+  // namespaces the resolver/cache away from the quiz path. Mirrors QuizResults.
+  const ltiNames = useLtiSessionNames(
+    session.id,
+    session.ltiNrps === true,
+    'va'
+  );
+  const byStudentUid = useMemo(() => {
+    if (ltiNames.size === 0) return classLinkNames;
+    const merged = new Map(classLinkNames);
+    for (const [uid, name] of ltiNames) {
+      if (!merged.has(uid)) merged.set(uid, name);
+    }
+    return merged;
+  }, [classLinkNames, ltiNames]);
   const [exporting, setExporting] = useState(false);
   const [exportUrl, setExportUrl] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [pushingGrades, setPushingGrades] = useState(false);
+  const [pushingSchoology, setPushingSchoology] = useState(false);
   const [activeTab, setActiveTab] = useState<
     'overview' | 'questions' | 'students' | 'plc'
   >('overview');
@@ -322,6 +352,77 @@ export const Results: React.FC<ResultsProps> = ({
     });
   };
 
+  // Push the SpartBoard video-activity scores into the linked Schoology
+  // gradebook over LTI AGS. Only available when this assignment was launched
+  // from a Schoology resource link — the first student launch sets
+  // `session.ltiAttachment` (presence ⇒ Schoology assignment). The server
+  // derives the resource link + clamps; we scale the displayed 0–100 percentage
+  // onto the SAME point total the deep-link froze into the Schoology line item
+  // (the activity's summed question points), so the pushed score's denominator
+  // matches the gradebook column exactly — mirroring the quiz path (which posts
+  // against quizMaxPoints) and the Classroom VA push (which scales onto the
+  // frozen attachment points). Students map to their Schoology grade by
+  // `r.studentUid` (the `schoology-sub` pseudonym the AGS line item is keyed on).
+  const ltiAttachment = session?.ltiAttachment ?? null;
+  const handlePushSchoologyGrades = async () => {
+    if (!ltiAttachment) return;
+
+    // Eligible = completed responses with a resolvable pseudonym THAT CAN BE
+    // SCORED. Mirrors the Classroom VA push so we never claim "nothing to push"
+    // after building a payload (and never PATCH a phantom 0 into the gradebook).
+    const eligible = responses.filter(
+      (r) =>
+        r.completedAt !== null &&
+        !!r.studentUid &&
+        canScoreVideoActivityResponse(questions, r.answers)
+    );
+    if (eligible.length === 0) {
+      addToast('No completed responses to push yet.', 'info');
+      return;
+    }
+
+    // The gradebook denominator = the activity's summed question points (= the
+    // line item `scoreMaximum` the picker set at deep-link time). Shared with
+    // LtiDeepLinkPicker.addVideoActivity via videoActivityMaxPoints, so
+    // scoreGiven/scoreMaximum always match the Schoology column.
+    const maxPoints = videoActivityMaxPoints(questions);
+    const grades = eligible.map((r) => {
+      const pct = getStudentScore(r);
+      const safePct = Number.isFinite(pct) ? pct : 0;
+      const pointsEarned = Math.max(
+        0,
+        Math.min(maxPoints, Math.round((safePct / 100) * maxPoints))
+      );
+      return { pseudonymUid: r.studentUid, pointsEarned };
+    });
+
+    setPushingSchoology(true);
+    try {
+      const callable = httpsCallable<LtiPushGradesRequest, LtiPushGradesData>(
+        functions,
+        'ltiPushGradesForAssignmentV1'
+      );
+      const { data } = await callable({
+        sessionId: session.id,
+        kind: 'va',
+        maxPoints,
+        grades,
+      });
+      const bucket = bucketLtiPushResults(data);
+      addToast(
+        formatLtiPushToast(bucket),
+        bucket.failed > 0 ? 'error' : 'success'
+      );
+    } catch (err) {
+      logError('VideoActivityResults.pushSchoologyGrades', err, {
+        sessionId: session?.id,
+      });
+      addToast(ltiPushErrorMessage(err), 'error');
+    } finally {
+      setPushingSchoology(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full font-sans">
       {/* Header */}
@@ -392,6 +493,41 @@ export const Results: React.FC<ResultsProps> = ({
                 />
               )}
               Push Grades
+            </button>
+          )}
+
+          {/* Push grades to Schoology — only when this assignment was launched
+              from a Schoology resource link (server sets `ltiAttachment` on the
+              first student launch). */}
+          {ltiAttachment && (
+            <button
+              onClick={() => void handlePushSchoologyGrades()}
+              disabled={pushingSchoology || completed === 0}
+              className="flex items-center font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                fontSize: 'min(11px, 3cqmin)',
+              }}
+              title="Write grades to this assignment's Schoology gradebook (matches the score shown here)."
+            >
+              {pushingSchoology ? (
+                <Loader2
+                  className="animate-spin"
+                  style={{
+                    width: 'min(12px, 3cqmin)',
+                    height: 'min(12px, 3cqmin)',
+                  }}
+                />
+              ) : (
+                <Send
+                  style={{
+                    width: 'min(12px, 3cqmin)',
+                    height: 'min(12px, 3cqmin)',
+                  }}
+                />
+              )}
+              Push to Schoology
             </button>
           )}
 

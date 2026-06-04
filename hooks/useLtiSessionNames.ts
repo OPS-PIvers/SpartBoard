@@ -24,6 +24,15 @@ import { auth, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import type { StudentName } from '@/hooks/useAssignmentPseudonyms';
 
+/**
+ * Session kind for the name resolver. Defaults to `'quiz'` everywhere so
+ * existing quiz callers (QuizLiveMonitor, QuizResults) keep working with no
+ * change; Video Activity callers pass `'va'`. The callable's session lookup
+ * is kind-aware, and the module-level cache key includes the kind so a quiz
+ * session and a VA session that happen to share an id can't collide.
+ */
+type LtiSessionKind = 'quiz' | 'va';
+
 interface ResolveNamesResponse {
   names?: Record<string, { givenName?: string; familyName?: string }>;
 }
@@ -33,22 +42,29 @@ const EMPTY = new Map<string, StudentName>();
 let cacheOwnerUid: string | null = null;
 let cache = new Map<string, Promise<Map<string, StudentName>>>();
 
+/** Cache key — namespaced by kind so quiz/VA sessions never collide. */
+function cacheKey(sessionId: string, kind: LtiSessionKind): string {
+  return `${kind}:${sessionId}`;
+}
+
 function fetchSessionNames(
   sessionId: string,
-  teacherUid: string
+  teacherUid: string,
+  kind: LtiSessionKind
 ): Promise<Map<string, StudentName>> {
   if (cacheOwnerUid !== teacherUid) {
     cache = new Map();
     cacheOwnerUid = teacherUid;
   }
-  const cached = cache.get(sessionId);
+  const key = cacheKey(sessionId, kind);
+  const cached = cache.get(key);
   if (cached) return cached;
 
-  const callable = httpsCallable<{ sessionId: string }, ResolveNamesResponse>(
-    functions,
-    'ltiResolveNamesForAssignmentV1'
-  );
-  const promise = callable({ sessionId }).then((res) => {
+  const callable = httpsCallable<
+    { sessionId: string; kind: LtiSessionKind },
+    ResolveNamesResponse
+  >(functions, 'ltiResolveNamesForAssignmentV1');
+  const promise = callable({ sessionId, kind }).then((res) => {
     const entries = res.data?.names ?? {};
     const map = new Map<string, StudentName>();
     for (const [uid, n] of Object.entries(entries)) {
@@ -60,17 +76,18 @@ function fetchSessionNames(
     return map;
   });
 
-  cache.set(sessionId, promise);
+  cache.set(key, promise);
   // Evict on failure so a transient CF error doesn't poison the cache forever.
   promise.catch(() => {
-    if (cache.get(sessionId) === promise) cache.delete(sessionId);
+    if (cache.get(key) === promise) cache.delete(key);
   });
   return promise;
 }
 
 export function useLtiSessionNames(
   sessionId: string | null | undefined,
-  enabled: boolean
+  enabled: boolean,
+  kind: LtiSessionKind = 'quiz'
 ): Map<string, StudentName> {
   const [resolved, setResolved] = useState<{
     key: string;
@@ -82,18 +99,18 @@ export function useLtiSessionNames(
     const teacherUid = auth.currentUser?.uid ?? '';
     if (!teacherUid) return;
     let cancelled = false;
-    fetchSessionNames(sessionId, teacherUid)
+    fetchSessionNames(sessionId, teacherUid, kind)
       .then((map) => {
         if (!cancelled) setResolved({ key: sessionId, map });
       })
       .catch((err) => {
         if (!cancelled)
-          logError('useLtiSessionNames.fetch', err, { sessionId });
+          logError('useLtiSessionNames.fetch', err, { sessionId, kind });
       });
     return () => {
       cancelled = true;
     };
-  }, [sessionId, enabled]);
+  }, [sessionId, enabled, kind]);
 
   return resolved.key === sessionId && sessionId ? resolved.map : EMPTY;
 }

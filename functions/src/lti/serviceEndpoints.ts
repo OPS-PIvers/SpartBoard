@@ -30,9 +30,17 @@ import { fetchNrpsMembers } from './nrps';
 import { ltiStudentUid } from './identity';
 import {
   QUIZ_SESSIONS_COLLECTION,
+  VIDEO_ACTIVITY_SESSIONS_COLLECTION,
   LTI_SESSION_MEMBERSHIPS_COLLECTION,
+  type LtiSessionKind,
 } from './nrpsStore';
-import { validateGradePushAuth } from './stores';
+
+/** The Firestore session collection a launch `kind` targets. */
+function sessionCollectionForKind(kind: LtiSessionKind): string {
+  return kind === 'va'
+    ? VIDEO_ACTIVITY_SESSIONS_COLLECTION
+    : QUIZ_SESSIONS_COLLECTION;
+}
 
 const LTI_TOOL_PRIVATE_KEY = defineSecret('LTI_TOOL_PRIVATE_KEY');
 const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
@@ -123,37 +131,72 @@ interface GradeResult {
 export const ltiPushGradesForAssignmentV1 = onCall(
   {
     region: 'us-central1',
+    invoker: 'public',
     cors: ALLOWED_ORIGINS,
     secrets: [LTI_TOOL_PRIVATE_KEY],
   },
   async (request) => {
+    // SECURITY: gated on session OWNERSHIP — the teacher pushes from the
+    // dashboard Results view, signed in with their own SpartBoard account (same
+    // model as the NRPS name resolver). Mirrors getPseudonymsForAssignmentV1:
+    // require an email-bearing token, reject studentRole, then verify the caller
+    // teaches the session below. No launch-minted credential needed.
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Sign in required.');
+    }
+    if (!request.auth.token.email || request.auth.token.studentRole === true) {
+      throw new HttpsError('permission-denied', 'Teacher account required.');
+    }
+
     const data = (request.data ?? {}) as {
-      resourceLinkId?: unknown;
+      sessionId?: unknown;
+      kind?: unknown;
       maxPoints?: unknown;
       grades?: unknown;
-      pushAuth?: unknown;
     };
-    const resourceLinkId =
-      typeof data.resourceLinkId === 'string' ? data.resourceLinkId : '';
-    const pushAuth = typeof data.pushAuth === 'string' ? data.pushAuth : '';
+    const sessionId = typeof data.sessionId === 'string' ? data.sessionId : '';
+    const kind: LtiSessionKind = data.kind === 'va' ? 'va' : 'quiz';
     const maxPoints =
       typeof data.maxPoints === 'number' && data.maxPoints > 0
         ? data.maxPoints
         : 0;
-    if (!resourceLinkId || !maxPoints) {
+    if (!sessionId || !maxPoints) {
       throw new HttpsError(
         'invalid-argument',
-        'resourceLinkId and a positive maxPoints are required.'
+        'sessionId and a positive maxPoints are required.'
       );
     }
 
     const db = admin.firestore();
-    // Authorize via the short-lived grade-push token minted by the instructor
-    // launch (the LIVE-token model) — lets a Google-signed-in teacher push.
-    if (!(await validateGradePushAuth(db, pushAuth, resourceLinkId))) {
+
+    // SECURITY GATE: the caller must own the session. Same opaque error for
+    // "no session" and "not your session" so we don't reveal session existence.
+    const sessSnap = await db
+      .collection(sessionCollectionForKind(kind))
+      .doc(sessionId)
+      .get();
+    const sess = sessSnap.data();
+    const sessTeacherUid =
+      typeof sess?.teacherUid === 'string' ? sess.teacherUid : '';
+    if (!sessSnap.exists || sessTeacherUid !== request.auth.uid) {
       throw new HttpsError(
         'permission-denied',
-        'Invalid or expired grade-push authorization. Re-open the assignment from Schoology.'
+        'Not the teacher of this session.'
+      );
+    }
+
+    // The resource-link id is derived from the session's server-captured LTI
+    // attachment — never trusted from the client — so a teacher can only ever
+    // push to the line item their own Schoology launch created.
+    const resourceLinkId =
+      sess?.ltiAttachment && typeof sess.ltiAttachment === 'object'
+        ? ((sess.ltiAttachment as { resourceLinkId?: unknown })
+            .resourceLinkId ?? '')
+        : '';
+    if (typeof resourceLinkId !== 'string' || !resourceLinkId) {
+      throw new HttpsError(
+        'failed-precondition',
+        'This assignment is not linked to Schoology for grade push.'
       );
     }
 
@@ -166,12 +209,25 @@ export const ltiPushGradesForAssignmentV1 = onCall(
     }
 
     const cfg = await getLtiPlatformConfig(db);
-    const accessToken = await getAgsAccessToken({
-      clientId: cfg.clientId,
-      tokenUrl: cfg.tokenUrl,
-      privatePem: LTI_TOOL_PRIVATE_KEY.value(),
-      scopes: [AGS_SCOPE_SCORE],
-    });
+    let accessToken: string;
+    try {
+      accessToken = await getAgsAccessToken({
+        clientId: cfg.clientId,
+        tokenUrl: cfg.tokenUrl,
+        privatePem: LTI_TOOL_PRIVATE_KEY.value(),
+        scopes: [AGS_SCOPE_SCORE],
+      });
+    } catch (err) {
+      // The one network dependency most likely to fail org-wide (Schoology
+      // token endpoint down / key misconfig / scope denied). Log a greppable
+      // line and surface a clean error instead of leaking the raw mint failure
+      // — mirrors the NRPS resolver's token-mint handling.
+      console.error('[ltiPushGrades] AGS token mint failed:', err);
+      throw new HttpsError(
+        'internal',
+        'Could not authorize the Schoology gradebook service.'
+      );
+    }
     const timestamp = new Date().toISOString();
 
     // Resolve each student's OWN line item (per-section for linked/merged courses)
@@ -254,8 +310,12 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
     if (!request.auth.token.email || request.auth.token.studentRole === true) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
-    const data = (request.data ?? {}) as { sessionId?: unknown };
+    const data = (request.data ?? {}) as {
+      sessionId?: unknown;
+      kind?: unknown;
+    };
     const sessionId = typeof data.sessionId === 'string' ? data.sessionId : '';
+    const kind: LtiSessionKind = data.kind === 'va' ? 'va' : 'quiz';
     if (!sessionId) {
       throw new HttpsError('invalid-argument', 'sessionId is required.');
     }
@@ -265,7 +325,7 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
     // SECURITY GATE: the caller must own the session. Same opaque error for
     // "no session" and "not your session" so we don't reveal session existence.
     const sessSnap = await db
-      .collection(QUIZ_SESSIONS_COLLECTION)
+      .collection(sessionCollectionForKind(kind))
       .doc(sessionId)
       .get();
     const sessTeacherUid =

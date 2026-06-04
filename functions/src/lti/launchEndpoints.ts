@@ -21,13 +21,12 @@ import {
 import { verifyLaunchJwt, launchRedirectTarget } from './jwt';
 import type { NrpsEndpoint } from './jwt';
 import { ltiStudentUid } from './identity';
-import { persistNrpsMembershipForLaunch } from './nrpsStore';
+import { persistLtiLaunchContext } from './nrpsStore';
 import {
   putOidcState,
   consumeOidcState,
   mintLaunchCode,
   consumeLaunchCode,
-  mintGradePushAuth,
   newOpaqueId,
 } from './stores';
 import {
@@ -258,32 +257,12 @@ export const ltiExchange = onCall(
       custom: launch.custom ?? null,
     };
 
-    // Teacher launches don't get a studentRole token — the grader signs in with the
-    // teacher's own SpartBoard account to read their session. For an INSTRUCTOR
-    // resource-link launch we mint a short-lived grade-push authorization (the
-    // LIVE-token model) the grader passes to authorize an AGS push. Deep-linking
-    // launches use the picker instead, so they need no push-auth here.
+    // Teacher launches don't get a studentRole token. Grading happens from the
+    // SpartBoard dashboard Results view (gated on session ownership), so an
+    // instructor resource-link launch needs no server-issued push credential —
+    // it just returns the validated context for the diagnostic card.
     if (launch.role !== 'student') {
-      let pushAuth: string | undefined;
-      if (
-        launch.role === 'teacher' &&
-        launch.messageType !== MESSAGE_TYPE_DEEP_LINKING &&
-        launch.resourceLinkId
-      ) {
-        try {
-          pushAuth = await mintGradePushAuth(db, {
-            resourceLinkId: launch.resourceLinkId,
-            contextId: launch.contextId,
-          });
-        } catch (err) {
-          console.error('[ltiExchange] grade-push-auth mint failed', err);
-        }
-      }
-      return {
-        ...context,
-        studentRole: false,
-        ...(pushAuth ? { pushAuth } : {}),
-      };
+      return { ...context, studentRole: false };
     }
 
     // Learner launch: mint a studentRole custom token (mirrors classroomAddonLoginV1).
@@ -337,27 +316,49 @@ export const ltiExchange = onCall(
       }
     }
 
-    // Persist the PII-free NRPS membership endpoint so the teacher's monitor can
-    // resolve this (and every) Schoology student's name ON READ — no name is
-    // stored, only the context's membership URL keyed by the quiz session. Best
-    // effort: a failure here must never block the student from taking the quiz.
-    const membershipUrl = (launch.nrps as NrpsEndpoint | null)
-      ?.contextMembershipsUrl;
-    const quizCode =
-      typeof launch.custom?.['quiz_code'] === 'string'
-        ? launch.custom['quiz_code']
-        : '';
-    if (membershipUrl && quizCode && launch.contextId) {
+    // Persist the PII-free launch context onto the session the student is
+    // joining: the NRPS membership endpoint (on-read name resolution), the
+    // Schoology section title (class filter), and the resource link (grade
+    // push). No name/email is stored. Best effort: a failure here must never
+    // block the student from taking the assignment.
+    const membershipUrl =
+      (launch.nrps as NrpsEndpoint | null)?.contextMembershipsUrl ?? null;
+    const contextId = launch.contextId;
+    if (contextId) {
+      // Shared (kind-agnostic) launch context; the discriminated id field is
+      // supplied per-branch below so an illegal kind/id pairing can't be built.
+      const common = {
+        contextId,
+        contextTitle: launch.contextTitle,
+        resourceLinkId: launch.resourceLinkId,
+        membershipUrl,
+        deploymentId: launch.deploymentId,
+      };
       try {
-        await persistNrpsMembershipForLaunch(db, {
-          quizCode,
-          contextId: launch.contextId,
-          membershipUrl,
-          deploymentId: launch.deploymentId,
-        });
+        if (launch.custom?.['kind'] === 'va') {
+          const sessionId =
+            typeof launch.custom?.['session_id'] === 'string'
+              ? launch.custom['session_id']
+              : '';
+          await persistLtiLaunchContext(db, {
+            kind: 'va',
+            sessionId,
+            ...common,
+          });
+        } else {
+          const quizCode =
+            typeof launch.custom?.['quiz_code'] === 'string'
+              ? launch.custom['quiz_code']
+              : '';
+          await persistLtiLaunchContext(db, {
+            kind: 'quiz',
+            quizCode,
+            ...common,
+          });
+        }
       } catch (err) {
         console.warn(
-          '[ltiExchange] NRPS membership persist failed (non-fatal)',
+          '[ltiExchange] LTI launch-context persist failed (non-fatal)',
           err
         );
       }

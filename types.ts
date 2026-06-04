@@ -2842,6 +2842,15 @@ export interface QuizSession {
    * `QuizAssignment` doc.
    */
   classroomAttachment?: ClassroomAttachmentLink;
+  /**
+   * Set server-side (launch-exchange CF) when a Schoology LTI student launches
+   * this assignment. Carries the resource-link id needed to resolve each
+   * student's AGS line item, so the teacher can push grades to the Schoology
+   * gradebook from the dashboard Results view — the LTI analogue of
+   * `classroomAttachment`. No PII; just routing ids. The grade scale
+   * (`maxPoints`) is derived from the quiz at push time, not stored here.
+   */
+  ltiAttachment?: LtiAttachmentLink;
 }
 
 /**
@@ -2857,6 +2866,22 @@ export interface ClassroomAttachmentLink {
   /** = the quiz's total points; the grade scale pushed grades are capped to. */
   maxPoints: number;
   attachedAt?: number;
+}
+
+/**
+ * Linkage between a SpartBoard assignment and a Schoology LTI 1.3 resource
+ * link, captured server-side on the first student launch. Drives the "Push to
+ * Schoology" action in the Results view (the AGS analogue of
+ * `ClassroomAttachmentLink`). Persisted on the session doc (`QuizSession` /
+ * `VideoActivitySession`). The per-student AGS line item is resolved from
+ * `lti_grade_links/{pseudonymUid}/resources/{resourceLinkId}`, so only the
+ * `resourceLinkId` (+ originating context) needs to live here. No PII.
+ */
+export interface LtiAttachmentLink {
+  /** The Schoology resource-link id; keys each student's AGS line item. */
+  resourceLinkId: string;
+  /** The Schoology context (course) id the attachment was launched in. */
+  contextId?: string;
 }
 
 export interface QuizResponseAnswer {
@@ -3953,6 +3978,19 @@ export interface VideoActivitySession {
    * matching `VideoActivityAssignment.classroomAttachment` and the Quiz pattern.
    */
   classroomAttachment?: ClassroomAttachmentLink;
+  /**
+   * True once a Schoology LTI student has launched this session carrying an
+   * NRPS membership endpoint (set server-side). Signals the monitor/results to
+   * resolve Schoology student names on-read via `ltiResolveNamesForAssignmentV1`
+   * (`kind: 'va'`). Mirrors `QuizSession.ltiNrps`. No PII — a routing flag.
+   */
+  ltiNrps?: boolean;
+  /**
+   * Schoology LTI resource-link linkage, captured server-side on the first
+   * student launch. Drives the "Push to Schoology" action in the VA Results
+   * view. Mirrors `QuizSession.ltiAttachment`.
+   */
+  ltiAttachment?: LtiAttachmentLink;
 }
 
 /** Per-session sync linkage to `/synced_video_activities/{groupId}`. */

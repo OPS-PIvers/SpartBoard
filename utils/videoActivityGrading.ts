@@ -152,6 +152,25 @@ export function computeVideoActivityScorePct(
 }
 
 /**
+ * The gradebook denominator for a video activity: the sum of per-question points
+ * (each question defaults to 1 point), or 100 when the activity has no scorable
+ * points to sum. The VA mirror of `quizMaxPoints`.
+ *
+ * This single value is frozen into the Schoology line item's `scoreMaximum` when
+ * a VA is ATTACHED (the deep-link picker) and is also the denominator the later
+ * grade PUSH (VA Results) scales onto, so attach and push MUST compute it
+ * identically — otherwise a VA attached as N points could be pushed against a
+ * different denominator and post the wrong fraction. Sharing one helper makes
+ * that drift impossible (it previously lived as an inline `reduce(...) || 100`
+ * copied across the picker and the Results view).
+ */
+export function videoActivityMaxPoints(
+  questions: VideoActivityQuestion[]
+): number {
+  return questions.reduce((sum, q) => sum + (q.points ?? 1), 0) || 100;
+}
+
+/**
  * Whether a Video Activity response can be meaningfully scored against the
  * given question set — the VA mirror of `quizScoreboard.canScoreResponse`.
  *

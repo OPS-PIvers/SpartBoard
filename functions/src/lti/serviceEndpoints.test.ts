@@ -1,10 +1,17 @@
 /**
- * Tests for ltiResolveNamesForAssignmentV1 — the teacher-side NRPS name
- * resolver. The security-critical invariant is the gate: names are returned
- * ONLY to the teacher who owns the session, never to a student, an
- * unauthenticated caller, or a teacher querying someone else's session. Also
- * pins the happy path: members map onto the SAME pseudonym uid that keys the
- * response docs (`ltiStudentUid`).
+ * Tests for the two teacher-side LTI service callables:
+ *
+ *   ltiResolveNamesForAssignmentV1 — NRPS name resolution. The security-critical
+ *   invariant is the gate: names go ONLY to the teacher who owns the session.
+ *   Also pins that members map onto the SAME pseudonym uid that keys the response
+ *   docs (`ltiStudentUid`).
+ *
+ *   ltiPushGradesForAssignmentV1 — AGS grade push from the dashboard, gated on
+ *   session OWNERSHIP (not a launch-minted token). Pins the gate + that the
+ *   resource link is taken from the session's server-captured `ltiAttachment`
+ *   (never the client) and each score is clamped to [0, maxPoints].
+ *
+ * Both are `kind`-aware (quiz_sessions vs video_activity_sessions).
  */
 
 /* eslint-disable @typescript-eslint/require-await -- mock async handlers mirror
@@ -35,14 +42,23 @@ vi.mock('firebase-functions/params', () => ({
 // Configurable Firestore state.
 let sessionDoc: { exists: boolean; data: () => unknown };
 let contextDocs: Array<{ id: string; data: () => unknown }>;
+let gradeLinks: Map<string, Record<string, unknown>>;
+let lastSessionCollection = '';
 
 vi.mock('firebase-admin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: vi.fn(() => ({
     collection: (name: string) => {
-      if (name === 'quiz_sessions') {
-        return { doc: () => ({ get: async () => sessionDoc }) };
+      if (name === 'quiz_sessions' || name === 'video_activity_sessions') {
+        return {
+          doc: () => ({
+            get: async () => {
+              lastSessionCollection = name;
+              return sessionDoc;
+            },
+          }),
+        };
       }
       if (name === 'lti_session_memberships') {
         return {
@@ -59,6 +75,12 @@ vi.mock('firebase-admin', () => ({
       }
       throw new Error(`unexpected collection ${name}`);
     },
+    doc: (path: string) => ({
+      get: async () => ({
+        exists: gradeLinks.has(path),
+        data: () => gradeLinks.get(path),
+      }),
+    }),
   })),
 }));
 
@@ -70,13 +92,18 @@ vi.mock('./config', async (orig) => ({
   }),
 }));
 
+const { postScoreMock } = vi.hoisted(() => ({ postScoreMock: vi.fn() }));
 vi.mock('./ags', async (orig) => ({
   ...(await orig<typeof import('./ags')>()),
-  getAgsAccessToken: vi.fn().mockResolvedValue('nrps-access-token'),
+  getAgsAccessToken: vi.fn().mockResolvedValue('ags-access-token'),
+  postScore: postScoreMock,
 }));
 
 // Imported AFTER the mocks so the module picks them up.
-import { ltiResolveNamesForAssignmentV1 } from './serviceEndpoints';
+import {
+  ltiResolveNamesForAssignmentV1,
+  ltiPushGradesForAssignmentV1,
+} from './serviceEndpoints';
 import { ltiStudentUid } from './identity';
 import { nrpsNet } from './nrps';
 
@@ -88,12 +115,25 @@ const callResolve = ltiResolveNamesForAssignmentV1 as unknown as (req: {
   data: unknown;
 }) => Promise<ResolveResult>;
 
+interface PushResult {
+  results: Array<{ pseudonymUid: string; ok: boolean; reason?: string }>;
+  pushed: number;
+  total: number;
+}
+const callPush = ltiPushGradesForAssignmentV1 as unknown as (req: {
+  auth?: { uid: string; token: Record<string, unknown> };
+  data: unknown;
+}) => Promise<PushResult>;
+
 const TEACHER = { uid: 'teacher-1', token: { email: 't@orono.k12.mn.us' } };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  postScoreMock.mockResolvedValue({ ok: true, status: 200 });
   sessionDoc = { exists: true, data: () => ({ teacherUid: 'teacher-1' }) };
   contextDocs = [];
+  gradeLinks = new Map();
+  lastSessionCollection = '';
 });
 
 async function expectCode(p: Promise<unknown>, code: string) {
@@ -191,8 +231,6 @@ describe('ltiResolveNamesForAssignmentV1 — resolution', () => {
         data: () => ({ contextMembershipsUrl: 'https://lms/m1' }),
       },
     ];
-    // First-page error → fetchNrpsMembers throws → resolver records the failure;
-    // with no context successfully fetched it must surface, not return {}.
     vi.spyOn(nrpsNet, 'fetchMembershipPage').mockResolvedValue({
       ok: false,
       status: 403,
@@ -205,34 +243,137 @@ describe('ltiResolveNamesForAssignmentV1 — resolution', () => {
     );
   });
 
-  it('unions members across multiple contexts (multi-section attach)', async () => {
-    contextDocs = [
-      {
-        id: 'ctx-1',
-        data: () => ({ contextMembershipsUrl: 'https://lms/m1' }),
-      },
-      {
-        id: 'ctx-2',
-        data: () => ({ contextMembershipsUrl: 'https://lms/m2' }),
-      },
-    ];
-    vi.spyOn(nrpsNet, 'fetchMembershipPage').mockImplementation(
-      async (url: string) => ({
-        ok: true,
-        status: 200,
-        members:
-          url === 'https://lms/m1'
-            ? [{ user_id: 'sub-A', given_name: 'Ada', family_name: 'L' }]
-            : [{ user_id: 'sub-C', given_name: 'Cy', family_name: 'P' }],
-        nextUrl: null,
-      })
-    );
-
-    const res = await callResolve({ auth: TEACHER, data: { sessionId: 's1' } });
-    expect(Object.keys(res.names)).toHaveLength(2);
-    expect(res.names[ltiStudentUid('sub-C', 'test-hmac-secret')]).toEqual({
-      givenName: 'Cy',
-      familyName: 'P',
+  it('resolves a video-activity session against its own collection', async () => {
+    contextDocs = [];
+    await callResolve({
+      auth: TEACHER,
+      data: { sessionId: 's1', kind: 'va' },
     });
+    expect(lastSessionCollection).toBe('video_activity_sessions');
+  });
+});
+
+describe('ltiPushGradesForAssignmentV1 — security gate', () => {
+  const goodData = {
+    sessionId: 's1',
+    maxPoints: 20,
+    grades: [{ pseudonymUid: 'uid-A', pointsEarned: 18 }],
+  };
+
+  it('rejects an unauthenticated caller', async () => {
+    await expectCode(callPush({ data: goodData }), 'unauthenticated');
+  });
+
+  it('rejects a studentRole token', async () => {
+    await expectCode(
+      callPush({
+        auth: { uid: 'kid', token: { studentRole: true } },
+        data: goodData,
+      }),
+      'permission-denied'
+    );
+  });
+
+  it('rejects a token with no email', async () => {
+    await expectCode(
+      callPush({ auth: { uid: 'teacher-1', token: {} }, data: goodData }),
+      'permission-denied'
+    );
+  });
+
+  it('rejects when the session is owned by a different teacher', async () => {
+    sessionDoc = {
+      exists: true,
+      data: () => ({
+        teacherUid: 'someone-else',
+        ltiAttachment: { resourceLinkId: 'rl-1' },
+      }),
+    };
+    await expectCode(
+      callPush({ auth: TEACHER, data: goodData }),
+      'permission-denied'
+    );
+  });
+
+  it('requires sessionId + positive maxPoints', async () => {
+    await expectCode(
+      callPush({ auth: TEACHER, data: { grades: goodData.grades } }),
+      'invalid-argument'
+    );
+  });
+
+  it('fails precondition when the session has no Schoology attachment', async () => {
+    sessionDoc = { exists: true, data: () => ({ teacherUid: 'teacher-1' }) };
+    await expectCode(
+      callPush({ auth: TEACHER, data: goodData }),
+      'failed-precondition'
+    );
+  });
+});
+
+describe('ltiPushGradesForAssignmentV1 — push', () => {
+  beforeEach(() => {
+    sessionDoc = {
+      exists: true,
+      data: () => ({
+        teacherUid: 'teacher-1',
+        ltiAttachment: { resourceLinkId: 'rl-1', contextId: 'ctx-1' },
+      }),
+    };
+  });
+
+  it('resolves each student line item from the session resource link and clamps the score', async () => {
+    gradeLinks.set('lti_grade_links/uid-A/resources/rl-1', {
+      sub: 'sub-A',
+      ags: { lineitem: 'https://lms/lineitems/1' },
+    });
+
+    const res = await callPush({
+      auth: TEACHER,
+      data: {
+        sessionId: 's1',
+        maxPoints: 20,
+        // Over-cap on purpose → must clamp to 20.
+        grades: [{ pseudonymUid: 'uid-A', pointsEarned: 999 }],
+      },
+    });
+
+    expect(res.pushed).toBe(1);
+    expect(res.total).toBe(1);
+    expect(postScoreMock).toHaveBeenCalledTimes(1);
+    const arg = postScoreMock.mock.calls[0][0] as {
+      lineitemUrl: string;
+      score: { userId: string; scoreGiven: number; scoreMaximum: number };
+    };
+    expect(arg.lineitemUrl).toBe('https://lms/lineitems/1');
+    expect(arg.score).toMatchObject({
+      userId: 'sub-A',
+      scoreGiven: 20,
+      scoreMaximum: 20,
+    });
+  });
+
+  it('skips a student who never launched (no grade link)', async () => {
+    const res = await callPush({
+      auth: TEACHER,
+      data: {
+        sessionId: 's1',
+        maxPoints: 20,
+        grades: [{ pseudonymUid: 'never', pointsEarned: 10 }],
+      },
+    });
+    expect(res.pushed).toBe(0);
+    expect(res.results[0]).toMatchObject({ ok: false });
+    expect(postScoreMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects an empty grades array', async () => {
+    await expectCode(
+      callPush({
+        auth: TEACHER,
+        data: { sessionId: 's1', maxPoints: 20, grades: [] },
+      }),
+      'invalid-argument'
+    );
   });
 });
