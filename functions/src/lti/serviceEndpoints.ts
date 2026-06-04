@@ -327,18 +327,6 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
       try {
         const members = await fetchNrpsMembers(url, accessToken);
         contextsFetched += 1;
-        // TEMP DIAGNOSTIC — raw NRPS user_id → computed pseudonym uid (ids only,
-        // never names) to confirm whether Schoology's membership user_id matches
-        // the launch `sub` that keys the response docs. Remove once mapping fixed.
-        console.log(
-          '[ltiResolveNames] member-ids',
-          JSON.stringify(
-            members.map((m) => ({
-              userId: m.userId,
-              uid: ltiStudentUid(m.userId, hmacSecret),
-            }))
-          )
-        );
         for (const m of members) {
           const uid = ltiStudentUid(m.userId, hmacSecret);
           names[uid] = {
