@@ -1,6 +1,58 @@
 {
   "entries": [
     {
+      "version": "2026.06.04",
+      "date": "2026-06-04",
+      "title": "Building appearance defaults and widget fixes",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Admin building defaults",
+          "items": [
+            {
+              "text": "Set per-building appearance defaults for the Checklist and Concept Web widgets — a default font, card color, and transparency — so new widgets start with your school's look."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "text": "Breathing: pausing and resuming a breathing exercise now continues from the same point in the breath instead of restarting."
+            },
+            {
+              "text": "Lunch Count: the widget's menu labels and sync messages now appear in German, Spanish, and French."
+            },
+            {
+              "text": "Keyboard shortcuts for a widget now work even when your cursor is in one of the widget's own buttons or fields."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Checklist and Concept Web widgets now support per-building appearance defaults. From Admin Settings you can set a default font, card color, and card transparency for each building (the Checklist also takes a default text color), so new Checklist and Concept Web widgets created in that building start with your school's preferred look — the same per-building defaults already available for the Clock and Number Line widgets."
+        },
+        {
+          "type": "fix",
+          "text": "Breathing widget — pausing a breathing exercise and starting it again now picks up exactly where you left off in the current breath, instead of jumping back to the beginning of the inhale. Pausing to talk to the class and then resuming no longer restarts the breath from the top."
+        },
+        {
+          "type": "fix",
+          "text": "Lunch Count widget — the menu labels and sync messages (the hot-lunch and bento-box labels, the \"menu synced\" confirmation, and the \"couldn't sync\" notice) now appear in German, Spanish, and French instead of showing English text."
+        },
+        {
+          "type": "fix",
+          "text": "Widget keyboard shortcuts now act on the right widget even when your cursor is inside one of the widget's own controls. Previously, if focus was on a button or text field inside a widget, a keyboard shortcut for that widget could quietly do nothing; the shortcut now reliably finds the widget you're working in."
+        },
+        {
+          "type": "fix",
+          "text": "Quiz grades — when you publish an assignment's results, a question that a rare sync glitch recorded twice for the same student no longer counts toward the score twice. The published total and the grade sent to your gradebook now reflect each question once, capped at the assignment's real maximum."
+        }
+      ]
+    },
+    {
       "version": "2026.06.03",
       "date": "2026-06-03",
       "title": "Google Classroom linking, scoring, and widget fixes",
