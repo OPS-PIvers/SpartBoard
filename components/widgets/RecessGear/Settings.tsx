@@ -3,6 +3,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, RecessGearConfig, WeatherConfig } from '@/types';
 import { Info } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 
 export const RecessGearSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -51,9 +52,7 @@ export const RecessGearSettings: React.FC<{ widget: WidgetData }> = ({
         </div>
 
         <div className="space-y-2">
-          <label className="text-xxs font-black text-slate-400 uppercase tracking-widest block px-1">
-            Source Weather Widget
-          </label>
+          <SettingsLabel className="px-1">Source Weather Widget</SettingsLabel>
           <select
             value={config.linkedWeatherWidgetId ?? ''}
             onChange={(e) =>
