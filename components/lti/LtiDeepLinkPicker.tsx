@@ -828,7 +828,7 @@ const LtiDeepLinkFlow: React.FC = () => {
                   id={teacherNameId}
                   type="text"
                   value={teacherName}
-                  onChange={(e) => setTeacherName(e.target.value)}
+                  onChange={(e) => setTeacherName(e.target?.value ?? '')}
                   placeholder={defaultTeacherName || 'Teacher name'}
                   disabled={busy}
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 transition placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
@@ -845,7 +845,7 @@ const LtiDeepLinkFlow: React.FC = () => {
                       type="checkbox"
                       checked={plcShareEnabled}
                       onChange={(e) => {
-                        const on = e.target.checked;
+                        const on = e.target?.checked ?? false;
                         setPlcShareEnabled(on);
                         // Preselect the sole PLC so a one-PLC teacher doesn't
                         // have to also pick from a single-item list.
