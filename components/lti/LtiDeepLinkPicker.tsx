@@ -113,6 +113,9 @@ type SignDeepLinkResponseParams = {
   dlData?: string;
   title: string;
   maxPoints?: number;
+  /** Optional due date (epoch ms). Server emits it as `submission.endDateTime`
+   *  so Schoology sets the created assignment's due date. */
+  dueAt?: number;
 } & ({ kind: 'quiz'; quizCode: string } | { kind: 'va'; sessionId: string });
 
 interface SignDeepLinkResponseResult {
@@ -236,8 +239,18 @@ const LtiDeepLinkFlow: React.FC = () => {
   const createdRef = useRef<
     Map<
       string,
-      | { kind: 'quiz'; quizCode: string; maxPoints: number }
-      | { kind: 'va'; sessionId: string; maxPoints: number }
+      | {
+          kind: 'quiz';
+          quizCode: string;
+          maxPoints: number;
+          dueAt: number | null;
+        }
+      | {
+          kind: 'va';
+          sessionId: string;
+          maxPoints: number;
+          dueAt: number | null;
+        }
     >
   >(new Map());
 
@@ -273,6 +286,19 @@ const LtiDeepLinkFlow: React.FC = () => {
   const [teacherName, setTeacherName] = useState('');
   const [plcShareEnabled, setPlcShareEnabled] = useState(false);
   const [selectedPlcId, setSelectedPlcId] = useState('');
+  // Optional due date (epoch ms; null = none). Mirrors the normal assign modal's
+  // `<input type="date">` convention: the value is UTC midnight of the picked
+  // date. Set on BOTH the SpartBoard assignment AND the Schoology line item
+  // (`submission.endDateTime`) so the teacher enters it once.
+  const dueDateId = useId();
+  const [dueAt, setDueAt] = useState<number | null>(null);
+  const dueDateInputValue = dueAt
+    ? new Date(dueAt).toISOString().slice(0, 10)
+    : '';
+  const handleDueDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target?.value ?? '';
+    setDueAt(val ? new Date(val).getTime() : null);
+  };
 
   const selectedQuiz = useMemo(
     () => quizzes.find((q) => q.id === selectedQuizId),
@@ -412,8 +438,18 @@ const LtiDeepLinkFlow: React.FC = () => {
   const signAndReturn = useCallback(
     async (
       created:
-        | { kind: 'quiz'; quizCode: string; maxPoints: number }
-        | { kind: 'va'; sessionId: string; maxPoints: number },
+        | {
+            kind: 'quiz';
+            quizCode: string;
+            maxPoints: number;
+            dueAt: number | null;
+          }
+        | {
+            kind: 'va';
+            sessionId: string;
+            maxPoints: number;
+            dueAt: number | null;
+          },
       title: string,
       returnUrl: string
     ): Promise<void> => {
@@ -428,6 +464,9 @@ const LtiDeepLinkFlow: React.FC = () => {
           : {}),
         title,
         maxPoints: created.maxPoints,
+        // Forward the due date captured at create time (kept on `created` so a
+        // retry signs the SAME due date that was persisted on the assignment).
+        ...(created.dueAt ? { dueAt: created.dueAt } : {}),
       };
       const params: SignDeepLinkResponseParams =
         created.kind === 'quiz'
@@ -507,6 +546,10 @@ const LtiDeepLinkFlow: React.FC = () => {
               : {}),
             ...(plcLinkage ? { plc: plcLinkage } : {}),
             ...(periodNames ? { periodNames } : {}),
+            // Persist the due date on the SpartBoard assignment too (quiz keeps
+            // it directly on settings), so the teacher's single entry drives
+            // both SpartBoard and the Schoology line item.
+            ...(dueAt ? { dueAt } : {}),
           },
           {
             classIds: [`schoology:${contextId}`],
@@ -514,7 +557,7 @@ const LtiDeepLinkFlow: React.FC = () => {
             ...(classPeriodByClassId ? { classPeriodByClassId } : {}),
           }
         );
-        created = { kind: 'quiz', quizCode, maxPoints };
+        created = { kind: 'quiz', quizCode, maxPoints, dueAt };
         createdRef.current.set(cacheKey, created);
       }
 
@@ -528,6 +571,7 @@ const LtiDeepLinkFlow: React.FC = () => {
       contextTitle,
       teacherName,
       defaultTeacherName,
+      dueAt,
       resolvePlcLinkage,
       signAndReturn,
     ]
@@ -560,6 +604,9 @@ const LtiDeepLinkFlow: React.FC = () => {
         const sessionOptions: VideoActivitySessionOptions = {
           ...behavior.sessionOptions,
           attemptLimit: behavior.attemptLimit,
+          // VA carries its due date on sessionOptions (no top-level settings
+          // field). Persist it so SpartBoard + the Schoology line item match.
+          ...(dueAt ? { dueAt } : {}),
         };
 
         const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
@@ -597,7 +644,7 @@ const LtiDeepLinkFlow: React.FC = () => {
           [`schoology:${contextId}`],
           periodNames
         );
-        created = { kind: 'va', sessionId, maxPoints };
+        created = { kind: 'va', sessionId, maxPoints, dueAt };
         createdRef.current.set(cacheKey, created);
       }
 
@@ -611,6 +658,7 @@ const LtiDeepLinkFlow: React.FC = () => {
       contextTitle,
       teacherName,
       defaultTeacherName,
+      dueAt,
       resolvePlcLinkage,
       signAndReturn,
     ]
@@ -832,6 +880,29 @@ const LtiDeepLinkFlow: React.FC = () => {
                   placeholder={defaultTeacherName || 'Teacher name'}
                   disabled={busy}
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 transition placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </div>
+
+              {/* Due date — set once here, applied to BOTH the SpartBoard
+                  assignment and the Schoology gradebook item (submission end
+                  date). Optional; date-only, matching the normal assign flow. */}
+              <div>
+                <label
+                  htmlFor={dueDateId}
+                  className="mb-1.5 block text-sm font-medium text-slate-700"
+                >
+                  Due date{' '}
+                  <span className="font-normal text-slate-500">
+                    (optional — also set in Schoology)
+                  </span>
+                </label>
+                <input
+                  id={dueDateId}
+                  type="date"
+                  value={dueDateInputValue}
+                  onChange={handleDueDateChange}
+                  disabled={busy}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </div>
 

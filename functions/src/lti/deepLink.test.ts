@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildQuizContentItem,
   buildDeepLinkResponseClaims,
+  dueAtToSubmissionEndDateTime,
   isSchoologyReturnUrl,
   MESSAGE_TYPE_DL_RESPONSE,
 } from './deepLink';
@@ -36,6 +37,57 @@ describe('buildQuizContentItem', () => {
         maxPoints: 0,
       }).lineItem
     ).toBeUndefined();
+  });
+
+  it('sets submission.endDateTime (the due date) when dueAtMs is given', () => {
+    const item = buildQuizContentItem({
+      launchUrl: 'u',
+      title: 't',
+      custom: {},
+      maxPoints: 10,
+      dueAtMs: Date.UTC(2026, 5, 1), // 2026-06-01 (UTC midnight)
+    });
+    expect(item.submission).toEqual({
+      endDateTime: '2026-06-01T23:59:59.000Z',
+    });
+  });
+
+  it('omits submission when dueAtMs is absent or invalid', () => {
+    expect(
+      buildQuizContentItem({ launchUrl: 'u', title: 't', custom: {} })
+        .submission
+    ).toBeUndefined();
+    expect(
+      buildQuizContentItem({
+        launchUrl: 'u',
+        title: 't',
+        custom: {},
+        dueAtMs: 0,
+      }).submission
+    ).toBeUndefined();
+  });
+});
+
+describe('dueAtToSubmissionEndDateTime', () => {
+  it('maps an epoch-ms due date to end-of-day UTC for the picked calendar day', () => {
+    // SpartBoard stores dueAt as UTC midnight of the picked date; we emit the
+    // END of that UTC day so a "June 1" due date renders as June 1 (not the
+    // prior evening) in US timezones.
+    expect(dueAtToSubmissionEndDateTime(Date.UTC(2026, 5, 1))).toBe(
+      '2026-06-01T23:59:59.000Z'
+    );
+    // A mid-day instant still resolves to that same calendar day's end.
+    expect(dueAtToSubmissionEndDateTime(Date.UTC(2026, 11, 25, 14, 30))).toBe(
+      '2026-12-25T23:59:59.000Z'
+    );
+  });
+
+  it('returns null for absent or invalid input', () => {
+    expect(dueAtToSubmissionEndDateTime(undefined)).toBeNull();
+    expect(dueAtToSubmissionEndDateTime(0)).toBeNull();
+    expect(dueAtToSubmissionEndDateTime(-1)).toBeNull();
+    expect(dueAtToSubmissionEndDateTime(Number.NaN)).toBeNull();
+    expect(dueAtToSubmissionEndDateTime(Number.POSITIVE_INFINITY)).toBeNull();
   });
 });
 
