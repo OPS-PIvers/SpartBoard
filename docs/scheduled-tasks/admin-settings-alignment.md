@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
 _Last audited: 2026-05-31_
-_Last action: 2026-05-28_
+_Last action: 2026-06-04_
 
 ---
 
@@ -16,6 +16,8 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-06-04 action notes: Selected the MEDIUM appearance-settings group (highest-severity Open item across all journals read today; widget-registry/css-scaling/typescript-eslint dailies had no item ≥ this severity). Resolved the two tractable widgets in the group — `concept-web` and `checklist` (option a). `smartNotebook` (BLOCKED, file-recency) and `stations` (needs new infrastructure) remain. Branch base brought up to date with `origin/dev-paul` via merge (rebase was intractable — 44 journal-file conflicts), consistent with how this branch was previously synced. See the group MEDIUM item and the new Completed entry for detail._
+
 _2026-05-31 audit notes: Reviewed all changes since 2026-05-24. (1) Scoreboard gained `layout?: 'cards' | 'rows'` in `ScoreboardConfig` (commit 4f5d2bb6) — added as a user-configurable toggle in Settings.tsx. `BuildingScoreboardDefaults` does not include `layout`; `ScoreboardConfigurationPanel.tsx` exposes only team defaults; `case 'scoreboard':` in `adminBuildingConfig.ts` passes through only `teams`. New LOW gap added. (2) Classroom-addon commits (VA grade push, grade passback, assignment settings, PLC parity) added `ClassroomAddonContext`, `ClassroomCourseWork`, and session types to types.ts — none are widget-config fields; no building defaults impact. (3) Notebook fix (#1759) and Spotify fix (#1758) are logic-only; no config changes. (4) NumberLine ConfigurationPanel fix already captured in Completed. No new HIGH or MEDIUM items._
 
 _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget gained `source` (curated/personal/curated-spotify), `layout`, and `personalSpotify*` fields in MusicConfig — these are user-level preferences; personal-spotify access is gated via `canAccessFeature('personal-spotify')` (GlobalFeaturePermission + `buildings?:string[]`), not through building defaults. No building-defaults admin config needed for music. (2) QuizBehaviorSettings added new behavior fields to QuizConfig and VideoActivityConfig — quiz behavior is set per-quiz in the quiz editor, not per-building. No building defaults needed. (3) `refactor(admin)` commit (31e46ad3) removed magic/record/remote panels — already captured in Completed item. (4) SmartNotebook continues to accumulate features but its existing open item (appearance fields gap) covers the new work. No new MEDIUM or HIGH items. One new LOW item added (guided-learning stub panel)._
@@ -26,12 +28,13 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 - **File:** types.ts, context/DashboardContext.tsx (getAdminBuildingConfig)
 - **Detail:** Multiple widgets expose appearance controls in their user-facing Settings.tsx (via `SurfaceColorSettings` and `TypographySettings`) and have the corresponding fields in their `types.ts` config interface, but these fields are not handled in `getAdminBuildingConfig()` and are not controllable from any admin ConfigurationPanel. Admins cannot set per-building appearance defaults for these widgets. Affected widgets:
   - `smartNotebook` — `cardColor`, `cardOpacity`, `fontFamily`, `fontColor` fields in `SmartNotebookConfig`; `getAdminBuildingConfig` handles only `storageLimitMb`
-  - `concept-web` — `cardColor`, `cardOpacity`, `fontColor` fields in `ConceptWebConfig`; `getAdminBuildingConfig` handles only `defaultNodeWidth`, `defaultNodeHeight`, `fontFamily`
+  - ~~`concept-web`~~ — RESOLVED 2026-06-04 (see Completed below)
   - ~~`numberLine`~~ — RESOLVED 2026-05-28 (see Completed below)
-  - `checklist` — `cardColor`, `cardOpacity`, `fontFamily`, `fontColor` fields in `ChecklistConfig`; `getAdminBuildingConfig` handles only `items`, `scaleMultiplier`
+  - ~~`checklist`~~ — RESOLVED 2026-06-04 (see Completed below)
   - `stations` — `fontFamily`, `fontColor`, `cardColor`, `cardOpacity` fields in `StationsConfig` (added 2026-05-03); exposed via `TypographySettings` + `SurfaceColorSettings` in `components/widgets/Stations/Settings.tsx`; no `StationsConfigurationPanel` exists and `stations` is not registered in `BUILDING_CONFIG_PANELS` or `getAdminBuildingConfig()`
 - **Fix:** For each widget, either (a) add the appearance fields to the widget's `Building*Defaults` interface in `types.ts` and add them to the `getAdminBuildingConfig()` case, plus expose them in the `*ConfigurationPanel.tsx`; or (b) add a note in the config interface comment that appearance fields are intentionally user-only and not admin-configurable per building.
 - **2026-05-28 progress:** Resolved `numberLine` (option a) — moved to Completed. SmartNotebook deferred: SmartNotebook/\* files modified in the last 5 commits (`fix(pr-1718)` 8fcf9267 + `fix(smart-notebook)` 5ff93db2), so per the file-recency rule the smartNotebook subset is BLOCKED for this session. Other 3 widgets (concept-web, checklist, stations) remain Open — stations also needs new infrastructure (no `BuildingStationsDefaults` interface, no `StationsConfigurationPanel`, not registered in `BUILDING_CONFIG_PANELS`).
+- **2026-06-04 progress:** Resolved `concept-web` and `checklist` (option a) — moved to Completed. **Remaining: `smartNotebook` and `stations`.** `stations` still needs new infrastructure (no `BuildingStationsDefaults` interface, no `StationsConfigurationPanel`, not registered in `BUILDING_CONFIG_PANELS`); `smartNotebook` should be re-checked for file-recency before action. Note carved out during the concept-web work: `ConceptWebConfig.fontColor` exists (written by the shared `TypographySettings` panel) but ConceptWeb's widget renders node text with a hardcoded `text-slate-800` and never reads `config.fontColor` — so concept-web's `fontColor` is a dead field even at the user level. It was therefore **not** wired into the admin building default (doing so would create a dead admin control); this is documented inline in both `types.ts` and `utils/adminBuildingConfig.ts`. A separate user-level question — whether ConceptWeb's node text should consume `fontColor` or whether the field should be removed from the Settings panel — is out of scope for this admin-config task and is not currently tracked elsewhere.
 
 ### LOW Checklist: `rosterMode` user-configurable but not in admin building config
 
@@ -71,6 +74,18 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 ---
 
 ## Completed
+
+### MEDIUM ConceptWeb & Checklist appearance fields absent from admin building defaults
+
+- **Detected:** 2026-04-16 (carved out from group MEDIUM 2026-06-04)
+- **Completed:** 2026-06-04
+- **File:** types.ts (`BuildingConceptWebDefaults`, `BuildingChecklistDefaults`), utils/adminBuildingConfig.ts (`case 'concept-web'`, `case 'checklist'`), components/admin/ConceptWebConfigurationPanel.tsx, components/admin/ChecklistConfigurationPanel.tsx, components/admin/HexColorField.tsx (new shared control), tests/utils/adminBuildingConfig.test.ts
+- **Detail:** `ConceptWebConfig` exposed `cardColor`/`cardOpacity` (consumed by `ConceptWeb/Widget.tsx:60-61,385` via `hexToRgba`) and `ChecklistConfig` exposed `fontFamily`/`fontColor`/`cardColor`/`cardOpacity` (consumed by `Checklist/components/ChecklistCard.tsx:42-43,81` + `Widget.tsx` `font-${fontFamily}`), but the `Building*Defaults` interfaces and `getAdminBuildingConfig()` cases passed through only node-dimension/font-family (concept-web) and items/scaleMultiplier (checklist). Admins could not set per-building appearance defaults for these two widgets.
+- **Resolution:** Chose fix option (a).
+  - **concept-web:** Added `cardColor` + `cardOpacity` to `BuildingConceptWebDefaults`; extended the `case 'concept-web'` validator (`isHexColor` for `cardColor`, `0..1` finite check for `cardOpacity`) and tightened the existing `fontFamily` check to the shared `isGlobalFontFamily()` allowlist; added an "Appearance Defaults" section (surface colour + opacity) to `ConceptWebConfigurationPanel.tsx`. **`fontColor` deliberately NOT wired** — ConceptWeb's node text is hardcoded `text-slate-800` and never reads `config.fontColor`, so a per-building default would be a dead control (documented inline in `types.ts` + `adminBuildingConfig.ts`).
+  - **checklist:** Added `fontFamily` + `fontColor` + `cardColor` + `cardOpacity` to `BuildingChecklistDefaults`; extended the `case 'checklist'` validator with the same allowlist/hex/opacity checks; added an "Appearance Defaults" section (font family + text colour + surface colour + opacity) to `ChecklistConfigurationPanel.tsx` in the panel's existing `text-xxs` visual style.
+  - **Shared infra:** Hoisted a module-level `VALID_FONT_FAMILIES` constant + `isGlobalFontFamily()` guard in `adminBuildingConfig.ts` (the `numberLine` case was refactored to use it, eliminating a duplicate inline array). Extracted a reusable `HexColorField` admin control (native colour swatch + debounced on-blur hex text input + Clear button — cost-conscious for Firestore) used by both new panels; `NumberLineConfigurationPanel` keeps its equivalent local copy and could adopt `HexColorField` later.
+- **Verification:** `pnpm run type-check` clean; `pnpm exec eslint` (the 5 changed source/test files) `--max-warnings 0` clean; `pnpm exec prettier --check` clean. `pnpm exec vitest run tests/utils/adminBuildingConfig.test.ts` — 25 tests pass (added `describe('concept-web')` with 3 cases incl. a "does not wire fontColor" guard, and `describe('checklist')` with 2 cases incl. UUID-refresh assertion on items).
 
 ### MEDIUM NumberLine appearance fields (cardColor, cardOpacity, fontFamily, fontColor) absent from admin building defaults
 
