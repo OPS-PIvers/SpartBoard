@@ -324,16 +324,33 @@ describe('getAdminBuildingConfig', () => {
       ]);
     });
 
-    it('rejects invalid appearance values and unknown font families', () => {
+    it('rejects invalid appearance values, unknown font families, and malformed scale', () => {
       const perm = makePerm('checklist', {
         high: {
           fontFamily: 'wingdings',
           cardColor: 'white',
           cardOpacity: -0.5,
           fontColor: '#12', // too short to be a valid hex
+          scaleMultiplier: 'large', // invalid type
         },
       });
       expect(getAdminBuildingConfig('checklist', [perm], ['high'])).toEqual({});
+    });
+
+    it('clamps scaleMultiplier to the panel slider range [0.5, 2.5]', () => {
+      const permHigh = makePerm('checklist', {
+        high: { scaleMultiplier: 5 },
+      });
+      expect(getAdminBuildingConfig('checklist', [permHigh], ['high'])).toEqual(
+        { scaleMultiplier: 2.5 }
+      );
+
+      const permLow = makePerm('checklist', {
+        high: { scaleMultiplier: 0.1 },
+      });
+      expect(getAdminBuildingConfig('checklist', [permLow], ['high'])).toEqual({
+        scaleMultiplier: 0.5,
+      });
     });
   });
 

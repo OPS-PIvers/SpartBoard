@@ -231,8 +231,13 @@ export const getAdminBuildingConfig = (
           })
         );
       }
-      if (raw.scaleMultiplier !== undefined)
-        out.scaleMultiplier = raw.scaleMultiplier;
+      if (
+        typeof raw.scaleMultiplier === 'number' &&
+        Number.isFinite(raw.scaleMultiplier)
+      )
+        // Clamp to the panel slider's range so a malformed/out-of-range value
+        // can't break the widget layout; in-range legacy values pass through.
+        out.scaleMultiplier = Math.max(0.5, Math.min(2.5, raw.scaleMultiplier));
       if (isGlobalFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
       if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
       if (
