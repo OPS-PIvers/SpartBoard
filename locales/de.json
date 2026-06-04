@@ -616,6 +616,13 @@
     "fr": "Français"
   },
   "widgets": {
+    "lunchCount": {
+      "syncSuccess": "Menü von Nutrislice synchronisiert",
+      "syncError": "Menü konnte nicht synchronisiert werden",
+      "noHotLunch": "Kein Mittagessen aufgelistet",
+      "noBentoBox": "Keine Bento-Box aufgelistet",
+      "hotLunch": "Mittagessen"
+    },
     "quiz": {
       "leaderboard": {
         "title": "Live-Bestenliste",
