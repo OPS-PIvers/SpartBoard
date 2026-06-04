@@ -4,6 +4,37 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-04
+
+- PRs reviewed: 13 (all open PRs; all heads are non-`main`/non-`dev-*`, so all in scope)
+  - #1859 — feat(admin): per-building appearance defaults for ConceptWeb & Checklist (head `claude/compassionate-noether-9xpQW`, base `dev-paul`)
+  - #1858 — docs(nightly): run 9 debugger memory doc (head `nightly/debugger-log-2026-06-04`, base `dev-paul`)
+  - #1857 — fix(functions): track video-activity-recommend AI usage per-feature (head `nightly/build-tooling-2026-06-04`, base `dev-paul`)
+  - #1856 — fix(i18n): add missing widgets.lunchCount namespace to DE/ES/FR (head `nightly/admin-config-2026-06-04`, base `dev-paul`)
+  - #1855 — fix(state): dedup answered-question ids in quiz grading accumulator (head `nightly/state-data-2026-06-04`, base `dev-paul`)
+  - #1854 — fix(layout): resolve widgetId from .widget ancestor, not focused child (head `nightly/dashboard-layout-2026-06-04`, base `dev-paul`)
+  - #1853 — fix(widgets): restore breathing phase position on pause/resume (head `nightly/widgets-2026-06-04`, base `dev-paul`)
+  - #1852 — docs(unifier): run 8 memory log (head `nightly/unifier-log-2026-06-04`, base `dev-paul`)
+  - #1851 — refactor(D4): plc authoring/tabs→assignments imports → @/ alias (head `nightly/unify-import-paths-plc-authoring-2026-06-04`, base `dev-paul`)
+  - #1850 — refactor(D3): NextUp/MathTools/RecessGear settings labels → SettingsLabel (head `nightly/unify-settings-labels-2026-06-04`, base `dev-paul`)
+  - #1849 — docs(changelog): release entry 2026.06.03.2 (head `claude/vibrant-darwin-bHcj5`, base `main`)
+  - #1847 — docs(changelog): release entry 2026.06.03.1 (head `claude/vibrant-darwin-C4BO8`, base `dev-paul`)
+  - #1838 — fix(iframe-auth): gate Classroom add-on + LTI teacher surfaces on a real Google session (head `claude/epic-einstein-JNkjY`, base `dev-paul`)
+- Comments processed: 13 total — 1 fixed, 12 explained
+  - #1856: 1 thread — FIXED. Spanish gender agreement `noBentoBox` `listado` → `listada` (agrees with feminine _caja_).
+  - #1859: 9 threads — explained, no fix. 5 `e.target?.value` optional-chaining nitpicks declined (repo uses plain `e.target.value` in ~566 handlers, 0 optional; `e.target` non-null in React onChange). 2 already-implemented (`toStandardHex`, bare-hex `#` prepend present at HEAD). 2 outdated (scaleMultiplier validation/test, lines gone from current diff).
+  - #1854: 1 thread — explained, no fix. Listener `beforeEach`/`afterEach` refactor is out-of-scope test hygiene; tests pass, jsdom torn down per file.
+  - #1850: 2 threads — explained, no fix. `useId`/`htmlFor` a11y is a valid but pre-existing gap (base markup was already orphaned `<label>`s); out of scope for a mechanical behavior-preserving refactor.
+  - #1838, #1847: all inline threads already carried author "Fixed/Valid" replies at HEAD — no action.
+  - #1858, #1857, #1855, #1853, #1852, #1851, #1849: no review comments.
+- Fixes pushed: 1
+  - #1856 — branch `nightly/admin-config-2026-06-04` — corrected Spanish `noBentoBox` participle to `listada`; verified Prettier + full i18n suite (132 tests) green before push.
+- Reviews posted: 13 (all COMMENT event)
+  - #1859 Ready w/ minor notes; #1858 Ready; #1857 Ready; #1856 Ready (pushed gender fix); #1855 Ready; #1854 Ready; #1853 Ready; #1852 Ready; #1851 Ready; #1850 Ready w/ minor notes; #1849 Ready w/ minor notes (changelog version-ordering vs #1847; base is `main`); #1847 Ready w/ minor notes (coordinate version ordering with #1849); #1838 Ready w/ minor notes (author-flagged live Classroom smoke test).
+- Notes:
+  - Branch-safety: no open PR head is `main` or `dev-*`, so all branches were pushable. Only #1856 needed a fix; the rest were explanation-only. No pushes to `main`. #1849 targets `main` as its base but the push (had there been one) would have been to its head `claude/vibrant-darwin-bHcj5`, not `main`.
+  - Cross-PR coordination flagged for humans: #1847 (`2026.06.03.1`, base `dev-paul`) and #1849 (`2026.06.03.2`, base `main`) both prepend to `public/changelog.json` and describe overlapping Schoology work — version ordering / dedup needs a human decision.
+
 ## 2026-06-03
 
 - PRs reviewed: 17
