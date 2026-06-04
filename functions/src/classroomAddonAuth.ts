@@ -167,6 +167,19 @@ interface LinkClassroomCourseData {
 }
 
 /**
+ * Input to `unlinkClassroomCourse` (the correction path for a wrong/stale
+ * course→roster mapping). `accessToken` is the teacher's own
+ * `classroom.courses.readonly` token — the SAME token that listed their courses
+ * — used here to RE-VERIFY teaching authority server-side before any delete.
+ * As with `linkClassroomCourse`, the caller's identity is taken from
+ * `request.auth.uid`, never the client payload.
+ */
+interface UnlinkClassroomCourseData {
+  accessToken?: unknown;
+  courseId?: unknown;
+}
+
+/**
  * `EmbedUri` view-URI objects + title, per addOnAttachments.create.
  *
  * Grade-sync fields (`studentWorkReviewUri` + `maxPoints`) are added together:
@@ -283,78 +296,70 @@ export const classroomAddonNet = {
   },
 
   /**
-   * List the Google Classroom course ids the access token's owner TEACHES
-   * (`courses.list?teacherId=me`). This is the trust anchor for
-   * `linkClassroomCourse`: Classroom only returns a course here if the
-   * authenticated user is a teacher of it, so membership in this list proves
-   * teaching authority that Firestore rules can't verify. Paginated with a
-   * generous cap so a teacher with many courses is fully covered without an
-   * unbounded loop. Any upstream/network failure returns `ok: false` so the
-   * caller fails CLOSED (never links on an unverifiable token). Seam so tests
+   * Verify the access token's owner TEACHES a specific Google Classroom course
+   * with a SINGLE `courses.teachers.get` call
+   * (`GET /v1/courses/{courseId}/teachers/me`). This is the trust anchor for
+   * `linkClassroomCourse`: Classroom returns 200 here ONLY when the
+   * authenticated token owner is a teacher of `courseId`, proving teaching
+   * authority that Firestore rules can't verify. Unlike a
+   * `courses.list?courseStates=ACTIVE` enumeration, this is STATE-AGNOSTIC — a
+   * teacher of an ACTIVE, ARCHIVED, or PROVISIONED course is verified the same
+   * way — and costs exactly one API call instead of paging the teacher's whole
+   * catalog.
+   *
+   * Return contract (the caller maps it to fail-closed semantics):
+   *   - 200            → { ok: true,  status: 200, isTeacher: true }  (write allowed)
+   *   - 404            → { ok: true,  status: 404, isTeacher: false } (definitively NOT a teacher)
+   *   - other non-2xx / network / timeout
+   *                    → { ok: false, status,      isTeacher: false } (UNVERIFIABLE → fail closed)
+   *
+   * `ok` means Classroom gave a DEFINITIVE teacher / not-a-teacher answer; only
+   * 200 and 404 are definitive. A 401/403 (bad/expired/insufficient-scope
+   * token), a 5xx, or a network failure is UNVERIFIABLE — never treat it as
+   * "not a teacher" (the caller fails closed on it, never links). Seam so tests
    * can stub it without a live Classroom call.
    */
-  async listTeacherCourseIds(
-    accessToken: string
-  ): Promise<{ ok: boolean; status: number; courseIds: string[] }> {
-    const courseIds: string[] = [];
-    let pageToken: string | undefined;
-    let pages = 0;
-    // A single teacher having >2500 active courses is implausible; the cap is a
-    // runaway guard, not an expected limit.
-    const MAX_PAGES = 25;
+  async verifyTeacherOfCourse(
+    accessToken: string,
+    courseId: string
+  ): Promise<{ ok: boolean; status: number; isTeacher: boolean }> {
+    const url = `${CLASSROOM_API}/courses/${encodeURIComponent(
+      courseId
+    )}/teachers/me`;
     try {
-      do {
-        const qs = new URLSearchParams({
-          teacherId: 'me',
-          courseStates: 'ACTIVE',
-          pageSize: '100',
-        });
-        if (pageToken) qs.set('pageToken', pageToken);
-        const res = await fetch(`${CLASSROOM_API}/courses?${qs.toString()}`, {
-          headers: bearer(accessToken),
-          signal: AbortSignal.timeout(API_TIMEOUT_MS),
-        });
-        if (!res.ok) {
-          console.warn(`[classroomAddon] listTeacherCourseIds ${res.status}`);
-          return { ok: false, status: res.status, courseIds: [] };
-        }
-        const body = (await res.json()) as {
-          courses?: { id?: string }[];
-          nextPageToken?: string;
-        } | null;
-        // A 200 with a null / non-object body shouldn't happen for
-        // courses.list, but guard rather than deref it (and treat it as an
-        // empty final page rather than throwing into the catch, which would
-        // discard course ids already collected from earlier pages).
-        if (body && typeof body === 'object') {
-          for (const c of body.courses ?? []) {
-            if (typeof c.id === 'string') courseIds.push(c.id);
-          }
-          pageToken = body.nextPageToken;
-        } else {
-          pageToken = undefined;
-        }
-        pages += 1;
-      } while (pageToken && pages < MAX_PAGES);
-      // If we stopped because of the page cap while more pages remained, the
-      // enumeration is INCOMPLETE — fail closed rather than treat the truncated
-      // list as authoritative, which could wrongly deny a teacher whose course
-      // sits beyond the cap. (Practically unreachable — a teacher with >2500
-      // active courses doesn't exist — but it keeps the trust anchor honest.)
-      if (pageToken) {
-        console.warn(
-          '[classroomAddon] listTeacherCourseIds hit the page cap with more ' +
-            'pages remaining; treating the enumeration as unverifiable.'
-        );
-        return { ok: false, status: 0, courseIds: [] };
+      const res = await fetch(url, {
+        headers: bearer(accessToken),
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
+      });
+      // This is the one outbound call here that never reads its body (it
+      // decides purely on the status code), so under Node's fetch (undici) the
+      // socket would be held open until GC instead of returning to the pool.
+      // Drain it on every path. Guarded for the unit-test fetch mocks, which
+      // return a bare `{ ok, status }` with no `text`.
+      if (typeof res.text === 'function') {
+        await res.text();
       }
-      return { ok: true, status: 200, courseIds };
+      // 2xx → the token owner is a teacher of this course.
+      if (res.ok) {
+        return { ok: true, status: res.status, isTeacher: true };
+      }
+      // 404 → the token owner is NOT a teacher of this course (or it doesn't
+      // exist). Either way the caller must deny the link; this is a DEFINITIVE
+      // answer, so `ok: true`.
+      if (res.status === 404) {
+        return { ok: true, status: 404, isTeacher: false };
+      }
+      // Everything else (401/403/5xx/…) is UNVERIFIABLE — the caller fails
+      // closed on it rather than reading it as "not a teacher".
+      console.warn(`[classroomAddon] verifyTeacherOfCourse ${res.status}`);
+      return { ok: false, status: res.status, isTeacher: false };
     } catch (err) {
+      // Network failure / timeout / abort → unverifiable; caller fails closed.
       console.warn(
-        '[classroomAddon] listTeacherCourseIds fetch failed (network/timeout):',
+        '[classroomAddon] verifyTeacherOfCourse fetch failed (network/timeout):',
         err
       );
-      return { ok: false, status: 0, courseIds: [] };
+      return { ok: false, status: 0, isTeacher: false };
     }
   },
 
@@ -903,14 +908,16 @@ export const createClassroomAttachment = onCall(
  * teacher out, since `update` requires the existing teacherUid). The rules now
  * block client writes; this CF is the only writer.
  *
- * TRUST ANCHOR: re-run the caller's OWN `courses?teacherId=me` query
- * server-side with their `classroom.courses.readonly` token (the same token
- * that listed the courses they picked from). Classroom only returns a course in
- * that list if the user is a teacher of it, so the chosen courseId must appear
- * there — a forged/borrowed courseId won't. `teacherUid` is taken from
- * `request.auth.uid` (never the client). An existing link owned by a DIFFERENT
- * teacher is never overwritten (`already-exists`), preserving the no-hijack
- * invariant.
+ * TRUST ANCHOR: a single server-side `courses.teachers.get` call
+ * (`GET /courses/{courseId}/teachers/me`) with the caller's
+ * `classroom.courses.readonly` token. Classroom returns 200 ONLY when the token
+ * owner is a teacher of that exact course, so a forged/borrowed courseId yields
+ * 404 → denied; this is state-agnostic (ACTIVE/ARCHIVED/PROVISIONED) and one
+ * call rather than enumerating the teacher's whole catalog. Any non-200/404
+ * outcome (401/403/5xx/network) is UNVERIFIABLE → fail closed (never link).
+ * `teacherUid` is taken from `request.auth.uid` (never the client). An existing
+ * link owned by a DIFFERENT teacher is never overwritten (`already-exists`),
+ * preserving the no-hijack invariant.
  */
 export const linkClassroomCourse = onCall(
   {
@@ -955,19 +962,24 @@ export const linkClassroomCourse = onCall(
       typeof data.classlinkOrgId === 'string' ? data.classlinkOrgId : null;
     const rosterId = typeof data.rosterId === 'string' ? data.rosterId : null;
 
-    // TRUST ANCHOR: prove the caller teaches this Google course. Fail CLOSED on
-    // any upstream error (never link on an unverifiable token).
-    const teacherCourses =
-      await classroomAddonNet.listTeacherCourseIds(accessToken);
-    if (!teacherCourses.ok) {
+    // TRUST ANCHOR: prove the caller teaches this Google course with a single
+    // courses.teachers.get call. Fail CLOSED on any UNVERIFIABLE outcome
+    // (network/timeout/401/403/5xx) — never link on a token we couldn't get a
+    // definitive answer for.
+    const verification = await classroomAddonNet.verifyTeacherOfCourse(
+      accessToken,
+      courseId
+    );
+    if (!verification.ok) {
       throw new HttpsError(
         'unauthenticated',
-        `Could not verify your Google Classroom courses (status ${teacherCourses.status}).`
+        `Could not verify that you teach this Google Classroom course (status ${verification.status}).`
       );
     }
-    if (!teacherCourses.courseIds.includes(courseId)) {
-      // Opaque on purpose: don't reveal whether the course exists to someone who
-      // doesn't teach it.
+    if (!verification.isTeacher) {
+      // 404 → the caller is DEFINITIVELY not a teacher of this course. Opaque on
+      // purpose: don't reveal whether the course exists to someone who doesn't
+      // teach it.
       console.warn(
         `[linkClassroomCourse] uid=${callerUid} is not a teacher of course ${courseId}.`
       );
@@ -979,42 +991,181 @@ export const linkClassroomCourse = onCall(
 
     const db = admin.firestore();
     const ref = db.doc(`classroom_course_links/${courseId}`);
-    const existing = await ref.get();
-    if (existing.exists) {
-      const prior = existing.data() as CourseLink;
-      if (
-        typeof prior?.teacherUid === 'string' &&
-        prior.teacherUid &&
-        prior.teacherUid !== callerUid
-      ) {
-        // A co-teacher may also genuinely teach this course, but silently
-        // re-pointing an existing link would re-route the original teacher's
-        // students. Preserve the existing no-hijack invariant.
-        console.warn(
-          `[linkClassroomCourse] course ${courseId} already linked by a ` +
-            `different teacher; refusing to overwrite.`
-        );
-        throw new HttpsError(
-          'already-exists',
-          'This Google Classroom course is already linked by another teacher.'
-        );
-      }
-    }
 
-    // Admin SDK write — bypasses the now read-only client rules. createdAt is set
-    // only on first create; merge:true preserves it (and any other fields) on a
-    // same-teacher re-link.
-    const payload: Record<string, unknown> = {
-      classlinkClassId,
-      classlinkOrgId,
-      teacherUid: callerUid,
-      rosterId,
-      updatedAt: Date.now(),
-    };
-    if (!existing.exists) payload.createdAt = Date.now();
-    await ref.set(payload, { merge: true });
+    // TOCTOU FIX: run the no-hijack check + write inside a single transaction.
+    // The old read-then-write was not atomic, so two co-teachers clicking "Link"
+    // on the SAME never-linked course within the same window could BOTH pass the
+    // "exists?" check and write (last-writer-wins). It was benign (both racers
+    // still cleared teacher-verification above, so a non-teaching squatter could
+    // never win — it only decided which authorized co-teacher owned the link),
+    // but the transaction makes it deterministic: the read locks the doc, so the
+    // first writer commits the create and the second's read now sees it and is
+    // either merged (same teacher) or rejected with `already-exists` (a different
+    // teacher). Teacher verification stays OUTSIDE the transaction — it's a
+    // network call, and the transaction body may be retried on contention.
+    await db.runTransaction(async (tx) => {
+      const existing = await tx.get(ref);
+      if (existing.exists) {
+        const prior = existing.data() as CourseLink;
+        if (
+          typeof prior?.teacherUid === 'string' &&
+          prior.teacherUid &&
+          prior.teacherUid !== callerUid
+        ) {
+          // A co-teacher may also genuinely teach this course, but silently
+          // re-pointing an existing link would re-route the original teacher's
+          // students. Preserve the no-hijack invariant — the EXPLICIT correction
+          // path for a stale/wrong link is `unlinkClassroomCourse`.
+          console.warn(
+            `[linkClassroomCourse] course ${courseId} already linked by a ` +
+              `different teacher; refusing to overwrite.`
+          );
+          throw new HttpsError(
+            'already-exists',
+            'This Google Classroom course is already linked by another teacher.'
+          );
+        }
+      }
+
+      // Admin SDK write — bypasses the now read-only client rules. createdAt is
+      // set only on first create; merge:true preserves it (and any other fields)
+      // on a same-teacher re-link (e.g. the owner correcting the rosterId).
+      const payload: Record<string, unknown> = {
+        classlinkClassId,
+        classlinkOrgId,
+        teacherUid: callerUid,
+        rosterId,
+        updatedAt: Date.now(),
+      };
+      if (!existing.exists) payload.createdAt = Date.now();
+      tx.set(ref, payload, { merge: true });
+    });
 
     return { ok: true, courseId };
+  }
+);
+
+/**
+ * unlinkClassroomCourse — server-gated REMOVER of
+ * `classroom_course_links/{courseId}`, the correction path the squatting fix
+ * deliberately left out. The rules block client deletes and there was no delete
+ * CF, so a wrong mapping (a wrong `rosterId`, or a teacher who LEFT the district)
+ * was permanent without direct Firestore Console access — and
+ * `linkClassroomCourse`'s `already-exists` guard blocks even a legitimate
+ * co-teacher from re-pointing it. This CF clears the link so it can be recreated
+ * cleanly through `linkClassroomCourse` (which then stamps a fresh owner). The
+ * common "wrong rosterId, same teacher" fix doesn't even need this — the owner
+ * just re-links the correct roster (the same-teacher merge updates `rosterId`).
+ *
+ * TRUST ANCHOR: identical to `linkClassroomCourse` — a single server-side
+ * `courses.teachers.get` call (`GET /courses/{courseId}/teachers/me`) with the
+ * caller's `classroom.courses.readonly` token. Only a VERIFIED teacher of the
+ * Google course may unlink it; any upstream/verification error fails CLOSED
+ * (never deletes on an unverifiable token). `request.auth.uid` is the only
+ * identity source. Never a client-direct delete.
+ *
+ * CO-TEACHER TAKEOVER — DOCUMENTED DECISION: a verified teacher of the course
+ * who is NOT the current owner (e.g. cleaning up after a colleague left the
+ * district) IS permitted to remove the link. This is the deliberate escape
+ * hatch the `linkClassroomCourse` no-hijack guard intentionally lacks, and it's
+ * safe because:
+ *   - it is still gated on SERVER-side teaching verification, so a non-teacher
+ *     can NEVER reach the delete (the squatting-fix invariant holds);
+ *   - removal is an EXPLICIT, destructive action on the SAME course the caller
+ *     provably teaches — NOT a silent re-point during the normal link flow; and
+ *   - it only DELETES; it never assigns ownership to the caller. Re-linking goes
+ *     back through `linkClassroomCourse`, which re-runs verification and stamps a
+ *     fresh `teacherUid`.
+ * Each takeover (a different teacher's link being removed) is logged for the
+ * audit trail. Restricting unlink to the owner ONLY would re-create the exact
+ * "permanent stale link after a teacher leaves" gap this CF exists to close.
+ */
+export const unlinkClassroomCourse = onCall(
+  {
+    memory: '256MiB',
+    // Same public-IAM rationale as linkClassroomCourse: the Firebase Auth check
+    // runs in the callable framework, not at IAM; auth is still enforced below.
+    invoker: 'public',
+    cors: ALLOWED_ORIGINS,
+  },
+  async (request) => {
+    const data = (request.data ?? {}) as UnlinkClassroomCourseData;
+
+    // Identity comes from the authenticated caller, never the client payload.
+    const callerUid = request.auth?.uid ?? '';
+    if (!callerUid) {
+      throw new HttpsError(
+        'unauthenticated',
+        'You must be signed in to unlink a class.'
+      );
+    }
+
+    const accessToken =
+      typeof data.accessToken === 'string' ? data.accessToken : '';
+    const courseId = typeof data.courseId === 'string' ? data.courseId : '';
+    if (!accessToken) {
+      throw new HttpsError(
+        'invalid-argument',
+        'accessToken is required (your Google Classroom courses token).'
+      );
+    }
+    if (!courseId) {
+      throw new HttpsError('invalid-argument', 'courseId is required.');
+    }
+
+    // TRUST ANCHOR: prove the caller teaches this Google course with a single
+    // courses.teachers.get call (mirrors linkClassroomCourse). Fail CLOSED on
+    // any UNVERIFIABLE outcome (network/timeout/401/403/5xx) — never unlink on a
+    // token we couldn't get a definitive answer for.
+    const verification = await classroomAddonNet.verifyTeacherOfCourse(
+      accessToken,
+      courseId
+    );
+    if (!verification.ok) {
+      throw new HttpsError(
+        'unauthenticated',
+        `Could not verify that you teach this Google Classroom course (status ${verification.status}).`
+      );
+    }
+    if (!verification.isTeacher) {
+      // Opaque on purpose: don't reveal whether the course exists to someone who
+      // doesn't teach it.
+      console.warn(
+        `[unlinkClassroomCourse] uid=${callerUid} is not a teacher of course ${courseId}.`
+      );
+      throw new HttpsError(
+        'permission-denied',
+        'You can only unlink a Google Classroom course that you teach.'
+      );
+    }
+
+    const db = admin.firestore();
+    const ref = db.doc(`classroom_course_links/${courseId}`);
+
+    // Transactional read-then-delete so the removal is deterministic against a
+    // concurrent link/unlink, and so we report whether a doc was actually
+    // cleared. Idempotent: a missing link is a no-op (`removed: false`), never an
+    // error — a double-click or stale UI shouldn't surface a failure.
+    const removed = await db.runTransaction(async (tx) => {
+      const existing = await tx.get(ref);
+      if (!existing.exists) return false;
+      const prior = existing.data() as CourseLink;
+      const priorUid =
+        typeof prior?.teacherUid === 'string' ? prior.teacherUid : '';
+      if (priorUid && priorUid !== callerUid) {
+        // Co-teacher takeover (see the documented decision above): a DIFFERENT
+        // verified teacher of the SAME course is removing the link. Logged for
+        // the audit trail.
+        console.warn(
+          `[unlinkClassroomCourse] course ${courseId} link owned by ` +
+            `${priorUid} removed by verified co-teacher ${callerUid}.`
+        );
+      }
+      tx.delete(ref);
+      return true;
+    });
+
+    return { ok: true, courseId, removed };
   }
 );
 

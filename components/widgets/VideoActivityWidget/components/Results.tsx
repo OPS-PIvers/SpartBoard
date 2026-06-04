@@ -29,6 +29,7 @@ import { QuizDriveService } from '@/utils/quizDriveService';
 import {
   gradeVideoActivityAnswer,
   computeVideoActivityScorePct,
+  canScoreVideoActivityResponse,
 } from '@/utils/videoActivityGrading';
 import {
   runClassroomGradePush,
@@ -113,22 +114,40 @@ export const Results: React.FC<ResultsProps> = ({
   // Calculate completed count and average score in a single loop
   const { completed, avgScore } = React.useMemo(() => {
     if (responses.length === 0) {
-      return { completed: 0, avgScore: 0 };
+      // No responses → nothing is scoreable, so the average is undefined, not a
+      // real 0. Return `null` (not `0`) so the Avg Score tile renders "—",
+      // matching the no-scoreable-responses path below — otherwise an empty
+      // session would show a phantom "0%" that reads as a class that failed.
+      return { completed: 0, avgScore: null };
     }
 
     let completedCount = 0;
     let scoreSum = 0;
+    // Average only over responses we can actually score. A completed response
+    // whose questions haven't loaded yet (or whose answers map to no loaded
+    // question) would score a phantom 0 and drag the class average down as if
+    // everyone failed — exclude it from the mean rather than seating it at 0.
+    // See `canScoreVideoActivityResponse`. `completedCount` still counts every
+    // completion (that's a real headcount), so only the denominator narrows.
+    let scoredCount = 0;
 
     for (const r of responses) {
       if (r.completedAt !== null) {
         completedCount++;
-        scoreSum += computeVideoActivityScorePct(questions, r.answers);
+        if (canScoreVideoActivityResponse(questions, r.answers)) {
+          scoreSum += computeVideoActivityScorePct(questions, r.answers);
+          scoredCount++;
+        }
       }
     }
 
     return {
       completed: completedCount,
-      avgScore: completedCount > 0 ? Math.round(scoreSum / completedCount) : 0,
+      // `null` when nothing is scoreable yet (question set not loaded, or every
+      // completed response drifted) — the tile renders "—" rather than a
+      // phantom "0%" that reads as a class that failed. A genuine empty
+      // submission still counts as a real 0, so it keeps the average defined.
+      avgScore: scoredCount > 0 ? Math.round(scoreSum / scoredCount) : null,
     };
   }, [responses, questions]);
 
@@ -248,7 +267,16 @@ export const Results: React.FC<ResultsProps> = ({
       return;
     }
     const eligible = responses.filter(
-      (r) => r.completedAt !== null && !!r.studentUid
+      (r) =>
+        r.completedAt !== null &&
+        !!r.studentUid &&
+        // Skip responses we can't actually score (question set not loaded /
+        // question-id drift). `getStudentScore` would silently return 0 for
+        // them, and unlike the "—" placeholder the teacher views render, a
+        // phantom 0 PATCHed into the real Classroom gradebook is persistent and
+        // easy to miss. Omitting the student is the safe default — better no
+        // grade than a wrong 0. Mirrors `buildQuizClassroomGradeEntries`.
+        canScoreVideoActivityResponse(questions, r.answers)
     );
     if (eligible.length === 0) {
       addToast(NOTHING_TO_PUSH_TOAST, 'info');
@@ -506,7 +534,7 @@ export const Results: React.FC<ResultsProps> = ({
                 },
                 {
                   label: 'Avg Score',
-                  value: `${avgScore}%`,
+                  value: avgScore === null ? '—' : `${avgScore}%`,
                   color: 'text-violet-600',
                 },
               ].map((stat) => (
@@ -639,6 +667,14 @@ export const Results: React.FC<ResultsProps> = ({
                 .sort((a, b) => getStudentScore(b) - getStudentScore(a))
                 .map((r) => {
                   const score = getStudentScore(r);
+                  // When the question set hasn't loaded (or the response's
+                  // answers map to no loaded question), the score is a phantom
+                  // 0 rather than a real result — show a neutral "—" instead of
+                  // "0%". See `canScoreVideoActivityResponse`.
+                  const scoreable = canScoreVideoActivityResponse(
+                    questions,
+                    r.answers
+                  );
                   const correct = r.answers.filter((a) =>
                     isAnswerCorrect(a.questionId, a.answer)
                   ).length;
@@ -697,10 +733,18 @@ export const Results: React.FC<ResultsProps> = ({
                           )
                         )}
                         <span
-                          className={`font-black ml-1 ${score >= 70 ? 'text-emerald-600' : score >= 40 ? 'text-amber-600' : 'text-brand-red-primary'}`}
+                          className={`font-black ml-1 ${
+                            !scoreable
+                              ? 'text-slate-400'
+                              : score >= 70
+                                ? 'text-emerald-600'
+                                : score >= 40
+                                  ? 'text-amber-600'
+                                  : 'text-brand-red-primary'
+                          }`}
                           style={{ fontSize: 'min(14px, 4.5cqmin)' }}
                         >
-                          {score}%
+                          {scoreable ? `${score}%` : '—'}
                         </span>
                       </div>
                     </div>

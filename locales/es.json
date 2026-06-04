@@ -734,7 +734,12 @@
       "dragOrClick": "Arrastra o Haz Clic para añadir",
       "deleteSticker": "Eliminar Sticker",
       "dragFromLibrary": "Arrastra stickers desde la biblioteca al tablero",
-      "stickerAdded": "¡Sticker añadido al tablero!"
+      "stickerAdded": "¡Sticker añadido al tablero!",
+      "filterAll": "Todos",
+      "filterFavorites": "Favoritos",
+      "filterMine": "Míos",
+      "reorganizeSticker": "Reorganizar",
+      "favoriteSticker": "Favorito"
     },
     "onboarding": {
       "title": "Primeros Pasos",

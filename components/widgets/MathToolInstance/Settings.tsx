@@ -3,6 +3,7 @@ import { WidgetData, MathToolConfig, NumberLineMode } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { CSS_PPI, MATH_TOOL_META } from '../math-tools/mathToolUtils';
 import { ROTATABLE_TOOLS } from './constants';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 
 export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -27,9 +28,7 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
     <div className="space-y-5 p-1">
       {/* Tool type selector */}
       <div className="space-y-2">
-        <label className="text-xxs font-black text-slate-400 uppercase tracking-widest block">
-          Tool Type
-        </label>
+        <SettingsLabel>Tool Type</SettingsLabel>
         <div className="grid grid-cols-2 gap-1">
           {TOOL_TYPES.map(({ type, label, emoji }) => (
             <button
@@ -103,9 +102,7 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
       {config.toolType === 'number-line' && (
         <div className="space-y-3">
           <div className="space-y-1">
-            <label className="text-xxs font-black text-slate-400 uppercase tracking-widest block">
-              Mode
-            </label>
+            <SettingsLabel>Mode</SettingsLabel>
             <div className="flex gap-1">
               {numberLineModes.map((m) => (
                 <button
@@ -128,9 +125,7 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xxs font-black text-slate-400 uppercase tracking-widest block mb-1">
-                Min
-              </label>
+              <SettingsLabel>Min</SettingsLabel>
               <input
                 type="number"
                 value={config.numberLineMin ?? -10}
@@ -149,9 +144,7 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
               />
             </div>
             <div>
-              <label className="text-xxs font-black text-slate-400 uppercase tracking-widest block mb-1">
-                Max
-              </label>
+              <SettingsLabel>Max</SettingsLabel>
               <input
                 type="number"
                 value={config.numberLineMax ?? 10}
@@ -176,9 +169,7 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
       {/* Ruler units (for ruler types) */}
       {(config.toolType === 'ruler-in' || config.toolType === 'ruler-cm') && (
         <div className="space-y-1">
-          <label className="text-xxs font-black text-slate-400 uppercase tracking-widest block">
-            Units Displayed
-          </label>
+          <SettingsLabel>Units Displayed</SettingsLabel>
           <div className="flex gap-1">
             {(['in', 'cm', 'both'] as const).map((u) => (
               <button
@@ -204,9 +195,7 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
       {/* DPI Calibration */}
       <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
         <div className="space-y-1">
-          <label className="text-xxs font-black text-slate-400 uppercase tracking-widest block">
-            True-Scale Calibration (px / inch)
-          </label>
+          <SettingsLabel>True-Scale Calibration (px / inch)</SettingsLabel>
           <p className="text-xxs text-slate-400 leading-relaxed">
             CSS defines 1 in = 96 px. Adjust this if your IFP renders at a
             different physical DPI. Measure a known object on screen to

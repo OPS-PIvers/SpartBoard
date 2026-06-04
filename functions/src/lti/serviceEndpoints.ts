@@ -1,0 +1,216 @@
+// Schoology LTI 1.3 — Advantage service callables (Deep Linking + AGS).
+//
+//   ltiSignDeepLinkResponseV1     — sign the LtiDeepLinkingResponse the picker POSTs
+//                                   back to Schoology to attach a quiz.
+//   ltiPushGradesForAssignmentV1  — push AGS scores for an assignment, gated to the
+//                                   teacher who launched it.
+//
+// Both sign/authenticate with the tool private key (Secret Manager).
+
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { defineSecret } from 'firebase-functions/params';
+import { randomBytes } from 'node:crypto';
+import * as admin from 'firebase-admin';
+
+import {
+  getLtiPlatformConfig,
+  TOOL_LAUNCH_URL,
+  AGS_SCOPE_SCORE,
+} from './config';
+import { ALLOWED_ORIGINS } from '../classlinkShared';
+import { signToolJwt } from './toolKey';
+import {
+  buildQuizContentItem,
+  buildDeepLinkResponseClaims,
+  isSchoologyReturnUrl,
+} from './deepLink';
+import { getAgsAccessToken, postScore } from './ags';
+import { validateGradePushAuth } from './stores';
+
+const LTI_TOOL_PRIVATE_KEY = defineSecret('LTI_TOOL_PRIVATE_KEY');
+
+// ── ltiSignDeepLinkResponseV1 ───────────────────────────────────────────────
+export const ltiSignDeepLinkResponseV1 = onCall(
+  {
+    region: 'us-central1',
+    invoker: 'public',
+    cors: ALLOWED_ORIGINS,
+    secrets: [LTI_TOOL_PRIVATE_KEY],
+  },
+  async (request) => {
+    const data = (request.data ?? {}) as {
+      returnUrl?: unknown;
+      dlData?: unknown;
+      kind?: unknown;
+      quizCode?: unknown;
+      sessionId?: unknown;
+      title?: unknown;
+      maxPoints?: unknown;
+    };
+
+    const returnUrl = typeof data.returnUrl === 'string' ? data.returnUrl : '';
+    if (!isSchoologyReturnUrl(returnUrl)) {
+      throw new HttpsError('invalid-argument', 'Invalid deep-link return URL.');
+    }
+
+    const title =
+      typeof data.title === 'string' && data.title.trim()
+        ? data.title.trim().slice(0, 200)
+        : 'SpartBoard';
+    const kind = data.kind === 'va' ? 'va' : 'quiz';
+    const maxPoints =
+      typeof data.maxPoints === 'number' && data.maxPoints > 0
+        ? data.maxPoints
+        : undefined;
+
+    const custom: Record<string, string> = { kind };
+    if (kind === 'quiz') {
+      const code = typeof data.quizCode === 'string' ? data.quizCode : '';
+      if (!/^[A-Za-z0-9]{1,16}$/.test(code)) {
+        throw new HttpsError('invalid-argument', 'Invalid quiz code.');
+      }
+      custom.quiz_code = code;
+    } else {
+      const sid = typeof data.sessionId === 'string' ? data.sessionId : '';
+      if (!/^[A-Za-z0-9_-]{1,128}$/.test(sid)) {
+        throw new HttpsError('invalid-argument', 'Invalid session id.');
+      }
+      custom.session_id = sid;
+    }
+
+    const cfg = await getLtiPlatformConfig(admin.firestore());
+    const item = buildQuizContentItem({
+      launchUrl: TOOL_LAUNCH_URL,
+      title,
+      custom,
+      maxPoints,
+    });
+    const claims = buildDeepLinkResponseClaims({
+      deploymentId: cfg.deploymentId,
+      nonce: randomBytes(16).toString('hex'),
+      data: typeof data.dlData === 'string' ? data.dlData : undefined,
+      contentItems: [item],
+    });
+
+    const jwt = await signToolJwt(LTI_TOOL_PRIVATE_KEY.value(), {
+      issuer: cfg.clientId,
+      subject: cfg.clientId,
+      audience: cfg.issuer,
+      claims,
+    });
+    return { jwt, returnUrl };
+  }
+);
+
+// ── ltiPushGradesForAssignmentV1 ────────────────────────────────────────────
+interface GradeResult {
+  pseudonymUid: string;
+  ok: boolean;
+  status?: number;
+  reason?: string;
+}
+
+export const ltiPushGradesForAssignmentV1 = onCall(
+  {
+    region: 'us-central1',
+    cors: ALLOWED_ORIGINS,
+    secrets: [LTI_TOOL_PRIVATE_KEY],
+  },
+  async (request) => {
+    const data = (request.data ?? {}) as {
+      resourceLinkId?: unknown;
+      maxPoints?: unknown;
+      grades?: unknown;
+      pushAuth?: unknown;
+    };
+    const resourceLinkId =
+      typeof data.resourceLinkId === 'string' ? data.resourceLinkId : '';
+    const pushAuth = typeof data.pushAuth === 'string' ? data.pushAuth : '';
+    const maxPoints =
+      typeof data.maxPoints === 'number' && data.maxPoints > 0
+        ? data.maxPoints
+        : 0;
+    if (!resourceLinkId || !maxPoints) {
+      throw new HttpsError(
+        'invalid-argument',
+        'resourceLinkId and a positive maxPoints are required.'
+      );
+    }
+
+    const db = admin.firestore();
+    // Authorize via the short-lived grade-push token minted by the instructor
+    // launch (the LIVE-token model) — lets a Google-signed-in teacher push.
+    if (!(await validateGradePushAuth(db, pushAuth, resourceLinkId))) {
+      throw new HttpsError(
+        'permission-denied',
+        'Invalid or expired grade-push authorization. Re-open the assignment from Schoology.'
+      );
+    }
+
+    const rawGrades = Array.isArray(data.grades) ? data.grades : [];
+    if (rawGrades.length === 0) {
+      throw new HttpsError(
+        'invalid-argument',
+        'grades must be a non-empty array.'
+      );
+    }
+
+    const cfg = await getLtiPlatformConfig(db);
+    const accessToken = await getAgsAccessToken({
+      clientId: cfg.clientId,
+      tokenUrl: cfg.tokenUrl,
+      privatePem: LTI_TOOL_PRIVATE_KEY.value(),
+      scopes: [AGS_SCOPE_SCORE],
+    });
+    const timestamp = new Date().toISOString();
+
+    // Resolve each student's OWN line item (per-section for linked/merged courses)
+    // from the grade-sync key written at their launch, then POST the score.
+    const results: GradeResult[] = await Promise.all(
+      rawGrades.map(async (g): Promise<GradeResult> => {
+        const entry = (g ?? {}) as {
+          pseudonymUid?: unknown;
+          pointsEarned?: unknown;
+        };
+        const pseudonymUid =
+          typeof entry.pseudonymUid === 'string' ? entry.pseudonymUid : '';
+        const pointsEarned =
+          typeof entry.pointsEarned === 'number' ? entry.pointsEarned : NaN;
+        if (!pseudonymUid || !Number.isFinite(pointsEarned)) {
+          return { pseudonymUid, ok: false, reason: 'invalid entry' };
+        }
+
+        const snap = await db
+          .doc(`lti_grade_links/${pseudonymUid}/resources/${resourceLinkId}`)
+          .get();
+        if (!snap.exists) {
+          return { pseudonymUid, ok: false, reason: 'student never launched' };
+        }
+        const link = snap.data() as {
+          sub?: string;
+          ags?: { lineitem?: string };
+        };
+        const lineitem = link.ags?.lineitem;
+        if (!lineitem || !link.sub) {
+          return {
+            pseudonymUid,
+            ok: false,
+            reason: 'no line item for student',
+          };
+        }
+
+        const scoreGiven = Math.max(0, Math.min(maxPoints, pointsEarned));
+        const r = await postScore({
+          lineitemUrl: lineitem,
+          accessToken,
+          score: { userId: link.sub, scoreGiven, scoreMaximum: maxPoints },
+          timestamp,
+        });
+        return { pseudonymUid, ok: r.ok, status: r.status };
+      })
+    );
+
+    const pushed = results.filter((r) => r.ok).length;
+    return { results, pushed, total: rawGrades.length };
+  }
+);

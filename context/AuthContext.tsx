@@ -380,8 +380,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const email = user?.email;
 
       const runRefreshChain = async (): Promise<string | null> => {
-        // Prefer GIS silent refresh when the client ID env var is configured.
-        // google.accounts is loaded asynchronously via the GIS script tag in index.html.
+        // Try the GIS token client first — it silently re-mints the
+        // Drive/Sheets access token from the user's live Google session, which
+        // is the ONLY zero-touch renewal path for the majority of teachers (a
+        // plain signInWithGoogle() popup yields a 1h token but no server-side
+        // refresh_token, so the backend path below can't renew theirs). The
+        // catch: `requestAccessToken({ prompt: '' })` is only silent when a
+        // grant can be reissued; otherwise it opens a popup, and a popup fired
+        // from our background timers/startup effect (silent=true) has no user
+        // gesture and gets BLOCKED — stalling every Drive read. So pass
+        // `prompt: 'none'` for silent calls (see requestAccessToken below): GIS
+        // then fails via error_callback with no popup when re-consent is truly
+        // needed, the chain returns null, and `DriveDisconnectBanner` lets the
+        // teacher reconnect from a real click (which runs the code flow and
+        // finally captures a refresh_token).
         if (clientId && email && typeof window.google !== 'undefined') {
           let gisToken: string | null = null;
           try {
@@ -431,9 +443,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 resolve(null);
                 return;
               }
-              // prompt: '' = attempt silent authorization without showing a popup.
-              // A popup only appears when the user's Google session has expired.
-              tokenClient.requestAccessToken({ prompt: '' });
+              // Background/timer calls (silent) use `prompt: 'none'` so GIS
+              // never opens a gesture-less popup the browser would block — it
+              // fails via error_callback instead. User-gesture reconnects
+              // (silent=false) use `''`, which may surface the consent/account
+              // popup (allowed, since a click backs it).
+              tokenClient.requestAccessToken({ prompt: silent ? 'none' : '' });
             });
           } catch {
             // initTokenClient or requestAccessToken threw synchronously.

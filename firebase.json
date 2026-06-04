@@ -31,11 +31,41 @@
         }
       },
       {
+        "source": "/.well-known/jwks.json",
+        "function": {
+          "functionId": "ltiJwks",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/lti/login",
+        "function": {
+          "functionId": "ltiLogin",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/lti/launch",
+        "function": {
+          "functionId": "ltiLaunch",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
     ],
     "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Cross-Origin-Opener-Policy",
+            "value": "same-origin-allow-popups"
+          }
+        ]
+      },
       {
         "source": "/activity/**",
         "headers": [
@@ -51,6 +81,15 @@
           {
             "key": "Content-Security-Policy",
             "value": "frame-ancestors 'self' https://classroom.google.com https://*.google.com https://*.googleusercontent.com"
+          }
+        ]
+      },
+      {
+        "source": "/lti/**",
+        "headers": [
+          {
+            "key": "Content-Security-Policy",
+            "value": "frame-ancestors 'self' https://*.schoology.com https://app.schoology.com"
           }
         ]
       },
