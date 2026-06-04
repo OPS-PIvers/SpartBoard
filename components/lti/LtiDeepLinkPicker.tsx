@@ -250,13 +250,14 @@ const LtiDeepLinkFlow: React.FC = () => {
     setBusy(true);
     setErrorMsg(null);
     try {
-      setStatusMsg('Signing in to SpartBoard…');
       await signInWithGoogle();
-      setStatusMsg('Signed in. Pick a quiz to add.');
+      // No success status here: the button's own spinner covers the popup, and
+      // the next screen ("Validating…" then the picker) is itself the signal. A
+      // lingering "Signed in. Pick a quiz to add." used to show before the picker
+      // even appeared and stay under it afterward — confusing noise.
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setErrorMsg(`Couldn't sign in: ${message}`);
-      setStatusMsg(null);
     } finally {
       setBusy(false);
     }
@@ -403,7 +404,9 @@ const LtiDeepLinkFlow: React.FC = () => {
           )}
         </AddonCard>
       ) : phase === 'exchanging' || !deepLinking ? (
-        <AddonStatus message="Validating your Schoology launch…" busy />
+        <div className="flex justify-center py-2">
+          <AddonStatus message="Validating your Schoology launch…" busy />
+        </div>
       ) : (
         <div className="space-y-4">
           <AddonCard className="p-4">
@@ -411,7 +414,7 @@ const LtiDeepLinkFlow: React.FC = () => {
               htmlFor={quizSelectId}
               className="mb-1.5 block text-sm font-medium text-slate-700"
             >
-              Quiz
+              Select a quiz
             </label>
             <AddonSelect
               id={quizSelectId}
@@ -430,18 +433,20 @@ const LtiDeepLinkFlow: React.FC = () => {
             />
           </AddonCard>
 
-          <AddonButton
-            onClick={() => void addQuiz()}
-            loading={busy}
-            disabled={!selectedQuizId}
-            icon={Send}
-          >
-            Add quiz to Schoology
-          </AddonButton>
+          <div className="flex justify-center">
+            <AddonButton
+              onClick={() => void addQuiz()}
+              loading={busy}
+              disabled={!selectedQuizId}
+              icon={Send}
+            >
+              Add quiz to Schoology
+            </AddonButton>
+          </div>
         </div>
       )}
 
-      {phase !== 'error' && (
+      {phase !== 'error' && !submitted && (
         <div className="mt-4 space-y-2">
           <AddonError message={errorMsg} />
           <AddonStatus message={statusMsg} busy={busy} />
