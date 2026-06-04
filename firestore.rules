@@ -720,6 +720,17 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // PII-free NRPS membership endpoints, keyed by quiz session → context. The
+    // launch-exchange CF writes the context's `context_memberships_url` here and
+    // the name-resolver CF reads it — BOTH via the Admin SDK, which bypasses
+    // these rules. No client path ever touches them (a doc holds a roster
+    // service URL that no authenticated user should enumerate), so deny all
+    // client access. The `{document=**}` recursive wildcard covers the
+    // `contexts/{contextId}` subcollection too.
+    match /lti_session_memberships/{sessionId}/{document=**} {
+      allow read, write: if false;
+    }
+
     // Global permissions - all authenticated users can read, only admins can write
     match /global_permissions/{featureId=**} {
       allow read: if request.auth != null;

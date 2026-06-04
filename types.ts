@@ -2697,6 +2697,16 @@ export interface QuizSession {
    */
   publicQuestions: QuizPublicQuestion[];
 
+  /**
+   * True once at least one Schoology LTI student has launched this session and
+   * the launch carried an NRPS membership endpoint (set server-side by the
+   * launch-exchange CF). Signals the teacher monitor to resolve Schoology
+   * student names on-read via `ltiResolveNamesForAssignmentV1`. Absent/false on
+   * every non-LTI session, so the monitor skips that call entirely. No PII —
+   * just a routing flag.
+   */
+  ltiNrps?: boolean;
+
   // ─── Toggles (Phase 1) ─────────────────────────────────────────────────────
   /** Whether tab-switch detection is active on student devices (default true) */
   tabWarningsEnabled?: boolean;
