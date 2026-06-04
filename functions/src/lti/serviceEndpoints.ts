@@ -64,6 +64,7 @@ export const ltiSignDeepLinkResponseV1 = onCall(
       sessionId?: unknown;
       title?: unknown;
       maxPoints?: unknown;
+      dueAt?: unknown;
     };
 
     const returnUrl = typeof data.returnUrl === 'string' ? data.returnUrl : '';
@@ -80,6 +81,10 @@ export const ltiSignDeepLinkResponseV1 = onCall(
       typeof data.maxPoints === 'number' && data.maxPoints > 0
         ? data.maxPoints
         : undefined;
+    // Optional due date (epoch ms). The builder validates + converts it to the
+    // LTI `submission.endDateTime` (end-of-day UTC); an invalid value is dropped
+    // there, so we only need the coarse number coercion here.
+    const dueAtMs = typeof data.dueAt === 'number' ? data.dueAt : undefined;
 
     const custom: Record<string, string> = { kind };
     if (kind === 'quiz') {
@@ -102,6 +107,7 @@ export const ltiSignDeepLinkResponseV1 = onCall(
       title,
       custom,
       maxPoints,
+      dueAtMs,
     });
     const claims = buildDeepLinkResponseClaims({
       deploymentId: cfg.deploymentId,
