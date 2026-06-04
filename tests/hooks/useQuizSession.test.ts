@@ -799,6 +799,13 @@ describe('useQuizSessionStudent — lookupSession', () => {
 describe('useQuizSessionStudent — joinQuizSession', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default getDoc resolution: any read not explicitly stubbed with a
+    // `mockResolvedValueOnce` — notably the per-assignment attempt-ledger probe
+    // joinQuizSession now runs for every non-anonymous joiner — resolves to a
+    // non-existent doc. Per-test `...Once` stubs are consumed first and win.
+    (firestore.getDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      { exists: () => false }
+    );
     // Default current user has no `isAnonymous` flag (falsy), matching the
     // pre-SSO test expectations: response doc is keyed by `auth.uid` and the
     // legacy-key probe is skipped. Tests that need the anonymous PIN-join
@@ -1276,6 +1283,48 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
     expect(
       responseKeys.some((k) => typeof k === 'string' && k.startsWith('pin-'))
     ).toBe(false);
+  });
+
+  it('keys the attempt ledger by SESSION id (per-assignment), not quiz id', async () => {
+    // Regression for the per-assignment ledger fix: the cross-launch attempt
+    // ledger was keyed `${quizId}__${uid}`, which capped a student across EVERY
+    // assignment built from the same library quiz. It must key by the session id
+    // (= assignmentId) so each assignment from a quiz template is independently
+    // takeable.
+    (
+      auth as unknown as {
+        currentUser: { uid: string; isAnonymous: boolean } | null;
+      }
+    ).currentUser = { uid: 'sso-uid', isAnonymous: false };
+
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [buildSessionDoc('sess-1', { status: 'active', quizId: 'quiz-1' })],
+    });
+    // Response existence probe → not found (a fresh response is created); the
+    // ledger probe falls through to the beforeEach default (non-existent).
+    (
+      firestore.getDoc as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({ exists: () => false });
+    (
+      firestore.setDoc as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce(undefined);
+
+    const docMock = firestore.doc as unknown as ReturnType<typeof vi.fn>;
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await result.current.joinQuizSession('ABC123', undefined, undefined);
+    });
+
+    const lastSegments = (docMock.mock.calls as unknown[][])
+      .map((args) => args[args.length - 1])
+      .filter((v): v is string => typeof v === 'string');
+    // The ledger is resolved at the SESSION-keyed path…
+    expect(lastSegments).toContain('sess-1__sso-uid');
+    // …and never at the quiz-template-keyed path.
+    expect(lastSegments).not.toContain('quiz-1__sso-uid');
   });
 
   it('still rejects anonymous joiners with no PIN', async () => {
@@ -2082,7 +2131,7 @@ describe('useQuizSessionTeacher — removeStudent / revealAnswer / hideAnswer', 
     );
     expect(deletedPaths).toContainEqual([
       'quiz_attempt_ledger',
-      'quiz-1__sso-uid',
+      'sess-1__sso-uid',
     ]);
   });
 

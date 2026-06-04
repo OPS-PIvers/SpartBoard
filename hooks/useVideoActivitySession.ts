@@ -50,18 +50,20 @@ import {
 const SESSIONS_COLLECTION = 'video_activity_sessions';
 const RESPONSES_SUBCOLLECTION = 'responses';
 /**
- * Top-level cross-launch attempt ledger for Video Activity. Mirrors the
- * Quiz ledger collection — see `QUIZ_ATTEMPT_LEDGER_COLLECTION` in
- * `useQuizSession.ts` for the rationale and key shape.
+ * Top-level cross-launch attempt ledger for Video Activity. Mirrors the Quiz
+ * ledger — see `QUIZ_ATTEMPT_LEDGER_COLLECTION` in `useQuizSession.ts`. Scoped
+ * per (assignment, student): keyed by the session id (= assignmentId), NOT the
+ * activity template, so each assignment built from an activity is independently
+ * completable.
  */
 const VIDEO_ACTIVITY_ATTEMPT_LEDGER_COLLECTION =
   'video_activity_attempt_ledger';
 
 function videoActivityLedgerKey(
-  activityId: string,
+  assignmentId: string,
   studentUid: string
 ): string {
-  return `${activityId}__${studentUid}`;
+  return `${assignmentId}__${studentUid}`;
 }
 
 const normalizeSession = (
@@ -431,24 +433,18 @@ export const useVideoActivitySessionTeacher =
         const currentAttempts = existing.completedAttempts ?? 0;
         const refundedAttempts = Math.max(0, currentAttempts - 1);
 
-        const sessionSnap = await getDoc(
-          doc(db, SESSIONS_COLLECTION, sessionId)
-        );
-        const activityId =
-          (sessionSnap.data() as Partial<VideoActivitySession> | undefined)
-            ?.activityId ?? null;
         // Probe the ledger BEFORE writing so we don't blindly create a
         // partial doc via `set(merge:true)` on a missing ledger entry
-        // (which would land without the required `activityId`/
-        // `studentUid`/`teacherUid` identity fields). For anonymous-PIN
-        // students or any student whose cross-launch ledger hasn't been
-        // touched yet there's simply nothing to refund.
+        // (which would land without the required identity fields). For
+        // anonymous-PIN students or any student whose cross-launch ledger
+        // hasn't been touched yet there's simply nothing to refund. Keyed by
+        // the session id (= assignmentId), matching the student's write.
         const ledgerRef =
-          activityId && existing.studentUid
+          sessionId && existing.studentUid
             ? doc(
                 db,
                 VIDEO_ACTIVITY_ATTEMPT_LEDGER_COLLECTION,
-                videoActivityLedgerKey(activityId, existing.studentUid)
+                videoActivityLedgerKey(sessionId, existing.studentUid)
               )
             : null;
         const ledgerSnap = ledgerRef ? await getDoc(ledgerRef) : null;
@@ -885,22 +881,20 @@ export const useVideoActivitySessionStudent =
           // non-anonymous (SSO/studentRole) joiners — see the matching
           // comment in `useQuizSession.joinQuizSession` for the rationale.
           let ledgerCompleted = 0;
-          if (
-            !isAnonymous &&
-            typeof sessionData.activityId === 'string' &&
-            sessionData.activityId.length > 0
-          ) {
+          if (!isAnonymous) {
+            // Keyed by session id (= assignmentId) so the cap is per
+            // assignment, not per activity template.
             const ledgerRef = doc(
               db,
               VIDEO_ACTIVITY_ATTEMPT_LEDGER_COLLECTION,
-              videoActivityLedgerKey(sessionData.activityId, currentUser.uid)
+              videoActivityLedgerKey(targetSessionId, currentUser.uid)
             );
             const ledgerSnap = await getDoc(ledgerRef).catch((err: unknown) => {
               logError(
                 'useVideoActivitySessionStudent.ledgerRead',
                 err as Error,
                 {
-                  activityId: sessionData.activityId,
+                  sessionId: targetSessionId,
                   studentUid: currentUser.uid,
                 }
               );
@@ -1080,6 +1074,10 @@ export const useVideoActivitySessionStudent =
         !isAnonymous &&
         typeof studentUid === 'string' &&
         studentUid.length > 0 &&
+        // `sessionId` is the ledger key (per-assignment scope); `activityId`
+        // stays as a metadata field the rules require, so both must be present.
+        typeof sessionId === 'string' &&
+        sessionId.length > 0 &&
         typeof activityId === 'string' &&
         activityId.length > 0 &&
         typeof teacherUid === 'string' &&
@@ -1088,7 +1086,7 @@ export const useVideoActivitySessionStudent =
         ? doc(
             db,
             VIDEO_ACTIVITY_ATTEMPT_LEDGER_COLLECTION,
-            videoActivityLedgerKey(activityId, studentUid)
+            videoActivityLedgerKey(sessionId, studentUid)
           )
         : null;
 

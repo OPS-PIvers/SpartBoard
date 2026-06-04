@@ -622,11 +622,15 @@ const QuizJoinFlow: React.FC<{
     // failed) until `joined` flips. Periods picker is rendered earlier in
     // the function and short-circuits before we reach this branch.
     //
-    // Prefer the hook's `error` (more specific, e.g. attempt-limit reached)
-    // when available, falling back to `ssoAutoJoinError` which captures
-    // failures from `lookupSession` that never reach the hook.
+    // Prefer `ssoAutoJoinError` — it holds the ACTUAL auto-join failure (the
+    // join's SessionEndedError / AttemptLimitReachedError message, or a
+    // lookupSession failure). When the auto-join falls back to review and that
+    // review finds no submission (a student opening an ENDED assignment they
+    // never took), the hook's `error` is the misleading "No submission found…";
+    // the original "This quiz session has already ended." in `ssoAutoJoinError`
+    // is the right message. Fall back to the hook `error` for non-SSO joiners.
     if (isStudentRole) {
-      const ssoError = error ?? ssoAutoJoinError;
+      const ssoError = ssoAutoJoinError ?? error;
       if (ssoError) {
         // SSO students arrive from /my-assignments or the Classroom add-on —
         // always the async/self-paced flow, so this surface is LIGHT.
