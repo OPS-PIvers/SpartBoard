@@ -4,6 +4,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { CSS_PPI } from '@/components/widgets/math-tools/mathToolUtils';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 import { TypographySettings } from '@/components/common/TypographySettings';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 
 export const MathToolsSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -29,9 +30,7 @@ export const MathToolsSettings: React.FC<{ widget: WidgetData }> = ({
       </div>
 
       <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
-        <label className="text-xxs font-black text-slate-400 uppercase tracking-widest block">
-          Palette DPI Calibration (px / inch)
-        </label>
+        <SettingsLabel>Palette DPI Calibration (px / inch)</SettingsLabel>
         <p className="text-xxs text-slate-400 leading-relaxed">
           Spawned true-scale tools inherit this PPI. CSS defines 1 in = 96 px —
           override only if your IFP screen renders differently.

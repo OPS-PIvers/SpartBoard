@@ -1,5 +1,5 @@
 import { render, fireEvent, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DashboardView } from '@/components/layout/DashboardView';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -641,5 +641,172 @@ describe('DashboardView Gestures & Navigation', () => {
     expect(mockUpdateWidget).not.toHaveBeenCalled();
     expect(mockMinimizeAllWidgets).not.toHaveBeenCalled();
     expect(mockLoadDashboard).not.toHaveBeenCalled();
+  });
+
+  // Regression: when focus is on a child element inside a widget (e.g., a
+  // button rendered inside a widget's content area), the global Escape/Delete/
+  // Alt+P keyboard handlers in DashboardView must still resolve the containing
+  // widget's id and dispatch a widget-keyboard-action event with the correct
+  // widgetId.
+  //
+  // Bug: the original code called
+  //   (document.activeElement as HTMLElement).getAttribute('data-widget-id')
+  // after confirming the element is inside a .widget ancestor.  data-widget-id
+  // lives on the .widget root (GlassCard), NOT on every child button/input, so
+  // getAttribute always returned null for focused child elements, silently
+  // dropping the keyboard action.
+  //
+  // Fix: call getAttribute on closest('.widget') — the ancestor that actually
+  // carries the attribute.
+  describe('widget-keyboard-action dispatches correct widgetId when a child element is focused', () => {
+    const WIDGET_ID = 'widget-focused-child';
+
+    let widgetRoot: HTMLDivElement;
+    let childButton: HTMLButtonElement;
+
+    beforeEach(() => {
+      // Set up an active dashboard with one widget so the handler has a target.
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        activeDashboard: {
+          ...mockDashboards[1],
+          widgets: [
+            {
+              id: WIDGET_ID,
+              type: 'clock',
+              x: 100,
+              y: 100,
+              w: 200,
+              h: 200,
+              z: 1,
+              flipped: false,
+              config: {},
+            },
+          ],
+        },
+        dashboards: mockDashboards,
+        toasts: [],
+        addWidget: mockAddWidget,
+        loadDashboard: mockLoadDashboard,
+        removeToast: vi.fn(),
+        updateWidget: vi.fn(),
+        removeWidget: vi.fn(),
+        duplicateWidget: vi.fn(),
+        bringToFront: vi.fn(),
+        addToast: vi.fn(),
+        minimizeAllWidgets: vi.fn(),
+        restoreAllWidgets: vi.fn(),
+        deleteAllWidgets: vi.fn(),
+        setSelectedWidgetId: vi.fn(),
+        updateDashboardSettings: vi.fn(),
+        zoom: 1,
+        setZoom: vi.fn(),
+        collectionsApi: {
+          collections: [],
+          loading: false,
+          error: null,
+          createCollection: vi.fn(),
+          renameCollection: vi.fn(),
+          moveCollection: vi.fn(),
+          deleteCollection: vi.fn(),
+          reorderSiblings: vi.fn(),
+          setCollectionMetadata: vi.fn(),
+          setCollectionDefaultBoard: vi.fn(),
+        },
+      });
+
+      // Simulate a widget root with class "widget" and data-widget-id, plus a
+      // child button that is what actually gets keyboard focus (e.g., a
+      // settings button inside the widget content area).
+      widgetRoot = document.createElement('div');
+      widgetRoot.className = 'widget';
+      widgetRoot.setAttribute('data-widget-id', WIDGET_ID);
+      widgetRoot.setAttribute('tabindex', '0');
+
+      childButton = document.createElement('button');
+      childButton.setAttribute('type', 'button');
+      childButton.textContent = 'Widget Action';
+      widgetRoot.appendChild(childButton);
+
+      document.body.appendChild(widgetRoot);
+
+      // Focus the child button — document.activeElement is now the button,
+      // NOT the widget root that carries data-widget-id.
+      childButton.focus();
+    });
+
+    afterEach(() => {
+      if (widgetRoot.parentNode) {
+        widgetRoot.parentNode.removeChild(widgetRoot);
+      }
+    });
+
+    it('dispatches Escape action with correct widgetId when child is focused', () => {
+      render(<DashboardView />);
+
+      const dispatched: CustomEvent[] = [];
+      const handler = (e: Event) => dispatched.push(e as CustomEvent);
+      window.addEventListener('widget-keyboard-action', handler);
+
+      // Sanity: the focused element is the child button, not the widget root.
+      expect(document.activeElement).toBe(childButton);
+      // And the child button itself does NOT carry data-widget-id.
+      expect(childButton.getAttribute('data-widget-id')).toBeNull();
+
+      fireEvent.keyDown(window, { key: 'Escape' });
+
+      window.removeEventListener('widget-keyboard-action', handler);
+
+      // Must have dispatched exactly one event with the correct widgetId.
+      expect(dispatched).toHaveLength(1);
+      const detail0 = (
+        dispatched[0] as CustomEvent<{ widgetId: string; key: string }>
+      ).detail;
+      expect(detail0.widgetId).toBe(WIDGET_ID);
+      expect(detail0.key).toBe('Escape');
+    });
+
+    it('dispatches Delete action with correct widgetId when child is focused', () => {
+      render(<DashboardView />);
+
+      const dispatched: CustomEvent[] = [];
+      const handler = (e: Event) => dispatched.push(e as CustomEvent);
+      window.addEventListener('widget-keyboard-action', handler);
+
+      expect(document.activeElement).toBe(childButton);
+      expect(childButton.getAttribute('data-widget-id')).toBeNull();
+
+      fireEvent.keyDown(window, { key: 'Delete' });
+
+      window.removeEventListener('widget-keyboard-action', handler);
+
+      expect(dispatched).toHaveLength(1);
+      const detail1 = (
+        dispatched[0] as CustomEvent<{ widgetId: string; key: string }>
+      ).detail;
+      expect(detail1.widgetId).toBe(WIDGET_ID);
+      expect(detail1.key).toBe('Delete');
+    });
+
+    it('dispatches Pin action with correct widgetId when child is focused (Alt+P)', () => {
+      render(<DashboardView />);
+
+      const dispatched: CustomEvent[] = [];
+      const handler = (e: Event) => dispatched.push(e as CustomEvent);
+      window.addEventListener('widget-keyboard-action', handler);
+
+      expect(document.activeElement).toBe(childButton);
+      expect(childButton.getAttribute('data-widget-id')).toBeNull();
+
+      fireEvent.keyDown(window, { key: 'p', altKey: true });
+
+      window.removeEventListener('widget-keyboard-action', handler);
+
+      expect(dispatched).toHaveLength(1);
+      const detail2 = (
+        dispatched[0] as CustomEvent<{ widgetId: string; key: string }>
+      ).detail;
+      expect(detail2.widgetId).toBe(WIDGET_ID);
+      expect(detail2.key).toBe('Pin');
+    });
   });
 });

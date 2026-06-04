@@ -12,6 +12,7 @@ import { useDialog } from '@/context/useDialog';
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { Plus, RefreshCcw, Check, Trash2, Copy, Users } from 'lucide-react';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 
 const NEXTUP_FOLDER_NAME = 'NextUp';
 const SESSIONS_COLLECTION = 'nextup_sessions';
@@ -243,9 +244,7 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
       <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar text-brand-gray-darkest">
         {/* Session Control */}
         <section>
-          <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-3 block">
-            Session Status
-          </label>
+          <SettingsLabel>Session Status</SettingsLabel>
 
           {!config.isActive ? (
             <div className="grid grid-cols-2 gap-2">
@@ -343,9 +342,7 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
 
         {/* Customization */}
         <section className="space-y-4">
-          <label className="text-xxs font-black text-slate-400 uppercase tracking-widest block">
-            Integration & Logic
-          </label>
+          <SettingsLabel>Integration &amp; Logic</SettingsLabel>
 
           <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
             <div className="space-y-0.5">
@@ -394,9 +391,7 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
 
         {/* Visual Styling */}
         <section className="space-y-4">
-          <label className="text-xxs font-black text-slate-400 uppercase tracking-widest block">
-            Visual Style
-          </label>
+          <SettingsLabel>Visual Style</SettingsLabel>
 
           <div className="grid grid-cols-5 gap-2">
             {[

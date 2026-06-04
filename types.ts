@@ -1671,6 +1671,10 @@ export interface BuildingChecklistDefaults {
   buildingId: string;
   items?: ChecklistDefaultItem[]; // Default item labels pre-populated on widget creation
   scaleMultiplier?: number;
+  fontFamily?: GlobalFontFamily;
+  fontColor?: string;
+  cardColor?: string;
+  cardOpacity?: number;
 }
 
 export interface ChecklistGlobalConfig {
@@ -4432,6 +4436,12 @@ export interface BuildingConceptWebDefaults {
   defaultNodeWidth?: number;
   defaultNodeHeight?: number;
   fontFamily?: GlobalFontFamily;
+  cardColor?: string;
+  cardOpacity?: number;
+  // NOTE: `ConceptWebConfig.fontColor` exists (written by the shared
+  // TypographySettings panel) but ConceptWeb's widget renders node text with
+  // a hardcoded `text-slate-800` and never reads it — so there is no
+  // per-building `fontColor` default here (it would be a dead control).
 }
 
 export interface ConceptWebGlobalConfig {

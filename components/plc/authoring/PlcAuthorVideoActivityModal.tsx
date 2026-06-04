@@ -20,7 +20,7 @@ import type {
   VideoActivityData,
 } from '@/types';
 import type { AssignmentActivityRef } from '@/hooks/useVideoActivityAssignments';
-import { PlcAssignmentConfigModal } from '../assignments/PlcAssignmentConfigModal';
+import { PlcAssignmentConfigModal } from '@/components/plc/assignments/PlcAssignmentConfigModal';
 
 interface PlcAuthorVideoActivityModalProps {
   plc: Plc;

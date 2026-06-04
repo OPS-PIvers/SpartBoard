@@ -1982,6 +1982,16 @@ export const useQuizAssignments = (
         const answers = Array.isArray(data.answers) ? data.answers : [];
         let pointsEarned = 0;
         let pointsMax = 0;
+        // Track which question ids have already been scored so a duplicate
+        // answer (arrayUnion race writing the same questionId twice into
+        // `answers`) can't inflate pointsEarned and pointsMax. Each
+        // answer is still graded for its `isCorrect` flag, but only the
+        // first occurrence of a questionId contributes to the totals —
+        // matching the dedup already applied in the unanswered loop below
+        // and mirroring the identical guard in
+        // `useVideoActivityAssignments.publishAssignmentScores` (#1728,
+        // #1787, #1803).
+        const scoredQuestionIds = new Set<string>();
         const gradedAnswers: QuizResponseAnswer[] = answers.map((a) => {
           const q = questionsById.get(a.questionId);
           if (!q) {
@@ -2003,8 +2013,11 @@ export const useQuizAssignments = (
               ? data.grading?.[q.id]
               : undefined;
           const result = gradeAnswer(q, a.answer, manualGrade);
-          pointsEarned += result.pointsEarned;
-          pointsMax += result.pointsMax;
+          if (!scoredQuestionIds.has(a.questionId)) {
+            scoredQuestionIds.add(a.questionId);
+            pointsEarned += result.pointsEarned;
+            pointsMax += result.pointsMax;
+          }
           return { ...a, isCorrect: result.isCorrect };
         });
         // Count questions the student didn't answer toward the denominator

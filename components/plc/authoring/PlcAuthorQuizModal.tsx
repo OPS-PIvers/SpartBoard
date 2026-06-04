@@ -15,7 +15,7 @@ import { useAuth } from '@/context/useAuth';
 import { useQuiz } from '@/hooks/useQuiz';
 import type { Plc, QuizBehaviorSettings, QuizData } from '@/types';
 import type { AssignmentQuizRef } from '@/hooks/useQuizAssignments';
-import { PlcAssignmentConfigModal } from '../assignments/PlcAssignmentConfigModal';
+import { PlcAssignmentConfigModal } from '@/components/plc/assignments/PlcAssignmentConfigModal';
 
 interface PlcAuthorQuizModalProps {
   plc: Plc;
