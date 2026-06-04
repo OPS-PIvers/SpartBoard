@@ -3152,14 +3152,16 @@ export interface RosterPinIndexEntry {
 
 /**
  * Cross-launch attempt ledger. Stored at the top level
- * `/quiz_attempt_ledger/{ledgerId}` where `ledgerId = ${quizId}__${studentUid}`.
+ * `/quiz_attempt_ledger/{ledgerId}` where
+ * `ledgerId = ${assignmentId}__${studentUid}` (`assignmentId` = the session id).
  *
- * Per-session response docs are scoped under the session and reset every time
- * a teacher launches a new session for the same quiz, so the per-session
- * `completedAttempts` counter cannot enforce "1 attempt for this quiz, ever"
- * across re-launches. The ledger sits above sessions and accumulates a
- * student's attempts on a specific quiz regardless of how many times the
- * teacher launches it.
+ * Per-session response docs reset every launch, so they can't enforce a
+ * teacher's "1 attempt" intent across re-launches of the SAME assignment. The
+ * ledger sits above the per-launch responses and accumulates a student's
+ * completed attempts on ONE assignment — scoped per ASSIGNMENT, NOT per quiz
+ * template. Each assignment a teacher builds from the same library quiz gets its
+ * own ledger entry, so a student can complete every one of them; the cap only
+ * blocks re-attempts of the same assignment.
  *
  * Identity: keyed by the student's auth.uid, which for SSO joiners is the
  * stable HMAC pseudonym minted by `studentLoginV1`. PIN joiners' anonymous
@@ -3169,7 +3171,11 @@ export interface RosterPinIndexEntry {
  * any change to this shape.
  */
 export interface QuizAttemptLedger {
-  /** Matches `QuizSession.quizId`. Half of the deterministic ledger key. */
+  /**
+   * The quiz template id (`QuizSession.quizId`). Metadata only — retained for
+   * reference/analytics and required by the Firestore rules; NOT part of the
+   * ledger key (the key is `${assignmentId}__${studentUid}`).
+   */
   quizId: string;
   /** Matches `auth.uid`. Other half of the deterministic ledger key. */
   studentUid: string;
@@ -4033,10 +4039,14 @@ export interface VideoActivityResponse {
  * Cross-launch attempt ledger for Video Activity. Mirrors
  * `QuizAttemptLedger` exactly — see that type's docs for the rationale.
  * Stored at `/video_activity_attempt_ledger/{ledgerId}` where
- * `ledgerId = ${activityId}__${studentUid}`.
+ * `ledgerId = ${assignmentId}__${studentUid}` (`assignmentId` = the session id):
+ * scoped per ASSIGNMENT, not per activity template.
  */
 export interface VideoActivityAttemptLedger {
-  /** Matches `VideoActivitySession.activityId`. */
+  /**
+   * The activity template id (`VideoActivitySession.activityId`). Metadata only
+   * — required by the Firestore rules; NOT part of the ledger key.
+   */
   activityId: string;
   /** Matches `auth.uid`. */
   studentUid: string;

@@ -2476,11 +2476,12 @@ service cloud.firestore {
     }
 
     // Quiz Attempt Ledger — top-level, cross-launch attempt counter per
-    // (quiz, student). See `QuizAttemptLedger` in types.ts and
-    // `QUIZ_ATTEMPT_LEDGER_COLLECTION` in `useQuizSession.ts` for the
-    // rationale. The doc id is `${quizId}__${studentUid}`; the
-    // `studentUid` field on the doc must equal the student's auth uid
-    // (the rules can't decompose the doc id back into its halves).
+    // (ASSIGNMENT, student), NOT per quiz template. See `QuizAttemptLedger` in
+    // types.ts and `QUIZ_ATTEMPT_LEDGER_COLLECTION` in `useQuizSession.ts` for
+    // the rationale. The doc id is `${assignmentId}__${studentUid}` (the
+    // assignmentId is the session id); the `quizId` field is retained as
+    // metadata. The `studentUid` field on the doc must equal the student's auth
+    // uid (the rules can't decompose the doc id back into its halves).
     //
     // Ledger writes happen only inside the `completeQuiz` transaction
     // alongside the response status flip, so the rules' append-only
@@ -2569,7 +2570,8 @@ service cloud.firestore {
     }
 
     // Video Activity Attempt Ledger — same shape as the Quiz ledger.
-    // Doc id: `${activityId}__${studentUid}`.
+    // Doc id: `${assignmentId}__${studentUid}` (assignmentId = session id);
+    // scoped per assignment, not per activity template.
     match /video_activity_attempt_ledger/{ledgerId} {
       // See `quiz_attempt_ledger` above for the `resource == null`
       // rationale — same pattern, same threat model.

@@ -87,25 +87,31 @@ export const RESPONSE_HISTORY_COLLECTION = 'history';
 const HISTORY_SNAPSHOT_THROTTLE_MS = 5000;
 /**
  * Top-level cross-launch attempt ledger. Sits alongside `/quiz_sessions/`
- * and accumulates a student's completed-attempt count across every session
- * the teacher creates for the same quiz. Without this collection, the
- * per-session counter on `responses/{key}` resets every launch and a
- * teacher's "1 attempt" intent is bypassed by relaunching the quiz.
+ * and accumulates a student's completed-attempt count across every LAUNCH of a
+ * single ASSIGNMENT. It is scoped per (assignment, student) — NOT per quiz
+ * template — so a student can complete every assignment a teacher builds from
+ * the same library quiz; the cap only stops re-attempts of the SAME assignment
+ * across re-launches (where the per-session `responses/{key}` counter resets
+ * each launch and a teacher's "1 attempt" intent would otherwise be bypassed).
  *
- * Doc id: `${quizId}__${studentUid}` (see `quizLedgerKey`). Schema:
- * `QuizAttemptLedger` in types.ts.
+ * Doc id: `${assignmentId}__${studentUid}` (see `quizLedgerKey`), where
+ * `assignmentId` is the session id — a deep-link/Classroom attach is 1:1 with a
+ * session, and re-launching the same assignment resolves to the same session by
+ * code. Schema: `QuizAttemptLedger` in types.ts.
  */
 export const QUIZ_ATTEMPT_LEDGER_COLLECTION = 'quiz_attempt_ledger';
 
 /**
- * Deterministic ledger doc id. Two underscores keep us safe even if a
- * future quizId or studentUid contains a single underscore (Firestore
- * doc ids allow underscores). HMAC pseudonyms are hex, current quizIds
- * are UUIDs, so collisions are not realistic, but the separator is
- * cheap insurance.
+ * Deterministic ledger doc id. Two underscores keep us safe even if a future
+ * id contains a single underscore (Firestore doc ids allow underscores).
+ * assignmentIds/sessionIds are UUIDs and HMAC pseudonyms are hex, so collisions
+ * are not realistic, but the separator is cheap insurance.
  */
-export function quizLedgerKey(quizId: string, studentUid: string): string {
-  return `${quizId}__${studentUid}`;
+export function quizLedgerKey(
+  assignmentId: string,
+  studentUid: string
+): string {
+  return `${assignmentId}__${studentUid}`;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -812,11 +818,11 @@ export const useQuizSessionTeacher = (
       }
 
       const ledgerRef =
-        target && session?.quizId
+        target && sessionId
           ? doc(
               db,
               QUIZ_ATTEMPT_LEDGER_COLLECTION,
-              quizLedgerKey(session.quizId, target.studentUid)
+              quizLedgerKey(sessionId, target.studentUid)
             )
           : null;
 
@@ -921,7 +927,7 @@ export const useQuizSessionTeacher = (
       if (ledgerRef && ledgerSnap?.exists()) batch.delete(ledgerRef);
       await batch.commit();
     },
-    [sessionId, responses, session?.quizId]
+    [sessionId, responses]
   );
 
   const unlockStudentAttempt = useCallback(
@@ -947,11 +953,11 @@ export const useQuizSessionTeacher = (
         RESPONSES_COLLECTION,
         responseKey
       );
-      const ledgerRef = session?.quizId
+      const ledgerRef = sessionId
         ? doc(
             db,
             QUIZ_ATTEMPT_LEDGER_COLLECTION,
-            quizLedgerKey(session.quizId, target.studentUid)
+            quizLedgerKey(sessionId, target.studentUid)
           )
         : null;
       const currentAttempts = target.completedAttempts ?? 0;
@@ -988,7 +994,7 @@ export const useQuizSessionTeacher = (
       }
       await batch.commit();
     },
-    [sessionId, responses, session?.quizId]
+    [sessionId, responses]
   );
 
   const unlockResultsForStudent = useCallback(
@@ -1683,15 +1689,14 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // same uid space, at which point this same code automatically
         // covers PIN joiners.
         let ledgerCompleted = 0;
-        if (
-          !isAnonymous &&
-          typeof sessionData.quizId === 'string' &&
-          sessionData.quizId.length > 0
-        ) {
+        if (!isAnonymous) {
+          // Keyed by the session id (= assignmentId) so the cap is per
+          // assignment, not per quiz template — a fresh assignment of the same
+          // quiz has no ledger entry yet and is independently takeable.
           const ledgerRef = doc(
             db,
             QUIZ_ATTEMPT_LEDGER_COLLECTION,
-            quizLedgerKey(sessionData.quizId, studentUid)
+            quizLedgerKey(sessionDoc.id, studentUid)
           );
           const ledgerSnap = await getDoc(ledgerRef).catch((err: unknown) => {
             // Ledger reads can fail with permission-denied for legacy
@@ -2240,6 +2245,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       !isAnonymous &&
       typeof studentUid === 'string' &&
       studentUid.length > 0 &&
+      // `sessionId` is the ledger key (per-assignment scope); `quizId` is still
+      // stored as a metadata field the rules require, so both must be present.
+      typeof sessionId === 'string' &&
+      sessionId.length > 0 &&
       typeof quizId === 'string' &&
       quizId.length > 0 &&
       typeof teacherUid === 'string' &&
@@ -2248,7 +2257,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       ? doc(
           db,
           QUIZ_ATTEMPT_LEDGER_COLLECTION,
-          quizLedgerKey(quizId, studentUid)
+          quizLedgerKey(sessionId, studentUid)
         )
       : null;
 
