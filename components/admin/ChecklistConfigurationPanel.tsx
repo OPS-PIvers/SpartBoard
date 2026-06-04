@@ -6,9 +6,11 @@ import {
   ChecklistGlobalConfig,
   BuildingChecklistDefaults,
   ChecklistDefaultItem,
+  GlobalFontFamily,
 } from '@/types';
 import { Plus, Trash2, GripVertical } from 'lucide-react';
 import { Card } from '@/components/common/Card';
+import { HexColorField } from './HexColorField';
 
 interface ChecklistConfigurationPanelProps {
   config: ChecklistGlobalConfig;
@@ -123,6 +125,86 @@ export const ChecklistConfigurationPanel: React.FC<
             <span>0.5x (Small)</span>
             <span>1.0x (Normal)</span>
             <span>2.5x (Large)</span>
+          </div>
+        </div>
+
+        {/* Appearance Defaults */}
+        <div className="border-t border-slate-200 pt-4 space-y-3">
+          <span className="text-xxs font-bold text-slate-500 uppercase block">
+            Appearance Defaults
+          </span>
+          <div>
+            <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
+              Default Font Family
+            </label>
+            <select
+              value={currentBuildingConfig.fontFamily ?? 'global'}
+              onChange={(e) => {
+                const selected = e.target.value;
+                handleUpdateBuilding({
+                  fontFamily:
+                    selected === 'global'
+                      ? undefined
+                      : (selected as GlobalFontFamily),
+                });
+              }}
+              className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+            >
+              <option value="global">Global (Dashboard default)</option>
+              <option value="sans">Sans Serif</option>
+              <option value="serif">Serif</option>
+              <option value="mono">Monospace</option>
+              <option value="handwritten">Handwritten</option>
+              <option value="rounded">Rounded</option>
+              <option value="comic">Comic</option>
+              <option value="slab">Slab Serif</option>
+              <option value="retro">Retro</option>
+              <option value="fun">Fun</option>
+              <option value="marker">Marker</option>
+              <option value="cursive">Cursive</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
+              Default Text Colour
+            </label>
+            <HexColorField
+              value={currentBuildingConfig.fontColor}
+              onChange={(fontColor) => handleUpdateBuilding({ fontColor })}
+              fallback="#334155"
+              ariaLabel="Pick default checklist text colour"
+            />
+          </div>
+          <div>
+            <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
+              Default Surface Colour
+            </label>
+            <HexColorField
+              value={currentBuildingConfig.cardColor}
+              onChange={(cardColor) => handleUpdateBuilding({ cardColor })}
+              fallback="#ffffff"
+              ariaLabel="Pick default checklist surface colour"
+            />
+          </div>
+          <div>
+            <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
+              Default Surface Opacity (
+              {Math.round((currentBuildingConfig.cardOpacity ?? 1) * 100)}%)
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={currentBuildingConfig.cardOpacity ?? 1}
+              onChange={(e) =>
+                handleUpdateBuilding({
+                  cardOpacity: parseFloat(e.target.value),
+                })
+              }
+              className="w-full accent-brand-blue-primary"
+              aria-label="Default checklist surface opacity"
+            />
           </div>
         </div>
 

@@ -243,6 +243,117 @@ describe('getAdminBuildingConfig', () => {
     });
   });
 
+  describe('concept-web', () => {
+    it('passes through node dimensions, font family, and surface fields', () => {
+      const perm = makePerm('concept-web', {
+        high: {
+          defaultNodeWidth: 20,
+          defaultNodeHeight: 12,
+          fontFamily: 'comic',
+          cardColor: '#fef3c7',
+          cardOpacity: 0.6,
+        },
+      });
+      expect(getAdminBuildingConfig('concept-web', [perm], ['high'])).toEqual({
+        defaultNodeWidth: 20,
+        defaultNodeHeight: 12,
+        fontFamily: 'comic',
+        cardColor: '#fef3c7',
+        cardOpacity: 0.6,
+      });
+    });
+
+    it('does not wire fontColor (ConceptWeb node text is hardcoded)', () => {
+      const perm = makePerm('concept-web', {
+        high: { fontColor: '#1e293b' },
+      });
+      expect(getAdminBuildingConfig('concept-web', [perm], ['high'])).toEqual(
+        {}
+      );
+    });
+
+    it('rejects invalid surface values and unknown font families', () => {
+      const perm = makePerm('concept-web', {
+        high: {
+          fontFamily: 'not-a-font',
+          cardColor: 'rgb(0,0,0)',
+          cardOpacity: 2,
+        },
+      });
+      expect(getAdminBuildingConfig('concept-web', [perm], ['high'])).toEqual(
+        {}
+      );
+    });
+
+    it('accepts cardOpacity at exact bounds 0 and 1', () => {
+      const permZero = makePerm('concept-web', { high: { cardOpacity: 0 } });
+      expect(
+        getAdminBuildingConfig('concept-web', [permZero], ['high'])
+      ).toEqual({ cardOpacity: 0 });
+
+      const permOne = makePerm('concept-web', { high: { cardOpacity: 1 } });
+      expect(
+        getAdminBuildingConfig('concept-web', [permOne], ['high'])
+      ).toEqual({ cardOpacity: 1 });
+    });
+  });
+
+  describe('checklist', () => {
+    it('passes through scale, items, font family, and appearance fields', () => {
+      const perm = makePerm('checklist', {
+        high: {
+          scaleMultiplier: 1.5,
+          items: [{ id: 'a', text: 'Sharpen pencil' }],
+          fontFamily: 'handwritten',
+          cardColor: '#e0f2fe',
+          cardOpacity: 0.75,
+          fontColor: '#0f172a',
+        },
+      });
+      const result = getAdminBuildingConfig('checklist', [perm], ['high']);
+      expect(result).toMatchObject({
+        scaleMultiplier: 1.5,
+        fontFamily: 'handwritten',
+        cardColor: '#e0f2fe',
+        cardOpacity: 0.75,
+        fontColor: '#0f172a',
+      });
+      // items get fresh UUIDs but preserve text and reset completion.
+      expect(result.items).toEqual([
+        { id: expect.any(String), text: 'Sharpen pencil', completed: false },
+      ]);
+    });
+
+    it('rejects invalid appearance values, unknown font families, and malformed scale', () => {
+      const perm = makePerm('checklist', {
+        high: {
+          fontFamily: 'wingdings',
+          cardColor: 'white',
+          cardOpacity: -0.5,
+          fontColor: '#12', // too short to be a valid hex
+          scaleMultiplier: 'large', // invalid type
+        },
+      });
+      expect(getAdminBuildingConfig('checklist', [perm], ['high'])).toEqual({});
+    });
+
+    it('clamps scaleMultiplier to the panel slider range [0.5, 2.5]', () => {
+      const permHigh = makePerm('checklist', {
+        high: { scaleMultiplier: 5 },
+      });
+      expect(getAdminBuildingConfig('checklist', [permHigh], ['high'])).toEqual(
+        { scaleMultiplier: 2.5 }
+      );
+
+      const permLow = makePerm('checklist', {
+        high: { scaleMultiplier: 0.1 },
+      });
+      expect(getAdminBuildingConfig('checklist', [permLow], ['high'])).toEqual({
+        scaleMultiplier: 0.5,
+      });
+    });
+  });
+
   it('returns empty for unknown widget types', () => {
     const perm = makePerm('clock', { high: { format24: true } });
     // Pass a type that has no case in the switch.
