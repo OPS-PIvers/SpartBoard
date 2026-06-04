@@ -378,7 +378,11 @@ const LtiDeepLinkFlow: React.FC = () => {
             </p>
           </div>
         </AddonCard>
-      ) : !teacherReady ? (
+      ) : !teacherReady && !deepLinking ? (
+        // Sign-in card only BEFORE the exchange. Once `deepLinking` is loaded we
+        // stay on the picker even if `teacherReady` momentarily blips false (e.g.
+        // a token refresh) — the one-time `lc` is already consumed, so falling
+        // back to the sign-in card here would strand the teacher on a dead button.
         <AddonCard className="p-6">
           <p className="mb-4 text-sm text-slate-500">
             {user
