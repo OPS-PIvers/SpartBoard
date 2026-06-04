@@ -288,6 +288,12 @@ const QuizJoinFlow: React.FC<{
   // failure, Firestore unavailable) the hook stays silent, so without this
   // the student would sit on the "Joining quiz…" loader forever.
   const [ssoAutoJoinError, setSsoAutoJoinError] = useState<string | null>(null);
+  // Terminal SSO message that OVERRIDES both the hook `error` and
+  // `ssoAutoJoinError`. Set only when the auto-join fell back to review and the
+  // review found no submission — a student opening a CLOSED assignment they
+  // never took. The hook `error` is then the misleading "No submission found…",
+  // so we surface the real reason (e.g. "This quiz session has already ended.").
+  const [ssoTerminalError, setSsoTerminalError] = useState<string | null>(null);
 
   // SSO gate (feature-flagged). Anonymous joiners on a ClassLink-rostered
   // session are offered Google sign-in by default — which keys their response
@@ -403,6 +409,14 @@ const QuizJoinFlow: React.FC<{
               '[QuizStudentApp] subscribeForReview fallback failed:',
               reviewErr
             );
+            // No submission to review → the student is opening a closed
+            // assignment they never took. The hook `error` is now the
+            // misleading "No submission found…"; surface the real join reason
+            // (e.g. "This quiz session has already ended.") with top precedence.
+            setSsoTerminalError(
+              err instanceof Error ? err.message : 'This quiz is closed.'
+            );
+            return;
           }
         }
         console.warn('[QuizStudentApp] SSO auto-join failed:', err);
@@ -622,15 +636,14 @@ const QuizJoinFlow: React.FC<{
     // failed) until `joined` flips. Periods picker is rendered earlier in
     // the function and short-circuits before we reach this branch.
     //
-    // Prefer `ssoAutoJoinError` — it holds the ACTUAL auto-join failure (the
-    // join's SessionEndedError / AttemptLimitReachedError message, or a
-    // lookupSession failure). When the auto-join falls back to review and that
-    // review finds no submission (a student opening an ENDED assignment they
-    // never took), the hook's `error` is the misleading "No submission found…";
-    // the original "This quiz session has already ended." in `ssoAutoJoinError`
-    // is the right message. Fall back to the hook `error` for non-SSO joiners.
+    // Precedence: `ssoTerminalError` wins — set only when the review fallback
+    // found no submission for a CLOSED assignment, it carries the real "…has
+    // already ended." reason over the hook's misleading "No submission found…".
+    // Otherwise prefer the hook `error` (e.g. the friendly "ask your teacher to
+    // enroll you" hint on a class-gate denial), then `ssoAutoJoinError` (which
+    // captures lookupSession failures the hook never sees).
     if (isStudentRole) {
-      const ssoError = ssoAutoJoinError ?? error;
+      const ssoError = ssoTerminalError ?? error ?? ssoAutoJoinError;
       if (ssoError) {
         // SSO students arrive from /my-assignments or the Classroom add-on —
         // always the async/self-paced flow, so this surface is LIGHT.
