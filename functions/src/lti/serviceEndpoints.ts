@@ -16,6 +16,7 @@ import {
   getLtiPlatformConfig,
   TOOL_LAUNCH_URL,
   AGS_SCOPE_SCORE,
+  NRPS_SCOPE,
 } from './config';
 import { ALLOWED_ORIGINS } from '../classlinkShared';
 import { signToolJwt } from './toolKey';
@@ -25,9 +26,18 @@ import {
   isSchoologyReturnUrl,
 } from './deepLink';
 import { getAgsAccessToken, postScore } from './ags';
+import { fetchNrpsMembers } from './nrps';
+import { ltiStudentUid } from './identity';
+import {
+  QUIZ_SESSIONS_COLLECTION,
+  LTI_SESSION_MEMBERSHIPS_COLLECTION,
+} from './nrpsStore';
 import { validateGradePushAuth } from './stores';
 
 const LTI_TOOL_PRIVATE_KEY = defineSecret('LTI_TOOL_PRIVATE_KEY');
+const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
+  'STUDENT_PSEUDONYM_HMAC_SECRET'
+);
 
 // ── ltiSignDeepLinkResponseV1 ───────────────────────────────────────────────
 export const ltiSignDeepLinkResponseV1 = onCall(
@@ -212,5 +222,157 @@ export const ltiPushGradesForAssignmentV1 = onCall(
 
     const pushed = results.filter((r) => r.ok).length;
     return { results, pushed, total: rawGrades.length };
+  }
+);
+
+// ── ltiResolveNamesForAssignmentV1 ──────────────────────────────────────────
+//
+// Teacher-side name resolution for Schoology students — the NRPS analogue of
+// `getPseudonymsForAssignmentV1` (the ClassLink resolver). Given a quiz session
+// the caller TEACHES, fetch the persisted NRPS membership URL(s) for that
+// session, mint an NRPS-scoped service token, GET the membership roster(s), and
+// map each member's LTI `sub` → the SAME pseudonym uid that keys the response
+// docs → their name. Names are returned to the teacher's browser and NEVER
+// persisted (mirrors ClassLink: nothing about a name comes to rest in
+// Firestore). Gated on session ownership, so a teacher only ever resolves their
+// own session's contexts.
+export const ltiResolveNamesForAssignmentV1 = onCall(
+  {
+    region: 'us-central1',
+    invoker: 'public',
+    cors: ALLOWED_ORIGINS,
+    secrets: [LTI_TOOL_PRIVATE_KEY, STUDENT_PSEUDONYM_HMAC_SECRET],
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Sign in required.');
+    }
+    // Teachers only. Teachers authenticate with standard Firebase Auth (email
+    // present on the token); students never have email and carry `studentRole`.
+    // Require email + reject studentRole (mirrors getPseudonymsForAssignmentV1)
+    // — defense in depth on top of the session-ownership gate below.
+    if (!request.auth.token.email || request.auth.token.studentRole === true) {
+      throw new HttpsError('permission-denied', 'Teacher account required.');
+    }
+    const data = (request.data ?? {}) as { sessionId?: unknown };
+    const sessionId = typeof data.sessionId === 'string' ? data.sessionId : '';
+    if (!sessionId) {
+      throw new HttpsError('invalid-argument', 'sessionId is required.');
+    }
+
+    const db = admin.firestore();
+
+    // SECURITY GATE: the caller must own the session. Same opaque error for
+    // "no session" and "not your session" so we don't reveal session existence.
+    const sessSnap = await db
+      .collection(QUIZ_SESSIONS_COLLECTION)
+      .doc(sessionId)
+      .get();
+    const sessTeacherUid =
+      typeof sessSnap.data()?.teacherUid === 'string'
+        ? (sessSnap.data()?.teacherUid as string)
+        : '';
+    if (!sessSnap.exists || sessTeacherUid !== request.auth.uid) {
+      throw new HttpsError(
+        'permission-denied',
+        'Not the teacher of this session.'
+      );
+    }
+
+    const ctxSnap = await db
+      .collection(LTI_SESSION_MEMBERSHIPS_COLLECTION)
+      .doc(sessionId)
+      .collection('contexts')
+      .get();
+    if (ctxSnap.empty) {
+      // Non-LTI session (or no student has launched yet) — nothing to resolve.
+      return { names: {} };
+    }
+
+    const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
+    if (!hmacSecret) {
+      throw new HttpsError('internal', 'Server not configured.');
+    }
+
+    const cfg = await getLtiPlatformConfig(db);
+    let accessToken: string;
+    try {
+      accessToken = await getAgsAccessToken({
+        clientId: cfg.clientId,
+        tokenUrl: cfg.tokenUrl,
+        privatePem: LTI_TOOL_PRIVATE_KEY.value(),
+        scopes: [NRPS_SCOPE],
+      });
+    } catch (err) {
+      console.error('[ltiResolveNames] NRPS token mint failed:', err);
+      throw new HttpsError(
+        'internal',
+        'Could not authorize the roster service.'
+      );
+    }
+
+    // Union every context filed under this session (a multi-section attach has
+    // more than one). A per-context fetch failure is logged and skipped — a
+    // partial map is strictly better than none.
+    const names: Record<string, { givenName: string; familyName: string }> = {};
+    let withName = 0;
+    let contextsFetched = 0;
+    let contextsFailed = 0;
+    for (const doc of ctxSnap.docs) {
+      const url =
+        typeof doc.data().contextMembershipsUrl === 'string'
+          ? (doc.data().contextMembershipsUrl as string)
+          : '';
+      if (!url) continue;
+      try {
+        const members = await fetchNrpsMembers(url, accessToken);
+        contextsFetched += 1;
+        for (const m of members) {
+          const uid = ltiStudentUid(m.userId, hmacSecret);
+          names[uid] = {
+            givenName: m.givenName,
+            familyName: m.familyName,
+          };
+          if (m.givenName || m.familyName) withName += 1;
+        }
+      } catch (err) {
+        contextsFailed += 1;
+        console.warn(`[ltiResolveNames] context ${doc.id} fetch failed:`, err);
+      }
+    }
+
+    // If EVERY context with a URL failed, this is a real NRPS outage (scope
+    // denied on the membership endpoint, expired/invalid URL, platform down) —
+    // NOT the benign "no LTI students" case (which already returned {} above
+    // when there were no contexts). Throw so the client's catch fires
+    // (observability + cache eviction → retry on the next monitor open) instead
+    // of silently rendering every student as "Student", which is byte-identical
+    // to an empty resolve.
+    if (contextsFetched === 0 && contextsFailed > 0) {
+      throw new HttpsError(
+        'unavailable',
+        'Could not reach the Schoology roster service.'
+      );
+    }
+
+    const total = Object.keys(names).length;
+    // Members present but ZERO names = the platform connected yet is WITHHOLDING
+    // names (the NRPS name-release / privacy config — the one unknown this whole
+    // feature depends on). Warn (not info) so it's greppable/alertable: the fix
+    // is in the Schoology app config, not the code.
+    if (total > 0 && withName === 0) {
+      console.warn(
+        `[ltiResolveNames] session=${sessionId} platform returned ${total} ` +
+          `members but ZERO names — check the Schoology NRPS name-release config`
+      );
+    }
+
+    // PII-free diagnostics: counts only, never names.
+    console.log(
+      `[ltiResolveNames] session=${sessionId} contexts=${ctxSnap.size} ` +
+        `fetched=${contextsFetched} failed=${contextsFailed} ` +
+        `members=${total} withName=${withName}`
+    );
+    return { names };
   }
 );

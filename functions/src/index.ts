@@ -4314,4 +4314,5 @@ export { ltiLogin, ltiLaunch, ltiExchange } from './lti/launchEndpoints';
 export {
   ltiSignDeepLinkResponseV1,
   ltiPushGradesForAssignmentV1,
+  ltiResolveNamesForAssignmentV1,
 } from './lti/serviceEndpoints';

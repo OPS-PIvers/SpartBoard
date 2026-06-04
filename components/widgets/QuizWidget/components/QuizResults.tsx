@@ -64,6 +64,7 @@ import {
 import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
+import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
 import { PlcTab } from '@/components/common/library/PlcTab';
 import { WrittenResponseGrader } from './WrittenResponseGrader';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -352,11 +353,26 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       return session.classIds;
     return session?.classId ? [session.classId] : [];
   }, [session?.classIds, session?.classId]);
-  const { byStudentUid } = useAssignmentPseudonymsMulti(
+  const { byStudentUid: classLinkNames } = useAssignmentPseudonymsMulti(
     session?.id ?? null,
     sessionClassIds,
     orgId
   );
+  // Schoology LTI students aren't in any ClassLink roster — resolve their names
+  // on-read via NRPS and merge in (ClassLink wins on the rare uid collision).
+  // Gated on `ltiNrps` so non-LTI sessions never make the call.
+  const ltiNames = useLtiSessionNames(
+    session?.id ?? null,
+    session?.ltiNrps === true
+  );
+  const byStudentUid = useMemo(() => {
+    if (ltiNames.size === 0) return classLinkNames;
+    const merged = new Map(classLinkNames);
+    for (const [uid, name] of ltiNames) {
+      if (!merged.has(uid)) merged.set(uid, name);
+    }
+    return merged;
+  }, [classLinkNames, ltiNames]);
   const exportPinToName = useMemo(
     () => buildPinToExportNameMap(rosters, resolvedPeriods),
     [rosters, resolvedPeriods]

@@ -11,7 +11,6 @@
 import { onRequest, onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
-import * as CryptoJS from 'crypto-js';
 
 import {
   getLtiPlatformConfig,
@@ -20,6 +19,9 @@ import {
   MESSAGE_TYPE_DEEP_LINKING,
 } from './config';
 import { verifyLaunchJwt, launchRedirectTarget } from './jwt';
+import type { NrpsEndpoint } from './jwt';
+import { ltiStudentUid } from './identity';
+import { persistNrpsMembershipForLaunch } from './nrpsStore';
 import {
   putOidcState,
   consumeOidcState,
@@ -37,13 +39,6 @@ import {
 const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
   'STUDENT_PSEUDONYM_HMAC_SECRET'
 );
-
-/** Stable Firebase uid for a Schoology user, namespaced off their LTI `sub`. */
-function ltiStudentUid(sub: string, hmacSecret: string): string {
-  return CryptoJS.HmacSHA256(`schoology-sub:${sub}`, hmacSecret).toString(
-    CryptoJS.enc.Hex
-  );
-}
 
 function mergedParams(req: {
   query?: Record<string, unknown>;
@@ -172,6 +167,11 @@ export const ltiLaunch = onRequest(
         hasAgs: !!claims.ags,
         hasNrps: !!claims.nrps,
         hasDeepLinking: !!claims.deepLinking,
+        // PII-free presence flags only (never log the values) — confirms
+        // whether the platform is releasing the name/email claims that the
+        // NRPS membership payload should also carry.
+        hasName: !!claims.name,
+        hasEmail: !!claims.email,
       });
 
       const code = await mintLaunchCode(db, {
@@ -332,6 +332,32 @@ export const ltiExchange = onCall(
       } catch (err) {
         console.warn(
           '[ltiExchange] grade-link persist failed (non-fatal)',
+          err
+        );
+      }
+    }
+
+    // Persist the PII-free NRPS membership endpoint so the teacher's monitor can
+    // resolve this (and every) Schoology student's name ON READ — no name is
+    // stored, only the context's membership URL keyed by the quiz session. Best
+    // effort: a failure here must never block the student from taking the quiz.
+    const membershipUrl = (launch.nrps as NrpsEndpoint | null)
+      ?.contextMembershipsUrl;
+    const quizCode =
+      typeof launch.custom?.['quiz_code'] === 'string'
+        ? launch.custom['quiz_code']
+        : '';
+    if (membershipUrl && quizCode && launch.contextId) {
+      try {
+        await persistNrpsMembershipForLaunch(db, {
+          quizCode,
+          contextId: launch.contextId,
+          membershipUrl,
+          deploymentId: launch.deploymentId,
+        });
+      } catch (err) {
+        console.warn(
+          '[ltiExchange] NRPS membership persist failed (non-fatal)',
           err
         );
       }
