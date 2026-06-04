@@ -37,7 +37,7 @@
               "text": "Widget keyboard shortcuts like Escape and Delete now work even when a button or field inside the widget has focus."
             },
             {
-              "text": "The Lunch Count widget is now fully translated in German, Spanish, and French."
+              "text": "The Lunch Count widget now supports German, Spanish, and French translations for key labels and notifications."
             }
           ]
         }
