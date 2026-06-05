@@ -65,8 +65,19 @@ export interface RunPublishGradePushOptions<R> {
   /** Google Classroom linkage (courseId/itemId/attachmentId/maxPoints) or null. */
   classroomAttachment?: ClassroomAttachmentLink | null;
   /**
-   * A `classroom.coursework.students` token pre-minted from the Publish click.
-   * null → skip the GC push (unlinked, or the teacher dismissed the popup).
+   * Whether this assignment is eligible for the FINAL-grade auto-push: the
+   * Classroom feature is enabled for the teacher AND SpartBoard owns the
+   * courseWork (partner-first). When false (student-initiated attachment, or the
+   * feature flag is off) the GC final push is skipped silently — the courseWork
+   * isn't ours to set assignedGrade on, and the manual "Push grades" (draft)
+   * button still works. This is ALSO the gate that keeps the restricted
+   * `classroom.coursework.students` token request behind the feature flag.
+   */
+  classroomFinalEligible: boolean;
+  /**
+   * A `classroom.coursework.students` token pre-minted from the Publish click —
+   * only when `classroomFinalEligible`. null → the teacher dismissed the popup
+   * (eligible case) or it wasn't minted (ineligible case).
    */
   classroomToken: string | null;
   /**
@@ -96,18 +107,26 @@ export async function runPublishGradePush<R>({
   kind,
   sessionId,
   classroomAttachment,
+  classroomFinalEligible,
   classroomToken,
   schoologyMaxPoints,
   buildClassroomGrades,
   buildSchoologyGrades,
 }: RunPublishGradePushOptions<R>): Promise<void> {
-  const gcLinked =
-    !!classroomAttachment && hasValidMaxPoints(classroomAttachment.maxPoints);
-  const needGcPush = gcLinked && !!classroomToken;
+  // Only partner-first attachments (with the feature enabled) get the FINAL
+  // auto-push. A student-initiated attachment is silently skipped here — the
+  // courseWork isn't SpartBoard's to set assignedGrade on, so the final push
+  // would 403 for the whole class; the manual draft "Push grades" button (which
+  // patches the add-on pointsEarned) remains the path for those.
+  const gcFinal =
+    !!classroomAttachment &&
+    hasValidMaxPoints(classroomAttachment.maxPoints) &&
+    classroomFinalEligible;
+  const needGcPush = gcFinal && !!classroomToken;
 
-  // GC linked but no token → the teacher dismissed consent (or it's a re-publish
+  // Eligible but no token → the teacher dismissed consent (or it's a re-publish
   // without a fresh popup). Publish already stood; nudge toward the manual push.
-  if (gcLinked && !classroomToken) {
+  if (gcFinal && !classroomToken) {
     addToast(CLASSROOM_PUSH_SKIPPED_NO_TOKEN, 'info');
   }
 

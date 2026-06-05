@@ -304,13 +304,19 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
                   No active Google Classroom courses found.
                 </p>
               ) : (
-                <div className="max-h-64 overflow-y-auto custom-scrollbar rounded-lg border border-slate-200 divide-y divide-slate-100">
+                <div
+                  role="radiogroup"
+                  aria-label="Google Classroom course"
+                  className="max-h-64 overflow-y-auto custom-scrollbar rounded-lg border border-slate-200 divide-y divide-slate-100"
+                >
                   {courses.map((c) => {
                     const checked = selectedCourseId === c.id;
                     return (
                       <button
                         key={c.id}
                         type="button"
+                        role="radio"
+                        aria-checked={checked}
                         onClick={() => setSelectedCourseId(c.id)}
                         disabled={phase === 'assigning'}
                         className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors disabled:cursor-not-allowed ${

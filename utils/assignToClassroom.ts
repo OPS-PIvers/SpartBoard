@@ -77,6 +77,10 @@ export function buildClassroomAttachmentLink(
     itemId: result.courseWorkId,
     maxPoints: result.maxPoints,
     attachedAt: Date.now(),
+    // Partner-first: SpartBoard created this courseWork, so it can set the FINAL
+    // (assignedGrade + returned) grade. This marks the attachment eligible for
+    // the Publish = Push final-grade path.
+    ownsCourseWork: true,
   };
 }
 

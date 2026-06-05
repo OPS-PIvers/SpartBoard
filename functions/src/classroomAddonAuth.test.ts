@@ -2044,6 +2044,22 @@ describe('assignToClassroomV1 (partner-first assign)', () => {
     ).toMatchObject({ classlinkClassId: 'CL-FILL' });
   });
 
+  it('does NOT capture a classlinkClassId for a MULTI-section assignment (ambiguous)', async () => {
+    // Two ClassLink sections, one Google course → no non-arbitrary mapping.
+    // Guessing [0] could block the other section's students at the class gate,
+    // so the link stays unlinked (nameless path) until per-section mapping.
+    seedSession('quiz_sessions', 'S1', 'teacher-1', ['CL-A', 'CL-B']);
+    stubAssignHappyPath();
+
+    await callAssign({ data: assignQuizData, auth: { uid: 'teacher-1' } });
+
+    const linkWrite = firestoreWrites.find(
+      (w) => w.path === 'classroom_course_links/C1'
+    );
+    expect(linkWrite?.data.teacherUid).toBe('teacher-1');
+    expect(linkWrite?.data.classlinkClassId).toBeUndefined();
+  });
+
   it('uses the VA student/launch URIs for a kind=va assign', async () => {
     seedSession('video_activity_sessions', 'VA1', 'teacher-1');
     const { createAttachment } = stubAssignHappyPath();

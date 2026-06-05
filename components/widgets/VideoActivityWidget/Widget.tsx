@@ -899,11 +899,17 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
               // THIS click (a user gesture) so the GIS popup isn't blocked after
               // publish's awaits. A dismissed popup leaves it null → publish still
               // proceeds, GC push is skipped. (Schoology pushes server-side.)
+              // Only partner-first attachments (SpartBoard owns the courseWork)
+              // with the feature enabled are eligible for the FINAL push — also
+              // keeps the restricted classroom.coursework.students scope request
+              // behind the flag.
+              const classroomFinalEligible =
+                !!target.classroomAttachment &&
+                hasValidMaxPoints(target.classroomAttachment.maxPoints) &&
+                canAssignToClassroom &&
+                !!target.classroomAttachment.ownsCourseWork;
               let classroomToken: string | null = null;
-              if (
-                target.classroomAttachment &&
-                hasValidMaxPoints(target.classroomAttachment.maxPoints)
-              ) {
+              if (classroomFinalEligible) {
                 try {
                   classroomToken = await requestClassroomFinalGradeToken(
                     user?.email ?? undefined
@@ -939,6 +945,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
                 kind: 'va',
                 sessionId: target.id,
                 classroomAttachment: target.classroomAttachment ?? null,
+                classroomFinalEligible,
                 classroomToken,
                 schoologyMaxPoints: videoActivityMaxPoints(data.questions),
                 buildClassroomGrades: (responses) =>

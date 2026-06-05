@@ -69,6 +69,7 @@ const ATTACHMENT = {
   itemId: 'I1',
   attachmentId: 'ATT1',
   maxPoints: 20,
+  ownsCourseWork: true,
 };
 
 const GRADES = [{ pseudonymUid: 'p-A', pointsEarned: 8 }];
@@ -91,6 +92,7 @@ function baseOpts() {
     kind: 'quiz' as const,
     sessionId: 'S1',
     classroomAttachment: null,
+    classroomFinalEligible: true,
     classroomToken: null as string | null,
     schoologyMaxPoints: 20,
     buildClassroomGrades: () => GRADES,
@@ -205,6 +207,24 @@ describe('runPublishGradePush', () => {
   it('is a near no-op for a non-LMS assignment (no callables, no toasts)', async () => {
     await runPublishGradePush(baseOpts());
     expect(callableCalls).toHaveLength(0);
+    expect(toasts).toHaveLength(0);
+  });
+
+  it('SILENTLY skips GC when the attachment is not final-eligible (student-initiated / flag off)', async () => {
+    // A student-initiated attachment (or the feature flag off): the final push
+    // would 403 on a courseWork SpartBoard doesn't own, so it must NOT fire and
+    // must NOT nag — the manual draft "Push grades" button handles those.
+    await runPublishGradePush({
+      ...baseOpts(),
+      classroomAttachment: ATTACHMENT,
+      classroomFinalEligible: false,
+      classroomToken: 'tok',
+    });
+    expect(
+      callableCalls.some(
+        (c) => c.name === 'pushClassroomFinalGradesForAssignment'
+      )
+    ).toBe(false);
     expect(toasts).toHaveLength(0);
   });
 

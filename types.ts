@@ -2885,6 +2885,15 @@ export interface ClassroomAttachmentLink {
   /** = the quiz's total points; the grade scale pushed grades are capped to. */
   maxPoints: number;
   attachedAt?: number;
+  /**
+   * True ONLY for the partner-first assign flow, where SpartBoard CREATED the
+   * parent courseWork (`itemId`) and therefore may set its `assignedGrade` +
+   * return it — the FINAL-grade ("Publish = Push") path. Absent for
+   * student-initiated attachments (the teacher's Classroom composer owns the
+   * courseWork, so Google rejects assignedGrade patches); those use the DRAFT
+   * pointsEarned path via the manual "Push grades" button instead.
+   */
+  ownsCourseWork?: boolean;
 }
 
 /**

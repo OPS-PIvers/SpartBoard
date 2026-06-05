@@ -1345,7 +1345,8 @@ export const createClassroomAttachment = onCall(
  * relies on must be DECLARED on the Workspace Marketplace listing first — an
  * undeclared restricted scope reproduces the org-wide "Account Restricted"
  * sign-in outage. The dashboard entry point is gated behind CLASSROOM_ASSIGN_ENABLED
- * (compiled OFF) so the scope is never requested until that's staged.
+ * (currently ON, admin-only via CLASSROOM_ASSIGN_ADMIN_ONLY) — the scope is
+ * declared on the listing; flipping the flag OFF is the one-line rollback.
  */
 export const assignToClassroomV1 = onCall(
   {
@@ -1462,10 +1463,18 @@ export const assignToClassroomV1 = onCall(
     // assigns can auto-target the course instead of re-asking. The assignment's
     // `classIds` are ClassLink class sourcedIds; the `classroom:<courseId>`
     // entries (student-token only) are filtered out defensively.
+    //
+    // ONLY a single-section assignment is captured: a multi-period assign carries
+    // several ClassLink sections but the teacher picks ONE Google course, so
+    // there is no non-arbitrary class→course mapping — guessing `classIds[0]`
+    // would mis-key the name bridge AND could leave the OTHER section's students
+    // unable to pass the class gate. Multi-section stays unlinked (the existing
+    // nameless path); the per-section mapping is Item D part 2's job.
+    const realClasslinkClassIds = (sessionData.classIds ?? []).filter(
+      (id) => typeof id === 'string' && id && !id.startsWith('classroom:')
+    );
     const linkClasslinkClassId =
-      (sessionData.classIds ?? []).find(
-        (id) => typeof id === 'string' && id && !id.startsWith('classroom:')
-      ) ?? null;
+      realClasslinkClassIds.length === 1 ? realClasslinkClassIds[0] : null;
 
     // GATE 2 — the caller teaches the Google course. Fail CLOSED on any
     // UNVERIFIABLE outcome (network/timeout/401/403/5xx); never create on a token
@@ -2122,14 +2131,14 @@ export const pushClassroomGradesForAssignment = onCall(
         );
 
         try {
-          const entry = await resolveGradeSyncEntry(
+          const keyEntry = await resolveGradeSyncEntry(
             db,
             pseudonymUid,
             courseId,
             itemId,
             attachmentId
           );
-          const submissionId = entry?.submissionId ?? null;
+          const submissionId = keyEntry?.submissionId ?? null;
           if (!submissionId) {
             // Student never opened the attachment → no Classroom submission to
             // grade. Skip, don't fail the batch.

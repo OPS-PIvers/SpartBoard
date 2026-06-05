@@ -1981,11 +1981,17 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               // so the GIS popup isn't blocked after publish's awaits. A dismissed
               // popup leaves the token null → publish still proceeds, GC push is
               // skipped. (Schoology pushes server-side and needs no token.)
+              // Only partner-first attachments (SpartBoard owns the courseWork)
+              // with the feature enabled are eligible for the FINAL push — this
+              // also keeps the restricted classroom.coursework.students scope
+              // request behind the flag.
+              const classroomFinalEligible =
+                !!target.classroomAttachment &&
+                hasValidMaxPoints(target.classroomAttachment.maxPoints) &&
+                canAssignToClassroom &&
+                !!target.classroomAttachment.ownsCourseWork;
               let classroomToken: string | null = null;
-              if (
-                target.classroomAttachment &&
-                hasValidMaxPoints(target.classroomAttachment.maxPoints)
-              ) {
+              if (classroomFinalEligible) {
                 try {
                   classroomToken = await requestClassroomFinalGradeToken(
                     user?.email ?? undefined
@@ -2024,6 +2030,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 kind: 'quiz',
                 sessionId: target.id,
                 classroomAttachment: target.classroomAttachment ?? null,
+                classroomFinalEligible,
                 classroomToken,
                 schoologyMaxPoints: quizMaxPoints(data.questions),
                 buildClassroomGrades: (responses) =>
