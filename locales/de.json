@@ -616,6 +616,58 @@
     "fr": "Français"
   },
   "widgets": {
+    "random": {
+      "sendToScoreboard": "An Punktetafel senden",
+      "scoreboardCreated": "Punktetafel mit {{count}} Teams erstellt!",
+      "scoreboardUpdated": "Punktetafel mit {{count}} Teams aktualisiert!",
+      "shuffleHint": "Klicke auf Zufällig, um zu mischen",
+      "groupSize": "Gruppengröße",
+      "expertLabelShort": "EXPERTE",
+      "homeLabelShort": "HOME",
+      "launchJigsaw": "Puzzle-Gruppen starten",
+      "launchJigsawHint": "Expertengruppen anzeigen",
+      "launchHomeGroup": "Heimgruppen starten",
+      "launchHomeGroupHint": "Zu Heimgruppen zurückkehren",
+      "everyoneAbsentTitle": "Alle als abwesend markiert",
+      "everyoneAbsentSubtitle": "Anwesenheit aktualisieren, um Schüler/innen wieder hinzuzufügen.",
+      "updateAttendance": "Anwesenheit aktualisieren",
+      "stepperDecrease": "{{name}} verringern",
+      "stepperIncrease": "{{name}} erhöhen",
+      "modeChipAria": "Betriebsmodus: {{mode}}",
+      "modeChipAriaWithCount_one": "Betriebsmodus: {{mode}}. {{count}} Schüler/in übrig.",
+      "modeChipAriaWithCount_other": "Betriebsmodus: {{mode}}. {{count}} Schüler/innen übrig.",
+      "modeChipTitle": "Modus: {{mode}} – klicken zum Wechseln",
+      "expertGroupCount": "Anzahl Expertengruppen",
+      "homeGroupCount": "Anzahl Heimgruppen",
+      "expertGroupCountReduced": "Nur {{count}} Expertengruppen passen in diese Klasse – verringere die Anzahl der Expertengruppen oder füge weitere Schüler/innen hinzu.",
+      "homeGroupCountReduced": "Nur {{count}} Heimgruppen passen in diese Klasse – verringere die Anzahl der Heimgruppen oder füge weitere Schüler/innen hinzu.",
+      "jigsawNeedsMultipleGroups": "Puzzle benötigt mindestens 2 Schüler/innen für Heimgruppen – füge weitere hinzu.",
+      "restrictionsUnsatisfied": "Nicht alle Einschränkungen konnten erfüllt werden – erneut versuchen oder Gruppengröße anpassen.",
+      "modes": {
+        "single": "Eine Person",
+        "shuffle": "Mischen",
+        "groups": "Gruppen",
+        "jigsaw": "Puzzle"
+      },
+      "absent": {
+        "title": "Abwesenheiten markieren – {{date}}",
+        "summary": "{{present}} anwesend · {{absent}} abwesend",
+        "buttonLabel": "Abwesende Schüler/innen markieren",
+        "clearAll": "Alle löschen (alle anwesend)",
+        "footer": "Abwesenheitsmarkierungen gelten für alle Widgets mit dieser Klasse. Werden automatisch morgen zurückgesetzt.",
+        "emptyRoster": "Diese Klasse hat noch keine Schüler/innen.",
+        "unnamedStudent": "Namenloser Schüler / Namenlose Schülerin",
+        "ariaLabel": "Anwesenheit öffnen – {{count}} heute als abwesend markiert"
+      },
+      "classContext": {
+        "triggerAria": "Aktive Klasse: {{name}}",
+        "triggerAriaWithAbsent_one": "Aktive Klasse: {{name}}. {{count}} Schüler/in heute als abwesend markiert.",
+        "triggerAriaWithAbsent_other": "Aktive Klasse: {{name}}. {{count}} Schüler/innen heute als abwesend markiert.",
+        "menuAria": "Klassenkontext für Zufallsgenerator",
+        "switchHeading": "Klasse wechseln",
+        "markAbsentAction": "Abwesende Schüler/innen markieren"
+      }
+    },
     "lunchCount": {
       "syncSuccess": "Menü von Nutrislice synchronisiert",
       "syncError": "Menü konnte nicht synchronisiert werden",

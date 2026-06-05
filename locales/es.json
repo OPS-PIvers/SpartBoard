@@ -619,6 +619,58 @@
     "fr": "Français"
   },
   "widgets": {
+    "random": {
+      "sendToScoreboard": "Enviar al Marcador",
+      "scoreboardCreated": "¡Marcador creado con {{count}} equipos!",
+      "scoreboardUpdated": "¡Marcador actualizado con {{count}} equipos!",
+      "shuffleHint": "Haz clic en Aleatorio para mezclar",
+      "groupSize": "Tamaño del Grupo",
+      "expertLabelShort": "EXPERTO",
+      "homeLabelShort": "BASE",
+      "launchJigsaw": "Lanzar Rompecabezas",
+      "launchJigsawHint": "Mostrar grupos expertos",
+      "launchHomeGroup": "Lanzar Grupo Base",
+      "launchHomeGroupHint": "Volver a grupos base",
+      "everyoneAbsentTitle": "Todos están marcados como ausentes",
+      "everyoneAbsentSubtitle": "Actualiza la asistencia para devolver estudiantes al grupo.",
+      "updateAttendance": "Actualizar asistencia",
+      "stepperDecrease": "Disminuir {{name}}",
+      "stepperIncrease": "Aumentar {{name}}",
+      "modeChipAria": "Modo de operación: {{mode}}",
+      "modeChipAriaWithCount_one": "Modo de operación: {{mode}}. Queda {{count}} estudiante.",
+      "modeChipAriaWithCount_other": "Modo de operación: {{mode}}. Quedan {{count}} estudiantes.",
+      "modeChipTitle": "Modo: {{mode}} — clic para cambiar",
+      "expertGroupCount": "Número de Grupos Expertos",
+      "homeGroupCount": "Número de Grupos Base",
+      "expertGroupCountReduced": "Solo caben {{count}} grupos expertos en esta clase — reduce el número de grupos expertos o añade más estudiantes.",
+      "homeGroupCountReduced": "Solo caben {{count}} grupos base en esta clase — reduce el número de grupos base o añade más estudiantes.",
+      "jigsawNeedsMultipleGroups": "El rompecabezas necesita al menos 2 estudiantes para formar grupos base — añade más estudiantes.",
+      "restrictionsUnsatisfied": "No se pudieron satisfacer todas las restricciones — inténtalo de nuevo o ajusta el tamaño del grupo.",
+      "modes": {
+        "single": "Elegir Uno",
+        "shuffle": "Mezclar",
+        "groups": "Grupos",
+        "jigsaw": "Rompecabezas"
+      },
+      "absent": {
+        "title": "Marcar ausentes — {{date}}",
+        "summary": "{{present}} presentes · {{absent}} ausentes",
+        "buttonLabel": "Marcar estudiantes ausentes",
+        "clearAll": "Limpiar todo (todos presentes)",
+        "footer": "Las ausencias se aplican a todos los widgets que usan esta clase. Se restablecen automáticamente mañana.",
+        "emptyRoster": "Esta clase aún no tiene estudiantes.",
+        "unnamedStudent": "Estudiante sin nombre",
+        "ariaLabel": "Abrir asistencia — {{count}} marcados ausentes hoy"
+      },
+      "classContext": {
+        "triggerAria": "Clase activa: {{name}}",
+        "triggerAriaWithAbsent_one": "Clase activa: {{name}}. {{count}} estudiante marcado ausente hoy.",
+        "triggerAriaWithAbsent_other": "Clase activa: {{name}}. {{count}} estudiantes marcados ausentes hoy.",
+        "menuAria": "Contexto de clase para Aleatorizador",
+        "switchHeading": "Cambiar clase",
+        "markAbsentAction": "Marcar estudiantes ausentes"
+      }
+    },
     "lunchCount": {
       "syncSuccess": "Menú sincronizado desde Nutrislice",
       "syncError": "Error al sincronizar el menú",
