@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-05-27_
+_Last audited: 2026-06-05_
 _Last action: 2026-05-22 — HIGH DashboardContext extraction assessed and BLOCKED pending supervised runtime-verified session_
 
 ---
@@ -16,9 +16,12 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 5,275 on 2026-05-27). BLOCKED extraction status unchanged. functions/src/index.ts now 4,305 lines — domain split organically in progress (spotifyOAuth.ts, syncedQuizGroups.ts etc.). All Cloud Functions confirmed on v2; no v1 imports found. New LOW finding: feature_permissions and global_permissions read coordination between AuthContext and DashboardContext could benefit from documentation. adminBuildingConfig.ts: font-validation constants duplicated across reveal-grid/numberLine/concept-web cases (related to existing LOW simple-switch-cases item). Test imports with 3+ ../../ levels are all in .test.tsx files using vi.mock() — acceptable. No new large-file violations beyond what's already tracked. 1 new LOW open item added._
+
 ### MEDIUM `DashboardContext.tsx` is 3481 lines and growing — at least three extractable responsibilities
 
 - **Detected:** 2026-04-15
+- **Updated:** 2026-06-05 — file is now **5,596 lines** (see HIGH item above for BLOCKED status).
 - **Updated:** 2026-05-27 — file is now **5275 lines** (slight decrease from 5303 on 2026-05-22, likely due to minor cleanups). Recent commits (smart-notebook feature additions, drawing-widget toolbar redesign, migration fixes) did not add new context responsibilities. BLOCKED status unchanged — collections/Drive extraction still requires supervised runtime-verified session. DashboardContext extraction remains the top-priority structural issue.
 - **Updated:** 2026-05-22 — file is now **5303 lines** (+1262 from 4041 post-extraction on 2026-05-13, +31% in 9 days). Primary drivers: PLC collaborative space redesign (`55b03269` Merge feat/quiz-settings-on-content) added extensive collection management logic (191 lines of collection/lastBoardId references), boards-modal inline Share+Duplicate icons (`9faae3c3`), admin personal-spotify global feature gate with building scoping (`3b885467`), and PLC in-progress assignments Monitor/Results/member copy (`82da7cb9`). The `getAdminBuildingConfig` extraction reduced the file by ~400 lines (May 13) but 1262 new lines have since been added. Drive-sync extraction remains unaddressed.
 - **Updated:** 2026-05-13 — file is now 4441 lines (+937 from 2026-05-06). Significant growth; 15 exported Cloud Functions now visible: `getClassLinkRosterV1`, `generateWithAI`, `fetchExternalProxy`, `archiveActivityWallPhoto`, `checkUrlCompatibility`, `generateVideoActivity`, `transcribeVideoWithGemini`, `generateGuidedLearning`, `adminAnalytics`, `studentLoginV1`, `getAssignmentPseudonymV1`, `getStudentClassDirectoryV1`, `getPseudonymsForAssignmentV1`, `commitRosterPinIndexV1`, `pinLoginV1`. One inline model string at line 1980 (`'gemini-3.1-flash-lite-preview'`) instead of `DEFAULT_STANDARD_MODEL` constant — minor consistency gap (see ai-integration.md). No v1 imports detected; all functions use v2. `minInstances` set on `getPseudonymsForAssignmentV1` (intentional for latency). `extractDataForContext` in split files (`adminAnalyticsCompute.ts`, `adminAnalyticsSnapshot.ts`, `organizationBuildingCounters.ts`, etc.) suggests split has begun for some modules.
@@ -30,6 +33,7 @@ _Nothing currently in progress._
 ### MEDIUM `functions/src/index.ts` is 3525 lines — single file for all Cloud Functions (growth stalled)
 
 - **Detected:** 2026-04-15
+- **Updated:** 2026-06-05 — file is now **4,305 lines** per audit (15 exported Cloud Functions). Domain split already in progress for newer functions (spotifyOAuth.ts, syncedQuizGroups.ts, etc.). BLOCKED status unchanged.
 - **Assessed 2026-06-03 (action agent):** Deferred — not safe for an unattended automated pass. The file is now **4305 lines** with 15+ exported Cloud Functions plus inline AI-generation pipeline state: module-level caches (`__resetGenerateWithAICaches`), model constants, prompt builders, and `validateAndBucketVideoQuestions` / `validateAndBucketQuizQuestions` validators that are shared across the generation functions. A by-domain split must carefully relocate this shared module state while preserving every deployed function name via `index.ts` re-exports. There is no functions deploy/runtime in this environment (CI only runs `tsc`/lint/format/build, not a deploy), so a deployed-surface or shared-state regression would not be caught by the available checks — the same risk profile that BLOCKED the `DashboardContext.tsx` extraction. Recommend a supervised session that can verify the deployed function surface (and the AI-generation cache/validator wiring) before landing this split. Took the highest-priority safe Open item instead this pass (see ui-unification.md — CarRiderProConfig dead-field removal).
 - **Updated:** 2026-05-27 — functions/src/index.ts now primarily re-exports from domain modules (spotifyOAuth.ts, syncedQuizGroups.ts, syncedVideoActivityGroups.ts, expireSubShares.ts added as new modules). The split-by-domain pattern is already in progress for newer functions. 3 new Cloud Functions added since 2026-05-22: `spotifyOAuth` (Spotify OAuth exchange), synced quiz/video-activity group helpers (exported from domain files). The functions split work has organically begun — consider documenting the in-progress state and formalizing the remaining consolidation.
 - **Updated:** 2026-05-22 — file is now **4300 lines** (+775 from 3525 on 2026-05-13). 15 exported Cloud Functions (count unchanged). Growth is from expansion of existing functions (not new ones). New large hooks added since last audit: `hooks/useVideoActivityAssignments.ts` (1100 lines), `hooks/useStudentAssignments.ts` (619 lines), `hooks/useCollections.ts` (604 lines), `hooks/useFolders.ts` (531 lines) — all exceeding 500 lines. No 3+ level relative import depth issues found in new PLC components.
@@ -40,9 +44,10 @@ _Nothing currently in progress._
 - **Detail:** 15 Cloud Functions now live in one file. Logical groupings: ClassLink roster integration (getClassLinkRosterV1), AI generation (generateWithAI, generateVideoActivity, transcribeVideoWithGemini, generateGuidedLearning), utility (fetchExternalProxy, archiveActivityWallPhoto, checkUrlCompatibility), admin (adminAnalytics), student SSO/pseudonym (studentLoginV1, getAssignmentPseudonymV1, getStudentClassDirectoryV1, getPseudonymsForAssignmentV1, commitRosterPinIndexV1, pinLoginV1). The file is increasingly difficult to navigate. The `getPseudonymsForAssignmentV1` has `minInstances: 1` — verify this is intentional (cold start cost vs. latency tradeoff).
 - **Fix:** Split into domain files: `functions/src/classlink.ts`, `functions/src/ai.ts`, `functions/src/utils.ts`, `functions/src/admin.ts`, `functions/src/studentSso.ts`. Re-export all functions from `functions/src/index.ts` to preserve deployed names. This is a refactor with no behavior change but significantly improves reviewability. **Priority has increased** given the 42% growth in 7 days.
 
-### HIGH `DashboardContext.tsx` grew 1262 lines since May 13 extraction — now 5303 lines
+### HIGH `DashboardContext.tsx` grew 1262 lines since May 13 extraction — now 5596 lines
 
 - **Detected:** 2026-05-22
+- **Updated:** 2026-06-05 — file is now **5,596 lines** (+321 from 5,275 on 2026-05-27). Continued growth despite no new extractions. BLOCKED status unchanged — collections/Drive extraction still requires supervised runtime-verified session.
 - **File:** context/DashboardContext.tsx
 - **Detail:** After the May 13 extraction of `getAdminBuildingConfig` reduced the file from 4441 to 4041 lines, nine days of new features grew it back to 5303 (+1262, +31%). The file now exceeds 5000 lines. Primary drivers: (1) PLC collaborative space redesign added collection navigation state, `lastBoardIdByCollection` tracking, `setActiveCollectionId`, and related callbacks (~400 lines); (2) boards-modal inline share/duplicate actions; (3) admin personal-spotify building scoping; (4) PLC in-progress assignment monitor/results. Collections management in particular introduces a new distinct responsibility (board/collection relationship state) that belongs in a dedicated hook or context. The `useGoogleDrive` orchestration and Drive reconnect error handling are also clearly separable.
 - **Fix:** Extract collections + board navigation state into `hooks/useCollectionNavigation.ts` (manages `activeCollectionId`, `lastBoardIdByCollection`, `setActiveCollectionId`, `boards-only` filtering). Extract Google Drive sync orchestration into `hooks/useDashboardDriveSync.ts` (wraps `useGoogleDrive`, `useDriveReconnected`, Drive reconnect error handler). These two extractions would remove ~600–800 lines and reduce DashboardContext back below 4500 lines.
@@ -71,6 +76,13 @@ _Nothing currently in progress._
   };
   ```
   Reduces ~50 lines to a data declaration without any behavior change.
+
+### LOW `feature_permissions` and `global_permissions` read in both `AuthContext` and `DashboardContext`
+
+- **Detected:** 2026-06-05
+- **File:** context/AuthContext.tsx (line 899 approx), context/DashboardContext.tsx
+- **Detail:** `feature_permissions` and `global_permissions` Firestore collections are fetched via `onSnapshot` in `AuthContext.tsx` for permission checking, and referenced again in `DashboardContext.tsx` for `getAdminBuildingConfig` and AI feature gating. While the pattern is not a direct double-listener (DashboardContext uses the values passed down from Auth), the data dependency path is not clearly documented and could lead to a future developer adding a second `onSnapshot` listener. Additionally, `AuthContext.tsx` probes the user's first dashboard at mount (lines 1242-1244) while `DashboardContext.tsx` also queries for the initial board on load — creating a potential Firestore double-read on first sign-in.
+- **Fix:** Document the data flow: `feature_permissions` / `global_permissions` are owned by `AuthContext` (single listener); `DashboardContext` reads from the values already in context. Add a comment in `DashboardContext.tsx` near the `getAdminBuildingConfig` call making this dependency explicit. For the dashboard probe: audit whether both reads are truly needed, and if so, add comments explaining the different roles (Auth probes for building-based first-board selection; Dashboard loads the selected board state).
 
 ### LOW Utils files with single consumer — consider co-location or absorption
 

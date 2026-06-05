@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-03_
+_Last audited: 2026-06-05_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-05: Full audit of all 64 WidgetType values. Rebase onto dev-paul aborted due to journal-file conflicts; working from scheduled-tasks HEAD (912f072f). No new commits to types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts since 2026-06-03. All 64 WidgetTypes correctly registered: 62/63 non-sticker in WIDGET_COMPONENTS (sticker intentionally in WidgetRenderer special-case per JSDoc); 100% in widgetDefaults.ts and widgetGradeLevels.ts; 59 user-selectable in tools.ts (6 intentionally excluded sub-types). WIDGET_SETTINGS_COMPONENTS 51/63 and WIDGET_APPEARANCE_COMPONENTS 28/63 both correct per documented omissions. All sampled lazyNamed() export names verified correct (ClockWidget, UrlWidget, TextWidget, DrawingWidget, RandomWidget, SoundboardWidget, RevealGrid barrel, CatalystWidget, MathToolsWidget). Zero new gaps._
 
 _2026-06-03: Full audit of all 64 WidgetType values. Merged dev-paul into scheduled-tasks today — new files include resolveDisplayName.ts, quizCode.ts, classlinkShared.ts, classroomAddonAuth.ts, studentJoinRouting.ts, runClassroomGradePush.ts — none touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. All 64 WidgetTypes correctly registered. Zero new gaps. Note: prior 2026-06-02 entry said "63" — corrected to 64 per 2026-05-20 canonical count (stations was always present at line 64)._
 

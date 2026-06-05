@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-05-27_
+_Last audited: 2026-06-05_
 _Last action: 2026-06-03 — MEDIUM CarRiderProConfig dead `cardColor`/`cardOpacity` fields removed_
 
 ---
@@ -58,6 +58,34 @@ _Nothing currently in progress._
 - **Detail:** The settings panel uses a custom button-pair toggle (two `<button>` elements styled with gradient classes and active state toggling) instead of the shared `Toggle` component from `components/common/Toggle.tsx`. The shared `Toggle` is already used in ~15 other widget settings panels. The custom implementation is visually different from the standard toggle, violating design consistency in the dark-mode settings panels.
 - **Fix:** Replace the custom button-pair with `<Toggle value={...} onChange={...} />` from `components/common/Toggle.tsx`, following the pattern in `QRWidget/Settings.tsx` or `LunchCount/Settings.tsx`. Remove the custom gradient button styling.
 
+### MEDIUM `ClockWidget/Settings.tsx` implements inline font family selector instead of `TypographySettings`
+
+- **Detected:** 2026-06-05
+- **File:** components/widgets/ClockWidget/Settings.tsx (lines 50–92)
+- **Detail:** The Clock widget settings panel implements a custom font-family picker using four inline `<button>` elements toggling between `global`, `font-mono`, `font-sans`, and `font-handwritten` — instead of using the shared `TypographySettings` component from `components/common/`. The shared component is already used in ~15 other widget settings panels (Weather, Schedule, Countdown, LunchCount, Checklist, etc.). The Clock's inline picker is visually inconsistent with the rest of the settings panels and does not benefit from future improvements to the shared component.
+- **Fix:** Replace the inline font-family button group (lines 50–92) in `ClockWidget/Settings.tsx` with `<TypographySettings widget={widget} update={update} />` from `@/components/common/TypographySettings`. Verify that `ClockConfig` declares `fontFamily` (it already does — it drives the clock face font). Remove the local button-group markup and its associated state/style logic.
+
+### MEDIUM `MusicWidget/Settings.tsx` implements inline background/text color picker instead of `SurfaceColorSettings`
+
+- **Detected:** 2026-06-05
+- **File:** components/widgets/MusicWidget/Settings.tsx (lines 327–388)
+- **Detail:** The Music widget settings panel implements a custom background color and text color picker using manual button arrays with hardcoded hex palettes, instead of using `SurfaceColorSettings` from `components/common/`. This is visually inconsistent with other widget settings panels and duplicates color-picker logic that the shared component already provides. The inline implementation also hardcodes `#ffffff` as a default background color (line 327) rather than reading from the widget config.
+- **Fix:** Replace the inline color picker blocks (lines 327–388) with `<SurfaceColorSettings widget={widget} update={update} />` from `@/components/common/SurfaceColorSettings`. Ensure `MusicConfig` has `cardColor` and `cardOpacity` fields (verify in types.ts), or add them if absent. Remove the local button-array markup and `STANDARD_COLORS` palette references.
+
+### MEDIUM `nextUp`, `video-activity`, and `guided-learning` widgets have appearance config fields but no `WIDGET_APPEARANCE_COMPONENTS` entry
+
+- **Detected:** 2026-06-05
+- **File:** types.ts (`NextUpConfig`, `VideoActivityConfig`, `GuidedLearningConfig`), components/widgets/WidgetRegistry.ts
+- **Detail:** Per the audit, `NextUpConfig`, `VideoActivityConfig`, and `GuidedLearningConfig` all declare `fontFamily`, `fontColor`, `cardColor`, and `cardOpacity` fields (matching the standard appearance field set). However, none of `nextUp`, `video-activity`, or `guided-learning` have entries in `WIDGET_APPEARANCE_COMPONENTS` in `WidgetRegistry.ts`. This means the Appearance tab is never shown in the DraggableWindow flip panel for these widgets, and teachers cannot adjust their visual appearance despite the config fields existing.
+- **Fix:** For each widget: (1) Create or add an `*AppearanceSettings` export to the corresponding `Settings.tsx` that renders `TypographySettings` and `SurfaceColorSettings` (following the `SpecialistScheduleAppearanceSettings` pattern). (2) Register in `WIDGET_APPEARANCE_COMPONENTS`: `'nextUp': lazyNamed(...)`, `'video-activity': lazyNamed(...)`, `'guided-learning': lazyNamed(...)`. Verify the widget `Widget.tsx` files actually consume the four config fields before wiring up the panel — if any field is not consumed, remove it from the interface (per the CarRiderProConfig precedent) rather than adding a dead UI control.
+
+### LOW Hardcoded brand hex colors in `StudentPageView.tsx` and `RevealGridConfigurationPanel.tsx`
+
+- **Detected:** 2026-06-05
+- **File:** components/admin/ (StudentPageView.tsx, RevealGridConfigurationPanel.tsx)
+- **Detail:** `StudentPageView.tsx` uses `#2d3f89` (brand blue) and `#ad2122` (brand red) as inline style hex values in what appears to be the organization student landing-page config view. `RevealGridConfigurationPanel.tsx` uses `#dbeafe` (blue-100) and `#dcfce7` (green-100) as default card color values in the admin building config panel. These should reference the design-system color palette (Tailwind config values or CSS variables) rather than raw hex literals. Note: the existing LOW item already tracks `Countdown/Settings.tsx`, `Countdown/Widget.tsx`, and `AnalyticsManager.tsx` — this item adds the newly found admin-panel occurrences.
+- **Fix:** In `StudentPageView.tsx`, replace hardcoded `#2d3f89` / `#ad2122` with `var(--spart-primary, #2d3f89)` / `var(--spart-accent, #ad2122)` or the corresponding Tailwind classes. In `RevealGridConfigurationPanel.tsx`, use named Tailwind palette values (e.g. `'bg-blue-100'` token string → a CSS variable reference or the config's `WIDGET_PALETTE`) rather than raw hex literals as defaults.
+
 ### LOW Hardcoded brand hex colors in `Countdown/Settings.tsx`, `Countdown/Widget.tsx`, and `AnalyticsManager.tsx`
 
 - **Detected:** 2026-05-27 (first formal item — noted in 2026-05-13 audit log but never promoted to open item)
@@ -92,6 +120,8 @@ _Nothing currently in progress._
 - **File:** components/widgets/WidgetRegistry.ts, components/widgets/SpecialistSchedule/Settings.tsx
 - **Detail:** `SpecialistScheduleConfig` declared `fontFamily`, `fontColor`, `textSizePreset`, `cardColor`, and `cardOpacity` and the widget consumed all five, but `specialist-schedule` was absent from `WIDGET_APPEARANCE_COMPONENTS`. The appearance controls were buried in the flip panel's `general` tab instead of getting the standard dedicated Appearance tab in DraggableWindow.
 - **Resolution:** Added `SpecialistScheduleAppearanceSettings` export to `components/widgets/SpecialistSchedule/Settings.tsx` rendering `TypographySettings`, `TextSizePresetSettings`, and `SurfaceColorSettings` via a shared `update` helper (matching the `NeedDoPutThenAppearanceSettings` reference pattern). Registered it in `WIDGET_APPEARANCE_COMPONENTS` so `WidgetRenderer.tsx` now surfaces the dedicated Appearance tab. Removed the now-redundant `general` tab from the flip panel — the only content there was the three appearance primitives, so the tab union narrowed to `'schedules' | 'recurring'` with `'schedules'` as the new default. `pnpm exec tsc --noEmit`, `pnpm exec eslint`, `pnpm exec prettier --check`, and `pnpm exec vitest run tests/components` (1056 tests across 127 files) all clean.
+
+_2026-06-05: Weekly audit pass. Scanned Settings.tsx files for Clock, Weather, Poll, Schedule, Countdown, LunchCount, Music, Checklist widgets. Found 2 new MEDIUM items: ClockWidget inline font-family selector (not using TypographySettings), MusicWidget inline color picker (not using SurfaceColorSettings). Cross-referenced WIDGET_APPEARANCE_COMPONENTS against types.ts appearance fields — found nextUp, video-activity, guided-learning have fontFamily/fontColor/cardColor/cardOpacity in their config interfaces but no appearance panel registered. Found 1 new LOW: hardcoded hex in StudentPageView.tsx and RevealGridConfigurationPanel.tsx. Pre-existing items (stations no admin config, TextConfig no appearance panel, ExpectationsWidget custom toggle, Countdown/Analytics hardcoded hex, LunchCount/SpecialistSchedule raw selects, InstructionalRoutines hardcoded hex) all re-confirmed valid. 4 new open items added._
 
 _2026-06-03: Weekly action pass. Selected the highest-priority safe Open item (code-structure HIGH and both code-structure MEDIUM refactors are blocked/architecturally-significant — see code-structure.md). Completed the first ui-unification MEDIUM: removed dead `cardColor`/`cardOpacity` from `CarRiderProConfig`. Confirmed types.ts and CarRiderPro files were not modified in the last 5 branch commits. Remaining Open items re-confirmed valid; no new snowflakes detected in this pass._
 
