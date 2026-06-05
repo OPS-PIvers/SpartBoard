@@ -4,6 +4,39 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-05
+
+- PRs reviewed: 14 (all open PRs; every head is non-`main`/non-`dev-*`, so all in scope)
+  - #1879 — feat(admin): per-building appearance defaults for the Stations widget (head `scheduled-tasks`, base `dev-paul`)
+  - #1878 — chore(docs): nightly debugger run log 2026-06-05 (head `nightly/debugger-log-2026-06-05`, base `dev-paul`)
+  - #1877 — fix(layout): include SELECT in keyboard-handler isInput guards (head `nightly/dashboard-layout-2026-06-05`, base `dev-paul`)
+  - #1876 — fix(i18n): add widgets.random namespace to DE/ES/FR (head `nightly/admin-config-2026-06-05`, base `dev-paul`)
+  - #1875 — fix(state): dedup stepId accumulation in GL publishAssignmentScores (head `nightly/state-data-2026-06-05`, base `dev-paul`)
+  - #1874 — fix(widgets): update phaseDuration on mid-cycle pattern change in useBreathing (head `nightly/widgets-2026-06-05`, base `dev-paul`)
+  - #1873 — fix(functions): register dashboard-layout + instructional-routine in per-feature AI tracking (head `nightly/build-tooling-2026-06-05`, base `dev-paul`)
+  - #1872 — docs(unifier): run 8 memory log 2026-06-05 (head `nightly/unifier-log-2026-06-05`, base `dev-paul`)
+  - #1871 — refactor(D4): context/ relative imports → @/ alias (head `nightly/unify-import-paths-context-2026-06-05`, base `dev-paul`)
+  - #1870 — refactor(D3): hand-rolled labels → SettingsLabel in admin config (head `nightly/unify-settings-labels-2026-06-05`, base `dev-paul`)
+  - #1864 — docs(changelog): release entry for 2026-06-04 (#1863 batch) (head `claude/vibrant-darwin-TXWlL`, base `dev-paul`)
+  - #1861 — docs(changelog): release entry for 2026-06-04 (#1860 batch) (head `claude/vibrant-darwin-eN8R7`, base `dev-paul`)
+  - #1852 — docs(unifier): run 8 memory log 2026-06-04 (head `nightly/unifier-log-2026-06-04`, base `dev-paul`)
+  - #1838 — fix(iframe-auth): gate Classroom add-on + LTI teacher surfaces on a real Google session (head `claude/epic-einstein-JNkjY`, base `dev-paul`)
+- Comments processed: 6 threads — 0 fixed, 6 explained
+  - #1879: 1 thread — explained, no fix. gemini's `undefined`-property cleanup is unnecessary: feature config is saved via `FeaturePermissionsManager.savePermission` with a full-document `setDoc` (no `{ merge: true }`), so `ignoreUndefinedProperties` drops a `fontFamily: undefined` reset-to-Global correctly. Also matches the sibling Checklist/ConceptWeb panels.
+  - #1876: 2 threads — explained, already addressed in `4bd04b2` (pluralized `modeChipAriaWithCount_*`/`triggerAriaWithAbsent_*` keys already present in test + all locales).
+  - #1875: 1 thread (outdated) — explained, mocks already use the `@/` alias in HEAD (active, not inert).
+  - #1874: 1 thread (outdated) — explained, the `newDurationSeconds === 0` else-branch is already present in HEAD (`useBreathing.ts:83–89`).
+  - #1870: 1 thread — explained, no fix. MathTools grid column headers becoming orphan `<label>`s is a design tradeoff; `SettingsLabel` deliberately always renders `<label>` per its own documented rationale. Deferred to human/design owner; suggested an `as`/`role` escape hatch as the clean path.
+  - #1864, #1861, #1838: inline threads already carried author "Fixed/Valid" replies (or are resolved) at HEAD — no action.
+  - #1878, #1877, #1873, #1872, #1871, #1852: no review comments.
+- Fixes pushed: 0 — every actionable comment was already addressed in a later commit, not-a-defect (evidence-backed), or a design tradeoff for human judgment. No branch pushes this run other than this log update.
+- Reviews posted: 14 (all COMMENT event)
+  - #1879 Ready w/ minor notes (incidental scheduled-tasks journal-doc churn riding along); #1878 Ready; #1877 Ready; #1876 Ready (native DE/ES/FR copy spot-check suggested); #1875 Ready; #1874 Ready; #1873 Ready; #1872 Ready w/ minor notes (run-8 ledger dup vs #1852); #1871 Ready; #1870 Ready w/ minor notes (a11y thread deferred); #1864 Ready w/ minor notes (changelog overlap w/ #1861); #1861 Ready w/ minor notes (overlap w/ #1864); #1852 Ready w/ minor notes (superseded by #1872); #1838 Ready w/ minor notes (author-flagged live Classroom smoke test).
+- Notes:
+  - Branch-safety: no open PR head is `main` or `dev-*`; all branches were pushable. No fixes required pushing this run. No pushes to `main`.
+  - Cross-PR coordination flagged for humans: (1) #1864 and #1861 both add a 2026-06-04 entry to `public/changelog.json` → `dev-paul` (conflict/duplicate risk — reconcile or sequence); (2) #1852 (06-04) and #1872 (06-05) are both "run 8" `docs/routines/unifier.md` updates → `dev-paul` (#1872 supersedes #1852); (3) #1879's diff carries accumulated `docs/scheduled-tasks/*.md` journal updates beyond the Stations feature.
+  - CI status was not surfaced via the commit-status API (`total_count: 0` on all heads — these branches validate through GitHub Actions check_runs, not legacy statuses); merge-readiness is based on diff review + each PR's stated `pnpm run validate` result rather than an independently re-run CI.
+
 ## 2026-06-04
 
 - PRs reviewed: 13 (all open PRs; all heads are non-`main`/non-`dev-*`, so all in scope)
