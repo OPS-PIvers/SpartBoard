@@ -45,13 +45,13 @@ vi.mock('@/config/firebase', () => ({
   db: {},
 }));
 
-vi.mock('./useSessionViewCount', () => ({
+vi.mock('@/hooks/useSessionViewCount', () => ({
   invalidateSessionViewCount: vi.fn(),
 }));
 
 // Use the real isAnswerCorrect — it's pure and the test data targets it
 // through a specific MC answer key so its behaviour is deterministic.
-vi.mock('./useGuidedLearningSession', async () => {
+vi.mock('@/hooks/useGuidedLearningSession', async () => {
   const actual = await vi.importActual<
     typeof import('@/hooks/useGuidedLearningSession')
   >('@/hooks/useGuidedLearningSession');
