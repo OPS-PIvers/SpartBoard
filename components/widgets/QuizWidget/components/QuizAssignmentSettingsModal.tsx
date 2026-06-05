@@ -22,6 +22,11 @@ import type {
 import { Toggle } from '@/components/common/Toggle';
 import { AssignModal, ToggleRow } from '@/components/common/library';
 import { formatBehaviorSummary } from '@/utils/quizBehavior';
+import {
+  DEFAULT_DUE_TIME,
+  dueInputsToEpoch,
+  splitDueAtToInputs,
+} from '@/utils/localDate';
 
 interface QuizAssignmentSettingsModalProps {
   assignment: QuizAssignment;
@@ -45,28 +50,26 @@ interface SettingsOptions {
   teacherName: string;
   selectedPeriodNames: string[];
   plcSheetUrl: string;
-  /** epoch ms, or null for no due date */
-  dueAt: number | null;
+  /** 'YYYY-MM-DD' local, or '' for no due date */
+  dueDate: string;
+  /** 'HH:MM' local time-of-day (defaults to end-of-day) */
+  dueTime: string;
 }
 
 function initialOptionsFor(
   a: QuizAssignment,
   defaultTeacherName?: string
 ): SettingsOptions {
+  const due = splitDueAtToInputs(a.dueAt ?? null);
   return {
     className: a.className ?? '',
     plcMode: !!a.plc,
     teacherName: a.teacherName ?? defaultTeacherName ?? '',
     selectedPeriodNames: a.periodNames ?? (a.periodName ? [a.periodName] : []),
     plcSheetUrl: a.plc?.sheetUrl ?? '',
-    dueAt: a.dueAt ?? null,
+    dueDate: due.date,
+    dueTime: due.time,
   };
-}
-
-/** Convert epoch ms → 'YYYY-MM-DD' for a date input value. */
-function epochToDateInputValue(epoch: number | null): string {
-  if (!epoch) return '';
-  return new Date(epoch).toISOString().slice(0, 10);
 }
 
 export const QuizAssignmentSettingsModal: React.FC<
@@ -144,7 +147,7 @@ export const QuizAssignmentSettingsModal: React.FC<
       teacherName: options.teacherName.trim(),
       periodName: options.selectedPeriodNames[0] ?? '',
       periodNames: options.selectedPeriodNames,
-      dueAt: options.dueAt,
+      dueAt: dueInputsToEpoch(options.dueDate, options.dueTime),
     };
     try {
       await onSave(patch);
@@ -227,7 +230,7 @@ export const QuizAssignmentSettingsModal: React.FC<
             </p>
           </div>
 
-          {/* Due date */}
+          {/* Due date + time */}
           <div>
             <label
               htmlFor="assignment-settings-due-date"
@@ -235,20 +238,36 @@ export const QuizAssignmentSettingsModal: React.FC<
             >
               Due Date <span className="font-normal">(optional)</span>
             </label>
-            <input
-              id="assignment-settings-due-date"
-              type="date"
-              data-testid="assignment-due-date"
-              value={epochToDateInputValue(options.dueAt)}
-              onChange={(e) => {
-                const val = e.target.value;
-                setOptions((p) => ({
-                  ...p,
-                  dueAt: val ? new Date(val).getTime() : null,
-                }));
-              }}
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            <div className="flex gap-2">
+              <input
+                id="assignment-settings-due-date"
+                type="date"
+                data-testid="assignment-due-date"
+                value={options.dueDate}
+                onChange={(e) =>
+                  setOptions((p) => ({ ...p, dueDate: e.target.value }))
+                }
+                className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <input
+                type="time"
+                data-testid="assignment-due-time"
+                aria-label="Due time"
+                value={options.dueTime}
+                disabled={!options.dueDate}
+                onChange={(e) =>
+                  setOptions((p) => ({
+                    ...p,
+                    dueTime: e.target.value || DEFAULT_DUE_TIME,
+                  }))
+                }
+                className="w-32 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
+            <p className="text-xxs text-slate-400 mt-0.5">
+              Uses your local time. Synced to Google Classroom when assigned
+              there.
+            </p>
           </div>
 
           {/* Read-only behavior summary — freeze-live: behavior is frozen at

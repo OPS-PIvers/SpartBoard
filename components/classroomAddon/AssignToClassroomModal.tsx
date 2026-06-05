@@ -30,6 +30,11 @@ import {
   type AssignRunnerKind,
   type AssignToClassroomResult,
 } from '@/utils/assignToClassroom';
+import {
+  DEFAULT_DUE_TIME,
+  dueInputsToEpoch,
+  splitDueAtToInputs,
+} from '@/utils/localDate';
 
 interface AssignToClassroomModalProps {
   isOpen: boolean;
@@ -53,12 +58,6 @@ interface AssignToClassroomModalProps {
 
 type Phase = 'loading' | 'pick' | 'error' | 'assigning';
 
-/** Convert epoch ms → 'YYYY-MM-DD' for a date input value. */
-function epochToDateInputValue(epoch: number | null): string {
-  if (!epoch) return '';
-  return new Date(epoch).toISOString().slice(0, 10);
-}
-
 export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
   isOpen,
   onClose,
@@ -75,7 +74,11 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
   const [phase, setPhase] = useState<Phase>('loading');
   const [courses, setCourses] = useState<GoogleClassroomCourse[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
-  const [dueAt, setDueAt] = useState<number | null>(initialDueAt ?? null);
+  // Due date + time split into the picker-bound input strings. The host mounts
+  // this fresh on each open, so the useState initializers seed from initialDueAt.
+  const initialDue = splitDueAtToInputs(initialDueAt ?? null);
+  const [dueDate, setDueDate] = useState(initialDue.date);
+  const [dueTime, setDueTime] = useState(initialDue.time);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   // Bumped by the retry button to re-run the open effect's load.
   const [reloadNonce, setReloadNonce] = useState(0);
@@ -88,8 +91,8 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
   // so every setState lands AFTER an await (never synchronously in the effect
   // body — the documented "setState from a callback" escape). Re-runs when the
   // retry button bumps `reloadNonce`. The host mounts this fresh on each open
-  // (it's conditionally rendered), so `dueAt`'s useState initializer already
-  // seeds from `initialDueAt`.
+  // (it's conditionally rendered), so the due date/time useState initializers
+  // already seed from `initialDueAt`.
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
@@ -145,7 +148,7 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
         sessionId,
         title,
         maxPoints,
-        dueAt,
+        dueAt: dueInputsToEpoch(dueDate, dueTime),
       });
 
       // Persist the linkage so the existing grade-push button appears (addon
@@ -189,7 +192,8 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
     sessionId,
     title,
     maxPoints,
-    dueAt,
+    dueDate,
+    dueTime,
     addToast,
     onAssigned,
     onClose,
@@ -342,19 +346,29 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
                 Due date{' '}
                 <span className="font-normal normal-case">(optional)</span>
               </label>
-              <input
-                id="assign-classroom-due-date"
-                type="date"
-                value={epochToDateInputValue(dueAt)}
-                disabled={phase === 'assigning'}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setDueAt(val ? new Date(val).getTime() : null);
-                }}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
-              />
+              <div className="flex gap-2">
+                <input
+                  id="assign-classroom-due-date"
+                  type="date"
+                  value={dueDate}
+                  disabled={phase === 'assigning'}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                />
+                <input
+                  type="time"
+                  aria-label="Due time"
+                  value={dueTime}
+                  disabled={phase === 'assigning' || !dueDate}
+                  onChange={(e) =>
+                    setDueTime(e.target.value || DEFAULT_DUE_TIME)
+                  }
+                  className="w-32 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
               <p className="mt-1 text-xs text-slate-400">
-                Synced to the Google Classroom assignment’s due date.
+                Synced to the Google Classroom assignment’s due date and time
+                (your local time).
               </p>
             </div>
           </>

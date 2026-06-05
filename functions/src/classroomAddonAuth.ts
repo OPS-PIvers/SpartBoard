@@ -276,12 +276,18 @@ function bearer(accessToken: string): Record<string, string> {
 /**
  * Convert a SpartBoard `dueAt` (epoch ms) to Classroom `dueDate` + `dueTime`.
  *
- * The dashboard collects `dueAt` from a `<input type="date">`, i.e. UTC midnight
- * of the chosen calendar date. We emit that calendar date (UTC components) at
- * 23:59 UTC so Classroom displays it as END-OF-DAY for US-Central (Orono):
- * 23:59Z ≈ 17:59 CT the SAME day, instead of a 00:00Z time that would render as
- * the prior evening. SpartBoard is Orono-only (Central); revisit the fixed 23:59
- * if a time-of-day picker is ever added. Returns null for an absent/invalid due.
+ * Classroom stores `dueDate`/`dueTime` as UTC and renders them in the viewer's
+ * local timezone. The dashboard now collects `dueAt` from a date + time picker
+ * pair combined into a single LOCAL-datetime epoch, so the epoch's UTC
+ * components round-trip back to the teacher's chosen local time in Classroom's
+ * display. We therefore emit the epoch's actual UTC hours/minutes.
+ *
+ * Backward-compat: a LEGACY date-only pick (a bare `<input type="date">`) arrives
+ * as UTC midnight. Emitting 00:00Z would render as the PRIOR evening in
+ * US-Central, so we fall back to end-of-day 23:59 (the Phase-1 behavior).
+ * SpartBoard is Orono-only (US-Central), where a genuine local-midnight pick
+ * never lands on UTC midnight, so this heuristic only catches the legacy
+ * date-only case. Returns null for an absent/invalid due.
  */
 export function dueAtToClassroomDue(
   dueAtMs: number | null | undefined
@@ -295,13 +301,16 @@ export function dueAtToClassroomDue(
   }
   const d = new Date(dueAtMs);
   if (Number.isNaN(d.getTime())) return null;
+  const hours = d.getUTCHours();
+  const minutes = d.getUTCMinutes();
+  const isLegacyDateOnly = hours === 0 && minutes === 0;
   return {
     dueDate: {
       year: d.getUTCFullYear(),
       month: d.getUTCMonth() + 1,
       day: d.getUTCDate(),
     },
-    dueTime: { hours: 23, minutes: 59 },
+    dueTime: isLegacyDateOnly ? { hours: 23, minutes: 59 } : { hours, minutes },
   };
 }
 

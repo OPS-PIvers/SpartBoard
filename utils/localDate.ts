@@ -64,3 +64,58 @@ export function combineDateAndTime(
   const ms = dt.getTime();
   return Number.isFinite(ms) ? ms : null;
 }
+
+/**
+ * Default end-of-day local time for a due-date picker when the teacher chooses a
+ * date but no explicit time. `23:59` local reads as "due by the end of that day".
+ */
+export const DEFAULT_DUE_TIME = '23:59';
+
+/**
+ * Split a `dueAt` epoch (ms) into the `YYYY-MM-DD` + `HH:MM` strings a
+ * date/time picker pair binds to, using LOCAL wall-clock components.
+ *
+ * Two value shapes are handled:
+ *   - NEW values encode a local datetime (date + time picker → combineDateAndTime),
+ *     so their local components round-trip exactly.
+ *   - LEGACY date-only values were stored as UTC midnight (a bare
+ *     `<input type="date">` → `new Date('YYYY-MM-DD')`). Read with local getters
+ *     in a behind-UTC timezone (e.g. US-Central) those render as the PRIOR
+ *     evening, so we instead surface the intended UTC calendar date + the
+ *     default end-of-day time. SpartBoard is single-timezone (US-Central), where
+ *     a genuine local-midnight pick never lands on UTC midnight, so this
+ *     heuristic only ever catches the legacy date-only case.
+ *
+ * Returns an empty `date` (and the default `time`) when there is no due date.
+ */
+export function splitDueAtToInputs(dueAt: number | null | undefined): {
+  date: string;
+  time: string;
+} {
+  if (typeof dueAt !== 'number' || !Number.isFinite(dueAt) || dueAt <= 0) {
+    return { date: '', time: DEFAULT_DUE_TIME };
+  }
+  const d = new Date(dueAt);
+  if (Number.isNaN(d.getTime())) return { date: '', time: DEFAULT_DUE_TIME };
+  const isLegacyUtcMidnight =
+    d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0;
+  if (isLegacyUtcMidnight) {
+    return { date: d.toISOString().slice(0, 10), time: DEFAULT_DUE_TIME };
+  }
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
+}
+
+/**
+ * Combine a due-date picker's `YYYY-MM-DD` + `HH:MM` strings into an epoch (ms).
+ * No date → null (no due date). An empty time defaults to end-of-day so a
+ * date-only pick still resolves to a concrete instant. Delegates to
+ * combineDateAndTime for strict local-time parsing + range validation.
+ */
+export function dueInputsToEpoch(date: string, time: string): number | null {
+  if (!date) return null;
+  return combineDateAndTime(date, time || DEFAULT_DUE_TIME);
+}

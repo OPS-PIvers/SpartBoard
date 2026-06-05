@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { getLocalIsoDate } from '@/utils/localDate';
+import {
+  getLocalIsoDate,
+  combineDateAndTime,
+  splitDueAtToInputs,
+  dueInputsToEpoch,
+  DEFAULT_DUE_TIME,
+} from '@/utils/localDate';
 
 describe('getLocalIsoDate', () => {
   afterEach(() => {
@@ -37,5 +43,64 @@ describe('getLocalIsoDate', () => {
     vi.setSystemTime(mockDate);
 
     expect(getLocalIsoDate()).toBe('2025-03-10');
+  });
+});
+
+describe('splitDueAtToInputs', () => {
+  it('returns an empty date (and the default time) for no due date', () => {
+    expect(splitDueAtToInputs(null)).toEqual({
+      date: '',
+      time: DEFAULT_DUE_TIME,
+    });
+    expect(splitDueAtToInputs(undefined)).toEqual({
+      date: '',
+      time: DEFAULT_DUE_TIME,
+    });
+    expect(splitDueAtToInputs(0)).toEqual({ date: '', time: DEFAULT_DUE_TIME });
+    expect(splitDueAtToInputs(Number.NaN)).toEqual({
+      date: '',
+      time: DEFAULT_DUE_TIME,
+    });
+  });
+
+  it('surfaces a LEGACY date-only value (UTC midnight) as its intended calendar date + default time', () => {
+    // What a bare <input type="date"> produced before the time picker landed.
+    const legacy = Date.UTC(2026, 5, 10, 0, 0, 0);
+    expect(splitDueAtToInputs(legacy)).toEqual({
+      date: '2026-06-10',
+      time: DEFAULT_DUE_TIME,
+    });
+  });
+
+  it('round-trips a date+time pick back to the same input strings', () => {
+    const epoch = dueInputsToEpoch('2026-06-10', '18:30');
+    expect(epoch).not.toBeNull();
+    expect(splitDueAtToInputs(epoch)).toEqual({
+      date: '2026-06-10',
+      time: '18:30',
+    });
+  });
+});
+
+describe('dueInputsToEpoch', () => {
+  it('returns null when there is no date (no due date)', () => {
+    expect(dueInputsToEpoch('', '12:00')).toBeNull();
+    expect(dueInputsToEpoch('', '')).toBeNull();
+  });
+
+  it('defaults an empty time to end-of-day', () => {
+    expect(dueInputsToEpoch('2026-06-10', '')).toBe(
+      combineDateAndTime('2026-06-10', DEFAULT_DUE_TIME)
+    );
+  });
+
+  it('combines a date + time into a local-datetime epoch (number)', () => {
+    expect(dueInputsToEpoch('2026-06-10', '18:30')).toBe(
+      combineDateAndTime('2026-06-10', '18:30')
+    );
+  });
+
+  it('returns null for a malformed date/time', () => {
+    expect(dueInputsToEpoch('not-a-date', '18:30')).toBeNull();
   });
 });

@@ -1786,12 +1786,44 @@ describe('dueAtToClassroomDue', () => {
     expect(dueAtToClassroomDue(Number.NaN)).toBeNull();
   });
 
-  it('emits the UTC calendar date at 23:59 (end-of-day for Central, same day)', () => {
-    // A date-only pick: 2026-06-10 UTC midnight (what <input type="date"> yields).
+  it('falls back to 23:59 for a LEGACY date-only pick (UTC midnight, end-of-day for Central)', () => {
+    // A legacy date-only pick: 2026-06-10 UTC midnight (what a bare
+    // <input type="date"> yielded before the time picker landed).
     const dueAt = Date.UTC(2026, 5, 10, 0, 0, 0);
     expect(dueAtToClassroomDue(dueAt)).toEqual({
       dueDate: { year: 2026, month: 6, day: 10 },
       dueTime: { hours: 23, minutes: 59 },
+    });
+  });
+
+  it('passes the epoch UTC time-of-day through for a date+time pick', () => {
+    // A date+time pick is a LOCAL datetime epoch; its UTC components round-trip
+    // back to the teacher's local time in Classroom. 18:30Z here stands in for
+    // whatever UTC offset the local pick produced — we emit it verbatim.
+    const dueAt = Date.UTC(2026, 5, 10, 18, 30, 0);
+    expect(dueAtToClassroomDue(dueAt)).toEqual({
+      dueDate: { year: 2026, month: 6, day: 10 },
+      dueTime: { hours: 18, minutes: 30 },
+    });
+  });
+
+  it('emits a 23:59 UTC time-of-day verbatim (not via the legacy fallback)', () => {
+    // 23:59Z is the canonical Central end-of-day pick (18:59 CDT). It must reach
+    // Classroom as 23:59 whether it came from the legacy fallback or a real pick.
+    const dueAt = Date.UTC(2026, 5, 10, 23, 59, 0);
+    expect(dueAtToClassroomDue(dueAt)).toEqual({
+      dueDate: { year: 2026, month: 6, day: 10 },
+      dueTime: { hours: 23, minutes: 59 },
+    });
+  });
+
+  it('does NOT trigger the legacy fallback one minute past UTC midnight', () => {
+    // Only EXACT UTC midnight is treated as legacy; 00:01Z passes through so a
+    // real pick is never silently rewritten to end-of-day.
+    const dueAt = Date.UTC(2026, 5, 10, 0, 1, 0);
+    expect(dueAtToClassroomDue(dueAt)).toEqual({
+      dueDate: { year: 2026, month: 6, day: 10 },
+      dueTime: { hours: 0, minutes: 1 },
     });
   });
 });
