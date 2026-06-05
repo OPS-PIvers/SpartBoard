@@ -384,6 +384,15 @@ export const useGuidedLearningAssignments = (
         const data = d.data() as GuidedLearningResponse;
         const answers = Array.isArray(data.answers) ? data.answers : [];
         let correctCount = 0;
+        // Track which stepIds have already contributed to the score so a
+        // duplicate answer (Drive-sync duplication / arrayUnion race writing
+        // the same stepId twice into `answers`) can't inflate correctCount.
+        // Each answer still receives an `isCorrect` annotation for the
+        // student review screen, but only the first occurrence of a stepId
+        // contributes to the numerator — matching the identical fix in
+        // `useVideoActivityAssignments.publishAssignmentScores` and
+        // `useQuizAssignments.publishAssignmentScores`.
+        const scoredStepIds = new Set<string>();
         const gradedAnswers: GuidedLearningResponse['answers'] = answers.map(
           (a) => {
             const step = stepsById.get(a.stepId);
@@ -394,7 +403,10 @@ export const useGuidedLearningAssignments = (
               return { ...a, isCorrect: null };
             }
             const correct = isAnswerCorrect(step, a.answer);
-            if (correct) correctCount += 1;
+            if (!scoredStepIds.has(a.stepId)) {
+              scoredStepIds.add(a.stepId);
+              if (correct) correctCount += 1;
+            }
             return { ...a, isCorrect: correct };
           }
         );
