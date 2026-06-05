@@ -80,10 +80,14 @@ export const useBreathing = (patternId: BreathingPattern) => {
           const elapsedAlready = stateRef.current.progress * newPhaseDuration;
           stateRef.current.phaseDuration = newPhaseDuration;
           stateRef.current.startTime = now - elapsedAlready;
+        } else {
+          // New pattern does not have this phase (duration === 0, e.g. hold1/hold2
+          // when switching to a two-phase pattern).  Set phaseDuration to 0 so the
+          // next RAF tick sees elapsed (≥ 0) >= phaseDuration (0) and transitions
+          // immediately, rather than waiting out the stale old duration.
+          stateRef.current.phaseDuration = 0;
+          stateRef.current.startTime = performance.now();
         }
-        // If newDurationSeconds === 0 (e.g., in hold2 but new pattern has none),
-        // let the next RAF tick detect elapsed >= phaseDuration and transition
-        // immediately — no special handling needed here.
       }
     }
   }, [patternId]);
