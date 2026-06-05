@@ -60,7 +60,7 @@ function initialOptionsFor(
   a: QuizAssignment,
   defaultTeacherName?: string
 ): SettingsOptions {
-  const due = splitDueAtToInputs(a.dueAt ?? null);
+  const due = splitDueAtToInputs(a.dueAt ?? null, a.dueAtHasTime);
   return {
     className: a.className ?? '',
     plcMode: !!a.plc,
@@ -148,6 +148,10 @@ export const QuizAssignmentSettingsModal: React.FC<
       periodName: options.selectedPeriodNames[0] ?? '',
       periodNames: options.selectedPeriodNames,
       dueAt: dueInputsToEpoch(options.dueDate, options.dueTime),
+      // The time picker always yields an explicit local time, so mark the value
+      // as time-bearing (when a date is set) — distinguishes it from legacy
+      // date-only dueAts so the round-trip/Classroom conversion reads it right.
+      dueAtHasTime: !!options.dueDate,
     };
     try {
       await onSave(patch);

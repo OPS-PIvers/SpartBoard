@@ -50,6 +50,8 @@ interface AssignToClassroomModalProps {
   maxPoints?: number;
   /** Pre-fill the due date (epoch ms) if the assignment already has one. */
   initialDueAt?: number | null;
+  /** Whether `initialDueAt` carries a chosen time (vs a legacy date-only value). */
+  initialDueAtHasTime?: boolean;
   /** Toast surface from the host widget. */
   addToast: (message: string, type: 'success' | 'error' | 'info') => void;
   /** Called after a successful assign (for the host to refresh UI). */
@@ -67,6 +69,7 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
   title,
   maxPoints,
   initialDueAt,
+  initialDueAtHasTime,
   addToast,
   onAssigned,
 }) => {
@@ -76,7 +79,10 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   // Due date + time split into the picker-bound input strings. The host mounts
   // this fresh on each open, so the useState initializers seed from initialDueAt.
-  const initialDue = splitDueAtToInputs(initialDueAt ?? null);
+  const initialDue = splitDueAtToInputs(
+    initialDueAt ?? null,
+    initialDueAtHasTime
+  );
   const [dueDate, setDueDate] = useState(initialDue.date);
   const [dueTime, setDueTime] = useState(initialDue.time);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -149,6 +155,9 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
         title,
         maxPoints,
         dueAt: dueInputsToEpoch(dueDate, dueTime),
+        // The date+time picker always yields an explicit local time → emit it
+        // verbatim to Classroom (vs an end-of-day default for date-only values).
+        dueHasTime: true,
       });
 
       // Persist the linkage so the existing grade-push button appears (addon

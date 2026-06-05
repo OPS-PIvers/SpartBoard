@@ -3444,6 +3444,13 @@ export interface QuizAssignmentSettings {
   attemptLimit?: number | null;
   /** Optional due date (ms epoch). Absent / null = no due date. PLC-config + board both honor it. */
   dueAt?: number | null;
+  /**
+   * Whether `dueAt` encodes a chosen time-of-day (set by the date+time picker)
+   * vs a legacy/date-only value stored as UTC midnight. Read back by the picker
+   * and by the Classroom due-date conversion to choose verbatim-time vs
+   * end-of-day. Absent = date-only (legacy/other create paths).
+   */
+  dueAtHasTime?: boolean;
 }
 
 /**

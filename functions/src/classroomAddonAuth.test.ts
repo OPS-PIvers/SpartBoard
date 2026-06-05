@@ -1795,45 +1795,43 @@ describe('dueAtToClassroomDue', () => {
     expect(dueAtToClassroomDue(Number.NaN)).toBeNull();
   });
 
-  it('emits UTC midnight verbatim (no legacy rewrite to 23:59)', () => {
-    // A UTC-midnight epoch must NOT be rewritten to 23:59: a behind-UTC local
-    // pick (7:00 PM CDT / 6:00 PM CST) lands on exact UTC midnight, so the old
-    // heuristic would shift such a real pick's Classroom due date by ~a day.
+  it('with no time flag (date-only) emits end-of-day 23:59 on the UTC date', () => {
+    // A date-only value (legacy / other create paths): 2026-06-10 UTC midnight.
     const dueAt = Date.UTC(2026, 5, 10, 0, 0, 0);
-    expect(dueAtToClassroomDue(dueAt)).toEqual({
-      dueDate: { year: 2026, month: 6, day: 10 },
-      dueTime: { hours: 0, minutes: 0 },
-    });
-  });
-
-  it('passes the epoch UTC time-of-day through for a date+time pick', () => {
-    // A date+time pick is a LOCAL datetime epoch; its UTC components round-trip
-    // back to the teacher's local time in Classroom. 18:30Z here stands in for
-    // whatever UTC offset the local pick produced — we emit it verbatim.
-    const dueAt = Date.UTC(2026, 5, 10, 18, 30, 0);
-    expect(dueAtToClassroomDue(dueAt)).toEqual({
-      dueDate: { year: 2026, month: 6, day: 10 },
-      dueTime: { hours: 18, minutes: 30 },
-    });
-  });
-
-  it('emits a 23:59 UTC time-of-day verbatim', () => {
-    // 23:59Z is the canonical Central end-of-day pick (18:59 CDT) and must
-    // reach Classroom as 23:59.
-    const dueAt = Date.UTC(2026, 5, 10, 23, 59, 0);
     expect(dueAtToClassroomDue(dueAt)).toEqual({
       dueDate: { year: 2026, month: 6, day: 10 },
       dueTime: { hours: 23, minutes: 59 },
     });
   });
 
-  it('passes a time just past UTC midnight through verbatim', () => {
-    // 00:01Z passes through unchanged — no time-of-day is ever silently
-    // rewritten to end-of-day.
-    const dueAt = Date.UTC(2026, 5, 10, 0, 1, 0);
-    expect(dueAtToClassroomDue(dueAt)).toEqual({
+  it('with no time flag, the FLAG (not the value) decides — a timed epoch still emits 23:59', () => {
+    // REGRESSION GUARD: behavior must depend on the explicit flag, never on the
+    // epoch's UTC hours. Marked date-only → end-of-day, regardless of the value.
+    const dueAt = Date.UTC(2026, 5, 10, 18, 30, 0);
+    expect(dueAtToClassroomDue(dueAt, false)).toEqual({
       dueDate: { year: 2026, month: 6, day: 10 },
-      dueTime: { hours: 0, minutes: 1 },
+      dueTime: { hours: 23, minutes: 59 },
+    });
+  });
+
+  it('with the time flag, passes the epoch UTC time-of-day through verbatim', () => {
+    // A date+time pick is a LOCAL datetime epoch; its UTC components round-trip
+    // back to the teacher's local time in Classroom — emit them verbatim.
+    const dueAt = Date.UTC(2026, 5, 10, 18, 30, 0);
+    expect(dueAtToClassroomDue(dueAt, true)).toEqual({
+      dueDate: { year: 2026, month: 6, day: 10 },
+      dueTime: { hours: 18, minutes: 30 },
+    });
+  });
+
+  it('with the time flag, emits a UTC-midnight epoch verbatim (the 7pm-CDT regression)', () => {
+    // 7:00 PM CDT lands on EXACTLY UTC midnight of the next day. The old
+    // value-based heuristic rewrote this to wrong-day 23:59; the flag-based path
+    // emits it verbatim so Classroom re-localizes it back to 7pm the right day.
+    const dueAt = Date.UTC(2026, 5, 11, 0, 0, 0);
+    expect(dueAtToClassroomDue(dueAt, true)).toEqual({
+      dueDate: { year: 2026, month: 6, day: 11 },
+      dueTime: { hours: 0, minutes: 0 },
     });
   });
 });
@@ -1950,6 +1948,28 @@ describe('assignToClassroomV1 (partner-first assign)', () => {
       (w) => w.path === 'classroom_course_links/C1'
     );
     expect(linkWrite?.data).toMatchObject({ teacherUid: 'teacher-1' });
+  });
+
+  it('passes the chosen due TIME through to courseWork when dueHasTime is set', async () => {
+    seedSession('quiz_sessions', 'S1', 'teacher-1');
+    const { createCourseWork } = stubAssignHappyPath();
+
+    await callAssign({
+      data: {
+        ...assignQuizData,
+        // A 3:30pm-Central pick arrives as a local-datetime epoch; with the flag
+        // the CF emits its UTC time-of-day verbatim (Classroom re-localizes it).
+        dueAt: Date.UTC(2026, 5, 10, 20, 30, 0),
+        dueHasTime: true,
+      },
+      auth: { uid: 'teacher-1' },
+    });
+
+    const cwBody = createCourseWork.mock.calls[0]?.[2];
+    expect(cwBody).toMatchObject({
+      dueDate: { year: 2026, month: 6, day: 10 },
+      dueTime: { hours: 20, minutes: 30 },
+    });
   });
 
   it('uses the VA student/launch URIs for a kind=va assign', async () => {
@@ -2399,6 +2419,11 @@ function stubFinalGradeSeamsHappy() {
   return { listSpy, patchSpy, returnSpy };
 }
 
+// The FINAL push REQUIRES a valid maxPoints (it writes an irreversible grade),
+// unlike the draft batch where it's an optional cap — so the final tests use a
+// variant that includes it.
+const finalBatchData = { ...batchData, maxPoints: 100 };
+
 describe('pushClassroomFinalGradesForAssignment (final batch)', () => {
   it('resolves the courseWork submission by googleUserId, patches assignedGrade, and returns it', async () => {
     courseLinkDoc = { teacherUid: 'teacher-123' };
@@ -2419,7 +2444,7 @@ describe('pushClassroomFinalGradesForAssignment (final batch)', () => {
     const { listSpy, patchSpy, returnSpy } = stubFinalGradeSeamsHappy();
 
     const res = await callPushFinalBatch({
-      data: batchData,
+      data: finalBatchData,
       auth: { uid: 'teacher-123' },
     });
 
@@ -2458,7 +2483,7 @@ describe('pushClassroomFinalGradesForAssignment (final batch)', () => {
     expect(returnSpy).toHaveBeenCalledTimes(2);
   });
 
-  it('still counts a push as success when the RETURN fails (non-fatal — grade already landed)', async () => {
+  it('SKIPS .return for work that is not TURNED_IN, but still lands the grade', async () => {
     courseLinkDoc = { teacherUid: 'teacher-123' };
     seedSubmission('pseudo-A', {
       courseId: 'C1',
@@ -2472,21 +2497,58 @@ describe('pushClassroomFinalGradesForAssignment (final batch)', () => {
         ok: true,
         status: 200,
         submissionId: 'CW-SUB-A',
-        state: 'CREATED', // never turned in
+        state: 'CREATED', // never turned in → .return would be guaranteed to fail
+      }
+    );
+    const patchSpy = vi
+      .spyOn(classroomAddonNet, 'patchCourseWorkAssignedGrade')
+      .mockResolvedValue({ ok: true, status: 200 });
+    const returnSpy = vi.spyOn(classroomAddonNet, 'returnCourseWorkSubmission');
+
+    const res = await callPushFinalBatch({
+      data: {
+        ...finalBatchData,
+        grades: [{ pseudonymUid: 'pseudo-A', pointsEarned: 8 }],
+      },
+      auth: { uid: 'teacher-123' },
+    });
+
+    // The assignedGrade patch landed the gradebook value → counted as pushed.
+    expect(res.pushed).toBe(1);
+    expect(res.failed).toBe(0);
+    expect(patchSpy).toHaveBeenCalledTimes(1);
+    // No guaranteed-to-fail .return call for non-TURNED_IN work.
+    expect(returnSpy).not.toHaveBeenCalled();
+  });
+
+  it('still counts a push as success when a TURNED_IN .return fails (non-fatal)', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    seedSubmission('pseudo-A', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'ADDON-SUB-A',
+      googleUserId: 'guser-A',
+    });
+    vi.spyOn(classroomAddonNet, 'listCourseWorkSubmissionId').mockResolvedValue(
+      {
+        ok: true,
+        status: 200,
+        submissionId: 'CW-SUB-A',
+        state: 'TURNED_IN',
       }
     );
     vi.spyOn(
       classroomAddonNet,
       'patchCourseWorkAssignedGrade'
     ).mockResolvedValue({ ok: true, status: 200 });
-    // Return fails because the work was never turned in — must NOT fail the push.
     const returnSpy = vi
       .spyOn(classroomAddonNet, 'returnCourseWorkSubmission')
       .mockResolvedValue({ ok: false, status: 400 });
 
     const res = await callPushFinalBatch({
       data: {
-        ...batchData,
+        ...finalBatchData,
         grades: [{ pseudonymUid: 'pseudo-A', pointsEarned: 8 }],
       },
       auth: { uid: 'teacher-123' },
@@ -2495,6 +2557,60 @@ describe('pushClassroomFinalGradesForAssignment (final batch)', () => {
     expect(res.pushed).toBe(1);
     expect(res.failed).toBe(0);
     expect(returnSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('requires a positive maxPoints (rejects invalid-argument when absent)', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    const listSpy = vi.spyOn(classroomAddonNet, 'listCourseWorkSubmissionId');
+    // batchData has no maxPoints → the irreversible final path must reject it.
+    await expect(
+      callPushFinalBatch({ data: batchData, auth: { uid: 'teacher-123' } })
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    await expect(
+      callPushFinalBatch({
+        data: { ...finalBatchData, maxPoints: 0 },
+        auth: { uid: 'teacher-123' },
+      })
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(listSpy).not.toHaveBeenCalled();
+  });
+
+  it('records a real FAILURE when the courseWork submission lookup fails (ok:false)', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    seedSubmission('pseudo-A', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'ADDON-SUB-A',
+      googleUserId: 'guser-A',
+    });
+    vi.spyOn(classroomAddonNet, 'listCourseWorkSubmissionId').mockResolvedValue(
+      {
+        ok: false,
+        status: 500,
+        submissionId: null,
+        state: null,
+      }
+    );
+    const patchSpy = vi.spyOn(
+      classroomAddonNet,
+      'patchCourseWorkAssignedGrade'
+    );
+
+    const res = await callPushFinalBatch({
+      data: {
+        ...finalBatchData,
+        grades: [{ pseudonymUid: 'pseudo-A', pointsEarned: 8 }],
+      },
+      auth: { uid: 'teacher-123' },
+    });
+
+    // A lookup error is a real, retryable FAILURE — never a benign skip.
+    expect(res.pushed).toBe(0);
+    expect(res.skipped).toBe(0);
+    expect(res.failed).toBe(1);
+    expect(res.results[0]?.reason).toBe('submission lookup failed');
+    expect(patchSpy).not.toHaveBeenCalled();
   });
 
   it('skips (needs relaunch) a key with no captured googleUserId — never lists/patches', async () => {
@@ -2514,7 +2630,7 @@ describe('pushClassroomFinalGradesForAssignment (final batch)', () => {
 
     const res = await callPushFinalBatch({
       data: {
-        ...batchData,
+        ...finalBatchData,
         grades: [{ pseudonymUid: 'pseudo-A', pointsEarned: 8 }],
       },
       auth: { uid: 'teacher-123' },
@@ -2542,7 +2658,7 @@ describe('pushClassroomFinalGradesForAssignment (final batch)', () => {
 
     // pseudo-B has no seeded key.
     const res = await callPushFinalBatch({
-      data: batchData,
+      data: finalBatchData,
       auth: { uid: 'teacher-123' },
     });
 
@@ -2590,7 +2706,7 @@ describe('pushClassroomFinalGradesForAssignment (final batch)', () => {
       .mockResolvedValue({ ok: true, status: 200 });
 
     const res = await callPushFinalBatch({
-      data: batchData,
+      data: finalBatchData,
       auth: { uid: 'teacher-123' },
     });
 
@@ -2609,7 +2725,7 @@ describe('pushClassroomFinalGradesForAssignment (final batch)', () => {
     const listSpy = vi.spyOn(classroomAddonNet, 'listCourseWorkSubmissionId');
 
     await expect(
-      callPushFinalBatch({ data: batchData, auth: { uid: 'impostor' } })
+      callPushFinalBatch({ data: finalBatchData, auth: { uid: 'impostor' } })
     ).rejects.toMatchObject({ code: 'permission-denied' });
     expect(listSpy).not.toHaveBeenCalled();
   });
@@ -2655,7 +2771,7 @@ describe('pushClassroomFinalGradesForAssignment (final batch)', () => {
     ]) {
       await expect(
         callPushFinalBatch({
-          data: { ...batchData, ...patch },
+          data: { ...finalBatchData, ...patch },
           auth: { uid: 'teacher-123' },
         })
       ).rejects.toMatchObject({ code: 'invalid-argument' });

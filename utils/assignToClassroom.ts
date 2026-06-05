@@ -30,6 +30,11 @@ export interface AssignToClassroomArgs {
   maxPoints?: number;
   /** Epoch ms or null. Synced to the Classroom assignment's due date. */
   dueAt?: number | null;
+  /**
+   * Whether `dueAt` encodes a chosen time-of-day (the date+time picker always
+   * does). Drives whether Classroom gets the exact time or an end-of-day default.
+   */
+  dueHasTime?: boolean;
 }
 
 /** Result returned by `assignToClassroomV1`. */

@@ -32,6 +32,7 @@ import {
   computeVideoActivityScorePct,
   canScoreVideoActivityResponse,
   videoActivityMaxPoints,
+  buildVideoActivityGradeEntries,
 } from '@/utils/videoActivityGrading';
 import {
   runClassroomGradePush,
@@ -296,47 +297,32 @@ export const Results: React.FC<ResultsProps> = ({
       addToast(MISSING_MAX_POINTS_MESSAGE, 'error');
       return;
     }
-    const eligible = responses.filter(
-      (r) =>
-        r.completedAt !== null &&
-        !!r.studentUid &&
-        // Skip responses we can't actually score (question set not loaded /
-        // question-id drift). `getStudentScore` would silently return 0 for
-        // them, and unlike the "—" placeholder the teacher views render, a
-        // phantom 0 PATCHed into the real Classroom gradebook is persistent and
-        // easy to miss. Omitting the student is the safe default — better no
-        // grade than a wrong 0. Mirrors `buildQuizClassroomGradeEntries`.
-        canScoreVideoActivityResponse(questions, r.answers)
+    // Build the PII-free entries once via the shared helper (same filter +
+    // scaling the Publish=Push chaining uses, so the two paths can't drift).
+    // Unscoreable/incomplete responses are excluded so we never pop a consent
+    // dialog for nothing — or PATCH a phantom 0 into the real gradebook.
+    const grades = buildVideoActivityGradeEntries(
+      responses,
+      questions,
+      maxPoints
     );
-    if (eligible.length === 0) {
+    if (grades.length === 0) {
       addToast(NOTHING_TO_PUSH_TOAST, 'info');
       return;
     }
 
-    // Shared push flow (token mint → CF → result toast); the VA monitor supplies
-    // only its grade builder. `getStudentScore` returns the SAME 0–100
-    // percentage the Students tab shows; scale it onto the frozen denominator,
-    // then round + clamp to [0, maxPoints]. The payload is built inside the flow
-    // (AFTER the confirm) from the responses captured when the teacher clicked
-    // (this closure), so a mid-dialog Firestore edit can't bake in stale scores.
+    // Shared push flow (token mint → CF → result toast). The entries were built
+    // from the responses captured when the teacher clicked (this closure), so a
+    // mid-dialog Firestore edit can't bake in stale scores.
     await runClassroomGradePush({
       functions,
       attachment: { courseId, itemId, attachmentId, maxPoints },
       requestToken: () =>
         requestClassroomTeacherToken(user?.email ?? undefined),
-      buildGrades: () =>
-        eligible.map((r) => {
-          const pct = getStudentScore(r);
-          const safePct = Number.isFinite(pct) ? pct : 0;
-          const pointsEarned = Math.max(
-            0,
-            Math.min(maxPoints, Math.round((safePct / 100) * maxPoints))
-          );
-          return { pseudonymUid: r.studentUid, pointsEarned };
-        }),
+      buildGrades: () => grades,
       confirm: () =>
         showConfirm(
-          `Push ${eligible.length} grade${eligible.length === 1 ? '' : 's'} to Google ` +
+          `Push ${grades.length} grade${grades.length === 1 ? '' : 's'} to Google ` +
             'Classroom? This writes draft grades to the assignment gradebook — ' +
             'you still review and return them in Classroom.',
           {
@@ -367,34 +353,22 @@ export const Results: React.FC<ResultsProps> = ({
   const handlePushSchoologyGrades = async () => {
     if (!ltiAttachment) return;
 
-    // Eligible = completed responses with a resolvable pseudonym THAT CAN BE
-    // SCORED. Mirrors the Classroom VA push so we never claim "nothing to push"
-    // after building a payload (and never PATCH a phantom 0 into the gradebook).
-    const eligible = responses.filter(
-      (r) =>
-        r.completedAt !== null &&
-        !!r.studentUid &&
-        canScoreVideoActivityResponse(questions, r.answers)
-    );
-    if (eligible.length === 0) {
-      addToast('No completed responses to push yet.', 'info');
-      return;
-    }
-
     // The gradebook denominator = the activity's summed question points (= the
     // line item `scoreMaximum` the picker set at deep-link time). Shared with
     // LtiDeepLinkPicker.addVideoActivity via videoActivityMaxPoints, so
-    // scoreGiven/scoreMaximum always match the Schoology column.
+    // scoreGiven/scoreMaximum always match the Schoology column. Entries are
+    // built via the shared helper (same filter + scaling as the Classroom VA
+    // push and the Publish=Push chaining) so nothing drifts.
     const maxPoints = videoActivityMaxPoints(questions);
-    const grades = eligible.map((r) => {
-      const pct = getStudentScore(r);
-      const safePct = Number.isFinite(pct) ? pct : 0;
-      const pointsEarned = Math.max(
-        0,
-        Math.min(maxPoints, Math.round((safePct / 100) * maxPoints))
-      );
-      return { pseudonymUid: r.studentUid, pointsEarned };
-    });
+    const grades = buildVideoActivityGradeEntries(
+      responses,
+      questions,
+      maxPoints
+    );
+    if (grades.length === 0) {
+      addToast('No completed responses to push yet.', 'info');
+      return;
+    }
 
     setPushingSchoology(true);
     try {

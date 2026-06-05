@@ -14,15 +14,22 @@ import type { Functions } from 'firebase/functions';
 // ── firestore mock: session docs + responses keyed by ref path ──────────────
 const sessionDocs = new Map<string, Record<string, unknown> | undefined>();
 const responsesByPath = new Map<string, unknown[]>();
+// When set, getDoc/getDocs reject — exercises the orchestrator's degrade paths.
+const firestoreErrors = {
+  getDoc: null as Error | null,
+  getDocs: null as Error | null,
+};
 
 vi.mock('firebase/firestore', () => ({
   collection: (_db: unknown, ...segs: string[]) => ({ path: segs.join('/') }),
   doc: (_db: unknown, ...segs: string[]) => ({ path: segs.join('/') }),
   getDoc: async (ref: { path: string }) => {
+    if (firestoreErrors.getDoc) throw firestoreErrors.getDoc;
     const data = sessionDocs.get(ref.path);
     return { exists: () => data !== undefined, data: () => data };
   },
   getDocs: async (ref: { path: string }) => {
+    if (firestoreErrors.getDocs) throw firestoreErrors.getDocs;
     const list = responsesByPath.get(ref.path) ?? [];
     return { docs: list.map((d) => ({ data: () => d })) };
   },
@@ -47,11 +54,9 @@ vi.mock('@/config/firebase', () => ({ db: {}, functions: {} }));
 import {
   runPublishGradePush,
   CLASSROOM_PUSH_SKIPPED_NO_TOKEN,
+  CLASSROOM_FINAL_PUSH_PERMISSION_DENIED,
 } from '@/utils/publishGradePush';
-import {
-  PUSH_PERMISSION_DENIED_MESSAGE,
-  GRADE_PUSH_GENERIC_ERROR_MESSAGE,
-} from '@/utils/runClassroomGradePush';
+import { GRADE_PUSH_GENERIC_ERROR_MESSAGE } from '@/utils/runClassroomGradePush';
 
 const fns = {} as unknown as Functions;
 
@@ -74,6 +79,8 @@ beforeEach(() => {
   callableCalls.length = 0;
   callableData.clear();
   callableErrors.clear();
+  firestoreErrors.getDoc = null;
+  firestoreErrors.getDocs = null;
   toasts.length = 0;
 });
 
@@ -217,7 +224,8 @@ describe('runPublishGradePush', () => {
     expect(
       toasts.find(
         (t) =>
-          t.message === PUSH_PERMISSION_DENIED_MESSAGE && t.type === 'error'
+          t.message === CLASSROOM_FINAL_PUSH_PERMISSION_DENIED &&
+          t.type === 'error'
       )
     ).toBeDefined();
   });
@@ -271,5 +279,86 @@ describe('runPublishGradePush', () => {
           t.message === GRADE_PUSH_GENERIC_ERROR_MESSAGE && t.type === 'error'
       )
     ).toBeDefined();
+  });
+
+  it('degrades to "not linked" (no Schoology push) when the session read fails — GC still pushes', async () => {
+    firestoreErrors.getDoc = new Error('firestore down');
+    callableData.set('pushClassroomFinalGradesForAssignment', {
+      results: [],
+      pushed: 1,
+      skipped: 0,
+      failed: 0,
+    });
+
+    await expect(
+      runPublishGradePush({
+        ...baseOpts(),
+        classroomAttachment: ATTACHMENT,
+        classroomToken: 'tok',
+      })
+    ).resolves.toBeUndefined();
+
+    // GC push still ran; Schoology was skipped (linkage unknown → treated unlinked).
+    expect(
+      callableCalls.some(
+        (c) => c.name === 'pushClassroomFinalGradesForAssignment'
+      )
+    ).toBe(true);
+    expect(
+      callableCalls.some((c) => c.name === 'ltiPushGradesForAssignmentV1')
+    ).toBe(false);
+  });
+
+  it('reports an error toast (and no push) when the responses fetch fails', async () => {
+    firestoreErrors.getDocs = new Error('responses read failed');
+
+    await expect(
+      runPublishGradePush({
+        ...baseOpts(),
+        classroomAttachment: ATTACHMENT,
+        classroomToken: 'tok',
+      })
+    ).resolves.toBeUndefined();
+
+    expect(callableCalls).toHaveLength(0);
+    expect(toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('never throws when a grade builder throws (publish already committed)', async () => {
+    sessionDocs.set('quiz_sessions/S1', {
+      ltiAttachment: { resourceLinkId: 'R1' },
+    });
+    responsesByPath.set('quiz_sessions/S1/responses', [{}]);
+
+    await expect(
+      runPublishGradePush({
+        ...baseOpts(),
+        classroomAttachment: ATTACHMENT,
+        classroomToken: 'tok',
+        buildClassroomGrades: () => {
+          throw new Error('malformed response');
+        },
+        buildSchoologyGrades: () => {
+          throw new Error('malformed response');
+        },
+      })
+    ).resolves.toBeUndefined();
+
+    // Both builders threw → both surfaced as error toasts, neither aborted the
+    // other, and the function resolved (no "Failed to publish" propagation).
+    expect(callableCalls).toHaveLength(0);
+    expect(toasts.filter((t) => t.type === 'error').length).toBe(2);
+  });
+
+  it('reports a Schoology push error as its own toast (non-fatal)', async () => {
+    sessionDocs.set('quiz_sessions/S1', {
+      ltiAttachment: { resourceLinkId: 'R1' },
+    });
+    callableErrors.set('ltiPushGradesForAssignmentV1', {
+      code: 'functions/unavailable',
+    });
+
+    await expect(runPublishGradePush(baseOpts())).resolves.toBeUndefined();
+    expect(toasts.some((t) => t.type === 'error')).toBe(true);
   });
 });

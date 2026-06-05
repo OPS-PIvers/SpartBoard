@@ -267,6 +267,9 @@ interface AssignToClassroomData {
   maxPoints?: unknown;
   // Epoch ms (or null). Set as Classroom dueDate/dueTime at create time.
   dueAt?: unknown;
+  // Whether `dueAt` encodes a chosen time-of-day (date+time picker) vs a
+  // date-only value. Drives `dueAtToClassroomDue`'s verbatim-vs-end-of-day path.
+  dueHasTime?: unknown;
 }
 
 function bearer(accessToken: string): Record<string, string> {
@@ -277,21 +280,22 @@ function bearer(accessToken: string): Record<string, string> {
  * Convert a SpartBoard `dueAt` (epoch ms) to Classroom `dueDate` + `dueTime`.
  *
  * Classroom stores `dueDate`/`dueTime` as UTC and renders them in the viewer's
- * local timezone. The dashboard now collects `dueAt` from a date + time picker
- * pair combined into a single LOCAL-datetime epoch, so the epoch's UTC
- * components round-trip back to the teacher's chosen local time in Classroom's
- * display. We therefore emit the epoch's actual UTC hours/minutes verbatim.
+ * local timezone, so a LOCAL-datetime epoch round-trips when we emit its UTC
+ * components verbatim. `dueHasTime` says which shape `dueAtMs` is — it CANNOT be
+ * inferred from the value, because a real evening pick collides with a legacy
+ * date-only value (7pm CDT / 6pm CST both land on exactly UTC midnight):
+ *   - `dueHasTime` true: the teacher chose a time (date+time picker → a local
+ *     datetime epoch) → emit the epoch's actual UTC hours/minutes, which render
+ *     back as that local time in Classroom.
+ *   - `dueHasTime` false/absent: a date-only value (legacy/other create paths,
+ *     stored as UTC midnight) → emit the UTC calendar date at end-of-day 23:59,
+ *     so it renders as that day's end (not the prior evening) for US-Central.
  *
- * NOTE: We deliberately do NOT special-case UTC-midnight epochs as "legacy
- * date-only" picks. A behind-UTC local pick lands on exact UTC midnight for
- * legitimate times (e.g. 7:00 PM CDT / 6:00 PM CST → 00:00 UTC the next day),
- * so a UTC-midnight heuristic is indistinguishable from those picks and would
- * shift the Classroom due date by almost a full day. Legacy date-only values
- * (stored as UTC midnight) instead reach Classroom as their actual UTC
- * time-of-day. Returns null for an absent/invalid due.
+ * Returns null for an absent/invalid due.
  */
 export function dueAtToClassroomDue(
-  dueAtMs: number | null | undefined
+  dueAtMs: number | null | undefined,
+  dueHasTime?: boolean
 ): { dueDate: ClassroomDate; dueTime: ClassroomTimeOfDay } | null {
   if (
     typeof dueAtMs !== 'number' ||
@@ -302,16 +306,17 @@ export function dueAtToClassroomDue(
   }
   const d = new Date(dueAtMs);
   if (Number.isNaN(d.getTime())) return null;
+  const dueDate = {
+    year: d.getUTCFullYear(),
+    month: d.getUTCMonth() + 1,
+    day: d.getUTCDate(),
+  };
+  if (!dueHasTime) {
+    return { dueDate, dueTime: { hours: 23, minutes: 59 } };
+  }
   return {
-    dueDate: {
-      year: d.getUTCFullYear(),
-      month: d.getUTCMonth() + 1,
-      day: d.getUTCDate(),
-    },
-    dueTime: {
-      hours: d.getUTCHours(),
-      minutes: d.getUTCMinutes(),
-    },
+    dueDate,
+    dueTime: { hours: d.getUTCHours(), minutes: d.getUTCMinutes() },
   };
 }
 
@@ -1429,7 +1434,7 @@ export const assignToClassroomV1 = onCall(
       typeof data.dueAt === 'number' && Number.isFinite(data.dueAt)
         ? data.dueAt
         : null;
-    const due = dueAtToClassroomDue(dueAt);
+    const due = dueAtToClassroomDue(dueAt, data.dueHasTime === true);
 
     const db = admin.firestore();
 
@@ -2232,14 +2237,18 @@ export const pushClassroomFinalGradesForAssignment = onCall(
     }
     const rawGrades = data.grades as BatchGradeEntryInput[];
 
+    // Unlike the DRAFT push (where maxPoints is an optional sanity cap), the
+    // FINAL path writes an irreversible gradebook value, so a valid scale is
+    // REQUIRED — we never want an un-clamped assignedGrade. Reject rather than
+    // default to no ceiling.
     const coercedMaxPoints = Number(data.maxPoints);
-    const maxPointsCap =
-      data.maxPoints !== undefined &&
-      data.maxPoints !== null &&
-      Number.isFinite(coercedMaxPoints) &&
-      coercedMaxPoints > 0
-        ? Math.floor(coercedMaxPoints)
-        : Number.POSITIVE_INFINITY;
+    if (!Number.isFinite(coercedMaxPoints) || coercedMaxPoints <= 0) {
+      throw new HttpsError(
+        'invalid-argument',
+        'maxPoints is required and must be a positive number for a final-grade push.'
+      );
+    }
+    const maxPointsCap = Math.floor(coercedMaxPoints);
 
     const db = admin.firestore();
 
@@ -2342,14 +2351,19 @@ export const pushClassroomFinalGradesForAssignment = onCall(
           }
 
           // Best-effort RETURN — releases the assignedGrade to the student.
-          // Non-fatal on failure: add-on work is often never TURNED_IN (which
-          // `.return` requires), but the gradebook value already landed above.
-          await classroomAddonNet.returnCourseWorkSubmission(
-            accessToken,
-            courseId,
-            itemId,
-            lookup.submissionId
-          );
+          // `.return` ONLY succeeds on a TURNED_IN submission, and add-on work is
+          // often never turned in, so we skip the (guaranteed-to-fail, log-noisy)
+          // call unless the submission is actually TURNED_IN. Either way it's
+          // non-fatal: the assignedGrade patched above already landed the
+          // gradebook value; the return only surfaces it to the student.
+          if (lookup.state === 'TURNED_IN') {
+            await classroomAddonNet.returnCourseWorkSubmission(
+              accessToken,
+              courseId,
+              itemId,
+              lookup.submissionId
+            );
+          }
           return { pseudonymUid, ok: true, status: patchResult.status };
         } catch (err) {
           console.warn(

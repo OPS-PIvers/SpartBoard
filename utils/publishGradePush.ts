@@ -32,7 +32,6 @@ import {
 import {
   hasValidMaxPoints,
   isPushPermissionDenied,
-  PUSH_PERMISSION_DENIED_MESSAGE,
   GRADE_PUSH_GENERIC_ERROR_MESSAGE,
 } from '@/utils/runClassroomGradePush';
 import {
@@ -47,6 +46,15 @@ import {
 /** Copy shown when an assignment is Classroom-linked but no token was minted. */
 export const CLASSROOM_PUSH_SKIPPED_NO_TOKEN =
   'Scores published. Google Classroom grades weren’t sent (sign-in needed) — use “Push grades” on the Results screen to send them.';
+
+/**
+ * Classroom-specific permission-denied copy. The final push is gated on the
+ * Google Classroom course link (who assigned it), NOT the ClassLink roster link,
+ * so the generic `PUSH_PERMISSION_DENIED_MESSAGE` ("link to ClassLink") would be
+ * the wrong remediation here.
+ */
+export const CLASSROOM_FINAL_PUSH_PERMISSION_DENIED =
+  'Only the teacher who assigned this to Google Classroom can push its final grades.';
 
 export interface RunPublishGradePushOptions<R> {
   functions: Functions;
@@ -136,11 +144,13 @@ export async function runPublishGradePush<R>({
     return;
   }
 
-  // Google Classroom — FINAL grade (assignedGrade + return).
+  // Google Classroom — FINAL grade (assignedGrade + return). The grade build is
+  // INSIDE the try so a malformed response can't throw out of this function and
+  // surface as "Failed to publish" (the publish already committed).
   if (needGcPush && classroomAttachment && classroomToken) {
-    const grades = buildClassroomGrades(responses);
-    if (grades.length > 0) {
-      try {
+    try {
+      const grades = buildClassroomGrades(responses);
+      if (grades.length > 0) {
         const data = await pushClassroomFinalGradesForAssignment(functions, {
           courseId: classroomAttachment.courseId,
           itemId: classroomAttachment.itemId,
@@ -153,23 +163,23 @@ export async function runPublishGradePush<R>({
           formatGradePushToast(data),
           data.failed > 0 ? 'error' : 'success'
         );
-      } catch (err) {
-        logError('publishGradePush.classroom', err, { sessionId });
-        addToast(
-          isPushPermissionDenied(err)
-            ? PUSH_PERMISSION_DENIED_MESSAGE
-            : GRADE_PUSH_GENERIC_ERROR_MESSAGE,
-          'error'
-        );
       }
+    } catch (err) {
+      logError('publishGradePush.classroom', err, { sessionId });
+      addToast(
+        isPushPermissionDenied(err)
+          ? CLASSROOM_FINAL_PUSH_PERMISSION_DENIED
+          : GRADE_PUSH_GENERIC_ERROR_MESSAGE,
+        'error'
+      );
     }
   }
 
-  // Schoology — AGS final score (server-side, no popup).
+  // Schoology — AGS final score (server-side, no popup). Build inside the try too.
   if (ltiLinked) {
-    const grades = buildSchoologyGrades(responses);
-    if (grades.length > 0) {
-      try {
+    try {
+      const grades = buildSchoologyGrades(responses);
+      if (grades.length > 0) {
         const push = httpsCallable<LtiPushGradesRequest, LtiPushGradesData>(
           functions,
           'ltiPushGradesForAssignmentV1'
@@ -185,10 +195,10 @@ export async function runPublishGradePush<R>({
           formatLtiPushToast(bucket),
           bucket.failed > 0 ? 'error' : 'success'
         );
-      } catch (err) {
-        logError('publishGradePush.schoology', err, { sessionId });
-        addToast(ltiPushErrorMessage(err), 'error');
       }
+    } catch (err) {
+      logError('publishGradePush.schoology', err, { sessionId });
+      addToast(ltiPushErrorMessage(err), 'error');
     }
   }
 }

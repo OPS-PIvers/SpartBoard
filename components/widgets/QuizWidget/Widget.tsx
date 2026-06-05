@@ -2053,6 +2053,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             assigningToClassroom.className ?? assigningToClassroom.quizTitle
           }
           initialDueAt={assigningToClassroom.dueAt ?? null}
+          initialDueAtHasTime={assigningToClassroom.dueAtHasTime}
           addToast={addToast}
         />
       )}

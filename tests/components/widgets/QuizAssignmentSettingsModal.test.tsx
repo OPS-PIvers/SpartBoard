@@ -157,6 +157,9 @@ describe('QuizAssignmentSettingsModal — behavior is read-only (freeze-live)', 
     const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
     // dueAt is the LOCAL combination of the chosen date + time (not UTC midnight).
     expect(patch.dueAt).toBe(combineDateAndTime('2026-06-01', '14:30'));
+    // …and it's marked time-bearing so the round-trip / Classroom conversion
+    // reads the chosen time rather than defaulting to end-of-day.
+    expect(patch.dueAtHasTime).toBe(true);
   });
 
   it('defaults the due time to end-of-day when only a date is picked', async () => {
