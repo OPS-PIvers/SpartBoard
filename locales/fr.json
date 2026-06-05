@@ -616,6 +616,58 @@
     "fr": "Français"
   },
   "widgets": {
+    "random": {
+      "sendToScoreboard": "Envoyer au Tableau des Scores",
+      "scoreboardCreated": "Tableau des scores créé avec {{count}} équipes !",
+      "scoreboardUpdated": "Tableau des scores mis à jour avec {{count}} équipes !",
+      "shuffleHint": "Cliquez sur Aléatoire pour mélanger",
+      "groupSize": "Taille du Groupe",
+      "expertLabelShort": "EXPERT",
+      "homeLabelShort": "ACCUEIL",
+      "launchJigsaw": "Lancer le Puzzle",
+      "launchJigsawHint": "Afficher les groupes experts",
+      "launchHomeGroup": "Lancer le Groupe d'Accueil",
+      "launchHomeGroupHint": "Revenir aux groupes d'accueil",
+      "everyoneAbsentTitle": "Tout le monde est marqué absent",
+      "everyoneAbsentSubtitle": "Mettez à jour les présences pour remettre les élèves dans le groupe.",
+      "updateAttendance": "Mettre à jour les présences",
+      "stepperDecrease": "Diminuer {{name}}",
+      "stepperIncrease": "Augmenter {{name}}",
+      "modeChipAria": "Mode de fonctionnement : {{mode}}",
+      "modeChipAriaWithCount_one": "Mode de fonctionnement : {{mode}}. Il reste {{count}} élève.",
+      "modeChipAriaWithCount_other": "Mode de fonctionnement : {{mode}}. Il reste {{count}} élèves.",
+      "modeChipTitle": "Mode : {{mode}} — cliquer pour changer",
+      "expertGroupCount": "Nombre de Groupes Experts",
+      "homeGroupCount": "Nombre de Groupes d'Accueil",
+      "expertGroupCountReduced": "Seulement {{count}} groupes experts s'adaptent à cette classe — réduisez le nombre de groupes experts ou ajoutez plus d'élèves.",
+      "homeGroupCountReduced": "Seulement {{count}} groupes d'accueil s'adaptent à cette classe — réduisez le nombre de groupes d'accueil ou ajoutez plus d'élèves.",
+      "jigsawNeedsMultipleGroups": "Le puzzle nécessite au moins 2 élèves pour former des groupes d'accueil — ajoutez plus d'élèves.",
+      "restrictionsUnsatisfied": "Impossible de satisfaire toutes les restrictions — réessayez ou ajustez la taille du groupe.",
+      "modes": {
+        "single": "Choisir Un",
+        "shuffle": "Mélanger",
+        "groups": "Groupes",
+        "jigsaw": "Puzzle"
+      },
+      "absent": {
+        "title": "Marquer absents — {{date}}",
+        "summary": "{{present}} présents · {{absent}} absents",
+        "buttonLabel": "Marquer les élèves absents",
+        "clearAll": "Tout effacer (tous présents)",
+        "footer": "Les absences s'appliquent à tous les widgets utilisant cette classe. Se réinitialisent automatiquement demain.",
+        "emptyRoster": "Cette classe n'a pas encore d'élèves.",
+        "unnamedStudent": "Élève sans nom",
+        "ariaLabel": "Ouvrir les présences — {{count}} marqués absents aujourd'hui"
+      },
+      "classContext": {
+        "triggerAria": "Classe active : {{name}}",
+        "triggerAriaWithAbsent_one": "Classe active : {{name}}. {{count}} élève marqué absent aujourd'hui.",
+        "triggerAriaWithAbsent_other": "Classe active : {{name}}. {{count}} élèves marqués absents aujourd'hui.",
+        "menuAria": "Contexte de classe pour le Randomiseur",
+        "switchHeading": "Changer de classe",
+        "markAbsentAction": "Marquer les élèves absents"
+      }
+    },
     "lunchCount": {
       "syncSuccess": "Menu synchronisé depuis Nutrislice",
       "syncError": "Échec de la synchronisation du menu",
