@@ -83,6 +83,12 @@ const DEFAULT_MAX_POINTS = 100;
  */
 const CLASSROOM_CAPABILITY_PREVIEW_VERSION = 'V1_20240930_PREVIEW';
 
+/**
+ * Runaway guard on `verifyTeacherOfCourse` pagination — a single teacher with
+ * >2500 courses is implausible; this caps the loop, it's not an expected limit.
+ */
+const MAX_TEACHER_VERIFY_PAGES = 25;
+
 type ItemType = 'courseWork' | 'courseWorkMaterials' | 'announcements';
 
 interface AddOnContext {
@@ -428,63 +434,70 @@ export const classroomAddonNet = {
   },
 
   /**
-   * Verify the access token's owner TEACHES a specific Google Classroom course
-   * with a SINGLE `courses.teachers.get` call
-   * (`GET /v1/courses/{courseId}/teachers/me`). This is the trust anchor for
-   * `linkClassroomCourse`: Classroom returns 200 here ONLY when the
-   * authenticated token owner is a teacher of `courseId`, proving teaching
-   * authority that Firestore rules can't verify. Unlike a
-   * `courses.list?courseStates=ACTIVE` enumeration, this is STATE-AGNOSTIC — a
-   * teacher of an ACTIVE, ARCHIVED, or PROVISIONED course is verified the same
-   * way — and costs exactly one API call instead of paging the teacher's whole
-   * catalog.
+   * Verify the access token's owner TEACHES a specific Google Classroom course.
    *
-   * Return contract (the caller maps it to fail-closed semantics):
-   *   - 200            → { ok: true,  status: 200, isTeacher: true }  (write allowed)
-   *   - 404            → { ok: true,  status: 404, isTeacher: false } (definitively NOT a teacher)
-   *   - other non-2xx / network / timeout
-   *                    → { ok: false, status,      isTeacher: false } (UNVERIFIABLE → fail closed)
+   * IMPORTANT — this does NOT use `courses.teachers.get`
+   * (`GET .../teachers/me`): that method requires a roster/profile scope
+   * (`classroom.rosters[.readonly]` / `classroom.profile.*`) which NONE of our
+   * tokens carry (they hold `classroom.courses.readonly` + the add-on/coursework
+   * scopes), so it returns **403 ACCESS_TOKEN_SCOPE_INSUFFICIENT for every
+   * caller** — the root cause of the "Could not verify that you teach this
+   * course (status 403)" failures in both linkClassroomCourse and
+   * assignToClassroomV1. Instead we enumerate the caller's TAUGHT courses via
+   * `courses.list?teacherId=me` — which IS covered by `classroom.courses.readonly`
+   * (the exact call the dashboard course picker uses) — and check whether
+   * `courseId` is among them. `teacherId=me` is teacher-specific, so a student
+   * can't pass this gate (preserving the no-squatting invariant the link CF
+   * relies on). State-agnostic via repeated `courseStates`
+   * (ACTIVE/ARCHIVED/PROVISIONED).
    *
-   * `ok` means Classroom gave a DEFINITIVE teacher / not-a-teacher answer; only
-   * 200 and 404 are definitive. A 401/403 (bad/expired/insufficient-scope
-   * token), a 5xx, or a network failure is UNVERIFIABLE — never treat it as
-   * "not a teacher" (the caller fails closed on it, never links). Seam so tests
-   * can stub it without a live Classroom call.
+   * Return contract (callers map it to fail-closed semantics):
+   *   - course found in the teacher's list → { ok: true,  status: 200, isTeacher: true }
+   *   - list fully enumerated, not found    → { ok: true,  status: 200, isTeacher: false }
+   *   - any non-2xx (401/403/5xx) / network / timeout
+   *                                         → { ok: false, status,      isTeacher: false } (UNVERIFIABLE → fail closed)
+   *
+   * Seam so tests can stub it without a live Classroom call.
    */
   async verifyTeacherOfCourse(
     accessToken: string,
     courseId: string
   ): Promise<{ ok: boolean; status: number; isTeacher: boolean }> {
-    const url = `${CLASSROOM_API}/courses/${encodeURIComponent(
-      courseId
-    )}/teachers/me`;
+    let pageToken: string | undefined;
+    let pages = 0;
     try {
-      const res = await fetch(url, {
-        headers: bearer(accessToken),
-        signal: AbortSignal.timeout(API_TIMEOUT_MS),
-      });
-      // This is the one outbound call here that never reads its body (it
-      // decides purely on the status code), so under Node's fetch (undici) the
-      // socket would be held open until GC instead of returning to the pool.
-      // Drain it on every path. Guarded for the unit-test fetch mocks, which
-      // return a bare `{ ok, status }` with no `text`.
-      if (typeof res.text === 'function') {
-        await res.text();
-      }
-      // 2xx → the token owner is a teacher of this course.
-      if (res.ok) {
-        return { ok: true, status: res.status, isTeacher: true };
-      }
-      // 404 → the token owner is NOT a teacher of this course (or it doesn't
-      // exist). Either way the caller must deny the link; this is a DEFINITIVE
-      // answer, so `ok: true`.
-      if (res.status === 404) {
-        return { ok: true, status: 404, isTeacher: false };
-      }
-      // Everything else (401/403/5xx/…) is UNVERIFIABLE — the caller fails
-      // closed on it rather than reading it as "not a teacher".
-      console.warn(`[classroomAddon] verifyTeacherOfCourse ${res.status}`);
-      return { ok: false, status: res.status, isTeacher: false };
+      do {
+        const qs = new URLSearchParams({ teacherId: 'me', pageSize: '100' });
+        // State-agnostic: a teacher of an ACTIVE / ARCHIVED / PROVISIONED course
+        // all verify. `courseStates` is repeatable.
+        qs.append('courseStates', 'ACTIVE');
+        qs.append('courseStates', 'ARCHIVED');
+        qs.append('courseStates', 'PROVISIONED');
+        if (pageToken) qs.set('pageToken', pageToken);
+        const res = await fetch(`${CLASSROOM_API}/courses?${qs.toString()}`, {
+          headers: bearer(accessToken),
+          signal: AbortSignal.timeout(API_TIMEOUT_MS),
+        });
+        if (!res.ok) {
+          // 401/403/5xx are UNVERIFIABLE → fail closed (never read as "not a
+          // teacher"). A 403 here would mean the courses.readonly scope itself
+          // is missing/ungranted.
+          console.warn(`[classroomAddon] verifyTeacherOfCourse ${res.status}`);
+          return { ok: false, status: res.status, isTeacher: false };
+        }
+        const data = (await res.json()) as {
+          courses?: Array<{ id?: string }>;
+          nextPageToken?: string;
+        };
+        if ((data.courses ?? []).some((c) => c.id === courseId)) {
+          return { ok: true, status: 200, isTeacher: true };
+        }
+        pageToken = data.nextPageToken;
+        pages += 1;
+      } while (pageToken && pages < MAX_TEACHER_VERIFY_PAGES);
+      // Enumerated the caller's taught courses without a match → definitively
+      // not a teacher of this course (the old 404 outcome).
+      return { ok: true, status: 200, isTeacher: false };
     } catch (err) {
       // Network failure / timeout / abort → unverifiable; caller fails closed.
       console.warn(
