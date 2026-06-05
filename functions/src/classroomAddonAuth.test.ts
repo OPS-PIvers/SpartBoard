@@ -1254,53 +1254,77 @@ describe('classroomAddonNet.patchStudentSubmissionGrade URL construction', () =>
   });
 });
 
-// The single-course teacher-verification seam — the trust anchor for
-// linkClassroomCourse. The linkClassroomCourse tests stub it, so these pin the
-// real URL it builds (courses.teachers.get, one call — NOT a teacherId=me
-// enumeration) and the 200 / 404 / other-status mapping that drives the
-// fail-closed semantics.
+// The teacher-verification seam — the trust anchor for linkClassroomCourse +
+// assignToClassroomV1. Those tests stub it, so these pin the REAL call it makes.
+// It must NOT use courses.teachers.get (/teachers/me needs a rosters/profile
+// scope our tokens lack → 403); it enumerates `courses.list?teacherId=me`
+// (covered by classroom.courses.readonly) and checks membership.
 describe('classroomAddonNet.verifyTeacherOfCourse (real seam)', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('GETs /courses/{courseId}/teachers/me once and maps 200 → isTeacher:true', async () => {
+  it('lists courses?teacherId=me and maps a found course → isTeacher:true', async () => {
     let calledUrl = '';
     const fetchMock = vi.fn(async (url: unknown) => {
       calledUrl = url as string;
-      return { ok: true, status: 200, json: async () => ({ userId: 'me' }) };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ courses: [{ id: 'C0' }, { id: 'C1' }] }),
+      };
     });
     vi.stubGlobal('fetch', fetchMock);
 
     const res = await classroomAddonNet.verifyTeacherOfCourse('tok', 'C1');
 
     expect(res).toEqual({ ok: true, status: 200, isTeacher: true });
-    // Exactly one call — no enumeration / pagination of the teacher's catalog.
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(calledUrl).toBe(
-      'https://classroom.googleapis.com/v1/courses/C1/teachers/me'
-    );
-    // State-agnostic: there is no courseStates filter on this endpoint.
-    expect(calledUrl).not.toContain('courseStates');
-    expect(calledUrl).not.toContain('teacherId=me');
+    // Uses the courses.list endpoint (covered by courses.readonly), NOT the
+    // teachers.get endpoint (which 403s on our scope set).
+    expect(calledUrl).toContain('https://classroom.googleapis.com/v1/courses?');
+    expect(calledUrl).toContain('teacherId=me');
+    expect(calledUrl).not.toContain('/teachers/me');
+    // State-agnostic: ACTIVE + ARCHIVED + PROVISIONED.
+    expect(calledUrl).toContain('courseStates=ACTIVE');
+    expect(calledUrl).toContain('courseStates=ARCHIVED');
   });
 
-  it('maps a 404 to a DEFINITIVE not-a-teacher answer (ok:true, isTeacher:false)', async () => {
+  it('maps a fully-enumerated list WITHOUT the course → isTeacher:false (ok:true)', async () => {
     const fetchMock = vi.fn(async () => ({
-      ok: false,
-      status: 404,
-      json: async () => ({}),
+      ok: true,
+      status: 200,
+      json: async () => ({ courses: [{ id: 'OTHER' }] }), // no nextPageToken
     }));
     vi.stubGlobal('fetch', fetchMock);
 
     const res = await classroomAddonNet.verifyTeacherOfCourse('tok', 'C1');
 
-    // ok:true (definitive) but isTeacher:false — the caller turns this into
-    // permission-denied.
-    expect(res).toEqual({ ok: true, status: 404, isTeacher: false });
+    // Definitive not-a-teacher → ok:true / isTeacher:false (caller → denied).
+    expect(res).toEqual({ ok: true, status: 200, isTeacher: false });
   });
 
-  it('fails closed (ok:false) on a non-404 non-2xx response', async () => {
+  it('paginates: finds the course on a later page (follows nextPageToken)', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ courses: [{ id: 'A' }], nextPageToken: 'p2' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ courses: [{ id: 'C1' }] }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await classroomAddonNet.verifyTeacherOfCourse('tok', 'C1');
+
+    expect(res).toEqual({ ok: true, status: 200, isTeacher: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('fails closed (ok:false) on a non-2xx response (e.g. 403 missing scope)', async () => {
     const fetchMock = vi.fn(async () => ({
       ok: false,
       status: 403,
@@ -1310,7 +1334,7 @@ describe('classroomAddonNet.verifyTeacherOfCourse (real seam)', () => {
 
     const res = await classroomAddonNet.verifyTeacherOfCourse('tok', 'C1');
 
-    // 403/5xx are UNVERIFIABLE → ok:false (the caller fails closed), never
+    // 401/403/5xx are UNVERIFIABLE → ok:false (the caller fails closed), never
     // misread as a clean "not a teacher".
     expect(res).toEqual({ ok: false, status: 403, isTeacher: false });
   });
