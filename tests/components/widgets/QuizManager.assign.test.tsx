@@ -565,14 +565,50 @@ describe('QuizManager assign — destination chooser (Phase 2)', () => {
     fireEvent.click(
       await screen.findByRole('button', { name: /Google Classroom/i })
     );
-    // Same targeting modal, then confirm.
+    // Same targeting modal — the confirm button is destination-aware so the
+    // teacher knows the Classroom course picker comes next.
     const dialog = await screen.findByRole('dialog', {
       name: /chapter 5 review/i,
     });
-    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: /continue to google classroom/i,
+      })
+    );
 
     await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
     expect(onAssign.mock.calls[0][4]).toBe('classroom');
+  });
+
+  it('re-picks the destination on each assign (Classroom then SpartBoard-only)', async () => {
+    const onAssign = vi.fn();
+    renderManager(makeQuizMeta(), onAssign, { canAssignToClassroom: true });
+
+    // First assign → Google Classroom.
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Google Classroom/i })
+    );
+    let dialog = await screen.findByRole('dialog', {
+      name: /chapter 5 review/i,
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: /continue to google classroom/i,
+      })
+    );
+    await waitFor(() => expect(onAssign).toHaveBeenCalledTimes(1));
+    expect(onAssign.mock.calls[0][4]).toBe('classroom');
+
+    // Second assign → SpartBoard Only must NOT inherit the prior 'classroom'.
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
+    dialog = await screen.findByRole('dialog', { name: /chapter 5 review/i });
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+    await waitFor(() => expect(onAssign).toHaveBeenCalledTimes(2));
+    expect(onAssign.mock.calls[1][4]).toBe('spartboard');
   });
 
   it('picking "Schoology" shows the how-to and does NOT create an assignment', async () => {

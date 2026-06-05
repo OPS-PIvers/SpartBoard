@@ -1680,7 +1680,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             />
           }
           onAssign={() => handleAssignConfirm()}
-          confirmLabel="Assign"
+          confirmLabel={
+            assignDestination === 'classroom'
+              ? 'Continue to Google Classroom'
+              : 'Assign'
+          }
         />
       )}
 
