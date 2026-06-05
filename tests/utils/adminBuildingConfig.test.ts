@@ -298,6 +298,56 @@ describe('getAdminBuildingConfig', () => {
     });
   });
 
+  describe('stations', () => {
+    it('passes through the prefixed font family and all surface fields', () => {
+      const perm = makePerm('stations', {
+        high: {
+          fontFamily: 'font-mono',
+          fontColor: '#1e293b',
+          cardColor: '#fef3c7',
+          cardOpacity: 0.5,
+        },
+      });
+      expect(getAdminBuildingConfig('stations', [perm], ['high'])).toEqual({
+        fontFamily: 'font-mono',
+        fontColor: '#1e293b',
+        cardColor: '#fef3c7',
+        cardOpacity: 0.5,
+      });
+    });
+
+    it('rejects bare GlobalFontFamily ids — stations uses the prefixed space', () => {
+      // 'sans' is a valid GlobalFontFamily value but NOT a FONTS id; the
+      // TypographySettings-backed stations widget expects 'font-sans'.
+      const perm = makePerm('stations', { high: { fontFamily: 'sans' } });
+      expect(getAdminBuildingConfig('stations', [perm], ['high'])).toEqual({});
+    });
+
+    it('rejects invalid surface values and unknown font families', () => {
+      const perm = makePerm('stations', {
+        high: {
+          fontFamily: 'not-a-font',
+          fontColor: 'rgb(0,0,0)',
+          cardColor: 'banana',
+          cardOpacity: 1.5,
+        },
+      });
+      expect(getAdminBuildingConfig('stations', [perm], ['high'])).toEqual({});
+    });
+
+    it('accepts cardOpacity at exact bounds 0 and 1', () => {
+      const permZero = makePerm('stations', { high: { cardOpacity: 0 } });
+      expect(getAdminBuildingConfig('stations', [permZero], ['high'])).toEqual({
+        cardOpacity: 0,
+      });
+
+      const permOne = makePerm('stations', { high: { cardOpacity: 1 } });
+      expect(getAdminBuildingConfig('stations', [permOne], ['high'])).toEqual({
+        cardOpacity: 1,
+      });
+    });
+  });
+
   describe('checklist', () => {
     it('passes through scale, items, font family, and appearance fields', () => {
       const perm = makePerm('checklist', {

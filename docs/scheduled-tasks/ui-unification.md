@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
 _Last audited: 2026-06-05_
-_Last action: 2026-06-03 — MEDIUM CarRiderProConfig dead `cardColor`/`cardOpacity` fields removed_
+_Last action: 2026-06-05 — MEDIUM `stations` admin building-default appearance panel added; MEDIUM raw-`<select>` item resolved as stale (already styled)_
 
 ---
 
@@ -16,26 +16,12 @@ _Nothing currently in progress._
 
 ## Open
 
-### MEDIUM `LunchCount/Settings.tsx` and `SpecialistSchedule/Settings.tsx` use raw `<select>` elements
-
-- **Detected:** 2026-04-15
-- **File:** components/widgets/LunchCount/Settings.tsx (line 90), components/widgets/SpecialistSchedule/Settings.tsx (line 640)
-- **Detail:** Both settings panels use bare HTML `<select>` elements for dropdown controls. All other widget settings panels that need dropdown selection use styled `<select>` inline (e.g. with Tailwind classes matching the design system) or the common `Toggle` component. The bare `<select>` elements do not receive the project's standard `bg-slate-800 border border-slate-600 rounded px-3 py-2 text-white` styling applied elsewhere, producing visually inconsistent dropdowns in dark-mode settings panels.
-- **Fix:** Apply the standard input styling (`className="bg-slate-800 border border-slate-600 rounded px-3 py-2 text-white text-sm"`) to both `<select>` elements, or extract a `<StyledSelect>` component in `components/common/` if a third instance exists.
-
 ### LOW `FeatureConfigurationPanel.tsx` is 706 lines — complex per-feature layout that could use `SchemaDrivenConfigurationPanel`
 
 - **Detected:** 2026-04-15
 - **File:** components/admin/FeatureConfigurationPanel.tsx
 - **Detail:** The file is the largest admin config panel at 706 lines and contains per-widget building-default forms inline. Many fields it renders (string inputs, number inputs, color pickers, selects, booleans) follow the same pattern that `SchemaDrivenConfigurationPanel` was designed to handle. Only `MagicConfigurationPanel.tsx` and `RecordConfigurationPanel.tsx` currently use `SchemaDrivenConfigurationPanel`. The 18 remaining config panels that don't use it include `FeatureConfigurationPanel`, `SoundboardConfigurationPanel` (593 lines), `ScheduleConfigurationPanel` (538 lines), and `MaterialsConfigurationPanel` (523 lines).
 - **Fix:** Audit `FeatureConfigurationPanel` for schema-driven extraction candidates. For panels whose entire form can be expressed as a field schema (input type + label + key + validation), migrate to `SchemaDrivenConfigurationPanel`. Panels with complex custom UIs (materials catalog, seating-chart layout, specialist schedule) should remain manual. Start with the simplest panels (DiceConfigurationPanel, TrafficLightConfigurationPanel, DrawingConfigurationPanel) as proof-of-concept before tackling the large ones.
-
-### MEDIUM `stations` widget missing from admin `FeatureConfigurationPanel` — no building defaults
-
-- **Detected:** 2026-05-13
-- **File:** components/admin/FeatureConfigurationPanel.tsx, components/admin/ (no StationsConfigurationPanel.tsx)
-- **Detail:** `StationsConfig` in types.ts declares `fontFamily`, `fontColor`, `cardColor`, `cardOpacity` (all appearance fields). `stations` has an `AppearanceSettings` component registered in `WIDGET_APPEARANCE_COMPONENTS`. However, there is no `StationsConfigurationPanel.tsx` in `components/admin/` and no `'stations'` entry in the widget panel map in `FeatureConfigurationPanel.tsx`. The `getAdminBuildingConfig` switch in `DashboardContext.tsx` also has no `'stations'` case. This means admins cannot set per-building appearance defaults for the Stations widget, and the appearance fields cannot be seeded from building config on widget creation.
-- **Fix:** (1) Create `components/admin/StationsConfigurationPanel.tsx` following the pattern of `NeedDoPutThenConfigurationPanel.tsx` — expose `fontFamily`, `fontColor`, `cardColor`, `cardOpacity` using standard primitives. (2) Register it in `FeatureConfigurationPanel.tsx`: `stations: StationsConfigurationPanel as unknown as BuildingConfigPanel`. (3) Add a `'stations'` case in `getAdminBuildingConfig` in `DashboardContext.tsx` that reads the four appearance fields from `raw`.
 
 ### LOW `InstructionalRoutinesWidget` uses hardcoded brand blue hex for numbered step badge
 
@@ -97,6 +83,21 @@ _Nothing currently in progress._
 
 ## Completed
 
+### MEDIUM `stations` widget missing from admin `FeatureConfigurationPanel` — no building defaults
+
+- **Detected:** 2026-05-13
+- **Completed:** 2026-06-05
+- **File:** components/admin/StationsConfigurationPanel.tsx (new), components/admin/FeatureConfigurationPanel.tsx, utils/adminBuildingConfig.ts, types.ts, tests/utils/adminBuildingConfig.test.ts
+- **Detail:** `StationsConfig` declares `fontFamily`, `fontColor`, `cardColor`, `cardOpacity` (all consumed by the front-face card grid + unassigned bucket per the config comment, and surfaced via the registered `StationsAppearanceSettings` in `WIDGET_APPEARANCE_COMPONENTS`). But there was no `StationsConfigurationPanel.tsx`, no `'stations'` entry in `BUILDING_CONFIG_PANELS`, and no `'stations'` case in `getAdminBuildingConfig` — so admins could not set per-building appearance defaults and the fields were never seeded on widget creation.
+- **Resolution:** (1) Added `StationsGlobalConfig` / `BuildingStationsDefaults` interfaces to `types.ts` (parallel to `ChecklistGlobalConfig`). (2) Created `components/admin/StationsConfigurationPanel.tsx` (Path B — panel inside `GenericConfigurationModal`) following the `ChecklistConfigurationPanel` appearance pattern: `BuildingSelector` + font-family `<select>`, `HexColorField` for text/surface colour, and an opacity range. **Key correctness detail:** the font-family `<select>` is driven by `FONTS` (the **prefixed** `'font-sans'` value space written by the shared `TypographySettings` primitive that the Stations widget actually uses), NOT the bare `GlobalFontFamily` space used by Checklist/ConceptWeb/NumberLine — so the seeded value highlights correctly in the teacher's own Appearance tab. (3) Registered the panel in `FeatureConfigurationPanel.tsx` (`stations: StationsConfigurationPanel as unknown as BuildingConfigPanel`). (4) Added a `'stations'` case to `utils/adminBuildingConfig.ts` (the pure helper that long ago replaced the in-context `getAdminBuildingConfig` switch) with a new `isWidgetFontFamily` guard derived from `FONTS` (minus the `'global'` sentinel) so the validator stays in lockstep with the panel; reused `isHexColor` and the 0–1 `cardOpacity` clamp. (5) Added 4 unit tests covering pass-through, prefixed-vs-bare font rejection, invalid surface/font rejection, and exact 0/1 opacity bounds. `pnpm run type-check`, `pnpm exec eslint` (changed files, `--max-warnings 0`), `pnpm exec prettier --check`, and `pnpm exec vitest run tests/utils/adminBuildingConfig.test.ts` (30 tests) all clean.
+
+### MEDIUM `LunchCount/Settings.tsx` and `SpecialistSchedule/Settings.tsx` use raw `<select>` elements — RESOLVED (stale: already styled)
+
+- **Detected:** 2026-04-15
+- **Completed:** 2026-06-05 (no code change — finding was stale/inaccurate on inspection)
+- **File:** components/widgets/LunchCount/Settings.tsx, components/widgets/SpecialistSchedule/Settings.tsx
+- **Detail/disposition:** The 2026-04-15 finding claimed both panels use _bare_ `<select>` elements lacking the project's dark-mode input styling (`bg-slate-800 border-slate-600 text-white`). On inspection this is no longer true (and the cited line numbers — LunchCount L90, SpecialistSchedule L640 — predate the `SettingsLabel` refactors in PRs #1771/#1783 that shifted them). The current `<select>` elements are **already styled** and consistent with their panels: LunchCount's school-site select (now ~L96) uses `w-full p-2.5 text-xs border border-slate-200 rounded-xl outline-none bg-white`, and SpecialistSchedule's day-of-week select (now ~L586) uses `w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none font-bold text-sm`. **Both panels are light-themed** (`bg-slate-50` / `border-slate-200` containers), so the prescribed dark `bg-slate-800 text-white` fix would have _broken_ visual consistency, not improved it. Each select already matches its sibling inputs. No `<StyledSelect>` extraction is warranted (only two instances, each correct for its panel). Closing as not-a-defect to stop future agents re-spending cycles on it.
+
 ### MEDIUM `CarRiderProConfig` declares `cardColor` / `cardOpacity` but no code reads or renders them
 
 - **Detected:** 2026-04-15
@@ -122,6 +123,8 @@ _Nothing currently in progress._
 - **Resolution:** Added `SpecialistScheduleAppearanceSettings` export to `components/widgets/SpecialistSchedule/Settings.tsx` rendering `TypographySettings`, `TextSizePresetSettings`, and `SurfaceColorSettings` via a shared `update` helper (matching the `NeedDoPutThenAppearanceSettings` reference pattern). Registered it in `WIDGET_APPEARANCE_COMPONENTS` so `WidgetRenderer.tsx` now surfaces the dedicated Appearance tab. Removed the now-redundant `general` tab from the flip panel — the only content there was the three appearance primitives, so the tab union narrowed to `'schedules' | 'recurring'` with `'schedules'` as the new default. `pnpm exec tsc --noEmit`, `pnpm exec eslint`, `pnpm exec prettier --check`, and `pnpm exec vitest run tests/components` (1056 tests across 127 files) all clean.
 
 _2026-06-05: Weekly audit pass. Scanned Settings.tsx files for Clock, Weather, Poll, Schedule, Countdown, LunchCount, Music, Checklist widgets. Found 2 new MEDIUM items: ClockWidget inline font-family selector (not using TypographySettings), MusicWidget inline color picker (not using SurfaceColorSettings). Cross-referenced WIDGET_APPEARANCE_COMPONENTS against types.ts appearance fields — found nextUp, video-activity, guided-learning have fontFamily/fontColor/cardColor/cardOpacity in their config interfaces but no appearance panel registered. Found 1 new LOW: hardcoded hex in StudentPageView.tsx and RevealGridConfigurationPanel.tsx. Pre-existing items (stations no admin config, TextConfig no appearance panel, ExpectationsWidget custom toggle, Countdown/Analytics hardcoded hex, LunchCount/SpecialistSchedule raw selects, InstructionalRoutines hardcoded hex) all re-confirmed valid. 4 new open items added._
+
+_2026-06-05: Weekly action pass (Friday). Top-priority items in code-structure (HIGH DashboardContext extraction + both MEDIUM extractions) remain BLOCKED — documented as needing a supervised runtime-verified session. The #1 ui-unification MEDIUM (LunchCount/SpecialistSchedule raw `<select>`) turned out STALE on inspection: both selects are already styled and consistent with their light-themed panels; the prescribed dark-mode fix would have harmed consistency — resolved as not-a-defect. Took the next actionable MEDIUM instead: wired admin per-building appearance defaults for the `stations` widget (new `StationsConfigurationPanel`, `BUILDING_CONFIG_PANELS` registration, `getAdminBuildingConfig` 'stations' case + `isWidgetFontFamily` guard, types, 4 tests). Verified target files untouched in the last 5 branch commits before starting. type-check/lint/format/tests all clean._
 
 _2026-06-03: Weekly action pass. Selected the highest-priority safe Open item (code-structure HIGH and both code-structure MEDIUM refactors are blocked/architecturally-significant — see code-structure.md). Completed the first ui-unification MEDIUM: removed dead `cardColor`/`cardOpacity` from `CarRiderProConfig`. Confirmed types.ts and CarRiderPro files were not modified in the last 5 branch commits. Remaining Open items re-confirmed valid; no new snowflakes detected in this pass._
 

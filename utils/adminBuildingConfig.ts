@@ -5,6 +5,7 @@ import {
   WidgetType,
 } from '../types';
 import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
+import { FONTS } from '../config/fonts';
 import { WIDGET_DEFAULTS } from '../config/widgetDefaults';
 import { getMaterialsCatalog } from '../components/widgets/MaterialsWidget/constants';
 
@@ -43,6 +44,21 @@ const VALID_FONT_FAMILIES = [
 const isGlobalFontFamily = (value: unknown): value is string =>
   typeof value === 'string' &&
   (VALID_FONT_FAMILIES as readonly string[]).includes(value);
+
+/**
+ * The prefixed `FONTS`-id value space written by the shared `TypographySettings`
+ * primitive (`'font-sans'`, `'font-mono'`, …). Distinct from the bare
+ * `GlobalFontFamily` set above: widgets that use `TypographySettings`
+ * (e.g. `stations`) store and consume these prefixed ids, decoded by
+ * `getFontClass()`. Derived from `FONTS` (minus the `'global'` sentinel, which
+ * is persisted as absence) so the validator stays in lockstep with the panel.
+ */
+const VALID_WIDGET_FONT_FAMILIES = FONTS.map((f) => f.id).filter(
+  (id) => id !== 'global'
+);
+const isWidgetFontFamily = (value: unknown): value is string =>
+  typeof value === 'string' &&
+  (VALID_WIDGET_FONT_FAMILIES as readonly string[]).includes(value);
 
 /**
  * Extracts building-level config overrides for a widget type from the admin's
@@ -248,6 +264,21 @@ export const getAdminBuildingConfig = (
       )
         out.cardOpacity = raw.cardOpacity;
       if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
+      break;
+    case 'stations':
+      // `stations` uses the shared TypographySettings/SurfaceColorSettings
+      // primitives, so fontFamily lives in the prefixed `FONTS`-id space
+      // (validated by `isWidgetFontFamily`, not the bare GlobalFontFamily set).
+      if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
+      if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
+      if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
+      if (
+        typeof raw.cardOpacity === 'number' &&
+        Number.isFinite(raw.cardOpacity) &&
+        raw.cardOpacity >= 0 &&
+        raw.cardOpacity <= 1
+      )
+        out.cardOpacity = raw.cardOpacity;
       break;
     case 'sound':
       if (raw.visual) out.visual = raw.visual;
