@@ -62,6 +62,8 @@ const REQUIRED_RANDOM_TOP_KEYS = [
   'stepperDecrease',
   'stepperIncrease',
   'modeChipAria',
+  'modeChipAriaWithCount_one',
+  'modeChipAriaWithCount_other',
   'modeChipTitle',
   'expertGroupCount',
   'homeGroupCount',
@@ -96,6 +98,8 @@ const REQUIRED_ABSENT_KEYS = [
 /** Keys within widgets.random.classContext */
 const REQUIRED_CLASS_CONTEXT_KEYS = [
   'triggerAria',
+  'triggerAriaWithAbsent_one',
+  'triggerAriaWithAbsent_other',
   'menuAria',
   'switchHeading',
   'markAbsentAction',
