@@ -143,6 +143,31 @@ const VA_SESSION_SETTINGS: VideoActivitySessionSettings = {
   allowSkipping: false,
 };
 
+/**
+ * Parse a `<input type="date">` value (`YYYY-MM-DD`) into the epoch ms for LOCAL
+ * end-of-day (23:59:59 in the browser's timezone) on that date. Returns null for
+ * an empty/malformed value. Local — not UTC — so the deadline lands on the
+ * picked calendar day in the teacher's zone (Central for Orono).
+ */
+function localEndOfDayMs(dateValue: string): number | null {
+  const parts = dateValue.split('-').map(Number);
+  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null;
+  const [year, month, day] = parts;
+  return new Date(year, month - 1, day, 23, 59, 59, 0).getTime();
+}
+
+/**
+ * Format an epoch (ms) as a LOCAL-timezone `YYYY-MM-DD` for `<input type="date">`.
+ * Uses local date components (not `toISOString`, which is UTC and would show the
+ * next day for a local-end-of-day value in US timezones).
+ */
+function toLocalDateInputValue(ms: number): string {
+  const d = new Date(ms);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
 /** True when we're rendered inside a frame (the Schoology iframe), not a tab. */
 function isFramed(): boolean {
   if (typeof window === 'undefined') return false;
@@ -286,18 +311,20 @@ const LtiDeepLinkFlow: React.FC = () => {
   const [teacherName, setTeacherName] = useState('');
   const [plcShareEnabled, setPlcShareEnabled] = useState(false);
   const [selectedPlcId, setSelectedPlcId] = useState('');
-  // Optional due date (epoch ms; null = none). Mirrors the normal assign modal's
-  // `<input type="date">` convention: the value is UTC midnight of the picked
-  // date. Set on BOTH the SpartBoard assignment AND the Schoology line item
-  // (`submission.endDateTime`) so the teacher enters it once.
+  // Optional due date (epoch ms; null = none). Stored as LOCAL end-of-day
+  // (11:59:59 PM in the teacher's timezone) on the picked date, so the deadline
+  // lands on that calendar day for both the SpartBoard assignment AND the
+  // Schoology line item (`submission.endDateTime`) — for Orono (Central) that's
+  // 11:59 PM Central. Resolving the timezone in the browser (where the picker
+  // runs) avoids any backend TZ assumption and dodges the UTC-midnight footgun
+  // (which renders as the PRIOR evening in US timezones). The teacher enters it
+  // once and it drives both sides. (Diverges intentionally from the normal
+  // assign modal's UTC-midnight convention — local end-of-day is more correct.)
   const dueDateId = useId();
   const [dueAt, setDueAt] = useState<number | null>(null);
-  const dueDateInputValue = dueAt
-    ? new Date(dueAt).toISOString().slice(0, 10)
-    : '';
+  const dueDateInputValue = dueAt ? toLocalDateInputValue(dueAt) : '';
   const handleDueDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target?.value ?? '';
-    setDueAt(val ? new Date(val).getTime() : null);
+    setDueAt(localEndOfDayMs(e.target?.value ?? ''));
   };
 
   const selectedQuiz = useMemo(

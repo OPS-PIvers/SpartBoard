@@ -30,16 +30,12 @@ export interface ContentItem {
 }
 
 /**
- * Convert a SpartBoard `dueAt` (epoch ms — the assign UI stores UTC midnight of
- * the picked calendar date) into the LTI `submission.endDateTime` string.
- *
- * We emit END-OF-DAY UTC for that calendar date (`…T23:59:59.000Z`) rather than
- * the raw midnight instant: midnight-UTC renders as the PRIOR evening in US
- * timezones (e.g. a "June 1" pick would show as May 31 in Central), whereas
- * end-of-day-UTC lands the due date on the correct calendar day. The exact
- * wall-clock time Schoology displays is the one live-test calibration item.
- *
- * Returns null for absent/invalid input so callers can omit `submission`.
+ * Serialize a due-date instant (epoch ms) into the LTI `submission.endDateTime`
+ * ISO 8601 string. The client (picker) already resolved the due date to an
+ * ABSOLUTE instant in the teacher's local timezone (local end-of-day — 11:59 PM
+ * Central for Orono), so the server makes NO timezone assumption: it just
+ * serializes the instant. Returns null for absent/invalid input so callers can
+ * omit `submission`.
  */
 export function dueAtToSubmissionEndDateTime(
   dueAtMs: number | undefined
@@ -51,8 +47,7 @@ export function dueAtToSubmissionEndDateTime(
   ) {
     return null;
   }
-  const day = new Date(dueAtMs).toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
-  return `${day}T23:59:59.000Z`;
+  return new Date(dueAtMs).toISOString();
 }
 
 export function buildQuizContentItem(opts: {
