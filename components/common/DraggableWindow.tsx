@@ -811,7 +811,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     // Stop propagation if we're in an input to prevent global shortcuts
     const target = e.target as HTMLElement;
     const isInput =
-      ['INPUT', 'TEXTAREA'].includes(target?.tagName || '') ||
+      ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName || '') ||
       target?.isContentEditable;
 
     if (isInput) {
