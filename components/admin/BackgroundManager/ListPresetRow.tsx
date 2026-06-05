@@ -11,6 +11,7 @@ import {
   Star,
 } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { extractYouTubeId } from '@/utils/youtube';
 import { PresetCardProps } from './types';
@@ -365,9 +366,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
 
       {/* Tags expanded row */}
       <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
-        <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-2 block">
-          Tags
-        </label>
+        <SettingsLabel>Tags</SettingsLabel>
         <TagInput
           tags={preset.tags ?? []}
           onChange={(next) => void updatePreset(preset.id, { tags: next })}
@@ -378,9 +377,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
       {/* Beta Users expanded row */}
       {preset.accessLevel === 'beta' && (
         <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
-          <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-2 block">
-            Beta Users
-          </label>
+          <SettingsLabel>Beta Users</SettingsLabel>
           <div className="flex flex-wrap gap-1.5 mb-2">
             {preset.betaUsers.map((email) => (
               <div
