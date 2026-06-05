@@ -9,8 +9,8 @@ import {
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
-import { db, isConfigured, isAuthBypass } from '../config/firebase';
-import { SavedWidget } from '../types';
+import { db, isConfigured, isAuthBypass } from '@/config/firebase';
+import { SavedWidget } from '@/types';
 import { useAuth } from './useAuth';
 import { SavedWidgetsContext } from './SavedWidgetsContextValue';
 

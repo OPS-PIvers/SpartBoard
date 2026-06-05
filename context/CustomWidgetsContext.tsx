@@ -10,8 +10,8 @@ import {
   where,
 } from 'firebase/firestore';
 import { Puzzle } from 'lucide-react';
-import { db, isConfigured, isAuthBypass } from '../config/firebase';
-import { CustomWidgetDoc, ToolMetadata } from '../types';
+import { db, isConfigured, isAuthBypass } from '@/config/firebase';
+import { CustomWidgetDoc, ToolMetadata } from '@/types';
 import { useAuth } from './useAuth';
 import { CustomWidgetsContext } from './CustomWidgetsContextValue';
 

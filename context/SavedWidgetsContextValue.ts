@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import { SavedWidget } from '../types';
+import { SavedWidget } from '@/types';
 
 export interface SavedWidgetsContextValue {
   /** All of the signed-in user's saved widgets */
