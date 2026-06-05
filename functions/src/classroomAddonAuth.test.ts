@@ -1863,9 +1863,13 @@ const assignQuizData = {
 function seedSession(
   collection: 'quiz_sessions' | 'video_activity_sessions',
   sessionId: string,
-  teacherUid: string
+  teacherUid: string,
+  classIds?: string[]
 ) {
-  gradeSyncDocs.set(`${collection}/${sessionId}`, { teacherUid });
+  gradeSyncDocs.set(`${collection}/${sessionId}`, {
+    teacherUid,
+    ...(classIds ? { classIds } : {}),
+  });
 }
 
 /**
@@ -1970,6 +1974,74 @@ describe('assignToClassroomV1 (partner-first assign)', () => {
       dueDate: { year: 2026, month: 6, day: 10 },
       dueTime: { hours: 20, minutes: 30 },
     });
+  });
+
+  it('establishes classlinkClassId on the course link from the session ClassLink class (Item D)', async () => {
+    // The session targets a ClassLink class; assigning should capture it on the
+    // course link so the name bridge + reverse-lookup work without a re-pick.
+    seedSession('quiz_sessions', 'S1', 'teacher-1', ['CL-SECTION-9']);
+    stubAssignHappyPath();
+
+    await callAssign({ data: assignQuizData, auth: { uid: 'teacher-1' } });
+
+    const linkWrite = firestoreWrites.find(
+      (w) => w.path === 'classroom_course_links/C1'
+    );
+    expect(linkWrite?.data).toMatchObject({
+      teacherUid: 'teacher-1',
+      classlinkClassId: 'CL-SECTION-9',
+    });
+  });
+
+  it('filters classroom:<courseId> entries when choosing the ClassLink class', async () => {
+    // Student tokens carry a `classroom:<courseId>` pseudo-class; only the real
+    // ClassLink sourcedId should be written as classlinkClassId.
+    seedSession('quiz_sessions', 'S1', 'teacher-1', [
+      'classroom:C1',
+      'CL-REAL',
+    ]);
+    stubAssignHappyPath();
+
+    await callAssign({ data: assignQuizData, auth: { uid: 'teacher-1' } });
+
+    expect(
+      firestoreWrites.find((w) => w.path === 'classroom_course_links/C1')?.data
+    ).toMatchObject({ classlinkClassId: 'CL-REAL' });
+  });
+
+  it('does NOT overwrite an existing classlinkClassId (a Sidebar link wins)', async () => {
+    // The course is already linked to a ClassLink class (e.g. via SidebarClasses)
+    // for the SAME teacher. Assigning must fill teacherUid but never re-route the
+    // roster link to the assignment's class.
+    courseLinkDoc = {
+      teacherUid: 'teacher-1',
+      classlinkClassId: 'CL-EXISTING',
+    };
+    seedSession('quiz_sessions', 'S1', 'teacher-1', ['CL-DIFFERENT']);
+    stubAssignHappyPath();
+
+    await callAssign({ data: assignQuizData, auth: { uid: 'teacher-1' } });
+
+    const linkWrite = firestoreWrites.find(
+      (w) => w.path === 'classroom_course_links/C1'
+    );
+    // The patch updates teacherUid but leaves classlinkClassId untouched.
+    expect(linkWrite?.data.teacherUid).toBe('teacher-1');
+    expect(linkWrite?.data.classlinkClassId).toBeUndefined();
+  });
+
+  it('fills a missing classlinkClassId on an existing same-teacher link', async () => {
+    // The course link exists (teacherUid only — e.g. an earlier assign before
+    // this change) and lacks a ClassLink class; assigning fills the gap.
+    courseLinkDoc = { teacherUid: 'teacher-1' };
+    seedSession('quiz_sessions', 'S1', 'teacher-1', ['CL-FILL']);
+    stubAssignHappyPath();
+
+    await callAssign({ data: assignQuizData, auth: { uid: 'teacher-1' } });
+
+    expect(
+      firestoreWrites.find((w) => w.path === 'classroom_course_links/C1')?.data
+    ).toMatchObject({ classlinkClassId: 'CL-FILL' });
   });
 
   it('uses the VA student/launch URIs for a kind=va assign', async () => {

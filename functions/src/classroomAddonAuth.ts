@@ -1445,7 +1445,7 @@ export const assignToClassroomV1 = onCall(
       kind === 'va' ? 'video_activity_sessions' : 'quiz_sessions';
     const sessionSnap = await db.doc(`${sessionCollection}/${sessionId}`).get();
     const sessionData = sessionSnap.exists
-      ? (sessionSnap.data() as { teacherUid?: string })
+      ? (sessionSnap.data() as { teacherUid?: string; classIds?: string[] })
       : null;
     if (!sessionData || sessionData.teacherUid !== callerUid) {
       throw new HttpsError(
@@ -1453,6 +1453,19 @@ export const assignToClassroomV1 = onCall(
         'You can only assign a SpartBoard session that you own.'
       );
     }
+
+    // Item D — unify class↔course: the SpartBoard assignment already targets a
+    // ClassLink class, so capture it on the course link below. This (a) lets the
+    // student-identity bridge resolve real names for a course first linked via
+    // assign — previously it only got `teacherUid`, so names stayed blank — and
+    // (b) enables a reverse lookup (classlinkClassId → googleCourseId) so future
+    // assigns can auto-target the course instead of re-asking. The assignment's
+    // `classIds` are ClassLink class sourcedIds; the `classroom:<courseId>`
+    // entries (student-token only) are filtered out defensively.
+    const linkClasslinkClassId =
+      (sessionData.classIds ?? []).find(
+        (id) => typeof id === 'string' && id && !id.startsWith('classroom:')
+      ) ?? null;
 
     // GATE 2 — the caller teaches the Google course. Fail CLOSED on any
     // UNVERIFIABLE outcome (network/timeout/401/403/5xx); never create on a token
@@ -1565,9 +1578,13 @@ export const assignToClassroomV1 = onCall(
 
     // Ensure the course→teacher link so the existing grade-push CF (gated on
     // classroom_course_links/{courseId}.teacherUid === caller) authorizes this
-    // teacher. Only the add-on path needs it (the link/redirect model has no
-    // embedded grade passback). A link owned by a DIFFERENT teacher is never
-    // re-pointed (preserves the no-hijack invariant from linkClassroomCourse).
+    // teacher, AND capture the ClassLink class (Item D) so names resolve + a
+    // future reverse lookup can auto-target the course. Only the add-on path
+    // needs it (the link/redirect model has no embedded grade passback). A link
+    // owned by a DIFFERENT teacher is never re-pointed (preserves the no-hijack
+    // invariant from linkClassroomCourse), and an EXISTING `classlinkClassId` is
+    // never overwritten (a Sidebar-established roster link wins — we only fill
+    // the gap when it's missing) so assign can't silently re-route a course.
     if (mode === 'addon') {
       const ref = db.doc(`classroom_course_links/${courseId}`);
       await db.runTransaction(async (tx) => {
@@ -1583,22 +1600,27 @@ export const assignToClassroomV1 = onCall(
             // stays gated to the original linker.
             return;
           }
-          tx.set(
-            ref,
-            { teacherUid: callerUid, updatedAt: Date.now() },
-            { merge: true }
-          );
+          const patch: Record<string, unknown> = {
+            teacherUid: callerUid,
+            updatedAt: Date.now(),
+          };
+          // Fill the roster link only when missing — never clobber a class the
+          // teacher set in the Sidebar (which could re-route the name bridge).
+          if (linkClasslinkClassId && !prior.classlinkClassId) {
+            patch.classlinkClassId = linkClasslinkClassId;
+          }
+          tx.set(ref, patch, { merge: true });
           return;
         }
-        tx.set(
-          ref,
-          {
-            teacherUid: callerUid,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          },
-          { merge: true }
-        );
+        const payload: Record<string, unknown> = {
+          teacherUid: callerUid,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        if (linkClasslinkClassId) {
+          payload.classlinkClassId = linkClasslinkClassId;
+        }
+        tx.set(ref, payload, { merge: true });
       });
     }
 
