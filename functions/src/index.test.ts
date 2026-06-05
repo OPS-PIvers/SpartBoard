@@ -942,6 +942,75 @@ describe('adminAnalytics', () => {
     expect(result.api.byFeature['video-activity-recommend']).toBe(4);
   });
 
+  it('counts dashboard-layout usage docs toward byFeature without corrupting uid parsing', async () => {
+    // Regression for: dashboard-layout was missing from GEMINI_SPECIFIC_FEATURES
+    // in adminAnalyticsCompute.ts AND had no specificFeatureId assignment in
+    // generateWithAI. A doc like `uid1_dashboard-layout_2026-06-05` was treated
+    // as an "overall" doc with uid = `uid1_dashboard-layout`, which never
+    // matched any org member, so the call was silently dropped from totalCalls
+    // and byFeature['dashboard-layout'] was never populated.
+    mockFirestoreState.users = [
+      {
+        id: 'uid1',
+        data: {
+          email: 'teacher@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [
+      // Overall usage doc — should count toward totalCalls
+      { id: 'uid1_2026-06-05', data: { count: 6 } },
+      // Per-feature dashboard-layout doc — should count toward
+      // byFeature['dashboard-layout'] but NOT toward totalCalls
+      { id: 'uid1_dashboard-layout_2026-06-05', data: { count: 2 } },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    // totalCalls must only count the overall doc, not the per-feature doc
+    expect(result.api.totalCalls).toBe(6);
+    // byFeature must accumulate the per-feature doc
+    expect(result.api.byFeature['dashboard-layout']).toBe(2);
+  });
+
+  it('counts instructional-routine usage docs toward byFeature without corrupting uid parsing', async () => {
+    // Regression for: instructional-routine was missing from
+    // GEMINI_SPECIFIC_FEATURES in adminAnalyticsCompute.ts AND had no
+    // specificFeatureId assignment in generateWithAI. A doc like
+    // `uid1_instructional-routine_2026-06-05` was treated as an "overall" doc
+    // with uid = `uid1_instructional-routine`, which never matched any org
+    // member, so the call was silently dropped from totalCalls and
+    // byFeature['instructional-routine'] was never populated.
+    mockFirestoreState.users = [
+      {
+        id: 'uid1',
+        data: {
+          email: 'teacher@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [
+      // Overall usage doc — should count toward totalCalls
+      { id: 'uid1_2026-06-05', data: { count: 4 } },
+      // Per-feature instructional-routine doc — should count toward
+      // byFeature['instructional-routine'] but NOT toward totalCalls
+      { id: 'uid1_instructional-routine_2026-06-05', data: { count: 3 } },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    // totalCalls must only count the overall doc, not the per-feature doc
+    expect(result.api.totalCalls).toBe(4);
+    // byFeature must accumulate the per-feature doc
+    expect(result.api.byFeature['instructional-routine']).toBe(3);
+  });
+
   it('returns topUsers with resolved email and unknown fallback', async () => {
     mockFirestoreState.users = [
       {

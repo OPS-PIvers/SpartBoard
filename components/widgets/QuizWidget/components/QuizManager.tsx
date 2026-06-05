@@ -46,6 +46,7 @@ import {
   Cloud,
   CloudOff,
   Users2,
+  GraduationCap,
 } from 'lucide-react';
 import {
   AssignmentMode,
@@ -286,6 +287,12 @@ interface QuizManagerProps {
   onArchiveEditSettings?: (assignment: QuizAssignment) => void;
   onArchiveShare?: (assignment: QuizAssignment) => void | Promise<void>;
   /**
+   * Open the "Assign to Google Classroom" flow for an assignment. Only provided
+   * (and the kebab action only rendered) when CLASSROOM_ASSIGN_ENABLED is on, so
+   * the gating lives entirely in the host widget.
+   */
+  onArchiveAssignToClassroom?: (assignment: QuizAssignment) => void;
+  /**
    * Publish (or unpublish) student-facing score visibility for an
    * assignment. The widget owns the picker modal and the
    * `publishAssignmentScores` call; the manager just surfaces the
@@ -470,6 +477,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onArchiveResults,
   onArchiveEditSettings,
   onArchiveShare,
+  onArchiveAssignToClassroom,
   onArchivePublishScores,
   onArchiveUnpublishScores,
   onArchivePauseResume,
@@ -1010,6 +1018,17 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         icon: Share2,
         onClick: () => void (onArchiveShare ?? noop)(a),
       });
+      // "Assign to Google Classroom" — only when the host provides the handler
+      // (i.e. CLASSROOM_ASSIGN_ENABLED is on). Creates the Classroom courseWork +
+      // add-on attachment from SpartBoard (the partner-first flow).
+      if (onArchiveAssignToClassroom) {
+        secondaries.push({
+          id: 'assign-to-classroom',
+          label: 'Assign to Google Classroom',
+          icon: GraduationCap,
+          onClick: () => onArchiveAssignToClassroom(a),
+        });
+      }
       // Sync now: only when this assignment is part of a synced group
       // AND the canonical doc has a newer version than the session
       // currently reflects. Includes a confirm because the rebuild

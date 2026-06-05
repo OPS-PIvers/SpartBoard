@@ -445,6 +445,8 @@ export async function computeAnalyticsForOrg(
     'guided-learning',
     'blooms-ai',
     'video-activity-recommend',
+    'dashboard-layout',
+    'instructional-routine',
   ];
 
   const aiUsageStream = db

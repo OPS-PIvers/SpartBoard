@@ -28,57 +28,57 @@ import {
   ROOT_COLLECTION_KEY,
   Collection,
   CollectionSubstituteShareInput,
-} from '../types';
+} from '@/types';
 import { doc, getDoc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
-import { db, isAuthBypass } from '../config/firebase';
+import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from './useAuth';
-import { mergeWidgetConfig } from '../utils/widgetConfigPersistence';
-import { useFirestore, type SharedBoardSnapshot } from '../hooks/useFirestore';
-import { TOOLS } from '../config/tools';
+import { mergeWidgetConfig } from '@/utils/widgetConfigPersistence';
+import { useFirestore, type SharedBoardSnapshot } from '@/hooks/useFirestore';
+import { TOOLS } from '@/config/tools';
 import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
 import {
   WIDGET_DEFAULTS,
   WIDGET_STRETCH_BEHAVIOR,
-} from '../config/widgetDefaults';
+} from '@/config/widgetDefaults';
 import {
   migrateLocalStorageToFirestore,
   migrateWidget,
-} from '../utils/migration';
+} from '@/utils/migration';
 import {
   migrateDrawingToSubcollection,
   needsSubcollectionMigration,
-} from '../utils/migrateDrawingToSubcollection';
-import { migrateDrawingConfig } from '../utils/migrateDrawingConfig';
+} from '@/utils/migrateDrawingToSubcollection';
+import { migrateDrawingConfig } from '@/utils/migrateDrawingConfig';
 import {
   REFERENCE_VIEWPORT,
   pixelToProp,
   computeWidgetPixelRect,
-} from '../utils/proportionalLayout';
+} from '@/utils/proportionalLayout';
 import {
   migrateDashboardWidgets,
   hydrateWidgetPixels,
-} from '../utils/migrateProportionalLayout';
+} from '@/utils/migrateProportionalLayout';
 import {
   scrubDashboardPII,
   extractDashboardPII,
   mergeDashboardPII,
   dashboardHasPII,
-} from '../utils/dashboardPII';
-import { migrateBoardForCollections } from '../utils/collectionsMigration';
-import { pickInitialBoard } from '../utils/pickInitialBoard';
-import { sanitizeBoardSnapshot } from '../utils/dashboardSanitize';
-import { logError } from '../utils/logError';
-import { useRosters } from '../hooks/useRosters';
-import { useGoogleDrive } from '../hooks/useGoogleDrive';
-import { useDriveReconnected } from '../hooks/useDriveReconnected';
-import { useCollections } from '../hooks/useCollections';
-import { useSharedCollection } from '../hooks/useSharedCollection';
-import { setDriveAuthErrorHandler } from '../utils/driveAuthErrors';
-import { setGlobalPermissionsErrorHandler } from '../utils/globalPermissionsErrors';
+} from '@/utils/dashboardPII';
+import { migrateBoardForCollections } from '@/utils/collectionsMigration';
+import { pickInitialBoard } from '@/utils/pickInitialBoard';
+import { sanitizeBoardSnapshot } from '@/utils/dashboardSanitize';
+import { logError } from '@/utils/logError';
+import { useRosters } from '@/hooks/useRosters';
+import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { useDriveReconnected } from '@/hooks/useDriveReconnected';
+import { useCollections } from '@/hooks/useCollections';
+import { useSharedCollection } from '@/hooks/useSharedCollection';
+import { setDriveAuthErrorHandler } from '@/utils/driveAuthErrors';
+import { setGlobalPermissionsErrorHandler } from '@/utils/globalPermissionsErrors';
 import {
   setAiModelConfigFallbackHandler,
   resetAiModelConfigFallbackLatch,
-} from '../utils/aiModelConfigFallback';
+} from '@/utils/aiModelConfigFallback';
 import {
   DashboardContext,
   PendingShareImport,
@@ -86,11 +86,11 @@ import {
   SubstituteShareInput,
   SubstituteShareResult,
 } from './DashboardContextValue';
-import { validateGridConfig, sanitizeAIConfig } from '../utils/ai_security';
-import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '../utils/adminBuildingConfig';
+import { validateGridConfig, sanitizeAIConfig } from '@/utils/ai_security';
+import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '@/utils/adminBuildingConfig';
 import { AnnotationState } from './DashboardContextValue';
-import { DRAWING_DEFAULTS } from '../components/widgets/DrawingWidget/constants';
-import { STANDARD_COLORS } from '../config/colors';
+import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
+import { STANDARD_COLORS } from '@/config/colors';
 
 // Helper to migrate legacy visibleTools to dockItems
 const migrateToDockItems = (

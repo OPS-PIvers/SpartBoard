@@ -38,6 +38,7 @@ import {
   Share2,
   Trash2,
   Users2,
+  GraduationCap,
 } from 'lucide-react';
 import { LibraryShell } from '@/components/common/library/LibraryShell';
 import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
@@ -193,6 +194,13 @@ export interface VideoActivityManagerProps {
    * resulting share URL to the clipboard and surfacing toasts.
    */
   onArchiveShare?: (assignment: VideoActivityAssignment) => Promise<void>;
+  /**
+   * Open the "Assign to Google Classroom" flow for a submission assignment. Only
+   * provided (and the kebab action only rendered) when CLASSROOM_ASSIGN_ENABLED
+   * is on, so the gating lives entirely in the host widget. View-only shares are
+   * excluded (no grade passback).
+   */
+  onArchiveAssignToClassroom?: (assignment: VideoActivityAssignment) => void;
   /**
    * Open the live teacher monitor for an active assignment. Surfaced as the
    * In Progress tab's primary CTA when wired; mirrors the Quiz manager.
@@ -438,6 +446,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchiveDelete,
   onArchiveResults,
   onArchiveShare,
+  onArchiveAssignToClassroom,
   onArchiveMonitor,
   onArchivePublishScores,
   onArchiveUnpublishScores,
@@ -1085,6 +1094,16 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           onClick: () => {
             void onArchiveShare(assignment);
           },
+        });
+      }
+      // "Assign to Google Classroom" — only when the host provides the handler
+      // (CLASSROOM_ASSIGN_ENABLED) and the assignment collects submissions.
+      if (onArchiveAssignToClassroom && !assignmentIsViewOnly) {
+        actions.push({
+          id: 'assign-to-classroom',
+          label: 'Assign to Google Classroom',
+          icon: GraduationCap,
+          onClick: () => onArchiveAssignToClassroom(assignment),
         });
       }
     }

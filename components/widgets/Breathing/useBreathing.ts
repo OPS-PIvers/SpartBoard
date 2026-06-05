@@ -52,10 +52,44 @@ export const useBreathing = (patternId: BreathingPattern) => {
     setProgress(0);
   }, []);
 
-  // Update phase durations when pattern changes
+  // Update phase durations when pattern changes.
+  // When the timer is active mid-cycle, also update stateRef.phaseDuration and
+  // stateRef.startTime so the CURRENT phase runs for the new pattern's duration
+  // rather than the stale old value.  The startTime is recalculated to preserve
+  // the fraction of the phase already elapsed (progress), so the animation
+  // continues smoothly from the same visual position.
   const patternRef = useRef(pattern);
   useEffect(() => {
-    patternRef.current = PATTERNS[patternId];
+    const newPattern = PATTERNS[patternId];
+    patternRef.current = newPattern;
+
+    // Only rebase timing when the timer is actively running and we are in a
+    // real phase (not 'ready').  If we are paused, stateRef.phaseDuration will
+    // be re-derived from the saved progress when toggleActive() resumes, so no
+    // update is needed here.
+    if (stateRef.current.isActive) {
+      const currentPhase = stateRef.current.phase;
+      if (currentPhase !== 'ready') {
+        const newDurationSeconds =
+          newPattern[currentPhase as keyof PatternData];
+        if (newDurationSeconds > 0) {
+          const newPhaseDuration = newDurationSeconds * 1000;
+          const now = performance.now();
+          // Preserve the fraction of the phase already elapsed so the visual
+          // circle does not jump.
+          const elapsedAlready = stateRef.current.progress * newPhaseDuration;
+          stateRef.current.phaseDuration = newPhaseDuration;
+          stateRef.current.startTime = now - elapsedAlready;
+        } else {
+          // New pattern does not have this phase (duration === 0, e.g. hold1/hold2
+          // when switching to a two-phase pattern).  Set phaseDuration to 0 so the
+          // next RAF tick sees elapsed (≥ 0) >= phaseDuration (0) and transitions
+          // immediately, rather than waiting out the stale old duration.
+          stateRef.current.phaseDuration = 0;
+          stateRef.current.startTime = performance.now();
+        }
+      }
+    }
   }, [patternId]);
 
   const toggleActive = useCallback(() => {

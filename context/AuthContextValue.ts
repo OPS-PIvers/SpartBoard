@@ -12,8 +12,8 @@ import {
   DockPosition,
   AssignmentMode,
   AssignmentWidgetKey,
-} from '../types';
-import type { BuildingRecord } from '../types/organization';
+} from '@/types';
+import type { BuildingRecord } from '@/types/organization';
 
 export interface AuthContextType {
   user: User | null;

@@ -17,11 +17,11 @@ import {
   ShapeTool,
   Collection,
   CollectionSubstituteShareInput,
-} from '../types';
-import type { RosterCreateMeta } from '../hooks/useRosters';
-import type { GoogleDriveService } from '../utils/googleDriveService';
-import type { UseCollectionsResult } from '../hooks/useCollections';
-import type { LoadSharedCollectionResult } from '../hooks/useSharedCollection';
+} from '@/types';
+import type { RosterCreateMeta } from '@/hooks/useRosters';
+import type { GoogleDriveService } from '@/utils/googleDriveService';
+import type { UseCollectionsResult } from '@/hooks/useCollections';
+import type { LoadSharedCollectionResult } from '@/hooks/useSharedCollection';
 
 /**
  * Mode applied to a shared-board import. Substitute shares are intentionally

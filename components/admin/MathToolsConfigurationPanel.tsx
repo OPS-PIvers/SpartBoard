@@ -6,6 +6,7 @@ import {
   MathToolGradeLevels,
 } from '@/types';
 import { MATH_TOOL_META } from '@/components/widgets/math-tools/mathToolUtils';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 
 const ALL_GRADE_LEVELS: GradeLevel[] = ['k-2', '3-5', '6-8', '9-12'];
 
@@ -92,9 +93,7 @@ export const MathToolsConfigurationPanel: React.FC<
 
       {/* Global DPI */}
       <div className="space-y-2">
-        <label className="text-xxs font-black text-slate-400 uppercase tracking-widest block">
-          Building-Wide DPI Calibration (px / inch)
-        </label>
+        <SettingsLabel>Building-Wide DPI Calibration (px / inch)</SettingsLabel>
         <p className="text-xxs text-slate-400">
           CSS 1 in = 96 px (default). Override for IFPs with non-standard pixel
           density. Teachers can still fine-tune per widget.
@@ -139,20 +138,13 @@ export const MathToolsConfigurationPanel: React.FC<
       <div className="space-y-3">
         <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-x-2 gap-y-1 items-center">
           {/* Header row */}
-          <div className="text-xxs font-black text-slate-400 uppercase tracking-widest">
-            Tool
-          </div>
+          <SettingsLabel>Tool</SettingsLabel>
           {ALL_GRADE_LEVELS.map((g) => (
-            <div
-              key={g}
-              className="text-xxs font-black text-slate-400 uppercase tracking-widest text-center"
-            >
+            <SettingsLabel key={g} className="text-center">
               {GRADE_LABELS[g]}
-            </div>
+            </SettingsLabel>
           ))}
-          <div className="text-xxs font-black text-slate-400 uppercase tracking-widest text-center">
-            Reset
-          </div>
+          <SettingsLabel className="text-center">Reset</SettingsLabel>
 
           {/* Tool rows */}
           {MATH_TOOL_META.map((meta) => {

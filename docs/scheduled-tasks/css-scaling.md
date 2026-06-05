@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-03_
+_Last audited: 2026-06-05_
 _Last action: 2026-05-31_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-05: Scanned CountdownWidget, WeatherWidget, PollWidget, ScheduleWidget (ScheduleWidget.tsx), and RandomWidget for anti-patterns. All five pass cleanly — no hardcoded Tailwind text-size classes, no fixed icon sizes, no pixel-cap max-h/max-w violations. All use responsive sizing: cqmin, cqw, cqh, min(), clamp(). No new anti-patterns introduced. All pre-existing open items remain valid._
 
 _2026-06-03: Merged dev-paul into scheduled-tasks. Scanned all newly modified widget files: QuizWidget/utils/resolveDisplayName.ts (new — utility-only, no CSS), QuizWidget/components/QuizLiveMonitor.tsx (modified — all sizing uses cqmin inline styles, clean), VideoActivityWidget/components/Results.tsx (modified — all sizing uses cqmin inline styles, clean). QuizResults.tsx period-filter `text-sm` known violation: file grew significantly in merge, line number has shifted from ~968 to ~1530 — updating the open item line reference. No new anti-patterns introduced. All pre-existing open items remain valid._
 

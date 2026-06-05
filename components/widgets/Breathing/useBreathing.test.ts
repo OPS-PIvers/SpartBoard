@@ -165,4 +165,70 @@ describe('useBreathing', () => {
     expect(result.current.phase).toBe('inhale');
     expect(result.current.isActive).toBe(true);
   });
+
+  /**
+   * Regression test for pattern-change mid-cycle edge case.
+   *
+   * Bug: when patternId changes while the timer is active, patternRef.current
+   * is updated (via useEffect) but stateRef.current.phaseDuration is NOT
+   * updated for the current phase.  The tick loop reads phaseDuration from
+   * stateRef, so the current phase runs for the OLD pattern's duration.
+   *
+   * Scenario:
+   *   - Start with 4-4-4-4 (inhale=4s). stateRef.phaseDuration is set to 4000.
+   *   - After 1 s, switch to 5-5 (inhale=5s).
+   *   - The inhale should now last 5 s total (4 s remaining after the switch),
+   *     so the phase must NOT end at the 4 s mark.
+   *   - If the bug is present, stateRef.phaseDuration stays at 4000, the phase
+   *     ends at the 4 s mark (only 3 s after the switch), and the test fails.
+   */
+  it('switching pattern mid-cycle updates phaseDuration to the new pattern value', () => {
+    const patternIdRef = {
+      current: '4-4-4-4' as Parameters<typeof useBreathing>[0],
+    };
+    const { result, rerender } = renderHook(() =>
+      useBreathing(patternIdRef.current)
+    );
+
+    // Start with 4-4-4-4 (inhale = 4 s)
+    act(() => {
+      result.current.toggleActive();
+    });
+
+    expect(result.current.phase).toBe('inhale');
+
+    // Advance 1 s into the 4 s inhale
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(result.current.phase).toBe('inhale');
+
+    // Switch to 5-5 (inhale = 5 s). The current inhale phase now has a
+    // 5 s total duration, meaning 4 s should remain after the 1 s already
+    // elapsed.
+    act(() => {
+      patternIdRef.current = '5-5';
+      rerender();
+    });
+
+    // Advance to just past the OLD pattern's end mark (4000 ms from start).
+    // With the bug, the phase ends here. With the fix, it must still be inhale.
+    act(() => {
+      vi.advanceTimersByTime(3100); // total elapsed = 4100 ms > old 4000 ms limit
+    });
+
+    // The phase should still be 'inhale' — the new pattern's 5 s duration
+    // means the phase should not end until 5000 ms from the phase start.
+    expect(result.current.phase).toBe('inhale');
+
+    // Now advance past the NEW pattern's end mark (total 5000 ms from start)
+    act(() => {
+      vi.advanceTimersByTime(1000); // total elapsed = 5100 ms > new 5000 ms limit
+    });
+
+    // The inhale phase should now be complete and we should be in exhale
+    // (5-5 pattern has hold1=0, so inhale → exhale directly)
+    expect(result.current.phase).toBe('exhale');
+  });
 });

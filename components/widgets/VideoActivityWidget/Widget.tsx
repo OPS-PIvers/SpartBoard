@@ -21,6 +21,11 @@ import {
   VideoActivitySession,
 } from '@/types';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
+import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
+import {
+  CLASSROOM_ASSIGN_ENABLED,
+  CLASSROOM_ASSIGN_ADMIN_ONLY,
+} from '@/config/constants';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
@@ -129,6 +134,14 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
 
   const [publishingAssignment, setPublishingAssignment] =
     useState<VideoActivityAssignment | null>(null);
+  // Ephemeral modal state for the "Assign to Google Classroom" flow (flag-gated).
+  const [assigningToClassroom, setAssigningToClassroom] =
+    useState<VideoActivityAssignment | null>(null);
+  // "Assign to Google Classroom" visibility: master flag, restricted to admins
+  // during the staged Spike-A rollout (CLASSROOM_ASSIGN_ADMIN_ONLY).
+  const canAssignToClassroom =
+    CLASSROOM_ASSIGN_ENABLED &&
+    (!CLASSROOM_ASSIGN_ADMIN_ONLY || isAdmin === true);
 
   // PLC share target — set when the teacher picks "Share with PLC" on a
   // library row. The `PlcShareTargetModal` is rendered as a sibling and
@@ -823,6 +836,11 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         onArchivePublishScores={(assignment) =>
           setPublishingAssignment(assignment)
         }
+        onArchiveAssignToClassroom={
+          canAssignToClassroom
+            ? (assignment) => setAssigningToClassroom(assignment)
+            : undefined
+        }
         onArchiveUnpublishScores={async (assignment) => {
           // One-click unpublish — `unpublishAssignmentScores` is a cheap
           // two-write batch (no Drive lookup, no grading).
@@ -896,6 +914,19 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
               );
             }
           }}
+        />
+      )}
+      {canAssignToClassroom && assigningToClassroom && (
+        <AssignToClassroomModal
+          isOpen
+          onClose={() => setAssigningToClassroom(null)}
+          kind="va"
+          sessionId={assigningToClassroom.id}
+          title={
+            assigningToClassroom.className ?? assigningToClassroom.activityTitle
+          }
+          initialDueAt={assigningToClassroom.sessionOptions?.dueAt ?? null}
+          addToast={addToast}
         />
       )}
       <VideoActivityEditorModal

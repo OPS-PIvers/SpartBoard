@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import { CustomWidgetDoc, ToolMetadata } from '../types';
+import { CustomWidgetDoc, ToolMetadata } from '@/types';
 
 export interface CustomWidgetsContextValue {
   /** All custom widget docs (admins see all; non-admins see only published) */

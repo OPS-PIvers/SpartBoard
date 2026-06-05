@@ -1681,6 +1681,25 @@ export interface ChecklistGlobalConfig {
   buildingDefaults: Record<string, BuildingChecklistDefaults>;
 }
 
+// --- Stations Global Config ---
+export interface BuildingStationsDefaults {
+  buildingId: string;
+  /**
+   * Stored in the shared `TypographySettings` value space — a `FONTS` id such
+   * as `'font-sans'` / `'font-mono'`. The `'global'` sentinel (inherit from the
+   * dashboard) is represented by absence/`undefined`, never the literal string.
+   * Seeds `StationsConfig.fontFamily`, decoded at render via `getFontClass()`.
+   */
+  fontFamily?: string;
+  fontColor?: string;
+  cardColor?: string;
+  cardOpacity?: number;
+}
+
+export interface StationsGlobalConfig {
+  buildingDefaults: Record<string, BuildingStationsDefaults>;
+}
+
 // --- Sound Global Config ---
 export interface BuildingSoundDefaults {
   buildingId: string;
