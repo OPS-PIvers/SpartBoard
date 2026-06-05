@@ -1795,13 +1795,14 @@ describe('dueAtToClassroomDue', () => {
     expect(dueAtToClassroomDue(Number.NaN)).toBeNull();
   });
 
-  it('falls back to 23:59 for a LEGACY date-only pick (UTC midnight, end-of-day for Central)', () => {
-    // A legacy date-only pick: 2026-06-10 UTC midnight (what a bare
-    // <input type="date"> yielded before the time picker landed).
+  it('emits UTC midnight verbatim (no legacy rewrite to 23:59)', () => {
+    // A UTC-midnight epoch must NOT be rewritten to 23:59: a behind-UTC local
+    // pick (7:00 PM CDT / 6:00 PM CST) lands on exact UTC midnight, so the old
+    // heuristic would shift such a real pick's Classroom due date by ~a day.
     const dueAt = Date.UTC(2026, 5, 10, 0, 0, 0);
     expect(dueAtToClassroomDue(dueAt)).toEqual({
       dueDate: { year: 2026, month: 6, day: 10 },
-      dueTime: { hours: 23, minutes: 59 },
+      dueTime: { hours: 0, minutes: 0 },
     });
   });
 
@@ -1816,9 +1817,9 @@ describe('dueAtToClassroomDue', () => {
     });
   });
 
-  it('emits a 23:59 UTC time-of-day verbatim (not via the legacy fallback)', () => {
-    // 23:59Z is the canonical Central end-of-day pick (18:59 CDT). It must reach
-    // Classroom as 23:59 whether it came from the legacy fallback or a real pick.
+  it('emits a 23:59 UTC time-of-day verbatim', () => {
+    // 23:59Z is the canonical Central end-of-day pick (18:59 CDT) and must
+    // reach Classroom as 23:59.
     const dueAt = Date.UTC(2026, 5, 10, 23, 59, 0);
     expect(dueAtToClassroomDue(dueAt)).toEqual({
       dueDate: { year: 2026, month: 6, day: 10 },
@@ -1826,9 +1827,9 @@ describe('dueAtToClassroomDue', () => {
     });
   });
 
-  it('does NOT trigger the legacy fallback one minute past UTC midnight', () => {
-    // Only EXACT UTC midnight is treated as legacy; 00:01Z passes through so a
-    // real pick is never silently rewritten to end-of-day.
+  it('passes a time just past UTC midnight through verbatim', () => {
+    // 00:01Z passes through unchanged — no time-of-day is ever silently
+    // rewritten to end-of-day.
     const dueAt = Date.UTC(2026, 5, 10, 0, 1, 0);
     expect(dueAtToClassroomDue(dueAt)).toEqual({
       dueDate: { year: 2026, month: 6, day: 10 },

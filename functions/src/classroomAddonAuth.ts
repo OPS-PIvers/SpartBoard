@@ -280,14 +280,15 @@ function bearer(accessToken: string): Record<string, string> {
  * local timezone. The dashboard now collects `dueAt` from a date + time picker
  * pair combined into a single LOCAL-datetime epoch, so the epoch's UTC
  * components round-trip back to the teacher's chosen local time in Classroom's
- * display. We therefore emit the epoch's actual UTC hours/minutes.
+ * display. We therefore emit the epoch's actual UTC hours/minutes verbatim.
  *
- * Backward-compat: a LEGACY date-only pick (a bare `<input type="date">`) arrives
- * as UTC midnight. Emitting 00:00Z would render as the PRIOR evening in
- * US-Central, so we fall back to end-of-day 23:59 (the Phase-1 behavior).
- * SpartBoard is Orono-only (US-Central), where a genuine local-midnight pick
- * never lands on UTC midnight, so this heuristic only catches the legacy
- * date-only case. Returns null for an absent/invalid due.
+ * NOTE: We deliberately do NOT special-case UTC-midnight epochs as "legacy
+ * date-only" picks. A behind-UTC local pick lands on exact UTC midnight for
+ * legitimate times (e.g. 7:00 PM CDT / 6:00 PM CST → 00:00 UTC the next day),
+ * so a UTC-midnight heuristic is indistinguishable from those picks and would
+ * shift the Classroom due date by almost a full day. Legacy date-only values
+ * (stored as UTC midnight) instead reach Classroom as their actual UTC
+ * time-of-day. Returns null for an absent/invalid due.
  */
 export function dueAtToClassroomDue(
   dueAtMs: number | null | undefined
@@ -301,16 +302,16 @@ export function dueAtToClassroomDue(
   }
   const d = new Date(dueAtMs);
   if (Number.isNaN(d.getTime())) return null;
-  const hours = d.getUTCHours();
-  const minutes = d.getUTCMinutes();
-  const isLegacyDateOnly = hours === 0 && minutes === 0;
   return {
     dueDate: {
       year: d.getUTCFullYear(),
       month: d.getUTCMonth() + 1,
       day: d.getUTCDate(),
     },
-    dueTime: isLegacyDateOnly ? { hours: 23, minutes: 59 } : { hours, minutes },
+    dueTime: {
+      hours: d.getUTCHours(),
+      minutes: d.getUTCMinutes(),
+    },
   };
 }
 

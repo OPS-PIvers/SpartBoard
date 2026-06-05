@@ -75,16 +75,16 @@ export const DEFAULT_DUE_TIME = '23:59';
  * Split a `dueAt` epoch (ms) into the `YYYY-MM-DD` + `HH:MM` strings a
  * date/time picker pair binds to, using LOCAL wall-clock components.
  *
- * Two value shapes are handled:
- *   - NEW values encode a local datetime (date + time picker → combineDateAndTime),
- *     so their local components round-trip exactly.
- *   - LEGACY date-only values were stored as UTC midnight (a bare
- *     `<input type="date">` → `new Date('YYYY-MM-DD')`). Read with local getters
- *     in a behind-UTC timezone (e.g. US-Central) those render as the PRIOR
- *     evening, so we instead surface the intended UTC calendar date + the
- *     default end-of-day time. SpartBoard is single-timezone (US-Central), where
- *     a genuine local-midnight pick never lands on UTC midnight, so this
- *     heuristic only ever catches the legacy date-only case.
+ * Values encode a local datetime (date + time picker → combineDateAndTime),
+ * so their local components round-trip exactly.
+ *
+ * NOTE: We deliberately do NOT special-case UTC-midnight epochs as "legacy
+ * date-only" values. A behind-UTC local pick lands on exact UTC midnight for
+ * legitimate times (e.g. 7:00 PM CDT / 6:00 PM CST → 00:00 UTC the next day),
+ * so a UTC-midnight heuristic is mathematically indistinguishable from those
+ * picks and would silently rewrite them to a wrong date + 23:59. Legacy
+ * date-only values (stored as UTC midnight) instead render at their actual
+ * local-time equivalent, which keeps every real pick 100% correct.
  *
  * Returns an empty `date` (and the default `time`) when there is no due date.
  */
@@ -97,11 +97,6 @@ export function splitDueAtToInputs(dueAt: number | null | undefined): {
   }
   const d = new Date(dueAt);
   if (Number.isNaN(d.getTime())) return { date: '', time: DEFAULT_DUE_TIME };
-  const isLegacyUtcMidnight =
-    d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0;
-  if (isLegacyUtcMidnight) {
-    return { date: d.toISOString().slice(0, 10), time: DEFAULT_DUE_TIME };
-  }
   const pad = (n: number) => String(n).padStart(2, '0');
   return {
     date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,

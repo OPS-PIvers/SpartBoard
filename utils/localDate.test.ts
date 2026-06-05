@@ -63,12 +63,26 @@ describe('splitDueAtToInputs', () => {
     });
   });
 
-  it('surfaces a LEGACY date-only value (UTC midnight) as its intended calendar date + default time', () => {
-    // What a bare <input type="date"> produced before the time picker landed.
-    const legacy = Date.UTC(2026, 5, 10, 0, 0, 0);
-    expect(splitDueAtToInputs(legacy)).toEqual({
+  it('surfaces a UTC-midnight value at its actual local wall-clock (no legacy rewrite)', () => {
+    // A UTC-midnight epoch is NOT special-cased: in a behind-UTC timezone a
+    // legitimate evening pick (7:00 PM CDT / 6:00 PM CST) lands on exact UTC
+    // midnight, so rewriting it to 23:59 would corrupt a real pick. In the
+    // UTC test env this surfaces verbatim as 00:00.
+    const utcMidnight = Date.UTC(2026, 5, 10, 0, 0, 0);
+    expect(splitDueAtToInputs(utcMidnight)).toEqual({
       date: '2026-06-10',
-      time: DEFAULT_DUE_TIME,
+      time: '00:00',
+    });
+  });
+
+  it('round-trips a midnight pick without rewriting it to end-of-day', () => {
+    // Regression guard for the timezone-collision bug: a 00:00 pick must come
+    // back as 00:00, never the default end-of-day time.
+    const epoch = dueInputsToEpoch('2026-06-10', '00:00');
+    expect(epoch).not.toBeNull();
+    expect(splitDueAtToInputs(epoch)).toEqual({
+      date: '2026-06-10',
+      time: '00:00',
     });
   });
 
