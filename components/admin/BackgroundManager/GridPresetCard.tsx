@@ -1,6 +1,7 @@
 import React from 'react';
 import { Video, Pencil, Check, X, Tag, Plus, Trash2, Star } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { extractYouTubeId } from '@/utils/youtube';
 import { PresetCardProps } from './types';
@@ -148,9 +149,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
 
         {/* Access Level */}
         <div className="shrink-0">
-          <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
-            Access Level
-          </label>
+          <SettingsLabel>Access Level</SettingsLabel>
           <div className="flex gap-1">
             {(['admin', 'beta', 'public'] as AccessLevel[]).map((level) => (
               <button
@@ -174,9 +173,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
 
         {/* Category */}
         <div className="shrink-0">
-          <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
-            Category
-          </label>
+          <SettingsLabel>Category</SettingsLabel>
           {editingCategoryPresetId === preset.id ? (
             <div className="flex items-center gap-1">
               <input
@@ -238,9 +235,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
 
         {/* Building Assignment */}
         <div className="shrink-0">
-          <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
-            Buildings
-          </label>
+          <SettingsLabel>Buildings</SettingsLabel>
           <div className="flex flex-wrap gap-1">
             {BUILDINGS.map((b) => {
               const assigned = (preset.buildingIds ?? []).includes(b.id);
@@ -270,9 +265,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
         {/* Beta Users (only show if access level is beta) */}
         {preset.accessLevel === 'beta' && (
           <div className="flex-1 min-h-0 flex flex-col">
-            <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block shrink-0">
-              Beta Users
-            </label>
+            <SettingsLabel className="shrink-0">Beta Users</SettingsLabel>
             <div className="flex-1 overflow-y-auto space-y-0.5 mb-1.5">
               {preset.betaUsers.map((email) => (
                 <div
