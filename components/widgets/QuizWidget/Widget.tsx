@@ -32,6 +32,7 @@ import {
 import { writePlcQuizEntry } from '@/hooks/usePlcQuizzes';
 import { PlcShareTargetModal } from '@/components/plc/PlcShareTargetModal';
 import { QuizManager, PlcOptions } from './components/QuizManager';
+import type { AssignDestination } from './components/AssignDestinationModal';
 import { ImportWizard } from '@/components/common/library/importer';
 import { createQuizImportAdapter } from './adapters/quizImportAdapter';
 import { QuizEditorModal } from './components/QuizEditorModal';
@@ -227,8 +228,17 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const [publishingAssignment, setPublishingAssignment] =
     useState<QuizAssignment | null>(null);
   // Ephemeral modal state for the "Assign to Google Classroom" flow (flag-gated).
-  const [assigningToClassroom, setAssigningToClassroom] =
-    useState<QuizAssignment | null>(null);
+  // The Assign-to-Google-Classroom modal target. A minimal shape (not a full
+  // QuizAssignment) so it can be set from BOTH the archive-row kebab (mapping an
+  // existing assignment) AND the new library-row chooser (a freshly-created
+  // assignment, which we only have an id/code for at that point).
+  const [assigningToClassroom, setAssigningToClassroom] = useState<{
+    id: string;
+    code: string;
+    title: string;
+    dueAt: number | null;
+    dueAtHasTime?: boolean;
+  } | null>(null);
   // "Assign to Google Classroom" visibility: master flag, restricted to admins
   // during the staged Spike-A rollout (CLASSROOM_ASSIGN_ADMIN_ONLY).
   const canAssignToClassroom =
@@ -1085,7 +1095,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           meta,
           plcOptions: PlcOptions,
           rosterIds: string[],
-          dueAt: number | null
+          dueAt: number | null,
+          destination?: AssignDestination
         ) => {
           const data = await loadQuiz(meta);
           if (!data) return;
@@ -1276,6 +1287,18 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 lastRosterIdsByQuizId: nextMap,
               } as QuizConfig,
             });
+            // Library-row chooser → Google Classroom: the SpartBoard assignment
+            // now exists (we have its id + join code), so hand it straight to the
+            // partner-first GC course picker. The teacher refines the due date
+            // there; this is just the initial seed (date-only).
+            if (destination === 'classroom' && canAssignToClassroom) {
+              setAssigningToClassroom({
+                id: assignmentId,
+                code,
+                title: meta.title,
+                dueAt: dueAt ?? null,
+              });
+            }
             const url = `${window.location.origin}/quiz?code=${code}`;
             if (typeof navigator !== 'undefined' && navigator.clipboard) {
               void navigator.clipboard
@@ -1644,8 +1667,18 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         onArchiveEditSettings={(a) => {
           setEditingAssignment(a);
         }}
+        canAssignToClassroom={canAssignToClassroom}
         onArchiveAssignToClassroom={
-          canAssignToClassroom ? (a) => setAssigningToClassroom(a) : undefined
+          canAssignToClassroom
+            ? (a) =>
+                setAssigningToClassroom({
+                  id: a.id,
+                  code: a.code,
+                  title: a.className ?? a.quizTitle,
+                  dueAt: a.dueAt ?? null,
+                  dueAtHasTime: a.dueAtHasTime,
+                })
+            : undefined
         }
         onArchiveShare={async (a) => {
           const meta = quizzes.find((q) => q.id === a.quizId);
@@ -2049,10 +2082,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           kind="quiz"
           sessionId={assigningToClassroom.id}
           quizCode={assigningToClassroom.code}
-          title={
-            assigningToClassroom.className ?? assigningToClassroom.quizTitle
-          }
-          initialDueAt={assigningToClassroom.dueAt ?? null}
+          title={assigningToClassroom.title}
+          initialDueAt={assigningToClassroom.dueAt}
           initialDueAtHasTime={assigningToClassroom.dueAtHasTime}
           addToast={addToast}
         />
