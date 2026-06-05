@@ -23,7 +23,7 @@ import {
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
 import { logError } from '@/utils/logError';
 import { PlcAssignmentImportModal } from '../PlcAssignmentImportModal';
-import { PlcAssignmentSessionModal } from '../assignments/PlcAssignmentSessionModal';
+import { PlcAssignmentSessionModal } from '@/components/plc/assignments/PlcAssignmentSessionModal';
 import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
 import { PlcAssignmentIndexRow } from './PlcAssignmentIndexRow';
 

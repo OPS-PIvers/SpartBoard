@@ -713,10 +713,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Server-internal grade-push authorizations (LIVE-token model). Minted by the
-    // instructor-launch exchange CF and validated by the AGS push CF — both via the
-    // Admin SDK. Never client-visible, so deny all client access.
-    match /lti_grade_push_auth/{token} {
+    // PII-free NRPS membership endpoints, keyed by quiz session → context. The
+    // launch-exchange CF writes the context's `context_memberships_url` here and
+    // the name-resolver CF reads it — BOTH via the Admin SDK, which bypasses
+    // these rules. No client path ever touches them (a doc holds a roster
+    // service URL that no authenticated user should enumerate), so deny all
+    // client access. The `{document=**}` recursive wildcard covers the
+    // `contexts/{contextId}` subcollection too.
+    match /lti_session_memberships/{sessionId}/{document=**} {
       allow read, write: if false;
     }
 
@@ -2476,11 +2480,12 @@ service cloud.firestore {
     }
 
     // Quiz Attempt Ledger — top-level, cross-launch attempt counter per
-    // (quiz, student). See `QuizAttemptLedger` in types.ts and
-    // `QUIZ_ATTEMPT_LEDGER_COLLECTION` in `useQuizSession.ts` for the
-    // rationale. The doc id is `${quizId}__${studentUid}`; the
-    // `studentUid` field on the doc must equal the student's auth uid
-    // (the rules can't decompose the doc id back into its halves).
+    // (ASSIGNMENT, student), NOT per quiz template. See `QuizAttemptLedger` in
+    // types.ts and `QUIZ_ATTEMPT_LEDGER_COLLECTION` in `useQuizSession.ts` for
+    // the rationale. The doc id is `${assignmentId}__${studentUid}` (the
+    // assignmentId is the session id); the `quizId` field is retained as
+    // metadata. The `studentUid` field on the doc must equal the student's auth
+    // uid (the rules can't decompose the doc id back into its halves).
     //
     // Ledger writes happen only inside the `completeQuiz` transaction
     // alongside the response status flip, so the rules' append-only
@@ -2569,7 +2574,8 @@ service cloud.firestore {
     }
 
     // Video Activity Attempt Ledger — same shape as the Quiz ledger.
-    // Doc id: `${activityId}__${studentUid}`.
+    // Doc id: `${assignmentId}__${studentUid}` (assignmentId = session id);
+    // scoped per assignment, not per activity template.
     match /video_activity_attempt_ledger/{ledgerId} {
       // See `quiz_attempt_ledger` above for the `resource == null`
       // rationale — same pattern, same threat model.

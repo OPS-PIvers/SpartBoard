@@ -616,6 +616,13 @@
     "fr": "Français"
   },
   "widgets": {
+    "lunchCount": {
+      "syncSuccess": "Menu synchronisé depuis Nutrislice",
+      "syncError": "Échec de la synchronisation du menu",
+      "noHotLunch": "Aucun déjeuner chaud répertorié",
+      "noBentoBox": "Aucune bento box répertoriée",
+      "hotLunch": "Déjeuner Chaud"
+    },
     "quiz": {
       "leaderboard": {
         "title": "Classement en Direct",

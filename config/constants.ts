@@ -14,17 +14,3 @@ export const APP_NAME = 'SpartBoard';
  * way.
  */
 export const QUIZ_SSO_REDIRECT_ENABLED = false;
-
-/**
- * Gates the Schoology LTI 1.3 instructor grade-push grader (LtiTeacherGrader),
- * mounted from LtiLaunchPage on an instructor resource-link launch. When false
- * the instructor launch keeps the validated-launch diagnostic card; when true it
- * renders the in-iframe grader that pushes auto-graded quiz scores to the
- * Schoology gradebook via AGS.
- *
- * Ships OFF. Flip to `true` only AFTER the attach + take flow is live-verified
- * end-to-end (a quiz must be attachable and takeable before there are any
- * responses to grade), so an instructor can't reach a grader for a flow that
- * hasn't been proven.
- */
-export const LTI_GRADER_ENABLED = false;

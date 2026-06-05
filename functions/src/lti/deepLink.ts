@@ -19,6 +19,35 @@ export interface ContentItem {
   title: string;
   custom?: Record<string, string>;
   lineItem?: { scoreMaximum: number; label: string };
+  /**
+   * LTI Deep Linking 2.0 submission window. `endDateTime` is the assignment DUE
+   * date — Schoology applies it to the created assignment. A SIBLING of
+   * `lineItem` on the content item (not nested inside it). We deliberately set
+   * only `submission` (the due date), never `available` — `available.endDateTime`
+   * is the hard LOCK date, which would block late work.
+   */
+  submission?: { endDateTime: string };
+}
+
+/**
+ * Serialize a due-date instant (epoch ms) into the LTI `submission.endDateTime`
+ * ISO 8601 string. The client (picker) already resolved the due date to an
+ * ABSOLUTE instant in the teacher's local timezone (local end-of-day — 11:59 PM
+ * Central for Orono), so the server makes NO timezone assumption: it just
+ * serializes the instant. Returns null for absent/invalid input so callers can
+ * omit `submission`.
+ */
+export function dueAtToSubmissionEndDateTime(
+  dueAtMs: number | undefined
+): string | null {
+  if (
+    typeof dueAtMs !== 'number' ||
+    !Number.isFinite(dueAtMs) ||
+    dueAtMs <= 0
+  ) {
+    return null;
+  }
+  return new Date(dueAtMs).toISOString();
 }
 
 export function buildQuizContentItem(opts: {
@@ -26,6 +55,8 @@ export function buildQuizContentItem(opts: {
   title: string;
   custom: Record<string, string>;
   maxPoints?: number;
+  /** Optional due date (epoch ms) → emitted as `submission.endDateTime`. */
+  dueAtMs?: number;
 }): ContentItem {
   const item: ContentItem = {
     type: 'ltiResourceLink',
@@ -35,6 +66,10 @@ export function buildQuizContentItem(opts: {
   };
   if (typeof opts.maxPoints === 'number' && opts.maxPoints > 0) {
     item.lineItem = { scoreMaximum: opts.maxPoints, label: opts.title };
+  }
+  const endDateTime = dueAtToSubmissionEndDateTime(opts.dueAtMs);
+  if (endDateTime) {
+    item.submission = { endDateTime };
   }
   return item;
 }

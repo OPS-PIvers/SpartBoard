@@ -95,7 +95,8 @@ interface AIData {
     | 'quiz'
     | 'widget-builder'
     | 'widget-explainer'
-    | 'blooms-ai';
+    | 'blooms-ai'
+    | 'video-activity-recommend';
   prompt?: string;
   image?: string; // base64 data
   /**
@@ -639,6 +640,8 @@ export const generateWithAI = onCall(
     if (genType === 'ocr') specificFeatureId = 'ocr';
     if (genType === 'guided-learning') specificFeatureId = 'guided-learning';
     if (genType === 'blooms-ai') specificFeatureId = 'blooms-ai';
+    if (genType === 'video-activity-recommend')
+      specificFeatureId = 'video-activity-recommend';
 
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -4311,4 +4314,5 @@ export { ltiLogin, ltiLaunch, ltiExchange } from './lti/launchEndpoints';
 export {
   ltiSignDeepLinkResponseV1,
   ltiPushGradesForAssignmentV1,
+  ltiResolveNamesForAssignmentV1,
 } from './lti/serviceEndpoints';

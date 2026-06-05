@@ -1215,11 +1215,14 @@ export const DashboardView: React.FC = () => {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
 
-          // Use the focused element if it's a widget, otherwise target top widget
-          const targetId = document.activeElement?.closest('.widget')
-            ? (document.activeElement as HTMLElement).getAttribute(
-                'data-widget-id'
-              )
+          // Use the focused element if it's a widget, otherwise target top widget.
+          // Call getAttribute on the .widget ancestor (from closest()), NOT on
+          // document.activeElement — the focused element may be a child button or
+          // input inside the widget and would not carry data-widget-id itself.
+          const widgetAncestor =
+            document.activeElement?.closest<HTMLElement>('.widget');
+          const targetId = widgetAncestor
+            ? widgetAncestor.getAttribute('data-widget-id')
             : topWidget.id;
 
           if (!targetId) return;
@@ -1265,10 +1268,10 @@ export const DashboardView: React.FC = () => {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
 
-          const targetId = document.activeElement?.closest('.widget')
-            ? (document.activeElement as HTMLElement).getAttribute(
-                'data-widget-id'
-              )
+          const widgetAncestor =
+            document.activeElement?.closest<HTMLElement>('.widget');
+          const targetId = widgetAncestor
+            ? widgetAncestor.getAttribute('data-widget-id')
             : topWidget.id;
 
           if (targetId) {
@@ -1295,10 +1298,10 @@ export const DashboardView: React.FC = () => {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
 
-          const targetId = document.activeElement?.closest('.widget')
-            ? (document.activeElement as HTMLElement).getAttribute(
-                'data-widget-id'
-              )
+          const widgetAncestor =
+            document.activeElement?.closest<HTMLElement>('.widget');
+          const targetId = widgetAncestor
+            ? widgetAncestor.getAttribute('data-widget-id')
             : topWidget.id;
 
           if (targetId) {

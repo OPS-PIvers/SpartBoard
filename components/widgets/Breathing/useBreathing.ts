@@ -61,17 +61,30 @@ export const useBreathing = (patternId: BreathingPattern) => {
   const toggleActive = useCallback(() => {
     setIsActive((prev) => {
       if (!prev) {
-        // Starting
-        const newPhase = 'inhale';
-        setPhase(newPhase);
-        const duration = patternRef.current[newPhase];
-        setTimeLeft(duration);
-        setProgress(0);
-        stateRef.current.startTime = performance.now();
-        stateRef.current.phaseDuration = duration * 1000;
+        const now = performance.now();
+        const currentPhase = stateRef.current.phase;
+
+        if (currentPhase === 'ready') {
+          // Fresh start from idle state
+          const newPhase = 'inhale';
+          setPhase(newPhase);
+          const duration = patternRef.current[newPhase];
+          setTimeLeft(duration);
+          setProgress(0);
+          stateRef.current.startTime = now;
+          stateRef.current.phaseDuration = duration * 1000;
+        } else {
+          // Resuming from a paused mid-phase position. Reconstruct startTime
+          // so that elapsed = progress * phaseDuration, preserving the
+          // exact position in the current phase rather than jumping back to
+          // the beginning of inhale.
+          const { phaseDuration, progress } = stateRef.current;
+          const elapsedAlready = progress * phaseDuration;
+          stateRef.current.startTime = now - elapsedAlready;
+        }
         return true;
       } else {
-        // Pausing
+        // Pausing — RAF loop will be cancelled by the isActive effect cleanup.
         return false;
       }
     });

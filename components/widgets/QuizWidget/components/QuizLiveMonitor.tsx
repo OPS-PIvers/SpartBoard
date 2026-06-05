@@ -69,6 +69,7 @@ import {
   findDuplicateResponseIds,
 } from '../utils/resolveDisplayName';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
+import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
@@ -328,11 +329,24 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
       return session.classIds;
     return session.classId ? [session.classId] : [];
   }, [session.classIds, session.classId]);
-  const { byStudentUid } = useAssignmentPseudonymsMulti(
+  const { byStudentUid: classLinkNames } = useAssignmentPseudonymsMulti(
     session.id,
     sessionClassIds,
     orgId
   );
+  // Schoology LTI students aren't in any ClassLink roster, so resolve their
+  // names on-read via NRPS and merge in. ClassLink (the district's
+  // authoritative roster) wins on the rare uid collision. Gated on `ltiNrps`
+  // so non-LTI sessions never make the call.
+  const ltiNames = useLtiSessionNames(session.id, session.ltiNrps === true);
+  const byStudentUid = useMemo(() => {
+    if (ltiNames.size === 0) return classLinkNames;
+    const merged = new Map(classLinkNames);
+    for (const [uid, name] of ltiNames) {
+      if (!merged.has(uid)) merged.set(uid, name);
+    }
+    return merged;
+  }, [classLinkNames, ltiNames]);
   const scoringConfig = useMemo(
     () => ({
       speedBonusEnabled: session.speedBonusEnabled,

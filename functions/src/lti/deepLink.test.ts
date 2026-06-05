@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildQuizContentItem,
   buildDeepLinkResponseClaims,
+  dueAtToSubmissionEndDateTime,
   isSchoologyReturnUrl,
   MESSAGE_TYPE_DL_RESPONSE,
 } from './deepLink';
@@ -36,6 +37,60 @@ describe('buildQuizContentItem', () => {
         maxPoints: 0,
       }).lineItem
     ).toBeUndefined();
+  });
+
+  it('sets submission.endDateTime (the due date) when dueAtMs is given', () => {
+    // The client sends an absolute instant (local end-of-day). The builder
+    // serializes it verbatim — here, 11:59 PM Central on 2026-06-01 (CDT) is
+    // 04:59:59Z on 2026-06-02.
+    const item = buildQuizContentItem({
+      launchUrl: 'u',
+      title: 't',
+      custom: {},
+      maxPoints: 10,
+      dueAtMs: Date.UTC(2026, 5, 2, 4, 59, 59),
+    });
+    expect(item.submission).toEqual({
+      endDateTime: '2026-06-02T04:59:59.000Z',
+    });
+  });
+
+  it('omits submission when dueAtMs is absent or invalid', () => {
+    expect(
+      buildQuizContentItem({ launchUrl: 'u', title: 't', custom: {} })
+        .submission
+    ).toBeUndefined();
+    expect(
+      buildQuizContentItem({
+        launchUrl: 'u',
+        title: 't',
+        custom: {},
+        dueAtMs: 0,
+      }).submission
+    ).toBeUndefined();
+  });
+});
+
+describe('dueAtToSubmissionEndDateTime', () => {
+  it('serializes the absolute due instant to ISO 8601 (no TZ assumption)', () => {
+    // The client resolves the local-timezone end-of-day to an absolute instant;
+    // the server serializes it verbatim. 11:59 PM Central on 2026-06-01 (CDT) is
+    // 04:59:59Z on 2026-06-02.
+    expect(dueAtToSubmissionEndDateTime(Date.UTC(2026, 5, 2, 4, 59, 59))).toBe(
+      '2026-06-02T04:59:59.000Z'
+    );
+    // 11:59 PM Central on 2026-12-24 (CST, UTC-6) is 05:59:59Z on 2026-12-25.
+    expect(
+      dueAtToSubmissionEndDateTime(Date.UTC(2026, 11, 25, 5, 59, 59))
+    ).toBe('2026-12-25T05:59:59.000Z');
+  });
+
+  it('returns null for absent or invalid input', () => {
+    expect(dueAtToSubmissionEndDateTime(undefined)).toBeNull();
+    expect(dueAtToSubmissionEndDateTime(0)).toBeNull();
+    expect(dueAtToSubmissionEndDateTime(-1)).toBeNull();
+    expect(dueAtToSubmissionEndDateTime(Number.NaN)).toBeNull();
+    expect(dueAtToSubmissionEndDateTime(Number.POSITIVE_INFINITY)).toBeNull();
   });
 });
 

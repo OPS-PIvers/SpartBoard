@@ -1671,6 +1671,10 @@ export interface BuildingChecklistDefaults {
   buildingId: string;
   items?: ChecklistDefaultItem[]; // Default item labels pre-populated on widget creation
   scaleMultiplier?: number;
+  fontFamily?: GlobalFontFamily;
+  fontColor?: string;
+  cardColor?: string;
+  cardOpacity?: number;
 }
 
 export interface ChecklistGlobalConfig {
@@ -2693,6 +2697,16 @@ export interface QuizSession {
    */
   publicQuestions: QuizPublicQuestion[];
 
+  /**
+   * True once at least one Schoology LTI student has launched this session and
+   * the launch carried an NRPS membership endpoint (set server-side by the
+   * launch-exchange CF). Signals the teacher monitor to resolve Schoology
+   * student names on-read via `ltiResolveNamesForAssignmentV1`. Absent/false on
+   * every non-LTI session, so the monitor skips that call entirely. No PII —
+   * just a routing flag.
+   */
+  ltiNrps?: boolean;
+
   // ─── Toggles (Phase 1) ─────────────────────────────────────────────────────
   /** Whether tab-switch detection is active on student devices (default true) */
   tabWarningsEnabled?: boolean;
@@ -2828,6 +2842,15 @@ export interface QuizSession {
    * `QuizAssignment` doc.
    */
   classroomAttachment?: ClassroomAttachmentLink;
+  /**
+   * Set server-side (launch-exchange CF) when a Schoology LTI student launches
+   * this assignment. Carries the resource-link id needed to resolve each
+   * student's AGS line item, so the teacher can push grades to the Schoology
+   * gradebook from the dashboard Results view — the LTI analogue of
+   * `classroomAttachment`. No PII; just routing ids. The grade scale
+   * (`maxPoints`) is derived from the quiz at push time, not stored here.
+   */
+  ltiAttachment?: LtiAttachmentLink;
 }
 
 /**
@@ -2843,6 +2866,22 @@ export interface ClassroomAttachmentLink {
   /** = the quiz's total points; the grade scale pushed grades are capped to. */
   maxPoints: number;
   attachedAt?: number;
+}
+
+/**
+ * Linkage between a SpartBoard assignment and a Schoology LTI 1.3 resource
+ * link, captured server-side on the first student launch. Drives the "Push to
+ * Schoology" action in the Results view (the AGS analogue of
+ * `ClassroomAttachmentLink`). Persisted on the session doc (`QuizSession` /
+ * `VideoActivitySession`). The per-student AGS line item is resolved from
+ * `lti_grade_links/{pseudonymUid}/resources/{resourceLinkId}`, so only the
+ * `resourceLinkId` (+ originating context) needs to live here. No PII.
+ */
+export interface LtiAttachmentLink {
+  /** The Schoology resource-link id; keys each student's AGS line item. */
+  resourceLinkId: string;
+  /** The Schoology context (course) id the attachment was launched in. */
+  contextId?: string;
 }
 
 export interface QuizResponseAnswer {
@@ -3148,14 +3187,16 @@ export interface RosterPinIndexEntry {
 
 /**
  * Cross-launch attempt ledger. Stored at the top level
- * `/quiz_attempt_ledger/{ledgerId}` where `ledgerId = ${quizId}__${studentUid}`.
+ * `/quiz_attempt_ledger/{ledgerId}` where
+ * `ledgerId = ${assignmentId}__${studentUid}` (`assignmentId` = the session id).
  *
- * Per-session response docs are scoped under the session and reset every time
- * a teacher launches a new session for the same quiz, so the per-session
- * `completedAttempts` counter cannot enforce "1 attempt for this quiz, ever"
- * across re-launches. The ledger sits above sessions and accumulates a
- * student's attempts on a specific quiz regardless of how many times the
- * teacher launches it.
+ * Per-session response docs reset every launch, so they can't enforce a
+ * teacher's "1 attempt" intent across re-launches of the SAME assignment. The
+ * ledger sits above the per-launch responses and accumulates a student's
+ * completed attempts on ONE assignment — scoped per ASSIGNMENT, NOT per quiz
+ * template. Each assignment a teacher builds from the same library quiz gets its
+ * own ledger entry, so a student can complete every one of them; the cap only
+ * blocks re-attempts of the same assignment.
  *
  * Identity: keyed by the student's auth.uid, which for SSO joiners is the
  * stable HMAC pseudonym minted by `studentLoginV1`. PIN joiners' anonymous
@@ -3165,7 +3206,11 @@ export interface RosterPinIndexEntry {
  * any change to this shape.
  */
 export interface QuizAttemptLedger {
-  /** Matches `QuizSession.quizId`. Half of the deterministic ledger key. */
+  /**
+   * The quiz template id (`QuizSession.quizId`). Metadata only — retained for
+   * reference/analytics and required by the Firestore rules; NOT part of the
+   * ledger key (the key is `${assignmentId}__${studentUid}`).
+   */
   quizId: string;
   /** Matches `auth.uid`. Other half of the deterministic ledger key. */
   studentUid: string;
@@ -3933,6 +3978,19 @@ export interface VideoActivitySession {
    * matching `VideoActivityAssignment.classroomAttachment` and the Quiz pattern.
    */
   classroomAttachment?: ClassroomAttachmentLink;
+  /**
+   * True once a Schoology LTI student has launched this session carrying an
+   * NRPS membership endpoint (set server-side). Signals the monitor/results to
+   * resolve Schoology student names on-read via `ltiResolveNamesForAssignmentV1`
+   * (`kind: 'va'`). Mirrors `QuizSession.ltiNrps`. No PII — a routing flag.
+   */
+  ltiNrps?: boolean;
+  /**
+   * Schoology LTI resource-link linkage, captured server-side on the first
+   * student launch. Drives the "Push to Schoology" action in the VA Results
+   * view. Mirrors `QuizSession.ltiAttachment`.
+   */
+  ltiAttachment?: LtiAttachmentLink;
 }
 
 /** Per-session sync linkage to `/synced_video_activities/{groupId}`. */
@@ -4029,10 +4087,14 @@ export interface VideoActivityResponse {
  * Cross-launch attempt ledger for Video Activity. Mirrors
  * `QuizAttemptLedger` exactly — see that type's docs for the rationale.
  * Stored at `/video_activity_attempt_ledger/{ledgerId}` where
- * `ledgerId = ${activityId}__${studentUid}`.
+ * `ledgerId = ${assignmentId}__${studentUid}` (`assignmentId` = the session id):
+ * scoped per ASSIGNMENT, not per activity template.
  */
 export interface VideoActivityAttemptLedger {
-  /** Matches `VideoActivitySession.activityId`. */
+  /**
+   * The activity template id (`VideoActivitySession.activityId`). Metadata only
+   * — required by the Firestore rules; NOT part of the ledger key.
+   */
   activityId: string;
   /** Matches `auth.uid`. */
   studentUid: string;
@@ -4432,6 +4494,12 @@ export interface BuildingConceptWebDefaults {
   defaultNodeWidth?: number;
   defaultNodeHeight?: number;
   fontFamily?: GlobalFontFamily;
+  cardColor?: string;
+  cardOpacity?: number;
+  // NOTE: `ConceptWebConfig.fontColor` exists (written by the shared
+  // TypographySettings panel) but ConceptWeb's widget renders node text with
+  // a hardcoded `text-slate-800` and never reads it — so there is no
+  // per-building `fontColor` default here (it would be a dead control).
 }
 
 export interface ConceptWebGlobalConfig {

@@ -1998,6 +1998,10 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   const assignmentIsViewOnly = a.mode === 'view-only';
   const { primary, secondaries } = buildActions(a, mode);
   const status = resolveStatus(a.status, assignmentIsViewOnly);
+  // Schoology LTI assignments get `periodNames` written onto the assignment doc
+  // too (by the picker at creation and the launch-exchange CF as a backstop), so
+  // the section shows here with no extra client read — same source as a
+  // roster-targeted assignment.
   const periods = a.periodNames ?? (a.periodName ? [a.periodName] : []);
   const urlLive = a.status !== 'inactive';
   const noPeriods = periods.length === 0 && mode === 'active';

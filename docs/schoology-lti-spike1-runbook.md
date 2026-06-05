@@ -40,8 +40,8 @@ These are the Schoology-facing pieces no unit test can cover:
    `custom` map (the documented way); confirming Schoology replays it is a live check.
 3. **The student class-gate + quiz join** — the student's token and the quiz session both carry
    `schoology:<contextId>`; confirming they match end-to-end needs a real student.
-4. **Grade passback** — the grader UI is now built behind a flag (`LTI_GRADER_ENABLED`, off).
-   Testable once attach+take works — see "Grade passback" below.
+4. **Grade passback** — pushed from the SpartBoard dashboard Results view ("Push to Schoology"),
+   gated on session ownership. Testable once attach+take works — see "Grade passback" below.
 
 ---
 
@@ -89,24 +89,25 @@ deep-link response. If that's where it breaks, it's a focused fix (likely the co
 
 ---
 
-## Grade passback — Phase D, built behind a flag
+## Grade passback — Phase D, from the dashboard
 
-The full grade-push path is now built (`LTI_GRADER_ENABLED` in `config/constants.ts`, default **off**):
-an instructor opens the already-attached quiz → an in-iframe grader loads the responses → "Push grades
-to Schoology" writes the auto-graded scores via AGS. It resolves each student's OWN line item, so
-merged/linked sections each get their own gradebook column.
+The grade-push path is pushed from the SpartBoard **dashboard** Results view (quiz and video activity):
+the teacher opens the assignment's Results → **Push to Schoology** writes the scores via AGS. The
+callable (`ltiPushGradesForAssignmentV1`) is gated on session ownership (no in-iframe grader / launch
+token), derives the resource link from `session.ltiAttachment`, and resolves each student's OWN line
+item, so merged/linked sections each get their own gradebook column. Written-response grades flow
+through automatically (the dashboard Results view already mounts the written-response grader).
 
-**Test it ONLY after Steps 1–2 above pass** (attach + take must work first). To enable:
+**Test it ONLY after Steps 1–2 above pass** (attach + take must work first):
 
-1. Flip `LTI_GRADER_ENABLED = true` and redeploy hosting — **tell me and I'll do it** (one-line change).
-2. As the **teacher**, open the attached quiz (open the existing item, not via Add Materials) → the
-   grader appears → **Push grades to Schoology** → confirm scores land in the gradebook.
-3. **Merged/linked sections (the Orono case):** run it on a course with students in 2+ linked sections
+1. As the **teacher**, open the attachment's Results in the SpartBoard dashboard → **Push to Schoology**
+   → confirm scores land in the gradebook.
+2. **Merged/linked sections (the Orono case):** run it on a course with students in 2+ linked sections
    and confirm EACH section's gradebook gets the scores. This is **Gate C** — the real go/no-go test.
 
 If the push fails: `functions:log --only ltiPushGradesForAssignmentV1` shows the per-student `results[]`
 (ok/skipped/failed + reason) and the AGS HTTP status — pinpointing token vs. line-item vs.
-Schoology-acceptance. Written-response manual grading is deferred (auto-graded scores only for now).
+Schoology-acceptance.
 
 ---
 

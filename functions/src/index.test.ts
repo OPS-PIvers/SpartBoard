@@ -907,6 +907,41 @@ describe('adminAnalytics', () => {
     expect(result.api.byFeature['blooms-ai']).toBe(3);
   });
 
+  it('counts video-activity-recommend usage docs toward byFeature without corrupting uid parsing', async () => {
+    // Regression for: video-activity-recommend was missing from
+    // GEMINI_SPECIFIC_FEATURES in adminAnalyticsCompute.ts AND had no
+    // specificFeatureId assignment in generateWithAI. A doc like
+    // `uid1_video-activity-recommend_2026-06-04` was treated as an "overall"
+    // doc with uid = `uid1_video-activity-recommend`, which never matched any
+    // org member, so the call was silently dropped from totalCalls and
+    // byFeature['video-activity-recommend'] was never populated.
+    mockFirestoreState.users = [
+      {
+        id: 'uid1',
+        data: {
+          email: 'teacher@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [
+      // Overall usage doc — should count toward totalCalls
+      { id: 'uid1_2026-06-04', data: { count: 7 } },
+      // Per-feature video-activity-recommend doc — should count toward
+      // byFeature['video-activity-recommend'] but NOT toward totalCalls
+      { id: 'uid1_video-activity-recommend_2026-06-04', data: { count: 4 } },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    // totalCalls must only count the overall doc, not the per-feature doc
+    expect(result.api.totalCalls).toBe(7);
+    // byFeature must accumulate the per-feature doc
+    expect(result.api.byFeature['video-activity-recommend']).toBe(4);
+  });
+
   it('returns topUsers with resolved email and unknown fallback', async () => {
     mockFirestoreState.users = [
       {
