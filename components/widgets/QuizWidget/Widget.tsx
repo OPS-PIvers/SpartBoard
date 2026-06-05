@@ -41,13 +41,20 @@ import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettings
 import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
+import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
+import { functions } from '@/config/firebase';
 import {
   CLASSROOM_ASSIGN_ENABLED,
   CLASSROOM_ASSIGN_ADMIN_ONLY,
 } from '@/config/constants';
+import { buildQuizClassroomGradeEntries } from '@/utils/classroomGradePush';
+import { hasValidMaxPoints } from '@/utils/runClassroomGradePush';
+import { quizMaxPoints } from '@/utils/quizMaxPoints';
+import { runPublishGradePush } from '@/utils/publishGradePush';
 import {
   RESULTS_PROTECTION_DEFAULTS,
   type QuizAssignment,
+  type QuizResponse,
   type PlcLinkage,
 } from '@/types';
 import {
@@ -1936,6 +1943,24 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 setPublishingAssignment(null);
                 return;
               }
+              // Publish = Push: if this assignment is linked to Google Classroom,
+              // pre-mint the final-grade token NOW (this click is a user gesture)
+              // so the GIS popup isn't blocked after publish's awaits. A dismissed
+              // popup leaves the token null → publish still proceeds, GC push is
+              // skipped. (Schoology pushes server-side and needs no token.)
+              let classroomToken: string | null = null;
+              if (
+                target.classroomAttachment &&
+                hasValidMaxPoints(target.classroomAttachment.maxPoints)
+              ) {
+                try {
+                  classroomToken = await requestClassroomFinalGradeToken(
+                    user?.email ?? undefined
+                  );
+                } catch {
+                  classroomToken = null;
+                }
+              }
               const meta = quizzes.find((q) => q.id === target.quizId);
               if (!meta) {
                 addToast(
@@ -1958,6 +1983,31 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   : 'Scores published. Students will see results once they submit.',
                 'success'
               );
+              // Chain the LMS grade push(es) — never throws (publish already
+              // committed; a push failure is its own toast).
+              await runPublishGradePush<QuizResponse>({
+                functions,
+                addToast,
+                kind: 'quiz',
+                sessionId: target.id,
+                classroomAttachment: target.classroomAttachment ?? null,
+                classroomToken,
+                schoologyMaxPoints: quizMaxPoints(data.questions),
+                buildClassroomGrades: (responses) =>
+                  target.classroomAttachment
+                    ? buildQuizClassroomGradeEntries(
+                        responses,
+                        data.questions,
+                        target.classroomAttachment.maxPoints
+                      )
+                    : [],
+                buildSchoologyGrades: (responses) =>
+                  buildQuizClassroomGradeEntries(
+                    responses,
+                    data.questions,
+                    quizMaxPoints(data.questions)
+                  ),
+              });
               setPublishingAssignment(null);
             } catch (err) {
               logError('QuizWidget.publishAssignmentScores', err, {

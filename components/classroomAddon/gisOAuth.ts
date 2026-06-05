@@ -160,3 +160,20 @@ export async function requestClassroomAssignToken(
   ].join(' ');
   return requestAccessToken(scope, loginHint);
 }
+
+/**
+ * Obtain a token for the FINAL-grade push ("Publish = Push"). The CF sets the
+ * parent courseWork submission's assignedGrade + returns it
+ * (`courses.courseWork.studentSubmissions.list`/`.patch`/`.return`), all covered
+ * by `classroom.coursework.students` — the SAME restricted scope the assign flow
+ * already declares + requests (no new Marketplace declaration). Distinct from
+ * `requestClassroomTeacherToken` (the add-on DRAFT path), which only needs
+ * `classroom.addons.teacher`. Must be called from a user gesture (the Publish
+ * click) so the popup isn't blocked. `loginHint` pre-selects the teacher.
+ */
+export async function requestClassroomFinalGradeToken(
+  loginHint?: string
+): Promise<string> {
+  await ensureGis();
+  return requestAccessToken(CLASSROOM_COURSEWORK_STUDENTS_SCOPE, loginHint);
+}

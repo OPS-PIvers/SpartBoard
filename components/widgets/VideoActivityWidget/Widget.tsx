@@ -7,7 +7,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db, functions } from '@/config/firebase';
 import {
   WidgetData,
   VideoActivityConfig,
@@ -15,6 +15,7 @@ import {
   VideoActivityAssignment,
   VideoActivityMetadata,
   VideoActivityData,
+  VideoActivityResponse,
   VideoActivitySessionSettings,
   VideoActivitySessionOptions,
   VideoActivityGlobalConfig,
@@ -22,10 +23,17 @@ import {
 } from '@/types';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
+import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
 import {
   CLASSROOM_ASSIGN_ENABLED,
   CLASSROOM_ASSIGN_ADMIN_ONLY,
 } from '@/config/constants';
+import { hasValidMaxPoints } from '@/utils/runClassroomGradePush';
+import {
+  videoActivityMaxPoints,
+  buildVideoActivityGradeEntries,
+} from '@/utils/videoActivityGrading';
+import { runPublishGradePush } from '@/utils/publishGradePush';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
@@ -887,6 +895,23 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
                 setPublishingAssignment(null);
                 return;
               }
+              // Publish = Push: pre-mint the Classroom final-grade token from
+              // THIS click (a user gesture) so the GIS popup isn't blocked after
+              // publish's awaits. A dismissed popup leaves it null → publish still
+              // proceeds, GC push is skipped. (Schoology pushes server-side.)
+              let classroomToken: string | null = null;
+              if (
+                target.classroomAttachment &&
+                hasValidMaxPoints(target.classroomAttachment.maxPoints)
+              ) {
+                try {
+                  classroomToken = await requestClassroomFinalGradeToken(
+                    user?.email ?? undefined
+                  );
+                } catch {
+                  classroomToken = null;
+                }
+              }
               const data = await loadActivityData(target.activityDriveFileId);
               if (!data) {
                 addToast(
@@ -906,6 +931,31 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
                   : 'Scores published. Students will see results once they submit.',
                 'success'
               );
+              // Chain the LMS grade push(es) — never throws (publish already
+              // committed; a push failure is its own toast).
+              await runPublishGradePush<VideoActivityResponse>({
+                functions,
+                addToast,
+                kind: 'va',
+                sessionId: target.id,
+                classroomAttachment: target.classroomAttachment ?? null,
+                classroomToken,
+                schoologyMaxPoints: videoActivityMaxPoints(data.questions),
+                buildClassroomGrades: (responses) =>
+                  target.classroomAttachment
+                    ? buildVideoActivityGradeEntries(
+                        responses,
+                        data.questions,
+                        target.classroomAttachment.maxPoints
+                      )
+                    : [],
+                buildSchoologyGrades: (responses) =>
+                  buildVideoActivityGradeEntries(
+                    responses,
+                    data.questions,
+                    videoActivityMaxPoints(data.questions)
+                  ),
+              });
               setPublishingAssignment(null);
             } catch (err) {
               addToast(
