@@ -40,6 +40,11 @@ import { QuizResults } from './components/QuizResults';
 import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettingsModal';
 import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
+import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
+import {
+  CLASSROOM_ASSIGN_ENABLED,
+  CLASSROOM_ASSIGN_ADMIN_ONLY,
+} from '@/config/constants';
 import {
   RESULTS_PROTECTION_DEFAULTS,
   type QuizAssignment,
@@ -105,6 +110,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   } = useDashboard();
   const {
     user,
+    isAdmin,
     googleAccessToken,
     orgId,
     getAssignmentMode,
@@ -213,6 +219,14 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Ephemeral modal state for the per-assignment "Publish Scores" picker.
   const [publishingAssignment, setPublishingAssignment] =
     useState<QuizAssignment | null>(null);
+  // Ephemeral modal state for the "Assign to Google Classroom" flow (flag-gated).
+  const [assigningToClassroom, setAssigningToClassroom] =
+    useState<QuizAssignment | null>(null);
+  // "Assign to Google Classroom" visibility: master flag, restricted to admins
+  // during the staged Spike-A rollout (CLASSROOM_ASSIGN_ADMIN_ONLY).
+  const canAssignToClassroom =
+    CLASSROOM_ASSIGN_ENABLED &&
+    (!CLASSROOM_ASSIGN_ADMIN_ONLY || isAdmin === true);
 
   // Local state for views that need loaded data
   const [loadedQuizData, setLoadedQuizData] = useState<QuizData | null>(null);
@@ -1623,6 +1637,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         onArchiveEditSettings={(a) => {
           setEditingAssignment(a);
         }}
+        onArchiveAssignToClassroom={
+          canAssignToClassroom ? (a) => setAssigningToClassroom(a) : undefined
+        }
         onArchiveShare={async (a) => {
           const meta = quizzes.find((q) => q.id === a.quizId);
           if (!meta) {
@@ -1973,6 +1990,20 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               }
             }
           }}
+        />
+      )}
+      {canAssignToClassroom && assigningToClassroom && (
+        <AssignToClassroomModal
+          isOpen
+          onClose={() => setAssigningToClassroom(null)}
+          kind="quiz"
+          sessionId={assigningToClassroom.id}
+          quizCode={assigningToClassroom.code}
+          title={
+            assigningToClassroom.className ?? assigningToClassroom.quizTitle
+          }
+          initialDueAt={assigningToClassroom.dueAt ?? null}
+          addToast={addToast}
         />
       )}
       {pendingAssignmentSetupId &&

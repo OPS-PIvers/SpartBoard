@@ -76,6 +76,13 @@ const GRADE_SYNC_COLLECTION = 'classroom_grade_links';
 /** Default courseWork point value when the teacher doesn't supply one. */
 const DEFAULT_MAX_POINTS = 100;
 
+/**
+ * Developer-Preview tag required by `userProfiles.checkUserCapability`
+ * (the add-on eligibility check is preview-gated). Sent as the `previewVersion`
+ * query param; harmless if the project is already off preview.
+ */
+const CLASSROOM_CAPABILITY_PREVIEW_VERSION = 'V1_20240930_PREVIEW';
+
 type ItemType = 'courseWork' | 'courseWorkMaterials' | 'announcements';
 
 interface AddOnContext {
@@ -195,8 +202,133 @@ interface AddOnAttachmentBody {
   maxPoints?: number;
 }
 
+/** Classroom `Date` (UTC calendar date) — no time component. */
+interface ClassroomDate {
+  year: number;
+  month: number;
+  day: number;
+}
+
+/** Classroom `TimeOfDay` (UTC). */
+interface ClassroomTimeOfDay {
+  hours: number;
+  minutes: number;
+}
+
+/** A courseWork `Material` that is a plain web link (the redirect fallback). */
+interface CourseWorkLinkMaterial {
+  link: { url: string; title?: string };
+}
+
+/**
+ * Body for `courses.courseWork.create` — the PARENT assignment SpartBoard owns
+ * in the partner-first flow. Because SpartBoard's project creates this
+ * courseWork, it (and only it) may set/patch the due date — the exact
+ * permission the student-initiated add-on lacks (see the createClassroomAttachment
+ * due-date comment).
+ */
+interface CourseWorkBody {
+  title: string;
+  description?: string;
+  workType: 'ASSIGNMENT';
+  state: 'PUBLISHED';
+  maxPoints?: number;
+  dueDate?: ClassroomDate;
+  dueTime?: ClassroomTimeOfDay;
+  materials?: CourseWorkLinkMaterial[];
+  assigneeMode?: 'ALL_STUDENTS';
+}
+
+/**
+ * Input to `assignToClassroomV1` — the dashboard "Assign to Google Classroom"
+ * flow (NOT inside a Classroom iframe). Mirrors CreateAttachmentData's content
+ * discriminators (`kind`/`quizCode`/`sessionId`) but adds `dueAt` (now settable,
+ * because SpartBoard creates the parent courseWork) and drops the iframe-only
+ * `addOnToken`/`itemId`/`itemType` (there is no launch — we create the item).
+ */
+interface AssignToClassroomData {
+  accessToken?: unknown;
+  courseId?: unknown;
+  origin?: unknown;
+  kind?: unknown;
+  // Quiz join code — embedded in studentViewUri (kind === 'quiz').
+  quizCode?: unknown;
+  // SpartBoard session id (== assignmentId). ALWAYS required: it's the doc we
+  // verify the caller owns, and (kind === 'va') the studentView discriminator.
+  sessionId?: unknown;
+  title?: unknown;
+  description?: unknown;
+  maxPoints?: unknown;
+  // Epoch ms (or null). Set as Classroom dueDate/dueTime at create time.
+  dueAt?: unknown;
+}
+
 function bearer(accessToken: string): Record<string, string> {
   return { Authorization: `Bearer ${accessToken}` };
+}
+
+/**
+ * Convert a SpartBoard `dueAt` (epoch ms) to Classroom `dueDate` + `dueTime`.
+ *
+ * The dashboard collects `dueAt` from a `<input type="date">`, i.e. UTC midnight
+ * of the chosen calendar date. We emit that calendar date (UTC components) at
+ * 23:59 UTC so Classroom displays it as END-OF-DAY for US-Central (Orono):
+ * 23:59Z ≈ 17:59 CT the SAME day, instead of a 00:00Z time that would render as
+ * the prior evening. SpartBoard is Orono-only (Central); revisit the fixed 23:59
+ * if a time-of-day picker is ever added. Returns null for an absent/invalid due.
+ */
+export function dueAtToClassroomDue(
+  dueAtMs: number | null | undefined
+): { dueDate: ClassroomDate; dueTime: ClassroomTimeOfDay } | null {
+  if (
+    typeof dueAtMs !== 'number' ||
+    !Number.isFinite(dueAtMs) ||
+    dueAtMs <= 0
+  ) {
+    return null;
+  }
+  const d = new Date(dueAtMs);
+  if (Number.isNaN(d.getTime())) return null;
+  return {
+    dueDate: {
+      year: d.getUTCFullYear(),
+      month: d.getUTCMonth() + 1,
+      day: d.getUTCDate(),
+    },
+    dueTime: { hours: 23, minutes: 59 },
+  };
+}
+
+/**
+ * Build the runner-specific content query shared by BOTH the student and teacher
+ * add-on view URIs. Validates the per-kind identifier (VA session id charset /
+ * quiz join-code charset) and throws `invalid-argument` on a malformed value —
+ * never relays arbitrary client text into a stored URI. Shared by
+ * createClassroomAttachment (student-initiated) and assignToClassroomV1
+ * (teacher-initiated) so both flows mint IDENTICAL launch URIs — any drift would
+ * silently break student launch.
+ */
+function buildRunnerContentQuery(
+  kind: RunnerKind,
+  quizCode: string,
+  sessionId: string
+): string {
+  if (kind === 'va') {
+    if (!sessionId || !/^[A-Za-z0-9_-]{1,128}$/.test(sessionId)) {
+      throw new HttpsError(
+        'invalid-argument',
+        'sessionId is required and malformed for a video-activity attachment.'
+      );
+    }
+    return `kind=va&sessionId=${encodeURIComponent(sessionId)}`;
+  }
+  if (!quizCode || !/^[A-Za-z0-9]{1,16}$/.test(quizCode)) {
+    throw new HttpsError(
+      'invalid-argument',
+      'quizCode is missing or malformed.'
+    );
+  }
+  return `code=${encodeURIComponent(quizCode)}&kind=quiz`;
 }
 
 function isItemType(v: unknown): v is ItemType {
@@ -391,13 +523,19 @@ export const classroomAddonNet = {
     courseId: string,
     itemType: ItemType,
     itemId: string,
-    addOnToken: string,
+    // `null` for the PARTNER-FIRST flow: when our project created the parent
+    // courseWork, Google requires NO addOnToken (the creating projects match).
+    // The student-initiated discovery flow still passes its real iframe token.
+    addOnToken: string | null,
     body: AddOnAttachmentBody
   ): Promise<{ ok: boolean; status: number; id: string | null }> {
+    const tokenQuery = addOnToken
+      ? `?addOnToken=${encodeURIComponent(addOnToken)}`
+      : '';
     const url =
       `${CLASSROOM_API}/courses/${encodeURIComponent(courseId)}` +
       `/${itemType}/${encodeURIComponent(itemId)}/addOnAttachments` +
-      `?addOnToken=${encodeURIComponent(addOnToken)}`;
+      tokenQuery;
     try {
       const res = await fetch(url, {
         method: 'POST',
@@ -414,6 +552,116 @@ export const classroomAddonNet = {
         err
       );
       return { ok: false, status: 0, id: null };
+    }
+  },
+
+  /**
+   * Eligibility probe for the partner-first add-on flow:
+   * `GET /v1/userProfiles/me:checkUserCapability?capability=…&previewVersion=…`.
+   * Returns `allowed: true|false` when Classroom gives a DEFINITIVE answer, or
+   * `allowed: null` (with `ok: false`) for any non-2xx / network / preview-off
+   * outcome — the caller treats null OPTIMISTICALLY (every current Orono GC
+   * teacher already holds the add-on license) but guards with a fallback.
+   */
+  async checkUserCapability(
+    accessToken: string,
+    capability: string
+  ): Promise<{ ok: boolean; status: number; allowed: boolean | null }> {
+    const url =
+      `${CLASSROOM_API}/userProfiles/me:checkUserCapability` +
+      `?capability=${encodeURIComponent(capability)}` +
+      `&previewVersion=${encodeURIComponent(CLASSROOM_CAPABILITY_PREVIEW_VERSION)}`;
+    try {
+      const res = await fetch(url, {
+        headers: bearer(accessToken),
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
+      });
+      if (!res.ok) {
+        console.warn(`[assignToClassroom] checkUserCapability ${res.status}`);
+        return { ok: false, status: res.status, allowed: null };
+      }
+      const json = (await res.json()) as { allowed?: boolean };
+      return {
+        ok: true,
+        status: res.status,
+        allowed: typeof json.allowed === 'boolean' ? json.allowed : null,
+      };
+    } catch (err) {
+      console.warn(
+        '[assignToClassroom] checkUserCapability fetch failed (network/timeout):',
+        err
+      );
+      return { ok: false, status: 0, allowed: null };
+    }
+  },
+
+  /**
+   * `POST /v1/courses/{courseId}/courseWork` — create the PARENT assignment
+   * (partner-first). Requires the `classroom.coursework.students` scope. Returns
+   * the new courseWork id (the `itemId` the add-on attachment is created under).
+   */
+  async createCourseWork(
+    accessToken: string,
+    courseId: string,
+    body: CourseWorkBody
+  ): Promise<{ ok: boolean; status: number; id: string | null }> {
+    const url = `${CLASSROOM_API}/courses/${encodeURIComponent(
+      courseId
+    )}/courseWork`;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { ...bearer(accessToken), 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
+      });
+      if (!res.ok) {
+        console.warn(`[assignToClassroom] courseWork.create ${res.status}`);
+        return { ok: false, status: res.status, id: null };
+      }
+      const json = (await res.json()) as { id?: string };
+      return { ok: true, status: res.status, id: json.id ?? null };
+    } catch (err) {
+      console.warn('[assignToClassroom] courseWork.create failed:', err);
+      return { ok: false, status: 0, id: null };
+    }
+  },
+
+  /**
+   * `PATCH /v1/courses/{courseId}/courseWork/{id}?updateMask=materials` — the
+   * safety-net used to convert an empty graded shell into a working redirect
+   * assignment when an add-on attachment couldn't be created (ineligible teacher
+   * the capability probe missed). Best-effort; the caller logs on failure.
+   */
+  async patchCourseWorkMaterials(
+    accessToken: string,
+    courseId: string,
+    courseWorkId: string,
+    materials: CourseWorkLinkMaterial[]
+  ): Promise<{ ok: boolean; status: number }> {
+    const url =
+      `${CLASSROOM_API}/courses/${encodeURIComponent(courseId)}` +
+      `/courseWork/${encodeURIComponent(courseWorkId)}?updateMask=materials`;
+    try {
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: { ...bearer(accessToken), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ materials }),
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
+      });
+      if (!res.ok) {
+        console.warn(
+          `[assignToClassroom] courseWork.patch materials ${res.status}`
+        );
+        return { ok: false, status: res.status };
+      }
+      return { ok: true, status: res.status };
+    } catch (err) {
+      console.warn(
+        '[assignToClassroom] courseWork.patch materials failed:',
+        err
+      );
+      return { ok: false, status: 0 };
     }
   },
 
@@ -769,28 +1017,8 @@ export const createClassroomAttachment = onCall(
     // Build the runner-specific content query shared by BOTH view URIs. Each
     // identifier is embedded verbatim into the stored URI, so each is
     // charset-constrained — never relay arbitrary client text into a stored URI.
-    let contentQuery: string;
-    if (kind === 'va') {
-      // Video Activity session ids are SpartBoard-minted; allow the alnum + _-
-      // charset Firestore session ids use.
-      if (!sessionId || !/^[A-Za-z0-9_-]{1,128}$/.test(sessionId)) {
-        throw new HttpsError(
-          'invalid-argument',
-          'sessionId is required and malformed for a video-activity attachment.'
-        );
-      }
-      contentQuery = `kind=va&sessionId=${encodeURIComponent(sessionId)}`;
-    } else {
-      // Quiz: join codes are short uppercase alphanumerics. `code` is kept for
-      // backward compatibility; `kind=quiz` is appended but non-load-bearing.
-      if (!quizCode || !/^[A-Za-z0-9]{1,16}$/.test(quizCode)) {
-        throw new HttpsError(
-          'invalid-argument',
-          'quizCode is missing or malformed.'
-        );
-      }
-      contentQuery = `code=${encodeURIComponent(quizCode)}&kind=quiz`;
-    }
+    // Shared with assignToClassroomV1 so both flows mint identical launch URIs.
+    const contentQuery = buildRunnerContentQuery(kind, quizCode, sessionId);
     const studentViewUri = `${origin}/classroom-addon/student?${contentQuery}`;
     // The teacher view carries the SAME content ref so, when a teacher opens the
     // attachment, the iframe can resolve the session and render the grading view
@@ -889,6 +1117,301 @@ export const createClassroomAttachment = onCall(
     // composer (→ PERMISSION_DENIED). The teacher sets the due date once, in
     // that composer (the screen this add-on iframe is embedded in).
     return { attachmentId: createResult.id };
+  }
+);
+
+/**
+ * assignToClassroomV1 — the TEACHER-INITIATED ("partner-first") assign flow,
+ * called from the SpartBoard dashboard (NOT inside a Classroom iframe). Inverts
+ * the student-initiated add-on: instead of attaching to a courseWork the teacher
+ * built in Classroom's composer, SpartBoard CREATES the courseWork itself, then
+ * attaches its own add-on to it.
+ *
+ * Why this unlocks the due date: Google restricts `courses.courseWork.patch`
+ * (and create-time due dates) to the project that CREATED the courseWork. In the
+ * student-initiated flow the teacher's composer owns it → PERMISSION_DENIED (see
+ * createClassroomAttachment's due-date comment). Here SpartBoard owns it, so it
+ * sets `dueDate`/`dueTime` at create time.
+ *
+ * Two integrity gates, both fail-closed:
+ *   1. The caller owns the SpartBoard session being assigned
+ *      (`{quiz|video_activity}_sessions/{sessionId}.teacherUid === auth.uid`).
+ *   2. The caller teaches the Google course (`verifyTeacherOfCourse`, same trust
+ *      anchor as linkClassroomCourse).
+ *
+ * Eligibility: `checkUserCapability(CREATE_ADD_ON_ATTACHMENT)`. allowed===false →
+ * the documented ineligible path (a plain Link-Material redirect, no embedded
+ * grade passback). allowed null/unknown → treated as eligible (Orono optimism)
+ * with an attachment-failure → Link-Material safety net.
+ *
+ * Grade passback then works UNCHANGED: the add-on attachment carries `maxPoints`
+ * + `studentWorkReviewUri`, so pushClassroomGradesForAssignment PATCHes its
+ * studentSubmissions exactly as it does for a student-initiated attachment. This
+ * CF ensures `classroom_course_links/{courseId}.teacherUid` so that push is
+ * authorized for the assigning teacher.
+ *
+ * SECURITY NOTE: requesting the `classroom.coursework.students` scope this flow
+ * relies on must be DECLARED on the Workspace Marketplace listing first — an
+ * undeclared restricted scope reproduces the org-wide "Account Restricted"
+ * sign-in outage. The dashboard entry point is gated behind CLASSROOM_ASSIGN_ENABLED
+ * (compiled OFF) so the scope is never requested until that's staged.
+ */
+export const assignToClassroomV1 = onCall(
+  {
+    memory: '256MiB',
+    invoker: 'public',
+    cors: ALLOWED_ORIGINS,
+  },
+  async (request) => {
+    const data = (request.data ?? {}) as AssignToClassroomData;
+
+    // The session-ownership gate keys off the authenticated caller, never the
+    // client payload.
+    const callerUid = request.auth?.uid ?? '';
+    if (!callerUid) {
+      throw new HttpsError(
+        'unauthenticated',
+        'You must be signed in to assign to Google Classroom.'
+      );
+    }
+
+    const accessToken =
+      typeof data.accessToken === 'string' ? data.accessToken : '';
+    const courseId = typeof data.courseId === 'string' ? data.courseId : '';
+    const origin = typeof data.origin === 'string' ? data.origin : '';
+    const quizCode = typeof data.quizCode === 'string' ? data.quizCode : '';
+    const sessionId = typeof data.sessionId === 'string' ? data.sessionId : '';
+    const rawTitle = typeof data.title === 'string' ? data.title : '';
+    const rawDescription =
+      typeof data.description === 'string' ? data.description : '';
+
+    const kind: RunnerKind = data.kind === 'va' ? 'va' : 'quiz';
+    if (data.kind !== undefined && data.kind !== 'quiz' && data.kind !== 'va') {
+      throw new HttpsError('invalid-argument', "kind must be 'quiz' or 'va'.");
+    }
+    if (!accessToken) {
+      throw new HttpsError('invalid-argument', 'accessToken is required.');
+    }
+    if (!courseId) {
+      throw new HttpsError('invalid-argument', 'courseId is required.');
+    }
+    if (!origin || !isAllowedOrigin(origin)) {
+      throw new HttpsError('invalid-argument', 'origin is missing or invalid.');
+    }
+    // sessionId is ALWAYS required — it's the doc we verify the caller owns (and
+    // for VA, the studentView discriminator). Same charset as a Firestore id.
+    if (!sessionId || !/^[A-Za-z0-9_-]{1,128}$/.test(sessionId)) {
+      throw new HttpsError(
+        'invalid-argument',
+        'sessionId is required and malformed.'
+      );
+    }
+
+    // Build the runner content query (validates the per-kind identifier). Shared
+    // with createClassroomAttachment so student launch URIs stay identical.
+    const contentQuery = buildRunnerContentQuery(kind, quizCode, sessionId);
+    const studentViewUri = `${origin}/classroom-addon/student?${contentQuery}`;
+    const teacherViewUri = `${origin}/classroom-addon/teacher?${contentQuery}`;
+
+    // The plain (non-iframe) launch URL for the ineligible Link-Material path —
+    // the canonical join URL each runner already uses on the dashboard.
+    const studentLinkUrl =
+      kind === 'va'
+        ? `${origin}/activity/${encodeURIComponent(sessionId)}`
+        : `${origin}/quiz?code=${encodeURIComponent(quizCode)}`;
+
+    const title = (rawTitle || 'SpartBoard activity').slice(0, 200);
+    const description = (
+      rawDescription ||
+      (kind === 'va'
+        ? 'Open in SpartBoard to complete this video activity.'
+        : 'Open in SpartBoard to complete this quiz.')
+    ).slice(0, 1000);
+
+    // maxPoints coercion mirrors createClassroomAttachment (a stringified number
+    // from the client isn't dropped to the default).
+    const coercedMaxPoints = Number(data.maxPoints);
+    const maxPoints =
+      data.maxPoints !== undefined &&
+      data.maxPoints !== null &&
+      Number.isFinite(coercedMaxPoints) &&
+      coercedMaxPoints > 0
+        ? Math.floor(coercedMaxPoints)
+        : DEFAULT_MAX_POINTS;
+
+    const dueAt =
+      typeof data.dueAt === 'number' && Number.isFinite(data.dueAt)
+        ? data.dueAt
+        : null;
+    const due = dueAtToClassroomDue(dueAt);
+
+    const db = admin.firestore();
+
+    // GATE 1 — the caller owns the SpartBoard session being assigned. Closes the
+    // hole where a teacher could wire their Google course to another teacher's
+    // quiz/VA session.
+    const sessionCollection =
+      kind === 'va' ? 'video_activity_sessions' : 'quiz_sessions';
+    const sessionSnap = await db.doc(`${sessionCollection}/${sessionId}`).get();
+    const sessionData = sessionSnap.exists
+      ? (sessionSnap.data() as { teacherUid?: string })
+      : null;
+    if (!sessionData || sessionData.teacherUid !== callerUid) {
+      throw new HttpsError(
+        'permission-denied',
+        'You can only assign a SpartBoard session that you own.'
+      );
+    }
+
+    // GATE 2 — the caller teaches the Google course. Fail CLOSED on any
+    // UNVERIFIABLE outcome (network/timeout/401/403/5xx); never create on a token
+    // we couldn't get a definitive teacher answer for.
+    const verification = await classroomAddonNet.verifyTeacherOfCourse(
+      accessToken,
+      courseId
+    );
+    if (!verification.ok) {
+      throw new HttpsError(
+        'unauthenticated',
+        `Could not verify that you teach this Google Classroom course (status ${verification.status}).`
+      );
+    }
+    if (!verification.isTeacher) {
+      throw new HttpsError(
+        'permission-denied',
+        'You can only assign to a Google Classroom course that you teach.'
+      );
+    }
+
+    // Eligibility for partner-first add-on attachments. Only a DEFINITIVE
+    // `allowed: false` routes to the ineligible (Link-Material) path; an unknown
+    // result is treated optimistically (with the attachment-failure net below).
+    const capability = await classroomAddonNet.checkUserCapability(
+      accessToken,
+      'CREATE_ADD_ON_ATTACHMENT'
+    );
+    const eligible = capability.allowed !== false;
+
+    // Create the parent courseWork (the assignment shell). PUBLISHED →
+    // immediately visible to students; ALL_STUDENTS → assigned to the whole class.
+    const courseWorkBody: CourseWorkBody = {
+      title,
+      description,
+      workType: 'ASSIGNMENT',
+      state: 'PUBLISHED',
+      maxPoints,
+      assigneeMode: 'ALL_STUDENTS',
+    };
+    if (due) {
+      courseWorkBody.dueDate = due.dueDate;
+      courseWorkBody.dueTime = due.dueTime;
+    }
+    if (!eligible) {
+      // Ineligible teacher → the redirect model: carry the plain launch link as
+      // a Material (no add-on, no embedded grade passback).
+      courseWorkBody.materials = [{ link: { url: studentLinkUrl, title } }];
+    }
+
+    const cwResult = await classroomAddonNet.createCourseWork(
+      accessToken,
+      courseId,
+      courseWorkBody
+    );
+    if (!cwResult.ok || !cwResult.id) {
+      console.error(
+        '[assignToClassroom] courseWork.create failed, status:',
+        cwResult.status
+      );
+      throw new HttpsError(
+        'internal',
+        'Failed to create the Google Classroom assignment.'
+      );
+    }
+    const courseWorkId = cwResult.id;
+
+    let attachmentId: string | null = null;
+    let mode: 'addon' | 'link' = eligible ? 'addon' : 'link';
+
+    if (eligible) {
+      const attachmentBody: AddOnAttachmentBody = {
+        title,
+        teacherViewUri: { uri: teacherViewUri },
+        studentViewUri: { uri: studentViewUri },
+        // studentWorkReviewUri + maxPoints make the attachment grade-sync capable
+        // (the review URI is the TEACHER grader, not the student runner).
+        studentWorkReviewUri: { uri: teacherViewUri },
+        maxPoints,
+      };
+      // PARTNER-FIRST: no addOnToken — SpartBoard's project created the parent
+      // courseWork, so the creating projects match and Google requires none.
+      const attach = await classroomAddonNet.createAttachment(
+        accessToken,
+        courseId,
+        'courseWork',
+        courseWorkId,
+        null,
+        attachmentBody
+      );
+      if (attach.ok && attach.id) {
+        attachmentId = attach.id;
+      } else {
+        // Optimistic-eligibility miss (teacher actually unlicensed): don't leave
+        // an empty graded shell — patch in the plain launch link so the teacher
+        // still has a working redirect assignment, and report the degraded mode.
+        console.warn(
+          '[assignToClassroom] add-on attachment failed; falling back to Link Material. status:',
+          attach.status
+        );
+        await classroomAddonNet.patchCourseWorkMaterials(
+          accessToken,
+          courseId,
+          courseWorkId,
+          [{ link: { url: studentLinkUrl, title } }]
+        );
+        mode = 'link';
+      }
+    }
+
+    // Ensure the course→teacher link so the existing grade-push CF (gated on
+    // classroom_course_links/{courseId}.teacherUid === caller) authorizes this
+    // teacher. Only the add-on path needs it (the link/redirect model has no
+    // embedded grade passback). A link owned by a DIFFERENT teacher is never
+    // re-pointed (preserves the no-hijack invariant from linkClassroomCourse).
+    if (mode === 'addon') {
+      const ref = db.doc(`classroom_course_links/${courseId}`);
+      await db.runTransaction(async (tx) => {
+        const existing = await tx.get(ref);
+        if (existing.exists) {
+          const prior = existing.data() as CourseLink;
+          if (
+            typeof prior?.teacherUid === 'string' &&
+            prior.teacherUid &&
+            prior.teacherUid !== callerUid
+          ) {
+            // A co-teacher already owns the link → leave it untouched; grade push
+            // stays gated to the original linker.
+            return;
+          }
+          tx.set(
+            ref,
+            { teacherUid: callerUid, updatedAt: Date.now() },
+            { merge: true }
+          );
+          return;
+        }
+        tx.set(
+          ref,
+          {
+            teacherUid: callerUid,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
+          { merge: true }
+        );
+      });
+    }
+
+    return { courseWorkId, attachmentId, mode, maxPoints, dueAt };
   }
 );
 

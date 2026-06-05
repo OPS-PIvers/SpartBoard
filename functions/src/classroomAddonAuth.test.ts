@@ -194,10 +194,12 @@ vi.mock('firebase-functions/params', () => ({
 import {
   classroomAddonLoginV1,
   createClassroomAttachment,
+  assignToClassroomV1,
   linkClassroomCourse,
   unlinkClassroomCourse,
   pushClassroomGradesForAssignment,
   classroomAddonNet,
+  dueAtToClassroomDue,
 } from './classroomAddonAuth';
 
 // In tests the onCall mock returns the raw handler, so this is callable.
@@ -1742,5 +1744,408 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
       'SUB-A',
       8
     );
+  });
+});
+
+// ─── assignToClassroomV1 — partner-first (teacher-initiated) assign ──────────
+// Live add-on launches don't reach dev preview (TOOL_ORIGIN is hardcoded prod),
+// so these unit tests ARE the correctness proof for the REST shapes + the two
+// fail-closed gates. They stub the net seam (createCourseWork / createAttachment
+// / checkUserCapability) and seed the session-ownership + course-link docs.
+
+describe('dueAtToClassroomDue', () => {
+  it('returns null for absent/invalid input', () => {
+    expect(dueAtToClassroomDue(null)).toBeNull();
+    expect(dueAtToClassroomDue(undefined)).toBeNull();
+    expect(dueAtToClassroomDue(0)).toBeNull();
+    expect(dueAtToClassroomDue(-5)).toBeNull();
+    expect(dueAtToClassroomDue(Number.NaN)).toBeNull();
+  });
+
+  it('emits the UTC calendar date at 23:59 (end-of-day for Central, same day)', () => {
+    // A date-only pick: 2026-06-10 UTC midnight (what <input type="date"> yields).
+    const dueAt = Date.UTC(2026, 5, 10, 0, 0, 0);
+    expect(dueAtToClassroomDue(dueAt)).toEqual({
+      dueDate: { year: 2026, month: 6, day: 10 },
+      dueTime: { hours: 23, minutes: 59 },
+    });
+  });
+});
+
+const callAssign = assignToClassroomV1 as unknown as (req: {
+  data: unknown;
+  auth?: { uid: string } | null;
+}) => Promise<{
+  courseWorkId: string;
+  attachmentId: string | null;
+  mode: 'addon' | 'link';
+  maxPoints: number;
+  dueAt: number | null;
+}>;
+
+const assignQuizData = {
+  accessToken: 'teacher-at',
+  courseId: 'C1',
+  origin: 'https://spartboard.web.app',
+  kind: 'quiz',
+  quizCode: 'ABC123',
+  sessionId: 'S1',
+  title: 'SpartBoard: My Quiz',
+  maxPoints: 20,
+  dueAt: Date.UTC(2026, 5, 10, 0, 0, 0),
+};
+
+/** Seed the session-ownership doc the CF reads (kind → collection). */
+function seedSession(
+  collection: 'quiz_sessions' | 'video_activity_sessions',
+  sessionId: string,
+  teacherUid: string
+) {
+  gradeSyncDocs.set(`${collection}/${sessionId}`, { teacherUid });
+}
+
+/**
+ * Default-happy stubs: teacher of course, eligible, both creates succeed.
+ * Returns the create spies so callers read `.mock.calls` off the captured spy
+ * variable (avoids referencing the unbound `classroomAddonNet` method).
+ */
+function stubAssignHappyPath() {
+  vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
+    ok: true,
+    status: 200,
+    isTeacher: true,
+  });
+  vi.spyOn(classroomAddonNet, 'checkUserCapability').mockResolvedValue({
+    ok: true,
+    status: 200,
+    allowed: true,
+  });
+  const createCourseWork = vi
+    .spyOn(classroomAddonNet, 'createCourseWork')
+    .mockResolvedValue({ ok: true, status: 200, id: 'CW123' });
+  const createAttachment = vi
+    .spyOn(classroomAddonNet, 'createAttachment')
+    .mockResolvedValue({ ok: true, status: 200, id: 'ATT123' });
+  return { createCourseWork, createAttachment };
+}
+
+describe('assignToClassroomV1 (partner-first assign)', () => {
+  it('creates courseWork (with due date) + a TOKEN-LESS add-on attachment for an eligible quiz', async () => {
+    seedSession('quiz_sessions', 'S1', 'teacher-1');
+    const { createCourseWork, createAttachment } = stubAssignHappyPath();
+
+    const res = await callAssign({
+      data: assignQuizData,
+      auth: { uid: 'teacher-1' },
+    });
+
+    expect(res).toMatchObject({
+      courseWorkId: 'CW123',
+      attachmentId: 'ATT123',
+      mode: 'addon',
+      maxPoints: 20,
+    });
+
+    // courseWork body: PUBLISHED ASSIGNMENT, graded, with the synced due date.
+    const cwBody = createCourseWork.mock.calls[0]?.[2];
+    expect(cwBody).toMatchObject({
+      workType: 'ASSIGNMENT',
+      state: 'PUBLISHED',
+      maxPoints: 20,
+      assigneeMode: 'ALL_STUDENTS',
+      dueDate: { year: 2026, month: 6, day: 10 },
+      dueTime: { hours: 23, minutes: 59 },
+    });
+    // No Link material on the eligible (embedded) path.
+    expect(cwBody?.materials).toBeUndefined();
+
+    // PARTNER-FIRST: the attachment is created with a NULL addOnToken on the
+    // courseWork we just created, and is grade-sync capable.
+    const [, courseIdArg, itemTypeArg, itemIdArg, tokenArg, bodyArg] =
+      createAttachment.mock.calls[0];
+    expect(courseIdArg).toBe('C1');
+    expect(itemTypeArg).toBe('courseWork');
+    expect(itemIdArg).toBe('CW123');
+    expect(tokenArg).toBeNull();
+    expect(bodyArg).toMatchObject({
+      maxPoints: 20,
+      studentViewUri: {
+        uri: 'https://spartboard.web.app/classroom-addon/student?code=ABC123&kind=quiz',
+      },
+      studentWorkReviewUri: {
+        uri: 'https://spartboard.web.app/classroom-addon/teacher?code=ABC123&kind=quiz',
+      },
+    });
+
+    // Ensures the course→teacher link (so the grade-push CF authorizes this
+    // teacher), inside a transaction.
+    expect(transactionCount).toBe(1);
+    const linkWrite = firestoreWrites.find(
+      (w) => w.path === 'classroom_course_links/C1'
+    );
+    expect(linkWrite?.data).toMatchObject({ teacherUid: 'teacher-1' });
+  });
+
+  it('uses the VA student/launch URIs for a kind=va assign', async () => {
+    seedSession('video_activity_sessions', 'VA1', 'teacher-1');
+    const { createAttachment } = stubAssignHappyPath();
+
+    await callAssign({
+      data: {
+        ...assignQuizData,
+        kind: 'va',
+        sessionId: 'VA1',
+        quizCode: undefined,
+      },
+      auth: { uid: 'teacher-1' },
+    });
+
+    const bodyArg = createAttachment.mock.calls[0][5];
+    expect(bodyArg.studentViewUri.uri).toBe(
+      'https://spartboard.web.app/classroom-addon/student?kind=va&sessionId=VA1'
+    );
+  });
+
+  it('INELIGIBLE teacher → courseWork carries a Link Material, no attachment, mode:link', async () => {
+    seedSession('quiz_sessions', 'S1', 'teacher-1');
+    vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
+      ok: true,
+      status: 200,
+      isTeacher: true,
+    });
+    vi.spyOn(classroomAddonNet, 'checkUserCapability').mockResolvedValue({
+      ok: true,
+      status: 200,
+      allowed: false,
+    });
+    const cwSpy = vi
+      .spyOn(classroomAddonNet, 'createCourseWork')
+      .mockResolvedValue({ ok: true, status: 200, id: 'CW123' });
+    const attachSpy = vi.spyOn(classroomAddonNet, 'createAttachment');
+
+    const res = await callAssign({
+      data: assignQuizData,
+      auth: { uid: 'teacher-1' },
+    });
+
+    expect(res).toMatchObject({ mode: 'link', attachmentId: null });
+    // The plain join URL is carried as a Material (the redirect model).
+    const cwBody = cwSpy.mock.calls[0][2];
+    expect(cwBody.materials).toEqual([
+      {
+        link: {
+          url: 'https://spartboard.web.app/quiz?code=ABC123',
+          title: 'SpartBoard: My Quiz',
+        },
+      },
+    ]);
+    // No add-on attachment, and NO course-link write (redirect has no passback).
+    expect(attachSpy).not.toHaveBeenCalled();
+    expect(
+      firestoreWrites.find((w) => w.path === 'classroom_course_links/C1')
+    ).toBeUndefined();
+  });
+
+  it('SAFETY NET: optimistic-eligible but attachment fails → patches a Link Material, mode:link', async () => {
+    seedSession('quiz_sessions', 'S1', 'teacher-1');
+    vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
+      ok: true,
+      status: 200,
+      isTeacher: true,
+    });
+    // Unknown capability (preview off / network) → treated as eligible.
+    vi.spyOn(classroomAddonNet, 'checkUserCapability').mockResolvedValue({
+      ok: false,
+      status: 0,
+      allowed: null,
+    });
+    vi.spyOn(classroomAddonNet, 'createCourseWork').mockResolvedValue({
+      ok: true,
+      status: 200,
+      id: 'CW123',
+    });
+    // The teacher was actually unlicensed → attachment create fails.
+    vi.spyOn(classroomAddonNet, 'createAttachment').mockResolvedValue({
+      ok: false,
+      status: 403,
+      id: null,
+    });
+    const patchSpy = vi
+      .spyOn(classroomAddonNet, 'patchCourseWorkMaterials')
+      .mockResolvedValue({ ok: true, status: 200 });
+
+    const res = await callAssign({
+      data: assignQuizData,
+      auth: { uid: 'teacher-1' },
+    });
+
+    expect(res).toMatchObject({ mode: 'link', attachmentId: null });
+    expect(patchSpy).toHaveBeenCalledWith('teacher-at', 'C1', 'CW123', [
+      {
+        link: {
+          url: 'https://spartboard.web.app/quiz?code=ABC123',
+          title: 'SpartBoard: My Quiz',
+        },
+      },
+    ]);
+  });
+
+  it('rejects an unauthenticated caller before any Classroom call', async () => {
+    const verifySpy = vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse');
+    await expect(
+      callAssign({ data: assignQuizData, auth: null })
+    ).rejects.toMatchObject({ code: 'unauthenticated' });
+    expect(verifySpy).not.toHaveBeenCalled();
+  });
+
+  it('GATE 1: refuses to assign a session the caller does not own', async () => {
+    seedSession('quiz_sessions', 'S1', 'another-teacher');
+    const verifySpy = vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse');
+    await expect(
+      callAssign({ data: assignQuizData, auth: { uid: 'teacher-1' } })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    // Ownership is checked BEFORE the Google teacher-verification call.
+    expect(verifySpy).not.toHaveBeenCalled();
+  });
+
+  it('GATE 1: refuses when the session does not exist', async () => {
+    // No seedSession → the session doc is missing.
+    await expect(
+      callAssign({ data: assignQuizData, auth: { uid: 'teacher-1' } })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('GATE 2: refuses a course the caller does not teach (404 → permission-denied)', async () => {
+    seedSession('quiz_sessions', 'S1', 'teacher-1');
+    vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
+      ok: true,
+      status: 404,
+      isTeacher: false,
+    });
+    const cwSpy = vi.spyOn(classroomAddonNet, 'createCourseWork');
+    await expect(
+      callAssign({ data: assignQuizData, auth: { uid: 'teacher-1' } })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(cwSpy).not.toHaveBeenCalled();
+  });
+
+  it('GATE 2: fails CLOSED on an unverifiable teacher check (401 → unauthenticated, no create)', async () => {
+    seedSession('quiz_sessions', 'S1', 'teacher-1');
+    vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
+      ok: false,
+      status: 401,
+      isTeacher: false,
+    });
+    const cwSpy = vi.spyOn(classroomAddonNet, 'createCourseWork');
+    await expect(
+      callAssign({ data: assignQuizData, auth: { uid: 'teacher-1' } })
+    ).rejects.toMatchObject({ code: 'unauthenticated' });
+    expect(cwSpy).not.toHaveBeenCalled();
+  });
+
+  it('does NOT re-point a course link owned by a different teacher (no-hijack)', async () => {
+    seedSession('quiz_sessions', 'S1', 'teacher-1');
+    courseLinkDoc = { teacherUid: 'original-teacher' };
+    stubAssignHappyPath();
+
+    const res = await callAssign({
+      data: assignQuizData,
+      auth: { uid: 'teacher-1' },
+    });
+
+    // The assign still succeeds (the courseWork + attachment are created)…
+    expect(res).toMatchObject({ mode: 'addon', attachmentId: 'ATT123' });
+    // …but the existing link is left untouched (no write to the link doc).
+    expect(
+      firestoreWrites.find((w) => w.path === 'classroom_course_links/C1')
+    ).toBeUndefined();
+  });
+
+  it('rejects a malformed quizCode (never relayed into a stored URI)', async () => {
+    seedSession('quiz_sessions', 'S1', 'teacher-1');
+    stubAssignHappyPath();
+    await expect(
+      callAssign({
+        data: { ...assignQuizData, quizCode: 'a/../b' },
+        auth: { uid: 'teacher-1' },
+      })
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+  });
+
+  it('rejects a foreign origin', async () => {
+    seedSession('quiz_sessions', 'S1', 'teacher-1');
+    await expect(
+      callAssign({
+        data: { ...assignQuizData, origin: 'https://evil.example.com' },
+        auth: { uid: 'teacher-1' },
+      })
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+  });
+});
+
+// Real-seam URL construction for the two new partner-first net helpers (the
+// assign tests stub them, so these pin the actual REST paths against fetch).
+describe('classroomAddonNet partner-first URL construction', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('createCourseWork POSTs /courses/{id}/courseWork with the body', async () => {
+    let calledUrl = '';
+    let calledInit: { method?: string; body?: string } = {};
+    const fetchMock = vi.fn(async (url: unknown, init: unknown) => {
+      calledUrl = url as string;
+      calledInit = init as { method?: string; body?: string };
+      return { ok: true, status: 200, json: async () => ({ id: 'CW9' }) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await classroomAddonNet.createCourseWork('tok', 'C1', {
+      title: 'T',
+      workType: 'ASSIGNMENT',
+      state: 'PUBLISHED',
+      maxPoints: 10,
+    });
+
+    expect(res).toEqual({ ok: true, status: 200, id: 'CW9' });
+    expect(calledUrl).toBe(
+      'https://classroom.googleapis.com/v1/courses/C1/courseWork'
+    );
+    expect(calledInit.method).toBe('POST');
+    expect(JSON.parse(calledInit.body ?? '{}')).toMatchObject({
+      workType: 'ASSIGNMENT',
+    });
+  });
+
+  it('checkUserCapability GETs /userProfiles/me:checkUserCapability and reads allowed', async () => {
+    let calledUrl = '';
+    const fetchMock = vi.fn(async (url: unknown) => {
+      calledUrl = url as string;
+      return { ok: true, status: 200, json: async () => ({ allowed: true }) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await classroomAddonNet.checkUserCapability(
+      'tok',
+      'CREATE_ADD_ON_ATTACHMENT'
+    );
+
+    expect(res).toEqual({ ok: true, status: 200, allowed: true });
+    expect(calledUrl).toContain(
+      'https://classroom.googleapis.com/v1/userProfiles/me:checkUserCapability'
+    );
+    expect(calledUrl).toContain('capability=CREATE_ADD_ON_ATTACHMENT');
+    expect(calledUrl).toContain('previewVersion=V1_20240930_PREVIEW');
+  });
+
+  it('checkUserCapability maps a non-2xx to allowed:null (optimistic caller)', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 403,
+      json: async () => ({}),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await classroomAddonNet.checkUserCapability('tok', 'X');
+    expect(res).toEqual({ ok: false, status: 403, allowed: null });
   });
 });

@@ -124,3 +124,39 @@ export async function requestClassroomTeacherToken(
   await ensureGis();
   return requestAccessToken(CLASSROOM_ADDON_TEACHER_SCOPE, loginHint);
 }
+
+/** Read-only Google Classroom course listing (the dashboard course picker). */
+export const CLASSROOM_COURSES_READONLY_SCOPE =
+  'https://www.googleapis.com/auth/classroom.courses.readonly';
+
+/**
+ * RESTRICTED scope required to CREATE the parent courseWork in the partner-first
+ * "Assign to Google Classroom" flow (`courses.courseWork.create`/`.patch`).
+ *
+ * ⚠️ This scope MUST be declared on the Workspace Marketplace listing before it
+ * is ever requested in prod — an undeclared restricted scope reproduces the
+ * org-wide "Account Restricted" sign-in outage. The only caller
+ * (`requestClassroomAssignToken`) sits behind the CLASSROOM_ASSIGN_ENABLED flag.
+ */
+export const CLASSROOM_COURSEWORK_STUDENTS_SCOPE =
+  'https://www.googleapis.com/auth/classroom.coursework.students';
+
+/**
+ * Obtain the combined token for the dashboard assign flow in a SINGLE consent
+ * popup: list the teacher's courses (courses.readonly), check add-on eligibility
+ * + create the add-on attachment (addons.teacher), and create the parent
+ * courseWork (coursework.students — the new restricted scope). Used only by the
+ * flag-gated "Assign to Google Classroom" action. `loginHint` pre-selects the
+ * signed-in teacher's account.
+ */
+export async function requestClassroomAssignToken(
+  loginHint?: string
+): Promise<string> {
+  await ensureGis();
+  const scope = [
+    CLASSROOM_COURSES_READONLY_SCOPE,
+    CLASSROOM_ADDON_TEACHER_SCOPE,
+    CLASSROOM_COURSEWORK_STUDENTS_SCOPE,
+  ].join(' ');
+  return requestAccessToken(scope, loginHint);
+}
