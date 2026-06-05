@@ -731,6 +731,156 @@ export const classroomAddonNet = {
       return { ok: false, status: 0 };
     }
   },
+
+  /**
+   * Resolve a student's PARENT courseWork `studentSubmissions` id from their
+   * opaque Google `userId` (the `sub` persisted at handshake). Used ONLY by the
+   * FINAL-grade push: the add-on `submissionId` drives the DRAFT pointsEarned
+   * path, but `courses.courseWork.studentSubmissions.patch`/`.return` need the
+   * courseWork submission id — a different resource the docs don't guarantee
+   * equals the add-on id. The partner-first teacher OWNS this courseWork, so
+   * `studentSubmissions.list?userId=<id>` (covered by `classroom.coursework.students`)
+   * returns exactly their submission. Also returns `state` so the caller can
+   * decide whether `.return` (which requires TURNED_IN) is worth attempting.
+   * Returns `submissionId: null` when the student has no submission yet (→ skip).
+   */
+  async listCourseWorkSubmissionId(
+    accessToken: string,
+    courseId: string,
+    courseWorkId: string,
+    googleUserId: string
+  ): Promise<{
+    ok: boolean;
+    status: number;
+    submissionId: string | null;
+    state: string | null;
+  }> {
+    const url =
+      `${CLASSROOM_API}/courses/${encodeURIComponent(courseId)}` +
+      `/courseWork/${encodeURIComponent(courseWorkId)}/studentSubmissions` +
+      `?userId=${encodeURIComponent(googleUserId)}`;
+    try {
+      const res = await fetch(url, {
+        headers: bearer(accessToken),
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
+      });
+      if (!res.ok) {
+        console.warn(
+          `[pushClassroomFinalGrade] studentSubmissions.list ${res.status} ` +
+            `${courseId}/${courseWorkId}`
+        );
+        return {
+          ok: false,
+          status: res.status,
+          submissionId: null,
+          state: null,
+        };
+      }
+      const json = (await res.json()) as {
+        studentSubmissions?: Array<{ id?: string; state?: string }>;
+      };
+      const sub = (json.studentSubmissions ?? [])[0];
+      return {
+        ok: true,
+        status: res.status,
+        submissionId: typeof sub?.id === 'string' ? sub.id : null,
+        state: typeof sub?.state === 'string' ? sub.state : null,
+      };
+    } catch (err) {
+      console.warn(
+        '[pushClassroomFinalGrade] studentSubmissions.list failed:',
+        err
+      );
+      return { ok: false, status: 0, submissionId: null, state: null };
+    }
+  },
+
+  /**
+   * Set BOTH the draft and assigned grade on a PARENT courseWork submission
+   * (`updateMask=draftGrade,assignedGrade`) — `assignedGrade` is the value that
+   * lands in the teacher's gradebook. Requires `classroom.coursework.students`
+   * (the assign flow already declares + requests it). Separate from the add-on
+   * `pointsEarned` PATCH, which only sets a draft on the add-on submission.
+   */
+  async patchCourseWorkAssignedGrade(
+    accessToken: string,
+    courseId: string,
+    courseWorkId: string,
+    submissionId: string,
+    grade: number
+  ): Promise<{ ok: boolean; status: number }> {
+    const url =
+      `${CLASSROOM_API}/courses/${encodeURIComponent(courseId)}` +
+      `/courseWork/${encodeURIComponent(courseWorkId)}` +
+      `/studentSubmissions/${encodeURIComponent(submissionId)}` +
+      `?updateMask=draftGrade,assignedGrade`;
+    try {
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: { ...bearer(accessToken), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draftGrade: grade, assignedGrade: grade }),
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
+      });
+      if (!res.ok) {
+        console.warn(
+          `[pushClassroomFinalGrade] studentSubmissions.patch ${res.status} ` +
+            `${courseId}/${courseWorkId}/${submissionId}`
+        );
+        return { ok: false, status: res.status };
+      }
+      return { ok: true, status: res.status };
+    } catch (err) {
+      console.warn(
+        '[pushClassroomFinalGrade] studentSubmissions.patch failed:',
+        err
+      );
+      return { ok: false, status: 0 };
+    }
+  },
+
+  /**
+   * RETURN a courseWork submission so the assigned grade is released to the
+   * student (`studentSubmissions:return`). Best-effort: Classroom only allows a
+   * return once the work is TURNED_IN, which an add-on assignment may never be —
+   * so the caller treats a failure here as non-fatal (the assignedGrade set
+   * above already lands the gradebook value; the return just surfaces it to the
+   * student). Requires `classroom.coursework.students`.
+   */
+  async returnCourseWorkSubmission(
+    accessToken: string,
+    courseId: string,
+    courseWorkId: string,
+    submissionId: string
+  ): Promise<{ ok: boolean; status: number }> {
+    const url =
+      `${CLASSROOM_API}/courses/${encodeURIComponent(courseId)}` +
+      `/courseWork/${encodeURIComponent(courseWorkId)}` +
+      `/studentSubmissions/${encodeURIComponent(submissionId)}:return`;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { ...bearer(accessToken), 'Content-Type': 'application/json' },
+        body: '{}',
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
+      });
+      if (!res.ok) {
+        // Logged at info level: a not-TURNED_IN return failure is expected for
+        // add-on assignments and is non-fatal (the assignedGrade still landed).
+        console.warn(
+          `[pushClassroomFinalGrade] studentSubmissions.return ${res.status} ` +
+            `${courseId}/${courseWorkId}/${submissionId}`
+        );
+        return { ok: false, status: res.status };
+      }
+      return { ok: true, status: res.status };
+    } catch (err) {
+      console.warn(
+        '[pushClassroomFinalGrade] studentSubmissions.return failed:',
+        err
+      );
+      return { ok: false, status: 0 };
+    }
+  },
 };
 
 export const classroomAddonLoginV1 = onCall(
@@ -929,11 +1079,21 @@ export const classroomAddonLoginV1 = onCall(
     }
 
     // 3b. Persist the PII-free grade-sync key so a later completion can push a
-    //     DRAFT grade back to Classroom WITHOUT a teacher present. Keyed by the
+    //     grade back to Classroom WITHOUT a teacher present. Keyed by the
     //     student PSEUDONYM (the HMAC uid that also keys the quiz response doc),
-    //     one sub-doc per Classroom submission. Fields are all Classroom/Firebase
-    //     ids — NO name or email is ever written here (the PII gate). Best-effort:
-    //     a write failure must not block the student from taking the quiz.
+    //     one sub-doc per Classroom submission. Fields are all opaque
+    //     Classroom/Firebase/Google IDS — NO name or email is ever written here
+    //     (the PII gate). Best-effort: a write failure must not block the
+    //     student from taking the quiz.
+    //
+    //     `googleUserId` (the verified Google account `sub`, an opaque numeric id
+    //     — never a name/email) is captured so the FINAL-grade push can resolve
+    //     this student's PARENT courseWork `studentSubmissions` id via
+    //     `userId=<googleUserId>` (the add-on `submissionId` is the add-on
+    //     submission, which only drives the DRAFT pointsEarned path). The teacher
+    //     who owns the partner-first courseWork lists by this id, then patches
+    //     assignedGrade + returns — the documented way to land a final gradebook
+    //     grade, with no extra student-side scope.
     try {
       await db
         .doc(`${GRADE_SYNC_COLLECTION}/${uid}/submissions/${submissionId}`)
@@ -943,6 +1103,9 @@ export const classroomAddonLoginV1 = onCall(
             itemId,
             attachmentId: attachmentId || null,
             submissionId,
+            // Opaque Google account id (sub) — resolves the parent courseWork
+            // submission for the final-grade push. Not a name/email (PII gate).
+            googleUserId: info.sub,
             // Whoever linked the course owns the offline creds for the push.
             teacherUid: linkTeacherUid,
             updatedAt: Date.now(),
@@ -1746,22 +1909,29 @@ interface BatchGradeResult {
   reason?: string;
 }
 
+/** Resolved grade-sync key fields: the add-on submission id (DRAFT path) + the
+ * student's opaque Google user id (FINAL path resolves the courseWork submission
+ * by it). Either field may be null on an older key written before it existed. */
+interface GradeSyncEntry {
+  submissionId: string | null;
+  googleUserId: string | null;
+}
+
 /**
- * Resolve a student's Classroom `submissionId` from the persisted grade-sync
- * keys for ONE attachment. Queries
- * `classroom_grade_links/{pseudonymUid}/submissions` by `attachmentId` (the key
- * persisted during the student handshake), then verifies courseId/itemId on the
- * matched doc so a stale key from a different course/item can never be PATCHed.
- * Returns null when the student never opened the attachment (→ skip, don't
- * fail). PII-free: only ids are read.
+ * Resolve a student's grade-sync entry from the persisted keys for ONE
+ * attachment. Queries `classroom_grade_links/{pseudonymUid}/submissions` by
+ * `attachmentId` (the key persisted during the student handshake), then verifies
+ * courseId/itemId on the matched doc so a stale key from a different course/item
+ * can never be used. Returns null when the student never opened the attachment
+ * (→ skip, don't fail). PII-free: only opaque ids are read.
  */
-async function resolveSubmissionId(
+async function resolveGradeSyncEntry(
   db: admin.firestore.Firestore,
   pseudonymUid: string,
   courseId: string,
   itemId: string,
   attachmentId: string
-): Promise<string | null> {
+): Promise<GradeSyncEntry | null> {
   const snap = await db
     .collection(`${GRADE_SYNC_COLLECTION}/${pseudonymUid}/submissions`)
     .where('attachmentId', '==', attachmentId)
@@ -1772,12 +1942,20 @@ async function resolveSubmissionId(
     courseId?: string;
     itemId?: string;
     submissionId?: string;
+    googleUserId?: string;
   };
   // Guard against a stale/cross-item key sharing the same attachmentId value.
   if (key.courseId !== courseId || key.itemId !== itemId) return null;
-  return typeof key.submissionId === 'string' && key.submissionId
-    ? key.submissionId
-    : null;
+  return {
+    submissionId:
+      typeof key.submissionId === 'string' && key.submissionId
+        ? key.submissionId
+        : null,
+    googleUserId:
+      typeof key.googleUserId === 'string' && key.googleUserId
+        ? key.googleUserId
+        : null,
+  };
 }
 
 /**
@@ -1916,13 +2094,14 @@ export const pushClassroomGradesForAssignment = onCall(
         );
 
         try {
-          const submissionId = await resolveSubmissionId(
+          const entry = await resolveGradeSyncEntry(
             db,
             pseudonymUid,
             courseId,
             itemId,
             attachmentId
           );
+          const submissionId = entry?.submissionId ?? null;
           if (!submissionId) {
             // Student never opened the attachment → no Classroom submission to
             // grade. Skip, don't fail the batch.
@@ -1966,6 +2145,225 @@ export const pushClassroomGradesForAssignment = onCall(
     // "not opened yet" count, which would report a failed push as a success.
     const skipped = results.filter(
       (r) => !r.ok && r.reason === 'no matching submission'
+    ).length;
+    const failed = results.length - pushed - skipped;
+    return { results, pushed, skipped, failed };
+  }
+);
+
+/**
+ * Benign per-entry skip reasons for the FINAL push — neither is a failure the
+ * teacher should retry: the student either never opened the assignment (no
+ * courseWork submission yet) or launched before the `googleUserId` capture
+ * shipped (a relaunch fixes it). Everything else not-`ok` is a real failure.
+ */
+const FINAL_PUSH_BENIGN_SKIPS = new Set([
+  'no matching submission',
+  'needs relaunch',
+]);
+
+/**
+ * pushClassroomFinalGradesForAssignment — BATCH FINAL grade passback for one
+ * Classroom-linked assignment, powering "Publish = Push" (publishing scores in
+ * SpartBoard also lands the grade in the Classroom gradebook). Unlike
+ * `pushClassroomGradesForAssignment` (which sets a DRAFT via the add-on
+ * `pointsEarned`), this sets the parent courseWork submission's
+ * `draftGrade` + `assignedGrade` and RETURNS it — the documented way to land an
+ * official gradebook grade. It works because the partner-first assign flow has
+ * SpartBoard CREATE the courseWork, so the teacher (verified as the linking
+ * teacher) may patch/return its submissions with a `classroom.coursework.students`
+ * token (the same scope the assign flow already declares + requests).
+ *
+ * Per student: resolve the persisted `googleUserId` → look up THEIR parent
+ * courseWork submission id (`studentSubmissions.list?userId=…`) → patch the
+ * grade → best-effort `.return`. The add-on `submissionId` is deliberately NOT
+ * reused here: it identifies the add-on submission, which Google's docs do not
+ * guarantee equals the courseWork submission id.
+ *
+ * Failure isolation: one student's lookup/PATCH error never aborts the batch,
+ * and a `.return` failure (add-on work is often never TURNED_IN, which `.return`
+ * requires) is NON-fatal — the `assignedGrade` already landed the gradebook
+ * value; the return only releases it to the student. Mirrors the draft CF's
+ * `{ results, pushed, skipped, failed }` shape so the client seam is identical.
+ *
+ * Security: identical gate to the draft push — the caller MUST be the linking
+ * teacher (`classroom_course_links/{courseId}.teacherUid === auth.uid`); a
+ * missing link or uid mismatch → `permission-denied` before any PATCH.
+ */
+export const pushClassroomFinalGradesForAssignment = onCall(
+  {
+    memory: '256MiB',
+    cors: ALLOWED_ORIGINS,
+  },
+  async (request) => {
+    const data = (request.data ?? {}) as PushBatchData;
+
+    const courseId = typeof data.courseId === 'string' ? data.courseId : '';
+    const itemId = typeof data.itemId === 'string' ? data.itemId : '';
+    const attachmentId =
+      typeof data.attachmentId === 'string' ? data.attachmentId : '';
+    const accessToken =
+      typeof data.accessToken === 'string' ? data.accessToken : '';
+
+    if (!courseId || !itemId || !attachmentId) {
+      throw new HttpsError(
+        'invalid-argument',
+        'courseId, itemId, and attachmentId are required.'
+      );
+    }
+    if (!accessToken) {
+      throw new HttpsError(
+        'invalid-argument',
+        'accessToken is required (a classroom.coursework.students teacher token).'
+      );
+    }
+    if (!Array.isArray(data.grades) || data.grades.length === 0) {
+      throw new HttpsError(
+        'invalid-argument',
+        'grades must be a non-empty array.'
+      );
+    }
+    if (data.grades.length > MAX_BATCH_GRADES) {
+      throw new HttpsError(
+        'invalid-argument',
+        `grades exceeds the maximum batch size of ${MAX_BATCH_GRADES}.`
+      );
+    }
+    const rawGrades = data.grades as BatchGradeEntryInput[];
+
+    const coercedMaxPoints = Number(data.maxPoints);
+    const maxPointsCap =
+      data.maxPoints !== undefined &&
+      data.maxPoints !== null &&
+      Number.isFinite(coercedMaxPoints) &&
+      coercedMaxPoints > 0
+        ? Math.floor(coercedMaxPoints)
+        : Number.POSITIVE_INFINITY;
+
+    const db = admin.firestore();
+
+    // SECURITY GATE: the caller must be the teacher who linked this course.
+    // Same opaque error for "no link" and "wrong caller" (never reveal linkage).
+    const callerUid = request.auth?.uid ?? '';
+    const linkSnap = await db.doc(`classroom_course_links/${courseId}`).get();
+    const link = linkSnap.exists ? (linkSnap.data() as CourseLink) : null;
+    const teacherUid =
+      typeof link?.teacherUid === 'string' ? link.teacherUid : '';
+    if (!teacherUid || !callerUid || callerUid !== teacherUid) {
+      console.warn(
+        `[pushClassroomFinalGradesForAssignment] caller is not the linking ` +
+          `teacher (course=${courseId}, linked=${teacherUid ? 'yes' : 'no'}).`
+      );
+      throw new HttpsError(
+        'permission-denied',
+        'Only the teacher who linked this Classroom course can push grades for it.'
+      );
+    }
+
+    const results: BatchGradeResult[] = await Promise.all(
+      rawGrades.map(async (entry): Promise<BatchGradeResult> => {
+        const pseudonymUid =
+          typeof entry?.pseudonymUid === 'string' ? entry.pseudonymUid : '';
+        const pointsEarnedRaw =
+          typeof entry?.pointsEarned === 'number' ? entry.pointsEarned : NaN;
+
+        if (!pseudonymUid) {
+          return {
+            pseudonymUid: '',
+            ok: false,
+            reason: 'missing pseudonymUid',
+          };
+        }
+        if (!Number.isFinite(pointsEarnedRaw) || pointsEarnedRaw < 0) {
+          return { pseudonymUid, ok: false, reason: 'invalid pointsEarned' };
+        }
+        const grade = Math.min(maxPointsCap, Math.round(pointsEarnedRaw));
+
+        try {
+          const keyEntry = await resolveGradeSyncEntry(
+            db,
+            pseudonymUid,
+            courseId,
+            itemId,
+            attachmentId
+          );
+          if (!keyEntry) {
+            // Student never opened the attachment → nothing to grade. Skip.
+            return {
+              pseudonymUid,
+              ok: false,
+              reason: 'no matching submission',
+            };
+          }
+          if (!keyEntry.googleUserId) {
+            // Key predates the googleUserId capture → can't resolve the
+            // courseWork submission. A relaunch re-writes the key. Benign skip.
+            return { pseudonymUid, ok: false, reason: 'needs relaunch' };
+          }
+
+          const lookup = await classroomAddonNet.listCourseWorkSubmissionId(
+            accessToken,
+            courseId,
+            itemId,
+            keyEntry.googleUserId
+          );
+          if (!lookup.ok) {
+            return {
+              pseudonymUid,
+              ok: false,
+              status: lookup.status,
+              reason: 'submission lookup failed',
+            };
+          }
+          if (!lookup.submissionId) {
+            return {
+              pseudonymUid,
+              ok: false,
+              reason: 'no matching submission',
+            };
+          }
+
+          const patchResult =
+            await classroomAddonNet.patchCourseWorkAssignedGrade(
+              accessToken,
+              courseId,
+              itemId,
+              lookup.submissionId,
+              grade
+            );
+          if (!patchResult.ok) {
+            return {
+              pseudonymUid,
+              ok: false,
+              status: patchResult.status,
+              reason: 'upstream PATCH failed',
+            };
+          }
+
+          // Best-effort RETURN — releases the assignedGrade to the student.
+          // Non-fatal on failure: add-on work is often never TURNED_IN (which
+          // `.return` requires), but the gradebook value already landed above.
+          await classroomAddonNet.returnCourseWorkSubmission(
+            accessToken,
+            courseId,
+            itemId,
+            lookup.submissionId
+          );
+          return { pseudonymUid, ok: true, status: patchResult.status };
+        } catch (err) {
+          console.warn(
+            '[pushClassroomFinalGradesForAssignment] entry failed (non-fatal):',
+            err
+          );
+          return { pseudonymUid, ok: false, reason: 'lookup error' };
+        }
+      })
+    );
+
+    const pushed = results.filter((r) => r.ok).length;
+    const skipped = results.filter(
+      (r) =>
+        !r.ok && r.reason !== undefined && FINAL_PUSH_BENIGN_SKIPS.has(r.reason)
     ).length;
     const failed = results.length - pushed - skipped;
     return { results, pushed, skipped, failed };

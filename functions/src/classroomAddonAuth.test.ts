@@ -198,6 +198,7 @@ import {
   linkClassroomCourse,
   unlinkClassroomCourse,
   pushClassroomGradesForAssignment,
+  pushClassroomFinalGradesForAssignment,
   classroomAddonNet,
   dueAtToClassroomDue,
 } from './classroomAddonAuth';
@@ -511,9 +512,14 @@ describe('classroomAddonLoginV1 (spike)', () => {
       attachmentId: 'ATT1',
       submissionId: 'SUB123',
       teacherUid: 'teacher-123',
+      // The opaque Google account id (sub) captured for the FINAL-grade push to
+      // resolve the parent courseWork submission. Not a name/email (PII gate).
+      googleUserId: 'google-sub-1',
     });
 
-    // PII gate: no name/email field anywhere in the persisted payload.
+    // PII gate: no name/email field anywhere in the persisted payload. (The
+    // captured googleUserId is the opaque `sub` — neither it nor its field name
+    // contains a name/email substring, so the original assertion still holds.)
     const serialized = JSON.stringify(gradeWrite?.data);
     expect(serialized).not.toContain('kid@orono.k12.mn.us');
     expect(serialized).not.toMatch(/givenName|familyName|email|name/i);
@@ -1404,6 +1410,9 @@ function seedSubmission(
     attachmentId: string;
     submissionId: string;
     teacherUid?: string;
+    // Opaque Google account id captured at handshake; the FINAL push resolves
+    // the parent courseWork submission by it.
+    googleUserId?: string;
   }
 ) {
   const path = `classroom_grade_links/${pseudonymUid}/submissions`;
@@ -2203,5 +2212,453 @@ describe('classroomAddonNet partner-first URL construction', () => {
     vi.stubGlobal('fetch', fetchMock);
     const res = await classroomAddonNet.checkUserCapability('tok', 'X');
     expect(res).toEqual({ ok: false, status: 403, allowed: null });
+  });
+});
+
+// The FINAL-grade seams (courseWork studentSubmissions list / patch / return).
+// The final-batch CF tests stub these, so these pin the REAL URLs / methods /
+// bodies they build against a stubbed fetch (mirrors the other URL tests). These
+// are the courseWork endpoints — distinct from the add-on pointsEarned PATCH —
+// and are the load-bearing detail behind landing an OFFICIAL gradebook grade.
+describe('classroomAddonNet final-grade seam URL construction', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('listCourseWorkSubmissionId GETs studentSubmissions?userId= and returns the id + state', async () => {
+    let calledUrl = '';
+    const fetchMock = vi.fn(async (url: unknown) => {
+      calledUrl = url as string;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          studentSubmissions: [{ id: 'CW-SUB-1', state: 'TURNED_IN' }],
+        }),
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await classroomAddonNet.listCourseWorkSubmissionId(
+      'tok',
+      'C1',
+      'CW1',
+      'google-user-9'
+    );
+
+    expect(res).toEqual({
+      ok: true,
+      status: 200,
+      submissionId: 'CW-SUB-1',
+      state: 'TURNED_IN',
+    });
+    // The PARENT courseWork submissions endpoint (NOT the add-on attachment one),
+    // filtered to the one student by their Google userId.
+    expect(calledUrl).toBe(
+      'https://classroom.googleapis.com/v1/courses/C1/courseWork/CW1' +
+        '/studentSubmissions?userId=google-user-9'
+    );
+    expect(calledUrl).not.toContain('addOnAttachments');
+  });
+
+  it('listCourseWorkSubmissionId returns submissionId:null when the student has no submission', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({}), // no studentSubmissions
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await classroomAddonNet.listCourseWorkSubmissionId(
+      'tok',
+      'C1',
+      'CW1',
+      'google-user-9'
+    );
+    expect(res).toEqual({
+      ok: true,
+      status: 200,
+      submissionId: null,
+      state: null,
+    });
+  });
+
+  it('patchCourseWorkAssignedGrade PATCHes draftGrade+assignedGrade with the right updateMask + body', async () => {
+    let calledUrl = '';
+    let calledInit: { method?: string; body?: string } = {};
+    const fetchMock = vi.fn(async (url: unknown, init: unknown) => {
+      calledUrl = url as string;
+      calledInit = init as { method?: string; body?: string };
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await classroomAddonNet.patchCourseWorkAssignedGrade(
+      'tok',
+      'C1',
+      'CW1',
+      'CW-SUB-1',
+      17
+    );
+
+    expect(res).toEqual({ ok: true, status: 200 });
+    expect(calledUrl).toBe(
+      'https://classroom.googleapis.com/v1/courses/C1/courseWork/CW1' +
+        '/studentSubmissions/CW-SUB-1?updateMask=draftGrade,assignedGrade'
+    );
+    expect(calledInit.method).toBe('PATCH');
+    // BOTH grades set so the value lands in the gradebook (assignedGrade) and the
+    // draft view stays consistent.
+    expect(JSON.parse(calledInit.body ?? '{}')).toEqual({
+      draftGrade: 17,
+      assignedGrade: 17,
+    });
+  });
+
+  it('returnCourseWorkSubmission POSTs the :return action', async () => {
+    let calledUrl = '';
+    let calledInit: { method?: string } = {};
+    const fetchMock = vi.fn(async (url: unknown, init: unknown) => {
+      calledUrl = url as string;
+      calledInit = init as { method?: string };
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await classroomAddonNet.returnCourseWorkSubmission(
+      'tok',
+      'C1',
+      'CW1',
+      'CW-SUB-1'
+    );
+
+    expect(res).toEqual({ ok: true, status: 200 });
+    expect(calledUrl).toBe(
+      'https://classroom.googleapis.com/v1/courses/C1/courseWork/CW1' +
+        '/studentSubmissions/CW-SUB-1:return'
+    );
+    expect(calledInit.method).toBe('POST');
+  });
+
+  it('returnCourseWorkSubmission reports ok:false (non-fatal) when the work is not TURNED_IN', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 400, // FAILED_PRECONDITION — add-on work never turned in
+      json: async () => ({}),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await classroomAddonNet.returnCourseWorkSubmission(
+      'tok',
+      'C1',
+      'CW1',
+      'CW-SUB-1'
+    );
+    expect(res).toEqual({ ok: false, status: 400 });
+  });
+});
+
+// pushClassroomFinalGradesForAssignment — FINAL grade passback (Publish = Push).
+// Unlike the draft CF it sets the PARENT courseWork submission's assignedGrade
+// (+ best-effort return). It resolves the courseWork submission by the captured
+// googleUserId, so the tests stub the three courseWork seams and seed keys WITH
+// a googleUserId. Same security gate as the draft CF.
+const callPushFinalBatch =
+  pushClassroomFinalGradesForAssignment as unknown as (req: {
+    data: unknown;
+    auth?: { uid: string } | null;
+  }) => Promise<{
+    results: Array<{
+      pseudonymUid: string;
+      ok: boolean;
+      status?: number;
+      reason?: string;
+    }>;
+    pushed: number;
+    skipped: number;
+    failed: number;
+  }>;
+
+/** Stub the three courseWork seams happy-path; return the spies for assertions. */
+function stubFinalGradeSeamsHappy() {
+  const listSpy = vi
+    .spyOn(classroomAddonNet, 'listCourseWorkSubmissionId')
+    .mockImplementation(async (_t, _c, _cw, googleUserId: string) => ({
+      ok: true,
+      status: 200,
+      submissionId: `CW-${googleUserId}`,
+      state: 'TURNED_IN',
+    }));
+  const patchSpy = vi
+    .spyOn(classroomAddonNet, 'patchCourseWorkAssignedGrade')
+    .mockResolvedValue({ ok: true, status: 200 });
+  const returnSpy = vi
+    .spyOn(classroomAddonNet, 'returnCourseWorkSubmission')
+    .mockResolvedValue({ ok: true, status: 200 });
+  return { listSpy, patchSpy, returnSpy };
+}
+
+describe('pushClassroomFinalGradesForAssignment (final batch)', () => {
+  it('resolves the courseWork submission by googleUserId, patches assignedGrade, and returns it', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    seedSubmission('pseudo-A', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'ADDON-SUB-A',
+      googleUserId: 'guser-A',
+    });
+    seedSubmission('pseudo-B', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'ADDON-SUB-B',
+      googleUserId: 'guser-B',
+    });
+    const { listSpy, patchSpy, returnSpy } = stubFinalGradeSeamsHappy();
+
+    const res = await callPushFinalBatch({
+      data: batchData,
+      auth: { uid: 'teacher-123' },
+    });
+
+    expect(res.pushed).toBe(2);
+    expect(res.skipped).toBe(0);
+    expect(res.failed).toBe(0);
+    // Lookup uses the captured Google userId, NOT the add-on submissionId.
+    expect(listSpy).toHaveBeenCalledWith(
+      'teacher-token',
+      'C1',
+      'I1',
+      'guser-A'
+    );
+    expect(listSpy).toHaveBeenCalledWith(
+      'teacher-token',
+      'C1',
+      'I1',
+      'guser-B'
+    );
+    // Grade is patched on the resolved COURSEWORK submission id (CW-<userId>).
+    expect(patchSpy).toHaveBeenCalledWith(
+      'teacher-token',
+      'C1',
+      'I1',
+      'CW-guser-A',
+      8
+    );
+    expect(patchSpy).toHaveBeenCalledWith(
+      'teacher-token',
+      'C1',
+      'I1',
+      'CW-guser-B',
+      5
+    );
+    // Each patched submission is returned (release to the student).
+    expect(returnSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('still counts a push as success when the RETURN fails (non-fatal — grade already landed)', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    seedSubmission('pseudo-A', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'ADDON-SUB-A',
+      googleUserId: 'guser-A',
+    });
+    vi.spyOn(classroomAddonNet, 'listCourseWorkSubmissionId').mockResolvedValue(
+      {
+        ok: true,
+        status: 200,
+        submissionId: 'CW-SUB-A',
+        state: 'CREATED', // never turned in
+      }
+    );
+    vi.spyOn(
+      classroomAddonNet,
+      'patchCourseWorkAssignedGrade'
+    ).mockResolvedValue({ ok: true, status: 200 });
+    // Return fails because the work was never turned in — must NOT fail the push.
+    const returnSpy = vi
+      .spyOn(classroomAddonNet, 'returnCourseWorkSubmission')
+      .mockResolvedValue({ ok: false, status: 400 });
+
+    const res = await callPushFinalBatch({
+      data: {
+        ...batchData,
+        grades: [{ pseudonymUid: 'pseudo-A', pointsEarned: 8 }],
+      },
+      auth: { uid: 'teacher-123' },
+    });
+
+    expect(res.pushed).toBe(1);
+    expect(res.failed).toBe(0);
+    expect(returnSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips (needs relaunch) a key with no captured googleUserId — never lists/patches', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    // A pre-capture key (no googleUserId).
+    seedSubmission('pseudo-A', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'ADDON-SUB-A',
+    });
+    const listSpy = vi.spyOn(classroomAddonNet, 'listCourseWorkSubmissionId');
+    const patchSpy = vi.spyOn(
+      classroomAddonNet,
+      'patchCourseWorkAssignedGrade'
+    );
+
+    const res = await callPushFinalBatch({
+      data: {
+        ...batchData,
+        grades: [{ pseudonymUid: 'pseudo-A', pointsEarned: 8 }],
+      },
+      auth: { uid: 'teacher-123' },
+    });
+
+    expect(res.pushed).toBe(0);
+    // A relaunch re-writes the key — benign skip, not a retryable failure.
+    expect(res.skipped).toBe(1);
+    expect(res.failed).toBe(0);
+    expect(res.results[0]?.reason).toBe('needs relaunch');
+    expect(listSpy).not.toHaveBeenCalled();
+    expect(patchSpy).not.toHaveBeenCalled();
+  });
+
+  it('skips a student who never opened the attachment (no grade-sync key)', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    seedSubmission('pseudo-A', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'ADDON-SUB-A',
+      googleUserId: 'guser-A',
+    });
+    stubFinalGradeSeamsHappy();
+
+    // pseudo-B has no seeded key.
+    const res = await callPushFinalBatch({
+      data: batchData,
+      auth: { uid: 'teacher-123' },
+    });
+
+    expect(res.pushed).toBe(1);
+    expect(res.skipped).toBe(1);
+    const b = res.results.find((r) => r.pseudonymUid === 'pseudo-B');
+    expect(b?.reason).toBe('no matching submission');
+  });
+
+  it('records a real FAILURE (not skip) when the PATCH fails, without aborting the batch', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    seedSubmission('pseudo-A', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'ADDON-SUB-A',
+      googleUserId: 'guser-A',
+    });
+    seedSubmission('pseudo-B', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'ADDON-SUB-B',
+      googleUserId: 'guser-B',
+    });
+    vi.spyOn(
+      classroomAddonNet,
+      'listCourseWorkSubmissionId'
+    ).mockImplementation(async (_t, _c, _cw, googleUserId: string) => ({
+      ok: true,
+      status: 200,
+      submissionId: `CW-${googleUserId}`,
+      state: 'TURNED_IN',
+    }));
+    vi.spyOn(
+      classroomAddonNet,
+      'patchCourseWorkAssignedGrade'
+    ).mockImplementation(async (_t, _c, _cw, submissionId: string) =>
+      submissionId === 'CW-guser-A'
+        ? { ok: false, status: 403 }
+        : { ok: true, status: 200 }
+    );
+    const returnSpy = vi
+      .spyOn(classroomAddonNet, 'returnCourseWorkSubmission')
+      .mockResolvedValue({ ok: true, status: 200 });
+
+    const res = await callPushFinalBatch({
+      data: batchData,
+      auth: { uid: 'teacher-123' },
+    });
+
+    expect(res.pushed).toBe(1);
+    expect(res.skipped).toBe(0);
+    expect(res.failed).toBe(1);
+    const a = res.results.find((r) => r.pseudonymUid === 'pseudo-A');
+    expect(a?.ok).toBe(false);
+    expect(a?.status).toBe(403);
+    // A failed PATCH must NOT be returned (no release of a grade that didn't set).
+    expect(returnSpy).toHaveBeenCalledTimes(1); // only pseudo-B
+  });
+
+  it('refuses a caller who is not the linking teacher (no lookup/patch)', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    const listSpy = vi.spyOn(classroomAddonNet, 'listCourseWorkSubmissionId');
+
+    await expect(
+      callPushFinalBatch({ data: batchData, auth: { uid: 'impostor' } })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(listSpy).not.toHaveBeenCalled();
+  });
+
+  it('clamps the grade to a supplied maxPoints (defense-in-depth)', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    seedSubmission('pseudo-A', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'ADDON-SUB-A',
+      googleUserId: 'guser-A',
+    });
+    const { patchSpy } = stubFinalGradeSeamsHappy();
+
+    await callPushFinalBatch({
+      data: {
+        ...batchData,
+        maxPoints: 20,
+        grades: [{ pseudonymUid: 'pseudo-A', pointsEarned: 999 }],
+      },
+      auth: { uid: 'teacher-123' },
+    });
+
+    expect(patchSpy).toHaveBeenCalledWith(
+      'teacher-token',
+      'C1',
+      'I1',
+      'CW-guser-A',
+      20
+    );
+  });
+
+  it('validates input shape (missing ids / token / empty grades) before any work', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    const listSpy = vi.spyOn(classroomAddonNet, 'listCourseWorkSubmissionId');
+    for (const patch of [
+      { courseId: '' },
+      { itemId: '' },
+      { attachmentId: '' },
+      { accessToken: '' },
+      { grades: [] },
+    ]) {
+      await expect(
+        callPushFinalBatch({
+          data: { ...batchData, ...patch },
+          auth: { uid: 'teacher-123' },
+        })
+      ).rejects.toMatchObject({ code: 'invalid-argument' });
+    }
+    expect(listSpy).not.toHaveBeenCalled();
   });
 });
