@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { useAuth } from '../context/useAuth';
-import { GoogleCalendarService } from '../utils/googleCalendarService';
+import { useAuth } from '@/context/useAuth';
+import { GoogleCalendarService } from '@/utils/googleCalendarService';
 
 export const useGoogleCalendar = () => {
   const { googleAccessToken, refreshGoogleToken } = useAuth();

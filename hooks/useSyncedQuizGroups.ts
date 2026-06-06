@@ -32,13 +32,13 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { db, functions } from '../config/firebase';
-import { logError } from '../utils/logError';
+import { db, functions } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 import type {
   QuizBehaviorSettings,
   QuizQuestion,
   SyncedQuizGroup,
-} from '../types';
+} from '@/types';
 
 const SYNCED_QUIZZES_COLLECTION = 'synced_quizzes';
 

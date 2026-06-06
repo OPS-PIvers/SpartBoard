@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { doc, onSnapshot, getDoc } from 'firebase/firestore';
-import { db, isAuthBypass } from '../config/firebase';
-import { FeaturePermission, WidgetType, InternalToolType } from '../types';
+import { db, isAuthBypass } from '@/config/firebase';
+import { FeaturePermission, WidgetType, InternalToolType } from '@/types';
 
 export const useFeaturePermissions = () => {
   const [loading, setLoading] = useState(false);

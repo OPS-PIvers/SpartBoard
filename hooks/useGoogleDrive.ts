@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { useAuth } from '../context/useAuth';
-import { GoogleDriveService } from '../utils/googleDriveService';
-import { isDriveAuthError, onDriveTokenChange } from '../utils/driveAuthErrors';
-import { APP_NAME } from '../config/constants';
+import { useAuth } from '@/context/useAuth';
+import { GoogleDriveService } from '@/utils/googleDriveService';
+import { isDriveAuthError, onDriveTokenChange } from '@/utils/driveAuthErrors';
+import { APP_NAME } from '@/config/constants';
 
 const BACKGROUNDS_FOLDER = 'Backgrounds';
 const DRAWINGS_FOLDER = 'Drawings';
@@ -17,7 +17,7 @@ const migrationKey = (uid: string) => `spart_drive_folder_migrated_v2_${uid}`;
 // `setDriveAuthErrorHandler` is consumed by DashboardContext from the
 // new module — re-export it here for backwards-compat with any callers
 // still pointing at this hook.
-export { setDriveAuthErrorHandler } from '../utils/driveAuthErrors';
+export { setDriveAuthErrorHandler } from '@/utils/driveAuthErrors';
 
 export const useGoogleDrive = () => {
   const { googleAccessToken, refreshGoogleToken, user } = useAuth();

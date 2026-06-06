@@ -18,7 +18,7 @@ import {
   query,
   orderBy,
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { db } from '@/config/firebase';
 import {
   AssignmentMode,
   GuidedLearningSet,
@@ -27,7 +27,7 @@ import {
   GuidedLearningPublicStep,
   GuidedLearningStep,
   GuidedLearningQuestionType,
-} from '../types';
+} from '@/types';
 
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
 
