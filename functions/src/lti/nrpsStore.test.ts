@@ -317,9 +317,7 @@ describe('persistLtiLaunchContext — quiz', () => {
       kind: 'quiz',
     });
     // This relaunch carries NO context title (privacy config) but keeps NRPS.
-    const { contextTitle: _omit, ...noTitle } = QUIZ_ARGS;
-    void _omit;
-    await persistLtiLaunchContext(db(), noTitle);
+    await persistLtiLaunchContext(db(), { ...QUIZ_ARGS, contextTitle: null });
     // The stored title must NOT be clobbered to null → no seen-section rewrite.
     expect(writeAt('users/teacher-1/lti_seen_sections/')).toBeUndefined();
   });
