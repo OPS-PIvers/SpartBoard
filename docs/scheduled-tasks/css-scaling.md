@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-05_
+_Last audited: 2026-06-06_
 _Last action: 2026-05-31_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-06: Scanned widget files changed in dev-paul since last audit: BreathingWidget (fix phaseDuration update — logic-only, no CSS changes), no other widget front-face files touched by dev-paul commits. Reviewed SyntaxFramer/Widget.tsx:67 `minWidth: 'calc(max(2, var(--char-count)) * 10cqmin)'` and :130 `min(50cqh, calc(75cqw / max(1, var(--char-count)) * factor))` — these use valid cqmin/cqh/cqw units responding to container size; the calc() pattern is correct CSS for character-count-proportional sizing and the cqh/cqw mix at line 130 qualifies as a fill-better formula per journal guidance. Not flagged. TrafficLight `min(28cqh, 80cqw)` per journal: documented WON'T FIX — portrait-fill formula, leave as-is. PollWidget progress bar (existing open item, h-[min(5cqmin)] at line 161) re-confirmed present and unresolved. Zero new anti-patterns detected. All pre-existing open items remain valid._
 
 _2026-06-05: Scanned CountdownWidget, WeatherWidget, PollWidget, ScheduleWidget (ScheduleWidget.tsx), and RandomWidget for anti-patterns. All five pass cleanly — no hardcoded Tailwind text-size classes, no fixed icon sizes, no pixel-cap max-h/max-w violations. All use responsive sizing: cqmin, cqw, cqh, min(), clamp(). No new anti-patterns introduced. All pre-existing open items remain valid._
 
