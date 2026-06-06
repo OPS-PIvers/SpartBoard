@@ -206,7 +206,7 @@ export async function runPublishGradePush<R>({
         } else {
           const suffix =
             unreachableCourses > 0
-              ? ` Couldn’t reach ${unreachableCourses} course${unreachableCourses === 1 ? '' : 's'} — retry.`
+              ? ` Couldn’t push to ${unreachableCourses} course${unreachableCourses === 1 ? '' : 's'} — retry.`
               : '';
           addToast(
             formatGradePushToast({ results: [], ...agg }) + suffix,

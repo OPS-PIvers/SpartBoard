@@ -188,7 +188,10 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
 
       // The date+time picker always yields an explicit local time → emit it
       // verbatim to Classroom (vs an end-of-day default for date-only values).
+      // dueHasTime only discriminates a PRESENT epoch, so it tracks dueAt's
+      // presence (null when no due date was chosen).
       const dueAt = dueInputsToEpoch(dueDate, dueTime);
+      const dueHasTime = dueAt != null;
 
       // Fan out: create ONE courseWork + add-on attachment per selected course,
       // reusing the single consented token. Each is a SEPARATE Classroom item
@@ -210,7 +213,7 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
             title,
             maxPoints,
             dueAt,
-            dueHasTime: true,
+            dueHasTime,
           });
           firstResult ??= result;
           // Addon path only — the link/redirect path has no embedded passback.

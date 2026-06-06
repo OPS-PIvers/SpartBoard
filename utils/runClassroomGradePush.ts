@@ -302,7 +302,7 @@ export function createToastGradePushHandlers(
           const unreachable = status.unreachableCourses ?? 0;
           const suffix =
             unreachable > 0
-              ? ` Couldn’t reach ${unreachable} course${
+              ? ` Couldn’t push to ${unreachable} course${
                   unreachable === 1 ? '' : 's'
                 } — retry.`
               : '';
