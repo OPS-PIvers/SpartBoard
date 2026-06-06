@@ -28,6 +28,7 @@ import { Toast } from '@/components/common/Toast';
 import { Modal } from '@/components/common/Modal';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 
 interface CalendarConfigurationModalProps {
   isOpen: boolean;
@@ -455,10 +456,9 @@ export const CalendarConfigurationModal: React.FC<
               {/* Building Specific Config */}
               <section className="space-y-6">
                 <div>
-                  <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
-                    <Settings2 className="w-3.5 h-3.5" /> Select Building to
-                    Configure
-                  </label>
+                  <SettingsLabel icon={Settings2}>
+                    Select Building to Configure
+                  </SettingsLabel>
                   <BuildingSelector
                     selectedId={selectedBuildingId}
                     onSelect={setSelectedBuildingId}
