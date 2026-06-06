@@ -25,6 +25,7 @@ import { Modal } from '@/components/common/Modal';
 import { Button } from '@/components/common/Button';
 import { Card } from '@/components/common/Card';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 
 interface SpecialistScheduleConfigurationModalProps {
   isOpen: boolean;
@@ -382,10 +383,9 @@ export const SpecialistScheduleConfigurationModal: React.FC<
               {/* Building Selector */}
               <section className="space-y-4">
                 <div>
-                  <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
-                    <Settings2 className="w-3.5 h-3.5" /> Select Building to
-                    Configure
-                  </label>
+                  <SettingsLabel icon={Settings2}>
+                    Select Building to Configure
+                  </SettingsLabel>
                   <BuildingSelector
                     selectedId={selectedBuildingId}
                     onSelect={setSelectedBuildingId}
