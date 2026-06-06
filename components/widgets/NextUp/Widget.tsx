@@ -326,7 +326,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
               className="font-bold truncate"
               style={{
                 fontSize: 'min(16px, 4cqmin)',
-                maxWidth: 'min(120px, 30cqmin)',
+                maxWidth: '30cqmin',
               }}
             >
               {config.sessionName}
