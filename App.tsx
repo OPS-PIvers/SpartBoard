@@ -11,6 +11,7 @@ import { DialogProvider } from './context/DialogContext';
 import { DialogContainer } from './components/common/DialogContainer';
 import { UpdateNotification } from './components/layout/UpdateNotification';
 import { DriveDisconnectBanner } from './components/common/DriveDisconnectBanner';
+import { SchoologyLinkNudge } from './components/classes/SchoologyLinkNudge';
 import { isConfigured, isAuthBypass } from './config/firebase';
 import { StudentProvider } from './components/student/StudentContexts';
 import {
@@ -357,6 +358,7 @@ const AppContent: React.FC = () => {
       <DashboardView />
       <UpdateNotification />
       <DriveDisconnectBanner />
+      <SchoologyLinkNudge />
     </Suspense>
   );
 };

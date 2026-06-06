@@ -55,10 +55,13 @@ const RESOURCE_LINK_ID = 'resource-link-1';
 const TEACHER_UID = 'teacher-uid-1';
 const STUDENT_UID = 'student-uid-1';
 
+const OTHER_TEACHER_UID = 'teacher-uid-2';
+
 const STATE_PATH = `lti_oidc_state/${STATE_ID}`;
 const LAUNCH_CODE_PATH = `lti_launch_codes/${LAUNCH_CODE}`;
 const COURSE_LINK_PATH = `lti_course_links/${CONTEXT_ID}`;
 const GRADE_LINK_PATH = `lti_grade_links/${PSEUDONYM_UID}/resources/${RESOURCE_LINK_ID}`;
+const SEEN_SECTION_PATH = `users/${TEACHER_UID}/lti_seen_sections/${CONTEXT_ID}`;
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -94,6 +97,16 @@ const asStudentRole = () =>
       studentRole: true,
       classIds: ['class-A'],
       firebase: { sign_in_provider: 'custom' },
+    })
+    .firestore();
+
+const asOtherTeacher = () =>
+  testEnv
+    .authenticatedContext(OTHER_TEACHER_UID, {
+      email: 'other@school.edu',
+      studentRole: false,
+      classIds: [],
+      firebase: { sign_in_provider: 'google.com' },
     })
     .firestore();
 
@@ -146,6 +159,42 @@ beforeEach(async () => {
       lineitemUrl: 'https://schoology.example/lineitem/1',
       resourceLinkId: RESOURCE_LINK_ID,
     });
+    await setDoc(doc(db, SEEN_SECTION_PATH), {
+      contextId: CONTEXT_ID,
+      contextTitle: 'Algebra 1 · P1',
+      sessionId: 'sess-1',
+      kind: 'quiz',
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// users/{uid}/lti_seen_sections/{contextId} — the per-teacher linking-UI
+// inventory. OWNER can READ their own; everyone else (incl. other teachers,
+// students, unauth) is denied; WRITES are server-only for everyone.
+// ---------------------------------------------------------------------------
+
+describe('lti_seen_sections — per-teacher inventory', () => {
+  it('lets the owning teacher read their own seen-section', async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(), SEEN_SECTION_PATH)));
+  });
+
+  it('denies a DIFFERENT teacher reading it', async () => {
+    await assertFails(getDoc(doc(asOtherTeacher(), SEEN_SECTION_PATH)));
+  });
+
+  it('denies a studentRole client reading it', async () => {
+    await assertFails(getDoc(doc(asStudentRole(), SEEN_SECTION_PATH)));
+  });
+
+  it('denies an unauthenticated client reading it', async () => {
+    await assertFails(getDoc(doc(asUnauth(), SEEN_SECTION_PATH)));
+  });
+
+  it('denies the owner WRITING it (server-only)', async () => {
+    await assertFails(
+      setDoc(doc(asTeacher(), SEEN_SECTION_PATH), { contextId: CONTEXT_ID })
+    );
   });
 });
 

@@ -150,7 +150,8 @@ function makeQuizMeta(overrides: Partial<QuizMetadata> = {}): QuizMetadata {
  */
 function renderManager(
   quizMeta: QuizMetadata,
-  onAssignFn: ReturnType<typeof vi.fn> = vi.fn()
+  onAssignFn: ReturnType<typeof vi.fn> = vi.fn(),
+  extra: { canAssignToClassroom?: boolean } = {}
 ) {
   // Cast: QuizManagerProps['onAssign'] signature is
   //   (quiz, plcOptions, rosterIds, dueAt) => void
@@ -176,6 +177,7 @@ function renderManager(
       rosters={ROSTERS}
       config={BASE_CONFIG}
       managerTab="library"
+      canAssignToClassroom={extra.canAssignToClassroom}
     />
   );
   return { onAssign: onAssignFn };
@@ -195,6 +197,11 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
     // Find the primary "Assign" action button on the library card.
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
+    // Phase 2: the library-row Assign opens a destination chooser first; pick
+    // "SpartBoard Only" to continue into the standard assign modal.
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
     // Modal should now be visible — the modal dialog is labeled by the quiz title
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
     expect(
@@ -206,6 +213,11 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
     renderManager(makeQuizMeta());
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
+    // Phase 2: the library-row Assign opens a destination chooser first; pick
+    // "SpartBoard Only" to continue into the standard assign modal.
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
     // Wait for the assign modal dialog to appear
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
     expect(screen.queryByText('Session Mode')).not.toBeInTheDocument();
@@ -224,6 +236,11 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
     renderManager(makeQuizMeta());
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
+    // Phase 2: the library-row Assign opens a destination chooser first; pick
+    // "SpartBoard Only" to continue into the standard assign modal.
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
     // Wait for the assign modal dialog to appear
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
     // Interactive toggle labels that used to appear in the assign modal should be gone.
@@ -242,6 +259,11 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
     renderManager(makeQuizMeta());
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
+    // Phase 2: the library-row Assign opens a destination chooser first; pick
+    // "SpartBoard Only" to continue into the standard assign modal.
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
     // Wait for the assign modal dialog to appear
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
     // Behavior summary block should be present (look for a heading or label)
@@ -252,6 +274,11 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
     renderManager(makeQuizMeta());
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
+    // Phase 2: the library-row Assign opens a destination chooser first; pick
+    // "SpartBoard Only" to continue into the standard assign modal.
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
     // Wait for the assign modal dialog to appear
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
     expect(
@@ -263,6 +290,11 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
     renderManager(makeQuizMeta());
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
+    // Phase 2: the library-row Assign opens a destination chooser first; pick
+    // "SpartBoard Only" to continue into the standard assign modal.
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
     // Wait for the assign modal dialog to appear
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
     // Due-date should be a date input or labeled element
@@ -273,6 +305,11 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
     renderManager(makeQuizMeta());
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
+    // Phase 2: the library-row Assign opens a destination chooser first; pick
+    // "SpartBoard Only" to continue into the standard assign modal.
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
     // Wait for the assign modal dialog to appear
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
     expect(screen.getByTestId('assign-class-picker')).toBeInTheDocument();
@@ -295,6 +332,11 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
 
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
+    // Phase 2: the library-row Assign opens a destination chooser first; pick
+    // "SpartBoard Only" to continue into the standard assign modal.
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
     // Wait for the assign modal dialog to appear
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
 
@@ -320,6 +362,11 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
 
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
+    // Phase 2: the library-row Assign opens a destination chooser first; pick
+    // "SpartBoard Only" to continue into the standard assign modal.
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
     // Wait for the assign modal dialog to appear
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
 
@@ -351,6 +398,11 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
 
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
+    // Phase 2: the library-row Assign opens a destination chooser first; pick
+    // "SpartBoard Only" to continue into the standard assign modal.
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
     // Wait for the assign modal dialog to appear
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
 
@@ -373,6 +425,11 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
 
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
+    // Phase 2: the library-row Assign opens a destination chooser first; pick
+    // "SpartBoard Only" to continue into the standard assign modal.
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
     // Wait for the assign modal dialog to appear
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
 
@@ -420,6 +477,11 @@ describe('Widget.onAssign — createAssignment receives behavior from quiz meta'
 
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
+    // Phase 2: the library-row Assign opens a destination chooser first; pick
+    // "SpartBoard Only" to continue into the standard assign modal.
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
     // Wait for the assign modal dialog to appear
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
 
@@ -438,9 +500,11 @@ describe('Widget.onAssign — createAssignment receives behavior from quiz meta'
       sessionMode: 'student',
       attemptLimit: 3,
     });
-    // Crucially, NO mode/sessionOptions/attemptLimit args at positions 4+
-    // (only meta, plcOptions, rosterIds, dueAt are expected).
-    expect(onAssign.mock.calls[0]).toHaveLength(4);
+    // Crucially, NO mode/sessionOptions/attemptLimit args — behavior is sourced
+    // from the quiz meta. The args are (meta, plcOptions, rosterIds, dueAt,
+    // destination); the chooser pick adds the destination as the 5th arg.
+    expect(onAssign.mock.calls[0]).toHaveLength(5);
+    expect(onAssign.mock.calls[0][4]).toBe('spartboard');
   });
 
   it('behavior summary shows the mode from the quiz behavior', async () => {
@@ -452,6 +516,11 @@ describe('Widget.onAssign — createAssignment receives behavior from quiz meta'
 
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
+    // Phase 2: the library-row Assign opens a destination chooser first; pick
+    // "SpartBoard Only" to continue into the standard assign modal.
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
     // Wait for the assign modal dialog to appear
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
 
@@ -465,10 +534,91 @@ describe('Widget.onAssign — createAssignment receives behavior from quiz meta'
 
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
+    // Phase 2: the library-row Assign opens a destination chooser first; pick
+    // "SpartBoard Only" to continue into the standard assign modal.
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
     // Wait for the assign modal dialog to appear
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
 
     const summary = screen.getByTestId('quiz-behavior-summary');
     expect(summary.textContent).toMatch(/teacher.paced/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests — Phase 2 destination chooser routing
+// ---------------------------------------------------------------------------
+
+describe('QuizManager assign — destination chooser (Phase 2)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('routing through "Google Classroom" passes destination="classroom" to onAssign', async () => {
+    const onAssign = vi.fn();
+    renderManager(makeQuizMeta(), onAssign, { canAssignToClassroom: true });
+
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    // The Google Classroom option only appears when enabled.
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Google Classroom/i })
+    );
+    // Same targeting modal — the confirm button is destination-aware so the
+    // teacher knows the Classroom course picker comes next.
+    const dialog = await screen.findByRole('dialog', {
+      name: /chapter 5 review/i,
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: /continue to google classroom/i,
+      })
+    );
+
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    expect(onAssign.mock.calls[0][4]).toBe('classroom');
+  });
+
+  it('re-picks the destination on each assign (Classroom then SpartBoard-only)', async () => {
+    const onAssign = vi.fn();
+    renderManager(makeQuizMeta(), onAssign, { canAssignToClassroom: true });
+
+    // First assign → Google Classroom.
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Google Classroom/i })
+    );
+    let dialog = await screen.findByRole('dialog', {
+      name: /chapter 5 review/i,
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: /continue to google classroom/i,
+      })
+    );
+    await waitFor(() => expect(onAssign).toHaveBeenCalledTimes(1));
+    expect(onAssign.mock.calls[0][4]).toBe('classroom');
+
+    // Second assign → SpartBoard Only must NOT inherit the prior 'classroom'.
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
+    dialog = await screen.findByRole('dialog', { name: /chapter 5 review/i });
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+    await waitFor(() => expect(onAssign).toHaveBeenCalledTimes(2));
+    expect(onAssign.mock.calls[1][4]).toBe('spartboard');
+  });
+
+  it('picking "Schoology" shows the how-to and does NOT create an assignment', async () => {
+    const onAssign = vi.fn();
+    renderManager(makeQuizMeta(), onAssign);
+
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Schoology/i }));
+    // The Schoology how-to modal appears (no targeting modal, no onAssign).
+    await screen.findByRole('dialog', { name: /how to assign in schoology/i });
+    expect(onAssign).not.toHaveBeenCalled();
   });
 });

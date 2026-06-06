@@ -9,10 +9,12 @@
  * Rendered ONLY behind the CLASSROOM_ASSIGN_ENABLED flag (see config/constants).
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, GraduationCap, Loader2 } from 'lucide-react';
+import { AlertTriangle, Check, GraduationCap, Loader2 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { functions, db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
+import type { ClassroomAttachmentLink } from '@/types';
+import { logError } from '@/utils/logError';
 import {
   requestClassroomAssignToken,
   CLASSROOM_COURSES_READONLY_SCOPE,
@@ -26,10 +28,16 @@ import {
 import {
   assignToClassroom,
   buildClassroomAttachmentLink,
-  persistClassroomAttachmentLink,
+  persistClassroomAttachmentLinks,
   type AssignRunnerKind,
   type AssignToClassroomResult,
 } from '@/utils/assignToClassroom';
+import {
+  DEFAULT_DUE_TIME,
+  dueInputsToEpoch,
+  splitDueAtToInputs,
+} from '@/utils/localDate';
+import { findLinkedClassroomCourseId } from '@/utils/classroomCourseLinks';
 
 interface AssignToClassroomModalProps {
   isOpen: boolean;
@@ -45,6 +53,14 @@ interface AssignToClassroomModalProps {
   maxPoints?: number;
   /** Pre-fill the due date (epoch ms) if the assignment already has one. */
   initialDueAt?: number | null;
+  /** Whether `initialDueAt` carries a chosen time (vs a legacy date-only value). */
+  initialDueAtHasTime?: boolean;
+  /**
+   * The ClassLink class(es) this assignment targets. When one of them is already
+   * linked to a Google course (Item D), that course is auto-selected so the
+   * teacher confirms instead of re-picking. Omitted → the plain picker.
+   */
+  classlinkClassIds?: string[];
   /** Toast surface from the host widget. */
   addToast: (message: string, type: 'success' | 'error' | 'info') => void;
   /** Called after a successful assign (for the host to refresh UI). */
@@ -52,12 +68,6 @@ interface AssignToClassroomModalProps {
 }
 
 type Phase = 'loading' | 'pick' | 'error' | 'assigning';
-
-/** Convert epoch ms → 'YYYY-MM-DD' for a date input value. */
-function epochToDateInputValue(epoch: number | null): string {
-  if (!epoch) return '';
-  return new Date(epoch).toISOString().slice(0, 10);
-}
 
 export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
   isOpen,
@@ -68,14 +78,28 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
   title,
   maxPoints,
   initialDueAt,
+  initialDueAtHasTime,
+  classlinkClassIds,
   addToast,
   onAssigned,
 }) => {
   const { user } = useAuth();
   const [phase, setPhase] = useState<Phase>('loading');
   const [courses, setCourses] = useState<GoogleClassroomCourse[]>([]);
-  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
-  const [dueAt, setDueAt] = useState<number | null>(initialDueAt ?? null);
+  // One SpartBoard assignment can fan out to MULTIPLE Classroom courses (Item D),
+  // each getting its own courseWork pointing back at this same session.
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
+  // True when a course was auto-resolved from an existing class↔course link
+  // (Item D) rather than picked — drives the "already linked" hint.
+  const [autoLinked, setAutoLinked] = useState(false);
+  // Due date + time split into the picker-bound input strings. The host mounts
+  // this fresh on each open, so the useState initializers seed from initialDueAt.
+  const initialDue = splitDueAtToInputs(
+    initialDueAt ?? null,
+    initialDueAtHasTime
+  );
+  const [dueDate, setDueDate] = useState(initialDue.date);
+  const [dueTime, setDueTime] = useState(initialDue.time);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   // Bumped by the retry button to re-run the open effect's load.
   const [reloadNonce, setReloadNonce] = useState(0);
@@ -88,8 +112,8 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
   // so every setState lands AFTER an await (never synchronously in the effect
   // body — the documented "setState from a callback" escape). Re-runs when the
   // retry button bumps `reloadNonce`. The host mounts this fresh on each open
-  // (it's conditionally rendered), so `dueAt`'s useState initializer already
-  // seeds from `initialDueAt`.
+  // (it's conditionally rendered), so the due date/time useState initializers
+  // already seed from `initialDueAt`.
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
@@ -101,6 +125,25 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
         const list = await listTeacherCourses(token);
         if (cancelled) return;
         setCourses(list);
+        // Item D: if a targeted ClassLink class is already linked to one of these
+        // courses, auto-select it so the teacher confirms instead of re-picking.
+        // Best-effort — a lookup failure just leaves the plain picker.
+        if (classlinkClassIds && classlinkClassIds.length > 0 && user?.uid) {
+          try {
+            const linkedId = await findLinkedClassroomCourseId(
+              db,
+              classlinkClassIds,
+              user.uid
+            );
+            if (cancelled) return;
+            if (linkedId && list.some((c) => c.id === linkedId)) {
+              setSelectedCourseIds([linkedId]);
+              setAutoLinked(true);
+            }
+          } catch {
+            // Ignore — fall back to the manual picker.
+          }
+        }
         setErrorMsg(null);
         setPhase('pick');
       } catch (err) {
@@ -114,10 +157,16 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
     return () => {
       cancelled = true;
     };
+    // This effect mints the OAuth token + lists courses ONCE per open; it reads
+    // `classlinkClassIds`/`user.uid` at run time only (for the reverse lookup) —
+    // adding them as deps would re-run and re-fire the consent popup, so they're
+    // intentionally excluded (the modal mounts fresh per open, so values are
+    // current).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, userEmail, reloadNonce]);
 
   const handleAssign = useCallback(async () => {
-    if (!selectedCourseId) return;
+    if (selectedCourseIds.length === 0) return;
     const uid = user?.uid;
     if (!uid) {
       addToast('You must be signed in to assign.', 'error');
@@ -136,28 +185,66 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
         );
         accessTokenRef.current = token;
       }
-      const result = await assignToClassroom(functions, {
-        accessToken: token,
-        courseId: selectedCourseId,
-        origin: window.location.origin,
-        kind,
-        quizCode: kind === 'quiz' ? quizCode : undefined,
-        sessionId,
-        title,
-        maxPoints,
-        dueAt,
-      });
 
-      // Persist the linkage so the existing grade-push button appears (addon
-      // path only — the link/redirect path has no embedded grade passback).
-      const link = buildClassroomAttachmentLink(result, selectedCourseId);
-      if (link) {
+      // The date+time picker always yields an explicit local time → emit it
+      // verbatim to Classroom (vs an end-of-day default for date-only values).
+      // dueHasTime only discriminates a PRESENT epoch, so it tracks dueAt's
+      // presence (null when no due date was chosen).
+      const dueAt = dueInputsToEpoch(dueDate, dueTime);
+      const dueHasTime = dueAt != null;
+
+      // Fan out: create ONE courseWork + add-on attachment per selected course,
+      // reusing the single consented token. Each is a SEPARATE Classroom item
+      // pointing at the SAME SpartBoard session, so a per-course failure is real
+      // (that course got nothing) and must NOT abort the others — we collect the
+      // successes and report the failures.
+      const links: ClassroomAttachmentLink[] = [];
+      const failedCourses: string[] = [];
+      let firstResult: AssignToClassroomResult | null = null;
+      for (const courseId of selectedCourseIds) {
         try {
-          await persistClassroomAttachmentLink(db, kind, sessionId, uid, link);
+          const result = await assignToClassroom(functions, {
+            accessToken: token,
+            courseId,
+            origin: window.location.origin,
+            kind,
+            quizCode: kind === 'quiz' ? quizCode : undefined,
+            sessionId,
+            title,
+            maxPoints,
+            dueAt,
+            dueHasTime,
+          });
+          firstResult ??= result;
+          // Addon path only — the link/redirect path has no embedded passback.
+          const link = buildClassroomAttachmentLink(result, courseId);
+          if (link) links.push(link);
+        } catch (err) {
+          logError('AssignToClassroomModal.assign', err, {
+            courseId,
+            sessionId,
+          });
+          failedCourses.push(
+            courses.find((c) => c.id === courseId)?.name ?? courseId
+          );
+        }
+      }
+
+      // Persist ALL successful linkages at once so the grade-push button appears
+      // and the Publish=Push fan-out targets every course.
+      if (links.length > 0) {
+        try {
+          await persistClassroomAttachmentLinks(
+            db,
+            kind,
+            sessionId,
+            uid,
+            links
+          );
         } catch {
-          // The Classroom assignment exists; only the local linkage write
+          // The Classroom assignments exist; only the local linkage write
           // failed. Surface a soft warning rather than implying the assign
-          // failed — re-assigning would duplicate the Classroom item.
+          // failed — re-assigning would duplicate the Classroom items.
           addToast(
             'Assigned to Classroom, but could not link grade sync. Re-open Results to retry.',
             'info'
@@ -165,13 +252,34 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
         }
       }
 
-      addToast(
-        result.mode === 'addon'
-          ? 'Assigned to Google Classroom — students launch it in Classroom.'
-          : 'Assigned to Google Classroom as a link (this account can’t embed the activity).',
-        'success'
-      );
-      onAssigned?.(result);
+      // Every selected course failed → keep the picker up so the teacher retries.
+      if (firstResult === null) {
+        setErrorMsg('Failed to assign to Google Classroom.');
+        setPhase('pick');
+        return;
+      }
+
+      const assignedCount = selectedCourseIds.length - failedCourses.length;
+      if (failedCourses.length > 0) {
+        addToast(
+          `Assigned to ${assignedCount} course${assignedCount === 1 ? '' : 's'}; ` +
+            `${failedCourses.length} failed (${failedCourses.join(', ')}).`,
+          'info'
+        );
+      } else {
+        // Derive the wording from what we actually got back rather than the
+        // first course's mode: `links` holds only the embedded (add-on)
+        // attachments, so an empty `links` means every course fell back to a
+        // plain link (this account can't embed), while a non-empty `links`
+        // means at least one course got the embedded runner + grade passback.
+        addToast(
+          links.length > 0
+            ? `Assigned to Google Classroom${assignedCount > 1 ? ` (${assignedCount} courses)` : ''} — students launch it in Classroom.`
+            : 'Assigned to Google Classroom as a link (this account can’t embed the activity).',
+          'success'
+        );
+      }
+      onAssigned?.(firstResult);
       onClose();
     } catch (err) {
       setErrorMsg(
@@ -182,14 +290,16 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
       setPhase('pick');
     }
   }, [
-    selectedCourseId,
+    selectedCourseIds,
     user,
     kind,
     quizCode,
     sessionId,
     title,
     maxPoints,
-    dueAt,
+    dueDate,
+    dueTime,
+    courses,
     addToast,
     onAssigned,
     onClose,
@@ -225,13 +335,17 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
       <button
         type="button"
         onClick={() => void handleAssign()}
-        disabled={!selectedCourseId || busy}
+        disabled={selectedCourseIds.length === 0 || busy}
         className="inline-flex items-center gap-2 text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {phase === 'assigning' && (
           <Loader2 size={16} className="animate-spin" />
         )}
-        {phase === 'assigning' ? 'Assigning…' : 'Assign'}
+        {phase === 'assigning'
+          ? 'Assigning…'
+          : selectedCourseIds.length > 1
+            ? `Assign to ${selectedCourseIds.length} courses`
+            : 'Assign'}
       </button>
     </div>
   );
@@ -282,23 +396,57 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
               </div>
             )}
 
+            {autoLinked && (
+              <div className="flex items-start gap-2 rounded-lg bg-brand-blue-lighter/30 border border-brand-blue-primary/20 px-3 py-2 text-sm text-brand-blue-dark">
+                <GraduationCap size={16} className="mt-0.5 shrink-0" />
+                <span>
+                  Already linked to this class — we picked the course for you.
+                  Review and assign, or change it below.
+                </span>
+              </div>
+            )}
+
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-                Course
-              </label>
+              {/* Not a <label>: the course list is a checkbox group, not a
+                  single labeled form control. Use a heading + an id'd hint wired
+                  as the group's aria-describedby so the "pick one or more"
+                  affordance is announced. */}
+              <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                <span>Courses</span>
+                <span
+                  id="assign-classroom-course-hint"
+                  className="font-normal normal-case text-slate-400"
+                >
+                  Pick one or more
+                </span>
+              </div>
               {courses.length === 0 ? (
                 <p className="text-sm text-slate-500 py-4 text-center">
                   No active Google Classroom courses found.
                 </p>
               ) : (
-                <div className="max-h-64 overflow-y-auto custom-scrollbar rounded-lg border border-slate-200 divide-y divide-slate-100">
+                <div
+                  role="group"
+                  aria-label="Google Classroom courses"
+                  aria-describedby="assign-classroom-course-hint"
+                  className="max-h-64 overflow-y-auto custom-scrollbar rounded-lg border border-slate-200 divide-y divide-slate-100"
+                >
                   {courses.map((c) => {
-                    const checked = selectedCourseId === c.id;
+                    const checked = selectedCourseIds.includes(c.id);
                     return (
                       <button
                         key={c.id}
                         type="button"
-                        onClick={() => setSelectedCourseId(c.id)}
+                        role="checkbox"
+                        aria-checked={checked}
+                        onClick={() => {
+                          setSelectedCourseIds((prev) =>
+                            prev.includes(c.id)
+                              ? prev.filter((id) => id !== c.id)
+                              : [...prev, c.id]
+                          );
+                          setAutoLinked(false);
+                        }}
                         disabled={phase === 'assigning'}
                         className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors disabled:cursor-not-allowed ${
                           checked
@@ -307,15 +455,13 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
                         }`}
                       >
                         <span
-                          className={`inline-flex items-center justify-center w-4 h-4 rounded-full border-2 shrink-0 ${
+                          className={`inline-flex items-center justify-center w-4 h-4 rounded border-2 shrink-0 ${
                             checked
-                              ? 'border-brand-blue-primary'
+                              ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
                               : 'border-slate-300'
                           }`}
                         >
-                          {checked && (
-                            <span className="w-2 h-2 rounded-full bg-brand-blue-primary" />
-                          )}
+                          {checked && <Check size={12} strokeWidth={3} />}
                         </span>
                         <span className="min-w-0">
                           <span className="block text-sm font-semibold text-slate-800 truncate">
@@ -342,19 +488,29 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
                 Due date{' '}
                 <span className="font-normal normal-case">(optional)</span>
               </label>
-              <input
-                id="assign-classroom-due-date"
-                type="date"
-                value={epochToDateInputValue(dueAt)}
-                disabled={phase === 'assigning'}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setDueAt(val ? new Date(val).getTime() : null);
-                }}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
-              />
+              <div className="flex gap-2">
+                <input
+                  id="assign-classroom-due-date"
+                  type="date"
+                  value={dueDate}
+                  disabled={phase === 'assigning'}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                />
+                <input
+                  type="time"
+                  aria-label="Due time"
+                  value={dueTime}
+                  disabled={phase === 'assigning' || !dueDate}
+                  onChange={(e) =>
+                    setDueTime(e.target.value || DEFAULT_DUE_TIME)
+                  }
+                  className="w-32 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
               <p className="mt-1 text-xs text-slate-400">
-                Synced to the Google Classroom assignment’s due date.
+                Synced to the Google Classroom assignment’s due date and time
+                (your local time).
               </p>
             </div>
           </>

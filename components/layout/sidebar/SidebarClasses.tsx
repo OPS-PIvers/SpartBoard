@@ -31,6 +31,8 @@ import {
   ClassLinkImportDialog,
   ClassLinkDialogMode,
 } from '@/components/classes/ClassLinkImportDialog';
+import { LinkSchoologyModal } from '@/components/classes/LinkSchoologyModal';
+import { useSchoologySeenSections } from '@/hooks/useSchoologySeenSections';
 
 /** Google Classroom OAuth scope for read-only course listing. */
 const CLASSROOM_COURSES_READONLY_SCOPE =
@@ -129,6 +131,16 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
   const [editingRosterId, setEditingRosterId] = useState<string | null>(null);
   const [classLinkMode, setClassLinkMode] =
     useState<ClassLinkDialogMode | null>(null);
+
+  // ── "Link to Schoology" review screen ────────────────────────────────────
+  // Schoology sections SpartBoard has SEEN via a launch (passive inventory —
+  // there's no "list my courses" API). The CTA + modal appear only when there's
+  // at least one seen section not yet paired to a class.
+  const [showLinkSchoology, setShowLinkSchoology] = useState(false);
+  const seenSchoologySections = useSchoologySeenSections(user?.uid);
+  const unlinkedSchoologyCount = seenSchoologySections.filter(
+    (s) => !rosters.some((r) => r.ltiContextId === s.contextId)
+  ).length;
 
   // ── "Link to Google Classroom" modal state ──────────────────────────────
   // The roster currently being linked (null = modal closed).
@@ -464,6 +476,25 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
               )}
             </div>
 
+            {/* Link-to-Schoology CTA — only when sections have been seen but not
+                yet linked (Schoology has no course-list API, so this surfaces the
+                passive seen-section inventory). */}
+            {unlinkedSchoologyCount > 0 && (
+              <button
+                onClick={() => setShowLinkSchoology(true)}
+                className="w-full flex items-center justify-center gap-2 p-2.5 bg-white border border-brand-blue-primary/30 text-brand-blue-primary rounded-xl hover:border-brand-blue-primary hover:bg-brand-blue-lighter/30 transition-all"
+              >
+                <GraduationCap className="w-4 h-4" />
+                <span className="text-xxs font-bold uppercase tracking-wider">
+                  {t('sidebar.classes.linkSchoology', {
+                    defaultValue: 'Link {{count}} Schoology section',
+                    defaultValue_other: 'Link {{count}} Schoology sections',
+                    count: unlinkedSchoologyCount,
+                  })}
+                </span>
+              </button>
+            )}
+
             {/* Roster list */}
             {rosters.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-3 py-12 text-slate-400">
@@ -692,6 +723,15 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
           onClose={() => setClassLinkMode(null)}
         />
       )}
+
+      <LinkSchoologyModal
+        isOpen={showLinkSchoology}
+        onClose={() => setShowLinkSchoology(false)}
+        rosters={rosters}
+        seenSections={seenSchoologySections}
+        addToast={addToast}
+        updateRoster={updateRoster}
+      />
 
       {linkingRoster && (
         <Modal

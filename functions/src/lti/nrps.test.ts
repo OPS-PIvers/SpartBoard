@@ -59,10 +59,32 @@ describe('fetchNrpsMembers', () => {
         userId: 'sub-1',
         givenName: 'Ada',
         familyName: 'Lovelace',
+        email: '',
         roles: ['http://purl.imsglobal.org/vocab/lis/v2/membership#Learner'],
         status: 'Active',
       },
     ]);
+  });
+
+  it('surfaces the platform email lowercased (for transient overlap matching), and "" when absent', async () => {
+    vi.spyOn(nrpsNet, 'fetchMembershipPage').mockResolvedValue({
+      ok: true,
+      status: 200,
+      members: [
+        {
+          user_id: 'sub-e',
+          given_name: 'Ada',
+          family_name: 'Lovelace',
+          email: 'Ada.Lovelace@School.EDU',
+        },
+        { user_id: 'sub-noemail', given_name: 'No', family_name: 'Email' },
+      ],
+      nextUrl: null,
+    });
+
+    const members = await fetchNrpsMembers('https://lms/m', 'tok');
+    expect(members[0].email).toBe('ada.lovelace@school.edu');
+    expect(members[1].email).toBe('');
   });
 
   it('falls back to the composite name when given/family are absent', async () => {
