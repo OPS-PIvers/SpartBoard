@@ -49,6 +49,7 @@ import {
   CLASSROOM_ASSIGN_ADMIN_ONLY,
 } from '@/config/constants';
 import { buildQuizClassroomGradeEntries } from '@/utils/classroomGradePush';
+import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import { hasValidMaxPoints } from '@/utils/runClassroomGradePush';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
 import { runPublishGradePush } from '@/utils/publishGradePush';
@@ -1996,13 +1997,16 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               // with the feature enabled are eligible for the FINAL push — this
               // also keeps the restricted classroom.coursework.students scope
               // request behind the flag.
-              const classroomFinalEligible =
-                !!target.classroomAttachment &&
-                hasValidMaxPoints(target.classroomAttachment.maxPoints) &&
-                canAssignToClassroom &&
-                !!target.classroomAttachment.ownsCourseWork;
+              // Eligible = partner-first attachments (SpartBoard owns the
+              // courseWork) with a valid scale, when the feature is on. One per
+              // linked course (multi-course fan-out).
+              const classroomFinalAttachments = canAssignToClassroom
+                ? getClassroomAttachments(target).filter(
+                    (a) => a.ownsCourseWork && hasValidMaxPoints(a.maxPoints)
+                  )
+                : [];
               let classroomToken: string | null = null;
-              if (classroomFinalEligible) {
+              if (classroomFinalAttachments.length > 0) {
                 try {
                   classroomToken = await requestClassroomFinalGradeToken(
                     user?.email ?? undefined
@@ -2040,18 +2044,20 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 addToast,
                 kind: 'quiz',
                 sessionId: target.id,
-                classroomAttachment: target.classroomAttachment ?? null,
-                classroomFinalEligible,
+                classroomFinalAttachments,
                 classroomToken,
                 schoologyMaxPoints: quizMaxPoints(data.questions),
-                buildClassroomGrades: (responses) =>
-                  target.classroomAttachment
+                buildClassroomGrades: (responses) => {
+                  // All attachments share the assignment's maxPoints.
+                  const mp = classroomFinalAttachments[0]?.maxPoints;
+                  return mp != null
                     ? buildQuizClassroomGradeEntries(
                         responses,
                         data.questions,
-                        target.classroomAttachment.maxPoints
+                        mp
                       )
-                    : [],
+                    : [];
+                },
                 buildSchoologyGrades: (responses) =>
                   buildQuizClassroomGradeEntries(
                     responses,

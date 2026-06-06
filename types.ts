@@ -2862,6 +2862,13 @@ export interface QuizSession {
    */
   classroomAttachment?: ClassroomAttachmentLink;
   /**
+   * Item D part 2: when posted to MULTIPLE Google courses (one per linked
+   * ClassLink class), every attachment is recorded here. Read via
+   * `getClassroomAttachments()`, which falls back to the singular
+   * `classroomAttachment` (single-course + student-initiated) for back-compat.
+   */
+  classroomAttachments?: ClassroomAttachmentLink[];
+  /**
    * Set server-side (launch-exchange CF) when a Schoology LTI student launches
    * this assignment. Carries the resource-link id needed to resolve each
    * student's AGS line item, so the teacher can push grades to the Schoology
@@ -3554,6 +3561,8 @@ export interface QuizAssignment extends QuizAssignmentSettings {
    * value so pushed grades read identically in Classroom.
    */
   classroomAttachment?: ClassroomAttachmentLink;
+  /** Item D part 2 — multi-course attachments (read via getClassroomAttachments). */
+  classroomAttachments?: ClassroomAttachmentLink[];
 }
 
 /** See `QuizAssignment.sync`. */
@@ -4013,6 +4022,8 @@ export interface VideoActivitySession {
    * matching `VideoActivityAssignment.classroomAttachment` and the Quiz pattern.
    */
   classroomAttachment?: ClassroomAttachmentLink;
+  /** Item D part 2 — multi-course attachments (read via getClassroomAttachments). */
+  classroomAttachments?: ClassroomAttachmentLink[];
   /**
    * True once a Schoology LTI student has launched this session carrying an
    * NRPS membership endpoint (set server-side). Signals the monitor/results to
@@ -6453,6 +6464,8 @@ export interface VideoActivityAssignment extends VideoActivityAssignmentSettings
    * value so pushed grades read identically in Classroom.
    */
   classroomAttachment?: ClassroomAttachmentLink;
+  /** Item D part 2 — multi-course attachments (read via getClassroomAttachments). */
+  classroomAttachments?: ClassroomAttachmentLink[];
 }
 
 // === MiniApp assignments ===

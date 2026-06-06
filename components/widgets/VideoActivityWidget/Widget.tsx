@@ -33,6 +33,7 @@ import {
   videoActivityMaxPoints,
   buildVideoActivityGradeEntries,
 } from '@/utils/videoActivityGrading';
+import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import { runPublishGradePush } from '@/utils/publishGradePush';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -903,13 +904,13 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
               // with the feature enabled are eligible for the FINAL push — also
               // keeps the restricted classroom.coursework.students scope request
               // behind the flag.
-              const classroomFinalEligible =
-                !!target.classroomAttachment &&
-                hasValidMaxPoints(target.classroomAttachment.maxPoints) &&
-                canAssignToClassroom &&
-                !!target.classroomAttachment.ownsCourseWork;
+              const classroomFinalAttachments = canAssignToClassroom
+                ? getClassroomAttachments(target).filter(
+                    (a) => a.ownsCourseWork && hasValidMaxPoints(a.maxPoints)
+                  )
+                : [];
               let classroomToken: string | null = null;
-              if (classroomFinalEligible) {
+              if (classroomFinalAttachments.length > 0) {
                 try {
                   classroomToken = await requestClassroomFinalGradeToken(
                     user?.email ?? undefined
@@ -944,18 +945,19 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
                 addToast,
                 kind: 'va',
                 sessionId: target.id,
-                classroomAttachment: target.classroomAttachment ?? null,
-                classroomFinalEligible,
+                classroomFinalAttachments,
                 classroomToken,
                 schoologyMaxPoints: videoActivityMaxPoints(data.questions),
-                buildClassroomGrades: (responses) =>
-                  target.classroomAttachment
+                buildClassroomGrades: (responses) => {
+                  const mp = classroomFinalAttachments[0]?.maxPoints;
+                  return mp != null
                     ? buildVideoActivityGradeEntries(
                         responses,
                         data.questions,
-                        target.classroomAttachment.maxPoints
+                        mp
                       )
-                    : [],
+                    : [];
+                },
                 buildSchoologyGrades: (responses) =>
                   buildVideoActivityGradeEntries(
                     responses,

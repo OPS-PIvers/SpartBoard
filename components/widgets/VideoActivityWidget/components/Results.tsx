@@ -42,6 +42,7 @@ import {
   NOTHING_TO_PUSH_TOAST,
 } from '@/utils/runClassroomGradePush';
 import { requestClassroomTeacherToken } from '@/components/classroomAddon/gisOAuth';
+import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import {
   bucketLtiPushResults,
   formatLtiPushToast,
@@ -278,25 +279,29 @@ export const Results: React.FC<ResultsProps> = ({
 
   // Push the SpartBoard video-activity scores into the linked Google Classroom
   // gradebook as DRAFT grades. Only available when this assignment was attached
-  // to a Classroom coursework item via the add-on (which writes
-  // `session.classroomAttachment`). VA grades are a 0–100 percentage on screen,
-  // so we scale that displayed percentage onto the frozen Classroom point total
-  // (`maxPoints`) — matching the per-student score the Students tab shows.
-  // Students map to their Classroom grade by `r.studentUid` (the ClassLink SSO
-  // pseudonym the batch CF resolves to a Classroom userId).
-  const classroomAttachment = session?.classroomAttachment ?? null;
+  // to one or more Classroom coursework items via the add-on (which writes
+  // `session.classroomAttachments`, back-compat singular `classroomAttachment`).
+  // VA grades are a 0–100 percentage on screen, so we scale that displayed
+  // percentage onto the frozen Classroom point total (`maxPoints`) — matching
+  // the per-student score the Students tab shows. Students map to their
+  // Classroom grade by `r.studentUid` (the ClassLink SSO pseudonym the batch CF
+  // resolves to a Classroom userId). Linked to multiple courses, the SAME
+  // payload fans out to each (Item D multi-course).
+  const classroomAttachments = getClassroomAttachments(session);
   const handlePushGrades = async () => {
-    if (!classroomAttachment) return;
-    const { attachmentId, courseId, itemId, maxPoints } = classroomAttachment;
-
     // Guard the grade scale FIRST (a malformed/stale attachment could carry
     // NaN/0 maxPoints, scaling every grade to 0/NaN), then the eligible list —
     // completed responses with a resolvable pseudonym — so we never pop a
-    // consent dialog when there's nothing to push.
-    if (!hasValidMaxPoints(maxPoints)) {
+    // consent dialog when there's nothing to push. All linked courses share this
+    // assignment's frozen denominator, so we validate + build once and fan out.
+    const validAttachments = classroomAttachments.filter((a) =>
+      hasValidMaxPoints(a.maxPoints)
+    );
+    if (validAttachments.length === 0) {
       addToast(MISSING_MAX_POINTS_MESSAGE, 'error');
       return;
     }
+    const maxPoints = validAttachments[0].maxPoints;
     // Build the PII-free entries once via the shared helper (same filter +
     // scaling the Publish=Push chaining uses, so the two paths can't drift).
     // Unscoreable/incomplete responses are excluded so we never pop a consent
@@ -314,16 +319,22 @@ export const Results: React.FC<ResultsProps> = ({
     // Shared push flow (token mint → CF → result toast). The entries were built
     // from the responses captured when the teacher clicked (this closure), so a
     // mid-dialog Firestore edit can't bake in stale scores.
+    const courseCount = validAttachments.length;
     await runClassroomGradePush({
       functions,
-      attachment: { courseId, itemId, attachmentId, maxPoints },
+      attachments: validAttachments.map((a) => ({
+        courseId: a.courseId,
+        itemId: a.itemId,
+        attachmentId: a.attachmentId,
+        maxPoints: a.maxPoints,
+      })),
       requestToken: () =>
         requestClassroomTeacherToken(user?.email ?? undefined),
       buildGrades: () => grades,
       confirm: () =>
         showConfirm(
           `Push ${grades.length} grade${grades.length === 1 ? '' : 's'} to Google ` +
-            'Classroom? This writes draft grades to the assignment gradebook — ' +
+            `Classroom${courseCount > 1 ? ` (${courseCount} courses)` : ''}? This writes draft grades to the assignment gradebook — ` +
             'you still review and return them in Classroom.',
           {
             title: 'Push grades to Google Classroom',
@@ -333,7 +344,10 @@ export const Results: React.FC<ResultsProps> = ({
         ),
       distinctTokenCancel: true,
       logTag: 'VideoActivityResults.pushClassroomGrades',
-      logContext: { sessionId: session?.id, attachmentId },
+      logContext: {
+        sessionId: session?.id,
+        attachmentId: validAttachments[0].attachmentId,
+      },
       ...createToastGradePushHandlers(addToast, setPushingGrades),
     });
   };
@@ -437,8 +451,8 @@ export const Results: React.FC<ResultsProps> = ({
 
         <div className="flex items-center" style={{ gap: 'min(8px, 2cqmin)' }}>
           {/* Push grades to Google Classroom — only when this assignment was
-              attached to a Classroom coursework item via the add-on. */}
-          {classroomAttachment && (
+              attached to one or more Classroom coursework items via the add-on. */}
+          {classroomAttachments.length > 0 && (
             <button
               onClick={() => void handlePushGrades()}
               disabled={pushingGrades}

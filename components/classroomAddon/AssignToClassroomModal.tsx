@@ -9,10 +9,12 @@
  * Rendered ONLY behind the CLASSROOM_ASSIGN_ENABLED flag (see config/constants).
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, GraduationCap, Loader2 } from 'lucide-react';
+import { AlertTriangle, Check, GraduationCap, Loader2 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { functions, db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
+import type { ClassroomAttachmentLink } from '@/types';
+import { logError } from '@/utils/logError';
 import {
   requestClassroomAssignToken,
   CLASSROOM_COURSES_READONLY_SCOPE,
@@ -26,7 +28,7 @@ import {
 import {
   assignToClassroom,
   buildClassroomAttachmentLink,
-  persistClassroomAttachmentLink,
+  persistClassroomAttachmentLinks,
   type AssignRunnerKind,
   type AssignToClassroomResult,
 } from '@/utils/assignToClassroom';
@@ -84,9 +86,11 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
   const { user } = useAuth();
   const [phase, setPhase] = useState<Phase>('loading');
   const [courses, setCourses] = useState<GoogleClassroomCourse[]>([]);
-  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
-  // True when `selectedCourseId` was auto-resolved from an existing class↔course
-  // link (Item D) rather than picked — drives the "already linked" hint.
+  // One SpartBoard assignment can fan out to MULTIPLE Classroom courses (Item D),
+  // each getting its own courseWork pointing back at this same session.
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
+  // True when a course was auto-resolved from an existing class↔course link
+  // (Item D) rather than picked — drives the "already linked" hint.
   const [autoLinked, setAutoLinked] = useState(false);
   // Due date + time split into the picker-bound input strings. The host mounts
   // this fresh on each open, so the useState initializers seed from initialDueAt.
@@ -133,7 +137,7 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
             );
             if (cancelled) return;
             if (linkedId && list.some((c) => c.id === linkedId)) {
-              setSelectedCourseId(linkedId);
+              setSelectedCourseIds([linkedId]);
               setAutoLinked(true);
             }
           } catch {
@@ -162,7 +166,7 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
   }, [isOpen, userEmail, reloadNonce]);
 
   const handleAssign = useCallback(async () => {
-    if (!selectedCourseId) return;
+    if (selectedCourseIds.length === 0) return;
     const uid = user?.uid;
     if (!uid) {
       addToast('You must be signed in to assign.', 'error');
@@ -181,31 +185,63 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
         );
         accessTokenRef.current = token;
       }
-      const result = await assignToClassroom(functions, {
-        accessToken: token,
-        courseId: selectedCourseId,
-        origin: window.location.origin,
-        kind,
-        quizCode: kind === 'quiz' ? quizCode : undefined,
-        sessionId,
-        title,
-        maxPoints,
-        dueAt: dueInputsToEpoch(dueDate, dueTime),
-        // The date+time picker always yields an explicit local time → emit it
-        // verbatim to Classroom (vs an end-of-day default for date-only values).
-        dueHasTime: true,
-      });
 
-      // Persist the linkage so the existing grade-push button appears (addon
-      // path only — the link/redirect path has no embedded grade passback).
-      const link = buildClassroomAttachmentLink(result, selectedCourseId);
-      if (link) {
+      // The date+time picker always yields an explicit local time → emit it
+      // verbatim to Classroom (vs an end-of-day default for date-only values).
+      const dueAt = dueInputsToEpoch(dueDate, dueTime);
+
+      // Fan out: create ONE courseWork + add-on attachment per selected course,
+      // reusing the single consented token. Each is a SEPARATE Classroom item
+      // pointing at the SAME SpartBoard session, so a per-course failure is real
+      // (that course got nothing) and must NOT abort the others — we collect the
+      // successes and report the failures.
+      const links: ClassroomAttachmentLink[] = [];
+      const failedCourses: string[] = [];
+      let firstResult: AssignToClassroomResult | null = null;
+      for (const courseId of selectedCourseIds) {
         try {
-          await persistClassroomAttachmentLink(db, kind, sessionId, uid, link);
+          const result = await assignToClassroom(functions, {
+            accessToken: token,
+            courseId,
+            origin: window.location.origin,
+            kind,
+            quizCode: kind === 'quiz' ? quizCode : undefined,
+            sessionId,
+            title,
+            maxPoints,
+            dueAt,
+            dueHasTime: true,
+          });
+          firstResult ??= result;
+          // Addon path only — the link/redirect path has no embedded passback.
+          const link = buildClassroomAttachmentLink(result, courseId);
+          if (link) links.push(link);
+        } catch (err) {
+          logError('AssignToClassroomModal.assign', err, {
+            courseId,
+            sessionId,
+          });
+          failedCourses.push(
+            courses.find((c) => c.id === courseId)?.name ?? courseId
+          );
+        }
+      }
+
+      // Persist ALL successful linkages at once so the grade-push button appears
+      // and the Publish=Push fan-out targets every course.
+      if (links.length > 0) {
+        try {
+          await persistClassroomAttachmentLinks(
+            db,
+            kind,
+            sessionId,
+            uid,
+            links
+          );
         } catch {
-          // The Classroom assignment exists; only the local linkage write
+          // The Classroom assignments exist; only the local linkage write
           // failed. Surface a soft warning rather than implying the assign
-          // failed — re-assigning would duplicate the Classroom item.
+          // failed — re-assigning would duplicate the Classroom items.
           addToast(
             'Assigned to Classroom, but could not link grade sync. Re-open Results to retry.',
             'info'
@@ -213,13 +249,29 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
         }
       }
 
-      addToast(
-        result.mode === 'addon'
-          ? 'Assigned to Google Classroom — students launch it in Classroom.'
-          : 'Assigned to Google Classroom as a link (this account can’t embed the activity).',
-        'success'
-      );
-      onAssigned?.(result);
+      // Every selected course failed → keep the picker up so the teacher retries.
+      if (firstResult === null) {
+        setErrorMsg('Failed to assign to Google Classroom.');
+        setPhase('pick');
+        return;
+      }
+
+      const assignedCount = selectedCourseIds.length - failedCourses.length;
+      if (failedCourses.length > 0) {
+        addToast(
+          `Assigned to ${assignedCount} course${assignedCount === 1 ? '' : 's'}; ` +
+            `${failedCourses.length} failed (${failedCourses.join(', ')}).`,
+          'info'
+        );
+      } else {
+        addToast(
+          firstResult.mode === 'addon'
+            ? `Assigned to Google Classroom${assignedCount > 1 ? ` (${assignedCount} courses)` : ''} — students launch it in Classroom.`
+            : 'Assigned to Google Classroom as a link (this account can’t embed the activity).',
+          'success'
+        );
+      }
+      onAssigned?.(firstResult);
       onClose();
     } catch (err) {
       setErrorMsg(
@@ -230,7 +282,7 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
       setPhase('pick');
     }
   }, [
-    selectedCourseId,
+    selectedCourseIds,
     user,
     kind,
     quizCode,
@@ -239,6 +291,7 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
     maxPoints,
     dueDate,
     dueTime,
+    courses,
     addToast,
     onAssigned,
     onClose,
@@ -274,13 +327,17 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
       <button
         type="button"
         onClick={() => void handleAssign()}
-        disabled={!selectedCourseId || busy}
+        disabled={selectedCourseIds.length === 0 || busy}
         className="inline-flex items-center gap-2 text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {phase === 'assigning' && (
           <Loader2 size={16} className="animate-spin" />
         )}
-        {phase === 'assigning' ? 'Assigning…' : 'Assign'}
+        {phase === 'assigning'
+          ? 'Assigning…'
+          : selectedCourseIds.length > 1
+            ? `Assign to ${selectedCourseIds.length} courses`
+            : 'Assign'}
       </button>
     </div>
   );
@@ -342,8 +399,11 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
             )}
 
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-                Course
+              <label className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                <span>Courses</span>
+                <span className="font-normal normal-case text-slate-400">
+                  Pick one or more
+                </span>
               </label>
               {courses.length === 0 ? (
                 <p className="text-sm text-slate-500 py-4 text-center">
@@ -351,20 +411,24 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
                 </p>
               ) : (
                 <div
-                  role="radiogroup"
-                  aria-label="Google Classroom course"
+                  role="group"
+                  aria-label="Google Classroom courses"
                   className="max-h-64 overflow-y-auto custom-scrollbar rounded-lg border border-slate-200 divide-y divide-slate-100"
                 >
                   {courses.map((c) => {
-                    const checked = selectedCourseId === c.id;
+                    const checked = selectedCourseIds.includes(c.id);
                     return (
                       <button
                         key={c.id}
                         type="button"
-                        role="radio"
+                        role="checkbox"
                         aria-checked={checked}
                         onClick={() => {
-                          setSelectedCourseId(c.id);
+                          setSelectedCourseIds((prev) =>
+                            prev.includes(c.id)
+                              ? prev.filter((id) => id !== c.id)
+                              : [...prev, c.id]
+                          );
                           setAutoLinked(false);
                         }}
                         disabled={phase === 'assigning'}
@@ -375,15 +439,13 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
                         }`}
                       >
                         <span
-                          className={`inline-flex items-center justify-center w-4 h-4 rounded-full border-2 shrink-0 ${
+                          className={`inline-flex items-center justify-center w-4 h-4 rounded border-2 shrink-0 ${
                             checked
-                              ? 'border-brand-blue-primary'
+                              ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
                               : 'border-slate-300'
                           }`}
                         >
-                          {checked && (
-                            <span className="w-2 h-2 rounded-full bg-brand-blue-primary" />
-                          )}
+                          {checked && <Check size={12} strokeWidth={3} />}
                         </span>
                         <span className="min-w-0">
                           <span className="block text-sm font-semibold text-slate-800 truncate">

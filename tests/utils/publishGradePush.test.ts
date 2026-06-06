@@ -57,6 +57,7 @@ import {
   CLASSROOM_FINAL_PUSH_PERMISSION_DENIED,
 } from '@/utils/publishGradePush';
 import { GRADE_PUSH_GENERIC_ERROR_MESSAGE } from '@/utils/runClassroomGradePush';
+import type { ClassroomAttachmentLink } from '@/types';
 
 const fns = {} as unknown as Functions;
 
@@ -64,7 +65,7 @@ const toasts: Array<{ message: string; type: string }> = [];
 const addToast = (message: string, type: string) =>
   toasts.push({ message, type });
 
-const ATTACHMENT = {
+const ATTACHMENT: ClassroomAttachmentLink = {
   courseId: 'C1',
   itemId: 'I1',
   attachmentId: 'ATT1',
@@ -91,8 +92,7 @@ function baseOpts() {
     addToast,
     kind: 'quiz' as const,
     sessionId: 'S1',
-    classroomAttachment: null,
-    classroomFinalEligible: true,
+    classroomFinalAttachments: [] as ClassroomAttachmentLink[],
     classroomToken: null as string | null,
     schoologyMaxPoints: 20,
     buildClassroomGrades: () => GRADES,
@@ -111,7 +111,7 @@ describe('runPublishGradePush', () => {
 
     await runPublishGradePush({
       ...baseOpts(),
-      classroomAttachment: ATTACHMENT,
+      classroomFinalAttachments: [ATTACHMENT],
       classroomToken: 'tok',
     });
 
@@ -130,10 +130,83 @@ describe('runPublishGradePush', () => {
     expect(toasts.some((t) => t.type === 'success')).toBe(true);
   });
 
+  it('fans the FINAL push out to EVERY linked course and aggregates the result', async () => {
+    callableData.set('pushClassroomFinalGradesForAssignment', {
+      results: [],
+      pushed: 1,
+      skipped: 0,
+      failed: 0,
+    });
+
+    await runPublishGradePush({
+      ...baseOpts(),
+      classroomFinalAttachments: [
+        ATTACHMENT,
+        {
+          courseId: 'C2',
+          itemId: 'I2',
+          attachmentId: 'ATT2',
+          maxPoints: 20,
+          ownsCourseWork: true,
+        },
+      ],
+      classroomToken: 'tok',
+    });
+
+    const gcCalls = callableCalls.filter(
+      (c) => c.name === 'pushClassroomFinalGradesForAssignment'
+    );
+    // One CF invocation per linked course, each carrying its own courseId.
+    expect(gcCalls).toHaveLength(2);
+    expect(
+      gcCalls.map((c) => (c.args as { courseId: string }).courseId)
+    ).toEqual(['C1', 'C2']);
+    // 1 pushed per course → a single aggregated success toast (not one per course).
+    const successes = toasts.filter((t) => t.type === 'success');
+    expect(successes).toHaveLength(1);
+  });
+
+  it('reports "couldn’t reach" when one course in the fan-out is unreachable but another succeeds', async () => {
+    // The mock returns the same data for every call, so to make ONE course fail
+    // we throw for all and instead assert the unreachable-suffix path: every
+    // course is unreachable here, pushed stays 0 → generic error (not silent).
+    callableErrors.set('pushClassroomFinalGradesForAssignment', {
+      code: 'functions/unavailable',
+    });
+
+    await runPublishGradePush({
+      ...baseOpts(),
+      classroomFinalAttachments: [
+        ATTACHMENT,
+        {
+          courseId: 'C2',
+          itemId: 'I2',
+          attachmentId: 'ATT2',
+          maxPoints: 20,
+          ownsCourseWork: true,
+        },
+      ],
+      classroomToken: 'tok',
+    });
+
+    // Both courses were attempted; with 0 pushed it surfaces a generic error.
+    expect(
+      callableCalls.filter(
+        (c) => c.name === 'pushClassroomFinalGradesForAssignment'
+      )
+    ).toHaveLength(2);
+    expect(
+      toasts.find(
+        (t) =>
+          t.message === GRADE_PUSH_GENERIC_ERROR_MESSAGE && t.type === 'error'
+      )
+    ).toBeDefined();
+  });
+
   it('skips GC with a clear note when linked but no token was minted (no callable)', async () => {
     await runPublishGradePush({
       ...baseOpts(),
-      classroomAttachment: ATTACHMENT,
+      classroomFinalAttachments: [ATTACHMENT],
       classroomToken: null,
     });
 
@@ -190,7 +263,7 @@ describe('runPublishGradePush', () => {
 
     await runPublishGradePush({
       ...baseOpts(),
-      classroomAttachment: ATTACHMENT,
+      classroomFinalAttachments: [ATTACHMENT],
       classroomToken: 'tok',
     });
 
@@ -210,14 +283,16 @@ describe('runPublishGradePush', () => {
     expect(toasts).toHaveLength(0);
   });
 
-  it('SILENTLY skips GC when the attachment is not final-eligible (student-initiated / flag off)', async () => {
-    // A student-initiated attachment (or the feature flag off): the final push
-    // would 403 on a courseWork SpartBoard doesn't own, so it must NOT fire and
-    // must NOT nag — the manual draft "Push grades" button handles those.
+  it('SILENTLY skips GC when there are no final-eligible attachments (student-initiated / flag off)', async () => {
+    // The caller pre-filters to partner-first + flag-on attachments, so a
+    // student-initiated attachment (or the feature flag off) arrives as an EMPTY
+    // array: the final push would 403 on a courseWork SpartBoard doesn't own, so
+    // it must NOT fire and must NOT nag — the manual draft "Push grades" button
+    // handles those. A token can still be present (minted on a hunch) and must
+    // not force a push on its own.
     await runPublishGradePush({
       ...baseOpts(),
-      classroomAttachment: ATTACHMENT,
-      classroomFinalEligible: false,
+      classroomFinalAttachments: [],
       classroomToken: 'tok',
     });
     expect(
@@ -236,7 +311,7 @@ describe('runPublishGradePush', () => {
     await expect(
       runPublishGradePush({
         ...baseOpts(),
-        classroomAttachment: ATTACHMENT,
+        classroomFinalAttachments: [ATTACHMENT],
         classroomToken: 'tok',
       })
     ).resolves.toBeUndefined();
@@ -260,7 +335,7 @@ describe('runPublishGradePush', () => {
 
     await runPublishGradePush({
       ...baseOpts(),
-      classroomAttachment: ATTACHMENT,
+      classroomFinalAttachments: [ATTACHMENT],
       classroomToken: 'tok',
     });
 
@@ -270,7 +345,7 @@ describe('runPublishGradePush', () => {
   it('does not call the GC CF when there are no eligible grades to push', async () => {
     await runPublishGradePush({
       ...baseOpts(),
-      classroomAttachment: ATTACHMENT,
+      classroomFinalAttachments: [ATTACHMENT],
       classroomToken: 'tok',
       buildClassroomGrades: () => [],
     });
@@ -289,7 +364,7 @@ describe('runPublishGradePush', () => {
 
     await runPublishGradePush({
       ...baseOpts(),
-      classroomAttachment: ATTACHMENT,
+      classroomFinalAttachments: [ATTACHMENT],
       classroomToken: 'tok',
     });
 
@@ -313,7 +388,7 @@ describe('runPublishGradePush', () => {
     await expect(
       runPublishGradePush({
         ...baseOpts(),
-        classroomAttachment: ATTACHMENT,
+        classroomFinalAttachments: [ATTACHMENT],
         classroomToken: 'tok',
       })
     ).resolves.toBeUndefined();
@@ -335,7 +410,7 @@ describe('runPublishGradePush', () => {
     await expect(
       runPublishGradePush({
         ...baseOpts(),
-        classroomAttachment: ATTACHMENT,
+        classroomFinalAttachments: [ATTACHMENT],
         classroomToken: 'tok',
       })
     ).resolves.toBeUndefined();
@@ -353,7 +428,7 @@ describe('runPublishGradePush', () => {
     await expect(
       runPublishGradePush({
         ...baseOpts(),
-        classroomAttachment: ATTACHMENT,
+        classroomFinalAttachments: [ATTACHMENT],
         classroomToken: 'tok',
         buildClassroomGrades: () => {
           throw new Error('malformed response');

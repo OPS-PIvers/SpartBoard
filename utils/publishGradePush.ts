@@ -62,22 +62,20 @@ export interface RunPublishGradePushOptions<R> {
   kind: 'quiz' | 'va';
   /** Session id (== assignmentId). Identifies the responses + the Schoology line item. */
   sessionId: string;
-  /** Google Classroom linkage (courseId/itemId/attachmentId/maxPoints) or null. */
-  classroomAttachment?: ClassroomAttachmentLink | null;
   /**
-   * Whether this assignment is eligible for the FINAL-grade auto-push: the
-   * Classroom feature is enabled for the teacher AND SpartBoard owns the
-   * courseWork (partner-first). When false (student-initiated attachment, or the
-   * feature flag is off) the GC final push is skipped silently — the courseWork
-   * isn't ours to set assignedGrade on, and the manual "Push grades" (draft)
-   * button still works. This is ALSO the gate that keeps the restricted
-   * `classroom.coursework.students` token request behind the feature flag.
+   * The Google Classroom attachments eligible for the FINAL-grade auto-push —
+   * ALREADY filtered by the caller to partner-first (SpartBoard owns the
+   * courseWork) AND the feature being enabled. One per linked course (Item D
+   * multi-course fan-out); empty when not eligible (student-initiated, flag off,
+   * or unlinked), in which case GC is skipped silently and the manual draft
+   * "Push grades" button remains the path. Pre-filtering here is ALSO what keeps
+   * the restricted `classroom.coursework.students` token behind the feature flag.
    */
-  classroomFinalEligible: boolean;
+  classroomFinalAttachments: ClassroomAttachmentLink[];
   /**
    * A `classroom.coursework.students` token pre-minted from the Publish click —
-   * only when `classroomFinalEligible`. null → the teacher dismissed the popup
-   * (eligible case) or it wasn't minted (ineligible case).
+   * only when there are eligible attachments. null → the teacher dismissed the
+   * popup.
    */
   classroomToken: string | null;
   /**
@@ -106,27 +104,24 @@ export async function runPublishGradePush<R>({
   addToast,
   kind,
   sessionId,
-  classroomAttachment,
-  classroomFinalEligible,
+  classroomFinalAttachments,
   classroomToken,
   schoologyMaxPoints,
   buildClassroomGrades,
   buildSchoologyGrades,
 }: RunPublishGradePushOptions<R>): Promise<void> {
-  // Only partner-first attachments (with the feature enabled) get the FINAL
-  // auto-push. A student-initiated attachment is silently skipped here — the
-  // courseWork isn't SpartBoard's to set assignedGrade on, so the final push
-  // would 403 for the whole class; the manual draft "Push grades" button (which
-  // patches the add-on pointsEarned) remains the path for those.
-  const gcFinal =
-    !!classroomAttachment &&
-    hasValidMaxPoints(classroomAttachment.maxPoints) &&
-    classroomFinalEligible;
-  const needGcPush = gcFinal && !!classroomToken;
+  // The attachments are pre-filtered to partner-first + flag-on, with a valid
+  // grade scale (defensive re-check below). A student-initiated attachment is
+  // never here — its courseWork isn't SpartBoard's to set assignedGrade on, so
+  // the manual draft "Push grades" button remains its path.
+  const gcAttachments = classroomFinalAttachments.filter((a) =>
+    hasValidMaxPoints(a.maxPoints)
+  );
+  const needGcPush = gcAttachments.length > 0 && !!classroomToken;
 
   // Eligible but no token → the teacher dismissed consent (or it's a re-publish
   // without a fresh popup). Publish already stood; nudge toward the manual push.
-  if (gcFinal && !classroomToken) {
+  if (gcAttachments.length > 0 && !classroomToken) {
     addToast(CLASSROOM_PUSH_SKIPPED_NO_TOKEN, 'info');
   }
 
@@ -163,34 +158,65 @@ export async function runPublishGradePush<R>({
     return;
   }
 
-  // Google Classroom — FINAL grade (assignedGrade + return). The grade build is
-  // INSIDE the try so a malformed response can't throw out of this function and
-  // surface as "Failed to publish" (the publish already committed).
-  if (needGcPush && classroomAttachment && classroomToken) {
+  // Google Classroom — FINAL grade (assignedGrade + return), fanned out to EACH
+  // linked course. The grade build is INSIDE the try so a malformed response
+  // can't throw out of this function and surface as "Failed to publish" (the
+  // publish already committed). Each student only resolves a submission for the
+  // course they actually launched, so the same payload is safe to send to every
+  // attachment — a student in course A is skipped by course B's push.
+  if (needGcPush && classroomToken) {
     try {
       const grades = buildClassroomGrades(responses);
       if (grades.length > 0) {
-        const data = await pushClassroomFinalGradesForAssignment(functions, {
-          courseId: classroomAttachment.courseId,
-          itemId: classroomAttachment.itemId,
-          attachmentId: classroomAttachment.attachmentId,
-          accessToken: classroomToken,
-          grades,
-          maxPoints: classroomAttachment.maxPoints,
-        });
-        addToast(
-          formatGradePushToast(data),
-          data.failed > 0 ? 'error' : 'success'
-        );
+        const agg = { pushed: 0, skipped: 0, failed: 0 };
+        let permissionDenied = false;
+        let unreachableCourses = 0;
+        for (const att of gcAttachments) {
+          try {
+            const data = await pushClassroomFinalGradesForAssignment(
+              functions,
+              {
+                courseId: att.courseId,
+                itemId: att.itemId,
+                attachmentId: att.attachmentId,
+                accessToken: classroomToken,
+                grades,
+                maxPoints: att.maxPoints,
+              }
+            );
+            agg.pushed += data.pushed;
+            agg.skipped += data.skipped;
+            agg.failed += data.failed;
+          } catch (err) {
+            logError('publishGradePush.classroom', err, {
+              sessionId,
+              courseId: att.courseId,
+            });
+            if (isPushPermissionDenied(err)) permissionDenied = true;
+            unreachableCourses += 1;
+          }
+        }
+        if (agg.pushed === 0 && (permissionDenied || unreachableCourses > 0)) {
+          addToast(
+            permissionDenied
+              ? CLASSROOM_FINAL_PUSH_PERMISSION_DENIED
+              : GRADE_PUSH_GENERIC_ERROR_MESSAGE,
+            'error'
+          );
+        } else {
+          const suffix =
+            unreachableCourses > 0
+              ? ` Couldn’t reach ${unreachableCourses} course${unreachableCourses === 1 ? '' : 's'} — retry.`
+              : '';
+          addToast(
+            formatGradePushToast({ results: [], ...agg }) + suffix,
+            agg.failed > 0 || unreachableCourses > 0 ? 'error' : 'success'
+          );
+        }
       }
     } catch (err) {
       logError('publishGradePush.classroom', err, { sessionId });
-      addToast(
-        isPushPermissionDenied(err)
-          ? CLASSROOM_FINAL_PUSH_PERMISSION_DENIED
-          : GRADE_PUSH_GENERIC_ERROR_MESSAGE,
-        'error'
-      );
+      addToast(GRADE_PUSH_GENERIC_ERROR_MESSAGE, 'error');
     }
   }
 

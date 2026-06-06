@@ -103,7 +103,16 @@ export interface ClassroomGradePushError {
 
 export interface RunClassroomGradePushOptions {
   functions: Functions;
-  attachment: ClassroomGradePushAttachment;
+  /**
+   * The Classroom attachments to push to — ONE per linked course (Item D
+   * multi-course fan-out). Must be non-empty (callers run their maxPoints /
+   * eligibility guards first). The token is minted ONCE and the SAME grade
+   * payload is sent to each course, so the teacher sees a single consent popup,
+   * not one per course; a per-course failure is collected, never fatal to the
+   * others. The in-iframe grader (one open courseWork) simply passes a
+   * single-element array.
+   */
+  attachments: ClassroomGradePushAttachment[];
   /** Builds the PII-free grade payload — the only genuinely per-surface logic. */
   buildGrades: () => ClassroomGradeEntry[];
   /** Mints a fresh `classroom.addons.teacher` token (a GIS popup). */
@@ -141,7 +150,7 @@ export interface RunClassroomGradePushOptions {
  */
 export async function runClassroomGradePush({
   functions,
-  attachment,
+  attachments,
   buildGrades,
   requestToken,
   onStatus,
@@ -183,15 +192,50 @@ export async function runClassroomGradePush({
     }
 
     onStatus({ phase: 'pushing' });
-    const data = await pushClassroomGradesForAssignment(functions, {
-      courseId: attachment.courseId,
-      itemId: attachment.itemId,
-      attachmentId: attachment.attachmentId,
-      accessToken,
-      grades,
-      maxPoints: attachment.maxPoints,
-    });
-    onStatus({ phase: 'pushed', data });
+    // Fan the SAME payload out to EVERY linked course, reusing the one token
+    // minted above. Per-course failures are collected (logged with their
+    // courseId), NOT thrown — a 403 on one course can't abort the rest — and the
+    // counts are aggregated into a single result. Each student resolves a
+    // submission only in the course they actually launched, so sending every
+    // course the full payload is safe (the others skip them). Only if EVERY
+    // course fails do we surface the failure, discriminating the last error's
+    // permission-denied case so the right remediation copy shows.
+    const agg: PushClassroomGradesData = {
+      results: [],
+      pushed: 0,
+      skipped: 0,
+      failed: 0,
+    };
+    let anySucceeded = false;
+    let lastError: unknown = null;
+    for (const attachment of attachments) {
+      try {
+        const data = await pushClassroomGradesForAssignment(functions, {
+          courseId: attachment.courseId,
+          itemId: attachment.itemId,
+          attachmentId: attachment.attachmentId,
+          accessToken,
+          grades,
+          maxPoints: attachment.maxPoints,
+        });
+        agg.results.push(...data.results);
+        agg.pushed += data.pushed;
+        agg.skipped += data.skipped;
+        agg.failed += data.failed;
+        anySucceeded = true;
+      } catch (err) {
+        lastError = err;
+        logError(logTag, err, { ...logContext, courseId: attachment.courseId });
+      }
+    }
+    if (anySucceeded) {
+      onStatus({ phase: 'pushed', data: agg });
+    } else {
+      onError({
+        permissionDenied: isPushPermissionDenied(lastError),
+        error: lastError,
+      });
+    }
   } catch (err) {
     logError(logTag, err, logContext);
     onError({ permissionDenied: isPushPermissionDenied(err), error: err });
