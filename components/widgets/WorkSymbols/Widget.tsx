@@ -112,18 +112,10 @@ export const WorkSymbolsWidget: React.FC<{ widget: WidgetData }> = ({
                 </div>
               </div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                <ImageIcon
-                  style={{
-                    width: 'min(48px, 12cqmin)',
-                    height: 'min(48px, 12cqmin)',
-                  }}
-                  className="mb-2 opacity-20"
-                />
-                <span style={{ fontSize: 'min(14px, 4cqmin)' }}>
-                  Select a symbol below
-                </span>
-              </div>
+              <ScaledEmptyState
+                icon={ImageIcon}
+                title="Select a symbol below"
+              />
             )}
           </div>
 
