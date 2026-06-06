@@ -160,6 +160,15 @@ export async function runClassroomGradePush({
   logTag,
   logContext,
 }: RunClassroomGradePushOptions): Promise<void> {
+  // Defensive: callers guard for an empty attachment list (nothing linked, or
+  // nothing with a valid scale), but if one ever slips through, treat it as the
+  // benign "nothing to push" no-op rather than minting a consent token for zero
+  // courses and then surfacing a hard error from the all-failed branch below.
+  if (attachments.length === 0) {
+    onStatus({ phase: 'nothing-to-push' });
+    return;
+  }
+
   if (confirm) {
     const confirmed = await confirm();
     if (!confirmed) return;
@@ -198,8 +207,10 @@ export async function runClassroomGradePush({
     // counts are aggregated into a single result. Each student resolves a
     // submission only in the course they actually launched, so sending every
     // course the full payload is safe (the others skip them). Only if EVERY
-    // course fails do we surface the failure, discriminating the last error's
-    // permission-denied case so the right remediation copy shows.
+    // course fails do we surface the failure — discriminating on whether ANY
+    // course was permission-denied (not just the last error) so a mix of a
+    // permission-denied course + a network-failed course still shows the
+    // actionable "link this course to ClassLink" remediation.
     const agg: PushClassroomGradesData = {
       results: [],
       pushed: 0,
@@ -207,6 +218,7 @@ export async function runClassroomGradePush({
       failed: 0,
     };
     let anySucceeded = false;
+    let anyPermissionDenied = false;
     let lastError: unknown = null;
     for (const attachment of attachments) {
       try {
@@ -225,16 +237,14 @@ export async function runClassroomGradePush({
         anySucceeded = true;
       } catch (err) {
         lastError = err;
+        if (isPushPermissionDenied(err)) anyPermissionDenied = true;
         logError(logTag, err, { ...logContext, courseId: attachment.courseId });
       }
     }
     if (anySucceeded) {
       onStatus({ phase: 'pushed', data: agg });
     } else {
-      onError({
-        permissionDenied: isPushPermissionDenied(lastError),
-        error: lastError,
-      });
+      onError({ permissionDenied: anyPermissionDenied, error: lastError });
     }
   } catch (err) {
     logError(logTag, err, logContext);

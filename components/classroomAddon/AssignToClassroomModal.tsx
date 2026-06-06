@@ -264,8 +264,13 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
           'info'
         );
       } else {
+        // Derive the wording from what we actually got back rather than the
+        // first course's mode: `links` holds only the embedded (add-on)
+        // attachments, so an empty `links` means every course fell back to a
+        // plain link (this account can't embed), while a non-empty `links`
+        // means at least one course got the embedded runner + grade passback.
         addToast(
-          firstResult.mode === 'addon'
+          links.length > 0
             ? `Assigned to Google Classroom${assignedCount > 1 ? ` (${assignedCount} courses)` : ''} — students launch it in Classroom.`
             : 'Assigned to Google Classroom as a link (this account can’t embed the activity).',
           'success'
@@ -399,12 +404,19 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
             )}
 
             <div>
-              <label className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+              {/* Not a <label>: the course list is a checkbox group, not a
+                  single labeled form control. Use a heading + an id'd hint wired
+                  as the group's aria-describedby so the "pick one or more"
+                  affordance is announced. */}
+              <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
                 <span>Courses</span>
-                <span className="font-normal normal-case text-slate-400">
+                <span
+                  id="assign-classroom-course-hint"
+                  className="font-normal normal-case text-slate-400"
+                >
                   Pick one or more
                 </span>
-              </label>
+              </div>
               {courses.length === 0 ? (
                 <p className="text-sm text-slate-500 py-4 text-center">
                   No active Google Classroom courses found.
@@ -413,6 +425,7 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
                 <div
                   role="group"
                   aria-label="Google Classroom courses"
+                  aria-describedby="assign-classroom-course-hint"
                   className="max-h-64 overflow-y-auto custom-scrollbar rounded-lg border border-slate-200 divide-y divide-slate-100"
                 >
                   {courses.map((c) => {

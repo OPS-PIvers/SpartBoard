@@ -215,7 +215,10 @@ export async function runPublishGradePush<R>({
         }
       }
     } catch (err) {
-      logError('publishGradePush.classroom', err, { sessionId });
+      // Per-course CF throws are caught inside the loop above, so the only thing
+      // that reaches here is `buildClassroomGrades` throwing on a malformed
+      // response — tag it distinctly from the per-course `.classroom` logs.
+      logError('publishGradePush.classroom.build', err, { sessionId });
       addToast(GRADE_PUSH_GENERIC_ERROR_MESSAGE, 'error');
     }
   }
