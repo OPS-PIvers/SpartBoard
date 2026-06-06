@@ -716,6 +716,55 @@ describe('DraggableWindow', () => {
     );
   });
 
+  it('does not minimize widget when Escape is pressed while a <select> is the event target', () => {
+    // Regression: isInput guard only checked INPUT/TEXTAREA, not SELECT.
+    // Pressing Escape to dismiss a dropdown would fall through the guard and
+    // minimize the widget instead of just closing the native dropdown.
+    renderComponent(
+      {},
+      <select data-testid="widget-select">
+        <option value="a">Option A</option>
+        <option value="b">Option B</option>
+      </select>
+    );
+
+    const selectEl = screen.getByTestId('widget-select');
+
+    // Fire Escape with the SELECT element as the target (simulates keyboard
+    // event originating from the focused <select>).
+    fireEvent.keyDown(selectEl, { key: 'Escape', bubbles: true });
+
+    // The widget must NOT be minimized — Escape on a select should only
+    // dismiss the dropdown, not affect widget state.
+    expect(mockUpdateWidget).not.toHaveBeenCalledWith(
+      'test-widget',
+      expect.objectContaining({ minimized: true })
+    );
+  });
+
+  it('does not trigger delete confirmation when Delete is pressed while a <select> is the event target', () => {
+    // Regression: isInput guard only checked INPUT/TEXTAREA, not SELECT.
+    // Pressing Delete while a select is focused would skip the typing-field
+    // guard and show the widget-delete confirmation dialog unexpectedly.
+    renderComponent(
+      {},
+      <select data-testid="widget-select">
+        <option value="a">Option A</option>
+        <option value="b">Option B</option>
+      </select>
+    );
+
+    const selectEl = screen.getByTestId('widget-select');
+
+    fireEvent.keyDown(selectEl, { key: 'Delete', bubbles: true });
+
+    // No confirmation dialog must appear and no remove must be dispatched.
+    expect(mockRemoveWidget).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText(/Close widget\? Data will be lost\./i)
+    ).not.toBeInTheDocument();
+  });
+
   it('shows confirmation on Delete key press', () => {
     renderComponent();
     const windowEl = screen.getByTestId('draggable-window');

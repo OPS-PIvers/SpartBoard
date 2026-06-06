@@ -35,7 +35,9 @@ jobs:
         run: pnpm run type-check:all
 
       - name: Run linter
-        run: pnpm run lint
+        # eslint's type-aware linting loads the whole TS program; the default
+        # Node heap OOMs on this repo's size. Cap higher (runners have 16GB).
+        run: NODE_OPTIONS=--max-old-space-size=6144 pnpm run lint
 
       - name: Check code formatting
         run: pnpm run format:check

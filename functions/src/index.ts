@@ -642,6 +642,9 @@ export const generateWithAI = onCall(
     if (genType === 'blooms-ai') specificFeatureId = 'blooms-ai';
     if (genType === 'video-activity-recommend')
       specificFeatureId = 'video-activity-recommend';
+    if (genType === 'dashboard-layout') specificFeatureId = 'dashboard-layout';
+    if (genType === 'instructional-routine')
+      specificFeatureId = 'instructional-routine';
 
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -4303,6 +4306,7 @@ export const pinLoginV1 = onCall(
 export {
   classroomAddonLoginV1,
   createClassroomAttachment,
+  assignToClassroomV1,
   linkClassroomCourse,
   unlinkClassroomCourse,
   pushClassroomGradesForAssignment,

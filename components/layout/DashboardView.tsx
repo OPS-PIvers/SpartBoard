@@ -1196,8 +1196,9 @@ export const DashboardView: React.FC = () => {
       if (e.key === 'Escape') {
         const activeElement = document.activeElement as HTMLElement;
         const isInput =
-          ['INPUT', 'TEXTAREA'].includes(activeElement?.tagName || '') ||
-          activeElement?.isContentEditable;
+          ['INPUT', 'TEXTAREA', 'SELECT'].includes(
+            activeElement?.tagName || ''
+          ) || activeElement?.isContentEditable;
 
         if (isInput) {
           activeElement.blur();
@@ -1245,7 +1246,7 @@ export const DashboardView: React.FC = () => {
         // (e.preventDefault() was called before this check was added).
         const activeEl = document.activeElement as HTMLElement;
         const isTypingField =
-          ['INPUT', 'TEXTAREA'].includes(activeEl?.tagName || '') ||
+          ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl?.tagName || '') ||
           activeEl?.isContentEditable;
         if (isTypingField) return;
 

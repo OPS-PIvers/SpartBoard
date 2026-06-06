@@ -29,7 +29,7 @@ import {
   db,
   isAuthBypass,
   GOOGLE_OAUTH_SCOPES,
-} from '../config/firebase';
+} from '@/config/firebase';
 import {
   FeaturePermission,
   WidgetType,
@@ -42,28 +42,28 @@ import {
   DockPosition,
   AssignmentMode,
   AssignmentWidgetKey,
-} from '../types';
-import type { MemberRecord, BuildingRecord } from '../types/organization';
+} from '@/types';
+import type { MemberRecord, BuildingRecord } from '@/types/organization';
 import { AuthContext } from './AuthContextValue';
 import {
   buildingRecordToBuilding,
   canonicalizeBuildingIds,
   canonicalizeBuildingKeyedRecord,
   getBuildingGradeLevels,
-} from '../config/buildings';
-import i18n from '../i18n';
-import { GoogleDriveService } from '../utils/googleDriveService';
-import { onDriveTokenChange } from '../utils/driveAuthErrors';
-import { reportGlobalPermissionsError } from '../utils/globalPermissionsErrors';
+} from '@/config/buildings';
+import i18n from '@/i18n';
+import { GoogleDriveService } from '@/utils/googleDriveService';
+import { onDriveTokenChange } from '@/utils/driveAuthErrors';
+import { reportGlobalPermissionsError } from '@/utils/globalPermissionsErrors';
 import {
   refreshAccessTokenViaBackend,
   requestAndExchangeAuthCode,
   revokeBackendRefreshToken,
-} from '../utils/googleOAuthRefresh';
-import { logError } from '../utils/logError';
-import { FEATURE_DEFAULTS } from '../config/featureDefaults';
-import { stripTransientKeys } from '../utils/widgetConfigPersistence';
-import { parseAssignmentModesConfig } from '../utils/assignmentModesConfig';
+} from '@/utils/googleOAuthRefresh';
+import { logError } from '@/utils/logError';
+import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
+import { stripTransientKeys } from '@/utils/widgetConfigPersistence';
+import { parseAssignmentModesConfig } from '@/utils/assignmentModesConfig';
 import {
   canWriteLastActive,
   stampLastActive,
