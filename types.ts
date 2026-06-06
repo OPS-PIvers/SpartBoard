@@ -166,6 +166,15 @@ export interface ClassRosterMeta {
    * student to this class's OneRoster `sourcedId` (PII-free name resolution).
    */
   googleClassroomCourseId?: string;
+  /**
+   * Schoology section LTI `context_id` this ClassLink roster is linked to, set
+   * via the "Link to Schoology" action. Mirrors the canonical mapping stored at
+   * `/lti_course_links/{contextId}`; kept here so the roster UI can show the
+   * linked state. The Schoology side can only be linked after SpartBoard has
+   * SEEN the section via a launch (no "list my courses" API), so this is set
+   * from the post-launch / SidebarClasses linking flow, not at assign time.
+   */
+  ltiContextId?: string;
 }
 
 /**
