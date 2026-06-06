@@ -92,7 +92,17 @@ export type ClassroomGradePushStatus =
   | { phase: 'pushing' }
   | { phase: 'token-cancelled'; error: unknown }
   | { phase: 'nothing-to-push' }
-  | { phase: 'pushed'; data: PushClassroomGradesData }
+  | {
+      phase: 'pushed';
+      data: PushClassroomGradesData;
+      /**
+       * Courses whose push threw (403 / network) while at least one OTHER course
+       * succeeded — a partial multi-course fan-out failure. The reporter surfaces
+       * a "couldn't reach N courses — retry" note so a silently-dropped course
+       * isn't reported as a clean success. 0 for the single-course case.
+       */
+      unreachableCourses?: number;
+    }
   | { phase: 'settled' };
 
 /** A failed push, with the permission-denied case pre-discriminated. */
@@ -219,6 +229,7 @@ export async function runClassroomGradePush({
     };
     let anySucceeded = false;
     let anyPermissionDenied = false;
+    let unreachableCourses = 0;
     let lastError: unknown = null;
     for (const attachment of attachments) {
       try {
@@ -237,12 +248,16 @@ export async function runClassroomGradePush({
         anySucceeded = true;
       } catch (err) {
         lastError = err;
+        unreachableCourses += 1;
         if (isPushPermissionDenied(err)) anyPermissionDenied = true;
         logError(logTag, err, { ...logContext, courseId: attachment.courseId });
       }
     }
     if (anySucceeded) {
-      onStatus({ phase: 'pushed', data: agg });
+      // Partial success: at least one course pushed. Carry the count of courses
+      // that threw so the reporter can warn "couldn't reach N — retry" instead of
+      // reporting a clean success that silently dropped a whole course.
+      onStatus({ phase: 'pushed', data: agg, unreachableCourses });
     } else {
       onError({ permissionDenied: anyPermissionDenied, error: lastError });
     }
@@ -280,9 +295,23 @@ export function createToastGradePushHandlers(
         case 'nothing-to-push':
           addToast(NOTHING_TO_PUSH_TOAST, 'info');
           break;
-        case 'pushed':
-          addToast(formatGradePushToast(status.data), 'success');
+        case 'pushed': {
+          // Mirror the Publish=Push fan-out reporting: a course that threw while
+          // another succeeded is a partial failure, surfaced as an error toast
+          // with a retry nudge rather than a clean success that hides it.
+          const unreachable = status.unreachableCourses ?? 0;
+          const suffix =
+            unreachable > 0
+              ? ` Couldn’t reach ${unreachable} course${
+                  unreachable === 1 ? '' : 's'
+                } — retry.`
+              : '';
+          addToast(
+            formatGradePushToast(status.data) + suffix,
+            unreachable > 0 || status.data.failed > 0 ? 'error' : 'success'
+          );
           break;
+        }
         case 'requesting-token':
         case 'pushing':
           // The dashboard monitors show no inline progress — these are silent.

@@ -2,7 +2,8 @@
 //
 //   linkLtiCourseV1            — pair a Schoology section (contextId) to a
 //                                ClassLink class, mirroring linkClassroomCourse.
-//   unlinkLtiCourseV1          — remove that pairing.
+//                                A same-teacher re-link re-points it (the
+//                                correction path); there is no unlink CF.
 //   ltiSuggestClassLinkMatchV1 — best-effort auto-match: overlap a section's
 //                                NRPS roster emails with the teacher's ClassLink
 //                                rosters and suggest the best class. Email is
@@ -149,6 +150,28 @@ function parseKind(kind: unknown): LtiSessionKind {
   throw new HttpsError('invalid-argument', "kind must be 'quiz' or 'va'.");
 }
 
+/**
+ * The set of ClassLink class ids the caller's OWN rosters carry. Used to ensure
+ * a teacher can only act on their own classes — both when persisting a link and
+ * when overlap-matching — so a caller can't bind/fetch a foreign class id.
+ */
+async function ownedClasslinkClassIds(
+  db: admin.firestore.Firestore,
+  callerUid: string
+): Promise<Set<string>> {
+  const snap = await db
+    .collection(USERS_COLLECTION)
+    .doc(callerUid)
+    .collection('rosters')
+    .get();
+  const owned = new Set<string>();
+  for (const d of snap.docs) {
+    const cid = (d.data() as { classlinkClassId?: unknown }).classlinkClassId;
+    if (typeof cid === 'string' && cid) owned.add(cid);
+  }
+  return owned;
+}
+
 // ── linkLtiCourseV1 ─────────────────────────────────────────────────────────
 export const linkLtiCourseV1 = onCall(
   { region: 'us-central1', invoker: 'public', cors: ALLOWED_ORIGINS },
@@ -186,6 +209,17 @@ export const linkLtiCourseV1 = onCall(
       contextId
     );
 
+    // The classlinkClassId is client-supplied; verify it's one of the caller's
+    // OWN ClassLink classes so a teacher can't bind a foreign class id into a
+    // section link (which downstream name-resolution would then OneRoster-fetch).
+    const owned = await ownedClasslinkClassIds(db, callerUid);
+    if (!owned.has(classlinkClassId)) {
+      throw new HttpsError(
+        'permission-denied',
+        'You can only link one of your own ClassLink classes.'
+      );
+    }
+
     // Transactional check-then-write: never re-point a link another teacher owns
     // (no-hijack); a same-teacher re-link just updates the paired class.
     await db.runTransaction(async (tx) => {
@@ -219,52 +253,14 @@ export const linkLtiCourseV1 = onCall(
   }
 );
 
-// ── unlinkLtiCourseV1 ───────────────────────────────────────────────────────
-export const unlinkLtiCourseV1 = onCall(
-  { region: 'us-central1', invoker: 'public', cors: ALLOWED_ORIGINS },
-  async (request) => {
-    const callerUid = requireTeacher(request);
-    const data = (request.data ?? {}) as {
-      contextId?: unknown;
-      sessionId?: unknown;
-      kind?: unknown;
-    };
-    const contextId = typeof data.contextId === 'string' ? data.contextId : '';
-    const sessionId = typeof data.sessionId === 'string' ? data.sessionId : '';
-    const kind = parseKind(data.kind);
-    if (!ID_RE.test(contextId) || !ID_RE.test(sessionId)) {
-      throw new HttpsError(
-        'invalid-argument',
-        'contextId and sessionId are required.'
-      );
-    }
-
-    const db = admin.firestore();
-    // Trust anchor: the caller must own a session that saw this context.
-    await assertOwnsSchoologyContext(db, callerUid, sessionId, kind, contextId);
-
-    const removed = await db.runTransaction(async (tx) => {
-      const ref = db.collection(LTI_COURSE_LINKS_COLLECTION).doc(contextId);
-      const existing = await tx.get(ref);
-      if (!existing.exists) return false;
-      const prior = existing.data() as { teacherUid?: unknown };
-      const priorUid =
-        typeof prior?.teacherUid === 'string' ? prior.teacherUid : '';
-      if (priorUid && priorUid !== callerUid) {
-        // A verified co-teacher (owns a session that saw the context) may clear
-        // the link; log it for audit, mirroring unlinkClassroomCourse.
-        console.warn(
-          `[unlinkLtiCourse] context ${contextId} link owned by ${priorUid} ` +
-            `removed by verified co-teacher ${callerUid}.`
-        );
-      }
-      tx.delete(ref);
-      return true;
-    });
-
-    return { ok: true, removed };
-  }
-);
+// NOTE: there is intentionally no unlink CF. A mis-link is corrected by
+// re-linking (linkLtiCourseV1 lets the SAME teacher re-point their own link),
+// and omitting a delete path avoids the weaker-than-Classroom co-teacher
+// "takeover" vector (the LTI trust anchor — "owns a session that saw the
+// context" — is softer than Classroom's live verifyTeacherOfCourse, so allowing
+// deletion of a foreign-owned link would let a co-present teacher silently
+// re-route a section). Add one with an owner-only guard if a true remove-link UI
+// is ever needed.
 
 // ── ltiSuggestClassLinkMatchV1 ──────────────────────────────────────────────
 //
@@ -346,16 +342,7 @@ export const ltiSuggestClassLinkMatchV1 = onCall(
     // passing foreign class ids. (The response only ever returns an overlap
     // COUNT against the caller's own section, so this is abuse-surface hardening,
     // not a privacy fix.) We intersect against the teacher's own rosters.
-    const ownedSnap = await db
-      .collection(USERS_COLLECTION)
-      .doc(callerUid)
-      .collection('rosters')
-      .get();
-    const ownedClassIds = new Set<string>();
-    for (const d of ownedSnap.docs) {
-      const cid = (d.data() as { classlinkClassId?: unknown }).classlinkClassId;
-      if (typeof cid === 'string' && cid) ownedClassIds.add(cid);
-    }
+    const ownedClassIds = await ownedClasslinkClassIds(db, callerUid);
     const ownedCandidates = candidates.filter((c) => ownedClassIds.has(c));
     if (ownedCandidates.length === 0) {
       return { suggestion: null, reason: 'no-owned-candidates' as const };

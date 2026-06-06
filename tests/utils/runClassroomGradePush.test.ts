@@ -149,6 +149,41 @@ describe('runClassroomGradePush (multi-course fan-out)', () => {
     expect(pushedData).toMatchObject({ pushed: 2, failed: 0 });
   });
 
+  it('reports a partial failure: one course succeeds, another throws → pushed status carries unreachableCourses', async () => {
+    // Course A pushes, course B throws (e.g. permission-denied). The prior code
+    // surfaced a clean success and silently dropped B; now the pushed status
+    // carries unreachableCourses so the reporter can warn "couldn't reach 1".
+    pushMock
+      .mockResolvedValueOnce({ results: [], pushed: 1, skipped: 0, failed: 0 })
+      .mockRejectedValueOnce({ code: 'functions/permission-denied' });
+    const requestToken = vi
+      .fn<() => Promise<string>>()
+      .mockResolvedValue('tok');
+    let pushedCount: number | null = null;
+    let unreachable: number | undefined;
+    const onError = vi.fn();
+
+    await runClassroomGradePush({
+      functions: fns,
+      attachments: [att('A'), att('B')],
+      buildGrades: () => GRADES,
+      requestToken,
+      onStatus: (s) => {
+        if (s.phase === 'pushed') {
+          pushedCount = s.data.pushed;
+          unreachable = s.unreachableCourses;
+        }
+      },
+      onError,
+      logTag: 'test',
+    });
+
+    // Partial success → 'pushed' (NOT onError), with the failed course counted.
+    expect(onError).not.toHaveBeenCalled();
+    expect(pushedCount).toBe(1);
+    expect(unreachable).toBe(1);
+  });
+
   it('on an all-course failure, reports permissionDenied when ANY course was permission-denied (not just the last)', async () => {
     // Course A: permission-denied; course B: a plain network failure. The OR
     // accumulator must still surface the actionable "link to ClassLink" copy.

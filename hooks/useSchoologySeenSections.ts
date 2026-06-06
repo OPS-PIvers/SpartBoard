@@ -33,11 +33,16 @@ export interface SchoologySeenSection {
 export function useSchoologySeenSections(
   teacherUid: string | null | undefined
 ): SchoologySeenSection[] {
-  const [sections, setSections] = useState<SchoologySeenSection[]>([]);
+  // Tag the snapshot with the uid it belongs to so an account switch (uid A → B
+  // without a remount) can't briefly surface A's sections to B in the window
+  // before B's first snapshot lands — the render guard masks any non-matching uid
+  // (and signed-out), without a synchronous setState in the effect body.
+  const [state, setState] = useState<{
+    uid: string | null;
+    sections: SchoologySeenSection[];
+  }>({ uid: null, sections: [] });
 
   useEffect(() => {
-    // Signed out → don't subscribe; the render guard below yields []. (No
-    // synchronous setState in the effect body — see the project's effect rules.)
     if (!teacherUid) return;
     const ref = collection(db, 'users', teacherUid, 'lti_seen_sections');
     const unsub = onSnapshot(
@@ -61,14 +66,12 @@ export function useSchoologySeenSections(
           // A section with no usable sessionId can't satisfy the trust anchor,
           // so it can't be linked — drop it from the actionable inventory.
           .filter((s) => !!s.sessionId);
-        setSections(list);
+        setState({ uid: teacherUid, sections: list });
       },
-      () => setSections([])
+      () => setState({ uid: teacherUid, sections: [] })
     );
     return unsub;
   }, [teacherUid]);
 
-  // Mask any stale subscription state while signed out (the effect doesn't reset
-  // it synchronously); a live subscription drives `sections` otherwise.
-  return teacherUid ? sections : [];
+  return teacherUid && state.uid === teacherUid ? state.sections : [];
 }

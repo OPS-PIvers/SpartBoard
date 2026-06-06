@@ -277,9 +277,14 @@ export async function persistLtiLaunchContext(
   // post-launch prompt read this owner-scoped doc; it's server-written (rules
   // deny client writes). Idempotent: only (re)written when a field changed, so
   // repeat launches don't churn the teacher's snapshot. Works for quiz AND VA.
+  // Gate on membershipUrl: the linking trust anchor (assertOwnsSchoologyContext)
+  // requires the per-context membership doc, which is ONLY written when NRPS is
+  // present (above). Advertising a seen section whose membership doc doesn't
+  // exist would offer a section the link CFs always reject — so only inventory a
+  // section that's actually linkable.
   const teacherUid =
     typeof sessionData.teacherUid === 'string' ? sessionData.teacherUid : '';
-  if (teacherUid) {
+  if (teacherUid && membershipUrl) {
     const seenRef = db
       .collection(USERS_COLLECTION)
       .doc(teacherUid)
@@ -287,9 +292,15 @@ export async function persistLtiLaunchContext(
       .doc(contextId);
     const seenExisting = await seenRef.get();
     const se = seenExisting.data();
+    // Never clobber a previously-captured title with null: some launches omit the
+    // context title (privacy configs), and overwriting the stored name with null
+    // would degrade the linking UI to a generic "Schoology section" label.
+    const storedTitle =
+      typeof se?.contextTitle === 'string' ? se.contextTitle : null;
+    const nextTitle = args.contextTitle ?? storedTitle;
     if (
       !seenExisting.exists ||
-      se?.contextTitle !== (args.contextTitle ?? null) ||
+      se?.contextTitle !== nextTitle ||
       se?.sessionId !== sessionId ||
       se?.kind !== kind
     ) {
@@ -297,7 +308,7 @@ export async function persistLtiLaunchContext(
         seenRef,
         {
           contextId,
-          contextTitle: args.contextTitle ?? null,
+          contextTitle: nextTitle,
           sessionId,
           kind,
           updatedAt: Date.now(),

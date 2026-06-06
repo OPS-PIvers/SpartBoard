@@ -2,8 +2,7 @@
  * Tests for the Schoology class↔course linking callables (Item D part 2):
  *
  *   linkLtiCourseV1            — trust anchor (session ownership + context seen),
- *                                transactional no-hijack write.
- *   unlinkLtiCourseV1          — trust-anchored, idempotent delete.
+ *                                owned-class check, transactional no-hijack write.
  *   ltiSuggestClassLinkMatchV1 — transient NRPS∩OneRoster email overlap → the
  *                                best-match class id (emails never returned).
  *
@@ -134,7 +133,6 @@ vi.mock('../classroomAddonAuth', () => ({
 
 import {
   linkLtiCourseV1,
-  unlinkLtiCourseV1,
   ltiSuggestClassLinkMatchV1,
 } from './courseLinkEndpoints';
 
@@ -143,7 +141,6 @@ type Req = {
   data: unknown;
 };
 const callLink = linkLtiCourseV1 as unknown as (r: Req) => Promise<unknown>;
-const callUnlink = unlinkLtiCourseV1 as unknown as (r: Req) => Promise<unknown>;
 const callSuggest = ltiSuggestClassLinkMatchV1 as unknown as (
   r: Req
 ) => Promise<{
@@ -167,8 +164,9 @@ const seenSession = () => {
 beforeEach(() => {
   sessionDoc = { exists: false, data: () => undefined };
   contextDoc = { exists: false, data: () => undefined };
-  // The suggest tests' candidates (cl-A, cl-B) are owned by the caller by default.
-  ownedRosters = ['cl-A', 'cl-B'];
+  // Classes the caller owns (link verifies ownership; suggest intersects). Covers
+  // both the link tests' ids (cl-1, cl-new) and the suggest candidates (cl-A/B).
+  ownedRosters = ['cl-1', 'cl-new', 'cl-A', 'cl-B'];
   courseLinks.clear();
   fetchNrpsMembersMock.mockReset();
   fetchClassStudentsMock.mockReset();
@@ -204,6 +202,16 @@ describe('linkLtiCourseV1', () => {
     await expect(callLink({ auth: TEACHER, data: base })).rejects.toThrow(
       /has not been seen/
     );
+  });
+
+  it('rejects a classlinkClassId the caller does not own', async () => {
+    seenSession();
+    await expect(
+      callLink({
+        auth: TEACHER,
+        data: { ...base, classlinkClassId: 'cl-someone-elses' },
+      })
+    ).rejects.toThrow(/your own ClassLink classes/);
   });
 
   it('writes the link doc (captured title + paired class) on success', async () => {
@@ -250,40 +258,6 @@ describe('linkLtiCourseV1', () => {
       teacherUid: 'teacher-1',
       classlinkClassId: 'cl-new',
     });
-  });
-});
-
-describe('unlinkLtiCourseV1', () => {
-  const base = { contextId: 'ctx-1', sessionId: 'S1', kind: 'quiz' };
-
-  it('enforces the trust anchor (session must have seen the context)', async () => {
-    sessionDoc = { exists: true, data: () => ({ teacherUid: 'teacher-1' }) };
-    contextDoc = { exists: false, data: () => undefined };
-    await expect(callUnlink({ auth: TEACHER, data: base })).rejects.toThrow(
-      /has not been seen/
-    );
-  });
-
-  it('deletes the link and reports removed', async () => {
-    seenSession();
-    courseLinks.set('ctx-1', {
-      teacherUid: 'teacher-1',
-      classlinkClassId: 'cl-1',
-    });
-    const res = (await callUnlink({ auth: TEACHER, data: base })) as {
-      ok: boolean;
-      removed: boolean;
-    };
-    expect(res).toEqual({ ok: true, removed: true });
-    expect(courseLinks.has('ctx-1')).toBe(false);
-  });
-
-  it('is idempotent when there is no link', async () => {
-    seenSession();
-    const res = (await callUnlink({ auth: TEACHER, data: base })) as {
-      removed: boolean;
-    };
-    expect(res.removed).toBe(false);
   });
 });
 

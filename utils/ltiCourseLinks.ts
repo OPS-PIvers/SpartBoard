@@ -1,7 +1,6 @@
 /**
  * ltiCourseLinks — client seam for the Schoology side of Item D ("unify class ↔
- * LMS course"): the callable wrappers for the three linking CFs plus a reverse
- * lookup for showing per-class link state.
+ * LMS course"): the callable wrappers for the linking CFs.
  *
  * Schoology has no "list my courses" API, so a section can only be linked AFTER
  * SpartBoard has seen it via an LTI launch. Every call therefore carries the
@@ -10,20 +9,12 @@
  * saw `contextId`). No OAuth token is involved (unlike Google Classroom): the
  * launch + session ownership IS the proof.
  *
- * The forward link `lti_course_links/{contextId} = { classlinkClassId,
- * teacherUid, … }` is written server-side (linkLtiCourseV1). `findLinkedLti
- * ContextId` queries it BY `classlinkClassId` — a single-field equality, no
- * composite index — and filters to the caller's own links, mirroring
- * `findLinkedClassroomCourseId`.
+ * Per-class link state is read from the roster's mirrored `ltiContextId` (set on
+ * link), so there is no client reverse-lookup here; and a mis-link is corrected
+ * by re-linking (the server lets the same teacher re-point their own link), so
+ * there is no unlink wrapper.
  */
 import { httpsCallable, type Functions } from 'firebase/functions';
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-  type Firestore,
-} from 'firebase/firestore';
 
 /** Which SpartBoard runner the seen session targets. */
 export type LtiLinkKind = 'quiz' | 'va';
@@ -40,13 +31,6 @@ export interface LinkLtiCourseArgs {
   classlinkOrgId?: string;
   /** The SpartBoard roster id, denormalized onto the link for display. */
   rosterId?: string;
-}
-
-/** Args for `unlinkLtiCourseV1`. */
-export interface UnlinkLtiCourseArgs {
-  contextId: string;
-  sessionId: string;
-  kind: LtiLinkKind;
 }
 
 /** Args for `ltiSuggestClassLinkMatchV1`. */
@@ -87,19 +71,6 @@ export async function linkLtiCourse(
   return data;
 }
 
-/** Remove a Schoology section ↔ class link. */
-export async function unlinkLtiCourse(
-  functions: Functions,
-  args: UnlinkLtiCourseArgs
-): Promise<{ ok: boolean; removed: boolean }> {
-  const callable = httpsCallable<
-    UnlinkLtiCourseArgs,
-    { ok: boolean; removed: boolean }
-  >(functions, 'unlinkLtiCourseV1');
-  const { data } = await callable(args);
-  return data;
-}
-
 /** Ask the server for the best ClassLink class to pair a section with. */
 export async function suggestLtiClassLinkMatch(
   functions: Functions,
@@ -111,44 +82,4 @@ export async function suggestLtiClassLinkMatch(
   );
   const { data } = await callable(args);
   return data;
-}
-
-/** Firestore `in` filters accept at most 30 values; chunk defensively. */
-const IN_CHUNK = 30;
-
-interface LtiCourseLinkDoc {
-  classlinkClassId?: string;
-  teacherUid?: string;
-}
-
-/**
- * Resolve the single Schoology section (`contextId`) linked to the given
- * ClassLink class(es) for this teacher, or null when there's no unambiguous
- * match (none linked, or several different sections). The doc id IS the
- * contextId. Mirrors `findLinkedClassroomCourseId`.
- */
-export async function findLinkedLtiContextId(
-  db: Firestore,
-  classlinkClassIds: readonly string[],
-  teacherUid: string
-): Promise<string | null> {
-  const ids = [...new Set(classlinkClassIds.filter((c) => !!c))];
-  if (ids.length === 0 || !teacherUid) return null;
-
-  const contextIds = new Set<string>();
-  for (let i = 0; i < ids.length; i += IN_CHUNK) {
-    const chunk = ids.slice(i, i + IN_CHUNK);
-    const snap = await getDocs(
-      query(
-        collection(db, 'lti_course_links'),
-        where('classlinkClassId', 'in', chunk)
-      )
-    );
-    for (const d of snap.docs) {
-      const data = d.data() as LtiCourseLinkDoc;
-      if (data.teacherUid === teacherUid) contextIds.add(d.id);
-    }
-  }
-
-  return contextIds.size === 1 ? [...contextIds][0] : null;
 }

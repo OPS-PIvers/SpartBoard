@@ -283,6 +283,45 @@ describe('persistLtiLaunchContext — quiz', () => {
     expect(writeAt('users/teacher-1/quiz_assignments/sess-1')?.data).toEqual({
       periodNames: ['Math 7'],
     });
+    // …but the seen-section inventory is NOT written without NRPS: the linking
+    // trust anchor needs the membership context doc (NRPS-only), so advertising
+    // a section the link CFs would reject is suppressed.
+    expect(writeAt('users/teacher-1/lti_seen_sections/')).toBeUndefined();
+  });
+
+  it('preserves a previously-captured section title when a relaunch omits it', async () => {
+    quizSessions = [
+      {
+        id: 'sess-1',
+        data: {
+          code: 'ABC123',
+          status: 'active',
+          startedAt: 100,
+          teacherUid: 'teacher-1',
+          periodNames: ['Math 7'],
+          classPeriodByClassId: { 'schoology:ctx-1': 'Math 7' },
+          ltiAttachment: { resourceLinkId: 'rl-1', contextId: 'ctx-1' },
+          ltiNrps: true,
+        },
+      },
+    ];
+    contextDocs.set(
+      `${LTI_SESSION_MEMBERSHIPS_COLLECTION}/sess-1/contexts/ctx-1`,
+      { contextMembershipsUrl: QUIZ_ARGS.membershipUrl, contextTitle: 'Math 7' }
+    );
+    // The seen-section already has the title from an earlier titled launch.
+    seenDocs.set('users/teacher-1/lti_seen_sections/ctx-1', {
+      contextId: 'ctx-1',
+      contextTitle: 'Math 7',
+      sessionId: 'sess-1',
+      kind: 'quiz',
+    });
+    // This relaunch carries NO context title (privacy config) but keeps NRPS.
+    const { contextTitle: _omit, ...noTitle } = QUIZ_ARGS;
+    void _omit;
+    await persistLtiLaunchContext(db(), noTitle);
+    // The stored title must NOT be clobbered to null → no seen-section rewrite.
+    expect(writeAt('users/teacher-1/lti_seen_sections/')).toBeUndefined();
   });
 
   it('skips the archive mirror when the session has no teacherUid', async () => {

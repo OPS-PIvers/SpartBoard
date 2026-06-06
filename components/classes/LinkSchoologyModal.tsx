@@ -86,8 +86,12 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
       return;
     }
     if (suggestedRef.current) return;
-    suggestedRef.current = true;
+    // Don't burn the once-per-open guard until the data is actually present:
+    // if the modal opens before seenSections/rosters load, set the ref only when
+    // we truly run the suggest, and let the length deps re-trigger this effect
+    // when the inventory arrives (otherwise auto-match would silently never run).
     if (unlinkedSections.length === 0 || candidateRosters.length === 0) return;
+    suggestedRef.current = true;
     const candidates = candidateRosters.map((r) => ({
       classlinkClassId: r.classlinkClassId as string,
     }));
@@ -120,10 +124,11 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
         }
       }
     })();
-    // unlinkedSections/candidateRosters are read once per open; re-running on
-    // their identity churn would re-fire the suggest calls, so they're excluded.
+    // The arrays themselves are read at run time (once, guarded by suggestedRef);
+    // we depend on their LENGTHS so the effect re-fires when the inventory loads
+    // (0 → N) without churning on array-identity changes that would re-suggest.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [isOpen, unlinkedSections.length, candidateRosters.length]);
 
   const handleLink = async (section: SchoologySeenSection) => {
     const rosterId = selections[section.contextId];

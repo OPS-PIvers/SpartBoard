@@ -4323,6 +4323,5 @@ export {
 } from './lti/serviceEndpoints';
 export {
   linkLtiCourseV1,
-  unlinkLtiCourseV1,
   ltiSuggestClassLinkMatchV1,
 } from './lti/courseLinkEndpoints';
