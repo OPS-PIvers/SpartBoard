@@ -4321,3 +4321,8 @@ export {
   ltiPushGradesForAssignmentV1,
   ltiResolveNamesForAssignmentV1,
 } from './lti/serviceEndpoints';
+export {
+  linkLtiCourseV1,
+  unlinkLtiCourseV1,
+  ltiSuggestClassLinkMatchV1,
+} from './lti/courseLinkEndpoints';
