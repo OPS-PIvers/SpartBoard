@@ -4,6 +4,28 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-06
+
+- PRs reviewed: 5 (all open PRs; every head is non-`main`/non-`dev-*`, so all in scope)
+  - #1887 — fix(css-scaling): scale NextUp session-name maxWidth cap with cqmin (head `scheduled-tasks`, base `dev-paul`)
+  - #1886 — docs(unifier): run 9 memory log (2026-06-06) (head `nightly/unifier-log-2026-06-06`, base `dev-paul`)
+  - #1885 — D3: 4 admin config modal labels → SettingsLabel (head `nightly/unify-settings-labels-2026-06-06`, base `dev-paul`)
+  - #1884 — D4: hooks/ cross-directory imports → @/ alias (head `nightly/unify-import-paths-hooks-2026-06-06`, base `dev-paul`)
+  - #1883 — D1: WorkSymbols "select a symbol" empty state → ScaledEmptyState (head `nightly/unify-empty-states-2026-06-06`, base `dev-paul`)
+- Comments processed: 2 threads — 2 fixed, 0 explained
+  - #1887: 1 thread — FIXED. gemini-code-assist correctly noted `maxWidth: 'min(120px, 30cqmin)'` still hard-caps at 120px (since `min()` picks the smaller value), defeating the PR's scaling goal. Changed to `maxWidth: '30cqmin'` so the session name scales with the widget. type-check ✓ lint ✓ format ✓.
+  - #1886: 1 thread — FIXED. Removed the duplicate "D4 hooks/ complete (run 9)" note, keeping the more detailed entry (the one noting the `useImageUpload.ts` Prettier fix). Did NOT apply gemini's literal suggestion text, which would have duplicated the adjacent "D4 context/ complete (run 8)" line; removed the redundant line instead. format ✓.
+  - #1885, #1884, #1883: no review comments.
+- Fixes pushed: 2
+  - #1887 / `scheduled-tasks` — commit `fbe309b` `fix(pr-1887): use 30cqmin directly for NextUp session-name maxWidth`.
+  - #1886 / `nightly/unifier-log-2026-06-06` — commit `9c0ba4c` `fix(pr-1886): remove duplicate D4 hooks/ run-9 note in unifier log`.
+- Reviews posted: 5 (all COMMENT event)
+  - #1887 Ready w/ minor notes (css-scaling.md Completed entry still records the superseded `min(120px, 30cqmin)` value — doc-only); #1886 Ready; #1885 Ready (verified `SettingsLabel` `icon?` prop signature; `Settings2` still used); #1884 Ready (mechanical `@/` alias, `./` sibling imports untouched); #1883 Ready (verified `ScaledEmptyState` requires `icon`+`title`; usage correct).
+- Notes:
+  - Branch-safety: no open PR head is `main` or `dev-*`; all heads were pushable. Both fixes went to their respective PR head branches (`scheduled-tasks` for #1887, `nightly/unifier-log-2026-06-06` for #1886). No pushes to `main`.
+  - Verified component signatures before reviewing: `components/common/SettingsLabel.tsx` (optional `icon` rendered at `w-3 h-3`, label `mb-2`) and `components/common/ScaledEmptyState.tsx` (`icon` + `title` required, `subtitle` optional, default icon color `text-slate-300`). Both #1885 and #1883 use them correctly.
+  - All five PRs are small, mechanical/doc-level changes — no new widgets, no `types.ts`/`WidgetRegistry.ts`/`DashboardContext.tsx`/Firestore-rules changes, so the widget-registration and rules-match-block checks were not triggered.
+
 ## 2026-06-05
 
 - PRs reviewed: 14 (all open PRs; every head is non-`main`/non-`dev-*`, so all in scope)
