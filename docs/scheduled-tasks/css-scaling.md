@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-06-06_
-_Last action: 2026-05-31_
+_Last action: 2026-06-06_
 
 ---
 
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-06 (action): Fixed the highest-priority open item — NextUp/Widget.tsx:327 session-name `<h3>` hardcoded `maxWidth: '120px'`. Replaced with the journal's specified scaled equivalent `maxWidth: 'min(120px, 30cqmin)'`; Prettier reflowed the style object across lines. `tsc --noEmit`, `eslint --max-warnings 0`, and `prettier --check` on the changed file all clean. Moved the item to Completed. Remaining open items (ActivityWall checkbox, PollWidget progress bar, EmbedWidget portaled toolbar, QuizResults text-sm, RevealGrid spacing, multi-widget group, MiniApp dialog text sizes) all still valid._
 
 _2026-06-06: Scanned widget files changed in dev-paul since last audit: BreathingWidget (fix phaseDuration update — logic-only, no CSS changes), no other widget front-face files touched by dev-paul commits. Reviewed SyntaxFramer/Widget.tsx:67 `minWidth: 'calc(max(2, var(--char-count)) * 10cqmin)'` and :130 `min(50cqh, calc(75cqw / max(1, var(--char-count)) * factor))` — these use valid cqmin/cqh/cqw units responding to container size; the calc() pattern is correct CSS for character-count-proportional sizing and the cqh/cqw mix at line 130 qualifies as a fill-better formula per journal guidance. Not flagged. TrafficLight `min(28cqh, 80cqw)` per journal: documented WON'T FIX — portrait-fill formula, leave as-is. PollWidget progress bar (existing open item, h-[min(5cqmin)] at line 161) re-confirmed present and unresolved. Zero new anti-patterns detected. All pre-existing open items remain valid._
 
@@ -67,13 +69,6 @@ _2026-05-13: Scanned all 50 Widget.tsx files for hardcoded text-size classes, fi
 _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size classes and Tailwind pixel-cap violations. No new issues since 2026-05-06. `CatalystInstructionWidget.tsx:48` (`text-xs`) confirmed to be in the Settings component (back-face), not the front-face widget content — not a violation. All existing open items remain valid._
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
-
-### LOW NextUp session-name header has hardcoded `maxWidth: '120px'` pixel cap
-
-- **Detected:** 2026-06-01
-- **File:** components/widgets/NextUp/Widget.tsx:327
-- **Detail:** The session-name `<h3>` in the widget header uses `style={{ maxWidth: '120px' }}`. Widget has `skipScaling: true`. The 120px cap causes the session name to be severely truncated at large widget sizes — at 600+ px wide the header has plenty of room but the name still hard-clips at 120px. This is a different issue from the existing NextUp group item (lines :295/:331 etc., which tracks gap/padding/spacing utilities).
-- **Fix:** Replace the hardcoded pixel cap with a scaled equivalent: `style={{ maxWidth: 'min(120px, 30cqmin)' }}`. This preserves the cap at default widget size while allowing the header to grow on larger widgets.
 
 ### LOW ActivityWall inline activity-editor checkbox uses hardcoded `h-4 w-4` icon size
 
@@ -151,6 +146,14 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW NextUp session-name header has hardcoded `maxWidth: '120px'` pixel cap
+
+- **Detected:** 2026-06-01
+- **Completed:** 2026-06-06
+- **File:** components/widgets/NextUp/Widget.tsx:327
+- **Detail:** The session-name `<h3>` in the widget header used `style={{ maxWidth: '120px' }}`. Widget has `skipScaling: true`, so the 120 px cap did not respond to widget size — at 600+ px wide the header had plenty of room but the name still hard-clipped at 120 px.
+- **Resolution:** Replaced the hardcoded pixel cap with the scaled equivalent `maxWidth: 'min(120px, 30cqmin)'` per the journal's specified fix. This preserves the 120 px cap at default widget size while letting the header grow proportionally on larger widgets. Prettier reflowed the style object across multiple lines. `tsc --noEmit`, `eslint --max-warnings 0`, and `prettier --check` on the changed file all clean.
 
 ### LOW GraphicOrganizer EditableNode uses min-h-[50px] fixed minimum height on contenteditable
 
