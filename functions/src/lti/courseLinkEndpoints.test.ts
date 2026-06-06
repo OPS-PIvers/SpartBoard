@@ -41,6 +41,8 @@ vi.mock('firebase-functions/params', () => ({
 // ── Configurable Firestore state ────────────────────────────────────────────
 let sessionDoc: { exists: boolean; data: () => unknown };
 let contextDoc: { exists: boolean; data: () => unknown };
+// The caller's own ClassLink rosters' classlinkClassIds (suggest ownership gate).
+let ownedRosters: string[] = [];
 const courseLinks = new Map<string, Record<string, unknown>>();
 
 vi.mock('firebase-admin', () => ({
@@ -62,6 +64,19 @@ vi.mock('firebase-admin', () => ({
       }
       if (name === 'lti_course_links') {
         return { doc: (ctx: string) => ({ _ctx: ctx }) };
+      }
+      if (name === 'users') {
+        return {
+          doc: () => ({
+            collection: () => ({
+              get: async () => ({
+                docs: ownedRosters.map((cid) => ({
+                  data: () => ({ classlinkClassId: cid }),
+                })),
+              }),
+            }),
+          }),
+        };
       }
       throw new Error(`unexpected collection ${name}`);
     },
@@ -152,6 +167,8 @@ const seenSession = () => {
 beforeEach(() => {
   sessionDoc = { exists: false, data: () => undefined };
   contextDoc = { exists: false, data: () => undefined };
+  // The suggest tests' candidates (cl-A, cl-B) are owned by the caller by default.
+  ownedRosters = ['cl-A', 'cl-B'];
   courseLinks.clear();
   fetchNrpsMembersMock.mockReset();
   fetchClassStudentsMock.mockReset();
@@ -400,5 +417,56 @@ describe('ltiSuggestClassLinkMatchV1', () => {
       /Not the teacher/
     );
     expect(fetchNrpsMembersMock).not.toHaveBeenCalled();
+  });
+
+  it('ignores candidates the caller does NOT own (no OneRoster fetch fishing)', async () => {
+    seenSession();
+    // The teacher owns neither cl-A nor cl-B — they passed foreign class ids.
+    ownedRosters = ['cl-mine'];
+    const res = await callSuggest({ auth: TEACHER, data: base });
+    expect(res.suggestion).toBeNull();
+    expect(res.reason).toBe('no-owned-candidates');
+    // Crucially, no roster fetch (or even NRPS) runs for the foreign classes.
+    expect(fetchClassStudentsMock).not.toHaveBeenCalled();
+    expect(fetchNrpsMembersMock).not.toHaveBeenCalled();
+  });
+
+  it('degrades to null (not a thrown error) when the NRPS token mint fails', async () => {
+    seenSession();
+    const { getAgsAccessToken } = await import('./ags');
+    vi.mocked(getAgsAccessToken).mockRejectedValueOnce(new Error('token down'));
+    const res = await callSuggest({ auth: TEACHER, data: base });
+    expect(res.suggestion).toBeNull();
+    expect(res.reason).toBe('nrps-token-failed');
+  });
+});
+
+describe('input validation', () => {
+  it('rejects a sessionId that could escape its Firestore collection path', async () => {
+    await expect(
+      callLink({
+        auth: TEACHER,
+        data: {
+          contextId: 'ctx-1',
+          sessionId: 'quiz_sessions/other/evil',
+          kind: 'quiz',
+          classlinkClassId: 'cl-1',
+        },
+      })
+    ).rejects.toThrow(/required/);
+  });
+
+  it('rejects an unrecognized kind instead of silently coercing to quiz', async () => {
+    await expect(
+      callLink({
+        auth: TEACHER,
+        data: {
+          contextId: 'ctx-1',
+          sessionId: 'S1',
+          kind: 'bogus',
+          classlinkClassId: 'cl-1',
+        },
+      })
+    ).rejects.toThrow(/quiz.*va/);
   });
 });

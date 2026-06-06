@@ -33,6 +33,7 @@ import {
   QUIZ_SESSIONS_COLLECTION,
   VIDEO_ACTIVITY_SESSIONS_COLLECTION,
   LTI_SESSION_MEMBERSHIPS_COLLECTION,
+  USERS_COLLECTION,
   type LtiSessionKind,
 } from './nrpsStore';
 // Reuse the existing OneRoster seam (and its test-spy point) rather than
@@ -131,7 +132,22 @@ function requireTeacher(request: {
   return request.auth.uid;
 }
 
+// Firestore-id / sourcedId shape. Applied to ids that flow into a `.doc()` path
+// (contextId, sessionId) so a slash-bearing value can't escape its collection
+// (path-segment injection) or surface as an opaque 500.
 const ID_RE = /^[A-Za-z0-9:_.-]{1,256}$/;
+
+/**
+ * Parse the runner `kind`, rejecting a present-but-unrecognized value instead of
+ * silently coercing it to 'quiz' (which would point the trust anchor at the
+ * wrong collection and yield a confusing "not the teacher" error). Absent → quiz
+ * (the common default), matching the callers that omit it.
+ */
+function parseKind(kind: unknown): LtiSessionKind {
+  if (kind === undefined || kind === 'quiz') return 'quiz';
+  if (kind === 'va') return 'va';
+  throw new HttpsError('invalid-argument', "kind must be 'quiz' or 'va'.");
+}
 
 // ── linkLtiCourseV1 ─────────────────────────────────────────────────────────
 export const linkLtiCourseV1 = onCall(
@@ -148,10 +164,10 @@ export const linkLtiCourseV1 = onCall(
     };
     const contextId = typeof data.contextId === 'string' ? data.contextId : '';
     const sessionId = typeof data.sessionId === 'string' ? data.sessionId : '';
-    const kind: LtiSessionKind = data.kind === 'va' ? 'va' : 'quiz';
+    const kind = parseKind(data.kind);
     const classlinkClassId =
       typeof data.classlinkClassId === 'string' ? data.classlinkClassId : '';
-    if (!ID_RE.test(contextId) || !sessionId || !classlinkClassId) {
+    if (!ID_RE.test(contextId) || !ID_RE.test(sessionId) || !classlinkClassId) {
       throw new HttpsError(
         'invalid-argument',
         'contextId, sessionId, and classlinkClassId are required.'
@@ -215,8 +231,8 @@ export const unlinkLtiCourseV1 = onCall(
     };
     const contextId = typeof data.contextId === 'string' ? data.contextId : '';
     const sessionId = typeof data.sessionId === 'string' ? data.sessionId : '';
-    const kind: LtiSessionKind = data.kind === 'va' ? 'va' : 'quiz';
-    if (!ID_RE.test(contextId) || !sessionId) {
+    const kind = parseKind(data.kind);
+    if (!ID_RE.test(contextId) || !ID_RE.test(sessionId)) {
       throw new HttpsError(
         'invalid-argument',
         'contextId and sessionId are required.'
@@ -289,8 +305,8 @@ export const ltiSuggestClassLinkMatchV1 = onCall(
     };
     const contextId = typeof data.contextId === 'string' ? data.contextId : '';
     const sessionId = typeof data.sessionId === 'string' ? data.sessionId : '';
-    const kind: LtiSessionKind = data.kind === 'va' ? 'va' : 'quiz';
-    if (!ID_RE.test(contextId) || !sessionId) {
+    const kind = parseKind(data.kind);
+    if (!ID_RE.test(contextId) || !ID_RE.test(sessionId)) {
       throw new HttpsError(
         'invalid-argument',
         'contextId and sessionId are required.'
@@ -324,6 +340,27 @@ export const ltiSuggestClassLinkMatchV1 = onCall(
       return { suggestion: null, reason: 'no-membership-url' as const };
     }
 
+    // Defense-in-depth: only OneRoster-fetch classes the caller actually OWNS.
+    // The candidate list is client-supplied; without this a teacher could drive
+    // arbitrary roster fetches against the shared org ClassLink credential by
+    // passing foreign class ids. (The response only ever returns an overlap
+    // COUNT against the caller's own section, so this is abuse-surface hardening,
+    // not a privacy fix.) We intersect against the teacher's own rosters.
+    const ownedSnap = await db
+      .collection(USERS_COLLECTION)
+      .doc(callerUid)
+      .collection('rosters')
+      .get();
+    const ownedClassIds = new Set<string>();
+    for (const d of ownedSnap.docs) {
+      const cid = (d.data() as { classlinkClassId?: unknown }).classlinkClassId;
+      if (typeof cid === 'string' && cid) ownedClassIds.add(cid);
+    }
+    const ownedCandidates = candidates.filter((c) => ownedClassIds.has(c));
+    if (ownedCandidates.length === 0) {
+      return { suggestion: null, reason: 'no-owned-candidates' as const };
+    }
+
     // 1. Section roster emails (NRPS, transient).
     const cfg = await getLtiPlatformConfig(db);
     let nrpsToken: string;
@@ -335,11 +372,11 @@ export const ltiSuggestClassLinkMatchV1 = onCall(
         scopes: [NRPS_SCOPE],
       });
     } catch (err) {
+      // Consistent with the function's contract that a null suggestion is a
+      // normal outcome (the UI falls back to a manual pick) — a Schoology token
+      // blip degrades gracefully rather than surfacing a red error toast.
       console.error('[ltiSuggestMatch] NRPS token mint failed:', err);
-      throw new HttpsError(
-        'internal',
-        'Could not authorize the roster service.'
-      );
+      return { suggestion: null, reason: 'nrps-token-failed' as const };
     }
     let sectionEmails: Set<string>;
     try {
@@ -363,10 +400,10 @@ export const ltiSuggestClassLinkMatchV1 = onCall(
       return { suggestion: null, reason: 'classlink-not-configured' as const };
     }
 
-    // 3. Overlap each candidate class's roster emails with the section's.
+    // 3. Overlap each OWNED candidate class's roster emails with the section's.
     let best: MatchSuggestion | null = null;
     let secondOverlap = 0;
-    for (const classlinkClassId of candidates) {
+    for (const classlinkClassId of ownedCandidates) {
       let rosterEmails: string[];
       try {
         const students = await classroomAddonNet.fetchClassStudents(

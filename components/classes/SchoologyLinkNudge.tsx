@@ -68,7 +68,9 @@ export const SchoologyLinkNudge: React.FC = () => {
   return (
     <>
       {pending.length > 0 && !modalOpen && (
-        <div className="fixed bottom-4 right-4 z-system-banner animate-in slide-in-from-bottom-2 duration-300">
+        // Offset above the DriveDisconnectBanner (also fixed bottom-4 right-4 at
+        // z-system-banner) so the two never stack on the same spot when both show.
+        <div className="fixed bottom-24 right-4 z-system-banner animate-in slide-in-from-bottom-2 duration-300">
           <div className="bg-white rounded-xl shadow-xl border border-brand-blue-primary/20 p-3 flex items-center gap-3 max-w-[300px]">
             <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-brand-blue-lighter text-brand-blue-primary shrink-0">
               <GraduationCap className="w-5 h-5" />

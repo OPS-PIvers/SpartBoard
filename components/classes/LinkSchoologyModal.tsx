@@ -165,7 +165,10 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
   };
 
   const linkableNow = unlinkedSections.filter(
-    (s) => !!selections[s.contextId] && rowState[s.contextId] !== 'linking'
+    (s) =>
+      !!selections[s.contextId] &&
+      rowState[s.contextId] !== 'linking' &&
+      rowState[s.contextId] !== 'linked'
   );
   const handleLinkAll = async () => {
     for (const section of linkableNow) {
