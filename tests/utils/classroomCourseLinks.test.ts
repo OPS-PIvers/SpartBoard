@@ -75,4 +75,14 @@ describe('findLinkedClassroomCourseId', () => {
     expect(await findLinkedClassroomCourseId(db, [], 'T1')).toBeNull();
     expect(await findLinkedClassroomCourseId(db, ['CL-1'], '')).toBeNull();
   });
+
+  it('chunks > 30 class ids across multiple `in` queries and still resolves', async () => {
+    // The 40th class is the only one linked; it lands in the 2nd chunk, so the
+    // resolved course must survive the multi-query merge.
+    const manyIds = Array.from({ length: 40 }, (_, i) => `CL-${i}`);
+    links = [
+      { courseId: 'C-ALG', classlinkClassId: 'CL-39', teacherUid: 'T1' },
+    ];
+    expect(await findLinkedClassroomCourseId(db, manyIds, 'T1')).toBe('C-ALG');
+  });
 });

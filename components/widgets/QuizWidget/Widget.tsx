@@ -1682,6 +1682,12 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   title: a.className ?? a.quizTitle,
                   dueAt: a.dueAt ?? null,
                   dueAtHasTime: a.dueAtHasTime,
+                  // Re-posting an existing assignment: the assignment doc keeps
+                  // rosterIds (not classIds), so resolve its ClassLink classes
+                  // from the rosters to drive the Item D auto-target lookup.
+                  classlinkClassIds: deriveSessionTargetsFromRosters(
+                    rosters.filter((r) => a.rosterIds?.includes(r.id))
+                  ).classIds,
                 })
             : undefined
         }

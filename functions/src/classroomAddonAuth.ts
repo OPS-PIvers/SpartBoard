@@ -65,11 +65,12 @@ const API_TIMEOUT_MS = 10000;
  * Grade-passback key store. Keyed by the student PSEUDONYM (HMAC uid), one
  * sub-doc per Classroom submission:
  *   `classroom_grade_links/{pseudonymUid}/submissions/{submissionId}`
- * Fields: { courseId, itemId, attachmentId, submissionId, teacherUid,
- * updatedAt } — all Classroom/Firebase ids, NEVER a name or email (PII gate).
- * Written transiently during the student handshake; read by
- * pushClassroomGradesForAssignment to resolve each student's submissionId
- * (and `teacherUid` to gate the push to the linking teacher).
+ * Fields: { courseId, itemId, attachmentId, submissionId, googleUserId,
+ * teacherUid, updatedAt } — all opaque Classroom/Firebase/Google ids, NEVER a
+ * name or email (PII gate). Written transiently during the student handshake;
+ * read by pushClassroomGradesForAssignment to resolve the add-on submissionId
+ * (draft path) and by pushClassroomFinalGradesForAssignment to resolve the
+ * student's `googleUserId` → parent courseWork submission (final path).
  */
 const GRADE_SYNC_COLLECTION = 'classroom_grade_links';
 
@@ -1653,16 +1654,16 @@ export const assignToClassroomV1 = onCall(
  * teacher out, since `update` requires the existing teacherUid). The rules now
  * block client writes; this CF is the only writer.
  *
- * TRUST ANCHOR: a single server-side `courses.teachers.get` call
- * (`GET /courses/{courseId}/teachers/me`) with the caller's
- * `classroom.courses.readonly` token. Classroom returns 200 ONLY when the token
- * owner is a teacher of that exact course, so a forged/borrowed courseId yields
- * 404 → denied; this is state-agnostic (ACTIVE/ARCHIVED/PROVISIONED) and one
- * call rather than enumerating the teacher's whole catalog. Any non-200/404
- * outcome (401/403/5xx/network) is UNVERIFIABLE → fail closed (never link).
- * `teacherUid` is taken from `request.auth.uid` (never the client). An existing
- * link owned by a DIFFERENT teacher is never overwritten (`already-exists`),
- * preserving the no-hijack invariant.
+ * TRUST ANCHOR: a server-side `verifyTeacherOfCourse` check — it enumerates
+ * `courses.list?teacherId=me` (covered by `classroom.courses.readonly`) and
+ * looks for the exact courseId, rather than `courses.teachers.get`/`teachers/me`
+ * (which 403s on the scopes these tokens carry — see that seam's note). A
+ * forged/borrowed courseId simply isn't in the caller's list → denied; the check
+ * is state-agnostic (ACTIVE/ARCHIVED/PROVISIONED). Any UNVERIFIABLE outcome
+ * (401/403/5xx/network) → fail closed (never link). `teacherUid` is taken from
+ * `request.auth.uid` (never the client). An existing link owned by a DIFFERENT
+ * teacher is never overwritten (`already-exists`), preserving the no-hijack
+ * invariant.
  */
 export const linkClassroomCourse = onCall(
   {
@@ -1707,9 +1708,10 @@ export const linkClassroomCourse = onCall(
       typeof data.classlinkOrgId === 'string' ? data.classlinkOrgId : null;
     const rosterId = typeof data.rosterId === 'string' ? data.rosterId : null;
 
-    // TRUST ANCHOR: prove the caller teaches this Google course with a single
-    // courses.teachers.get call. Fail CLOSED on any UNVERIFIABLE outcome
-    // (network/timeout/401/403/5xx) — never link on a token we couldn't get a
+    // TRUST ANCHOR: prove the caller teaches this Google course via
+    // verifyTeacherOfCourse (courses.list?teacherId=me). Fail CLOSED on any
+    // UNVERIFIABLE outcome (network/timeout/401/403/5xx) — never link on a token
+    // we couldn't get a
     // definitive answer for.
     const verification = await classroomAddonNet.verifyTeacherOfCourse(
       accessToken,
@@ -1802,9 +1804,9 @@ export const linkClassroomCourse = onCall(
  * common "wrong rosterId, same teacher" fix doesn't even need this — the owner
  * just re-links the correct roster (the same-teacher merge updates `rosterId`).
  *
- * TRUST ANCHOR: identical to `linkClassroomCourse` — a single server-side
- * `courses.teachers.get` call (`GET /courses/{courseId}/teachers/me`) with the
- * caller's `classroom.courses.readonly` token. Only a VERIFIED teacher of the
+ * TRUST ANCHOR: identical to `linkClassroomCourse` — a server-side
+ * `verifyTeacherOfCourse` check (enumerates `courses.list?teacherId=me`, covered
+ * by `classroom.courses.readonly`). Only a VERIFIED teacher of the
  * Google course may unlink it; any upstream/verification error fails CLOSED
  * (never deletes on an unverifiable token). `request.auth.uid` is the only
  * identity source. Never a client-direct delete.
@@ -1858,10 +1860,11 @@ export const unlinkClassroomCourse = onCall(
       throw new HttpsError('invalid-argument', 'courseId is required.');
     }
 
-    // TRUST ANCHOR: prove the caller teaches this Google course with a single
-    // courses.teachers.get call (mirrors linkClassroomCourse). Fail CLOSED on
-    // any UNVERIFIABLE outcome (network/timeout/401/403/5xx) — never unlink on a
-    // token we couldn't get a definitive answer for.
+    // TRUST ANCHOR: prove the caller teaches this Google course via
+    // verifyTeacherOfCourse (courses.list?teacherId=me; mirrors
+    // linkClassroomCourse). Fail CLOSED on any UNVERIFIABLE outcome
+    // (network/timeout/401/403/5xx) — never unlink on a token we couldn't get a
+    // definitive answer for.
     const verification = await classroomAddonNet.verifyTeacherOfCourse(
       accessToken,
       courseId

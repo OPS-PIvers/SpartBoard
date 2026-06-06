@@ -82,7 +82,7 @@ class so the teacher usually just confirms:
 - **Match key — email when available.** A ClassLink roster student carries
   `email` + `sourcedId` (`types.ts` `Student`). Match a Schoology section to the
   ClassLink class whose roster has the **highest student-email overlap**.
-  - ⚠️ **Dependency:** NRPS today returns **name only** (`nrps.ts:23`,
+  - ⚠️ **Dependency:** NRPS today returns **name only** (`nrps.ts` `NrpsMember`,
     deliberate PII minimization). Email-based matching requires (a) Schoology's
     NRPS config to **release email**, and (b) extending the NRPS client to read
     `email` **transiently for matching only** (never persisted, same rule as

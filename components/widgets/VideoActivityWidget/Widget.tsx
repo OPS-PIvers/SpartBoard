@@ -983,6 +983,13 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             assigningToClassroom.className ?? assigningToClassroom.activityTitle
           }
           initialDueAt={assigningToClassroom.sessionOptions?.dueAt ?? null}
+          classlinkClassIds={
+            deriveSessionTargetsFromRosters(
+              rosters.filter((r) =>
+                assigningToClassroom.rosterIds?.includes(r.id)
+              )
+            ).classIds
+          }
           addToast={addToast}
         />
       )}
