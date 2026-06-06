@@ -10,8 +10,8 @@ import {
   where,
   getDocs,
 } from 'firebase/firestore';
-import { db, auth } from '../config/firebase';
-import { LiveSession, LiveStudent, WidgetType, WidgetConfig } from '../types';
+import { db, auth } from '@/config/firebase';
+import { LiveSession, LiveStudent, WidgetType, WidgetConfig } from '@/types';
 
 // Constants for Firestore Paths
 const SESSIONS_COLLECTION = 'sessions';

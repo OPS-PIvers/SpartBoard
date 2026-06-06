@@ -22,13 +22,13 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { db, functions } from '../config/firebase';
-import { logError } from '../utils/logError';
+import { db, functions } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 import type {
   SyncedVideoActivityGroup,
   VideoActivityBehaviorSettings,
   VideoActivityQuestion,
-} from '../types';
+} from '@/types';
 
 const SYNCED_COLLECTION = 'synced_video_activities';
 

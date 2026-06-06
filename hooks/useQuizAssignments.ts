@@ -52,8 +52,8 @@ import type {
   QuizSession,
   ResultsProtection,
   SharedQuizAssignment,
-} from '../types';
-import type { SessionTargets } from '../utils/resolveAssignmentTargets';
+} from '@/types';
+import type { SessionTargets } from '@/utils/resolveAssignmentTargets';
 import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
@@ -67,8 +67,8 @@ import {
   createSyncedQuizGroup,
   pullSyncedQuizContent,
 } from './useSyncedQuizGroups';
-import { logError } from '../utils/logError';
-import { migrateQuizMetadataShape } from '../utils/quizSyncMigration';
+import { logError } from '@/utils/logError';
+import { migrateQuizMetadataShape } from '@/utils/quizSyncMigration';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';

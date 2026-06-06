@@ -6,9 +6,9 @@ import {
   deleteObject,
 } from 'firebase/storage';
 import { doc, setDoc } from 'firebase/firestore';
-import { storage, db } from '../config/firebase';
+import { storage, db } from '@/config/firebase';
 import { useGoogleDrive } from './useGoogleDrive';
-import { PdfItem } from '../types';
+import { PdfItem } from '@/types';
 
 export const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
 
