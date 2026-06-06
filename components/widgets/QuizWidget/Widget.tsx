@@ -238,6 +238,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     title: string;
     dueAt: number | null;
     dueAtHasTime?: boolean;
+    /** Targeted ClassLink classes — drives the Item D auto-target lookup. */
+    classlinkClassIds?: string[];
   } | null>(null);
   // "Assign to Google Classroom" visibility: master flag, restricted to admins
   // during the staged Spike-A rollout (CLASSROOM_ASSIGN_ADMIN_ONLY).
@@ -1297,6 +1299,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 code,
                 title: meta.title,
                 dueAt: dueAt ?? null,
+                // Auto-target the linked Google course (Item D) — we have the
+                // freshly-derived ClassLink classes right here.
+                classlinkClassIds: derived.classIds,
               });
             }
             const url = `${window.location.origin}/quiz?code=${code}`;
@@ -2092,6 +2097,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           title={assigningToClassroom.title}
           initialDueAt={assigningToClassroom.dueAt}
           initialDueAtHasTime={assigningToClassroom.dueAtHasTime}
+          classlinkClassIds={assigningToClassroom.classlinkClassIds}
           addToast={addToast}
         />
       )}

@@ -35,6 +35,7 @@ import {
   dueInputsToEpoch,
   splitDueAtToInputs,
 } from '@/utils/localDate';
+import { findLinkedClassroomCourseId } from '@/utils/classroomCourseLinks';
 
 interface AssignToClassroomModalProps {
   isOpen: boolean;
@@ -52,6 +53,12 @@ interface AssignToClassroomModalProps {
   initialDueAt?: number | null;
   /** Whether `initialDueAt` carries a chosen time (vs a legacy date-only value). */
   initialDueAtHasTime?: boolean;
+  /**
+   * The ClassLink class(es) this assignment targets. When one of them is already
+   * linked to a Google course (Item D), that course is auto-selected so the
+   * teacher confirms instead of re-picking. Omitted → the plain picker.
+   */
+  classlinkClassIds?: string[];
   /** Toast surface from the host widget. */
   addToast: (message: string, type: 'success' | 'error' | 'info') => void;
   /** Called after a successful assign (for the host to refresh UI). */
@@ -70,6 +77,7 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
   maxPoints,
   initialDueAt,
   initialDueAtHasTime,
+  classlinkClassIds,
   addToast,
   onAssigned,
 }) => {
@@ -77,6 +85,9 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
   const [phase, setPhase] = useState<Phase>('loading');
   const [courses, setCourses] = useState<GoogleClassroomCourse[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  // True when `selectedCourseId` was auto-resolved from an existing class↔course
+  // link (Item D) rather than picked — drives the "already linked" hint.
+  const [autoLinked, setAutoLinked] = useState(false);
   // Due date + time split into the picker-bound input strings. The host mounts
   // this fresh on each open, so the useState initializers seed from initialDueAt.
   const initialDue = splitDueAtToInputs(
@@ -110,6 +121,25 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
         const list = await listTeacherCourses(token);
         if (cancelled) return;
         setCourses(list);
+        // Item D: if a targeted ClassLink class is already linked to one of these
+        // courses, auto-select it so the teacher confirms instead of re-picking.
+        // Best-effort — a lookup failure just leaves the plain picker.
+        if (classlinkClassIds && classlinkClassIds.length > 0 && user?.uid) {
+          try {
+            const linkedId = await findLinkedClassroomCourseId(
+              db,
+              classlinkClassIds,
+              user.uid
+            );
+            if (cancelled) return;
+            if (linkedId && list.some((c) => c.id === linkedId)) {
+              setSelectedCourseId(linkedId);
+              setAutoLinked(true);
+            }
+          } catch {
+            // Ignore — fall back to the manual picker.
+          }
+        }
         setErrorMsg(null);
         setPhase('pick');
       } catch (err) {
@@ -123,6 +153,12 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
     return () => {
       cancelled = true;
     };
+    // This effect mints the OAuth token + lists courses ONCE per open; it reads
+    // `classlinkClassIds`/`user.uid` at run time only (for the reverse lookup) —
+    // adding them as deps would re-run and re-fire the consent popup, so they're
+    // intentionally excluded (the modal mounts fresh per open, so values are
+    // current).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, userEmail, reloadNonce]);
 
   const handleAssign = useCallback(async () => {
@@ -295,6 +331,16 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
               </div>
             )}
 
+            {autoLinked && (
+              <div className="flex items-start gap-2 rounded-lg bg-brand-blue-lighter/30 border border-brand-blue-primary/20 px-3 py-2 text-sm text-brand-blue-dark">
+                <GraduationCap size={16} className="mt-0.5 shrink-0" />
+                <span>
+                  Already linked to this class — we picked the course for you.
+                  Review and assign, or change it below.
+                </span>
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
                 Course
@@ -317,7 +363,10 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
                         type="button"
                         role="radio"
                         aria-checked={checked}
-                        onClick={() => setSelectedCourseId(c.id)}
+                        onClick={() => {
+                          setSelectedCourseId(c.id);
+                          setAutoLinked(false);
+                        }}
                         disabled={phase === 'assigning'}
                         className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors disabled:cursor-not-allowed ${
                           checked

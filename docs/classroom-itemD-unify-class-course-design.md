@@ -130,13 +130,28 @@ The teacher creates **one** SpartBoard assignment and targets classes as today
 (`classIds` / `periodNames` / `classPeriodByClassId` preserved → monitor +
 results stay filterable by period). Then:
 
-### 5.1 Google Classroom — fully automatic
+### 5.1 Google Classroom
 
-For each targeted class, **reverse-lookup** its linked Google course
-(`classlinkClassId → googleCourseId` over `classroom_course_links`; a
-single-field `where('classlinkClassId','==',id)` query needs no composite index,
-filter `teacherUid` client-side) and call `assignToClassroomV1` **per linked
-course**, all sharing the one SpartBoard session. No per-course re-pick.
+**Phase 1 — single-class auto-target (SHIPPED).** Reverse-lookup the targeted
+ClassLink class(es) → linked Google course (`classlinkClassId → googleCourseId`
+over `classroom_course_links`; single-field `where('classlinkClassId','in',ids)`,
+no composite index, filter `teacherUid` client-side — `utils/classroomCourseLinks.ts`).
+When an **unambiguous single** course resolves, `AssignToClassroomModal`
+auto-selects it with an "already linked" hint so the teacher just confirms — the
+double-pick is gone for the common single-class assign. Zero/ambiguous → the
+plain picker (and assigning establishes the link, so it's auto next time).
+
+**Phase 2 — multi-course fan-out (NOT YET — has a data-model cost).** "One assign
+→ `assignToClassroomV1` per linked course" needs a session to carry **multiple**
+attachments, but today `QuizSession`/`VideoActivitySession` hold a **single**
+`classroomAttachment`. Fanning out to N Google courses therefore requires
+migrating `classroomAttachment` → `classroomAttachments[]` and updating **every
+reader**: the draft + final grade-push CFs, both Results "Push grades" buttons,
+`persistClassroomAttachmentLink`, `TeacherDiscoveryRoute`/`TeacherReviewRoute`,
+and the **Publish = Push** chain (which currently reads a single attachment). That
+is a cross-cutting change that re-touches just-shipped, reviewed code, so it is
+deliberately split out as its own piece — do NOT bundle it with Phase 1. Until
+then, a multi-period GC assign keeps today's "pick one course" behavior.
 
 - Linked classes → auto-targeted.
 - Unlinked targeted class → inline "link this class to a Classroom course" step
@@ -212,12 +227,13 @@ opaque ids + the section title.
 
 ## 7. Phasing (ship incrementally, each independently valuable)
 
-1. **GC reverse-lookup consume (no new scope/rules).** In the assign flow,
-   reverse-lookup the targeted class's linked Google course and pre-select /
-   auto-target it; unlinked → today's picker. Kills the GC double-pick. _Builds
-   on part 1, which already writes `classlinkClassId`._
-2. **GC multi-course fan-out.** One assign → `assignToClassroomV1` per linked
-   course. Verify the class-gate + monitor filtering end-to-end.
+1. **GC reverse-lookup consume — ✅ SHIPPED.** The assign flow reverse-looks-up
+   the targeted class's linked Google course and auto-selects it (single,
+   unambiguous); unlinked → today's picker. Kills the GC double-pick for the
+   common single-class assign. No new scope/rules/data-model. _Builds on part 1._
+2. **GC multi-course fan-out — deferred (data-model cost, see §5.1).** Requires
+   `classroomAttachment` → `classroomAttachments[]` across the session model +
+   every reader (grade push CFs, Results, Publish=Push). Its own piece.
 3. **Schoology link doc + CFs.** Extend `lti_course_links` with `classlinkClassId`;
    add `linkLtiCourse`/`unlinkLtiCourse` (session-ownership trust anchor) +
    rules-tests. Route AGS grade push + name resolution through the link.
@@ -225,7 +241,8 @@ opaque ids + the section title.
    post-launch prompt; auto-match suggestion (email if released, else title pick).
 5. **Polish:** silent auto-link for high-confidence matches; cross-listed handling.
 
-Phases 1–2 are pure Google Classroom and low-risk. Phases 3–4 are the Schoology
+Phase 1 (shipped) is pure Google Classroom and low-risk. Phase 2 is bigger than
+it first looks (the attachment-array migration). Phases 3–4 are the Schoology
 "bigger lift" and touch LTI (`functions/src/lti/*`) — **do not break the existing
 Schoology launch/AGS/NRPS paths**; everything additive, fully unit-tested
 (prod-only verifiable, like the rest of this feature).
