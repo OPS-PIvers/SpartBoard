@@ -56,6 +56,8 @@ export const USERS_COLLECTION = 'users';
 export const QUIZ_ASSIGNMENTS_SUBCOLLECTION = 'quiz_assignments';
 /** `lti_session_memberships/{sessionId}/contexts/{contextId}` */
 export const LTI_SESSION_MEMBERSHIPS_COLLECTION = 'lti_session_memberships';
+/** `users/{teacherUid}/lti_seen_sections/{contextId}` — linking-UI inventory. */
+export const LTI_SEEN_SECTIONS_SUBCOLLECTION = 'lti_seen_sections';
 
 export type LtiSessionKind = 'quiz' | 'va';
 
@@ -262,6 +264,44 @@ export async function persistLtiLaunchContext(
           .collection(QUIZ_ASSIGNMENTS_SUBCOLLECTION)
           .doc(sessionId),
         { periodNames: nextPeriodNames },
+        { merge: true }
+      );
+      hasWrites = true;
+    }
+  }
+
+  // ── Per-teacher "seen Schoology section" inventory (linking UI) ──────────────
+  // Records, under the SESSION's owner, that this teacher has seen `contextId`
+  // (via a student launch of their assignment) plus the sessionId the linking
+  // CFs use as their trust anchor. The "Link to Schoology" review screen + the
+  // post-launch prompt read this owner-scoped doc; it's server-written (rules
+  // deny client writes). Idempotent: only (re)written when a field changed, so
+  // repeat launches don't churn the teacher's snapshot. Works for quiz AND VA.
+  const teacherUid =
+    typeof sessionData.teacherUid === 'string' ? sessionData.teacherUid : '';
+  if (teacherUid) {
+    const seenRef = db
+      .collection(USERS_COLLECTION)
+      .doc(teacherUid)
+      .collection(LTI_SEEN_SECTIONS_SUBCOLLECTION)
+      .doc(contextId);
+    const seenExisting = await seenRef.get();
+    const se = seenExisting.data();
+    if (
+      !seenExisting.exists ||
+      se?.contextTitle !== (args.contextTitle ?? null) ||
+      se?.sessionId !== sessionId ||
+      se?.kind !== kind
+    ) {
+      batch.set(
+        seenRef,
+        {
+          contextId,
+          contextTitle: args.contextTitle ?? null,
+          sessionId,
+          kind,
+          updatedAt: Date.now(),
+        },
         { merge: true }
       );
       hasWrites = true;

@@ -538,6 +538,16 @@ service cloud.firestore {
                     && request.resource.data.id == resource.data.id;
     }
 
+    // Per-teacher inventory of Schoology (LTI) sections this teacher has SEEN via
+    // a launch but may not have linked yet — drives the "Link to Schoology"
+    // review screen + the post-launch prompt, and carries the sessionId the
+    // linking CFs use as their trust anchor. SERVER-WRITTEN (the launch-context
+    // persist writes it via the Admin SDK); the owner can only READ their own.
+    match /users/{userId}/lti_seen_sections/{contextId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
     // User data collection
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
