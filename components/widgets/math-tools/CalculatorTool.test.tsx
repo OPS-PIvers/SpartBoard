@@ -239,5 +239,55 @@ describe('CalculatorTool', () => {
       // fullExpr built from expression at press-equals time: '−5 + 3 ='
       expect(getExpression(container).textContent).toBe('−5 + 3 =');
     });
+
+    // -------------------------------------------------------------------
+    // Decimal entry — expression must mirror the display.
+    //
+    // Before the fix: pressDecimal simply appended '.' to `expression`
+    // (`expression: prev.expression + '.'`).  When the display was "0"
+    // (initial state), the expression became "." while the display was
+    // "0." — they were out of sync.  Subsequent digit entry corrected the
+    // expression on the next pressDigit call, but during the window when
+    // the user had only typed "." the expression preview was wrong.
+    //
+    // After the fix: pressDecimal replaces the display-portion of the
+    // expression with newDisplay (same strategy as pressDigit).
+    // -------------------------------------------------------------------
+    it('expression matches display immediately after pressing decimal on a fresh calculator', () => {
+      const { container } = render(<CalculatorTool />);
+      clickBtn('.');
+      // display = '0.' → expression must also be '0.', not '.'
+      expect(getDisplay(container).textContent).toBe('0.');
+      expect(getExpression(container).textContent).toBe('0.');
+    });
+
+    it('expression matches display after typing a digit then pressing decimal', () => {
+      const { container } = render(<CalculatorTool />);
+      clickBtn('5');
+      clickBtn('.');
+      // display = '5.' → expression must also be '5.'
+      expect(getDisplay(container).textContent).toBe('5.');
+      expect(getExpression(container).textContent).toBe('5.');
+    });
+
+    it('expression stays in sync after decimal then more digits', () => {
+      const { container } = render(<CalculatorTool />);
+      clickBtn('.');
+      clickBtn('7');
+      // display = '0.7' → expression must be '0.7'
+      expect(getDisplay(container).textContent).toBe('0.7');
+      expect(getExpression(container).textContent).toBe('0.7');
+    });
+
+    it('expression stays in sync for second operand decimal entry', () => {
+      const { container } = render(<CalculatorTool />);
+      clickBtn('3');
+      clickBtn('+');
+      clickBtn('.');
+      // After the operator, waitingForOperand = true; decimal should start '0.'
+      // expression must be '3 + 0.' not '3 + .'
+      expect(getDisplay(container).textContent).toBe('0.');
+      expect(getExpression(container).textContent).toBe('3 + 0.');
+    });
   });
 });
