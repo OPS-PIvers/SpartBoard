@@ -120,9 +120,10 @@ describe('EN locale — widgets.weather baseline', () => {
   });
 
   it('has a widgets.weather.conditions sub-section', () => {
-    expect(en.widgets.weather, 'en.widgets.weather.conditions is missing').toHaveProperty(
-      'conditions'
-    );
+    expect(
+      en.widgets.weather,
+      'en.widgets.weather.conditions is missing'
+    ).toHaveProperty('conditions');
   });
 
   it('has all required widgets.weather.conditions keys', () => {
@@ -135,9 +136,10 @@ describe('EN locale — widgets.weather baseline', () => {
   });
 
   it('has a widgets.weather.clothing sub-section', () => {
-    expect(en.widgets.weather, 'en.widgets.weather.clothing is missing').toHaveProperty(
-      'clothing'
-    );
+    expect(
+      en.widgets.weather,
+      'en.widgets.weather.clothing is missing'
+    ).toHaveProperty('clothing');
   });
 
   it('has all required widgets.weather.clothing keys', () => {
