@@ -434,14 +434,17 @@ describe('Dock smart-paste – processAndUploadImage is not a spurious dep', () 
     const addSpy = vi.spyOn(window, 'addEventListener');
     const removeSpy = vi.spyOn(window, 'removeEventListener');
 
+    // setupMocks() internally mocks useImageUpload with a fresh vi.fn(), so it
+    // must run BEFORE we set the fnA return value below — otherwise it would
+    // overwrite fnA and the first render would not use it.
+    setupMocks();
+
     // --- First render with processAndUploadImage = fnA ---
     const fnA = vi.fn();
     vi.mocked(useImageUpload).mockReturnValue({
       processAndUploadImage: fnA,
       uploading: false,
     } as unknown as ReturnType<typeof useImageUpload>);
-
-    setupMocks();
 
     const { rerender } = render(<Dock />);
 
