@@ -381,18 +381,7 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
               </div>
             ) : (
               /* Focused with nothing active yet */
-              <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                <Music
-                  style={{
-                    width: 'min(40px, 10cqmin)',
-                    height: 'min(40px, 10cqmin)',
-                  }}
-                  className="mb-2 opacity-20"
-                />
-                <span style={{ fontSize: 'min(14px, 4cqmin)' }}>
-                  Select sounds below
-                </span>
-              </div>
+              <ScaledEmptyState icon={Music} title="Select sounds below" />
             )}
           </div>
 
