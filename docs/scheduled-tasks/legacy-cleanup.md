@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-05-31_
+_Last audited: 2026-06-07_
 _Last action: never_
 
 ---
@@ -39,9 +39,19 @@ _Nothing currently in progress._
 
 ---
 
----
-
 ## Clean (no issues found)
+
+Migration code + dead exports + console.log audit (2026-06-07, re-verified after dev-paul merge):
+
+- Old type strings 'timer', 'stopwatch': Only in `utils/migration.ts:71-80` — correct.
+- Old type string 'workSymbols': Only in `utils/migration.ts:93` — correct.
+- `migrateLocalStorageToFirestore()`: Still actively called in `context/DashboardContext.tsx`. Still needed.
+- New dev-paul commits merged (docs/unifier, D3/D4 refactors, WorkSymbols empty state, classroom Phase 2 with 13 new files): All new utilities (localDate.ts, classroomCourseLinks.ts, classroomAttachments.ts, publishGradePush.ts, ltiCourseLinks.ts, classroomGradePush.ts) confirmed imported in production code. No new dead exports introduced.
+- Commented-out code: None found in new commits.
+- console.log(): Zero in components/, context/, hooks/, utils/.
+- `useScaledFont.ts`: Still dead — only mocked in `ScheduleWidget.test.tsx:34`. Stale mock. Existing LOW open item still valid.
+- `videoActivityDriveService.ts`: Still no production imports. Existing LOW open item still valid.
+- `scripts/tools/`: Still present with 9 Python/Playwright scripts. Existing LOW open item still valid.
 
 Migration code + dead exports + console.log audit (2026-05-31, re-verified):
 

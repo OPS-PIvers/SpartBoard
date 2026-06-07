@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-06_
+_Last audited: 2026-06-07_
 _Last action: 2026-06-06_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-07: Scanned all 49 Widget.tsx files after merging 5 dev-paul commits (docs/unifier, D3 SettingsLabel refactor, D4 hooks @/ alias refactor, D1 WorkSymbols empty state, feat/classroom Phase 2). WorkSymbols/Widget.tsx changed to use ScaledEmptyState — no new CQ violations. D3/D4 refactors touch only import paths and admin panel labels, not widget front-face content. Classroom Phase 2 changes are in AssignToClassroomModal, QuizManager, VideoActivityWidget/Widget.tsx, and QuizResults — all checked: VideoActivityWidget/Widget.tsx new Assign/Results flow elements verified using cqmin/flex patterns correctly. Zero new anti-patterns detected. All pre-existing open items remain valid._
 
 _2026-06-06 (action): Fixed the highest-priority open item — NextUp/Widget.tsx:327 session-name `<h3>` hardcoded `maxWidth: '120px'`. Replaced with the journal's specified scaled equivalent `maxWidth: 'min(120px, 30cqmin)'`; Prettier reflowed the style object across lines. `tsc --noEmit`, `eslint --max-warnings 0`, and `prettier --check` on the changed file all clean. Moved the item to Completed. Remaining open items (ActivityWall checkbox, PollWidget progress bar, EmbedWidget portaled toolbar, QuizResults text-sm, RevealGrid spacing, multi-widget group, MiniApp dialog text sizes) all still valid._
 

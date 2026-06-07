@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-05-31_
+_Last audited: 2026-06-07_
 _Last action: 2026-06-04_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-07 audit notes: Full cross-check of 8 key widgets (Checklist, Sound, NumberLine, Stations, Drawing, Clock, Poll, Scoreboard) and spot-checking of the Stations group MEDIUM open item. Key findings: (1) `stations` — feat(admin): per-building appearance defaults for the Stations widget (#1879) merged via dev-paul has fully resolved the open Stations subset: `StationsConfigurationPanel.tsx` now exists in components/admin/, `stations` is in `getAdminBuildingConfig()` (line 268 of adminBuildingConfig.ts) handling `fontFamily`, `fontColor`, `cardColor`, `cardOpacity`. Moving Stations to Completed. MEDIUM group reduced to SmartNotebook only. (2) Drawing widget: `shapeFill` is exposed in `DrawingWidget/Settings.tsx` (line 27, used at line 178) and defined in `DrawingConfig` (types.ts:1117) but has NO handler in `getAdminBuildingConfig()` and no control in `DrawingConfigurationPanel.tsx`. New LOW item added. (3) Sound widget: `SoundConfigurationPanel.tsx` correctly exposes both `visual` (visual mode selector) and `sensitivity` (range slider) — agent report of incomplete panel UI was incorrect; no new issue. (4) `smartNotebook` subset of the MEDIUM appearance group remains open. (5) All other sampled widgets (Checklist, NumberLine, Clock, Poll, Scoreboard) have full alignment._
 
 _2026-06-04 action notes: Selected the MEDIUM appearance-settings group (highest-severity Open item across all journals read today; widget-registry/css-scaling/typescript-eslint dailies had no item ≥ this severity). Resolved the two tractable widgets in the group — `concept-web` and `checklist` (option a). `smartNotebook` (BLOCKED, file-recency) and `stations` (needs new infrastructure) remain. Branch base brought up to date with `origin/dev-paul` via merge (rebase was intractable — 44 journal-file conflicts), consistent with how this branch was previously synced. See the group MEDIUM item and the new Completed entry for detail._
 
@@ -31,10 +33,11 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
   - ~~`concept-web`~~ — RESOLVED 2026-06-04 (see Completed below)
   - ~~`numberLine`~~ — RESOLVED 2026-05-28 (see Completed below)
   - ~~`checklist`~~ — RESOLVED 2026-06-04 (see Completed below)
-  - `stations` — `fontFamily`, `fontColor`, `cardColor`, `cardOpacity` fields in `StationsConfig` (added 2026-05-03); exposed via `TypographySettings` + `SurfaceColorSettings` in `components/widgets/Stations/Settings.tsx`; no `StationsConfigurationPanel` exists and `stations` is not registered in `BUILDING_CONFIG_PANELS` or `getAdminBuildingConfig()`
+  - ~~`stations`~~ — RESOLVED 2026-06-07 (feat(admin) per-building appearance defaults for Stations, PR #1879 — see Completed below)
 - **Fix:** For each widget, either (a) add the appearance fields to the widget's `Building*Defaults` interface in `types.ts` and add them to the `getAdminBuildingConfig()` case, plus expose them in the `*ConfigurationPanel.tsx`; or (b) add a note in the config interface comment that appearance fields are intentionally user-only and not admin-configurable per building.
 - **2026-05-28 progress:** Resolved `numberLine` (option a) — moved to Completed. SmartNotebook deferred: SmartNotebook/\* files modified in the last 5 commits (`fix(pr-1718)` 8fcf9267 + `fix(smart-notebook)` 5ff93db2), so per the file-recency rule the smartNotebook subset is BLOCKED for this session. Other 3 widgets (concept-web, checklist, stations) remain Open — stations also needs new infrastructure (no `BuildingStationsDefaults` interface, no `StationsConfigurationPanel`, not registered in `BUILDING_CONFIG_PANELS`).
-- **2026-06-04 progress:** Resolved `concept-web` and `checklist` (option a) — moved to Completed. **Remaining: `smartNotebook` and `stations`.** `stations` still needs new infrastructure (no `BuildingStationsDefaults` interface, no `StationsConfigurationPanel`, not registered in `BUILDING_CONFIG_PANELS`); `smartNotebook` should be re-checked for file-recency before action. Note carved out during the concept-web work: `ConceptWebConfig.fontColor` exists (written by the shared `TypographySettings` panel) but ConceptWeb's widget renders node text with a hardcoded `text-slate-800` and never reads `config.fontColor` — so concept-web's `fontColor` is a dead field even at the user level. It was therefore **not** wired into the admin building default (doing so would create a dead admin control); this is documented inline in both `types.ts` and `utils/adminBuildingConfig.ts`. A separate user-level question — whether ConceptWeb's node text should consume `fontColor` or whether the field should be removed from the Settings panel — is out of scope for this admin-config task and is not currently tracked elsewhere.
+- **2026-06-04 progress:** Resolved `concept-web` and `checklist` (option a) — moved to Completed. **Remaining: `smartNotebook` and `stations`.** `stations` still needs new infrastructure; `smartNotebook` should be re-checked for file-recency before action.
+- **2026-06-07 progress:** `stations` resolved outside journal workflow (merged via dev-paul PR #1879). **Remaining: `smartNotebook` only.** `SmartNotebookConfig` still has `cardColor`, `cardOpacity`, `fontFamily`, `fontColor` not in `getAdminBuildingConfig()` (case 'smartNotebook' handles only `storageLimitMb`). Check SmartNotebook file-recency before acting — files changed frequently in recent merges.
 
 ### LOW Checklist: `rosterMode` user-configurable but not in admin building config
 
@@ -42,6 +45,13 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 - **File:** types.ts (ChecklistConfig / BuildingChecklistDefaults), context/DashboardContext.tsx (~line 2183)
 - **Detail:** `ChecklistConfig` has a `rosterMode` field that controls whether the checklist uses a manually-entered list or a synced class roster. Users can toggle this in Settings.tsx. `BuildingChecklistDefaults` does not include `rosterMode`, so admins cannot set a default roster mode per building.
 - **Fix:** Add `rosterMode` to `BuildingChecklistDefaults` in types.ts. Add it to the `case 'checklist'` handler in `getAdminBuildingConfig()`. Expose a toggle in `ChecklistConfigurationPanel.tsx`.
+
+### LOW Drawing: `shapeFill` user-configurable but not in admin building config
+
+- **Detected:** 2026-06-07
+- **File:** types.ts (DrawingConfig), components/widgets/DrawingWidget/Settings.tsx:27,178, utils/adminBuildingConfig.ts (case 'drawing'), components/admin/DrawingConfigurationPanel.tsx
+- **Detail:** `DrawingConfig.shapeFill?: boolean` (types.ts:1117) controls whether shapes are drawn filled or unfilled. Users can toggle it in `DrawingWidget/Settings.tsx` (line 178, checkbox). However, `getAdminBuildingConfig()` case `'drawing'` handles only `width`, `customColors`, and `color` — no `shapeFill`. `DrawingConfigurationPanel.tsx` similarly has no `shapeFill` control. Admins cannot set a per-building default fill mode.
+- **Fix:** Add `shapeFill?: boolean` to `BuildingDrawingDefaults` in `types.ts` (or the equivalent defaults interface). Add `shapeFill` extraction to the `case 'drawing'` handler in `utils/adminBuildingConfig.ts` (validate as boolean). Add a toggle in `DrawingConfigurationPanel.tsx` for "Default Shape Fill" following the existing panel's visual style.
 
 ### LOW Scoreboard: `layout` user-configurable but not in admin building config
 
@@ -74,6 +84,14 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 ---
 
 ## Completed
+
+### MEDIUM Stations appearance fields (fontFamily, fontColor, cardColor, cardOpacity) absent from admin building defaults
+
+- **Detected:** 2026-04-16 (carved out from group MEDIUM 2026-05-03; tracked in group item)
+- **Completed:** 2026-06-07
+- **File:** types.ts (`BuildingStationsDefaults`), utils/adminBuildingConfig.ts (`case 'stations'`), components/admin/StationsConfigurationPanel.tsx
+- **Detail:** `StationsConfig` exposed `fontFamily`, `fontColor`, `cardColor`, `cardOpacity` (consumed by `Stations/Widget.tsx` and rendered station cards), but no `BuildingStationsDefaults` interface existed, no `case 'stations':` in `getAdminBuildingConfig()`, and no `StationsConfigurationPanel.tsx` in components/admin/. Admins could not set per-building appearance defaults for the Stations widget.
+- **Resolution:** Resolved outside journal workflow via feat(admin): per-building appearance defaults for the Stations widget (PR #1879, merged into dev-paul, absorbed into scheduled-tasks on 2026-06-07). `StationsConfigurationPanel.tsx` now exists; `getAdminBuildingConfig()` case `'stations'` (line 268 of adminBuildingConfig.ts) handles `fontFamily`, `fontColor`, `cardColor`, `cardOpacity`.
 
 ### MEDIUM ConceptWeb & Checklist appearance fields absent from admin building defaults
 
