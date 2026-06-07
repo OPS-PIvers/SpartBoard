@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
 _Last audited: 2026-06-07_
-_Last action: 2026-06-04_
+_Last action: 2026-06-07_
 
 ---
 
@@ -16,6 +16,8 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-06-07 action notes: Selected the MEDIUM appearance-settings group (now reduced to `smartNotebook` only) — highest-severity Open item across all journals read today (Sunday: dailies widget-registry/css-scaling/typescript-eslint had only LOW or no open items; legacy-cleanup had only LOW). File-recency check passed: SmartNotebook source (`0d2b536b`), `utils/adminBuildingConfig.ts` (`9b9165a1`), and `types.ts` (`593859a1`) are all outside the last 5 branch commits. **Resolved via option (b)**, not (a): grepping the entire `components/widgets/SmartNotebook/` tree (and the `DraggableWindow`/`WidgetRenderer` wrappers) found ZERO reads of `cardColor`/`cardOpacity`/`fontFamily`/`fontColor` — the widget renders imported SMART pages as image/SVG and themes no surface or text, so it has no per-building appearance defaults worth exposing (option (a) would replicate the "writes building defaults that nothing reads" anti-pattern flagged separately as a MEDIUM for `activity-wall`). Documented the intent in three places: the `SmartNotebookConfig` appearance fields (types.ts), `BuildingSmartNotebookDefaults` (types.ts), and the `case 'smartNotebook'` handler in `utils/adminBuildingConfig.ts`. Moved the MEDIUM group to Completed (all five widgets now resolved). The orthogonal finding that those appearance controls are currently **dead controls at the user level too** is captured as a NEW LOW item below for a future session to either wire up or remove the panel. Documentation-only code change — `pnpm type-check`/`lint`/`format:check` clean (see PR to dev-paul)._
+
 _2026-06-07 audit notes: Full cross-check of 8 key widgets (Checklist, Sound, NumberLine, Stations, Drawing, Clock, Poll, Scoreboard) and spot-checking of the Stations group MEDIUM open item. Key findings: (1) `stations` — feat(admin): per-building appearance defaults for the Stations widget (#1879) merged via dev-paul has fully resolved the open Stations subset: `StationsConfigurationPanel.tsx` now exists in components/admin/, `stations` is in `getAdminBuildingConfig()` (line 268 of adminBuildingConfig.ts) handling `fontFamily`, `fontColor`, `cardColor`, `cardOpacity`. Moving Stations to Completed. MEDIUM group reduced to SmartNotebook only. (2) Drawing widget: `shapeFill` is exposed in `DrawingWidget/Settings.tsx` (line 27, used at line 178) and defined in `DrawingConfig` (types.ts:1117) but has NO handler in `getAdminBuildingConfig()` and no control in `DrawingConfigurationPanel.tsx`. New LOW item added. (3) Sound widget: `SoundConfigurationPanel.tsx` correctly exposes both `visual` (visual mode selector) and `sensitivity` (range slider) — agent report of incomplete panel UI was incorrect; no new issue. (4) `smartNotebook` subset of the MEDIUM appearance group remains open. (5) All other sampled widgets (Checklist, NumberLine, Clock, Poll, Scoreboard) have full alignment._
 
 _2026-06-04 action notes: Selected the MEDIUM appearance-settings group (highest-severity Open item across all journals read today; widget-registry/css-scaling/typescript-eslint dailies had no item ≥ this severity). Resolved the two tractable widgets in the group — `concept-web` and `checklist` (option a). `smartNotebook` (BLOCKED, file-recency) and `stations` (needs new infrastructure) remain. Branch base brought up to date with `origin/dev-paul` via merge (rebase was intractable — 44 journal-file conflicts), consistent with how this branch was previously synced. See the group MEDIUM item and the new Completed entry for detail._
@@ -24,20 +26,12 @@ _2026-05-31 audit notes: Reviewed all changes since 2026-05-24. (1) Scoreboard g
 
 _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget gained `source` (curated/personal/curated-spotify), `layout`, and `personalSpotify*` fields in MusicConfig — these are user-level preferences; personal-spotify access is gated via `canAccessFeature('personal-spotify')` (GlobalFeaturePermission + `buildings?:string[]`), not through building defaults. No building-defaults admin config needed for music. (2) QuizBehaviorSettings added new behavior fields to QuizConfig and VideoActivityConfig — quiz behavior is set per-quiz in the quiz editor, not per-building. No building defaults needed. (3) `refactor(admin)` commit (31e46ad3) removed magic/record/remote panels — already captured in Completed item. (4) SmartNotebook continues to accumulate features but its existing open item (appearance fields gap) covers the new work. No new MEDIUM or HIGH items. One new LOW item added (guided-learning stub panel)._
 
-### MEDIUM Appearance settings (cardColor, cardOpacity, fontFamily, fontColor) exposed in user Settings.tsx but absent from admin building config
+### LOW SmartNotebook appearance controls (cardColor/cardOpacity/fontFamily/fontColor) are dead — not consumed by the widget
 
-- **Detected:** 2026-04-16 (expanded 2026-05-03)
-- **File:** types.ts, context/DashboardContext.tsx (getAdminBuildingConfig)
-- **Detail:** Multiple widgets expose appearance controls in their user-facing Settings.tsx (via `SurfaceColorSettings` and `TypographySettings`) and have the corresponding fields in their `types.ts` config interface, but these fields are not handled in `getAdminBuildingConfig()` and are not controllable from any admin ConfigurationPanel. Admins cannot set per-building appearance defaults for these widgets. Affected widgets:
-  - `smartNotebook` — `cardColor`, `cardOpacity`, `fontFamily`, `fontColor` fields in `SmartNotebookConfig`; `getAdminBuildingConfig` handles only `storageLimitMb`
-  - ~~`concept-web`~~ — RESOLVED 2026-06-04 (see Completed below)
-  - ~~`numberLine`~~ — RESOLVED 2026-05-28 (see Completed below)
-  - ~~`checklist`~~ — RESOLVED 2026-06-04 (see Completed below)
-  - ~~`stations`~~ — RESOLVED 2026-06-07 (feat(admin) per-building appearance defaults for Stations, PR #1879 — see Completed below)
-- **Fix:** For each widget, either (a) add the appearance fields to the widget's `Building*Defaults` interface in `types.ts` and add them to the `getAdminBuildingConfig()` case, plus expose them in the `*ConfigurationPanel.tsx`; or (b) add a note in the config interface comment that appearance fields are intentionally user-only and not admin-configurable per building.
-- **2026-05-28 progress:** Resolved `numberLine` (option a) — moved to Completed. SmartNotebook deferred: SmartNotebook/\* files modified in the last 5 commits (`fix(pr-1718)` 8fcf9267 + `fix(smart-notebook)` 5ff93db2), so per the file-recency rule the smartNotebook subset is BLOCKED for this session. Other 3 widgets (concept-web, checklist, stations) remain Open — stations also needs new infrastructure (no `BuildingStationsDefaults` interface, no `StationsConfigurationPanel`, not registered in `BUILDING_CONFIG_PANELS`).
-- **2026-06-04 progress:** Resolved `concept-web` and `checklist` (option a) — moved to Completed. **Remaining: `smartNotebook` and `stations`.** `stations` still needs new infrastructure; `smartNotebook` should be re-checked for file-recency before action.
-- **2026-06-07 progress:** `stations` resolved outside journal workflow (merged via dev-paul PR #1879). **Remaining: `smartNotebook` only.** `SmartNotebookConfig` still has `cardColor`, `cardOpacity`, `fontFamily`, `fontColor` not in `getAdminBuildingConfig()` (case 'smartNotebook' handles only `storageLimitMb`). Check SmartNotebook file-recency before acting — files changed frequently in recent merges.
+- **Detected:** 2026-06-07
+- **File:** components/widgets/SmartNotebook/Settings.tsx, components/widgets/SmartNotebook/Widget.tsx (+ Library.tsx, Viewer.tsx, PageEditorOverlay.tsx)
+- **Detail:** `SmartNotebookAppearanceSettings` (Settings.tsx) renders the shared `TypographySettings` + `SurfaceColorSettings` primitives, which write `fontFamily`, `fontColor`, `cardColor`, and `cardOpacity` into `SmartNotebookConfig`. However, a full grep of `components/widgets/SmartNotebook/` (and the `DraggableWindow`/`WidgetRenderer` wrappers) finds ZERO reads of any of these four fields. The widget renders one of three child views (Library list, Viewer, PageEditorOverlay) that show imported image/SVG pages and apply none of the appearance config. So the controls are dead at the user level — a teacher who changes them sees no effect. This violates the Widget Appearance Standard ("Ensure front-face widgets actually consume settings values — no dead controls"). This is why the admin building-config gap for these fields was resolved via documentation (option b) rather than wiring (see Completed).
+- **Fix:** Option (a) — wire consumption following the ConceptWeb pattern (`getFontClass(config.fontFamily ?? 'global', globalStyle?.fontFamily ?? 'sans')` for text, `hexToRgba(cardColor, cardOpacity)` for a surface). For a notebook viewer the meaningful targets are the Library view's container/text and the chrome around the page; the page image/SVG itself should not be tinted. Requires threading the resolved values into `Library.tsx` (and optionally `Viewer.tsx`/`PageEditorOverlay.tsx`). Option (b) — remove `SmartNotebookAppearanceSettings` (and its `WIDGET_APPEARANCE_COMPONENTS` registration) so the flip-panel "Style" tab falls back to the standard placeholder, which is more honest than offering controls that do nothing. Option (a) is more in keeping with the rest of the widget catalog; option (b) is lower-effort. Either requires a visual check before merging.
 
 ### LOW Checklist: `rosterMode` user-configurable but not in admin building config
 
@@ -84,6 +78,15 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 ---
 
 ## Completed
+
+### MEDIUM Appearance settings (cardColor, cardOpacity, fontFamily, fontColor) exposed in user Settings.tsx but absent from admin building config (group)
+
+- **Detected:** 2026-04-16 (expanded 2026-05-03)
+- **Completed:** 2026-06-07 (final widget — `smartNotebook`)
+- **File:** types.ts (`SmartNotebookConfig`, `BuildingSmartNotebookDefaults`), utils/adminBuildingConfig.ts (`case 'smartNotebook'`)
+- **Detail:** The group tracked widgets whose user-facing appearance controls (`SurfaceColorSettings` + `TypographySettings`) had no matching admin per-building default. Resolved per widget over time: `numberLine` (2026-05-28, option a), `concept-web` + `checklist` (2026-06-04, option a), `stations` (2026-06-07, via dev-paul PR #1879). The final widget, `smartNotebook`, is resolved here.
+- **Resolution (`smartNotebook`):** Chose option (b) — documentation — because a full grep of `components/widgets/SmartNotebook/` (and the `DraggableWindow`/`WidgetRenderer` wrappers) found ZERO reads of `cardColor`/`cardOpacity`/`fontFamily`/`fontColor`. The widget renders imported SMART pages as image/SVG and themes no surface or text, so per-building appearance defaults would set values nothing reads (the same anti-pattern flagged as MEDIUM for `activity-wall`). Documented the intent on the `SmartNotebookConfig` appearance fields, on `BuildingSmartNotebookDefaults`, and in the `case 'smartNotebook'` handler in `utils/adminBuildingConfig.ts` (which keeps `storageLimitMb` as the only building default). The separate finding that these controls are also dead at the user level is tracked as a new LOW open item.
+- **Verification:** Documentation-only code change (comments in `types.ts` + `utils/adminBuildingConfig.ts`). `pnpm run type-check`, `pnpm run lint`, and `pnpm run format:check` all clean.
 
 ### MEDIUM Stations appearance fields (fontFamily, fontColor, cardColor, cardOpacity) absent from admin building defaults
 
