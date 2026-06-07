@@ -450,6 +450,21 @@ describe('quizScoreboard', () => {
       expect(getResponseScore(response, questions)).toBe(50);
     });
 
+    it('is not deflated when the questions array contains duplicate question ids (Drive-sync race)', () => {
+      // Drive-sync duplication / arrayUnion races can write the same question
+      // id twice into the `questions` array. `getEarnedPoints` correctly
+      // deduplicates the *answer* side via `seenQuestionIds`, but the old
+      // `maxPoints` denominator in `getResponseScore` iterated the raw
+      // `questions` array and counted each duplicate entry — inflating maxPoints
+      // while earned stayed correct. A student who answered the only real
+      // question correctly would score 50% instead of 100%.
+      const dupQuestions = [makeQuestion('q1', 'A'), makeQuestion('q1', 'A')]; // same id twice
+      const response = makeResponse('01', [{ questionId: 'q1', answer: 'A' }]);
+      // maxPoints must be 1 (one unique question worth 1 pt), not 2.
+      // earned = 1 → score should be 100%, not 50%.
+      expect(getResponseScore(response, dupQuestions)).toBe(100);
+    });
+
     it('returns 100 for all correct', () => {
       const questions = [makeQuestion('q1', 'A')];
       const response = makeResponse('01', [{ questionId: 'q1', answer: 'A' }]);
