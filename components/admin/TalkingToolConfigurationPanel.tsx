@@ -3,6 +3,7 @@ import { Plus, Trash2, MessageSquare } from 'lucide-react';
 import { TalkingToolGlobalConfig, TalkingToolCategory } from '@/types';
 import { DEFAULT_TALKING_TOOL_CATEGORIES } from '@/config/talkingToolData';
 import { IconPicker } from '@/components/widgets/InstructionalRoutines/IconPicker';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 
 interface TalkingToolConfigurationPanelProps {
   config: Partial<TalkingToolGlobalConfig>;
@@ -132,9 +133,7 @@ export const TalkingToolConfigurationPanel: React.FC<
 
             {/* Stems List */}
             <div className="p-4 space-y-2">
-              <label className="text-xxs font-black text-slate-400 uppercase tracking-widest block mb-2">
-                Sentence Stems
-              </label>
+              <SettingsLabel>Sentence Stems</SettingsLabel>
               {cat.stems.map((stem) => (
                 <div key={stem.id} className="flex items-center gap-2 group">
                   <input

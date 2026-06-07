@@ -26,6 +26,7 @@ vi.mock('firebase/firestore', () => ({
 import {
   buildClassroomAttachmentLink,
   persistClassroomAttachmentLink,
+  persistClassroomAttachmentLinks,
   type AssignToClassroomResult,
 } from '@/utils/assignToClassroom';
 
@@ -108,8 +109,16 @@ describe('persistClassroomAttachmentLink', () => {
       'quiz_sessions/S1',
       'users/teacher-1/quiz_assignments/S1',
     ]);
-    expect(updateCalls[0].data).toEqual({ classroomAttachment: link });
-    expect(updateCalls[1].data).toMatchObject({ classroomAttachment: link });
+    // Single-course assign still writes the singular (back-compat) AND the array
+    // (the new canonical field) so old + new readers both light up.
+    expect(updateCalls[0].data).toEqual({
+      classroomAttachments: [link],
+      classroomAttachment: link,
+    });
+    expect(updateCalls[1].data).toMatchObject({
+      classroomAttachments: [link],
+      classroomAttachment: link,
+    });
   });
 
   it('targets the video-activity collections for kind=va', async () => {
@@ -124,5 +133,52 @@ describe('persistClassroomAttachmentLink', () => {
       'video_activity_sessions/VA1',
       'users/teacher-1/video_activity_assignments/VA1',
     ]);
+  });
+});
+
+describe('persistClassroomAttachmentLinks (multi-course)', () => {
+  const linkA = {
+    attachmentId: 'ATT-A',
+    courseId: 'C-A',
+    itemId: 'CW-A',
+    maxPoints: 20,
+    attachedAt: 1,
+  };
+  const linkB = {
+    attachmentId: 'ATT-B',
+    courseId: 'C-B',
+    itemId: 'CW-B',
+    maxPoints: 20,
+    attachedAt: 2,
+  };
+
+  it('writes the full array plus the singular (= first link) to both docs', async () => {
+    await persistClassroomAttachmentLinks(fakeDb, 'quiz', 'S1', 'teacher-1', [
+      linkA,
+      linkB,
+    ]);
+    expect(updateCalls.map((c) => c.path)).toEqual([
+      'quiz_sessions/S1',
+      'users/teacher-1/quiz_assignments/S1',
+    ]);
+    expect(updateCalls[0].data).toEqual({
+      classroomAttachments: [linkA, linkB],
+      classroomAttachment: linkA,
+    });
+    expect(updateCalls[1].data).toMatchObject({
+      classroomAttachments: [linkA, linkB],
+      classroomAttachment: linkA,
+    });
+  });
+
+  it('is a no-op (no writes) when given an empty list', async () => {
+    await persistClassroomAttachmentLinks(
+      fakeDb,
+      'quiz',
+      'S1',
+      'teacher-1',
+      []
+    );
+    expect(updateCalls).toHaveLength(0);
   });
 });

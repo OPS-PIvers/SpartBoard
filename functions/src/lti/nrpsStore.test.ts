@@ -43,6 +43,8 @@ let quizSessions: SessionRow[];
 let vaSessions: Map<string, Record<string, unknown>>;
 // Existing membership context docs by full path.
 let contextDocs: Map<string, Record<string, unknown>>;
+// Existing per-teacher seen-section inventory docs by full path.
+let seenDocs: Map<string, Record<string, unknown>>;
 // Writes recorded when the batch commits.
 let writes: Write[];
 
@@ -62,6 +64,12 @@ function docRef(path: string) {
           id,
           exists: vaSessions.has(id),
           data: () => vaSessions.get(id),
+        };
+      }
+      if (path.includes('/lti_seen_sections/')) {
+        return {
+          exists: seenDocs.has(path),
+          data: () => seenDocs.get(path),
         };
       }
       throw new Error(`unexpected get on ${path}`);
@@ -119,6 +127,7 @@ beforeEach(() => {
   quizSessions = [];
   vaSessions = new Map();
   contextDocs = new Map();
+  seenDocs = new Map();
   writes = [];
 });
 
@@ -166,6 +175,17 @@ describe('persistLtiLaunchContext — quiz', () => {
     // Archive-doc mirror (so the manager card needs no extra read).
     const archive = writeAt('users/teacher-1/quiz_assignments/sess-1');
     expect(archive?.data).toEqual({ periodNames: ['Math 7'] });
+
+    // Per-teacher seen-section inventory (drives the linking UI; carries the
+    // sessionId the linking CFs use as their trust anchor).
+    const seen = writeAt('users/teacher-1/lti_seen_sections/');
+    expect(seen?.path).toBe('users/teacher-1/lti_seen_sections/ctx-1');
+    expect(seen?.data).toMatchObject({
+      contextId: 'ctx-1',
+      contextTitle: 'Math 7',
+      sessionId: 'sess-1',
+      kind: 'quiz',
+    });
   });
 
   it('is idempotent — a repeat launch from the same context writes nothing', async () => {
@@ -188,6 +208,13 @@ describe('persistLtiLaunchContext — quiz', () => {
       `${LTI_SESSION_MEMBERSHIPS_COLLECTION}/sess-1/contexts/ctx-1`,
       { contextMembershipsUrl: QUIZ_ARGS.membershipUrl, contextTitle: 'Math 7' }
     );
+    // The seen-section inventory is already current too, so nothing rewrites.
+    seenDocs.set('users/teacher-1/lti_seen_sections/ctx-1', {
+      contextId: 'ctx-1',
+      contextTitle: 'Math 7',
+      sessionId: 'sess-1',
+      kind: 'quiz',
+    });
     await persistLtiLaunchContext(db(), QUIZ_ARGS);
     expect(writes).toHaveLength(0);
   });
@@ -256,6 +283,43 @@ describe('persistLtiLaunchContext — quiz', () => {
     expect(writeAt('users/teacher-1/quiz_assignments/sess-1')?.data).toEqual({
       periodNames: ['Math 7'],
     });
+    // …but the seen-section inventory is NOT written without NRPS: the linking
+    // trust anchor needs the membership context doc (NRPS-only), so advertising
+    // a section the link CFs would reject is suppressed.
+    expect(writeAt('users/teacher-1/lti_seen_sections/')).toBeUndefined();
+  });
+
+  it('preserves a previously-captured section title when a relaunch omits it', async () => {
+    quizSessions = [
+      {
+        id: 'sess-1',
+        data: {
+          code: 'ABC123',
+          status: 'active',
+          startedAt: 100,
+          teacherUid: 'teacher-1',
+          periodNames: ['Math 7'],
+          classPeriodByClassId: { 'schoology:ctx-1': 'Math 7' },
+          ltiAttachment: { resourceLinkId: 'rl-1', contextId: 'ctx-1' },
+          ltiNrps: true,
+        },
+      },
+    ];
+    contextDocs.set(
+      `${LTI_SESSION_MEMBERSHIPS_COLLECTION}/sess-1/contexts/ctx-1`,
+      { contextMembershipsUrl: QUIZ_ARGS.membershipUrl, contextTitle: 'Math 7' }
+    );
+    // The seen-section already has the title from an earlier titled launch.
+    seenDocs.set('users/teacher-1/lti_seen_sections/ctx-1', {
+      contextId: 'ctx-1',
+      contextTitle: 'Math 7',
+      sessionId: 'sess-1',
+      kind: 'quiz',
+    });
+    // This relaunch carries NO context title (privacy config) but keeps NRPS.
+    await persistLtiLaunchContext(db(), { ...QUIZ_ARGS, contextTitle: null });
+    // The stored title must NOT be clobbered to null → no seen-section rewrite.
+    expect(writeAt('users/teacher-1/lti_seen_sections/')).toBeUndefined();
   });
 
   it('skips the archive mirror when the session has no teacherUid', async () => {
@@ -328,7 +392,15 @@ describe('persistLtiLaunchContext — video activity', () => {
       ltiNrps: true,
     });
     // VA's manager card labels by activity title — no quiz_assignments mirror.
-    expect(writeAt('users/')).toBeUndefined();
+    expect(writeAt('users/t1/quiz_assignments/')).toBeUndefined();
+    // …but the seen-section inventory IS written (quiz + VA both feed it).
+    const seen = writeAt('users/t1/lti_seen_sections/');
+    expect(seen?.path).toBe('users/t1/lti_seen_sections/ctx-9');
+    expect(seen?.data).toMatchObject({
+      contextId: 'ctx-9',
+      sessionId: 'va-1',
+      kind: 'va',
+    });
   });
 
   it('is a no-op when the VA session id is missing or unknown', async () => {

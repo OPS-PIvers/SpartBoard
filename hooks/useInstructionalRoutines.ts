@@ -8,11 +8,11 @@ import {
   query,
   orderBy,
 } from 'firebase/firestore';
-import { db, isAuthBypass } from '../config/firebase';
+import { db, isAuthBypass } from '@/config/firebase';
 import {
   InstructionalRoutine,
   ROUTINES as DEFAULT_ROUTINES,
-} from '../config/instructionalRoutines';
+} from '@/config/instructionalRoutines';
 
 const COLLECTION_NAME = 'instructional_routines';
 

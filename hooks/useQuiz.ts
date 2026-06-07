@@ -17,27 +17,27 @@ import {
   query,
   orderBy,
 } from 'firebase/firestore';
-import { db, isAuthBypass } from '../config/firebase';
-import { useAuth } from '../context/useAuth';
+import { db, isAuthBypass } from '@/config/firebase';
+import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from './useGoogleDrive';
 import {
   QuizData,
   QuizMetadata,
   type QuizMetadataSyncLinkage,
   type QuizBehaviorSettings,
-} from '../types';
-import { QuizDriveService } from '../utils/quizDriveService';
+} from '@/types';
+import { QuizDriveService } from '@/utils/quizDriveService';
 import {
   MockQuizDriveService,
   QuizDriveLike,
-} from '../utils/mockQuizDriveService';
+} from '@/utils/mockQuizDriveService';
 import {
   publishSyncedQuiz,
   pullSyncedQuizContent,
   callLeaveSyncedQuizGroup,
   SyncedQuizVersionConflictError,
 } from './useSyncedQuizGroups';
-import { migrateQuizMetadataShape } from '../utils/quizSyncMigration';
+import { migrateQuizMetadataShape } from '@/utils/quizSyncMigration';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
 

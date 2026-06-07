@@ -147,6 +147,27 @@ export async function pushClassroomGradesForAssignment(
 }
 
 /**
+ * Invoke `pushClassroomFinalGradesForAssignment` — the FINAL-grade variant that
+ * powers "Publish = Push". Same request/response contract as the draft push, but
+ * `accessToken` must carry `classroom.coursework.students` (see
+ * `requestClassroomFinalGradeToken`): the CF sets the parent courseWork
+ * submission's `assignedGrade` and returns it (an official gradebook grade),
+ * rather than the add-on DRAFT `pointsEarned`. Runner-agnostic — quiz and VA
+ * share it unchanged.
+ */
+export async function pushClassroomFinalGradesForAssignment(
+  functions: Functions,
+  args: PushClassroomGradesArgs
+): Promise<PushClassroomGradesData> {
+  const callable = httpsCallable<
+    PushClassroomGradesArgs,
+    PushClassroomGradesData
+  >(functions, 'pushClassroomFinalGradesForAssignment');
+  const { data } = await callable(args);
+  return data;
+}
+
+/**
  * Build the result toast for a completed push. Two non-pushed buckets are
  * surfaced SEPARATELY so a real failure is never disguised as a benign skip:
  *   - `skipped`: students who haven't opened the assignment in Classroom yet

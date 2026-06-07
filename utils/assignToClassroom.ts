@@ -30,6 +30,11 @@ export interface AssignToClassroomArgs {
   maxPoints?: number;
   /** Epoch ms or null. Synced to the Classroom assignment's due date. */
   dueAt?: number | null;
+  /**
+   * Whether `dueAt` encodes a chosen time-of-day (the date+time picker always
+   * does). Drives whether Classroom gets the exact time or an end-of-day default.
+   */
+  dueHasTime?: boolean;
 }
 
 /** Result returned by `assignToClassroomV1`. */
@@ -72,14 +77,51 @@ export function buildClassroomAttachmentLink(
     itemId: result.courseWorkId,
     maxPoints: result.maxPoints,
     attachedAt: Date.now(),
+    // Partner-first: SpartBoard created this courseWork, so it can set the FINAL
+    // (assignedGrade + returned) grade. This marks the attachment eligible for
+    // the Publish = Push final-grade path.
+    ownsCourseWork: true,
   };
 }
 
 /**
- * Persist the `classroomAttachment` onto the SESSION doc first (load-bearing —
- * the Results monitor reads it from the session, so the grade-push button
- * appears even if the second write fails) then the assignment archive doc.
- * Mirrors TeacherDiscoveryRoute's two-write pattern exactly.
+ * Persist the linked Classroom attachment(s) onto the SESSION doc first
+ * (load-bearing — the Results monitor reads them from the session, so the
+ * grade-push button appears even if the second write fails) then the assignment
+ * archive doc. Mirrors TeacherDiscoveryRoute's two-write pattern exactly.
+ *
+ * Writes BOTH the `classroomAttachments` array (Item D multi-course fan-out) AND
+ * the singular `classroomAttachment` (= the first link) so older readers and the
+ * in-iframe grader — which still read the singular — keep working unchanged.
+ */
+export async function persistClassroomAttachmentLinks(
+  db: Firestore,
+  kind: AssignRunnerKind,
+  sessionId: string,
+  uid: string,
+  links: ClassroomAttachmentLink[]
+): Promise<void> {
+  if (links.length === 0) return;
+  const sessionCollection =
+    kind === 'va' ? 'video_activity_sessions' : 'quiz_sessions';
+  const assignmentCollection =
+    kind === 'va' ? 'video_activity_assignments' : 'quiz_assignments';
+  // Session doc FIRST — Results reads the attachment(s) from the session.
+  await updateDoc(doc(db, sessionCollection, sessionId), {
+    classroomAttachments: links,
+    classroomAttachment: links[0],
+  });
+  await updateDoc(doc(db, 'users', uid, assignmentCollection, sessionId), {
+    classroomAttachments: links,
+    classroomAttachment: links[0],
+    updatedAt: Date.now(),
+  });
+}
+
+/**
+ * Single-course convenience wrapper — delegates to
+ * `persistClassroomAttachmentLinks` so the array + singular fields stay written
+ * by one code path.
  */
 export async function persistClassroomAttachmentLink(
   db: Firestore,
@@ -88,16 +130,5 @@ export async function persistClassroomAttachmentLink(
   uid: string,
   link: ClassroomAttachmentLink
 ): Promise<void> {
-  const sessionCollection =
-    kind === 'va' ? 'video_activity_sessions' : 'quiz_sessions';
-  const assignmentCollection =
-    kind === 'va' ? 'video_activity_assignments' : 'quiz_assignments';
-  // Session doc FIRST — Results reads classroomAttachment from the session.
-  await updateDoc(doc(db, sessionCollection, sessionId), {
-    classroomAttachment: link,
-  });
-  await updateDoc(doc(db, 'users', uid, assignmentCollection, sessionId), {
-    classroomAttachment: link,
-    updatedAt: Date.now(),
-  });
+  await persistClassroomAttachmentLinks(db, kind, sessionId, uid, [link]);
 }

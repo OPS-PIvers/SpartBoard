@@ -294,6 +294,13 @@ const validateRosterMeta = (
   if (typeof d.testClassId === 'string') {
     meta.testClassId = d.testClassId;
   }
+  // The Schoology section this roster is linked to (Item D). Mirrors the
+  // canonical lti_course_links doc; must round-trip on read or the linking UI
+  // (nudge / SidebarClasses / LinkSchoologyModal) treats a linked section as
+  // unlinked forever.
+  if (typeof d.ltiContextId === 'string') {
+    meta.ltiContextId = d.ltiContextId;
+  }
   return meta;
 };
 

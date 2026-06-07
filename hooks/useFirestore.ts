@@ -14,14 +14,14 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
-import { db, isAuthBypass } from '../config/firebase';
+import { db, isAuthBypass } from '@/config/firebase';
 import {
   Dashboard,
   SharedBoardIntendedMode,
   SharedBoardParticipant,
   SubstituteShareDriveGrant,
   WidgetData,
-} from '../types';
+} from '@/types';
 
 /**
  * Snapshot returned from `loadSharedDashboard` — a normalized Dashboard plus

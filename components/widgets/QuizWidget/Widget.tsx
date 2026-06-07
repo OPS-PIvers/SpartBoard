@@ -32,6 +32,7 @@ import {
 import { writePlcQuizEntry } from '@/hooks/usePlcQuizzes';
 import { PlcShareTargetModal } from '@/components/plc/PlcShareTargetModal';
 import { QuizManager, PlcOptions } from './components/QuizManager';
+import type { AssignDestination } from './components/AssignDestinationModal';
 import { ImportWizard } from '@/components/common/library/importer';
 import { createQuizImportAdapter } from './adapters/quizImportAdapter';
 import { QuizEditorModal } from './components/QuizEditorModal';
@@ -41,13 +42,21 @@ import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettings
 import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
+import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
+import { functions } from '@/config/firebase';
 import {
   CLASSROOM_ASSIGN_ENABLED,
   CLASSROOM_ASSIGN_ADMIN_ONLY,
 } from '@/config/constants';
+import { buildQuizClassroomGradeEntries } from '@/utils/classroomGradePush';
+import { getClassroomAttachments } from '@/utils/classroomAttachments';
+import { hasValidMaxPoints } from '@/utils/runClassroomGradePush';
+import { quizMaxPoints } from '@/utils/quizMaxPoints';
+import { runPublishGradePush } from '@/utils/publishGradePush';
 import {
   RESULTS_PROTECTION_DEFAULTS,
   type QuizAssignment,
+  type QuizResponse,
   type PlcLinkage,
 } from '@/types';
 import {
@@ -220,8 +229,19 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const [publishingAssignment, setPublishingAssignment] =
     useState<QuizAssignment | null>(null);
   // Ephemeral modal state for the "Assign to Google Classroom" flow (flag-gated).
-  const [assigningToClassroom, setAssigningToClassroom] =
-    useState<QuizAssignment | null>(null);
+  // The Assign-to-Google-Classroom modal target. A minimal shape (not a full
+  // QuizAssignment) so it can be set from BOTH the archive-row kebab (mapping an
+  // existing assignment) AND the new library-row chooser (a freshly-created
+  // assignment, which we only have an id/code for at that point).
+  const [assigningToClassroom, setAssigningToClassroom] = useState<{
+    id: string;
+    code: string;
+    title: string;
+    dueAt: number | null;
+    dueAtHasTime?: boolean;
+    /** Targeted ClassLink classes — drives the Item D auto-target lookup. */
+    classlinkClassIds?: string[];
+  } | null>(null);
   // "Assign to Google Classroom" visibility: master flag, restricted to admins
   // during the staged Spike-A rollout (CLASSROOM_ASSIGN_ADMIN_ONLY).
   const canAssignToClassroom =
@@ -1078,7 +1098,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           meta,
           plcOptions: PlcOptions,
           rosterIds: string[],
-          dueAt: number | null
+          dueAt: number | null,
+          destination?: AssignDestination
         ) => {
           const data = await loadQuiz(meta);
           if (!data) return;
@@ -1269,6 +1290,21 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 lastRosterIdsByQuizId: nextMap,
               } as QuizConfig,
             });
+            // Library-row chooser → Google Classroom: the SpartBoard assignment
+            // now exists (we have its id + join code), so hand it straight to the
+            // partner-first GC course picker. The teacher refines the due date
+            // there; this is just the initial seed (date-only).
+            if (destination === 'classroom' && canAssignToClassroom) {
+              setAssigningToClassroom({
+                id: assignmentId,
+                code,
+                title: meta.title,
+                dueAt: dueAt ?? null,
+                // Auto-target the linked Google course (Item D) — we have the
+                // freshly-derived ClassLink classes right here.
+                classlinkClassIds: derived.classIds,
+              });
+            }
             const url = `${window.location.origin}/quiz?code=${code}`;
             if (typeof navigator !== 'undefined' && navigator.clipboard) {
               void navigator.clipboard
@@ -1637,8 +1673,24 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         onArchiveEditSettings={(a) => {
           setEditingAssignment(a);
         }}
+        canAssignToClassroom={canAssignToClassroom}
         onArchiveAssignToClassroom={
-          canAssignToClassroom ? (a) => setAssigningToClassroom(a) : undefined
+          canAssignToClassroom
+            ? (a) =>
+                setAssigningToClassroom({
+                  id: a.id,
+                  code: a.code,
+                  title: a.className ?? a.quizTitle,
+                  dueAt: a.dueAt ?? null,
+                  dueAtHasTime: a.dueAtHasTime,
+                  // Re-posting an existing assignment: the assignment doc keeps
+                  // rosterIds (not classIds), so resolve its ClassLink classes
+                  // from the rosters to drive the Item D auto-target lookup.
+                  classlinkClassIds: deriveSessionTargetsFromRosters(
+                    rosters.filter((r) => a.rosterIds?.includes(r.id))
+                  ).classIds,
+                })
+            : undefined
         }
         onArchiveShare={async (a) => {
           const meta = quizzes.find((q) => q.id === a.quizId);
@@ -1936,6 +1988,33 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 setPublishingAssignment(null);
                 return;
               }
+              // Publish = Push: if this assignment is linked to Google Classroom,
+              // pre-mint the final-grade token NOW (this click is a user gesture)
+              // so the GIS popup isn't blocked after publish's awaits. A dismissed
+              // popup leaves the token null → publish still proceeds, GC push is
+              // skipped. (Schoology pushes server-side and needs no token.)
+              // Only partner-first attachments (SpartBoard owns the courseWork)
+              // with the feature enabled are eligible for the FINAL push — this
+              // also keeps the restricted classroom.coursework.students scope
+              // request behind the flag.
+              // Eligible = partner-first attachments (SpartBoard owns the
+              // courseWork) with a valid scale, when the feature is on. One per
+              // linked course (multi-course fan-out).
+              const classroomFinalAttachments = canAssignToClassroom
+                ? getClassroomAttachments(target).filter(
+                    (a) => a.ownsCourseWork && hasValidMaxPoints(a.maxPoints)
+                  )
+                : [];
+              let classroomToken: string | null = null;
+              if (classroomFinalAttachments.length > 0) {
+                try {
+                  classroomToken = await requestClassroomFinalGradeToken(
+                    user?.email ?? undefined
+                  );
+                } catch {
+                  classroomToken = null;
+                }
+              }
               const meta = quizzes.find((q) => q.id === target.quizId);
               if (!meta) {
                 addToast(
@@ -1958,6 +2037,34 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   : 'Scores published. Students will see results once they submit.',
                 'success'
               );
+              // Chain the LMS grade push(es) — never throws (publish already
+              // committed; a push failure is its own toast).
+              await runPublishGradePush<QuizResponse>({
+                functions,
+                addToast,
+                kind: 'quiz',
+                sessionId: target.id,
+                classroomFinalAttachments,
+                classroomToken,
+                schoologyMaxPoints: quizMaxPoints(data.questions),
+                buildClassroomGrades: (responses) => {
+                  // All attachments share the assignment's maxPoints.
+                  const mp = classroomFinalAttachments[0]?.maxPoints;
+                  return mp != null
+                    ? buildQuizClassroomGradeEntries(
+                        responses,
+                        data.questions,
+                        mp
+                      )
+                    : [];
+                },
+                buildSchoologyGrades: (responses) =>
+                  buildQuizClassroomGradeEntries(
+                    responses,
+                    data.questions,
+                    quizMaxPoints(data.questions)
+                  ),
+              });
               setPublishingAssignment(null);
             } catch (err) {
               logError('QuizWidget.publishAssignmentScores', err, {
@@ -1999,10 +2106,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           kind="quiz"
           sessionId={assigningToClassroom.id}
           quizCode={assigningToClassroom.code}
-          title={
-            assigningToClassroom.className ?? assigningToClassroom.quizTitle
-          }
-          initialDueAt={assigningToClassroom.dueAt ?? null}
+          title={assigningToClassroom.title}
+          initialDueAt={assigningToClassroom.dueAt}
+          initialDueAtHasTime={assigningToClassroom.dueAtHasTime}
+          classlinkClassIds={assigningToClassroom.classlinkClassIds}
           addToast={addToast}
         />
       )}

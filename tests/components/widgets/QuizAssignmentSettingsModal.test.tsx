@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QuizAssignmentSettingsModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentSettingsModal';
+import { combineDateAndTime } from '@/utils/localDate';
 import type { ClassRoster, QuizAssignment } from '@/types';
 
 function makePlcAssignment(
@@ -133,6 +134,51 @@ describe('QuizAssignmentSettingsModal — behavior is read-only (freeze-live)', 
     const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
     expect(patch).toHaveProperty('dueAt');
     expect(typeof patch.dueAt).toBe('number');
+  });
+
+  it('combines the due date + time inputs into a local-datetime dueAt', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({ dueAt: null })}
+        rosters={[] as ClassRoster[]}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
+    );
+    fireEvent.change(screen.getByTestId('assignment-due-date'), {
+      target: { value: '2026-06-01' },
+    });
+    fireEvent.change(screen.getByTestId('assignment-due-time'), {
+      target: { value: '14:30' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
+    // dueAt is the LOCAL combination of the chosen date + time (not UTC midnight).
+    expect(patch.dueAt).toBe(combineDateAndTime('2026-06-01', '14:30'));
+    // …and it's marked time-bearing so the round-trip / Classroom conversion
+    // reads the chosen time rather than defaulting to end-of-day.
+    expect(patch.dueAtHasTime).toBe(true);
+  });
+
+  it('defaults the due time to end-of-day when only a date is picked', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({ dueAt: null })}
+        rosters={[] as ClassRoster[]}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
+    );
+    fireEvent.change(screen.getByTestId('assignment-due-date'), {
+      target: { value: '2026-06-01' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
+    expect(patch.dueAt).toBe(combineDateAndTime('2026-06-01', '23:59'));
   });
 
   it('save patch includes dueAt: null when the date input is cleared', async () => {

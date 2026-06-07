@@ -1,7 +1,34 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Functions } from 'firebase/functions';
+
+// Mock the CF wrapper at the @/utils/classroomGradePush seam (the documented
+// boundary) so the fan-out tests exercise the real orchestration in
+// runClassroomGradePush without a live backend. formatGradePushToast + the
+// types come through from the real module. logError is silenced.
+const pushMock =
+  vi.fn<
+    (
+      functions: unknown,
+      opts: { courseId: string; accessToken: string }
+    ) => Promise<unknown>
+  >();
+vi.mock('@/utils/classroomGradePush', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/utils/classroomGradePush')>();
+  return {
+    ...actual,
+    pushClassroomGradesForAssignment: (functions: unknown, opts: unknown) =>
+      pushMock(functions, opts as { courseId: string; accessToken: string }),
+  };
+});
+vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
+
 import {
   isPushPermissionDenied,
   hasValidMaxPoints,
+  runClassroomGradePush,
+  type ClassroomGradePushAttachment,
+  type ClassroomGradePushStatus,
 } from '@/utils/runClassroomGradePush';
 
 describe('isPushPermissionDenied', () => {
@@ -43,5 +70,144 @@ describe('hasValidMaxPoints', () => {
     expect(hasValidMaxPoints(-5)).toBe(false);
     expect(hasValidMaxPoints(Number.NaN)).toBe(false);
     expect(hasValidMaxPoints(Number.POSITIVE_INFINITY)).toBe(false);
+  });
+});
+
+describe('runClassroomGradePush (multi-course fan-out)', () => {
+  const fns = {} as unknown as Functions;
+  const att = (id: string): ClassroomGradePushAttachment => ({
+    courseId: `course-${id}`,
+    itemId: `cw-${id}`,
+    attachmentId: `att-${id}`,
+    maxPoints: 20,
+  });
+  const GRADES = [{ pseudonymUid: 'p-A', pointsEarned: 8 }];
+
+  beforeEach(() => {
+    pushMock.mockReset();
+  });
+
+  it('is a benign no-op (nothing-to-push, no token mint) for an empty attachment list', async () => {
+    const requestToken = vi.fn<() => Promise<string>>();
+    const phases: ClassroomGradePushStatus['phase'][] = [];
+    const onError = vi.fn();
+
+    await runClassroomGradePush({
+      functions: fns,
+      attachments: [],
+      buildGrades: () => GRADES,
+      requestToken,
+      onStatus: (s) => phases.push(s.phase),
+      onError,
+      logTag: 'test',
+    });
+
+    // No consent popup, no CF call, and crucially NOT the all-failed onError
+    // path (which would show a hard "could not push" error for a no-op).
+    expect(requestToken).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    expect(phases).toContain('nothing-to-push');
+    expect(phases).not.toContain('start');
+  });
+
+  it('mints the token ONCE and pushes to every course, aggregating the counts', async () => {
+    pushMock.mockResolvedValue({
+      results: [],
+      pushed: 1,
+      skipped: 0,
+      failed: 0,
+    });
+    const requestToken = vi
+      .fn<() => Promise<string>>()
+      .mockResolvedValue('tok');
+    let pushedData: { pushed: number; failed: number } | null = null;
+
+    await runClassroomGradePush({
+      functions: fns,
+      attachments: [att('A'), att('B')],
+      buildGrades: () => GRADES,
+      requestToken,
+      onStatus: (s) => {
+        if (s.phase === 'pushed') {
+          pushedData = s.data as { pushed: number; failed: number };
+        }
+      },
+      onError: vi.fn(),
+      logTag: 'test',
+    });
+
+    // One consent popup reused across both courses; one CF call per course.
+    expect(requestToken).toHaveBeenCalledTimes(1);
+    expect(pushMock).toHaveBeenCalledTimes(2);
+    expect(pushMock.mock.calls[0][1].accessToken).toBe('tok');
+    expect(pushMock.mock.calls[1][1].accessToken).toBe('tok');
+    expect(pushMock.mock.calls.map((c) => c[1].courseId)).toEqual([
+      'course-A',
+      'course-B',
+    ]);
+    expect(pushedData).toMatchObject({ pushed: 2, failed: 0 });
+  });
+
+  it('reports a partial failure: one course succeeds, another throws → pushed status carries unreachableCourses', async () => {
+    // Course A pushes, course B throws (e.g. permission-denied). The prior code
+    // surfaced a clean success and silently dropped B; now the pushed status
+    // carries unreachableCourses so the reporter can warn "couldn't reach 1".
+    pushMock
+      .mockResolvedValueOnce({ results: [], pushed: 1, skipped: 0, failed: 0 })
+      .mockRejectedValueOnce({ code: 'functions/permission-denied' });
+    const requestToken = vi
+      .fn<() => Promise<string>>()
+      .mockResolvedValue('tok');
+    let pushedCount: number | null = null;
+    let unreachable: number | undefined;
+    const onError = vi.fn();
+
+    await runClassroomGradePush({
+      functions: fns,
+      attachments: [att('A'), att('B')],
+      buildGrades: () => GRADES,
+      requestToken,
+      onStatus: (s) => {
+        if (s.phase === 'pushed') {
+          pushedCount = s.data.pushed;
+          unreachable = s.unreachableCourses;
+        }
+      },
+      onError,
+      logTag: 'test',
+    });
+
+    // Partial success → 'pushed' (NOT onError), with the failed course counted.
+    expect(onError).not.toHaveBeenCalled();
+    expect(pushedCount).toBe(1);
+    expect(unreachable).toBe(1);
+  });
+
+  it('on an all-course failure, reports permissionDenied when ANY course was permission-denied (not just the last)', async () => {
+    // Course A: permission-denied; course B: a plain network failure. The OR
+    // accumulator must still surface the actionable "link to ClassLink" copy.
+    pushMock
+      .mockRejectedValueOnce({ code: 'functions/permission-denied' })
+      .mockRejectedValueOnce({ code: 'functions/unavailable' });
+    const requestToken = vi
+      .fn<() => Promise<string>>()
+      .mockResolvedValue('tok');
+    let errArg: { permissionDenied: boolean } | null = null;
+
+    await runClassroomGradePush({
+      functions: fns,
+      attachments: [att('A'), att('B')],
+      buildGrades: () => GRADES,
+      requestToken,
+      onStatus: vi.fn(),
+      onError: (e) => {
+        errArg = e as { permissionDenied: boolean };
+      },
+      logTag: 'test',
+    });
+
+    expect(pushMock).toHaveBeenCalledTimes(2);
+    expect(errArg).toMatchObject({ permissionDenied: true });
   });
 });
