@@ -1011,6 +1011,74 @@ describe('adminAnalytics', () => {
     expect(result.api.byFeature['instructional-routine']).toBe(3);
   });
 
+  it('counts widget-builder usage docs toward byFeature without corrupting uid parsing', async () => {
+    // Regression for: widget-builder was missing from GEMINI_SPECIFIC_FEATURES
+    // in adminAnalyticsCompute.ts AND had no specificFeatureId assignment in
+    // generateWithAI. A doc like `uid1_widget-builder_2026-06-07` was treated
+    // as an "overall" doc with uid = `uid1_widget-builder`, which never
+    // matched any org member, so the call was silently dropped from totalCalls
+    // and byFeature['widget-builder'] was never populated.
+    mockFirestoreState.users = [
+      {
+        id: 'uid1',
+        data: {
+          email: 'teacher@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [
+      // Overall usage doc — should count toward totalCalls
+      { id: 'uid1_2026-06-07', data: { count: 8 } },
+      // Per-feature widget-builder doc — should count toward
+      // byFeature['widget-builder'] but NOT toward totalCalls
+      { id: 'uid1_widget-builder_2026-06-07', data: { count: 5 } },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    // totalCalls must only count the overall doc, not the per-feature doc
+    expect(result.api.totalCalls).toBe(8);
+    // byFeature must accumulate the per-feature doc
+    expect(result.api.byFeature['widget-builder']).toBe(5);
+  });
+
+  it('counts widget-explainer usage docs toward byFeature without corrupting uid parsing', async () => {
+    // Regression for: widget-explainer was missing from GEMINI_SPECIFIC_FEATURES
+    // in adminAnalyticsCompute.ts AND had no specificFeatureId assignment in
+    // generateWithAI. A doc like `uid1_widget-explainer_2026-06-07` was treated
+    // as an "overall" doc with uid = `uid1_widget-explainer`, which never
+    // matched any org member, so the call was silently dropped from totalCalls
+    // and byFeature['widget-explainer'] was never populated.
+    mockFirestoreState.users = [
+      {
+        id: 'uid1',
+        data: {
+          email: 'teacher@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [
+      // Overall usage doc — should count toward totalCalls
+      { id: 'uid1_2026-06-07', data: { count: 6 } },
+      // Per-feature widget-explainer doc — should count toward
+      // byFeature['widget-explainer'] but NOT toward totalCalls
+      { id: 'uid1_widget-explainer_2026-06-07', data: { count: 2 } },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    // totalCalls must only count the overall doc, not the per-feature doc
+    expect(result.api.totalCalls).toBe(6);
+    // byFeature must accumulate the per-feature doc
+    expect(result.api.byFeature['widget-explainer']).toBe(2);
+  });
+
   it('returns topUsers with resolved email and unknown fallback', async () => {
     mockFirestoreState.users = [
       {
