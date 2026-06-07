@@ -12,7 +12,7 @@
  *
  * Only activated when isAuthBypass is true.
  */
-import { QuizData, QuizQuestion } from '../types';
+import { QuizData, QuizQuestion } from '@/types';
 
 const STORAGE_PREFIX = 'mock_quiz_drive';
 

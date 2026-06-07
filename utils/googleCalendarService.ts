@@ -1,4 +1,4 @@
-import { CalendarEvent } from '../types';
+import { CalendarEvent } from '@/types';
 
 const CALENDAR_API_URL = 'https://www.googleapis.com/calendar/v3';
 const DEFAULT_TIMEOUT = 10000;

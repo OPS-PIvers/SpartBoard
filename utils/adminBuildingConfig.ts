@@ -3,10 +3,10 @@ import {
   MaterialsGlobalConfig,
   NextUpConfig,
   WidgetType,
-} from '../types';
+} from '@/types';
 import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
-import { WIDGET_DEFAULTS } from '../config/widgetDefaults';
-import { getMaterialsCatalog } from '../components/widgets/MaterialsWidget/constants';
+import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
+import { getMaterialsCatalog } from '@/components/widgets/MaterialsWidget/constants';
 
 /**
  * Validates a CSS hex color string. Accepts the three forms an HTML color
