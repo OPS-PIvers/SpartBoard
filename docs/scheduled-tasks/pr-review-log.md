@@ -4,6 +4,31 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-07
+
+- PRs reviewed: 10 (all open PRs; every head is non-`main`/non-`dev-*`, so all in scope)
+  - #1896 — docs(nightly): run 11 memory log (head `nightly/debugger-log-2026-06-07`, base `dev-paul`)
+  - #1895 — fix(CalculatorTool): expression desyncs from display on decimal (head `nightly/widgets-2026-06-07`, base `dev-paul`)
+  - #1894 — fix(Dock): remove spurious processAndUploadImage dep from smart-paste useEffect (head `nightly/dashboard-2026-06-07`, base `dev-paul`)
+  - #1893 — fix: dedup questions denominator in getResponseScore (head `nightly/state-2026-06-07`, base `dev-paul`)
+  - #1892 — fix(i18n): add widgets.weather namespace to DE and FR (head `nightly/admin-2026-06-07`, base `dev-paul`)
+  - #1891 — fix(functions): register widget-builder/widget-explainer in per-feature AI tracking (head `nightly/build-2026-06-07`, base `dev-paul`)
+  - #1890 — chore(unifier): run 10 memory doc (head `nightly/unifier-log-2026-06-07`, base `dev-paul`)
+  - #1889 — fix(D4): utils/ cross-directory imports → @/ alias (head `nightly/unify-import-paths-utils-2026-06-07`, base `dev-paul`)
+  - #1888 — fix(D1): SoundboardWidget "Select sounds below" → ScaledEmptyState (head `nightly/unify-empty-states-2026-06-07`, base `dev-paul`)
+  - #1887 — scheduled-tasks: NextUp maxWidth cqmin + SmartNotebook admin-config docs (head `scheduled-tasks`, base `dev-paul`)
+- Comments processed: 1 total — 1 fixed, 0 explained
+  - #1894: 1 unresolved thread (gemini-code-assist) — FIXED. The new regression test called `setupMocks()` _after_ setting `useImageUpload`'s `fnA` return value; since `setupMocks()` re-mocks `useImageUpload` with a fresh `vi.fn()`, it silently clobbered `fnA` so the first render never used it. Reordered `setupMocks()` ahead of the `fnA` mock. type-check ✓ lint ✓ tests ✓ (5/5 in Dock.test.tsx). Replied and resolved the thread.
+  - #1887: 1 thread already resolved (NextUp maxWidth `30cqmin` fix from 2026-06-06) — no action.
+  - All other PRs: no review comments.
+- Fixes pushed: 1
+  - #1894 / `nightly/dashboard-2026-06-07` — commit `e76d763` `fix(pr-1894): call setupMocks() before fnA mock in smart-paste test`.
+- Reviews posted: 10 (all COMMENT event)
+  - #1896 Ready (docs); #1895 Ready; #1894 Ready (test-ordering fix pushed); #1893 Ready; #1892 Ready; #1891 Ready; #1890 Ready (docs); #1889 Ready (mechanical @/ alias); #1888 Ready (verified ScaledEmptyState + Music already imported); #1887 Ready with minor notes (css-scaling.md Completed entry still records the superseded `min(120px, 30cqmin)` value — doc-only).
+- Notes:
+  - Branch-safety: no open PR head is `main` or `dev-*`; all heads were pushable. The single fix went to its PR head branch (`nightly/dashboard-2026-06-07`). No pushes to `main`.
+  - All 9 nightly PRs are small, focused bug/i18n/refactor/doc changes; none add a new `WidgetType` or touch `WidgetRegistry.ts`/`DashboardContext.tsx` config-merge/`firestore.rules`, so the widget-registration and rules-match-block checks were not triggered. #1891 touches `functions/src/index.ts` (two additive `if` statements — no signature change) and #1887 touches `types.ts`/`utils/adminBuildingConfig.ts` (comment-only).
+
 ## 2026-06-06
 
 - PRs reviewed: 5 (all open PRs; every head is non-`main`/non-`dev-*`, so all in scope)
