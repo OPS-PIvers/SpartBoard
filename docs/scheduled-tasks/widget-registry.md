@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-05_
+_Last audited: 2026-06-07_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,10 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-07: Full audit of all 64 WidgetType values after merging 5 dev-paul commits (docs(unifier) run 9 log, D3 4 admin config label instances → SettingsLabel, D4 hooks/ cross-dir imports → @/ alias, D1 WorkSymbols empty state → ScaledEmptyState, feat(classroom) Phase 2 time picker/Publish=Push/Assign chooser/unify class↔course). None touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. All 64 WidgetTypes remain correctly registered: 62 non-sticker in WIDGET_COMPONENTS (sticker intentional per JSDoc), 64/64 in widgetDefaults.ts and widgetGradeLevels.ts, 59 user-selectable in tools.ts (5 sub-types + sticker excluded per JSDoc). WIDGET_SETTINGS_COMPONENTS and WIDGET_APPEARANCE_COMPONENTS omissions all documented. lazyNamed() export names verified correct. Zero new gaps._
+
+_2026-06-06: Full audit of all 64 WidgetType values. Dev-paul commits not yet merged into scheduled-tasks: fix(widgets) useBreathing phaseDuration update, fix(state) dedup stepId in GL publishAssignmentScores, fix(layout) SELECT in keyboard-handler isInput guards, fix(i18n) random namespace in DE/ES/FR, feat(classroom) assign quizzes/VA to Google Classroom. Diff confirms no changes to types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts in any of those commits. The recent scheduled-tasks commit `9b9165a1 feat(admin): per-building appearance defaults for the Stations widget` added StationsGlobalConfig/BuildingStationsDefaults to types.ts as interface types only — no new WidgetType members. All 64 WidgetTypes remain correctly registered. Zero new gaps._
 
 _2026-06-05: Full audit of all 64 WidgetType values. Rebase onto dev-paul aborted due to journal-file conflicts; working from scheduled-tasks HEAD (912f072f). No new commits to types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts since 2026-06-03. All 64 WidgetTypes correctly registered: 62/63 non-sticker in WIDGET_COMPONENTS (sticker intentionally in WidgetRenderer special-case per JSDoc); 100% in widgetDefaults.ts and widgetGradeLevels.ts; 59 user-selectable in tools.ts (6 intentionally excluded sub-types). WIDGET_SETTINGS_COMPONENTS 51/63 and WIDGET_APPEARANCE_COMPONENTS 28/63 both correct per documented omissions. All sampled lazyNamed() export names verified correct (ClockWidget, UrlWidget, TextWidget, DrawingWidget, RandomWidget, SoundboardWidget, RevealGrid barrel, CatalystWidget, MathToolsWidget). Zero new gaps._
 

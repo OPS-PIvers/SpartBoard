@@ -4,6 +4,53 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-07
+
+- PRs reviewed: 10 (all open PRs; every head is non-`main`/non-`dev-*`, so all in scope)
+  - #1896 — docs(nightly): run 11 memory log (head `nightly/debugger-log-2026-06-07`, base `dev-paul`)
+  - #1895 — fix(CalculatorTool): expression desyncs from display on decimal (head `nightly/widgets-2026-06-07`, base `dev-paul`)
+  - #1894 — fix(Dock): remove spurious processAndUploadImage dep from smart-paste useEffect (head `nightly/dashboard-2026-06-07`, base `dev-paul`)
+  - #1893 — fix: dedup questions denominator in getResponseScore (head `nightly/state-2026-06-07`, base `dev-paul`)
+  - #1892 — fix(i18n): add widgets.weather namespace to DE and FR (head `nightly/admin-2026-06-07`, base `dev-paul`)
+  - #1891 — fix(functions): register widget-builder/widget-explainer in per-feature AI tracking (head `nightly/build-2026-06-07`, base `dev-paul`)
+  - #1890 — chore(unifier): run 10 memory doc (head `nightly/unifier-log-2026-06-07`, base `dev-paul`)
+  - #1889 — fix(D4): utils/ cross-directory imports → @/ alias (head `nightly/unify-import-paths-utils-2026-06-07`, base `dev-paul`)
+  - #1888 — fix(D1): SoundboardWidget "Select sounds below" → ScaledEmptyState (head `nightly/unify-empty-states-2026-06-07`, base `dev-paul`)
+  - #1887 — scheduled-tasks: NextUp maxWidth cqmin + SmartNotebook admin-config docs (head `scheduled-tasks`, base `dev-paul`)
+- Comments processed: 1 total — 1 fixed, 0 explained
+  - #1894: 1 unresolved thread (gemini-code-assist) — FIXED. The new regression test called `setupMocks()` _after_ setting `useImageUpload`'s `fnA` return value; since `setupMocks()` re-mocks `useImageUpload` with a fresh `vi.fn()`, it silently clobbered `fnA` so the first render never used it. Reordered `setupMocks()` ahead of the `fnA` mock. type-check ✓ lint ✓ tests ✓ (5/5 in Dock.test.tsx). Replied and resolved the thread.
+  - #1887: 1 thread already resolved (NextUp maxWidth `30cqmin` fix from 2026-06-06) — no action.
+  - All other PRs: no review comments.
+- Fixes pushed: 1
+  - #1894 / `nightly/dashboard-2026-06-07` — commit `e76d763` `fix(pr-1894): call setupMocks() before fnA mock in smart-paste test`.
+- Reviews posted: 10 (all COMMENT event)
+  - #1896 Ready (docs); #1895 Ready; #1894 Ready (test-ordering fix pushed); #1893 Ready; #1892 Ready; #1891 Ready; #1890 Ready (docs); #1889 Ready (mechanical @/ alias); #1888 Ready (verified ScaledEmptyState + Music already imported); #1887 Ready with minor notes (css-scaling.md Completed entry still records the superseded `min(120px, 30cqmin)` value — doc-only).
+- Notes:
+  - Branch-safety: no open PR head is `main` or `dev-*`; all heads were pushable. The single fix went to its PR head branch (`nightly/dashboard-2026-06-07`). No pushes to `main`.
+  - All 9 nightly PRs are small, focused bug/i18n/refactor/doc changes; none add a new `WidgetType` or touch `WidgetRegistry.ts`/`DashboardContext.tsx` config-merge/`firestore.rules`, so the widget-registration and rules-match-block checks were not triggered. #1891 touches `functions/src/index.ts` (two additive `if` statements — no signature change) and #1887 touches `types.ts`/`utils/adminBuildingConfig.ts` (comment-only).
+
+## 2026-06-06
+
+- PRs reviewed: 5 (all open PRs; every head is non-`main`/non-`dev-*`, so all in scope)
+  - #1887 — fix(css-scaling): scale NextUp session-name maxWidth cap with cqmin (head `scheduled-tasks`, base `dev-paul`)
+  - #1886 — docs(unifier): run 9 memory log (2026-06-06) (head `nightly/unifier-log-2026-06-06`, base `dev-paul`)
+  - #1885 — D3: 4 admin config modal labels → SettingsLabel (head `nightly/unify-settings-labels-2026-06-06`, base `dev-paul`)
+  - #1884 — D4: hooks/ cross-directory imports → @/ alias (head `nightly/unify-import-paths-hooks-2026-06-06`, base `dev-paul`)
+  - #1883 — D1: WorkSymbols "select a symbol" empty state → ScaledEmptyState (head `nightly/unify-empty-states-2026-06-06`, base `dev-paul`)
+- Comments processed: 2 threads — 2 fixed, 0 explained
+  - #1887: 1 thread — FIXED. gemini-code-assist correctly noted `maxWidth: 'min(120px, 30cqmin)'` still hard-caps at 120px (since `min()` picks the smaller value), defeating the PR's scaling goal. Changed to `maxWidth: '30cqmin'` so the session name scales with the widget. type-check ✓ lint ✓ format ✓.
+  - #1886: 1 thread — FIXED. Removed the duplicate "D4 hooks/ complete (run 9)" note, keeping the more detailed entry (the one noting the `useImageUpload.ts` Prettier fix). Did NOT apply gemini's literal suggestion text, which would have duplicated the adjacent "D4 context/ complete (run 8)" line; removed the redundant line instead. format ✓.
+  - #1885, #1884, #1883: no review comments.
+- Fixes pushed: 2
+  - #1887 / `scheduled-tasks` — commit `fbe309b` `fix(pr-1887): use 30cqmin directly for NextUp session-name maxWidth`.
+  - #1886 / `nightly/unifier-log-2026-06-06` — commit `9c0ba4c` `fix(pr-1886): remove duplicate D4 hooks/ run-9 note in unifier log`.
+- Reviews posted: 5 (all COMMENT event)
+  - #1887 Ready w/ minor notes (css-scaling.md Completed entry still records the superseded `min(120px, 30cqmin)` value — doc-only); #1886 Ready; #1885 Ready (verified `SettingsLabel` `icon?` prop signature; `Settings2` still used); #1884 Ready (mechanical `@/` alias, `./` sibling imports untouched); #1883 Ready (verified `ScaledEmptyState` requires `icon`+`title`; usage correct).
+- Notes:
+  - Branch-safety: no open PR head is `main` or `dev-*`; all heads were pushable. Both fixes went to their respective PR head branches (`scheduled-tasks` for #1887, `nightly/unifier-log-2026-06-06` for #1886). No pushes to `main`.
+  - Verified component signatures before reviewing: `components/common/SettingsLabel.tsx` (optional `icon` rendered at `w-3 h-3`, label `mb-2`) and `components/common/ScaledEmptyState.tsx` (`icon` + `title` required, `subtitle` optional, default icon color `text-slate-300`). Both #1885 and #1883 use them correctly.
+  - All five PRs are small, mechanical/doc-level changes — no new widgets, no `types.ts`/`WidgetRegistry.ts`/`DashboardContext.tsx`/Firestore-rules changes, so the widget-registration and rules-match-block checks were not triggered.
+
 ## 2026-06-05
 
 - PRs reviewed: 14 (all open PRs; every head is non-`main`/non-`dev-*`, so all in scope)

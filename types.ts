@@ -2410,6 +2410,16 @@ export interface PlacedNotebookAsset {
 export interface SmartNotebookConfig {
   activeNotebookId: string | null;
   storageLimitMb?: number;
+  /**
+   * Appearance fields, surfaced via the shared `TypographySettings` /
+   * `SurfaceColorSettings` primitives in `SmartNotebookAppearanceSettings`.
+   * These are user-level only and are intentionally NOT admin-configurable
+   * per building: the widget renders imported SMART pages as image/SVG and
+   * has no themed text/surface chrome to apply them to, so there is no
+   * per-building default worth exposing. See `BuildingSmartNotebookDefaults`
+   * (storage limit only) and the `case 'smartNotebook'` handler in
+   * `utils/adminBuildingConfig.ts`.
+   */
   cardColor?: string;
   cardOpacity?: number;
   fontFamily?: GlobalFontFamily;
@@ -2446,6 +2456,10 @@ export interface SharedNotebook {
 export interface BuildingSmartNotebookDefaults {
   buildingId: string;
   storageLimitMb?: number; // Admin-only: MB limit for notebook file uploads
+  // No appearance defaults (cardColor/cardOpacity/fontFamily/fontColor):
+  // SmartNotebook renders image/SVG pages and does not theme any surface or
+  // text, so per-building appearance defaults would set values the widget
+  // never reads. Those fields stay user-level only — see SmartNotebookConfig.
 }
 
 export interface SmartNotebookGlobalConfig {

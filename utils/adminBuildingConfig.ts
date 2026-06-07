@@ -152,6 +152,11 @@ export const getAdminBuildingConfig = (
         const clampedStorageLimit = Math.max(0, storageLimit);
         out.storageLimitMb = clampedStorageLimit;
       }
+      // Only `storageLimitMb` is admin-configurable. The appearance fields
+      // (cardColor/cardOpacity/fontFamily/fontColor) in SmartNotebookConfig are
+      // intentionally user-level only — SmartNotebook renders image/SVG pages
+      // and themes no surface/text, so building defaults for them would set
+      // values the widget never reads. See SmartNotebookConfig in types.ts.
       break;
     }
     case 'numberLine': {
