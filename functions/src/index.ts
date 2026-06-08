@@ -645,6 +645,8 @@ export const generateWithAI = onCall(
     if (genType === 'dashboard-layout') specificFeatureId = 'dashboard-layout';
     if (genType === 'instructional-routine')
       specificFeatureId = 'instructional-routine';
+    if (genType === 'widget-builder') specificFeatureId = 'widget-builder';
+    if (genType === 'widget-explainer') specificFeatureId = 'widget-explainer';
 
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 

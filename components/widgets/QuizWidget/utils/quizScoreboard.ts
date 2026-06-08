@@ -124,13 +124,29 @@ export function isGamificationActive(session?: QuizScoringSession): boolean {
 
 /**
  * Compute a student's percentage score using per-question point values.
+ *
+ * Drive-sync duplication and arrayUnion races can write the same question id
+ * twice into `questions`. `getEarnedPoints` already guards the *answer* side
+ * via `seenQuestionIds`, but the *denominator* must also dedup — otherwise
+ * `maxPoints` inflates while `earned` stays correct, deflating the score (e.g.
+ * a student who answered the only real question correctly scores 50% instead of
+ * 100% when that question appears twice). Mirrors the identical guard in
+ * `buildContributionDoc` (plcContributions.ts) and `buildResultsSheetData`
+ * (assignmentExportShared.ts).
  */
 export function getResponseScore(
   r: QuizResponse,
   questions: QuizQuestion[],
   session?: QuizScoringSession
 ): number {
-  const maxPoints = questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
+  // Deduplicate by question id before summing maxPoints so a Drive-sync
+  // duplicate doesn't inflate the denominator while earned stays correct.
+  const seenIds = new Set<string>();
+  const maxPoints = questions.reduce((sum, q) => {
+    if (seenIds.has(q.id)) return sum;
+    seenIds.add(q.id);
+    return sum + (q.points ?? 1);
+  }, 0);
   if (maxPoints === 0) return 0;
   return Math.round((getEarnedPoints(r, questions, session) / maxPoints) * 100);
 }

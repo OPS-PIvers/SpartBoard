@@ -447,6 +447,8 @@ export async function computeAnalyticsForOrg(
     'video-activity-recommend',
     'dashboard-layout',
     'instructional-routine',
+    'widget-builder',
+    'widget-explainer',
   ];
 
   const aiUsageStream = db
