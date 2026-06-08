@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-06-01_
+_Last audited: 2026-06-08_
 _Last action: 2026-05-18 (admin_audit_log immutability hardening)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-08: Audited new code from dev-paul merge for new Firestore collection references. Changes: `adminAnalyticsCompute.ts` adds `'widget-builder'` and `'widget-explainer'` to the analytics AI type array (reads from existing `ai_usage` collection — already covered); `functions/src/index.ts` adds 2 `specificFeatureId` assignments for widget-builder/explainer (reads from existing `global_permissions` collection — already covered); `Dock.tsx` change removes one useEffect dependency (no collection reads); widget and i18n changes — no collection reads/writes. Zero new Firestore collections introduced. No new unprotected collections. Existing two open items unchanged._
 
 _2026-06-01: Full collection audit. All collection names from frontend (components/, context/, hooks/, utils/) and functions/src/ cross-referenced against match blocks in firestore.rules. New code absorbed via merge since 2026-05-27: SettingsPanel null-guards, LunchCount/Settings cleanup, Countdown fix, RandomWidget refactor — none introduce new Firestore collection reads/writes. Cross-referenced 40+ collection names. Result: zero uncovered collections. All collections have match blocks. Default-deny catch-all (`match /{document=**} { allow read, write: if false; }`) confirmed present. Two existing open items (sessions list permission, custom_widgets.buildings field) unchanged._
 

@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-06-03_
+_Last audited: 2026-06-08_
 _Last action: 2026-05-01_
 
 ---
@@ -33,6 +33,7 @@ _Nothing currently in progress._
 ### LOW useQuizSession and useVideoActivitySession have high internal state density
 
 - **Detected:** 2026-04-17
+- **Updated:** 2026-06-08 — counts: `useQuizSession.ts` 22 (unchanged from 2026-06-03); `useVideoActivitySession.ts` 18 (up from 17 in 2026-06-03 audit). New hooks in this merge: none.
 - **Updated:** 2026-05-18 — counts unchanged: `useQuizSession.ts` has 21 useState/useRef calls; `useVideoActivitySession.ts` has 17. New hooks added since 2026-05-13 reviewed: `useSharedCollection.ts` (0 state calls — uses Firestore SDK directly), `useCollections.ts` (6 calls — at threshold but borderline), `useActivityWallLibrary.ts` (5 calls — at threshold). No new hooks exceed the 5-call flag threshold requiring addition to this item.
 - **Updated:** 2026-05-13 — counts updated: `useQuizSession.ts` now has 21 useState/useRef calls; `useVideoActivitySession.ts` has 17 (both grew). Also newly flagged: `usePlcOverviewLayout.ts` (9 calls), `useScreenRecord.ts` (8), `useLiveSession.ts` (8), `useStudentAssignments.ts` (7), `useRosters.ts` (7), `useOrgMembers.ts` (7), `useGuidedLearning.ts` (7).
 - **File:** hooks/useQuizSession.ts (21 useState/useRef calls as of 2026-05-13), hooks/useVideoActivitySession.ts (17 useState/useRef calls)
@@ -61,6 +62,8 @@ _Nothing currently in progress._
 - **Fix:** For `useScreenRecord`, group `{ isRecording, duration, error }` into a single `useState` object to reduce the state surface. The 4 refs are all distinct external handles and should remain individual. For `useLiveSession`, group `{ studentId, studentPin }` (always set/cleared together) into a single state object. Severity is LOW because the individual state declarations are cohesive and readable.
 
 ---
+
+_2026-06-08: Audited new code from dev-paul merge. Object.assign: DashboardContext still has zero Object.assign calls. `as unknown as` casts: no new ones in this merge (diff shows only `specificFeatureId` string assignments in functions/src/index.ts — no TypeScript changes in frontend code). Hook complexity: `useQuizSession.ts` unchanged at 22 useState/useRef calls; `useVideoActivitySession.ts` grew from 17 to 18 calls (minor growth, existing open item still valid and counts are current). New hooks: none added in this merge. Nested ternaries: no new complex ternary chains in changed files. Zero new simplification items._
 
 _2026-06-03: Audited Object.assign patterns (DashboardContext has zero Object.assign calls — mergeWidgetConfig extraction complete), as unknown as casts (2 new instances in VideoActivityWidget/Results.tsx at lines 210 and 216 — both class (c) generics workarounds for shared exporter function; code comment documents intent), hook complexity (useQuizSession: 22 calls up from 21; useVideoActivitySession: 18 calls up from 17 — small growth, existing open item still valid), new utility files from merge (studentJoinRouting.ts, runClassroomGradePush.ts, quizCode.ts — all stateless pure utilities, no state density concern), nested ternaries (1 pre-existing 4-level ternary in QuizResults.tsx — no new instances). One new LOW item added for VideoActivity casts._
 

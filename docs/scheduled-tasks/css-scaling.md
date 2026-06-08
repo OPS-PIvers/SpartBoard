@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-07_
+_Last audited: 2026-06-08_
 _Last action: 2026-06-06_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-08: Scanned all Widget.tsx files changed in dev-paul merge (SoundboardWidget/Widget.tsx, math-tools/CalculatorTool.tsx). SoundboardWidget change: replaced manual empty-state markup (Music icon with `mb-2` + label) with ScaledEmptyState — the `mb-2` tracked in the group open item at `SoundboardWidget/Widget.tsx:391` is now resolved. The `gap-2` at line 391 (selection bar flex container) remains hardcoded. CalculatorTool.tsx: `flex-1 min-h-0` pattern at line 350 is a valid flex layout, not a violation. Dock.tsx, locale files, functions files — no widget front-face content changes. No new anti-patterns detected. Group open item updated to reflect SoundboardWidget mb-2 Music icon resolution._
 
 _2026-06-07: Scanned all 49 Widget.tsx files after merging 5 dev-paul commits (docs/unifier, D3 SettingsLabel refactor, D4 hooks @/ alias refactor, D1 WorkSymbols empty state, feat/classroom Phase 2). WorkSymbols/Widget.tsx changed to use ScaledEmptyState — no new CQ violations. D3/D4 refactors touch only import paths and admin panel labels, not widget front-face content. Classroom Phase 2 changes are in AssignToClassroomModal, QuizManager, VideoActivityWidget/Widget.tsx, and QuizResults — all checked: VideoActivityWidget/Widget.tsx new Assign/Results flow elements verified using cqmin/flex patterns correctly. Zero new anti-patterns detected. All pre-existing open items remain valid._
 
@@ -132,7 +134,7 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
   - `NextUp/Widget.tsx:295, :331, :344, :346, :360, :409, :425, :430` — `p-6`, `gap-2`, `p-1`, `px-3 py-1`, `mb-2 px-1`, `space-y-2`, `py-8`
   - ~~`random/RandomWidget.tsx:711, :750, :752`~~ — resolved by random redesign (2026-05-15; commits b0b11656, f8fb1e6b converted all to `cqmin`)
   - `SoundWidget/Widget.tsx:182, :210, :212` — `p-2` content wrapper, `pb-3` footer, `px-6 py-2` level label
-  - `SoundboardWidget/Widget.tsx:391, :402` — `mb-2` Music icon, `gap-2` selection bar
+  - `SoundboardWidget/Widget.tsx:391` — `gap-2` selection bar (~~`mb-2` Music icon resolved 2026-06-08 — replaced with ScaledEmptyState~~)
   - `SpecialistSchedule/SpecialistScheduleWidget.tsx:234, :314` — `mb-2 pb-2` header row, `px-2 py-1` "Now" badge
   - `TalkingTool/Widget.tsx:80, :109, :135` — `p-2 space-y-2`, `mb-2`, `mb-4`
   - `Webcam/Widget.tsx:457, :470, :480, :497, :527, :531, :542, :547, :558` — `p-6`, `p-6 mb-4`, `px-4 py-2`, `gap-2`, `p-4` (multiple), `gap-3`, `gap-2` (multiple)

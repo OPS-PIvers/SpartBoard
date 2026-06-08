@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-07_
+_Last audited: 2026-06-08_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-08. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Merged dev-paul (fix(CalculatorTool) decimal desync, fix(Dock) processAndUploadImage useEffect dep, fix(quiz) score denominator dedup, fix(i18n) widgets.weather DE/FR, fix(functions) widget-builder/explainer specificFeatureId). New files: CalculatorTool.test.tsx, quizScoreboard.test.ts, Dock.test.tsx (test additions), widgetWeatherLocales.test.ts. All new and modified code type-safe and lint-clean._
 
 _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-07. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Merged 5 dev-paul commits (docs/unifier, D3 4 admin config label instances → SettingsLabel, D4 hooks/ cross-dir imports → @/ alias, D1 WorkSymbols empty state → ScaledEmptyState, feat(classroom) Phase 2 Assign chooser/time picker/Publish=Push/class-course unification) plus associated new files (LinkSchoologyModal.tsx, SchoologyLinkNudge.tsx, AssignDestinationModal.tsx, SchoologyAssignInstructions.tsx, courseLinkEndpoints.ts, ltiCourseLinks.ts, classroomCourseLinks.ts, classroomAttachments.ts, publishGradePush.ts, localDate.ts, useSchoologySeenSections.ts). All new and modified code type-safe and lint-clean._
 
