@@ -35,7 +35,7 @@ import {
   encodeResponseKeySegment,
   AttemptLimitReachedError,
 } from '@/hooks/useQuizSession';
-import { normalizeVideoActivityQuestions } from '@/utils/videoActivityNormalize';
+import { normalizeVideoActivitySession } from '@/utils/videoActivityNormalize';
 import {
   AssignmentMode,
   VideoActivitySession,
@@ -65,39 +65,6 @@ function videoActivityLedgerKey(
 ): string {
   return `${assignmentId}__${studentUid}`;
 }
-
-const normalizeSession = (
-  sessionId: string,
-  data: Partial<VideoActivitySession>
-): VideoActivitySession => {
-  const activityTitle = data.activityTitle ?? 'Video Activity';
-  const createdAt = data.createdAt ?? Date.now();
-
-  return {
-    id: sessionId,
-    activityId: data.activityId ?? '',
-    activityTitle,
-    assignmentName:
-      data.assignmentName && data.assignmentName.trim().length > 0
-        ? data.assignmentName
-        : `${activityTitle} ${new Date(createdAt).toLocaleString()}`,
-    teacherUid: data.teacherUid ?? '',
-    youtubeUrl: data.youtubeUrl ?? '',
-    questions: normalizeVideoActivityQuestions(data.questions),
-    settings: {
-      autoPlay: data.settings?.autoPlay ?? false,
-      requireCorrectAnswer: data.settings?.requireCorrectAnswer ?? true,
-      allowSkipping: data.settings?.allowSkipping ?? false,
-    },
-    status: data.status === 'ended' ? 'ended' : 'active',
-    allowedPins: data.allowedPins ?? [],
-    createdAt,
-    ...(typeof data.endedAt === 'number' ? { endedAt: data.endedAt } : {}),
-    ...(typeof data.expiresAt === 'number'
-      ? { expiresAt: data.expiresAt }
-      : {}),
-  };
-};
 
 // ---------------------------------------------------------------------------
 // Teacher hook
@@ -288,7 +255,7 @@ export const useVideoActivitySessionTeacher =
             setSessions(
               snap.docs.map((sessionDoc) => {
                 const data = sessionDoc.data() as Partial<VideoActivitySession>;
-                return normalizeSession(sessionDoc.id, data);
+                return normalizeVideoActivitySession(sessionDoc.id, data);
               })
             );
             setSessionsLoading(false);
@@ -390,7 +357,7 @@ export const useVideoActivitySessionTeacher =
         (snap) => {
           if (snap.exists()) {
             setLiveSession(
-              normalizeSession(
+              normalizeVideoActivitySession(
                 snap.id,
                 snap.data() as Partial<VideoActivitySession>
               )
