@@ -226,11 +226,7 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                 // and the fractions fallback, and strips the long mantissa that
                 // would otherwise confuse teachers on classroom projectors.
                 let labelText = Number(val.toFixed(4)).toString();
-                if (displayMode === 'decimals') {
-                  // Already handled by the baseline round-trip above; this
-                  // branch is now a no-op but kept for clarity/intent.
-                  labelText = Number(val.toFixed(4)).toString();
-                } else if (displayMode === 'fractions') {
+                if (displayMode === 'fractions') {
                   // Simple fraction conversion if step suggests a common denominator (e.g. 0.25 -> 4)
                   const denom = Math.round(1 / safeStep);
                   // Use Math.round + epsilon guard instead of strict modulo check:
