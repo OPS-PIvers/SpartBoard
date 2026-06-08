@@ -1,317 +1,232 @@
 /**
- * Regression test for the normalizeSession field-stripping bug in
- * useVideoActivitySession.ts.
+ * Regression test for the normalizeSession field-stripping bug.
  *
- * Root cause: `normalizeSession` returned a hand-enumerated literal that only
- * listed the fields it explicitly handled. Every optional field on
- * `VideoActivitySession` that wasn't in the literal was silently dropped when
- * the teacher-side live session snapshot arrived — including `classIds`,
- * `classId`, `sessionOptions`, `ltiAttachment`, `revealedAnswers`, `mode`, etc.
+ * Root cause: the internal `normalizeSession` in `useVideoActivitySession.ts`
+ * returned a hand-enumerated literal that silently dropped every optional field
+ * on `VideoActivitySession` not explicitly listed — including `classIds`,
+ * `classId`, `sessionOptions`, `ltiAttachment`, `revealedAnswers`, `mode`,
+ * `periodNames`, `rosterIds`, `classPeriodByClassId`, `sync`, `ltiNrps`.
  *
- * Impact: once `subscribeToSession` fired its first snapshot, `liveSession`
- * replaced `selectedSession` in `VideoActivityWidget/Widget.tsx` and the
- * `VideoActivityLiveMonitor` received an object missing `classIds`/`classId` →
- * `useAssignmentPseudonymsMulti` was called with an empty class list → all
- * ClassLink SSO student names disappeared from the live monitor.
+ * Impact: `subscribeToSession`'s `onSnapshot` callback runs the normalizer on
+ * every live update. Once the first snapshot arrived, `liveSession` replaced
+ * `selectedSession` in `VideoActivityWidget/Widget.tsx`, and
+ * `VideoActivityLiveMonitor` received a session object missing `classIds` /
+ * `classId` → `useAssignmentPseudonymsMulti` was called with an empty class
+ * list → all ClassLink SSO student display names disappeared from the live
+ * monitor mid-session without any error surfacing.
  *
- * Fix: spread the source data (`...data`) as the base of the returned object,
- * then override only the fields that require normalization/defaulting, so
- * unrecognized optional fields survive the transformation intact.
+ * Fix: extracted `normalizeSession` to `utils/videoActivityNormalize.ts` as
+ * the exported `normalizeVideoActivitySession`. The function now spreads
+ * `...data` as the first property of the returned object so all unrecognized
+ * optional fields survive, then overrides only the fields that require
+ * normalization or defaulting.
  *
- * This test exercises the pure normalization logic by recreating it inline —
- * `normalizeSession` is internal to the hook, so we test the transformation
- * contract directly rather than through the Firestore-dependent hook itself.
+ * This test imports the real exported function so a regression (removing
+ * `...data`) would immediately cause the "preserves optional fields" tests
+ * to fail.
  */
 
 import { describe, it, expect } from 'vitest';
-import { normalizeVideoActivityQuestions } from '@/utils/videoActivityNormalize';
-import type { VideoActivitySession } from '@/types';
+import { normalizeVideoActivitySession } from '@/utils/videoActivityNormalize';
 
-/**
- * Inline recreation of the BUGGY `normalizeSession` — the pre-fix version
- * that returned a hand-enumerated literal without spreading source data.
- * Used only in "before" assertions to verify the test would fail on old code.
- */
-function normalizeBuggy(
-  sessionId: string,
-  data: Partial<VideoActivitySession>
-): VideoActivitySession {
-  const activityTitle = data.activityTitle ?? 'Video Activity';
-  const createdAt = data.createdAt ?? Date.now();
-  return {
-    id: sessionId,
-    activityId: data.activityId ?? '',
-    activityTitle,
-    assignmentName:
-      data.assignmentName && data.assignmentName.trim().length > 0
-        ? data.assignmentName
-        : `${activityTitle} ${new Date(createdAt).toLocaleString()}`,
-    teacherUid: data.teacherUid ?? '',
-    youtubeUrl: data.youtubeUrl ?? '',
-    questions: normalizeVideoActivityQuestions(data.questions),
-    settings: {
-      autoPlay: data.settings?.autoPlay ?? false,
-      requireCorrectAnswer: data.settings?.requireCorrectAnswer ?? true,
-      allowSkipping: data.settings?.allowSkipping ?? false,
-    },
-    status: data.status === 'ended' ? 'ended' : 'active',
-    allowedPins: data.allowedPins ?? [],
-    createdAt,
-    ...(typeof data.endedAt === 'number' ? { endedAt: data.endedAt } : {}),
-    ...(typeof data.expiresAt === 'number'
-      ? { expiresAt: data.expiresAt }
-      : {}),
-  };
-}
+// ─── helpers ─────────────────────────────────────────────────────────────────
 
-/**
- * Inline recreation of the FIXED `normalizeSession` — spreads source data
- * first so optional fields survive, then overrides required fields.
- */
-function normalizeFixed(
-  sessionId: string,
-  data: Partial<VideoActivitySession>
-): VideoActivitySession {
-  const activityTitle = data.activityTitle ?? 'Video Activity';
-  const createdAt = data.createdAt ?? Date.now();
-  return {
-    ...data,
-    id: sessionId,
-    activityId: data.activityId ?? '',
-    activityTitle,
-    assignmentName:
-      data.assignmentName && data.assignmentName.trim().length > 0
-        ? data.assignmentName
-        : `${activityTitle} ${new Date(createdAt).toLocaleString()}`,
-    teacherUid: data.teacherUid ?? '',
-    youtubeUrl: data.youtubeUrl ?? '',
-    questions: normalizeVideoActivityQuestions(data.questions),
-    settings: {
-      autoPlay: data.settings?.autoPlay ?? false,
-      requireCorrectAnswer: data.settings?.requireCorrectAnswer ?? true,
-      allowSkipping: data.settings?.allowSkipping ?? false,
-    },
-    status: data.status === 'ended' ? 'ended' : 'active',
-    allowedPins: data.allowedPins ?? [],
-    createdAt,
-    ...(typeof data.endedAt === 'number' ? { endedAt: data.endedAt } : {}),
-    ...(typeof data.expiresAt === 'number'
-      ? { expiresAt: data.expiresAt }
-      : {}),
-  };
-}
+const SESSION_ID = 'sess-001';
 
-const BASE_SESSION: Partial<VideoActivitySession> = {
+/** Minimal required fields that normalizeVideoActivitySession must default. */
+const MINIMAL_INPUT = {
   activityId: 'act-1',
-  activityTitle: 'Cell Biology',
-  assignmentName: 'Period 3 — Cell Biology',
-  teacherUid: 'teacher-uid-1',
+  activityTitle: 'Test Video',
+  assignmentName: 'Test Assignment',
+  teacherUid: 'teacher-uid',
   youtubeUrl: 'https://youtu.be/abc',
   questions: [],
-  status: 'active',
+  status: 'active' as const,
   allowedPins: [],
   createdAt: 1_700_000_000_000,
 };
 
-describe('normalizeSession — optional field preservation (regression)', () => {
-  describe('classIds / classId (SSO student name resolution)', () => {
-    const dataWithClassIds: Partial<VideoActivitySession> = {
-      ...BASE_SESSION,
-      classIds: ['cl-1', 'cl-2'],
-      classId: 'cl-1',
-    };
+// ─── optional field preservation ─────────────────────────────────────────────
 
-    it('BUG (old code): classIds is stripped by the hand-enumerated literal', () => {
-      const result = normalizeBuggy('session-1', dataWithClassIds);
-      // The buggy version drops classIds — this assertion confirms the bug existed.
-      expect(result.classIds).toBeUndefined();
-      expect(result.classId).toBeUndefined();
+describe('normalizeVideoActivitySession — optional field preservation', () => {
+  it('preserves classIds when present', () => {
+    const result = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      classIds: ['class-a', 'class-b'],
     });
-
-    it('FIX (new code): classIds is preserved through the spread', () => {
-      const result = normalizeFixed('session-1', dataWithClassIds);
-      expect(result.classIds).toEqual(['cl-1', 'cl-2']);
-      expect(result.classId).toBe('cl-1');
-    });
+    expect(result.classIds).toEqual(['class-a', 'class-b']);
   });
 
-  describe('sessionOptions (attempt limit, tab warnings)', () => {
-    const dataWithOptions: Partial<VideoActivitySession> = {
-      ...BASE_SESSION,
-      sessionOptions: {
-        tabWarningsEnabled: true,
-        attemptLimit: 3,
-        showResultToStudent: false,
-        showCorrectAnswerToStudent: false,
-        showCorrectOnBoard: false,
-        shuffleQuestions: false,
-        shuffleAnswerOptions: true,
-        rewindOnIncorrectSeconds: 0,
-        pointPenaltyOnIncorrect: 0,
-        scoreVisibility: 'score-only',
-      },
-    };
-
-    it('BUG (old code): sessionOptions is stripped', () => {
-      const result = normalizeBuggy('session-1', dataWithOptions);
-      expect(result.sessionOptions).toBeUndefined();
+  it('preserves classId (legacy) when present', () => {
+    const result = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      classId: 'class-legacy',
     });
-
-    it('FIX (new code): sessionOptions is preserved', () => {
-      const result = normalizeFixed('session-1', dataWithOptions);
-      expect(result.sessionOptions?.attemptLimit).toBe(3);
-      expect(result.sessionOptions?.tabWarningsEnabled).toBe(true);
-    });
+    expect(result.classId).toBe('class-legacy');
   });
 
-  describe('mode (view-only filtering)', () => {
-    const dataWithMode: Partial<VideoActivitySession> = {
-      ...BASE_SESSION,
-      mode: 'view-only',
+  it('preserves sessionOptions when present', () => {
+    const opts = {
+      showCorrectAnswers: true,
+      attemptsAllowed: 3,
+      passingScore: 80,
     };
-
-    it('BUG (old code): mode is stripped', () => {
-      const result = normalizeBuggy('session-1', dataWithMode);
-      expect(result.mode).toBeUndefined();
+    const result = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      sessionOptions: opts as never,
     });
-
-    it('FIX (new code): mode is preserved', () => {
-      const result = normalizeFixed('session-1', dataWithMode);
-      expect(result.mode).toBe('view-only');
-    });
+    expect(result.sessionOptions).toEqual(opts);
   });
 
-  describe('ltiNrps (Schoology name resolution gate)', () => {
-    const dataWithLti: Partial<VideoActivitySession> = {
-      ...BASE_SESSION,
-      ltiNrps: true,
-    };
-
-    it('BUG (old code): ltiNrps is stripped', () => {
-      const result = normalizeBuggy('session-1', dataWithLti);
-      expect((result as Record<string, unknown>).ltiNrps).toBeUndefined();
+  it('preserves mode when present', () => {
+    const result = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      mode: 'submissions',
     });
-
-    it('FIX (new code): ltiNrps is preserved', () => {
-      const result = normalizeFixed('session-1', dataWithLti);
-      expect((result as Record<string, unknown>).ltiNrps).toBe(true);
-    });
+    expect((result as { mode?: string }).mode).toBe('submissions');
   });
 
-  describe('revealedAnswers (post-publish answer display)', () => {
-    const dataWithRevealed: Partial<VideoActivitySession> = {
-      ...BASE_SESSION,
-      revealedAnswers: { 'q-1': 'Correct answer text' },
-    };
-
-    it('BUG (old code): revealedAnswers is stripped', () => {
-      const result = normalizeBuggy('session-1', dataWithRevealed);
-      expect(result.revealedAnswers).toBeUndefined();
+  it('preserves periodNames when present', () => {
+    const result = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      periodNames: ['Period 1', 'Period 2'],
     });
-
-    it('FIX (new code): revealedAnswers is preserved', () => {
-      const result = normalizeFixed('session-1', dataWithRevealed);
-      expect(result.revealedAnswers?.['q-1']).toBe('Correct answer text');
-    });
+    expect((result as { periodNames?: string[] }).periodNames).toEqual([
+      'Period 1',
+      'Period 2',
+    ]);
   });
 
-  describe('required field normalization still works with spread', () => {
-    it('normalizes missing activityTitle to default', () => {
-      const result = normalizeFixed('session-1', {
-        ...BASE_SESSION,
-        activityTitle: undefined,
-      });
-      expect(result.activityTitle).toBe('Video Activity');
+  it('preserves rosterIds when present', () => {
+    const result = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      rosterIds: ['roster-1'],
     });
+    expect((result as { rosterIds?: string[] }).rosterIds).toEqual([
+      'roster-1',
+    ]);
+  });
 
-    it('normalizes missing activityId to empty string', () => {
-      const result = normalizeFixed('session-1', {
-        ...BASE_SESSION,
-        activityId: undefined,
-      });
-      expect(result.activityId).toBe('');
+  it('preserves classPeriodByClassId when present', () => {
+    const map = { 'class-a': 'Period 1' };
+    const result = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      classPeriodByClassId: map,
     });
+    expect(
+      (result as { classPeriodByClassId?: Record<string, string> })
+        .classPeriodByClassId
+    ).toEqual(map);
+  });
+});
 
-    it('normalizes ended status correctly', () => {
-      const result = normalizeFixed('session-1', {
-        ...BASE_SESSION,
-        status: 'ended',
-        endedAt: 1_700_000_060_000,
-      });
-      expect(result.status).toBe('ended');
-      expect(result.endedAt).toBe(1_700_000_060_000);
+// ─── required field normalization (these must still be overridden) ────────────
+
+describe('normalizeVideoActivitySession — required field defaults', () => {
+  it('sets id from sessionId argument (overrides any id in data)', () => {
+    const result = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      id: 'wrong-id',
+    } as never);
+    expect(result.id).toBe(SESSION_ID);
+  });
+
+  it('defaults activityTitle to "Video Activity" when absent', () => {
+    const result = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      activityTitle: undefined,
     });
+    expect(result.activityTitle).toBe('Video Activity');
+  });
 
-    it('normalizes active status (non-ended) correctly', () => {
-      // Any status other than 'ended' should normalize to 'active'
-      const result = normalizeFixed('session-1', {
-        ...BASE_SESSION,
-        status: 'active',
-      });
-      expect(result.status).toBe('active');
+  it('defaults activityId to empty string when absent', () => {
+    const result = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      activityId: undefined,
     });
+    expect(result.activityId).toBe('');
+  });
 
-    it('overrides id from parameter, not data', () => {
-      const result = normalizeFixed('canonical-id', {
-        ...BASE_SESSION,
-        id: 'stale-id-from-data',
-      });
-      expect(result.id).toBe('canonical-id');
+  it('defaults teacherUid to empty string when absent', () => {
+    const result = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      teacherUid: undefined,
     });
+    expect(result.teacherUid).toBe('');
+  });
 
-    it('normalizes settings with defaults when absent', () => {
-      const result = normalizeFixed('session-1', {
-        ...BASE_SESSION,
-        settings: undefined,
-      });
-      expect(result.settings).toEqual({
-        autoPlay: false,
-        requireCorrectAnswer: true,
-        allowSkipping: false,
-      });
+  it('defaults status to "active" for any non-ended value', () => {
+    const result = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      status: undefined,
     });
+    expect(result.status).toBe('active');
+  });
 
-    it('preserves optional fields alongside required normalization', () => {
-      // This is the key regression scenario: a fully-populated session doc
-      // (with classIds, sessionOptions, mode, ltiNrps) should survive intact
-      // after normalization — the way the initial `getDoc` result (selectedSession)
-      // does, not the way the old normalizeSession stripped it.
-      const fullSession: Partial<VideoActivitySession> = {
-        ...BASE_SESSION,
-        classIds: ['cl-1'],
-        classId: 'cl-1',
-        sessionOptions: {
-          tabWarningsEnabled: true,
-          attemptLimit: 2,
-          showResultToStudent: true,
-          showCorrectAnswerToStudent: false,
-          showCorrectOnBoard: false,
-          shuffleQuestions: false,
-          shuffleAnswerOptions: true,
-          rewindOnIncorrectSeconds: 15,
-          pointPenaltyOnIncorrect: 0,
-          scoreVisibility: 'score-only',
-        },
-        mode: 'submissions',
-        periodNames: ['Period 3'],
-        rosterIds: ['roster-1'],
-      };
-
-      const result = normalizeFixed('session-1', fullSession);
-
-      // All optional fields survived
-      expect(result.classIds).toEqual(['cl-1']);
-      expect(result.classId).toBe('cl-1');
-      expect(result.sessionOptions?.attemptLimit).toBe(2);
-      expect(result.sessionOptions?.rewindOnIncorrectSeconds).toBe(15);
-      expect(result.mode).toBe('submissions');
-      expect(result.periodNames).toEqual(['Period 3']);
-      expect(result.rosterIds).toEqual(['roster-1']);
-
-      // Required field normalization still applied
-      expect(result.id).toBe('session-1');
-      expect(result.status).toBe('active');
-      expect(result.activityTitle).toBe('Cell Biology');
+  it('preserves "ended" status correctly', () => {
+    const result = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      status: 'ended',
     });
+    expect(result.status).toBe('ended');
+  });
+
+  it('defaults allowedPins to empty array when absent', () => {
+    const result = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      allowedPins: undefined,
+    });
+    expect(result.allowedPins).toEqual([]);
+  });
+
+  it('defaults settings.requireCorrectAnswer to true', () => {
+    const result = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      settings: undefined,
+    });
+    expect(result.settings?.requireCorrectAnswer).toBe(true);
+  });
+
+  it('generates assignmentName from title + date when assignmentName is blank', () => {
+    const result = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      assignmentName: '',
+      activityTitle: 'Science Quiz',
+      createdAt: 1_700_000_000_000,
+    });
+    expect(result.assignmentName).toMatch(/Science Quiz/);
+  });
+
+  it('preserves a non-blank assignmentName', () => {
+    const result = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      assignmentName: 'My Assignment',
+    });
+    expect(result.assignmentName).toBe('My Assignment');
+  });
+
+  it('includes endedAt only when numeric', () => {
+    const withEnd = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      endedAt: 1_700_000_001_000,
+    });
+    expect(withEnd.endedAt).toBe(1_700_000_001_000);
+
+    const withoutEnd = normalizeVideoActivitySession(SESSION_ID, MINIMAL_INPUT);
+    expect(withoutEnd.endedAt).toBeUndefined();
+  });
+
+  it('includes expiresAt only when numeric', () => {
+    const withExpiry = normalizeVideoActivitySession(SESSION_ID, {
+      ...MINIMAL_INPUT,
+      expiresAt: 1_700_000_002_000,
+    });
+    expect(withExpiry.expiresAt).toBe(1_700_000_002_000);
+
+    const withoutExpiry = normalizeVideoActivitySession(
+      SESSION_ID,
+      MINIMAL_INPUT
+    );
+    expect(withoutExpiry.expiresAt).toBeUndefined();
   });
 });
