@@ -828,7 +828,7 @@ describe('DashboardView Gestures & Navigation', () => {
       setCollectionDefaultBoard: vi.fn(),
     };
 
-    it('sets role="status" + aria-live="polite" on normal toasts and role="alert" on error toasts', () => {
+    it('announces normal toasts via the always-mounted polite live region and errors via role="alert"', () => {
       (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         activeDashboard: mockDashboards[1],
         dashboards: mockDashboards,
@@ -845,12 +845,14 @@ describe('DashboardView Gestures & Navigation', () => {
 
       render(<DashboardView />);
 
-      // Normal toast announces politely via role="status".
-      const statusToast = screen.getByText('Saved').closest('[role="status"]');
-      expect(statusToast).not.toBeNull();
-      expect(statusToast).toHaveAttribute('aria-live', 'polite');
+      // The wrapper is an always-mounted polite live region; a normal toast is
+      // announced through it (the toast itself carries no nested live region).
+      const liveRegion = screen.getByText('Saved').closest('[role="status"]');
+      expect(liveRegion).not.toBeNull();
+      expect(liveRegion).toHaveAttribute('aria-live', 'polite');
+      expect(liveRegion).toHaveTextContent('Saved');
 
-      // Error toast announces assertively via role="alert".
+      // Error toast announces assertively via its own role="alert".
       const alertToast = screen
         .getByText('Save failed')
         .closest('[role="alert"]');

@@ -289,18 +289,20 @@ interface SubscriptionPlan {
   shape: 'list' | 'single';
   /**
    * Status values this subscription accepts, or `null` when the kind has no
-   * status filter. Each (kind, channel, shape) maps to exactly ONE listener
-   * regardless of how many statuses it accepts.
+   * status filter. The planner expands multi-value filters into one plan per
+   * status value, so in practice this is at most a single element here.
    *
-   * Single-value filters apply `where('status', '==', value)` server-side.
-   * Multi-value filters (e.g., quiz active = `['waiting', 'active']`) CANNOT
-   * push the status to Firestore: the class filter already consumes the
-   * single allowed disjunctive clause (`array-contains-any` for the list
-   * shape, `in` for the single shape), and Firestore forbids combining it
-   * with a second `in`/`array-contains-any`. So multi-value filters issue an
-   * index-free query without a status constraint and intersect the accepted
-   * statuses in-memory in `handleSnapshot` — collapsing what used to be one
-   * listener per status value into one listener per (kind, channel, shape).
+   * Single-value filters apply `where('status', '==', value)` server-side,
+   * which keeps reads bounded. A multi-value filter (e.g., quiz active =
+   * `['waiting', 'active']`) CANNOT push all its statuses in one query: the
+   * class filter already consumes the single allowed disjunctive clause
+   * (`array-contains-any` for the list shape, `in` for the single shape), and
+   * Firestore forbids a second `in`/`array-contains-any`. So rather than drop
+   * the status filter server-side (which would stream the class's entire
+   * session history, incl. the unbounded `ended` pile), the planner issues one
+   * server-side-filtered listener per status value. `handleSnapshot` keeps a
+   * defensive in-memory intersection for the (now normally unused)
+   * multi-value case.
    *
    * The Ended channel only ever carries single-value filters, so its
    * server-side `orderBy(endedAt)` + `limit` cap is unaffected.
@@ -376,15 +378,12 @@ export function useStudentAssignments({
     const ids = classIdsKey ? classIdsKey.split('|').filter(Boolean) : [];
     if (ids.length === 0) return;
 
-    // Plan every (kind, channel, shape) subscription up front — exactly ONE
-    // listener per shape regardless of how many statuses the filter accepts.
-    // Active channel always runs; Ended channel only for kinds that have a
-    // status field. Dual-query kinds run BOTH list and single shapes.
-    // Multi-value status filters (e.g., quiz active = waiting+active) used to
-    // fan out into one listener per status (Firestore can't `in`-filter
-    // status alongside the class disjunctive clause); they now collapse into
-    // a single status-less query whose accepted statuses are matched
-    // in-memory in `handleSnapshot`.
+    // Plan every (kind, channel, shape, status) subscription up front. Active
+    // channel always runs; Ended channel only for kinds that have a status
+    // field. Dual-query kinds run BOTH list and single shapes. A multi-value
+    // status filter (e.g., quiz active = waiting+active) fans out into one
+    // listener per status value so each query filters status SERVER-SIDE,
+    // keeping reads bounded — see the expansion below.
     const subs: SubscriptionPlan[] = [];
     for (const kind of SESSION_KINDS) {
       const config = KIND_CONFIG[kind];
@@ -393,22 +392,31 @@ export function useStudentAssignments({
       for (const channel of channels) {
         const filter =
           channel === 'active' ? config.activeFilter : config.endedFilter;
-        const statusValues: readonly string[] | null =
+        // Expand a multi-value status filter into ONE plan per status value so
+        // each query can filter status server-side (`where('status','==',v)`),
+        // keeping reads bounded. A single status-less query (Firestore can't
+        // `in`-filter status alongside the class disjunctive clause) would
+        // stream every matching doc — including the unbounded pile of `ended`
+        // sessions that accumulate over a term — and discard the non-matching
+        // ones in memory: a read-cost regression on a school-district budget.
+        const statusGroups: (readonly string[] | null)[] =
           filter === null
-            ? null
+            ? [null]
             : 'valueIn' in filter
-              ? filter.valueIn
-              : [filter.value];
-        if (config.dualQuery) {
-          subs.push({ kind, channel, shape: 'list', statusValues });
-          subs.push({ kind, channel, shape: 'single', statusValues });
-        } else {
-          subs.push({
-            kind,
-            channel,
-            shape: config.classFilterShape,
-            statusValues,
-          });
+              ? filter.valueIn.map((v) => [v])
+              : [[filter.value]];
+        for (const statusValues of statusGroups) {
+          if (config.dualQuery) {
+            subs.push({ kind, channel, shape: 'list', statusValues });
+            subs.push({ kind, channel, shape: 'single', statusValues });
+          } else {
+            subs.push({
+              kind,
+              channel,
+              shape: config.classFilterShape,
+              statusValues,
+            });
+          }
         }
       }
     }
@@ -502,10 +510,11 @@ export function useStudentAssignments({
         shape === 'list'
           ? [where('classIds', 'array-contains-any', ids)]
           : [where('classId', 'in', ids)];
-      // Push the status filter server-side ONLY when it's a single value — an
-      // `==` composes with the class disjunctive clause. Multi-value filters
-      // would need a second `in`, which Firestore rejects, so they run
-      // status-less and intersect the accepted statuses in `handleSnapshot`.
+      // Push the status filter server-side as an `==` (it composes with the
+      // class disjunctive clause), keeping reads bounded. The planner expands
+      // multi-value filters into one single-value plan each, so `statusValues`
+      // is at most one element here; the `> 1` branch in `handleSnapshot`
+      // remains only as a defensive fallback.
       if (statusValues !== null && statusValues.length === 1) {
         constraints.push(where('status', '==', statusValues[0]));
       }
@@ -534,11 +543,11 @@ export function useStudentAssignments({
       // drop a GL doc whose play-mode happened to spell 'view-only'.
       const modeField =
         plan.kind === 'guided-learning' ? 'assignmentMode' : 'mode';
-      // Multi-value status filters run status-less server-side (see
-      // `buildQuery`); intersect the accepted statuses here so the result set
-      // matches what the per-status fan-out used to deliver. `null` (no status
-      // field) and single-value filters (already pushed to Firestore) accept
-      // every returned doc, so this stays a no-op for them.
+      // Defensive fallback: the planner expands multi-value status filters into
+      // single-value plans (each filtered server-side), so this branch is
+      // normally inert. If a multi-value plan is ever issued it still
+      // intersects the accepted statuses in memory. `null` (no status field)
+      // and single-value filters accept every returned doc — a no-op.
       const acceptStatus =
         plan.statusValues !== null && plan.statusValues.length > 1
           ? new Set(plan.statusValues)

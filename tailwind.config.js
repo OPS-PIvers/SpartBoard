@@ -9,10 +9,15 @@ import { HIGHLIGHT_BG_CLASSES } from './utils/writtenAnnotations';
 // for motion-sensitive users.
 //
 // Disabled (decorative / attention-getting loops — safe to remove):
-//   - spin, spin-slow, pulse, ping, bounce (Tailwind built-ins used as flair)
+//   - spin-slow, pulse, ping, bounce (Tailwind built-ins used as flair)
 //   - jiggle, shimmer, marquee, gl-pulse-reminder (custom keyframes below)
 //
 // Intentionally PRESERVED:
+//   - Status / progress indicators: `.animate-spin` (loading spinners, e.g.
+//     Loader2). Freezing a spinner reads as "stalled" and removes the only
+//     in-progress affordance on async screens, so it keeps spinning even under
+//     reduced-motion (an essential animation under SC 2.3.3). The slow,
+//     decorative `.animate-spin-slow` stays disabled.
 //   - Urgency signals: the timer "time's up" cue is communicated via color
 //     (STANDARD_COLORS.red in TimeToolWidget), not a CSS animation, so nothing
 //     animation-based needs to keep running here. If a true urgency animation
@@ -24,7 +29,6 @@ const reducedMotionPlugin = plugin(({ addBase }) => {
   addBase({
     '@media (prefers-reduced-motion: reduce)': {
       [[
-        '.animate-spin',
         '.animate-spin-slow',
         '.animate-pulse',
         '.animate-ping',

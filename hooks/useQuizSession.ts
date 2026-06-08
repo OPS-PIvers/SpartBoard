@@ -48,6 +48,10 @@ import {
 } from '@/types';
 import { resolvePeriodNames } from '@/utils/periodCompat';
 import { normalizeQuizCode } from '@/utils/quizCode';
+import {
+  createLeadingTrailingThrottle,
+  RESPONSES_THROTTLE_MS,
+} from '@/utils/snapshotThrottle';
 
 // Re-export for backward compatibility with callers that imported
 // QuizSessionOptions from this module before it was moved into types.ts.
@@ -85,15 +89,6 @@ export const RESPONSE_HISTORY_COLLECTION = 'history';
  * making history a per-keystroke audit log.
  */
 const HISTORY_SNAPSHOT_THROTTLE_MS = 5000;
-/**
- * Collapse interval for the teacher responses listener's `setResponses`.
- * During a live quiz, dozens of students autosave/submit within the same
- * second, so Firestore fires `onSnapshot` in rapid bursts. Rendering the
- * whole monitor on every snapshot is wasteful; throttling the state update
- * to once per this window batches a burst into a single render while still
- * leading-edge updating immediately so the first change is never delayed.
- */
-const RESPONSES_THROTTLE_MS = 200;
 /**
  * Top-level cross-launch attempt ledger. Sits alongside `/quiz_sessions/`
  * and accumulates a student's completed-attempt count across every LAUNCH of a
@@ -720,15 +715,10 @@ export const useQuizSessionTeacher = (
     // within RESPONSES_THROTTLE_MS collapses into a single render. Leading
     // edge fires immediately; a trailing timer flushes the last snapshot in
     // the window so the final state is never stale.
-    let pending: QuizResponse[] | null = null;
-    let throttleTimer: ReturnType<typeof setTimeout> | null = null;
-    const flush = () => {
-      throttleTimer = null;
-      if (pending) {
-        setResponses(pending);
-        pending = null;
-      }
-    };
+    const throttle = createLeadingTrailingThrottle<QuizResponse[]>(
+      setResponses,
+      RESPONSES_THROTTLE_MS
+    );
 
     const unsubscribe = onSnapshot(
       responsesRef,
@@ -743,13 +733,7 @@ export const useQuizSessionTeacher = (
               _responseKey: d.id,
             }) as QuizResponse
         );
-        if (throttleTimer) {
-          // Inside an active window — buffer the latest list for the flush.
-          pending = list;
-        } else {
-          setResponses(list);
-          throttleTimer = setTimeout(flush, RESPONSES_THROTTLE_MS);
-        }
+        throttle.push(list);
       },
       (err) => {
         const code = (err as { code?: string }).code;
@@ -762,10 +746,9 @@ export const useQuizSessionTeacher = (
     );
 
     return () => {
-      if (throttleTimer) clearTimeout(throttleTimer);
-      // Flush any buffered snapshot so the final state isn't dropped on
-      // unsubscribe (e.g. switching away from a session mid-burst).
-      flush();
+      // Flush any buffered snapshot (and clear the timer) so the final state
+      // isn't dropped on unsubscribe (e.g. switching away mid-burst).
+      throttle.flush();
       unsubscribe();
     };
   }, [sessionId]);

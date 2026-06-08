@@ -570,10 +570,17 @@ export const useFirestore = (userId: string | null) => {
         });
       }
       const docRef = doc(db, 'shared_boards', shareId);
-      // Capture the unsubscribe so the error path can tear down its own
-      // listener — a synchronously-erroring onSnapshot would otherwise leave
-      // a live listener stacked on the shared doc on every re-subscribe.
-      const unsubscribe = onSnapshot(
+      // Capture the unsubscribe so the error path can tear down its own listener
+      // (preventing a stacked listener on re-subscribe). Initialize to a no-op
+      // and reassign once onSnapshot returns: referencing a
+      // `const unsubscribe = onSnapshot(...)` from its own error callback would
+      // be a temporal-dead-zone access if the error ever fired synchronously.
+      // The no-op default keeps the teardown call safe in that theoretical case
+      // (nothing is registered yet) without a non-null assertion.
+      let unsubscribe: () => void = () => {
+        // no-op until onSnapshot (below) returns the real unsubscribe
+      };
+      unsubscribe = onSnapshot(
         docRef,
         (snap) => {
           if (!snap.exists()) {

@@ -59,7 +59,6 @@ describe('global prefers-reduced-motion handling', () => {
 
     // Every decorative animation utility must be neutralized.
     for (const cls of [
-      'animate-spin',
       'animate-spin-slow',
       'animate-pulse',
       'animate-ping',
@@ -83,6 +82,14 @@ describe('global prefers-reduced-motion handling', () => {
     // conveyed via color, not a class on this list, so nothing here disables it.
     expect(selector).not.toContain('.animate-in');
     expect(selector).not.toContain('.animate-fade-in');
+
+    // Loading spinners (.animate-spin, e.g. Loader2) are an essential
+    // in-progress affordance, so they keep spinning under reduced-motion. Match
+    // exact classes — `.animate-spin-slow` contains `.animate-spin` as a
+    // substring, so a naive `toContain` check would be misleading.
+    const selectorClasses = selector.split(',').map((s) => s.trim());
+    expect(selectorClasses).not.toContain('.animate-spin');
+    expect(selectorClasses).toContain('.animate-spin-slow');
   });
 
   it('covers every looping keyframe animation defined in the theme', () => {

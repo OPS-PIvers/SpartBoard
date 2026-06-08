@@ -4,37 +4,31 @@ import * as firestore from 'firebase/firestore';
 import { useStudentAssignments } from '@/hooks/useStudentAssignments';
 
 /**
- * Guards the listener-count collapse (optimization item F8). Multi-value
- * status filters used to fan out into one `onSnapshot` per status value:
- * quiz's active channel = `['waiting', 'active']` opened TWO listeners per
- * shape, doubling its active-channel listener count. The hook now issues a
- * single status-less query per (kind, channel, shape) and intersects the
- * accepted statuses in-memory, so:
- *
- *   - the total number of `onSnapshot` subscriptions drops, and
- *   - the resulting assignment set is unchanged — `waiting` and `active`
- *     quizzes still surface, and an `ended` quiz returned by the (now
- *     status-less) active query is dropped by the in-memory filter.
+ * Guards the bounded per-status listener plan (optimization item F8 + its
+ * code-review fix). A multi-value status filter (quiz's active channel =
+ * `['waiting', 'active']`) fans out into one `onSnapshot` per status value so
+ * each query can filter `status` SERVER-SIDE (`where('status','==',v)`). This
+ * keeps Firestore reads bounded: the alternative — a single status-less query —
+ * would stream the class's entire session history (incl. the unbounded pile of
+ * `ended` sessions that accumulate over a term) and discard the non-matching
+ * statuses in memory, a read-cost regression on a school-district budget.
  *
  * Listener counts for the current `KIND_CONFIG`:
- *   quiz            active 1×2 shapes + ended 1×2 shapes      = 4
- *   video-activity  active 1×2 shapes + ended 1×2 shapes      = 4
- *   guided-learning active 1×2 shapes (no ended channel)      = 2
- *   mini-app        active 1×1 shape  + ended 1×1 shape       = 2
- *   activity-wall   active 1×1 shape  (no ended channel)      = 1
- *                                                       total = 13
- *
- * Before the collapse, quiz's active fan-out added 2 extra listeners (15).
+ *   quiz            active 2 statuses×2 shapes + ended 1×2 shapes = 6
+ *   video-activity  active 1×2 shapes + ended 1×2 shapes          = 4
+ *   guided-learning active 1×2 shapes (no ended channel)          = 2
+ *   mini-app        active 1×1 shape  + ended 1×1 shape           = 2
+ *   activity-wall   active 1×1 shape  (no ended channel)          = 1
+ *                                                           total = 15
  */
 
 /**
- * Unlike the view-only harness, this mock RESPECTS the `where('status','==',…)`
- * constraint. The collapse moves quiz's active status check from the server to
- * an in-memory intersection; to assert that intersection honestly we must stop
- * the Ended channel's server-side `status == 'ended'` from leaking active docs.
- * `where` records its (field, op, value); `query` threads the collected
- * constraints + collection name onto the returned ref; `onSnapshot` then
- * applies any status equality before delivering docs.
+ * This mock RESPECTS the `where('status','==',…)` constraint a query records,
+ * so each per-status active listener (and the Ended channel's `== 'ended'`)
+ * only receives docs matching its status — exactly the server-side bound the
+ * fan-out relies on. `where` records its (field, op, value); `query` threads
+ * the collected constraints + collection name onto the returned ref;
+ * `onSnapshot` then applies any status equality before delivering docs.
  */
 interface WhereConstraint {
   __where: { field: string; op: string; value: unknown };
@@ -95,12 +89,10 @@ function statusEqualityOf(ref: QueryRef): string | null {
 }
 
 /**
- * Deliver a fixed doc list per collection synchronously, honoring any
- * server-side `status == value` constraint on the query (so the Ended
- * channel's `== 'ended'` doesn't leak active-status docs into the ended
- * bucket). Multi-value status filters carry no status constraint and receive
- * every doc — exactly the condition under which the hook's in-memory status
- * filter must do its job.
+ * Deliver a fixed doc list per collection synchronously, honoring the
+ * server-side `status == value` constraint on each query. Every active/ended
+ * listener carries a single-value status `==`, so a doc only reaches the
+ * listener whose status it matches.
  */
 function deliverDocsByCollection(
   byCollection: Record<string, FakeDoc[]>
@@ -127,8 +119,8 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('useStudentAssignments — listener-count collapse (F8)', () => {
-  it('opens one listener per (kind, channel, shape) — 13 for the current config', async () => {
+describe('useStudentAssignments — bounded per-status listener plan (F8)', () => {
+  it('opens one listener per (kind, channel, shape, status) — 15 for the current config', async () => {
     deliverDocsByCollection({});
 
     const { result } = renderHook(() =>
@@ -139,9 +131,9 @@ describe('useStudentAssignments — listener-count collapse (F8)', () => {
       expect(result.current.loadState).toBe('ready');
     });
 
-    // The pre-collapse fan-out opened 15 (quiz active fanned waiting+active
-    // into 2 listeners per shape). One listener per shape now caps it at 13.
-    expect(vi.mocked(firestore.onSnapshot)).toHaveBeenCalledTimes(13);
+    // Quiz's active channel fans waiting+active into 2 server-side-filtered
+    // listeners per shape, so the plan totals 15 (see the table above).
+    expect(vi.mocked(firestore.onSnapshot)).toHaveBeenCalledTimes(15);
   });
 
   it('cleans up every listener on unmount', async () => {
@@ -163,18 +155,17 @@ describe('useStudentAssignments — listener-count collapse (F8)', () => {
     });
 
     const opened = vi.mocked(firestore.onSnapshot).mock.calls.length;
-    expect(opened).toBe(13);
+    expect(opened).toBe(15);
     unmount();
     // Exactly one cleanup per opened listener — no leaks, no double-frees.
     expect(unsubscribe).toHaveBeenCalledTimes(opened);
   });
 
-  it('preserves the multi-value quiz active set across the in-memory status filter', async () => {
-    // The active channel is now status-less server-side and intersects
-    // `{waiting, active}` in-memory. The Ended channel keeps its server-side
-    // `status == 'ended'` (honored by this harness), so neither quiz below
-    // reaches the ended bucket — both surface as `active`, proving the
-    // single-listener collapse didn't drop either status.
+  it('surfaces both multi-value quiz active statuses via their per-status listeners', async () => {
+    // Each active status has its own server-side `== status` query, so the
+    // waiting and active quizzes are delivered by separate listeners and both
+    // surface as active. The Ended channel's `status == 'ended'` matches
+    // neither, so neither leaks into the ended bucket.
     deliverDocsByCollection({
       quiz_sessions: [
         {
@@ -210,15 +201,14 @@ describe('useStudentAssignments — listener-count collapse (F8)', () => {
       (a) => a.kind === 'quiz' && a.channel === 'active'
     );
     const activeIds = active.map((a) => a.sessionId).sort();
-    // Both multi-value active statuses survive the single-listener collapse.
+    // Both multi-value active statuses surface through their own listeners.
     expect(activeIds).toEqual(['q-active', 'q-waiting']);
   });
 
-  it('drops a doc whose status the multi-value active filter rejects', async () => {
-    // A quiz with a status outside `{waiting, active}` must never be tagged as
-    // an active assignment by the status-less active listener's in-memory
-    // intersection. (The Ended channel has its own server-side `== 'ended'`
-    // gate; we assert specifically that the *active* bucket excludes it.)
+  it('never reads a doc whose status no active/ended listener filters for', async () => {
+    // An 'archived' quiz matches neither active listener (`== waiting` /
+    // `== active`) nor the Ended channel (`== ended`), so the server-side
+    // status filter keeps it out of every bucket — it is never even read.
     deliverDocsByCollection({
       quiz_sessions: [
         {
@@ -254,11 +244,8 @@ describe('useStudentAssignments — listener-count collapse (F8)', () => {
       .filter((a) => a.kind === 'quiz' && a.channel === 'active')
       .map((a) => a.sessionId);
     expect(activeIds).toContain('q-active');
-    // 'archived' is neither 'waiting' nor 'active' — the in-memory filter
-    // drops it from the active bucket.
+    // 'archived' matches no listener's status filter, so it appears nowhere.
     expect(activeIds).not.toContain('q-archived');
-    // And the Ended channel's `== 'ended'` rejects it too, so the archived
-    // quiz appears in no bucket at all.
     const allIds = result.current.assignments.map((a) => a.sessionId);
     expect(allIds).not.toContain('q-archived');
   });

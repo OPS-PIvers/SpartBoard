@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import {
-  mapWithConcurrency,
-  ROSTER_DRIVE_CONCURRENCY,
-} from '@/hooks/useRosters';
+import { mapWithConcurrency } from '@/utils/mapWithConcurrency';
+import { ROSTER_DRIVE_CONCURRENCY } from '@/hooks/useRosters';
 
 /**
  * Guards the bounded Drive fan-out in buildRosters: the pool must cap how many
