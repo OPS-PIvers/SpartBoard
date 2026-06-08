@@ -1073,6 +1073,20 @@ export const classroomAddonLoginV1 = onCall(
 
     // Fallback: deterministic Google-sub pseudonym, namespaced `classroom-sub:`
     // so it can never collide with a ClassLink sourcedId-derived uid.
+    //
+    // BY-DESIGN LIMITATION (identity continuity): the student's uid is derived
+    // from whichever identity wins above — their OneRoster `sourcedId` when the
+    // bridge matches, else their Google `sub`. The Google `sub` is stable for the
+    // life of the account, but the bridge MATCH keys on the VERIFIED email. If a
+    // student's ClassLink/Google email changes (rename, marriage, re-enrollment)
+    // AFTER they completed a quiz, a later launch can resolve to a DIFFERENT
+    // `sourcedId` (or fall through to the sub path), minting a new uid. Because
+    // the quiz response doc is keyed by that uid, prior responses are orphaned
+    // under the old uid — they are not lost, but the new session won't see them
+    // and the monitor shows the student twice. This is rare and accepted: the
+    // alternative (persisting an email→uid map) would put PII at rest, violating
+    // the PII gate. Maintainers chasing a "duplicate student / missing prior
+    // attempt" report after a roster email change should look here first.
     if (!uid) {
       uid = CryptoJS.HmacSHA256(
         `classroom-sub:${info.sub}`,
@@ -1120,8 +1134,19 @@ export const classroomAddonLoginV1 = onCall(
           { merge: true }
         );
     } catch (err) {
+      // BY-DESIGN LIMITATION (best-effort persistence): this write is the ONLY
+      // record linking the student's pseudonym to their Classroom submissionId.
+      // We swallow the error so a transient Firestore hiccup at login never
+      // blocks the student from taking the quiz. The downstream cost is silent
+      // and deferred: with no key persisted, a later teacher grade push has
+      // nothing to resolve and reports this student as 'no matching submission'
+      // (see resolveGradeSyncEntry / pushClassroomGradesForAssignment). The
+      // student is NOT graded until they relaunch the attachment (which retries
+      // this write) and the teacher re-pushes. The tagged marker below lets ops
+      // alert on the write-failure RATE — a spike means many students will fail
+      // to grade-sync until they relaunch, even though logins look healthy.
       console.warn(
-        '[classroomAddonLoginV1] grade-sync key persist failed (non-fatal):',
+        '[classroomAddonLoginV1] grade_sync_key_persist_failed (non-fatal):',
         err
       );
     }
@@ -2096,9 +2121,18 @@ export const pushClassroomGradesForAssignment = onCall(
     const teacherUid =
       typeof link?.teacherUid === 'string' ? link.teacherUid : '';
     if (!teacherUid || !callerUid || callerUid !== teacherUid) {
+      // Observability for incident response: a denied push is either a missing
+      // link (course never linked, or link deleted) or a teacher mismatch (the
+      // caller is not the linking teacher — a possible abuse/probing attempt).
+      // We log the caller uid + the deny reason so an audit can correlate who
+      // attempted to push grades for a course they don't own. This is purely
+      // observational; the gate logic above is unchanged — a denied caller still
+      // PATCHes nothing. (callerUid/teacherUid are Firebase uids, not PII.)
+      const denyReason = !teacherUid ? 'no_course_link' : 'teacher_mismatch';
       console.warn(
-        `[pushClassroomGradesForAssignment] caller is not the linking teacher ` +
-          `(course=${courseId}, linked=${teacherUid ? 'yes' : 'no'}).`
+        `[pushClassroomGradesForAssignment] grade_push_denied ` +
+          `reason=${denyReason} course=${courseId} ` +
+          `caller=${callerUid || '(unauthenticated)'}.`
       );
       throw new HttpsError(
         'permission-denied',

@@ -4,6 +4,7 @@ import { LunchCountWidget } from './Widget';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { WidgetData, LunchCountConfig } from '@/types';
+import { mockPointerEvent } from '../../../tests/testHelpers/mocks';
 
 // Mock dependencies
 vi.mock('../../../context/useDashboard');
@@ -65,19 +66,9 @@ describe('LunchCountWidget', () => {
       })
     );
 
-    // Polyfill PointerEvent for jsdom
+    // Polyfill PointerEvent for jsdom (no-op when tests/setup.ts already set it)
     if (!global.PointerEvent) {
-      class PointerEvent extends MouseEvent {
-        pointerId: number;
-        pointerType: string;
-        constructor(type: string, params: PointerEventInit = {}) {
-          super(type, params);
-          this.pointerId = params.pointerId ?? 0;
-          this.pointerType = params.pointerType ?? 'mouse';
-        }
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-      global.PointerEvent = PointerEvent as any;
+      global.PointerEvent = mockPointerEvent();
     }
   });
 

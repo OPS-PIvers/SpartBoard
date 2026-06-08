@@ -1,9 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-
 import { test, expect } from '@playwright/test';
+import { clipboardWriteTextInitScript } from '../testHelpers/e2eMocks';
 
 test.describe('Board Sharing', () => {
   test.beforeEach(async ({ page }) => {
@@ -58,16 +54,7 @@ test.describe('Board Sharing', () => {
     await page.exposeFunction('mockWriteText', (text: string) => {
       clipboardText = text;
     });
-    await page.addInitScript(() => {
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText = (text) =>
-          (window as any).mockWriteText(text);
-      } else {
-        (navigator as any).clipboard = {
-          writeText: (text: string) => (window as any).mockWriteText(text),
-        };
-      }
-    });
+    await page.addInitScript(clipboardWriteTextInitScript);
 
     await firstBoardCard.click({ button: 'right' });
 

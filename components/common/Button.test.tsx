@@ -32,6 +32,19 @@ describe('Button', () => {
     expect(button).not.toHaveClass('text-slate-400');
   });
 
+  it('exposes a high-contrast focus-visible ring for keyboard users', () => {
+    // WCAG 2.4.7: keyboard focus must stay visible (>=3:1) on white, dark, and
+    // image backgrounds. A colored ring alone cannot clear 3:1 on every
+    // surface, so we pair the brand-blue ring with a white offset that always
+    // separates the indicator from the button on dark/photo backgrounds.
+    render(<Button>Focus me</Button>);
+    const button = screen.getByRole('button', { name: /focus me/i });
+    expect(button).toHaveClass('focus-visible:ring-2');
+    expect(button).toHaveClass('focus-visible:ring-brand-blue-primary');
+    expect(button).toHaveClass('focus-visible:ring-offset-2');
+    expect(button).toHaveClass('focus-visible:ring-offset-white');
+  });
+
   it('shows loading spinner when isLoading is true', () => {
     render(<Button isLoading>Click me</Button>);
     expect(screen.queryByText('Click me')).not.toBeInTheDocument();

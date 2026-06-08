@@ -56,6 +56,10 @@ interface TxMock {
 // Pre-seeded grade-sync key docs, keyed by full path, exercised by the
 // classroomAddonLoginV1 grade-sync persistence test.
 const gradeSyncDocs = new Map<string, Record<string, unknown>>();
+// When true, `db.doc('classroom_grade_links/...').set()` rejects — simulating a
+// transient Firestore failure so the grade-sync best-effort path can be tested
+// (the login must still succeed; the failure is logged, not thrown).
+let failGradeSyncWrite = false;
 // Pre-seeded submission docs for the BATCH `db.collection(...).where(...)`
 // query, keyed by the submissions subcollection path
 // (`classroom_grade_links/{pseudonymUid}/submissions`). Each entry is the list
@@ -132,6 +136,9 @@ vi.mock('firebase-admin', () => {
           };
         },
         set: async (data: Record<string, unknown>) => {
+          if (failGradeSyncWrite && path.startsWith('classroom_grade_links/')) {
+            throw new Error('simulated firestore write failure');
+          }
           firestoreWrites.push({ path, data });
         },
         delete: async () => {
@@ -246,6 +253,7 @@ beforeEach(() => {
   transactionCount = 0;
   gradeSyncDocs.clear();
   submissionsByPath.clear();
+  failGradeSyncWrite = false;
   vi.restoreAllMocks();
 });
 
@@ -523,6 +531,39 @@ describe('classroomAddonLoginV1 (spike)', () => {
     const serialized = JSON.stringify(gradeWrite?.data);
     expect(serialized).not.toContain('kid@orono.k12.mn.us');
     expect(serialized).not.toMatch(/givenName|familyName|email|name/i);
+  });
+
+  it('logs (does NOT throw) when the grade-sync key write fails — login still succeeds', async () => {
+    // By-design best-effort: a transient Firestore failure persisting the
+    // grade-sync key must never block the student from taking the quiz. The
+    // login returns a token as usual; the failure is logged with a tagged
+    // marker so ops can alert on the write-failure RATE.
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    failGradeSyncWrite = true;
+    vi.spyOn(classroomAddonNet, 'fetchAddOnContext').mockResolvedValue(
+      STUDENT_CTX
+    );
+    vi.spyOn(classroomAddonNet, 'fetchUserInfo').mockResolvedValue(
+      VALID_STUDENT_INFO
+    );
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const res = await callLogin({
+      data: { ...baseData, attachmentId: 'ATT1' },
+    });
+
+    // The student still gets a usable studentRole token.
+    expect(res.studentRole).toBe(true);
+    expect(res.customToken).toBeDefined();
+    // No grade-sync key was persisted (the write was forced to fail).
+    expect(
+      firestoreWrites.some((w) => w.path.startsWith('classroom_grade_links/'))
+    ).toBe(false);
+    // The failure is observable via the tagged marker for rate alerting.
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('grade_sync_key_persist_failed'),
+      expect.anything()
+    );
   });
 });
 
@@ -1507,6 +1548,7 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
   it('refuses a caller whose uid is not the linking teacher (no PATCH)', async () => {
     courseLinkDoc = { teacherUid: 'teacher-123' };
     const patchSpy = vi.spyOn(classroomAddonNet, 'patchStudentSubmissionGrade');
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     await expect(
       callPushBatch({ data: batchData, auth: { uid: 'someone-else' } })
@@ -1514,26 +1556,56 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
 
     // The security invariant: an impostor PATCHes NOTHING (even with a token).
     expect(patchSpy).not.toHaveBeenCalled();
+    // Incident-response observability: the denied push is logged with the
+    // caller uid + a teacher_mismatch reason (the link exists but is owned by
+    // someone else — a possible abuse/probing attempt).
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('grade_push_denied')
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('reason=teacher_mismatch')
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('caller=someone-else')
+    );
   });
 
   it('refuses an unauthenticated caller (no request.auth)', async () => {
     courseLinkDoc = { teacherUid: 'teacher-123' };
     const patchSpy = vi.spyOn(classroomAddonNet, 'patchStudentSubmissionGrade');
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     await expect(
       callPushBatch({ data: batchData, auth: null })
     ).rejects.toMatchObject({ code: 'permission-denied' });
     expect(patchSpy).not.toHaveBeenCalled();
+    // An unauthenticated caller is still a teacher_mismatch (a linked course
+    // with no matching caller) and is logged as such for the audit trail.
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('grade_push_denied')
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('caller=(unauthenticated)')
+    );
   });
 
   it('refuses when no course link exists (cannot establish the owning teacher)', async () => {
     courseLinkDoc = null; // course not linked
     const patchSpy = vi.spyOn(classroomAddonNet, 'patchStudentSubmissionGrade');
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     await expect(
       callPushBatch({ data: batchData, auth: { uid: 'teacher-123' } })
     ).rejects.toMatchObject({ code: 'permission-denied' });
     expect(patchSpy).not.toHaveBeenCalled();
+    // A missing/unlinked course is logged with a no_course_link reason so an
+    // audit can distinguish it from an ownership mismatch.
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('grade_push_denied')
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('reason=no_course_link')
+    );
   });
 
   it('skips a student with no matching submission and still pushes the others', async () => {

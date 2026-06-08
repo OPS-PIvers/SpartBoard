@@ -2045,7 +2045,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       allowInvisible={true}
       selected={isSelected}
       cornerRadius={isMaximized ? 'none' : undefined}
-      className={`absolute select-none widget group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50 ${
+      className={`absolute select-none widget group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
         isMaximized ? 'border-none !shadow-none' : ''
       } ${isGroupActive || isGroupBuildSelected ? 'ring-2 ring-brand-blue-light/60' : ''}`}
       bgClass={widget.backgroundColor}
