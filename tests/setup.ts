@@ -5,22 +5,12 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 import '../i18n'; // Initialise i18next with English translations for all tests
+import { mockPointerEvent, mockCanvasGetContext } from './testHelpers/mocks';
 
 vi.stubEnv('VITE_FIREBASE_API_KEY', '');
 
 // Mock PointerEvent globally since JSDOM doesn't fully support it
-class MockPointerEvent extends Event {
-  clientX: number;
-  clientY: number;
-  pointerId: number;
-  constructor(type: string, props: PointerEventInit = {}) {
-    super(type, { bubbles: true, ...props });
-    this.clientX = props.clientX ?? 0;
-    this.clientY = props.clientY ?? 0;
-    this.pointerId = props.pointerId ?? 1;
-  }
-}
-window.PointerEvent = MockPointerEvent as unknown as typeof PointerEvent;
+window.PointerEvent = mockPointerEvent();
 
 // Mock Pointer Capture methods
 Element.prototype.setPointerCapture = vi.fn();
@@ -35,38 +25,7 @@ global.ResizeObserver = class ResizeObserver {
 };
 
 // Mock Canvas getContext
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-HTMLCanvasElement.prototype.getContext = vi.fn((contextId: string): any => {
-  if (contextId === '2d') {
-    return {
-      beginPath: vi.fn(),
-      moveTo: vi.fn(),
-      lineTo: vi.fn(),
-      stroke: vi.fn(),
-      clearRect: vi.fn(),
-      arc: vi.fn(),
-      fill: vi.fn(),
-      save: vi.fn(),
-      restore: vi.fn(),
-      strokeRect: vi.fn(),
-      fillRect: vi.fn(),
-      ellipse: vi.fn(),
-      fillText: vi.fn(),
-      // Selection chrome (DrawingWidget) calls these — without stubs, any
-      // test that mounts a DrawingWidget with a selected object would throw
-      // when the canvas paint runs.
-      setLineDash: vi.fn(),
-      closePath: vi.fn(),
-      drawImage: vi.fn(),
-      globalAlpha: 1,
-      canvas: {
-        width: 800,
-        height: 600,
-      },
-    };
-  }
-  return null;
-});
+HTMLCanvasElement.prototype.getContext = mockCanvasGetContext();
 // Globally mock useDialog so components using it don't need DialogProvider in tests
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({

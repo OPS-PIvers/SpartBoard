@@ -20,7 +20,14 @@ import {
   type Mock,
 } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import {
+  collection,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
+} from 'firebase/firestore';
 import { usePlcs } from '@/hooks/usePlcs';
 
 vi.mock('firebase/firestore', () => ({
@@ -31,6 +38,10 @@ vi.mock('firebase/firestore', () => ({
   where: vi.fn((field: string, op: string, value: unknown) => ({
     __where: { field, op, value },
   })),
+  orderBy: vi.fn((field: string, dir?: string) => ({
+    __orderBy: { field, dir },
+  })),
+  limit: vi.fn((n: number) => ({ __limit: n })),
   setDoc: vi.fn(),
   getDoc: vi.fn(),
   getDocs: vi.fn(),
@@ -52,6 +63,8 @@ const mockCollection = collection as Mock;
 const mockOnSnapshot = onSnapshot as Mock;
 const mockQuery = query as Mock;
 const mockWhere = where as Mock;
+const mockOrderBy = orderBy as Mock;
+const mockLimit = limit as Mock;
 
 const USER_UID = 'user-1';
 
@@ -84,6 +97,9 @@ describe('usePlcs - subscription wiring', () => {
     expect(mockQuery).toHaveBeenCalledWith('plcs', {
       __where: { field: 'memberUids', op: 'array-contains', value: USER_UID },
     });
+    // Member mode is naturally bounded by membership — no extra limit/orderBy.
+    expect(mockOrderBy).not.toHaveBeenCalled();
+    expect(mockLimit).not.toHaveBeenCalled();
   });
 
   it('admin mode subscribes to the WHOLE /plcs collection (no membership filter)', () => {
@@ -92,9 +108,21 @@ describe('usePlcs - subscription wiring', () => {
     // Admins must enumerate every PLC regardless of membership — so NO
     // `where('memberUids', ...)` constraint may be applied.
     expect(mockWhere).not.toHaveBeenCalled();
-    // The query is the bare collection ref with no constraints.
-    expect(mockQuery).toHaveBeenCalledWith('plcs');
     expect(mockOnSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('admin mode bounds the whole-collection listen with orderBy + limit', () => {
+    renderHook(() => usePlcs({ asAdmin: true }));
+
+    // The unbounded admin listen is capped so it can't stream the entire
+    // collection. `orderBy('name')` makes the truncation deterministic.
+    expect(mockOrderBy).toHaveBeenCalledWith('name');
+    expect(mockLimit).toHaveBeenCalledWith(500);
+    expect(mockQuery).toHaveBeenCalledWith(
+      'plcs',
+      { __orderBy: { field: 'name', dir: undefined } },
+      { __limit: 500 }
+    );
   });
 
   it('skips the listener when signed out', () => {

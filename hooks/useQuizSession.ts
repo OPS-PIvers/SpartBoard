@@ -48,6 +48,10 @@ import {
 } from '@/types';
 import { resolvePeriodNames } from '@/utils/periodCompat';
 import { normalizeQuizCode } from '@/utils/quizCode';
+import {
+  createLeadingTrailingThrottle,
+  RESPONSES_THROTTLE_MS,
+} from '@/utils/snapshotThrottle';
 
 // Re-export for backward compatibility with callers that imported
 // QuizSessionOptions from this module before it was moved into types.ts.
@@ -688,18 +692,35 @@ export const useQuizSessionTeacher = (
     );
   }, [sessionId]);
 
-  const hasSession = !!session;
   useEffect(() => {
-    // Keep the listener active even after the session ends so that any
-    // late student submissions still appear in the live monitor / results.
-    if (!sessionId || !hasSession) return;
+    // Arm on `sessionId` alone. This effect previously also depended on
+    // `hasSession` (= !!session), which re-subscribed the responses listener
+    // when the session doc first loaded into state (and again if it later
+    // cleared) — tearing the Firestore subscription down and recreating it on
+    // session-state transitions. Listening to the responses subcollection only
+    // needs the sessionId: the teacher read rule resolves ownership via a
+    // server-side get() on the parent session doc, not from client-loaded
+    // session state, so the listener stays valid across the session's whole
+    // lifecycle. We intentionally keep listening even after the session ends
+    // so late student submissions still surface in the live monitor / results.
+    if (!sessionId) return;
     const responsesRef = collection(
       db,
       QUIZ_SESSIONS_COLLECTION,
       sessionId,
       RESPONSES_COLLECTION
     );
-    return onSnapshot(
+
+    // Throttle the snapshot-driven state update so a burst of submissions
+    // within RESPONSES_THROTTLE_MS collapses into a single render. Leading
+    // edge fires immediately; a trailing timer flushes the last snapshot in
+    // the window so the final state is never stale.
+    const throttle = createLeadingTrailingThrottle<QuizResponse[]>(
+      setResponses,
+      RESPONSES_THROTTLE_MS
+    );
+
+    const unsubscribe = onSnapshot(
       responsesRef,
       (snap) => {
         // Carry the doc id through as `_responseKey` so the live monitor
@@ -712,7 +733,7 @@ export const useQuizSessionTeacher = (
               _responseKey: d.id,
             }) as QuizResponse
         );
-        setResponses(list);
+        throttle.push(list);
       },
       (err) => {
         const code = (err as { code?: string }).code;
@@ -723,7 +744,14 @@ export const useQuizSessionTeacher = (
         );
       }
     );
-  }, [sessionId, hasSession]);
+
+    return () => {
+      // Flush any buffered snapshot (and clear the timer) so the final state
+      // isn't dropped on unsubscribe (e.g. switching away mid-burst).
+      throttle.flush();
+      unsubscribe();
+    };
+  }, [sessionId]);
 
   const finalizeAllResponses = useCallback(async () => {
     if (!sessionId) return;

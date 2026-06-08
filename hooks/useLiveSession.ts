@@ -198,20 +198,32 @@ export const useLiveSession = (
       // Only update state if the data has actually changed to prevent unnecessary re-renders
       // ⚡ BOLT OPTIMIZATION: Replaced expensive JSON.stringify deep-equality check with a fast,
       // direct property comparison loop to prevent blocking the main thread during frequent live session updates.
+      // The positional fast path compares prev[i] to studentList[i] without allocating, since Firestore
+      // returns docs in a stable order; we only build a Map (and even then keep prev) when the order shifts.
       setStudents((prev) => {
         if (prev.length !== studentList.length) return studentList;
 
-        const prevMap = new Map(prev.map((s) => [s.id, s]));
+        const studentsEqual = (a: LiveStudent, b: LiveStudent) =>
+          a.id === b.id &&
+          a.pin === b.pin &&
+          a.status === b.status &&
+          a.joinedAt === b.joinedAt &&
+          a.lastActive === b.lastActive;
 
+        let orderChanged = false;
+        for (let i = 0; i < studentList.length; i++) {
+          if (!studentsEqual(prev[i], studentList[i])) {
+            orderChanged = true;
+            break;
+          }
+        }
+        if (!orderChanged) return prev;
+
+        // Order shifted: fall back to an id-keyed comparison before allocating a new array.
+        const prevMap = new Map(prev.map((s) => [s.id, s]));
         for (const newStudent of studentList) {
           const prevStudent = prevMap.get(newStudent.id);
-          if (
-            !prevStudent ||
-            prevStudent.pin !== newStudent.pin ||
-            prevStudent.status !== newStudent.status ||
-            prevStudent.joinedAt !== newStudent.joinedAt ||
-            prevStudent.lastActive !== newStudent.lastActive
-          ) {
+          if (!prevStudent || !studentsEqual(prevStudent, newStudent)) {
             return studentList;
           }
         }

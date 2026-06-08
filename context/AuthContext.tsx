@@ -327,6 +327,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }
   const roleResolved = studentRoleResolved && membershipResolved;
 
+  // Shared gate for the "needs a real, non-bypass signed-in user" effects.
+  // De-duplicates the `if (isAuthBypass) return; if (!user) return;` pair that
+  // several listeners open with. Only applied to effects whose no-user branch
+  // is a plain no-op return — effects that must RESET state when `user` is
+  // null (profile load, membership, admin check, etc.) keep their own
+  // explicit guards so their reset semantics and timing stay untouched.
+  const hasLiveUser = !isAuthBypass && !!user;
+
   // Keep language state in sync with i18next, including the async startup
   // detection that may resolve after the first render.
   useEffect(() => {
@@ -354,6 +362,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // always run their own chain so a click on "Reconnect" never gets
   // suppressed by a background refresh that bailed early.
   const inFlightSilentRefreshRef = useRef<Promise<string | null> | null>(null);
+
+  // Distinguish the two failure modes the GIS token client surfaces, both of
+  // which previously collapsed to a bare `null` in the refresh chain:
+  //   - `denied`     — GIS fired `error_callback` (re-consent genuinely
+  //                    needed, or the user dismissed the popup). Actionable:
+  //                    the teacher must reconnect Drive from a real click.
+  //   - `unavailable`— GIS was non-functional (null tokenClient because the
+  //                    script partially loaded / the oauth2 namespace was
+  //                    absent, an empty token response, or a thrown handler).
+  //                    Actionable in a different way: a transient/environment
+  //                    problem, not a consent decision.
+  // Keeping them apart lets the refresh handler log a distinct, triageable
+  // signal instead of swallowing both as a generic null. The control flow is
+  // unchanged: anything other than `token` still falls through to the backend
+  // refresh below.
+  type GisTokenResult =
+    | { kind: 'token'; token: string }
+    | { kind: 'denied' }
+    | { kind: 'unavailable'; reason: string };
 
   const refreshGoogleToken = useCallback(
     async (silent: boolean = true): Promise<string | null> => {
@@ -395,9 +422,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         // teacher reconnect from a real click (which runs the code flow and
         // finally captures a refresh_token).
         if (clientId && email && typeof window.google !== 'undefined') {
-          let gisToken: string | null = null;
+          let gisResult: GisTokenResult = {
+            kind: 'unavailable',
+            reason: 'gis-init-threw',
+          };
           try {
-            gisToken = await new Promise<string | null>((resolve) => {
+            gisResult = await new Promise<GisTokenResult>((resolve) => {
               // Use optional chaining as a belt-and-suspenders guard: the outer
               // typeof check confirms window.google exists, but accounts/oauth2
               // sub-properties could still be absent if the GIS script partially
@@ -428,19 +458,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                           expiryMs.toString()
                         );
                         setGoogleAccessToken(response.access_token);
-                        resolve(response.access_token);
+                        resolve({
+                          kind: 'token',
+                          token: response.access_token,
+                        });
                       } else {
-                        resolve(null);
+                        // A 200 with no access_token is a malformed GIS
+                        // response, not a consent decision — treat as
+                        // unavailable so the chain falls through to backend.
+                        resolve({
+                          kind: 'unavailable',
+                          reason: 'empty-token-response',
+                        });
                       }
                     } catch (err) {
                       console.error('Failed to handle GIS token response', err);
-                      resolve(null);
+                      resolve({
+                        kind: 'unavailable',
+                        reason: 'token-callback-threw',
+                      });
                     }
                   },
-                  error_callback: () => resolve(null),
+                  // error_callback fires when GIS declines to silently reissue
+                  // (re-consent needed) or the user dismissed the popup. This
+                  // is a consent signal, distinct from the unavailable cases.
+                  error_callback: () => resolve({ kind: 'denied' }),
                 });
               if (!tokenClient) {
-                resolve(null);
+                // GIS not initialized — script partially loaded or the
+                // accounts/oauth2 namespace is missing.
+                resolve({ kind: 'unavailable', reason: 'null-token-client' });
                 return;
               }
               // Background/timer calls (silent) use `prompt: 'none'` so GIS
@@ -453,11 +500,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           } catch {
             // initTokenClient or requestAccessToken threw synchronously.
             // Treat as a GIS failure so the silent/Firebase fallback logic below runs.
-            gisToken = null;
+            gisResult = { kind: 'unavailable', reason: 'gis-init-threw' };
           }
 
           // GIS succeeded — return immediately.
-          if (gisToken) return gisToken;
+          if (gisResult.kind === 'token') return gisResult.token;
+
+          // GIS failed. Log the differentiated reason so ops can tell a
+          // consent re-prompt (`denied`) apart from a broken/absent GIS
+          // environment (`unavailable`) instead of seeing a generic null.
+          // Either way we fall through to the backend refresh below — the
+          // control flow is identical to before, only the logging is new.
+          if (gisResult.kind === 'denied') {
+            logError(
+              'AuthContext.refreshGoogleToken.gisDenied',
+              new Error(
+                `GIS declined to silently reissue (silent=${silent}); ` +
+                  're-consent required.'
+              )
+            );
+          } else {
+            logError(
+              'AuthContext.refreshGoogleToken.gisUnavailable',
+              new Error(`GIS unavailable: ${gisResult.reason}`)
+            );
+          }
         }
 
         // Backend refresh BEFORE the Firebase popup: ask the server for a
@@ -887,13 +954,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Listen to feature permissions (only when authenticated)
   useEffect(() => {
-    if (isAuthBypass) return;
-
-    // Don't set up listener if user is not authenticated
-    if (!user) {
-      // Don't call setState synchronously in an effect - let it happen naturally
-      return;
-    }
+    // No-op in bypass mode or when signed out. The signed-out branch
+    // deliberately doesn't clear state synchronously here — it lets the
+    // sign-out path settle naturally. `hasLiveUser` folds both guards
+    // together; `user` stays in the dep array so the listener still
+    // re-subscribes on a user-identity change.
+    if (!hasLiveUser) return;
 
     const unsubscribe = onSnapshot(
       collection(db, 'feature_permissions'),
@@ -943,7 +1009,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       unsubscribe();
       globalUnsubscribe();
     };
-  }, [user]);
+    // `user` keeps the listener re-subscribing on a user-identity change;
+    // `hasLiveUser` is the guard expression. `hasLiveUser` only flips when
+    // `user`'s truthiness flips, so listing both adds no extra re-runs.
+  }, [user, hasLiveUser]);
 
   // Subscribe to the active org's buildings so grade-level resolution stays
   // in sync with whatever admins configure in Admin Settings > Organization.
@@ -1738,7 +1807,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Updates a localStorage timestamp every 5 minutes while the app is in use,
   // and whenever the tab regains visibility.
   useEffect(() => {
-    if (isAuthBypass || !user) return;
+    if (!hasLiveUser) return;
 
     const updateActivity = () => {
       localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
@@ -1766,7 +1835,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [user]);
+    // `user` re-arms the activity stamp on a user-identity change; `hasLiveUser`
+    // is the guard and only flips with `user`'s truthiness, so no extra re-runs.
+  }, [user, hasLiveUser]);
 
   // Bypass mode: sign in anonymously so `request.auth.uid` is a real Firebase
   // uid that satisfies Firestore security rules. Wrap the resulting user in a

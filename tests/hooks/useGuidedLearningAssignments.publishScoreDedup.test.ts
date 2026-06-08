@@ -32,9 +32,12 @@ vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteField: vi.fn(() => ({ __deleteFieldSentinel: true })),
   doc: vi.fn(),
+  documentId: vi.fn(() => '__documentId'),
   getDocs: vi.fn(),
+  limit: vi.fn(),
   onSnapshot: vi.fn(),
   query: vi.fn(),
+  startAfter: vi.fn(),
   orderBy: vi.fn(),
   setDoc: vi.fn(),
   updateDoc: vi.fn(),
@@ -330,5 +333,112 @@ describe('useGuidedLearningAssignments — publishAssignmentScores duplicate-ans
     );
     if (!responseCall) throw new Error('expected batch.update on response ref');
     expect((responseCall[1] as { score: number }).score).toBe(100);
+  });
+});
+
+describe('useGuidedLearningAssignments — publishAssignmentScores bounded paging', () => {
+  const batchUpdate = vi.fn();
+  const batchCommit = vi.fn();
+
+  // Mirrors RESPONSES_PAGE_SIZE in useGuidedLearningAssignments — a full page
+  // means the publish path must request a second page to finish reading the
+  // subcollection. Constructing exactly this many docs in page 1 forces the
+  // cursor loop to run more than once.
+  const RESPONSES_PAGE_SIZE = 500;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockCollection.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockOnSnapshot.mockImplementation(
+      (_q: unknown, onNext: (snap: { docs: [] }) => void) => {
+        onNext({ docs: [] });
+        return () => undefined;
+      }
+    );
+    batchUpdate.mockReset();
+    batchCommit.mockReset().mockResolvedValue(undefined);
+    mockWriteBatch.mockReturnValue({
+      update: batchUpdate,
+      commit: batchCommit,
+    });
+  });
+
+  it('scores every response across more than one page (limit + cursor paging)', async () => {
+    // One-step set; every response answers s0 correctly → each scores 100%.
+    const set = mcSet([mcStep('s0', 'a', ['a', 'b'])]);
+
+    // Build a response doc whose ref is uniquely identifiable so we can
+    // confirm each one received a graded batch.update.
+    const makeDoc = (i: number) => {
+      const ref = { id: `r-${i}` };
+      return {
+        ref,
+        data: () => ({
+          studentAnonymousId: `u${i}`,
+          startedAt: 1,
+          completedAt: 2,
+          score: null,
+          answers: [{ stepId: 's0', answer: 'a', isCorrect: null }],
+        }),
+      };
+    };
+
+    // Page 1 is a FULL page (length === page size) so the paging loop must
+    // fetch a second page; page 2 is short (< page size) so it terminates.
+    const page1 = Array.from({ length: RESPONSES_PAGE_SIZE }, (_, i) =>
+      makeDoc(i)
+    );
+    const page2 = [
+      makeDoc(RESPONSES_PAGE_SIZE),
+      makeDoc(RESPONSES_PAGE_SIZE + 1),
+    ];
+    const totalResponses = page1.length + page2.length;
+
+    mockGetDocs
+      .mockResolvedValueOnce({ docs: page1 })
+      .mockResolvedValueOnce({ docs: page2 });
+
+    const { result } = renderHook(() =>
+      useGuidedLearningAssignments(TEACHER_UID)
+    );
+    let publishResult: { responsesUpdated: number } | undefined;
+    await act(async () => {
+      publishResult = await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        set,
+        'score-only'
+      );
+    });
+
+    // Two reads = two pages: the unbounded single-read path would have called
+    // getDocs once. The cursor loop is what bounds each Firestore read.
+    expect(mockGetDocs).toHaveBeenCalledTimes(2);
+
+    // Every response across both pages is scored exactly once.
+    expect(publishResult?.responsesUpdated).toBe(totalResponses);
+    const scoredRefIds = new Set(
+      batchUpdate.mock.calls
+        .filter(([ref]) => (ref as { id?: string }).id?.startsWith('r-'))
+        .map(([ref]) => (ref as { id: string }).id)
+    );
+    expect(scoredRefIds.size).toBe(totalResponses);
+    for (let i = 0; i < totalResponses; i++) {
+      expect(scoredRefIds.has(`r-${i}`)).toBe(true);
+    }
+
+    // Spot-check a response from each page got a 100% score.
+    const firstPageCall = batchUpdate.mock.calls.find(
+      ([ref]) => (ref as { id: string }).id === 'r-0'
+    );
+    const secondPageCall = batchUpdate.mock.calls.find(
+      ([ref]) => (ref as { id: string }).id === `r-${RESPONSES_PAGE_SIZE}`
+    );
+    expect((firstPageCall?.[1] as { score: number }).score).toBe(100);
+    expect((secondPageCall?.[1] as { score: number }).score).toBe(100);
   });
 });

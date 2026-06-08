@@ -123,4 +123,85 @@ describe('VideoPlayer', () => {
     expect(player.seekTo).toHaveBeenNthCalledWith(1, 8, true);
     expect(player.seekTo).toHaveBeenNthCalledWith(2, 3, true);
   });
+
+  describe('RAF generation guard', () => {
+    /**
+     * Controllable RAF mock: queued callbacks are stored so the test can flush
+     * them on demand, mimicking a frame that fires after polling was stopped.
+     */
+    let rafQueue: Array<{ id: number; cb: FrameRequestCallback }>;
+    let nextRafId: number;
+
+    beforeEach(() => {
+      rafQueue = [];
+      nextRafId = 1;
+      vi.stubGlobal(
+        'requestAnimationFrame',
+        vi.fn((cb: FrameRequestCallback) => {
+          const id = nextRafId++;
+          rafQueue.push({ id, cb });
+          return id;
+        })
+      );
+      vi.stubGlobal(
+        'cancelAnimationFrame',
+        vi.fn((id: number) => {
+          rafQueue = rafQueue.filter((entry) => entry.id !== id);
+        })
+      );
+    });
+
+    // Flush every currently-queued callback once (drains the queue, but
+    // callbacks may enqueue follow-up frames).
+    const flushFrame = (timestamp: number) => {
+      const pending = rafQueue;
+      rafQueue = [];
+      for (const { cb } of pending) cb(timestamp);
+    };
+
+    it('stops rescheduling once polling is stopped, even for a frame that fires after cancellation', () => {
+      player.getPlayerState = vi.fn(() => 1); // PLAYING
+
+      const { unmount } = render(<VideoPlayer {...defaultProps} />);
+
+      // onReady scheduled the first tick.
+      expect(rafQueue).toHaveLength(1);
+
+      // Simulate the cancellation racing with an already-fired frame: requeue the
+      // pending tick so it survives the cleanup's cancelAnimationFrame, then unmount.
+      const orphaned = rafQueue[0].cb;
+      unmount(); // cleanup calls stopPolling → bumps generation, cancels RAF
+      expect(rafQueue).toHaveLength(0);
+
+      // The orphaned tick fires after stop; the generation guard must make it bail
+      // out without enqueuing another frame.
+      orphaned(1000);
+      expect(rafQueue).toHaveLength(0);
+    });
+
+    it('keeps a remounted player running while the previous loop stays dormant', () => {
+      player.getPlayerState = vi.fn(() => 1); // PLAYING
+
+      const { unmount } = render(<VideoPlayer {...defaultProps} />);
+      const staleTick = rafQueue[0].cb;
+      unmount();
+
+      // Fresh mount starts a new generation/loop.
+      const secondPlayer = createMockPlayer();
+      secondPlayer.getPlayerState = vi.fn(() => 1);
+      mockPlayerInstance = secondPlayer;
+      render(<VideoPlayer {...defaultProps} />);
+      expect(rafQueue).toHaveLength(1);
+
+      // The stale tick from the unmounted instance must not resurrect itself.
+      staleTick(1000);
+      expect(rafQueue).toHaveLength(1);
+
+      // The live loop keeps polling across frames (timestamp past the 250 ms
+      // poll interval so the throttle lets it read player state).
+      flushFrame(1000);
+      expect(rafQueue).toHaveLength(1);
+      expect(secondPlayer.getPlayerState).toHaveBeenCalled();
+    });
+  });
 });

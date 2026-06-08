@@ -209,6 +209,10 @@ export const ActivityWallGalleryView: React.FC = () => {
                 : undefined,
           };
         });
+        // Sort newest-first here, once per snapshot, rather than on every
+        // render downstream. The display order is purely `submittedAt`
+        // descending, which only changes when this snapshot fires.
+        next.sort((a, b) => b.submittedAt - a.submittedAt);
         setSubmissions(next);
         setSubmissionsReady(true);
       },
@@ -320,6 +324,14 @@ export const ActivityWallGalleryView: React.FC = () => {
     };
   }, [submissions, state]);
 
+  // Pre-filtered, already-sorted list handed to GalleryReady. Memoizing
+  // here keeps the prop reference stable between renders so the child
+  // doesn't re-derive its view on every unrelated state change.
+  const visibleSubmissions = useMemo(
+    () => submissions.filter((s) => s.status !== 'pending'),
+    [submissions]
+  );
+
   if (!shareId || state.kind === 'not-found') {
     return (
       <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-6 text-center">
@@ -358,7 +370,7 @@ export const ActivityWallGalleryView: React.FC = () => {
     <GalleryReady
       share={state.share}
       viewer={viewer}
-      submissions={submissions.filter((s) => s.status !== 'pending')}
+      submissions={visibleSubmissions}
       submissionsReady={submissionsReady}
       photoUrls={photoUrls}
       likes={likes}
@@ -386,10 +398,8 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
   likes,
   comments,
 }) => {
-  const sortedSubmissions = useMemo(
-    () => [...submissions].sort((a, b) => b.submittedAt - a.submittedAt),
-    [submissions]
-  );
+  // `submissions` already arrives sorted newest-first from the snapshot
+  // callback, so no per-render spread+sort is needed here.
 
   const likeIndex = useMemo(() => {
     const map = new Map<string, { count: number; viewerLiked: boolean }>();
@@ -447,7 +457,7 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
             <Loader2 className="w-5 h-5 animate-spin mr-2" />
             Loading submissions…
           </div>
-        ) : sortedSubmissions.length === 0 ? (
+        ) : submissions.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-slate-500">
             No submissions yet — check back soon!
           </div>
@@ -459,7 +469,7 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
                 : 'space-y-4'
             }
           >
-            {sortedSubmissions.map((submission) => (
+            {submissions.map((submission) => (
               <SubmissionCard
                 key={submission.id}
                 share={share}

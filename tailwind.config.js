@@ -1,6 +1,48 @@
 import tailwindcssAnimate from 'tailwindcss-animate';
+import plugin from 'tailwindcss/plugin';
 import { Z_INDEX } from './config/zIndex';
 import { HIGHLIGHT_BG_CLASSES } from './utils/writtenAnnotations';
+
+// Global `prefers-reduced-motion: reduce` handling (WCAG 2.3.3 / SC 2.3.3).
+// Injected as a base-layer rule so it applies app-wide regardless of which
+// route mounts, neutralizing the *non-essential* decorative/looping animations
+// for motion-sensitive users.
+//
+// Disabled (decorative / attention-getting loops — safe to remove):
+//   - spin-slow, pulse, ping, bounce (Tailwind built-ins used as flair)
+//   - jiggle, shimmer, marquee, gl-pulse-reminder (custom keyframes below)
+//
+// Intentionally PRESERVED:
+//   - Status / progress indicators: `.animate-spin` (loading spinners, e.g.
+//     Loader2). Freezing a spinner reads as "stalled" and removes the only
+//     in-progress affordance on async screens, so it keeps spinning even under
+//     reduced-motion (an essential animation under SC 2.3.3). The slow,
+//     decorative `.animate-spin-slow` stays disabled.
+//   - Urgency signals: the timer "time's up" cue is communicated via color
+//     (STANDARD_COLORS.red in TimeToolWidget), not a CSS animation, so nothing
+//     animation-based needs to keep running here. If a true urgency animation
+//     is ever added, give it a dedicated class and leave it off this list.
+//   - Functional transitions (color/opacity/position) and one-shot entrance
+//     animations (e.g. tailwindcss-animate's `animate-in`/fade/zoom) — these
+//     orient the user rather than draw attention and are not looping.
+const reducedMotionPlugin = plugin(({ addBase }) => {
+  addBase({
+    '@media (prefers-reduced-motion: reduce)': {
+      [[
+        '.animate-spin-slow',
+        '.animate-pulse',
+        '.animate-ping',
+        '.animate-bounce',
+        '.animate-jiggle',
+        '.animate-shimmer',
+        '.animate-marquee',
+        '.animate-gl-pulse-reminder',
+      ].join(', ')]: {
+        animation: 'none !important',
+      },
+    },
+  });
+});
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -235,5 +277,5 @@ export default {
       },
     },
   },
-  plugins: [tailwindcssAnimate],
+  plugins: [tailwindcssAnimate, reducedMotionPlugin],
 };

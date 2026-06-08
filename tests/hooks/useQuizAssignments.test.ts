@@ -28,11 +28,14 @@ vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteField: vi.fn(() => DELETE_FIELD_SENTINEL),
   doc: vi.fn(),
+  documentId: vi.fn(() => '__documentId'),
   getDoc: vi.fn(),
   getDocs: vi.fn(),
+  limit: vi.fn(),
   onSnapshot: vi.fn(),
   addDoc: vi.fn(),
   query: vi.fn(),
+  startAfter: vi.fn(),
   where: vi.fn(),
   orderBy: vi.fn(),
   serverTimestamp: vi.fn(() => SERVER_TIMESTAMP_SENTINEL),
@@ -1472,7 +1475,11 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
         answers: [{ questionId: 'q0', answer: 'a', answeredAt: 1 }],
       }),
     }));
-    mockGetDocs.mockResolvedValueOnce({ docs: responseDocs });
+    // The publish read pages with limit(500): a first full 500-doc page is
+    // followed by a second (empty) page that terminates the cursor loop.
+    mockGetDocs
+      .mockResolvedValueOnce({ docs: responseDocs })
+      .mockResolvedValueOnce({ docs: [] });
 
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     await act(async () => {

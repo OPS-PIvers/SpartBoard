@@ -757,7 +757,7 @@ const {
   - **Brand Blue**: Primary (`#2d3f89`), Dark (`#1d2a5d`), Light (`#4356a0`).
   - **Brand Red**: Primary (`#ad2122`), Dark (`#7a1718`), Light (`#c13435`).
   - **Neutrals**: Slate grays with specialized widget accent colors.
-- **Animations**: Uses Tailwind's `animate-in`, `slide-in-from-*`, and custom animations like `spin-slow`.
+- **Animations**: Uses Tailwind's `animate-in`, `slide-in-from-*`, and custom animations like `spin-slow`. A global `@media (prefers-reduced-motion: reduce)` rule is injected via a Tailwind base-layer plugin in `tailwind.config.js`, disabling decorative/looping animations (spin, pulse, ping, bounce, jiggle, shimmer, marquee, gl-pulse-reminder) for motion-sensitive users; urgency signals are color-based (not animation-based) and entrance/functional transitions are intentionally preserved. Don't reintroduce always-on looping animations without a `motion-reduce:` guard.
 - **Responsive**: Mobile-friendly dock and sidebar designs with viewport-based scaling.
 - **Dark Mode**: Default slate-900 background, designed for dark UI.
 
@@ -1036,7 +1036,7 @@ Test directories (note: many `*.test.ts(x)` files also live colocated next to th
 
 ---
 
-**Last Updated**: 2026-05-28
+**Last Updated**: 2026-06-08
 **Version**: 2.1.0
 
 ## Widget Appearance Standard (Visual System)
