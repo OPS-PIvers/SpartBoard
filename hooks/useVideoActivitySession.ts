@@ -73,7 +73,16 @@ const normalizeSession = (
   const activityTitle = data.activityTitle ?? 'Video Activity';
   const createdAt = data.createdAt ?? Date.now();
 
+  // Spread source data first so ALL optional fields (classIds, classId,
+  // sessionOptions, ltiAttachment, revealedAnswers, mode, periodNames,
+  // rosterIds, classPeriodByClassId, sync, ltiNrps, etc.) are preserved.
+  // Then override with normalized/defaulted values for the required fields.
+  // Previously, returning a hand-enumerated literal dropped every optional
+  // field not listed — causing teacher-side consumers (VideoActivityLiveMonitor,
+  // Results) to lose classIds / sessionOptions / ltiAttachment when the live
+  // snapshot arrived, breaking SSO name resolution and attempt-limit display.
   return {
+    ...data,
     id: sessionId,
     activityId: data.activityId ?? '',
     activityTitle,
