@@ -41,9 +41,16 @@ export type SharedBoardSnapshot = Dashboard & {
 class MockDashboardStore {
   private static instance: MockDashboardStore;
   private dashboards: Dashboard[] = [];
-  private listeners = new Set<
+  // Listeners are keyed by a per-subscription id rather than stored in a Set
+  // keyed by callback reference. A Set would dedupe two subscriptions that
+  // happen to share the same callback reference, so a double-subscribe +
+  // single-unsubscribe could tear down a still-live listener. The id Map
+  // makes each subscription independently tracked and removed.
+  private listeners = new Map<
+    number,
     (dashboards: Dashboard[], hasPendingWrites: boolean) => void
   >();
+  private nextListenerId = 0;
 
   private constructor() {
     // Private constructor for singleton
@@ -92,20 +99,24 @@ class MockDashboardStore {
     }
   }
 
+  /**
+   * Register a listener and return its own unsubscribe function. Each call
+   * gets a distinct id, so subscribing the same callback twice yields two
+   * independent registrations and two independent teardowns.
+   */
   addListener(
     callback: (dashboards: Dashboard[], hasPendingWrites: boolean) => void
-  ): void {
-    this.listeners.add(callback);
-  }
-
-  removeListener(
-    callback: (dashboards: Dashboard[], hasPendingWrites: boolean) => void
-  ): void {
-    this.listeners.delete(callback);
+  ): () => void {
+    const id = this.nextListenerId++;
+    this.listeners.set(id, callback);
+    return () => {
+      this.listeners.delete(id);
+    };
   }
 
   private notifyListeners(): void {
     const sorted = this.getDashboards();
+    // Map.forEach yields (value, key); value is the listener callback.
     this.listeners.forEach((callback) => callback(sorted, false));
   }
 
@@ -123,10 +134,15 @@ class MockSharedStore {
   // Stored docs may carry shared-only fields (intendedMode, originalAuthorName);
   // typed loosely to match the live Firestore shape without polluting Dashboard.
   private shared: Map<string, Record<string, unknown>> = new Map();
+  // Per-share buckets are keyed by a per-subscription id (not by callback
+  // reference) so that subscribing the same callback to a share twice yields
+  // two independent registrations; a single unsubscribe then removes only one,
+  // leaving the other still firing.
   private listeners: Map<
     string,
-    Set<(d: Record<string, unknown> | null) => void>
+    Map<number, (d: Record<string, unknown> | null) => void>
   > = new Map();
+  private nextListenerId = 0;
 
   private constructor() {
     // Private constructor for singleton
@@ -195,13 +211,14 @@ class MockSharedStore {
   ): () => void {
     let bucket = this.listeners.get(id);
     if (!bucket) {
-      bucket = new Set();
+      bucket = new Map();
       this.listeners.set(id, bucket);
     }
-    bucket.add(cb);
+    const listenerId = this.nextListenerId++;
+    bucket.set(listenerId, cb);
     cb(this.get(id) ?? null);
     return () => {
-      this.listeners.get(id)?.delete(cb);
+      this.listeners.get(id)?.delete(listenerId);
     };
   }
 
@@ -333,12 +350,10 @@ export const useFirestore = (userId: string | null) => {
       callback: (dashboards: Dashboard[], hasPendingWrites: boolean) => void
     ) => {
       if (isAuthBypass) {
-        mockStore.addListener(callback);
+        const unsubscribe = mockStore.addListener(callback);
         // Initial callback with current state
         callback(mockStore.getDashboards(), false);
-        return () => {
-          mockStore.removeListener(callback);
-        };
+        return unsubscribe;
       }
 
       if (!dashboardsRef)

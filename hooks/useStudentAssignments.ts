@@ -288,18 +288,28 @@ interface SubscriptionPlan {
   channel: AssignmentChannel;
   shape: 'list' | 'single';
   /**
-   * Concrete status value for this subscription, or `null` when the kind has
-   * no status filter. Filters with multiple values (e.g., quiz active =
-   * `['waiting', 'active']`) fan out into one plan per value: Firestore
-   * forbids combining `in` with `array-contains-any` (or two `in` clauses)
-   * in the same query, so each subscription must carry at most one
-   * disjunctive constraint.
+   * Status values this subscription accepts, or `null` when the kind has no
+   * status filter. Each (kind, channel, shape) maps to exactly ONE listener
+   * regardless of how many statuses it accepts.
+   *
+   * Single-value filters apply `where('status', '==', value)` server-side.
+   * Multi-value filters (e.g., quiz active = `['waiting', 'active']`) CANNOT
+   * push the status to Firestore: the class filter already consumes the
+   * single allowed disjunctive clause (`array-contains-any` for the list
+   * shape, `in` for the single shape), and Firestore forbids combining it
+   * with a second `in`/`array-contains-any`. So multi-value filters issue an
+   * index-free query without a status constraint and intersect the accepted
+   * statuses in-memory in `handleSnapshot` — collapsing what used to be one
+   * listener per status value into one listener per (kind, channel, shape).
+   *
+   * The Ended channel only ever carries single-value filters, so its
+   * server-side `orderBy(endedAt)` + `limit` cap is unaffected.
    */
-  statusValue: string | null;
+  statusValues: readonly string[] | null;
 }
 
 const planKey = (p: SubscriptionPlan): string =>
-  `${p.kind}:${p.channel}:${p.shape}:${p.statusValue ?? '_'}`;
+  `${p.kind}:${p.channel}:${p.shape}:${p.statusValues?.join(',') ?? '_'}`;
 
 interface UseStudentAssignmentsResult {
   loadState: LoadState;
@@ -366,12 +376,15 @@ export function useStudentAssignments({
     const ids = classIdsKey ? classIdsKey.split('|').filter(Boolean) : [];
     if (ids.length === 0) return;
 
-    // Plan every (kind, channel, shape, statusValue) subscription up front.
+    // Plan every (kind, channel, shape) subscription up front — exactly ONE
+    // listener per shape regardless of how many statuses the filter accepts.
     // Active channel always runs; Ended channel only for kinds that have a
     // status field. Dual-query kinds run BOTH list and single shapes.
-    // Multi-value status filters (e.g., quiz active = waiting+active) fan
-    // out into one plan per status so each query stays inside Firestore's
-    // single-disjunctive-clause limit.
+    // Multi-value status filters (e.g., quiz active = waiting+active) used to
+    // fan out into one listener per status (Firestore can't `in`-filter
+    // status alongside the class disjunctive clause); they now collapse into
+    // a single status-less query whose accepted statuses are matched
+    // in-memory in `handleSnapshot`.
     const subs: SubscriptionPlan[] = [];
     for (const kind of SESSION_KINDS) {
       const config = KIND_CONFIG[kind];
@@ -380,24 +393,22 @@ export function useStudentAssignments({
       for (const channel of channels) {
         const filter =
           channel === 'active' ? config.activeFilter : config.endedFilter;
-        const statusValues: (string | null)[] =
+        const statusValues: readonly string[] | null =
           filter === null
-            ? [null]
+            ? null
             : 'valueIn' in filter
-              ? [...filter.valueIn]
+              ? filter.valueIn
               : [filter.value];
-        for (const statusValue of statusValues) {
-          if (config.dualQuery) {
-            subs.push({ kind, channel, shape: 'list', statusValue });
-            subs.push({ kind, channel, shape: 'single', statusValue });
-          } else {
-            subs.push({
-              kind,
-              channel,
-              shape: config.classFilterShape,
-              statusValue,
-            });
-          }
+        if (config.dualQuery) {
+          subs.push({ kind, channel, shape: 'list', statusValues });
+          subs.push({ kind, channel, shape: 'single', statusValues });
+        } else {
+          subs.push({
+            kind,
+            channel,
+            shape: config.classFilterShape,
+            statusValues,
+          });
         }
       }
     }
@@ -456,9 +467,9 @@ export function useStudentAssignments({
     };
 
     const emit = (kind: SessionKind, channel: AssignmentChannel) => {
-      // Merge across every (shape, statusValue) bucket for this kind+channel.
-      // The status fan-out can produce multiple buckets per channel (e.g.,
-      // quiz active fans out into `waiting` and `active` per shape).
+      // Merge across every shape bucket for this kind+channel. Dual-query
+      // kinds produce two buckets per channel (list + single); the single
+      // listener per shape now owns all of that shape's statuses.
       const prefix = `${kind}:${channel}:`;
       const merged = new Map<string, AssignmentSummary>();
       for (const [key, rows] of buckets) {
@@ -484,15 +495,19 @@ export function useStudentAssignments({
       config: KindConfig,
       channel: AssignmentChannel,
       shape: 'list' | 'single',
-      statusValue: string | null
+      statusValues: readonly string[] | null
     ): Query<DocumentData> => {
       const col = collection(db, config.collectionName);
       const constraints: QueryConstraint[] =
         shape === 'list'
           ? [where('classIds', 'array-contains-any', ids)]
           : [where('classId', 'in', ids)];
-      if (statusValue !== null) {
-        constraints.push(where('status', '==', statusValue));
+      // Push the status filter server-side ONLY when it's a single value — an
+      // `==` composes with the class disjunctive clause. Multi-value filters
+      // would need a second `in`, which Firestore rejects, so they run
+      // status-less and intersect the accepted statuses in `handleSnapshot`.
+      if (statusValues !== null && statusValues.length === 1) {
+        constraints.push(where('status', '==', statusValues[0]));
       }
       if (channel === 'ended' && config.endedOrderBy) {
         constraints.push(orderBy(config.endedOrderBy, 'desc'));
@@ -519,6 +534,15 @@ export function useStudentAssignments({
       // drop a GL doc whose play-mode happened to spell 'view-only'.
       const modeField =
         plan.kind === 'guided-learning' ? 'assignmentMode' : 'mode';
+      // Multi-value status filters run status-less server-side (see
+      // `buildQuery`); intersect the accepted statuses here so the result set
+      // matches what the per-status fan-out used to deliver. `null` (no status
+      // field) and single-value filters (already pushed to Firestore) accept
+      // every returned doc, so this stays a no-op for them.
+      const acceptStatus =
+        plan.statusValues !== null && plan.statusValues.length > 1
+          ? new Set(plan.statusValues)
+          : null;
       // Read each doc's `data()` exactly once — Firestore lazily decodes the
       // payload on each call, so the filter+map version below would parse
       // every doc twice for large assignment lists.
@@ -528,6 +552,12 @@ export function useStudentAssignments({
           const data = d.data();
           if ((data as Record<string, unknown>)[modeField] === 'view-only') {
             return [];
+          }
+          if (acceptStatus !== null) {
+            const status = (data as Record<string, unknown>).status;
+            if (typeof status !== 'string' || !acceptStatus.has(status)) {
+              return [];
+            }
           }
           return [docToSummary(plan.kind, plan.channel, config, d, data)];
         })
@@ -552,7 +582,7 @@ export function useStudentAssignments({
           ? String((err as { message?: unknown }).message)
           : '';
       console.error(
-        `[useStudentAssignments] snapshot failed for ${KIND_CONFIG[plan.kind].collectionName} (${plan.channel}/${plan.shape}/${plan.statusValue ?? '_'}) [${code}]:`,
+        `[useStudentAssignments] snapshot failed for ${KIND_CONFIG[plan.kind].collectionName} (${plan.channel}/${plan.shape}/${plan.statusValues?.join(',') ?? '_'}) [${code}]:`,
         message
       );
       const key = planKey(plan);
@@ -570,7 +600,7 @@ export function useStudentAssignments({
     const unsubs: Array<() => void> = [];
     for (const plan of subs) {
       const config = KIND_CONFIG[plan.kind];
-      const q = buildQuery(config, plan.channel, plan.shape, plan.statusValue);
+      const q = buildQuery(config, plan.channel, plan.shape, plan.statusValues);
       unsubs.push(
         onSnapshot(
           q,
