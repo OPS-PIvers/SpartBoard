@@ -158,6 +158,45 @@ describe('NumberLineWidget', () => {
     expect(screen.getAllByText('1')[0]).toBeInTheDocument();
   });
 
+  it('shows clean labels in integers mode with decimal step (FP accumulation guard)', () => {
+    // step=0.1 causes floating-point accumulation: 0 + 3×0.1 =
+    // 0.30000000000000004. Without the toFixed(4) baseline, the default
+    // val.toString() label path renders the raw FP artifact for the
+    // 'integers' display mode — the same bug that was already fixed for
+    // 'fractions' mode. This test confirms the fix covers all display modes.
+    vi.spyOn(DashboardContext, 'useDashboard').mockReturnValue(
+      defaultDashboardMock
+    );
+
+    const widget: WidgetData = {
+      ...baseWidget,
+      config: {
+        ...baseWidget.config,
+        min: 0,
+        max: 1,
+        step: 0.1,
+        displayMode: 'integers',
+        markers: [],
+        jumps: [],
+        showArrows: true,
+      },
+    };
+
+    render(<NumberLineWidget widget={widget} />);
+
+    // These ticks accumulate FP error. The raw val.toString() produces
+    // '0.30000000000000004', '0.6000000000000001', '0.7000000000000001'.
+    // After the fix they must render as clean '0.3', '0.6', '0.7'.
+    expect(screen.getByText('0.3')).toBeInTheDocument();
+    expect(screen.getByText('0.6')).toBeInTheDocument();
+    expect(screen.getByText('0.7')).toBeInTheDocument();
+
+    // The raw FP-artifact strings must NOT appear as text nodes.
+    expect(screen.queryByText('0.30000000000000004')).not.toBeInTheDocument();
+    expect(screen.queryByText('0.6000000000000001')).not.toBeInTheDocument();
+    expect(screen.queryByText('0.7000000000000001')).not.toBeInTheDocument();
+  });
+
   it('caps number of ticks if range is too large compared to step', () => {
     vi.spyOn(DashboardContext, 'useDashboard').mockReturnValue(
       defaultDashboardMock
