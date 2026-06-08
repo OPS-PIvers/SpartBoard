@@ -90,7 +90,10 @@
       "boardName": "Nom du tableau",
       "activeCollection": "Active Collection",
       "rootBoards": "Boards",
-      "manageAll": "Manage all boards"
+      "manageAll": "Manage all boards",
+      "create": "Créer",
+      "enterBoardData": "Collez vos données de tableau ici :",
+      "imported": "Importé"
     },
     "classes": {
       "title": "Mes Classes",
@@ -831,6 +834,29 @@
         "longSleeves": "Manches longues",
         "shortSleeves": "Manches courtes"
       }
+    },
+    "clock": {
+      "format24": "Format 24H",
+      "showSeconds": "Afficher les secondes",
+      "typography": "Typographie",
+      "displayStyle": "Style d'affichage",
+      "colorPalette": "Palette de couleurs",
+      "glow": "Lueur",
+      "fonts": {
+        "inherit": "Hériter",
+        "digital": "Digital",
+        "modern": "Moderne",
+        "school": "École"
+      },
+      "styles": {
+        "default": "Par défaut",
+        "lcd": "Panneau LCD",
+        "minimal": "Minimal"
+      }
+    },
+    "schedule": {
+      "startTimer": "Démarrer le minuteur",
+      "startTimerUntil": "Démarrer le compte à rebours jusqu'à {{time}}"
     }
   },
   "boardBreadcrumb": {

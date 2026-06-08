@@ -90,7 +90,10 @@
       "boardName": "Tafelname",
       "activeCollection": "Active Collection",
       "rootBoards": "Boards",
-      "manageAll": "Manage all boards"
+      "manageAll": "Manage all boards",
+      "create": "Erstellen",
+      "enterBoardData": "Tafel-Daten hier einfügen:",
+      "imported": "Importiert"
     },
     "classes": {
       "title": "Meine Klassen",
@@ -831,6 +834,29 @@
         "longSleeves": "Lange Ärmel",
         "shortSleeves": "Kurze Ärmel"
       }
+    },
+    "clock": {
+      "format24": "24-Stunden-Format",
+      "showSeconds": "Sekunden anzeigen",
+      "typography": "Typografie",
+      "displayStyle": "Anzeigestil",
+      "colorPalette": "Farbpalette",
+      "glow": "Leuchten",
+      "fonts": {
+        "inherit": "Übernehmen",
+        "digital": "Digital",
+        "modern": "Modern",
+        "school": "Schule"
+      },
+      "styles": {
+        "default": "Standard",
+        "lcd": "LCD-Panel",
+        "minimal": "Minimal"
+      }
+    },
+    "schedule": {
+      "startTimer": "Timer starten",
+      "startTimerUntil": "Countdown-Timer bis {{time}} starten"
     }
   },
   "boardBreadcrumb": {
