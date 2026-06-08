@@ -1,4 +1,4 @@
-import { WidgetType, WidgetConfig } from '../types';
+import { WidgetType, WidgetConfig } from '@/types';
 import { convertToEmbedUrl } from './urlHelpers';
 
 export type PasteResult =

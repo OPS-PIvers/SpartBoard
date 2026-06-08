@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { migrateWidget, migrateLocalStorageToFirestore } from './migration';
-import { WidgetData, Dashboard, TextConfig } from '../types';
+import { WidgetData, Dashboard, TextConfig } from '@/types';
 
 describe('migration', () => {
   describe('migrateWidget', () => {

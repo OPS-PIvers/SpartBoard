@@ -12,7 +12,7 @@
  *
  * Only activated when isAuthBypass is true.
  */
-import { GuidedLearningSet } from '../types';
+import { GuidedLearningSet } from '@/types';
 
 const STORAGE_PREFIX = 'mock_gl_drive';
 

@@ -1,5 +1,5 @@
-import { APP_NAME } from '../config/constants';
-import { Dashboard } from '../types';
+import { APP_NAME } from '@/config/constants';
+import { Dashboard } from '@/types';
 import { authError } from './driveAuthErrors';
 
 // Re-export so existing imports of `isDriveAuthError` from this module keep

@@ -6,7 +6,7 @@ import {
   Path,
   PathObject,
   ShapeTool,
-} from '../types';
+} from '@/types';
 
 /**
  * DrawingConfig with `pages` guaranteed non-empty and `currentPage` clamped

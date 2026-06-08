@@ -14,9 +14,9 @@ import {
   QuizQuestion,
   QuizQuestionType,
   QuizResponse,
-} from '../types';
-import { gradeAnswer } from '../hooks/useQuizSession';
-import { APP_NAME } from '../config/constants';
+} from '@/types';
+import { gradeAnswer } from '@/hooks/useQuizSession';
+import { APP_NAME } from '@/config/constants';
 import { authError } from './driveAuthErrors';
 import { buildResultsSheetData as buildResultsSheetDataShared } from '@/utils/assignmentExportShared';
 
