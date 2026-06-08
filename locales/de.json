@@ -92,7 +92,7 @@
       "rootBoards": "Boards",
       "manageAll": "Manage all boards",
       "create": "Erstellen",
-      "enterBoardData": "Tafel-Daten hier einfügen:",
+      "enterBoardData": "Tafeldaten hier einfügen:",
       "imported": "Importiert"
     },
     "classes": {
@@ -843,7 +843,7 @@
       "colorPalette": "Farbpalette",
       "glow": "Leuchten",
       "fonts": {
-        "inherit": "Übernehmen",
+        "inherit": "Vom Board",
         "digital": "Digital",
         "modern": "Modern",
         "school": "Schule"
