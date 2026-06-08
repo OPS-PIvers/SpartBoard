@@ -1462,8 +1462,10 @@ export const assignToClassroomV1 = onCall(
     // assign — previously it only got `teacherUid`, so names stayed blank — and
     // (b) enables a reverse lookup (classlinkClassId → googleCourseId) so future
     // assigns can auto-target the course instead of re-asking. The assignment's
-    // `classIds` are ClassLink class sourcedIds; the `classroom:<courseId>`
-    // entries (student-token only) are filtered out defensively.
+    // `classIds` are ClassLink class sourcedIds; synthetic LMS-prefixed entries
+    // (`classroom:<courseId>` student-token entries, `schoology:<contextId>` LTI
+    // contexts) are NOT real ClassLink ids and are filtered out — capturing one
+    // as the link's classlinkClassId would mis-key the OneRoster name bridge.
     //
     // ONLY a single-section assignment is captured: a multi-period assign carries
     // several ClassLink sections but the teacher picks ONE Google course, so
@@ -1472,7 +1474,11 @@ export const assignToClassroomV1 = onCall(
     // unable to pass the class gate. Multi-section stays unlinked (the existing
     // nameless path); the per-section mapping is Item D part 2's job.
     const realClasslinkClassIds = (sessionData.classIds ?? []).filter(
-      (id) => typeof id === 'string' && id && !id.startsWith('classroom:')
+      (id) =>
+        typeof id === 'string' &&
+        id &&
+        !id.startsWith('classroom:') &&
+        !id.startsWith('schoology:')
     );
     const linkClasslinkClassId =
       realClasslinkClassIds.length === 1 ? realClasslinkClassIds[0] : null;

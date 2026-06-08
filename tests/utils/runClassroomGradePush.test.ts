@@ -149,6 +149,45 @@ describe('runClassroomGradePush (multi-course fan-out)', () => {
     expect(pushedData).toMatchObject({ pushed: 2, failed: 0 });
   });
 
+  it('collapses cross-course "skipped" so a student graded in one course is not double-counted as skipped by the others', async () => {
+    // Two students, two courses. The SAME payload goes to both courses; each
+    // grades its own student and reports the OTHER as a benign "skip" (no
+    // submission there). Summing naively gives skipped=2, but BOTH students were
+    // graded — the true unique not-graded count is 0. The collapse must report
+    // skipped=0 so the toast doesn't mislabel graded students "not opened yet".
+    pushMock
+      .mockResolvedValueOnce({ results: [], pushed: 1, skipped: 1, failed: 0 })
+      .mockResolvedValueOnce({ results: [], pushed: 1, skipped: 1, failed: 0 });
+    const requestToken = vi
+      .fn<() => Promise<string>>()
+      .mockResolvedValue('tok');
+    let pushedData: { pushed: number; skipped: number; failed: number } | null =
+      null;
+
+    await runClassroomGradePush({
+      functions: fns,
+      attachments: [att('A'), att('B')],
+      buildGrades: () => [
+        { pseudonymUid: 'p-A', pointsEarned: 8 },
+        { pseudonymUid: 'p-B', pointsEarned: 9 },
+      ],
+      requestToken,
+      onStatus: (s) => {
+        if (s.phase === 'pushed') {
+          pushedData = s.data as {
+            pushed: number;
+            skipped: number;
+            failed: number;
+          };
+        }
+      },
+      onError: vi.fn(),
+      logTag: 'test',
+    });
+
+    expect(pushedData).toMatchObject({ pushed: 2, skipped: 0, failed: 0 });
+  });
+
   it('reports a partial failure: one course succeeds, another throws → pushed status carries unreachableCourses', async () => {
     // Course A pushes, course B throws (e.g. permission-denied). The prior code
     // surfaced a clean success and silently dropped B; now the pushed status

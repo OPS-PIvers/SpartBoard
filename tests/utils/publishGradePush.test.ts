@@ -166,6 +166,45 @@ describe('runPublishGradePush', () => {
     expect(successes).toHaveLength(1);
   });
 
+  it('does not double-count cross-course "skipped" in the fan-out success toast', async () => {
+    // The SAME payload is sent to every course, so each course reports students
+    // who belong to ANOTHER course as a benign "skip". With 2 students across 2
+    // courses (each course grades one, skips the other), the naive sum is
+    // skipped=2 — but both were graded, so the toast must NOT claim any were
+    // "not opened in Classroom yet".
+    callableData.set('pushClassroomFinalGradesForAssignment', {
+      results: [],
+      pushed: 1,
+      skipped: 1,
+      failed: 0,
+    });
+
+    await runPublishGradePush({
+      ...baseOpts(),
+      classroomFinalAttachments: [
+        ATTACHMENT,
+        {
+          courseId: 'C2',
+          itemId: 'I2',
+          attachmentId: 'ATT2',
+          maxPoints: 20,
+          ownsCourseWork: true,
+        },
+      ],
+      classroomToken: 'tok',
+      buildClassroomGrades: () => [
+        { pseudonymUid: 'p-A', pointsEarned: 8 },
+        { pseudonymUid: 'p-B', pointsEarned: 9 },
+      ],
+    });
+
+    const success = toasts.find((t) => t.type === 'success');
+    expect(success).toBeDefined();
+    // pushed=2 (one per course), skipped collapsed to 0 → no "skipped" phrase.
+    expect(success?.message).toContain('Pushed 2 grades');
+    expect(success?.message).not.toMatch(/skipped/i);
+  });
+
   it('reports "couldn’t reach" when one course in the fan-out is unreachable but another succeeds', async () => {
     // The mock returns the same data for every call, so to make ONE course fail
     // we throw for all and instead assert the unreachable-suffix path: every
