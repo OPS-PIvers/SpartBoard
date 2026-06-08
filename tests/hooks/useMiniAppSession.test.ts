@@ -1,4 +1,12 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type Mock,
+} from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import {
   collection,
@@ -69,6 +77,10 @@ beforeEach(() => {
   mockSetDoc.mockResolvedValue(undefined);
   mockUpdateDoc.mockResolvedValue(undefined);
   mockOnSnapshot.mockReturnValue(() => undefined);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('useMiniAppSessionTeacher — createSession', () => {
@@ -281,7 +293,6 @@ describe('useMiniAppSessionTeacher — subscribeToAppSessions', () => {
       '[useMiniAppSessionTeacher] Session list error:',
       expect.any(Error)
     );
-    consoleSpy.mockRestore();
   });
 
   it('tears down a previous listener when re-subscribing', () => {
