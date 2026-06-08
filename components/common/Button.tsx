@@ -42,7 +42,7 @@ export const Button: React.FC<ButtonProps> = ({
     danger: 'bg-red-50 text-red-600 hover:bg-red-100',
     'ghost-danger': 'text-red-500 hover:bg-red-50 hover:text-red-600',
     ghost:
-      'text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter',
+      'text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter',
     hero: 'bg-brand-blue-primary text-white shadow-lg shadow-brand-blue-primary/30 hover:bg-brand-blue-dark active:scale-95 hover:-translate-y-1',
     dark: 'bg-brand-gray-dark text-white shadow-sm hover:bg-brand-gray-darkest',
   };

@@ -128,7 +128,7 @@ export const InstructionalRoutinesManager: React.FC<
 
             {routines.length === 0 && (
               <div className="py-12 flex flex-col items-center justify-center bg-white border-2 border-dashed border-slate-200 rounded-3xl text-slate-400">
-                <Sparkles className="w-12 h-12 mb-4 opacity-20" />
+                <Sparkles className="w-12 h-12 mb-4 opacity-50" />
                 <p className="font-black uppercase tracking-widest text-xs">
                   No routines in library
                 </p>

@@ -18,6 +18,11 @@ interface CustomWindow extends Window {
   webkitAudioContext: typeof AudioContext;
 }
 
+// After the Board has been hidden this long, fully release the mic +
+// AudioContext instead of keeping them alive for fast resume. Shorter hides
+// still hit the fast-resume path below.
+const RELEASE_AFTER_HIDDEN_MS = 2 * 60 * 1000;
+
 export const SoundWidget: React.FC<{
   widget: WidgetData;
   isActive?: boolean;
@@ -29,6 +34,8 @@ export const SoundWidget: React.FC<{
   const streamRef = useRef<MediaStream | null>(null);
   const animationRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  // Timer that releases the mic + AudioContext after a long hide (see effect below).
+  const releaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { w, h } = widget;
 
@@ -96,19 +103,20 @@ export const SoundWidget: React.FC<{
   //
   //   (1) Per-`isActive` effect: controls the RAF loop and suspends/resumes
   //       the running AudioContext when the host Board is hidden/shown.
-  //       Does NOT close the AudioContext or release the mic — keeping them
-  //       alive across hide→show toggles is what makes the "resume existing
-  //       context" path reachable. (Cleanup that closed on every toggle
-  //       made the resume branch dead code; the next activation would always
-  //       fall through to the first-activation `getUserMedia` path and the
-  //       browser would re-prompt the mic icon.)
+  //       On hide it suspends (keeping the mic alive for fast resume) AND
+  //       arms a release timer; only if the Board stays hidden past
+  //       RELEASE_AFTER_HIDDEN_MS does it close the AudioContext and stop
+  //       the mic tracks (clearing the refs so the next activation re-acquires
+  //       via the first-activation path). Re-show within the window cancels
+  //       the timer and hits the "resume existing context" path. (Cleanup that
+  //       closed on every toggle made the resume branch dead code; the next
+  //       activation would always re-prompt the mic icon.)
   //
   //   (2) Mount-only effect: owns full teardown — stops the stream and
   //       closes the AudioContext. Runs exactly once on unmount.
   //
-  // The mic indicator stays visible while the Board is hidden (the stream
-  // is still live). That's the deliberate trade for instant resume on
-  // re-show; if a user wants the mic released, they remove the widget.
+  // The mic indicator stays visible during a short hide (stream still live)
+  // for instant resume; after a long hide the mic is released automatically.
   useEffect(() => {
     if (!isActive) {
       if (animationRef.current !== null) {
@@ -116,7 +124,26 @@ export const SoundWidget: React.FC<{
         animationRef.current = null;
       }
       void audioContextRef.current?.suspend();
+
+      // Arm a one-shot timer to release the mic + AudioContext if the Board
+      // stays hidden long enough that fast-resume no longer justifies holding
+      // the resources (and the live mic indicator) open.
+      releaseTimerRef.current ??= setTimeout(() => {
+        releaseTimerRef.current = null;
+        streamRef.current?.getTracks().forEach((t) => t.stop());
+        void audioContextRef.current?.close();
+        audioContextRef.current = null;
+        analyserRef.current = null;
+        streamRef.current = null;
+      }, RELEASE_AFTER_HIDDEN_MS);
       return undefined;
+    }
+
+    // Re-shown before the release timer fired: keep the existing context, so
+    // cancel the pending release.
+    if (releaseTimerRef.current !== null) {
+      clearTimeout(releaseTimerRef.current);
+      releaseTimerRef.current = null;
     }
 
     // If we already have a running AudioContext (board was hidden then
@@ -214,6 +241,10 @@ export const SoundWidget: React.FC<{
   // Mount-only teardown: release the mic and AudioContext on unmount.
   useEffect(() => {
     return () => {
+      if (releaseTimerRef.current !== null) {
+        clearTimeout(releaseTimerRef.current);
+        releaseTimerRef.current = null;
+      }
       streamRef.current?.getTracks().forEach((t) => t.stop());
       void audioContextRef.current?.close();
       audioContextRef.current = null;

@@ -95,7 +95,7 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             <span
               className={`${
                 clockStyle === 'minimal' ? '' : 'animate-pulse'
-              } mx-[0.1em] opacity-30`}
+              } mx-[0.1em] opacity-60`}
             >
               :
             </span>
@@ -103,8 +103,8 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
             {showSeconds && (
               <>
-                <span className="opacity-30 mx-[0.1em]">:</span>
-                <span className="opacity-60" style={{ fontSize: '0.7em' }}>
+                <span className="opacity-60 mx-[0.1em]">:</span>
+                <span className="opacity-80" style={{ fontSize: '0.7em' }}>
                   {seconds}
                 </span>
               </>
@@ -112,7 +112,7 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
             {!format24 && (
               <span
-                className="opacity-40 ml-2 uppercase"
+                className="opacity-70 ml-2 uppercase"
                 style={{ fontSize: '0.25em' }}
               >
                 {ampm}
@@ -121,7 +121,7 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           </div>
 
           <div
-            className={`opacity-60 uppercase tracking-[0.2em] text-slate-900 ${getFontClass()}`}
+            className={`opacity-80 uppercase tracking-[0.2em] text-slate-900 ${getFontClass()}`}
             style={{ fontSize: 'min(12cqh, 80cqw)', fontWeight: 900 }}
           >
             {time.toLocaleDateString(i18n.language, {

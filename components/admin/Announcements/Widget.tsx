@@ -974,7 +974,7 @@ export const AnnouncementsManager: React.FC = () => {
 
         {!loading && announcements.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
-            <Bell className="w-12 h-12 mb-3 opacity-30" />
+            <Bell className="w-12 h-12 mb-3 opacity-50" />
             <p className="font-medium">No announcements yet</p>
             <p className="text-sm mt-1">
               Create one to broadcast widgets to all users.

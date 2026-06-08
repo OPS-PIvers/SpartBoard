@@ -1117,7 +1117,7 @@ export const BackgroundManager: React.FC = () => {
                 </div>
               ) : (
                 <div className="h-64 flex flex-col items-center justify-center text-slate-400">
-                  <Database className="w-12 h-12 mb-2 opacity-20" />
+                  <Database className="w-12 h-12 mb-2 opacity-50" />
                   <p>No images found in your Google Drive</p>
                 </div>
               )}
@@ -1145,7 +1145,7 @@ export const BackgroundManager: React.FC = () => {
               </>
             ) : (
               <>
-                <Filter className="w-10 h-10 mb-2 opacity-30" />
+                <Filter className="w-10 h-10 mb-2 opacity-50" />
                 <p className="font-bold">No backgrounds match the filters.</p>
               </>
             )}

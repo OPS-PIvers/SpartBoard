@@ -23,6 +23,15 @@ describe('Button', () => {
     expect(button).toHaveClass('bg-slate-200');
   });
 
+  it('uses a WCAG AA contrast color for ghost variant resting text', () => {
+    // Ghost buttons sit on white surfaces; slate-400 (~3.5:1) failed AA for
+    // normal text. Resting text must be slate-600 (~7:1) or darker.
+    render(<Button variant="ghost">Ghost Button</Button>);
+    const button = screen.getByRole('button', { name: /ghost button/i });
+    expect(button).toHaveClass('text-slate-600');
+    expect(button).not.toHaveClass('text-slate-400');
+  });
+
   it('shows loading spinner when isLoading is true', () => {
     render(<Button isLoading>Click me</Button>);
     expect(screen.queryByText('Click me')).not.toBeInTheDocument();

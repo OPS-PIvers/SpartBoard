@@ -2320,7 +2320,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 }}
               />
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-widget-internal-overlay flex items-center gap-1 p-1 bg-white/90 backdrop-blur shadow-lg rounded-full border border-slate-200 animate-in slide-in-from-bottom-2 fade-in duration-200">
-                <div className="flex items-center gap-1 px-1">
+                <div
+                  className="flex items-center gap-1 px-1"
+                  role="group"
+                  aria-label="Select annotation color"
+                >
                   {WIDGET_PALETTE.slice(0, 5).map((c) => (
                     <button
                       key={c}
