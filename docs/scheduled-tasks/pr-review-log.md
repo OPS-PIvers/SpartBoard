@@ -4,6 +4,44 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-08
+
+- PRs reviewed: 12 (all open PRs; every head is non-`main`/non-`dev-*`, so all in scope; all base `dev-paul`)
+  - #1905 — test(hooks): cover useMiniAppSessionTeacher (head `scheduled-tasks`)
+  - #1904 — chore(debugger): nightly run log 2026-06-08 run 11 (head `nightly/debugger-log-2026-06-08`)
+  - #1903 — fix(nrpsStore): preserve contextTitle on privacy LTI relaunch (head `nightly/build-tooling-2026-06-08`)
+  - #1902 — fix(state-data): normalizeSession drops optional VA session fields (head `nightly/state-data-2026-06-08`)
+  - #1901 — fix(DashboardView): Alt+Arrow/Alt+P swallow events in text fields (head `nightly/dashboard-layout-2026-06-08`)
+  - #1900 — fix(i18n): add widgets.clock/schedule + sidebar.boards keys to DE/ES/FR (head `nightly/admin-config-2026-06-08`)
+  - #1899 — fix(NumberLine): toFixed(4) baseline for all display modes (head `nightly/widgets-2026-06-08`)
+  - #1898 — docs(unifier): run 10 memory log 2026-06-08 (head `nightly/unifier-log-2026-06-08`)
+  - #1897 — fix(D4): convert utils/ relative imports to @/ alias (head `nightly/unify-import-paths-utils-2026-06-08`)
+  - #1896 — docs(nightly): run 11 memory log 2026-06-07 (head `nightly/debugger-log-2026-06-07`)
+  - #1890 — chore(unifier): run 10 memory doc 2026-06-07 (head `nightly/unifier-log-2026-06-07`)
+  - #1889 — fix(D4): utils/ cross-directory imports → @/ alias (head `nightly/unify-import-paths-utils-2026-06-07`)
+- Comments processed: 11 total — 10 fixed, 1 explained (all from gemini-code-assist)
+  - #1905: 3 threads — FIXED. Import `afterEach`, add `afterEach(vi.restoreAllMocks())`, drop manual `consoleSpy.mockRestore()`. lint ✓ tests ✓ (21/21).
+  - #1902: 2 threads — FIXED. Removed redundant `as never` / `as { … }` casts in the normalize test; fields are declared optionals on `VideoActivitySession`, sessionOptions now uses real `VideoActivitySessionOptions` fields. type-check ✓ tests ✓ (19/19).
+  - #1901: 2 threads — FIXED. Dropped redundant `P`/`Nav` suffixes on block-scoped `activeEl`/`isTypingField` guard vars. type-check ✓ lint ✓ tests ✓ (10/10).
+  - #1900: 2 threads — FIXED. German `Tafel-Daten`→`Tafeldaten` (compound noun) and `inherit` `Übernehmen`→`Vom Board` (avoids "Apply" ambiguity). prettier ✓ i18n tests ✓ (35/35).
+  - #1899: 1 thread — FIXED. Removed dead `displayMode === 'decimals'` no-op branch. type-check ✓ lint ✓ tests ✓ (6/6).
+  - #1898: 1 thread — EXPLAINED, no fix. The suggested `AssignModal.tsx:23`/`ImportWizard.tsx:31` line numbers are wrong; verified the doc's existing `:24`/`:30` match the actual code. Suggested edit would introduce errors.
+  - #1904, #1903, #1897, #1896, #1890, #1889: no review comments.
+- Fixes pushed: 5 (each to its own PR head branch — no pushes to `main`/`dev-*`)
+  - #1899 / `nightly/widgets-2026-06-08` — `fix(pr-1899): remove dead displayMode==='decimals' no-op branch`
+  - #1905 / `scheduled-tasks` — `fix(pr-1905): add afterEach restoreAllMocks and remove manual mockRestore`
+  - #1902 / `nightly/state-data-2026-06-08` — `fix(pr-1902): remove redundant type assertions in normalize test`
+  - #1901 / `nightly/dashboard-layout-2026-06-08` — `fix(pr-1901): drop redundant P/Nav suffixes on block-scoped guard vars`
+  - #1900 / `nightly/admin-config-2026-06-08` — `fix(pr-1900): correct German translations (Tafeldaten, inherit label)`
+- Reviews posted: 12 (all COMMENT event)
+  - #1905 Ready; #1904 Ready w/ notes (run-11 debugger.md overlaps #1896); #1903 Ready (contained LTI null-clobber fix); #1902 Ready; #1901 Ready; #1900 Ready; #1899 Ready; #1898 Ready w/ notes (run-10 unifier.md overlaps #1890; wrong line-number nit declined); #1897 Ready w/ notes (DUPLICATE of #1889 — merge one); #1896 Ready w/ notes (overlaps #1904); #1890 Ready w/ notes (overlaps #1898; tracks dup #1889); #1889 Needs changes (superseded by more-complete #1897).
+- Notes:
+  - Branch-safety: no open PR head is `main` or `dev-*`; all heads pushable. All 5 fixes went to PR head branches. No pushes to `main`.
+  - **Duplicate-PR cluster flagged:** #1889 and #1897 make the identical `utils/`→`@/` conversion (#1897 also converts the `FONTS` import; more complete). Their memory-log PRs (#1890 ↔ #1898, both "run 10") and the debugger logs (#1896 ↔ #1904, both "run 11") similarly overlap and will conflict on second merge. Recommended in reviews that the team land one of each pair.
+  - #1903 touches `functions/src/lti/nrpsStore.ts` — additive title-preservation logic only; `persistLtiLaunchContext` signature unchanged. No new `WidgetType`, no `WidgetRegistry.ts`/`DashboardContext.tsx` config-merge, no `firestore.rules` changes across the batch, so widget-registration and rules-match-block checks were not triggered.
+
+---
+
 ## 2026-06-07
 
 - PRs reviewed: 10 (all open PRs; every head is non-`main`/non-`dev-*`, so all in scope)
