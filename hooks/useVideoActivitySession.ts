@@ -66,6 +66,16 @@ function videoActivityLedgerKey(
   return `${assignmentId}__${studentUid}`;
 }
 
+/**
+ * Collapse interval for the teacher responses listener's `setResponses`.
+ * Mirrors `RESPONSES_THROTTLE_MS` in useQuizSession.ts: during a live
+ * activity many students submit within the same second, so Firestore fires
+ * `onSnapshot` in bursts. Throttling the state update batches a burst into a
+ * single render — leading edge fires immediately so the first change is never
+ * delayed, and a trailing timer flushes the last snapshot in the window.
+ */
+const RESPONSES_THROTTLE_MS = 200;
+
 // ---------------------------------------------------------------------------
 // Teacher hook
 // ---------------------------------------------------------------------------
@@ -320,7 +330,23 @@ export const useVideoActivitySessionTeacher =
       // Clear any error from a prior subscription — we're (re)arming the
       // listeners and shouldn't carry a stale failure into the new session.
       setError(null);
-      unsubRef.current = onSnapshot(
+      // Throttle the snapshot-driven `setResponses` so a burst of submissions
+      // within RESPONSES_THROTTLE_MS collapses into a single render. Leading
+      // edge fires immediately; a trailing timer flushes the last snapshot in
+      // the window so the final state is never stale. `setLoading(false)` is
+      // intentionally left un-throttled so the monitor leaves its loading
+      // spinner on the first snapshot.
+      let pending: VideoActivityResponse[] | null = null;
+      let throttleTimer: ReturnType<typeof setTimeout> | null = null;
+      const flush = () => {
+        throttleTimer = null;
+        if (pending) {
+          setResponses(pending);
+          pending = null;
+        }
+      };
+
+      const responsesUnsub = onSnapshot(
         collection(db, SESSIONS_COLLECTION, sessionId, RESPONSES_SUBCOLLECTION),
         (snap) => {
           // Carry the Firestore doc id through as `_responseKey` so the
@@ -334,7 +360,13 @@ export const useVideoActivitySessionTeacher =
                 _responseKey: d.id,
               }) as VideoActivityResponse
           );
-          setResponses(list);
+          if (throttleTimer) {
+            // Inside an active window — buffer the latest list for the flush.
+            pending = list;
+          } else {
+            setResponses(list);
+            throttleTimer = setTimeout(flush, RESPONSES_THROTTLE_MS);
+          }
           setLoading(false);
         },
         (err) => {
@@ -349,6 +381,16 @@ export const useVideoActivitySessionTeacher =
           );
         }
       );
+
+      // Wrap the Firestore unsubscribe so the throttle timer is cleared (and
+      // any buffered snapshot flushed) whenever the listener is torn down via
+      // `unsubscribeFromSession`, a re-`subscribeToSession`, or unmount —
+      // without those call sites needing to know about the throttle.
+      unsubRef.current = () => {
+        if (throttleTimer) clearTimeout(throttleTimer);
+        flush();
+        responsesUnsub();
+      };
 
       // Mirror the session doc so consumers (e.g. the live monitor) reflect
       // pause/resume state changes in real time.

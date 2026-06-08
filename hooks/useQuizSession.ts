@@ -86,6 +86,15 @@ export const RESPONSE_HISTORY_COLLECTION = 'history';
  */
 const HISTORY_SNAPSHOT_THROTTLE_MS = 5000;
 /**
+ * Collapse interval for the teacher responses listener's `setResponses`.
+ * During a live quiz, dozens of students autosave/submit within the same
+ * second, so Firestore fires `onSnapshot` in rapid bursts. Rendering the
+ * whole monitor on every snapshot is wasteful; throttling the state update
+ * to once per this window batches a burst into a single render while still
+ * leading-edge updating immediately so the first change is never delayed.
+ */
+const RESPONSES_THROTTLE_MS = 200;
+/**
  * Top-level cross-launch attempt ledger. Sits alongside `/quiz_sessions/`
  * and accumulates a student's completed-attempt count across every LAUNCH of a
  * single ASSIGNMENT. It is scoped per (assignment, student) — NOT per quiz
@@ -688,18 +697,40 @@ export const useQuizSessionTeacher = (
     );
   }, [sessionId]);
 
-  const hasSession = !!session;
   useEffect(() => {
-    // Keep the listener active even after the session ends so that any
-    // late student submissions still appear in the live monitor / results.
-    if (!sessionId || !hasSession) return;
+    // Arm on `sessionId` alone. This effect previously also depended on
+    // `hasSession` (= !!session), which re-subscribed the responses listener
+    // when the session doc first loaded into state (and again if it later
+    // cleared) — tearing the Firestore subscription down and recreating it on
+    // session-state transitions. Listening to the responses subcollection only
+    // needs the sessionId: the teacher read rule resolves ownership via a
+    // server-side get() on the parent session doc, not from client-loaded
+    // session state, so the listener stays valid across the session's whole
+    // lifecycle. We intentionally keep listening even after the session ends
+    // so late student submissions still surface in the live monitor / results.
+    if (!sessionId) return;
     const responsesRef = collection(
       db,
       QUIZ_SESSIONS_COLLECTION,
       sessionId,
       RESPONSES_COLLECTION
     );
-    return onSnapshot(
+
+    // Throttle the snapshot-driven state update so a burst of submissions
+    // within RESPONSES_THROTTLE_MS collapses into a single render. Leading
+    // edge fires immediately; a trailing timer flushes the last snapshot in
+    // the window so the final state is never stale.
+    let pending: QuizResponse[] | null = null;
+    let throttleTimer: ReturnType<typeof setTimeout> | null = null;
+    const flush = () => {
+      throttleTimer = null;
+      if (pending) {
+        setResponses(pending);
+        pending = null;
+      }
+    };
+
+    const unsubscribe = onSnapshot(
       responsesRef,
       (snap) => {
         // Carry the doc id through as `_responseKey` so the live monitor
@@ -712,7 +743,13 @@ export const useQuizSessionTeacher = (
               _responseKey: d.id,
             }) as QuizResponse
         );
-        setResponses(list);
+        if (throttleTimer) {
+          // Inside an active window — buffer the latest list for the flush.
+          pending = list;
+        } else {
+          setResponses(list);
+          throttleTimer = setTimeout(flush, RESPONSES_THROTTLE_MS);
+        }
       },
       (err) => {
         const code = (err as { code?: string }).code;
@@ -723,7 +760,15 @@ export const useQuizSessionTeacher = (
         );
       }
     );
-  }, [sessionId, hasSession]);
+
+    return () => {
+      if (throttleTimer) clearTimeout(throttleTimer);
+      // Flush any buffered snapshot so the final state isn't dropped on
+      // unsubscribe (e.g. switching away from a session mid-burst).
+      flush();
+      unsubscribe();
+    };
+  }, [sessionId]);
 
   const finalizeAllResponses = useCallback(async () => {
     if (!sessionId) return;

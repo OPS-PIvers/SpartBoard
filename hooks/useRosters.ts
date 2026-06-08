@@ -127,6 +127,47 @@ function parseRawStudent(raw: unknown): Student | null {
 }
 
 /**
+ * Map over `items` with at most `limit` async tasks running at once, returning
+ * results in the SAME order as the input (like Promise.all, but bounded).
+ *
+ * buildRosters fans one Drive download out per roster; an unbounded Promise.all
+ * over a teacher with many ClassLink sections fires every request in the same
+ * tick and trips Drive's per-user rate limit (429), cascading into roster load
+ * failures. A small fixed pool keeps a steady, polite request rate while still
+ * loading rosters in parallel.
+ *
+ * Rejections propagate (matching Promise.all) — buildRosters' per-roster mapper
+ * already catches its own load errors, so this never rejects in practice.
+ *
+ * Exported for unit testing the bound; production code uses it only via
+ * buildRosters.
+ */
+export const ROSTER_DRIVE_CONCURRENCY = 4;
+
+export async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  mapper: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  // Cap workers at the number of items so a short list doesn't spin up idle
+  // workers (and `limit` of 0 / negative can't stall forever).
+  const workerCount = Math.max(1, Math.min(limit, items.length));
+
+  const worker = async (): Promise<void> => {
+    // Each worker pulls the next unclaimed index until the queue drains.
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      results[index] = await mapper(items[index], index);
+    }
+  };
+
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
+
+/**
  * Drive folder path for per-roster student files.
  * Structure: SpartBoard/Data/Rosters/{rosterId}.json → Student[]
  */
@@ -405,8 +446,14 @@ export const useRosters = (user: User | null) => {
 
   const buildRosters = useCallback(
     async (metaList: ClassRosterMeta[]): Promise<ClassRoster[]> => {
-      return Promise.all(
-        metaList.map(async (meta) => {
+      // Bounded fan-out: cap concurrent Drive downloads so a teacher with many
+      // sections doesn't burst-fire every request in one tick and trip Drive's
+      // 429 rate limit. Ordering matches `metaList` exactly (see
+      // mapWithConcurrency), so downstream callers see no behavior change.
+      return mapWithConcurrency(
+        metaList,
+        ROSTER_DRIVE_CONCURRENCY,
+        async (meta) => {
           let students: Student[] = [];
           let loadError: string | undefined;
           if (meta.driveFileId) {
@@ -446,7 +493,7 @@ export const useRosters = (user: User | null) => {
           const roster: ClassRoster = { ...meta, students };
           if (loadError) roster.loadError = loadError;
           return roster;
-        })
+        }
       );
     },
     [loadStudentsFromDrive, driveService]

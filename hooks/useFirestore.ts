@@ -555,7 +555,10 @@ export const useFirestore = (userId: string | null) => {
         });
       }
       const docRef = doc(db, 'shared_boards', shareId);
-      return onSnapshot(
+      // Capture the unsubscribe so the error path can tear down its own
+      // listener — a synchronously-erroring onSnapshot would otherwise leave
+      // a live listener stacked on the shared doc on every re-subscribe.
+      const unsubscribe = onSnapshot(
         docRef,
         (snap) => {
           if (!snap.exists()) {
@@ -566,9 +569,11 @@ export const useFirestore = (userId: string | null) => {
         },
         (err) => {
           console.error('Failed to subscribe to shared board:', err);
+          unsubscribe();
           callback(null);
         }
       );
+      return unsubscribe;
     },
     []
   );

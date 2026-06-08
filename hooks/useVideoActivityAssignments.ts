@@ -18,13 +18,19 @@ import {
   collection,
   deleteField,
   doc,
+  documentId,
   getDoc,
   onSnapshot,
   getDocs,
+  limit,
   query,
   orderBy,
+  startAfter,
   updateDoc,
   writeBatch,
+  type DocumentData,
+  type Query,
+  type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { invalidateSessionViewCount } from './useSessionViewCount';
@@ -76,6 +82,49 @@ const VIDEO_ACTIVITY_SESSIONS_COLLECTION = 'video_activity_sessions';
 const VIDEO_ACTIVITY_METADATA_COLLECTION = 'video_activities';
 const SHARED_VA_ASSIGNMENTS_COLLECTION = 'shared_video_activity_assignments';
 const RESPONSES_COLLECTION = 'responses';
+
+/**
+ * Page size for the bounded read of a session's `responses` subcollection on
+ * the score-publish path. The previous unbounded `getDocs(collection(...))`
+ * pulled every response in one round-trip — a PLC-shared assignment with
+ * thousands of submissions could read the whole subcollection at once. Paging
+ * with `limit()` + a `documentId()` cursor caps each round-trip at this many
+ * reads while still visiting every response. Ordering by `documentId()`
+ * needs no composite index and gives a stable cursor.
+ */
+const RESPONSES_PAGE_SIZE = 500;
+
+/**
+ * Read every doc in a session's `responses` subcollection in bounded pages,
+ * returning the accumulated snapshots. Used by the publish path so grading
+ * still sees the full response set while no single Firestore query is
+ * unbounded.
+ */
+async function readAllResponsesPaged(
+  responsesCollection: ReturnType<typeof collection>
+): Promise<QueryDocumentSnapshot<DocumentData>[]> {
+  const docs: QueryDocumentSnapshot<DocumentData>[] = [];
+  let cursor: QueryDocumentSnapshot<DocumentData> | null = null;
+  for (;;) {
+    const pageQuery: Query<DocumentData> = cursor
+      ? query(
+          responsesCollection,
+          orderBy(documentId()),
+          startAfter(cursor),
+          limit(RESPONSES_PAGE_SIZE)
+        )
+      : query(
+          responsesCollection,
+          orderBy(documentId()),
+          limit(RESPONSES_PAGE_SIZE)
+        );
+    const pageSnap = await getDocs(pageQuery);
+    docs.push(...pageSnap.docs);
+    if (pageSnap.docs.length < RESPONSES_PAGE_SIZE) break;
+    cursor = pageSnap.docs[pageSnap.docs.length - 1];
+  }
+  return docs;
+}
 
 /** Import-mode picker result for shared-VA-assignment paste flows. */
 export type SharedVideoActivityImportMode = 'sync' | 'copy';
@@ -965,7 +1014,12 @@ export const useVideoActivityAssignments = (
         activityData.questions.map((q) => [q.id, q])
       );
 
-      const responsesSnap = await getDocs(
+      // Read responses in bounded pages (limit + documentId cursor) rather
+      // than one unbounded `getDocs` so a PLC-shared assignment with
+      // thousands of submissions can't pull the whole subcollection in a
+      // single read. Grading still visits every response — the page loop
+      // only changes how the reads are bounded, not the scoring math.
+      const responseDocs = await readAllResponsesPaged(
         collection(
           db,
           VIDEO_ACTIVITY_SESSIONS_COLLECTION,
@@ -979,7 +1033,7 @@ export const useVideoActivityAssignments = (
         patch: { score: number; answers: VideoActivityAnswer[] };
       }
       const updates: ResponseUpdate[] = [];
-      for (const d of responsesSnap.docs) {
+      for (const d of responseDocs) {
         const data = d.data() as VideoActivityResponse;
         const answers = Array.isArray(data.answers) ? data.answers : [];
         let pointsEarned = 0;

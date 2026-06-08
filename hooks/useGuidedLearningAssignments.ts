@@ -17,13 +17,19 @@ import {
   collection,
   deleteField,
   doc,
+  documentId,
   getDocs,
+  limit,
   onSnapshot,
   orderBy,
   query,
   setDoc,
+  startAfter,
   updateDoc,
   writeBatch,
+  type DocumentData,
+  type Query,
+  type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { invalidateSessionViewCount } from './useSessionViewCount';
@@ -41,6 +47,49 @@ import type {
 const GL_ASSIGNMENTS_COLLECTION = 'guided_learning_assignments';
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
 const GL_SESSION_RESPONSES_SUBCOLLECTION = 'responses';
+
+/**
+ * Page size for the bounded read of a session's `responses` subcollection on
+ * the score-publish path. The previous unbounded `getDocs(collection(...))`
+ * pulled every response in one round-trip — a PLC-shared assignment with
+ * thousands of submissions could read the whole subcollection at once. Paging
+ * with `limit()` + a `documentId()` cursor caps each round-trip at this many
+ * reads while still visiting every response. Ordering by `documentId()`
+ * needs no composite index and gives a stable cursor.
+ */
+const RESPONSES_PAGE_SIZE = 500;
+
+/**
+ * Read every doc in a session's `responses` subcollection in bounded pages,
+ * returning the accumulated snapshots. Used by the publish path so grading
+ * still sees the full response set while no single Firestore query is
+ * unbounded.
+ */
+async function readAllResponsesPaged(
+  responsesCollection: ReturnType<typeof collection>
+): Promise<QueryDocumentSnapshot<DocumentData>[]> {
+  const docs: QueryDocumentSnapshot<DocumentData>[] = [];
+  let cursor: QueryDocumentSnapshot<DocumentData> | null = null;
+  for (;;) {
+    const pageQuery: Query<DocumentData> = cursor
+      ? query(
+          responsesCollection,
+          orderBy(documentId()),
+          startAfter(cursor),
+          limit(RESPONSES_PAGE_SIZE)
+        )
+      : query(
+          responsesCollection,
+          orderBy(documentId()),
+          limit(RESPONSES_PAGE_SIZE)
+        );
+    const pageSnap = await getDocs(pageQuery);
+    docs.push(...pageSnap.docs);
+    if (pageSnap.docs.length < RESPONSES_PAGE_SIZE) break;
+    cursor = pageSnap.docs[pageSnap.docs.length - 1];
+  }
+  return docs;
+}
 
 /**
  * Stringify a step's canonical correct answer for `session.revealedAnswers`.
@@ -363,7 +412,12 @@ export const useGuidedLearningAssignments = (
         if (s.question) gradableStepIds.add(s.id);
       }
 
-      const responsesSnap = await getDocs(
+      // Read responses in bounded pages (limit + documentId cursor) rather
+      // than one unbounded `getDocs` so a PLC-shared assignment with
+      // thousands of submissions can't pull the whole subcollection in a
+      // single read. Grading still visits every response — the page loop
+      // only changes how the reads are bounded, not the scoring math.
+      const responseDocs = await readAllResponsesPaged(
         collection(
           db,
           GL_SESSIONS_COLLECTION,
@@ -380,7 +434,7 @@ export const useGuidedLearningAssignments = (
         };
       }
       const updates: ResponseUpdate[] = [];
-      for (const d of responsesSnap.docs) {
+      for (const d of responseDocs) {
         const data = d.data() as GuidedLearningResponse;
         const answers = Array.isArray(data.answers) ? data.answers : [];
         let correctCount = 0;
