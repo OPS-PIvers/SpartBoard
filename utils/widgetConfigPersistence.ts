@@ -1,4 +1,4 @@
-import type { WidgetConfig } from '../types';
+import type { WidgetConfig } from '@/types';
 import { PII_WIDGET_FIELDS } from './dashboardPII';
 
 /**

@@ -310,14 +310,18 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
     // NOT given the distinct cancelled-consent message (it folds into the
     // generic error line). The grade builder is the shared quiz scaler — same
     // scaling the dashboard monitor (QuizResults) uses, so they can't drift.
+    // The iframe is scoped to the ONE course it was launched in, so it pushes to
+    // a single-element array (no fan-out — that's the dashboard's job).
     await runClassroomGradePush({
       functions,
-      attachment: {
-        courseId: attachment.courseId,
-        itemId: attachment.itemId,
-        attachmentId: attachment.attachmentId,
-        maxPoints: attachment.maxPoints,
-      },
+      attachments: [
+        {
+          courseId: attachment.courseId,
+          itemId: attachment.itemId,
+          attachmentId: attachment.attachmentId,
+          maxPoints: attachment.maxPoints,
+        },
+      ],
       requestToken: () =>
         requestClassroomTeacherToken(user?.email ?? loginHint),
       buildGrades: () =>

@@ -68,7 +68,14 @@ export const CalculatorTool: React.FC = () => {
       return {
         ...prev,
         display: newDisplay,
-        expression: prev.expression + '.',
+        // Mirror the strategy used in pressDigit: replace the old display
+        // portion at the tail of the expression with the new display value.
+        // Without this, pressing '.' on the initial '0' produces expression
+        // "." while display shows "0." — they diverge until the next digit.
+        expression:
+          prev.expression === ''
+            ? newDisplay
+            : prev.expression.slice(0, -prev.display.length) + newDisplay,
       };
     });
   }, []);

@@ -1,10 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useStorage } from './useStorage';
-import { useAuth } from '../context/useAuth';
-import {
-  trimImageWhitespace,
-  removeBackground,
-} from '../utils/imageProcessing';
+import { useAuth } from '@/context/useAuth';
+import { trimImageWhitespace, removeBackground } from '@/utils/imageProcessing';
 
 export function useImageUpload(options?: {
   uploadFn?: (file: File) => Promise<string | null>;

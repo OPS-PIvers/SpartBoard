@@ -166,6 +166,15 @@ export interface ClassRosterMeta {
    * student to this class's OneRoster `sourcedId` (PII-free name resolution).
    */
   googleClassroomCourseId?: string;
+  /**
+   * Schoology section LTI `context_id` this ClassLink roster is linked to, set
+   * via the "Link to Schoology" action. Mirrors the canonical mapping stored at
+   * `/lti_course_links/{contextId}`; kept here so the roster UI can show the
+   * linked state. The Schoology side can only be linked after SpartBoard has
+   * SEEN the section via a launch (no "list my courses" API), so this is set
+   * from the post-launch / SidebarClasses linking flow, not at assign time.
+   */
+  ltiContextId?: string;
 }
 
 /**
@@ -2401,6 +2410,16 @@ export interface PlacedNotebookAsset {
 export interface SmartNotebookConfig {
   activeNotebookId: string | null;
   storageLimitMb?: number;
+  /**
+   * Appearance fields, surfaced via the shared `TypographySettings` /
+   * `SurfaceColorSettings` primitives in `SmartNotebookAppearanceSettings`.
+   * These are user-level only and are intentionally NOT admin-configurable
+   * per building: the widget renders imported SMART pages as image/SVG and
+   * has no themed text/surface chrome to apply them to, so there is no
+   * per-building default worth exposing. See `BuildingSmartNotebookDefaults`
+   * (storage limit only) and the `case 'smartNotebook'` handler in
+   * `utils/adminBuildingConfig.ts`.
+   */
   cardColor?: string;
   cardOpacity?: number;
   fontFamily?: GlobalFontFamily;
@@ -2437,6 +2456,10 @@ export interface SharedNotebook {
 export interface BuildingSmartNotebookDefaults {
   buildingId: string;
   storageLimitMb?: number; // Admin-only: MB limit for notebook file uploads
+  // No appearance defaults (cardColor/cardOpacity/fontFamily/fontColor):
+  // SmartNotebook renders image/SVG pages and does not theme any surface or
+  // text, so per-building appearance defaults would set values the widget
+  // never reads. Those fields stay user-level only — see SmartNotebookConfig.
 }
 
 export interface SmartNotebookGlobalConfig {
@@ -2862,6 +2885,13 @@ export interface QuizSession {
    */
   classroomAttachment?: ClassroomAttachmentLink;
   /**
+   * Item D part 2: when posted to MULTIPLE Google courses (one per linked
+   * ClassLink class), every attachment is recorded here. Read via
+   * `getClassroomAttachments()`, which falls back to the singular
+   * `classroomAttachment` (single-course + student-initiated) for back-compat.
+   */
+  classroomAttachments?: ClassroomAttachmentLink[];
+  /**
    * Set server-side (launch-exchange CF) when a Schoology LTI student launches
    * this assignment. Carries the resource-link id needed to resolve each
    * student's AGS line item, so the teacher can push grades to the Schoology
@@ -2885,6 +2915,15 @@ export interface ClassroomAttachmentLink {
   /** = the quiz's total points; the grade scale pushed grades are capped to. */
   maxPoints: number;
   attachedAt?: number;
+  /**
+   * True ONLY for the partner-first assign flow, where SpartBoard CREATED the
+   * parent courseWork (`itemId`) and therefore may set its `assignedGrade` +
+   * return it — the FINAL-grade ("Publish = Push") path. Absent for
+   * student-initiated attachments (the teacher's Classroom composer owns the
+   * courseWork, so Google rejects assignedGrade patches); those use the DRAFT
+   * pointsEarned path via the manual "Push grades" button instead.
+   */
+  ownsCourseWork?: boolean;
 }
 
 /**
@@ -3444,6 +3483,13 @@ export interface QuizAssignmentSettings {
   attemptLimit?: number | null;
   /** Optional due date (ms epoch). Absent / null = no due date. PLC-config + board both honor it. */
   dueAt?: number | null;
+  /**
+   * Whether `dueAt` encodes a chosen time-of-day (set by the date+time picker)
+   * vs a legacy/date-only value stored as UTC midnight. Read back by the picker
+   * and by the Classroom due-date conversion to choose verbatim-time vs
+   * end-of-day. Absent = date-only (legacy/other create paths).
+   */
+  dueAtHasTime?: boolean;
 }
 
 /**
@@ -3538,6 +3584,8 @@ export interface QuizAssignment extends QuizAssignmentSettings {
    * value so pushed grades read identically in Classroom.
    */
   classroomAttachment?: ClassroomAttachmentLink;
+  /** Item D part 2 — multi-course attachments (read via getClassroomAttachments). */
+  classroomAttachments?: ClassroomAttachmentLink[];
 }
 
 /** See `QuizAssignment.sync`. */
@@ -3997,6 +4045,8 @@ export interface VideoActivitySession {
    * matching `VideoActivityAssignment.classroomAttachment` and the Quiz pattern.
    */
   classroomAttachment?: ClassroomAttachmentLink;
+  /** Item D part 2 — multi-course attachments (read via getClassroomAttachments). */
+  classroomAttachments?: ClassroomAttachmentLink[];
   /**
    * True once a Schoology LTI student has launched this session carrying an
    * NRPS membership endpoint (set server-side). Signals the monitor/results to
@@ -6437,6 +6487,8 @@ export interface VideoActivityAssignment extends VideoActivityAssignmentSettings
    * value so pushed grades read identically in Classroom.
    */
   classroomAttachment?: ClassroomAttachmentLink;
+  /** Item D part 2 — multi-course attachments (read via getClassroomAttachments). */
+  classroomAttachments?: ClassroomAttachmentLink[];
 }
 
 // === MiniApp assignments ===

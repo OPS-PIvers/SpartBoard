@@ -52,8 +52,8 @@ import type {
   QuizSession,
   ResultsProtection,
   SharedQuizAssignment,
-} from '../types';
-import type { SessionTargets } from '../utils/resolveAssignmentTargets';
+} from '@/types';
+import type { SessionTargets } from '@/utils/resolveAssignmentTargets';
 import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
@@ -67,8 +67,8 @@ import {
   createSyncedQuizGroup,
   pullSyncedQuizContent,
 } from './useSyncedQuizGroups';
-import { logError } from '../utils/logError';
-import { migrateQuizMetadataShape } from '../utils/quizSyncMigration';
+import { logError } from '@/utils/logError';
+import { migrateQuizMetadataShape } from '@/utils/quizSyncMigration';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -700,6 +700,13 @@ export const useQuizAssignments = (
         teacherName: settings.teacherName,
         periodName: settings.periodName,
         periodNames: settings.periodNames,
+        // Persist the due date set in the initial Assign modal so it survives to
+        // the Settings modal + the "Assign to Google Classroom" pre-fill (it was
+        // previously dropped on create — only edits-after-create stuck).
+        ...(settings.dueAt != null ? { dueAt: settings.dueAt } : {}),
+        ...(settings.dueAtHasTime
+          ? { dueAtHasTime: settings.dueAtHasTime }
+          : {}),
         attemptLimit: settings.attemptLimit ?? null,
         ...(targetRosterIds.length > 0 ? { rosterIds: targetRosterIds } : {}),
         // Synced linkage: present iff the assignment was created from a

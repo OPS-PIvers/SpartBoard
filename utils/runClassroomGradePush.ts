@@ -92,7 +92,17 @@ export type ClassroomGradePushStatus =
   | { phase: 'pushing' }
   | { phase: 'token-cancelled'; error: unknown }
   | { phase: 'nothing-to-push' }
-  | { phase: 'pushed'; data: PushClassroomGradesData }
+  | {
+      phase: 'pushed';
+      data: PushClassroomGradesData;
+      /**
+       * Courses whose push threw (403 / network) while at least one OTHER course
+       * succeeded — a partial multi-course fan-out failure. The reporter surfaces
+       * a "couldn't reach N courses — retry" note so a silently-dropped course
+       * isn't reported as a clean success. 0 for the single-course case.
+       */
+      unreachableCourses?: number;
+    }
   | { phase: 'settled' };
 
 /** A failed push, with the permission-denied case pre-discriminated. */
@@ -103,7 +113,16 @@ export interface ClassroomGradePushError {
 
 export interface RunClassroomGradePushOptions {
   functions: Functions;
-  attachment: ClassroomGradePushAttachment;
+  /**
+   * The Classroom attachments to push to — ONE per linked course (Item D
+   * multi-course fan-out). Must be non-empty (callers run their maxPoints /
+   * eligibility guards first). The token is minted ONCE and the SAME grade
+   * payload is sent to each course, so the teacher sees a single consent popup,
+   * not one per course; a per-course failure is collected, never fatal to the
+   * others. The in-iframe grader (one open courseWork) simply passes a
+   * single-element array.
+   */
+  attachments: ClassroomGradePushAttachment[];
   /** Builds the PII-free grade payload — the only genuinely per-surface logic. */
   buildGrades: () => ClassroomGradeEntry[];
   /** Mints a fresh `classroom.addons.teacher` token (a GIS popup). */
@@ -141,7 +160,7 @@ export interface RunClassroomGradePushOptions {
  */
 export async function runClassroomGradePush({
   functions,
-  attachment,
+  attachments,
   buildGrades,
   requestToken,
   onStatus,
@@ -151,6 +170,15 @@ export async function runClassroomGradePush({
   logTag,
   logContext,
 }: RunClassroomGradePushOptions): Promise<void> {
+  // Defensive: callers guard for an empty attachment list (nothing linked, or
+  // nothing with a valid scale), but if one ever slips through, treat it as the
+  // benign "nothing to push" no-op rather than minting a consent token for zero
+  // courses and then surfacing a hard error from the all-failed branch below.
+  if (attachments.length === 0) {
+    onStatus({ phase: 'nothing-to-push' });
+    return;
+  }
+
   if (confirm) {
     const confirmed = await confirm();
     if (!confirmed) return;
@@ -183,15 +211,68 @@ export async function runClassroomGradePush({
     }
 
     onStatus({ phase: 'pushing' });
-    const data = await pushClassroomGradesForAssignment(functions, {
-      courseId: attachment.courseId,
-      itemId: attachment.itemId,
-      attachmentId: attachment.attachmentId,
-      accessToken,
-      grades,
-      maxPoints: attachment.maxPoints,
-    });
-    onStatus({ phase: 'pushed', data });
+    // Fan the SAME payload out to EVERY linked course, reusing the one token
+    // minted above. Per-course failures are collected (logged with their
+    // courseId), NOT thrown — a 403 on one course can't abort the rest — and the
+    // counts are aggregated into a single result. Each student resolves a
+    // submission only in the course they actually launched, so sending every
+    // course the full payload is safe (the others skip them). Only if EVERY
+    // course fails do we surface the failure — discriminating on whether ANY
+    // course was permission-denied (not just the last error) so a mix of a
+    // permission-denied course + a network-failed course still shows the
+    // actionable "link this course to ClassLink" remediation.
+    const agg: PushClassroomGradesData = {
+      results: [],
+      pushed: 0,
+      skipped: 0,
+      failed: 0,
+    };
+    let anySucceeded = false;
+    let anyPermissionDenied = false;
+    let unreachableCourses = 0;
+    let lastError: unknown = null;
+    for (const attachment of attachments) {
+      try {
+        const data = await pushClassroomGradesForAssignment(functions, {
+          courseId: attachment.courseId,
+          itemId: attachment.itemId,
+          attachmentId: attachment.attachmentId,
+          accessToken,
+          grades,
+          maxPoints: attachment.maxPoints,
+        });
+        agg.results.push(...data.results);
+        agg.pushed += data.pushed;
+        agg.skipped += data.skipped;
+        agg.failed += data.failed;
+        anySucceeded = true;
+      } catch (err) {
+        lastError = err;
+        unreachableCourses += 1;
+        if (isPushPermissionDenied(err)) anyPermissionDenied = true;
+        logError(logTag, err, { ...logContext, courseId: attachment.courseId });
+      }
+    }
+    // Multi-course fan-out sends the SAME payload to every course, so each
+    // course counts students who belong to ANOTHER course as a benign "skip".
+    // Summing those inflates `skipped` (a student graded in their own course is
+    // "skipped" by every other course, and the toast would mislabel them "not
+    // opened in Classroom yet"). Recompute the true unique not-graded count from
+    // the payload size — pushed/failed are per-student-unique (a student belongs
+    // to one course). Single course is byte-identical: the CF guarantees
+    // pushed + skipped + failed === grades.length, so this is a no-op there, but
+    // it's gated to keep the common path on the server's exact counts.
+    if (attachments.length > 1) {
+      agg.skipped = Math.max(0, grades.length - agg.pushed - agg.failed);
+    }
+    if (anySucceeded) {
+      // Partial success: at least one course pushed. Carry the count of courses
+      // that threw so the reporter can warn "couldn't reach N — retry" instead of
+      // reporting a clean success that silently dropped a whole course.
+      onStatus({ phase: 'pushed', data: agg, unreachableCourses });
+    } else {
+      onError({ permissionDenied: anyPermissionDenied, error: lastError });
+    }
   } catch (err) {
     logError(logTag, err, logContext);
     onError({ permissionDenied: isPushPermissionDenied(err), error: err });
@@ -226,9 +307,23 @@ export function createToastGradePushHandlers(
         case 'nothing-to-push':
           addToast(NOTHING_TO_PUSH_TOAST, 'info');
           break;
-        case 'pushed':
-          addToast(formatGradePushToast(status.data), 'success');
+        case 'pushed': {
+          // Mirror the Publish=Push fan-out reporting: a course that threw while
+          // another succeeded is a partial failure, surfaced as an error toast
+          // with a retry nudge rather than a clean success that hides it.
+          const unreachable = status.unreachableCourses ?? 0;
+          const suffix =
+            unreachable > 0
+              ? ` Couldn’t push to ${unreachable} course${
+                  unreachable === 1 ? '' : 's'
+                } — retry.`
+              : '';
+          addToast(
+            formatGradePushToast(status.data) + suffix,
+            unreachable > 0 || status.data.failed > 0 ? 'error' : 'success'
+          );
           break;
+        }
         case 'requesting-token':
         case 'pushing':
           // The dashboard monitors show no inline progress — these are silent.

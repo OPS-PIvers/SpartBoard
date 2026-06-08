@@ -645,6 +645,8 @@ export const generateWithAI = onCall(
     if (genType === 'dashboard-layout') specificFeatureId = 'dashboard-layout';
     if (genType === 'instructional-routine')
       specificFeatureId = 'instructional-routine';
+    if (genType === 'widget-builder') specificFeatureId = 'widget-builder';
+    if (genType === 'widget-explainer') specificFeatureId = 'widget-explainer';
 
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -4310,6 +4312,7 @@ export {
   linkClassroomCourse,
   unlinkClassroomCourse,
   pushClassroomGradesForAssignment,
+  pushClassroomFinalGradesForAssignment,
 } from './classroomAddonAuth';
 
 // Schoology LTI 1.3 — see functions/src/lti/.
@@ -4320,3 +4323,7 @@ export {
   ltiPushGradesForAssignmentV1,
   ltiResolveNamesForAssignmentV1,
 } from './lti/serviceEndpoints';
+export {
+  linkLtiCourseV1,
+  ltiSuggestClassLinkMatchV1,
+} from './lti/courseLinkEndpoints';

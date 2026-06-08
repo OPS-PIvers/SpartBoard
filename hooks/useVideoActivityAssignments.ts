@@ -26,7 +26,7 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
-import { auth, db } from '../config/firebase';
+import { auth, db } from '@/config/firebase';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import {
   callJoinSyncedVideoActivityGroup,
@@ -34,7 +34,7 @@ import {
   createSyncedVideoActivityGroup,
   pullSyncedVideoActivityContent,
 } from './useSyncedVideoActivityGroups';
-import { logError } from '../utils/logError';
+import { logError } from '@/utils/logError';
 import {
   mirrorPlcAssignmentStatus,
   writePlcAssignmentIndexEntry,
@@ -54,8 +54,8 @@ import type {
   VideoActivityResponse,
   VideoActivityScoreVisibility,
   VideoActivitySession,
-} from '../types';
-import { gradeVideoActivityAnswer } from '../utils/videoActivityGrading';
+} from '@/types';
+import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
 
 /**
  * Map VA assignment status onto the PLC index's shared `QuizAssignmentStatus`

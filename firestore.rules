@@ -538,6 +538,16 @@ service cloud.firestore {
                     && request.resource.data.id == resource.data.id;
     }
 
+    // Per-teacher inventory of Schoology (LTI) sections this teacher has SEEN via
+    // a launch but may not have linked yet — drives the "Link to Schoology"
+    // review screen + the post-launch prompt, and carries the sessionId the
+    // linking CFs use as their trust anchor. SERVER-WRITTEN (the launch-context
+    // persist writes it via the Admin SDK); the owner can only READ their own.
+    match /users/{userId}/lti_seen_sections/{contextId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
     // User data collection
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -690,14 +700,16 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Course (LTI context) -> linking-teacher map for AGS grade-push gating.
-    // The LTI analogue of classroom_course_links: keyed by the LTI
-    // `context_id`, it records which teacher linked the Schoology course so the
-    // AGS grade-push CF can confirm the pusher owns the link. READ is open to
-    // any authed user (the teacher monitor reads it to resolve link state).
-    // WRITES are SERVER-ONLY — the launch/link exchange CF verifies the LTI
-    // claims and writes via the Admin SDK; rules cannot validate an LTI launch,
-    // so a client write would let any authed user squat any context_id.
+    // Schoology section (LTI context) -> ClassLink class link. The LTI analogue
+    // of classroom_course_links: keyed by the LTI `context_id`, it pairs a seen
+    // Schoology section to a ClassLink class for the same teacher
+    // ({ teacherUid, classlinkClassId, classlinkOrgId, contextTitle, rosterId }).
+    // READ is open to any authed user (the teacher monitor + SidebarClasses read
+    // it to resolve link state). WRITES are SERVER-ONLY — linkLtiCourseV1
+    // verifies the caller owns a session that actually SAW this context (the LTI
+    // analogue of verifyTeacherOfCourse) before writing via the
+    // Admin SDK; rules cannot validate an LTI launch, so a client write would let
+    // any authed user squat any context_id.
     match /lti_course_links/{contextId} {
       allow read: if request.auth != null;
       allow write: if false;

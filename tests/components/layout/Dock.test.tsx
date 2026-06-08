@@ -15,7 +15,7 @@
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Dock } from '@/components/layout/Dock';
 
 // ── Module mocks ─────────────────────────────────────────────────────────────
@@ -404,5 +404,99 @@ describe('Dock – InternalToolType permission gate', () => {
     expandDock();
 
     expect(screen.queryByTestId('dock-item-clock')).not.toBeInTheDocument();
+  });
+});
+
+// ── Regression: spurious processAndUploadImage dep in smart-paste useEffect ──
+//
+// Bug: `processAndUploadImage` was listed in the deps array of the smart-paste
+// `useEffect` in Dock.tsx even though it is never called inside the effect
+// body (it is only used in a JSX click handler at line ~839).
+//
+// `processAndUploadImage` is wrapped in `useCallback([user, uploadSticker,
+// uploadFn])` inside `useImageUpload`, so it gets a NEW identity every time
+// auth state changes (sign-in / sign-out).  Including it in the effect deps
+// causes the paste listener to be torn down and re-registered on every auth
+// state change — an unnecessary churn that briefly leaves the board without a
+// paste handler.
+//
+// Fix: remove `processAndUploadImage` from the deps array.
+// After the fix the listener must NOT be torn down when only
+// `processAndUploadImage` changes identity.
+
+describe('Dock smart-paste – processAndUploadImage is not a spurious dep', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // Restore window.addEventListener / removeEventListener spies even if a test
+  // throws before reaching its assertions, so a failure can't leak the spy into
+  // sibling tests.
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('does NOT remove/re-add the paste listener when processAndUploadImage identity changes', () => {
+    // Spy on the window event listener methods BEFORE rendering.
+    const addSpy = vi.spyOn(window, 'addEventListener');
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+
+    // setupMocks() internally mocks useImageUpload with a fresh vi.fn(), so it
+    // must run BEFORE we set the fnA return value below — otherwise it would
+    // overwrite fnA and the first render would not use it.
+    setupMocks();
+
+    // --- First render with processAndUploadImage = fnA ---
+    const fnA = vi.fn();
+    vi.mocked(useImageUpload).mockReturnValue({
+      processAndUploadImage: fnA,
+      uploading: false,
+    } as unknown as ReturnType<typeof useImageUpload>);
+
+    const { rerender } = render(<Dock />);
+
+    // Count how many times the paste listener was added on initial render.
+    const addCountAfterMount = addSpy.mock.calls.filter(
+      ([event]) => event === 'paste'
+    ).length;
+    expect(addCountAfterMount).toBe(1);
+
+    const removeCountAfterMount = removeSpy.mock.calls.filter(
+      ([event]) => event === 'paste'
+    ).length;
+    expect(removeCountAfterMount).toBe(0);
+
+    // Reset spy counts so we only measure what happens on the re-render.
+    addSpy.mockClear();
+    removeSpy.mockClear();
+
+    // --- Re-render with processAndUploadImage = fnB (new identity) ---
+    // This simulates what happens when the user signs in/out and useAuth
+    // gives back a new `user` object, causing useImageUpload to return a
+    // new `processAndUploadImage` callback reference.
+    const fnB = vi.fn(); // different reference, same signature
+    vi.mocked(useImageUpload).mockReturnValue({
+      processAndUploadImage: fnB,
+      uploading: false,
+    } as unknown as ReturnType<typeof useImageUpload>);
+
+    rerender(<Dock />);
+
+    // BUG (before fix): the effect would see the new `processAndUploadImage`
+    // reference in its deps, call cleanup (removeEventListener), then
+    // re-register (addEventListener) — both counts would be 1.
+    //
+    // CORRECT (after fix): `processAndUploadImage` is NOT in the deps array,
+    // so the effect does NOT re-run — both counts stay at 0.
+    const removeCountAfterRerender = removeSpy.mock.calls.filter(
+      ([event]) => event === 'paste'
+    ).length;
+    const addCountAfterRerender = addSpy.mock.calls.filter(
+      ([event]) => event === 'paste'
+    ).length;
+
+    expect(removeCountAfterRerender).toBe(0);
+    expect(addCountAfterRerender).toBe(0);
+    // Spies are restored by the afterEach above (vi.restoreAllMocks).
   });
 });

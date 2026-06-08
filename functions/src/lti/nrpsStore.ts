@@ -56,6 +56,8 @@ export const USERS_COLLECTION = 'users';
 export const QUIZ_ASSIGNMENTS_SUBCOLLECTION = 'quiz_assignments';
 /** `lti_session_memberships/{sessionId}/contexts/{contextId}` */
 export const LTI_SESSION_MEMBERSHIPS_COLLECTION = 'lti_session_memberships';
+/** `users/{teacherUid}/lti_seen_sections/{contextId}` — linking-UI inventory. */
+export const LTI_SEEN_SECTIONS_SUBCOLLECTION = 'lti_seen_sections';
 
 export type LtiSessionKind = 'quiz' | 'va';
 
@@ -174,17 +176,26 @@ export async function persistLtiLaunchContext(
       .doc(contextId);
     const existing = await ctxRef.get();
     const ex = existing.data();
+    // Prefer the stored title over a null from a privacy-configured relaunch:
+    // some Schoology deployments omit the context title on relaunches (privacy
+    // config). Overwriting a previously-captured title with null would clear
+    // the section name shown in the linking UI permanently until a titled
+    // launch occurs again — the same preservation logic the seen-section
+    // inventory (below) already applies to its own copy.
+    const storedCtxTitle =
+      typeof ex?.contextTitle === 'string' ? ex.contextTitle : null;
+    const nextCtxTitle = args.contextTitle ?? storedCtxTitle;
     // Only write when new or changed — bounds writes to actual changes.
     if (
       !existing.exists ||
       ex?.contextMembershipsUrl !== membershipUrl ||
-      ex?.contextTitle !== (args.contextTitle ?? null)
+      ex?.contextTitle !== nextCtxTitle
     ) {
       batch.set(
         ctxRef,
         {
           contextMembershipsUrl: membershipUrl,
-          contextTitle: args.contextTitle ?? null,
+          contextTitle: nextCtxTitle,
           deploymentId: args.deploymentId,
           updatedAt: Date.now(),
         },
@@ -262,6 +273,55 @@ export async function persistLtiLaunchContext(
           .collection(QUIZ_ASSIGNMENTS_SUBCOLLECTION)
           .doc(sessionId),
         { periodNames: nextPeriodNames },
+        { merge: true }
+      );
+      hasWrites = true;
+    }
+  }
+
+  // ── Per-teacher "seen Schoology section" inventory (linking UI) ──────────────
+  // Records, under the SESSION's owner, that this teacher has seen `contextId`
+  // (via a student launch of their assignment) plus the sessionId the linking
+  // CFs use as their trust anchor. The "Link to Schoology" review screen + the
+  // post-launch prompt read this owner-scoped doc; it's server-written (rules
+  // deny client writes). Idempotent: only (re)written when a field changed, so
+  // repeat launches don't churn the teacher's snapshot. Works for quiz AND VA.
+  // Gate on membershipUrl: the linking trust anchor (assertOwnsSchoologyContext)
+  // requires the per-context membership doc, which is ONLY written when NRPS is
+  // present (above). Advertising a seen section whose membership doc doesn't
+  // exist would offer a section the link CFs always reject — so only inventory a
+  // section that's actually linkable.
+  const teacherUid =
+    typeof sessionData.teacherUid === 'string' ? sessionData.teacherUid : '';
+  if (teacherUid && membershipUrl) {
+    const seenRef = db
+      .collection(USERS_COLLECTION)
+      .doc(teacherUid)
+      .collection(LTI_SEEN_SECTIONS_SUBCOLLECTION)
+      .doc(contextId);
+    const seenExisting = await seenRef.get();
+    const se = seenExisting.data();
+    // Never clobber a previously-captured title with null: some launches omit the
+    // context title (privacy configs), and overwriting the stored name with null
+    // would degrade the linking UI to a generic "Schoology section" label.
+    const storedTitle =
+      typeof se?.contextTitle === 'string' ? se.contextTitle : null;
+    const nextTitle = args.contextTitle ?? storedTitle;
+    if (
+      !seenExisting.exists ||
+      se?.contextTitle !== nextTitle ||
+      se?.sessionId !== sessionId ||
+      se?.kind !== kind
+    ) {
+      batch.set(
+        seenRef,
+        {
+          contextId,
+          contextTitle: nextTitle,
+          sessionId,
+          kind,
+          updatedAt: Date.now(),
+        },
         { merge: true }
       );
       hasWrites = true;

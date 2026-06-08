@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-06-03_
+_Last audited: 2026-06-08_
 _Last action: never_
 
 ---
@@ -36,12 +36,12 @@ _Nothing currently in progress._
 
 ## Open
 
-### MEDIUM `instructional-routine` AI has no client-side feature permission gate
+### LOW `instructional-routine` AI has no client-side feature permission gate (server-side now fixed)
 
-- **Detected:** 2026-04-17
+- **Detected:** 2026-04-17 (originally MEDIUM — downgraded 2026-06-08 after server-side partial fix)
 - **File:** components/widgets/InstructionalRoutines/LibraryManager.tsx:71–97
-- **Detail:** The "Magic Design" AI button in the InstructionalRoutines library manager calls `generateWithAI` with `type: 'instructional-routine'` without any `canAccessFeature()` or admin check. Any user with access to the `instructionalRoutines` widget can call the AI. Server-side rate limiting still applies via the global `gemini-functions` daily limit (no specific per-feature limit exists for this type), so quota exhaustion is the only protection. There is no way for an admin to disable the AI button for this widget without removing widget access entirely.
-- **Fix:** (a) Add a specific `instructional-routine` entry to `GlobalFeature` in types.ts and `GlobalPermissionsManager.tsx`, set `specificFeatureId = 'instructional-routine'` in the cloud function's rate-limit logic. (b) In `LibraryManager.tsx`, wrap the Magic Design button with `canAccessFeature('instructional-routine')` from `useAuth()`, so admins can toggle it independently of the widget.
+- **Detail:** The "Magic Design" AI button in the InstructionalRoutines library manager calls `generateWithAI` with `type: 'instructional-routine'` without any `canAccessFeature()` or admin check. Server-side `specificFeatureId = 'instructional-routine'` was added in PR #1873, so quota tracking and per-feature rate limiting now apply server-side. However, no client-side gate exists in `LibraryManager.tsx` — any user with widget access can trigger the AI. An admin cannot disable the button independently of the widget without removing widget access entirely.
+- **Fix:** In `LibraryManager.tsx`, wrap the Magic Design button with `canAccessFeature('instructional-routine')` from `useAuth()`. To make this work, also add `'instructional-routine'` to the `GlobalFeature` union in types.ts and expose it in `GlobalPermissionsManager.tsx`. This gives admins a toggle independent of widget access.
 
 ### MEDIUM `guided-learning` AI entry stale after #1368 rebuild
 
@@ -50,26 +50,12 @@ _Nothing currently in progress._
 - **Detail:** PR #1368 (merged April 21, 2026) rebuilt `generateGuidedLearning` from a single-image function with rate limiting into a multi-image function (up to 10 images, 20 MB cap) gated admin-only server-side. Two regressions relative to the April 17 audit: (1) the cloud function no longer performs any `ai_usage` rate-limit check — any admin can call it unlimited times per day; (2) the client-side gate changed from a feature permission check to a direct `isAdmin` check in `GuidedLearning/Widget.tsx`, meaning no admin can selectively disable this AI feature for certain buildings without removing the widget entirely. The journal table has been updated to reflect current state (see above).
 - **Fix:** (a) Restore per-user rate limiting in `generateGuidedLearning` by adding an `ai_usage` check against the global `gemini-functions` daily limit (consistent with other `generateWithAI` functions that are not admin-only). (b) Either keep admin-only behavior (acceptable since GL AI is an admin authoring tool) and document the design intent explicitly in the function's docblock, OR add a `canAccessFeature('guided-learning-ai')` check in `GuidedLearning/Widget.tsx` for finer-grained access control. At minimum, add a JSDoc comment explaining why rate limiting is omitted.
 
-### LOW `video-activity-recommend` generation type missing from `AIData` interface in functions/src/index.ts
-
-- **Detected:** 2026-06-03
-- **File:** functions/src/index.ts:88–98 (AIData interface), :1054 (promptMap handler)
-- **Detail:** The `video-activity-recommend` type is handled in the `generateWithAI` promptMap at line 1054 with a full system prompt for YouTube video recommendation. However, it is not declared in the `AIData` interface (lines 88-98), which lists only 9 types. The client-side `utils/ai.ts` correctly includes it at line 88 in the `AIGenerationType` union. Because `genType` is extracted via `String(data?.type || '').toLowerCase().trim()` (plain string, no TypeScript narrowing), the function accepts the undeclared type at runtime, but the interface is misleading and incomplete. TypeScript does not catch this because the promptMap is typed as a loose record.
-- **Fix:** Add `| 'video-activity-recommend'` to the `AIData` interface `type` union in `functions/src/index.ts` alongside the other 9 types. Also add any additional fields the type uses (it uses `prompt` which is already declared as optional).
-
 ### LOW Hardcoded model string at functions/src/index.ts:2513 (was :2525, :1980, :1714, :1616)
 
 - **Detected:** 2026-04-17
 - **File:** functions/src/index.ts:2513 (line number shifts with function additions — confirmed at 2513 as of 2026-06-03)
 - **Detail:** The `transcribeVideoWithGemini` function selects a model with `perm.config?.model ?? 'gemini-3.1-flash-lite-preview'`. This duplicates the literal string defined by the `DEFAULT_STANDARD_MODEL` constant at line 124. If the default model is updated, this line will not automatically follow.
 - **Fix:** Replace the hardcoded string with `DEFAULT_STANDARD_MODEL`: `perm.config?.model ?? DEFAULT_STANDARD_MODEL`.
-
-### LOW `dashboard-layout` has no server-side per-feature rate limit or specific permission ID
-
-- **Detected:** 2026-05-01
-- **File:** functions/src/index.ts (generateWithAI), components/layout/dock/MagicLayoutModal.tsx
-- **Detail:** The `dashboard-layout` generation type has a client-side feature permission gate (`canAccessFeature('magic-layout')` in `MagicLayoutModal.tsx`) but no `specificFeatureId` assignment in the cloud function's rate-limit transaction. This means it shares the global daily `gemini-functions` quota but has no per-feature daily limit or admin-toggleable specific permission. An admin cannot restrict `dashboard-layout` usage independently of the global AI permission. Additionally, if the client-side gate is bypassed (e.g. direct API call), the cloud function will not reject the request based on a `magic-layout` feature check — only the global rate limit applies. This is similar to the existing MEDIUM finding for `instructional-routine`, but lower severity because the client-side gate does exist.
-- **Fix:** Add `if (genType === 'dashboard-layout') specificFeatureId = 'magic-layout';` in the `generateWithAI` cloud function alongside the other `specificFeatureId` assignments. The `'magic-layout'` feature is already defined in `types.ts` and `components/admin/GlobalPermissionsManager.tsx`, so only the cloud function change is needed to link server-side rate limiting to the existing permission.
 
 ### LOW RevealGrid "Sparkles" button uses AI icon for a paste-import feature
 
@@ -93,6 +79,8 @@ The following widgets have structured config schemas well-suited for AI content 
 
 ## Completed
 
+_2026-06-08: AI integration audit after merging dev-paul. TWO ITEMS MOVED TO COMPLETED: (1) LOW `dashboard-layout no server-side specific permission` — PR #1873 (`fix(functions): register dashboard-layout and instructional-routine in per-feature AI tracking`) added `if (genType === 'dashboard-layout') specificFeatureId = 'dashboard-layout'` and `if (genType === 'instructional-routine') specificFeatureId = 'instructional-routine'` to functions/src/index.ts before this merge. Dashboard-layout LOW item closed. (2) LOW `video-activity-recommend missing from AIData interface` — interface already includes `'video-activity-recommend'` at line 99 (added in a prior merge). Closed. `instructional-routine` MEDIUM item updated: server-side `specificFeatureId` now set (partial fix) but `LibraryManager.tsx` still lacks `canAccessFeature()` client-side gate — severity downgraded from MEDIUM to LOW per partial fix. TODAY's merge (PR #1891: `fix(functions): register widget-builder and widget-explainer in per-feature AI tracking`) adds `specificFeatureId` assignments for `widget-builder` and `widget-explainer` — both are now rate-limited per feature and tracked in adminAnalyticsCompute.ts. These were previously admin-only by UI but had no server-side per-feature quota. Now they are fully tracked. No new generation types added. Hardcoded model string at line 2513 unchanged. RevealGrid, ConceptWeb, GraphicOrganizer, SyntaxFramer, Checklist still without AI generation features. All other items unchanged._
+
 _2026-06-03: AI integration audit. Dev-paul merge brought new files: classroomAddonAuth.ts (no AI calls), classlinkShared.ts (no AI calls), quizCode.ts (no AI calls), studentJoinRouting.ts (no AI calls), runClassroomGradePush.ts (no AI calls). ONE NEW generation type detected: `video-activity-recommend` — implemented in promptMap at functions/src/index.ts:1054 but NOT declared in the `AIData` interface (lines 88-99). Client-side utils/ai.ts correctly lists it at line 88. This is a type consistency gap — added as new LOW item below. Hardcoded model string shifted to line 2513 (was 2525 — same violation, line number update only). instructional-routine gate still missing — MEDIUM item unchanged. guided-learning rate limit — MEDIUM item unchanged. RevealGrid, ConceptWeb, Checklist still without AI features. Table below updated to add video-activity-recommend row._
 
 _2026-05-27: AI integration audit. New commits since 2026-05-18: fix(parseGeminiJson) use depth counter instead of lastIndexOf (safer JSON extraction — no new gen type), feat(spotify) Spotify OAuth Cloud Function added (`spotifyOAuth.ts` — not an AI generation type), feat(smart-notebook) multiple sub-components + page hyperlinks + rotation handle (not AI-related), feat(drawing-widget) toolbar redesign (not AI-related). No new AI generation types added. All 12 generation types from the table remain current. Hardcoded model string confirmed at line 2525 (updated from 1980 above). Verified `transcribeVideoWithGemini` is the function containing the duplicate string at line 2525 (not `generateVideoActivity` as previously noted — `generateVideoActivity` uses `geminiConfig.standardModel` correctly). All other existing open items unchanged._
@@ -101,4 +89,16 @@ _2026-05-18: AI integration audit. New commits since 2026-05-13 checked: `fix(ai
 
 _2026-05-13: Full AI integration audit. All 12 generation types from the table verified: `generateWithAI` and `generateVideoActivity` both perform admin status check + per-user ai_usage rate limiting. `generateGuidedLearning` still has no rate limit (existing MEDIUM item). Model constants: `DEFAULT_ADVANCED_MODEL = 'gemini-3-flash-preview'` and `DEFAULT_STANDARD_MODEL = 'gemini-3.1-flash-lite-preview'` defined as constants; one inline string at line 1980 (`perm.config?.model ?? 'gemini-3.1-flash-lite-preview'`) duplicates the constant. `RevealGrid` Sparkles AI button confirmed stub — no onClick, no AI call. `ConceptWeb`, `SyntaxFramer`, `GraphicOrganizer`, `Checklist` confirmed no AI integration. `pinLoginV1` and `commitRosterPinIndexV1` added since last audit (not AI-related). No `as unknown` JSON parsing found in Settings.tsx AI handlers — not applicable since no Settings panels have AI buttons beyond RevealGrid stub._
 
-_No completed items yet._
+### LOW `dashboard-layout` had no server-side per-feature rate limit or specific permission ID
+
+- **Detected:** 2026-05-01
+- **Completed:** 2026-06-08
+- **File:** functions/src/index.ts (generateWithAI)
+- **Resolution:** PR #1873 (`fix(functions): register dashboard-layout and instructional-routine in per-feature AI tracking`) added `if (genType === 'dashboard-layout') specificFeatureId = 'dashboard-layout'` to `functions/src/index.ts`. The function now applies per-feature rate limiting via the `global_permissions/dashboard-layout` doc and tracks usage in `ai_usage` with the `dashboard-layout` suffix.
+
+### LOW `video-activity-recommend` generation type was missing from `AIData` interface
+
+- **Detected:** 2026-06-03
+- **Completed:** 2026-06-08
+- **File:** functions/src/index.ts (AIData interface)
+- **Resolution:** The `AIData` interface now includes `'video-activity-recommend'` at line 99 (added in a prior dev-paul merge before the 2026-06-08 rebase). Also includes `specificFeatureId = 'video-activity-recommend'` (PR #1857). Confirmed at line 643-644 of functions/src/index.ts.

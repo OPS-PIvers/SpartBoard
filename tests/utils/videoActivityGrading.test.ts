@@ -3,8 +3,9 @@ import {
   gradeVideoActivityAnswer,
   computeVideoActivityScorePct,
   canScoreVideoActivityResponse,
+  buildVideoActivityGradeEntries,
 } from '@/utils/videoActivityGrading';
-import type { VideoActivityQuestion } from '@/types';
+import type { VideoActivityQuestion, VideoActivityResponse } from '@/types';
 
 function q(
   overrides: Partial<VideoActivityQuestion> = {}
@@ -455,5 +456,63 @@ describe('class-average / gradebook exclusion (phantom-0 guard)', () => {
     // A no-answer submission is a true 0, not a missing-key artifact — it stays
     // in the mean: (100 + 0) / 2 = 50.
     expect(classAverage(qs, [perfect, empty])).toBe(50);
+  });
+});
+
+describe('buildVideoActivityGradeEntries', () => {
+  const qs = [
+    q({ id: 'q1', type: 'MC', correctAnswer: 'A', points: 1 }),
+    q({ id: 'q2', type: 'MC', correctAnswer: 'B', points: 1 }),
+  ];
+
+  function resp(
+    overrides: Partial<VideoActivityResponse> = {}
+  ): VideoActivityResponse {
+    return {
+      studentUid: 'p-A',
+      completedAt: 123,
+      answers: [
+        { questionId: 'q1', answer: 'A' },
+        { questionId: 'q2', answer: 'B' },
+      ],
+      ...overrides,
+    } as unknown as VideoActivityResponse;
+  }
+
+  it('scales the displayed percentage onto maxPoints (50% of 20 = 10)', () => {
+    // 1 of 2 correct → 50% → 10/20.
+    const half = resp({
+      studentUid: 'p-A',
+      answers: [
+        { questionId: 'q1', answer: 'A', answeredAt: 0 },
+        { questionId: 'q2', answer: 'WRONG', answeredAt: 0 },
+      ],
+    });
+    expect(buildVideoActivityGradeEntries([half], qs, 20)).toEqual([
+      { pseudonymUid: 'p-A', pointsEarned: 10 },
+    ]);
+  });
+
+  it('clamps to [0, maxPoints] and rounds (100% → maxPoints)', () => {
+    expect(buildVideoActivityGradeEntries([resp()], qs, 20)).toEqual([
+      { pseudonymUid: 'p-A', pointsEarned: 20 },
+    ]);
+  });
+
+  it('excludes incomplete responses, missing studentUid, and unscoreable ones', () => {
+    const incomplete = resp({ studentUid: 'p-B', completedAt: null });
+    const noUid = resp({ studentUid: '' });
+    // Answers reference no loaded question id → unscoreable (excluded, not 0).
+    const drift = resp({
+      studentUid: 'p-C',
+      answers: [{ questionId: 'gone', answer: 'A', answeredAt: 0 }],
+    });
+    const entries = buildVideoActivityGradeEntries(
+      [incomplete, noUid, drift, resp({ studentUid: 'p-D' })],
+      qs,
+      20
+    );
+    // Only the valid, scoreable, completed response survives.
+    expect(entries).toEqual([{ pseudonymUid: 'p-D', pointsEarned: 20 }]);
   });
 });

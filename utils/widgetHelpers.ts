@@ -9,8 +9,8 @@ import {
   WidgetOutput,
   WidgetLayout,
   FeaturePermission,
-} from '../types';
-import { WIDGET_DEFAULTS } from '../config/widgetDefaults';
+} from '@/types';
+import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 
 export const isWidgetLayout = (
   output: WidgetOutput

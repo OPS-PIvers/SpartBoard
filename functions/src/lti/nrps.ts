@@ -25,6 +25,13 @@ export interface NrpsMember {
   userId: string;
   givenName: string;
   familyName: string;
+  /**
+   * Platform-released email, lowercased — present ONLY when the platform's NRPS
+   * config releases it (many don't). Used TRANSIENTLY to auto-match a Schoology
+   * section to a ClassLink class by roster-email overlap; it is never returned to
+   * a client and never persisted (same rule as names). Empty string when absent.
+   */
+  email: string;
   /** LIS role URIs; lets callers filter to Learners if they want. */
   roles: string[];
   /** Membership status, e.g. 'Active' / 'Inactive' (absent on some platforms). */
@@ -36,6 +43,7 @@ interface RawMember {
   given_name?: unknown;
   family_name?: unknown;
   name?: unknown;
+  email?: unknown;
   roles?: unknown;
   status?: unknown;
 }
@@ -146,6 +154,8 @@ export async function fetchNrpsMembers(
         userId,
         givenName: hasStructured ? given : full,
         familyName: hasStructured ? family : '',
+        // Lowercased for case-insensitive overlap matching; '' when not released.
+        email: asStr(m.email).toLowerCase(),
         roles: Array.isArray(m.roles)
           ? m.roles.filter((r): r is string => typeof r === 'string')
           : [],

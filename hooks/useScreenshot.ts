@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { toPng } from 'html-to-image';
 import { useStorage } from './useStorage';
-import { useAuth } from '../context/useAuth';
+import { useAuth } from '@/context/useAuth';
 
 interface UseScreenshotResult {
   takeScreenshot: (options?: { upload?: boolean }) => Promise<string | void>;

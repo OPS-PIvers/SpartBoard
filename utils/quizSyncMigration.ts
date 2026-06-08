@@ -23,7 +23,7 @@
  * - Otherwise: return the doc with no `sync` linkage.
  */
 
-import type { QuizMetadata } from '../types';
+import type { QuizMetadata } from '@/types';
 
 export function migrateQuizMetadataShape(raw: unknown): QuizMetadata {
   const data = (raw ?? {}) as QuizMetadata & {

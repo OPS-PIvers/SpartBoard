@@ -16,7 +16,11 @@
  * checkbox order.
  */
 
-import type { GradeResult, VideoActivityQuestion } from '@/types';
+import type {
+  GradeResult,
+  VideoActivityQuestion,
+  VideoActivityResponse,
+} from '@/types';
 import { normalizeAnswer as quizNormalizeAnswer } from '@/hooks/useQuizSession';
 
 /**
@@ -211,4 +215,41 @@ export function canScoreVideoActivityResponse(
   // and the unmatched ones are skipped, same as computeVideoActivityScorePct.
   const ids = new Set(questions.map((q) => q.id));
   return answers.some((a) => ids.has(a.questionId));
+}
+
+/**
+ * Build the PII-free `{ pseudonymUid, pointsEarned }` grade entries for an LMS
+ * push from a video activity's responses — the VA mirror of
+ * `buildQuizClassroomGradeEntries`, shared by the Classroom and Schoology pushes
+ * (both push the same payload, only the denominator differs). Previously inlined
+ * (twice) in the VA Results view; centralized so the "Publish = Push" chaining
+ * and the manual buttons can't drift.
+ *
+ * One entry per COMPLETED response with a resolvable pseudonym that
+ * `canScoreVideoActivityResponse` accepts — unscoreable responses (key not
+ * loaded / id drift) are EXCLUDED rather than seated at a phantom 0 in a real
+ * gradebook. The displayed 0–100 percentage is scaled onto `maxPoints`, then
+ * rounded and clamped to [0, maxPoints]; a non-finite percentage becomes 0.
+ */
+export function buildVideoActivityGradeEntries(
+  responses: VideoActivityResponse[],
+  questions: VideoActivityQuestion[],
+  maxPoints: number
+): { pseudonymUid: string; pointsEarned: number }[] {
+  return responses
+    .filter(
+      (r) =>
+        r.completedAt !== null &&
+        !!r.studentUid &&
+        canScoreVideoActivityResponse(questions, r.answers)
+    )
+    .map((r) => {
+      const pct = computeVideoActivityScorePct(questions, r.answers);
+      const safePct = Number.isFinite(pct) ? pct : 0;
+      const pointsEarned = Math.max(
+        0,
+        Math.min(maxPoints, Math.round((safePct / 100) * maxPoints))
+      );
+      return { pseudonymUid: r.studentUid, pointsEarned };
+    });
 }

@@ -94,6 +94,11 @@ import {
   type LibrarySelectionApi,
 } from '@/components/common/library';
 import {
+  AssignDestinationModal,
+  type AssignDestination,
+} from './AssignDestinationModal';
+import { SchoologyAssignInstructions } from './SchoologyAssignInstructions';
+import {
   countItemsByFolder,
   filterByFolder,
 } from '@/components/common/library/folderFilters';
@@ -223,7 +228,13 @@ interface QuizManagerProps {
     /** Selected roster IDs (unified picker output). */
     rosterIds: string[],
     /** Optional due date (epoch ms). null = no due date. */
-    dueAt: number | null
+    dueAt: number | null,
+    /**
+     * Where the teacher chose to assign (library-row chooser). 'spartboard' =
+     * the SpartBoard-only flow; 'classroom' = create the SpartBoard assignment
+     * THEN open the Google Classroom course picker. Defaults to 'spartboard'.
+     */
+    destination?: AssignDestination
   ) => void;
   /**
    * View-only Share callback — invoked when the org-wide assignment mode
@@ -292,6 +303,11 @@ interface QuizManagerProps {
    * the gating lives entirely in the host widget.
    */
   onArchiveAssignToClassroom?: (assignment: QuizAssignment) => void;
+  /**
+   * Whether the library-row Assign chooser should offer "Google Classroom"
+   * (admin-gated by the host, same as the archive-row kebab action).
+   */
+  canAssignToClassroom?: boolean;
   /**
    * Publish (or unpublish) student-facing score visibility for an
    * assignment. The widget owns the picker modal and the
@@ -478,6 +494,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onArchiveEditSettings,
   onArchiveShare,
   onArchiveAssignToClassroom,
+  canAssignToClassroom = false,
   onArchivePublishScores,
   onArchiveUnpublishScores,
   onArchivePauseResume,
@@ -504,6 +521,17 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
   // ─── Assign modal state (2-stage: mode → settings) ────────────────────────
   const [assignTarget, setAssignTarget] = useState<QuizMetadata | null>(null);
+  // Library-row Assign chooser (Phase 2): the teacher first picks a destination,
+  // then the SpartBoard-only / Google-Classroom flows continue through the same
+  // AssignModal below (Schoology shows a how-to modal instead).
+  const [chooserTarget, setChooserTarget] = useState<QuizMetadata | null>(null);
+  const [schoologyTarget, setSchoologyTarget] = useState<QuizMetadata | null>(
+    null
+  );
+  // Destination chosen for the in-flight AssignModal: 'classroom' chains the
+  // Google Classroom course picker after the SpartBoard assignment is created.
+  const [assignDestination, setAssignDestination] =
+    useState<AssignDestination>('spartboard');
 
   // ─── View-only Share modal state ──────────────────────────────────────────
   // Bypasses the AssignModal entirely — class targeting, PLC, mode picker,
@@ -552,10 +580,30 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         setViewOnlyShareLink(null);
         setViewOnlyShareError(null);
       } else {
-        setAssignTarget(quiz);
+        // Open the destination chooser first; it routes to the SpartBoard assign
+        // modal, the Google Classroom flow, or the Schoology how-to.
+        setChooserTarget(quiz);
       }
     },
     [isViewOnly]
+  );
+
+  // Route a chooser pick to the right flow. SpartBoard/Classroom both continue
+  // through the existing AssignModal (the destination only changes the
+  // post-create step); Schoology is a how-to modal with no assignment created.
+  const handlePickDestination = useCallback(
+    (destination: AssignDestination) => {
+      const quiz = chooserTarget;
+      setChooserTarget(null);
+      if (!quiz) return;
+      if (destination === 'schoology') {
+        setSchoologyTarget(quiz);
+        return;
+      }
+      setAssignDestination(destination);
+      setAssignTarget(quiz);
+    },
+    [chooserTarget]
   );
 
   const handleConfirmViewOnlyShare = useCallback(async () => {
@@ -1246,9 +1294,16 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     };
     // Behavior (sessionMode, sessionOptions, attemptLimit) is now sourced
     // from the quiz itself in the Widget handler via getQuizBehavior(meta).
-    onAssign(assignTarget, plcOptions, validRosterIds, assignDueAt);
+    onAssign(
+      assignTarget,
+      plcOptions,
+      validRosterIds,
+      assignDueAt,
+      assignDestination
+    );
     setAssignTarget(null);
     setAssignDueAt(null);
+    setAssignDestination('spartboard');
   };
 
   // ─── Drop-to-folder handler ───────────────────────────────────────────────
@@ -1589,6 +1644,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onClose={() => {
             setAssignTarget(null);
             setAssignDueAt(null);
+            // Reset the destination so a cancelled 'classroom' pick can't leak
+            // into a later open (every exit path leaves clean state; the
+            // confirm path already resets it).
+            setAssignDestination('spartboard');
           }}
           itemTitle={assignTarget.title}
           options={assignOptions}
@@ -1608,6 +1667,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                 // 'settings' wiring is a follow-up for Task 12.)
                 setAssignTarget(null);
                 setAssignDueAt(null);
+                setAssignDestination('spartboard');
                 onEdit(assignTarget);
               }}
             />
@@ -1625,7 +1685,27 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             />
           }
           onAssign={() => handleAssignConfirm()}
-          confirmLabel="Assign"
+          confirmLabel={
+            assignDestination === 'classroom'
+              ? 'Continue to Google Classroom'
+              : 'Assign'
+          }
+        />
+      )}
+
+      {chooserTarget && (
+        <AssignDestinationModal
+          quizTitle={chooserTarget.title}
+          showClassroom={canAssignToClassroom}
+          onPick={handlePickDestination}
+          onClose={() => setChooserTarget(null)}
+        />
+      )}
+
+      {schoologyTarget && (
+        <SchoologyAssignInstructions
+          quizTitle={schoologyTarget.title}
+          onClose={() => setSchoologyTarget(null)}
         />
       )}
 

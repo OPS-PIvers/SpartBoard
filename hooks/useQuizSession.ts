@@ -51,7 +51,7 @@ import { normalizeQuizCode } from '@/utils/quizCode';
 
 // Re-export for backward compatibility with callers that imported
 // QuizSessionOptions from this module before it was moved into types.ts.
-export type { QuizSessionOptions } from '../types';
+export type { QuizSessionOptions } from '@/types';
 
 export const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
 export const RESPONSES_COLLECTION = 'responses';
