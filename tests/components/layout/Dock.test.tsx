@@ -15,7 +15,7 @@
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Dock } from '@/components/layout/Dock';
 
 // ── Module mocks ─────────────────────────────────────────────────────────────
@@ -429,6 +429,13 @@ describe('Dock smart-paste – processAndUploadImage is not a spurious dep', () 
     vi.clearAllMocks();
   });
 
+  // Restore window.addEventListener / removeEventListener spies even if a test
+  // throws before reaching its assertions, so a failure can't leak the spy into
+  // sibling tests.
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('does NOT remove/re-add the paste listener when processAndUploadImage identity changes', () => {
     // Spy on the window event listener methods BEFORE rendering.
     const addSpy = vi.spyOn(window, 'addEventListener');
@@ -490,8 +497,6 @@ describe('Dock smart-paste – processAndUploadImage is not a spurious dep', () 
 
     expect(removeCountAfterRerender).toBe(0);
     expect(addCountAfterRerender).toBe(0);
-
-    addSpy.mockRestore();
-    removeSpy.mockRestore();
+    // Spies are restored by the afterEach above (vi.restoreAllMocks).
   });
 });

@@ -157,7 +157,7 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 - **Completed:** 2026-06-06
 - **File:** components/widgets/NextUp/Widget.tsx:327
 - **Detail:** The session-name `<h3>` in the widget header used `style={{ maxWidth: '120px' }}`. Widget has `skipScaling: true`, so the 120 px cap did not respond to widget size — at 600+ px wide the header had plenty of room but the name still hard-clipped at 120 px.
-- **Resolution:** Replaced the hardcoded pixel cap with the scaled equivalent `maxWidth: 'min(120px, 30cqmin)'` per the journal's specified fix. This preserves the 120 px cap at default widget size while letting the header grow proportionally on larger widgets. Prettier reflowed the style object across multiple lines. `tsc --noEmit`, `eslint --max-warnings 0`, and `prettier --check` on the changed file all clean.
+- **Resolution:** Replaced the hardcoded pixel cap with the container-relative `maxWidth: '30cqmin'` (30% of the widget's smaller dimension), so the header grows proportionally with widget size instead of hard-clipping at a fixed 120 px. Prettier reflowed the style object across multiple lines. `tsc --noEmit`, `eslint --max-warnings 0`, and `prettier --check` on the changed file all clean.
 
 ### LOW GraphicOrganizer EditableNode uses min-h-[50px] fixed minimum height on contenteditable
 

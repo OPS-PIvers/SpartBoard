@@ -215,8 +215,11 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
         {linkableNow.length > 1 && (
           <button
             type="button"
+            // Disable while any row is mid-link so a second click can't kick off
+            // a concurrent handleLinkAll (duplicate link calls / racing toasts).
+            disabled={Object.values(rowState).some((s) => s === 'linking')}
             onClick={() => void handleLinkAll()}
-            className="inline-flex items-center gap-2 text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark px-4 py-2 rounded-lg transition-colors"
+            className="inline-flex items-center gap-2 text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Link all ({linkableNow.length})
           </button>
