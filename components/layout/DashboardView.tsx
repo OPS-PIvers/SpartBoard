@@ -1296,11 +1296,11 @@ export const DashboardView: React.FC = () => {
       if (e.altKey && e.key === 'p') {
         // Guard: don't intercept Alt shortcuts while the user is typing in a
         // form field (mirrors the Escape / Delete guards above).
-        const activeElP = document.activeElement as HTMLElement;
-        const isTypingFieldP =
-          ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeElP?.tagName || '') ||
-          activeElP?.isContentEditable;
-        if (isTypingFieldP) return;
+        const activeEl = document.activeElement as HTMLElement;
+        const isTypingField =
+          ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl?.tagName || '') ||
+          activeEl?.isContentEditable;
+        if (isTypingField) return;
 
         e.preventDefault();
         if (activeDashboard && activeDashboard.widgets.length > 0) {
@@ -1327,12 +1327,11 @@ export const DashboardView: React.FC = () => {
       // Guard: Alt + ArrowLeft/Right is word-navigation in text fields on
       // macOS and many Linux keyboard layouts. Don't intercept it there.
       if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-        const activeElNav = document.activeElement as HTMLElement;
-        const isTypingFieldNav =
-          ['INPUT', 'TEXTAREA', 'SELECT'].includes(
-            activeElNav?.tagName || ''
-          ) || activeElNav?.isContentEditable;
-        if (isTypingFieldNav) return;
+        const activeEl = document.activeElement as HTMLElement;
+        const isTypingField =
+          ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl?.tagName || '') ||
+          activeEl?.isContentEditable;
+        if (isTypingField) return;
 
         e.preventDefault();
         if (dashboards.length > 1) {
