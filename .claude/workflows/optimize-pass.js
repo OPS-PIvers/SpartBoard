@@ -193,16 +193,21 @@ function groupByFileOverlap(items) {
   return groups;
 }
 
+// Normalize args: the runtime may deliver the Workflow `args` global as a JSON
+// string rather than a parsed object. Parse it once so ARGS.phase / ARGS.wave /
+// ARGS.items resolve regardless of delivery form.
+const ARGS = typeof args === 'string' ? (args.trim() ? JSON.parse(args) : {}) : (args ?? {});
+
 // ───────────────────────────────────────────────────────────────────────────
 // PHASE: explore — read-only fan-out → (optional critic) → impact-ranked list
 // args: { phase:'explore', dimensions?: string[], depth?: 'normal'|'thorough', scope?: string }
 // Returns: { ranked: [...] }  — orchestrator presents this and STOPS for review.
 // ───────────────────────────────────────────────────────────────────────────
 async function runExplore() {
-  const depth = args?.depth || (budget.total && budget.total > 600_000 ? 'thorough' : 'normal');
-  const scope = args?.scope ? `\n\nSCOPE LIMIT: Restrict analysis to: ${args.scope}` : '';
-  const chosen = args?.dimensions?.length
-    ? DIMENSIONS.filter((d) => args.dimensions.includes(d.key))
+  const depth = ARGS.depth || (budget.total && budget.total > 600_000 ? 'thorough' : 'normal');
+  const scope = ARGS.scope ? `\n\nSCOPE LIMIT: Restrict analysis to: ${ARGS.scope}` : '';
+  const chosen = ARGS.dimensions?.length
+    ? DIMENSIONS.filter((d) => ARGS.dimensions.includes(d.key))
     : DIMENSIONS;
 
   log(`Explore: ${chosen.length} dimensions, depth=${depth}.`);
@@ -274,7 +279,7 @@ ${JSON.stringify(findings)}`,
 // Returns: { waves: [...] }
 // ───────────────────────────────────────────────────────────────────────────
 async function runPlan() {
-  const items = args?.items;
+  const items = ARGS.items;
   if (!Array.isArray(items) || !items.length) {
     throw new Error("plan phase requires args.items (the approved findings, each with id/title/files/fix).");
   }
@@ -315,7 +320,7 @@ ${JSON.stringify(items)}`,
 //       fixes fallout, commits, and pushes between waves (per the runbook).
 // ───────────────────────────────────────────────────────────────────────────
 async function runImplement() {
-  const wave = args?.wave;
+  const wave = ARGS.wave;
   if (!wave?.items?.length) {
     throw new Error("implement phase requires args.wave = { name, items: [{id,title,files,fix}] }.");
   }
@@ -364,7 +369,7 @@ Then report exactly what you changed.`,
 // ───────────────────────────────────────────────────────────────────────────
 // Dispatch
 // ───────────────────────────────────────────────────────────────────────────
-const requestedPhase = args?.phase || 'explore';
+const requestedPhase = ARGS.phase || 'explore';
 log(`optimize-pass: phase="${requestedPhase}"`);
 
 if (requestedPhase === 'explore') {
