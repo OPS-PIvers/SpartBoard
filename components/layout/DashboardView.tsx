@@ -51,6 +51,7 @@ import {
   Loader2,
   LayoutGrid,
   Music,
+  X,
 } from 'lucide-react';
 import {
   DEFAULT_GLOBAL_STYLE,
@@ -68,11 +69,13 @@ const SIDEBAR_EDGE_SWIPE_WIDTH_PX = 40; // left-edge zone that triggers sidebar 
 
 const ToastContainer: React.FC = () => {
   const { toasts, removeToast } = useDashboard();
+  // The wrapper is a positioning container only — live-region semantics live on
+  // each toast (role="status"/aria-live="polite" for normal updates, role="alert"
+  // for errors). Keeping the live region on the individual toast avoids nesting
+  // an assertive region inside a polite one, which some screen readers announce
+  // unpredictably or drop entirely.
   return (
     <div
-      role="status"
-      aria-live="polite"
-      aria-atomic="false"
       className="fixed z-toast space-y-3 pointer-events-none"
       style={{
         top: 'calc(1.5rem + env(safe-area-inset-top, 0px))',
@@ -112,10 +115,15 @@ const ToastContainer: React.FC = () => {
           }
         };
 
+        const isError = toast.type === 'error';
         return (
           <div
             key={toast.id}
-            role={toast.type === 'error' ? 'alert' : undefined}
+            // Errors announce assertively via role="alert"; normal updates use
+            // role="status" (implicit aria-live="polite") so they don't
+            // interrupt screen-reader output.
+            role={isError ? 'alert' : 'status'}
+            aria-live={isError ? undefined : 'polite'}
             onClick={() => removeToast(toast.id)}
             className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl backdrop-blur-xl border pointer-events-auto cursor-pointer animate-in slide-in-from-right duration-300 ${getStyles()}`}
           >
@@ -135,6 +143,19 @@ const ToastContainer: React.FC = () => {
                 </button>
               )}
             </div>
+            {/* Explicit dismiss control so SR/keyboard users can close a toast
+                before it auto-dismisses (the whole card is also clickable). */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                removeToast(toast.id);
+              }}
+              aria-label="Dismiss"
+              className="ml-1 p-1 rounded-full hover:bg-black/10 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         );
       })}

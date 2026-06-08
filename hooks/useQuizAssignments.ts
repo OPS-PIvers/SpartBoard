@@ -29,6 +29,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
+import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import {
   mirrorPlcAssignmentStatus,
@@ -1967,7 +1968,12 @@ export const useQuizAssignments = (
         questionsById.set(q.id, q);
       }
 
-      const responsesSnap = await getDocs(
+      // Read responses in bounded pages (limit + documentId cursor) rather
+      // than one unbounded `getDocs` so a PLC-shared assignment with
+      // thousands of submissions can't pull the whole subcollection in a
+      // single read. Grading still visits every response — the page loop
+      // only changes how the reads are bounded, not the scoring math.
+      const responseDocs = await readAllDocsPaged(
         collection(
           db,
           QUIZ_SESSIONS_COLLECTION,
@@ -1984,7 +1990,7 @@ export const useQuizAssignments = (
         patch: { score: number; answers: QuizResponseAnswer[] };
       }
       const updates: ResponseUpdate[] = [];
-      for (const d of responsesSnap.docs) {
+      for (const d of responseDocs) {
         const data = d.data() as QuizResponse;
         const answers = Array.isArray(data.answers) ? data.answers : [];
         let pointsEarned = 0;

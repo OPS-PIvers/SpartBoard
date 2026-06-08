@@ -49,6 +49,18 @@ describe('IconButton', () => {
     expect(button.className).toContain('bg-slate-100');
   });
 
+  it('exposes a high-contrast focus-visible ring for keyboard users', () => {
+    // WCAG 2.4.7: the focus indicator must stay visible (>=3:1) on white, dark,
+    // and image backgrounds. The dark brand-blue ring reads on light surfaces;
+    // the white offset keeps it visible on dark dock/widget surfaces.
+    render(<IconButton icon={<span>Icon</span>} label="Focus Button" />);
+    const button = screen.getByRole('button', { name: /focus button/i });
+    expect(button.className).toContain('focus-visible:ring-2');
+    expect(button.className).toContain('focus-visible:ring-brand-blue-primary');
+    expect(button.className).toContain('focus-visible:ring-offset-2');
+    expect(button.className).toContain('focus-visible:ring-offset-white');
+  });
+
   it('handles disabled state', () => {
     render(
       <IconButton icon={<span>Icon</span>} label="Test Button" disabled />

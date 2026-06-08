@@ -37,6 +37,10 @@ import {
 } from '@/hooks/useQuizSession';
 import { normalizeVideoActivitySession } from '@/utils/videoActivityNormalize';
 import {
+  createLeadingTrailingThrottle,
+  RESPONSES_THROTTLE_MS,
+} from '@/utils/snapshotThrottle';
+import {
   AssignmentMode,
   VideoActivitySession,
   VideoActivityResponse,
@@ -320,7 +324,18 @@ export const useVideoActivitySessionTeacher =
       // Clear any error from a prior subscription — we're (re)arming the
       // listeners and shouldn't carry a stale failure into the new session.
       setError(null);
-      unsubRef.current = onSnapshot(
+      // Throttle the snapshot-driven `setResponses` so a burst of submissions
+      // within RESPONSES_THROTTLE_MS collapses into a single render. Leading
+      // edge fires immediately; a trailing timer flushes the last snapshot in
+      // the window so the final state is never stale. `setLoading(false)` is
+      // intentionally left un-throttled so the monitor leaves its loading
+      // spinner on the first snapshot.
+      const throttle = createLeadingTrailingThrottle<VideoActivityResponse[]>(
+        setResponses,
+        RESPONSES_THROTTLE_MS
+      );
+
+      const responsesUnsub = onSnapshot(
         collection(db, SESSIONS_COLLECTION, sessionId, RESPONSES_SUBCOLLECTION),
         (snap) => {
           // Carry the Firestore doc id through as `_responseKey` so the
@@ -334,7 +349,7 @@ export const useVideoActivitySessionTeacher =
                 _responseKey: d.id,
               }) as VideoActivityResponse
           );
-          setResponses(list);
+          throttle.push(list);
           setLoading(false);
         },
         (err) => {
@@ -349,6 +364,15 @@ export const useVideoActivitySessionTeacher =
           );
         }
       );
+
+      // Wrap the Firestore unsubscribe so the throttle timer is cleared (and
+      // any buffered snapshot flushed) whenever the listener is torn down via
+      // `unsubscribeFromSession`, a re-`subscribeToSession`, or unmount —
+      // without those call sites needing to know about the throttle.
+      unsubRef.current = () => {
+        throttle.flush();
+        responsesUnsub();
+      };
 
       // Mirror the session doc so consumers (e.g. the live monitor) reflect
       // pause/resume state changes in real time.

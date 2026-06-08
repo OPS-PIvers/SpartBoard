@@ -25,9 +25,12 @@ vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteField: vi.fn(() => DELETE_FIELD_SENTINEL),
   doc: vi.fn(),
+  documentId: vi.fn(() => '__documentId'),
   getDocs: vi.fn(),
+  limit: vi.fn(),
   onSnapshot: vi.fn(),
   query: vi.fn(),
+  startAfter: vi.fn(),
   orderBy: vi.fn(),
   setDoc: vi.fn(),
   updateDoc: vi.fn(),
@@ -427,7 +430,11 @@ describe('useGuidedLearningAssignments — publish / unpublish', () => {
         answers: [{ stepId: 's0', answer: 'a', isCorrect: null }],
       }),
     }));
-    mockGetDocs.mockResolvedValueOnce({ docs: responseDocs });
+    // The publish read pages with limit(500): a first full 500-doc page is
+    // followed by a second (empty) page that terminates the cursor loop.
+    mockGetDocs
+      .mockResolvedValueOnce({ docs: responseDocs })
+      .mockResolvedValueOnce({ docs: [] });
     batchCommit.mockReset();
     batchCommit
       .mockResolvedValueOnce(undefined)

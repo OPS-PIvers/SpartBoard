@@ -31,11 +31,14 @@ vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteField: vi.fn(() => ({ __deleteFieldSentinel: true })),
   doc: vi.fn(),
+  documentId: vi.fn(() => '__documentId'),
   getDoc: vi.fn(),
   getDocs: vi.fn(),
+  limit: vi.fn(),
   onSnapshot: vi.fn(),
   addDoc: vi.fn(),
   query: vi.fn(),
+  startAfter: vi.fn(),
   where: vi.fn(),
   orderBy: vi.fn(),
   serverTimestamp: vi.fn(() => ({ __serverTimestamp: true })),
@@ -264,5 +267,96 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
     // — q1 is unanswered so it gets counted in the unanswered loop adding 1
     // to max → earned=1, max=2 → score=50).
     expect(patch.score).toBe(50);
+  });
+});
+
+describe('useQuizAssignments — publishAssignmentScores bounded paging', () => {
+  const batchUpdate = vi.fn();
+  const batchCommit = vi.fn();
+
+  // Mirrors RESPONSES_PAGE_SIZE in useQuizAssignments — a full page forces the
+  // publish path to request a second page to finish reading the subcollection.
+  const RESPONSES_PAGE_SIZE = 500;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockCollection.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    batchUpdate.mockReset();
+    batchCommit.mockReset().mockResolvedValue(undefined);
+    mockWriteBatch.mockReturnValue({
+      update: batchUpdate,
+      commit: batchCommit,
+    });
+  });
+
+  it('scores every response across more than one page (limit + cursor paging)', async () => {
+    // Each response answers q0 correctly and leaves q1 blank → score 50%.
+    const makeDoc = (i: number) => {
+      const ref = { id: `r-${i}` };
+      return {
+        ref,
+        data: () => ({
+          studentUid: `s${i}`,
+          answers: [{ questionId: 'q0', answer: 'a', answeredAt: 1 }],
+        }),
+      };
+    };
+
+    // Page 1 is a FULL page (length === page size) so the cursor loop must
+    // fetch a second page; page 2 is short so the loop terminates.
+    const page1 = Array.from({ length: RESPONSES_PAGE_SIZE }, (_, i) =>
+      makeDoc(i)
+    );
+    const page2 = [
+      makeDoc(RESPONSES_PAGE_SIZE),
+      makeDoc(RESPONSES_PAGE_SIZE + 1),
+    ];
+    const totalResponses = page1.length + page2.length;
+
+    mockGetDocs
+      .mockResolvedValueOnce({ docs: page1 })
+      .mockResolvedValueOnce({ docs: page2 });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    let publishResult: { responsesUpdated: number } | undefined;
+    await act(async () => {
+      publishResult = await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        quizData,
+        'score-only'
+      );
+    });
+
+    // Two reads = two pages: the prior unbounded single-read path would have
+    // called getDocs once. The cursor loop is what bounds each read.
+    expect(mockGetDocs).toHaveBeenCalledTimes(2);
+
+    // Every response across both pages is scored exactly once.
+    expect(publishResult?.responsesUpdated).toBe(totalResponses);
+    const scoredRefIds = new Set(
+      batchUpdate.mock.calls
+        .filter(([ref]) => (ref as { id?: string }).id?.startsWith('r-'))
+        .map(([ref]) => (ref as { id: string }).id)
+    );
+    expect(scoredRefIds.size).toBe(totalResponses);
+    for (let i = 0; i < totalResponses; i++) {
+      expect(scoredRefIds.has(`r-${i}`)).toBe(true);
+    }
+
+    // Spot-check a response from each page got the expected 50% score.
+    const firstPageCall = batchUpdate.mock.calls.find(
+      ([ref]) => (ref as { id: string }).id === 'r-0'
+    );
+    const secondPageCall = batchUpdate.mock.calls.find(
+      ([ref]) => (ref as { id: string }).id === `r-${RESPONSES_PAGE_SIZE}`
+    );
+    expect((firstPageCall?.[1] as { score: number }).score).toBe(50);
+    expect((secondPageCall?.[1] as { score: number }).score).toBe(50);
   });
 });

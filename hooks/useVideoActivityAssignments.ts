@@ -27,6 +27,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
+import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import {
   callJoinSyncedVideoActivityGroup,
@@ -965,7 +966,12 @@ export const useVideoActivityAssignments = (
         activityData.questions.map((q) => [q.id, q])
       );
 
-      const responsesSnap = await getDocs(
+      // Read responses in bounded pages (limit + documentId cursor) rather
+      // than one unbounded `getDocs` so a PLC-shared assignment with
+      // thousands of submissions can't pull the whole subcollection in a
+      // single read. Grading still visits every response — the page loop
+      // only changes how the reads are bounded, not the scoring math.
+      const responseDocs = await readAllDocsPaged(
         collection(
           db,
           VIDEO_ACTIVITY_SESSIONS_COLLECTION,
@@ -979,7 +985,7 @@ export const useVideoActivityAssignments = (
         patch: { score: number; answers: VideoActivityAnswer[] };
       }
       const updates: ResponseUpdate[] = [];
-      for (const d of responsesSnap.docs) {
+      for (const d of responseDocs) {
         const data = d.data() as VideoActivityResponse;
         const answers = Array.isArray(data.answers) ? data.answers : [];
         let pointsEarned = 0;

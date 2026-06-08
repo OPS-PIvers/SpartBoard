@@ -3,7 +3,9 @@ import {
   collection,
   deleteDoc as firestoreDeleteDoc,
   doc,
+  limit,
   onSnapshot,
+  orderBy,
   query,
   setDoc,
   updateDoc as firestoreUpdateDoc,
@@ -15,6 +17,14 @@ import { PlcResource, PlcResourceKind, PlcResourceScope } from '@/types';
 import { logError } from '@/utils/logError';
 
 const PLC_RESOURCES_COLLECTION = 'plc_resources';
+// Cap on the admin-mode whole-collection listen. The member-mode queries are
+// already scoped (scope=='all' / plcIds array-contains), but the admin
+// curation list reads ALL /plc_resources, so bound it to avoid streaming an
+// unbounded collection. `orderBy('createdAt','desc')` keeps the truncation
+// deterministic (the newest N) and matches the existing newest-first sort;
+// 500 is comfortably above the real-world resource count for a single
+// district.
+const ADMIN_RESOURCES_LIMIT = 500;
 
 // ---------------------------------------------------------------------------
 // Input type for creating a resource (server-stamped fields omitted)
@@ -110,7 +120,14 @@ export function usePlcResources(
       }, 0);
       return () => clearTimeout(t);
     }
-    const q = query(collection(db, PLC_RESOURCES_COLLECTION));
+    // Bound the whole-collection admin listen with a newest-first
+    // `orderBy('createdAt') + limit`. Single-field order needs only the
+    // automatic index, so no composite index is required.
+    const q = query(
+      collection(db, PLC_RESOURCES_COLLECTION),
+      orderBy('createdAt', 'desc'),
+      limit(ADMIN_RESOURCES_LIMIT)
+    );
     const unsub = onSnapshot(
       q,
       (snap) => {
