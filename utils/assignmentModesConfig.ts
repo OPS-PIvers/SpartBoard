@@ -14,7 +14,7 @@ import type {
   AssignmentMode,
   AssignmentModesConfig,
   AssignmentWidgetKey,
-} from '../types';
+} from '@/types';
 
 const ASSIGNMENT_WIDGET_KEYS: readonly AssignmentWidgetKey[] = [
   'quiz',
