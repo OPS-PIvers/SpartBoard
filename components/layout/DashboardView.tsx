@@ -1294,6 +1294,14 @@ export const DashboardView: React.FC = () => {
 
       // Alt + P: Pin/Unpin top or focused widget
       if (e.altKey && e.key === 'p') {
+        // Guard: don't intercept Alt shortcuts while the user is typing in a
+        // form field (mirrors the Escape / Delete guards above).
+        const activeEl = document.activeElement as HTMLElement;
+        const isTypingField =
+          ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl?.tagName || '') ||
+          activeEl?.isContentEditable;
+        if (isTypingField) return;
+
         e.preventDefault();
         if (activeDashboard && activeDashboard.widgets.length > 0) {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
@@ -1316,17 +1324,21 @@ export const DashboardView: React.FC = () => {
       }
 
       // Alt + Left/Right: Navigate boards (with wrap-around)
-      if (e.altKey && e.key === 'ArrowLeft') {
+      // Guard: Alt + ArrowLeft/Right is word-navigation in text fields on
+      // macOS and many Linux keyboard layouts. Don't intercept it there.
+      if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        const activeEl = document.activeElement as HTMLElement;
+        const isTypingField =
+          ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl?.tagName || '') ||
+          activeEl?.isContentEditable;
+        if (isTypingField) return;
+
         e.preventDefault();
         if (dashboards.length > 1) {
           const nextIdx =
-            (currentIndex - 1 + dashboards.length) % dashboards.length;
-          loadDashboard(dashboards[nextIdx].id);
-        }
-      } else if (e.altKey && e.key === 'ArrowRight') {
-        e.preventDefault();
-        if (dashboards.length > 1) {
-          const nextIdx = (currentIndex + 1) % dashboards.length;
+            e.key === 'ArrowLeft'
+              ? (currentIndex - 1 + dashboards.length) % dashboards.length
+              : (currentIndex + 1) % dashboards.length;
           loadDashboard(dashboards[nextIdx].id);
         }
       }
