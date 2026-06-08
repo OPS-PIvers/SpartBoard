@@ -116,6 +116,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }, [onQuestionTrigger, onVideoEnd]);
 
   const startPolling = useCallback(() => {
+    // Supersede any loop already running: if startPolling is called again
+    // without an intervening stopPolling (rapid re-trigger / re-effect), bump
+    // the generation so a previously-queued tick bails and cancel its pending
+    // frame, so two RAF loops can't run concurrently. (Mirrors stopPolling.)
+    pollGenerationRef.current += 1;
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
     // Capture the generation this loop belongs to. If polling is stopped (and the
     // generation bumped) while a tick is queued, the stale callback bails out.
     const generation = pollGenerationRef.current;

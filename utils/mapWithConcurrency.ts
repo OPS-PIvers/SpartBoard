@@ -18,9 +18,14 @@ export async function mapWithConcurrency<T, R>(
 ): Promise<R[]> {
   const results = new Array<R>(items.length);
   let nextIndex = 0;
-  // Cap workers at the number of items so a short list doesn't spin up idle
-  // workers (and `limit` of 0 / negative can't stall forever).
-  const workerCount = Math.max(1, Math.min(limit, items.length));
+  // Clamp `limit` to a finite positive integer first: a NaN / Infinity limit
+  // would make `workerCount` NaN, and `Array.from({ length: NaN })` is empty —
+  // silently doing no work and returning an unfilled array. Then cap workers at
+  // the number of items so a short list doesn't spin up idle workers (and a
+  // 0 / negative limit can't stall forever).
+  const safeLimit =
+    Number.isFinite(limit) && limit >= 1 ? Math.floor(limit) : 1;
+  const workerCount = Math.max(1, Math.min(safeLimit, items.length));
 
   const worker = async (): Promise<void> => {
     // Each worker pulls the next unclaimed index until the queue drains.

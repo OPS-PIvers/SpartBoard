@@ -112,6 +112,19 @@ describe('mapWithConcurrency', () => {
     expect(result).toEqual([3, 6]);
   });
 
+  it('still maps every item when the limit is non-finite (NaN/Infinity clamp)', async () => {
+    // A NaN limit must not silently no-op: Math.min(NaN, n) === NaN would make
+    // workerCount NaN and Array.from({ length: NaN }) empty, returning an
+    // unfilled array. The clamp falls back to a single (serial) worker.
+    const items = [1, 2, 3, 4];
+    for (const badLimit of [NaN, Infinity, 0, -3]) {
+      const result = await mapWithConcurrency(items, badLimit, (n) =>
+        Promise.resolve(n * 5)
+      );
+      expect(result).toEqual([5, 10, 15, 20]);
+    }
+  });
+
   it('propagates a mapper rejection (Promise.all semantics)', async () => {
     const items = [1, 2, 3];
     await expect(

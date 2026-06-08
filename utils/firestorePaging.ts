@@ -31,6 +31,12 @@ export async function readAllDocsPaged(
   coll: ReturnType<typeof collection>,
   pageSize: number = FIRESTORE_PAGE_SIZE
 ): Promise<QueryDocumentSnapshot<DocumentData>[]> {
+  if (!(pageSize >= 1)) {
+    // Guard the exported API: a 0 / negative / NaN pageSize makes `limit()`
+    // invalid and `pageSnap.docs.length < pageSize` never true, so the loop
+    // would never terminate. Fail fast on misuse rather than spin forever.
+    throw new RangeError(`pageSize must be >= 1 (received ${pageSize})`);
+  }
   const docs: QueryDocumentSnapshot<DocumentData>[] = [];
   let cursor: QueryDocumentSnapshot<DocumentData> | null = null;
   for (;;) {

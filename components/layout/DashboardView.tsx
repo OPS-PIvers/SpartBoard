@@ -69,17 +69,14 @@ const SIDEBAR_EDGE_SWIPE_WIDTH_PX = 40; // left-edge zone that triggers sidebar 
 
 const ToastContainer: React.FC = () => {
   const { toasts, removeToast } = useDashboard();
-  // The wrapper is an always-mounted polite live region (role="status",
-  // aria-live="polite"): a region present in the DOM *before* content is
-  // injected is announced far more reliably by screen readers than one created
-  // at announce-time. Non-error toasts ride this region; error toasts also
-  // carry role="alert" to announce assertively.
+  // The wrapper is a positioning container only — live-region semantics live on
+  // each toast (role="status"/aria-live="polite" for normal updates, role="alert"
+  // for errors). Keeping the live region on the individual toast avoids nesting
+  // an assertive region inside a polite one, which some screen readers announce
+  // unpredictably or drop entirely.
   return (
     <div
       className="fixed z-toast space-y-3 pointer-events-none"
-      role="status"
-      aria-live="polite"
-      aria-atomic="false"
       style={{
         top: 'calc(1.5rem + env(safe-area-inset-top, 0px))',
         right: 'calc(1.5rem + env(safe-area-inset-right, 0px))',
@@ -122,10 +119,11 @@ const ToastContainer: React.FC = () => {
         return (
           <div
             key={toast.id}
-            // Errors get their own assertive alert region; non-error toasts are
-            // announced by the always-mounted polite wrapper above, so they
-            // need no nested live region of their own.
-            role={isError ? 'alert' : undefined}
+            // Errors announce assertively via role="alert"; normal updates use
+            // role="status" (implicit aria-live="polite") so they don't
+            // interrupt screen-reader output.
+            role={isError ? 'alert' : 'status'}
+            aria-live={isError ? undefined : 'polite'}
             onClick={() => removeToast(toast.id)}
             className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl backdrop-blur-xl border pointer-events-auto cursor-pointer animate-in slide-in-from-right duration-300 ${getStyles()}`}
           >
