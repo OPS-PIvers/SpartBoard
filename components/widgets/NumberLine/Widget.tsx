@@ -218,9 +218,17 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                 const x = padL + (val - min) * pxPerUnit;
                 const isHovered = hoveredTick === i;
 
-                let labelText = val.toString();
+                // Apply toFixed(4) round-trip as the baseline label for ALL
+                // display modes. FP accumulation (e.g. 0 + 3×0.1 =
+                // 0.30000000000000004) makes val.toString() produce garbage
+                // labels even in 'integers' mode when a decimal step is used.
+                // Four decimal places matches the 'decimals' branch precision
+                // and the fractions fallback, and strips the long mantissa that
+                // would otherwise confuse teachers on classroom projectors.
+                let labelText = Number(val.toFixed(4)).toString();
                 if (displayMode === 'decimals') {
-                  // Try to format nicely, avoiding 1.000000000001
+                  // Already handled by the baseline round-trip above; this
+                  // branch is now a no-op but kept for clarity/intent.
                   labelText = Number(val.toFixed(4)).toString();
                 } else if (displayMode === 'fractions') {
                   // Simple fraction conversion if step suggests a common denominator (e.g. 0.25 -> 4)
