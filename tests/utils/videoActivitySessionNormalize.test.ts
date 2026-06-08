@@ -67,13 +67,13 @@ describe('normalizeVideoActivitySession — optional field preservation', () => 
 
   it('preserves sessionOptions when present', () => {
     const opts = {
-      showCorrectAnswers: true,
-      attemptsAllowed: 3,
-      passingScore: 80,
+      attemptLimit: 3,
+      rewindOnIncorrectSeconds: 10,
+      pointPenaltyOnIncorrect: 1,
     };
     const result = normalizeVideoActivitySession(SESSION_ID, {
       ...MINIMAL_INPUT,
-      sessionOptions: opts as never,
+      sessionOptions: opts,
     });
     expect(result.sessionOptions).toEqual(opts);
   });
@@ -83,7 +83,7 @@ describe('normalizeVideoActivitySession — optional field preservation', () => 
       ...MINIMAL_INPUT,
       mode: 'submissions',
     });
-    expect((result as { mode?: string }).mode).toBe('submissions');
+    expect(result.mode).toBe('submissions');
   });
 
   it('preserves periodNames when present', () => {
@@ -91,10 +91,7 @@ describe('normalizeVideoActivitySession — optional field preservation', () => 
       ...MINIMAL_INPUT,
       periodNames: ['Period 1', 'Period 2'],
     });
-    expect((result as { periodNames?: string[] }).periodNames).toEqual([
-      'Period 1',
-      'Period 2',
-    ]);
+    expect(result.periodNames).toEqual(['Period 1', 'Period 2']);
   });
 
   it('preserves rosterIds when present', () => {
@@ -102,9 +99,7 @@ describe('normalizeVideoActivitySession — optional field preservation', () => 
       ...MINIMAL_INPUT,
       rosterIds: ['roster-1'],
     });
-    expect((result as { rosterIds?: string[] }).rosterIds).toEqual([
-      'roster-1',
-    ]);
+    expect(result.rosterIds).toEqual(['roster-1']);
   });
 
   it('preserves classPeriodByClassId when present', () => {
@@ -113,10 +108,7 @@ describe('normalizeVideoActivitySession — optional field preservation', () => 
       ...MINIMAL_INPUT,
       classPeriodByClassId: map,
     });
-    expect(
-      (result as { classPeriodByClassId?: Record<string, string> })
-        .classPeriodByClassId
-    ).toEqual(map);
+    expect(result.classPeriodByClassId).toEqual(map);
   });
 });
 
@@ -127,7 +119,7 @@ describe('normalizeVideoActivitySession — required field defaults', () => {
     const result = normalizeVideoActivitySession(SESSION_ID, {
       ...MINIMAL_INPUT,
       id: 'wrong-id',
-    } as never);
+    });
     expect(result.id).toBe(SESSION_ID);
   });
 
