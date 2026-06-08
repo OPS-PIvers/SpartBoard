@@ -176,17 +176,26 @@ export async function persistLtiLaunchContext(
       .doc(contextId);
     const existing = await ctxRef.get();
     const ex = existing.data();
+    // Prefer the stored title over a null from a privacy-configured relaunch:
+    // some Schoology deployments omit the context title on relaunches (privacy
+    // config). Overwriting a previously-captured title with null would clear
+    // the section name shown in the linking UI permanently until a titled
+    // launch occurs again — the same preservation logic the seen-section
+    // inventory (below) already applies to its own copy.
+    const storedCtxTitle =
+      typeof ex?.contextTitle === 'string' ? ex.contextTitle : null;
+    const nextCtxTitle = args.contextTitle ?? storedCtxTitle;
     // Only write when new or changed — bounds writes to actual changes.
     if (
       !existing.exists ||
       ex?.contextMembershipsUrl !== membershipUrl ||
-      ex?.contextTitle !== (args.contextTitle ?? null)
+      ex?.contextTitle !== nextCtxTitle
     ) {
       batch.set(
         ctxRef,
         {
           contextMembershipsUrl: membershipUrl,
-          contextTitle: args.contextTitle ?? null,
+          contextTitle: nextCtxTitle,
           deploymentId: args.deploymentId,
           updatedAt: Date.now(),
         },
