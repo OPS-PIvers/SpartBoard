@@ -422,12 +422,12 @@ export const Dock: React.FC = () => {
       }
 
       // Don't intercept if user is typing in an input, textarea, or select
-      const target = e.target as HTMLElement;
+      const target = e.target as HTMLElement | null;
       if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT' ||
-        target.isContentEditable ||
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        target?.tagName === 'SELECT' ||
+        target?.isContentEditable ||
         e.defaultPrevented // Respect existing handlers (e.g. StickerBook)
       ) {
         return;
