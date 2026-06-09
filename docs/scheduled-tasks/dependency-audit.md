@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
 _Last audited: 2026-06-09_
-_Last action: 2026-06-02_
+_Last action: 2026-06-09_
 
 ---
 
@@ -15,13 +15,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### HIGH `vitest@4.0.18` (root) — CRITICAL arbitrary file read/execute when UI server is active
-
-- **Detected:** 2026-06-09
-- **File:** package.json (direct devDependency `vitest@4.0.18`)
-- **Detail:** GHSA-5xrq-8626-4rwp (CRITICAL): "When Vitest UI server is listening, arbitrary file can be read and executed." Root `vitest` is pinned at `4.0.18`, which falls in the vulnerable range `>=4.0.0 <4.1.0`. Functions `vitest` is at `4.1.4` (safe). The Vitest UI server is not enabled by default in CI (no `--ui` flag in `pnpm run test`), but any developer running `vitest --ui` locally on the root package is exposed. `pnpm audit` confirms this as a CRITICAL advisory in the root workspace. Patched in `>=4.1.0`. The existing LOW "major versions" item lists vitest as needing a patch update (4.0.18 → 4.1.8) but does not call out the CRITICAL CVE — this entry tracks the security urgency separately.
-- **Fix:** `pnpm up vitest@^4.1.8 @vitest/coverage-v8@^4.1.8` in root. Both packages version-lock together. Verify `pnpm type-check`, `pnpm lint`, and `pnpm test` pass after upgrade. `pnpm audit` should no longer report GHSA-5xrq-8626-4rwp.
 
 ### MEDIUM `qs` DoS in functions via `@google-cloud/functions-framework` — patched in >=6.15.2
 
@@ -155,6 +148,14 @@ _Nothing currently in progress._
 ---
 
 ## Completed
+
+### HIGH `vitest@4.0.18` (root) — CRITICAL arbitrary file read/execute when UI server is active
+
+- **Detected:** 2026-06-09
+- **Completed:** 2026-06-09
+- **File:** package.json (direct devDependencies `vitest`, `@vitest/coverage-v8`)
+- **Detail:** GHSA-5xrq-8626-4rwp (CRITICAL): "When Vitest UI server is listening, arbitrary file can be read and executed." Root `vitest` was pinned at `4.0.18`, in the vulnerable range `>=4.0.0 <4.1.0`. The UI server is not enabled in CI (no `--ui` flag in `pnpm run test`), but any developer running `vitest --ui` locally on the root package was exposed. Patched in `>=4.1.0`.
+- **Resolution:** Bumped both `vitest` and `@vitest/coverage-v8` from `^4.0.18` to `^4.1.8` in root `package.json` (they version-lock together) and ran `pnpm install` — both resolved to `4.1.8`. `pnpm audit` no longer reports GHSA-5xrq-8626-4rwp. Verified clean: `pnpm type-check` (0 errors), `pnpm lint --max-warnings 0` (0 errors/warnings), `pnpm format:check` on package.json (clean), and the full `pnpm test` suite (422 files / 4343 tests, all passing on `vitest@4.1.8`). Note: the separate MEDIUM `ws@8.19.0`/`ws@8.20.0` item is NOT closed by this bump — `vitest@4.1.8 > @vitest/mocker > ws@8.19.0` still resolves the vulnerable `ws`, so that item remains Open with its own override fix.
 
 ### HIGH `path-to-regexp` HIGH ReDoS via `firebase-functions@7.2.5 > express` (root)
 
