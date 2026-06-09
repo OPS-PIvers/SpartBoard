@@ -4,13 +4,13 @@
  * Previously this logic lived as an unexported `normalizeSession` constant
  * inside `hooks/useMiniAppSession.ts`. The hand-enumerated literal return
  * silently dropped every optional field on `MiniAppSession` not explicitly
- * listed — including `classIds`, `rosterIds`, `endedAt`, `submissionsEnabled`,
- * and `mode`. When `onSnapshot` fired and the teacher's session list was
- * refreshed, those dropped fields caused data loss in the teacher UI (e.g.
- * `submissionsEnabled: false` became `undefined`, `classIds` vanished).
+ * listed — including `ltiAttachment`, `sessionOptions`, `periodNames`, etc.
+ * When `onSnapshot` fired and the teacher's session list was refreshed, those
+ * dropped fields caused data loss in the teacher UI.
  *
- * Fix: spread `...data` first so ALL optional fields are preserved, then
- * override only the fields that require normalization or defaulting.
+ * Fix: destructure the known fields (applying their original normalization
+ * logic unchanged), then spread `...restData` to preserve ALL other optional
+ * fields that arrive in the Firestore snapshot.
  *
  * Pure function; safe to call repeatedly.
  */
@@ -21,30 +21,64 @@ import type { MiniAppSession } from '@/types';
  * Normalize a raw Firestore `mini_app_sessions` document into a
  * fully-typed `MiniAppSession`.
  *
- * Spreads the source data first so ALL optional fields (`classIds`,
- * `rosterIds`, `endedAt`, `submissionsEnabled`, `mode`, etc.) are
- * preserved. Required fields are then overridden with normalized /
- * defaulted values.
+ * All explicitly-handled fields retain their original normalization guards
+ * (classIds/rosterIds filtered to valid strings, endedAt type-checked,
+ * submissionsEnabled only included when strictly true, mode validated).
+ * All other optional fields are preserved via `...restData`.
  */
 export function normalizeMiniAppSession(
   sessionId: string,
   data: Partial<MiniAppSession>
 ): MiniAppSession {
-  const appTitle = data.appTitle ?? 'Mini App';
-  const createdAt = data.createdAt ?? Date.now();
+  const {
+    id: _discardedId,
+    appId,
+    appTitle: rawAppTitle,
+    appHtml,
+    teacherUid,
+    assignmentName: rawAssignmentName,
+    status,
+    createdAt: rawCreatedAt,
+    endedAt,
+    classIds: rawClassIds,
+    rosterIds: rawRosterIds,
+    submissionsEnabled,
+    mode,
+    ...restData
+  } = data;
+
+  const appTitle = rawAppTitle ?? 'Mini App';
+  const createdAt = rawCreatedAt ?? Date.now();
+
+  const classIds = Array.isArray(rawClassIds)
+    ? rawClassIds.filter(
+        (c): c is string => typeof c === 'string' && c.length > 0
+      )
+    : [];
+
+  const rosterIds = Array.isArray(rawRosterIds)
+    ? rawRosterIds.filter(
+        (r): r is string => typeof r === 'string' && r.length > 0
+      )
+    : [];
 
   return {
-    ...data,
+    ...restData,
     id: sessionId,
-    appId: data.appId ?? '',
+    appId: appId ?? '',
     appTitle,
-    appHtml: data.appHtml ?? '',
-    teacherUid: data.teacherUid ?? '',
+    appHtml: appHtml ?? '',
+    teacherUid: teacherUid ?? '',
     assignmentName:
-      data.assignmentName && data.assignmentName.trim().length > 0
-        ? data.assignmentName
+      rawAssignmentName && rawAssignmentName.trim().length > 0
+        ? rawAssignmentName
         : `${appTitle} — ${new Date(createdAt).toLocaleString()}`,
-    status: data.status === 'ended' ? 'ended' : 'active',
+    status: status === 'ended' ? 'ended' : 'active',
     createdAt,
+    ...(typeof endedAt === 'number' ? { endedAt } : {}),
+    ...(classIds.length > 0 ? { classIds } : {}),
+    ...(rosterIds.length > 0 ? { rosterIds } : {}),
+    ...(submissionsEnabled === true ? { submissionsEnabled: true } : {}),
+    ...(mode === 'view-only' || mode === 'submissions' ? { mode } : {}),
   };
 }

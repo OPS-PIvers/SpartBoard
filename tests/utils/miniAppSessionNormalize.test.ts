@@ -4,27 +4,18 @@
  *
  * Root cause: the internal `normalizeSession` returned a hand-enumerated
  * literal that silently dropped every optional field on `MiniAppSession`
- * not explicitly listed. Specifically:
+ * not explicitly listed. Fields like `classIds`, `rosterIds`, `endedAt`,
+ * `mode`, `ltiAttachment`, `sessionOptions`, etc. were all stripped whenever
+ * `onSnapshot` refreshed the teacher's session list.
  *
- *   - `submissionsEnabled: false` (stored for view-only sessions) was
- *     dropped because the guard was `=== true` only:
- *       `...(data.submissionsEnabled === true ? { submissionsEnabled: true } : {})`
- *     After normalization the field became `undefined`, diverging from the
- *     Firestore source of truth.
+ * Note: the original conditional guards for `submissionsEnabled`, `mode`,
+ * `classIds`, `rosterIds`, and `endedAt` are INTENTIONAL and preserved in
+ * the fix. `submissionsEnabled: false` is correctly omitted — consumers
+ * check `=== true` for enabled, treating absent/undefined as not-enabled.
  *
- *   - Any future or currently-optional field not named in the literal
- *     (e.g. `classIds`, `rosterIds`) was dropped when the teacher's session
- *     list was refreshed via `onSnapshot`.
- *
- * Impact: every `onSnapshot` update to the session list (triggered by any
- * field change — rename, end, new session) ran `normalizeSession` and
- * stripped the fields. Teacher UI reading `session.submissionsEnabled` from
- * the list received `undefined` instead of `false`.
- *
- * Fix: extracted `normalizeSession` to `utils/miniAppNormalize.ts` as the
- * exported `normalizeMiniAppSession`. The function now spreads `...data` as
- * the first property of the returned object so all optional fields survive,
- * then overrides only the fields that require normalization or defaulting.
+ * Fix: extracted to `utils/miniAppNormalize.ts` as `normalizeMiniAppSession`.
+ * Uses destructuring + `...restData` spread to preserve all unlisted optional
+ * fields while keeping the original normalization guards for known fields.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -46,14 +37,13 @@ const MINIMAL_INPUT = {
 // ─── field-stripping regression ───────────────────────────────────────────────
 
 describe('normalizeMiniAppSession — optional field preservation', () => {
-  it('preserves submissionsEnabled: false (the primary regression)', () => {
-    // This is the exact value stored by createSession for view-only sessions.
-    // The old code dropped it because `false !== true` in the guard.
+  it('preserves classIds when all entries are valid strings (the primary regression)', () => {
+    // Old code dropped classIds entirely — they were not in the literal return.
     const result = normalizeMiniAppSession(SESSION_ID, {
       ...MINIMAL_INPUT,
-      submissionsEnabled: false,
+      classIds: ['class-a', 'class-b'],
     });
-    expect(result.submissionsEnabled).toBe(false);
+    expect(result.classIds).toEqual(['class-a', 'class-b']);
   });
 
   it('preserves submissionsEnabled: true', () => {
@@ -62,14 +52,6 @@ describe('normalizeMiniAppSession — optional field preservation', () => {
       submissionsEnabled: true,
     });
     expect(result.submissionsEnabled).toBe(true);
-  });
-
-  it('preserves classIds when present', () => {
-    const result = normalizeMiniAppSession(SESSION_ID, {
-      ...MINIMAL_INPUT,
-      classIds: ['class-a', 'class-b'],
-    });
-    expect(result.classIds).toEqual(['class-a', 'class-b']);
   });
 
   it('preserves rosterIds when present', () => {
