@@ -94,9 +94,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   ]);
 
   const queueRef = React.useRef(queue);
-  React.useEffect(() => {
-    queueRef.current = queue;
-  }, [queue]);
+  queueRef.current = queue;
 
   const lastExternalTriggerRef = React.useRef(config.externalTrigger ?? 0);
 
@@ -197,12 +195,19 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   );
 
   const handleNextStudent = useCallback(async () => {
-    const updated = [...queue];
-    const activeIdx = updated.findIndex((q) => q.status === 'active');
-    if (activeIdx !== -1) updated[activeIdx].status = 'done';
+    const activeIdx = queue.findIndex((q) => q.status === 'active');
+    const nextIdx = queue.findIndex((q) => q.status === 'waiting');
 
-    const nextIdx = updated.findIndex((q) => q.status === 'waiting');
-    if (nextIdx !== -1) updated[nextIdx].status = 'active';
+    // Produce a new array with new objects so queue items are never mutated
+    // in place. A shallow spread ([...queue]) shares object references, so
+    // direct property writes on those references would corrupt the original
+    // state — visible as double-advances on rapid successive clicks before
+    // React re-renders the callback with a fresh `queue` reference.
+    const updated = queue.map((item, idx) => {
+      if (idx === activeIdx) return { ...item, status: 'done' as const };
+      if (idx === nextIdx) return { ...item, status: 'active' as const };
+      return item;
+    });
 
     setQueue(updated);
 
