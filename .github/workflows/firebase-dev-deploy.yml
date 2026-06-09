@@ -6,19 +6,16 @@ on:
       - 'dev-*'
   workflow_dispatch:
 
-# A preview deploy is expensive: 4 jobs, including a full build plus a Firebase
-# functions/firestore/storage deploy and a hosting channel deploy. Running it on
-# *every* dev-* push was a large share of the Actions bill, so it's now opt-in:
-# trigger it from the Actions tab (workflow_dispatch) or by including [preview]
-# in the commit message. Normal pushes still get lint/type/test/build coverage
-# from PR Validation on the branch's PR — only the preview channel is gated.
+# Cancel a superseded preview deploy when a newer commit is pushed to the same
+# branch, so rapid successive pushes don't each run a full 4-job deploy to
+# completion. (workflow_dispatch is kept so a preview can also be re-run manually
+# from the Actions tab.)
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   lint:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[preview]')
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -29,7 +26,6 @@ jobs:
       - run: pnpm run format:check
 
   type-check:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[preview]')
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -37,7 +33,6 @@ jobs:
       - run: pnpm run type-check:all
 
   test:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[preview]')
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -57,7 +52,6 @@ jobs:
           VITE_SPOTIFY_CLIENT_ID: ${{ secrets.VITE_SPOTIFY_CLIENT_ID }}
 
   deploy:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[preview]')
     needs: [lint, type-check, test]
     runs-on: ubuntu-24.04
     steps:
