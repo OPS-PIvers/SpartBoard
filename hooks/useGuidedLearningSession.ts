@@ -210,6 +210,11 @@ export const useGuidedLearningSessionTeacher = (
         ...(set.imageKinds?.some((k) => k === 'video')
           ? { imageKinds: set.imageKinds.slice(0, set.imageUrls.length) }
           : {}),
+        // Mirror per-slide playback trims so video slides honor them in
+        // the student player. Omitted when no slide is trimmed.
+        ...(set.videoTrims?.some(Boolean)
+          ? { videoTrims: set.videoTrims.slice(0, set.imageUrls.length) }
+          : {}),
         publicSteps,
         teacherUid,
         createdAt: Date.now(),

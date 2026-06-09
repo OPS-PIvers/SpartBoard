@@ -4,6 +4,7 @@ import {
   GuidedLearningMode,
   GuidedLearningStep,
   GuidedLearningSetMetadata,
+  GuidedLearningVideoTrim,
   LibraryFolder,
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
@@ -23,6 +24,7 @@ export interface GuidedLearningEditorState {
   mode: GuidedLearningMode;
   imageUrls: string[];
   imageKinds: GuidedLearningMediaKind[];
+  videoTrims: (GuidedLearningVideoTrim | null)[];
   steps: GuidedLearningStep[];
   uploading: boolean;
   hotspotPulse: 'consistent' | 'reminder' | 'off';
@@ -70,6 +72,9 @@ export interface GuidedLearningEditorController {
   // Slides (images, GIFs, and uploaded/recorded videos)
   imageUrls: string[];
   imageKinds: GuidedLearningMediaKind[];
+  videoTrims: (GuidedLearningVideoTrim | null)[];
+  /** Set/clear the playback-range trim for a video slide. */
+  setVideoTrim: (index: number, trim: GuidedLearningVideoTrim | null) => void;
   currentImageIndex: number;
   setCurrentImageIndex: (next: number) => void;
   uploading: boolean;
@@ -112,6 +117,14 @@ function kindsForSet(set: GuidedLearningSet | null): GuidedLearningMediaKind[] {
   return set.imageUrls.map((_, i) => set.imageKinds?.[i] ?? 'image');
 }
 
+/** Normalize a set's persisted trims array to align with its imageUrls. */
+function trimsForSet(
+  set: GuidedLearningSet | null
+): (GuidedLearningVideoTrim | null)[] {
+  if (!set) return [];
+  return set.imageUrls.map((_, i) => set.videoTrims?.[i] ?? null);
+}
+
 /**
  * Owns all state for the Guided Learning editor. Returned as a controller
  * object that the modal hands to the context + detail pane components.
@@ -140,6 +153,9 @@ export function useGuidedLearningEditorState({
   const [imageKinds, setImageKinds] = useState<GuidedLearningMediaKind[]>(() =>
     kindsForSet(existingSet)
   );
+  const [videoTrims, setVideoTrims] = useState<
+    (GuidedLearningVideoTrim | null)[]
+  >(() => trimsForSet(existingSet));
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [steps, setSteps] = useState<GuidedLearningStep[]>(
     existingSet?.steps ?? []
@@ -174,6 +190,7 @@ export function useGuidedLearningEditorState({
     setMode(existingSet?.mode ?? 'structured');
     setImageUrls(existingSet?.imageUrls ?? []);
     setImageKinds(kindsForSet(existingSet));
+    setVideoTrims(trimsForSet(existingSet));
     setCurrentImageIndex(0);
     setSteps(existingSet?.steps ?? []);
     setSelectedStepId(null);
@@ -193,6 +210,7 @@ export function useGuidedLearningEditorState({
       mode,
       imageUrls,
       imageKinds,
+      videoTrims,
       steps,
       uploading,
       hotspotPulse,
@@ -206,6 +224,7 @@ export function useGuidedLearningEditorState({
     mode,
     imageUrls,
     imageKinds,
+    videoTrims,
     steps,
     uploading,
     hotspotPulse,
@@ -226,6 +245,7 @@ export function useGuidedLearningEditorState({
       if (urls.length === 0) return;
       setImageUrls((prev) => [...prev, ...urls]);
       setImageKinds((prev) => [...prev, ...kinds]);
+      setVideoTrims((prev) => [...prev, ...urls.map(() => null)]);
       // Jump the canvas to the last newly added slide so the teacher can
       // immediately start placing hotspots on it.
       setCurrentImageIndex(slideCountRef.current + urls.length - 1);
@@ -331,6 +351,15 @@ export function useGuidedLearningEditorState({
     [uploadFromFiles]
   );
 
+  const setVideoTrim = useCallback(
+    (index: number, trim: GuidedLearningVideoTrim | null) => {
+      setVideoTrims((prev) =>
+        prev.map((existing, i) => (i === index ? trim : existing))
+      );
+    },
+    []
+  );
+
   const deleteImage = useCallback(
     (deleteIndex: number) => {
       const updatedImageUrls = imageUrls.filter(
@@ -338,6 +367,7 @@ export function useGuidedLearningEditorState({
       );
       setImageUrls(updatedImageUrls);
       setImageKinds((prev) => prev.filter((_, index) => index !== deleteIndex));
+      setVideoTrims((prev) => prev.filter((_, index) => index !== deleteIndex));
       setCurrentImageIndex((curr) => {
         if (updatedImageUrls.length === 0) return 0;
         if (curr === deleteIndex)
@@ -374,6 +404,7 @@ export function useGuidedLearningEditorState({
       };
       setImageUrls(swap);
       setImageKinds(swap);
+      setVideoTrims(swap);
       setSteps((prev) =>
         prev.map((step) => {
           if (step.imageIndex === fromIndex)
@@ -453,6 +484,8 @@ export function useGuidedLearningEditorState({
     setWelcomeMessage,
     imageUrls,
     imageKinds,
+    videoTrims,
+    setVideoTrim,
     currentImageIndex,
     setCurrentImageIndex,
     uploading,

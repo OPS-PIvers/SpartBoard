@@ -14,6 +14,7 @@ import {
   GuidedLearningSet,
   GuidedLearningSetMetadata,
   GuidedLearningStep,
+  GuidedLearningVideoTrim,
   LibraryFolder,
 } from '@/types';
 import { EditorWorkspace } from '@/components/common/EditorWorkspace';
@@ -54,6 +55,23 @@ function arraysEqual(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function trimsEqual(
+  a: (GuidedLearningVideoTrim | null)[],
+  b: (GuidedLearningVideoTrim | null)[]
+): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const ta = a[i];
+    const tb = b[i];
+    if (ta === null || tb === null) {
+      if (ta !== tb) return false;
+    } else if (ta.start !== tb.start || ta.end !== tb.end) {
+      return false;
+    }
   }
   return true;
 }
@@ -162,6 +180,12 @@ export const GuidedLearningEditorModal: React.FC<
       set ? set.imageUrls.map((_, i) => set.imageKinds?.[i] ?? 'image') : [],
     [set]
   );
+  // Normalized per-slide trims (missing entries = null) for stable dirty
+  // comparison on legacy sets without the field.
+  const originalVideoTrims = useMemo(
+    () => (set ? set.imageUrls.map((_, i) => set.videoTrims?.[i] ?? null) : []),
+    [set]
+  );
   const originalSteps = useMemo(
     () => (set ? structuredClone(set.steps) : []),
     [set]
@@ -201,6 +225,7 @@ export const GuidedLearningEditorModal: React.FC<
       liveState.welcomeMessage !== originalWelcomeMessage ||
       !arraysEqual(liveState.imageUrls, originalImageUrls) ||
       !arraysEqual(liveState.imageKinds, originalImageKinds) ||
+      !trimsEqual(liveState.videoTrims, originalVideoTrims) ||
       !stepsEqual(liveState.steps, originalSteps)
     );
   }, [
@@ -214,6 +239,7 @@ export const GuidedLearningEditorModal: React.FC<
     originalWelcomeMessage,
     originalImageUrls,
     originalImageKinds,
+    originalVideoTrims,
     originalSteps,
   ]);
 
@@ -231,6 +257,11 @@ export const GuidedLearningEditorModal: React.FC<
         // image-only (and legacy) sets free of the new field.
         ...(liveState.imageKinds.some((k) => k === 'video')
           ? { imageKinds: liveState.imageKinds }
+          : {}),
+        // Only persist trims when at least one slide actually has one —
+        // keeps untrimmed (and legacy) sets free of the new field.
+        ...(liveState.videoTrims.some(Boolean)
+          ? { videoTrims: liveState.videoTrims }
           : {}),
         steps: liveState.steps,
         mode: liveState.mode,
