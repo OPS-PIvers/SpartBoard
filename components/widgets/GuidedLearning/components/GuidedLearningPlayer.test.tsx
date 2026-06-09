@@ -290,7 +290,7 @@ describe('GuidedLearningPlayer', () => {
       screen.queryByRole('button', { name: /step 2/i })
     ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /show image 2/i }));
+    fireEvent.click(screen.getByRole('button', { name: /show slide 2/i }));
     expect(image.src).toContain('image-2.png');
 
     fireEvent.click(screen.getByRole('button', { name: /step 2/i }));

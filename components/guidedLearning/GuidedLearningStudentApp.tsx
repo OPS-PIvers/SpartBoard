@@ -362,6 +362,7 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
     id: session.id,
     title: session.title,
     imageUrls: session.imageUrls,
+    imageKinds: session.imageKinds,
     steps: session.publicSteps,
     mode: session.mode,
     createdAt: session.createdAt,

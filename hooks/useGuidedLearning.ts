@@ -19,6 +19,7 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from './useGoogleDrive';
 import { GuidedLearningSet, GuidedLearningSetMetadata } from '@/types';
+import { pickThumbnailUrl } from '@/utils/guidedLearningMedia';
 import { GuidedLearningDriveService } from '@/utils/guidedLearningDriveService';
 import {
   GuidedLearningDriveLike,
@@ -184,7 +185,7 @@ export const useGuidedLearning = (
         description: set.description,
         stepCount: set.steps.length,
         mode: set.mode,
-        imageUrl: updatedSet.imageUrls[0] ?? '',
+        imageUrl: pickThumbnailUrl(updatedSet),
         driveFileId,
         createdAt: set.createdAt,
         updatedAt: updatedSet.updatedAt,
@@ -255,7 +256,7 @@ export const useGuidedLearning = (
           description: fresh.description,
           stepCount: fresh.steps.length,
           mode: fresh.mode,
-          imageUrl: fresh.imageUrls[0] ?? '',
+          imageUrl: pickThumbnailUrl(fresh),
           driveFileId: createdDriveFileId,
           createdAt: fresh.createdAt,
           updatedAt: fresh.updatedAt,

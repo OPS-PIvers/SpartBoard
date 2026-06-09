@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   ref,
   uploadBytes,
+  uploadBytesResumable,
   getDownloadURL,
   deleteObject,
 } from 'firebase/storage';
@@ -104,6 +105,59 @@ export const useStorage = () => {
       `users/${userId}/display_images/${timestamp}-${file.name}`,
       file
     );
+  };
+
+  /**
+   * Resumable Firebase Storage upload with percent progress (0–100).
+   * Used for large guided-learning media (MP4 slides, screen recordings)
+   * where the binary `uploading` spinner isn't enough feedback.
+   */
+  const uploadFileWithProgress = async (
+    path: string,
+    blob: Blob,
+    onProgress?: (percent: number) => void
+  ): Promise<string> => {
+    setUploading(true);
+    try {
+      const storageRef = ref(storage, path);
+      const task = uploadBytesResumable(storageRef, blob);
+      await new Promise<void>((resolve, reject) => {
+        task.on(
+          'state_changed',
+          (snapshot) => {
+            if (snapshot.totalBytes > 0) {
+              onProgress?.(
+                Math.round(
+                  (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+                )
+              );
+            }
+          },
+          reject,
+          resolve
+        );
+      });
+      return await getDownloadURL(task.snapshot.ref);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  /**
+   * Upload a guided-learning video slide / step recording. Always writes to
+   * Firebase Storage (never Drive): `lh3.googleusercontent.com` Drive links
+   * only serve images, so a Drive-hosted MP4 can't play in a `<video>` tag.
+   * Reuses the `hotspot_images` path so existing storage rules cover it.
+   */
+  const uploadGuidedLearningVideo = async (
+    userId: string,
+    blob: Blob,
+    fileName: string,
+    onProgress?: (percent: number) => void
+  ): Promise<{ url: string; storagePath: string }> => {
+    const storagePath = `users/${userId}/hotspot_images/${Date.now()}-${fileName}`;
+    const url = await uploadFileWithProgress(storagePath, blob, onProgress);
+    return { url, storagePath };
   };
 
   const uploadHotspotImage = async (
@@ -352,6 +406,8 @@ export const useStorage = () => {
   return {
     uploading,
     uploadFile,
+    uploadFileWithProgress,
+    uploadGuidedLearningVideo,
     uploadBackgroundImage,
     uploadSticker,
     uploadDisplayImage,
