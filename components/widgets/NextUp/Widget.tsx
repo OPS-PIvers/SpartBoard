@@ -10,6 +10,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { WidgetLayout } from '../WidgetLayout';
 import { resumeAudio } from '@/utils/timeToolAudio';
+import { advanceNextUpQueue } from './nextUpQueueUtils';
 import {
   collection,
   onSnapshot,
@@ -195,20 +196,8 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   );
 
   const handleNextStudent = useCallback(async () => {
-    const activeIdx = queue.findIndex((q) => q.status === 'active');
     const nextIdx = queue.findIndex((q) => q.status === 'waiting');
-
-    // Produce a new array with new objects so queue items are never mutated
-    // in place. A shallow spread ([...queue]) shares object references, so
-    // direct property writes on those references would corrupt the original
-    // state — visible as double-advances on rapid successive clicks before
-    // React re-renders the callback with a fresh `queue` reference.
-    const updated = queue.map((item, idx) => {
-      if (idx === activeIdx) return { ...item, status: 'done' as const };
-      if (idx === nextIdx) return { ...item, status: 'active' as const };
-      return item;
-    });
-
+    const updated = advanceNextUpQueue(queue);
     setQueue(updated);
 
     // Nexus: Auto-Start Timer integration (from #770)
