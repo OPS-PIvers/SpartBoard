@@ -27,7 +27,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
-import { Modal } from '../../Modal';
+import { Modal } from '@/components/common/Modal';
 import type {
   ImportAdapter,
   ImportSourceKind,

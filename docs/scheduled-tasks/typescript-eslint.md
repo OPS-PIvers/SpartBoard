@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-08_
+_Last audited: 2026-06-09_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-09. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Merged dev-paul: fix(optimize-pass) address PR #1908 reviewer comments, perf+a11y optimize-pass sweep (waves 1–4 + self-review fixes), fix(classroom) address bot review comments PR #1906, fix(classroom) correct multi-course grade-push reporting + Item D link hardening, chore(debugger) nightly run log 2026-06-08. New files introduced: utils/firestorePaging.ts, utils/mapWithConcurrency.ts, utils/snapshotThrottle.ts, tests/utils/mapWithConcurrency.test.ts, tests/utils/videoActivitySessionNormalize.test.ts, tests/utils/reducedMotion.test.ts, tests/testHelpers/mocks.ts, todo/F1-split-dashboardcontext.md, todo/F20-tsconfig-unused-strictness.md. All new and modified code type-safe and lint-clean._
 
 _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-08. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Merged dev-paul (fix(CalculatorTool) decimal desync, fix(Dock) processAndUploadImage useEffect dep, fix(quiz) score denominator dedup, fix(i18n) widgets.weather DE/FR, fix(functions) widget-builder/explainer specificFeatureId). New files: CalculatorTool.test.tsx, quizScoreboard.test.ts, Dock.test.tsx (test additions), widgetWeatherLocales.test.ts. All new and modified code type-safe and lint-clean._
 

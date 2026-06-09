@@ -1039,3 +1039,34 @@ _Automated nightly review by claude-opus-4-6_
 - Notes:
   - Branch-safety: only #1366 is open this run (PR #1677 from the 2026-05-21 entry is no longer open, so `scheduled-tasks` is no longer a PR head). #1366 head `docs/*` is pushable but Phase 1 produced no fixes — no pushes to any PR branch.
   - Log committed and pushed to `scheduled-tasks` directly this run, since it is no longer the head of any open PR.
+
+## 2026-06-09
+
+- PRs reviewed: 8
+  - #1909 — fix(D4): library/ Modal imports → @/ alias (head `nightly/unify-import-paths-library-2026-06-09`, base `dev-paul`)
+  - #1910 — docs(unifier): run 11 memory log (head `nightly/unifier-log-2026-06-09`, base `dev-paul`)
+  - #1911 — fix(i18n): widgets.timeTool DE/FR/ES (head `nightly/admin-config-2026-06-09`, base `dev-paul`)
+  - #1912 — fix(miniApp): extract normalizeMiniAppSession (head `nightly/state-data-2026-06-09`, base `dev-paul`)
+  - #1913 — fix(dock): add SELECT to smart-paste guard (head `nightly/dashboard-layout-2026-06-09`, base `dev-paul`)
+  - #1914 — fix(widgets): NextUp queue in-place mutation (head `nightly/widgets-2026-06-09`, base `dev-paul`)
+  - #1915 — chore(debugger): nightly run log run 13 (head `nightly/debugger-log-2026-06-09`, base `dev-paul`)
+  - #1916 — audit(tuesday) + fix(deps): close CRITICAL vitest CVE (head `scheduled-tasks`, base `dev-paul`)
+- Comments processed: 5 total — 3 fixed, 2 explained
+  - #1911: 3 unresolved gemini-code-assist French word-choice threads (Randomiseur vs Aléatoire, le Randomiseur vs l'aléatoire, « Suivant » vs « Prochain ») → all 3 FIXED in a pushed commit; consistent with existing `Randomiseur` term at fr.json:669.
+  - #1912: 1 unresolved gemini thread requesting classIds/rosterIds sanitization → EXPLAINED (no fix): a later commit on the branch already destructures them out of `restData` and filters to non-empty strings; the spread is `...restData`, never a blind `...data`.
+  - #1913: 1 thread (e.target null-guard) already `is_resolved:true` + `is_outdated:true` (fix already incorporated) → skipped silently.
+  - #1909, #1910, #1914, #1915, #1916: no review comments.
+- Fixes pushed: 1
+  - #1911 / `nightly/admin-config-2026-06-09` — fr.json timeTool tips reworded to "Randomiseur"/"Suivant" for consistency; JSON valid, prettier clean, i18n test 8/8 passing.
+- Reviews posted: 8 (one structured review per PR)
+  - #1909: Ready — pure `@/` alias substitution, behavior-preserving.
+  - #1910: Ready — doc-only unifier run 11 log.
+  - #1911: Ready — locale parity fix + parity-enforcing regression test; gemini nits addressed.
+  - #1912: Ready — destructure + `...restData` extraction mirrors normalizeVideoActivitySession (#1902); good test coverage.
+  - #1913: Ready — SELECT guard + null-safety; minor non-blocking nit (double `<Dock />` render in the new test).
+  - #1914: Ready — extracted advanceNextUpQueue (no in-place mutation) + render-body queueRef; minor nit (duplicate nextIdx computation).
+  - #1915: Ready — doc-only debugger run 13 log; cross-refs consistent with #1911–#1914.
+  - #1916: Ready with minor notes — CRITICAL vitest CVE bump; CI on Node 24 (frozen lockfile) is the authoritative gate (couldn't run install/suite locally — Node 22 here); `ws` MEDIUM remains a tracked follow-up.
+- Notes:
+  - Branch-safety: all 8 head branches are non-`main` / non-`dev-*` → pushable. Only #1911 required a fix push.
+  - #1916 head is `scheduled-tasks` (this log's branch). The deps bump + audit journals it carries are scheduled-task artifacts in the same family as this log, so appending today's entry here is in-scope; pushed to `scheduled-tasks` per the POST-TASK workflow.

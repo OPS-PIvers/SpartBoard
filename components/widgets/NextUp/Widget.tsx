@@ -10,6 +10,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { WidgetLayout } from '../WidgetLayout';
 import { resumeAudio } from '@/utils/timeToolAudio';
+import { advanceNextUpQueue } from './nextUpQueueUtils';
 import {
   collection,
   onSnapshot,
@@ -94,9 +95,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   ]);
 
   const queueRef = React.useRef(queue);
-  React.useEffect(() => {
-    queueRef.current = queue;
-  }, [queue]);
+  queueRef.current = queue;
 
   const lastExternalTriggerRef = React.useRef(config.externalTrigger ?? 0);
 
@@ -197,13 +196,8 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   );
 
   const handleNextStudent = useCallback(async () => {
-    const updated = [...queue];
-    const activeIdx = updated.findIndex((q) => q.status === 'active');
-    if (activeIdx !== -1) updated[activeIdx].status = 'done';
-
-    const nextIdx = updated.findIndex((q) => q.status === 'waiting');
-    if (nextIdx !== -1) updated[nextIdx].status = 'active';
-
+    const nextIdx = queue.findIndex((q) => q.status === 'waiting');
+    const updated = advanceNextUpQueue(queue);
     setQueue(updated);
 
     // Nexus: Auto-Start Timer integration (from #770)

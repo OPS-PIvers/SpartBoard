@@ -35,7 +35,7 @@ import {
   ExternalLink,
   X,
 } from 'lucide-react';
-import { Modal } from '../Modal';
+import { Modal } from '@/components/common/Modal';
 
 export interface ViewOnlyShareModalProps {
   /** The thing being shared (quiz title, set title, activity title). */
