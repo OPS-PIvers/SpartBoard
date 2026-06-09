@@ -87,9 +87,15 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
  * session-options objects, whose values are all primitives. Matches the
  * previous `JSON.stringify(a) !== JSON.stringify(b)` dirty-check semantics
  * (explicit `undefined` == absent) without serializing on every keystroke.
+ * Tolerates a missing object on either side (legacy Firestore docs may lack
+ * sessionOptions despite the type) — the old stringify compare did too.
  */
-const shallowRecordEqual = <T extends object>(a: T, b: T): boolean => {
+const shallowRecordEqual = <T extends object>(
+  a: T | undefined,
+  b: T | undefined
+): boolean => {
   if (a === b) return true;
+  if (!a || !b) return false;
   const keys = new Set([...Object.keys(a), ...Object.keys(b)] as (keyof T)[]);
   for (const key of keys) {
     if (!Object.is(a[key], b[key])) return false;
