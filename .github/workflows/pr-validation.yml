@@ -6,6 +6,12 @@ on:
       - main
       - dev-*
 
+# Cancel a superseded run when a newer commit is pushed to the same PR, so
+# rapid successive pushes don't each run the full 6-job suite to completion.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality:
     runs-on: ubuntu-24.04
