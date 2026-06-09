@@ -500,3 +500,129 @@ describe('Dock smart-paste – processAndUploadImage is not a spurious dep', () 
     // Spies are restored by the afterEach above (vi.restoreAllMocks).
   });
 });
+
+// ── Regression: handlePaste guard missing 'SELECT' ────────────────────────
+//
+// Bug: The isTypingField guard in handlePaste checked only INPUT and TEXTAREA
+// (plus isContentEditable), but omitted SELECT.  Every other keyboard/paste
+// guard in the codebase includes SELECT:
+//   DashboardView.tsx – lines 1220-1222
+//   SettingsPanel.tsx  – lines 170-173
+//
+// Consequence: pasting while a <select> element has focus fires the global
+// paste handler, which tries to interpret clipboard text as a widget-creation
+// command.  Because SELECT elements receive paste events that bubble to
+// window, this causes accidental widget creation or smart-paste modal
+// display when the user is merely interacting with a dropdown.
+//
+// Fix: add 'SELECT' to the tagName array so the guard is consistent with the
+// rest of the codebase.
+
+describe('Dock smart-paste – SELECT element is excluded from paste interception', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('does NOT intercept a paste event whose target is a SELECT element', () => {
+    // Override canAccessFeature so the smart-paste useEffect actually registers,
+    // and capture addWidget to assert it is never called.
+    const addWidgetSpy = vi.fn();
+    const addToastSpy = vi.fn();
+
+    setupMocks();
+
+    vi.mocked(useAuth).mockReturnValue({
+      canAccessWidget: vi.fn().mockReturnValue(true),
+      canAccessFeature: vi.fn().mockReturnValue(true),
+      user: { uid: 'test-uid', email: 'test@test.com' },
+      userGradeLevels: [],
+      selectedBuildings: [],
+      featurePermissions: [],
+      dockPosition: 'bottom',
+    } as unknown as ReturnType<typeof useAuth>);
+
+    vi.mocked(useDashboard).mockReturnValue({
+      addWidget: addWidgetSpy,
+      removeWidget: vi.fn(),
+      removeWidgets: vi.fn(),
+      visibleTools: [],
+      dockItems: [],
+      reorderDockItems: vi.fn(),
+      activeDashboard: null,
+      updateWidget: vi.fn(),
+      toggleToolVisibility: vi.fn(),
+      reorderLibrary: vi.fn(),
+      libraryOrder: [],
+      addFolder: vi.fn(),
+      renameFolder: vi.fn(),
+      deleteFolder: vi.fn(),
+      addItemToFolder: vi.fn(),
+      moveItemOutOfFolder: vi.fn(),
+      reorderFolderItems: vi.fn(),
+      addToast: addToastSpy,
+      setPendingQuizShareId: vi.fn(),
+      setPendingAssignmentShareId: vi.fn(),
+    } as unknown as ReturnType<typeof useDashboard>);
+
+    render(<Dock />);
+
+    // Simulate a paste event whose target is a <select> element.
+    // JSDOM does not expose ClipboardEvent as a global constructor, so we
+    // manually invoke the registered window 'paste' handler by spying on
+    // window.addEventListener to capture it, then calling it directly.
+    const selectEl = document.createElement('select');
+    document.body.appendChild(selectEl);
+
+    // Capture the paste handler that Dock registers via useEffect.
+    const pasteHandlers: EventListenerOrEventListenerObject[] = [];
+    const origAdd = window.addEventListener.bind(window);
+    vi.spyOn(window, 'addEventListener').mockImplementation(
+      (
+        type: string,
+        handler: EventListenerOrEventListenerObject,
+        options?: boolean | AddEventListenerOptions
+      ) => {
+        if (type === 'paste') pasteHandlers.push(handler);
+        origAdd(type, handler, options);
+      }
+    );
+
+    // Re-render so that the useEffect fires and registers via our spy.
+    const { unmount } = render(<Dock />);
+
+    // We should have captured exactly one paste handler.
+    expect(pasteHandlers.length).toBe(1);
+
+    // Call it directly with a synthetic event object whose target is SELECT
+    // and whose clipboardData would match a YouTube URL (normally widget-worthy).
+    const fakeEvent = {
+      target: selectEl,
+      defaultPrevented: false,
+      clipboardData: {
+        files: { length: 0 },
+        getData: () => 'https://youtu.be/dQw4w9WgXcQ',
+      },
+      preventDefault: vi.fn(),
+    } as unknown as ClipboardEvent;
+
+    const handler = pasteHandlers[0];
+    if (typeof handler === 'function') {
+      handler(fakeEvent);
+    } else {
+      handler.handleEvent(fakeEvent);
+    }
+
+    // With the bug: addWidget or addToast would be called because SELECT was
+    // absent from the guard and the YouTube URL would be detected as a widget.
+    // After the fix: neither must be called — the handler returns early.
+    expect(addWidgetSpy).not.toHaveBeenCalled();
+    expect(addToastSpy).not.toHaveBeenCalled();
+
+    document.body.removeChild(selectEl);
+    unmount();
+  });
+});
