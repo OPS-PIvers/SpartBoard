@@ -114,6 +114,18 @@ export const ScreenCaptureModal: React.FC<Props> = ({
     };
   }, []);
 
+  // Escape closes the modal (standard modal affordance). Skipped while a
+  // recording is in flight so a stray Escape can't silently discard it.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || recording) return;
+      e.stopPropagation();
+      onClose();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [recording, onClose]);
+
   // Recording duration ticker.
   useEffect(() => {
     if (!recording) return;

@@ -144,12 +144,13 @@ export const useStorage = () => {
   };
 
   /**
-   * Upload a guided-learning video slide / step recording. Always writes to
-   * Firebase Storage (never Drive): `lh3.googleusercontent.com` Drive links
-   * only serve images, so a Drive-hosted MP4 can't play in a `<video>` tag.
+   * Upload guided-learning AV media (video slides, screen recordings, and
+   * per-step audio/video files). Always writes to Firebase Storage (never
+   * Drive): `lh3.googleusercontent.com` Drive links only serve images, so a
+   * Drive-hosted MP4/MP3 can't stream in a `<video>`/`<audio>` tag.
    * Reuses the `hotspot_images` path so existing storage rules cover it.
    */
-  const uploadGuidedLearningVideo = async (
+  const uploadGuidedLearningMedia = async (
     userId: string,
     blob: Blob,
     fileName: string,
@@ -407,7 +408,7 @@ export const useStorage = () => {
     uploading,
     uploadFile,
     uploadFileWithProgress,
-    uploadGuidedLearningVideo,
+    uploadGuidedLearningMedia,
     uploadBackgroundImage,
     uploadSticker,
     uploadDisplayImage,

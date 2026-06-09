@@ -459,7 +459,7 @@ const StepMediaUpload: React.FC<{
   onUploaded: (url: string, storagePath: string) => void;
 }> = ({ accept, buttonLabel, onUploaded }) => {
   const { user } = useAuth();
-  const { uploadGuidedLearningVideo } = useStorage();
+  const { uploadGuidedLearningMedia } = useStorage();
   const inputRef = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState('');
@@ -469,7 +469,7 @@ const StepMediaUpload: React.FC<{
     setError('');
     setProgress(0);
     try {
-      const { url, storagePath } = await uploadGuidedLearningVideo(
+      const { url, storagePath } = await uploadGuidedLearningMedia(
         user.uid,
         file,
         file.name.replace(/[^\w.-]+/g, '_'),

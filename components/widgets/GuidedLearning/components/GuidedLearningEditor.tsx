@@ -478,11 +478,15 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
         f.type.startsWith('image/')
       );
       if (files.length === 0) return;
+      // preventDefault + capture phase: Dock's global smart-paste handler
+      // respects `e.defaultPrevented`, and capture guarantees this listener
+      // runs first — otherwise a single paste would both add a slide here
+      // and open Dock's image-paste modal.
       e.preventDefault();
       void uploadFromFiles(files);
     };
-    window.addEventListener('paste', onPaste);
-    return () => window.removeEventListener('paste', onPaste);
+    window.addEventListener('paste', onPaste, true);
+    return () => window.removeEventListener('paste', onPaste, true);
   }, [uploadFromFiles]);
 
   // Drag-and-drop — the entire canvas column is a drop target. The counter

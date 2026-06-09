@@ -38,7 +38,7 @@ export function getMediaKind(file: File): GuidedLearningMediaKind | null {
 export function validateSlideFile(file: File): string | null {
   const kind = getMediaKind(file);
   if (!kind) {
-    return `"${file.name}" isn't a supported file. Use PNG, JPG, GIF, WebP, MP4, or WebM.`;
+    return `"${file.name}" isn't a supported file. Use an image (PNG, JPG, GIF, WebP…) or a video (MP4, WebM, MOV).`;
   }
   if (kind === 'video' && file.size > GL_MAX_VIDEO_BYTES) {
     return `"${file.name}" is too large (max ${Math.round(GL_MAX_VIDEO_BYTES / 1024 / 1024)}MB for video). Trim it or record a shorter clip.`;

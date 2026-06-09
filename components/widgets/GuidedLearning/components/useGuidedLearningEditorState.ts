@@ -124,7 +124,7 @@ export function useGuidedLearningEditorState({
   onFolderChange,
 }: UseGuidedLearningEditorStateProps): GuidedLearningEditorController {
   const { user } = useAuth();
-  const { uploading, uploadHotspotImage, uploadGuidedLearningVideo } =
+  const { uploading, uploadHotspotImage, uploadGuidedLearningMedia } =
     useStorage();
 
   const [title, setTitle] = useState(existingSet?.title ?? '');
@@ -263,7 +263,7 @@ export function useGuidedLearningEditorState({
           });
           try {
             if (kind === 'video') {
-              const { url } = await uploadGuidedLearningVideo(
+              const { url } = await uploadGuidedLearningMedia(
                 user.uid,
                 file,
                 file.name.replace(/[^\w.-]+/g, '_'),
@@ -291,7 +291,7 @@ export function useGuidedLearningEditorState({
       }
       if (errors.length > 0) setImageError(errors.join(' '));
     },
-    [user, uploadHotspotImage, uploadGuidedLearningVideo, appendSlides]
+    [user, uploadHotspotImage, uploadGuidedLearningMedia, appendSlides]
   );
 
   const uploadFromClipboard = useCallback(async () => {
