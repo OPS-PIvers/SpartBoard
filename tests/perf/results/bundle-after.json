@@ -2,20 +2,20 @@
   "chunks": [
     {
       "name": "EditorModalShell.js",
-      "gzipKb": 1.4
+      "gzipKb": 1.36
     },
     {
       "name": "QuizResults.js",
-      "gzipKb": 33.78
+      "gzipKb": 32.83
     },
     {
       "name": "index-guidedLearningEditor.js",
-      "gzipKb": 34.53
+      "gzipKb": 33.58
     },
     {
       "name": "VideoActivityEditorModal.js",
-      "gzipKb": 18.09
+      "gzipKb": 17.66
     }
   ],
-  "totalGzipKb": 87.8
+  "totalGzipKb": 85.43
 }
