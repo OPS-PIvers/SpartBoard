@@ -52,6 +52,7 @@ interface GuidedLearningEditorModalProps {
 // ─── Deep equality helpers ──────────────────────────────────────────────────
 
 function arraysEqual(a: string[], b: string[]): boolean {
+  if (a === b) return true;
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     if (a[i] !== b[i]) return false;
@@ -63,6 +64,7 @@ function trimsEqual(
   a: (GuidedLearningVideoTrim | null)[],
   b: (GuidedLearningVideoTrim | null)[]
 ): boolean {
+  if (a === b) return true;
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     const ta = a[i];
@@ -80,6 +82,7 @@ function matchingPairsEqual(
   a: { left: string; right: string }[],
   b: { left: string; right: string }[]
 ): boolean {
+  if (a === b) return true;
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     if (a[i].left !== b[i].left || a[i].right !== b[i].right) return false;
@@ -103,10 +106,12 @@ function questionsEqual(
 }
 
 function stepsEqual(a: GuidedLearningStep[], b: GuidedLearningStep[]): boolean {
+  if (a === b) return true;
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     const sa = a[i];
     const sb = b[i];
+    if (sa === sb) continue;
     if (
       sa.id !== sb.id ||
       sa.xPct !== sb.xPct ||
@@ -321,6 +326,55 @@ export const GuidedLearningEditorModal: React.FC<
         ? `Folder: ${currentFolder.name}`
         : 'Folder not found';
 
+  // Stable chrome elements so the shell's memoized header/footer don't
+  // re-render on step-editor keystrokes.
+  const subtitle = useMemo(
+    () => (
+      <span>
+        {stepCount} {stepCount === 1 ? 'step' : 'steps'}
+      </span>
+    ),
+    [stepCount]
+  );
+  const headerExtras = useMemo(
+    () =>
+      folderPickerEnabled ? (
+        <button
+          ref={folderButtonRef}
+          type="button"
+          onClick={() => setFolderPickerOpen((v) => !v)}
+          title={folderTooltip}
+          aria-label={folderTooltip}
+          aria-expanded={folderPickerOpen}
+          aria-haspopup="dialog"
+          className={`inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 ${
+            folderId != null ? 'text-brand-blue-primary' : ''
+          }`}
+        >
+          {folderId == null ? (
+            <Inbox className="h-5 w-5" />
+          ) : (
+            <FolderIcon className="h-5 w-5" />
+          )}
+        </button>
+      ) : null,
+    [folderPickerEnabled, folderTooltip, folderPickerOpen, folderId]
+  );
+  const footerExtras = useMemo(
+    () =>
+      canUseAi ? (
+        <button
+          onClick={() => setShowAiGen(true)}
+          className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
+          title="Generate with AI (Admin)"
+        >
+          <Sparkles className="w-4 h-4" />
+          Draft with AI
+        </button>
+      ) : null,
+    [canUseAi]
+  );
+
   if (!set) return null;
 
   return (
@@ -331,33 +385,8 @@ export const GuidedLearningEditorModal: React.FC<
         title={headerTitleValue}
         onTitleChange={editorState.setTitle}
         titlePlaceholder={titlePlaceholder}
-        subtitle={
-          <span>
-            {stepCount} {stepCount === 1 ? 'step' : 'steps'}
-          </span>
-        }
-        headerExtras={
-          folderPickerEnabled ? (
-            <button
-              ref={folderButtonRef}
-              type="button"
-              onClick={() => setFolderPickerOpen((v) => !v)}
-              title={folderTooltip}
-              aria-label={folderTooltip}
-              aria-expanded={folderPickerOpen}
-              aria-haspopup="dialog"
-              className={`inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 ${
-                folderId != null ? 'text-brand-blue-primary' : ''
-              }`}
-            >
-              {folderId == null ? (
-                <Inbox className="h-5 w-5" />
-              ) : (
-                <FolderIcon className="h-5 w-5" />
-              )}
-            </button>
-          ) : null
-        }
+        subtitle={subtitle}
+        headerExtras={headerExtras}
         isDirty={isDirty}
         isSaving={saving}
         onSave={handleSave}
@@ -369,18 +398,7 @@ export const GuidedLearningEditorModal: React.FC<
           liveState.imageUrls.length === 0 ||
           liveState.uploading
         }
-        footerExtras={
-          canUseAi ? (
-            <button
-              onClick={() => setShowAiGen(true)}
-              className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
-              title="Generate with AI (Admin)"
-            >
-              <Sparkles className="w-4 h-4" />
-              Draft with AI
-            </button>
-          ) : null
-        }
+        footerExtras={footerExtras}
         className="h-[90vh]"
         contextRatio={58}
         contextPane={<GuidedLearningEditorContextPane state={editorState} />}
