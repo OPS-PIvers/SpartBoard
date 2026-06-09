@@ -18,6 +18,10 @@ describe('SoundWidget', () => {
   let mockUpdateWidget: Mock;
   let mockActiveDashboard: Partial<Dashboard>;
   let mockGetByteFrequencyData: Mock;
+  let mockTrackStop: Mock;
+  let mockAudioContextClose: Mock;
+  let mockSuspend: Mock;
+  let mockGetUserMedia: Mock;
 
   beforeEach(() => {
     mockUpdateWidget = vi.fn();
@@ -34,6 +38,11 @@ describe('SoundWidget', () => {
       array.fill(0); // Default silence
     });
 
+    // Stable spies so tests can assert mic/context release.
+    mockTrackStop = vi.fn();
+    mockAudioContextClose = vi.fn().mockResolvedValue(undefined);
+    mockSuspend = vi.fn().mockResolvedValue(undefined);
+
     // Mock AudioContext
     window.AudioContext = class {
       createMediaStreamSource = vi.fn().mockReturnValue({ connect: vi.fn() });
@@ -42,15 +51,18 @@ describe('SoundWidget', () => {
         frequencyBinCount: 128,
         getByteFrequencyData: mockGetByteFrequencyData,
       });
-      close = vi.fn().mockResolvedValue(undefined);
+      close = mockAudioContextClose;
+      suspend = mockSuspend;
+      resume = vi.fn().mockResolvedValue(undefined);
     } as unknown as typeof AudioContext;
 
     // Mock getUserMedia
+    mockGetUserMedia = vi.fn().mockResolvedValue({
+      getTracks: () => [{ stop: mockTrackStop }],
+    });
     Object.defineProperty(global.navigator, 'mediaDevices', {
       value: {
-        getUserMedia: vi.fn().mockResolvedValue({
-          getTracks: () => [{ stop: vi.fn() }],
-        }),
+        getUserMedia: mockGetUserMedia,
       },
       writable: true,
     });
@@ -269,5 +281,61 @@ describe('SoundWidget', () => {
     expect(mockUpdateWidget).toHaveBeenCalledWith('sound-1', {
       config: expect.objectContaining({ sensitivity: 0.5 }) as SoundConfig,
     });
+  });
+
+  it('releases the mic and AudioContext after a long hide', async () => {
+    const widget = createWidget();
+    const { rerender } = render(<SoundWidget widget={widget} isActive />);
+
+    // First activation acquires the mic.
+    await act(async () => {
+      await Promise.resolve();
+      vi.advanceTimersByTime(100);
+    });
+
+    // Hide the Board.
+    rerender(<SoundWidget widget={widget} isActive={false} />);
+
+    // Short hide: still alive, just suspended.
+    expect(mockSuspend).toHaveBeenCalled();
+    expect(mockTrackStop).not.toHaveBeenCalled();
+    expect(mockAudioContextClose).not.toHaveBeenCalled();
+
+    // Stay hidden past the 2-minute release threshold.
+    await act(async () => {
+      vi.advanceTimersByTime(2 * 60 * 1000);
+      await Promise.resolve();
+    });
+
+    // Mic tracks stopped and AudioContext closed.
+    expect(mockTrackStop).toHaveBeenCalled();
+    expect(mockAudioContextClose).toHaveBeenCalled();
+  });
+
+  it('keeps the context alive on a short hide and resumes without re-acquiring the mic', async () => {
+    const widget = createWidget();
+    const { rerender } = render(<SoundWidget widget={widget} isActive />);
+
+    await act(async () => {
+      await Promise.resolve();
+      vi.advanceTimersByTime(100);
+    });
+    expect(mockGetUserMedia).toHaveBeenCalledTimes(1);
+
+    // Hide briefly, then re-show before the release threshold.
+    rerender(<SoundWidget widget={widget} isActive={false} />);
+    act(() => {
+      vi.advanceTimersByTime(60 * 1000); // 1 minute < 2 minute threshold
+    });
+    rerender(<SoundWidget widget={widget} isActive />);
+    await act(async () => {
+      await Promise.resolve();
+      vi.advanceTimersByTime(100);
+    });
+
+    // No release happened and the mic was not re-acquired.
+    expect(mockTrackStop).not.toHaveBeenCalled();
+    expect(mockAudioContextClose).not.toHaveBeenCalled();
+    expect(mockGetUserMedia).toHaveBeenCalledTimes(1);
   });
 });

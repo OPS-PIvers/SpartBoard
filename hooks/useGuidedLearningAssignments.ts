@@ -26,6 +26,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import { isAnswerCorrect } from './useGuidedLearningSession';
 import type {
@@ -363,7 +364,12 @@ export const useGuidedLearningAssignments = (
         if (s.question) gradableStepIds.add(s.id);
       }
 
-      const responsesSnap = await getDocs(
+      // Read responses in bounded pages (limit + documentId cursor) rather
+      // than one unbounded `getDocs` so a PLC-shared assignment with
+      // thousands of submissions can't pull the whole subcollection in a
+      // single read. Grading still visits every response — the page loop
+      // only changes how the reads are bounded, not the scoring math.
+      const responseDocs = await readAllDocsPaged(
         collection(
           db,
           GL_SESSIONS_COLLECTION,
@@ -380,7 +386,7 @@ export const useGuidedLearningAssignments = (
         };
       }
       const updates: ResponseUpdate[] = [];
-      for (const d of responsesSnap.docs) {
+      for (const d of responseDocs) {
         const data = d.data() as GuidedLearningResponse;
         const answers = Array.isArray(data.answers) ? data.answers : [];
         let correctCount = 0;

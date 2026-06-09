@@ -6,7 +6,7 @@ import {
   TextConfig,
   PollConfig,
   PollOption,
-} from '../types';
+} from '@/types';
 import { sanitizeHtml } from './security';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { migrateDrawingConfig } from './migrateDrawingConfig';

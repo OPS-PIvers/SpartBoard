@@ -2667,6 +2667,146 @@ describe('useQuizSessionTeacher — advanceQuestion', () => {
   });
 });
 
+describe('useQuizSessionTeacher — responses listener stability + throttling', () => {
+  let env: TeacherMockEnv;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    env = setupTeacherMocks();
+  });
+
+  /** Drive the session-doc listener with a (possibly changed) session. */
+  function emitSession(session: QuizSession) {
+    act(() => {
+      env.sessionCallback?.({
+        exists: () => true,
+        data: () => session,
+      });
+    });
+  }
+
+  /** Drive the responses listener with the given response fixtures. */
+  function emitResponses(fixtures: ResponseDocFixture[]) {
+    act(() => {
+      env.responsesCallback?.({ docs: buildResponseDocs(fixtures) });
+    });
+  }
+
+  function buildResponse(partial: Partial<QuizResponse>): QuizResponse {
+    return {
+      studentUid: 'stu-1',
+      pin: '1234',
+      status: 'in-progress',
+      answers: [],
+      ...partial,
+    } as unknown as QuizResponse;
+  }
+
+  it('does not re-subscribe the responses listener on session-state churn', () => {
+    const onSnapshotMock = firestore.onSnapshot as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    renderHook(() => useQuizSessionTeacher('sess-1'));
+
+    // Two listeners arm at mount: the session doc and the responses
+    // subcollection. The responses listener no longer depends on
+    // `hasSession`, so it arms immediately rather than after the first
+    // session snapshot.
+    expect(onSnapshotMock).toHaveBeenCalledTimes(2);
+
+    // Churn the session state repeatedly — load, advance the question,
+    // reveal, end. Previously each `!!session` transition re-subscribed the
+    // responses listener; now the subscription must stay put.
+    emitSession(buildSession({ status: 'active', currentQuestionIndex: 0 }));
+    emitSession(buildSession({ status: 'active', currentQuestionIndex: 1 }));
+    emitSession(
+      buildSession({ status: 'active', revealedAnswers: { '0': 'Paris' } })
+    );
+    emitSession(buildSession({ status: 'ended' }));
+
+    // Still exactly two `onSnapshot` subscriptions — no tear-down/recreate.
+    expect(onSnapshotMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('collapses a burst of response snapshots into a single throttled update', () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+      emitSession(buildSession({ status: 'active' }));
+
+      // First snapshot fires immediately (leading edge).
+      emitResponses([{ id: 'a', data: buildResponse({ studentUid: 'a' }) }]);
+      expect(result.current.responses.map((r) => r._responseKey)).toEqual([
+        'a',
+      ]);
+
+      // A burst of further snapshots within the throttle window must NOT
+      // each push a render — the leading value is still shown until the
+      // trailing flush.
+      emitResponses([
+        { id: 'a', data: buildResponse({ studentUid: 'a' }) },
+        { id: 'b', data: buildResponse({ studentUid: 'b' }) },
+      ]);
+      emitResponses([
+        { id: 'a', data: buildResponse({ studentUid: 'a' }) },
+        { id: 'b', data: buildResponse({ studentUid: 'b' }) },
+        { id: 'c', data: buildResponse({ studentUid: 'c' }) },
+      ]);
+      expect(result.current.responses.map((r) => r._responseKey)).toEqual([
+        'a',
+      ]);
+
+      // After the window elapses, the trailing flush applies the latest
+      // buffered snapshot exactly once.
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(result.current.responses.map((r) => r._responseKey)).toEqual([
+        'a',
+        'b',
+        'c',
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('flushes a buffered snapshot when the listener unsubscribes mid-burst', () => {
+    vi.useFakeTimers();
+    try {
+      const { result, unmount } = renderHook(() =>
+        useQuizSessionTeacher('sess-1')
+      );
+      emitSession(buildSession({ status: 'active' }));
+
+      // Leading edge.
+      emitResponses([{ id: 'a', data: buildResponse({ studentUid: 'a' }) }]);
+      // Buffered (within the window, not yet flushed).
+      emitResponses([
+        { id: 'a', data: buildResponse({ studentUid: 'a' }) },
+        { id: 'b', data: buildResponse({ studentUid: 'b' }) },
+      ]);
+      expect(result.current.responses.map((r) => r._responseKey)).toEqual([
+        'a',
+      ]);
+
+      // Unmounting tears down the listener; the cleanup flush should not
+      // throw and should clear the pending timer (no leaked timer fires
+      // afterwards).
+      act(() => {
+        unmount();
+      });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      // No assertion on state post-unmount (the hook is gone); reaching here
+      // without an unhandled timer/exception is the guarantee.
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe('useQuizSessionStudent — subscribeForReview', () => {
   beforeEach(() => {
     vi.clearAllMocks();

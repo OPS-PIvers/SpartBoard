@@ -499,4 +499,186 @@ describe('Global Escape Interaction', () => {
       })
     );
   });
+
+  /**
+   * Regression: the global Alt+ArrowLeft / Alt+ArrowRight board-navigation
+   * shortcuts called e.preventDefault() before checking whether a text field
+   * was focused. Alt+Arrow is the standard macOS / Linux shortcut for
+   * word-by-word cursor navigation inside text inputs. When a teacher pressed
+   * Alt+ArrowLeft to move the cursor back one word in a widget settings input,
+   * the global handler swallowed the event and switched to the previous board
+   * instead of performing text navigation.
+   *
+   * Fix: added an `isTypingField` guard (matching the Escape / Delete handlers)
+   * that returns early — without calling preventDefault — when either
+   * Alt+ArrowLeft or Alt+ArrowRight is fired while a form field has focus.
+   */
+  it('does not call preventDefault on Alt+ArrowLeft when a text input is focused', () => {
+    const dashboard = createMockDashboard([]);
+    const mockDashboards: Dashboard[] = [
+      createMockDashboard([]),
+      createMockDashboard([]),
+    ];
+    mockDashboards[0].id = 'dash-a';
+    mockDashboards[1].id = 'dash-b';
+    const mockLoadDashboard = vi.fn();
+
+    render(
+      <DashboardContext.Provider
+        value={
+          {
+            ...mockContextValue,
+            activeDashboard: dashboard,
+            dashboards: mockDashboards,
+            loadDashboard: mockLoadDashboard,
+          } as DashboardContextValue
+        }
+      >
+        <DashboardView />
+        <input data-testid="nav-input" />
+      </DashboardContext.Provider>
+    );
+
+    const input = screen.getByTestId('nav-input');
+    input.focus();
+    expect(document.activeElement).toBe(input);
+
+    const altLeftEvent = new KeyboardEvent('keydown', {
+      key: 'ArrowLeft',
+      altKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      window.dispatchEvent(altLeftEvent);
+    });
+
+    // Must NOT preventDefault (would block word-navigation in the input).
+    expect(altLeftEvent.defaultPrevented).toBe(false);
+    // Must NOT navigate to a different board.
+    expect(mockLoadDashboard).not.toHaveBeenCalled();
+  });
+
+  it('does not call preventDefault on Alt+ArrowRight when a text input is focused', () => {
+    const dashboard = createMockDashboard([]);
+    const mockDashboards: Dashboard[] = [
+      createMockDashboard([]),
+      createMockDashboard([]),
+    ];
+    mockDashboards[0].id = 'dash-a';
+    mockDashboards[1].id = 'dash-b';
+    const mockLoadDashboard = vi.fn();
+
+    render(
+      <DashboardContext.Provider
+        value={
+          {
+            ...mockContextValue,
+            activeDashboard: dashboard,
+            dashboards: mockDashboards,
+            loadDashboard: mockLoadDashboard,
+          } as DashboardContextValue
+        }
+      >
+        <DashboardView />
+        <input data-testid="nav-input-right" />
+      </DashboardContext.Provider>
+    );
+
+    const input = screen.getByTestId('nav-input-right');
+    input.focus();
+    expect(document.activeElement).toBe(input);
+
+    const altRightEvent = new KeyboardEvent('keydown', {
+      key: 'ArrowRight',
+      altKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      window.dispatchEvent(altRightEvent);
+    });
+
+    // Must NOT preventDefault (would block word-navigation in the input).
+    expect(altRightEvent.defaultPrevented).toBe(false);
+    // Must NOT navigate to a different board.
+    expect(mockLoadDashboard).not.toHaveBeenCalled();
+  });
+
+  it('does call preventDefault and loadDashboard on Alt+ArrowLeft when no text input is focused', () => {
+    const mockDashboards: Dashboard[] = [
+      createMockDashboard([]),
+      createMockDashboard([]),
+    ];
+    mockDashboards[0].id = 'dash-a';
+    mockDashboards[1].id = 'dash-b';
+    const mockLoadDashboard = vi.fn();
+
+    render(
+      <DashboardContext.Provider
+        value={
+          {
+            ...mockContextValue,
+            activeDashboard: mockDashboards[1],
+            dashboards: mockDashboards,
+            loadDashboard: mockLoadDashboard,
+          } as DashboardContextValue
+        }
+      >
+        <DashboardView />
+      </DashboardContext.Provider>
+    );
+
+    // No input focused.
+    expect(document.activeElement).toBe(document.body);
+
+    const altLeftEvent = new KeyboardEvent('keydown', {
+      key: 'ArrowLeft',
+      altKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      window.dispatchEvent(altLeftEvent);
+    });
+
+    // Should prevent default and navigate to the previous board.
+    expect(altLeftEvent.defaultPrevented).toBe(true);
+    expect(mockLoadDashboard).toHaveBeenCalledWith('dash-a');
+  });
+
+  it('does not call preventDefault on Alt+P when a textarea is focused', () => {
+    const dashboard = createMockDashboard([]);
+
+    render(
+      <DashboardContext.Provider
+        value={
+          {
+            ...mockContextValue,
+            activeDashboard: dashboard,
+          } as DashboardContextValue
+        }
+      >
+        <DashboardView />
+        <textarea data-testid="pin-textarea" />
+      </DashboardContext.Provider>
+    );
+
+    const textarea = screen.getByTestId('pin-textarea');
+    textarea.focus();
+    expect(document.activeElement).toBe(textarea);
+
+    const altPEvent = new KeyboardEvent('keydown', {
+      key: 'p',
+      altKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      window.dispatchEvent(altPEvent);
+    });
+
+    // Must NOT preventDefault (let the browser handle the key in the textarea).
+    expect(altPEvent.defaultPrevented).toBe(false);
+  });
 });

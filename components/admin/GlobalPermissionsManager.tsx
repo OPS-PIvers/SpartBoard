@@ -982,7 +982,7 @@ export const GlobalPermissionsManager: React.FC = () => {
       <>
         {filteredFeatures.length === 0 && (
           <div className="py-12 text-center text-slate-400">
-            <Filter className="w-8 h-8 mx-auto mb-2 opacity-30" />
+            <Filter className="w-8 h-8 mx-auto mb-2 opacity-50" />
             <p className="font-medium">
               No features match the current filters.
             </p>

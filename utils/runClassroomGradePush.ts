@@ -253,6 +253,18 @@ export async function runClassroomGradePush({
         logError(logTag, err, { ...logContext, courseId: attachment.courseId });
       }
     }
+    // Multi-course fan-out sends the SAME payload to every course, so each
+    // course counts students who belong to ANOTHER course as a benign "skip".
+    // Summing those inflates `skipped` (a student graded in their own course is
+    // "skipped" by every other course, and the toast would mislabel them "not
+    // opened in Classroom yet"). Recompute the true unique not-graded count from
+    // the payload size — pushed/failed are per-student-unique (a student belongs
+    // to one course). Single course is byte-identical: the CF guarantees
+    // pushed + skipped + failed === grades.length, so this is a no-op there, but
+    // it's gated to keep the common path on the server's exact counts.
+    if (attachments.length > 1) {
+      agg.skipped = Math.max(0, grades.length - agg.pushed - agg.failed);
+    }
     if (anySucceeded) {
       // Partial success: at least one course pushed. Carry the count of courses
       // that threw so the reporter can warn "couldn't reach N — retry" instead of

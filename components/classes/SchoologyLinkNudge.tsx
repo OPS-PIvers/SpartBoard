@@ -16,11 +16,17 @@ import { useDashboard } from '@/context/useDashboard';
 import { useSchoologySeenSections } from '@/hooks/useSchoologySeenSections';
 import { LinkSchoologyModal } from './LinkSchoologyModal';
 
-const DISMISS_STORAGE_KEY = 'spart_schoology_nudge_dismissed';
+// Scoped PER-UID: dismissed section ids are keyed by Schoology context_id, which
+// can collide across teachers who co-teach a section. On a shared classroom
+// browser an unscoped key would let one teacher's dismissals hide a co-taught
+// section's nudge for the next teacher. Mirrors useRosters' per-uid localStorage.
+const dismissStorageKey = (uid: string | null | undefined): string =>
+  `spart_schoology_nudge_dismissed_${uid ?? 'anon'}`;
 
-const readDismissed = (): string[] => {
+const readDismissed = (uid: string | null | undefined): string[] => {
+  if (!uid) return [];
   try {
-    const raw = localStorage.getItem(DISMISS_STORAGE_KEY);
+    const raw = localStorage.getItem(dismissStorageKey(uid));
     const parsed: unknown = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed)
       ? parsed.filter((v): v is string => typeof v === 'string')
@@ -30,9 +36,13 @@ const readDismissed = (): string[] => {
   }
 };
 
-const writeDismissed = (ids: string[]): void => {
+const writeDismissed = (
+  uid: string | null | undefined,
+  ids: string[]
+): void => {
+  if (!uid) return;
   try {
-    localStorage.setItem(DISMISS_STORAGE_KEY, JSON.stringify(ids));
+    localStorage.setItem(dismissStorageKey(uid), JSON.stringify(ids));
   } catch {
     // localStorage unavailable — dismiss falls back to in-memory only.
   }
@@ -42,7 +52,9 @@ export const SchoologyLinkNudge: React.FC = () => {
   const { user } = useAuth();
   const { rosters, updateRoster, addToast } = useDashboard();
   const seenSections = useSchoologySeenSections(user?.uid);
-  const [dismissed, setDismissed] = useState<string[]>(readDismissed);
+  const [dismissed, setDismissed] = useState<string[]>(() =>
+    readDismissed(user?.uid)
+  );
   const [modalOpen, setModalOpen] = useState(false);
 
   // Sections seen but neither linked (mirrored on a roster) nor dismissed.
@@ -60,7 +72,7 @@ export const SchoologyLinkNudge: React.FC = () => {
       ...new Set([...dismissed, ...pending.map((s) => s.contextId)]),
     ];
     setDismissed(next);
-    writeDismissed(next);
+    writeDismissed(user?.uid, next);
   };
 
   if (!user) return null;

@@ -196,6 +196,18 @@ export async function runPublishGradePush<R>({
             unreachableCourses += 1;
           }
         }
+        // Multi-course fan-out sends the SAME payload to every course, so each
+        // course counts students who belong to ANOTHER course as a benign
+        // "skip" — summing those inflates `skipped` (a student graded in their
+        // own course is "skipped" by every other course, and would be reported
+        // as "not opened in Classroom yet"). Recompute the true unique
+        // not-graded count from the payload size: pushed/failed are
+        // per-student-unique (a student belongs to one course), so this
+        // collapses the cross-course skips. Single course is left untouched
+        // (the server's exact per-course counts already hold).
+        if (gcAttachments.length > 1) {
+          agg.skipped = Math.max(0, grades.length - agg.pushed - agg.failed);
+        }
         if (agg.pushed === 0 && (permissionDenied || unreachableCourses > 0)) {
           addToast(
             permissionDenied

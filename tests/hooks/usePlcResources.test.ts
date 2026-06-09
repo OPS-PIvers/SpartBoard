@@ -4,7 +4,9 @@ import {
   collection,
   deleteDoc,
   doc,
+  limit,
   onSnapshot,
+  orderBy,
   setDoc,
   updateDoc,
   where,
@@ -23,6 +25,8 @@ vi.mock('firebase/firestore', () => ({
     (field: string, op: string, val: unknown) =>
       `where:${field}:${op}:${String(val)}`
   ),
+  orderBy: vi.fn((field: string, dir?: string) => `orderBy:${field}:${dir}`),
+  limit: vi.fn((n: number) => `limit:${n}`),
 }));
 
 vi.mock('@/config/firebase', () => ({
@@ -45,6 +49,8 @@ const mockSetDoc = setDoc as Mock;
 const mockUpdateDoc = updateDoc as Mock;
 const mockDeleteDoc = deleteDoc as Mock;
 const mockWhere = where as Mock;
+const mockOrderBy = orderBy as Mock;
+const mockLimit = limit as Mock;
 
 const ADMIN_UID = 'admin-1';
 const ADMIN_EMAIL = 'admin@school.edu';
@@ -107,6 +113,15 @@ describe('usePlcResources({ asAdmin: true })', () => {
       'plc_resources'
     );
     expect(mockOnSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds the whole-collection admin listen with orderBy + limit', () => {
+    renderHook(() => usePlcResources({ asAdmin: true }));
+    // The unbounded admin curation listen is capped so it can't stream the
+    // entire collection. `orderBy('createdAt','desc')` keeps the truncation
+    // deterministic (the newest N).
+    expect(mockOrderBy).toHaveBeenCalledWith('createdAt', 'desc');
+    expect(mockLimit).toHaveBeenCalledWith(500);
   });
 
   it('maps snapshot docs into PlcResource[]', () => {

@@ -3,6 +3,8 @@ import {
   collection,
   query,
   where,
+  orderBy,
+  limit,
   onSnapshot,
   doc,
   setDoc,
@@ -16,6 +18,13 @@ import { useAuth } from '@/context/useAuth';
 import { DEFAULT_PLC_FEATURE_SETTINGS, Plc, PlcFeatureSettings } from '@/types';
 
 const PLCS_COLLECTION = 'plcs';
+// Cap on the admin-mode whole-collection listen. The member-mode query is
+// naturally bounded by membership, but the admin picker reads ALL PLCs, so
+// bound it to avoid streaming an unbounded collection (and the Firestore read
+// cost that comes with it). 500 is comfortably above the real-world PLC count
+// for a single district; `orderBy('name')` makes the truncation deterministic
+// (the first 500 alphabetically) rather than an arbitrary subset.
+const ADMIN_PLCS_LIMIT = 500;
 // Mirrors the constant in `usePlcInvitations` — kept here so `deletePlc` can
 // sweep outstanding invites in the same batch as the PLC doc.
 const INVITATIONS_COLLECTION = 'plc_invitations';
@@ -195,10 +204,16 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       return () => clearTimeout(timer);
     }
 
-    // Admin mode reads the whole collection (unfiltered); member mode scopes
-    // to PLCs the current user belongs to.
+    // Admin mode reads the whole collection (unfiltered apart from a bounded
+    // `orderBy('name') + limit`); member mode scopes to PLCs the current user
+    // belongs to. Single-field `orderBy('name')` needs only the automatic
+    // index, so no composite index is required.
     const q = asAdmin
-      ? query(collection(db, PLCS_COLLECTION))
+      ? query(
+          collection(db, PLCS_COLLECTION),
+          orderBy('name'),
+          limit(ADMIN_PLCS_LIMIT)
+        )
       : query(
           collection(db, PLCS_COLLECTION),
           where('memberUids', 'array-contains', user.uid)

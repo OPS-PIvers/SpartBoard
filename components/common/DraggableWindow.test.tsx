@@ -391,6 +391,21 @@ describe('DraggableWindow', () => {
     expect(settingsPanelRenderProps[0].shouldRenderSettings).toBe(true);
   });
 
+  it('exposes a high-contrast focus-visible ring for keyboard users', () => {
+    // WCAG 2.4.7: the focus indicator must stay visible (>=3:1) on white, dark,
+    // and image backgrounds. The previous ring-blue-400/50 dropped below 3:1
+    // over dark widgets/backgrounds. A full-opacity ring plus a white offset
+    // keeps the indicator legible on every surface.
+    renderComponent();
+    const windowEl = screen.getByTestId('draggable-window');
+    expect(windowEl.className).toContain('focus-visible:ring-2');
+    expect(windowEl.className).toContain('focus-visible:ring-blue-500');
+    expect(windowEl.className).toContain('focus-visible:ring-offset-2');
+    expect(windowEl.className).toContain('focus-visible:ring-offset-white');
+    // Guard against regressing to the low-contrast translucent ring.
+    expect(windowEl.className).not.toContain('ring-blue-400/50');
+  });
+
   it('updates position on pointer drag (using direct DOM manipulation for standard widgets)', async () => {
     renderComponent();
 

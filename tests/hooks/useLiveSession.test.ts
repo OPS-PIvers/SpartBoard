@@ -199,3 +199,140 @@ describe('useLiveSession — joinSession input validation', () => {
     expect(writtenStudent.pin.length).toBe(10);
   });
 });
+
+describe('useLiveSession — teacher student-list reference stability', () => {
+  type SnapshotCallback = (snapshot: {
+    docs: { id: string; data: () => Record<string, unknown> }[];
+  }) => void;
+
+  // Captures the onSnapshot listener callbacks in registration order so a test
+  // can drive the session and students subscriptions independently.
+  let snapshotCallbacks: SnapshotCallback[];
+
+  const makeStudentDoc = (id: string, data: Record<string, unknown>) => ({
+    id,
+    data: () => data,
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    snapshotCallbacks = [];
+
+    (
+      firestore.onSnapshot as unknown as ReturnType<typeof vi.fn>
+    ).mockImplementation((_ref: unknown, cb: SnapshotCallback) => {
+      snapshotCallbacks.push(cb);
+      return vi.fn();
+    });
+
+    (firestore.doc as unknown as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (
+      firestore.collection as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({});
+  });
+
+  it('does not allocate a new students array when an identical snapshot arrives', () => {
+    const { result } = renderHook(() =>
+      useLiveSession('teacher-uid-1', 'teacher')
+    );
+
+    // 1st onSnapshot registration is the session subscription; fire it active so
+    // the teacher students subscription mounts.
+    const fireSession = snapshotCallbacks[0] as unknown as (snap: {
+      exists: () => boolean;
+      data: () => Record<string, unknown>;
+    }) => void;
+    act(() => {
+      fireSession({
+        exists: () => true,
+        data: () => ({ id: 'teacher-uid-1', isActive: true }),
+      });
+    });
+
+    // 2nd registration is the students subscription.
+    const fireStudents = snapshotCallbacks[1];
+    const snapshot = {
+      docs: [
+        makeStudentDoc('s1', {
+          pin: '1234',
+          status: 'active',
+          joinedAt: 100,
+          lastActive: 200,
+        }),
+      ],
+    };
+    act(() => {
+      fireStudents(snapshot);
+    });
+
+    const firstRef = result.current.students;
+    expect(firstRef).toHaveLength(1);
+
+    // Re-deliver an equivalent snapshot — same values, fresh doc objects.
+    const equivalentSnapshot = {
+      docs: [
+        makeStudentDoc('s1', {
+          pin: '1234',
+          status: 'active',
+          joinedAt: 100,
+          lastActive: 200,
+        }),
+      ],
+    };
+    act(() => {
+      fireStudents(equivalentSnapshot);
+    });
+
+    // No change => the same array reference is preserved (no re-render churn).
+    expect(result.current.students).toBe(firstRef);
+  });
+
+  it('allocates a new students array when a tracked property changes', () => {
+    const { result } = renderHook(() =>
+      useLiveSession('teacher-uid-1', 'teacher')
+    );
+
+    const fireSession = snapshotCallbacks[0] as unknown as (snap: {
+      exists: () => boolean;
+      data: () => Record<string, unknown>;
+    }) => void;
+    act(() => {
+      fireSession({
+        exists: () => true,
+        data: () => ({ id: 'teacher-uid-1', isActive: true }),
+      });
+    });
+
+    const fireStudents = snapshotCallbacks[1];
+    act(() => {
+      fireStudents({
+        docs: [
+          makeStudentDoc('s1', {
+            pin: '1234',
+            status: 'active',
+            joinedAt: 100,
+            lastActive: 200,
+          }),
+        ],
+      });
+    });
+    const firstRef = result.current.students;
+
+    // status changes => a new array must be produced.
+    act(() => {
+      fireStudents({
+        docs: [
+          makeStudentDoc('s1', {
+            pin: '1234',
+            status: 'frozen',
+            joinedAt: 100,
+            lastActive: 200,
+          }),
+        ],
+      });
+    });
+
+    expect(result.current.students).not.toBe(firstRef);
+    expect(result.current.students[0].status).toBe('frozen');
+  });
+});

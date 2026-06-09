@@ -131,4 +131,39 @@ describe('ClockWidget', () => {
     const timeContainer = screen.getByTestId('clock-time-container');
     expect(timeContainer.className).toContain('font-mono');
   });
+
+  // De-emphasized clock elements (colon separators, seconds, AM/PM, date) must
+  // stay above WCAG AA on a projector. They previously used opacity-30/40/60,
+  // which dropped legibility too far; guard against regressing below those
+  // raised floors.
+  it('keeps de-emphasized elements above the low-contrast opacity floor', () => {
+    const date = new Date('2023-01-01T14:30:45');
+    vi.setSystemTime(date);
+
+    renderWidget(createWidget({ format24: true, showSeconds: true }));
+
+    // Colon separators — raised from opacity-30 to opacity-60.
+    const colons = screen.getAllByText(':');
+    expect(colons.length).toBeGreaterThan(0);
+    colons.forEach((colon) => {
+      expect(colon.className).toContain('opacity-60');
+      expect(colon.className).not.toContain('opacity-30');
+    });
+
+    // Seconds — raised from opacity-60 to opacity-80.
+    const seconds = screen.getByText('45');
+    expect(seconds.className).toContain('opacity-80');
+  });
+
+  it('keeps the AM/PM label above the low-contrast opacity floor', () => {
+    const date = new Date('2023-01-01T14:30:45');
+    vi.setSystemTime(date);
+
+    renderWidget(createWidget({ format24: false }));
+
+    // AM/PM — raised from opacity-40 to opacity-70.
+    const ampm = screen.getByText('PM');
+    expect(ampm.className).toContain('opacity-70');
+    expect(ampm.className).not.toContain('opacity-40');
+  });
 });

@@ -809,4 +809,74 @@ describe('DashboardView Gestures & Navigation', () => {
       expect(detail2.key).toBe('Pin');
     });
   });
+
+  // Toast accessibility: the ToastContainer must expose live-region roles so
+  // screen readers announce toasts (assertive for errors, polite otherwise) and
+  // provide an explicit Dismiss control so SR/keyboard users can close a toast
+  // before it auto-dismisses.
+  describe('ToastContainer accessibility', () => {
+    const collectionsStub = {
+      collections: [],
+      loading: false,
+      error: null,
+      createCollection: vi.fn(),
+      renameCollection: vi.fn(),
+      moveCollection: vi.fn(),
+      deleteCollection: vi.fn(),
+      reorderSiblings: vi.fn(),
+      setCollectionMetadata: vi.fn(),
+      setCollectionDefaultBoard: vi.fn(),
+    };
+
+    it('sets role="status" + aria-live="polite" on normal toasts and role="alert" on error toasts', () => {
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        activeDashboard: mockDashboards[1],
+        dashboards: mockDashboards,
+        toasts: [
+          { id: 'toast-info', message: 'Saved', type: 'info' },
+          { id: 'toast-error', message: 'Save failed', type: 'error' },
+        ],
+        loadDashboard: mockLoadDashboard,
+        removeToast: vi.fn(),
+        zoom: 1,
+        setZoom: vi.fn(),
+        collectionsApi: collectionsStub,
+      });
+
+      render(<DashboardView />);
+
+      // Normal toast announces politely via its own role="status".
+      const statusToast = screen.getByText('Saved').closest('[role="status"]');
+      expect(statusToast).not.toBeNull();
+      expect(statusToast).toHaveAttribute('aria-live', 'polite');
+
+      // Error toast announces assertively via role="alert".
+      const alertToast = screen
+        .getByText('Save failed')
+        .closest('[role="alert"]');
+      expect(alertToast).not.toBeNull();
+    });
+
+    it('closes a toast when its Dismiss control is activated', () => {
+      const mockRemoveToast = vi.fn();
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        activeDashboard: mockDashboards[1],
+        dashboards: mockDashboards,
+        toasts: [{ id: 'toast-1', message: 'Heads up', type: 'info' }],
+        loadDashboard: mockLoadDashboard,
+        removeToast: mockRemoveToast,
+        zoom: 1,
+        setZoom: vi.fn(),
+        collectionsApi: collectionsStub,
+      });
+
+      render(<DashboardView />);
+
+      const dismiss = screen.getByRole('button', { name: 'Dismiss' });
+      fireEvent.click(dismiss);
+
+      expect(mockRemoveToast).toHaveBeenCalledTimes(1);
+      expect(mockRemoveToast).toHaveBeenCalledWith('toast-1');
+    });
+  });
 });

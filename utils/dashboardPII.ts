@@ -13,7 +13,7 @@
  * and is a Record<widgetId, Partial<WidgetConfig>> containing only PII fields.
  */
 
-import { Dashboard, WidgetConfig } from '../types';
+import { Dashboard, WidgetConfig } from '@/types';
 
 /** Widget config keys that may contain student PII and must never reach Firestore. */
 export const PII_WIDGET_FIELDS = [

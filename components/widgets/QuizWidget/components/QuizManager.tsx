@@ -1644,6 +1644,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onClose={() => {
             setAssignTarget(null);
             setAssignDueAt(null);
+            // Reset the destination so a cancelled 'classroom' pick can't leak
+            // into a later open (every exit path leaves clean state; the
+            // confirm path already resets it).
+            setAssignDestination('spartboard');
           }}
           itemTitle={assignTarget.title}
           options={assignOptions}
@@ -1663,6 +1667,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                 // 'settings' wiring is a follow-up for Task 12.)
                 setAssignTarget(null);
                 setAssignDueAt(null);
+                setAssignDestination('spartboard');
                 onEdit(assignTarget);
               }}
             />

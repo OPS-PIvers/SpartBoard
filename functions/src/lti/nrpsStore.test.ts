@@ -322,6 +322,48 @@ describe('persistLtiLaunchContext — quiz', () => {
     expect(writeAt('users/teacher-1/lti_seen_sections/')).toBeUndefined();
   });
 
+  it('does not clobber the context membership doc title when a relaunch omits it', async () => {
+    // Regression: a privacy-configured Schoology relaunch (contextTitle: null)
+    // was overwriting the previously-stored contextTitle in the membership doc
+    // with null, clearing the section name shown in the linking UI. The fix
+    // applies the same "prefer stored title" logic that the seen-section
+    // inventory already uses (args.contextTitle ?? storedTitle).
+    quizSessions = [
+      {
+        id: 'sess-1',
+        data: {
+          code: 'ABC123',
+          status: 'active',
+          startedAt: 100,
+          teacherUid: 'teacher-1',
+          periodNames: ['Math 7'],
+          classPeriodByClassId: { 'schoology:ctx-1': 'Math 7' },
+          ltiAttachment: { resourceLinkId: 'rl-1', contextId: 'ctx-1' },
+          ltiNrps: true,
+        },
+      },
+    ];
+    contextDocs.set(
+      `${LTI_SESSION_MEMBERSHIPS_COLLECTION}/sess-1/contexts/ctx-1`,
+      { contextMembershipsUrl: QUIZ_ARGS.membershipUrl, contextTitle: 'Math 7' }
+    );
+    seenDocs.set('users/teacher-1/lti_seen_sections/ctx-1', {
+      contextId: 'ctx-1',
+      contextTitle: 'Math 7',
+      sessionId: 'sess-1',
+      kind: 'quiz',
+    });
+    // A relaunch with no title should produce ZERO writes: the membership URL
+    // is unchanged, the stored title is preserved (not clobbered to null), and
+    // the seen-section inventory is already current.
+    await persistLtiLaunchContext(db(), { ...QUIZ_ARGS, contextTitle: null });
+    // Neither the context membership doc nor anything else should be rewritten.
+    expect(
+      writeAt(`${LTI_SESSION_MEMBERSHIPS_COLLECTION}/sess-1/contexts/`)
+    ).toBeUndefined();
+    expect(writes).toHaveLength(0);
+  });
+
   it('skips the archive mirror when the session has no teacherUid', async () => {
     quizSessions = [
       {

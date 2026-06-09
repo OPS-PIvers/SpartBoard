@@ -60,6 +60,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const lastPollRef = useRef<number>(0);
   const triggeredRef = useRef<Set<string>>(new Set());
   const lastSeekNonceRef = useRef<number | null>(null);
+  // Bumped every time polling is stopped so that any in-flight RAF callback from
+  // a previous loop (e.g. after a rapid unmount/remount) detects it is orphaned
+  // and stops rescheduling instead of running forever.
+  const pollGenerationRef = useRef(0);
 
   // Derive the max time the student may seek to
   const maxAllowedTime = React.useMemo(() => {
@@ -112,7 +116,23 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }, [onQuestionTrigger, onVideoEnd]);
 
   const startPolling = useCallback(() => {
+    // Supersede any loop already running: if startPolling is called again
+    // without an intervening stopPolling (rapid re-trigger / re-effect), bump
+    // the generation so a previously-queued tick bails and cancel its pending
+    // frame, so two RAF loops can't run concurrently. (Mirrors stopPolling.)
+    pollGenerationRef.current += 1;
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    // Capture the generation this loop belongs to. If polling is stopped (and the
+    // generation bumped) while a tick is queued, the stale callback bails out.
+    const generation = pollGenerationRef.current;
+
     const tick = (timestamp: number) => {
+      // Orphaned callback from a superseded loop — stop without rescheduling.
+      if (generation !== pollGenerationRef.current) return;
+
       const player = playerRef.current;
       if (!player) {
         rafRef.current = requestAnimationFrame(tick);
@@ -160,6 +180,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }, []);
 
   const stopPolling = useCallback(() => {
+    // Bump the generation so any tick already queued for this loop bails out
+    // instead of rescheduling itself after cancellation.
+    pollGenerationRef.current += 1;
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;

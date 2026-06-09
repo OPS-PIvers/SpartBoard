@@ -874,6 +874,10 @@
     "dashboard": {
       "emptyBoardHint": "Arrastra herramientas desde el Dock para empezar",
       "switchBoardsHint": "Usa los controles de navegación en la parte inferior izquierda para cambiar de tablero"
+    },
+    "schedule": {
+      "startTimer": "Iniciar Temporizador",
+      "startTimerUntil": "Iniciar cuenta regresiva hasta {{time}}"
     }
   },
   "boardBreadcrumb": {
