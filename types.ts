@@ -4735,6 +4735,14 @@ export interface GuidedLearningSet {
   /** Firebase Storage URLs for one or more activity images */
   imageUrls: string[];
   imagePaths?: string[];
+  /**
+   * Per-slide media kind aligned by index with `imageUrls`. `'video'` slides
+   * (uploaded MP4/WebM or screen recordings) render in a muted looping
+   * `<video>` element; `'image'` covers static images and animated GIFs.
+   * Missing array or missing entries = `'image'`, so legacy sets need no
+   * migration. Only persisted when at least one slide is a video.
+   */
+  imageKinds?: ('image' | 'video')[];
   steps: GuidedLearningStep[];
   mode: GuidedLearningMode;
   createdAt: number;
@@ -4842,6 +4850,11 @@ export interface GuidedLearningSession {
   title: string;
   mode: GuidedLearningMode;
   imageUrls: string[];
+  /**
+   * Mirrors `GuidedLearningSet.imageKinds` so the student player knows which
+   * slides are videos. Missing = all slides are images (legacy sessions).
+   */
+  imageKinds?: ('image' | 'video')[];
   /** Student-safe steps (no answer keys) */
   publicSteps: GuidedLearningPublicStep[];
   teacherUid: string;

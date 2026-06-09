@@ -290,7 +290,7 @@ describe('GuidedLearningPlayer', () => {
       screen.queryByRole('button', { name: /step 2/i })
     ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /show image 2/i }));
+    fireEvent.click(screen.getByRole('button', { name: /show slide 2/i }));
     expect(image.src).toContain('image-2.png');
 
     fireEvent.click(screen.getByRole('button', { name: /step 2/i }));
@@ -298,5 +298,55 @@ describe('GuidedLearningPlayer', () => {
     expect(screen.getByTestId('banner')).toHaveTextContent(
       'Second image banner'
     );
+  });
+
+  it('renders video slides in a <video> element and skips them when preloading', () => {
+    // Record every Image preload by spying on the prototype src setter.
+    // Not forwarding to the real setter — jsdom would try (and fail) to
+    // fetch the URL; recording it is all the test needs.
+    const imageConstructed: string[] = [];
+    const srcSpy = vi
+      .spyOn(HTMLImageElement.prototype, 'src', 'set')
+      .mockImplementation(function (this: HTMLImageElement, value: string) {
+        imageConstructed.push(value);
+      });
+    try {
+      const set: GuidedLearningSet = {
+        id: 'set-3',
+        title: 'Video Slide Test',
+        imageUrls: [
+          'https://example.com/clip.mp4',
+          'https://example.com/image-1.png',
+        ],
+        imageKinds: ['video', 'image'],
+        steps: [
+          {
+            id: 'step-1',
+            xPct: 50,
+            yPct: 50,
+            imageIndex: 0,
+            interactionType: 'tooltip',
+            text: 'On the video',
+          },
+        ],
+        mode: 'structured',
+        createdAt: 0,
+        updatedAt: 0,
+      };
+
+      const { container } = render(<GuidedLearningPlayer set={set} />);
+
+      // The current slide is a video — rendered via <video>, not <img>.
+      const video = container.querySelector('video');
+      expect(video).not.toBeNull();
+      expect(video?.src).toContain('clip.mp4');
+      expect(screen.queryByAltText('Video Slide Test')).not.toBeInTheDocument();
+
+      // Preloading warms only the image slide; the MP4 streams on demand.
+      expect(imageConstructed).toContain('https://example.com/image-1.png');
+      expect(imageConstructed).not.toContain('https://example.com/clip.mp4');
+    } finally {
+      srcSpy.mockRestore();
+    }
   });
 });

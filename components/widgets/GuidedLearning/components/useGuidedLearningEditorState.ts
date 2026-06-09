@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   GuidedLearningSet,
   GuidedLearningMode,
@@ -8,6 +8,13 @@ import {
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
+import {
+  getMediaKind,
+  prepareImageForUpload,
+  validateSlideFile,
+  videoExtensionForMime,
+  type GuidedLearningMediaKind,
+} from '@/utils/guidedLearningMedia';
 
 /** State emitted by `onStateChange` so a parent modal can track dirty state. */
 export interface GuidedLearningEditorState {
@@ -15,12 +22,23 @@ export interface GuidedLearningEditorState {
   description: string;
   mode: GuidedLearningMode;
   imageUrls: string[];
+  imageKinds: GuidedLearningMediaKind[];
   steps: GuidedLearningStep[];
   uploading: boolean;
   hotspotPulse: 'consistent' | 'reminder' | 'off';
   imageTransition: 'none' | 'slide' | 'fade';
   welcomeEnabled: boolean;
   welcomeMessage: string;
+}
+
+/** Live progress for the slide-upload pipeline (null when idle). */
+export interface SlideUploadProgress {
+  /** 1-based index of the file currently uploading. */
+  current: number;
+  total: number;
+  fileName: string;
+  /** 0–100 within the current file; null when the backend can't report. */
+  percent: number | null;
 }
 
 interface UseGuidedLearningEditorStateProps {
@@ -49,13 +67,21 @@ export interface GuidedLearningEditorController {
   setWelcomeEnabled: (next: boolean) => void;
   welcomeMessage: string;
   setWelcomeMessage: (next: string) => void;
-  // Images
+  // Slides (images, GIFs, and uploaded/recorded videos)
   imageUrls: string[];
+  imageKinds: GuidedLearningMediaKind[];
   currentImageIndex: number;
   setCurrentImageIndex: (next: number) => void;
   uploading: boolean;
+  uploadProgress: SlideUploadProgress | null;
   uploadFromFiles: (files: File[]) => Promise<void>;
   uploadFromClipboard: () => Promise<void>;
+  /** Add an editor-captured blob (screen snap / recording) as a new slide. */
+  addCapturedMedia: (
+    blob: Blob,
+    kind: GuidedLearningMediaKind,
+    baseName: string
+  ) => Promise<void>;
   deleteImage: (index: number) => void;
   moveImage: (fromIndex: number, direction: -1 | 1) => void;
   imageError: string;
@@ -80,6 +106,12 @@ export interface GuidedLearningEditorController {
   currentImageSteps: GuidedLearningStep[];
 }
 
+/** Normalize a set's persisted kinds array to align with its imageUrls. */
+function kindsForSet(set: GuidedLearningSet | null): GuidedLearningMediaKind[] {
+  if (!set) return [];
+  return set.imageUrls.map((_, i) => set.imageKinds?.[i] ?? 'image');
+}
+
 /**
  * Owns all state for the Guided Learning editor. Returned as a controller
  * object that the modal hands to the context + detail pane components.
@@ -92,7 +124,8 @@ export function useGuidedLearningEditorState({
   onFolderChange,
 }: UseGuidedLearningEditorStateProps): GuidedLearningEditorController {
   const { user } = useAuth();
-  const { uploading, uploadHotspotImage } = useStorage();
+  const { uploading, uploadHotspotImage, uploadGuidedLearningMedia } =
+    useStorage();
 
   const [title, setTitle] = useState(existingSet?.title ?? '');
   const [description, setDescription] = useState(
@@ -104,6 +137,9 @@ export function useGuidedLearningEditorState({
   const [imageUrls, setImageUrls] = useState<string[]>(
     existingSet?.imageUrls ?? []
   );
+  const [imageKinds, setImageKinds] = useState<GuidedLearningMediaKind[]>(() =>
+    kindsForSet(existingSet)
+  );
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [steps, setSteps] = useState<GuidedLearningStep[]>(
     existingSet?.steps ?? []
@@ -111,6 +147,8 @@ export function useGuidedLearningEditorState({
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [imageError, setImageError] = useState('');
   const [addingStep, setAddingStep] = useState(false);
+  const [uploadProgress, setUploadProgress] =
+    useState<SlideUploadProgress | null>(null);
   const [hotspotPulse, setHotspotPulse] = useState<
     'consistent' | 'reminder' | 'off'
   >(existingSet?.hotspotPulse ?? 'consistent');
@@ -135,11 +173,13 @@ export function useGuidedLearningEditorState({
     setDescription(existingSet?.description ?? '');
     setMode(existingSet?.mode ?? 'structured');
     setImageUrls(existingSet?.imageUrls ?? []);
+    setImageKinds(kindsForSet(existingSet));
     setCurrentImageIndex(0);
     setSteps(existingSet?.steps ?? []);
     setSelectedStepId(null);
     setImageError('');
     setAddingStep(false);
+    setUploadProgress(null);
     setHotspotPulse(existingSet?.hotspotPulse ?? 'consistent');
     setImageTransition(existingSet?.imageTransition ?? 'none');
     setWelcomeEnabled(Boolean(existingSet?.welcomeEnabled));
@@ -152,6 +192,7 @@ export function useGuidedLearningEditorState({
       description,
       mode,
       imageUrls,
+      imageKinds,
       steps,
       uploading,
       hotspotPulse,
@@ -164,6 +205,7 @@ export function useGuidedLearningEditorState({
     description,
     mode,
     imageUrls,
+    imageKinds,
     steps,
     uploading,
     hotspotPulse,
@@ -173,26 +215,83 @@ export function useGuidedLearningEditorState({
     onStateChange,
   ]);
 
+  // Render-synced mirror of imageUrls.length so the sequential upload loop
+  // (which awaits between appends, letting renders flush) can compute the
+  // new last index without putting a side effect inside a state updater.
+  const slideCountRef = useRef(imageUrls.length);
+  slideCountRef.current = imageUrls.length;
+
+  const appendSlides = useCallback(
+    (urls: string[], kinds: GuidedLearningMediaKind[]) => {
+      if (urls.length === 0) return;
+      setImageUrls((prev) => [...prev, ...urls]);
+      setImageKinds((prev) => [...prev, ...kinds]);
+      // Jump the canvas to the last newly added slide so the teacher can
+      // immediately start placing hotspots on it.
+      setCurrentImageIndex(slideCountRef.current + urls.length - 1);
+    },
+    []
+  );
+
+  /**
+   * Validate, compress, and upload a batch of slide files (images, GIFs,
+   * MP4/WebM videos). Files upload sequentially so the progress indicator
+   * reads "2 of 5" instead of racing five spinners; each successful file is
+   * appended immediately so one bad file doesn't discard the others.
+   */
   const uploadFromFiles = useCallback(
     async (files: File[]) => {
       if (!user || files.length === 0) return;
       setImageError('');
+
+      const errors: string[] = [];
+      const accepted = files.filter((file) => {
+        const error = validateSlideFile(file);
+        if (error) errors.push(error);
+        return !error;
+      });
+
       try {
-        const uploadedUrls = await Promise.all(
-          files.map((file) => uploadHotspotImage(user.uid, file))
-        );
-        if (uploadedUrls.length > 0) {
-          setImageUrls((prev) => [...prev, ...uploadedUrls]);
-          setCurrentImageIndex((prev) =>
-            Math.max(prev, imageUrls.length + uploadedUrls.length - 1)
-          );
+        for (let i = 0; i < accepted.length; i++) {
+          const file = accepted[i];
+          const kind = getMediaKind(file) ?? 'image';
+          setUploadProgress({
+            current: i + 1,
+            total: accepted.length,
+            fileName: file.name,
+            percent: kind === 'video' ? 0 : null,
+          });
+          try {
+            if (kind === 'video') {
+              const { url } = await uploadGuidedLearningMedia(
+                user.uid,
+                file,
+                file.name.replace(/[^\w.-]+/g, '_'),
+                (percent) =>
+                  setUploadProgress((prev) =>
+                    prev ? { ...prev, percent } : prev
+                  )
+              );
+              appendSlides([url], ['video']);
+            } else {
+              const prepared = await prepareImageForUpload(file);
+              const url = await uploadHotspotImage(user.uid, prepared);
+              appendSlides([url], ['image']);
+            }
+          } catch (err) {
+            errors.push(
+              err instanceof Error
+                ? `"${file.name}": ${err.message}`
+                : `"${file.name}" failed to upload.`
+            );
+          }
         }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Upload failed';
-        setImageError(msg);
+      } finally {
+        setUploadProgress(null);
       }
+      if (errors.length > 0) setImageError(errors.join(' '));
     },
-    [user, uploadHotspotImage, imageUrls.length]
+    [user, uploadHotspotImage, uploadGuidedLearningMedia, appendSlides]
   );
 
   const uploadFromClipboard = useCallback(async () => {
@@ -211,10 +310,26 @@ export function useGuidedLearningEditorState({
       setImageError('No image found in clipboard.');
     } catch {
       setImageError(
-        'Could not read clipboard. Try using the file upload instead.'
+        'Could not read clipboard. Try Ctrl+V with the editor focused, or use Add media instead.'
       );
     }
   }, [uploadFromFiles]);
+
+  const addCapturedMedia = useCallback(
+    async (blob: Blob, kind: GuidedLearningMediaKind, baseName: string) => {
+      const ext =
+        kind === 'video'
+          ? videoExtensionForMime(blob.type)
+          : blob.type === 'image/png'
+            ? 'png'
+            : 'webp';
+      const file = new File([blob], `${baseName}.${ext}`, {
+        type: blob.type || (kind === 'video' ? 'video/webm' : 'image/png'),
+      });
+      await uploadFromFiles([file]);
+    },
+    [uploadFromFiles]
+  );
 
   const deleteImage = useCallback(
     (deleteIndex: number) => {
@@ -222,6 +337,7 @@ export function useGuidedLearningEditorState({
         (_, index) => index !== deleteIndex
       );
       setImageUrls(updatedImageUrls);
+      setImageKinds((prev) => prev.filter((_, index) => index !== deleteIndex));
       setCurrentImageIndex((curr) => {
         if (updatedImageUrls.length === 0) return 0;
         if (curr === deleteIndex)
@@ -248,14 +364,16 @@ export function useGuidedLearningEditorState({
     (fromIndex: number, direction: -1 | 1) => {
       const toIndex = fromIndex + direction;
       if (toIndex < 0 || toIndex >= imageUrls.length) return;
-      setImageUrls((prev) => {
+      const swap = <T>(prev: T[]): T[] => {
         const updated = [...prev];
         [updated[fromIndex], updated[toIndex]] = [
           updated[toIndex],
           updated[fromIndex],
         ];
         return updated;
-      });
+      };
+      setImageUrls(swap);
+      setImageKinds(swap);
       setSteps((prev) =>
         prev.map((step) => {
           if (step.imageIndex === fromIndex)
@@ -334,11 +452,14 @@ export function useGuidedLearningEditorState({
     welcomeMessage,
     setWelcomeMessage,
     imageUrls,
+    imageKinds,
     currentImageIndex,
     setCurrentImageIndex,
     uploading,
+    uploadProgress,
     uploadFromFiles,
     uploadFromClipboard,
+    addCapturedMedia,
     deleteImage,
     moveImage,
     imageError,

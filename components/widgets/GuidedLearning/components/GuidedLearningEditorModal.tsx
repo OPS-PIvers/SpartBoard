@@ -155,6 +155,13 @@ export const GuidedLearningEditorModal: React.FC<
     () => (set ? [...set.imageUrls] : []),
     [set]
   );
+  // Normalized per-slide kinds (missing entries = 'image') so dirty
+  // comparison is stable for legacy sets without the field.
+  const originalImageKinds = useMemo(
+    () =>
+      set ? set.imageUrls.map((_, i) => set.imageKinds?.[i] ?? 'image') : [],
+    [set]
+  );
   const originalSteps = useMemo(
     () => (set ? structuredClone(set.steps) : []),
     [set]
@@ -193,6 +200,7 @@ export const GuidedLearningEditorModal: React.FC<
       liveState.welcomeEnabled !== originalWelcomeEnabled ||
       liveState.welcomeMessage !== originalWelcomeMessage ||
       !arraysEqual(liveState.imageUrls, originalImageUrls) ||
+      !arraysEqual(liveState.imageKinds, originalImageKinds) ||
       !stepsEqual(liveState.steps, originalSteps)
     );
   }, [
@@ -205,6 +213,7 @@ export const GuidedLearningEditorModal: React.FC<
     originalWelcomeEnabled,
     originalWelcomeMessage,
     originalImageUrls,
+    originalImageKinds,
     originalSteps,
   ]);
 
@@ -218,6 +227,11 @@ export const GuidedLearningEditorModal: React.FC<
         title: liveState.title.trim(),
         description: liveState.description.trim() || undefined,
         imageUrls: liveState.imageUrls,
+        // Only persist kinds when at least one slide is a video — keeps
+        // image-only (and legacy) sets free of the new field.
+        ...(liveState.imageKinds.some((k) => k === 'video')
+          ? { imageKinds: liveState.imageKinds }
+          : {}),
         steps: liveState.steps,
         mode: liveState.mode,
         createdAt: set.createdAt,
