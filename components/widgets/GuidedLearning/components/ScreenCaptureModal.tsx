@@ -126,6 +126,12 @@ export const ScreenCaptureModal: React.FC<Props> = ({
 
   const startShare = useCallback(async () => {
     setError('');
+    // getDisplayMedia is absent in insecure contexts (plain HTTP) and some
+    // embedded/mobile browsers — fail with a message instead of a TypeError.
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      setError('Screen sharing is not supported in this browser or context.');
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
@@ -175,6 +181,10 @@ export const ScreenCaptureModal: React.FC<Props> = ({
     const stream = streamRef.current;
     if (!stream) return;
     setError('');
+    if (typeof MediaRecorder === 'undefined') {
+      setError('Screen recording is not supported in this browser.');
+      return;
+    }
     chunksRef.current = [];
     const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
       ? 'video/webm;codecs=vp9'
@@ -237,6 +247,9 @@ export const ScreenCaptureModal: React.FC<Props> = ({
   }, [videoFile, busy, onAddMedia]);
 
   const showPreview = sharing || videoFile !== null;
+
+  // SSR guard — matches the portal pattern used elsewhere in the editor.
+  if (typeof document === 'undefined') return null;
 
   return createPortal(
     <div
