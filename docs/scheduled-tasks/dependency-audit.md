@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-06-02_
-_Last action: 2026-06-02_
+_Last audited: 2026-06-09_
+_Last action: 2026-06-09_
 
 ---
 
@@ -139,14 +139,23 @@ _Nothing currently in progress._
   - `@types/node`: 24.12.2 → **25.9.0** (major — verify Node 24 compat)
   - `jsdom`: 27.4.0 → **29.1.1** (2 majors ahead — test environment only; also resolves ws CVE)
   - `lint-staged`: 16.2.7 → **17.0.5** (major — check husky integration compatibility)
-  - `@google/genai`: 1.51.0 → **2.7.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade; bumped from 2.6.0 → 2.7.0 as of 2026-06-02)
-    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → 19.2.7, `firebase-tools` 15.8.0 → 15.19.0, `firebase` 12.8.0 → 12.14.0, `firebase-admin` 13.6.0 → 13.10.0, `@playwright/test` 1.58.0 → 1.60.0, `@typescript-eslint/*` 8.54.0 → 8.60.1, `vitest`/`@vitest/coverage-v8` 4.0.18 → 4.1.8, `hono` 4.12.15 → 4.12.23, `dompurify` 3.4.2 → 3.4.7, `eslint-plugin-react-hooks` 7.0.1 → 7.1.1, `vite` 6.4.2 → 8.0.16 (now 2 majors behind), `eslint` 9.39.2 → 10.4.1, `@eslint/js` 9.39.2 → 10.0.1. (Updated 2026-06-02)
+  - `@google/genai`: 1.51.0 → **2.8.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade; bumped from 2.7.0 → 2.8.0 as of 2026-06-09)
+  - Functions: `jose` 4.15.9 → **6.2.3** (2 major versions behind; jose is a JWT/JWK library used transitively via `firebase-admin`; no direct import in project code confirmed. Major version gap may involve breaking API changes if ever imported directly.)
+    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → 19.2.7, `firebase-tools` 15.8.0 → 15.19.1, `firebase` 12.8.0 → 12.14.0, `firebase-admin` (functions) 13.6.0 → 14.0.0 (major), `@playwright/test` 1.58.0 → 1.60.0, `@typescript-eslint/*` 8.54.0 → 8.61.0, `vitest` (root) 4.0.18 → 4.1.8 (CRITICAL CVE — see separate HIGH entry above), `hono` 4.12.15 → 4.12.25, `dompurify` 3.4.2 → 3.4.8, `postcss` 8.5.6 → 8.5.15, `prettier` 3.8.1 → 3.8.3, `eslint-plugin-prettier` 5.5.5 → 5.5.6, `eslint-plugin-react-hooks` 7.0.1 → 7.1.1, `globals` 17.2.0 → 17.6.0, `@firebase/rules-unit-testing` 5.0.0 → 5.0.1, `google-auth-library` (functions) 10.5.0 → 10.7.0. (Updated 2026-06-09)
     These should not be done in a single commit — each needs its own migration PR with testing.
 - **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 6 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix. `@google/genai` major bump warrants dedicated testing of all AI generation flows (quiz, mini-app, widget builder, OCR, etc.). jsdom update to v29 also resolves the ws CVE tracked separately.
 
 ---
 
 ## Completed
+
+### HIGH `vitest@4.0.18` (root) — CRITICAL arbitrary file read/execute when UI server is active
+
+- **Detected:** 2026-06-09
+- **Completed:** 2026-06-09
+- **File:** package.json (direct devDependencies `vitest`, `@vitest/coverage-v8`)
+- **Detail:** GHSA-5xrq-8626-4rwp (CRITICAL): "When Vitest UI server is listening, arbitrary file can be read and executed." Root `vitest` was pinned at `4.0.18`, in the vulnerable range `>=4.0.0 <4.1.0`. The UI server is not enabled in CI (no `--ui` flag in `pnpm run test`), but any developer running `vitest --ui` locally on the root package was exposed. Patched in `>=4.1.0`.
+- **Resolution:** Bumped both `vitest` and `@vitest/coverage-v8` from `^4.0.18` to `^4.1.8` in root `package.json` (they version-lock together) and ran `pnpm install` — both resolved to `4.1.8`. `pnpm audit` no longer reports GHSA-5xrq-8626-4rwp. Verified clean: `pnpm type-check` (0 errors), `pnpm lint --max-warnings 0` (0 errors/warnings), `pnpm format:check` on package.json (clean), and the full `pnpm test` suite (422 files / 4343 tests, all passing on `vitest@4.1.8`). Note: the separate MEDIUM `ws@8.19.0`/`ws@8.20.0` item is NOT closed by this bump — `vitest@4.1.8 > @vitest/mocker > ws@8.19.0` still resolves the vulnerable `ws`, so that item remains Open with its own override fix.
 
 ### HIGH `path-to-regexp` HIGH ReDoS via `firebase-functions@7.2.5 > express` (root)
 
