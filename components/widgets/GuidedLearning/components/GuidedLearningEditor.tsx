@@ -698,6 +698,11 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
                     // the teacher sees exactly what students will see.
                     if (!currentTrim) return;
                     const el = e.currentTarget;
+                    // Skip while paused — trim-handle drags pause the video
+                    // and scrub it, and this closure's trim state can lag a
+                    // render behind the scrub position, which would snap the
+                    // preview away from the user's drag.
+                    if (el.paused) return;
                     if (
                       el.currentTime >= currentTrim.end ||
                       el.currentTime < currentTrim.start - 0.25
@@ -1083,6 +1088,8 @@ const VideoTrimBar: React.FC<{
 
     const timeAt = (clientX: number) => {
       const rect = track.getBoundingClientRect();
+      // A hidden/zero-width track would yield NaN and poison the trim state.
+      if (rect.width === 0) return 0;
       const pct = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
       return pct * duration;
     };
@@ -1105,8 +1112,12 @@ const VideoTrimBar: React.FC<{
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
-      if (target.hasPointerCapture(ev.pointerId)) {
-        target.releasePointerCapture(ev.pointerId);
+      try {
+        if (target.hasPointerCapture(ev.pointerId)) {
+          target.releasePointerCapture(ev.pointerId);
+        }
+      } catch {
+        // capture not supported — nothing to release
       }
       void videoRef.current?.play().catch(() => undefined);
     };
