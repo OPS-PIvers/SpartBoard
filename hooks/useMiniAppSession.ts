@@ -22,49 +22,9 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { AssignmentMode, MiniAppItem, MiniAppSession } from '@/types';
+import { normalizeMiniAppSession } from '@/utils/miniAppNormalize';
 
 const SESSIONS_COLLECTION = 'mini_app_sessions';
-
-const normalizeSession = (
-  sessionId: string,
-  data: Partial<MiniAppSession>
-): MiniAppSession => {
-  const appTitle = data.appTitle ?? 'Mini App';
-  const createdAt = data.createdAt ?? Date.now();
-
-  const classIds = Array.isArray(data.classIds)
-    ? data.classIds.filter(
-        (c): c is string => typeof c === 'string' && c.length > 0
-      )
-    : [];
-
-  const rosterIds = Array.isArray(data.rosterIds)
-    ? data.rosterIds.filter(
-        (r): r is string => typeof r === 'string' && r.length > 0
-      )
-    : [];
-
-  return {
-    id: sessionId,
-    appId: data.appId ?? '',
-    appTitle,
-    appHtml: data.appHtml ?? '',
-    teacherUid: data.teacherUid ?? '',
-    assignmentName:
-      data.assignmentName && data.assignmentName.trim().length > 0
-        ? data.assignmentName
-        : `${appTitle} — ${new Date(createdAt).toLocaleString()}`,
-    status: data.status === 'ended' ? 'ended' : 'active',
-    createdAt,
-    ...(typeof data.endedAt === 'number' ? { endedAt: data.endedAt } : {}),
-    ...(classIds.length > 0 ? { classIds } : {}),
-    ...(rosterIds.length > 0 ? { rosterIds } : {}),
-    ...(data.submissionsEnabled === true ? { submissionsEnabled: true } : {}),
-    ...(data.mode === 'view-only' || data.mode === 'submissions'
-      ? { mode: data.mode }
-      : {}),
-  };
-};
 
 export interface CreateMiniAppSessionOptions {
   /**
@@ -177,7 +137,7 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
           setSessions(
             snap.docs.map((sessionDoc) => {
               const data = sessionDoc.data() as Partial<MiniAppSession>;
-              return normalizeSession(sessionDoc.id, data);
+              return normalizeMiniAppSession(sessionDoc.id, data);
             })
           );
           setSessionsLoading(false);
