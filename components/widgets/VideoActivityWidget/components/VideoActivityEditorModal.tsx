@@ -86,6 +86,31 @@ const questionsEqual = (
   return true;
 };
 
+/**
+ * Shallow-equal over the union of both objects' keys. Sufficient for
+ * session-options objects, whose values are all primitives. Matches the
+ * previous `JSON.stringify(a) !== JSON.stringify(b)` dirty-check semantics
+ * (explicit `undefined` == absent) without serializing on every keystroke.
+ */
+const shallowRecordEqual = <T extends object>(a: T, b: T): boolean => {
+  if (a === b) return true;
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)] as (keyof T)[]);
+  for (const key of keys) {
+    if (!Object.is(a[key], b[key])) return false;
+  }
+  return true;
+};
+
+/** Field-by-field VideoActivityBehaviorSettings compare for the isDirty check. */
+const videoActivityBehaviorSettingsEqual = (
+  a: VideoActivityBehaviorSettings,
+  b: VideoActivityBehaviorSettings
+): boolean =>
+  a === b ||
+  (a.sessionMode === b.sessionMode &&
+    a.attemptLimit === b.attemptLimit &&
+    shallowRecordEqual(a.sessionOptions, b.sessionOptions));
+
 export const VideoActivityEditorModal: React.FC<
   VideoActivityEditorModalProps
 > = ({
@@ -144,12 +169,17 @@ export const VideoActivityEditorModal: React.FC<
     setOriginalBehavior(seed);
   }
 
+  // Reference equality first — setState produces a new questions array on
+  // every edit, so the deep walk only runs as a fallback.
   const isDirty = useMemo(
     () =>
       title !== originalTitle ||
       youtubeUrl !== originalYoutubeUrl ||
-      !questionsEqual(questions, originalQuestions) ||
-      JSON.stringify(behavior) !== JSON.stringify(originalBehavior),
+      !(
+        questions === originalQuestions ||
+        questionsEqual(questions, originalQuestions)
+      ) ||
+      !videoActivityBehaviorSettingsEqual(behavior, originalBehavior),
     [
       title,
       originalTitle,
@@ -234,6 +264,39 @@ export const VideoActivityEditorModal: React.FC<
     }
   };
 
+  // Stable chrome elements so the shell's memoized header/footer don't
+  // re-render on question-content keystrokes.
+  const subtitle = useMemo(
+    () => (
+      <span>
+        {questions.length} {questions.length === 1 ? 'question' : 'questions'} •{' '}
+        {totalPoints} {totalPoints === 1 ? 'point' : 'points'}
+      </span>
+    ),
+    [questions.length, totalPoints]
+  );
+  const { setShowAiPrompt } = editorState;
+  const hasYoutubeUrl = Boolean(youtubeUrl.trim());
+  const footerExtras = useMemo(
+    () =>
+      canUseAi ? (
+        <button
+          onClick={() => setShowAiPrompt(true)}
+          disabled={!hasYoutubeUrl}
+          className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
+          title={
+            hasYoutubeUrl
+              ? 'Generate questions with AI'
+              : 'Paste a YouTube URL first'
+          }
+        >
+          <Sparkles className="w-4 h-4" />
+          Draft with AI
+        </button>
+      ) : null,
+    [canUseAi, hasYoutubeUrl, setShowAiPrompt]
+  );
+
   if (!activity) return null;
 
   return (
@@ -241,34 +304,13 @@ export const VideoActivityEditorModal: React.FC<
       key={activity.id}
       isOpen={isOpen}
       title={title.trim() || (originalTitle ? 'Edit Activity' : 'New Activity')}
-      subtitle={
-        <span>
-          {questions.length} {questions.length === 1 ? 'question' : 'questions'}{' '}
-          • {totalPoints} {totalPoints === 1 ? 'point' : 'points'}
-        </span>
-      }
+      subtitle={subtitle}
       isDirty={isDirty}
       isSaving={saving}
       onSave={handleSave}
       onClose={onClose}
       saveLabel="Save Activity"
-      footerExtras={
-        canUseAi ? (
-          <button
-            onClick={() => editorState.setShowAiPrompt(true)}
-            disabled={!youtubeUrl.trim()}
-            className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
-            title={
-              youtubeUrl.trim()
-                ? 'Generate questions with AI'
-                : 'Paste a YouTube URL first'
-            }
-          >
-            <Sparkles className="w-4 h-4" />
-            Draft with AI
-          </button>
-        ) : null
-      }
+      footerExtras={footerExtras}
       contextRatio={56}
       contextPaneClassName="bg-slate-50 border-r border-slate-200 !overflow-hidden"
       contextPane={

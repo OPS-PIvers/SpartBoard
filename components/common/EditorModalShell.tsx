@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { Modal } from './Modal';
 import { useDialog } from '@/context/useDialog';
@@ -78,10 +78,23 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   const { showConfirm } = useDialog();
   const { addToast } = useDashboard();
 
+  // "Latest ref" mirrors of the caller's handlers, synced in a layout effect
+  // (the lint config forbids ref writes during render). Editors typically
+  // define `onSave` inline (new identity every render), which would
+  // re-create the memoized header/footer below on every keystroke;
+  // dispatching through a ref keeps `requestClose` / `handleSave` stable
+  // while still invoking the latest handler at click time.
+  const onSaveRef = useRef(onSave);
+  const onCloseRef = useRef(onClose);
+  useLayoutEffect(() => {
+    onSaveRef.current = onSave;
+    onCloseRef.current = onClose;
+  });
+
   const requestClose = useCallback(async () => {
     if (isSaving) return;
     if (!isDirty) {
-      onClose();
+      onCloseRef.current();
       return;
     }
     const ok = await showConfirm(confirmDiscardMessage, {
@@ -90,11 +103,10 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       confirmLabel: 'Discard',
       cancelLabel: 'Keep editing',
     });
-    if (ok) onClose();
+    if (ok) onCloseRef.current();
   }, [
     isDirty,
     isSaving,
-    onClose,
     showConfirm,
     confirmDiscardMessage,
     confirmDiscardTitle,
@@ -103,7 +115,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   const handleSave = useCallback(async () => {
     if (saveDisabled || isSaving) return;
     try {
-      await onSave();
+      await onSaveRef.current();
     } catch (error) {
       // Catch here prevents an unhandled promise rejection from the
       // `void handleSave()` click handler below. We surface it via toast
@@ -117,71 +129,88 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
         );
       }
     }
-  }, [saveDisabled, isSaving, onSave, saveErrorMessage, addToast]);
+  }, [saveDisabled, isSaving, saveErrorMessage, addToast]);
 
-  const customHeader = (
-    <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0">
-      <div className="flex flex-col min-w-0 flex-1">
-        {onTitleChange ? (
-          <input
-            id="editor-modal-shell-title"
-            type="text"
-            value={title}
-            onChange={(e) => onTitleChange(e.target.value)}
-            placeholder={titlePlaceholder ?? 'Untitled'}
-            // Visually identical to the static h3 fallback below (same font
-            // weight/size/color), but editable and full-width so the user
-            // can rename the item without a duplicate title field in the
-            // editor body. `aria-labelledby` on the modal still resolves
-            // here because the id is preserved.
-            className="font-black text-lg text-slate-800 truncate bg-transparent border-0 focus:outline-none focus:ring-0 placeholder:text-slate-400 placeholder:font-bold w-full p-0"
-            aria-label="Title"
-          />
-        ) : (
-          <h3
-            id="editor-modal-shell-title"
-            className="font-black text-lg text-slate-800 truncate"
-          >
-            {title}
-          </h3>
+  // Memoized chrome: a body-content render (e.g. a question keystroke)
+  // reuses these elements so React bails out of the header/footer subtrees;
+  // only chrome inputs (title, isSaving, isDirty via requestClose, …)
+  // re-render them.
+  const customHeader = useMemo(
+    () => (
+      <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0">
+        <div className="flex flex-col min-w-0 flex-1">
+          {onTitleChange ? (
+            <input
+              id="editor-modal-shell-title"
+              type="text"
+              value={title}
+              onChange={(e) => onTitleChange(e.target.value)}
+              placeholder={titlePlaceholder ?? 'Untitled'}
+              // Visually identical to the static h3 fallback below (same font
+              // weight/size/color), but editable and full-width so the user
+              // can rename the item without a duplicate title field in the
+              // editor body. `aria-labelledby` on the modal still resolves
+              // here because the id is preserved.
+              className="font-black text-lg text-slate-800 truncate bg-transparent border-0 focus:outline-none focus:ring-0 placeholder:text-slate-400 placeholder:font-bold w-full p-0"
+              aria-label="Title"
+            />
+          ) : (
+            <h3
+              id="editor-modal-shell-title"
+              className="font-black text-lg text-slate-800 truncate"
+            >
+              {title}
+            </h3>
+          )}
+          {subtitle !== undefined && subtitle !== null && (
+            <div className="text-xs text-slate-500 mt-0.5">{subtitle}</div>
+          )}
+        </div>
+        {headerExtras && (
+          <div className="flex items-center gap-2 shrink-0">{headerExtras}</div>
         )}
-        {subtitle !== undefined && subtitle !== null && (
-          <div className="text-xs text-slate-500 mt-0.5">{subtitle}</div>
-        )}
-      </div>
-      {headerExtras && (
-        <div className="flex items-center gap-2 shrink-0">{headerExtras}</div>
-      )}
-      <button
-        onClick={() => void requestClose()}
-        className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors shrink-0"
-        aria-label="Close"
-      >
-        <X size={20} />
-      </button>
-    </div>
-  );
-
-  const footer = (
-    <div className="flex items-center justify-between gap-3 px-6 py-3 bg-white">
-      <div className="flex items-center gap-2">{footerExtras}</div>
-      <div className="flex items-center gap-2">
         <button
           onClick={() => void requestClose()}
-          className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+          className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors shrink-0"
+          aria-label="Close"
         >
-          Cancel
-        </button>
-        <button
-          onClick={() => void handleSave()}
-          disabled={saveDisabled || isSaving}
-          className="flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-          {saveLabel}
+          <X size={20} />
         </button>
       </div>
-    </div>
+    ),
+    [
+      onTitleChange,
+      title,
+      titlePlaceholder,
+      subtitle,
+      headerExtras,
+      requestClose,
+    ]
+  );
+
+  const footer = useMemo(
+    () => (
+      <div className="flex items-center justify-between gap-3 px-6 py-3 bg-white">
+        <div className="flex items-center gap-2">{footerExtras}</div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => void requestClose()}
+            className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => void handleSave()}
+            disabled={saveDisabled || isSaving}
+            className="flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {saveLabel}
+          </button>
+        </div>
+      </div>
+    ),
+    [footerExtras, requestClose, handleSave, saveDisabled, isSaving, saveLabel]
   );
 
   return (
