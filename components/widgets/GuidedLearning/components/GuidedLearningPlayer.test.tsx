@@ -349,4 +349,51 @@ describe('GuidedLearningPlayer', () => {
       srcSpy.mockRestore();
     }
   });
+
+  it('honors a per-slide playback trim: seeks to start on load and loops back at end', () => {
+    const set: GuidedLearningSet = {
+      id: 'set-4',
+      title: 'Trimmed Video Test',
+      imageUrls: ['https://example.com/clip.mp4'],
+      imageKinds: ['video'],
+      videoTrims: [{ start: 2, end: 5 }],
+      steps: [
+        {
+          id: 'step-1',
+          xPct: 50,
+          yPct: 50,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          text: 'On the video',
+        },
+      ],
+      mode: 'structured',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    const { container } = render(<GuidedLearningPlayer set={set} />);
+    const video = container.querySelector('video');
+    if (!video) throw new Error('Expected a <video> element for video slide');
+
+    // Metadata load seeks to the trim start.
+    fireEvent(video, new Event('loadedmetadata'));
+    expect(video.currentTime).toBe(2);
+
+    // Inside the range — playback continues untouched.
+    video.currentTime = 4;
+    fireEvent(video, new Event('timeupdate'));
+    expect(video.currentTime).toBe(4);
+
+    // Reaching the trim end loops back to the trim start.
+    video.currentTime = 5;
+    fireEvent(video, new Event('timeupdate'));
+    expect(video.currentTime).toBe(2);
+
+    // Far before the range (e.g. native loop restarted the file) snaps
+    // forward to the trim start.
+    video.currentTime = 0;
+    fireEvent(video, new Event('timeupdate'));
+    expect(video.currentTime).toBe(2);
+  });
 });

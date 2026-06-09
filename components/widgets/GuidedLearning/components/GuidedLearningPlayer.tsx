@@ -171,6 +171,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   // images (legacy sets/sessions have no imageKinds field at all).
   const slideKind: 'image' | 'video' =
     set.imageKinds?.[currentImageIndex] ?? 'image';
+  // Optional playback-range trim for the current video slide — the <video>
+  // seeks to `start` on load and loops back when it reaches `end`. Missing
+  // entries (and legacy sets/sessions) play the full file.
+  const slideTrim = set.videoTrims?.[currentImageIndex] ?? null;
 
   // Image-transition bookkeeping — when `currentImageIndex` changes and a
   // transition is enabled, we briefly render the previous image as an
@@ -695,7 +699,23 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                 autoPlay
                 playsInline
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-                onLoadedMetadata={measureImg}
+                onLoadedMetadata={(e) => {
+                  measureImg();
+                  if (slideTrim) e.currentTarget.currentTime = slideTrim.start;
+                }}
+                onTimeUpdate={(e) => {
+                  // Loop within the trimmed playback range. The native
+                  // `loop` attribute still covers the untrimmed case (and
+                  // acts as a fallback if `end` is at/after the file end).
+                  if (!slideTrim) return;
+                  const el = e.currentTarget;
+                  if (
+                    el.currentTime >= slideTrim.end ||
+                    el.currentTime < slideTrim.start - 0.25
+                  ) {
+                    el.currentTime = slideTrim.start;
+                  }
+                }}
               />
             )}
             {currentImageUrl && slideKind !== 'video' && (
