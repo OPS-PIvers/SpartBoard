@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-08_
+_Last audited: 2026-06-09_
 _Last action: 2026-06-06_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-09: Scanned all Widget.tsx files changed in dev-paul merge (fix(optimize-pass) address PR #1908, perf+a11y optimize-pass sweep, fix(classroom) x2, chore(debugger) nightly log). Optimize-pass sweep touches layout, context, utility files — no widget front-face content changes. Classroom commits affect AssignToClassroomModal, QuizManager, grade-push logic — no widget canvas. PollWidget progress bar (existing open item at :161, `h-[min(5cqmin)] min-h-[16px]` uncapped upper bound) re-confirmed present and unresolved. Checklist cqh/cqw WON'T FIX and Stations `maxHeight: '40cqh'` intentional design both re-confirmed per journal guidance. Zero new anti-patterns detected. All pre-existing open items remain valid._
 
 _2026-06-08: Scanned all Widget.tsx files changed in dev-paul merge (SoundboardWidget/Widget.tsx, math-tools/CalculatorTool.tsx). SoundboardWidget change: replaced manual empty-state markup (Music icon with `mb-2` + label) with ScaledEmptyState — the `mb-2` tracked in the group open item at `SoundboardWidget/Widget.tsx:391` is now resolved. The `gap-2` at line 391 (selection bar flex container) remains hardcoded. CalculatorTool.tsx: `flex-1 min-h-0` pattern at line 350 is a valid flex layout, not a violation. Dock.tsx, locale files, functions files — no widget front-face content changes. No new anti-patterns detected. Group open item updated to reflect SoundboardWidget mb-2 Music icon resolution._
 

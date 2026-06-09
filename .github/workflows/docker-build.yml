@@ -5,9 +5,25 @@ on:
     branches:
       - main
       - dev-*
-  push:
-    branches:
-      - main
+    # The Dockerfile does `COPY . . && pnpm run build`, so in principle any
+    # source change affects the image — but PR Validation's `build` job already
+    # runs `build:all` on every PR. This validation's unique job is catching
+    # Docker/nginx/install breakage, so only run it when the build *plumbing*
+    # changes. (No `push: main` trigger: the PR into main already validated it,
+    # and this job only validates — it never publishes the image.)
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'nginx.conf'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'vite.config.ts'
+      - '.github/workflows/docker-build.yml'
+
+# Supersede an in-flight build when a newer commit lands on the same PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   docker-build:

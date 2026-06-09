@@ -5,6 +5,20 @@ on:
     branches:
       - main
       - dev-*
+    # Skip the full 6-job suite for docs-only PRs. The nightly agent fleet opens
+    # many journal-only PRs (docs/routines/*.md), and Markdown never affects the
+    # build, tests, or rules — so validating it is pure Actions spend. A PR that
+    # also touches any non-doc file still runs everything (paths-ignore only
+    # skips when *every* changed file matches).
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+
+# Cancel a superseded run when a newer commit is pushed to the same PR, so
+# rapid successive pushes don't each run the full 6-job suite to completion.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   quality:
