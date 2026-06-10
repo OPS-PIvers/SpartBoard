@@ -144,7 +144,22 @@ export function buildResultsSheetData<
       ? new Date(r.submittedAt).toLocaleString()
       : '';
     const warnings = r.tabSwitchWarnings?.toString() ?? '0';
-    const answerMap = new Map(r.answers.map((a) => [a.questionId, a]));
+    // Deduplicate by questionId, keeping the FIRST occurrence in the array.
+    // Firestore arrayUnion races and Drive-sync double-writes can produce
+    // duplicate answer entries; `new Map([...entries])` would silently keep
+    // the LAST duplicate, but the scoring path (`getEarnedPoints`) keeps the
+    // first chronologically-sorted entry. Mismatching the two would produce an
+    // export score that contradicts the student's published grade — same root
+    // cause as #1827. Using a for-loop with a prior-seen guard preserves
+    // array insertion order (= natural arrival order) as the tiebreak, which
+    // matches what happens in practice when no `answeredAt` field is present
+    // on the ExportableResponse interface.
+    const answerMap = new Map<string, (typeof r.answers)[number]>();
+    for (const a of r.answers) {
+      if (!answerMap.has(a.questionId)) {
+        answerMap.set(a.questionId, a);
+      }
+    }
     // Grade once per question per response, cached by question id. The
     // previous shape called `gradeFn` twice (once for the answer column,
     // once for the row sum) which doubled normalization/regex work on
