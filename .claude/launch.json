@@ -9,6 +9,15 @@
       "autoPort": true
     },
     {
+      "name": "vite-dev-bypass",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": [
+        "-Command",
+        "$env:VITE_AUTH_BYPASS='true'; pnpm run dev -- --port 56300 --strictPort"
+      ],
+      "port": 56300
+    },
+    {
       "name": "functions-emulator",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["-C", "functions", "run", "serve"],

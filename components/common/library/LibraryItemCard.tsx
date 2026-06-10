@@ -418,15 +418,27 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
         // `@container` makes the card itself the query target so the action
         // buttons can collapse their text labels at narrow widths via
         // `@[Npx]:` Tailwind variants below.
-        '@container group relative flex rounded-2xl border backdrop-blur-sm text-slate-700 shadow-sm transition-shadow hover:shadow-md',
+        //
+        // Two surfaces: grid mode keeps the glass card; list mode renders a
+        // slim hairline-separated row (no per-row border box) so lists read
+        // as lists, not stacked cards.
+        '@container group relative flex text-slate-700',
+        isList
+          ? 'flex-row items-center rounded-lg border-b border-slate-200/60 transition-colors'
+          : 'flex-col rounded-2xl border backdrop-blur-sm shadow-sm transition-shadow hover:shadow-md',
         selectionMode && selected
-          ? 'border-brand-blue-primary/60 bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/40 ring-2 ring-brand-blue-primary/30'
-          : 'border-slate-200/80 bg-white/70 hover:bg-white/85',
-        isList ? 'flex-row items-center' : 'flex-col',
+          ? isList
+            ? 'bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/40 ring-2 ring-inset ring-brand-blue-primary/30'
+            : 'border-brand-blue-primary/60 bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/40 ring-2 ring-brand-blue-primary/30'
+          : isList
+            ? 'hover:bg-white/60'
+            : 'border-slate-200/60 bg-white/70 hover:bg-white/85',
         (onClick ?? onDoubleClick ?? selectionMode) && 'cursor-pointer',
         isDragging && 'opacity-50',
         isDragOverlay &&
-          'pointer-events-none ring-2 ring-brand-blue-primary/30',
+          (isList
+            ? 'pointer-events-none border-b-0 bg-white shadow-lg ring-2 ring-brand-blue-primary/30'
+            : 'pointer-events-none ring-2 ring-brand-blue-primary/30'),
       ]
         .filter(Boolean)
         .join(' ')}
@@ -437,7 +449,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
         gap: isList ? 'min(10px, 2.5cqmin)' : 'min(12px, 3cqmin)',
         padding: isList
           ? 'min(8px, 2cqmin) min(10px, 2.5cqmin)'
-          : 'min(16px, 3.5cqmin)',
+          : 'min(14px, 3cqmin)',
       }}
       aria-hidden={isDragOverlay}
     >
@@ -557,7 +569,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
             // white surface with brand-blue border so it reads as the
             // secondary CTA. Label collapses to icon-only below ~280px
             // card width (the @container threshold).
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-brand-blue-primary/30 bg-white font-bold uppercase tracking-widest text-brand-blue-dark shadow-sm transition-all hover:bg-brand-blue-lighter/30 hover:border-brand-blue-primary/60 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-brand-blue-primary/30 bg-white font-bold text-brand-blue-dark shadow-sm transition-all hover:bg-brand-blue-lighter/30 hover:border-brand-blue-primary/60 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             style={{
               paddingInline: 'min(14px, 3.2cqmin)',
               paddingBlock: 'min(6px, 1.6cqmin)',
@@ -591,7 +603,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
                 : primaryAction.label
             }
             aria-label={primaryAction.label}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-brand-blue-primary font-bold uppercase tracking-widest text-white shadow-sm transition-all hover:bg-brand-blue-dark active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-brand-blue-primary"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-blue-primary font-bold text-white shadow-sm transition-all hover:bg-brand-blue-dark active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-brand-blue-primary"
             style={{
               paddingInline: 'min(14px, 3.2cqmin)',
               paddingBlock: 'min(6px, 1.6cqmin)',
@@ -676,12 +688,15 @@ function SortableCard<TMeta>(props: SortableCardProps<TMeta>) {
   // so the grab point aligns with wherever the user presses on the card.
   // The PointerSensor's 5px activation distance keeps body clicks from
   // accidentally starting a drag.
+  // Hidden until the card is hovered — drag listeners live on the whole
+  // sortable wrapper, so the grip is a discoverability affordance, not the
+  // activation target; keeping it invisible at rest de-clutters list rows.
   const dragHandle = (
     <div
       aria-hidden="true"
       title={lockedReason ?? 'Drag to reorder'}
-      className={`pointer-events-none flex h-8 w-6 shrink-0 items-center justify-center rounded-lg text-slate-300 ${
-        lockedReason ? 'opacity-40' : ''
+      className={`pointer-events-none flex h-8 w-6 shrink-0 items-center justify-center rounded-lg text-slate-300 opacity-0 transition-opacity ${
+        lockedReason ? 'group-hover:opacity-40' : 'group-hover:opacity-100'
       }`}
     >
       <GripVertical className="h-4 w-4" />
