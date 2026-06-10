@@ -192,6 +192,13 @@ const NotebookEditorDevHarness = import.meta.env.DEV
       }))
     )
   : null;
+const LibraryDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/LibraryDevHarness').then((module) => ({
+        default: module.LibraryDevHarness,
+      }))
+    )
+  : null;
 
 const FullPageLoader = () => (
   <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
@@ -464,6 +471,17 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <NotebookEditorDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: visual harness for the unified Library primitives (shell,
+  // toolbar, cards, assignment rows) at multiple widget sizes. Same
+  // import.meta.env.DEV gating as the notebook harness above.
+  if (import.meta.env.DEV && LibraryDevHarness && pathname === '/library-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <LibraryDevHarness />
       </Suspense>
     );
   }

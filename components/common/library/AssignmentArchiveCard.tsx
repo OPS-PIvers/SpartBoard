@@ -134,13 +134,22 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
         ref={buttonRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-center w-7 h-7 rounded-lg text-brand-blue-dark/60 hover:text-brand-blue-dark hover:bg-brand-blue-lighter/30 transition-colors"
+        className="flex items-center justify-center rounded-lg text-brand-blue-dark/60 hover:text-brand-blue-dark hover:bg-brand-blue-lighter/30 transition-colors"
+        style={{
+          width: 'min(30px, 8cqmin)',
+          height: 'min(30px, 8cqmin)',
+        }}
         title="More actions"
         aria-label="More actions"
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <MoreHorizontal size={16} />
+        <MoreHorizontal
+          style={{
+            width: 'min(16px, 4.5cqmin)',
+            height: 'min(16px, 4.5cqmin)',
+          }}
+        />
       </button>
       {open &&
         menuPos &&
@@ -204,56 +213,90 @@ export function AssignmentArchiveCard<TAssignment>({
 
   const PrimaryIcon = primaryAction?.icon;
 
+  // Slim list-row styling: hairline-separated rows with a hover surface
+  // instead of stacked bordered cards. Archive rows are muted (opacity-70)
+  // and recover full opacity on hover so actions stay easy to read.
   const cardClass = isArchive
-    ? 'bg-white/70 border-slate-200/60 opacity-70'
-    : `bg-white ${tone.activeBorder}`;
+    ? 'opacity-70 hover:opacity-100'
+    : 'hover:bg-white/60';
 
   const titleClass = isArchive ? 'text-slate-500' : 'text-brand-blue-dark';
   const metaClass = isArchive ? 'text-slate-400' : 'text-brand-blue-primary/60';
 
   return (
     <div
-      className={`rounded-xl border shadow-sm transition-shadow p-2.5 ${cardClass}`}
+      className={`group rounded-lg border-b border-slate-200/60 last:border-b-0 transition-colors ${cardClass}`}
+      style={{
+        padding: 'min(10px, 2.2cqmin) min(12px, 2.6cqmin)',
+      }}
     >
-      <div className="flex items-center gap-2">
-        {/* Status dot (live pulse / paused static dot) */}
-        {status.dot && !isArchive && (
-          <div
-            className={`shrink-0 w-2 h-2 rounded-full ${tone.dot} ${
-              status.tone === 'success'
-                ? 'animate-pulse shadow-[0_0_6px_rgba(16,185,129,0.5)]'
-                : ''
-            }`}
-            aria-hidden="true"
-          />
-        )}
+      <div className="flex items-center" style={{ gap: 'min(10px, 2.2cqmin)' }}>
+        {/* Status dot (live pulse / paused static dot). The slot is always
+            reserved so titles line up vertically across rows regardless of
+            whether a given row has a dot. */}
+        <div
+          className="flex shrink-0 items-center justify-center"
+          style={{ width: 'min(8px, 2cqmin)' }}
+          aria-hidden="true"
+        >
+          {status.dot && !isArchive && (
+            <div
+              className={`rounded-full ${tone.dot} ${
+                status.tone === 'success'
+                  ? 'animate-pulse shadow-[0_0_6px_rgba(16,185,129,0.5)]'
+                  : ''
+              }`}
+              style={{
+                width: 'min(8px, 2cqmin)',
+                height: 'min(8px, 2cqmin)',
+              }}
+            />
+          )}
+        </div>
 
         {/* Title + subtitle + meta */}
         <div className="flex-1 min-w-0">
           <div
-            className={`font-bold text-sm truncate ${titleClass}`}
+            className={`font-bold truncate ${titleClass}`}
+            style={{ fontSize: 'min(14px, 4.2cqmin)' }}
             title={title}
           >
             {title}
           </div>
           <div
-            className={`flex items-center gap-2 mt-0.5 text-xs ${metaClass}`}
+            className={`flex items-center mt-0.5 min-w-0 overflow-hidden ${metaClass}`}
+            style={{
+              gap: 'min(8px, 2cqmin)',
+              fontSize: 'min(12px, 3.5cqmin)',
+            }}
           >
             {subtitle !== undefined && subtitle !== null && (
-              <span className="font-semibold truncate max-w-[120px]">
-                {subtitle}
-              </span>
+              <span className="font-semibold truncate min-w-0">{subtitle}</span>
             )}
             {meta !== undefined && meta !== null && (
-              <span className="flex items-center gap-2 min-w-0">{meta}</span>
+              <span
+                className="flex items-center min-w-0 overflow-hidden whitespace-nowrap"
+                style={{ gap: 'min(8px, 2cqmin)' }}
+              >
+                {meta}
+              </span>
             )}
           </div>
         </div>
 
-        {/* Status badge */}
+        {/* Status badge — fixed minimum width and centered text so the
+            badge column reads as a column even when labels differ in
+            length (Live / Paused / Shared / Ended). */}
         <div
           data-testid="assignment-status-badge"
-          className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide shrink-0 ${tone.badgeBg} ${tone.badgeFg}`}
+          className={`flex items-center justify-center rounded-full font-bold uppercase tracking-wide shrink-0 ${tone.badgeBg} ${tone.badgeFg}`}
+          style={{
+            gap: 'min(4px, 1cqmin)',
+            minWidth: 'min(60px, 14cqmin)',
+            paddingInline: 'min(8px, 2cqmin)',
+            paddingBlock: 'min(2px, 0.6cqmin)',
+            fontSize: 'min(10px, 3cqmin)',
+          }}
         >
           {status.label}
         </div>
@@ -263,7 +306,10 @@ export function AssignmentArchiveCard<TAssignment>({
             is `relative` so an optional badge can absolutely-position over
             the top-right corner without disturbing the button's own layout. */}
         {primaryAction && (
-          <div className="relative shrink-0">
+          <div
+            className="relative shrink-0"
+            style={{ minWidth: 'min(96px, 23cqmin)' }}
+          >
             <button
               type="button"
               onClick={primaryAction.onClick}
@@ -273,9 +319,23 @@ export function AssignmentArchiveCard<TAssignment>({
                   ? primaryAction.disabledReason
                   : undefined
               }
-              className="flex items-center gap-1 px-2.5 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xs font-bold rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex w-full items-center justify-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                paddingInline: 'min(10px, 2.4cqmin)',
+                paddingBlock: 'min(5px, 1.2cqmin)',
+                fontSize: 'min(12px, 3.5cqmin)',
+              }}
             >
-              {PrimaryIcon && <PrimaryIcon size={12} className="shrink-0" />}
+              {PrimaryIcon && (
+                <PrimaryIcon
+                  className="shrink-0"
+                  style={{
+                    width: 'min(13px, 3.8cqmin)',
+                    height: 'min(13px, 3.8cqmin)',
+                  }}
+                />
+              )}
               <span>{primaryAction.label}</span>
               {/* Screen-reader copy of the badge count — the visible pill is a
                   sibling of the button (so it can render *outside* the button's
@@ -304,9 +364,17 @@ export function AssignmentArchiveCard<TAssignment>({
           </div>
         )}
 
-        {/* Overflow menu */}
-        {secondaryActions && secondaryActions.length > 0 && (
+        {/* Overflow menu — a same-width spacer is reserved when a row has
+            no kebab so the primary-action column stays vertically aligned
+            with sibling rows that do. */}
+        {secondaryActions && secondaryActions.length > 0 ? (
           <OverflowMenu actions={secondaryActions} />
+        ) : (
+          <div
+            aria-hidden="true"
+            className="shrink-0"
+            style={{ width: 'min(30px, 8cqmin)' }}
+          />
         )}
       </div>
     </div>

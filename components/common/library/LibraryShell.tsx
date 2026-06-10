@@ -192,7 +192,15 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
     return () => observer.disconnect();
   }, []);
   const buttonCount = (primaryAction ? 1 : 0) + (secondaryActions?.length ?? 0);
-  const labelsHidden = rootWidth != null && rootWidth < 260 + buttonCount * 110;
+  // Tabs and header actions share one bar, so labels collapse in two stages
+  // as the widget narrows: action buttons go icon-only first (~110px → ~36px
+  // each), then tab labels follow. Tab labels win the tie — they're the
+  // primary navigation and the actions keep tooltips.
+  const tabCount = tabs.length;
+  const labelsHidden =
+    rootWidth != null && rootWidth < 60 + tabCount * 110 + buttonCount * 110;
+  const tabLabelsHidden =
+    rootWidth != null && rootWidth < 60 + tabCount * 110 + buttonCount * 44;
 
   const effectiveFolderPanelMode: FolderPanelMode = useMemo(
     () => resolveFolderPanelMode(folderPanelSetting, rootWidth),
@@ -211,107 +219,112 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
       className="flex flex-col h-full min-h-0 text-slate-800 rounded-2xl overflow-hidden"
       aria-label={`${widgetLabel} library`}
     >
-      <header
-        className="flex items-center justify-between gap-3 bg-white/60 backdrop-blur-sm border-b border-slate-200/70 shrink-0"
-        style={{
-          paddingInline: 'min(24px, 5cqmin)',
-          paddingBlock: 'min(16px, 3.5cqmin)',
-        }}
-      >
-        <div className="min-w-0">
-          <h2
-            className="font-black text-slate-800 truncate"
-            style={{ fontSize: 'min(18px, 5.5cqmin)' }}
-          >
-            {widgetLabel} Library
-          </h2>
-        </div>
-        {(primaryAction != null ||
-          (secondaryActions != null && secondaryActions.length > 0)) && (
-          <div
-            className="flex items-center shrink-0"
-            style={{ gap: 'min(8px, 2cqmin)' }}
-          >
-            {secondaryActions?.map((action, i) =>
-              renderActionButton(
-                action,
-                'secondary',
-                labelsHidden,
-                `secondary-${i}`
-              )
-            )}
-            {primaryAction &&
-              renderActionButton(primaryAction, 'primary', labelsHidden)}
-          </div>
-        )}
-      </header>
-
-      <nav
-        role="tablist"
-        aria-label={`${widgetLabel} library tabs`}
-        className="flex items-end bg-white/60 backdrop-blur-sm border-b border-slate-200/70 shrink-0"
-        style={{
-          gap: 'min(4px, 1cqmin)',
-          paddingInline: 'min(24px, 5cqmin)',
-          paddingTop: 'min(12px, 2.5cqmin)',
-        }}
-      >
-        {tabs.map(({ key, label, icon: Icon, count }) => {
-          const selected = tab === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              onClick={() => onTabChange(key)}
-              className={`inline-flex items-center rounded-t-xl font-black uppercase tracking-widest transition-colors ${
-                selected
-                  ? 'bg-white/40 text-brand-blue-primary border-x border-t border-slate-200/70'
-                  : 'text-slate-500 hover:text-brand-blue-primary hover:bg-white/30'
-              }`}
+      {/* Single chrome bar: segmented tab control on the left, header
+          actions on the right. Replaces the old stacked header ("X Library"
+          title — redundant inside the widget) + folder-tab nav, recovering
+          a full bar of vertical space for content. */}
+      {(tabs.length > 0 ||
+        primaryAction != null ||
+        (secondaryActions != null && secondaryActions.length > 0)) && (
+        <div
+          className="flex items-center justify-between bg-white/60 backdrop-blur-sm border-b border-slate-200/70 shrink-0"
+          style={{
+            gap: 'min(12px, 2.5cqmin)',
+            paddingInline: 'min(16px, 3.5cqmin)',
+            paddingBlock: 'min(8px, 1.8cqmin)',
+          }}
+        >
+          {tabs.length > 0 ? (
+            <nav
+              role="tablist"
+              aria-label={`${widgetLabel} library tabs`}
+              className="flex items-center rounded-xl bg-slate-200/50 min-w-0"
               style={{
-                gap: 'min(8px, 2cqmin)',
-                paddingInline: 'min(16px, 3.5cqmin)',
-                paddingBlock: 'min(10px, 2.2cqmin)',
-                fontSize: 'min(13px, 3.8cqmin)',
+                padding: 'min(3px, 0.8cqmin)',
+                gap: 'min(2px, 0.5cqmin)',
               }}
             >
-              <Icon
-                style={{
-                  width: 'min(14px, 4cqmin)',
-                  height: 'min(14px, 4cqmin)',
-                }}
-                className="shrink-0"
-              />
-              <span>{label}</span>
-              {count != null && count > 0 && (
-                <span
-                  className={`inline-flex items-center justify-center rounded-full font-bold leading-none ${
-                    selected
-                      ? 'bg-brand-blue-primary text-white'
-                      : 'bg-slate-200/70 text-slate-600'
-                  }`}
-                  style={{
-                    paddingInline: 'min(8px, 2cqmin)',
-                    paddingBlock: 'min(2px, 0.5cqmin)',
-                    fontSize: 'min(10px, 3cqmin)',
-                  }}
-                >
-                  {count}
-                </span>
+              {tabs.map(({ key, label, icon: Icon, count }) => {
+                const selected = tab === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    aria-label={label}
+                    title={tabLabelsHidden ? label : undefined}
+                    onClick={() => onTabChange(key)}
+                    className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-lg font-bold transition-colors ${
+                      selected
+                        ? 'bg-white text-brand-blue-dark shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                    style={{
+                      gap: 'min(6px, 1.5cqmin)',
+                      paddingInline: 'min(12px, 2.8cqmin)',
+                      paddingBlock: 'min(6px, 1.5cqmin)',
+                      fontSize: 'min(13px, 3.8cqmin)',
+                    }}
+                  >
+                    <Icon
+                      style={{
+                        width: 'min(14px, 4cqmin)',
+                        height: 'min(14px, 4cqmin)',
+                      }}
+                      className="shrink-0"
+                    />
+                    {!tabLabelsHidden && <span>{label}</span>}
+                    {count != null && count > 0 && (
+                      <span
+                        className={`inline-flex items-center justify-center rounded-full font-bold leading-none ${
+                          selected
+                            ? 'bg-brand-blue-primary text-white'
+                            : 'bg-slate-200/70 text-slate-600'
+                        }`}
+                        style={{
+                          paddingInline: 'min(7px, 1.8cqmin)',
+                          paddingBlock: 'min(2px, 0.5cqmin)',
+                          fontSize: 'min(10px, 3cqmin)',
+                        }}
+                      >
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+          ) : (
+            <div className="min-w-0" />
+          )}
+          {(primaryAction != null ||
+            (secondaryActions != null && secondaryActions.length > 0)) && (
+            <div
+              className="flex items-center shrink-0"
+              style={{ gap: 'min(8px, 2cqmin)' }}
+            >
+              {secondaryActions?.map((action, i) =>
+                renderActionButton(
+                  action,
+                  'secondary',
+                  labelsHidden,
+                  `secondary-${i}`
+                )
               )}
-            </button>
-          );
-        })}
-      </nav>
+              {primaryAction &&
+                renderActionButton(primaryAction, 'primary', labelsHidden)}
+            </div>
+          )}
+        </div>
+      )}
 
       {toolbarSlot && (
         <div
           className="bg-white/40 backdrop-blur-sm border-b border-slate-200/70 shrink-0"
           style={{
-            paddingInline: 'min(24px, 5cqmin)',
-            paddingBlock: 'min(12px, 2.5cqmin)',
+            paddingInline: 'min(16px, 3.5cqmin)',
+            paddingBlock: 'min(10px, 2.2cqmin)',
           }}
         >
           {toolbarSlot}
@@ -324,10 +337,14 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
             <aside
               className="shrink-0 bg-white/40 backdrop-blur-sm border-r border-slate-200/70 overflow-y-auto flex flex-col"
               style={{
+                // Width-based (cqw) sizing, not cqmin: the panel competes for
+                // horizontal space, so the widget's height shouldn't shrink
+                // it. With cqmin, a wide-but-short widget got a needlessly
+                // narrow panel and folder names truncated next to empty space.
                 width:
                   effectiveFolderPanelMode === 'rail'
-                    ? 'min(56px, 14cqmin)'
-                    : 'min(240px, 30cqmin)',
+                    ? 'clamp(44px, 10cqw, 56px)'
+                    : 'clamp(160px, 26cqw, 240px)',
               }}
               aria-label="Folders"
             >
@@ -409,8 +426,8 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
           aria-label={`${widgetLabel} ${tab} tab content`}
           className="flex-1 min-w-0 overflow-y-auto"
           style={{
-            paddingInline: 'min(24px, 5cqmin)',
-            paddingBlock: 'min(20px, 4.5cqmin)',
+            paddingInline: 'min(16px, 3.5cqmin)',
+            paddingBlock: 'min(14px, 3cqmin)',
           }}
         >
           {children}

@@ -1008,7 +1008,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       tabContent = activeEmpty;
     } else {
       tabContent = (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col">
           {activeAssignments.map((a) => (
             <MiniAppArchiveRow
               key={a.id}
@@ -1037,7 +1037,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       tabContent = archiveEmpty;
     } else {
       tabContent = (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col">
           {archivedAssignments.map((a) => {
             // Archived view-only shares have a dead URL — Firestore rules
             // (and the student app guard) reject access once `status ==
