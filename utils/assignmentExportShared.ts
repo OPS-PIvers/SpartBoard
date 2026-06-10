@@ -154,8 +154,9 @@ export function buildResultsSheetData<
     // array insertion order (= natural arrival order) as the tiebreak, which
     // matches what happens in practice when no `answeredAt` field is present
     // on the ExportableResponse interface.
-    const answerMap = new Map<string, (typeof r.answers)[number]>();
-    for (const a of r.answers) {
+    const answerMap = new Map<string, R['answers'][number]>();
+    const answers = r.answers ?? [];
+    for (const a of answers) {
       if (!answerMap.has(a.questionId)) {
         answerMap.set(a.questionId, a);
       }
