@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-09_
+_Last audited: 2026-06-10_
 _Last action: 2026-06-06_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-10: Full scan of all 47 Widget.tsx files. Five patterns re-flagged by automated scan and reviewed against prior journal records: (1) ActivityWall `max-h-[75vh]` at lines 2101/2107/2110 — confirmed inside a fullscreen `<Modal>` overlay outside the widget CQ context; viewport-height units are correct here (prior reviews 2026-05-14, 2026-05-19, 2026-05-24 all reached same conclusion). (2) DrawingWidget line 1338 `w-[260px]` popover — DrawingWidget has `skipScaling: false` (CSS transform scaling, not CQ); hardcoded pixel widths in its toolbar are not CQ violations (confirmed 2026-05-27). (3) MusicWidget line 570 `max-w-[85%]` — structural truncation constraint on a flex-child label, not a content-cap violation (confirmed 2026-05-24). (4) RecessGear line 341 `max-w-[70%]` — identical pattern to MusicWidget; confirmed acceptable 2026-05-20. (5) LunchCount line 1042 `max-w-[min(60vmin,560px)]` — modal-level constraint; vmin is appropriate for viewport-bounded modals outside the widget CQ context. Zero new anti-patterns detected. All pre-existing open items remain valid._
 
 _2026-06-09: Scanned all Widget.tsx files changed in dev-paul merge (fix(optimize-pass) address PR #1908, perf+a11y optimize-pass sweep, fix(classroom) x2, chore(debugger) nightly log). Optimize-pass sweep touches layout, context, utility files — no widget front-face content changes. Classroom commits affect AssignToClassroomModal, QuizManager, grade-push logic — no widget canvas. PollWidget progress bar (existing open item at :161, `h-[min(5cqmin)] min-h-[16px]` uncapped upper bound) re-confirmed present and unresolved. Checklist cqh/cqw WON'T FIX and Stations `maxHeight: '40cqh'` intentional design both re-confirmed per journal guidance. Zero new anti-patterns detected. All pre-existing open items remain valid._
 
