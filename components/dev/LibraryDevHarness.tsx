@@ -30,11 +30,13 @@ import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
 import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
+import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import type {
   LibrarySortDir,
   LibraryTab,
   LibraryViewMode,
 } from '@/components/common/library/types';
+import type { LibraryFolder } from '@/types';
 
 interface FakeQuiz {
   id: string;
@@ -58,6 +60,19 @@ interface FakeAssignment {
   id: string;
 }
 
+const FAKE_FOLDERS: LibraryFolder[] = [
+  {
+    id: 'f1',
+    name: 'Unit 4 — Westward Expansion',
+    parentId: null,
+    order: 0,
+    createdAt: 0,
+  },
+  { id: 'f2', name: 'Exit Tickets', parentId: null, order: 1, createdAt: 0 },
+  { id: 'f3', name: 'Review Games', parentId: null, order: 2, createdAt: 0 },
+  { id: 'f4', name: 'Archived Units', parentId: 'f3', order: 0, createdAt: 0 },
+];
+
 const noop = () => undefined;
 
 const Panel: React.FC<{
@@ -72,6 +87,7 @@ const Panel: React.FC<{
     dir: 'desc',
   });
   const [viewMode, setViewMode] = useState<LibraryViewMode>('grid');
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col gap-2">
@@ -89,6 +105,17 @@ const Panel: React.FC<{
           counts={{ library: FAKE_QUIZZES.length, active: 3, archive: 2 }}
           primaryAction={{ label: 'New Quiz', icon: FilePlus2, onClick: noop }}
           secondaryActions={[{ label: 'Import', icon: Upload, onClick: noop }]}
+          filterSidebarSlot={
+            tab === 'library' ? (
+              <FolderSidebar
+                widget="quiz"
+                folders={FAKE_FOLDERS}
+                selectedFolderId={selectedFolderId}
+                onSelectFolder={setSelectedFolderId}
+                itemCounts={{ f1: 2, f2: 1, f3: 1, f4: 1 }}
+              />
+            ) : undefined
+          }
           toolbarSlot={
             tab === 'library' ? (
               <LibraryToolbar
