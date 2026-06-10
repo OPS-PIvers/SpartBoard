@@ -205,6 +205,16 @@ export const useGuidedLearningSessionTeacher = (
         title: set.title,
         mode: set.mode,
         imageUrls: set.imageUrls,
+        // Mirror per-slide kinds so the student player renders video slides
+        // in a <video> element. Omitted for image-only sets.
+        ...(set.imageKinds?.some((k) => k === 'video')
+          ? { imageKinds: set.imageKinds.slice(0, set.imageUrls.length) }
+          : {}),
+        // Mirror per-slide playback trims so video slides honor them in
+        // the student player. Omitted when no slide is trimmed.
+        ...(set.videoTrims?.some(Boolean)
+          ? { videoTrims: set.videoTrims.slice(0, set.imageUrls.length) }
+          : {}),
         publicSteps,
         teacherUid,
         createdAt: Date.now(),

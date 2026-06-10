@@ -4727,6 +4727,16 @@ export interface GuidedLearningStep {
   autoAdvanceDuration?: number;
 }
 
+/**
+ * Playback-range trim for a video slide, in seconds from the start of the
+ * file. Invariant: `0 <= start < end <= duration` (enforced by the editor
+ * trim UI; the player additionally clamps against the loaded metadata).
+ */
+export interface GuidedLearningVideoTrim {
+  start: number;
+  end: number;
+}
+
 /** Full set data stored in Google Drive as JSON */
 export interface GuidedLearningSet {
   id: string;
@@ -4735,6 +4745,23 @@ export interface GuidedLearningSet {
   /** Firebase Storage URLs for one or more activity images */
   imageUrls: string[];
   imagePaths?: string[];
+  /**
+   * Per-slide media kind aligned by index with `imageUrls`. `'video'` slides
+   * (uploaded MP4/WebM or screen recordings) render in a muted looping
+   * `<video>` element; `'image'` covers static images and animated GIFs.
+   * Missing array or missing entries = `'image'`, so legacy sets need no
+   * migration. Only persisted when at least one slide is a video.
+   */
+  imageKinds?: ('image' | 'video')[];
+  /**
+   * Per-slide playback-range trim aligned by index with `imageUrls`. Only
+   * meaningful for `'video'` slides: the player seeks to `start` and loops
+   * back when playback reaches `end` (seconds). Non-destructive — the full
+   * file stays in Storage, so trims can be adjusted later without
+   * re-recording. `null`/missing entries = play the whole video. Only
+   * persisted when at least one slide has a trim.
+   */
+  videoTrims?: (GuidedLearningVideoTrim | null)[];
   steps: GuidedLearningStep[];
   mode: GuidedLearningMode;
   createdAt: number;
@@ -4842,6 +4869,16 @@ export interface GuidedLearningSession {
   title: string;
   mode: GuidedLearningMode;
   imageUrls: string[];
+  /**
+   * Mirrors `GuidedLearningSet.imageKinds` so the student player knows which
+   * slides are videos. Missing = all slides are images (legacy sessions).
+   */
+  imageKinds?: ('image' | 'video')[];
+  /**
+   * Mirrors `GuidedLearningSet.videoTrims` so the student player honors
+   * per-slide playback ranges. Missing = play full videos (legacy sessions).
+   */
+  videoTrims?: (GuidedLearningVideoTrim | null)[];
   /** Student-safe steps (no answer keys) */
   publicSteps: GuidedLearningPublicStep[];
   teacherUid: string;

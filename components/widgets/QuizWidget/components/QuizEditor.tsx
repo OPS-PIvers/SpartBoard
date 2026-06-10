@@ -6,7 +6,7 @@
  * through the controller object the modal hands them.
  */
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   AlertCircle,
   GripVertical,
@@ -75,6 +75,9 @@ const QUESTION_TYPES: {
 /** Stable empty array reused as the matchingDistractors fallback. */
 const EMPTY_DISTRACTORS: readonly string[] = Object.freeze([]);
 
+/** Hoisted so SortableList's memoized id array survives re-renders. */
+const getQuestionId = (q: QuizQuestion) => q.id;
+
 const TYPE_BADGE: Record<QuizQuestionType, string> = {
   MC: 'bg-blue-100 text-blue-700',
   FIB: 'bg-amber-100 text-amber-800',
@@ -91,13 +94,32 @@ const inputClass =
 
 // ─── Context pane ────────────────────────────────────────────────────────────
 
-export const QuizEditorContextPane: React.FC<PaneProps> = ({
+/**
+ * Slice comparator for the context pane. The controller object from
+ * `useQuizEditorState` is rebuilt on every render, so the pane memoizes on
+ * the specific slices it consumes (all controller callbacks are
+ * referentially stable). This keeps chrome-only modal renders — isDirty /
+ * saving flips, AI-overlay state — from re-rendering the question list.
+ * If the pane starts consuming a new controller field, add it here or the
+ * pane will render stale data.
+ */
+const quizContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
+  prev.aiEnabled === next.aiEnabled &&
+  prev.folders === next.folders &&
+  prev.folderId === next.folderId &&
+  prev.onFolderChange === next.onFolderChange &&
+  prev.state.title === next.state.title &&
+  prev.state.questions === next.state.questions &&
+  prev.state.selectedId === next.state.selectedId &&
+  prev.state.error === next.state.error;
+
+export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
   state,
   aiEnabled,
   folders,
   folderId,
   onFolderChange,
-}) => {
+}: PaneProps) {
   const {
     title,
     setTitle,
@@ -172,15 +194,15 @@ export const QuizEditorContextPane: React.FC<PaneProps> = ({
         ) : (
           <SortableList
             items={questions}
-            getId={(q) => q.id}
+            getId={getQuestionId}
             onReorder={reorderQuestions}
-            renderItem={(q, handle) => (
+            renderItem={(q, handle, index) => (
               <QuestionRow
                 question={q}
-                index={questions.findIndex((x) => x.id === q.id)}
+                index={index}
                 isSelected={q.id === selectedId}
-                onSelect={() => setSelectedId(q.id)}
-                onDelete={() => deleteQuestion(q.id)}
+                onSelect={setSelectedId}
+                onDelete={deleteQuestion}
                 dragHandleAttributes={handle.attributes}
                 dragHandleListeners={handle.listeners}
               />
@@ -191,7 +213,7 @@ export const QuizEditorContextPane: React.FC<PaneProps> = ({
       </div>
     </div>
   );
-};
+}, quizContextPanePropsEqual);
 
 // ─── Question row ────────────────────────────────────────────────────────────
 
@@ -199,13 +221,31 @@ interface QuestionRowProps {
   question: QuizQuestion;
   index: number;
   isSelected: boolean;
-  onSelect: () => void;
-  onDelete: () => void;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
   dragHandleAttributes: React.HTMLAttributes<HTMLElement>;
   dragHandleListeners: Record<string, (event: Event) => void> | undefined;
 }
 
-const QuestionRow: React.FC<QuestionRowProps> = ({
+/**
+ * Memo comparator for QuestionRow. Compares the question by reference (an
+ * edit replaces the question object, so the edited row still re-renders its
+ * preview text) and intentionally EXCLUDES the drag-handle props: dnd-kit
+ * recreates `attributes`/`listeners` objects on every render, but for a
+ * given sortable id they are functionally equivalent, so comparing them
+ * would defeat the memo without changing behavior.
+ */
+const questionRowPropsEqual = (
+  prev: QuestionRowProps,
+  next: QuestionRowProps
+): boolean =>
+  prev.question === next.question &&
+  prev.index === next.index &&
+  prev.isSelected === next.isSelected &&
+  prev.onSelect === next.onSelect &&
+  prev.onDelete === next.onDelete;
+
+const QuestionRow = React.memo(function QuestionRow({
   question,
   index,
   isSelected,
@@ -213,10 +253,10 @@ const QuestionRow: React.FC<QuestionRowProps> = ({
   onDelete,
   dragHandleAttributes,
   dragHandleListeners,
-}) => {
+}: QuestionRowProps) {
   return (
     <div
-      onClick={onSelect}
+      onClick={() => onSelect(question.id)}
       className={`group flex items-center gap-2 px-2.5 py-2 rounded-lg border bg-white cursor-pointer transition-all ${
         isSelected
           ? 'border-brand-blue-primary ring-2 ring-brand-blue-primary/15'
@@ -254,7 +294,7 @@ const QuestionRow: React.FC<QuestionRowProps> = ({
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          onDelete();
+          onDelete(question.id);
         }}
         aria-label="Delete question"
         className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded p-1 transition-colors opacity-0 group-hover:opacity-100"
@@ -263,11 +303,24 @@ const QuestionRow: React.FC<QuestionRowProps> = ({
       </button>
     </div>
   );
-};
+}, questionRowPropsEqual);
 
 // ─── Detail pane ─────────────────────────────────────────────────────────────
 
-export const QuizEditorDetailPane: React.FC<PaneProps> = ({ state }) => {
+/**
+ * Slice comparator for the detail pane — same contract as
+ * `quizContextPanePropsEqual`: `questions` / `selectedQuestion` /
+ * `selectedIndex` cover everything the pane renders; the per-question
+ * handlers it consumes are all referentially stable.
+ */
+const quizDetailPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
+  prev.state.questions === next.state.questions &&
+  prev.state.selectedQuestion === next.state.selectedQuestion &&
+  prev.state.selectedIndex === next.state.selectedIndex;
+
+export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
+  state,
+}: PaneProps) {
   const {
     selectedQuestion,
     selectedIndex,
@@ -277,6 +330,24 @@ export const QuizEditorDetailPane: React.FC<PaneProps> = ({ state }) => {
     addIncorrect,
     removeIncorrect,
   } = state;
+
+  // Stable per-selection callbacks so the memoized Matching/Ordering answer
+  // editors don't re-render on every prompt keystroke (their `onChange` prop
+  // would otherwise be a fresh closure each render).
+  const selectedQuestionId = selectedQuestion?.id ?? null;
+  const handleMatchingChange = useCallback(
+    (next: { correctAnswer: string; matchingDistractors: string[] }) => {
+      if (selectedQuestionId) updateQuestion(selectedQuestionId, next);
+    },
+    [selectedQuestionId, updateQuestion]
+  );
+  const handleOrderingChange = useCallback(
+    (correctAnswer: string) => {
+      if (selectedQuestionId)
+        updateQuestion(selectedQuestionId, { correctAnswer });
+    },
+    [selectedQuestionId, updateQuestion]
+  );
 
   if (!selectedQuestion) {
     return (
@@ -429,19 +500,12 @@ export const QuizEditorDetailPane: React.FC<PaneProps> = ({ state }) => {
             matchingDistractors={
               q.matchingDistractors ?? (EMPTY_DISTRACTORS as string[])
             }
-            onChange={({ correctAnswer, matchingDistractors }) =>
-              updateQuestion(q.id, {
-                correctAnswer,
-                matchingDistractors,
-              })
-            }
+            onChange={handleMatchingChange}
           />
         ) : q.type === 'Ordering' ? (
           <OrderingAnswerEditor
             correctAnswer={q.correctAnswer}
-            onChange={(correctAnswer) =>
-              updateQuestion(q.id, { correctAnswer })
-            }
+            onChange={handleOrderingChange}
           />
         ) : q.type === 'short' || q.type === 'essay' ? (
           <div className="space-y-3">
@@ -557,7 +621,7 @@ export const QuizEditorDetailPane: React.FC<PaneProps> = ({ state }) => {
       </div>
     </div>
   );
-};
+}, quizDetailPanePropsEqual);
 
 // ─── AI overlay ──────────────────────────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -47,10 +47,13 @@ interface SortableListProps<T> {
   /**
    * Render the row content. Spread `dragHandle.attributes` and
    * `dragHandle.listeners` on whichever element should act as the drag grip.
+   * `index` is the item's position in `items`, provided so rows don't need
+   * their own O(n) index lookups.
    */
   renderItem: (
     item: T,
-    dragHandle: SortableListDragHandleProps
+    dragHandle: SortableListDragHandleProps,
+    index: number
   ) => React.ReactNode;
   /** Optional className for the outer list container. */
   className?: string;
@@ -65,6 +68,14 @@ interface SortableListProps<T> {
 const STRATEGY_BY_LAYOUT: Record<'vertical' | 'grid', SortingStrategy> = {
   vertical: verticalListSortingStrategy,
   grid: rectSortingStrategy,
+};
+
+// Hoisted sensor options so `useSensor` / `useSensors` (which memoize on the
+// options object identity) return stable descriptors across renders instead
+// of re-initializing the sensor pipeline on every list re-render.
+const POINTER_SENSOR_OPTIONS = { activationConstraint: { distance: 8 } };
+const KEYBOARD_SENSOR_OPTIONS = {
+  coordinateGetter: sortableKeyboardCoordinates,
 };
 
 interface SortableRowProps {
@@ -124,11 +135,11 @@ export function SortableList<T>({
   layout = 'vertical',
 }: SortableListProps<T>): React.ReactElement {
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(PointerSensor, POINTER_SENSOR_OPTIONS),
+    useSensor(KeyboardSensor, KEYBOARD_SENSOR_OPTIONS)
   );
 
-  const ids = items.map(getId);
+  const ids = useMemo(() => items.map(getId), [items, getId]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -148,11 +159,11 @@ export function SortableList<T>({
     >
       <SortableContext items={ids} strategy={STRATEGY_BY_LAYOUT[layout]}>
         <div className={className}>
-          {items.map((item) => {
-            const id = getId(item);
+          {items.map((item, index) => {
+            const id = ids[index];
             return (
               <SortableRow key={id} id={id}>
-                {(handle) => renderItem(item, handle)}
+                {(handle) => renderItem(item, handle, index)}
               </SortableRow>
             );
           })}
