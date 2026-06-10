@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   GuidedLearningSet,
   GuidedLearningMode,
@@ -17,22 +17,6 @@ import {
   type GuidedLearningMediaKind,
 } from '@/utils/guidedLearningMedia';
 
-/** State emitted by `onStateChange` so a parent modal can track dirty state. */
-export interface GuidedLearningEditorState {
-  title: string;
-  description: string;
-  mode: GuidedLearningMode;
-  imageUrls: string[];
-  imageKinds: GuidedLearningMediaKind[];
-  videoTrims: (GuidedLearningVideoTrim | null)[];
-  steps: GuidedLearningStep[];
-  uploading: boolean;
-  hotspotPulse: 'consistent' | 'reminder' | 'off';
-  imageTransition: 'none' | 'slide' | 'fade';
-  welcomeEnabled: boolean;
-  welcomeMessage: string;
-}
-
 /** Live progress for the slide-upload pipeline (null when idle). */
 export interface SlideUploadProgress {
   /** 1-based index of the file currently uploading. */
@@ -46,7 +30,6 @@ export interface SlideUploadProgress {
 interface UseGuidedLearningEditorStateProps {
   existingSet: GuidedLearningSet | null;
   existingMeta: GuidedLearningSetMetadata | null;
-  onStateChange?: (state: GuidedLearningEditorState) => void;
   folders?: LibraryFolder[];
   folderId?: string | null;
   onFolderChange?: (folderId: string | null) => void;
@@ -131,7 +114,6 @@ function trimsForSet(
  */
 export function useGuidedLearningEditorState({
   existingSet,
-  onStateChange,
   folders,
   folderId,
   onFolderChange,
@@ -202,37 +184,6 @@ export function useGuidedLearningEditorState({
     setWelcomeEnabled(Boolean(existingSet?.welcomeEnabled));
     setWelcomeMessage(existingSet?.welcomeMessage ?? '');
   }
-
-  useEffect(() => {
-    onStateChange?.({
-      title,
-      description,
-      mode,
-      imageUrls,
-      imageKinds,
-      videoTrims,
-      steps,
-      uploading,
-      hotspotPulse,
-      imageTransition,
-      welcomeEnabled,
-      welcomeMessage,
-    });
-  }, [
-    title,
-    description,
-    mode,
-    imageUrls,
-    imageKinds,
-    videoTrims,
-    steps,
-    uploading,
-    hotspotPulse,
-    imageTransition,
-    welcomeEnabled,
-    welcomeMessage,
-    onStateChange,
-  ]);
 
   // Render-synced mirror of imageUrls.length so the sequential upload loop
   // (which awaits between appends, letting renders flush) can compute the

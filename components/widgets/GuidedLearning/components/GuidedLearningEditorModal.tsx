@@ -6,7 +6,7 @@
  * for the currently-selected hotspot.
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Folder as FolderIcon, Inbox, Sparkles } from 'lucide-react';
 import {
   GuidedLearningMode,
@@ -24,10 +24,7 @@ import {
   GuidedLearningEditorContextPane,
   GuidedLearningEditorDetailPane,
 } from './GuidedLearningEditor';
-import {
-  GuidedLearningEditorState,
-  useGuidedLearningEditorState,
-} from './useGuidedLearningEditorState';
+import { useGuidedLearningEditorState } from './useGuidedLearningEditorState';
 import { GuidedLearningAIGenerator } from './GuidedLearningAIGenerator';
 
 interface GuidedLearningEditorModalProps {
@@ -155,9 +152,6 @@ export const GuidedLearningEditorModal: React.FC<
   onFolderChange,
 }) => {
   const { isAdmin, canAccessFeature } = useAuth();
-  const [liveState, setLiveState] = useState<GuidedLearningEditorState | null>(
-    null
-  );
   const [saving, setSaving] = useState(false);
   const [showAiGen, setShowAiGen] = useState(false);
 
@@ -196,45 +190,52 @@ export const GuidedLearningEditorModal: React.FC<
     [set]
   );
 
-  // Reset live state when set prop identity changes
+  // Reset modal-local state when set prop identity changes (the editor hook
+  // resets its own draft state on the same identity change).
   const [prevSet, setPrevSet] = useState<GuidedLearningSet | null>(set);
   if (set !== prevSet) {
     setPrevSet(set);
-    setLiveState(null);
     setSaving(false);
     setShowAiGen(false);
   }
 
-  const handleStateChange = useCallback((state: GuidedLearningEditorState) => {
-    setLiveState(state);
-  }, []);
-
+  // The hook is called inside this component, so the modal already re-renders
+  // on every editor state change — dirty state and the save payload read the
+  // controller's fields directly (no mirrored "live state" copy).
   const editorState = useGuidedLearningEditorState({
     existingSet: set,
     existingMeta: meta,
-    onStateChange: handleStateChange,
     folders,
     folderId,
     onFolderChange,
   });
 
   const isDirty = useMemo(() => {
-    if (!liveState) return false;
     return (
-      liveState.title !== originalTitle ||
-      liveState.description !== originalDescription ||
-      liveState.mode !== originalMode ||
-      liveState.hotspotPulse !== originalHotspotPulse ||
-      liveState.imageTransition !== originalImageTransition ||
-      liveState.welcomeEnabled !== originalWelcomeEnabled ||
-      liveState.welcomeMessage !== originalWelcomeMessage ||
-      !arraysEqual(liveState.imageUrls, originalImageUrls) ||
-      !arraysEqual(liveState.imageKinds, originalImageKinds) ||
-      !trimsEqual(liveState.videoTrims, originalVideoTrims) ||
-      !stepsEqual(liveState.steps, originalSteps)
+      editorState.title !== originalTitle ||
+      editorState.description !== originalDescription ||
+      editorState.mode !== originalMode ||
+      editorState.hotspotPulse !== originalHotspotPulse ||
+      editorState.imageTransition !== originalImageTransition ||
+      editorState.welcomeEnabled !== originalWelcomeEnabled ||
+      editorState.welcomeMessage !== originalWelcomeMessage ||
+      !arraysEqual(editorState.imageUrls, originalImageUrls) ||
+      !arraysEqual(editorState.imageKinds, originalImageKinds) ||
+      !trimsEqual(editorState.videoTrims, originalVideoTrims) ||
+      !stepsEqual(editorState.steps, originalSteps)
     );
   }, [
-    liveState,
+    editorState.title,
+    editorState.description,
+    editorState.mode,
+    editorState.hotspotPulse,
+    editorState.imageTransition,
+    editorState.welcomeEnabled,
+    editorState.welcomeMessage,
+    editorState.imageUrls,
+    editorState.imageKinds,
+    editorState.videoTrims,
+    editorState.steps,
     originalTitle,
     originalDescription,
     originalMode,
@@ -249,47 +250,47 @@ export const GuidedLearningEditorModal: React.FC<
   ]);
 
   const handleSave = async () => {
-    if (!set || !liveState) return;
+    if (!set) return;
     setSaving(true);
     try {
       const now = Date.now();
       const builtSet: GuidedLearningSet = {
         id: set.id,
-        title: liveState.title.trim(),
-        description: liveState.description.trim() || undefined,
-        imageUrls: liveState.imageUrls,
+        title: editorState.title.trim(),
+        description: editorState.description.trim() || undefined,
+        imageUrls: editorState.imageUrls,
         // Only persist kinds when at least one slide is a video — keeps
         // image-only (and legacy) sets free of the new field.
-        ...(liveState.imageKinds.some((k) => k === 'video')
-          ? { imageKinds: liveState.imageKinds }
+        ...(editorState.imageKinds.some((k) => k === 'video')
+          ? { imageKinds: editorState.imageKinds }
           : {}),
         // Only persist trims when at least one slide actually has one —
         // keeps untrimmed (and legacy) sets free of the new field.
-        ...(liveState.videoTrims.some(Boolean)
-          ? { videoTrims: liveState.videoTrims }
+        ...(editorState.videoTrims.some(Boolean)
+          ? { videoTrims: editorState.videoTrims }
           : {}),
-        steps: liveState.steps,
-        mode: liveState.mode,
+        steps: editorState.steps,
+        mode: editorState.mode,
         createdAt: set.createdAt,
         updatedAt: now,
         isBuilding: set.isBuilding,
         authorUid: set.authorUid,
         // Only persist a hotspotPulse value when it differs from the default
         // ('consistent') — keeps untouched legacy sets clean of new fields.
-        ...(liveState.hotspotPulse !== 'consistent'
-          ? { hotspotPulse: liveState.hotspotPulse }
+        ...(editorState.hotspotPulse !== 'consistent'
+          ? { hotspotPulse: editorState.hotspotPulse }
           : {}),
-        ...(liveState.imageTransition !== 'none'
-          ? { imageTransition: liveState.imageTransition }
+        ...(editorState.imageTransition !== 'none'
+          ? { imageTransition: editorState.imageTransition }
           : {}),
         // Welcome screen — only persist when actually enabled WITH content.
         // Toggle-on-but-empty falls back to default behavior at render time
         // anyway, so don't write the field; this also avoids cluttering
         // legacy sets that have never touched welcome settings.
-        ...(liveState.welcomeEnabled && liveState.welcomeMessage.trim()
+        ...(editorState.welcomeEnabled && editorState.welcomeMessage.trim()
           ? {
               welcomeEnabled: true,
-              welcomeMessage: liveState.welcomeMessage,
+              welcomeMessage: editorState.welcomeMessage,
             }
           : {}),
       };
@@ -303,10 +304,10 @@ export const GuidedLearningEditorModal: React.FC<
   // The header now hosts the editable title input directly. Pass through
   // the live value so users see what they're typing; placeholder kicks in
   // for empty strings.
-  const headerTitleValue = liveState?.title ?? originalTitle ?? '';
+  const headerTitleValue = editorState.title;
   const titlePlaceholder = originalTitle ? 'Edit Set' : 'Set title…';
 
-  const stepCount = liveState?.steps.length ?? set?.steps.length ?? 0;
+  const stepCount = editorState.steps.length;
 
   // Folder picker — surfaced as a compact icon button in the header so
   // it doesn't take a full row in the body. Anchored popover renders
@@ -393,10 +394,9 @@ export const GuidedLearningEditorModal: React.FC<
         onClose={onClose}
         saveLabel="Save Set"
         saveDisabled={
-          !liveState ||
-          !liveState.title.trim() ||
-          liveState.imageUrls.length === 0 ||
-          liveState.uploading
+          !editorState.title.trim() ||
+          editorState.imageUrls.length === 0 ||
+          editorState.uploading
         }
         footerExtras={footerExtras}
         className="h-[90vh]"

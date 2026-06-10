@@ -373,8 +373,8 @@ interface PaneProps {
 /**
  * Slice comparator for the context pane. The controller object from
  * `useGuidedLearningEditorState` is rebuilt on every render (and the modal
- * re-renders on every `onStateChange` flush), so the pane memoizes on the
- * slices it actually consumes. The setters / step callbacks it uses are
+ * hosts the hook, so it re-renders on every editor state change), so the
+ * pane memoizes on the slices it actually consumes. The setters / step callbacks it uses are
  * referentially stable. The upload callbacks are intentionally NOT compared:
  * `useStorage` returns fresh function identities on every render, so they
  * never compare equal, but they are functionally equivalent for the
