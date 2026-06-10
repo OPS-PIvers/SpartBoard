@@ -1,0 +1,19 @@
+{
+  "generatedAt": "2026-06-10T02:31:00.000Z",
+  "runCommand": "pnpm exec vitest run tests/perf/dashboardPerf.test.tsx",
+  "note": "Median of 3 runs. Profiler commit counts were identical across all 3 runs (deterministic primary metric); actualDurationMs is the median of the 3 runs.",
+  "scenarios": [
+    { "scenario": "mount15", "commits": 4, "actualDurationMs": 92.891 },
+    { "scenario": "drag.press", "commits": 2, "actualDurationMs": 10.647 },
+    { "scenario": "drag.move30", "commits": 0, "actualDurationMs": 0 },
+    { "scenario": "drag.release", "commits": 2, "actualDurationMs": 10.108 },
+    { "scenario": "resize.press", "commits": 1, "actualDurationMs": 0.606 },
+    { "scenario": "resize.move30", "commits": 0, "actualDurationMs": 0 },
+    { "scenario": "resize.release", "commits": 2, "actualDurationMs": 11.368 },
+    { "scenario": "bringToFront5", "commits": 10, "actualDurationMs": 50.677 },
+    { "scenario": "addWidget", "commits": 2, "actualDurationMs": 13.826 },
+    { "scenario": "removeWidget", "commits": 2, "actualDurationMs": 10.682 },
+    { "scenario": "minimize", "commits": 2, "actualDurationMs": 10.519 },
+    { "scenario": "restore", "commits": 2, "actualDurationMs": 10.307 }
+  ]
+}

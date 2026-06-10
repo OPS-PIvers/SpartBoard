@@ -46,6 +46,7 @@ import {
   DashboardSettings,
 } from '@/types';
 import { SNAP_LAYOUTS, SnapZone } from '@/config/snapLayouts';
+import { POSITION_AWARE_WIDGETS } from '@/config/widgetDefaults';
 import { calculateSnapBounds, SNAP_LAYOUT_CONSTANTS } from '@/utils/layoutMath';
 import { clampWidgetToWorld, getWorldBounds } from '@/utils/zoomPanMath';
 import { useScreenshot } from '@/hooks/useScreenshot';
@@ -74,12 +75,9 @@ const COLOR_HEX_TO_NAME: Record<string, string> = Object.fromEntries(
 const GRID_COLS = 10;
 const GRID_ROWS = 10;
 
-// Widgets that require real-time position updates for inter-widget functionality
-const POSITION_AWARE_WIDGETS: WidgetType[] = [
-  'catalyst',
-  'catalyst-instruction',
-  'catalyst-visual',
-];
+// Stable empty set returned by `occupiedCells` while the snap menu is closed
+// so the memo stays allocation-free and reference-stable on every render.
+const EMPTY_OCCUPIED_CELLS: ReadonlySet<string> = new Set();
 
 // Default min size all widgets shrink to during resize.
 const DEFAULT_MIN_W = 150;
@@ -256,8 +254,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync (CLAUDE.md: "assign refs directly in render body"); react-hooks/refs v7 incorrectly cascades this as an error when any setState is called during render
   customGridRef.current = customGrid;
   const occupiedCells = useMemo(() => {
+    // Short-circuit before any per-widget work: activeDashboard is a dep, so
+    // without this guard every widget mutation across the board would pay the
+    // O(n) grid-occupancy scan even with the snap menu closed.
+    if (!showSnapMenu || !activeDashboard) return EMPTY_OCCUPIED_CELLS;
     const set = new Set<string>();
-    if (!showSnapMenu || !activeDashboard) return set;
 
     const { PADDING } = SNAP_LAYOUT_CONSTANTS;
     const safeWidth = Math.max(1, windowSize.width - PADDING * 2);
@@ -1133,10 +1134,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         );
 
         // OPTIMIZATION: If widget is not position-aware, update DOM directly and skip React render cycle
-        if (
-          !POSITION_AWARE_WIDGETS.includes(widget.type) &&
-          windowRef.current
-        ) {
+        if (!POSITION_AWARE_WIDGETS.has(widget.type) && windowRef.current) {
           windowRef.current.style.left = `${newX}px`;
           windowRef.current.style.top = `${newY}px`;
           if (dragState.current) {
@@ -1215,7 +1213,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       } else {
         // Commit final position if using direct DOM manipulation
         if (
-          !POSITION_AWARE_WIDGETS.includes(widget.type) &&
+          !POSITION_AWARE_WIDGETS.has(widget.type) &&
           dragState.current &&
           (dragState.current.x !== widget.x || dragState.current.y !== widget.y)
         ) {
@@ -1483,10 +1481,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         newH = Math.max(Math.min(minH, availableH), Math.min(newH, availableH));
 
         // OPTIMIZATION: If widget is not position-aware, update DOM directly and skip React render cycle
-        if (
-          !POSITION_AWARE_WIDGETS.includes(widget.type) &&
-          windowRef.current
-        ) {
+        if (!POSITION_AWARE_WIDGETS.has(widget.type) && windowRef.current) {
           windowRef.current.style.width = `${newW}px`;
           windowRef.current.style.height = `${newH}px`;
           windowRef.current.style.left = `${newX}px`;
@@ -1535,7 +1530,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
       // Commit final position/size if using direct DOM manipulation
       if (
-        !POSITION_AWARE_WIDGETS.includes(widget.type) &&
+        !POSITION_AWARE_WIDGETS.has(widget.type) &&
         dragState.current &&
         (dragState.current.w !== widget.w ||
           dragState.current.h !== widget.h ||
@@ -2008,7 +2003,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   /* eslint-disable react-hooks/refs */
   const shouldUseDragState =
     (isDragging || isResizing) &&
-    !POSITION_AWARE_WIDGETS.includes(widget.type) &&
+    !POSITION_AWARE_WIDGETS.has(widget.type) &&
     dragState.current;
 
   const UNIVERSAL_TEXT_SIZES: Record<string, string> = {
