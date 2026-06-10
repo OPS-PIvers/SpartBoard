@@ -854,6 +854,13 @@
         "minimal": "Minimal"
       }
     },
+    "seatingChart": {
+      "emptyStateAssignTitle": "Salle de classe vide",
+      "emptyStateAssignSubtitle": "Passez à « Configuration » pour disposer le mobilier.",
+      "emptyStateSetupTitle": "Aucun mobilier",
+      "emptyStateFreeform": "Ajoutez du mobilier depuis la barre latérale.",
+      "emptyStateTemplate": "Choisissez un modèle et cliquez sur Appliquer la mise en page."
+    },
     "schedule": {
       "startTimer": "Démarrer le minuteur",
       "startTimerUntil": "Démarrer le compte à rebours jusqu'à {{time}}"
