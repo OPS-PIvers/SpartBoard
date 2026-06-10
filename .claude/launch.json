@@ -10,11 +10,11 @@
     },
     {
       "name": "vite-dev-bypass",
-      "runtimeExecutable": "powershell",
-      "runtimeArgs": [
-        "-Command",
-        "$env:VITE_AUTH_BYPASS='true'; pnpm run dev -- --port 56300 --strictPort"
-      ],
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "dev", "--port", "56300", "--strictPort"],
+      "env": {
+        "VITE_AUTH_BYPASS": "true"
+      },
       "port": 56300
     },
     {
