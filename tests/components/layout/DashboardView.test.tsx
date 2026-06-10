@@ -904,4 +904,128 @@ describe('DashboardView Gestures & Navigation', () => {
       expect(mockRemoveToast).toHaveBeenCalledWith('toast-1');
     });
   });
+
+  // Regression: groupBuildMode Escape handler lacked a typing-field guard.
+  //
+  // Bug: when groupBuildMode was active, the first `if (e.key === 'Escape' &&
+  // groupBuildMode)` branch ran unconditionally — it called e.preventDefault()
+  // and setGroupBuildMode(false) even when the user had an INPUT/TEXTAREA/SELECT
+  // focused and was pressing Escape intending only to dismiss/blur that field.
+  // The "blur the input" path in the second `if (e.key === 'Escape')` block was
+  // never reached because the first branch returned early, so the input kept
+  // focus and the user was left with group-build mode silently cancelled.
+  //
+  // Fix: add a typing-field guard at the top of the groupBuildMode branch so
+  // that Escape inside a form field blurs the field and leaves groupBuildMode
+  // active, consistent with all other keyboard shortcut branches.
+  describe('groupBuildMode Escape does not exit group-build when a typing field is focused', () => {
+    const collectionsStub = {
+      collections: [],
+      loading: false,
+      error: null,
+      createCollection: vi.fn(),
+      renameCollection: vi.fn(),
+      moveCollection: vi.fn(),
+      deleteCollection: vi.fn(),
+      reorderSiblings: vi.fn(),
+      setCollectionMetadata: vi.fn(),
+      setCollectionDefaultBoard: vi.fn(),
+    };
+
+    let inputEl: HTMLInputElement;
+    const mockSetGroupBuildMode = vi.fn();
+    const mockSetSelectedWidgetIds = vi.fn();
+
+    beforeEach(() => {
+      mockSetGroupBuildMode.mockClear();
+      mockSetSelectedWidgetIds.mockClear();
+
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        activeDashboard: mockDashboards[1],
+        dashboards: mockDashboards,
+        toasts: [],
+        addWidget: mockAddWidget,
+        loadDashboard: mockLoadDashboard,
+        removeToast: vi.fn(),
+        updateWidget: vi.fn(),
+        removeWidget: vi.fn(),
+        duplicateWidget: vi.fn(),
+        bringToFront: vi.fn(),
+        addToast: vi.fn(),
+        minimizeAllWidgets: vi.fn(),
+        restoreAllWidgets: vi.fn(),
+        deleteAllWidgets: vi.fn(),
+        setSelectedWidgetId: vi.fn(),
+        zoom: 1,
+        setZoom: vi.fn(),
+        // group-build state
+        groupBuildMode: true,
+        setGroupBuildMode: mockSetGroupBuildMode,
+        selectedWidgetIds: [],
+        setSelectedWidgetIds: mockSetSelectedWidgetIds,
+        collectionsApi: collectionsStub,
+      });
+
+      // Create and focus an input element so document.activeElement is an INPUT.
+      inputEl = document.createElement('input');
+      inputEl.type = 'text';
+      document.body.appendChild(inputEl);
+      inputEl.focus();
+    });
+
+    afterEach(() => {
+      if (inputEl.parentNode) {
+        inputEl.parentNode.removeChild(inputEl);
+      }
+    });
+
+    it('should NOT call setGroupBuildMode when Escape is pressed inside an input', () => {
+      render(<DashboardView />);
+
+      // Sanity: the focused element is our input.
+      expect(document.activeElement).toBe(inputEl);
+
+      fireEvent.keyDown(window, { key: 'Escape' });
+
+      // The typing-field guard must prevent group-build exit.
+      expect(mockSetGroupBuildMode).not.toHaveBeenCalled();
+      expect(mockSetSelectedWidgetIds).not.toHaveBeenCalled();
+    });
+
+    it('should NOT call setGroupBuildMode when Escape is pressed inside a textarea', () => {
+      // Replace the input with a textarea.
+      if (inputEl.parentNode) inputEl.parentNode.removeChild(inputEl);
+      const textarea = document.createElement('textarea');
+      document.body.appendChild(textarea);
+      textarea.focus();
+
+      render(<DashboardView />);
+
+      expect(document.activeElement).toBe(textarea);
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(mockSetGroupBuildMode).not.toHaveBeenCalled();
+
+      if (textarea.parentNode) textarea.parentNode.removeChild(textarea);
+    });
+
+    it('DOES call setGroupBuildMode when Escape is pressed with no typing field focused', () => {
+      // Move focus away from the input (to body or a non-typing element).
+      inputEl.blur();
+
+      render(<DashboardView />);
+
+      // document.activeElement is now body (not a typing field).
+      expect(
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(
+          (document.activeElement as HTMLElement)?.tagName || ''
+        )
+      ).toBe(false);
+
+      fireEvent.keyDown(window, { key: 'Escape' });
+
+      // Without a focused typing field, group-build mode should exit.
+      expect(mockSetGroupBuildMode).toHaveBeenCalledWith(false);
+      expect(mockSetSelectedWidgetIds).toHaveBeenCalledWith([]);
+    });
+  });
 });
