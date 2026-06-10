@@ -4963,13 +4963,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const minimizeAllWidgets = useCallback(() => {
-    if (!activeId) return;
+    if (!activeIdRef.current) return;
     if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
       prev.map((d) => {
-        if (d.id !== activeId) return d;
+        if (d.id !== activeIdRef.current) return d;
         // Keep object identity for widgets that are already minimized so
         // memoized renderers skip them; only rebuild when something changes.
         let changed = false;
@@ -4981,16 +4981,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         return changed ? { ...d, widgets } : d;
       })
     );
-  }, [activeId]);
+  }, []);
 
   const restoreAllWidgets = useCallback(() => {
-    if (!activeId) return;
+    if (!activeIdRef.current) return;
     if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
       prev.map((d) => {
-        if (d.id !== activeId) return d;
+        if (d.id !== activeIdRef.current) return d;
         // Same identity-preservation pattern as minimizeAllWidgets.
         let changed = false;
         const widgets = d.widgets.map((w) => {
@@ -5001,7 +5001,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         return changed ? { ...d, widgets } : d;
       })
     );
-  }, [activeId]);
+  }, []);
 
   const deleteAllWidgets = useCallback(() => {
     if (!activeId) return;
