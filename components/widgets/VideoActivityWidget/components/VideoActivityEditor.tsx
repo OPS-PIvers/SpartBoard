@@ -7,7 +7,7 @@
  * write through the controller object the modal hands them.
  */
 
-import React, { useState } from 'react';
+import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
   Clock,
@@ -42,96 +42,123 @@ interface PaneProps {
   onFolderChange?: (folderId: string | null) => void;
 }
 
+/** Hoisted so SortableList's memoized id array survives re-renders. */
+const getQuestionId = (q: VideoActivityQuestion) => q.id;
+
 // ─── Context pane ────────────────────────────────────────────────────────────
 
-export const VideoActivityEditorContextPane: React.FC<PaneProps> = ({
-  state,
-  folders,
-  folderId,
-  onFolderChange,
-}) => {
-  const {
-    title,
-    setTitle,
-    youtubeUrl,
-    setYoutubeUrl,
-    questions,
-    selectedId,
-    setSelectedId,
-    addQuestionAtTime,
-    updateQuestion,
-    setVideoDurationSeconds,
-    error,
-  } = state;
+/**
+ * Slice comparator for the context pane. The controller object from
+ * `useVideoActivityEditorState` is rebuilt on every render, so the pane
+ * memoizes on the specific slices it consumes (the controller callbacks it
+ * uses are all referentially stable). This keeps chrome-only modal renders —
+ * isDirty / saving flips, AI-overlay state — from re-rendering the
+ * Timeline + player. If the pane starts consuming a new controller field,
+ * add it here or the pane will render stale data.
+ */
+const vaContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
+  prev.folders === next.folders &&
+  prev.folderId === next.folderId &&
+  prev.onFolderChange === next.onFolderChange &&
+  prev.state.title === next.state.title &&
+  prev.state.youtubeUrl === next.state.youtubeUrl &&
+  prev.state.questions === next.state.questions &&
+  prev.state.selectedId === next.state.selectedId &&
+  prev.state.error === next.state.error;
 
-  // Memo via inline parse — Timeline only rebuilds when the resolved id changes.
-  const videoIdForTimeline = youtubeUrl.trim()
-    ? extractYouTubeId(youtubeUrl.trim())
-    : null;
+export const VideoActivityEditorContextPane = React.memo(
+  function VideoActivityEditorContextPane({
+    state,
+    folders,
+    folderId,
+    onFolderChange,
+  }: PaneProps) {
+    const {
+      title,
+      setTitle,
+      youtubeUrl,
+      setYoutubeUrl,
+      questions,
+      selectedId,
+      setSelectedId,
+      addQuestionAtTime,
+      updateQuestion,
+      setVideoDurationSeconds,
+      error,
+    } = state;
 
-  return (
-    <div className="flex flex-col h-full">
-      {/* Settings strip */}
-      <div className="px-5 py-4 border-b border-slate-200 space-y-3 bg-white shrink-0">
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Activity title (e.g. Photosynthesis)"
-          className="w-full bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:outline-none text-lg font-bold p-0"
-        />
-        <div className="relative">
-          <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
+    // Memo via inline parse — Timeline only rebuilds when the resolved id changes.
+    const videoIdForTimeline = youtubeUrl.trim()
+      ? extractYouTubeId(youtubeUrl.trim())
+      : null;
+
+    return (
+      <div className="flex flex-col h-full">
+        {/* Settings strip */}
+        <div className="px-5 py-4 border-b border-slate-200 space-y-3 bg-white shrink-0">
           <input
-            type="url"
-            value={youtubeUrl}
-            onChange={(e) => setYoutubeUrl(e.target.value)}
-            placeholder="https://www.youtube.com/watch?v=..."
-            className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary text-sm"
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Activity title (e.g. Photosynthesis)"
+            className="w-full bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:outline-none text-lg font-bold p-0"
           />
+          <div className="relative">
+            <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
+            <input
+              type="url"
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary text-sm"
+            />
+          </div>
+          {folders && onFolderChange && (
+            <FolderSelectField
+              folders={folders}
+              value={folderId ?? null}
+              onChange={onFolderChange}
+            />
+          )}
+          {error && (
+            <div className="p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg flex items-center gap-2 text-xs text-brand-red-dark font-bold">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {error}
+            </div>
+          )}
         </div>
-        {folders && onFolderChange && (
-          <FolderSelectField
-            folders={folders}
-            value={folderId ?? null}
-            onChange={onFolderChange}
-          />
-        )}
-        {error && (
-          <div className="p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg flex items-center gap-2 text-xs text-brand-red-dark font-bold">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            {error}
-          </div>
-        )}
-      </div>
 
-      {/* Timeline — fills remaining space, never scrolls */}
-      <div className="flex-1 min-h-0 px-5 py-4 bg-slate-50">
-        {videoIdForTimeline ? (
-          <Timeline
-            videoId={videoIdForTimeline}
-            questions={questions}
-            onAddAtTime={addQuestionAtTime}
-            onSelectQuestion={setSelectedId}
-            onMarkerDrag={(id, seconds) =>
-              updateQuestion(id, { timestamp: seconds })
-            }
-            activeQuestionId={selectedId ?? undefined}
-            onDurationChange={setVideoDurationSeconds}
-          />
-        ) : (
-          <div className="aspect-video w-full rounded-xl border-2 border-dashed border-slate-300 bg-white flex flex-col items-center justify-center text-center text-slate-500 px-4">
-            <Youtube className="w-8 h-8 text-red-400 mb-2" />
-            <p className="text-sm font-bold text-slate-700">
-              Paste a YouTube URL above
-            </p>
-            <p className="text-xs">The player and timeline will appear here.</p>
-          </div>
-        )}
+        {/* Timeline — fills remaining space, never scrolls */}
+        <div className="flex-1 min-h-0 px-5 py-4 bg-slate-50">
+          {videoIdForTimeline ? (
+            <Timeline
+              videoId={videoIdForTimeline}
+              questions={questions}
+              onAddAtTime={addQuestionAtTime}
+              onSelectQuestion={setSelectedId}
+              onMarkerDrag={(id, seconds) =>
+                updateQuestion(id, { timestamp: seconds })
+              }
+              activeQuestionId={selectedId ?? undefined}
+              onDurationChange={setVideoDurationSeconds}
+            />
+          ) : (
+            <div className="aspect-video w-full rounded-xl border-2 border-dashed border-slate-300 bg-white flex flex-col items-center justify-center text-center text-slate-500 px-4">
+              <Youtube className="w-8 h-8 text-red-400 mb-2" />
+              <p className="text-sm font-bold text-slate-700">
+                Paste a YouTube URL above
+              </p>
+              <p className="text-xs">
+                The player and timeline will appear here.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  },
+  vaContextPanePropsEqual
+);
 
 // ─── Question navigator (sortable pill strip) ────────────────────────────────
 
@@ -144,6 +171,118 @@ interface QuestionNavigatorProps {
   onDelete: (id: string) => void;
 }
 
+interface QuestionPillProps {
+  question: VideoActivityQuestion;
+  index: number;
+  isSelected: boolean;
+  showReorderHint: boolean;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+  dragHandleAttributes: React.HTMLAttributes<HTMLElement>;
+  dragHandleListeners: Record<string, (event: Event) => void> | undefined;
+}
+
+/**
+ * Memo comparator for the navigator pills. Compares the question by
+ * reference (an edit replaces the question object, so the edited pill still
+ * refreshes its tooltip/aria text) and intentionally EXCLUDES the
+ * drag-handle props: dnd-kit recreates `attributes`/`listeners` objects on
+ * every render, but for a given sortable id they are functionally
+ * equivalent, so comparing them would defeat the memo.
+ */
+const questionPillPropsEqual = (
+  prev: QuestionPillProps,
+  next: QuestionPillProps
+): boolean =>
+  prev.question === next.question &&
+  prev.index === next.index &&
+  prev.isSelected === next.isSelected &&
+  prev.showReorderHint === next.showReorderHint &&
+  prev.onSelect === next.onSelect &&
+  prev.onDelete === next.onDelete;
+
+const QuestionPill = React.memo(function QuestionPill({
+  question: q,
+  index: idx,
+  isSelected,
+  showReorderHint,
+  onSelect,
+  onDelete,
+  dragHandleAttributes,
+  dragHandleListeners,
+}: QuestionPillProps) {
+  const type = (q.type ?? 'MC') as QuestionType;
+  const badge = TYPE_BADGE[type];
+  return (
+    <div
+      className={`group inline-flex shrink-0 items-stretch rounded-md border transition-colors ${
+        isSelected
+          ? 'bg-brand-blue-primary border-brand-blue-primary'
+          : 'bg-white border-slate-300 hover:border-slate-400'
+      }`}
+    >
+      <button
+        type="button"
+        {...dragHandleAttributes}
+        onPointerDown={
+          dragHandleListeners?.onPointerDown as
+            | React.PointerEventHandler<HTMLButtonElement>
+            | undefined
+        }
+        onClick={() => onSelect(q.id)}
+        aria-current={isSelected ? 'true' : undefined}
+        aria-label={`Question ${idx + 1} at ${secondsToMmSs(q.timestamp)}${q.text ? `: ${q.text}` : ''}`}
+        title={q.text?.trim() ? q.text : `Question ${idx + 1}`}
+        className={`cursor-grab active:cursor-grabbing touch-none flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-l-md text-xs font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-blue-primary ${
+          isSelected ? 'text-white' : 'text-slate-700'
+        }`}
+      >
+        <span className="font-mono min-w-[1.25ch] text-center">{idx + 1}</span>
+        <span
+          className={`flex items-center gap-0.5 font-mono rounded px-1 py-0.5 text-xxs ${
+            isSelected
+              ? 'bg-brand-blue-dark text-white/90'
+              : 'bg-slate-100 text-slate-600'
+          }`}
+        >
+          <Clock className="w-3 h-3" />
+          {secondsToMmSs(q.timestamp)}
+        </span>
+        <span
+          className={`px-1 py-0.5 rounded text-xxs uppercase tracking-wider ${
+            isSelected ? 'bg-brand-blue-dark text-white/90' : badge.className
+          }`}
+        >
+          {badge.label}
+        </span>
+        {showReorderHint && (
+          <span
+            className={`text-xxs font-bold rounded px-1 py-0.5 animate-in fade-in duration-200 ${
+              isSelected
+                ? 'bg-amber-300 text-amber-900'
+                : 'bg-amber-50 border border-amber-200 text-amber-700'
+            }`}
+          >
+            Reordered
+          </span>
+        )}
+      </button>
+      <button
+        type="button"
+        onClick={() => onDelete(q.id)}
+        aria-label={`Delete question ${idx + 1}`}
+        className={`flex items-center rounded-r-md pl-1 pr-1.5 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-red-primary ${
+          isSelected
+            ? 'text-white/70 hover:text-white hover:bg-white/15'
+            : 'text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100'
+        }`}
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}, questionPillPropsEqual);
+
 const QuestionNavigator: React.FC<QuestionNavigatorProps> = ({
   questions,
   selectedId,
@@ -152,6 +291,16 @@ const QuestionNavigator: React.FC<QuestionNavigatorProps> = ({
   onReorder,
   onDelete,
 }) => {
+  // `onDelete` (deleteQuestion) changes identity when the selection changes;
+  // dispatch through a "latest ref" (synced in a layout effect — the lint
+  // config forbids ref writes during render) so every pill keeps one stable
+  // callback and only the rows whose `isSelected` flipped re-render.
+  const onDeleteRef = useRef(onDelete);
+  useLayoutEffect(() => {
+    onDeleteRef.current = onDelete;
+  });
+  const handleDelete = useCallback((id: string) => onDeleteRef.current(id), []);
+
   return (
     <div className="px-4 py-2.5 border-b border-slate-200 bg-white shrink-0">
       <div className="flex items-center justify-between mb-1.5">
@@ -165,88 +314,21 @@ const QuestionNavigator: React.FC<QuestionNavigatorProps> = ({
       <div className="max-h-[7.5rem] overflow-y-auto custom-scrollbar -mx-1 px-1">
         <SortableList
           items={questions}
-          getId={(q) => q.id}
+          getId={getQuestionId}
           onReorder={onReorder}
           layout="grid"
-          renderItem={(q, handle) => {
-            const idx = questions.findIndex((x) => x.id === q.id);
-            const isSelected = q.id === selectedId;
-            const showReorderHint = q.id === reorderHintFor;
-            const type = (q.type ?? 'MC') as QuestionType;
-            const badge = TYPE_BADGE[type];
-            return (
-              <div
-                className={`group inline-flex shrink-0 items-stretch rounded-md border transition-colors ${
-                  isSelected
-                    ? 'bg-brand-blue-primary border-brand-blue-primary'
-                    : 'bg-white border-slate-300 hover:border-slate-400'
-                }`}
-              >
-                <button
-                  type="button"
-                  {...handle.attributes}
-                  onPointerDown={
-                    handle.listeners?.onPointerDown as
-                      | React.PointerEventHandler<HTMLButtonElement>
-                      | undefined
-                  }
-                  onClick={() => onSelect(q.id)}
-                  aria-current={isSelected ? 'true' : undefined}
-                  aria-label={`Question ${idx + 1} at ${secondsToMmSs(q.timestamp)}${q.text ? `: ${q.text}` : ''}`}
-                  title={q.text?.trim() ? q.text : `Question ${idx + 1}`}
-                  className={`cursor-grab active:cursor-grabbing touch-none flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-l-md text-xs font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-blue-primary ${
-                    isSelected ? 'text-white' : 'text-slate-700'
-                  }`}
-                >
-                  <span className="font-mono min-w-[1.25ch] text-center">
-                    {idx + 1}
-                  </span>
-                  <span
-                    className={`flex items-center gap-0.5 font-mono rounded px-1 py-0.5 text-xxs ${
-                      isSelected
-                        ? 'bg-brand-blue-dark text-white/90'
-                        : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    <Clock className="w-3 h-3" />
-                    {secondsToMmSs(q.timestamp)}
-                  </span>
-                  <span
-                    className={`px-1 py-0.5 rounded text-xxs uppercase tracking-wider ${
-                      isSelected
-                        ? 'bg-brand-blue-dark text-white/90'
-                        : badge.className
-                    }`}
-                  >
-                    {badge.label}
-                  </span>
-                  {showReorderHint && (
-                    <span
-                      className={`text-xxs font-bold rounded px-1 py-0.5 animate-in fade-in duration-200 ${
-                        isSelected
-                          ? 'bg-amber-300 text-amber-900'
-                          : 'bg-amber-50 border border-amber-200 text-amber-700'
-                      }`}
-                    >
-                      Reordered
-                    </span>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDelete(q.id)}
-                  aria-label={`Delete question ${idx + 1}`}
-                  className={`flex items-center rounded-r-md pl-1 pr-1.5 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-red-primary ${
-                    isSelected
-                      ? 'text-white/70 hover:text-white hover:bg-white/15'
-                      : 'text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100'
-                  }`}
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            );
-          }}
+          renderItem={(q, handle, index) => (
+            <QuestionPill
+              question={q}
+              index={index}
+              isSelected={q.id === selectedId}
+              showReorderHint={q.id === reorderHintFor}
+              onSelect={onSelect}
+              onDelete={handleDelete}
+              dragHandleAttributes={handle.attributes}
+              dragHandleListeners={handle.listeners}
+            />
+          )}
           className="flex flex-wrap gap-1.5"
         />
       </div>
@@ -261,225 +343,244 @@ const labelClass =
 const inputClass =
   'w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm';
 
-export const VideoActivityEditorDetailPane: React.FC<PaneProps> = ({
-  state,
-}) => {
-  const {
-    selectedQuestion,
-    selectedIndex,
-    questions,
-    selectedId,
-    setSelectedId,
-    reorderQuestions,
-    reorderHintFor,
-    deleteQuestion,
-    timestampInputs,
-    setTimestampInput,
-    updateQuestion,
-    updateIncorrect,
-  } = state;
+/**
+ * Slice comparator for the detail pane — same contract as
+ * `vaContextPanePropsEqual`. `questions` also covers the identity of
+ * `reorderQuestions` (which closes over it); `selectedId` covers
+ * `deleteQuestion`.
+ */
+const vaDetailPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
+  prev.state.questions === next.state.questions &&
+  prev.state.selectedQuestion === next.state.selectedQuestion &&
+  prev.state.selectedIndex === next.state.selectedIndex &&
+  prev.state.selectedId === next.state.selectedId &&
+  prev.state.reorderHintFor === next.state.reorderHintFor &&
+  prev.state.timestampInputs === next.state.timestampInputs;
 
-  const navigator =
-    questions.length > 0 ? (
-      <QuestionNavigator
-        questions={questions}
-        selectedId={selectedId}
-        reorderHintFor={reorderHintFor}
-        onSelect={setSelectedId}
-        onReorder={reorderQuestions}
-        onDelete={deleteQuestion}
-      />
-    ) : null;
+export const VideoActivityEditorDetailPane = React.memo(
+  function VideoActivityEditorDetailPane({ state }: PaneProps) {
+    const {
+      selectedQuestion,
+      selectedIndex,
+      questions,
+      selectedId,
+      setSelectedId,
+      reorderQuestions,
+      reorderHintFor,
+      deleteQuestion,
+      timestampInputs,
+      setTimestampInput,
+      updateQuestion,
+      updateIncorrect,
+    } = state;
 
-  if (!selectedQuestion) {
+    const navigator =
+      questions.length > 0 ? (
+        <QuestionNavigator
+          questions={questions}
+          selectedId={selectedId}
+          reorderHintFor={reorderHintFor}
+          onSelect={setSelectedId}
+          onReorder={reorderQuestions}
+          onDelete={deleteQuestion}
+        />
+      ) : null;
+
+    if (!selectedQuestion) {
+      return (
+        <div className="flex flex-col h-full">
+          {navigator}
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-8 py-12 text-slate-500">
+            <MousePointerClick className="w-10 h-10 mb-3 text-slate-400" />
+            <h4 className="text-base font-bold text-slate-700 mb-1">
+              {questions.length === 0 ? 'No questions yet' : 'Pick a question'}
+            </h4>
+            <p className="text-sm max-w-xs">
+              {questions.length === 0
+                ? 'Click "Add at MM:SS" under the timeline to drop a question at the current playhead — or use Draft with AI in the footer to generate a set.'
+                : 'Click a pill above (or a green marker on the timeline) to edit it here.'}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    const q = selectedQuestion;
+    const tsValue = timestampInputs[q.id] ?? secondsToMmSs(q.timestamp);
+    const type = q.type ?? 'MC';
+
     return (
       <div className="flex flex-col h-full">
         {navigator}
-        <div className="flex-1 flex flex-col items-center justify-center text-center px-8 py-12 text-slate-500">
-          <MousePointerClick className="w-10 h-10 mb-3 text-slate-400" />
-          <h4 className="text-base font-bold text-slate-700 mb-1">
-            {questions.length === 0 ? 'No questions yet' : 'Pick a question'}
+        <div className="px-5 py-4 border-b border-slate-200 bg-white shrink-0">
+          <div className="text-xs uppercase tracking-wider text-slate-500 font-bold">
+            Question {selectedIndex + 1} of {questions.length}
+            <span className="mx-1.5">·</span>
+            {type === 'MC'
+              ? 'Multiple choice'
+              : type === 'FIB'
+                ? 'Fill in the blank'
+                : 'Multi-answer'}
+          </div>
+          <h4 className="text-base font-bold text-slate-900 truncate mt-0.5">
+            {q.text.trim() || `Question at ${secondsToMmSs(q.timestamp)}`}
           </h4>
-          <p className="text-sm max-w-xs">
-            {questions.length === 0
-              ? 'Click "Add at MM:SS" under the timeline to drop a question at the current playhead — or use Draft with AI in the footer to generate a set.'
-              : 'Click a pill above (or a green marker on the timeline) to edit it here.'}
-          </p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
+          {/* Question prompt */}
+          <div>
+            <label className={labelClass}>Question prompt</label>
+            <textarea
+              value={q.text}
+              onChange={(e) => updateQuestion(q.id, { text: e.target.value })}
+              rows={3}
+              placeholder="Enter your question…"
+              className={`${inputClass} resize-none`}
+            />
+          </div>
+
+          {/* Type picker */}
+          <div>
+            <label className={labelClass}>Question Type</label>
+            <div className="inline-flex rounded-xl border border-slate-300 bg-white overflow-hidden">
+              {(
+                [
+                  { value: 'MC', label: 'Multiple Choice' },
+                  { value: 'FIB', label: 'Fill in the Blank' },
+                  { value: 'MA', label: 'Multi-Answer' },
+                ] as const
+              ).map((opt) => {
+                const active = type === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => {
+                      if (opt.value === q.type) return;
+                      const preservedDistractors = (
+                        q.incorrectAnswers ?? []
+                      ).filter((s) => s.trim().length > 0);
+                      const padTo = (arr: string[], n: number) => {
+                        const out = [...arr];
+                        while (out.length < n) out.push('');
+                        return out;
+                      };
+                      updateQuestion(q.id, {
+                        type: opt.value,
+                        correctAnswer: '',
+                        incorrectAnswers:
+                          opt.value === 'FIB'
+                            ? []
+                            : padTo(preservedDistractors, 3),
+                        acceptableVariants: undefined,
+                        allowPartialCredit: false,
+                      });
+                    }}
+                    className={
+                      'px-3 py-1.5 text-xs font-bold transition border-r border-slate-300 last:border-r-0 ' +
+                      (active
+                        ? 'bg-brand-blue-primary text-white'
+                        : 'text-slate-700 hover:bg-slate-100')
+                    }
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Timing + points row */}
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className={labelClass}>Timestamp (MM:SS)</label>
+              <input
+                type="text"
+                value={tsValue}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  setTimestampInput(q.id, raw);
+                  const secs = mmSsToSeconds(raw);
+                  if (!isNaN(secs)) {
+                    updateQuestion(q.id, { timestamp: secs });
+                  }
+                }}
+                placeholder="01:30"
+                className={`${inputClass} font-mono`}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Time Limit</label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min={10}
+                  max={300}
+                  value={q.timeLimit}
+                  onChange={(e) =>
+                    updateQuestion(q.id, {
+                      timeLimit: parseInt(e.target.value, 10) || 30,
+                    })
+                  }
+                  className={`${inputClass} pr-12`}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xxs uppercase tracking-wider">
+                  Sec
+                </span>
+              </div>
+            </div>
+            <div>
+              <label className={labelClass}>Points</label>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={q.points ?? 1}
+                onChange={(e) => {
+                  const next = Math.floor(Number(e.target.value));
+                  const safe = Number.isFinite(next) && next >= 1 ? next : 1;
+                  updateQuestion(q.id, { points: safe });
+                }}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          {/* Type-specific sub-form */}
+          {type === 'MC' && (
+            <McSubForm
+              question={q}
+              onChangeCorrect={(v) =>
+                updateQuestion(q.id, { correctAnswer: v })
+              }
+              onChangeIncorrect={(idx, v) => updateIncorrect(q.id, idx, v)}
+            />
+          )}
+          {type === 'FIB' && (
+            <FibSubForm
+              question={q}
+              onChangeCorrect={(v) =>
+                updateQuestion(q.id, { correctAnswer: v })
+              }
+              onChangeVariants={(variants) =>
+                updateQuestion(q.id, { acceptableVariants: variants })
+              }
+            />
+          )}
+          {type === 'MA' && (
+            <MaSubForm
+              question={q}
+              onUpdate={(patch) => updateQuestion(q.id, patch)}
+            />
+          )}
         </div>
       </div>
     );
-  }
-
-  const q = selectedQuestion;
-  const tsValue = timestampInputs[q.id] ?? secondsToMmSs(q.timestamp);
-  const type = q.type ?? 'MC';
-
-  return (
-    <div className="flex flex-col h-full">
-      {navigator}
-      <div className="px-5 py-4 border-b border-slate-200 bg-white shrink-0">
-        <div className="text-xs uppercase tracking-wider text-slate-500 font-bold">
-          Question {selectedIndex + 1} of {questions.length}
-          <span className="mx-1.5">·</span>
-          {type === 'MC'
-            ? 'Multiple choice'
-            : type === 'FIB'
-              ? 'Fill in the blank'
-              : 'Multi-answer'}
-        </div>
-        <h4 className="text-base font-bold text-slate-900 truncate mt-0.5">
-          {q.text.trim() || `Question at ${secondsToMmSs(q.timestamp)}`}
-        </h4>
-      </div>
-
-      <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
-        {/* Question prompt */}
-        <div>
-          <label className={labelClass}>Question prompt</label>
-          <textarea
-            value={q.text}
-            onChange={(e) => updateQuestion(q.id, { text: e.target.value })}
-            rows={3}
-            placeholder="Enter your question…"
-            className={`${inputClass} resize-none`}
-          />
-        </div>
-
-        {/* Type picker */}
-        <div>
-          <label className={labelClass}>Question Type</label>
-          <div className="inline-flex rounded-xl border border-slate-300 bg-white overflow-hidden">
-            {(
-              [
-                { value: 'MC', label: 'Multiple Choice' },
-                { value: 'FIB', label: 'Fill in the Blank' },
-                { value: 'MA', label: 'Multi-Answer' },
-              ] as const
-            ).map((opt) => {
-              const active = type === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => {
-                    if (opt.value === q.type) return;
-                    const preservedDistractors = (
-                      q.incorrectAnswers ?? []
-                    ).filter((s) => s.trim().length > 0);
-                    const padTo = (arr: string[], n: number) => {
-                      const out = [...arr];
-                      while (out.length < n) out.push('');
-                      return out;
-                    };
-                    updateQuestion(q.id, {
-                      type: opt.value,
-                      correctAnswer: '',
-                      incorrectAnswers:
-                        opt.value === 'FIB'
-                          ? []
-                          : padTo(preservedDistractors, 3),
-                      acceptableVariants: undefined,
-                      allowPartialCredit: false,
-                    });
-                  }}
-                  className={
-                    'px-3 py-1.5 text-xs font-bold transition border-r border-slate-300 last:border-r-0 ' +
-                    (active
-                      ? 'bg-brand-blue-primary text-white'
-                      : 'text-slate-700 hover:bg-slate-100')
-                  }
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Timing + points row */}
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className={labelClass}>Timestamp (MM:SS)</label>
-            <input
-              type="text"
-              value={tsValue}
-              onChange={(e) => {
-                const raw = e.target.value;
-                setTimestampInput(q.id, raw);
-                const secs = mmSsToSeconds(raw);
-                if (!isNaN(secs)) {
-                  updateQuestion(q.id, { timestamp: secs });
-                }
-              }}
-              placeholder="01:30"
-              className={`${inputClass} font-mono`}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Time Limit</label>
-            <div className="relative">
-              <input
-                type="number"
-                min={10}
-                max={300}
-                value={q.timeLimit}
-                onChange={(e) =>
-                  updateQuestion(q.id, {
-                    timeLimit: parseInt(e.target.value, 10) || 30,
-                  })
-                }
-                className={`${inputClass} pr-12`}
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xxs uppercase tracking-wider">
-                Sec
-              </span>
-            </div>
-          </div>
-          <div>
-            <label className={labelClass}>Points</label>
-            <input
-              type="number"
-              min={1}
-              step={1}
-              value={q.points ?? 1}
-              onChange={(e) => {
-                const next = Math.floor(Number(e.target.value));
-                const safe = Number.isFinite(next) && next >= 1 ? next : 1;
-                updateQuestion(q.id, { points: safe });
-              }}
-              className={inputClass}
-            />
-          </div>
-        </div>
-
-        {/* Type-specific sub-form */}
-        {type === 'MC' && (
-          <McSubForm
-            question={q}
-            onChangeCorrect={(v) => updateQuestion(q.id, { correctAnswer: v })}
-            onChangeIncorrect={(idx, v) => updateIncorrect(q.id, idx, v)}
-          />
-        )}
-        {type === 'FIB' && (
-          <FibSubForm
-            question={q}
-            onChangeCorrect={(v) => updateQuestion(q.id, { correctAnswer: v })}
-            onChangeVariants={(variants) =>
-              updateQuestion(q.id, { acceptableVariants: variants })
-            }
-          />
-        )}
-        {type === 'MA' && (
-          <MaSubForm
-            question={q}
-            onUpdate={(patch) => updateQuestion(q.id, patch)}
-          />
-        )}
-      </div>
-    </div>
-  );
-};
+  },
+  vaDetailPanePropsEqual
+);
 
 // ─── AI overlay ──────────────────────────────────────────────────────────────
 

@@ -82,6 +82,37 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
   return true;
 };
 
+/**
+ * Shallow-equal over the union of both objects' keys. Sufficient for
+ * session-options objects, whose values are all primitives. Matches the
+ * previous `JSON.stringify(a) !== JSON.stringify(b)` dirty-check semantics
+ * (explicit `undefined` == absent) without serializing on every keystroke.
+ * Tolerates a missing object on either side (legacy Firestore docs may lack
+ * sessionOptions despite the type) — the old stringify compare did too.
+ */
+const shallowRecordEqual = <T extends object>(
+  a: T | undefined,
+  b: T | undefined
+): boolean => {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)] as (keyof T)[]);
+  for (const key of keys) {
+    if (!Object.is(a[key], b[key])) return false;
+  }
+  return true;
+};
+
+/** Field-by-field QuizBehaviorSettings compare for the isDirty check. */
+const quizBehaviorSettingsEqual = (
+  a: QuizBehaviorSettings,
+  b: QuizBehaviorSettings
+): boolean =>
+  a === b ||
+  (a.sessionMode === b.sessionMode &&
+    a.attemptLimit === b.attemptLimit &&
+    shallowRecordEqual(a.sessionOptions, b.sessionOptions));
+
 export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   isOpen,
   quiz,
@@ -132,11 +163,16 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     setOriginalBehavior(seed);
   }
 
+  // Reference equality first — setState produces a new questions array on
+  // every edit, so the deep walk only runs as a fallback.
   const isDirty = useMemo(
     () =>
       title !== originalTitle ||
-      !questionsEqual(questions, originalQuestions) ||
-      JSON.stringify(behavior) !== JSON.stringify(originalBehavior),
+      !(
+        questions === originalQuestions ||
+        questionsEqual(questions, originalQuestions)
+      ) ||
+      !quizBehaviorSettingsEqual(behavior, originalBehavior),
     [
       title,
       originalTitle,
@@ -195,6 +231,31 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     }
   };
 
+  // Stable chrome elements so the shell's memoized header/footer don't
+  // re-render on question-content keystrokes.
+  const subtitle = useMemo(
+    () => (
+      <span>
+        {questions.length} {questions.length === 1 ? 'question' : 'questions'}
+      </span>
+    ),
+    [questions.length]
+  );
+  const footerExtras = useMemo(
+    () =>
+      aiEnabled ? (
+        <button
+          onClick={() => setShowAiPrompt(true)}
+          className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
+          title="Generate with AI"
+        >
+          <Sparkles className="w-4 h-4" />
+          Draft with AI
+        </button>
+      ) : null,
+    [aiEnabled, setShowAiPrompt]
+  );
+
   if (!quiz) return null;
 
   return (
@@ -202,28 +263,13 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       key={quiz.id}
       isOpen={isOpen}
       title={title.trim() || (originalTitle ? 'Edit Quiz' : 'New Quiz')}
-      subtitle={
-        <span>
-          {questions.length} {questions.length === 1 ? 'question' : 'questions'}
-        </span>
-      }
+      subtitle={subtitle}
       isDirty={isDirty}
       isSaving={saving}
       onSave={handleSave}
       onClose={onClose}
       saveLabel="Save Quiz"
-      footerExtras={
-        aiEnabled ? (
-          <button
-            onClick={() => setShowAiPrompt(true)}
-            className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
-            title="Generate with AI"
-          >
-            <Sparkles className="w-4 h-4" />
-            Draft with AI
-          </button>
-        ) : null
-      }
+      footerExtras={footerExtras}
       contextPane={
         <div className="flex flex-col h-full">
           {/* Questions / Settings segmented tab toggle */}

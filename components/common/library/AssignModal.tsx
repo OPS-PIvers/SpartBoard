@@ -21,7 +21,7 @@
 
 import React, { useCallback, useState } from 'react';
 import { Loader2, Rocket } from 'lucide-react';
-import { Modal } from '../Modal';
+import { Modal } from '@/components/common/Modal';
 import type { AssignModalProps, AssignModeOption } from './types';
 
 const MODAL_LABEL_ID = 'assign-modal-title';

@@ -1,0 +1,79 @@
+{
+  "generatedAt": "2026-06-09T23:39:27.011Z",
+  "runCommand": "pnpm exec vitest run tests/perf/editorPerf.test.tsx",
+  "note": "POST-CHANGE results: medianDurationMs = median of 3 runs; commits identical across all 3 runs.",
+  "scenarios": [
+    {
+      "scenario": "quiz.mount",
+      "commits": 3,
+      "medianDurationMs": 45.763,
+      "runDurationsMs": [45.767, 45.372, 45.763]
+    },
+    {
+      "scenario": "quiz.type25",
+      "commits": 25,
+      "medianDurationMs": 83.143,
+      "runDurationsMs": [82.862, 83.95, 83.143]
+    },
+    {
+      "scenario": "quiz.switchSelection10",
+      "commits": 18,
+      "medianDurationMs": 57.128,
+      "runDurationsMs": [56.411, 58.153, 57.128]
+    },
+    {
+      "scenario": "quiz.addQuestion",
+      "commits": 2,
+      "medianDurationMs": 2.258,
+      "runDurationsMs": [2.258, 2.177, 2.349]
+    },
+    {
+      "scenario": "va.mount",
+      "commits": 4,
+      "medianDurationMs": 14.427,
+      "runDurationsMs": [14.602, 14.077, 14.427]
+    },
+    {
+      "scenario": "va.type25",
+      "commits": 25,
+      "medianDurationMs": 20.35,
+      "runDurationsMs": [20.606, 19.738, 20.35]
+    },
+    {
+      "scenario": "va.switchSelection10",
+      "commits": 10,
+      "medianDurationMs": 26.911,
+      "runDurationsMs": [25.85, 34.166, 26.911]
+    },
+    {
+      "scenario": "va.addTask",
+      "commits": 2,
+      "medianDurationMs": 9.423,
+      "runDurationsMs": [9.016, 9.459, 9.423]
+    },
+    {
+      "scenario": "gl.mount",
+      "commits": 3,
+      "medianDurationMs": 13.856,
+      "runDurationsMs": [13.563, 13.856, 14.151]
+    },
+    {
+      "scenario": "gl.type25",
+      "commits": 25,
+      "medianDurationMs": 98.674,
+      "runDurationsMs": [98.674, 94.721, 99.188]
+    },
+    {
+      "scenario": "gl.switchSlide10",
+      "commits": 10,
+      "medianDurationMs": 44.53,
+      "runDurationsMs": [44.53, 58.698, 44.153]
+    },
+    {
+      "scenario": "gl.addStep",
+      "commits": 3,
+      "medianDurationMs": 16.299,
+      "runDurationsMs": [16.299, 17.795, 16.291]
+    }
+  ]
+}

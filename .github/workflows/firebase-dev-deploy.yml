@@ -4,6 +4,15 @@ on:
   push:
     branches:
       - 'dev-*'
+  workflow_dispatch:
+
+# Cancel a superseded preview deploy when a newer commit is pushed to the same
+# branch, so rapid successive pushes don't each run a full 4-job deploy to
+# completion. (workflow_dispatch is kept so a preview can also be re-run manually
+# from the Actions tab.)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:

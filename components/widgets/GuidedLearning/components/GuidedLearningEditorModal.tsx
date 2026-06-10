@@ -6,7 +6,7 @@
  * for the currently-selected hotspot.
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Folder as FolderIcon, Inbox, Sparkles } from 'lucide-react';
 import {
   GuidedLearningMode,
@@ -14,6 +14,7 @@ import {
   GuidedLearningSet,
   GuidedLearningSetMetadata,
   GuidedLearningStep,
+  GuidedLearningVideoTrim,
   LibraryFolder,
 } from '@/types';
 import { EditorWorkspace } from '@/components/common/EditorWorkspace';
@@ -23,10 +24,7 @@ import {
   GuidedLearningEditorContextPane,
   GuidedLearningEditorDetailPane,
 } from './GuidedLearningEditor';
-import {
-  GuidedLearningEditorState,
-  useGuidedLearningEditorState,
-} from './useGuidedLearningEditorState';
+import { useGuidedLearningEditorState } from './useGuidedLearningEditorState';
 import { GuidedLearningAIGenerator } from './GuidedLearningAIGenerator';
 
 interface GuidedLearningEditorModalProps {
@@ -51,9 +49,28 @@ interface GuidedLearningEditorModalProps {
 // ─── Deep equality helpers ──────────────────────────────────────────────────
 
 function arraysEqual(a: string[], b: string[]): boolean {
+  if (a === b) return true;
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function trimsEqual(
+  a: (GuidedLearningVideoTrim | null)[],
+  b: (GuidedLearningVideoTrim | null)[]
+): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const ta = a[i];
+    const tb = b[i];
+    if (ta === null || tb === null) {
+      if (ta !== tb) return false;
+    } else if (ta.start !== tb.start || ta.end !== tb.end) {
+      return false;
+    }
   }
   return true;
 }
@@ -62,6 +79,7 @@ function matchingPairsEqual(
   a: { left: string; right: string }[],
   b: { left: string; right: string }[]
 ): boolean {
+  if (a === b) return true;
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     if (a[i].left !== b[i].left || a[i].right !== b[i].right) return false;
@@ -85,10 +103,12 @@ function questionsEqual(
 }
 
 function stepsEqual(a: GuidedLearningStep[], b: GuidedLearningStep[]): boolean {
+  if (a === b) return true;
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     const sa = a[i];
     const sb = b[i];
+    if (sa === sb) continue;
     if (
       sa.id !== sb.id ||
       sa.xPct !== sb.xPct ||
@@ -132,9 +152,6 @@ export const GuidedLearningEditorModal: React.FC<
   onFolderChange,
 }) => {
   const { isAdmin, canAccessFeature } = useAuth();
-  const [liveState, setLiveState] = useState<GuidedLearningEditorState | null>(
-    null
-  );
   const [saving, setSaving] = useState(false);
   const [showAiGen, setShowAiGen] = useState(false);
 
@@ -155,48 +172,70 @@ export const GuidedLearningEditorModal: React.FC<
     () => (set ? [...set.imageUrls] : []),
     [set]
   );
+  // Normalized per-slide kinds (missing entries = 'image') so dirty
+  // comparison is stable for legacy sets without the field.
+  const originalImageKinds = useMemo(
+    () =>
+      set ? set.imageUrls.map((_, i) => set.imageKinds?.[i] ?? 'image') : [],
+    [set]
+  );
+  // Normalized per-slide trims (missing entries = null) for stable dirty
+  // comparison on legacy sets without the field.
+  const originalVideoTrims = useMemo(
+    () => (set ? set.imageUrls.map((_, i) => set.videoTrims?.[i] ?? null) : []),
+    [set]
+  );
   const originalSteps = useMemo(
     () => (set ? structuredClone(set.steps) : []),
     [set]
   );
 
-  // Reset live state when set prop identity changes
+  // Reset modal-local state when set prop identity changes (the editor hook
+  // resets its own draft state on the same identity change).
   const [prevSet, setPrevSet] = useState<GuidedLearningSet | null>(set);
   if (set !== prevSet) {
     setPrevSet(set);
-    setLiveState(null);
     setSaving(false);
     setShowAiGen(false);
   }
 
-  const handleStateChange = useCallback((state: GuidedLearningEditorState) => {
-    setLiveState(state);
-  }, []);
-
+  // The hook is called inside this component, so the modal already re-renders
+  // on every editor state change — dirty state and the save payload read the
+  // controller's fields directly (no mirrored "live state" copy).
   const editorState = useGuidedLearningEditorState({
     existingSet: set,
     existingMeta: meta,
-    onStateChange: handleStateChange,
     folders,
     folderId,
     onFolderChange,
   });
 
   const isDirty = useMemo(() => {
-    if (!liveState) return false;
     return (
-      liveState.title !== originalTitle ||
-      liveState.description !== originalDescription ||
-      liveState.mode !== originalMode ||
-      liveState.hotspotPulse !== originalHotspotPulse ||
-      liveState.imageTransition !== originalImageTransition ||
-      liveState.welcomeEnabled !== originalWelcomeEnabled ||
-      liveState.welcomeMessage !== originalWelcomeMessage ||
-      !arraysEqual(liveState.imageUrls, originalImageUrls) ||
-      !stepsEqual(liveState.steps, originalSteps)
+      editorState.title !== originalTitle ||
+      editorState.description !== originalDescription ||
+      editorState.mode !== originalMode ||
+      editorState.hotspotPulse !== originalHotspotPulse ||
+      editorState.imageTransition !== originalImageTransition ||
+      editorState.welcomeEnabled !== originalWelcomeEnabled ||
+      editorState.welcomeMessage !== originalWelcomeMessage ||
+      !arraysEqual(editorState.imageUrls, originalImageUrls) ||
+      !arraysEqual(editorState.imageKinds, originalImageKinds) ||
+      !trimsEqual(editorState.videoTrims, originalVideoTrims) ||
+      !stepsEqual(editorState.steps, originalSteps)
     );
   }, [
-    liveState,
+    editorState.title,
+    editorState.description,
+    editorState.mode,
+    editorState.hotspotPulse,
+    editorState.imageTransition,
+    editorState.welcomeEnabled,
+    editorState.welcomeMessage,
+    editorState.imageUrls,
+    editorState.imageKinds,
+    editorState.videoTrims,
+    editorState.steps,
     originalTitle,
     originalDescription,
     originalMode,
@@ -205,41 +244,53 @@ export const GuidedLearningEditorModal: React.FC<
     originalWelcomeEnabled,
     originalWelcomeMessage,
     originalImageUrls,
+    originalImageKinds,
+    originalVideoTrims,
     originalSteps,
   ]);
 
   const handleSave = async () => {
-    if (!set || !liveState) return;
+    if (!set) return;
     setSaving(true);
     try {
       const now = Date.now();
       const builtSet: GuidedLearningSet = {
         id: set.id,
-        title: liveState.title.trim(),
-        description: liveState.description.trim() || undefined,
-        imageUrls: liveState.imageUrls,
-        steps: liveState.steps,
-        mode: liveState.mode,
+        title: editorState.title.trim(),
+        description: editorState.description.trim() || undefined,
+        imageUrls: editorState.imageUrls,
+        // Only persist kinds when at least one slide is a video — keeps
+        // image-only (and legacy) sets free of the new field.
+        ...(editorState.imageKinds.some((k) => k === 'video')
+          ? { imageKinds: editorState.imageKinds }
+          : {}),
+        // Only persist trims when at least one slide actually has one —
+        // keeps untrimmed (and legacy) sets free of the new field.
+        ...(editorState.videoTrims.some(Boolean)
+          ? { videoTrims: editorState.videoTrims }
+          : {}),
+        steps: editorState.steps,
+        mode: editorState.mode,
         createdAt: set.createdAt,
         updatedAt: now,
         isBuilding: set.isBuilding,
         authorUid: set.authorUid,
         // Only persist a hotspotPulse value when it differs from the default
         // ('consistent') — keeps untouched legacy sets clean of new fields.
-        ...(liveState.hotspotPulse !== 'consistent'
-          ? { hotspotPulse: liveState.hotspotPulse }
+        ...(editorState.hotspotPulse !== 'consistent'
+          ? { hotspotPulse: editorState.hotspotPulse }
           : {}),
-        ...(liveState.imageTransition !== 'none'
-          ? { imageTransition: liveState.imageTransition }
+        ...(editorState.imageTransition !== 'none'
+          ? { imageTransition: editorState.imageTransition }
           : {}),
         // Welcome screen — only persist when actually enabled WITH content.
         // Toggle-on-but-empty falls back to default behavior at render time
         // anyway, so don't write the field; this also avoids cluttering
         // legacy sets that have never touched welcome settings.
-        ...(liveState.welcomeEnabled && liveState.welcomeMessage.trim()
+        ...(editorState.welcomeEnabled && editorState.welcomeMessage.trim()
           ? {
               welcomeEnabled: true,
-              welcomeMessage: liveState.welcomeMessage,
+              welcomeMessage: editorState.welcomeMessage,
             }
           : {}),
       };
@@ -253,10 +304,10 @@ export const GuidedLearningEditorModal: React.FC<
   // The header now hosts the editable title input directly. Pass through
   // the live value so users see what they're typing; placeholder kicks in
   // for empty strings.
-  const headerTitleValue = liveState?.title ?? originalTitle ?? '';
+  const headerTitleValue = editorState.title;
   const titlePlaceholder = originalTitle ? 'Edit Set' : 'Set title…';
 
-  const stepCount = liveState?.steps.length ?? set?.steps.length ?? 0;
+  const stepCount = editorState.steps.length;
 
   // Folder picker — surfaced as a compact icon button in the header so
   // it doesn't take a full row in the body. Anchored popover renders
@@ -276,6 +327,55 @@ export const GuidedLearningEditorModal: React.FC<
         ? `Folder: ${currentFolder.name}`
         : 'Folder not found';
 
+  // Stable chrome elements so the shell's memoized header/footer don't
+  // re-render on step-editor keystrokes.
+  const subtitle = useMemo(
+    () => (
+      <span>
+        {stepCount} {stepCount === 1 ? 'step' : 'steps'}
+      </span>
+    ),
+    [stepCount]
+  );
+  const headerExtras = useMemo(
+    () =>
+      folderPickerEnabled ? (
+        <button
+          ref={folderButtonRef}
+          type="button"
+          onClick={() => setFolderPickerOpen((v) => !v)}
+          title={folderTooltip}
+          aria-label={folderTooltip}
+          aria-expanded={folderPickerOpen}
+          aria-haspopup="dialog"
+          className={`inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 ${
+            folderId != null ? 'text-brand-blue-primary' : ''
+          }`}
+        >
+          {folderId == null ? (
+            <Inbox className="h-5 w-5" />
+          ) : (
+            <FolderIcon className="h-5 w-5" />
+          )}
+        </button>
+      ) : null,
+    [folderPickerEnabled, folderTooltip, folderPickerOpen, folderId]
+  );
+  const footerExtras = useMemo(
+    () =>
+      canUseAi ? (
+        <button
+          onClick={() => setShowAiGen(true)}
+          className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
+          title="Generate with AI (Admin)"
+        >
+          <Sparkles className="w-4 h-4" />
+          Draft with AI
+        </button>
+      ) : null,
+    [canUseAi]
+  );
+
   if (!set) return null;
 
   return (
@@ -286,56 +386,19 @@ export const GuidedLearningEditorModal: React.FC<
         title={headerTitleValue}
         onTitleChange={editorState.setTitle}
         titlePlaceholder={titlePlaceholder}
-        subtitle={
-          <span>
-            {stepCount} {stepCount === 1 ? 'step' : 'steps'}
-          </span>
-        }
-        headerExtras={
-          folderPickerEnabled ? (
-            <button
-              ref={folderButtonRef}
-              type="button"
-              onClick={() => setFolderPickerOpen((v) => !v)}
-              title={folderTooltip}
-              aria-label={folderTooltip}
-              aria-expanded={folderPickerOpen}
-              aria-haspopup="dialog"
-              className={`inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 ${
-                folderId != null ? 'text-brand-blue-primary' : ''
-              }`}
-            >
-              {folderId == null ? (
-                <Inbox className="h-5 w-5" />
-              ) : (
-                <FolderIcon className="h-5 w-5" />
-              )}
-            </button>
-          ) : null
-        }
+        subtitle={subtitle}
+        headerExtras={headerExtras}
         isDirty={isDirty}
         isSaving={saving}
         onSave={handleSave}
         onClose={onClose}
         saveLabel="Save Set"
         saveDisabled={
-          !liveState ||
-          !liveState.title.trim() ||
-          liveState.imageUrls.length === 0 ||
-          liveState.uploading
+          !editorState.title.trim() ||
+          editorState.imageUrls.length === 0 ||
+          editorState.uploading
         }
-        footerExtras={
-          canUseAi ? (
-            <button
-              onClick={() => setShowAiGen(true)}
-              className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
-              title="Generate with AI (Admin)"
-            >
-              <Sparkles className="w-4 h-4" />
-              Draft with AI
-            </button>
-          ) : null
-        }
+        footerExtras={footerExtras}
         className="h-[90vh]"
         contextRatio={58}
         contextPane={<GuidedLearningEditorContextPane state={editorState} />}
