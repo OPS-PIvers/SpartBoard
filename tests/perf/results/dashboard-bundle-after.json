@@ -2,16 +2,16 @@
   "chunks": [
     {
       "name": "WidgetRenderer.js",
-      "gzipKb": 34.56
+      "gzipKb": 34.6
     },
     {
       "name": "DashboardView.js",
-      "gzipKb": 383.65
+      "gzipKb": 383.69
     },
     {
       "name": "index.js",
-      "gzipKb": 368.09
+      "gzipKb": 368.94
     }
   ],
-  "totalGzipKb": 786.3
+  "totalGzipKb": 787.23
 }

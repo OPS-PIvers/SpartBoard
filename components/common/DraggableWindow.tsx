@@ -51,7 +51,11 @@ import { calculateSnapBounds, SNAP_LAYOUT_CONSTANTS } from '@/utils/layoutMath';
 import { clampWidgetToWorld, getWorldBounds } from '@/utils/zoomPanMath';
 import { useScreenshot } from '@/hooks/useScreenshot';
 import { useWindowSize } from '@/hooks/useWindowSize';
-import { useDashboard } from '@/context/useDashboard';
+import {
+  useDashboardActions,
+  useDashboardCanvasSelector,
+  useDashboardCanvasStateGetter,
+} from '@/context/dashboardCanvasStore';
 import { GlassCard } from './GlassCard';
 import { SettingsPanel } from './SettingsPanel';
 import { useClickOutside } from '@/hooks/useClickOutside';
@@ -183,6 +187,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   globalStyle,
 }) => {
   const { t } = useTranslation();
+  // Mount-stable actions surface — identities never change, so dep arrays
+  // listing them are trivially satisfied and never re-fire.
   const {
     updateWidget,
     removeWidget,
@@ -191,18 +197,25 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     addToast,
     resetWidgetSize,
     deleteAllWidgets,
-    selectedWidgetId,
     setSelectedWidgetId,
-    activeDashboard,
     updateWidgets,
     ungroupWidgets,
-    groupBuildMode,
     setGroupBuildMode,
-    selectedWidgetIds,
     setSelectedWidgetIds,
-    zoom,
-    isActiveBoardReadOnly,
-  } = useDashboard();
+  } = useDashboardActions();
+  // Narrow primitive-returning subscriptions — foreign widget mutations
+  // (another widget's selection, z-order, config) bail out via Object.is
+  // instead of re-rendering every shell on the board.
+  const isSelectedWidget = useDashboardCanvasSelector(
+    (s) => s.selectedWidgetId === widget.id
+  );
+  const isActiveBoardReadOnly = useDashboardCanvasSelector(
+    (s) => s.isActiveBoardReadOnly
+  );
+  const zoom = useDashboardCanvasSelector((s) => s.zoom);
+  const groupBuildMode = useDashboardCanvasSelector((s) => s.groupBuildMode);
+  // Event-handler-time canvas reads (no render subscription).
+  const getCanvasState = useDashboardCanvasStateGetter();
   const { showConfirm: showConfirmDialog } = useDialog();
 
   const [isDragging, setIsDragging] = useState(false);
@@ -219,18 +232,23 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   // close, duplicate, lock, pin, etc.) are valid for a read-only viewer,
   // and the toolbar's "Settings" gear has no per-button isLocked gate of
   // its own — suppressing showTools at the root is the safest gap-fill.
-  const showTools =
-    selectedWidgetId === widget.id && !hasOpenModal && !isActiveBoardReadOnly;
+  const showTools = isSelectedWidget && !hasOpenModal && !isActiveBoardReadOnly;
 
-  // Group visual state
+  // Group visual state. Both selectors return booleans, so foreign
+  // selection/dashboard churn bails out; the O(n) widget scan runs inside
+  // the selector (per store notify), not in a render.
   const isInGroup = !!widget.groupId;
-  const isGroupActive =
-    isInGroup &&
-    activeDashboard?.widgets.some(
-      (w) => w.groupId === widget.groupId && w.id === selectedWidgetId
-    );
-  const isGroupBuildSelected =
-    groupBuildMode && selectedWidgetIds.includes(widget.id);
+  const isGroupActive = useDashboardCanvasSelector(
+    (s) =>
+      !!widget.groupId &&
+      (s.activeDashboard?.widgets.some(
+        (w) => w.groupId === widget.groupId && w.id === s.selectedWidgetId
+      ) ??
+        false)
+  );
+  const isGroupBuildSelected = useDashboardCanvasSelector(
+    (s) => s.groupBuildMode && s.selectedWidgetIds.includes(widget.id)
+  );
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState(widget.customTitle ?? title);
   const [shouldRenderSettings, setShouldRenderSettings] = useState(
@@ -253,18 +271,24 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const customGridRef = useRef(customGrid);
   // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync (CLAUDE.md: "assign refs directly in render body"); react-hooks/refs v7 incorrectly cascades this as an error when any setState is called during render
   customGridRef.current = customGrid;
+  // Only subscribe to the dashboard while the snap menu is OPEN: the selector
+  // returns null (stable) when closed, so board mutations don't re-render the
+  // shell; open, it tracks dashboard changes exactly as before.
+  const snapMenuDashboard = useDashboardCanvasSelector((s) =>
+    showSnapMenu ? s.activeDashboard : null
+  );
   const occupiedCells = useMemo(() => {
-    // Short-circuit before any per-widget work: activeDashboard is a dep, so
+    // Short-circuit before any per-widget work: snapMenuDashboard is a dep, so
     // without this guard every widget mutation across the board would pay the
     // O(n) grid-occupancy scan even with the snap menu closed.
-    if (!showSnapMenu || !activeDashboard) return EMPTY_OCCUPIED_CELLS;
+    if (!snapMenuDashboard) return EMPTY_OCCUPIED_CELLS;
     const set = new Set<string>();
 
     const { PADDING } = SNAP_LAYOUT_CONSTANTS;
     const safeWidth = Math.max(1, windowSize.width - PADDING * 2);
     const safeHeight = Math.max(1, windowSize.height - PADDING * 2);
 
-    for (const w of activeDashboard.widgets) {
+    for (const w of snapMenuDashboard.widgets) {
       if (w.id === widget.id) continue; // ignore self
       if (w.minimized || w.maximized) continue; // not visible on canvas
 
@@ -295,7 +319,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       }
     }
     return set;
-  }, [showSnapMenu, activeDashboard, widget.id, windowSize]);
+  }, [snapMenuDashboard, widget.id, windowSize]);
 
   // Pre-cached zones for edge detection optimization
   const splitLayout = useMemo(
@@ -978,10 +1002,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     dragState.current = { x: widget.x, y: widget.y, w: widget.w, h: widget.h };
     dragDistanceRef.current = 0;
 
-    // Collect group siblings for coordinated drag
+    // Collect group siblings for coordinated drag. Read the dashboard at
+    // event time via the getter — this shell no longer subscribes to it.
     const hasGroup = !!widget.groupId;
-    if (hasGroup && activeDashboard) {
-      groupSiblingsRef.current = activeDashboard.widgets
+    const dashboardAtPointerDown = getCanvasState().activeDashboard;
+    if (hasGroup && dashboardAtPointerDown) {
+      groupSiblingsRef.current = dashboardAtPointerDown.widgets
         .filter(
           (w) =>
             w.groupId === widget.groupId &&

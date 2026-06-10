@@ -3,8 +3,33 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DashboardView } from '@/components/layout/DashboardView';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import {
+  DashboardContext,
+  type DashboardContextValue,
+} from '@/context/DashboardContextValue';
 import { useLiveSession } from '@/hooks/useLiveSession';
 import { Dashboard } from '@/types';
+
+// The canvas hot path (BoardCanvas's group overlay, DraggableWindow) reads
+// the hot slice via useDashboardCanvasSelector, which without
+// DashboardProvider's store falls back to the legacy DashboardContext — so
+// every render mounts under a bare provider, the same alternate-host
+// pattern as SubsDashboardProvider/StudentContexts.
+const legacyCtxValue = {
+  activeDashboard: null,
+  selectedWidgetId: null,
+  selectedWidgetIds: [],
+  groupBuildMode: false,
+  zoom: 1,
+  isActiveBoardReadOnly: false,
+} as unknown as DashboardContextValue;
+
+const renderView = () =>
+  render(
+    <DashboardContext.Provider value={legacyCtxValue}>
+      <DashboardView />
+    </DashboardContext.Provider>
+  );
 
 type DashboardGestureHandlers = {
   onDrag?: (state: {
@@ -212,13 +237,13 @@ describe('DashboardView Gestures & Navigation', () => {
   });
 
   it('renders correctly', () => {
-    render(<DashboardView />);
+    renderView();
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('dock')).toBeInTheDocument();
   });
 
   it('does NOT toggle minimize on Alt + M (now handled by widgets)', () => {
-    render(<DashboardView />);
+    renderView();
 
     // Fire Alt+M
     fireEvent.keyDown(window, { key: 'm', altKey: true });
@@ -228,13 +253,13 @@ describe('DashboardView Gestures & Navigation', () => {
   });
 
   it('navigates to previous board on Alt + Left', () => {
-    render(<DashboardView />);
+    renderView();
     fireEvent.keyDown(window, { key: 'ArrowLeft', altKey: true });
     expect(mockLoadDashboard).toHaveBeenCalledWith('db-1');
   });
 
   it('navigates to next board on Alt + Right', () => {
-    render(<DashboardView />);
+    renderView();
     fireEvent.keyDown(window, { key: 'ArrowRight', altKey: true });
     expect(mockLoadDashboard).toHaveBeenCalledWith('db-3');
   });
@@ -264,7 +289,7 @@ describe('DashboardView Gestures & Navigation', () => {
       },
     });
 
-    render(<DashboardView />);
+    renderView();
     fireEvent.keyDown(window, { key: 'Escape', shiftKey: true });
     expect(mockMinimizeAll).toHaveBeenCalled();
   });
@@ -293,7 +318,7 @@ describe('DashboardView Gestures & Navigation', () => {
       },
     });
 
-    render(<DashboardView />);
+    renderView();
     fireEvent.keyDown(window, { key: 'Delete', shiftKey: true });
     await waitFor(() => expect(mockDeleteAll).toHaveBeenCalled());
   });
@@ -327,7 +352,7 @@ describe('DashboardView Gestures & Navigation', () => {
       collectionsApi: collectionsStub,
     });
 
-    const { unmount } = render(<DashboardView />);
+    const { unmount } = renderView();
     fireEvent.keyDown(window, { key: 'ArrowLeft', altKey: true });
     expect(mockLoadDashboard).toHaveBeenCalledWith('db-3');
     unmount();
@@ -349,13 +374,13 @@ describe('DashboardView Gestures & Navigation', () => {
       collectionsApi: collectionsStub,
     });
 
-    render(<DashboardView />);
+    renderView();
     fireEvent.keyDown(window, { key: 'ArrowRight', altKey: true });
     expect(mockLoadDashboard).toHaveBeenCalledWith('db-1');
   });
 
   it('calls addWidget with correct config when spart-sticker with url is dropped', () => {
-    const { container } = render(<DashboardView />);
+    const { container } = renderView();
 
     const dashboardRoot = container.querySelector('#dashboard-root');
     if (!dashboardRoot) throw new Error('Dashboard root not found');
@@ -394,7 +419,7 @@ describe('DashboardView Gestures & Navigation', () => {
   });
 
   it('calls addWidget with icon when spart-sticker WITHOUT url is dropped', () => {
-    const { container } = render(<DashboardView />);
+    const { container } = renderView();
 
     const dashboardRoot = container.querySelector('#dashboard-root');
     if (!dashboardRoot) throw new Error('Dashboard root not found');
@@ -432,7 +457,7 @@ describe('DashboardView Gestures & Navigation', () => {
   });
 
   it('calls addWidget with correct config when application/sticker is dropped with valid ratio', () => {
-    render(<DashboardView />);
+    renderView();
     const root = document.getElementById('dashboard-root');
     if (!root) throw new Error('Root not found');
     expect(root).toBeInTheDocument();
@@ -473,7 +498,7 @@ describe('DashboardView Gestures & Navigation', () => {
   });
 
   it('calls addWidget with fallback ratio when application/sticker is dropped with missing/null ratio', () => {
-    render(<DashboardView />);
+    renderView();
     const root = document.getElementById('dashboard-root');
     if (!root) throw new Error('Root not found');
 
@@ -513,7 +538,7 @@ describe('DashboardView Gestures & Navigation', () => {
   });
 
   it('calls addWidget with fallback ratio when application/sticker is dropped with invalid ratio (e.g. 0)', () => {
-    render(<DashboardView />);
+    renderView();
     const root = document.getElementById('dashboard-root');
     if (!root) throw new Error('Root not found');
 
@@ -599,7 +624,7 @@ describe('DashboardView Gestures & Navigation', () => {
       },
     });
 
-    render(<DashboardView />);
+    renderView();
     mockUpdateWidget.mockClear();
     mockMinimizeAllWidgets.mockClear();
     mockLoadDashboard.mockClear();
@@ -741,7 +766,7 @@ describe('DashboardView Gestures & Navigation', () => {
     });
 
     it('dispatches Escape action with correct widgetId when child is focused', () => {
-      render(<DashboardView />);
+      renderView();
 
       const dispatched: CustomEvent[] = [];
       const handler = (e: Event) => dispatched.push(e as CustomEvent);
@@ -766,7 +791,7 @@ describe('DashboardView Gestures & Navigation', () => {
     });
 
     it('dispatches Delete action with correct widgetId when child is focused', () => {
-      render(<DashboardView />);
+      renderView();
 
       const dispatched: CustomEvent[] = [];
       const handler = (e: Event) => dispatched.push(e as CustomEvent);
@@ -788,7 +813,7 @@ describe('DashboardView Gestures & Navigation', () => {
     });
 
     it('dispatches Pin action with correct widgetId when child is focused (Alt+P)', () => {
-      render(<DashboardView />);
+      renderView();
 
       const dispatched: CustomEvent[] = [];
       const handler = (e: Event) => dispatched.push(e as CustomEvent);
@@ -843,7 +868,7 @@ describe('DashboardView Gestures & Navigation', () => {
         collectionsApi: collectionsStub,
       });
 
-      render(<DashboardView />);
+      renderView();
 
       // Normal toast announces politely via its own role="status".
       const statusToast = screen.getByText('Saved').closest('[role="status"]');
@@ -870,7 +895,7 @@ describe('DashboardView Gestures & Navigation', () => {
         collectionsApi: collectionsStub,
       });
 
-      render(<DashboardView />);
+      renderView();
 
       const dismiss = screen.getByRole('button', { name: 'Dismiss' });
       fireEvent.click(dismiss);

@@ -18,7 +18,7 @@ import { ScalableWidget } from '@/components/common/ScalableWidget';
 import { WidgetLayoutWrapper } from '@/components/widgets/WidgetLayout';
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { useAuth } from '@/context/useAuth';
-import { useDashboard } from '@/context/useDashboard';
+import { useDashboardCanvasSelector } from '@/context/dashboardCanvasStore';
 import { UI_CONSTANTS } from '@/config/layout';
 import {
   WIDGET_SETTINGS_COMPONENTS,
@@ -111,7 +111,11 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
     featurePermissions,
     disableCloseConfirmation: accountDisableCloseConfirmation,
   } = useAuth();
-  const { isActiveBoardReadOnly } = useDashboard();
+  // Narrow subscription: foreign widget mutations no longer pierce the
+  // memo() bailout below — only the read-only flag flipping re-renders here.
+  const isActiveBoardReadOnly = useDashboardCanvasSelector(
+    (s) => s.isActiveBoardReadOnly
+  );
 
   const handleToggleLive = useCallback(async () => {
     try {

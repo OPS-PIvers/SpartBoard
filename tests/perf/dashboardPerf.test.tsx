@@ -24,8 +24,14 @@
  *   - PER-SHELL RENDER COUNTS: every DraggableWindow render invocation is
  *     counted per widget id (via a counting wrapper around the real
  *     component), recorded as totalShellRenders + a per-widget breakdown.
- *     This is the ruler for the context-split refactor: a single-widget
- *     mutation should render only the affected shell(s), not all 15.
+ *     This is the ruler for the context-split refactor, and the contract is
+ *     now ASSERTED: a single-widget mutation (bringToFront / add / remove /
+ *     minimize / restore) must parent-drive renders of ONLY the affected
+ *     shell(s) — untouched shells must show 0 in the per-scenario diff.
+ *     The wrapper observes parent-driven (WidgetRenderer-driven) renders;
+ *     selector-driven internal re-renders inside DraggableWindow are pinned
+ *     separately by context/dashboardCanvasStore.test.tsx, so together the
+ *     two layers cover the whole metric.
  *
  * Results are written to tests/perf/results/dashboard-baseline.json. The
  * test asserts only that metrics were produced and that the gestures had
@@ -117,8 +123,14 @@ const { STUB_WIDGET_TYPES, shellRenderCounts, countShellRender } = vi.hoisted(
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
-vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({
+vi.mock('@/context/useAuth', () => {
+  // ONE stable value object, mirroring the real AuthContext where the
+  // callbacks are useCallbacks and the value is memoized. A fresh object per
+  // call would hand DashboardContext an unstable `saveWidgetConfig`, making
+  // `updateWidget` (deps: [saveWidgetConfig]) churn identity every provider
+  // render and pierce every shell's memo() — a mock artifact, not production
+  // behavior — which would mask the per-shell render metric below.
+  const stableAuthValue = {
     user: {
       uid: 'perf-user',
       displayName: 'Perf Teacher',
@@ -141,8 +153,9 @@ vi.mock('@/context/useAuth', () => ({
     canAccessFeature: () => false,
     canAccessWidget: () => true,
     disableCloseConfirmation: false,
-  }),
-}));
+  };
+  return { useAuth: () => stableAuthValue };
+});
 
 type SnapshotCb = (dashboards: Dashboard[], hasPendingWrites: boolean) => void;
 let capturedSnapshotCb: SnapshotCb | null = null;
@@ -490,7 +503,8 @@ function getCtx(): ReturnType<typeof useDashboard> {
 /**
  * Mirrors the production wiring in DashboardView → MountedBoardsLayer →
  * BoardCanvas: context state and callbacks flow down as props, while
- * DraggableWindow additionally reads useDashboard() directly.
+ * DraggableWindow/WidgetRenderer read the stable actions context and the
+ * canvas hot-slice selectors directly (context/dashboardCanvasStore.ts).
  */
 const BoardHarness: React.FC = () => {
   const ctx = useDashboard();
@@ -507,8 +521,6 @@ const BoardHarness: React.FC = () => {
       session={null}
       students={EMPTY_STUDENTS}
       emptyStudents={EMPTY_STUDENTS}
-      selectedWidgetId={ctx.selectedWidgetId}
-      zoom={ctx.zoom}
       updateSessionConfig={noopAsync}
       updateSessionBackground={noopAsync}
       startSession={startSessionStub}
@@ -725,6 +737,33 @@ describe('dashboard canvas performance baseline', () => {
     // The mount must have rendered all 15 shells at least once each.
     const mount = metrics.find((m) => m.scenario === 'mount15');
     expect(Object.keys(mount?.shellRendersByWidget ?? {})).toHaveLength(15);
+
+    // Context-split contract (deterministic render-count facts, not
+    // durations): a single-widget mutation parent-drives renders of ONLY
+    // the affected shell(s). An untouched shell appearing in a scenario's
+    // per-widget diff means something re-introduced a board-wide
+    // subscription (or broke widget identity preservation) — exactly the
+    // regression this ruler exists to catch.
+    const shellDiff = (scenario: string): string[] => {
+      const m = metrics.find((x) => x.scenario === scenario);
+      if (!m) throw new Error(`scenario ${scenario} not recorded`);
+      return Object.keys(m.shellRendersByWidget).sort();
+    };
+    // Each pointer-down raised one widget; only those five shells rendered.
+    expect(shellDiff('bringToFront5')).toEqual([
+      'w-1',
+      'w-2',
+      'w-3',
+      'w-4',
+      'w-6',
+    ]);
+    // Adding mounts only the new shell; removal unmounts without rendering
+    // any surviving shell.
+    expect(shellDiff('addWidget')).toEqual(['added-widget']);
+    expect(shellDiff('removeWidget')).toEqual([]);
+    // Minimize/restore touch only the targeted widget's shell.
+    expect(shellDiff('minimize')).toEqual(['w-3']);
+    expect(shellDiff('restore')).toEqual(['w-3']);
   });
 });
 

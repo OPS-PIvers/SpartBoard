@@ -199,7 +199,6 @@ export const DashboardView: React.FC = () => {
     setGroupBuildMode,
     selectedWidgetIds,
     setSelectedWidgetIds,
-    selectedWidgetId,
     annotationActive,
     isActiveBoardReadOnly,
   } = useDashboard();
@@ -1724,8 +1723,6 @@ export const DashboardView: React.FC = () => {
           sessions={sessions}
           students={students}
           emptyStudents={EMPTY_STUDENTS}
-          selectedWidgetId={selectedWidgetId}
-          zoom={zoom}
           updateSessionConfig={updateSessionConfig}
           updateSessionBackground={updateSessionBackground}
           startSession={startSession}
