@@ -1,0 +1,68 @@
+{
+  "generatedAt": "2026-06-10T02:14:31.171Z",
+  "runCommand": "pnpm exec vitest run tests/perf/dashboardPerf.test.tsx",
+  "note": "Profiler commit counts are the deterministic primary metric and must be identical across runs. actualDurationMs is machine-dependent and indicative only — compare medians of 3 runs.",
+  "skipped": "Snap-overlay edge snapping and the snap-layout menu need real viewport geometry, so they are not exercised in jsdom; the drag path deliberately stays away from screen edges.",
+  "scenarios": [
+    {
+      "scenario": "mount15",
+      "commits": 4,
+      "actualDurationMs": 92.154
+    },
+    {
+      "scenario": "drag.press",
+      "commits": 2,
+      "actualDurationMs": 10.695
+    },
+    {
+      "scenario": "drag.move30",
+      "commits": 0,
+      "actualDurationMs": 0
+    },
+    {
+      "scenario": "drag.release",
+      "commits": 2,
+      "actualDurationMs": 10.174
+    },
+    {
+      "scenario": "resize.press",
+      "commits": 1,
+      "actualDurationMs": 0.611
+    },
+    {
+      "scenario": "resize.move30",
+      "commits": 0,
+      "actualDurationMs": 0
+    },
+    {
+      "scenario": "resize.release",
+      "commits": 2,
+      "actualDurationMs": 10.523
+    },
+    {
+      "scenario": "bringToFront5",
+      "commits": 10,
+      "actualDurationMs": 50.93
+    },
+    {
+      "scenario": "addWidget",
+      "commits": 2,
+      "actualDurationMs": 13.708
+    },
+    {
+      "scenario": "removeWidget",
+      "commits": 2,
+      "actualDurationMs": 10.532
+    },
+    {
+      "scenario": "minimize",
+      "commits": 2,
+      "actualDurationMs": 10.445
+    },
+    {
+      "scenario": "restore",
+      "commits": 2,
+      "actualDurationMs": 10.308
+    }
+  ]
+}
