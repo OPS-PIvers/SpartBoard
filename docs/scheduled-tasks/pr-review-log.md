@@ -4,6 +4,42 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-10
+
+- PRs reviewed: 12 (all open PRs; no head is `main`/`dev-*`, so all in scope)
+  - #1931 — perf(dashboard): DashboardContext split (head `perf/dashboard-context-split`, base `perf/dashboard-canvas-pass`)
+  - #1930 — test(hooks): cover useVideoActivitySessionTeacher (head `add-video-activity-session-teacher-tests`, base `dev-paul`)
+  - #1929 — audit(wednesday): daily/weekly audits 2026-06-10 (head `scheduled-tasks`, base `main`)
+  - #1928 — fix(stores): `?? null` on contextId/contextTitle/resourceLinkId (head `nightly/build-tooling-2026-06-10`, base `dev-paul`)
+  - #1927 — fix(i18n): widgets.seatingChart for DE/ES/FR (head `nightly/admin-config-2026-06-10`, base `dev-paul`)
+  - #1926 — fix(export): first-occurrence answer dedup in buildResultsSheetData (head `nightly/state-data-2026-06-10`, base `dev-paul`)
+  - #1925 — fix(DashboardView): guard groupBuildMode Escape vs typing fields (head `nightly/dashboard-layout-2026-06-10`, base `dev-paul`)
+  - #1924 — chore(perf): refresh baseline.json (head `nightly/perf-baseline-2026-06-10`, base `dev-paul`)
+  - #1923 — perf(dashboard): canvas perf pass + ruler (head `perf/dashboard-canvas-pass`, base `dev-paul`)
+  - #1922 — docs(unifier): run 11 log 2026-06-10 (head `nightly/unifier-log-2026-06-10`, base `dev-paul`)
+  - #1915 — chore(debugger): run 13 log 2026-06-09 (head `nightly/debugger-log-2026-06-09`, base `dev-paul`)
+  - #1910 — docs(unifier): run 11 log 2026-06-09 (head `nightly/unifier-log-2026-06-09`, base `dev-paul`)
+- Comments processed: 6 total — 3 fixed, 3 explained (all from gemini-code-assist)
+  - #1923: 2 threads — FIXED. `minimizeAllWidgets`/`restoreAllWidgets` now read `activeIdRef.current` and drop `activeId` from deps for reference stability. Also converted the `if (!activeId) return` early-return guards in both (the suggestion only showed the `d.id` line; leaving the guard on the closure while removing the dep would have made it stale). `activeIdRef.current` is render-body-synced. type-check ✓ lint ✓ tests ✓.
+  - #1926: 1 thread — FIXED. Added `const answers = r.answers ?? []` nullish guard before the dedup loop and switched the map value type to `R['answers'][number]`. type-check ✓ lint ✓ tests ✓ (17/17).
+  - #1931: 1 thread — EXPLAINED. gemini's `lastCommittedState` notify-bailout is a sound, low-risk optimization but changes the brand-new store's notify semantics in a concurrent-rendering-sensitive path; recommended to the author but not auto-applied (design call, not a correctness defect).
+  - #1925: 1 thread — EXPLAINED. Test-cleanup hardening (centralize element disposal in `afterEach`) is an enhancement; suite passes 21/21 and the suggestion is a wholesale `describe` rewrite, not a targeted fix.
+  - #1924: 1 thread — EXPLAINED. Reverting durations to 3-run medians while surgically updating only the `gl.type25` commit count is a baseline-methodology decision that would undo the PR's stated purpose; left to the author.
+  - #1930, #1929, #1928, #1927, #1922, #1915, #1910: no review comments.
+- Fixes pushed: 2 (each to its own PR head branch — no pushes to `main`/`dev-*`)
+  - #1923 / `perf/dashboard-canvas-pass` — `fix(pr-1923): make minimizeAllWidgets/restoreAllWidgets reference-stable`
+  - #1926 / `nightly/state-data-2026-06-10` — `fix(pr-1926): guard answers iteration with ?? [] and use R['answers'][number]`
+- Reviews posted: 12 (all COMMENT event)
+  - #1931 Ready w/ notes (stacked on #1923 — merge that first; adopt notify bailout); #1930 Ready (test-only, faithful wiring; flagged VA's non-filtering of empty classIds/rosterIds as a possible follow-up); #1929 **Needs changes** (described "audit-only" but diff vs base `main` carries ~4,000+ lines of source — GuidedLearningEditor +1083, new ScreenCaptureModal +464, VideoActivityEditor +463, Quiz/VA editor modals, workflow files — `scheduled-tasks` has diverged from `main`; reconcile base/scope before merging to `main`); #1928 Ready; #1927 Ready; #1926 Ready (defensive guard pushed); #1925 Ready w/ notes (test-cleanup hardening deferred); #1924 Ready w/ notes (single-run snapshot noise); #1923 Ready w/ notes (ref-stability pushed; base of #1931); #1922 Ready w/ notes (run-11 unifier.md collides with #1910); #1915 Ready; #1910 Ready w/ notes (duplicate run-11 of unifier.md, collides with #1922).
+- Notes:
+  - Branch-safety: no open PR head is `main` or `dev-*`; all heads pushable. Both fixes went to PR head branches. No pushes to `main` or `dev-paul`. This log committed to `scheduled-tasks` (fair-game) per task instructions.
+  - **#1929 scope discrepancy (flag for human):** the audit PR's base is `main` and `scheduled-tasks` is far ahead of it, so the PR would land a large editor refactor into production `main`. Either retarget to `dev-paul` or re-sync `scheduled-tasks` to `main`. (This log commit rides on that same branch but is docs-only.)
+  - **Duplicate run-11 unifier logs:** #1910 (2026-06-09) and #1922 (2026-06-10) both bump `docs/routines/unifier.md` to "Run count: 11" and edit overlapping rows → conflict on second merge; flagged on both.
+  - #1929 journals also surface a real Firestore **MEDIUM** (`pollVotes` subcollection writes unrestricted for all authenticated users) worth a dedicated `firestore.rules` fix PR.
+  - #1923 touches `context/DashboardContext.tsx` heavily but identity-preserving; #1931 adds a new `dashboardCanvasStore.ts` with conditional-`use()` fallback so the ~185 `useDashboard()` consumers are untouched. No new `WidgetType`/`WidgetRegistry.ts` config-merge or `firestore.rules` match-block changes in the code-bearing PRs, so those checks were not triggered.
+
+---
+
 ## 2026-06-08
 
 - PRs reviewed: 12 (all open PRs; every head is non-`main`/non-`dev-*`, so all in scope; all base `dev-paul`)
