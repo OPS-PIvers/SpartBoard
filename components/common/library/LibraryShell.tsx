@@ -337,10 +337,14 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
             <aside
               className="shrink-0 bg-white/40 backdrop-blur-sm border-r border-slate-200/70 overflow-y-auto flex flex-col"
               style={{
+                // Width-based (cqw) sizing, not cqmin: the panel competes for
+                // horizontal space, so the widget's height shouldn't shrink
+                // it. With cqmin, a wide-but-short widget got a needlessly
+                // narrow panel and folder names truncated next to empty space.
                 width:
                   effectiveFolderPanelMode === 'rail'
-                    ? 'min(56px, 14cqmin)'
-                    : 'min(240px, 30cqmin)',
+                    ? 'clamp(44px, 10cqw, 56px)'
+                    : 'clamp(160px, 26cqw, 240px)',
               }}
               aria-label="Folders"
             >
