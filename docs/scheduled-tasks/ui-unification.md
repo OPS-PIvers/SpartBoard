@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-06-05_
+_Last audited: 2026-06-10_
 _Last action: 2026-06-05 — MEDIUM `stations` admin building-default appearance panel added; MEDIUM raw-`<select>` item resolved as stale (already styled)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widgets/ and all \*ConfigurationPanel.tsx under components/admin/. New findings: (1) TimeTool/Settings.tsx duplicates the identical custom 4-button font picker as ClockWidget — added as extension of the existing ClockWidget open item. (2) Segmented-control pill selector pattern (`flex bg-slate-100 p-1 rounded-xl`) duplicated 12× across settings panels with no shared component. (3) Font-options arrays (`{ value: 'global', label: 'Inherit' }` pattern) duplicated in 5+ admin panels. (4) 27 hardcoded hex instances across additional files not yet tracked. Existing open items (ClockWidget font picker, MusicWidget color picker, nextUp/video-activity/guided-learning missing appearance panels, ExpectationsWidget custom toggle, two hardcoded-hex LOW items, InstructionalRoutines, TextConfig) all re-confirmed valid. 4 new open items added._
 
 ### LOW `FeatureConfigurationPanel.tsx` is 706 lines — complex per-feature layout that could use `SchemaDrivenConfigurationPanel`
 
@@ -44,12 +46,26 @@ _Nothing currently in progress._
 - **Detail:** The settings panel uses a custom button-pair toggle (two `<button>` elements styled with gradient classes and active state toggling) instead of the shared `Toggle` component from `components/common/Toggle.tsx`. The shared `Toggle` is already used in ~15 other widget settings panels. The custom implementation is visually different from the standard toggle, violating design consistency in the dark-mode settings panels.
 - **Fix:** Replace the custom button-pair with `<Toggle value={...} onChange={...} />` from `components/common/Toggle.tsx`, following the pattern in `QRWidget/Settings.tsx` or `LunchCount/Settings.tsx`. Remove the custom gradient button styling.
 
-### MEDIUM `ClockWidget/Settings.tsx` implements inline font family selector instead of `TypographySettings`
+### MEDIUM `ClockWidget/Settings.tsx` and `TimeTool/Settings.tsx` implement identical inline font family selector instead of `TypographySettings`
 
-- **Detected:** 2026-06-05
-- **File:** components/widgets/ClockWidget/Settings.tsx (lines 50–92)
-- **Detail:** The Clock widget settings panel implements a custom font-family picker using four inline `<button>` elements toggling between `global`, `font-mono`, `font-sans`, and `font-handwritten` — instead of using the shared `TypographySettings` component from `components/common/`. The shared component is already used in ~15 other widget settings panels (Weather, Schedule, Countdown, LunchCount, Checklist, etc.). The Clock's inline picker is visually inconsistent with the rest of the settings panels and does not benefit from future improvements to the shared component.
-- **Fix:** Replace the inline font-family button group (lines 50–92) in `ClockWidget/Settings.tsx` with `<TypographySettings widget={widget} update={update} />` from `@/components/common/TypographySettings`. Verify that `ClockConfig` declares `fontFamily` (it already does — it drives the clock face font). Remove the local button-group markup and its associated state/style logic.
+- **Detected:** 2026-06-05 (ClockWidget), 2026-06-10 (TimeTool confirmed identical)
+- **File:** components/widgets/ClockWidget/Settings.tsx (lines 50–92), components/widgets/TimeTool/Settings.tsx (`TimeToolAppearanceSettings`, lines 456–503)
+- **Detail:** Both settings panels implement the same custom font-family picker: four inline `<button>` elements toggling between `global`, `font-mono`, `font-sans`, and `font-handwritten`, with identical Tailwind classes (`border-blue-500 bg-blue-50` for selected state) and identical icon characters (`'G'`, `'01'`, `'Aa'`, `'✏️'`). The shared `TypographySettings` component from `components/common/` already handles this exact picker and is used in ~15 other widget settings panels. Both inline implementations will drift from `TypographySettings` as the shared component evolves.
+- **Fix:** Replace the inline font-family button group in BOTH `ClockWidget/Settings.tsx` (lines 50–92) and `TimeTool/Settings.tsx` (lines 456–503) with `<TypographySettings widget={widget} update={update} />`. Verify `ClockConfig` and `TimeToolConfig` both declare `fontFamily` (they do). Remove the local button-group markup and associated state/style logic from both files.
+
+### MEDIUM Segmented-control pill selector pattern duplicated 12× across settings panels with no shared component
+
+- **Detected:** 2026-06-10
+- **File:** components/widgets/ClockWidget/Settings.tsx, Checklist/Settings.tsx, Countdown/Settings.tsx, TimeTool/Settings.tsx, Weather/Settings.tsx (×2), Embed/Settings.tsx, WorkSymbols/Settings.tsx, RevealGrid/Settings.tsx (×3)
+- **Detail:** The CSS string `"flex bg-slate-100 p-1 rounded-xl"` appears 12 times across settings panels as the outer container of a segmented tab/toggle control (pill selector). Each file implements the inner buttons independently with slightly varying aria attributes, selected-state classes, and label text. No shared `SegmentedControl` or `TabToggle` component exists in `components/common/`. As the pattern drifts across files, visual consistency degrades — some instances use `rounded-lg` on the inner buttons, some use `rounded-md`, and aria labeling is inconsistently applied.
+- **Fix:** Create a `components/common/SegmentedControl.tsx` component accepting `options: { value: T; label: string }[]`, `value: T`, and `onChange: (v: T) => void`. Migrate the 12 existing call sites. The component should apply the standard outer `flex bg-slate-100 p-1 rounded-xl` chrome and standardize inner button sizing, rounded corners, and `aria-pressed` attributes. This is a pure visual refactor with no behavior change.
+
+### MEDIUM Admin panels duplicate font-options arrays — no shared `FontFamilySelect` primitive
+
+- **Detected:** 2026-06-10
+- **File:** components/admin/ChecklistConfigurationPanel.tsx, NumberLineConfigurationPanel.tsx, StationsConfigurationPanel.tsx, ConceptWebConfigurationPanel.tsx, RevealGridConfigurationPanel.tsx, GraphicOrganizerConfigurationModal.tsx
+- **Detail:** At least 6 admin building-config panels declare their own local font-options array with `{ value: 'global', label: 'Inherit (building default)' }` as the first entry and the four family values below. Two panels (`NumberLine`, `GraphicOrganizer`) define a named `FONT_OPTIONS` constant; four use an inline `<select>` with raw option strings. Any future addition of a font family to the project (or a rename of the `'global'` sentinel) must be updated in 6 places. `StationsConfigurationPanel` uses the prefixed `FONTS` array (font-sans etc.) while the others use bare `GlobalFontFamily` values — a correctness distinction that could be lost in a copy-paste.
+- **Fix:** Create a shared `components/admin/common/FontFamilySelect.tsx` component (or a `ADMIN_FONT_OPTIONS` constant in a shared admin-config utility) that exports the two option-set variants (prefixed for widgets using `TypographySettings`, bare for widgets using `GlobalFontFamily` directly). Replace the 6 local arrays with imports from the shared source.
 
 ### MEDIUM `MusicWidget/Settings.tsx` implements inline background/text color picker instead of `SurfaceColorSettings`
 
@@ -65,12 +81,12 @@ _Nothing currently in progress._
 - **Detail:** Per the audit, `NextUpConfig`, `VideoActivityConfig`, and `GuidedLearningConfig` all declare `fontFamily`, `fontColor`, `cardColor`, and `cardOpacity` fields (matching the standard appearance field set). However, none of `nextUp`, `video-activity`, or `guided-learning` have entries in `WIDGET_APPEARANCE_COMPONENTS` in `WidgetRegistry.ts`. This means the Appearance tab is never shown in the DraggableWindow flip panel for these widgets, and teachers cannot adjust their visual appearance despite the config fields existing.
 - **Fix:** For each widget: (1) Create or add an `*AppearanceSettings` export to the corresponding `Settings.tsx` that renders `TypographySettings` and `SurfaceColorSettings` (following the `SpecialistScheduleAppearanceSettings` pattern). (2) Register in `WIDGET_APPEARANCE_COMPONENTS`: `'nextUp': lazyNamed(...)`, `'video-activity': lazyNamed(...)`, `'guided-learning': lazyNamed(...)`. Verify the widget `Widget.tsx` files actually consume the four config fields before wiring up the panel — if any field is not consumed, remove it from the interface (per the CarRiderProConfig precedent) rather than adding a dead UI control.
 
-### LOW Hardcoded brand hex colors in `StudentPageView.tsx` and `RevealGridConfigurationPanel.tsx`
+### LOW Hardcoded brand hex colors across admin panels and widget files (expanded 2026-06-10)
 
-- **Detected:** 2026-06-05
-- **File:** components/admin/ (StudentPageView.tsx, RevealGridConfigurationPanel.tsx)
-- **Detail:** `StudentPageView.tsx` uses `#2d3f89` (brand blue) and `#ad2122` (brand red) as inline style hex values in what appears to be the organization student landing-page config view. `RevealGridConfigurationPanel.tsx` uses `#dbeafe` (blue-100) and `#dcfce7` (green-100) as default card color values in the admin building config panel. These should reference the design-system color palette (Tailwind config values or CSS variables) rather than raw hex literals. Note: the existing LOW item already tracks `Countdown/Settings.tsx`, `Countdown/Widget.tsx`, and `AnalyticsManager.tsx` — this item adds the newly found admin-panel occurrences.
-- **Fix:** In `StudentPageView.tsx`, replace hardcoded `#2d3f89` / `#ad2122` with `var(--spart-primary, #2d3f89)` / `var(--spart-accent, #ad2122)` or the corresponding Tailwind classes. In `RevealGridConfigurationPanel.tsx`, use named Tailwind palette values (e.g. `'bg-blue-100'` token string → a CSS variable reference or the config's `WIDGET_PALETTE`) rather than raw hex literals as defaults.
+- **Detected:** 2026-06-05 (StudentPageView, RevealGridConfigurationPanel), expanded 2026-06-10
+- **File:** components/admin/StudentPageView.tsx, components/admin/RevealGridConfigurationPanel.tsx, components/admin/NextUpConfigurationPanel.tsx, components/widgets/MaterialsWidget/Settings.tsx, components/widgets/MaterialsWidget/index.tsx, components/widgets/GuidedLearning/components/interactions/BannerInteraction.tsx, components/auth/NewUserSetup.tsx, components/boardsModal/CollectionColorPicker.tsx
+- **Detail:** 27 total occurrences of `#2d3f89` (brand primary) or `#ad2122` (brand accent) without `var(--spart-primary)` / `var(--spart-accent)` wrapping, found across: `StudentPageView.tsx` (color picker palette), `RevealGridConfigurationPanel.tsx` (default card color values `#dbeafe`/`#dcfce7` — Tailwind blue-100/green-100 should use palette constants), `NextUpConfigurationPanel.tsx` (lines 24, 106–107 — default `themeColor` and picker palette), `MaterialsWidget/Settings.tsx` (line 23 — `titleColor = '#2d3f89'` default), `MaterialsWidget/index.tsx` (line 38 — same default in component), `BannerInteraction.tsx` (lines 12–13 — gradient strings), `NewUserSetup.tsx` (line 99 — color picker array entry), `CollectionColorPicker.tsx` (lines 15–16, 46 — brand colors in palette). The `AnalyticsManager.tsx` and `Countdown/Settings.tsx` / `Countdown/Widget.tsx` occurrences are tracked in the separate LOW item below.
+- **Fix:** For each occurrence: replace `'#2d3f89'` with `'var(--spart-primary, #2d3f89)'` in inline style props; for color-picker palette arrays that list the brand color as a named option, keep the raw hex as the option value but ensure the display label is "Brand Blue / Primary" so future palette changes are obvious. `AnalyticsManager.tsx` Recharts `fill=` props cannot use CSS variables directly — use `getComputedStyle(document.documentElement).getPropertyValue('--spart-primary').trim()` to read the resolved value at render time.
 
 ### LOW Hardcoded brand hex colors in `Countdown/Settings.tsx`, `Countdown/Widget.tsx`, and `AnalyticsManager.tsx`
 

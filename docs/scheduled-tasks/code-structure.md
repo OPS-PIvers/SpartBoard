@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-06-05_
+_Last audited: 2026-06-10_
 _Last action: 2026-05-22 — HIGH DashboardContext extraction assessed and BLOCKED pending supervised runtime-verified session_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-10: Weekly audit pass. DashboardContext.tsx confirmed at 5,596 lines (same as 2026-06-05 — no structural changes since). BLOCKED extraction status unchanged. functions/src/index.ts confirmed at 4,305 lines — organically growing domain-split pattern continues. Four new open items added: cardOpacity validation duplication in adminBuildingConfig.ts, stale v1 logger import in finalizeIdleQuizAttempts.ts, OAuth Cloud Functions missing explicit timeoutSeconds, and concurrent userProfile reads/writes between AuthContext and DashboardContext._
 
 _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 5,275 on 2026-05-27). BLOCKED extraction status unchanged. functions/src/index.ts now 4,305 lines — domain split organically in progress (spotifyOAuth.ts, syncedQuizGroups.ts etc.). All Cloud Functions confirmed on v2; no v1 imports found. New LOW finding: feature_permissions and global_permissions read coordination between AuthContext and DashboardContext could benefit from documentation. adminBuildingConfig.ts: font-validation constants duplicated across reveal-grid/numberLine/concept-web cases (related to existing LOW simple-switch-cases item). Test imports with 3+ ../../ levels are all in .test.tsx files using vi.mock() — acceptable. No new large-file violations beyond what's already tracked. 1 new LOW open item added._
 
@@ -56,6 +58,41 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
   - **`useDashboardDriveSync`** — Drive logic is not one isolated block: the background-export effect (2255–2302) is intertwined with `saveDashboardFirestore` + `scrubDashboardPII`, the PII-restore effect (2319+) mutates widget config, and Drive calls are also embedded in save/share/restore paths (1171–1460). The auth-error handler (615–632) and `useDriveReconnected` latch (2315) are separable but small.
   - **Pure-function seams** — already harvested: `getAdminBuildingConfig` (utils/adminBuildingConfig.ts, May 13), `pickInitialBoard` (utils/pickInitialBoard.ts), migration (utils/migration.ts, migrateProportionalLayout.ts, collectionsMigration.ts). No clean unit-testable pure block remains inline.
   - **Verification gap:** there is no unit-test coverage for the navigation or Drive-sync effects, and no Firebase/Drive runtime in the scheduled-task environment, so `type-check`/`lint`/`vitest` would not catch a navigation, sync-timing, or PII-restore regression on the app's most critical state file. Recommend a dedicated supervised session that can exercise board switching, collection switching, and Drive sync against a live/emulated Firebase project before landing this extraction.
+
+### MEDIUM `adminBuildingConfig.ts` — `cardOpacity` range-check block copy-pasted 4 times
+
+- **Detected:** 2026-06-10
+- **File:** utils/adminBuildingConfig.ts (lines 183–187, 266–270, 282–286, 412–416)
+- **Detail:** The following five-line cardOpacity guard is duplicated verbatim in four switch cases (`numberLine`, `checklist`, `stations`, `concept-web`):
+  ```typescript
+  typeof raw.cardOpacity === 'number' &&
+    Number.isFinite(raw.cardOpacity) &&
+    raw.cardOpacity >= 0 &&
+    raw.cardOpacity <= 1;
+  ```
+  This is distinct from the existing LOW "simple switch cases" item (which concerns single-field type-check cases). The cardOpacity block is a multi-condition range validator — any future fix (e.g., allowing `null` as a reset sentinel, or widening the valid range to `0.05–1`) must be applied in four places, and the current duplication has already caused one appearance (the `stations` case) to diverge slightly in guard structure from the others.
+- **Fix:** Extract a private `validateCardOpacity(raw: unknown): boolean` helper at the top of `adminBuildingConfig.ts` (or reuse the existing `isCardOpacity` if one already exists in `utils/widgetHelpers.ts`). Replace the four inline blocks with a call to the helper. Pure refactor — no behavior change. Then extend the existing LOW "simple switch cases" item's data-declaration approach to cover the appearance-field quartet (`cardColor`, `cardOpacity`, `fontFamily`, `fontColor`) shared by multiple cases.
+
+### MEDIUM Concurrent reads and writes to `userProfile` document between `AuthContext` and `DashboardContext`
+
+- **Detected:** 2026-06-10
+- **File:** context/AuthContext.tsx (line 266 approx), context/DashboardContext.tsx (lines 997–998, 1117–1122, 4029–4039)
+- **Detail:** The `/users/{uid}/userProfile/profile` document is read by both contexts on mount and written by both at runtime. `AuthContext` owns `setupCompleted`, `selectedBuildings`, `language`, `savedWidgetConfigs`, `lastBoardIdByCollection`, and related fields. `DashboardContext` reads `dockItems` from the same doc (via `getDoc` at lines 997–998) and writes both `dockItems` and `lastBoardIdByCollection` (lines 1117–1122 and 4029–4039, both using `setDoc({ merge: true })`). The `lastBoardIdByCollection` field is written by DashboardContext (line 4029) and read by AuthContext (line 266) with no coordination. While `{ merge: true }` prevents whole-document overwrites, a race where DashboardContext writes a stale full-document snapshot (if it ever uses `setDoc` without merge) could silently clobber fields owned by AuthContext.
+- **Fix:** Designate a single owning context for the userProfile document. Option A: make `AuthContext` the sole writer (DashboardContext calls an `AuthContext`-provided `updateDockItems` action instead of writing directly). Option B: document the field ownership contract with comments in both files so future developers cannot accidentally add a non-merge write. Short-term: audit every `setDoc` call targeting this path to confirm all use `{ merge: true }` — add a lint comment or assertion if not.
+
+### LOW Stale v1 `logger` import in `finalizeIdleQuizAttempts.ts`
+
+- **Detected:** 2026-06-10
+- **File:** functions/src/finalizeIdleQuizAttempts.ts (line 30)
+- **Detail:** `import { logger } from 'firebase-functions'` imports the `logger` utility from the v1 root package, while the function itself uses `onSchedule` from `firebase-functions/v2`. All other functions files import `logger` from `firebase-functions/v2` or the neutral `firebase-functions/logger`. This unnecessarily pulls in the v1 module tree alongside the v2 import.
+- **Fix:** Change `import { logger } from 'firebase-functions'` to `import { logger } from 'firebase-functions/v2'` (or `from 'firebase-functions/logger'` to use the package-neutral export). No behavior change.
+
+### LOW OAuth Cloud Functions lack explicit `timeoutSeconds` — tail-risk on external HTTP calls
+
+- **Detected:** 2026-06-10
+- **File:** functions/src/googleOAuth.ts (lines 224, 451, 470), functions/src/spotifyOAuth.ts (lines 179, 289, 477)
+- **Detail:** Six OAuth functions (`exchangeGoogleAuthCode`, `refreshGoogleAccessToken`, `revokeGoogleRefreshToken`, `exchangeSpotifyAuthCode`, `refreshSpotifyAccessToken`, `revokeSpotifyAuth`) rely on the v2 default `timeoutSeconds: 60`. Each makes at least one external HTTP call to Google or Spotify token endpoints. If those endpoints hang (which they occasionally do under throttle), a 60-second timeout creates unnecessary cost — the function will keep a warm instance alive for the full timeout before failing. An explicit 30-second cap would better match the SLA of the token endpoints.
+- **Fix:** Add `timeoutSeconds: 30` to the `onCall` options object in each of the six functions. This is a no-op for healthy requests and caps runaway costs on external endpoint hangs. Also consider adding `memory: '256MiB'` explicitly to document the resource tier (currently relying on the 256 MiB default).
 
 ### LOW `getAdminBuildingConfig` has 10+ near-identical single-field switch cases
 
