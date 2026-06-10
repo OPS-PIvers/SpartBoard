@@ -1016,7 +1016,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     }
 
     return (
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col">
         {list.map((assignment) => (
           <VideoActivityArchiveRow
             key={assignment.id}

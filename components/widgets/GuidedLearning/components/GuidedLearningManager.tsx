@@ -1124,7 +1124,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       );
     }
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col">
         {list.map((a) => renderAssignmentCard(a, mode))}
       </div>
     );

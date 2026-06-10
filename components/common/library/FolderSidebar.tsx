@@ -224,9 +224,12 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         className={`flex items-center rounded-lg font-semibold text-left transition-colors ${
           isRail ? 'justify-center' : ''
         } ${
+          // Same subtle selected tint as folder rows (FolderTree) — the old
+          // solid-blue treatment made the root look like a different control
+          // one pixel away from its siblings.
           selectedFolderId === null
-            ? 'bg-brand-blue-primary text-white'
-            : 'text-brand-blue-dark hover:bg-white'
+            ? 'bg-brand-blue-primary/10 text-brand-blue-dark'
+            : 'text-slate-700 hover:bg-slate-100'
         } ${
           isRootOver
             ? 'ring-2 ring-brand-blue-primary/60 bg-brand-blue-lighter/40'
@@ -249,12 +252,15 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         {!isRail && <span className="flex-1 truncate">All items</span>}
         {!isRail && rootCount > 0 && (
           <span
-            className={`font-bold ${
+            className={`inline-flex items-center justify-center rounded-full font-bold leading-none ${
               selectedFolderId === null
-                ? 'text-white/80'
-                : 'text-brand-blue-primary/60'
+                ? 'bg-brand-blue-primary/20 text-brand-blue-dark'
+                : 'bg-slate-200 text-slate-600'
             }`}
-            style={{ fontSize: 'min(10px, 3cqmin)' }}
+            style={{
+              paddingInline: 'min(6px, 1.5cqmin)',
+              fontSize: 'min(10px, 3cqmin)',
+            }}
           >
             {rootCount}
           </span>

@@ -39,7 +39,7 @@ const SortDropdown: React.FC<{
           onClick={() => setOpen((v) => !v)}
           aria-haspopup="listbox"
           aria-expanded={open}
-          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
         >
           <ArrowUpDown size={14} className="shrink-0 text-slate-500" />
           <span className="truncate">{active?.label ?? 'Sort'}</span>
@@ -106,7 +106,7 @@ const FilterDropdown: React.FC<{
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label={label}
-        className={`appearance-none rounded-xl border bg-white shadow-sm pl-3 pr-8 py-2 text-sm font-bold transition-colors cursor-pointer hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30 ${
+        className={`appearance-none rounded-xl border bg-white shadow-sm pl-3 pr-8 py-1.5 text-sm font-bold transition-colors cursor-pointer hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30 ${
           isActive
             ? 'border-brand-blue-primary/40 text-brand-blue-primary'
             : 'border-slate-200 text-slate-700'
@@ -146,7 +146,7 @@ const ViewModeToggle: React.FC<{
         aria-label={label}
         title={label}
         onClick={() => onChange(mode)}
-        className={`inline-flex items-center justify-center px-2.5 py-2 transition-colors ${
+        className={`inline-flex items-center justify-center px-2.5 py-1.5 transition-colors ${
           selected
             ? 'bg-brand-blue-primary text-white'
             : 'text-slate-500 hover:bg-slate-50'
@@ -196,7 +196,7 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={searchPlaceholder}
-          className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm font-medium text-slate-700 placeholder:text-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30 focus:border-brand-blue-primary/40"
+          className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 py-1.5 text-sm font-medium text-slate-700 placeholder:text-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30 focus:border-brand-blue-primary/40"
         />
       </div>
 
