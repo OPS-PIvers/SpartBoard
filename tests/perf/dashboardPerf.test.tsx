@@ -21,6 +21,17 @@
  * For each scenario we record:
  *   - Profiler commit COUNT (primary metric — must be identical run-to-run)
  *   - summed actualDuration (indicative only; machine-dependent)
+ *   - PER-SHELL RENDER COUNTS: every DraggableWindow render invocation is
+ *     counted per widget id (via a counting wrapper around the real
+ *     component), recorded as totalShellRenders + a per-widget breakdown.
+ *     This is the ruler for the context-split refactor, and the contract is
+ *     now ASSERTED: a single-widget mutation (bringToFront / add / remove /
+ *     minimize / restore) must parent-drive renders of ONLY the affected
+ *     shell(s) — untouched shells must show 0 in the per-scenario diff.
+ *     The wrapper observes parent-driven (WidgetRenderer-driven) renders;
+ *     selector-driven internal re-renders inside DraggableWindow are pinned
+ *     separately by context/dashboardCanvasStore.test.tsx, so together the
+ *     two layers cover the whole metric.
  *
  * Results are written to tests/perf/results/dashboard-baseline.json. The
  * test asserts only that metrics were produced and that the gestures had
@@ -73,34 +84,53 @@ import type {
 
 // ─── Shared fixtures (hoisted so vi.mock factories can use them) ────────────
 
-const { STUB_WIDGET_TYPES } = vi.hoisted(() => ({
-  // 15 widgets across 8 distinct types — all on the standard (non-position-
-  // aware) drag path, which is what every widget except the 3 catalyst types
-  // uses. All are registered skipScaling so the container-query branch of
-  // WidgetRenderer is exercised (the majority path per WidgetRegistry).
-  STUB_WIDGET_TYPES: [
-    'clock',
-    'text',
-    'checklist',
-    'poll',
-    'weather',
-    'schedule',
-    'dice',
-    'scoreboard',
-    'clock',
-    'text',
-    'checklist',
-    'poll',
-    'weather',
-    'schedule',
-    'dice',
-  ] as const,
-}));
+const { STUB_WIDGET_TYPES, shellRenderCounts, countShellRender } = vi.hoisted(
+  () => {
+    // Render-invocation counts of the DraggableWindow shell, keyed by widget
+    // id. Widgets added mid-test get random UUIDs, so those are normalized to
+    // a stable label to keep the results JSON identical run-to-run.
+    const counts = new Map<string, number>();
+    return {
+      shellRenderCounts: counts,
+      countShellRender: (widgetId: string) => {
+        const key = /^w-\d+$/.test(widgetId) ? widgetId : 'added-widget';
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      },
+      // 15 widgets across 8 distinct types — all on the standard (non-position-
+      // aware) drag path, which is what every widget except the 3 catalyst types
+      // uses. All are registered skipScaling so the container-query branch of
+      // WidgetRenderer is exercised (the majority path per WidgetRegistry).
+      STUB_WIDGET_TYPES: [
+        'clock',
+        'text',
+        'checklist',
+        'poll',
+        'weather',
+        'schedule',
+        'dice',
+        'scoreboard',
+        'clock',
+        'text',
+        'checklist',
+        'poll',
+        'weather',
+        'schedule',
+        'dice',
+      ] as const,
+    };
+  }
+);
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
-vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({
+vi.mock('@/context/useAuth', () => {
+  // ONE stable value object, mirroring the real AuthContext where the
+  // callbacks are useCallbacks and the value is memoized. A fresh object per
+  // call would hand DashboardContext an unstable `saveWidgetConfig`, making
+  // `updateWidget` (deps: [saveWidgetConfig]) churn identity every provider
+  // render and pierce every shell's memo() — a mock artifact, not production
+  // behavior — which would mask the per-shell render metric below.
+  const stableAuthValue = {
     user: {
       uid: 'perf-user',
       displayName: 'Perf Teacher',
@@ -123,8 +153,9 @@ vi.mock('@/context/useAuth', () => ({
     canAccessFeature: () => false,
     canAccessWidget: () => true,
     disableCloseConfirmation: false,
-  }),
-}));
+  };
+  return { useAuth: () => stableAuthValue };
+});
 
 type SnapshotCb = (dashboards: Dashboard[], hasPendingWrites: boolean) => void;
 let capturedSnapshotCb: SnapshotCb | null = null;
@@ -246,6 +277,26 @@ vi.mock('@/components/widgets/WidgetRegistry', () => {
   };
 });
 
+// Per-shell render counter: re-export the REAL DraggableWindow wrapped in a
+// component that bumps a per-widget-id counter on every render invocation.
+// The wrapper renders exactly when WidgetRenderer re-creates the shell's
+// element, so its count is the "did this untouched shell re-render?" ruler —
+// it stays put when the canvas bails out above the shell and drops to ~0 for
+// untouched widgets once the context split lands.
+vi.mock('@/components/common/DraggableWindow', async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import('@/components/common/DraggableWindow')
+    >();
+  const ReactActual = await import('react');
+  const RealDraggableWindow = actual.DraggableWindow;
+  const CountingDraggableWindow: typeof actual.DraggableWindow = (props) => {
+    countShellRender(props.widget.id);
+    return ReactActual.createElement(RealDraggableWindow, props);
+  };
+  return { ...actual, DraggableWindow: CountingDraggableWindow };
+});
+
 vi.mock('@/components/widgets/LiveControl', () => ({
   LiveControl: () => null,
 }));
@@ -313,13 +364,28 @@ interface ScenarioMetric {
   scenario: string;
   commits: number;
   actualDurationMs: number;
+  totalShellRenders: number;
+  shellRendersByWidget: Record<string, number>;
 }
 
 const metrics: ScenarioMetric[] = [];
 
+/** Per-widget delta of shellRenderCounts since the given baseline snapshot. */
+function shellRenderDeltas(
+  baseline: ReadonlyMap<string, number>
+): Record<string, number> {
+  const deltas: Record<string, number> = {};
+  for (const key of [...shellRenderCounts.keys()].sort()) {
+    const delta = (shellRenderCounts.get(key) ?? 0) - (baseline.get(key) ?? 0);
+    if (delta > 0) deltas[key] = delta;
+  }
+  return deltas;
+}
+
 function createRecorder() {
   let commits = 0;
   let duration = 0;
+  let shellBaseline: ReadonlyMap<string, number> = new Map();
   const onRender: ProfilerOnRenderCallback = (_id, _phase, actualDuration) => {
     commits += 1;
     duration += actualDuration;
@@ -329,12 +395,19 @@ function createRecorder() {
     start() {
       commits = 0;
       duration = 0;
+      shellBaseline = new Map(shellRenderCounts);
     },
     record(scenario: string) {
+      const shellRendersByWidget = shellRenderDeltas(shellBaseline);
       metrics.push({
         scenario,
         commits,
         actualDurationMs: Number(duration.toFixed(3)),
+        totalShellRenders: Object.values(shellRendersByWidget).reduce(
+          (sum, n) => sum + n,
+          0
+        ),
+        shellRendersByWidget,
       });
     },
   };
@@ -430,7 +503,8 @@ function getCtx(): ReturnType<typeof useDashboard> {
 /**
  * Mirrors the production wiring in DashboardView → MountedBoardsLayer →
  * BoardCanvas: context state and callbacks flow down as props, while
- * DraggableWindow additionally reads useDashboard() directly.
+ * DraggableWindow/WidgetRenderer read the stable actions context and the
+ * canvas hot-slice selectors directly (context/dashboardCanvasStore.ts).
  */
 const BoardHarness: React.FC = () => {
   const ctx = useDashboard();
@@ -447,8 +521,6 @@ const BoardHarness: React.FC = () => {
       session={null}
       students={EMPTY_STUDENTS}
       emptyStudents={EMPTY_STUDENTS}
-      selectedWidgetId={ctx.selectedWidgetId}
-      zoom={ctx.zoom}
       updateSessionConfig={noopAsync}
       updateSessionBackground={noopAsync}
       startSession={startSessionStub}
@@ -660,7 +732,38 @@ describe('dashboard canvas performance baseline', () => {
     for (const m of metrics) {
       expect(m.commits).toBeGreaterThanOrEqual(0);
       expect(m.actualDurationMs).toBeGreaterThanOrEqual(0);
+      expect(m.totalShellRenders).toBeGreaterThanOrEqual(0);
     }
+    // The mount must have rendered all 15 shells at least once each.
+    const mount = metrics.find((m) => m.scenario === 'mount15');
+    expect(Object.keys(mount?.shellRendersByWidget ?? {})).toHaveLength(15);
+
+    // Context-split contract (deterministic render-count facts, not
+    // durations): a single-widget mutation parent-drives renders of ONLY
+    // the affected shell(s). An untouched shell appearing in a scenario's
+    // per-widget diff means something re-introduced a board-wide
+    // subscription (or broke widget identity preservation) — exactly the
+    // regression this ruler exists to catch.
+    const shellDiff = (scenario: string): string[] => {
+      const m = metrics.find((x) => x.scenario === scenario);
+      if (!m) throw new Error(`scenario ${scenario} not recorded`);
+      return Object.keys(m.shellRendersByWidget).sort();
+    };
+    // Each pointer-down raised one widget; only those five shells rendered.
+    expect(shellDiff('bringToFront5')).toEqual([
+      'w-1',
+      'w-2',
+      'w-3',
+      'w-4',
+      'w-6',
+    ]);
+    // Adding mounts only the new shell; removal unmounts without rendering
+    // any surviving shell.
+    expect(shellDiff('addWidget')).toEqual(['added-widget']);
+    expect(shellDiff('removeWidget')).toEqual([]);
+    // Minimize/restore touch only the targeted widget's shell.
+    expect(shellDiff('minimize')).toEqual(['w-3']);
+    expect(shellDiff('restore')).toEqual(['w-3']);
   });
 });
 
@@ -678,9 +781,13 @@ afterAll(() => {
         generatedAt: new Date().toISOString(),
         runCommand: 'pnpm exec vitest run tests/perf/dashboardPerf.test.tsx',
         note:
-          'Profiler commit counts are the deterministic primary metric and ' +
-          'must be identical across runs. actualDurationMs is machine-' +
-          'dependent and indicative only — compare medians of 3 runs.',
+          'Profiler commit counts and per-shell render counts are the ' +
+          'deterministic primary metrics and must be identical across runs. ' +
+          'totalShellRenders sums DraggableWindow render invocations across ' +
+          'all widgets per scenario; shellRendersByWidget shows which shells ' +
+          'rendered (widgets added mid-test are keyed "added-widget"). ' +
+          'actualDurationMs is machine-dependent and indicative only — ' +
+          'compare medians of 3 runs.',
         skipped:
           'Snap-overlay edge snapping and the snap-layout menu need real ' +
           'viewport geometry, so they are not exercised in jsdom; the drag ' +

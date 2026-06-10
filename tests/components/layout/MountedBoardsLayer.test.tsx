@@ -37,8 +37,6 @@ const noopProps = {
   animationClass: '',
   students: [],
   emptyStudents: [],
-  selectedWidgetId: null,
-  zoom: 1,
   globalStyle: {},
   updateSessionConfig: () => undefined,
   updateSessionBackground: () => undefined,
