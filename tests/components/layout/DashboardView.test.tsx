@@ -980,7 +980,10 @@ describe('DashboardView Gestures & Navigation', () => {
     });
 
     it('should NOT call setGroupBuildMode when Escape is pressed inside an input', () => {
-      render(<DashboardView />);
+      // renderView (not bare render): groupBuildMode=true mounts BoardCanvas's
+      // GroupBoundingBoxLayer, whose canvas-store selector needs the legacy
+      // DashboardContext provider the helper supplies.
+      renderView();
 
       // Sanity: the focused element is our input.
       expect(document.activeElement).toBe(inputEl);
@@ -999,7 +1002,7 @@ describe('DashboardView Gestures & Navigation', () => {
       document.body.appendChild(textarea);
       textarea.focus();
 
-      render(<DashboardView />);
+      renderView();
 
       expect(document.activeElement).toBe(textarea);
       fireEvent.keyDown(window, { key: 'Escape' });
@@ -1012,7 +1015,7 @@ describe('DashboardView Gestures & Navigation', () => {
       // Move focus away from the input (to body or a non-typing element).
       inputEl.blur();
 
-      render(<DashboardView />);
+      renderView();
 
       // document.activeElement is now body (not a typing field).
       expect(

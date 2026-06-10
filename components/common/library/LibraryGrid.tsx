@@ -136,7 +136,10 @@ export function LibraryGrid<TItem>(
     ? verticalListSortingStrategy
     : rectSortingStrategy;
 
-  const containerClass = isListLayout ? 'flex flex-col gap-3' : 'gap-3';
+  // List rows carry their own hairline separators (border-b on the card),
+  // so the list container is gapless — gaps between hairline rows read as
+  // broken dividers.
+  const containerClass = isListLayout ? 'flex flex-col' : 'gap-3';
   const containerStyle: React.CSSProperties | undefined = isListLayout
     ? undefined
     : {
