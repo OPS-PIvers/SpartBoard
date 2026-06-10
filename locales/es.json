@@ -891,6 +891,13 @@
       "emptyBoardHint": "Arrastra herramientas desde el Dock para empezar",
       "switchBoardsHint": "Usa los controles de navegación en la parte inferior izquierda para cambiar de tablero"
     },
+    "seatingChart": {
+      "emptyStateAssignTitle": "Aula vacía",
+      "emptyStateAssignSubtitle": "Cambia a «Configurar» para organizar el mobiliario.",
+      "emptyStateSetupTitle": "Sin mobiliario",
+      "emptyStateFreeform": "Añade mobiliario desde la barra lateral.",
+      "emptyStateTemplate": "Elige una plantilla y haz clic en Aplicar diseño."
+    },
     "schedule": {
       "startTimer": "Iniciar Temporizador",
       "startTimerUntil": "Iniciar cuenta regresiva hasta {{time}}"
