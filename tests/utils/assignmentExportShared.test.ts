@@ -166,6 +166,40 @@ describe('buildResultsSheetData', () => {
     expect(dataRows[1][3]).toBe('Zara');
   });
 
+  // Regression: Firestore arrayUnion races / Drive-sync double-writes can
+  // produce duplicate answer entries for the same questionId. The original
+  // `new Map(r.answers.map(...))` constructor kept the LAST duplicate, but
+  // `getEarnedPoints` (used for the published score) kept the FIRST (by
+  // chronological sort). When the last duplicate is wrong and the first is
+  // correct, the exported score would be 0% even though the student's
+  // published score is 100%. Fix: discard every answer after the first
+  // occurrence per questionId, matching the "first-wins" semantics of the
+  // scoring path.
+  it('deduplicates duplicate answers per question by first-occurrence', () => {
+    // Grader that awards full credit for 'correct' and zero for anything else.
+    const gradeFn = (_q: ExportableQuestion, answer: string): GradeResult => ({
+      isCorrect: answer === 'correct',
+      pointsEarned: answer === 'correct' ? 1 : 0,
+      pointsMax: 1,
+    });
+
+    const response = r({
+      answers: [
+        { questionId: 'q1', answer: 'correct' }, // first — should win
+        { questionId: 'q1', answer: 'wrong' }, // duplicate — should be ignored
+      ],
+    });
+
+    const { dataRows } = buildResultsSheetData([response], [q()], gradeFn);
+
+    // Score column index 6: should be 100% (first answer correct), not 0%
+    expect(dataRows[0][6]).toBe('100%');
+    // Points Earned column index 7: should be 1
+    expect(dataRows[0][7]).toBe('1');
+    // Q1 column (index 11): should show the first answer's earned points
+    expect(dataRows[0][11]).toBe('1');
+  });
+
   it('handles empty questions and responses without crashing', () => {
     const empty = buildResultsSheetData([], [], ALWAYS_FULL);
     expect(empty.headers).toHaveLength(11); // 11 fixed cols + 0 question cols
