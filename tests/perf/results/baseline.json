@@ -1,52 +1,67 @@
 {
-  "generatedAt": "2026-06-10T02:14:58.948Z",
+  "generatedAt": "2026-06-10T02:26:39.002Z",
   "runCommand": "pnpm exec vitest run tests/perf/editorPerf.test.tsx",
   "note": "Profiler commit counts are the deterministic primary metric and must be identical across runs. actualDurationMs is machine-dependent and indicative only — compare medians of 3 runs.",
   "scenarios": [
     {
       "scenario": "quiz.mount",
       "commits": 3,
-      "actualDurationMs": 220.575
+      "actualDurationMs": 157.953
     },
     {
       "scenario": "quiz.type25",
       "commits": 25,
-      "actualDurationMs": 621.426
+      "actualDurationMs": 246.164
     },
     {
       "scenario": "quiz.switchSelection10",
       "commits": 18,
-      "actualDurationMs": 480.929
+      "actualDurationMs": 167.252
     },
     {
       "scenario": "quiz.addQuestion",
       "commits": 2,
-      "actualDurationMs": 40.632
+      "actualDurationMs": 12.219
     },
     {
       "scenario": "va.mount",
       "commits": 4,
-      "actualDurationMs": 220.366
+      "actualDurationMs": 94.843
     },
     {
       "scenario": "va.type25",
       "commits": 25,
-      "actualDurationMs": 418.687
+      "actualDurationMs": 224.758
     },
     {
       "scenario": "va.switchSelection10",
       "commits": 10,
-      "actualDurationMs": 183.584
+      "actualDurationMs": 73.925
+    },
+    {
+      "scenario": "va.addTask",
+      "commits": 2,
+      "actualDurationMs": 22.996
     },
     {
       "scenario": "gl.mount",
       "commits": 3,
-      "actualDurationMs": 121.252
+      "actualDurationMs": 43.422
     },
     {
       "scenario": "gl.type25",
       "commits": 25,
-      "actualDurationMs": 685.136
+      "actualDurationMs": 269.104
+    },
+    {
+      "scenario": "gl.switchSlide10",
+      "commits": 10,
+      "actualDurationMs": 124.541
+    },
+    {
+      "scenario": "gl.addStep",
+      "commits": 3,
+      "actualDurationMs": 27.432
     }
   ]
 }
