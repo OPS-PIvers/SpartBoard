@@ -4705,9 +4705,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             return w;
           });
 
+          // Widget id not on this board — keep the dashboard object identity
+          // so memoized consumers don't re-render on a no-op.
+          if (!widgetType) return d;
+
           // Save config globally so new instances inherit settings.
           // saveWidgetConfig handles transient-key stripping (including PII fields).
-          if (widgetType && updates.config) {
+          if (updates.config) {
             saveWidgetConfig(widgetType, updates.config);
           }
 
@@ -4842,22 +4846,37 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const active = prev.find((d) => d.id === activeIdRef.current);
       if (!active) return prev;
 
-      const maxZ = active.widgets.reduce((max, w) => Math.max(max, w.z), 0);
-      const target = active.widgets.find((w) => w.id === id);
+      // Single pass: locate the target and the board-wide max z. Runs in the
+      // pointer-down handler, so avoid the reduce/filter/sort/spread chain
+      // and its transient array allocations.
+      let maxZ = 0;
+      let target: WidgetData | undefined;
+      for (const w of active.widgets) {
+        if (w.z > maxZ) maxZ = w.z;
+        if (w.id === id) target = w;
+      }
       if (!target) return prev;
 
       // If widget is in a group, bring the entire group to front
       if (target.groupId) {
-        const groupMembers = active.widgets
-          .filter((w) => w.groupId === target.groupId)
-          .sort((a, b) => a.z - b.z);
-        const groupIdSet = new Set(groupMembers.map((w) => w.id));
-        const groupMinZ = Math.min(...groupMembers.map((w) => w.z));
-        const nonGroupMaxZ = active.widgets.reduce((max, w) => {
-          if (groupIdSet.has(w.id)) return max;
-          return Math.max(max, w.z);
-        }, Number.NEGATIVE_INFINITY);
+        const groupId = target.groupId;
+        const groupMembers: WidgetData[] = [];
+        let groupMinZ = Number.POSITIVE_INFINITY;
+        let nonGroupMaxZ = Number.NEGATIVE_INFINITY;
+        for (const w of active.widgets) {
+          if (w.groupId === groupId) {
+            groupMembers.push(w);
+            if (w.z < groupMinZ) groupMinZ = w.z;
+          } else if (w.z > nonGroupMaxZ) {
+            nonGroupMaxZ = w.z;
+          }
+        }
         if (groupMinZ > nonGroupMaxZ) return prev; // entire group is already on top
+        // Preserve internal z-order within the group
+        groupMembers.sort((a, b) => a.z - b.z);
+        const newZById = new Map(
+          groupMembers.map((gw, idx) => [gw.id, maxZ + 1 + idx])
+        );
         lastLocalUpdateAt.current = Date.now();
         lastUpdateWasSettingsOnly.current = false;
         return prev.map((d) => {
@@ -4865,10 +4884,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           return {
             ...d,
             widgets: d.widgets.map((w) => {
-              if (!groupIdSet.has(w.id)) return w;
-              // Preserve internal z-order within the group
-              const idx = groupMembers.findIndex((gw) => gw.id === w.id);
-              return { ...w, z: maxZ + 1 + idx };
+              const newZ = newZById.get(w.id);
+              return newZ === undefined ? w : { ...w, z: newZ };
             }),
           };
         });
@@ -4946,47 +4963,45 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const minimizeAllWidgets = useCallback(() => {
-    if (!activeId) return;
+    if (!activeIdRef.current) return;
     if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
-      prev.map((d) =>
-        d.id === activeId
-          ? {
-              ...d,
-              widgets: d.widgets.map((w) => ({
-                ...w,
-                minimized: true,
-                flipped: false,
-              })),
-            }
-          : d
-      )
+      prev.map((d) => {
+        if (d.id !== activeIdRef.current) return d;
+        // Keep object identity for widgets that are already minimized so
+        // memoized renderers skip them; only rebuild when something changes.
+        let changed = false;
+        const widgets = d.widgets.map((w) => {
+          if (w.minimized && !w.flipped) return w;
+          changed = true;
+          return { ...w, minimized: true, flipped: false };
+        });
+        return changed ? { ...d, widgets } : d;
+      })
     );
-  }, [activeId]);
+  }, []);
 
   const restoreAllWidgets = useCallback(() => {
-    if (!activeId) return;
+    if (!activeIdRef.current) return;
     if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
-      prev.map((d) =>
-        d.id === activeId
-          ? {
-              ...d,
-              widgets: d.widgets.map((w) => ({
-                ...w,
-                minimized: false,
-                flipped: false,
-                maximized: false,
-              })),
-            }
-          : d
-      )
+      prev.map((d) => {
+        if (d.id !== activeIdRef.current) return d;
+        // Same identity-preservation pattern as minimizeAllWidgets.
+        let changed = false;
+        const widgets = d.widgets.map((w) => {
+          if (!w.minimized && !w.flipped && !w.maximized) return w;
+          changed = true;
+          return { ...w, minimized: false, flipped: false, maximized: false };
+        });
+        return changed ? { ...d, widgets } : d;
+      })
     );
-  }, [activeId]);
+  }, []);
 
   const deleteAllWidgets = useCallback(() => {
     if (!activeId) return;
