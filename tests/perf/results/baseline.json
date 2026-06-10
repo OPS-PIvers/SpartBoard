@@ -1,79 +1,52 @@
 {
-  "generatedAt": "2026-06-09T23:21:11.984Z",
+  "generatedAt": "2026-06-10T02:14:58.948Z",
   "runCommand": "pnpm exec vitest run tests/perf/editorPerf.test.tsx",
-  "note": "PRE-CHANGE baseline for the GL editor double-commit-per-keystroke pass (pass 2, post-#1920 HEAD). commits = Profiler commit count (deterministic primary metric, identical across 3 runs). medianDurationMs = median summed actualDuration over 3 suite runs (machine-dependent, indicative). NOTE: re-running the harness overwrites this file with a single-run snapshot (actualDurationMs per scenario); to reproduce this shape, run 3x and take per-scenario medians.",
+  "note": "Profiler commit counts are the deterministic primary metric and must be identical across runs. actualDurationMs is machine-dependent and indicative only — compare medians of 3 runs.",
   "scenarios": [
     {
       "scenario": "quiz.mount",
       "commits": 3,
-      "medianDurationMs": 45.159,
-      "runDurationsMs": [45.063, 45.159, 48.726]
+      "actualDurationMs": 220.575
     },
     {
       "scenario": "quiz.type25",
       "commits": 25,
-      "medianDurationMs": 93.92,
-      "runDurationsMs": [93.92, 84.663, 94.895]
+      "actualDurationMs": 621.426
     },
     {
       "scenario": "quiz.switchSelection10",
       "commits": 18,
-      "medianDurationMs": 64.586,
-      "runDurationsMs": [64.586, 63.636, 65.17]
+      "actualDurationMs": 480.929
     },
     {
       "scenario": "quiz.addQuestion",
       "commits": 2,
-      "medianDurationMs": 2.372,
-      "runDurationsMs": [2.184, 2.372, 2.493]
+      "actualDurationMs": 40.632
     },
     {
       "scenario": "va.mount",
       "commits": 4,
-      "medianDurationMs": 14.712,
-      "runDurationsMs": [14.712, 13.842, 15.788]
+      "actualDurationMs": 220.366
     },
     {
       "scenario": "va.type25",
       "commits": 25,
-      "medianDurationMs": 20.438,
-      "runDurationsMs": [20.438, 18.973, 24.057]
+      "actualDurationMs": 418.687
     },
     {
       "scenario": "va.switchSelection10",
       "commits": 10,
-      "medianDurationMs": 30.386,
-      "runDurationsMs": [30.386, 29.402, 34.405]
-    },
-    {
-      "scenario": "va.addTask",
-      "commits": 2,
-      "medianDurationMs": 9.868,
-      "runDurationsMs": [9.342, 9.868, 12.512]
+      "actualDurationMs": 183.584
     },
     {
       "scenario": "gl.mount",
       "commits": 3,
-      "medianDurationMs": 14.581,
-      "runDurationsMs": [14.436, 14.581, 17.436]
+      "actualDurationMs": 121.252
     },
     {
       "scenario": "gl.type25",
-      "commits": 50,
-      "medianDurationMs": 119.305,
-      "runDurationsMs": [132.349, 108.515, 119.305]
-    },
-    {
-      "scenario": "gl.switchSlide10",
-      "commits": 10,
-      "medianDurationMs": 71.707,
-      "runDurationsMs": [71.707, 59.072, 75.731]
-    },
-    {
-      "scenario": "gl.addStep",
-      "commits": 3,
-      "medianDurationMs": 18.369,
-      "runDurationsMs": [18.369, 17.831, 19.393]
+      "commits": 25,
+      "actualDurationMs": 685.136
     }
   ]
 }
