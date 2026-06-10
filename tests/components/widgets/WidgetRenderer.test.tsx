@@ -5,6 +5,10 @@ import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
 import { WidgetData, GlobalStyle } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
+import {
+  DashboardContext,
+  type DashboardContextValue,
+} from '@/context/DashboardContextValue';
 import { useWindowSize } from '@/hooks/useWindowSize';
 
 // Mock dependencies
@@ -113,6 +117,20 @@ describe('WidgetRenderer', () => {
     } as unknown as GlobalStyle,
   };
 
+  // WidgetRenderer reads the canvas hot slice via useDashboardCanvasSelector,
+  // which (without DashboardProvider's store mounted) falls back to the
+  // legacy DashboardContext — so mount under a bare provider, the same
+  // alternate-host pattern as SubsDashboardProvider/StudentContexts.
+  const legacyCtxValue = {
+    isActiveBoardReadOnly: false,
+  } as unknown as DashboardContextValue;
+
+  const withCtx = (ui: React.ReactElement) => (
+    <DashboardContext.Provider value={legacyCtxValue}>
+      {ui}
+    </DashboardContext.Provider>
+  );
+
   beforeEach(() => {
     vi.clearAllMocks();
     (useAuth as unknown as Mock).mockReturnValue({
@@ -128,13 +146,13 @@ describe('WidgetRenderer', () => {
   });
 
   it('renders content correctly', () => {
-    render(<WidgetRenderer {...mockProps} />);
+    render(withCtx(<WidgetRenderer {...mockProps} />));
     expect(screen.getByTestId('draggable-window')).toBeInTheDocument();
     expect(screen.getByTestId('widget-content')).toBeInTheDocument();
   });
 
   it('passes stable children callback to ScalableWidget across re-renders', () => {
-    const { rerender } = render(<WidgetRenderer {...mockProps} />);
+    const { rerender } = render(withCtx(<WidgetRenderer {...mockProps} />));
 
     expect(mockScalableWidget).toHaveBeenCalledTimes(1);
     const firstRenderProps = mockScalableWidget.mock
@@ -142,7 +160,7 @@ describe('WidgetRenderer', () => {
 
     // Rerender with CHANGED prop that forces WidgetRenderer to update
     // but should NOT change the ScalableWidget children callback
-    rerender(<WidgetRenderer {...mockProps} isLive={true} />);
+    rerender(withCtx(<WidgetRenderer {...mockProps} isLive={true} />));
 
     expect(mockScalableWidget).toHaveBeenCalledTimes(2);
     const secondRenderProps = mockScalableWidget.mock
@@ -157,7 +175,7 @@ describe('WidgetRenderer', () => {
       ...mockProps,
       dashboardSettings: { spotlightWidgetId: 'w1' },
     };
-    render(<WidgetRenderer {...spotlightProps} />);
+    render(withCtx(<WidgetRenderer {...spotlightProps} />));
 
     expect(mockDraggableWindow).toHaveBeenCalled();
     const props = mockDraggableWindow.mock.calls[0][0] as {

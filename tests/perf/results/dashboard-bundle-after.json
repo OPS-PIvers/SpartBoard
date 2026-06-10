@@ -1,0 +1,17 @@
+{
+  "chunks": [
+    {
+      "name": "WidgetRenderer.js",
+      "gzipKb": 34.6
+    },
+    {
+      "name": "DashboardView.js",
+      "gzipKb": 383.69
+    },
+    {
+      "name": "index.js",
+      "gzipKb": 368.94
+    }
+  ],
+  "totalGzipKb": 787.23
+}

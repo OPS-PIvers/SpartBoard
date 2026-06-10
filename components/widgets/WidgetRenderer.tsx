@@ -18,7 +18,7 @@ import { ScalableWidget } from '@/components/common/ScalableWidget';
 import { WidgetLayoutWrapper } from '@/components/widgets/WidgetLayout';
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { useAuth } from '@/context/useAuth';
-import { useDashboard } from '@/context/useDashboard';
+import { useDashboardCanvasSelector } from '@/context/dashboardCanvasStore';
 import { UI_CONSTANTS } from '@/config/layout';
 import {
   WIDGET_SETTINGS_COMPONENTS,
@@ -26,13 +26,7 @@ import {
   WIDGET_SCALING_CONFIG,
   DEFAULT_SCALING_CONFIG,
 } from './WidgetRegistry';
-
-// Widgets that require real-time position updates for inter-widget functionality
-const POSITION_AWARE_WIDGETS: WidgetType[] = [
-  'catalyst',
-  'catalyst-instruction',
-  'catalyst-visual',
-];
+import { POSITION_AWARE_WIDGETS } from '@/config/widgetDefaults';
 
 const LIVE_SESSION_UPDATE_DEBOUNCE_MS = 800; // Balance between real-time updates and reducing Firestore write costs
 
@@ -117,9 +111,13 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
     featurePermissions,
     disableCloseConfirmation: accountDisableCloseConfirmation,
   } = useAuth();
-  const { isActiveBoardReadOnly } = useDashboard();
+  // Narrow subscription: foreign widget mutations no longer pierce the
+  // memo() bailout below — only the read-only flag flipping re-renders here.
+  const isActiveBoardReadOnly = useDashboardCanvasSelector(
+    (s) => s.isActiveBoardReadOnly
+  );
 
-  const handleToggleLive = async () => {
+  const handleToggleLive = useCallback(async () => {
     try {
       if (isLive) {
         await endSession();
@@ -134,7 +132,15 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
     } catch (error) {
       console.error('Failed to toggle live session:', error);
     }
-  };
+  }, [
+    isLive,
+    endSession,
+    startSession,
+    widget.id,
+    widget.type,
+    widget.config,
+    dashboardBackground,
+  ]);
 
   // Sync config changes to session when live
   // ⚡ BOLT OPTIMIZATION: Only serialize when config reference changes AND session is live to avoid expensive JSON.stringify on every drag/render
@@ -230,7 +236,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
 
   // Calculate a key that changes only when relevant position changes for position-aware widgets.
   // For standard widgets, this key is empty and doesn't trigger updates on drag.
-  const positionKey = POSITION_AWARE_WIDGETS.includes(widget.type)
+  const positionKey = POSITION_AWARE_WIDGETS.has(widget.type)
     ? `${widget.x},${widget.y}`
     : '';
 
@@ -428,13 +434,7 @@ const InnerWidgetRenderer = memo(
     if (pw.type !== nw.type) return false; // Defensive check for type change
 
     // If the widget type is position-aware, we MUST re-render if x or y changed.
-    const isPositionAware = [
-      'catalyst',
-      'catalyst-instruction',
-      'catalyst-visual',
-    ].includes(nw.type);
-
-    if (isPositionAware) {
+    if (POSITION_AWARE_WIDGETS.has(nw.type)) {
       if (pw.x !== nw.x) return false;
       if (pw.y !== nw.y) return false;
     }

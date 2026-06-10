@@ -854,6 +854,13 @@
         "minimal": "Minimal"
       }
     },
+    "seatingChart": {
+      "emptyStateAssignTitle": "Leeres Klassenzimmer",
+      "emptyStateAssignSubtitle": "Wechsle zu „Einrichten“, um Möbel anzuordnen.",
+      "emptyStateSetupTitle": "Keine Möbel",
+      "emptyStateFreeform": "Möbel über die Seitenleiste hinzufügen.",
+      "emptyStateTemplate": "Wähle eine Vorlage und klicke auf Layout anwenden."
+    },
     "schedule": {
       "startTimer": "Timer starten",
       "startTimerUntil": "Countdown-Timer bis {{time}} starten"
