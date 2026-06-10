@@ -120,14 +120,19 @@ export async function consumeLaunchCode(
     tx.delete(ref);
     if (!data || isExpired(data)) return null;
     // Return only the StoredLaunch fields (drop expiresAt*/createdAt bookkeeping).
+    // All nullable fields use `?? null` so a doc written by an older code version
+    // that omitted a field returns null (matching the StoredLaunch type contract)
+    // rather than undefined. Consumers use `if (x)` / `x ?? fallback` patterns,
+    // but returning undefined violates the declared `string | null` type and would
+    // silently fail a strict `=== null` check.
     return {
       role: data.role,
       messageType: data.messageType,
       sub: data.sub,
       deploymentId: data.deploymentId,
-      contextId: data.contextId,
-      contextTitle: data.contextTitle,
-      resourceLinkId: data.resourceLinkId,
+      contextId: data.contextId ?? null,
+      contextTitle: data.contextTitle ?? null,
+      resourceLinkId: data.resourceLinkId ?? null,
       ags: data.ags ?? null,
       nrps: data.nrps ?? null,
       deepLinking: data.deepLinking ?? null,

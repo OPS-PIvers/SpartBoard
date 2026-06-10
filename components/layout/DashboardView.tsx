@@ -199,7 +199,6 @@ export const DashboardView: React.FC = () => {
     setGroupBuildMode,
     selectedWidgetIds,
     setSelectedWidgetIds,
-    selectedWidgetId,
     annotationActive,
     isActiveBoardReadOnly,
   } = useDashboard();
@@ -1205,12 +1204,20 @@ export const DashboardView: React.FC = () => {
   // Keyboard Navigation
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Escape: Exit group-build mode first (highest priority modal state)
+      // Escape: Exit group-build mode first (highest priority modal state).
+      // Guard: if focus is inside a typing field, let the second Escape branch
+      // handle it (blur the field) — don't exit group-build mode unexpectedly.
       if (e.key === 'Escape' && groupBuildMode) {
-        e.preventDefault();
-        setGroupBuildMode(false);
-        setSelectedWidgetIds([]);
-        return;
+        const activeEl = document.activeElement as HTMLElement;
+        const isTypingField =
+          ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl?.tagName || '') ||
+          activeEl?.isContentEditable;
+        if (!isTypingField) {
+          e.preventDefault();
+          setGroupBuildMode(false);
+          setSelectedWidgetIds([]);
+          return;
+        }
       }
 
       // Escape: Close top-most widget or blur input
@@ -1724,8 +1731,6 @@ export const DashboardView: React.FC = () => {
           sessions={sessions}
           students={students}
           emptyStudents={EMPTY_STUDENTS}
-          selectedWidgetId={selectedWidgetId}
-          zoom={zoom}
           updateSessionConfig={updateSessionConfig}
           updateSessionBackground={updateSessionBackground}
           startSession={startSession}

@@ -3,8 +3,33 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DashboardView } from '@/components/layout/DashboardView';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import {
+  DashboardContext,
+  type DashboardContextValue,
+} from '@/context/DashboardContextValue';
 import { useLiveSession } from '@/hooks/useLiveSession';
 import { Dashboard } from '@/types';
+
+// The canvas hot path (BoardCanvas's group overlay, DraggableWindow) reads
+// the hot slice via useDashboardCanvasSelector, which without
+// DashboardProvider's store falls back to the legacy DashboardContext — so
+// every render mounts under a bare provider, the same alternate-host
+// pattern as SubsDashboardProvider/StudentContexts.
+const legacyCtxValue = {
+  activeDashboard: null,
+  selectedWidgetId: null,
+  selectedWidgetIds: [],
+  groupBuildMode: false,
+  zoom: 1,
+  isActiveBoardReadOnly: false,
+} as unknown as DashboardContextValue;
+
+const renderView = () =>
+  render(
+    <DashboardContext.Provider value={legacyCtxValue}>
+      <DashboardView />
+    </DashboardContext.Provider>
+  );
 
 type DashboardGestureHandlers = {
   onDrag?: (state: {
@@ -212,13 +237,13 @@ describe('DashboardView Gestures & Navigation', () => {
   });
 
   it('renders correctly', () => {
-    render(<DashboardView />);
+    renderView();
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('dock')).toBeInTheDocument();
   });
 
   it('does NOT toggle minimize on Alt + M (now handled by widgets)', () => {
-    render(<DashboardView />);
+    renderView();
 
     // Fire Alt+M
     fireEvent.keyDown(window, { key: 'm', altKey: true });
@@ -228,13 +253,13 @@ describe('DashboardView Gestures & Navigation', () => {
   });
 
   it('navigates to previous board on Alt + Left', () => {
-    render(<DashboardView />);
+    renderView();
     fireEvent.keyDown(window, { key: 'ArrowLeft', altKey: true });
     expect(mockLoadDashboard).toHaveBeenCalledWith('db-1');
   });
 
   it('navigates to next board on Alt + Right', () => {
-    render(<DashboardView />);
+    renderView();
     fireEvent.keyDown(window, { key: 'ArrowRight', altKey: true });
     expect(mockLoadDashboard).toHaveBeenCalledWith('db-3');
   });
@@ -264,7 +289,7 @@ describe('DashboardView Gestures & Navigation', () => {
       },
     });
 
-    render(<DashboardView />);
+    renderView();
     fireEvent.keyDown(window, { key: 'Escape', shiftKey: true });
     expect(mockMinimizeAll).toHaveBeenCalled();
   });
@@ -293,7 +318,7 @@ describe('DashboardView Gestures & Navigation', () => {
       },
     });
 
-    render(<DashboardView />);
+    renderView();
     fireEvent.keyDown(window, { key: 'Delete', shiftKey: true });
     await waitFor(() => expect(mockDeleteAll).toHaveBeenCalled());
   });
@@ -327,7 +352,7 @@ describe('DashboardView Gestures & Navigation', () => {
       collectionsApi: collectionsStub,
     });
 
-    const { unmount } = render(<DashboardView />);
+    const { unmount } = renderView();
     fireEvent.keyDown(window, { key: 'ArrowLeft', altKey: true });
     expect(mockLoadDashboard).toHaveBeenCalledWith('db-3');
     unmount();
@@ -349,13 +374,13 @@ describe('DashboardView Gestures & Navigation', () => {
       collectionsApi: collectionsStub,
     });
 
-    render(<DashboardView />);
+    renderView();
     fireEvent.keyDown(window, { key: 'ArrowRight', altKey: true });
     expect(mockLoadDashboard).toHaveBeenCalledWith('db-1');
   });
 
   it('calls addWidget with correct config when spart-sticker with url is dropped', () => {
-    const { container } = render(<DashboardView />);
+    const { container } = renderView();
 
     const dashboardRoot = container.querySelector('#dashboard-root');
     if (!dashboardRoot) throw new Error('Dashboard root not found');
@@ -394,7 +419,7 @@ describe('DashboardView Gestures & Navigation', () => {
   });
 
   it('calls addWidget with icon when spart-sticker WITHOUT url is dropped', () => {
-    const { container } = render(<DashboardView />);
+    const { container } = renderView();
 
     const dashboardRoot = container.querySelector('#dashboard-root');
     if (!dashboardRoot) throw new Error('Dashboard root not found');
@@ -432,7 +457,7 @@ describe('DashboardView Gestures & Navigation', () => {
   });
 
   it('calls addWidget with correct config when application/sticker is dropped with valid ratio', () => {
-    render(<DashboardView />);
+    renderView();
     const root = document.getElementById('dashboard-root');
     if (!root) throw new Error('Root not found');
     expect(root).toBeInTheDocument();
@@ -473,7 +498,7 @@ describe('DashboardView Gestures & Navigation', () => {
   });
 
   it('calls addWidget with fallback ratio when application/sticker is dropped with missing/null ratio', () => {
-    render(<DashboardView />);
+    renderView();
     const root = document.getElementById('dashboard-root');
     if (!root) throw new Error('Root not found');
 
@@ -513,7 +538,7 @@ describe('DashboardView Gestures & Navigation', () => {
   });
 
   it('calls addWidget with fallback ratio when application/sticker is dropped with invalid ratio (e.g. 0)', () => {
-    render(<DashboardView />);
+    renderView();
     const root = document.getElementById('dashboard-root');
     if (!root) throw new Error('Root not found');
 
@@ -599,7 +624,7 @@ describe('DashboardView Gestures & Navigation', () => {
       },
     });
 
-    render(<DashboardView />);
+    renderView();
     mockUpdateWidget.mockClear();
     mockMinimizeAllWidgets.mockClear();
     mockLoadDashboard.mockClear();
@@ -741,7 +766,7 @@ describe('DashboardView Gestures & Navigation', () => {
     });
 
     it('dispatches Escape action with correct widgetId when child is focused', () => {
-      render(<DashboardView />);
+      renderView();
 
       const dispatched: CustomEvent[] = [];
       const handler = (e: Event) => dispatched.push(e as CustomEvent);
@@ -766,7 +791,7 @@ describe('DashboardView Gestures & Navigation', () => {
     });
 
     it('dispatches Delete action with correct widgetId when child is focused', () => {
-      render(<DashboardView />);
+      renderView();
 
       const dispatched: CustomEvent[] = [];
       const handler = (e: Event) => dispatched.push(e as CustomEvent);
@@ -788,7 +813,7 @@ describe('DashboardView Gestures & Navigation', () => {
     });
 
     it('dispatches Pin action with correct widgetId when child is focused (Alt+P)', () => {
-      render(<DashboardView />);
+      renderView();
 
       const dispatched: CustomEvent[] = [];
       const handler = (e: Event) => dispatched.push(e as CustomEvent);
@@ -843,7 +868,7 @@ describe('DashboardView Gestures & Navigation', () => {
         collectionsApi: collectionsStub,
       });
 
-      render(<DashboardView />);
+      renderView();
 
       // Normal toast announces politely via its own role="status".
       const statusToast = screen.getByText('Saved').closest('[role="status"]');
@@ -870,13 +895,137 @@ describe('DashboardView Gestures & Navigation', () => {
         collectionsApi: collectionsStub,
       });
 
-      render(<DashboardView />);
+      renderView();
 
       const dismiss = screen.getByRole('button', { name: 'Dismiss' });
       fireEvent.click(dismiss);
 
       expect(mockRemoveToast).toHaveBeenCalledTimes(1);
       expect(mockRemoveToast).toHaveBeenCalledWith('toast-1');
+    });
+  });
+
+  // Regression: groupBuildMode Escape handler lacked a typing-field guard.
+  //
+  // Bug: when groupBuildMode was active, the first `if (e.key === 'Escape' &&
+  // groupBuildMode)` branch ran unconditionally — it called e.preventDefault()
+  // and setGroupBuildMode(false) even when the user had an INPUT/TEXTAREA/SELECT
+  // focused and was pressing Escape intending only to dismiss/blur that field.
+  // The "blur the input" path in the second `if (e.key === 'Escape')` block was
+  // never reached because the first branch returned early, so the input kept
+  // focus and the user was left with group-build mode silently cancelled.
+  //
+  // Fix: add a typing-field guard at the top of the groupBuildMode branch so
+  // that Escape inside a form field blurs the field and leaves groupBuildMode
+  // active, consistent with all other keyboard shortcut branches.
+  describe('groupBuildMode Escape does not exit group-build when a typing field is focused', () => {
+    const collectionsStub = {
+      collections: [],
+      loading: false,
+      error: null,
+      createCollection: vi.fn(),
+      renameCollection: vi.fn(),
+      moveCollection: vi.fn(),
+      deleteCollection: vi.fn(),
+      reorderSiblings: vi.fn(),
+      setCollectionMetadata: vi.fn(),
+      setCollectionDefaultBoard: vi.fn(),
+    };
+
+    let inputEl: HTMLInputElement;
+    const mockSetGroupBuildMode = vi.fn();
+    const mockSetSelectedWidgetIds = vi.fn();
+
+    beforeEach(() => {
+      mockSetGroupBuildMode.mockClear();
+      mockSetSelectedWidgetIds.mockClear();
+
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        activeDashboard: mockDashboards[1],
+        dashboards: mockDashboards,
+        toasts: [],
+        addWidget: mockAddWidget,
+        loadDashboard: mockLoadDashboard,
+        removeToast: vi.fn(),
+        updateWidget: vi.fn(),
+        removeWidget: vi.fn(),
+        duplicateWidget: vi.fn(),
+        bringToFront: vi.fn(),
+        addToast: vi.fn(),
+        minimizeAllWidgets: vi.fn(),
+        restoreAllWidgets: vi.fn(),
+        deleteAllWidgets: vi.fn(),
+        setSelectedWidgetId: vi.fn(),
+        zoom: 1,
+        setZoom: vi.fn(),
+        // group-build state
+        groupBuildMode: true,
+        setGroupBuildMode: mockSetGroupBuildMode,
+        selectedWidgetIds: [],
+        setSelectedWidgetIds: mockSetSelectedWidgetIds,
+        collectionsApi: collectionsStub,
+      });
+
+      // Create and focus an input element so document.activeElement is an INPUT.
+      inputEl = document.createElement('input');
+      inputEl.type = 'text';
+      document.body.appendChild(inputEl);
+      inputEl.focus();
+    });
+
+    afterEach(() => {
+      if (inputEl.parentNode) {
+        inputEl.parentNode.removeChild(inputEl);
+      }
+    });
+
+    it('should NOT call setGroupBuildMode when Escape is pressed inside an input', () => {
+      render(<DashboardView />);
+
+      // Sanity: the focused element is our input.
+      expect(document.activeElement).toBe(inputEl);
+
+      fireEvent.keyDown(window, { key: 'Escape' });
+
+      // The typing-field guard must prevent group-build exit.
+      expect(mockSetGroupBuildMode).not.toHaveBeenCalled();
+      expect(mockSetSelectedWidgetIds).not.toHaveBeenCalled();
+    });
+
+    it('should NOT call setGroupBuildMode when Escape is pressed inside a textarea', () => {
+      // Replace the input with a textarea.
+      if (inputEl.parentNode) inputEl.parentNode.removeChild(inputEl);
+      const textarea = document.createElement('textarea');
+      document.body.appendChild(textarea);
+      textarea.focus();
+
+      render(<DashboardView />);
+
+      expect(document.activeElement).toBe(textarea);
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(mockSetGroupBuildMode).not.toHaveBeenCalled();
+
+      if (textarea.parentNode) textarea.parentNode.removeChild(textarea);
+    });
+
+    it('DOES call setGroupBuildMode when Escape is pressed with no typing field focused', () => {
+      // Move focus away from the input (to body or a non-typing element).
+      inputEl.blur();
+
+      render(<DashboardView />);
+
+      // document.activeElement is now body (not a typing field).
+      expect(
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(
+          (document.activeElement as HTMLElement)?.tagName || ''
+        )
+      ).toBe(false);
+
+      fireEvent.keyDown(window, { key: 'Escape' });
+
+      // Without a focused typing field, group-build mode should exit.
+      expect(mockSetGroupBuildMode).toHaveBeenCalledWith(false);
+      expect(mockSetSelectedWidgetIds).toHaveBeenCalledWith([]);
     });
   });
 });

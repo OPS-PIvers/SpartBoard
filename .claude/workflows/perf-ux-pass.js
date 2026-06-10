@@ -221,6 +221,9 @@ function groupByFileOverlap(items) {
 
 const ARGS = typeof args === 'string' ? (args.trim() ? JSON.parse(args) : {}) : (args ?? {});
 const TARGET = ARGS.target;
+// Optional filename prefix for tests/perf/results/* so a pass over a NEW
+// surface doesn't overwrite a previously committed ruler (e.g. 'dashboard-').
+const PREFIX = ARGS.resultsPrefix ?? '';
 if (!TARGET || !TARGET.name || !TARGET.files?.length || !TARGET.harnessSpec) {
   throw new Error(
     'perf-ux-pass requires args.target = { name, description, files: string[], harnessSpec }. ' +
@@ -277,7 +280,7 @@ ${TARGET.harnessSpec}
 REQUIREMENTS:
   - Mock Firebase/Firestore/context exactly the way neighboring tests do — the harness must run offline with zero network.
   - Mount each editor with REALISTIC data sizes (not 2 items — use the spec's sizes) so re-render cost is visible.
-  - Write results as pretty-printed JSON to tests/perf/results/baseline.json via node:fs INSIDE the test (mkdir recursive). The test itself must only assert that metrics were produced — NO duration thresholds (CI machines vary; this must never be flaky).
+  - Write results as pretty-printed JSON to tests/perf/results/${PREFIX}baseline.json via node:fs INSIDE the test (mkdir recursive). The test itself must only assert that metrics were produced — NO duration thresholds (CI machines vary; this must never be flaky).
   - The run command must be a single line, e.g.: pnpm exec vitest run tests/perf/editorPerf.test.tsx
   - Keep the harness lint/type/format clean (pnpm run lint touches it; zero warnings).
   - Do NOT modify any production source file. tests/perf/** is your only write surface.
@@ -290,7 +293,7 @@ Record the baseline numbers in your structured output AND in the JSON file.`,
 
 ${TARGET_BLOCK}
 
-You are recording the BUNDLE-SIZE BASELINE. Run "pnpm run build" once and identify which built chunks contain the target editor code (check dist/ output names and, if ambiguous, grep the chunk contents for distinctive editor strings). Record the gzip size of each relevant chunk plus the total. Write a pretty-printed JSON file to tests/perf/results/bundle-baseline.json with { chunks: [{name, gzipKb}], totalGzipKb } — strip any content-hash from chunk names so before/after names match. Do NOT modify any source file.`,
+You are recording the BUNDLE-SIZE BASELINE. Run "pnpm run build" once and identify which built chunks contain the target editor code (check dist/ output names and, if ambiguous, grep the chunk contents for distinctive editor strings). Record the gzip size of each relevant chunk plus the total. Write a pretty-printed JSON file to tests/perf/results/${PREFIX}bundle-baseline.json with { chunks: [{name, gzipKb}], totalGzipKb } — strip any content-hash from chunk names so before/after names match. Do NOT modify any source file.`,
       { label: 'baseline:bundle', phase: 'Baseline', schema: BUNDLE_SCHEMA }
     ),
   ...LENSES.map((l) => () =>
@@ -428,14 +431,14 @@ const [remeasure, bundleAfter, costAudit] = await parallel([
 Re-run the UNCHANGED performance harness and compare against the committed baseline.
   - Command: ${harnessBaseline.runCommand}
   - Baseline: ${harnessBaseline.resultsFile} → ${JSON.stringify(harnessBaseline.metrics)}
-Run it 3 times; commit counts must be stable, take median durations. The harness writes its JSON results file — copy/save the post-change numbers to tests/perf/results/after.json. Compare scenario by scenario: commits are the primary verdict (lower = improved), durations are corroborating. List ANY regression honestly. Do not modify the harness or any source file.`,
+Run it 3 times; commit counts must be stable, take median durations. The harness writes its JSON results file — copy/save the post-change numbers to tests/perf/results/${PREFIX}after.json. Compare scenario by scenario: commits are the primary verdict (lower = improved), durations are corroborating. List ANY regression honestly. Do not modify the harness or any source file.`,
       { label: 'remeasure', phase: 'Verify', schema: REMEASURE_SCHEMA }
     ),
   () =>
     agent(
       `${REPO}
 
-Re-run "pnpm run build" and record the gzip sizes of the SAME chunks as the bundle baseline (tests/perf/results/bundle-baseline.json — names are hash-stripped). Write tests/perf/results/bundle-after.json in the same shape. Note new/split/removed chunks explicitly. Do not modify any source file.`,
+Re-run "pnpm run build" and record the gzip sizes of the SAME chunks as the bundle baseline (tests/perf/results/${PREFIX}bundle-baseline.json — names are hash-stripped). Write tests/perf/results/${PREFIX}bundle-after.json in the same shape. Note new/split/removed chunks explicitly. Do not modify any source file.`,
       { label: 'bundle:after', phase: 'Verify', schema: BUNDLE_SCHEMA }
     ),
   () =>

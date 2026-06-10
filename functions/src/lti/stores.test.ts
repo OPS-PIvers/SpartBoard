@@ -122,4 +122,44 @@ describe('launch-code store', () => {
     expect(await consumeLaunchCode(db, 'missing')).toBeNull();
     expect(await consumeLaunchCode(db, '')).toBeNull();
   });
+
+  it('returns null (not undefined) for contextId/contextTitle/resourceLinkId when absent in stored doc', async () => {
+    // Regression: consumeLaunchCode applied `?? null` to ags/nrps/deepLinking/custom/email/name
+    // but NOT to contextId, contextTitle, or resourceLinkId. A doc stored without those fields
+    // (e.g. written by an older code version) returns `undefined` for them, violating the
+    // `StoredLaunch` type contract (`string | null`). Consumers that check `=== null` instead
+    // of `== null` or truthiness would silently mishandle an absent context id as "present"
+    // because `undefined !== null`.
+    const { db, store } = makeFakeDb();
+    store.set('lti_launch_codes/old-code', {
+      role: 'student',
+      messageType: 'LtiResourceLinkRequest',
+      sub: 'user-1',
+      deploymentId: 'dep-1',
+      // contextId, contextTitle, resourceLinkId intentionally absent (old doc)
+      ags: null,
+      nrps: null,
+      deepLinking: null,
+      custom: null,
+      email: null,
+      name: null,
+      expiresAtMs: Date.now() + 60_000,
+    });
+    const result = await consumeLaunchCode(db, 'old-code');
+    expect(result).not.toBeNull();
+    expect(result?.contextId).toBeNull();
+    expect(result?.contextTitle).toBeNull();
+    expect(result?.resourceLinkId).toBeNull();
+  });
+
+  it('rejects (and deletes) an expired launch code', async () => {
+    const { db, store } = makeFakeDb();
+    store.set('lti_launch_codes/expired-code', {
+      ...sampleLaunch(),
+      expiresAtMs: Date.now() - 1000,
+    });
+    expect(await consumeLaunchCode(db, 'expired-code')).toBeNull();
+    // Doc must be deleted even when expired (single-use contract).
+    expect(store.has('lti_launch_codes/expired-code')).toBe(false);
+  });
 });

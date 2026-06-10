@@ -46,11 +46,16 @@ import {
   DashboardSettings,
 } from '@/types';
 import { SNAP_LAYOUTS, SnapZone } from '@/config/snapLayouts';
+import { POSITION_AWARE_WIDGETS } from '@/config/widgetDefaults';
 import { calculateSnapBounds, SNAP_LAYOUT_CONSTANTS } from '@/utils/layoutMath';
 import { clampWidgetToWorld, getWorldBounds } from '@/utils/zoomPanMath';
 import { useScreenshot } from '@/hooks/useScreenshot';
 import { useWindowSize } from '@/hooks/useWindowSize';
-import { useDashboard } from '@/context/useDashboard';
+import {
+  useDashboardActions,
+  useDashboardCanvasSelector,
+  useDashboardCanvasStateGetter,
+} from '@/context/dashboardCanvasStore';
 import { GlassCard } from './GlassCard';
 import { SettingsPanel } from './SettingsPanel';
 import { useClickOutside } from '@/hooks/useClickOutside';
@@ -74,12 +79,9 @@ const COLOR_HEX_TO_NAME: Record<string, string> = Object.fromEntries(
 const GRID_COLS = 10;
 const GRID_ROWS = 10;
 
-// Widgets that require real-time position updates for inter-widget functionality
-const POSITION_AWARE_WIDGETS: WidgetType[] = [
-  'catalyst',
-  'catalyst-instruction',
-  'catalyst-visual',
-];
+// Stable empty set returned by `occupiedCells` while the snap menu is closed
+// so the memo stays allocation-free and reference-stable on every render.
+const EMPTY_OCCUPIED_CELLS: ReadonlySet<string> = new Set();
 
 // Default min size all widgets shrink to during resize.
 const DEFAULT_MIN_W = 150;
@@ -185,6 +187,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   globalStyle,
 }) => {
   const { t } = useTranslation();
+  // Mount-stable actions surface — identities never change, so dep arrays
+  // listing them are trivially satisfied and never re-fire.
   const {
     updateWidget,
     removeWidget,
@@ -193,18 +197,25 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     addToast,
     resetWidgetSize,
     deleteAllWidgets,
-    selectedWidgetId,
     setSelectedWidgetId,
-    activeDashboard,
     updateWidgets,
     ungroupWidgets,
-    groupBuildMode,
     setGroupBuildMode,
-    selectedWidgetIds,
     setSelectedWidgetIds,
-    zoom,
-    isActiveBoardReadOnly,
-  } = useDashboard();
+  } = useDashboardActions();
+  // Narrow primitive-returning subscriptions — foreign widget mutations
+  // (another widget's selection, z-order, config) bail out via Object.is
+  // instead of re-rendering every shell on the board.
+  const isSelectedWidget = useDashboardCanvasSelector(
+    (s) => s.selectedWidgetId === widget.id
+  );
+  const isActiveBoardReadOnly = useDashboardCanvasSelector(
+    (s) => s.isActiveBoardReadOnly
+  );
+  const zoom = useDashboardCanvasSelector((s) => s.zoom);
+  const groupBuildMode = useDashboardCanvasSelector((s) => s.groupBuildMode);
+  // Event-handler-time canvas reads (no render subscription).
+  const getCanvasState = useDashboardCanvasStateGetter();
   const { showConfirm: showConfirmDialog } = useDialog();
 
   const [isDragging, setIsDragging] = useState(false);
@@ -221,18 +232,23 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   // close, duplicate, lock, pin, etc.) are valid for a read-only viewer,
   // and the toolbar's "Settings" gear has no per-button isLocked gate of
   // its own — suppressing showTools at the root is the safest gap-fill.
-  const showTools =
-    selectedWidgetId === widget.id && !hasOpenModal && !isActiveBoardReadOnly;
+  const showTools = isSelectedWidget && !hasOpenModal && !isActiveBoardReadOnly;
 
-  // Group visual state
+  // Group visual state. Both selectors return booleans, so foreign
+  // selection/dashboard churn bails out; the O(n) widget scan runs inside
+  // the selector (per store notify), not in a render.
   const isInGroup = !!widget.groupId;
-  const isGroupActive =
-    isInGroup &&
-    activeDashboard?.widgets.some(
-      (w) => w.groupId === widget.groupId && w.id === selectedWidgetId
-    );
-  const isGroupBuildSelected =
-    groupBuildMode && selectedWidgetIds.includes(widget.id);
+  const isGroupActive = useDashboardCanvasSelector(
+    (s) =>
+      !!widget.groupId &&
+      (s.activeDashboard?.widgets.some(
+        (w) => w.groupId === widget.groupId && w.id === s.selectedWidgetId
+      ) ??
+        false)
+  );
+  const isGroupBuildSelected = useDashboardCanvasSelector(
+    (s) => s.groupBuildMode && s.selectedWidgetIds.includes(widget.id)
+  );
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState(widget.customTitle ?? title);
   const [shouldRenderSettings, setShouldRenderSettings] = useState(
@@ -255,15 +271,24 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const customGridRef = useRef(customGrid);
   // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync (CLAUDE.md: "assign refs directly in render body"); react-hooks/refs v7 incorrectly cascades this as an error when any setState is called during render
   customGridRef.current = customGrid;
+  // Only subscribe to the dashboard while the snap menu is OPEN: the selector
+  // returns null (stable) when closed, so board mutations don't re-render the
+  // shell; open, it tracks dashboard changes exactly as before.
+  const snapMenuDashboard = useDashboardCanvasSelector((s) =>
+    showSnapMenu ? s.activeDashboard : null
+  );
   const occupiedCells = useMemo(() => {
+    // Short-circuit before any per-widget work: snapMenuDashboard is a dep, so
+    // without this guard every widget mutation across the board would pay the
+    // O(n) grid-occupancy scan even with the snap menu closed.
+    if (!snapMenuDashboard) return EMPTY_OCCUPIED_CELLS;
     const set = new Set<string>();
-    if (!showSnapMenu || !activeDashboard) return set;
 
     const { PADDING } = SNAP_LAYOUT_CONSTANTS;
     const safeWidth = Math.max(1, windowSize.width - PADDING * 2);
     const safeHeight = Math.max(1, windowSize.height - PADDING * 2);
 
-    for (const w of activeDashboard.widgets) {
+    for (const w of snapMenuDashboard.widgets) {
       if (w.id === widget.id) continue; // ignore self
       if (w.minimized || w.maximized) continue; // not visible on canvas
 
@@ -294,7 +319,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       }
     }
     return set;
-  }, [showSnapMenu, activeDashboard, widget.id, windowSize]);
+  }, [snapMenuDashboard, widget.id, windowSize]);
 
   // Pre-cached zones for edge detection optimization
   const splitLayout = useMemo(
@@ -977,10 +1002,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     dragState.current = { x: widget.x, y: widget.y, w: widget.w, h: widget.h };
     dragDistanceRef.current = 0;
 
-    // Collect group siblings for coordinated drag
+    // Collect group siblings for coordinated drag. Read the dashboard at
+    // event time via the getter — this shell no longer subscribes to it.
     const hasGroup = !!widget.groupId;
-    if (hasGroup && activeDashboard) {
-      groupSiblingsRef.current = activeDashboard.widgets
+    const dashboardAtPointerDown = getCanvasState().activeDashboard;
+    if (hasGroup && dashboardAtPointerDown) {
+      groupSiblingsRef.current = dashboardAtPointerDown.widgets
         .filter(
           (w) =>
             w.groupId === widget.groupId &&
@@ -1133,10 +1160,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         );
 
         // OPTIMIZATION: If widget is not position-aware, update DOM directly and skip React render cycle
-        if (
-          !POSITION_AWARE_WIDGETS.includes(widget.type) &&
-          windowRef.current
-        ) {
+        if (!POSITION_AWARE_WIDGETS.has(widget.type) && windowRef.current) {
           windowRef.current.style.left = `${newX}px`;
           windowRef.current.style.top = `${newY}px`;
           if (dragState.current) {
@@ -1215,7 +1239,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       } else {
         // Commit final position if using direct DOM manipulation
         if (
-          !POSITION_AWARE_WIDGETS.includes(widget.type) &&
+          !POSITION_AWARE_WIDGETS.has(widget.type) &&
           dragState.current &&
           (dragState.current.x !== widget.x || dragState.current.y !== widget.y)
         ) {
@@ -1483,10 +1507,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         newH = Math.max(Math.min(minH, availableH), Math.min(newH, availableH));
 
         // OPTIMIZATION: If widget is not position-aware, update DOM directly and skip React render cycle
-        if (
-          !POSITION_AWARE_WIDGETS.includes(widget.type) &&
-          windowRef.current
-        ) {
+        if (!POSITION_AWARE_WIDGETS.has(widget.type) && windowRef.current) {
           windowRef.current.style.width = `${newW}px`;
           windowRef.current.style.height = `${newH}px`;
           windowRef.current.style.left = `${newX}px`;
@@ -1535,7 +1556,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
       // Commit final position/size if using direct DOM manipulation
       if (
-        !POSITION_AWARE_WIDGETS.includes(widget.type) &&
+        !POSITION_AWARE_WIDGETS.has(widget.type) &&
         dragState.current &&
         (dragState.current.w !== widget.w ||
           dragState.current.h !== widget.h ||
@@ -2008,7 +2029,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   /* eslint-disable react-hooks/refs */
   const shouldUseDragState =
     (isDragging || isResizing) &&
-    !POSITION_AWARE_WIDGETS.includes(widget.type) &&
+    !POSITION_AWARE_WIDGETS.has(widget.type) &&
     dragState.current;
 
   const UNIVERSAL_TEXT_SIZES: Record<string, string> = {
