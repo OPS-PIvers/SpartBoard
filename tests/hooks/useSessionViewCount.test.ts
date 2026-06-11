@@ -35,7 +35,7 @@ import {
   _testVisibilityRefresh,
   invalidateSessionViewCount,
   useSessionViewCount,
-} from '../../hooks/useSessionViewCount';
+} from '@/hooks/useSessionViewCount';
 
 afterEach(() => {
   getCountFromServerMock.mockReset();

@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
 import { render, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { DashboardProvider } from '../context/DashboardContext';
-import { useDashboard } from '../context/useDashboard';
-import { Dashboard, WidgetData } from '../types';
+import { DashboardProvider } from '@/context/DashboardContext';
+import { useDashboard } from '@/context/useDashboard';
+import { Dashboard, WidgetData } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Mocks

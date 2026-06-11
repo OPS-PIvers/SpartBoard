@@ -1,28 +1,28 @@
 import { render, screen } from '@testing-library/react';
-import { CalendarWidget } from '../components/widgets/Calendar/Widget';
+import { CalendarWidget } from '@/components/widgets/Calendar/Widget';
 import { expect, test, vi, describe, beforeEach, afterEach } from 'vitest';
-import { WidgetData } from '../types';
+import { WidgetData } from '@/types';
 
-vi.mock('../context/useDashboard', () => ({
+vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
     addWidget: vi.fn(),
     activeDashboard: { globalStyle: { fontFamily: 'sans' } },
   }),
 }));
 
-vi.mock('../hooks/useFeaturePermissions', () => ({
+vi.mock('@/hooks/useFeaturePermissions', () => ({
   useFeaturePermissions: () => ({
     subscribeToPermission: vi.fn(),
   }),
 }));
 
-vi.mock('../context/useAuth', () => ({
+vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     selectedBuildings: [],
   }),
 }));
 
-vi.mock('../hooks/useGoogleCalendar', () => ({
+vi.mock('@/hooks/useGoogleCalendar', () => ({
   useGoogleCalendar: () => ({
     calendarService: null,
     isConnected: false,

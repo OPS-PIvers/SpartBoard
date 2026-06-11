@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest';
-import { DashboardProvider } from '../context/DashboardContext';
-import { useDashboard } from '../context/useDashboard';
-import type { Dashboard } from '../types';
+import { DashboardProvider } from '@/context/DashboardContext';
+import { useDashboard } from '@/context/useDashboard';
+import type { Dashboard } from '@/types';
 
 /**
  * duplicateDashboard: optimistic insert, rollback-on-failure, and

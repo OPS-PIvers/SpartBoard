@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
 import { act, render, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { DashboardProvider } from '../context/DashboardContext';
-import { useDashboard } from '../context/useDashboard';
-import type { Dashboard, SharedCollection } from '../types';
+import { DashboardProvider } from '@/context/DashboardContext';
+import { useDashboard } from '@/context/useDashboard';
+import type { Dashboard, SharedCollection } from '@/types';
 
 /**
  * importSharedCollection rollback + partial-failure pinning.
