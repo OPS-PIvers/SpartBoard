@@ -66,7 +66,19 @@ export function buildQuizClassroomGradeEntries(
   questions: QuizQuestion[],
   maxPoints: number
 ): ClassroomGradeEntry[] {
-  const currentTotal = questions.reduce((s, q) => s + (q.points ?? 1), 0);
+  // Deduplicate by question id before summing — Drive-sync duplication and
+  // arrayUnion races can write the same question id twice into `questions`.
+  // Without this guard, `currentTotal` inflates while `getEarnedPoints`
+  // stays correct (it builds a Map that naturally deduplicates by id), so
+  // the scaling `(earned / currentTotal) * maxPoints` understates the grade.
+  // Mirrors the identical fence in `getResponseScore`, `buildResultsSheetData`,
+  // `buildContributionDoc`, and `publishAssignmentScores` (#1728–#1855).
+  const seenIds = new Set<string>();
+  const currentTotal = questions.reduce((s, q) => {
+    if (seenIds.has(q.id)) return s;
+    seenIds.add(q.id);
+    return s + (q.points ?? 1);
+  }, 0);
   return responses
     .filter(
       (r) =>
