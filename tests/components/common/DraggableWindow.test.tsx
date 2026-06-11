@@ -6,7 +6,13 @@ import {
   DashboardContext,
   DashboardContextValue,
 } from '@/context/DashboardContextValue';
+import { useDialog } from '@/context/useDialog';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+
+// Override the global useDialog mock so tests can track individual showConfirm calls.
+vi.mock('@/context/useDialog', () => ({
+  useDialog: vi.fn(),
+}));
 
 // Mock dependencies
 vi.mock('lucide-react', async (importOriginal) => {
@@ -75,9 +81,19 @@ describe('DraggableWindow (Tests folder)', () => {
     setPanOffset: vi.fn(),
   };
 
+  const mockShowConfirm = vi.fn().mockResolvedValue(true);
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
+    // Configure the useDialog mock to return a stable object so tests can
+    // track showConfirm calls across the component and the test assertions.
+    vi.mocked(useDialog).mockReturnValue({
+      currentDialog: null,
+      showAlert: vi.fn().mockResolvedValue(undefined),
+      showConfirm: mockShowConfirm,
+      showPrompt: vi.fn().mockResolvedValue(null),
+    });
   });
 
   it('renders toolbar buttons in the correct order', () => {
@@ -517,6 +533,61 @@ describe('DraggableWindow (Tests folder)', () => {
         getItemSpy.mockRestore();
         setItemSpy.mockRestore();
       }
+    });
+  });
+
+  describe('Alt+Delete keyboard shortcut', () => {
+    // Regression test for the double-confirm-dialog bug:
+    // DashboardView registers a window-level keydown handler for Alt+Delete that
+    // calls showConfirm to clear the board. DraggableWindow's React onKeyDown
+    // handler also called showConfirm for the same shortcut. Because
+    // React's e.stopPropagation() does not prevent window.addEventListener
+    // listeners from firing, pressing Alt+Delete on a focused widget triggered
+    // showConfirm twice — enqueuing two confirm dialogs back-to-back.
+    //
+    // The fix: remove the Alt+Delete branch from DraggableWindow.handleKeyDown.
+    // DashboardView owns this global shortcut; the per-widget React handler
+    // must not duplicate it.
+
+    const renderWidget = (widgetOverrides: Partial<WidgetData> = {}) => {
+      const widget = { ...mockWidget, ...widgetOverrides };
+      return render(
+        <DashboardContext.Provider
+          value={mockContext as unknown as DashboardContextValue}
+        >
+          <DraggableWindow
+            widget={widget}
+            settings={<div>Settings</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+    };
+
+    it('does NOT call showConfirm for Alt+Delete (DashboardView owns that shortcut)', () => {
+      renderWidget();
+      const widgetEl = screen.getByTestId('widget-content').closest('.widget');
+      if (!widgetEl) throw new Error('.widget element not found');
+
+      fireEvent.keyDown(widgetEl, { key: 'Delete', altKey: true });
+
+      // DraggableWindow's onKeyDown must not trigger showConfirm for Alt+Delete.
+      // DashboardView's window-level handler owns this shortcut; calling it here
+      // too would enqueue a second confirm dialog.
+      expect(mockShowConfirm).not.toHaveBeenCalled();
+    });
+
+    it('does NOT call showConfirm for Alt+Backspace (DashboardView owns that shortcut)', () => {
+      renderWidget();
+      const widgetEl = screen.getByTestId('widget-content').closest('.widget');
+      if (!widgetEl) throw new Error('.widget element not found');
+
+      fireEvent.keyDown(widgetEl, { key: 'Backspace', altKey: true });
+
+      expect(mockShowConfirm).not.toHaveBeenCalled();
     });
   });
 });
