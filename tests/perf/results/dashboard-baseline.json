@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-10T04:07:23.423Z",
+  "generatedAt": "2026-06-11T05:29:36.979Z",
   "runCommand": "pnpm exec vitest run tests/perf/dashboardPerf.test.tsx",
   "note": "Profiler commit counts and per-shell render counts are the deterministic primary metrics and must be identical across runs. totalShellRenders sums DraggableWindow render invocations across all widgets per scenario; shellRendersByWidget shows which shells rendered (widgets added mid-test are keyed \"added-widget\"). actualDurationMs is machine-dependent and indicative only — compare medians of 3 runs.",
   "skipped": "Snap-overlay edge snapping and the snap-layout menu need real viewport geometry, so they are not exercised in jsdom; the drag path deliberately stays away from screen edges.",
@@ -7,30 +7,7 @@
     {
       "scenario": "mount15",
       "commits": 4,
-      "actualDurationMs": 90.573,
-      "totalShellRenders": 30,
-      "shellRendersByWidget": {
-        "w-1": 2,
-        "w-10": 2,
-        "w-11": 2,
-        "w-12": 2,
-        "w-13": 2,
-        "w-14": 2,
-        "w-15": 2,
-        "w-2": 2,
-        "w-3": 2,
-        "w-4": 2,
-        "w-5": 2,
-        "w-6": 2,
-        "w-7": 2,
-        "w-8": 2,
-        "w-9": 2
-      }
-    },
-    {
-      "scenario": "drag.press",
-      "commits": 2,
-      "actualDurationMs": 10.669,
+      "actualDurationMs": 273.969,
       "totalShellRenders": 15,
       "shellRendersByWidget": {
         "w-1": 1,
@@ -48,6 +25,15 @@
         "w-7": 1,
         "w-8": 1,
         "w-9": 1
+      }
+    },
+    {
+      "scenario": "drag.press",
+      "commits": 2,
+      "actualDurationMs": 2.87,
+      "totalShellRenders": 1,
+      "shellRendersByWidget": {
+        "w-5": 1
       }
     },
     {
@@ -60,30 +46,16 @@
     {
       "scenario": "drag.release",
       "commits": 2,
-      "actualDurationMs": 10.431,
-      "totalShellRenders": 15,
+      "actualDurationMs": 3.941,
+      "totalShellRenders": 1,
       "shellRendersByWidget": {
-        "w-1": 1,
-        "w-10": 1,
-        "w-11": 1,
-        "w-12": 1,
-        "w-13": 1,
-        "w-14": 1,
-        "w-15": 1,
-        "w-2": 1,
-        "w-3": 1,
-        "w-4": 1,
-        "w-5": 1,
-        "w-6": 1,
-        "w-7": 1,
-        "w-8": 1,
-        "w-9": 1
+        "w-5": 1
       }
     },
     {
       "scenario": "resize.press",
       "commits": 1,
-      "actualDurationMs": 0.609,
+      "actualDurationMs": 1.298,
       "totalShellRenders": 0,
       "shellRendersByWidget": {}
     },
@@ -97,140 +69,57 @@
     {
       "scenario": "resize.release",
       "commits": 2,
-      "actualDurationMs": 11.011,
-      "totalShellRenders": 15,
+      "actualDurationMs": 6.185,
+      "totalShellRenders": 1,
       "shellRendersByWidget": {
-        "w-1": 1,
-        "w-10": 1,
-        "w-11": 1,
-        "w-12": 1,
-        "w-13": 1,
-        "w-14": 1,
-        "w-15": 1,
-        "w-2": 1,
-        "w-3": 1,
-        "w-4": 1,
-        "w-5": 1,
-        "w-6": 1,
-        "w-7": 1,
-        "w-8": 1,
-        "w-9": 1
+        "w-7": 1
       }
     },
     {
       "scenario": "bringToFront5",
       "commits": 10,
-      "actualDurationMs": 52.636,
-      "totalShellRenders": 75,
+      "actualDurationMs": 15.158,
+      "totalShellRenders": 5,
       "shellRendersByWidget": {
-        "w-1": 5,
-        "w-10": 5,
-        "w-11": 5,
-        "w-12": 5,
-        "w-13": 5,
-        "w-14": 5,
-        "w-15": 5,
-        "w-2": 5,
-        "w-3": 5,
-        "w-4": 5,
-        "w-5": 5,
-        "w-6": 5,
-        "w-7": 5,
-        "w-8": 5,
-        "w-9": 5
+        "w-1": 1,
+        "w-2": 1,
+        "w-3": 1,
+        "w-4": 1,
+        "w-6": 1
       }
     },
     {
       "scenario": "addWidget",
       "commits": 2,
-      "actualDurationMs": 14.135,
-      "totalShellRenders": 16,
+      "actualDurationMs": 18.721,
+      "totalShellRenders": 1,
       "shellRendersByWidget": {
-        "added-widget": 1,
-        "w-1": 1,
-        "w-10": 1,
-        "w-11": 1,
-        "w-12": 1,
-        "w-13": 1,
-        "w-14": 1,
-        "w-15": 1,
-        "w-2": 1,
-        "w-3": 1,
-        "w-4": 1,
-        "w-5": 1,
-        "w-6": 1,
-        "w-7": 1,
-        "w-8": 1,
-        "w-9": 1
+        "added-widget": 1
       }
     },
     {
       "scenario": "removeWidget",
       "commits": 2,
-      "actualDurationMs": 10.664,
-      "totalShellRenders": 15,
-      "shellRendersByWidget": {
-        "w-1": 1,
-        "w-10": 1,
-        "w-11": 1,
-        "w-12": 1,
-        "w-13": 1,
-        "w-14": 1,
-        "w-15": 1,
-        "w-2": 1,
-        "w-3": 1,
-        "w-4": 1,
-        "w-5": 1,
-        "w-6": 1,
-        "w-7": 1,
-        "w-8": 1,
-        "w-9": 1
-      }
+      "actualDurationMs": 1.88,
+      "totalShellRenders": 0,
+      "shellRendersByWidget": {}
     },
     {
       "scenario": "minimize",
       "commits": 2,
-      "actualDurationMs": 10.675,
-      "totalShellRenders": 15,
+      "actualDurationMs": 3.219,
+      "totalShellRenders": 1,
       "shellRendersByWidget": {
-        "w-1": 1,
-        "w-10": 1,
-        "w-11": 1,
-        "w-12": 1,
-        "w-13": 1,
-        "w-14": 1,
-        "w-15": 1,
-        "w-2": 1,
-        "w-3": 1,
-        "w-4": 1,
-        "w-5": 1,
-        "w-6": 1,
-        "w-7": 1,
-        "w-8": 1,
-        "w-9": 1
+        "w-3": 1
       }
     },
     {
       "scenario": "restore",
       "commits": 2,
-      "actualDurationMs": 10.574,
-      "totalShellRenders": 15,
+      "actualDurationMs": 10.17,
+      "totalShellRenders": 1,
       "shellRendersByWidget": {
-        "w-1": 1,
-        "w-10": 1,
-        "w-11": 1,
-        "w-12": 1,
-        "w-13": 1,
-        "w-14": 1,
-        "w-15": 1,
-        "w-2": 1,
-        "w-3": 1,
-        "w-4": 1,
-        "w-5": 1,
-        "w-6": 1,
-        "w-7": 1,
-        "w-8": 1,
-        "w-9": 1
+        "w-3": 1
       }
     }
   ]
