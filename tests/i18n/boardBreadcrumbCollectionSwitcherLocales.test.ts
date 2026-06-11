@@ -62,12 +62,19 @@ describe.each(NON_EN)(
     });
 
     it(`${code}: boardBreadcrumb.openManager is not the English placeholder "Manage Boards"`, () => {
-      const val = (locale.boardBreadcrumb as Record<string, unknown>)
-        .openManager;
+      const val = locale.boardBreadcrumb.openManager;
       expect(
         val,
         `${code}.boardBreadcrumb.openManager is still the English placeholder — needs a real translation`
       ).not.toBe(en.boardBreadcrumb.openManager);
+    });
+
+    it(`${code}: boardBreadcrumb.root is not the English source "No Collection"`, () => {
+      const val = locale.boardBreadcrumb.root;
+      expect(
+        val,
+        `${code}.boardBreadcrumb.root is still the English source — needs a real translation`
+      ).not.toBe(en.boardBreadcrumb.root);
     });
 
     it(`${code}: collectionSwitcher.title is present`, () => {
@@ -78,11 +85,19 @@ describe.each(NON_EN)(
     });
 
     it(`${code}: collectionSwitcher.title is not the English placeholder "Switch Collection"`, () => {
-      const val = (locale.collectionSwitcher as Record<string, unknown>).title;
+      const val = locale.collectionSwitcher.title;
       expect(
         val,
         `${code}.collectionSwitcher.title is still the English placeholder — needs a real translation`
       ).not.toBe(en.collectionSwitcher.title);
+    });
+
+    it(`${code}: collectionSwitcher.root is not the English source "No Collection"`, () => {
+      const val = locale.collectionSwitcher.root;
+      expect(
+        val,
+        `${code}.collectionSwitcher.root is still the English source — needs a real translation`
+      ).not.toBe(en.collectionSwitcher.root);
     });
   }
 );

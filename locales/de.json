@@ -904,12 +904,12 @@
     }
   },
   "boardBreadcrumb": {
-    "root": "All Boards",
+    "root": "Keine Sammlung",
     "openManager": "Tafeln verwalten"
   },
   "collectionSwitcher": {
     "title": "Sammlung wechseln",
-    "root": "All Boards (root)"
+    "root": "Keine Sammlung"
   },
   "boardsModal": {
     "title": "Boards & Collections",

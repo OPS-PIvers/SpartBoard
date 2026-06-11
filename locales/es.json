@@ -904,12 +904,12 @@
     }
   },
   "boardBreadcrumb": {
-    "root": "All Boards",
+    "root": "Sin colección",
     "openManager": "Administrar tableros"
   },
   "collectionSwitcher": {
     "title": "Cambiar colección",
-    "root": "All Boards (root)"
+    "root": "Sin colección"
   },
   "boardsModal": {
     "title": "Boards & Collections",

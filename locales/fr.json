@@ -904,12 +904,12 @@
     }
   },
   "boardBreadcrumb": {
-    "root": "All Boards",
+    "root": "Aucune collection",
     "openManager": "Gérer les tableaux"
   },
   "collectionSwitcher": {
     "title": "Changer de collection",
-    "root": "All Boards (root)"
+    "root": "Aucune collection"
   },
   "boardsModal": {
     "title": "Boards & Collections",
