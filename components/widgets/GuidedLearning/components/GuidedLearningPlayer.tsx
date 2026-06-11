@@ -701,7 +701,14 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                 onLoadedMetadata={(e) => {
                   measureImg();
-                  if (slideTrim) e.currentTarget.currentTime = slideTrim.start;
+                  if (slideTrim) {
+                    const el = e.currentTarget;
+                    const dur = el.duration || 0;
+                    el.currentTime = Math.max(
+                      0,
+                      Math.min(slideTrim.start, dur)
+                    );
+                  }
                 }}
                 onTimeUpdate={(e) => {
                   // Loop within the trimmed playback range. The native
@@ -709,11 +716,16 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                   // acts as a fallback if `end` is at/after the file end).
                   if (!slideTrim) return;
                   const el = e.currentTarget;
-                  if (
-                    el.currentTime >= slideTrim.end ||
-                    el.currentTime < slideTrim.start - 0.25
-                  ) {
-                    el.currentTime = slideTrim.start;
+                  // Clamp the trim against the loaded metadata — a stale doc,
+                  // manual edit, or future UI bug could carry out-of-range
+                  // values that would otherwise wedge seeking. No-op on a
+                  // degenerate range so native `loop` takes over.
+                  const dur = el.duration || 0;
+                  const start = Math.max(0, Math.min(slideTrim.start, dur));
+                  const end = Math.min(slideTrim.end, dur);
+                  if (end <= start) return;
+                  if (el.currentTime >= end || el.currentTime < start - 0.25) {
+                    el.currentTime = start;
                   }
                 }}
               />

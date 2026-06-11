@@ -7,6 +7,7 @@ import {
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
+import { GL_MAX_VIDEO_BYTES } from '@/utils/guidedLearningMedia';
 
 interface Props {
   step: GuidedLearningStep;
@@ -466,6 +467,20 @@ const StepMediaUpload: React.FC<{
 
   const handleFile = async (file: File) => {
     if (!user) return;
+    // Guard against oversized AV uploads (e.g. a raw screen recording dropped
+    // in as step media) before kicking off the upload — otherwise the user
+    // sees a long stall or a generic Storage error. validateSlideFile isn't
+    // used here because it rejects audio outright (audio isn't a slide kind),
+    // so we apply the video byte cap, which is the relevant limit for both
+    // the audio and video step-media inputs.
+    if (file.size > GL_MAX_VIDEO_BYTES) {
+      setError(
+        `"${file.name}" is too large (max ${Math.round(
+          GL_MAX_VIDEO_BYTES / 1024 / 1024
+        )}MB).`
+      );
+      return;
+    }
     setError('');
     setProgress(0);
     try {
