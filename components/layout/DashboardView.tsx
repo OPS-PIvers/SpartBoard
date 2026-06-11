@@ -1265,9 +1265,13 @@ export const DashboardView: React.FC = () => {
         return;
       }
 
-      // Delete: Handle clear board if shift or alt is pressed, otherwise target focused/top widget
-      if (e.key === 'Delete') {
-        // Don't intercept Delete when the user is typing in an input, textarea,
+      // Delete / Backspace: clear board when shift or alt is held; otherwise
+      // (Delete only) target the focused/top widget. Backspace mirrors the
+      // Alt/Shift clear-board shortcut that previously lived in DraggableWindow
+      // (commonly Option+Delete on macOS), but plain Backspace is intentionally
+      // ignored to avoid accidental whole-widget deletes.
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Don't intercept when the user is typing in an input, textarea,
         // or contentEditable — let the browser's default deletion behaviour run.
         // This mirrors the Escape key guard above and fixes a bug where pressing
         // Delete inside any text field on the board would be silently swallowed
@@ -1278,9 +1282,8 @@ export const DashboardView: React.FC = () => {
           activeEl?.isContentEditable;
         if (isTypingField) return;
 
-        e.preventDefault();
-
         if (e.shiftKey || e.altKey) {
+          e.preventDefault();
           const handleClearAll = async () => {
             const confirmed = await showConfirm(
               t('sidebar.confirmClearBoard'),
@@ -1293,7 +1296,16 @@ export const DashboardView: React.FC = () => {
             if (confirmed) deleteAllWidgets();
           };
           void handleClearAll();
-        } else if (activeDashboard && activeDashboard.widgets.length > 0) {
+          return;
+        }
+
+        // Plain Delete targets a single widget; plain Backspace is a no-op.
+        if (
+          e.key === 'Delete' &&
+          activeDashboard &&
+          activeDashboard.widgets.length > 0
+        ) {
+          e.preventDefault();
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
 
