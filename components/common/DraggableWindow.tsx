@@ -64,7 +64,6 @@ import { AnnotationCanvas } from './AnnotationCanvas';
 import { IconButton } from '@/components/common/IconButton';
 import { STANDARD_COLORS, WIDGET_PALETTE } from '@/config/colors';
 import { Z_INDEX } from '@/config/zIndex';
-import { useDialog } from '@/context/useDialog';
 
 // Widgets that cannot be snapshotted due to CORS/Technical limitations
 const SCREENSHOT_BLACKLIST: WidgetType[] = ['webcam', 'embed'];
@@ -196,7 +195,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     bringToFront,
     addToast,
     resetWidgetSize,
-    deleteAllWidgets,
     setSelectedWidgetId,
     updateWidgets,
     ungroupWidgets,
@@ -216,7 +214,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const groupBuildMode = useDashboardCanvasSelector((s) => s.groupBuildMode);
   // Event-handler-time canvas reads (no render subscription).
   const getCanvasState = useDashboardCanvasStateGetter();
-  const { showConfirm: showConfirmDialog } = useDialog();
 
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -832,7 +829,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     [handleSnapToZone]
   );
 
-  const handleKeyDown = async (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     // Stop propagation if we're in an input to prevent global shortcuts
     const target = e.target as HTMLElement;
     const isInput =
@@ -892,22 +889,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         setShowConfirm(true);
         handleCloseTools();
       }
-      return;
-    }
-
-    // Alt + Delete or Alt + Backspace: Clear all widgets
-    if ((e.key === 'Delete' || e.key === 'Backspace') && e.altKey) {
-      e.preventDefault();
-      e.stopPropagation();
-      const confirmed = await showConfirmDialog(
-        t('widgetWindow.clearEntireBoard'),
-        {
-          title: t('widgetWindow.clearBoardTitle'),
-          variant: 'danger',
-          confirmLabel: t('widgetWindow.clearAll'),
-        }
-      );
-      if (confirmed) deleteAllWidgets();
       return;
     }
 
