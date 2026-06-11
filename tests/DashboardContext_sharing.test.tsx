@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
 import { act, render, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { DashboardProvider } from '../context/DashboardContext';
-import { useDashboard } from '../context/useDashboard';
-import { Dashboard } from '../types';
+import { DashboardProvider } from '@/context/DashboardContext';
+import { useDashboard } from '@/context/useDashboard';
+import { Dashboard } from '@/types';
 
 // Mock dependencies
 const mockUser = {

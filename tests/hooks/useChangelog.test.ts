@@ -6,7 +6,7 @@ import {
   readLastSeenVersion,
   WHATSNEW_SEEN_EVENT_NAME,
   __resetChangelogCacheForTests,
-} from '../../hooks/useChangelog';
+} from '@/hooks/useChangelog';
 
 const SAMPLE = {
   entries: [

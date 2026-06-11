@@ -3,7 +3,7 @@ import { renderHook, act } from '@testing-library/react';
 import {
   useAppVersion,
   __resetAppVersionForTests,
-} from '../../hooks/useAppVersion';
+} from '@/hooks/useAppVersion';
 import { vi, Mock } from 'vitest';
 
 // The hook reads the build-time constant __APP_VERSION__.

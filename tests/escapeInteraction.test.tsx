@@ -7,27 +7,24 @@ import {
   act,
 } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { DashboardView } from '../components/layout/DashboardView';
+import { DashboardView } from '@/components/layout/DashboardView';
 import {
   DashboardContext,
   DashboardContextValue,
-} from '../context/DashboardContextValue';
-import { Dashboard, WidgetData, GlobalStyle } from '../types';
+} from '@/context/DashboardContextValue';
+import { Dashboard, WidgetData, GlobalStyle } from '@/types';
 
 // Mock child components to simplify testing
-vi.mock('../components/announcements/AnnouncementOverlay', () => ({
-  AnnouncementOverlay: () => null,
-}));
-vi.mock('../components/layout/sidebar/Sidebar', () => ({
-  Sidebar: () => <div data-testid="sidebar" />,
-}));
-vi.mock('../components/layout/Dock', () => ({
-  Dock: () => <div data-testid="dock" />,
-}));
 vi.mock('@/components/announcements/AnnouncementOverlay', () => ({
   AnnouncementOverlay: () => <div data-testid="announcement-overlay" />,
 }));
-vi.mock('../components/widgets/WidgetRenderer', () => ({
+vi.mock('@/components/layout/sidebar/Sidebar', () => ({
+  Sidebar: () => <div data-testid="sidebar" />,
+}));
+vi.mock('@/components/layout/Dock', () => ({
+  Dock: () => <div data-testid="dock" />,
+}));
+vi.mock('@/components/widgets/WidgetRenderer', () => ({
   WidgetRenderer: ({
     widget,
     updateWidget,
@@ -49,14 +46,14 @@ vi.mock('../components/widgets/WidgetRenderer', () => ({
     </div>
   ),
 }));
-vi.mock('../context/useAuth', () => ({
+vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1' },
     isAdmin: false,
     canAccessFeature: vi.fn().mockReturnValue(true),
   }),
 }));
-vi.mock('../hooks/useLiveSession', () => ({
+vi.mock('@/hooks/useLiveSession', () => ({
   useLiveSession: () => ({
     session: null,
     students: [],
@@ -69,7 +66,7 @@ vi.mock('../hooks/useLiveSession', () => ({
     toggleGlobalFreeze: vi.fn(),
   }),
 }));
-vi.mock('../hooks/useQuiz', () => ({
+vi.mock('@/hooks/useQuiz', () => ({
   useQuiz: () => ({
     importSharedQuiz: vi.fn().mockResolvedValue(undefined),
     shareQuiz: vi.fn().mockResolvedValue(''),
@@ -77,7 +74,7 @@ vi.mock('../hooks/useQuiz', () => ({
     saveQuiz: vi.fn().mockResolvedValue({ id: 'q1', driveFileId: 'drive-1' }),
   }),
 }));
-vi.mock('../hooks/useQuizAssignments', () => ({
+vi.mock('@/hooks/useQuizAssignments', () => ({
   useQuizAssignments: () => ({
     assignments: [],
     loading: false,
@@ -85,7 +82,7 @@ vi.mock('../hooks/useQuizAssignments', () => ({
     importSharedAssignment: vi.fn().mockResolvedValue('a1'),
   }),
 }));
-vi.mock('../hooks/useVideoActivity', () => ({
+vi.mock('@/hooks/useVideoActivity', () => ({
   useVideoActivity: () => ({
     activities: [],
     loading: false,
@@ -95,7 +92,7 @@ vi.mock('../hooks/useVideoActivity', () => ({
     attachSyncLinkage: vi.fn().mockResolvedValue(undefined),
   }),
 }));
-vi.mock('../hooks/useVideoActivityAssignments', () => ({
+vi.mock('@/hooks/useVideoActivityAssignments', () => ({
   useVideoActivityAssignments: () => ({
     assignments: [],
     loading: false,
@@ -105,7 +102,7 @@ vi.mock('../hooks/useVideoActivityAssignments', () => ({
       .mockResolvedValue({ assignmentId: 'a1', activityId: 'va1' }),
   }),
 }));
-vi.mock('../hooks/usePlcs', () => ({
+vi.mock('@/hooks/usePlcs', () => ({
   usePlcs: () => ({
     plcs: [],
     loading: false,
