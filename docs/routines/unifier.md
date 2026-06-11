@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 12_
-_Last run: 2026-06-10_
+_Run count: 13_
+_Last run: 2026-06-11_
 _Base branch: dev-paul_
 
 ---
@@ -259,6 +259,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 | LOW      | SHIPPED (run 9)  | `hooks/` — 43 imports across 16 files                                                                     | All cross-dir imports → @/ alias; bonus Prettier fix in useImageUpload.ts; validate ✅ — PR #1884                                                                                                               |
 | LOW      | SHIPPED (run 10) | `utils/` — 16 files, 23 imports                                                                           | All `'../types'`, `'../config/...'`, `'../hooks/...'`, `'../components/...'` → `@/` alias; same-dir `./` imports preserved; validate ✅ — PR #1897                                                              |
 | LOW      | SHIPPED (run 11) | `components/common/library/` — 3 files, 3 Modal imports                                                   | `ViewOnlyShareModal.tsx:38` + `AssignModal.tsx:24` → `'../Modal'`; `importer/ImportWizard.tsx:30` → `'../../Modal'` → all `@/components/common/Modal`; D4-E2 `'../types'` preserved; tsc + eslint ✅ — PR #1909 |
+| LOW      | SHIPPED (run 13) | `tests/` root + `tests/hooks/` — 12 files, ~42 imports                                                    | All `'../context/...'`, `'../types'`, `'../components/...'`, `'../../hooks/...'` → `@/` alias; `vi.mock` paths also converted; bonus: duplicate dead `vi.mock` in `escapeInteraction.test.tsx` removed; validate ✅ — PR #1941 |
 
 ### D5 — Toast Architecture
 
@@ -277,6 +278,11 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date       | Branch                                                  | Dimension          | Action                                                                                                                                                                                                                                        | PR    |
 | ---------- | ------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| 2026-06-11 | `nightly/unify-import-paths-tests-2026-06-11`           | D4 Import Paths    | Shipped — tests/ root + tests/hooks/ (12 files, ~42 imports): `'../context/...'`, `'../types'`, `'../components/...'`, `'../../hooks/...'` → `@/` alias; vi.mock paths converted; duplicate mock removed; validate ✅ 393 files / 4025 tests | #1941 |
+| 2026-06-11 | —                                                       | D1 Empty States    | Aligned — 3 VISUAL-RISK items unchanged (SmartNotebook Library, ActivityWall:1508, ActivityWall:1824); no new hand-rolled empty states in recently added files                                                                                 | —     |
+| 2026-06-11 | —                                                       | D2 Brand Colors    | Aligned — no new inline brand-color instances; all known exceptions still valid                                                                                                                                                                | —     |
+| 2026-06-11 | —                                                       | D3 Settings Labels | Aligned — scope exhausted; LunchCount/SubmitReportModal.tsx NEEDS REVIEW item still pending human decision; no new anti-patterns found                                                                                                         | —     |
+| 2026-06-11 | —                                                       | D5 Toast Arch      | Aligned — no new admin components with local toast; all existing patterns confirmed against exceptions list                                                                                                                                     | —     |
 | 2026-06-10 | —                                                       | D1 Empty States    | Aligned — ScreenCaptureModal upload panel (new GL file) is out of scope (interactive action panel, not missing-data empty state); 3 VISUAL-RISK items unchanged, still require designer review                                                | —     |
 | 2026-06-10 | —                                                       | D2 Brand Colors    | Aligned — no new inline brand-color instances; D2-E10/11/12 already catalogued by run 11                                                                                                                                                      | —     |
 | 2026-06-10 | —                                                       | D3 Settings Labels | Aligned — scope exhausted; `GuidedLearningEditor.tsx:1487` (`text-xxs font-bold uppercase tracking-wider text-slate-500`) is editor UI (out of scope); `LinkSchoologyModal.tsx:191` brand-blue modal header is out of scope                   | —     |
@@ -378,3 +384,4 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 - **D3 out-of-scope patterns noted (run 12):** `GuidedLearningEditor.tsx:1487` (`text-xxs font-bold uppercase tracking-wider text-slate-500`) is inside the editor panel (content creation tool, not a widget settings back-face or admin config panel) — out of D3 scope. `LinkSchoologyModal.tsx:191` (`text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest`) is a modal header in brand-blue — out of scope. If D3 scope is extended to editor modals in future, these would be candidates.
 - **D4 exhausted (run 12):** No actionable D4 violations remain. Covered: admin/, common/library/, settingsModal/sections/, plc/home/cards/, plc/tabs↔bodies/, context/, hooks/, utils/. Remaining `'../'` are all D4-E2 gray-zone. Future D4 work is staleness-check-only on newly added files.
 - **D1 VISUAL-RISK items still pending (run 12):** SmartNotebook Library white-card wrapper, ActivityWall:1508 card background, ActivityWall:1824 opacity-40 icon — none converted; designer sign-off required.
+- **D4 tests/ complete (run 13):** tests/ root + tests/hooks/ (12 files, ~42 imports) converted. Run 12 "exhausted" declaration missed the tests/ directory. vi.mock paths were also converted alongside import statements. `tests/e2e/*.spec.ts` intentionally excluded (Playwright, no @/ alias). D4 is now exhaustively covered — staleness-check-only on new files going forward.
