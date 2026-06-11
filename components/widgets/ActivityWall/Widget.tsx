@@ -29,6 +29,10 @@ import {
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { classLinkService } from '@/utils/classlinkService';
+import {
+  resolveActivityWallBuildingDefaults,
+  type ActivityWallActivityDefaults,
+} from './buildingDefaults';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { db, functions, storage } from '@/config/firebase';
 import {
@@ -250,13 +254,15 @@ const buildWordCloud = (
   }));
 };
 
-const buildBlankActivity = (): ActivityWallActivity => ({
+const buildBlankActivity = (
+  defaults: ActivityWallActivityDefaults = {}
+): ActivityWallActivity => ({
   id: crypto.randomUUID(),
   title: '',
   prompt: '',
-  mode: 'text',
-  moderationEnabled: false,
-  identificationMode: 'anonymous',
+  mode: defaults.mode ?? 'text',
+  moderationEnabled: defaults.moderationEnabled ?? false,
+  identificationMode: defaults.identificationMode ?? 'anonymous',
   submissions: [],
   startedAt: null,
 });
@@ -277,7 +283,13 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { updateWidget, addWidget, addToast, isActiveBoardReadOnly } =
     useDashboard();
-  const { user, googleAccessToken, refreshGoogleToken } = useAuth();
+  const {
+    user,
+    googleAccessToken,
+    refreshGoogleToken,
+    featurePermissions,
+    selectedBuildings,
+  } = useAuth();
   const { isConnected: isDriveConnected } = useGoogleDrive();
   const config = widget.config as ActivityWallConfig;
   const {
@@ -731,6 +743,18 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     saveLibraryActivity,
     addToast,
   ]);
+
+  // Per-building admin defaults (mode / identification / moderation) applied
+  // when a teacher authors a *new* activity, so a building can pre-configure
+  // how Activity Wall posts behave without each teacher re-setting them.
+  const activityDefaults = useMemo(
+    () =>
+      resolveActivityWallBuildingDefaults(
+        featurePermissions,
+        selectedBuildings
+      ),
+    [featurePermissions, selectedBuildings]
+  );
 
   // Open the editor seeded with the teacher's last-used classId for this
   // activity (Phase 3D). Keeps the same UX as QuizManager where re-assigning
@@ -1478,7 +1502,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    openEditor(buildBlankActivity());
+                    openEditor(buildBlankActivity(activityDefaults));
                     setShowLiveView(false);
                   }}
                   className="rounded-xl bg-brand-blue-primary text-white font-black uppercase flex items-center"
