@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-10_
+_Last audited: 2026-06-11_
 _Last action: 2026-06-06_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-11: Full scan of all Widget.tsx files after rebasing onto dev-paul (new commits: ui(library) modernize views, test(hooks) useVideoActivitySessionTeacher, fix(stores) consumeLaunchCode, fix(i18n) seatingChart, fix(export) dedup buildResultsSheetData, fix(DashboardView) groupBuildMode Escape, perf(dashboard) DashboardContext split). None of these touch widget front-face content. The DashboardContext split is a context-internal structural refactor — no widget canvas changes. All pre-existing open items re-confirmed valid. Zero new anti-patterns detected._
 
 _2026-06-10: Full scan of all 47 Widget.tsx files. Five patterns re-flagged by automated scan and reviewed against prior journal records: (1) ActivityWall `max-h-[75vh]` at lines 2101/2107/2110 — confirmed inside a fullscreen `<Modal>` overlay outside the widget CQ context; viewport-height units are correct here (prior reviews 2026-05-14, 2026-05-19, 2026-05-24 all reached same conclusion). (2) DrawingWidget line 1338 `w-[260px]` popover — DrawingWidget has `skipScaling: false` (CSS transform scaling, not CQ); hardcoded pixel widths in its toolbar are not CQ violations (confirmed 2026-05-27). (3) MusicWidget line 570 `max-w-[85%]` — structural truncation constraint on a flex-child label, not a content-cap violation (confirmed 2026-05-24). (4) RecessGear line 341 `max-w-[70%]` — identical pattern to MusicWidget; confirmed acceptable 2026-05-20. (5) LunchCount line 1042 `max-w-[min(60vmin,560px)]` — modal-level constraint; vmin is appropriate for viewport-bounded modals outside the widget CQ context. Zero new anti-patterns detected. All pre-existing open items remain valid._
 

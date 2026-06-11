@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-10_
+_Last audited: 2026-06-11_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-11: Full audit after rebasing scheduled-tasks onto dev-paul (new commits: ui(library) modernize unified library/in-progress/archive views, test(hooks) cover useVideoActivitySessionTeacher, fix(stores) consumeLaunchCode null coalescing, fix(i18n) seatingChart DE/ES/FR, fix(export) dedup buildResultsSheetData, fix(DashboardView) groupBuildMode Escape guard, perf(dashboard) DashboardContext split — stable actions + canvas hot-state store). None of these commits touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. The DashboardContext split is a structural refactor of context internals only. All 64 WidgetTypes remain correctly registered: 62 non-sticker in WIDGET_COMPONENTS (sticker intentional WidgetRenderer special-case per JSDoc), 64/64 in widgetDefaults.ts and widgetGradeLevels.ts, 59 user-selectable in tools.ts (6 intentionally excluded sub-types + sticker), 3 InternalToolType entries (magic, record, remote) correctly in tools.ts and widgetGradeLevels.ts but not WidgetType union (documented). All sampled lazyNamed() export names verified correct. pnpm type-check and pnpm lint both clean. Zero new gaps._
 
 _2026-06-10: Full audit of all 64 WidgetType values. Rebase onto dev-paul produced journal-file conflicts; working from scheduled-tasks HEAD. No commits to types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts since the 2026-06-09 audit. All 64 WidgetTypes remain correctly registered. Zero new gaps. All lazyNamed() export names verified correct._
 
