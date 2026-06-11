@@ -905,10 +905,10 @@
   },
   "boardBreadcrumb": {
     "root": "All Boards",
-    "openManager": "Manage Boards"
+    "openManager": "Tafeln verwalten"
   },
   "collectionSwitcher": {
-    "title": "Switch Collection",
+    "title": "Sammlung wechseln",
     "root": "All Boards (root)"
   },
   "boardsModal": {

@@ -905,10 +905,10 @@
   },
   "boardBreadcrumb": {
     "root": "All Boards",
-    "openManager": "Manage Boards"
+    "openManager": "Administrar tableros"
   },
   "collectionSwitcher": {
-    "title": "Switch Collection",
+    "title": "Cambiar colección",
     "root": "All Boards (root)"
   },
   "boardsModal": {
