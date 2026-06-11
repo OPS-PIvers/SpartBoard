@@ -4,6 +4,7 @@ import {
   GuidedLearningSet,
   GuidedLearningPublicStep,
   GuidedLearningMode,
+  GuidedLearningVideoTrim,
 } from '@/types';
 import { TextPopoverInteraction } from './interactions/TextPopoverInteraction';
 import { TooltipInteraction } from './interactions/TooltipInteraction';
@@ -17,6 +18,29 @@ import {
   toContainerCoords,
   toImageOffset,
 } from '../utils/imageUtils';
+
+/**
+ * Clamp a video trim against the player's loaded metadata. The editor already
+ * enforces `0 <= start < end <= duration`, but a stale doc / manual edit could
+ * carry out-of-range values; clamping keeps seeking sane. When the duration
+ * isn't known yet (`NaN`/0 — e.g. before metadata loads, or in jsdom), the
+ * raw trim values are trusted since there's nothing valid to clamp against.
+ */
+function clampTrimStart(
+  trim: GuidedLearningVideoTrim,
+  duration: number
+): number {
+  const start = Math.max(0, trim.start);
+  return Number.isFinite(duration) && duration > 0
+    ? Math.min(start, duration)
+    : start;
+}
+
+function clampTrimEnd(trim: GuidedLearningVideoTrim, duration: number): number {
+  return Number.isFinite(duration) && duration > 0
+    ? Math.min(trim.end, duration)
+    : trim.end;
+}
 
 interface Props {
   set: GuidedLearningSet;
@@ -703,11 +727,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                   measureImg();
                   if (slideTrim) {
                     const el = e.currentTarget;
-                    const dur = el.duration || 0;
-                    el.currentTime = Math.max(
-                      0,
-                      Math.min(slideTrim.start, dur)
-                    );
+                    el.currentTime = clampTrimStart(slideTrim, el.duration);
                   }
                 }}
                 onTimeUpdate={(e) => {
@@ -720,9 +740,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                   // manual edit, or future UI bug could carry out-of-range
                   // values that would otherwise wedge seeking. No-op on a
                   // degenerate range so native `loop` takes over.
-                  const dur = el.duration || 0;
-                  const start = Math.max(0, Math.min(slideTrim.start, dur));
-                  const end = Math.min(slideTrim.end, dur);
+                  const start = clampTrimStart(slideTrim, el.duration);
+                  const end = clampTrimEnd(slideTrim, el.duration);
                   if (end <= start) return;
                   if (el.currentTime >= end || el.currentTime < start - 0.25) {
                     el.currentTime = start;
