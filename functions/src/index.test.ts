@@ -787,6 +787,29 @@ describe('checkUrlCompatibility', () => {
     ).rejects.toThrow(/private or reserved/i);
     expect(mockHead).not.toHaveBeenCalled();
   });
+
+  // Regression: checkUrlCompatibility called axios.head() without maxRedirects:0,
+  // so a public URL that 302-redirected to a private/internal IP (e.g. the GCP
+  // metadata endpoint at 169.254.169.254) would bypass the blocklist entirely —
+  // the same SSRF redirect bypass that was already fixed in fetchExternalProxy.
+  it('disables axios redirects so the SSRF blocklist stays load-bearing under 3xx', async () => {
+    const mockHead = vi.mocked(axios.head);
+    mockHead.mockResolvedValue({ headers: {} });
+
+    const handler = checkUrlCompatibility as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+    await handler(
+      { url: 'https://example.com/embed-test' },
+      { auth: { uid: '123' } }
+    );
+
+    expect(mockHead).toHaveBeenCalledWith(
+      'https://example.com/embed-test',
+      expect.objectContaining({ maxRedirects: 0 })
+    );
+  });
 });
 
 describe('adminAnalytics', () => {
