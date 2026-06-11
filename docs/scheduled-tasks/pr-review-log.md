@@ -4,6 +4,47 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-11
+
+- PRs reviewed: 10 (all open PRs; every head is non-`main`/non-`dev-*`, so all in scope; all base `dev-paul`)
+  - #1942 — docs(unifier): run 13 memory log (head `nightly/unifier-log-2026-06-11`)
+  - #1941 — D4: convert tests/ relative imports to `@/` alias (head `nightly/unify-import-paths-tests-2026-06-11`)
+  - #1940 — chore(perf): refresh performance baselines (head `nightly/perf-baseline-2026-06-11`)
+  - #1939 — fix(layout): remove duplicate Alt+Delete handler from DraggableWindow (head `nightly/dashboard-layout-2026-06-11`)
+  - #1938 — docs(debugger): nightly run 14 log (head `nightly/debugger-log-2026-06-11`)
+  - #1937 — fix(functions): maxRedirects:0 SSRF guard in checkUrlCompatibility (head `nightly/build-tooling-2026-06-11`)
+  - #1936 — fix(i18n): boardBreadcrumb/collectionSwitcher DE/ES/FR placeholders (head `nightly/admin-config-2026-06-11`)
+  - #1935 — fix(state): dedup questions in classroomGradePush currentTotal (head `nightly/state-data-2026-06-11`)
+  - #1934 — fix(BreathingWidget): phase==='ready' sentinel for Reset disabled (head `nightly/widgets-2026-06-11`)
+  - #1933 — chore(scheduled-tasks): audit journals + activity-wall building defaults (head `scheduled-tasks`)
+- Comments processed: 9 total — 7 fixed, 2 explained
+  - #1939: 1 HIGH gemini thread — removing the `DraggableWindow` Alt+Backspace branch left `Alt+Backspace` unhandled because `DashboardView` only matched `Delete` → FIXED (global handler now clears on Delete+Backspace under Alt/Shift; plain Backspace stays a no-op).
+  - #1936: 5 threads (3 HIGH stale `.root` keys in DE/ES/FR + 2 MEDIUM redundant test casts) → all 5 FIXED (translated `.root` to match the `"No Collection"` EN source, removed casts, extended the regression test to guard `.root`).
+  - #1938: 1 MEDIUM gemini thread — duplicate `normalizeSession` backlog row → FIXED (removed; already tracked on the 06-08/06-09 rows).
+  - #1942: 1 MEDIUM gemini thread (outdated) — Run Log PR-number column → EXPLAINED (no fix): committed table already has the PR in its own 5th column.
+  - #1933: 1 MEDIUM gemini thread (outdated) — 64-vs-63 widget-count discrepancy → EXPLAINED (no fix): reviewer's own guidance is not to auto-reconcile historical audit logs; the PR itself reconciles it with an explicit awk verification.
+  - #1940, #1941, #1935, #1934, #1937: no review comments.
+- Fixes pushed: 3
+  - #1939 / `nightly/dashboard-layout-2026-06-11` — restored Alt/Shift+Backspace clear-board in DashboardView; type-check ✓ lint ✓ tests ✓ (28/28).
+  - #1936 / `nightly/admin-config-2026-06-11` — translated `.root` keys (Keine Sammlung / Sin colección / Aucune collection), dropped redundant test casts, extended regression test; type-check ✓ lint ✓ format ✓ tests ✓ (20/20).
+  - #1938 / `nightly/debugger-log-2026-06-11` — removed duplicate backlog row (doc-only).
+- Reviews posted: 10 (one structured review per PR)
+  - #1942: Ready — doc-only unifier run 13 log; outdated table nit already resolved.
+  - #1941: Ready — `@/` alias substitution; behavior-preserving (one bonus double-mock cleanup in escapeInteraction.test.tsx).
+  - #1940: Ready with minor notes — baseline refresh is more than timing-only: `dashboard-baseline.json` `totalShellRenders` (a deterministic primary metric) dropped across nearly every scenario (the DashboardContext-split win); recommended correcting the PR body.
+  - #1939: Ready — handler-ownership consolidation; the Alt+Backspace gap raised in review is fixed.
+  - #1938: Ready — doc-only debugger run 14 log; duplicate backlog row removed.
+  - #1937: Ready — genuine SSRF redirect-bypass fix mirroring fetchExternalProxy; good test.
+  - #1936: Ready — locale placeholder fix + parity-enforcing test; all gemini follow-ups addressed.
+  - #1935: Ready — Set-based dedup fence matching 5 prior fixes; well-tested.
+  - #1934: Ready — phase sentinel for Reset disable; one-line + regression test.
+  - #1933: Ready — high-quality activity-wall building-defaults wiring (pure validated helper + 8 tests); journal updates doc-only.
+- Notes:
+  - Branch-safety: all 10 head branches are non-`main`/non-`dev-*` → pushable; 3 required fix pushes.
+  - #1933 head is `scheduled-tasks` (this log's branch); appending today's entry here and pushing follows the POST-TASK workflow.
+
+---
+
 ## 2026-06-10
 
 - PRs reviewed: 12 (all open PRs; no head is `main`/`dev-*`, so all in scope)

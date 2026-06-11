@@ -144,4 +144,28 @@ describe('buildQuizClassroomGradeEntries', () => {
     // must omit it so the gradebook grade reflects mastery, not answer speed.
     expect(getEarnedPointsMock.mock.calls[0][2]).toBeUndefined();
   });
+
+  it('deduplicates questions by id before summing currentTotal (Drive-sync duplicate guard)', () => {
+    // Drive-sync duplication or arrayUnion races can write the same question id
+    // twice into the quiz's questions array. Without a dedup guard, currentTotal
+    // inflates (10 + 10 = 20) while getEarnedPoints stays correct (it builds a
+    // Map that naturally deduplicates by id, so earned = 10 for a perfect answer).
+    // The scaling (earned / currentTotal) * maxPoints then understates the grade:
+    //   bugged:   (10 / 20) * 10 = 5  ← wrong (50% instead of 100%)
+    //   correct:  (10 / 10) * 10 = 10 ← correct
+    const dupQuestion: QuizQuestion = {
+      id: 'q-dup',
+      type: 'MC',
+      points: 10,
+    } as unknown as QuizQuestion;
+    // Two entries with the SAME id simulate the Drive-sync duplicate.
+    const questions = [dupQuestion, dupQuestion];
+    // The mock returns __earned; set it to the correct single-question earned
+    // value (10 pts) — matching what getEarnedPoints produces when its qMap
+    // deduplicates the question to one entry.
+    const response = resp('u1', 'completed', 10);
+    const grades = buildQuizClassroomGradeEntries([response], questions, 10);
+    // A student who earned 10/10 on the only real question should push 10/10.
+    expect(grades).toEqual([{ pseudonymUid: 'u1', pointsEarned: 10 }]);
+  });
 });

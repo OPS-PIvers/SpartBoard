@@ -1536,6 +1536,12 @@ export const checkUrlCompatibility = onCall(
     try {
       const response = await axios.head(data.url, {
         timeout: 10000,
+        // SSRF guard: the blocklist check above only validates the initial URL.
+        // Without this, axios would follow up to 5 redirects by default, so a
+        // public host could 302 to a private/internal IP (e.g. the GCP metadata
+        // endpoint at 169.254.169.254) and bypass the check entirely — the same
+        // vulnerability that was already fixed in fetchExternalProxy.
+        maxRedirects: 0,
         headers: {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',

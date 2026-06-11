@@ -72,6 +72,8 @@ vi.mock('@/context/useAuth', () => ({
     user: mockUser,
     googleAccessToken: 'google-access-token',
     refreshGoogleToken: mockRefreshGoogleToken,
+    featurePermissions: [],
+    selectedBuildings: [],
   }),
 }));
 
