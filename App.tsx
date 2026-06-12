@@ -121,6 +121,11 @@ const MyAssignmentsPage = lazy(() =>
     default: module.MyAssignmentsPage,
   }))
 );
+const LandingPage = lazy(() =>
+  import('./components/landing/LandingPage').then((module) => ({
+    default: module.LandingPage,
+  }))
+);
 const LoginScreen = lazy(() =>
   import('./components/auth/LoginScreen').then((module) => ({
     default: module.LoginScreen,
@@ -209,12 +214,20 @@ const FullPageLoader = () => (
 const AuthenticatedApp: React.FC<{ isRemote?: boolean }> = ({
   isRemote = false,
 }) => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
   if (!user) {
+    // While the persisted session resolves, show a plain loader so returning
+    // teachers don't get a flash of the marketing page before the dashboard.
+    if (loading) {
+      return <FullPageLoader />;
+    }
+    // Signed-out fork (docs/wide-distro-plan.md Phase 1): the root route gets
+    // the public landing page (sign-in is its hero CTA); the mobile remote
+    // keeps the minimal login screen.
     return (
       <Suspense fallback={<FullPageLoader />}>
-        <LoginScreen />
+        {isRemote ? <LoginScreen /> : <LandingPage />}
       </Suspense>
     );
   }
