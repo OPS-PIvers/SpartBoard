@@ -5655,6 +5655,16 @@ export interface ToolMetadata {
 
 export type AccessLevel = 'admin' | 'beta' | 'public';
 
+/**
+ * Distribution tier of the signed-in user (docs/wide-distro-plan.md Phase 3).
+ * Ordering for `minTier` checks: free < org < internal.
+ * - 'internal': email domain is in the internal-domains list (Orono staff).
+ * - 'org': not internal, but a member of an organization
+ *   (`/organizations/{orgId}/members/{email}` doc exists).
+ * - 'free': everyone else.
+ */
+export type UserTier = 'internal' | 'org' | 'free';
+
 export type GlobalFeature =
   | 'live-session'
   | 'gemini-functions'
@@ -5671,7 +5681,8 @@ export type GlobalFeature =
   | 'org-admin-writes'
   | 'assignment-modes'
   | 'share-link-tracking'
-  | 'personal-spotify';
+  | 'personal-spotify'
+  | 'google-classroom';
 
 export interface GlobalFeaturePermission {
   featureId: GlobalFeature;
@@ -5685,6 +5696,13 @@ export interface GlobalFeaturePermission {
    * buildings in their `selectedBuildings` to pass the gate.
    */
   buildings?: string[];
+  /**
+   * Minimum user tier required to access the feature (free < org <
+   * internal). `undefined` means available to all tiers — the back-compat
+   * default for every doc written before the tier model existed.
+   * Admins bypass this check (same as accessLevel).
+   */
+  minTier?: UserTier;
   config?: Record<string, unknown>;
 }
 
@@ -5776,6 +5794,13 @@ export interface FeaturePermission {
   gradeLevels?: GradeLevel[];
   /** Optional override for the widget's display name. */
   displayName?: string;
+  /**
+   * Minimum user tier required to access the widget (free < org <
+   * internal). `undefined` means available to all tiers — the back-compat
+   * default for every doc written before the tier model existed.
+   * Admins bypass this check (same as accessLevel).
+   */
+  minTier?: UserTier;
   /** Optional global configuration for the widget (e.g., API keys, target IDs). */
   config?: Record<string, unknown>;
 }

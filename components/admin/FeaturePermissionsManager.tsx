@@ -34,6 +34,7 @@ import { Toast } from '@/components/common/Toast';
 
 import { GenericConfigurationModal } from '@/components/admin/GenericConfigurationModal';
 import { BetaUsersPanel } from '@/components/admin/BetaUsersPanel';
+import { MinTierSelect } from '@/components/admin/MinTierSelect';
 import { InstructionalRoutinesManager } from '@/components/admin/InstructionalRoutinesManager';
 import { StickerLibraryModal } from '@/components/admin/StickerLibraryModal';
 import { CalendarConfigurationModal } from '@/components/admin/CalendarConfigurationModal';
@@ -215,7 +216,13 @@ export const FeaturePermissionsManager: React.FC = () => {
       setSaving((prev) => new Set(prev).add(widgetType));
       const permission = getPermission(widgetType);
 
-      await setDoc(doc(db, 'feature_permissions', widgetType), permission);
+      // Firestore rejects explicit `undefined` values; "no minimum tier"
+      // is modeled as an absent field, so strip it before persisting.
+      const { minTier, ...withoutMinTier } = permission;
+      await setDoc(
+        doc(db, 'feature_permissions', widgetType),
+        minTier === undefined ? withoutMinTier : permission
+      );
 
       // Clear unsaved changes flag for this widget
       setUnsavedChanges((prev) => {
@@ -663,6 +670,16 @@ export const FeaturePermissionsManager: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Minimum Tier */}
+                  <div className="border-t border-slate-100 bg-slate-50 p-4">
+                    <MinTierSelect
+                      value={permission.minTier}
+                      onChange={(minTier) =>
+                        updatePermission(tool.type, { minTier })
+                      }
+                    />
+                  </div>
+
                   {/* Expanded Content Wrapper */}
                   {permission.accessLevel === 'beta' && (
                     <div className="border-t border-slate-100 bg-slate-50">
@@ -802,6 +819,16 @@ export const FeaturePermissionsManager: React.FC = () => {
                       ALL
                     </button>
                   </div>
+                </div>
+
+                {/* Minimum Tier */}
+                <div className="mb-3">
+                  <MinTierSelect
+                    value={permission.minTier}
+                    onChange={(minTier) =>
+                      updatePermission(tool.type, { minTier })
+                    }
+                  />
                 </div>
 
                 {/* Beta Users (only show if access level is beta) */}

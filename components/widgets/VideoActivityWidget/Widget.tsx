@@ -147,10 +147,14 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   const [assigningToClassroom, setAssigningToClassroom] =
     useState<VideoActivityAssignment | null>(null);
   // "Assign to Google Classroom" visibility: master flag, restricted to admins
-  // during the staged Spike-A rollout (CLASSROOM_ASSIGN_ADMIN_ONLY).
+  // during the staged Spike-A rollout (CLASSROOM_ASSIGN_ADMIN_ONLY). The
+  // hardcoded constants stay (they document the Marketplace-scope rollout
+  // interlocks); the admin-managed `google-classroom` permission doc is
+  // ANDed in on top — e.g. `minTier: 'internal'` keeps the flow staff-only.
   const canAssignToClassroom =
     CLASSROOM_ASSIGN_ENABLED &&
-    (!CLASSROOM_ASSIGN_ADMIN_ONLY || isAdmin === true);
+    (!CLASSROOM_ASSIGN_ADMIN_ONLY || isAdmin === true) &&
+    canAccessFeature('google-classroom');
 
   // PLC share target — set when the teacher picks "Share with PLC" on a
   // library row. The `PlcShareTargetModal` is rendered as a sibling and

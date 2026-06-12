@@ -42,6 +42,7 @@ import {
   DockPosition,
   AssignmentMode,
   AssignmentWidgetKey,
+  UserTier,
 } from '@/types';
 import type { MemberRecord, BuildingRecord } from '@/types/organization';
 import { AuthContext } from './AuthContextValue';
@@ -68,6 +69,7 @@ import {
   canWriteLastActive,
   stampLastActive,
 } from '@/utils/lastActiveThrottle';
+import { deriveUserTier, meetsMinTier } from '@/utils/userTier';
 
 // Phase 2 ships with the single seeded `orono` org. Phase 3+ resolves this
 // dynamically once `admin_settings/user_roles` (or an org-index collection)
@@ -1886,6 +1888,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [userRoles]
   );
 
+  // Distribution tier (docs/wide-distro-plan.md Phase 3). Org membership
+  // reuses the existing member-doc subscription above: a resolved `orgId`
+  // means `/organizations/{orgId}/members/{email}` exists for this user.
+  // Until that snapshot resolves, a non-internal member briefly derives
+  // `free` — acceptable because minTier-gated UI simply appears once the
+  // membership lands, same as every other snapshot-driven gate here.
+  const userTier = useMemo<UserTier>(
+    () => deriveUserTier(user?.email, orgId !== null),
+    [user, orgId]
+  );
+
   // Check if user can access a specific widget
   // Wrapped in useCallback to prevent unnecessary re-renders since this function
   // is passed through context and used in component dependencies
@@ -1924,6 +1937,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           return false;
       }
 
+      // Tier gate (docs/wide-distro-plan.md Phase 3): an unset `minTier`
+      // imposes no restriction, so pre-tier docs behave exactly as before.
+      if (!meetsMinTier(userTier, permission.minTier)) return false;
+
       // Per-building gate: when an admin has explicitly turned a widget off
       // for every one of the user's buildings via `config.dockDefaults`, deny
       // access. `dockDefaults` was originally just an initial-dock seed, but
@@ -1958,7 +1975,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       return true;
     },
-    [user, featurePermissions, isAdmin, isBetaUser, selectedBuildings]
+    [user, featurePermissions, isAdmin, isBetaUser, selectedBuildings, userTier]
   );
 
   /**
@@ -1988,6 +2005,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         default:
           return false;
       }
+      // Tier gate (docs/wide-distro-plan.md Phase 3): an unset `minTier`
+      // imposes no restriction, so pre-tier docs behave exactly as before.
+      if (!meetsMinTier(userTier, permission.minTier)) return false;
       // Building check applies only when explicitly restricted. An empty
       // array or `undefined` means "no building restriction" — the feature
       // applies to anyone who passed the access-level check above. When set,
@@ -2000,7 +2020,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       return true;
     },
-    [isAdmin, isBetaUser, selectedBuildings]
+    [isAdmin, isBetaUser, selectedBuildings, userTier]
   );
 
   const canAccessFeature = useCallback(
@@ -2145,6 +2165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         updateAppSettings,
         canAccessWidget,
         canAccessFeature,
+        userTier,
         getAssignmentMode,
         canSeeShareTracking,
         signInWithGoogle,
