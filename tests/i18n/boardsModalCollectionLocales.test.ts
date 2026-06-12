@@ -187,8 +187,7 @@ const SIDEBAR_BOARDS_TRANSLATED_KEYS: [string[], string][] = [
 // ---------------------------------------------------------------------------
 
 function get(obj: Record<string, unknown>, path: string[]): unknown {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return path.reduce<unknown>((acc, key) => (acc as any)?.[key], obj);
+  return path.reduce<unknown>((acc, key) => (acc as Record<string, unknown>)?.[key], obj);
 }
 
 // ---------------------------------------------------------------------------
