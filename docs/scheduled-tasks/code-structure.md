@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-06-10_
+_Last audited: 2026-06-12_
 _Last action: 2026-05-22 — HIGH DashboardContext extraction assessed and BLOCKED pending supervised runtime-verified session_
 
 ---
@@ -16,9 +16,18 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-06-12: Weekly audit pass. Rebase onto dev-paul (docs/unifier run 13, D4 @/ alias conversion in tests/, perf baseline refresh, fix DraggableWindow duplicate handler, debugger run 14). None touch context/DashboardContext.tsx, functions/src/index.ts, or adminBuildingConfig.ts structure. All existing open items re-confirmed valid. New finding: multiple large component/layout files not previously tracked now exceed 500 lines — QuizStudentApp.tsx (3762 lines), DashboardView.tsx (1908 lines), Dock.tsx (1597 lines), GlobalPermissionsManager.tsx (1497 lines), StarterPackConfigurationModal.tsx (1251 lines), VideoActivityStudentApp.tsx (990 lines). Cloud Functions all confirmed on v2. No data-fetching duplication detected. No deep relative imports (3+ levels of ../) in source files. Single-use utils list extended: assignToClassroom.ts, deleteDrawingPageSubcollection.ts, imageWorker.ts, lastActiveThrottle.ts, migrateDrawingToSubcollection.ts, miniAppNormalize.ts added to existing LOW item. 1 new MEDIUM open item added._
+
 _2026-06-10: Weekly audit pass. DashboardContext.tsx confirmed at 5,596 lines (same as 2026-06-05 — no structural changes since). BLOCKED extraction status unchanged. functions/src/index.ts confirmed at 4,305 lines — organically growing domain-split pattern continues. Four new open items added: cardOpacity validation duplication in adminBuildingConfig.ts, stale v1 logger import in finalizeIdleQuizAttempts.ts, OAuth Cloud Functions missing explicit timeoutSeconds, and concurrent userProfile reads/writes between AuthContext and DashboardContext._
 
 _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 5,275 on 2026-05-27). BLOCKED extraction status unchanged. functions/src/index.ts now 4,305 lines — domain split organically in progress (spotifyOAuth.ts, syncedQuizGroups.ts etc.). All Cloud Functions confirmed on v2; no v1 imports found. New LOW finding: feature_permissions and global_permissions read coordination between AuthContext and DashboardContext could benefit from documentation. adminBuildingConfig.ts: font-validation constants duplicated across reveal-grid/numberLine/concept-web cases (related to existing LOW simple-switch-cases item). Test imports with 3+ ../../ levels are all in .test.tsx files using vi.mock() — acceptable. No new large-file violations beyond what's already tracked. 1 new LOW open item added._
+
+### MEDIUM Large component files not tracked by DashboardContext or functions/src items — 5 files exceed 1000 lines
+
+- **Detected:** 2026-06-12
+- **Files:** components/student/QuizStudentApp.tsx (3762 lines), components/layout/DashboardView.tsx (1908 lines), components/layout/Dock.tsx (1597 lines), components/admin/GlobalPermissionsManager.tsx (1497 lines), components/admin/StarterPackConfigurationModal.tsx (1251 lines), components/student/VideoActivityStudentApp.tsx (990 lines)
+- **Detail:** Six source component files exceed 500 lines and were not previously tracked in this journal. The most critical: `QuizStudentApp.tsx` (3762 lines) bundles auth, lobby, question rendering, timer state, PIN entry, and score tracking; `DashboardView.tsx` (1908 lines) contains the main app shell, widget placement, toolbar, and menu logic; `Dock.tsx` (1597 lines) bundles dock header, folder panel, tool list rendering, and animation logic; `GlobalPermissionsManager.tsx` (1497 lines) contains all admin feature/access/quota UI in one component; `StarterPackConfigurationModal.tsx` (1251 lines) is a long form modal with no section decomposition; `VideoActivityStudentApp.tsx` (990 lines) mirrors the QuizStudentApp pattern.
+- **Fix:** For QuizStudentApp and VideoActivityStudentApp: extract `TimerController`, `PinEntryForm`, `SessionLobby`, and `QuestionRenderer` into sibling components under their respective directories. For DashboardView: extract the toolbar/menu as `DashboardToolbar`. For Dock: extract `FolderPanel` and `ToolItem` into sub-components. For GlobalPermissionsManager: split into `WidgetAccessPanel`, `QuotaEditor`, and `BetaListManager`. These are view-layer extractions (no shared state changes) — lower risk than the DashboardContext extraction. Prioritize QuizStudentApp first given its size.
 
 ### MEDIUM `DashboardContext.tsx` is 3481 lines and growing — at least three extractable responsibilities
 
@@ -128,11 +137,17 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
 - **Detail:** The following utils files have only one import consumer in components/context/hooks/utils (0 = unused tests only, 1 = single consumer):
   - `utils/accessibility.ts` — 1 consumer
   - `utils/ai_security.ts` — 1 consumer (likely `utils/ai.ts`)
+  - `utils/assignToClassroom.ts` — 1 consumer (2026-06-12)
   - `utils/backgroundCategories.ts` — 1 consumer
   - `utils/dashboardPII.ts` — 1 consumer
+  - `utils/deleteDrawingPageSubcollection.ts` — 1 consumer (2026-06-12, migration helper)
   - `utils/googleCalendarService.ts` — 1 consumer
   - `utils/guidedLearningDriveService.ts` — 1 consumer
+  - `utils/imageWorker.ts` — 1 consumer (2026-06-12, Web Worker — correct isolation)
+  - `utils/lastActiveThrottle.ts` — 1 consumer (2026-06-12)
   - `utils/migration.ts` — 1 consumer (`context/DashboardContext.tsx`)
+  - `utils/migrateDrawingToSubcollection.ts` — 1 consumer (2026-06-12, migration helper)
+  - `utils/miniAppNormalize.ts` — 1 consumer (2026-06-12, consider colocation)
   - `utils/smartPaste.ts` — 1 consumer
     Single-consumer utils are not necessarily wrong — domain separation is valid — but warrant a quick sanity check that they are not duplicating logic that already exists elsewhere, and that they are documented or self-explanatory.
 - **Fix:** Verify each file's consumer. For `migration.ts` (owned entirely by DashboardContext), consider whether inlining or consolidating the migration logic into the context would reduce indirection. No action required if each file's scope is intentionally bounded.
