@@ -139,7 +139,7 @@ describe('gradeAnswer — Matching partial-credit isCorrect consistency', () => 
     expect(result.pointsEarned).toBe(2);
   });
 
-  it('isCorrect and pointsEarned are always consistent: isCorrect ↔ pointsEarned >= max', () => {
+  it('isCorrect and pointsEarned are always consistent: isCorrect ↔ pointsEarned >= max (max > 0)', () => {
     const cases = [
       'dog:bark|cat:meow', // perfect
       'dog:bark|cat:meow|cow:wrong', // extras
@@ -152,5 +152,17 @@ describe('gradeAnswer — Matching partial-credit isCorrect consistency', () => 
       const expectCorrect = result.pointsEarned >= result.pointsMax;
       expect(result.isCorrect).toBe(expectCorrect);
     }
+  });
+
+  it('0-point question with no correct matches is isCorrect=false (not 0 >= 0)', () => {
+    // isCorrect derives from `matched === total`, not `pointsEarned >= max`,
+    // so a worth-0 question is only correct when every prompt is matched.
+    const allWrong = gradeAnswer(matchQ(0), 'dog:wrong|cat:wrong');
+    expect(allWrong.isCorrect).toBe(false);
+    expect(allWrong.pointsEarned).toBe(0);
+
+    const allRight = gradeAnswer(matchQ(0), 'dog:bark|cat:meow');
+    expect(allRight.isCorrect).toBe(true);
+    expect(allRight.pointsEarned).toBe(0);
   });
 });

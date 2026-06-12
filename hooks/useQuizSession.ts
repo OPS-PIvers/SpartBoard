@@ -377,12 +377,18 @@ export function gradeAnswer(
     const pointsEarned = total === 0 ? 0 : (matched / total) * max;
     // For partial credit, the points formula does not penalise extra pairs —
     // it rewards correct matches only.  `isCorrect` must be consistent with
-    // that formula: a student who earns full credit (pointsEarned ≥ max)
+    // that formula: a student who matches every prompt earns full credit and
     // should be flagged correct, even if they also submitted surplus pairs.
     // The previous code reused `strictCorrect` here, which left the
     // semantically contradictory state isCorrect=false + pointsEarned=max
     // when the student matched every prompt but included extra wrong pairs.
-    const isCorrect = pointsEarned >= max;
+    //
+    // `matched === total` is the direct form of "earned full credit" here:
+    // since `matched` is capped at `total`, it is equivalent to
+    // `pointsEarned >= max` whenever `max > 0`, but it also stays correct for
+    // a 0-point question (where `0 >= 0` would otherwise mark every answer
+    // correct) and avoids floating-point comparison entirely.
+    const isCorrect = matched === total;
     return { isCorrect, pointsEarned, pointsMax: max };
   }
   if (question.type === 'Ordering') {
