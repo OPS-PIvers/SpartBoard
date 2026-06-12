@@ -80,9 +80,16 @@ function canvasToBlob(
  * processing wouldn't actually shrink it.
  */
 export async function prepareImageForUpload(file: File): Promise<File> {
+  // GIFs and SVGs must pass through untouched — canvas re-encoding flattens
+  // animation and rasterizes vectors. Check the filename extension too: a
+  // drag/drop often hands over an empty MIME type, so a MIME-only test would
+  // silently re-encode a .gif/.svg dropped that way (the exact case the
+  // docstring promises to avoid).
+  const isGifOrSvgByExt = /\.(gif|svg)$/i.test(file.name);
   if (
     file.type === 'image/gif' ||
     file.type === 'image/svg+xml' ||
+    isGifOrSvgByExt ||
     typeof document === 'undefined'
   ) {
     return file;

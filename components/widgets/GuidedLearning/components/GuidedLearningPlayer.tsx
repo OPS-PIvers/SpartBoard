@@ -4,6 +4,7 @@ import {
   GuidedLearningSet,
   GuidedLearningPublicStep,
   GuidedLearningMode,
+  GuidedLearningVideoTrim,
 } from '@/types';
 import { TextPopoverInteraction } from './interactions/TextPopoverInteraction';
 import { TooltipInteraction } from './interactions/TooltipInteraction';
@@ -17,6 +18,38 @@ import {
   toContainerCoords,
   toImageOffset,
 } from '../utils/imageUtils';
+
+/**
+ * Clamp a video trim against the player's loaded metadata. The editor already
+ * enforces `0 <= start < end <= duration`, but a stale doc / manual edit could
+ * carry out-of-range values; clamping keeps seeking sane. When the duration
+ * isn't known yet (`NaN`/0 — e.g. before metadata loads, or in jsdom), the
+ * raw trim values are trusted since there's nothing valid to clamp against.
+ *
+ * A corrupted doc could also carry a non-finite `start`/`end` (`NaN`/`undefined`
+ * from a type mismatch). Assigning `NaN` to `video.currentTime` throws in most
+ * browsers, so both ends are sanitized to a finite fallback first.
+ */
+function clampTrimStart(
+  trim: GuidedLearningVideoTrim,
+  duration: number
+): number {
+  const rawStart = Number.isFinite(trim.start) ? trim.start : 0;
+  const start = Math.max(0, rawStart);
+  return Number.isFinite(duration) && duration > 0
+    ? Math.min(start, duration)
+    : start;
+}
+
+function clampTrimEnd(trim: GuidedLearningVideoTrim, duration: number): number {
+  const hasDuration = Number.isFinite(duration) && duration > 0;
+  const rawEnd = Number.isFinite(trim.end)
+    ? trim.end
+    : hasDuration
+      ? duration
+      : 0;
+  return hasDuration ? Math.min(rawEnd, duration) : rawEnd;
+}
 
 interface Props {
   set: GuidedLearningSet;
@@ -701,7 +734,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                 onLoadedMetadata={(e) => {
                   measureImg();
-                  if (slideTrim) e.currentTarget.currentTime = slideTrim.start;
+                  if (slideTrim) {
+                    const el = e.currentTarget;
+                    el.currentTime = clampTrimStart(slideTrim, el.duration);
+                  }
                 }}
                 onTimeUpdate={(e) => {
                   // Loop within the trimmed playback range. The native
@@ -709,11 +745,15 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                   // acts as a fallback if `end` is at/after the file end).
                   if (!slideTrim) return;
                   const el = e.currentTarget;
-                  if (
-                    el.currentTime >= slideTrim.end ||
-                    el.currentTime < slideTrim.start - 0.25
-                  ) {
-                    el.currentTime = slideTrim.start;
+                  // Clamp the trim against the loaded metadata — a stale doc,
+                  // manual edit, or future UI bug could carry out-of-range
+                  // values that would otherwise wedge seeking. No-op on a
+                  // degenerate range so native `loop` takes over.
+                  const start = clampTrimStart(slideTrim, el.duration);
+                  const end = clampTrimEnd(slideTrim, el.duration);
+                  if (end <= start) return;
+                  if (el.currentTime >= end || el.currentTime < start - 0.25) {
+                    el.currentTime = start;
                   }
                 }}
               />
