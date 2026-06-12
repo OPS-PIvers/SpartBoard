@@ -67,6 +67,17 @@ const EMPTY_STUDENTS: LiveStudent[] = [];
 const SWIPE_MIN_DISTANCE_PX = 60; // minimum travel to count as a deliberate swipe
 const SIDEBAR_EDGE_SWIPE_WIDTH_PX = 40; // left-edge zone that triggers sidebar open
 
+// True when focus is inside a text-entry field (input/textarea/select or any
+// contentEditable element). Used by the global keydown handler so dashboard
+// shortcuts don't hijack keystrokes the user means for a field they're typing in.
+const isTypingFieldActive = (): boolean => {
+  const activeEl = document.activeElement as HTMLElement | null;
+  return (
+    ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl?.tagName ?? '') ||
+    !!activeEl?.isContentEditable
+  );
+};
+
 const ToastContainer: React.FC = () => {
   const { toasts, removeToast } = useDashboard();
   // The wrapper is a positioning container only — live-region semantics live on
@@ -1208,11 +1219,7 @@ export const DashboardView: React.FC = () => {
       // Guard: if focus is inside a typing field, let the second Escape branch
       // handle it (blur the field) — don't exit group-build mode unexpectedly.
       if (e.key === 'Escape' && groupBuildMode) {
-        const activeEl = document.activeElement as HTMLElement;
-        const isTypingField =
-          ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl?.tagName || '') ||
-          activeEl?.isContentEditable;
-        if (!isTypingField) {
+        if (!isTypingFieldActive()) {
           e.preventDefault();
           setGroupBuildMode(false);
           setSelectedWidgetIds([]);
@@ -1222,14 +1229,8 @@ export const DashboardView: React.FC = () => {
 
       // Escape: Close top-most widget or blur input
       if (e.key === 'Escape') {
-        const activeElement = document.activeElement as HTMLElement;
-        const isInput =
-          ['INPUT', 'TEXTAREA', 'SELECT'].includes(
-            activeElement?.tagName || ''
-          ) || activeElement?.isContentEditable;
-
-        if (isInput) {
-          activeElement.blur();
+        if (isTypingFieldActive()) {
+          (document.activeElement as HTMLElement | null)?.blur();
           return;
         }
 
@@ -1276,11 +1277,7 @@ export const DashboardView: React.FC = () => {
         // This mirrors the Escape key guard above and fixes a bug where pressing
         // Delete inside any text field on the board would be silently swallowed
         // (e.preventDefault() was called before this check was added).
-        const activeEl = document.activeElement as HTMLElement;
-        const isTypingField =
-          ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl?.tagName || '') ||
-          activeEl?.isContentEditable;
-        if (isTypingField) return;
+        if (isTypingFieldActive()) return;
 
         if (e.shiftKey || e.altKey) {
           e.preventDefault();
@@ -1330,11 +1327,7 @@ export const DashboardView: React.FC = () => {
       // field — Ctrl+/ is a common "comment/uncomment" shortcut in many
       // text editors and widgets that embed rich-text inputs.
       if ((e.ctrlKey || e.metaKey) && e.key === '/') {
-        const activeEl = document.activeElement as HTMLElement;
-        const isTypingField =
-          ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl?.tagName || '') ||
-          activeEl?.isContentEditable;
-        if (isTypingField) return;
+        if (isTypingFieldActive()) return;
         e.preventDefault();
         setIsCheatSheetOpen((prev) => !prev);
         return;
@@ -1344,11 +1337,7 @@ export const DashboardView: React.FC = () => {
       if (e.altKey && e.key === 'p') {
         // Guard: don't intercept Alt shortcuts while the user is typing in a
         // form field (mirrors the Escape / Delete guards above).
-        const activeEl = document.activeElement as HTMLElement;
-        const isTypingField =
-          ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl?.tagName || '') ||
-          activeEl?.isContentEditable;
-        if (isTypingField) return;
+        if (isTypingFieldActive()) return;
 
         e.preventDefault();
         if (activeDashboard && activeDashboard.widgets.length > 0) {
@@ -1375,11 +1364,7 @@ export const DashboardView: React.FC = () => {
       // Guard: Alt + ArrowLeft/Right is word-navigation in text fields on
       // macOS and many Linux keyboard layouts. Don't intercept it there.
       if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-        const activeEl = document.activeElement as HTMLElement;
-        const isTypingField =
-          ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl?.tagName || '') ||
-          activeEl?.isContentEditable;
-        if (isTypingField) return;
+        if (isTypingFieldActive()) return;
 
         e.preventDefault();
         if (dashboards.length > 1) {
