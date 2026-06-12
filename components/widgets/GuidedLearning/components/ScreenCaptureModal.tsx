@@ -15,13 +15,7 @@
  * state's normal slide pipeline (compression, progress, kinds tracking).
  */
 
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Camera,
@@ -126,9 +120,9 @@ export const ScreenCaptureModal: React.FC<Props> = ({
   // read that inside the handler so the keydown listener below stays stable
   // instead of tearing down/re-adding on every update.
   const onCloseRef = useRef(onClose);
-  useLayoutEffect(() => {
-    onCloseRef.current = onClose;
-  });
+  // Keep the ref in sync with the prop in the render body (per repo convention)
+  // rather than in an effect, so the keydown handler never reads a stale closure.
+  onCloseRef.current = onClose;
 
   // Escape closes the modal (standard modal affordance). Skipped while a
   // recording is in flight so a stray Escape can't silently discard it.

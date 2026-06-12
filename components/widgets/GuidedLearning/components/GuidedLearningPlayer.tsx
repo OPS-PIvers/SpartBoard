@@ -25,21 +25,30 @@ import {
  * carry out-of-range values; clamping keeps seeking sane. When the duration
  * isn't known yet (`NaN`/0 — e.g. before metadata loads, or in jsdom), the
  * raw trim values are trusted since there's nothing valid to clamp against.
+ *
+ * A corrupted doc could also carry a non-finite `start`/`end` (`NaN`/`undefined`
+ * from a type mismatch). Assigning `NaN` to `video.currentTime` throws in most
+ * browsers, so both ends are sanitized to a finite fallback first.
  */
 function clampTrimStart(
   trim: GuidedLearningVideoTrim,
   duration: number
 ): number {
-  const start = Math.max(0, trim.start);
+  const rawStart = Number.isFinite(trim.start) ? trim.start : 0;
+  const start = Math.max(0, rawStart);
   return Number.isFinite(duration) && duration > 0
     ? Math.min(start, duration)
     : start;
 }
 
 function clampTrimEnd(trim: GuidedLearningVideoTrim, duration: number): number {
-  return Number.isFinite(duration) && duration > 0
-    ? Math.min(trim.end, duration)
-    : trim.end;
+  const hasDuration = Number.isFinite(duration) && duration > 0;
+  const rawEnd = Number.isFinite(trim.end)
+    ? trim.end
+    : hasDuration
+      ? duration
+      : 0;
+  return hasDuration ? Math.min(rawEnd, duration) : rawEnd;
 }
 
 interface Props {
