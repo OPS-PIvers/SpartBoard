@@ -365,11 +365,24 @@ export function gradeAnswer(
       }
     }
     const total = correctPairs.length;
-    const isCorrect = matched === total && givenPairs.length === total;
+    // Strict correctness: every prompt matched AND no extra pairs submitted.
+    const strictCorrect = matched === total && givenPairs.length === total;
     if (!partial) {
-      return { isCorrect, pointsEarned: isCorrect ? max : 0, pointsMax: max };
+      return {
+        isCorrect: strictCorrect,
+        pointsEarned: strictCorrect ? max : 0,
+        pointsMax: max,
+      };
     }
     const pointsEarned = total === 0 ? 0 : (matched / total) * max;
+    // For partial credit, the points formula does not penalise extra pairs —
+    // it rewards correct matches only.  `isCorrect` must be consistent with
+    // that formula: a student who earns full credit (pointsEarned ≥ max)
+    // should be flagged correct, even if they also submitted surplus pairs.
+    // The previous code reused `strictCorrect` here, which left the
+    // semantically contradictory state isCorrect=false + pointsEarned=max
+    // when the student matched every prompt but included extra wrong pairs.
+    const isCorrect = pointsEarned >= max;
     return { isCorrect, pointsEarned, pointsMax: max };
   }
   if (question.type === 'Ordering') {

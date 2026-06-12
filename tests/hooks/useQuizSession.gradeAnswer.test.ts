@@ -98,3 +98,59 @@ describe('gradeAnswer — written types', () => {
     expect(result.pointsEarned).toBe(2);
   });
 });
+
+describe('gradeAnswer — Matching partial-credit isCorrect consistency', () => {
+  // Regression for the bug where a student who matched every correct prompt
+  // but also submitted extra wrong pairs received isCorrect:false while
+  // pointsEarned equalled pointsMax.  The partial-credit formula awards
+  // (matched/total)*max — it intentionally does NOT penalise extra pairs —
+  // so isCorrect must be derived from pointsEarned, not from the strict
+  // "no-extra-pairs" predicate that applies to the non-partial path.
+  const matchQ = (pts: number): QuizQuestion => ({
+    id: 'pm-regression',
+    timeLimit: 0,
+    text: 'Match',
+    type: 'Matching',
+    correctAnswer: 'dog:bark|cat:meow',
+    incorrectAnswers: [],
+    points: pts,
+    allowPartialCredit: true,
+  });
+
+  it('all-correct pairs + extra wrong pair: isCorrect=true and pointsEarned=max', () => {
+    // Previously returned isCorrect:false, pointsEarned:max — a contradictory
+    // state that caused results dashboards to show "incorrect" for a
+    // full-credit submission.
+    const result = gradeAnswer(matchQ(2), 'dog:bark|cat:meow|cow:wrong');
+    expect(result.isCorrect).toBe(true);
+    expect(result.pointsEarned).toBe(2);
+    expect(result.pointsMax).toBe(2);
+  });
+
+  it('partial match (1/2 correct) + extra wrong pair: isCorrect=false, pointsEarned=half', () => {
+    const result = gradeAnswer(matchQ(4), 'dog:bark|cat:wrong|cow:extra');
+    expect(result.isCorrect).toBe(false);
+    expect(result.pointsEarned).toBeCloseTo(2, 5); // 1/2 * 4
+  });
+
+  it('exact all-correct (no extras): isCorrect=true, pointsEarned=max', () => {
+    const result = gradeAnswer(matchQ(2), 'dog:bark|cat:meow');
+    expect(result.isCorrect).toBe(true);
+    expect(result.pointsEarned).toBe(2);
+  });
+
+  it('isCorrect and pointsEarned are always consistent: isCorrect ↔ pointsEarned >= max', () => {
+    const cases = [
+      'dog:bark|cat:meow', // perfect
+      'dog:bark|cat:meow|cow:wrong', // extras
+      'dog:bark', // partial
+      'dog:wrong|cat:wrong', // all wrong
+      '', // empty
+    ];
+    for (const answer of cases) {
+      const result = gradeAnswer(matchQ(4), answer);
+      const expectCorrect = result.pointsEarned >= result.pointsMax;
+      expect(result.isCorrect).toBe(expectCorrect);
+    }
+  });
+});
