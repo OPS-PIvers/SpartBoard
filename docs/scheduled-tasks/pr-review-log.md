@@ -4,6 +4,44 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-12
+
+- PRs reviewed: 12 (all open PRs; one head is `dev-paul` — read-only, review-only)
+  - #1953 — refactor(admin-config): extract shared `isCardOpacity` guard (head `scheduled-tasks`, base `dev-paul`)
+  - #1952 — docs(debugger): nightly run 15 log (head `nightly/debugger-log-2026-06-12`, base `dev-paul`)
+  - #1951 — fix(i18n): replace EN-placeholder strings in boardsModal/shareCollection (DE/ES/FR) (head `nightly/admin-config-2026-06-12`, base `dev-paul`)
+  - #1950 — fix(state): gradeAnswer partial-credit `isCorrect` consistency (head `nightly/state-data-2026-06-12`, base `dev-paul`)
+  - #1949 — fix(layout): typing-field guard on Ctrl+/ cheat-sheet shortcut (head `nightly/dashboard-layout-2026-06-12`, base `dev-paul`)
+  - #1948 — fix(docs): format unifier.md to pass Prettier (head `nightly/build-tooling-2026-06-12`, base `dev-paul`)
+  - #1947 — fix(widgets): correct negative-range fraction label on NumberLine (head `nightly/widgets-2026-06-12`, base `dev-paul`)
+  - #1946 — fix(docs): restore Prettier formatting on unifier.md (head `nightly/unifier-baseline-fix-2026-06-12`, base `dev-paul`)
+  - #1945 — docs(unifier): run 14 memory log (head `nightly/unifier-log-2026-06-12`, base `dev-paul`)
+  - #1944 — fix(guided-learning): address PR #1943 review feedback (head `claude/serene-meitner-eagi8c`, base `dev-paul`)
+  - #1943 — Enhance Guided Learning editor with media upload/playback (head `dev-paul`, base `main` — read-only)
+- Comments processed: 11 total — 8 fixed, 3 already-addressed/no-op
+  - #1944: 4 gemini threads — 3 FIXED (HIGH: NaN-sanitize `trim.start`/`end` centrally in `clampTrimStart`/`clampTrimEnd` so `video.currentTime` can't be assigned NaN; MEDIUM: sync `onClose` ref in render body instead of `useLayoutEffect`; MEDIUM: drop now-unused `useLayoutEffect` import). 1 outdated thread skipped. Note: the suggested `react-hooks/refs` disable was _not_ needed — the rule doesn't flag this assignment (unused-directive under `--max-warnings 0`).
+  - #1951: 1 gemini thread (MEDIUM) — FIXED. `fr.json` `pinnedEmpty` had Cyrillic `инг` in `Épингlez`; corrected to Latin `Épinglez`. Scanned all four locales for Cyrillic-block chars — none remaining.
+  - #1950: 1 gemini thread (MEDIUM) — FIXED. `isCorrect = pointsEarned >= max` marked every answer correct for a 0-point question (`0 >= 0`) and used float comparison; switched to `matched === total` (equivalent for `max > 0`, correct for `max === 0`) + added a 0-point regression test.
+  - #1949: 1 gemini thread (MEDIUM) — FIXED. Extracted the duplicated input/textarea/select/contentEditable check into a file-level `isTypingFieldActive()` helper and applied it to all six keydown guard sites.
+  - #1947: 3 gemini threads (MEDIUM) — FIXED. Simplified the negative-tick fraction expr to `Math.abs(valNumer) % denom` (distinct from the `Math.abs(valNumer % denom)` band-aid the PR rejected — keeps `% denom`); corrected two test descriptions (`-1 3/4` is first sub-tick _above -2_; `fractionLabel` renders `2/4`, not `1/2`).
+  - #1943: 7 threads — all already addressed via #1944 (author replies on each thread). No action.
+  - #1953, #1952, #1948, #1946, #1945: no review comments.
+- Fixes pushed: 5 (each to its own PR head branch — no pushes to `main`/`dev-*`)
+  - #1944 / `claude/serene-meitner-eagi8c` — `fix(pr-1944): sanitize non-finite video trim values and sync onClose ref in render body`; type-check ✓ lint ✓ tests ✓ (5/5).
+  - #1951 / `nightly/admin-config-2026-06-12` — `fix(pr-1951): replace Cyrillic characters in fr.json pinnedEmpty`; JSON ✓ prettier ✓ i18n tests ✓ (156/156).
+  - #1950 / `nightly/state-data-2026-06-12` — `fix(pr-1950): derive matching isCorrect from matched===total`; type-check ✓ lint ✓ tests ✓ (13/13).
+  - #1949 / `nightly/dashboard-layout-2026-06-12` — `fix(pr-1949): extract isTypingFieldActive helper`; type-check ✓ lint ✓ tests ✓ (25/25).
+  - #1947 / `nightly/widgets-2026-06-12` — `fix(pr-1947): simplify negative-tick fraction expr and correct test descriptions`; type-check ✓ lint ✓ tests ✓ (16/16).
+- Reviews posted: 12 (one structured `## Automated Code Review` per PR)
+  - #1953 Ready; #1952 Ready; #1951 Ready (Cyrillic fix pushed); #1950 Ready (0-point fix pushed); #1949 Ready (helper extraction pushed); #1948 Ready (dup of #1946); #1947 Ready (simplification pushed); #1946 Ready (dup of #1948); #1945 Ready; #1944 Ready (all threads resolved); #1943 **Needs changes** (CI red — see below).
+- Notes:
+  - Branch-safety: #1943 head is `dev-paul` (matches `dev-*`) → read-only, review-only, no push. All other heads (`nightly/*`, `claude/*`, `scheduled-tasks`) are pushable; 5 fixes went to their own head branches. No pushes to `main` or `dev-paul`.
+  - **#1943 CI is red** but only on `format:check` for `docs/routines/unifier.md` (Prettier drift) — all other jobs (type-check, Unit, E2E, Build, Firestore Rules, CodeQL) pass. This is exactly what **#1946**/**#1948** fix; landing one into dev-paul and re-running #1943's CI clears it. The 7 inline review threads on #1943 are already handled via #1944.
+  - **Duplicate Prettier fix flagged:** #1946 (run-14 baseline-fix branch) and #1948 (run-15 build-tooling branch) carry the _identical_ reformat of `docs/routines/unifier.md`. Only one is needed — merge one and the other becomes empty/conflicting. #1945 also edits the same file (run-14 log content) and will need a trivial merge-order reconciliation.
+  - Forward note: #1952's new "partial-credit `isCorrect` invariant" gotcha documents `pointsEarned >= pointsMax`; #1950 was refined to `matched === total` (handles the `max === 0` case). Worth syncing the gotcha wording when convenient.
+
+---
+
 ## 2026-06-11
 
 - PRs reviewed: 10 (all open PRs; every head is non-`main`/non-`dev-*`, so all in scope; all base `dev-paul`)
