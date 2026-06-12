@@ -6,8 +6,8 @@
  * asked to sign in. Internal (orono.k12.mn.us) teachers keep their flow: the
  * sign-in button is the hero CTA, and signed-in users never see this page.
  *
- * The "Bring SpartBoard to your district" CTA points at /support until the
- * Phase 2 pilot/rollout request form exists.
+ * The "Bring SpartBoard to your district" CTA points at the /request form
+ * (Phase 2).
  *
  * English-only by design (public marketing surface, like /privacy + /terms).
  */
@@ -148,7 +148,7 @@ export const LandingPage: React.FC = () => {
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             {signInButton}
             <a
-              href="/support"
+              href="/request"
               className="group inline-flex items-center gap-2 rounded-2xl px-6 py-4 font-bold text-slate-600 transition hover:text-slate-900"
             >
               Bring {APP_NAME} to your district
@@ -199,16 +199,19 @@ export const LandingPage: React.FC = () => {
               ))}
             </div>
             <p className="mt-10 text-center text-sm text-slate-500">
-              Pilots and district rollouts: email{' '}
+              Pilots and district rollouts:{' '}
+              <a
+                className="font-semibold text-brand-blue-primary underline hover:text-brand-blue-dark"
+                href="/request"
+              >
+                request access
+              </a>{' '}
+              or email{' '}
               <a
                 className="font-semibold text-brand-blue-primary underline hover:text-brand-blue-dark"
                 href="mailto:spartboard@orono.k12.mn.us"
               >
                 spartboard@orono.k12.mn.us
-              </a>{' '}
-              or visit the{' '}
-              <a className="underline" href="/support">
-                support page
               </a>
               .
             </p>

@@ -742,6 +742,40 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Pilot / district-rollout requests submitted from the public /request
+    // form (docs/wide-distro-plan.md Phase 2). Any signed-in user may CREATE
+    // one with a strictly validated shape (identity fields pinned to their
+    // token so requests can't impersonate); only admins read/triage. The
+    // rolloutRequestEmail CF (Admin SDK) relays each create to /mail.
+    match /rollout_requests/{requestId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if request.auth != null
+        && request.auth.token.get('email', '') != ''
+        && request.resource.data.keys().hasOnly([
+             'kind', 'name', 'email', 'role', 'organization', 'domain',
+             'size', 'message', 'status', 'createdAt', 'submittedByUid'
+           ])
+        && request.resource.data.kind in ['pilot', 'district']
+        && request.resource.data.status == 'new'
+        && request.resource.data.submittedByUid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email.lower()
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 200
+        && request.resource.data.role is string
+        && request.resource.data.role.size() <= 200
+        && request.resource.data.organization is string
+        && request.resource.data.organization.size() > 0
+        && request.resource.data.organization.size() <= 300
+        && request.resource.data.domain is string
+        && request.resource.data.domain.size() <= 200
+        && request.resource.data.size is string
+        && request.resource.data.size.size() <= 100
+        && request.resource.data.message is string
+        && request.resource.data.message.size() <= 5000
+        && request.resource.data.createdAt is number;
+    }
+
     // Mail queue consumed by the `firestore-send-email` Firebase extension.
     // Writes happen server-side only (Admin SDK bypasses rules, so the
     // `createOrganizationInvites` CF can still enqueue sends). Clients must

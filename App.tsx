@@ -126,6 +126,11 @@ const LandingPage = lazy(() =>
     default: module.LandingPage,
   }))
 );
+const RequestRolloutPage = lazy(() =>
+  import('./components/landing/RequestRolloutPage').then((module) => ({
+    default: module.RequestRolloutPage,
+  }))
+);
 const LoginScreen = lazy(() =>
   import('./components/auth/LoginScreen').then((module) => ({
     default: module.LoginScreen,
@@ -473,6 +478,22 @@ const App: React.FC = () => {
       <Suspense fallback={<FullPageLoader />}>
         <LegalPage />
       </Suspense>
+    );
+  }
+
+  // Pilot / district-rollout request form (docs/wide-distro-plan.md Phase 2).
+  // Public route; AuthProvider so signed-in users can submit the form, but no
+  // dashboard providers (the page must stay light and load for anyone).
+  if (legalPath === '/request') {
+    return (
+      <DialogProvider>
+        <AuthProvider>
+          <Suspense fallback={<FullPageLoader />}>
+            <RequestRolloutPage />
+          </Suspense>
+        </AuthProvider>
+        <DialogContainer />
+      </DialogProvider>
     );
   }
 
