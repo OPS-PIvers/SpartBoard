@@ -441,16 +441,19 @@ const App: React.FC = () => {
 
   // Public legal/support pages. Anonymous, no providers — they must render
   // without sign-in so Google's OAuth consent + Marketplace review can reach
-  // the Privacy Policy / Terms URLs.
+  // the Privacy Policy / Terms URLs. Trailing-slash tolerant because the
+  // prerendered static copies (dist/privacy/index.html etc.) make Firebase
+  // Hosting redirect /privacy → /privacy/ before the SPA boots.
+  const legalPath = pathname.replace(/\/+$/, '');
   if (
-    pathname === '/privacy' ||
-    pathname === '/terms' ||
-    pathname === '/support'
+    legalPath === '/privacy' ||
+    legalPath === '/terms' ||
+    legalPath === '/support'
   ) {
     const LegalPage =
-      pathname === '/privacy'
+      legalPath === '/privacy'
         ? PrivacyPolicyPage
-        : pathname === '/terms'
+        : legalPath === '/terms'
           ? TermsOfServicePage
           : SupportPage;
     return (
