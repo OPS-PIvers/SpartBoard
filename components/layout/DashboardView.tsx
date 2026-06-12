@@ -1326,7 +1326,15 @@ export const DashboardView: React.FC = () => {
       }
 
       // Ctrl + /: Open Cheat Sheet
+      // Guard: don't intercept Ctrl+/ while the user is typing in a form
+      // field — Ctrl+/ is a common "comment/uncomment" shortcut in many
+      // text editors and widgets that embed rich-text inputs.
       if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+        const activeEl = document.activeElement as HTMLElement;
+        const isTypingField =
+          ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl?.tagName || '') ||
+          activeEl?.isContentEditable;
+        if (isTypingField) return;
         e.preventDefault();
         setIsCheatSheetOpen((prev) => !prev);
         return;
