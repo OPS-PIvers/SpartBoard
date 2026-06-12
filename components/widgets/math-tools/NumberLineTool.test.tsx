@@ -72,7 +72,7 @@ describe('NumberLineTool', () => {
   // between negative integers.
   // -----------------------------------------------------------------
   describe('fractions mode negative range labels', () => {
-    it('shows "3/4" not "1 3/4" for the first sub-tick below -1 (at -1 3/4)', () => {
+    it('shows "3/4" not "1 3/4" for the first sub-tick above -2 (at -1 3/4)', () => {
       // min=-2, max=2, denom=4 → ticks at -2, -7/4, -6/4, -5/4, -1, ...
       // The tick at i=1 (valNumer = -8+1 = -7, x=between -2 and -1) should
       // label as "3/4" (only the fractional distance from the nearest lower
@@ -84,7 +84,7 @@ describe('NumberLineTool', () => {
       expect(container.innerHTML).not.toContain('1 3/4');
     });
 
-    it('shows "1/2" not "1 2/4" for the second sub-tick below -1 (at -1 1/2)', () => {
+    it('shows "2/4" not "1 2/4" for the second sub-tick below -1 (at -1 1/2)', () => {
       // i=2, valNumer=-6; correct label "2/4" (rendered by fractionLabel as "1/2"
       // after GCD reduction — but the broken path passes 6 → fractionLabel(6,4)
       // which returns "1 2/4" instead of "2/4").
