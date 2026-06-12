@@ -148,7 +148,7 @@ export const NumberLineTool: React.FC<NumberLineToolProps> = ({
               fontFamily="monospace"
             >
               {fractionLabel(
-                valNumer < 0 ? -valNumer : valNumer % denom,
+                valNumer < 0 ? -valNumer % denom : valNumer % denom,
                 denom
               )}
             </text>
