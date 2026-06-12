@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
 _Last audited: 2026-06-12_
-_Last action: 2026-05-22 — HIGH DashboardContext extraction assessed and BLOCKED pending supervised runtime-verified session_
+_Last action: 2026-06-12 — MEDIUM cardOpacity range-check extracted into shared `isCardOpacity` guard in adminBuildingConfig.ts_
 
 ---
 
@@ -67,20 +67,6 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
   - **`useDashboardDriveSync`** — Drive logic is not one isolated block: the background-export effect (2255–2302) is intertwined with `saveDashboardFirestore` + `scrubDashboardPII`, the PII-restore effect (2319+) mutates widget config, and Drive calls are also embedded in save/share/restore paths (1171–1460). The auth-error handler (615–632) and `useDriveReconnected` latch (2315) are separable but small.
   - **Pure-function seams** — already harvested: `getAdminBuildingConfig` (utils/adminBuildingConfig.ts, May 13), `pickInitialBoard` (utils/pickInitialBoard.ts), migration (utils/migration.ts, migrateProportionalLayout.ts, collectionsMigration.ts). No clean unit-testable pure block remains inline.
   - **Verification gap:** there is no unit-test coverage for the navigation or Drive-sync effects, and no Firebase/Drive runtime in the scheduled-task environment, so `type-check`/`lint`/`vitest` would not catch a navigation, sync-timing, or PII-restore regression on the app's most critical state file. Recommend a dedicated supervised session that can exercise board switching, collection switching, and Drive sync against a live/emulated Firebase project before landing this extraction.
-
-### MEDIUM `adminBuildingConfig.ts` — `cardOpacity` range-check block copy-pasted 4 times
-
-- **Detected:** 2026-06-10
-- **File:** utils/adminBuildingConfig.ts (lines 183–187, 266–270, 282–286, 412–416)
-- **Detail:** The following five-line cardOpacity guard is duplicated verbatim in four switch cases (`numberLine`, `checklist`, `stations`, `concept-web`):
-  ```typescript
-  typeof raw.cardOpacity === 'number' &&
-    Number.isFinite(raw.cardOpacity) &&
-    raw.cardOpacity >= 0 &&
-    raw.cardOpacity <= 1;
-  ```
-  This is distinct from the existing LOW "simple switch cases" item (which concerns single-field type-check cases). The cardOpacity block is a multi-condition range validator — any future fix (e.g., allowing `null` as a reset sentinel, or widening the valid range to `0.05–1`) must be applied in four places, and the current duplication has already caused one appearance (the `stations` case) to diverge slightly in guard structure from the others.
-- **Fix:** Extract a private `validateCardOpacity(raw: unknown): boolean` helper at the top of `adminBuildingConfig.ts` (or reuse the existing `isCardOpacity` if one already exists in `utils/widgetHelpers.ts`). Replace the four inline blocks with a call to the helper. Pure refactor — no behavior change. Then extend the existing LOW "simple switch cases" item's data-declaration approach to cover the appearance-field quartet (`cardColor`, `cardOpacity`, `fontFamily`, `fontColor`) shared by multiple cases.
 
 ### MEDIUM Concurrent reads and writes to `userProfile` document between `AuthContext` and `DashboardContext`
 
@@ -155,6 +141,15 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
 ---
 
 ## Completed
+
+### MEDIUM `adminBuildingConfig.ts` — `cardOpacity` range-check block copy-pasted 4 times
+
+- **Detected:** 2026-06-10
+- **Completed:** 2026-06-12
+- **File:** utils/adminBuildingConfig.ts, tests/utils/adminBuildingConfig.test.ts
+- **Detail:** The five-line `cardOpacity` range guard (`typeof === 'number' && Number.isFinite && >= 0 && <= 1`) was duplicated verbatim across four switch cases (`numberLine`, `checklist`, `stations`, `concept-web`), with the `stations` copy having already drifted in guard structure.
+- **Resolution:** Extracted a module-level `isCardOpacity(value: unknown): value is number` type-guard helper (placed alongside the existing `isHexColor` / `isGlobalFontFamily` / `isWidgetFontFamily` guards). Replaced all four inline blocks with a single-line `if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;`. The type guard also narrows `raw.cardOpacity` to `number`, so the assignment no longer relies on the inline `typeof` widening. Pure refactor — no behavior change. `pnpm type-check`, `eslint --max-warnings 0`, and `prettier --check` all clean; the existing 30 tests in `tests/utils/adminBuildingConfig.test.ts` all pass.
+- **Follow-up:** The LOW "simple switch cases" item above can still be addressed separately to cover the broader appearance-field quartet (`cardColor`, `cardOpacity`, `fontFamily`, `fontColor`) via a data-declaration approach.
 
 ### HIGH `DashboardContext.tsx` grew 937 lines in one week — now 4441 lines
 
