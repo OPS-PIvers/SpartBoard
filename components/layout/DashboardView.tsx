@@ -1334,7 +1334,7 @@ export const DashboardView: React.FC = () => {
       }
 
       // Alt + P: Pin/Unpin top or focused widget
-      if (e.altKey && e.key === 'p') {
+      if (e.altKey && e.key.toLowerCase() === 'p') {
         // Guard: don't intercept Alt shortcuts while the user is typing in a
         // form field (mirrors the Escape / Delete guards above).
         if (isTypingFieldActive()) return;

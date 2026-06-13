@@ -833,6 +833,36 @@ describe('DashboardView Gestures & Navigation', () => {
       expect(detail2.widgetId).toBe(WIDGET_ID);
       expect(detail2.key).toBe('Pin');
     });
+
+    // Regression: Alt+P must fire even when CapsLock is active (e.key === 'P').
+    // Previously the guard used a case-sensitive `e.key === 'p'` comparison, so
+    // the shortcut was silently swallowed whenever CapsLock was on and no widget
+    // held keyboard focus (the DraggableWindow path was unaffected because it
+    // uses e.key.toLowerCase()).  Fix: normalize the key with .toLowerCase()
+    // before comparing.
+    it('dispatches Pin action with correct widgetId when Alt+P is pressed with CapsLock active (e.key === "P")', () => {
+      renderView();
+
+      const dispatched: CustomEvent[] = [];
+      const handler = (e: Event) => dispatched.push(e as CustomEvent);
+      window.addEventListener('widget-keyboard-action', handler);
+
+      try {
+        expect(document.activeElement).toBe(childButton);
+
+        // Simulate CapsLock-active Alt+P: browsers produce key === 'P' (uppercase).
+        fireEvent.keyDown(window, { key: 'P', altKey: true });
+      } finally {
+        window.removeEventListener('widget-keyboard-action', handler);
+      }
+
+      expect(dispatched).toHaveLength(1);
+      const detail = (
+        dispatched[0] as CustomEvent<{ widgetId: string; key: string }>
+      ).detail;
+      expect(detail.widgetId).toBe(WIDGET_ID);
+      expect(detail.key).toBe('Pin');
+    });
   });
 
   // Toast accessibility: the ToastContainer must expose live-region roles so
