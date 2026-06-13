@@ -44,6 +44,7 @@ import type {
   GuidedLearningSet,
   GuidedLearningSetMetadata,
 } from '@/types';
+import { pickThumbnailUrl } from '@/utils/guidedLearningMedia';
 import { LibraryShell } from '@/components/common/library/LibraryShell';
 import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
@@ -306,7 +307,7 @@ const buildLibraryEntries = (
     description: set.description,
     stepCount: set.steps.length,
     mode: set.mode,
-    imageUrl: set.imageUrls[0],
+    imageUrl: pickThumbnailUrl(set),
     updatedAt: set.updatedAt,
     createdAt: set.createdAt,
     buildingSet: set,
@@ -1123,7 +1124,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       );
     }
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col">
         {list.map((a) => renderAssignmentCard(a, mode))}
       </div>
     );

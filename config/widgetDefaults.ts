@@ -33,6 +33,19 @@ import {
  *
  * Widget types not listed here default to `'preserve-aspect'`.
  */
+/**
+ * Widgets that require real-time position updates for inter-widget
+ * functionality (Catalyst components read each other's positions). Shared by
+ * DraggableWindow's drag/resize hot path and WidgetRenderer's memo
+ * comparator — a Set so the per-frame lookup is O(1) and the list can't
+ * silently diverge between the two call sites.
+ */
+export const POSITION_AWARE_WIDGETS: ReadonlySet<WidgetType> = new Set([
+  'catalyst',
+  'catalyst-instruction',
+  'catalyst-visual',
+]);
+
 export const WIDGET_STRETCH_BEHAVIOR: Partial<
   Record<WidgetType, 'fill' | 'preserve-aspect'>
 > = {

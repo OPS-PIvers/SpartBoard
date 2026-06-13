@@ -187,6 +187,44 @@ describe('useActivityWallLibrary — snapshot mapping', () => {
     expect('classId' in (byId.absent ?? {})).toBe(false);
   });
 
+  it('preserves classIds (Phase 5A) when present in the Firestore doc', () => {
+    // Regression: the old hand-enumerated literal dropped classIds silently.
+    // Each onSnapshot refresh would strip classIds from the in-memory state,
+    // and a subsequent saveActivity call would permanently delete it from
+    // Firestore. Students would no longer see the activity on /my-assignments.
+    let cb: (snap: unknown) => void = () => undefined;
+    mockOnSnapshot.mockImplementation((_q, onNext) => {
+      cb = onNext;
+      return () => undefined;
+    });
+    const { result } = renderHook(() => useActivityWallLibrary(USER_UID));
+
+    act(() => {
+      cb(
+        fakeSnap([
+          {
+            id: 'act-multi',
+            data: {
+              title: 'Multi-class activity',
+              prompt: 'Respond here',
+              mode: 'text',
+              moderationEnabled: false,
+              identificationMode: 'anonymous',
+              createdAt: 1,
+              updatedAt: 2,
+              classIds: ['class-a', 'class-b'],
+              rosterIds: ['roster-1'],
+            },
+          },
+        ])
+      );
+    });
+
+    const entry = result.current.activities[0];
+    expect(entry?.classIds).toEqual(['class-a', 'class-b']);
+    expect(entry?.rosterIds).toEqual(['roster-1']);
+  });
+
   it('surfaces an error message and clears loading on listener failure', () => {
     let errCb: ((e: unknown) => void) | undefined;
     mockOnSnapshot.mockImplementation((_q, _onNext, onError) => {
@@ -255,6 +293,24 @@ describe('useActivityWallLibrary — saveActivity', () => {
 
     const payload = mockSetDoc.mock.calls[0]?.[1] as Record<string, unknown>;
     expect('classId' in payload).toBe(false);
+  });
+
+  it('includes classIds in the payload when present (Phase 5A regression)', async () => {
+    // Regression: the old hand-enumerated payload silently dropped classIds,
+    // so a saveActivity call after a snapshot refresh would permanently delete
+    // the multi-class targeting from Firestore.
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const { result } = renderHook(() => useActivityWallLibrary(USER_UID));
+
+    await act(async () => {
+      await result.current.saveActivity(
+        baseEntry({ classIds: ['class-a', 'class-b'], rosterIds: ['roster-1'] })
+      );
+    });
+
+    const payload = mockSetDoc.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(payload.classIds).toEqual(['class-a', 'class-b']);
+    expect(payload.rosterIds).toEqual(['roster-1']);
   });
 
   it('throws and does not write when there is no signed-in user', async () => {

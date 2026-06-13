@@ -296,18 +296,30 @@ export const ltiExchange = onCall(
     // linked/merged sections post correctly (each section's lineitem differs).
     if (launch.resourceLinkId && launch.ags) {
       try {
-        await db
-          .doc(`lti_grade_links/${uid}/resources/${launch.resourceLinkId}`)
-          .set(
-            {
-              sub: launch.sub,
-              contextId: launch.contextId,
-              resourceLinkId: launch.resourceLinkId,
-              ags: launch.ags,
-              updatedAt: Date.now(),
-            },
-            { merge: true }
-          );
+        const gradeLinkRef = db.doc(
+          `lti_grade_links/${uid}/resources/${launch.resourceLinkId}`
+        );
+        // Preserve a previously-captured contextId: some Schoology deployments
+        // omit the context claim on relaunches (privacy config). Overwriting a
+        // stored contextId with null would break AGS grade-push routing for that
+        // student — the same preservation pattern applied to contextTitle in
+        // nrpsStore.ts.
+        const existingGradeLink = await gradeLinkRef.get();
+        const gradeLinkData = existingGradeLink.data();
+        const storedContextId: string | null =
+          gradeLinkData && typeof gradeLinkData.contextId === 'string'
+            ? gradeLinkData.contextId
+            : null;
+        await gradeLinkRef.set(
+          {
+            sub: launch.sub,
+            contextId: launch.contextId ?? storedContextId,
+            resourceLinkId: launch.resourceLinkId,
+            ags: launch.ags,
+            updatedAt: Date.now(),
+          },
+          { merge: true }
+        );
       } catch (err) {
         console.warn(
           '[ltiExchange] grade-link persist failed (non-fatal)',

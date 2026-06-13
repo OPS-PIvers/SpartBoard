@@ -1,14 +1,25 @@
 /**
  * Regression test for missing widgets.timeTool namespace in DE and FR locales,
- * and partial gaps (15 keys) in ES.
+ * partial gaps (15 keys) in ES, and 4 hardcoded-English Stations section strings
+ * that were not extracted to i18n keys (autoRotateStations, addStationsTip,
+ * rotateStationsClockwise, rotateStationsOnEnd).
  *
- * GAPS FOUND (pre-fix):
+ * GAPS FOUND (pre-fix, batch 1 — commit ad13e57):
  *   - `widgets.timeTool` (35 leaf keys): entirely absent from DE and FR.
  *   - `widgets.timeTool` in ES: missing 15 keys (autoPickRandomStudent,
  *     addRandomizerTip, autoPickNext, triggerRandomizerWhenTimerEnds,
  *     autoAdvanceNextUpQueue, addNextUpTip, autoAdvanceNext, advanceQueueOnEnd,
  *     adjustStep, adjustStepHint, adjustStepUnit, addTime, subtractTime,
  *     play, pause, reset).
+ *
+ * GAPS FOUND (pre-fix, batch 2 — this commit):
+ *   - `widgets.timeTool.autoRotateStations` — missing from ALL locales (new key).
+ *   - `widgets.timeTool.addStationsTip`       — missing from ALL locales (new key).
+ *   - `widgets.timeTool.rotateStationsClockwise` — missing from ALL locales (new key).
+ *   - `widgets.timeTool.rotateStationsOnEnd`  — missing from ALL locales (new key).
+ *   All four were hardcoded English strings in Settings.tsx (lines 369, 374-376,
+ *   383, 385-386) with no t() call at all — silent English fallback for ALL
+ *   non-English users.
  *
  * AFFECTED COMPONENTS (no `defaultValue` fallback — loud bugs):
  *
@@ -43,6 +54,10 @@
  *     t('widgets.timeTool.addRandomizerTip')              — line 340
  *     t('widgets.timeTool.autoPickNext')                  — line 347
  *     t('widgets.timeTool.triggerRandomizerWhenTimerEnds') — line 350
+ *     t('widgets.timeTool.autoRotateStations')            — line 369 (new)
+ *     t('widgets.timeTool.addStationsTip')                — line 375 (new)
+ *     t('widgets.timeTool.rotateStationsClockwise')       — line 383 (new)
+ *     t('widgets.timeTool.rotateStationsOnEnd')           — line 386 (new)
  *     t('widgets.timeTool.autoAdvanceNextUpQueue')        — line 408
  *     t('widgets.timeTool.addNextUpTip')                  — line 414
  *     t('widgets.timeTool.autoAdvanceNext')               — line 421
@@ -87,6 +102,10 @@ const REQUIRED_TIME_TOOL_KEYS = [
   'addRandomizerTip',
   'autoPickNext',
   'triggerRandomizerWhenTimerEnds',
+  'autoRotateStations',
+  'addStationsTip',
+  'rotateStationsClockwise',
+  'rotateStationsOnEnd',
   'autoAdvanceNextUpQueue',
   'addNextUpTip',
   'autoAdvanceNext',

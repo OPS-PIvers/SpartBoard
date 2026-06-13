@@ -11,6 +11,7 @@ import type {
 import { DEFAULT_GLOBAL_STYLE } from '@/types';
 import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
 import { GroupBoundingBox } from '@/components/common/GroupBoundingBox';
+import { useDashboardCanvasSelector } from '@/context/dashboardCanvasStore';
 
 export interface BoardCanvasProps {
   dashboard: Dashboard;
@@ -21,8 +22,6 @@ export interface BoardCanvasProps {
   session: LiveSession | null;
   students: LiveStudent[];
   emptyStudents: LiveStudent[];
-  selectedWidgetId: string | null;
-  zoom: number;
   // Pass-through callbacks: same shape WidgetRenderer expects.
   updateSessionConfig: (config: WidgetConfig) => Promise<void>;
   updateSessionBackground: (background: string) => Promise<void>;
@@ -48,6 +47,36 @@ export interface BoardCanvasProps {
 }
 
 /**
+ * Group bounding-box overlay, isolated so selection/zoom changes re-render
+ * only this layer (and the affected DraggableWindows via their own
+ * selectors) — memo(BoardCanvas) bails entirely, skipping the widget
+ * mapping loop and its 15 WidgetRenderer memo comparisons.
+ */
+const GroupBoundingBoxLayer: FC<{ dashboard: Dashboard }> = ({ dashboard }) => {
+  const selectedWidgetId = useDashboardCanvasSelector(
+    (s) => s.selectedWidgetId
+  );
+  const zoom = useDashboardCanvasSelector((s) => s.zoom);
+
+  const selectedGroupId = selectedWidgetId
+    ? dashboard.widgets.find((w) => w.id === selectedWidgetId)?.groupId
+    : undefined;
+
+  const groupMembers = selectedGroupId
+    ? dashboard.widgets.filter(
+        (w) =>
+          w.groupId === selectedGroupId &&
+          !w.minimized &&
+          !w.isLocked &&
+          !w.isPinned
+      )
+    : [];
+
+  if (!selectedGroupId || groupMembers.length === 0) return null;
+  return <GroupBoundingBox groupWidgets={groupMembers} zoom={zoom} />;
+};
+
+/**
  * Renders a single Board's widget canvas. Visibility is controlled by the
  * `isActive` flag: inactive boards render with `display: none` so React
  * state (timer counts, drawings in flight, video positions) is preserved
@@ -66,8 +95,6 @@ export const BoardCanvas: FC<BoardCanvasProps> = memo(
     session,
     students,
     emptyStudents,
-    selectedWidgetId,
-    zoom,
     updateSessionConfig,
     updateSessionBackground,
     startSession,
@@ -85,20 +112,6 @@ export const BoardCanvas: FC<BoardCanvasProps> = memo(
     // Each Board resolves its own globalStyle so hidden boards don't inherit
     // the active Board's styling when widget memoization is evaluated.
     const globalStyle = dashboard.globalStyle ?? DEFAULT_GLOBAL_STYLE;
-
-    const selectedGroupId = selectedWidgetId
-      ? dashboard.widgets.find((w) => w.id === selectedWidgetId)?.groupId
-      : undefined;
-
-    const groupMembers = selectedGroupId
-      ? dashboard.widgets.filter(
-          (w) =>
-            w.groupId === selectedGroupId &&
-            !w.minimized &&
-            !w.isLocked &&
-            !w.isPinned
-        )
-      : [];
 
     return (
       <div
@@ -148,9 +161,7 @@ export const BoardCanvas: FC<BoardCanvasProps> = memo(
           );
         })}
         {/* Group Bounding Box — rendered when a grouped widget is selected */}
-        {selectedGroupId && groupMembers.length > 0 && (
-          <GroupBoundingBox groupWidgets={groupMembers} zoom={zoom} />
-        )}
+        <GroupBoundingBoxLayer dashboard={dashboard} />
       </div>
     );
   }

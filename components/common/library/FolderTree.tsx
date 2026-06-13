@@ -302,43 +302,59 @@ const FolderRow: React.FC<FolderRowProps> = ({
         </button>
       )}
 
-      {/* Item count badge. */}
-      {!isRenaming && count > 0 && (
-        <span
-          className={`shrink-0 inline-flex items-center justify-center rounded-full font-bold leading-none ${
-            isSelected
-              ? 'bg-brand-blue-primary/20 text-brand-blue-dark'
-              : 'bg-slate-200 text-slate-600'
-          }`}
-          style={{
-            paddingInline: 'min(6px, 1.5cqmin)',
-            fontSize: 'min(10px, 3cqmin)',
-          }}
-        >
-          {count}
-        </span>
-      )}
-
-      {/* Overflow menu trigger. */}
+      {/* Trailing slot — count badge and overflow trigger SHARE one
+          fixed-width slot instead of sitting side by side. At rest the
+          count shows; on hover/focus it cross-fades to the kebab. This
+          reclaims ~22px of name width per row (the old kebab was
+          opacity-0 but still occupied layout) without any layout jump. */}
       {!isRenaming && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenMenu(isMenuOpen ? null : folder.id);
+        <span
+          className="relative shrink-0 inline-flex items-center justify-center"
+          style={{
+            width: 'min(26px, 7cqw)',
+            height: 'min(22px, 6cqw)',
+            marginRight: 'min(2px, 0.5cqw)',
           }}
-          aria-label={`Actions for ${folder.name}`}
-          aria-haspopup="menu"
-          aria-expanded={isMenuOpen}
-          className={`shrink-0 p-1 rounded-md text-slate-400 hover:text-brand-blue-dark hover:bg-white/60 ${
-            isMenuOpen
-              ? 'opacity-100'
-              : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
-          }`}
-          tabIndex={-1}
         >
-          <MoreHorizontal size={14} />
-        </button>
+          {count > 0 && (
+            <span
+              aria-hidden="true"
+              className={`inline-flex items-center justify-center rounded-full font-bold leading-none transition-opacity ${
+                isSelected
+                  ? 'bg-brand-blue-primary/20 text-brand-blue-dark'
+                  : 'bg-slate-200 text-slate-600'
+              } ${
+                isMenuOpen
+                  ? 'opacity-0'
+                  : 'group-hover:opacity-0 group-focus-within:opacity-0'
+              }`}
+              style={{
+                paddingInline: 'min(6px, 1.5cqmin)',
+                fontSize: 'min(10px, 3cqmin)',
+              }}
+            >
+              {count}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenMenu(isMenuOpen ? null : folder.id);
+            }}
+            aria-label={`Actions for ${folder.name}`}
+            aria-haspopup="menu"
+            aria-expanded={isMenuOpen}
+            className={`absolute inset-0 flex items-center justify-center rounded-md text-slate-400 hover:text-brand-blue-dark hover:bg-white/60 transition-opacity ${
+              isMenuOpen
+                ? 'opacity-100'
+                : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+            }`}
+            tabIndex={-1}
+          >
+            <MoreHorizontal size={14} />
+          </button>
+        </span>
       )}
 
       {/* Overflow menu popover. */}

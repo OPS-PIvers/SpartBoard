@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-09_
+_Last audited: 2026-06-13_
 _Last action: never_
 
 ---
@@ -15,6 +15,14 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-13. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Rebased onto dev-paul: pr-review batch 12 PRs reviewed/5 fixes pushed, refactor(admin-config) shared isCardOpacity guard in adminBuildingConfig.ts, audit(friday) journal updates, [AI] wide-distro phases 1-3 (tiering/landing page/rollout), [AI] legal pages, [AI] drop restricted OAuth scopes. All new and modified code type-safe and lint-clean._
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-12. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Rebased onto dev-paul: docs(unifier) run 13 memory log, D4 cross-dir relative imports → @/ alias in tests/, chore(perf) refresh performance baseline timestamps, fix(layout) remove duplicate Alt+Delete handler from DraggableWindow, docs(debugger) nightly run 14 log. All new and modified code type-safe and lint-clean._
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-11. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Rebased onto dev-paul: ui(library) modernize unified library/in-progress/archive views, test(hooks) cover useVideoActivitySessionTeacher (27 tests), fix(stores) consumeLaunchCode null coalescing, fix(i18n) seatingChart DE/ES/FR, fix(export) dedup buildResultsSheetData, fix(DashboardView) groupBuildMode Escape guard, perf(dashboard) DashboardContext split — stable actions + canvas hot-state store. The DashboardContext split is the most significant structural change; all new context code is fully type-safe and lint-clean._
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-10. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Rebase onto dev-paul blocked by journal-file conflicts; working from scheduled-tasks HEAD. No new source files added since 2026-06-09. Codebase fully clean._
 
 _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-09. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Merged dev-paul: fix(optimize-pass) address PR #1908 reviewer comments, perf+a11y optimize-pass sweep (waves 1–4 + self-review fixes), fix(classroom) address bot review comments PR #1906, fix(classroom) correct multi-course grade-push reporting + Item D link hardening, chore(debugger) nightly run log 2026-06-08. New files introduced: utils/firestorePaging.ts, utils/mapWithConcurrency.ts, utils/snapshotThrottle.ts, tests/utils/mapWithConcurrency.test.ts, tests/utils/videoActivitySessionNormalize.test.ts, tests/utils/reducedMotion.test.ts, tests/testHelpers/mocks.ts, todo/F1-split-dashboardcontext.md, todo/F20-tsconfig-unused-strictness.md. All new and modified code type-safe and lint-clean._
 

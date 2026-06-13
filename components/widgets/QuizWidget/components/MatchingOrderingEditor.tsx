@@ -168,11 +168,30 @@ export interface MatchingAnswerEditorProps {
   }) => void;
 }
 
-export const MatchingAnswerEditor: React.FC<MatchingAnswerEditorProps> = ({
+/**
+ * Memo comparator: distractors are compared by value (the parent may hand
+ * back a fresh array of identical strings) so typing in the question prompt
+ * — which replaces the question object but not the answer key — skips a
+ * full re-render of every pair/distractor row. Requires a referentially
+ * stable `onChange` from the parent for the memo to hold.
+ */
+const matchingPropsEqual = (
+  prev: MatchingAnswerEditorProps,
+  next: MatchingAnswerEditorProps
+): boolean =>
+  prev.correctAnswer === next.correctAnswer &&
+  prev.onChange === next.onChange &&
+  (prev.matchingDistractors === next.matchingDistractors ||
+    (prev.matchingDistractors.length === next.matchingDistractors.length &&
+      prev.matchingDistractors.every(
+        (d, i) => d === next.matchingDistractors[i]
+      )));
+
+export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
   correctAnswer,
   matchingDistractors,
   onChange,
-}) => {
+}: MatchingAnswerEditorProps) {
   // Local row state owns ids/blank rows; the canonical wire form lives in
   // the parent's `correctAnswer`. We re-parse only when the parent value
   // changes from the outside (e.g., AI-generated questions, quiz reload).
@@ -393,7 +412,7 @@ export const MatchingAnswerEditor: React.FC<MatchingAnswerEditorProps> = ({
       </details>
     </div>
   );
-};
+}, matchingPropsEqual);
 
 // ─── Ordering editor ────────────────────────────────────────────────────────
 
@@ -402,10 +421,12 @@ export interface OrderingAnswerEditorProps {
   onChange: (correctAnswer: string) => void;
 }
 
-export const OrderingAnswerEditor: React.FC<OrderingAnswerEditorProps> = ({
+// Plain React.memo: both props are a string and a (parent-stable) callback,
+// so shallow comparison already skips re-renders on prompt keystrokes.
+export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
   correctAnswer,
   onChange,
-}) => {
+}: OrderingAnswerEditorProps) {
   const [rows, setRows] = React.useState<OrderRow[]>(() =>
     parseOrderItems(correctAnswer)
   );
@@ -548,4 +569,4 @@ export const OrderingAnswerEditor: React.FC<OrderingAnswerEditorProps> = ({
       </button>
     </div>
   );
-};
+});

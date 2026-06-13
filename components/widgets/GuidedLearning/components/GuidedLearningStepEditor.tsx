@@ -1,10 +1,13 @@
-import React from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Loader2, Plus, Trash2, Upload } from 'lucide-react';
 import {
   GuidedLearningStep,
   GuidedLearningInteractionType,
   GuidedLearningQuestionType,
 } from '@/types';
+import { useAuth } from '@/context/useAuth';
+import { useStorage } from '@/hooks/useStorage';
+import { GL_MAX_VIDEO_BYTES } from '@/utils/guidedLearningMedia';
 
 interface Props {
   step: GuidedLearningStep;
@@ -133,7 +136,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
 
         {imageCount >= 2 && (
           <div>
-            <label className={labelClass}>Image</label>
+            <label className={labelClass}>Slide</label>
             <select
               value={step.imageIndex}
               onChange={(e) =>
@@ -143,7 +146,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
             >
               {Array.from({ length: imageCount }, (_, i) => (
                 <option key={i} value={i}>
-                  Image {i + 1}
+                  Slide {i + 1}
                 </option>
               ))}
             </select>
@@ -224,33 +227,54 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Audio URL */}
+        {/* Audio: upload or external URL */}
         {step.interactionType === 'audio' && (
           <div>
-            <label className={labelClass}>Audio URL</label>
+            <label className={labelClass}>Audio</label>
             <input
               type="url"
               value={step.audioUrl ?? ''}
-              onChange={(e) => update({ audioUrl: e.target.value })}
-              placeholder="Firebase Storage or external audio URL"
+              onChange={(e) =>
+                update({
+                  audioUrl: e.target.value,
+                  audioStoragePath: undefined,
+                })
+              }
+              placeholder="Paste an audio URL (.mp3, .wav, .ogg)…"
               className={inputClass}
             />
-            <p className="text-slate-500 text-xs mt-1">
-              Paste a direct URL to an audio file (.mp3, .wav, .ogg)
-            </p>
+            <StepMediaUpload
+              accept="audio/*"
+              buttonLabel="…or upload an audio file"
+              onUploaded={(url, storagePath) =>
+                update({ audioUrl: url, audioStoragePath: storagePath })
+              }
+            />
           </div>
         )}
 
-        {/* Video URL */}
+        {/* Video: upload or YouTube/external URL */}
         {step.interactionType === 'video' && (
           <div>
-            <label className={labelClass}>Video URL</label>
+            <label className={labelClass}>Video</label>
             <input
               type="url"
               value={step.videoUrl ?? ''}
-              onChange={(e) => update({ videoUrl: e.target.value })}
-              placeholder="YouTube URL or direct video URL"
+              onChange={(e) =>
+                update({
+                  videoUrl: e.target.value,
+                  videoStoragePath: undefined,
+                })
+              }
+              placeholder="Paste a YouTube or direct video URL…"
               className={inputClass}
+            />
+            <StepMediaUpload
+              accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+              buttonLabel="…or upload an MP4/WebM file"
+              onUploaded={(url, storagePath) =>
+                update({ videoUrl: url, videoStoragePath: storagePath })
+              }
             />
           </div>
         )}
@@ -421,6 +445,93 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           />
         </div>
       </div>
+    </div>
+  );
+};
+
+/**
+ * Inline file-upload row for a step's audio/video media. Uploads to the
+ * user's media path in Firebase Storage (Drive image links can't stream
+ * AV files) and hands back the download URL + storage path.
+ */
+const StepMediaUpload: React.FC<{
+  accept: string;
+  buttonLabel: string;
+  onUploaded: (url: string, storagePath: string) => void;
+}> = ({ accept, buttonLabel, onUploaded }) => {
+  const { user } = useAuth();
+  const { uploadGuidedLearningMedia } = useStorage();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [progress, setProgress] = useState<number | null>(null);
+  const [error, setError] = useState('');
+
+  const handleFile = async (file: File) => {
+    if (!user) return;
+    // Guard against oversized AV uploads (e.g. a raw screen recording dropped
+    // in as step media) before kicking off the upload — otherwise the user
+    // sees a long stall or a generic Storage error. validateSlideFile isn't
+    // used here because it rejects audio outright (audio isn't a slide kind),
+    // so we apply the video byte cap, which is the relevant limit for both
+    // the audio and video step-media inputs.
+    if (file.size > GL_MAX_VIDEO_BYTES) {
+      setError(
+        `"${file.name}" is too large (max ${Math.round(
+          GL_MAX_VIDEO_BYTES / 1024 / 1024
+        )}MB).`
+      );
+      return;
+    }
+    setError('');
+    setProgress(0);
+    try {
+      const { url, storagePath } = await uploadGuidedLearningMedia(
+        user.uid,
+        file,
+        file.name.replace(/[^\w.-]+/g, '_'),
+        setProgress
+      );
+      onUploaded(url, storagePath);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed.');
+    } finally {
+      setProgress(null);
+    }
+  };
+
+  return (
+    <div className="mt-1.5">
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void handleFile(file);
+          e.target.value = '';
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={progress !== null}
+        className="flex items-center gap-1.5 text-xs font-bold text-brand-blue-primary hover:text-brand-blue-dark disabled:opacity-60 transition-colors"
+      >
+        {progress !== null ? (
+          <>
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            Uploading… {progress}%
+          </>
+        ) : (
+          <>
+            <Upload className="w-3.5 h-3.5" />
+            {buttonLabel}
+          </>
+        )}
+      </button>
+      {error && (
+        <p className="text-red-600 text-xs font-medium mt-1">{error}</p>
+      )}
     </div>
   );
 };

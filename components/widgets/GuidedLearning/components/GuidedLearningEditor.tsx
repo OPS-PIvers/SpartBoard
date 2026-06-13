@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
 } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -19,13 +20,24 @@ import {
   Activity,
   ArrowLeftRight,
   MessageSquare,
+  Camera,
+  Circle,
+  Film,
+  MonitorUp,
+  Scissors,
   type LucideIcon,
 } from 'lucide-react';
-import { GuidedLearningMode } from '@/types';
+import {
+  GuidedLearningMode,
+  GuidedLearningStep,
+  GuidedLearningVideoTrim,
+} from '@/types';
 import { SortableList } from '@/components/common/SortableList';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Z_INDEX } from '@/config/zIndex';
+import { GL_MEDIA_ACCEPT } from '@/utils/guidedLearningMedia';
 import { GuidedLearningStepEditor } from './GuidedLearningStepEditor';
+import { ScreenCaptureModal, type CaptureMode } from './ScreenCaptureModal';
 import { calculateImageFootprint } from '../utils/imageUtils';
 import type { GuidedLearningEditorController } from './useGuidedLearningEditorState';
 
@@ -358,443 +370,1128 @@ interface PaneProps {
   state: GuidedLearningEditorController;
 }
 
-export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
-  state,
-}) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const imageContainerRef = useRef<HTMLDivElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
+/**
+ * Slice comparator for the context pane. The controller object from
+ * `useGuidedLearningEditorState` is rebuilt on every render (and the modal
+ * hosts the hook, so it re-renders on every editor state change), so the
+ * pane memoizes on the slices it actually consumes. The setters / step callbacks it uses are
+ * referentially stable. The upload callbacks are intentionally NOT compared:
+ * `useStorage` returns fresh function identities on every render, so they
+ * never compare equal, but they are functionally equivalent for the
+ * lifetime of the signed-in session — comparing them would defeat the memo
+ * entirely. If the pane starts consuming a new controller field, add it
+ * here or the pane will render stale data.
+ */
+const glContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
+  prev.state.description === next.state.description &&
+  prev.state.mode === next.state.mode &&
+  prev.state.hotspotPulse === next.state.hotspotPulse &&
+  prev.state.imageTransition === next.state.imageTransition &&
+  prev.state.welcomeEnabled === next.state.welcomeEnabled &&
+  prev.state.welcomeMessage === next.state.welcomeMessage &&
+  prev.state.imageUrls === next.state.imageUrls &&
+  prev.state.imageKinds === next.state.imageKinds &&
+  prev.state.videoTrims === next.state.videoTrims &&
+  prev.state.currentImageIndex === next.state.currentImageIndex &&
+  prev.state.uploading === next.state.uploading &&
+  prev.state.uploadProgress === next.state.uploadProgress &&
+  prev.state.imageError === next.state.imageError &&
+  prev.state.addingStep === next.state.addingStep &&
+  prev.state.selectedStepId === next.state.selectedStepId &&
+  prev.state.steps === next.state.steps;
 
-  // Title + folder are owned by the modal shell now (editable header
-  // input + header folder icon button), so the body destructures only
-  // what it still renders.
-  const {
-    description,
-    setDescription,
-    mode,
-    setMode,
-    hotspotPulse,
-    setHotspotPulse,
-    imageTransition,
-    setImageTransition,
-    welcomeEnabled,
-    setWelcomeEnabled,
-    welcomeMessage,
-    setWelcomeMessage,
-    imageUrls,
-    currentImageIndex,
-    setCurrentImageIndex,
-    uploading,
-    uploadFromFiles,
-    uploadFromClipboard,
-    deleteImage,
-    moveImage,
-    imageError,
-    addingStep,
-    setAddingStep,
-    addStepAt,
-    setSelectedStepId,
-    selectedStepId,
-    steps,
-    updateStep,
-    currentImageSteps,
-  } = state;
+export const GuidedLearningEditorContextPane = React.memo(
+  function GuidedLearningEditorContextPane({ state }: PaneProps) {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const imageContainerRef = useRef<HTMLDivElement>(null);
+    const imageRef = useRef<HTMLImageElement>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
 
-  const currentImageUrl = imageUrls[currentImageIndex] ?? '';
+    // Title + folder are owned by the modal shell now (editable header
+    // input + header folder icon button), so the body destructures only
+    // what it still renders.
+    const {
+      description,
+      setDescription,
+      mode,
+      setMode,
+      hotspotPulse,
+      setHotspotPulse,
+      imageTransition,
+      setImageTransition,
+      welcomeEnabled,
+      setWelcomeEnabled,
+      welcomeMessage,
+      setWelcomeMessage,
+      imageUrls,
+      imageKinds,
+      videoTrims,
+      setVideoTrim,
+      currentImageIndex,
+      setCurrentImageIndex,
+      uploading,
+      uploadProgress,
+      uploadFromFiles,
+      uploadFromClipboard,
+      addCapturedMedia,
+      deleteImage,
+      moveImage,
+      imageError,
+      addingStep,
+      setAddingStep,
+      addStepAt,
+      setSelectedStepId,
+      selectedStepId,
+      steps,
+      updateStep,
+      currentImageSteps,
+    } = state;
 
-  const [imgBounds, setImgBounds] = useState<{
-    offsetLeft: number;
-    offsetTop: number;
-    width: number;
-    height: number;
-  } | null>(null);
+    // O(1) step-number lookup + stable marker callbacks so HotspotMarker's
+    // memo holds while typing in the step editor — only the edited step's
+    // marker re-renders, instead of an O(n) findIndex + fresh closures per
+    // marker per keystroke.
+    const stepIndexById = useMemo(() => {
+      const map = new Map<string, number>();
+      steps.forEach((s, i) => map.set(s.id, i));
+      return map;
+    }, [steps]);
+    const handleMarkerMove = useCallback(
+      (step: GuidedLearningStep, xPct: number, yPct: number) =>
+        updateStep({ ...step, xPct, yPct }),
+      [updateStep]
+    );
 
-  const measureImage = useCallback(() => {
-    if (!imageRef.current || !imageContainerRef.current) {
-      setImgBounds(null);
-      return;
+    const currentImageUrl = imageUrls[currentImageIndex] ?? '';
+    const currentKind = imageKinds[currentImageIndex] ?? 'image';
+    const currentTrim = videoTrims[currentImageIndex] ?? null;
+    const [dragActive, setDragActive] = useState(false);
+    const [captureMode, setCaptureMode] = useState<CaptureMode | null>(null);
+    const [trimOpen, setTrimOpen] = useState(false);
+    const [videoDuration, setVideoDuration] = useState<number | null>(null);
+
+    // Close the trim panel and forget the loaded duration when the slide
+    // changes ("adjust state while rendering" — no effect needed).
+    const [prevTrimSlideUrl, setPrevTrimSlideUrl] = useState(currentImageUrl);
+    if (prevTrimSlideUrl !== currentImageUrl) {
+      setPrevTrimSlideUrl(currentImageUrl);
+      setTrimOpen(false);
+      setVideoDuration(null);
     }
-    const footprint = calculateImageFootprint(
-      imageRef.current.naturalWidth,
-      imageRef.current.naturalHeight,
-      imageContainerRef.current.getBoundingClientRect().width,
-      imageContainerRef.current.getBoundingClientRect().height
-    );
-    setImgBounds(footprint);
-  }, []);
 
-  useEffect(() => {
-    if (!imageContainerRef.current) return;
-    const ro = new ResizeObserver(() => measureImage());
-    ro.observe(imageContainerRef.current);
-    return () => ro.disconnect();
-  }, [currentImageUrl, measureImage]);
+    const [imgBounds, setImgBounds] = useState<{
+      offsetLeft: number;
+      offsetTop: number;
+      width: number;
+      height: number;
+    } | null>(null);
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length === 0) return;
-    await uploadFromFiles(files);
-    e.target.value = '';
-  };
+    const measureImage = useCallback(() => {
+      // Measure whichever media element is currently rendered. Video slides
+      // expose their natural size via videoWidth/videoHeight instead.
+      const media = imageRef.current ?? videoRef.current;
+      if (!media || !imageContainerRef.current) {
+        setImgBounds(null);
+        return;
+      }
+      const naturalW =
+        media instanceof HTMLVideoElement
+          ? media.videoWidth
+          : media.naturalWidth;
+      const naturalH =
+        media instanceof HTMLVideoElement
+          ? media.videoHeight
+          : media.naturalHeight;
+      const footprint = calculateImageFootprint(
+        naturalW,
+        naturalH,
+        imageContainerRef.current.getBoundingClientRect().width,
+        imageContainerRef.current.getBoundingClientRect().height
+      );
+      setImgBounds(footprint);
+    }, []);
 
-  const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!addingStep || !imageContainerRef.current || !imgBounds) return;
-    const containerRect = imageContainerRef.current.getBoundingClientRect();
-    const left = containerRect.left + imgBounds.offsetLeft;
-    const top = containerRect.top + imgBounds.offsetTop;
-    const right = left + imgBounds.width;
-    const bottom = top + imgBounds.height;
+    useEffect(() => {
+      if (!imageContainerRef.current) return;
+      const ro = new ResizeObserver(() => measureImage());
+      ro.observe(imageContainerRef.current);
+      return () => ro.disconnect();
+    }, [currentImageUrl, measureImage]);
 
-    if (
-      e.clientX < left ||
-      e.clientX > right ||
-      e.clientY < top ||
-      e.clientY > bottom
-    ) {
-      return;
-    }
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files ?? []);
+      if (files.length === 0) return;
+      await uploadFromFiles(files);
+      e.target.value = '';
+    };
 
-    const xPct = Math.max(
-      2,
-      Math.min(98, ((e.clientX - left) / imgBounds.width) * 100)
-    );
-    const yPct = Math.max(
-      2,
-      Math.min(98, ((e.clientY - top) / imgBounds.height) * 100)
-    );
-    addStepAt(xPct, yPct);
-  };
+    // Native paste support — Ctrl/Cmd+V anywhere in the editor adds the
+    // clipboard image as a slide (more reliable than the async Clipboard API
+    // behind the Paste button, which needs a permission prompt). Skips events
+    // that originate in inputs so pasting text into fields still works.
+    useEffect(() => {
+      const onPaste = (e: ClipboardEvent) => {
+        const target = e.target as HTMLElement | null;
+        if (
+          target &&
+          (target.tagName === 'INPUT' ||
+            target.tagName === 'TEXTAREA' ||
+            target.isContentEditable)
+        ) {
+          return;
+        }
+        const files = Array.from(e.clipboardData?.files ?? []).filter((f) =>
+          f.type.startsWith('image/')
+        );
+        if (files.length === 0) return;
+        // preventDefault + capture phase: Dock's global smart-paste handler
+        // respects `e.defaultPrevented`, and capture guarantees this listener
+        // runs first — otherwise a single paste would both add a slide here
+        // and open Dock's image-paste modal.
+        e.preventDefault();
+        void uploadFromFiles(files);
+      };
+      window.addEventListener('paste', onPaste, true);
+      return () => window.removeEventListener('paste', onPaste, true);
+    }, [uploadFromFiles]);
 
-  return (
-    <div className="flex flex-col h-full">
-      {/* Settings strip — title and folder live in the modal header now,
+    // Drag-and-drop — the entire canvas column is a drop target. The counter
+    // ref avoids flicker from dragenter/dragleave firing on child elements.
+    const dragDepthRef = useRef(0);
+    const handleDragEnter = (e: React.DragEvent) => {
+      if (!e.dataTransfer.types.includes('Files')) return;
+      e.preventDefault();
+      dragDepthRef.current += 1;
+      setDragActive(true);
+    };
+    const handleDragLeave = (e: React.DragEvent) => {
+      e.preventDefault();
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+      if (dragDepthRef.current === 0) setDragActive(false);
+    };
+    const handleDragOver = (e: React.DragEvent) => {
+      if (!e.dataTransfer.types.includes('Files')) return;
+      e.preventDefault();
+    };
+    const handleDrop = (e: React.DragEvent) => {
+      e.preventDefault();
+      dragDepthRef.current = 0;
+      setDragActive(false);
+      const files = Array.from(e.dataTransfer.files ?? []);
+      if (files.length > 0) void uploadFromFiles(files);
+    };
+
+    const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!addingStep || !imageContainerRef.current || !imgBounds) return;
+      const containerRect = imageContainerRef.current.getBoundingClientRect();
+      const left = containerRect.left + imgBounds.offsetLeft;
+      const top = containerRect.top + imgBounds.offsetTop;
+      const right = left + imgBounds.width;
+      const bottom = top + imgBounds.height;
+
+      if (
+        e.clientX < left ||
+        e.clientX > right ||
+        e.clientY < top ||
+        e.clientY > bottom
+      ) {
+        return;
+      }
+
+      const xPct = Math.max(
+        2,
+        Math.min(98, ((e.clientX - left) / imgBounds.width) * 100)
+      );
+      const yPct = Math.max(
+        2,
+        Math.min(98, ((e.clientY - top) / imgBounds.height) * 100)
+      );
+      addStepAt(xPct, yPct);
+    };
+
+    return (
+      <div className="flex flex-col h-full">
+        {/* Settings strip — title and folder live in the modal header now,
           so the body owns only the description and a single chip row. All
           set-level toggles (Pulse, Image transition, Welcome) collapse
           into popover chips so the image canvas keeps its vertical
           real estate. */}
-      <div className="px-5 py-3 border-b border-slate-200 space-y-2.5 bg-white shrink-0">
-        <input
-          type="text"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Add a description (optional)"
-          className="w-full bg-transparent border-0 text-slate-600 placeholder:text-slate-400 focus:outline-none text-sm p-0"
-        />
-        {/* Chips wrap to a second row when the modal is too narrow to
+        <div className="px-5 py-3 border-b border-slate-200 space-y-2.5 bg-white shrink-0">
+          <input
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Add a description (optional)"
+            className="w-full bg-transparent border-0 text-slate-600 placeholder:text-slate-400 focus:outline-none text-sm p-0"
+          />
+          {/* Chips wrap to a second row when the modal is too narrow to
             fit them on one — chip popovers are still portal'd to body so
             they can't be clipped by an overflow ancestor. Setting chips
             use leading icons (no uppercase label prefix) so the row
             packs tightly and the wrapped layout stays visually quiet. */}
-        <div className="flex flex-wrap gap-x-1.5 gap-y-1.5 items-center">
-          {MODE_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setMode(opt.value)}
-              title={opt.desc}
-              className={`shrink-0 px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
-                mode === opt.value
-                  ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
-                  : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-          <span
-            className="shrink-0 mx-0.5 h-4 w-px bg-slate-200"
-            aria-hidden="true"
-          />
-          <SettingChip
-            label="Pulse"
-            icon={Activity}
-            value={hotspotPulse}
-            options={PULSE_OPTIONS}
-            onChange={setHotspotPulse}
-          />
-          <SettingChip
-            label="Transition"
-            icon={ArrowLeftRight}
-            value={imageTransition}
-            options={TRANSITION_OPTIONS}
-            onChange={setImageTransition}
-          />
-          <WelcomeChip
-            enabled={welcomeEnabled}
-            message={welcomeMessage}
-            onEnabledChange={setWelcomeEnabled}
-            onMessageChange={setWelcomeMessage}
-          />
+          <div className="flex flex-wrap gap-x-1.5 gap-y-1.5 items-center">
+            {MODE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setMode(opt.value)}
+                title={opt.desc}
+                className={`shrink-0 px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+                  mode === opt.value
+                    ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
+                    : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+            <span
+              className="shrink-0 mx-0.5 h-4 w-px bg-slate-200"
+              aria-hidden="true"
+            />
+            <SettingChip
+              label="Pulse"
+              icon={Activity}
+              value={hotspotPulse}
+              options={PULSE_OPTIONS}
+              onChange={setHotspotPulse}
+            />
+            <SettingChip
+              label="Transition"
+              icon={ArrowLeftRight}
+              value={imageTransition}
+              options={TRANSITION_OPTIONS}
+              onChange={setImageTransition}
+            />
+            <WelcomeChip
+              enabled={welcomeEnabled}
+              message={welcomeMessage}
+              onEnabledChange={setWelcomeEnabled}
+              onMessageChange={setWelcomeMessage}
+            />
+          </div>
         </div>
-      </div>
 
-      {/* Canvas */}
-      <div className="flex-1 min-h-0 px-5 py-4 flex flex-col gap-3 bg-slate-50">
-        {imageUrls.length > 0 ? (
-          <>
-            {imageUrls.length > 1 && (
-              <div className="flex flex-wrap gap-1.5 shrink-0">
-                {imageUrls.map((url, idx) => (
-                  <button
-                    key={url}
-                    onClick={() => setCurrentImageIndex(idx)}
-                    className={`px-2.5 py-1 rounded-md text-xs font-bold border transition-colors ${
-                      idx === currentImageIndex
-                        ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
-                        : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
-                    }`}
-                  >
-                    Image {idx + 1}
-                  </button>
-                ))}
-              </div>
-            )}
+        {/* Canvas */}
+        <div
+          className="flex-1 min-h-0 px-5 py-4 flex flex-col gap-3 bg-slate-50 relative"
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
+          {dragActive && (
+            <div className="absolute inset-2 z-40 rounded-xl border-2 border-dashed border-brand-blue-primary bg-brand-blue-primary/10 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+              <span className="bg-brand-blue-primary text-white text-sm font-bold rounded-lg shadow-lg px-4 py-2 flex items-center gap-2">
+                <Upload className="w-4 h-4" />
+                Drop images, GIFs, or videos to add slides
+              </span>
+            </div>
+          )}
+          {imageUrls.length > 0 ? (
+            <>
+              {imageUrls.length > 1 && (
+                <div className="flex flex-wrap gap-1.5 shrink-0">
+                  {imageUrls.map((url, idx) => {
+                    const isVideo = (imageKinds[idx] ?? 'image') === 'video';
+                    return (
+                      <button
+                        key={url}
+                        onClick={() => setCurrentImageIndex(idx)}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border transition-colors ${
+                          idx === currentImageIndex
+                            ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
+                            : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+                        }`}
+                      >
+                        {isVideo && <Film className="w-3 h-3" aria-hidden />}
+                        Slide {idx + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
-            <div
-              ref={imageContainerRef}
-              className={`flex-1 min-h-0 relative rounded-lg overflow-hidden bg-slate-200 border border-slate-300 ${addingStep ? 'cursor-crosshair' : ''}`}
-              onClick={handleImageClick}
-              data-no-drag={addingStep ? 'true' : undefined}
-            >
-              <img
-                ref={imageRef}
-                src={currentImageUrl}
-                alt="Current step image"
-                className="w-full h-full object-contain"
-                draggable={false}
-                onLoad={measureImage}
-              />
-              {currentImageSteps.map((s) => {
-                const globalIndex = steps.findIndex((x) => x.id === s.id);
-                return (
+              <div
+                ref={imageContainerRef}
+                className={`flex-1 min-h-0 relative rounded-lg overflow-hidden bg-slate-200 border border-slate-300 ${addingStep ? 'cursor-crosshair' : ''}`}
+                onClick={handleImageClick}
+                data-no-drag={addingStep ? 'true' : undefined}
+              >
+                {currentKind === 'video' ? (
+                  <video
+                    key={currentImageUrl}
+                    ref={videoRef}
+                    src={currentImageUrl}
+                    muted
+                    loop
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-contain"
+                    onLoadedMetadata={(e) => {
+                      measureImage();
+                      const el = e.currentTarget;
+                      if (Number.isFinite(el.duration)) {
+                        setVideoDuration(el.duration);
+                      }
+                      if (currentTrim) el.currentTime = currentTrim.start;
+                    }}
+                    onDurationChange={(e) => {
+                      // MediaRecorder WebM blobs can report Infinity at
+                      // metadata load; the real duration arrives later via
+                      // this event once enough of the file has been parsed.
+                      const el = e.currentTarget;
+                      if (Number.isFinite(el.duration)) {
+                        setVideoDuration(el.duration);
+                      }
+                    }}
+                    onTimeUpdate={(e) => {
+                      // Keep the editor preview inside the trimmed range so
+                      // the teacher sees exactly what students will see.
+                      if (!currentTrim) return;
+                      const el = e.currentTarget;
+                      // Skip while paused — trim-handle drags pause the video
+                      // and scrub it, and this closure's trim state can lag a
+                      // render behind the scrub position, which would snap the
+                      // preview away from the user's drag.
+                      if (el.paused) return;
+                      if (
+                        el.currentTime >= currentTrim.end ||
+                        el.currentTime < currentTrim.start - 0.25
+                      ) {
+                        el.currentTime = currentTrim.start;
+                      }
+                    }}
+                  />
+                ) : (
+                  <img
+                    ref={imageRef}
+                    src={currentImageUrl}
+                    alt="Current step image"
+                    className="w-full h-full object-contain"
+                    draggable={false}
+                    onLoad={measureImage}
+                  />
+                )}
+                {currentImageSteps.map((s) => (
                   <HotspotMarker
                     key={s.id}
                     step={s}
-                    stepNumber={globalIndex + 1}
+                    stepNumber={(stepIndexById.get(s.id) ?? -1) + 1}
                     isSelected={s.id === selectedStepId}
                     imgBounds={imgBounds}
                     containerRef={imageContainerRef}
-                    onSelect={() => setSelectedStepId(s.id)}
-                    onMove={(xPct, yPct) => updateStep({ ...s, xPct, yPct })}
+                    onSelect={setSelectedStepId}
+                    onMove={handleMarkerMove}
                   />
-                );
-              })}
-              {addingStep && (
-                <div
-                  className="absolute bg-brand-blue-primary/5 border-2 border-brand-blue-primary border-dashed rounded-lg flex items-center justify-center pointer-events-none"
-                  style={
-                    imgBounds
-                      ? {
-                          left: imgBounds.offsetLeft,
-                          top: imgBounds.offsetTop,
-                          width: imgBounds.width,
-                          height: imgBounds.height,
-                        }
-                      : { inset: 0 }
-                  }
-                >
-                  <span className="bg-brand-blue-primary text-white text-sm font-bold rounded-lg shadow-lg px-3 py-1.5 flex items-center gap-2">
-                    <MousePointerClick className="w-4 h-4" />
-                    Click to place hotspot
-                  </span>
+                ))}
+                {addingStep && (
+                  <div
+                    className="absolute bg-brand-blue-primary/5 border-2 border-brand-blue-primary border-dashed rounded-lg flex items-center justify-center pointer-events-none"
+                    style={
+                      imgBounds
+                        ? {
+                            left: imgBounds.offsetLeft,
+                            top: imgBounds.offsetTop,
+                            width: imgBounds.width,
+                            height: imgBounds.height,
+                          }
+                        : { inset: 0 }
+                    }
+                  >
+                    <span className="bg-brand-blue-primary text-white text-sm font-bold rounded-lg shadow-lg px-3 py-1.5 flex items-center gap-2">
+                      <MousePointerClick className="w-4 h-4" />
+                      Click to place hotspot
+                    </span>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-300 rounded-xl text-center bg-white">
+              {uploading ? (
+                <div className="flex flex-col items-center gap-2 text-slate-500">
+                  <Loader2 className="w-8 h-8 animate-spin text-brand-blue-primary" />
+                  <p className="font-medium">Uploading…</p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-slate-500 px-6">
+                  <ImageIcon className="w-10 h-10" />
+                  <p className="font-medium">Add media to get started</p>
+                  <p className="text-xs">
+                    Drag &amp; drop or paste (Ctrl+V) screenshots, GIFs, or MP4
+                    clips — or capture your screen below.
+                  </p>
                 </div>
               )}
             </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-300 rounded-xl text-center bg-white">
-            {uploading ? (
-              <div className="flex flex-col items-center gap-2 text-slate-500">
-                <Loader2 className="w-8 h-8 animate-spin text-brand-blue-primary" />
-                <p className="font-medium">Uploading…</p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2 text-slate-500">
-                <ImageIcon className="w-10 h-10" />
-                <p className="font-medium">Add an image to get started</p>
-                <p className="text-xs">
-                  PNG, JPG, GIF, or paste from clipboard
-                </p>
-              </div>
+          )}
+
+          {trimOpen && currentKind === 'video' && (
+            <VideoTrimBar
+              videoRef={videoRef}
+              duration={videoDuration}
+              trim={currentTrim}
+              onChange={(trim) => setVideoTrim(currentImageIndex, trim)}
+            />
+          )}
+
+          {uploadProgress && (
+            <div className="flex items-center gap-2 text-xs font-bold text-brand-blue-primary shrink-0">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span className="truncate">
+                Uploading {uploadProgress.fileName} ({uploadProgress.current} of{' '}
+                {uploadProgress.total}
+                {uploadProgress.percent !== null
+                  ? ` · ${uploadProgress.percent}%`
+                  : ''}
+                )
+              </span>
+              {uploadProgress.percent !== null && (
+                <span className="flex-1 max-w-[160px] h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                  <span
+                    className="block h-full bg-brand-blue-primary rounded-full transition-all"
+                    style={{ width: `${uploadProgress.percent}%` }}
+                  />
+                </span>
+              )}
+            </div>
+          )}
+
+          {imageError && (
+            <p className="text-red-600 text-xs font-medium">{imageError}</p>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={GL_MEDIA_ACCEPT}
+            multiple
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+
+          {/* Action toolbar */}
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-colors text-sm"
+            >
+              <Upload className="w-4 h-4" />
+              Add media
+            </button>
+            <CaptureMenuButton onPick={setCaptureMode} />
+            <button
+              onClick={() => void uploadFromClipboard()}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 font-bold rounded-lg transition-colors text-sm"
+              title="Paste an image from your clipboard (or press Ctrl+V anywhere)"
+            >
+              <Clipboard className="w-4 h-4" />
+              Paste
+            </button>
+            {imageUrls.length > 0 && (
+              <>
+                <button
+                  onClick={() => setAddingStep(!addingStep)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 font-bold rounded-lg transition-colors text-sm border ${
+                    addingStep
+                      ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                      : 'bg-white border-slate-300 hover:border-slate-400 text-slate-700'
+                  }`}
+                >
+                  <Plus className="w-4 h-4" />
+                  {addingStep ? 'Click image…' : 'Add hotspot'}
+                </button>
+                {currentKind === 'video' && (
+                  <button
+                    onClick={() => setTrimOpen((v) => !v)}
+                    aria-expanded={trimOpen}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 font-bold rounded-lg transition-colors text-sm border ${
+                      trimOpen || currentTrim
+                        ? 'bg-brand-blue-primary/10 border-brand-blue-primary text-brand-blue-primary'
+                        : 'bg-white border-slate-300 hover:border-slate-400 text-slate-700'
+                    }`}
+                    title="Trim which part of this video plays"
+                  >
+                    <Scissors className="w-4 h-4" />
+                    {currentTrim ? 'Trimmed' : 'Trim'}
+                  </button>
+                )}
+                {imageUrls.length > 1 && (
+                  <div className="flex items-center gap-1 ml-auto">
+                    <button
+                      onClick={() => moveImage(currentImageIndex, -1)}
+                      disabled={currentImageIndex === 0}
+                      className="p-1.5 text-slate-500 disabled:opacity-30 hover:bg-slate-200 rounded transition-colors"
+                      aria-label="Move slide earlier"
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => moveImage(currentImageIndex, 1)}
+                      disabled={currentImageIndex === imageUrls.length - 1}
+                      className="p-1.5 text-slate-500 disabled:opacity-30 hover:bg-slate-200 rounded transition-colors"
+                      aria-label="Move slide later"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                <button
+                  onClick={() => deleteImage(currentImageIndex)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:border-red-300 hover:bg-red-50 text-slate-600 hover:text-red-600 font-bold rounded-lg transition-colors text-sm ${imageUrls.length > 1 ? '' : 'ml-auto'}`}
+                  aria-label="Delete current slide"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete slide
+                </button>
+              </>
             )}
           </div>
-        )}
-
-        {imageError && (
-          <p className="text-red-600 text-xs font-medium">{imageError}</p>
-        )}
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={handleFileSelect}
-        />
-
-        {/* Action toolbar */}
-        <div className="flex flex-wrap gap-2 shrink-0">
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-colors text-sm"
-          >
-            <Upload className="w-4 h-4" />
-            Add image
-          </button>
-          <button
-            onClick={() => void uploadFromClipboard()}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 font-bold rounded-lg transition-colors text-sm"
-          >
-            <Clipboard className="w-4 h-4" />
-            Paste
-          </button>
-          {imageUrls.length > 0 && (
-            <>
-              <button
-                onClick={() => setAddingStep(!addingStep)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 font-bold rounded-lg transition-colors text-sm border ${
-                  addingStep
-                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                    : 'bg-white border-slate-300 hover:border-slate-400 text-slate-700'
-                }`}
-              >
-                <Plus className="w-4 h-4" />
-                {addingStep ? 'Click image…' : 'Add hotspot'}
-              </button>
-              {imageUrls.length > 1 && (
-                <div className="flex items-center gap-1 ml-auto">
-                  <button
-                    onClick={() => moveImage(currentImageIndex, -1)}
-                    disabled={currentImageIndex === 0}
-                    className="p-1.5 text-slate-500 disabled:opacity-30 hover:bg-slate-200 rounded transition-colors"
-                    aria-label="Move image earlier"
-                  >
-                    <ChevronUp className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => moveImage(currentImageIndex, 1)}
-                    disabled={currentImageIndex === imageUrls.length - 1}
-                    className="p-1.5 text-slate-500 disabled:opacity-30 hover:bg-slate-200 rounded transition-colors"
-                    aria-label="Move image later"
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-              <button
-                onClick={() => deleteImage(currentImageIndex)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:border-red-300 hover:bg-red-50 text-slate-600 hover:text-red-600 font-bold rounded-lg transition-colors text-sm ${imageUrls.length > 1 ? '' : 'ml-auto'}`}
-                aria-label="Delete current image"
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete image
-              </button>
-            </>
-          )}
         </div>
+
+        {captureMode && (
+          <ScreenCaptureModal
+            mode={captureMode}
+            onAddMedia={addCapturedMedia}
+            onClose={() => setCaptureMode(null)}
+          />
+        )}
       </div>
+    );
+  },
+  glContextPanePropsEqual
+);
+
+// ─── Capture menu (Snap / Record / From video) ───────────────────────────────
+
+const CAPTURE_OPTIONS: {
+  value: CaptureMode;
+  label: string;
+  desc: string;
+  icon: LucideIcon;
+}[] = [
+  {
+    value: 'snap',
+    label: 'Snap screen frames',
+    desc: 'Share your screen and snap a still for each step of a workflow.',
+    icon: Camera,
+  },
+  {
+    value: 'record',
+    label: 'Record your screen',
+    desc: 'Capture the workflow as a video slide.',
+    icon: Circle,
+  },
+  {
+    value: 'video-file',
+    label: 'Slides from a video',
+    desc: 'Extract frames from an MP4/WebM, or add the whole clip.',
+    icon: Film,
+  },
+];
+
+const CAPTURE_MENU_WIDTH = 260;
+
+const CaptureMenuButton: React.FC<{
+  onPick: (mode: CaptureMode) => void;
+}> = ({ onPick }) => {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  useClickOutside(containerRef, () => setOpen(false), [popoverRef]);
+  const pos = usePopoverPosition(open, triggerRef, CAPTURE_MENU_WIDTH);
+
+  return (
+    <div ref={containerRef} className="relative shrink-0">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={`flex items-center gap-1.5 px-3 py-1.5 font-bold rounded-lg transition-colors text-sm border ${
+          open
+            ? 'bg-brand-blue-primary/10 border-brand-blue-primary text-brand-blue-primary'
+            : 'bg-white border-slate-300 hover:border-slate-400 text-slate-700'
+        }`}
+      >
+        <MonitorUp className="w-4 h-4" />
+        Capture screen
+        <ChevronDown className="w-3 h-3 text-slate-400" />
+      </button>
+      {open &&
+        pos &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            ref={popoverRef}
+            role="menu"
+            data-click-outside-ignore="true"
+            className="overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
+            style={{
+              position: 'fixed',
+              top: pos.top,
+              left: pos.left,
+              width: CAPTURE_MENU_WIDTH,
+              zIndex: Z_INDEX.modalContent,
+            }}
+          >
+            {CAPTURE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                role="menuitem"
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  onPick(opt.value);
+                }}
+                className="flex w-full items-start gap-2.5 px-3 py-2 text-left text-slate-700 transition-colors hover:bg-slate-100"
+              >
+                <opt.icon className="w-4 h-4 mt-0.5 shrink-0 text-brand-blue-primary" />
+                <span>
+                  <span className="block font-bold text-xs">{opt.label}</span>
+                  <span className="block text-xxs text-slate-500 leading-snug">
+                    {opt.desc}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
+    </div>
+  );
+};
+
+// ─── Video trim bar ──────────────────────────────────────────────────────────
+
+function formatTrimTime(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds - m * 60;
+  return `${m}:${s.toFixed(1).padStart(4, '0')}`;
+}
+
+/**
+ * Dual-handle playback-range selector for the current video slide.
+ * Non-destructive: writes `{start, end}` seconds via `onChange` (or `null`
+ * when the handles cover the full video). Dragging a handle scrubs the
+ * canvas video to that moment so the teacher can find cut points visually.
+ */
+const VideoTrimBar: React.FC<{
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+  /** Video duration in seconds; null while metadata is still loading. */
+  duration: number | null;
+  trim: GuidedLearningVideoTrim | null;
+  onChange: (trim: GuidedLearningVideoTrim | null) => void;
+}> = ({ videoRef, duration, trim, onChange }) => {
+  const trackRef = useRef<HTMLDivElement>(null);
+  // Holds the in-flight drag's window listeners so they can be torn down if
+  // the bar unmounts mid-drag. The editor unmounts this on slide change
+  // (setTrimOpen(false)); without cleanup the orphaned onMove keeps firing
+  // and writes a trim to the *previous* slide's index.
+  const dragRef = useRef<{
+    onMove: (e: PointerEvent) => void;
+    onUp: (e: PointerEvent) => void;
+  } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (dragRef.current) {
+        window.removeEventListener('pointermove', dragRef.current.onMove);
+        window.removeEventListener('pointerup', dragRef.current.onUp);
+        window.removeEventListener('pointercancel', dragRef.current.onUp);
+        dragRef.current = null;
+      }
+    };
+  }, []);
+
+  if (duration === null) {
+    return (
+      <div className="flex items-center gap-2 text-xs font-medium text-slate-500 shrink-0">
+        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        Loading video…
+      </div>
+    );
+  }
+
+  const minGap = Math.min(0.5, duration);
+  const start = Math.min(trim?.start ?? 0, Math.max(duration - minGap, 0));
+  const end = Math.min(trim?.end ?? duration, duration);
+
+  const commit = (nextStart: number, nextEnd: number) => {
+    // Full-range selection = no trim; drop the field instead of storing a
+    // degenerate {0, duration} that would block playback-rate edge cases.
+    if (nextStart <= 0.05 && nextEnd >= duration - 0.05) {
+      onChange(null);
+      return;
+    }
+    onChange({
+      start: Math.round(nextStart * 10) / 10,
+      end: Math.round(nextEnd * 10) / 10,
+    });
+  };
+
+  const scrubTo = (seconds: number) => {
+    const video = videoRef.current;
+    if (video) video.currentTime = seconds;
+  };
+
+  const beginDrag = (
+    e: React.PointerEvent<HTMLDivElement>,
+    handle: 'start' | 'end'
+  ) => {
+    const track = trackRef.current;
+    if (!track) return;
+    e.preventDefault();
+    // Pause while scrubbing so the dragged frame holds still; always resume
+    // on release — the editor preview is a muted autoplay loop, and reading
+    // `paused` here races against the previous drag's async play().
+    videoRef.current?.pause();
+    const target = e.currentTarget;
+    try {
+      target.setPointerCapture(e.pointerId);
+    } catch {
+      // capture not supported — window listeners below still work
+    }
+
+    const timeAt = (clientX: number) => {
+      const rect = track.getBoundingClientRect();
+      // A hidden/zero-width track would yield NaN and poison the trim state.
+      if (rect.width === 0) return 0;
+      const pct = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
+      return pct * duration;
+    };
+
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      const t = timeAt(ev.clientX);
+      if (handle === 'start') {
+        const next = Math.min(t, end - minGap);
+        commit(Math.max(next, 0), end);
+        scrubTo(Math.max(next, 0));
+      } else {
+        const next = Math.max(t, start + minGap);
+        commit(start, Math.min(next, duration));
+        scrubTo(Math.min(next, duration));
+      }
+    };
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      dragRef.current = null;
+      try {
+        if (target.hasPointerCapture(ev.pointerId)) {
+          target.releasePointerCapture(ev.pointerId);
+        }
+      } catch {
+        // capture not supported — nothing to release
+      }
+      void videoRef.current?.play().catch(() => undefined);
+    };
+    dragRef.current = { onMove, onUp };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  };
+
+  const nudge = (handle: 'start' | 'end', deltaSeconds: number) => {
+    if (handle === 'start') {
+      const next = Math.min(Math.max(start + deltaSeconds, 0), end - minGap);
+      commit(next, end);
+      scrubTo(next);
+    } else {
+      const next = Math.max(
+        Math.min(end + deltaSeconds, duration),
+        start + minGap
+      );
+      commit(start, next);
+      scrubTo(next);
+    }
+  };
+
+  const handleKeyDown = (
+    e: React.KeyboardEvent<HTMLDivElement>,
+    handle: 'start' | 'end'
+  ) => {
+    const step = e.shiftKey ? 2 : 0.5;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      nudge(handle, -step);
+    } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      nudge(handle, step);
+    }
+  };
+
+  const startPct = (start / duration) * 100;
+  const endPct = (end / duration) * 100;
+
+  const handleClasses =
+    'absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-7 rounded-md bg-white border-2 border-brand-blue-primary shadow-sm cursor-ew-resize touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50';
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+      <span className="flex items-center gap-1.5 text-xs font-bold text-slate-600 shrink-0">
+        <Scissors className="w-3.5 h-3.5 text-brand-blue-primary" />
+        Trim
+      </span>
+      <div
+        ref={trackRef}
+        className="relative flex-1 min-w-[180px] h-7 select-none"
+      >
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-slate-200" />
+        <div
+          className="absolute top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-brand-blue-primary"
+          style={{ left: `${startPct}%`, width: `${endPct - startPct}%` }}
+        />
+        <div
+          role="slider"
+          tabIndex={0}
+          aria-label="Trim start"
+          aria-valuemin={0}
+          aria-valuemax={Math.max(end - minGap, 0)}
+          aria-valuenow={start}
+          aria-valuetext={formatTrimTime(start)}
+          className={handleClasses}
+          style={{ left: `${startPct}%` }}
+          onPointerDown={(e) => beginDrag(e, 'start')}
+          onKeyDown={(e) => handleKeyDown(e, 'start')}
+        />
+        <div
+          role="slider"
+          tabIndex={0}
+          aria-label="Trim end"
+          aria-valuemin={Math.min(start + minGap, duration)}
+          aria-valuemax={duration}
+          aria-valuenow={end}
+          aria-valuetext={formatTrimTime(end)}
+          className={handleClasses}
+          style={{ left: `${endPct}%` }}
+          onPointerDown={(e) => beginDrag(e, 'end')}
+          onKeyDown={(e) => handleKeyDown(e, 'end')}
+        />
+      </div>
+      <span className="text-xs font-mono font-medium text-slate-600 tabular-nums shrink-0">
+        {formatTrimTime(start)} – {formatTrimTime(end)}
+        <span className="text-slate-400"> / {formatTrimTime(duration)}</span>
+      </span>
+      <button
+        onClick={() => {
+          onChange(null);
+          scrubTo(0);
+        }}
+        disabled={!trim}
+        className="text-xs font-bold text-slate-500 hover:text-slate-700 disabled:opacity-40 disabled:cursor-default transition-colors shrink-0"
+      >
+        Reset
+      </button>
     </div>
   );
 };
 
 // ─── Detail pane ─────────────────────────────────────────────────────────────
 
-export const GuidedLearningEditorDetailPane: React.FC<PaneProps> = ({
-  state,
-}) => {
-  const {
-    selectedStep,
-    selectedStepId,
-    setSelectedStepId,
-    setAddingStep,
-    addingStep,
-    imageUrls,
-    steps,
-    updateStep,
-    deleteStep,
-    reorderSteps,
-    currentImageSteps,
-    currentImageIndex,
-    setCurrentImageIndex,
-  } = state;
+/**
+ * Slice comparator for the detail pane — same contract as
+ * `glContextPanePropsEqual`. `selectedStepId` also covers the identity of
+ * `deleteStep` (which closes over it); the other callbacks the pane uses
+ * are referentially stable.
+ */
+const glDetailPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
+  prev.state.steps === next.state.steps &&
+  prev.state.selectedStep === next.state.selectedStep &&
+  prev.state.selectedStepId === next.state.selectedStepId &&
+  prev.state.addingStep === next.state.addingStep &&
+  prev.state.imageUrls === next.state.imageUrls &&
+  prev.state.currentImageIndex === next.state.currentImageIndex;
 
-  const showNavigator = steps.length > 0;
-  const stepNumber = selectedStepId
-    ? steps.findIndex((s) => s.id === selectedStepId) + 1
-    : 0;
+export const GuidedLearningEditorDetailPane = React.memo(
+  function GuidedLearningEditorDetailPane({ state }: PaneProps) {
+    const {
+      selectedStep,
+      selectedStepId,
+      setSelectedStepId,
+      setAddingStep,
+      addingStep,
+      imageUrls,
+      steps,
+      updateStep,
+      deleteStep,
+      reorderSteps,
+      currentImageSteps,
+      currentImageIndex,
+      setCurrentImageIndex,
+    } = state;
 
-  return (
-    <div className="flex flex-col h-full">
-      {showNavigator && (
-        <StepNavigator
-          steps={steps}
-          selectedStepId={selectedStepId}
-          imageCount={imageUrls.length}
-          currentImageIndex={currentImageIndex}
-          onSelectStep={(step) => {
-            if (step.imageIndex !== currentImageIndex) {
-              setCurrentImageIndex(step.imageIndex);
-            }
-            setSelectedStepId(step.id);
-          }}
-          onReorder={reorderSteps}
-        />
-      )}
+    const showNavigator = steps.length > 0;
+    // O(1) lookup instead of an O(n) findIndex per keystroke.
+    const stepIndexById = useMemo(() => {
+      const map = new Map<string, number>();
+      steps.forEach((s, i) => map.set(s.id, i));
+      return map;
+    }, [steps]);
+    const stepNumber = selectedStepId
+      ? (stepIndexById.get(selectedStepId) ?? -1) + 1
+      : 0;
 
-      <div className="flex-1 min-h-0">
-        {selectedStep ? (
-          <GuidedLearningStepEditor
-            key={selectedStep.id}
-            step={selectedStep}
-            stepNumber={stepNumber}
+    // Stable handler so the memoized navigator pills don't all re-render on
+    // slide changes. `setCurrentImageIndex` is called unconditionally —
+    // React bails out on same-value setState, so this matches the previous
+    // "only set when different" behavior.
+    const handleNavigatorSelect = useCallback(
+      (step: GuidedLearningStep) => {
+        setCurrentImageIndex(step.imageIndex);
+        setSelectedStepId(step.id);
+      },
+      [setCurrentImageIndex, setSelectedStepId]
+    );
+
+    return (
+      <div className="flex flex-col h-full">
+        {showNavigator && (
+          <StepNavigator
+            steps={steps}
+            selectedStepId={selectedStepId}
             imageCount={imageUrls.length}
-            onChange={updateStep}
-            onDelete={() => deleteStep(selectedStep.id)}
+            currentImageIndex={currentImageIndex}
+            onSelectStep={handleNavigatorSelect}
+            onReorder={reorderSteps}
           />
-        ) : (
-          <div className="flex flex-col h-full items-center justify-center text-center px-8 py-12 text-slate-500">
-            <MousePointerClick className="w-10 h-10 mb-3 text-slate-400" />
-            <h4 className="text-base font-bold text-slate-700 mb-1">
-              {imageUrls.length === 0
-                ? 'Add an image first'
-                : 'Pick a hotspot to edit'}
-            </h4>
-            <p className="text-sm max-w-xs">
-              {imageUrls.length === 0
-                ? 'Upload an image on the left, then add hotspots to make it interactive.'
-                : currentImageSteps.length === 0
-                  ? 'No hotspots on this image yet — click "Add hotspot" then click anywhere on the image.'
-                  : 'Click a numbered hotspot on the image, or add a new one.'}
-            </p>
-            {imageUrls.length > 0 && !addingStep && (
-              <button
-                onClick={() => {
-                  setSelectedStepId(null);
-                  setAddingStep(true);
-                }}
-                className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg text-sm transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Add hotspot
-              </button>
-            )}
-          </div>
         )}
+
+        <div className="flex-1 min-h-0">
+          {selectedStep ? (
+            <GuidedLearningStepEditor
+              key={selectedStep.id}
+              step={selectedStep}
+              stepNumber={stepNumber}
+              imageCount={imageUrls.length}
+              onChange={updateStep}
+              onDelete={() => deleteStep(selectedStep.id)}
+            />
+          ) : (
+            <div className="flex flex-col h-full items-center justify-center text-center px-8 py-12 text-slate-500">
+              <MousePointerClick className="w-10 h-10 mb-3 text-slate-400" />
+              <h4 className="text-base font-bold text-slate-700 mb-1">
+                {imageUrls.length === 0
+                  ? 'Add an image first'
+                  : 'Pick a hotspot to edit'}
+              </h4>
+              <p className="text-sm max-w-xs">
+                {imageUrls.length === 0
+                  ? 'Upload an image on the left, then add hotspots to make it interactive.'
+                  : currentImageSteps.length === 0
+                    ? 'No hotspots on this image yet — click "Add hotspot" then click anywhere on the image.'
+                    : 'Click a numbered hotspot on the image, or add a new one.'}
+              </p>
+              {imageUrls.length > 0 && !addingStep && (
+                <button
+                  onClick={() => {
+                    setSelectedStepId(null);
+                    setAddingStep(true);
+                  }}
+                  className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg text-sm transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add hotspot
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  },
+  glDetailPanePropsEqual
+);
 
 // ─── Step navigator (sortable pill strip) ────────────────────────────────────
 
 interface StepNavigatorProps {
-  steps: import('@/types').GuidedLearningStep[];
+  steps: GuidedLearningStep[];
   selectedStepId: string | null;
   imageCount: number;
   currentImageIndex: number;
-  onSelectStep: (step: import('@/types').GuidedLearningStep) => void;
-  onReorder: (next: import('@/types').GuidedLearningStep[]) => void;
+  onSelectStep: (step: GuidedLearningStep) => void;
+  onReorder: (next: GuidedLearningStep[]) => void;
 }
+
+/** Hoisted so SortableList's memoized id array survives re-renders. */
+const getStepId = (s: GuidedLearningStep) => s.id;
+
+interface StepPillProps {
+  step: GuidedLearningStep;
+  index: number;
+  isSelected: boolean;
+  imageCount: number;
+  onSelect: (step: GuidedLearningStep) => void;
+  dragHandleAttributes: React.HTMLAttributes<HTMLElement>;
+  dragHandleListeners: Record<string, (event: Event) => void> | undefined;
+}
+
+/**
+ * Memo comparator for the navigator pills. Compares the step by reference
+ * (an edit replaces the step object) and intentionally EXCLUDES the
+ * drag-handle props: dnd-kit recreates `attributes`/`listeners` objects on
+ * every render, but for a given sortable id they are functionally
+ * equivalent, so comparing them would defeat the memo.
+ */
+const stepPillPropsEqual = (
+  prev: StepPillProps,
+  next: StepPillProps
+): boolean =>
+  prev.step === next.step &&
+  prev.index === next.index &&
+  prev.isSelected === next.isSelected &&
+  prev.imageCount === next.imageCount &&
+  prev.onSelect === next.onSelect;
+
+const StepPill = React.memo(function StepPill({
+  step: s,
+  index: idx,
+  isSelected,
+  imageCount,
+  onSelect,
+  dragHandleAttributes,
+  dragHandleListeners,
+}: StepPillProps) {
+  return (
+    <button
+      type="button"
+      {...dragHandleAttributes}
+      onPointerDown={
+        dragHandleListeners?.onPointerDown as
+          | React.PointerEventHandler<HTMLButtonElement>
+          | undefined
+      }
+      onClick={() => onSelect(s)}
+      aria-label={`Step ${idx + 1}${imageCount > 1 ? ` on image ${s.imageIndex + 1}` : ''}${s.label ? `: ${s.label}` : ''}`}
+      title={s.label?.trim() ? s.label : `Step ${idx + 1}`}
+      className={`shrink-0 cursor-grab active:cursor-grabbing touch-none flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold border transition-colors ${
+        isSelected
+          ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+          : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
+      }`}
+    >
+      <span className="font-mono">{idx + 1}</span>
+      {imageCount > 1 && (
+        <span
+          className={`text-xxs font-mono px-1 rounded ${
+            isSelected
+              ? 'bg-brand-blue-dark text-white/80'
+              : 'bg-slate-100 text-slate-500'
+          }`}
+          aria-hidden
+        >
+          i{s.imageIndex + 1}
+        </span>
+      )}
+    </button>
+  );
+}, stepPillPropsEqual);
 
 const StepNavigator: React.FC<StepNavigatorProps> = ({
   steps,
@@ -813,45 +1510,19 @@ const StepNavigator: React.FC<StepNavigatorProps> = ({
       </div>
       <SortableList
         items={steps}
-        getId={(s) => s.id}
+        getId={getStepId}
         onReorder={onReorder}
-        renderItem={(s, handle) => {
-          const idx = steps.findIndex((x) => x.id === s.id);
-          const isSelected = s.id === selectedStepId;
-          return (
-            <button
-              type="button"
-              {...handle.attributes}
-              onPointerDown={
-                handle.listeners?.onPointerDown as
-                  | React.PointerEventHandler<HTMLButtonElement>
-                  | undefined
-              }
-              onClick={() => onSelectStep(s)}
-              aria-label={`Step ${idx + 1}${imageCount > 1 ? ` on image ${s.imageIndex + 1}` : ''}${s.label ? `: ${s.label}` : ''}`}
-              title={s.label?.trim() ? s.label : `Step ${idx + 1}`}
-              className={`shrink-0 cursor-grab active:cursor-grabbing touch-none flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold border transition-colors ${
-                isSelected
-                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                  : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
-              }`}
-            >
-              <span className="font-mono">{idx + 1}</span>
-              {imageCount > 1 && (
-                <span
-                  className={`text-xxs font-mono px-1 rounded ${
-                    isSelected
-                      ? 'bg-brand-blue-dark text-white/80'
-                      : 'bg-slate-100 text-slate-500'
-                  }`}
-                  aria-hidden
-                >
-                  i{s.imageIndex + 1}
-                </span>
-              )}
-            </button>
-          );
-        }}
+        renderItem={(s, handle, index) => (
+          <StepPill
+            step={s}
+            index={index}
+            isSelected={s.id === selectedStepId}
+            imageCount={imageCount}
+            onSelect={onSelectStep}
+            dragHandleAttributes={handle.attributes}
+            dragHandleListeners={handle.listeners}
+          />
+        )}
         className="flex flex-wrap gap-1.5"
       />
     </div>
@@ -861,7 +1532,7 @@ const StepNavigator: React.FC<StepNavigatorProps> = ({
 // ─── Draggable hotspot marker ────────────────────────────────────────────────
 
 interface HotspotMarkerProps {
-  step: import('@/types').GuidedLearningStep;
+  step: GuidedLearningStep;
   stepNumber: number;
   isSelected: boolean;
   imgBounds: {
@@ -871,13 +1542,17 @@ interface HotspotMarkerProps {
     height: number;
   } | null;
   containerRef: React.RefObject<HTMLDivElement | null>;
-  onSelect: () => void;
-  onMove: (xPct: number, yPct: number) => void;
+  onSelect: (id: string) => void;
+  onMove: (step: GuidedLearningStep, xPct: number, yPct: number) => void;
 }
 
 const DRAG_THRESHOLD_PX = 4;
 
-const HotspotMarker: React.FC<HotspotMarkerProps> = ({
+// Plain React.memo: with id/step-based callbacks every prop is referentially
+// stable between renders, so typing in the step editor re-renders only the
+// edited step's marker (its `step` object is replaced) — not every marker
+// on the canvas.
+const HotspotMarker = React.memo(function HotspotMarker({
   step,
   stepNumber,
   isSelected,
@@ -885,7 +1560,7 @@ const HotspotMarker: React.FC<HotspotMarkerProps> = ({
   containerRef,
   onSelect,
   onMove,
-}) => {
+}: HotspotMarkerProps) {
   // Local position used during a drag so the marker tracks the cursor without
   // a parent re-render per pointer move. Cleared on pointer-up; the next
   // render reads from the persisted step.
@@ -898,7 +1573,7 @@ const HotspotMarker: React.FC<HotspotMarkerProps> = ({
   const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     if (!imgBounds || !containerRef.current) {
-      onSelect();
+      onSelect(step.id);
       return;
     }
     const startX = e.clientX;
@@ -943,10 +1618,10 @@ const HotspotMarker: React.FC<HotspotMarkerProps> = ({
         // already released
       }
       if (dragged) {
-        onMove(lastXPct, lastYPct);
+        onMove(step, lastXPct, lastYPct);
         setDragPos(null);
       } else {
-        onSelect();
+        onSelect(step.id);
       }
     };
 
@@ -991,4 +1666,4 @@ const HotspotMarker: React.FC<HotspotMarkerProps> = ({
       {stepNumber}
     </button>
   );
-};
+});

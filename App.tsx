@@ -121,6 +121,16 @@ const MyAssignmentsPage = lazy(() =>
     default: module.MyAssignmentsPage,
   }))
 );
+const LandingPage = lazy(() =>
+  import('./components/landing/LandingPage').then((module) => ({
+    default: module.LandingPage,
+  }))
+);
+const RequestRolloutPage = lazy(() =>
+  import('./components/landing/RequestRolloutPage').then((module) => ({
+    default: module.RequestRolloutPage,
+  }))
+);
 const LoginScreen = lazy(() =>
   import('./components/auth/LoginScreen').then((module) => ({
     default: module.LoginScreen,
@@ -192,6 +202,13 @@ const NotebookEditorDevHarness = import.meta.env.DEV
       }))
     )
   : null;
+const LibraryDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/LibraryDevHarness').then((module) => ({
+        default: module.LibraryDevHarness,
+      }))
+    )
+  : null;
 
 const FullPageLoader = () => (
   <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
@@ -202,12 +219,20 @@ const FullPageLoader = () => (
 const AuthenticatedApp: React.FC<{ isRemote?: boolean }> = ({
   isRemote = false,
 }) => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
   if (!user) {
+    // While the persisted session resolves, show a plain loader so returning
+    // teachers don't get a flash of the marketing page before the dashboard.
+    if (loading) {
+      return <FullPageLoader />;
+    }
+    // Signed-out fork (docs/wide-distro-plan.md Phase 1): the root route gets
+    // the public landing page (sign-in is its hero CTA); the mobile remote
+    // keeps the minimal login screen.
     return (
       <Suspense fallback={<FullPageLoader />}>
-        <LoginScreen />
+        {isRemote ? <LoginScreen /> : <LandingPage />}
       </Suspense>
     );
   }
@@ -434,22 +459,41 @@ const App: React.FC = () => {
 
   // Public legal/support pages. Anonymous, no providers — they must render
   // without sign-in so Google's OAuth consent + Marketplace review can reach
-  // the Privacy Policy / Terms URLs.
+  // the Privacy Policy / Terms URLs. Trailing-slash tolerant because the
+  // prerendered static copies (dist/privacy/index.html etc.) make Firebase
+  // Hosting redirect /privacy → /privacy/ before the SPA boots.
+  const legalPath = pathname.replace(/\/+$/, '');
   if (
-    pathname === '/privacy' ||
-    pathname === '/terms' ||
-    pathname === '/support'
+    legalPath === '/privacy' ||
+    legalPath === '/terms' ||
+    legalPath === '/support'
   ) {
     const LegalPage =
-      pathname === '/privacy'
+      legalPath === '/privacy'
         ? PrivacyPolicyPage
-        : pathname === '/terms'
+        : legalPath === '/terms'
           ? TermsOfServicePage
           : SupportPage;
     return (
       <Suspense fallback={<FullPageLoader />}>
         <LegalPage />
       </Suspense>
+    );
+  }
+
+  // Pilot / district-rollout request form (docs/wide-distro-plan.md Phase 2).
+  // Public route; AuthProvider so signed-in users can submit the form, but no
+  // dashboard providers (the page must stay light and load for anyone).
+  if (legalPath === '/request') {
+    return (
+      <DialogProvider>
+        <AuthProvider>
+          <Suspense fallback={<FullPageLoader />}>
+            <RequestRolloutPage />
+          </Suspense>
+        </AuthProvider>
+        <DialogContainer />
+      </DialogProvider>
     );
   }
 
@@ -464,6 +508,17 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <NotebookEditorDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: visual harness for the unified Library primitives (shell,
+  // toolbar, cards, assignment rows) at multiple widget sizes. Same
+  // import.meta.env.DEV gating as the notebook harness above.
+  if (import.meta.env.DEV && LibraryDevHarness && pathname === '/library-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <LibraryDevHarness />
       </Suspense>
     );
   }

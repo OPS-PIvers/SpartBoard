@@ -4,6 +4,148 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-13
+
+- PRs reviewed: 11 (all open PRs; one head is `dev-paul` — read-only, review-only)
+  - #1960 — fix(state): extract `normalizeActivityWallLibraryEntry` to prevent field-stripping on snapshot refresh (head `nightly/state-data-2026-06-13`, base `dev-paul`)
+  - #1959 — chore(memory): nightly run 16 log (head `nightly/debugger-log-2026-06-13`, base `dev-paul`)
+  - #1958 — fix(lti): preserve `contextId` across privacy-stripped LTI relaunches (head `nightly/build-tooling-2026-06-13`, base `dev-paul`)
+  - #1957 — fix(i18n): extract 4 hardcoded TimeTool Stations strings (head `nightly/admin-config-2026-06-13`, base `dev-paul`)
+  - #1956 — fix(keyboard): Alt+P pin shortcut drops when CapsLock is active (head `nightly/dashboard-layout-2026-06-13`, base `dev-paul`)
+  - #1955 — fix(widgets): CalendarWidget midnight staleness + useEffect ref-sync anti-pattern (head `nightly/widgets-2026-06-13`, base `dev-paul`)
+  - #1954 — docs(unifier): run 14 memory log (head `nightly/unifier-log-2026-06-13`, base `dev-paul`)
+  - #1953 — action(css-scaling): scale ActivityWall moderation checkbox with cqmin (head `scheduled-tasks`, base `dev-paul`)
+  - #1951 — fix(i18n): replace EN-placeholder strings in boardsModal/shareCollection (DE/ES/FR) (head `nightly/admin-config-2026-06-12`, base `dev-paul`)
+  - #1945 — docs(unifier): run 14 memory log (head `nightly/unifier-log-2026-06-12`, base `dev-paul`)
+  - #1943 — Enhance Guided Learning editor with media upload/playback (head `dev-paul`, base `main` — read-only; large integration PR)
+- Comments processed: 4 total — 0 fixed, 4 already-addressed/no-op (all 4 resolved + replied)
+  - #1958: 1 gemini thread (MEDIUM) — already addressed in HEAD. `launchEndpoints.ts` already caches `existingGradeLink.data()` in `gradeLinkData` with explicit `string | null` typing (no repeated `.data()`, no `any`, no assertion). Replied + resolved.
+  - #1957: 1 gemini thread (MEDIUM) — already addressed in HEAD. `fr.json` `addStationsTip` already reads "…effectuer une rotation automatique des élèves…". Replied + resolved.
+  - #1956: 1 gemini thread (MEDIUM) — already addressed in HEAD. CapsLock test already wraps dispatch in `try…finally` with listener cleanup. Replied + resolved.
+  - #1955: 1 gemini thread (HIGH) — already addressed in HEAD. `isBlocked` already derives the date string via local-time `getFullYear()/getMonth()/getDate()` instead of `.toISOString()`. Replied + resolved.
+  - #1960, #1959, #1954, #1953, #1951 (resolved), #1945, #1943 (all 7 prior threads resolved): no open review comments requiring action.
+- Fixes pushed: 0 — every open review comment was already satisfied by a follow-up commit on its branch; no code changes were warranted. No pushes to `main`/`dev-*`.
+- Reviews posted: 11 (one structured `COMMENT` review per open PR)
+  - Ready: #1960, #1959, #1958, #1957, #1956, #1955, #1954, #1953, #1951, #1945
+  - Needs human review (scope, not defect): #1943 — 100+ file `dev-paul → main` integration PR; highest risk in the `dashboardCanvasStore`/`DashboardContext` refactor. New `rollout_requests` Firestore rule verified (identity-pinned, `hasOnly` allow-list, admin-only triage); `functions/src/index.ts` change is additive + adds an SSRF `maxRedirects: 0` guard. CI status pending at review time.
+
+---
+
+## 2026-06-12
+
+- PRs reviewed: 12 (all open PRs; one head is `dev-paul` — read-only, review-only)
+  - #1953 — refactor(admin-config): extract shared `isCardOpacity` guard (head `scheduled-tasks`, base `dev-paul`)
+  - #1952 — docs(debugger): nightly run 15 log (head `nightly/debugger-log-2026-06-12`, base `dev-paul`)
+  - #1951 — fix(i18n): replace EN-placeholder strings in boardsModal/shareCollection (DE/ES/FR) (head `nightly/admin-config-2026-06-12`, base `dev-paul`)
+  - #1950 — fix(state): gradeAnswer partial-credit `isCorrect` consistency (head `nightly/state-data-2026-06-12`, base `dev-paul`)
+  - #1949 — fix(layout): typing-field guard on Ctrl+/ cheat-sheet shortcut (head `nightly/dashboard-layout-2026-06-12`, base `dev-paul`)
+  - #1948 — fix(docs): format unifier.md to pass Prettier (head `nightly/build-tooling-2026-06-12`, base `dev-paul`)
+  - #1947 — fix(widgets): correct negative-range fraction label on NumberLine (head `nightly/widgets-2026-06-12`, base `dev-paul`)
+  - #1946 — fix(docs): restore Prettier formatting on unifier.md (head `nightly/unifier-baseline-fix-2026-06-12`, base `dev-paul`)
+  - #1945 — docs(unifier): run 14 memory log (head `nightly/unifier-log-2026-06-12`, base `dev-paul`)
+  - #1944 — fix(guided-learning): address PR #1943 review feedback (head `claude/serene-meitner-eagi8c`, base `dev-paul`)
+  - #1943 — Enhance Guided Learning editor with media upload/playback (head `dev-paul`, base `main` — read-only)
+- Comments processed: 11 total — 8 fixed, 3 already-addressed/no-op
+  - #1944: 4 gemini threads — 3 FIXED (HIGH: NaN-sanitize `trim.start`/`end` centrally in `clampTrimStart`/`clampTrimEnd` so `video.currentTime` can't be assigned NaN; MEDIUM: sync `onClose` ref in render body instead of `useLayoutEffect`; MEDIUM: drop now-unused `useLayoutEffect` import). 1 outdated thread skipped. Note: the suggested `react-hooks/refs` disable was _not_ needed — the rule doesn't flag this assignment (unused-directive under `--max-warnings 0`).
+  - #1951: 1 gemini thread (MEDIUM) — FIXED. `fr.json` `pinnedEmpty` had Cyrillic `инг` in `Épингlez`; corrected to Latin `Épinglez`. Scanned all four locales for Cyrillic-block chars — none remaining.
+  - #1950: 1 gemini thread (MEDIUM) — FIXED. `isCorrect = pointsEarned >= max` marked every answer correct for a 0-point question (`0 >= 0`) and used float comparison; switched to `matched === total` (equivalent for `max > 0`, correct for `max === 0`) + added a 0-point regression test.
+  - #1949: 1 gemini thread (MEDIUM) — FIXED. Extracted the duplicated input/textarea/select/contentEditable check into a file-level `isTypingFieldActive()` helper and applied it to all six keydown guard sites.
+  - #1947: 3 gemini threads (MEDIUM) — FIXED. Simplified the negative-tick fraction expr to `Math.abs(valNumer) % denom` (distinct from the `Math.abs(valNumer % denom)` band-aid the PR rejected — keeps `% denom`); corrected two test descriptions (`-1 3/4` is first sub-tick _above -2_; `fractionLabel` renders `2/4`, not `1/2`).
+  - #1943: 7 threads — all already addressed via #1944 (author replies on each thread). No action.
+  - #1953, #1952, #1948, #1946, #1945: no review comments.
+- Fixes pushed: 5 (each to its own PR head branch — no pushes to `main`/`dev-*`)
+  - #1944 / `claude/serene-meitner-eagi8c` — `fix(pr-1944): sanitize non-finite video trim values and sync onClose ref in render body`; type-check ✓ lint ✓ tests ✓ (5/5).
+  - #1951 / `nightly/admin-config-2026-06-12` — `fix(pr-1951): replace Cyrillic characters in fr.json pinnedEmpty`; JSON ✓ prettier ✓ i18n tests ✓ (156/156).
+  - #1950 / `nightly/state-data-2026-06-12` — `fix(pr-1950): derive matching isCorrect from matched===total`; type-check ✓ lint ✓ tests ✓ (13/13).
+  - #1949 / `nightly/dashboard-layout-2026-06-12` — `fix(pr-1949): extract isTypingFieldActive helper`; type-check ✓ lint ✓ tests ✓ (25/25).
+  - #1947 / `nightly/widgets-2026-06-12` — `fix(pr-1947): simplify negative-tick fraction expr and correct test descriptions`; type-check ✓ lint ✓ tests ✓ (16/16).
+- Reviews posted: 12 (one structured `## Automated Code Review` per PR)
+  - #1953 Ready; #1952 Ready; #1951 Ready (Cyrillic fix pushed); #1950 Ready (0-point fix pushed); #1949 Ready (helper extraction pushed); #1948 Ready (dup of #1946); #1947 Ready (simplification pushed); #1946 Ready (dup of #1948); #1945 Ready; #1944 Ready (all threads resolved); #1943 **Needs changes** (CI red — see below).
+- Notes:
+  - Branch-safety: #1943 head is `dev-paul` (matches `dev-*`) → read-only, review-only, no push. All other heads (`nightly/*`, `claude/*`, `scheduled-tasks`) are pushable; 5 fixes went to their own head branches. No pushes to `main` or `dev-paul`.
+  - **#1943 CI is red** but only on `format:check` for `docs/routines/unifier.md` (Prettier drift) — all other jobs (type-check, Unit, E2E, Build, Firestore Rules, CodeQL) pass. This is exactly what **#1946**/**#1948** fix; landing one into dev-paul and re-running #1943's CI clears it. The 7 inline review threads on #1943 are already handled via #1944.
+  - **Duplicate Prettier fix flagged:** #1946 (run-14 baseline-fix branch) and #1948 (run-15 build-tooling branch) carry the _identical_ reformat of `docs/routines/unifier.md`. Only one is needed — merge one and the other becomes empty/conflicting. #1945 also edits the same file (run-14 log content) and will need a trivial merge-order reconciliation.
+  - Forward note: #1952's new "partial-credit `isCorrect` invariant" gotcha documents `pointsEarned >= pointsMax`; #1950 was refined to `matched === total` (handles the `max === 0` case). Worth syncing the gotcha wording when convenient.
+
+---
+
+## 2026-06-11
+
+- PRs reviewed: 10 (all open PRs; every head is non-`main`/non-`dev-*`, so all in scope; all base `dev-paul`)
+  - #1942 — docs(unifier): run 13 memory log (head `nightly/unifier-log-2026-06-11`)
+  - #1941 — D4: convert tests/ relative imports to `@/` alias (head `nightly/unify-import-paths-tests-2026-06-11`)
+  - #1940 — chore(perf): refresh performance baselines (head `nightly/perf-baseline-2026-06-11`)
+  - #1939 — fix(layout): remove duplicate Alt+Delete handler from DraggableWindow (head `nightly/dashboard-layout-2026-06-11`)
+  - #1938 — docs(debugger): nightly run 14 log (head `nightly/debugger-log-2026-06-11`)
+  - #1937 — fix(functions): maxRedirects:0 SSRF guard in checkUrlCompatibility (head `nightly/build-tooling-2026-06-11`)
+  - #1936 — fix(i18n): boardBreadcrumb/collectionSwitcher DE/ES/FR placeholders (head `nightly/admin-config-2026-06-11`)
+  - #1935 — fix(state): dedup questions in classroomGradePush currentTotal (head `nightly/state-data-2026-06-11`)
+  - #1934 — fix(BreathingWidget): phase==='ready' sentinel for Reset disabled (head `nightly/widgets-2026-06-11`)
+  - #1933 — chore(scheduled-tasks): audit journals + activity-wall building defaults (head `scheduled-tasks`)
+- Comments processed: 9 total — 7 fixed, 2 explained
+  - #1939: 1 HIGH gemini thread — removing the `DraggableWindow` Alt+Backspace branch left `Alt+Backspace` unhandled because `DashboardView` only matched `Delete` → FIXED (global handler now clears on Delete+Backspace under Alt/Shift; plain Backspace stays a no-op).
+  - #1936: 5 threads (3 HIGH stale `.root` keys in DE/ES/FR + 2 MEDIUM redundant test casts) → all 5 FIXED (translated `.root` to match the `"No Collection"` EN source, removed casts, extended the regression test to guard `.root`).
+  - #1938: 1 MEDIUM gemini thread — duplicate `normalizeSession` backlog row → FIXED (removed; already tracked on the 06-08/06-09 rows).
+  - #1942: 1 MEDIUM gemini thread (outdated) — Run Log PR-number column → EXPLAINED (no fix): committed table already has the PR in its own 5th column.
+  - #1933: 1 MEDIUM gemini thread (outdated) — 64-vs-63 widget-count discrepancy → EXPLAINED (no fix): reviewer's own guidance is not to auto-reconcile historical audit logs; the PR itself reconciles it with an explicit awk verification.
+  - #1940, #1941, #1935, #1934, #1937: no review comments.
+- Fixes pushed: 3
+  - #1939 / `nightly/dashboard-layout-2026-06-11` — restored Alt/Shift+Backspace clear-board in DashboardView; type-check ✓ lint ✓ tests ✓ (28/28).
+  - #1936 / `nightly/admin-config-2026-06-11` — translated `.root` keys (Keine Sammlung / Sin colección / Aucune collection), dropped redundant test casts, extended regression test; type-check ✓ lint ✓ format ✓ tests ✓ (20/20).
+  - #1938 / `nightly/debugger-log-2026-06-11` — removed duplicate backlog row (doc-only).
+- Reviews posted: 10 (one structured review per PR)
+  - #1942: Ready — doc-only unifier run 13 log; outdated table nit already resolved.
+  - #1941: Ready — `@/` alias substitution; behavior-preserving (one bonus double-mock cleanup in escapeInteraction.test.tsx).
+  - #1940: Ready with minor notes — baseline refresh is more than timing-only: `dashboard-baseline.json` `totalShellRenders` (a deterministic primary metric) dropped across nearly every scenario (the DashboardContext-split win); recommended correcting the PR body.
+  - #1939: Ready — handler-ownership consolidation; the Alt+Backspace gap raised in review is fixed.
+  - #1938: Ready — doc-only debugger run 14 log; duplicate backlog row removed.
+  - #1937: Ready — genuine SSRF redirect-bypass fix mirroring fetchExternalProxy; good test.
+  - #1936: Ready — locale placeholder fix + parity-enforcing test; all gemini follow-ups addressed.
+  - #1935: Ready — Set-based dedup fence matching 5 prior fixes; well-tested.
+  - #1934: Ready — phase sentinel for Reset disable; one-line + regression test.
+  - #1933: Ready — high-quality activity-wall building-defaults wiring (pure validated helper + 8 tests); journal updates doc-only.
+- Notes:
+  - Branch-safety: all 10 head branches are non-`main`/non-`dev-*` → pushable; 3 required fix pushes.
+  - #1933 head is `scheduled-tasks` (this log's branch); appending today's entry here and pushing follows the POST-TASK workflow.
+
+---
+
+## 2026-06-10
+
+- PRs reviewed: 12 (all open PRs; no head is `main`/`dev-*`, so all in scope)
+  - #1931 — perf(dashboard): DashboardContext split (head `perf/dashboard-context-split`, base `perf/dashboard-canvas-pass`)
+  - #1930 — test(hooks): cover useVideoActivitySessionTeacher (head `add-video-activity-session-teacher-tests`, base `dev-paul`)
+  - #1929 — audit(wednesday): daily/weekly audits 2026-06-10 (head `scheduled-tasks`, base `main`)
+  - #1928 — fix(stores): `?? null` on contextId/contextTitle/resourceLinkId (head `nightly/build-tooling-2026-06-10`, base `dev-paul`)
+  - #1927 — fix(i18n): widgets.seatingChart for DE/ES/FR (head `nightly/admin-config-2026-06-10`, base `dev-paul`)
+  - #1926 — fix(export): first-occurrence answer dedup in buildResultsSheetData (head `nightly/state-data-2026-06-10`, base `dev-paul`)
+  - #1925 — fix(DashboardView): guard groupBuildMode Escape vs typing fields (head `nightly/dashboard-layout-2026-06-10`, base `dev-paul`)
+  - #1924 — chore(perf): refresh baseline.json (head `nightly/perf-baseline-2026-06-10`, base `dev-paul`)
+  - #1923 — perf(dashboard): canvas perf pass + ruler (head `perf/dashboard-canvas-pass`, base `dev-paul`)
+  - #1922 — docs(unifier): run 11 log 2026-06-10 (head `nightly/unifier-log-2026-06-10`, base `dev-paul`)
+  - #1915 — chore(debugger): run 13 log 2026-06-09 (head `nightly/debugger-log-2026-06-09`, base `dev-paul`)
+  - #1910 — docs(unifier): run 11 log 2026-06-09 (head `nightly/unifier-log-2026-06-09`, base `dev-paul`)
+- Comments processed: 6 total — 3 fixed, 3 explained (all from gemini-code-assist)
+  - #1923: 2 threads — FIXED. `minimizeAllWidgets`/`restoreAllWidgets` now read `activeIdRef.current` and drop `activeId` from deps for reference stability. Also converted the `if (!activeId) return` early-return guards in both (the suggestion only showed the `d.id` line; leaving the guard on the closure while removing the dep would have made it stale). `activeIdRef.current` is render-body-synced. type-check ✓ lint ✓ tests ✓.
+  - #1926: 1 thread — FIXED. Added `const answers = r.answers ?? []` nullish guard before the dedup loop and switched the map value type to `R['answers'][number]`. type-check ✓ lint ✓ tests ✓ (17/17).
+  - #1931: 1 thread — EXPLAINED. gemini's `lastCommittedState` notify-bailout is a sound, low-risk optimization but changes the brand-new store's notify semantics in a concurrent-rendering-sensitive path; recommended to the author but not auto-applied (design call, not a correctness defect).
+  - #1925: 1 thread — EXPLAINED. Test-cleanup hardening (centralize element disposal in `afterEach`) is an enhancement; suite passes 21/21 and the suggestion is a wholesale `describe` rewrite, not a targeted fix.
+  - #1924: 1 thread — EXPLAINED. Reverting durations to 3-run medians while surgically updating only the `gl.type25` commit count is a baseline-methodology decision that would undo the PR's stated purpose; left to the author.
+  - #1930, #1929, #1928, #1927, #1922, #1915, #1910: no review comments.
+- Fixes pushed: 2 (each to its own PR head branch — no pushes to `main`/`dev-*`)
+  - #1923 / `perf/dashboard-canvas-pass` — `fix(pr-1923): make minimizeAllWidgets/restoreAllWidgets reference-stable`
+  - #1926 / `nightly/state-data-2026-06-10` — `fix(pr-1926): guard answers iteration with ?? [] and use R['answers'][number]`
+- Reviews posted: 12 (all COMMENT event)
+  - #1931 Ready w/ notes (stacked on #1923 — merge that first; adopt notify bailout); #1930 Ready (test-only, faithful wiring; flagged VA's non-filtering of empty classIds/rosterIds as a possible follow-up); #1929 **Needs changes** (described "audit-only" but diff vs base `main` carries ~4,000+ lines of source — GuidedLearningEditor +1083, new ScreenCaptureModal +464, VideoActivityEditor +463, Quiz/VA editor modals, workflow files — `scheduled-tasks` has diverged from `main`; reconcile base/scope before merging to `main`); #1928 Ready; #1927 Ready; #1926 Ready (defensive guard pushed); #1925 Ready w/ notes (test-cleanup hardening deferred); #1924 Ready w/ notes (single-run snapshot noise); #1923 Ready w/ notes (ref-stability pushed; base of #1931); #1922 Ready w/ notes (run-11 unifier.md collides with #1910); #1915 Ready; #1910 Ready w/ notes (duplicate run-11 of unifier.md, collides with #1922).
+- Notes:
+  - Branch-safety: no open PR head is `main` or `dev-*`; all heads pushable. Both fixes went to PR head branches. No pushes to `main` or `dev-paul`. This log committed to `scheduled-tasks` (fair-game) per task instructions.
+  - **#1929 scope discrepancy (flag for human):** the audit PR's base is `main` and `scheduled-tasks` is far ahead of it, so the PR would land a large editor refactor into production `main`. Either retarget to `dev-paul` or re-sync `scheduled-tasks` to `main`. (This log commit rides on that same branch but is docs-only.)
+  - **Duplicate run-11 unifier logs:** #1910 (2026-06-09) and #1922 (2026-06-10) both bump `docs/routines/unifier.md` to "Run count: 11" and edit overlapping rows → conflict on second merge; flagged on both.
+  - #1929 journals also surface a real Firestore **MEDIUM** (`pollVotes` subcollection writes unrestricted for all authenticated users) worth a dedicated `firestore.rules` fix PR.
+  - #1923 touches `context/DashboardContext.tsx` heavily but identity-preserving; #1931 adds a new `dashboardCanvasStore.ts` with conditional-`use()` fallback so the ~185 `useDashboard()` consumers are untouched. No new `WidgetType`/`WidgetRegistry.ts` config-merge or `firestore.rules` match-block changes in the code-bearing PRs, so those checks were not triggered.
+
+---
+
 ## 2026-06-08
 
 - PRs reviewed: 12 (all open PRs; every head is non-`main`/non-`dev-*`, so all in scope; all base `dev-paul`)

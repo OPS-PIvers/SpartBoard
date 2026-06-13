@@ -4,6 +4,7 @@ import {
   GuidedLearningSet,
   GuidedLearningPublicStep,
   GuidedLearningMode,
+  GuidedLearningVideoTrim,
 } from '@/types';
 import { TextPopoverInteraction } from './interactions/TextPopoverInteraction';
 import { TooltipInteraction } from './interactions/TooltipInteraction';
@@ -17,6 +18,38 @@ import {
   toContainerCoords,
   toImageOffset,
 } from '../utils/imageUtils';
+
+/**
+ * Clamp a video trim against the player's loaded metadata. The editor already
+ * enforces `0 <= start < end <= duration`, but a stale doc / manual edit could
+ * carry out-of-range values; clamping keeps seeking sane. When the duration
+ * isn't known yet (`NaN`/0 — e.g. before metadata loads, or in jsdom), the
+ * raw trim values are trusted since there's nothing valid to clamp against.
+ *
+ * A corrupted doc could also carry a non-finite `start`/`end` (`NaN`/`undefined`
+ * from a type mismatch). Assigning `NaN` to `video.currentTime` throws in most
+ * browsers, so both ends are sanitized to a finite fallback first.
+ */
+function clampTrimStart(
+  trim: GuidedLearningVideoTrim,
+  duration: number
+): number {
+  const rawStart = Number.isFinite(trim.start) ? trim.start : 0;
+  const start = Math.max(0, rawStart);
+  return Number.isFinite(duration) && duration > 0
+    ? Math.min(start, duration)
+    : start;
+}
+
+function clampTrimEnd(trim: GuidedLearningVideoTrim, duration: number): number {
+  const hasDuration = Number.isFinite(duration) && duration > 0;
+  const rawEnd = Number.isFinite(trim.end)
+    ? trim.end
+    : hasDuration
+      ? duration
+      : 0;
+  return hasDuration ? Math.min(rawEnd, duration) : rawEnd;
+}
 
 interface Props {
   set: GuidedLearningSet;
@@ -105,6 +138,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
+  const videoElRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const progressRef = useRef(0);
 
@@ -116,15 +150,20 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   } | null>(null);
 
   const measureImg = useCallback(() => {
-    if (!imgRef.current || !containerRef.current) {
+    // Whichever media element is mounted for the current slide — <img> for
+    // image slides, <video> for video slides.
+    const media = imgRef.current ?? videoElRef.current;
+    if (!media || !containerRef.current) {
       setImgOffset(null);
       return;
     }
 
     const rect = containerRef.current.getBoundingClientRect();
     const footprint = calculateImageFootprint(
-      imgRef.current.naturalWidth,
-      imgRef.current.naturalHeight,
+      media instanceof HTMLVideoElement ? media.videoWidth : media.naturalWidth,
+      media instanceof HTMLVideoElement
+        ? media.videoHeight
+        : media.naturalHeight,
       rect.width,
       rect.height
     );
@@ -160,6 +199,15 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           Math.max(set.imageUrls.length - 1, 0)
         );
   const currentImageUrl = set.imageUrls[currentImageIndex] ?? set.imageUrls[0];
+  // Per-slide media kind — 'video' slides (uploaded MP4/WebM or screen
+  // recordings) render in a muted looping <video>; missing entries are
+  // images (legacy sets/sessions have no imageKinds field at all).
+  const slideKind: 'image' | 'video' =
+    set.imageKinds?.[currentImageIndex] ?? 'image';
+  // Optional playback-range trim for the current video slide — the <video>
+  // seeks to `start` on load and loops back when it reaches `end`. Missing
+  // entries (and legacy sets/sessions) play the full file.
+  const slideTrim = set.videoTrims?.[currentImageIndex] ?? null;
 
   // Image-transition bookkeeping — when `currentImageIndex` changes and a
   // transition is enabled, we briefly render the previous image as an
@@ -181,8 +229,14 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     const id = setTimeout(() => setPrevImageIndex(null), 500);
     return () => clearTimeout(id);
   }, [prevImageIndex]);
+  // Skip the exit layer when the previous slide was a video — an <img>
+  // can't render a video URL, so the transition falls back to an instant
+  // swap for that case.
   const previousImageUrl =
-    prevImageIndex !== null ? (set.imageUrls[prevImageIndex] ?? null) : null;
+    prevImageIndex !== null &&
+    (set.imageKinds?.[prevImageIndex] ?? 'image') !== 'video'
+      ? (set.imageUrls[prevImageIndex] ?? null)
+      : null;
 
   const toContainerStep = useCallback(
     (step: GuidedLearningPublicStep | null) => {
@@ -206,11 +260,15 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       : null;
 
   useEffect(() => {
-    for (const url of set.imageUrls) {
+    // Warm the browser cache for image slides so step navigation doesn't
+    // flash. Video slides are intentionally skipped — preloading every MP4
+    // up front would burn bandwidth; the <video> element streams on demand.
+    set.imageUrls.forEach((url, i) => {
+      if ((set.imageKinds?.[i] ?? 'image') === 'video') return;
       const image = new Image();
       image.src = url;
-    }
-  }, [set.imageUrls]);
+    });
+  }, [set.imageUrls, set.imageKinds]);
 
   const goNext = useCallback(() => {
     if (steps.length === 0) return;
@@ -622,9 +680,9 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                       padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
                       fontSize: 'min(10px, 2.6cqmin)',
                     }}
-                    aria-label={`Show image ${imageIndex + 1}`}
+                    aria-label={`Show slide ${imageIndex + 1}`}
                   >
-                    Image {imageIndex + 1}
+                    Slide {imageIndex + 1}
                   </button>
                 ))}
               </div>
@@ -661,8 +719,46 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
             {/* Current image is always mounted — kept stable across image
                 changes so React doesn't re-create the <img> node, which
                 would invalidate refs held by callers/tests and force a
-                fresh load even when the URL is unchanged. */}
-            {currentImageUrl && (
+                fresh load even when the URL is unchanged. Video slides swap
+                in a muted looping <video> (keyed by URL so the element
+                reloads when the slide changes). */}
+            {currentImageUrl && slideKind === 'video' && (
+              <video
+                key={currentImageUrl}
+                ref={videoElRef}
+                src={currentImageUrl}
+                muted
+                loop
+                autoPlay
+                playsInline
+                className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                onLoadedMetadata={(e) => {
+                  measureImg();
+                  if (slideTrim) {
+                    const el = e.currentTarget;
+                    el.currentTime = clampTrimStart(slideTrim, el.duration);
+                  }
+                }}
+                onTimeUpdate={(e) => {
+                  // Loop within the trimmed playback range. The native
+                  // `loop` attribute still covers the untrimmed case (and
+                  // acts as a fallback if `end` is at/after the file end).
+                  if (!slideTrim) return;
+                  const el = e.currentTarget;
+                  // Clamp the trim against the loaded metadata — a stale doc,
+                  // manual edit, or future UI bug could carry out-of-range
+                  // values that would otherwise wedge seeking. No-op on a
+                  // degenerate range so native `loop` takes over.
+                  const start = clampTrimStart(slideTrim, el.duration);
+                  const end = clampTrimEnd(slideTrim, el.duration);
+                  if (end <= start) return;
+                  if (el.currentTime >= end || el.currentTime < start - 0.25) {
+                    el.currentTime = start;
+                  }
+                }}
+              />
+            )}
+            {currentImageUrl && slideKind !== 'video' && (
               <img
                 ref={imgRef}
                 src={currentImageUrl}

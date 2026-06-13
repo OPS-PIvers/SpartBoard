@@ -211,16 +211,12 @@ export const SoundboardConfigurationPanel: React.FC<
           googleAccessToken
         );
         audioSrc = blobUrl;
-      } catch (err) {
-        setPlayingId(null);
-        setPlaybackErrors((prev) => ({
-          ...prev,
-          [id]:
-            err instanceof Error
-              ? err.message
-              : 'Failed to fetch audio from Google Drive.',
-        }));
-        return;
+      } catch {
+        // The token only covers files the app created or the user picked
+        // (drive.file scope), so pasted Drive links can 403 here. Fall back
+        // to the public download URL, which works for link-shared files —
+        // the same path the widget uses when no token is available.
+        audioSrc = validation.normalizedUrl;
       }
     } else {
       audioSrc = validation.normalizedUrl;

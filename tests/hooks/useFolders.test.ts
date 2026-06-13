@@ -9,8 +9,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useFolders, folderCollectionName } from '../../hooks/useFolders';
-import type { LibraryFolderWidget } from '../../types';
+import { useFolders, folderCollectionName } from '@/hooks/useFolders';
+import type { LibraryFolderWidget } from '@/types';
 
 describe('useFolders', () => {
   const widgets: LibraryFolderWidget[] = [

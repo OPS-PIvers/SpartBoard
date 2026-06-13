@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { QuizData, QuizQuestion, QuizQuestionType } from '@/types';
 import {
   GeneratedQuestion,
@@ -183,28 +183,31 @@ export function useQuizEditorState({
     setSelectedId(q.id);
   }, []);
 
-  const deleteQuestion = useCallback(
-    (id: string) => {
-      setQuestions((prev) => {
-        const idx = prev.findIndex((q) => q.id === id);
-        const next = prev.filter((q) => q.id !== id);
-        // If the user just deleted the selected question, advance the
-        // selection to the next item (or the new last item, if we deleted
-        // the tail). This avoids the right-pane going blank and forcing
-        // the user to click another question to continue editing.
-        if (selectedId === id) {
-          if (next.length === 0) {
-            setSelectedId(null);
-          } else {
-            const targetIdx = Math.min(idx, next.length - 1);
-            setSelectedId(next[targetIdx]?.id ?? null);
-          }
+  // Render-synced mirror of the selection so `deleteQuestion` can stay
+  // referentially stable (it's passed into memoized question rows) while
+  // still reading the selection at event time.
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
+
+  const deleteQuestion = useCallback((id: string) => {
+    setQuestions((prev) => {
+      const idx = prev.findIndex((q) => q.id === id);
+      const next = prev.filter((q) => q.id !== id);
+      // If the user just deleted the selected question, advance the
+      // selection to the next item (or the new last item, if we deleted
+      // the tail). This avoids the right-pane going blank and forcing
+      // the user to click another question to continue editing.
+      if (selectedIdRef.current === id) {
+        if (next.length === 0) {
+          setSelectedId(null);
+        } else {
+          const targetIdx = Math.min(idx, next.length - 1);
+          setSelectedId(next[targetIdx]?.id ?? null);
         }
-        return next;
-      });
-    },
-    [selectedId]
-  );
+      }
+      return next;
+    });
+  }, []);
 
   const reorderQuestions = useCallback((next: QuizQuestion[]) => {
     setQuestions(next);

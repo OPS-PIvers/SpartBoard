@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { NumberLineWidget } from './Widget';
 import { WidgetData } from '@/types';
@@ -222,5 +222,56 @@ describe('NumberLineWidget', () => {
     // The endpoints should still be there
     expect(screen.getByText('-100')).toBeInTheDocument();
     expect(screen.getByText('100')).toBeInTheDocument();
+  });
+
+  it('stores a clean marker value (no FP noise) when a tick is clicked', () => {
+    // Root-cause: addMarker() passes the raw tick value (min + i * step) straight into
+    // the marker object without rounding. For step=0.1, ticks at indices 3, 6, 7
+    // accumulate floating-point error: 0 + 3×0.1 = 0.30000000000000004.
+    // That raw value is persisted to Firestore AND rendered verbatim in the settings
+    // panel (<div>{marker.value}</div>), so teachers see "0.30000000000000004".
+    //
+    // The fix must round marker.value to strip FP noise before storing, e.g.
+    //   parseFloat(val.toFixed(10))
+    // This is separate from the tick-label fix (which already uses toFixed(4) for display).
+    const updateWidgetMock = vi.fn();
+    vi.spyOn(DashboardContext, 'useDashboard').mockReturnValue({
+      ...defaultDashboardMock,
+      updateWidget: updateWidgetMock,
+    });
+
+    const widget: WidgetData = {
+      ...baseWidget,
+      config: {
+        ...baseWidget.config,
+        min: 0,
+        max: 1,
+        step: 0.1,
+        displayMode: 'integers',
+        markers: [],
+        jumps: [],
+        showArrows: true,
+      },
+    };
+
+    const { container } = render(<NumberLineWidget widget={widget} />);
+
+    // Tick at index 3 renders at value 0 + 3×0.1 = 0.30000000000000004 (FP dirty).
+    // The interaction rects are SVG <rect> elements with class "cursor-pointer".
+    const rects = container.querySelectorAll('rect.cursor-pointer');
+    // Expect one rect per tick (11 ticks for 0..1 with step=0.1).
+    expect(rects.length).toBeGreaterThanOrEqual(11);
+
+    fireEvent.click(rects[3]);
+
+    expect(updateWidgetMock).toHaveBeenCalledOnce();
+    const callArg = updateWidgetMock.mock.calls[0][1] as {
+      config: { markers: { value: number }[] };
+    };
+    const storedValue = callArg.config.markers[0].value;
+
+    // Must be exactly 0.3 — not the FP-dirty 0.30000000000000004.
+    expect(storedValue).toBe(0.3);
+    expect(storedValue.toString()).toBe('0.3');
   });
 });

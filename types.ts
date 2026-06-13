@@ -1229,7 +1229,25 @@ export interface ActivityWallLibraryEntry {
   mode: ActivityWallMode;
   moderationEnabled: boolean;
   identificationMode: ActivityWallIdentificationMode;
+  /**
+   * @deprecated Phase 3D single-class targeting. Prefer `classIds` (Phase 5A).
+   * Retained so legacy entries created before multi-class support continue to
+   * gate student access correctly. New entries written by post-Phase-5A clients
+   * set `classIds` and mirror `classIds[0]` here.
+   */
   classId?: string;
+  /**
+   * Phase 5A multi-class ClassLink targeting. When non-empty, mirrors the
+   * session doc's `classIds` so students see this activity on their
+   * `/my-assignments` page if enrolled in any of the listed classes.
+   * Empty / absent preserves the classic code/PIN (`?data=`) flow.
+   */
+  classIds?: string[];
+  /**
+   * Roster IDs backing the multi-class targeting. Derived from ClassLink
+   * roster metadata; stored for reverse lookup and future migration.
+   */
+  rosterIds?: string[];
   createdAt: number;
   updatedAt: number;
 }
@@ -4727,6 +4745,16 @@ export interface GuidedLearningStep {
   autoAdvanceDuration?: number;
 }
 
+/**
+ * Playback-range trim for a video slide, in seconds from the start of the
+ * file. Invariant: `0 <= start < end <= duration` (enforced by the editor
+ * trim UI; the player additionally clamps against the loaded metadata).
+ */
+export interface GuidedLearningVideoTrim {
+  start: number;
+  end: number;
+}
+
 /** Full set data stored in Google Drive as JSON */
 export interface GuidedLearningSet {
   id: string;
@@ -4735,6 +4763,23 @@ export interface GuidedLearningSet {
   /** Firebase Storage URLs for one or more activity images */
   imageUrls: string[];
   imagePaths?: string[];
+  /**
+   * Per-slide media kind aligned by index with `imageUrls`. `'video'` slides
+   * (uploaded MP4/WebM or screen recordings) render in a muted looping
+   * `<video>` element; `'image'` covers static images and animated GIFs.
+   * Missing array or missing entries = `'image'`, so legacy sets need no
+   * migration. Only persisted when at least one slide is a video.
+   */
+  imageKinds?: ('image' | 'video')[];
+  /**
+   * Per-slide playback-range trim aligned by index with `imageUrls`. Only
+   * meaningful for `'video'` slides: the player seeks to `start` and loops
+   * back when playback reaches `end` (seconds). Non-destructive — the full
+   * file stays in Storage, so trims can be adjusted later without
+   * re-recording. `null`/missing entries = play the whole video. Only
+   * persisted when at least one slide has a trim.
+   */
+  videoTrims?: (GuidedLearningVideoTrim | null)[];
   steps: GuidedLearningStep[];
   mode: GuidedLearningMode;
   createdAt: number;
@@ -4842,6 +4887,16 @@ export interface GuidedLearningSession {
   title: string;
   mode: GuidedLearningMode;
   imageUrls: string[];
+  /**
+   * Mirrors `GuidedLearningSet.imageKinds` so the student player knows which
+   * slides are videos. Missing = all slides are images (legacy sessions).
+   */
+  imageKinds?: ('image' | 'video')[];
+  /**
+   * Mirrors `GuidedLearningSet.videoTrims` so the student player honors
+   * per-slide playback ranges. Missing = play full videos (legacy sessions).
+   */
+  videoTrims?: (GuidedLearningVideoTrim | null)[];
   /** Student-safe steps (no answer keys) */
   publicSteps: GuidedLearningPublicStep[];
   teacherUid: string;
@@ -5618,6 +5673,16 @@ export interface ToolMetadata {
 
 export type AccessLevel = 'admin' | 'beta' | 'public';
 
+/**
+ * Distribution tier of the signed-in user (docs/wide-distro-plan.md Phase 3).
+ * Ordering for `minTier` checks: free < org < internal.
+ * - 'internal': email domain is in the internal-domains list (Orono staff).
+ * - 'org': not internal, but a member of an organization
+ *   (`/organizations/{orgId}/members/{email}` doc exists).
+ * - 'free': everyone else.
+ */
+export type UserTier = 'internal' | 'org' | 'free';
+
 export type GlobalFeature =
   | 'live-session'
   | 'gemini-functions'
@@ -5634,7 +5699,8 @@ export type GlobalFeature =
   | 'org-admin-writes'
   | 'assignment-modes'
   | 'share-link-tracking'
-  | 'personal-spotify';
+  | 'personal-spotify'
+  | 'google-classroom';
 
 export interface GlobalFeaturePermission {
   featureId: GlobalFeature;
@@ -5648,6 +5714,13 @@ export interface GlobalFeaturePermission {
    * buildings in their `selectedBuildings` to pass the gate.
    */
   buildings?: string[];
+  /**
+   * Minimum user tier required to access the feature (free < org <
+   * internal). `undefined` means available to all tiers — the back-compat
+   * default for every doc written before the tier model existed.
+   * Admins bypass this check (same as accessLevel).
+   */
+  minTier?: UserTier;
   config?: Record<string, unknown>;
 }
 
@@ -5739,6 +5812,13 @@ export interface FeaturePermission {
   gradeLevels?: GradeLevel[];
   /** Optional override for the widget's display name. */
   displayName?: string;
+  /**
+   * Minimum user tier required to access the widget (free < org <
+   * internal). `undefined` means available to all tiers — the back-compat
+   * default for every doc written before the tier model existed.
+   * Admins bypass this check (same as accessLevel).
+   */
+  minTier?: UserTier;
   /** Optional global configuration for the widget (e.g., API keys, target IDs). */
   config?: Record<string, unknown>;
 }

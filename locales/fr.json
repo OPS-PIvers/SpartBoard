@@ -854,6 +854,13 @@
         "minimal": "Minimal"
       }
     },
+    "seatingChart": {
+      "emptyStateAssignTitle": "Salle de classe vide",
+      "emptyStateAssignSubtitle": "Passez à « Configuration » pour disposer le mobilier.",
+      "emptyStateSetupTitle": "Aucun mobilier",
+      "emptyStateFreeform": "Ajoutez du mobilier depuis la barre latérale.",
+      "emptyStateTemplate": "Choisissez un modèle et cliquez sur Appliquer la mise en page."
+    },
     "schedule": {
       "startTimer": "Démarrer le minuteur",
       "startTimerUntil": "Démarrer le compte à rebours jusqu'à {{time}}"
@@ -882,6 +889,10 @@
       "addRandomizerTip": "Ajoutez un widget Randomiseur pour sélectionner automatiquement l'élève suivant à la fin du minuteur.",
       "autoPickNext": "Sélectionner le suivant automatiquement",
       "triggerRandomizerWhenTimerEnds": "Déclencher le Randomiseur à la fin du minuteur",
+      "autoRotateStations": "Rotation automatique des stations",
+      "addStationsTip": "Ajoutez un widget Stations pour effectuer une rotation automatique des élèves à la fin du minuteur.",
+      "rotateStationsClockwise": "Faire tourner les stations dans le sens horaire",
+      "rotateStationsOnEnd": "Déplacer chaque élève d'une station à la fin du minuteur",
       "autoAdvanceNextUpQueue": "Avancer automatiquement la file d'attente",
       "addNextUpTip": "Ajoutez un widget « Suivant » pour passer automatiquement à l'élève suivant à la fin du minuteur !",
       "autoAdvanceNext": "Avancer automatiquement",
@@ -897,12 +908,12 @@
     }
   },
   "boardBreadcrumb": {
-    "root": "All Boards",
-    "openManager": "Manage Boards"
+    "root": "Aucune collection",
+    "openManager": "Gérer les tableaux"
   },
   "collectionSwitcher": {
-    "title": "Switch Collection",
-    "root": "All Boards (root)"
+    "title": "Changer de collection",
+    "root": "Aucune collection"
   },
   "boardsModal": {
     "title": "Boards & Collections",

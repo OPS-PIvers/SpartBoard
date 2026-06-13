@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-06-08_
+_Last audited: 2026-06-12_
 _Last action: never_
 
 ---
@@ -78,6 +78,8 @@ The following widgets have structured config schemas well-suited for AI content 
 ---
 
 ## Completed
+
+_2026-06-12: AI integration audit after rebase onto dev-paul (docs/unifier run 13, D4 @/ alias in tests/, perf baseline, fix DraggableWindow, debugger run 14). No new AI generation types or function additions in these commits. All 13 generation types verified complete: rate limits, loading/error states, and feature permission gates all present. Gemini models confirmed consistent: DEFAULT_ADVANCED_MODEL = 'gemini-3-flash-preview', DEFAULT_STANDARD_MODEL = 'gemini-3.1-flash-lite-preview' — modern and admin-overridable. JSON mode used correctly server-side for all structured outputs. Hardcoded model string LOW item at line 2513 (transcribeVideoWithGemini) unchanged — still unresolved. AI opportunities for RevealGrid/ConceptWeb/GraphicOrganizer/Checklist remain documented in the Opportunities section but unimplemented. Zero new open items._
 
 _2026-06-08: AI integration audit after merging dev-paul. TWO ITEMS MOVED TO COMPLETED: (1) LOW `dashboard-layout no server-side specific permission` — PR #1873 (`fix(functions): register dashboard-layout and instructional-routine in per-feature AI tracking`) added `if (genType === 'dashboard-layout') specificFeatureId = 'dashboard-layout'` and `if (genType === 'instructional-routine') specificFeatureId = 'instructional-routine'` to functions/src/index.ts before this merge. Dashboard-layout LOW item closed. (2) LOW `video-activity-recommend missing from AIData interface` — interface already includes `'video-activity-recommend'` at line 99 (added in a prior merge). Closed. `instructional-routine` MEDIUM item updated: server-side `specificFeatureId` now set (partial fix) but `LibraryManager.tsx` still lacks `canAccessFeature()` client-side gate — severity downgraded from MEDIUM to LOW per partial fix. TODAY's merge (PR #1891: `fix(functions): register widget-builder and widget-explainer in per-feature AI tracking`) adds `specificFeatureId` assignments for `widget-builder` and `widget-explainer` — both are now rate-limited per feature and tracked in adminAnalyticsCompute.ts. These were previously admin-only by UI but had no server-side per-feature quota. Now they are fully tracked. No new generation types added. Hardcoded model string at line 2513 unchanged. RevealGrid, ConceptWeb, GraphicOrganizer, SyntaxFramer, Checklist still without AI generation features. All other items unchanged._
 
