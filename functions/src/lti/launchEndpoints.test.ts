@@ -105,7 +105,14 @@ vi.mock('../classlinkShared', () => ({
 
 vi.mock('./config', async (orig) => ({
   ...(await orig<typeof import('./config')>()),
-  getLtiPlatformConfig: vi.fn().mockResolvedValue({ issuer: 'https://lms', clientId: 'c1', deploymentId: 'd1', authorizeUrl: 'https://lms/auth' }),
+  getLtiPlatformConfig: vi
+    .fn()
+    .mockResolvedValue({
+      issuer: 'https://lms',
+      clientId: 'c1',
+      deploymentId: 'd1',
+      authorizeUrl: 'https://lms/auth',
+    }),
   TOOL_ORIGIN: 'https://app.example',
   TOOL_LAUNCH_URL: 'https://app.example/lti/launch',
   MESSAGE_TYPE_DEEP_LINKING: 'LtiDeepLinkingRequest',
@@ -113,14 +120,21 @@ vi.mock('./config', async (orig) => ({
 
 import { ltiExchange } from './launchEndpoints';
 
-type Req = { auth?: { uid: string; token: Record<string, unknown> }; data: unknown };
-const callExchange = ltiExchange as unknown as (r: Req) => Promise<Record<string, unknown>>;
+type Req = {
+  auth?: { uid: string; token: Record<string, unknown> };
+  data: unknown;
+};
+const callExchange = ltiExchange as unknown as (
+  r: Req
+) => Promise<Record<string, unknown>>;
 
-function makeLaunch(overrides: Partial<{
-  contextId: string | null;
-  resourceLinkId: string | null;
-  ags: unknown;
-}> = {}) {
+function makeLaunch(
+  overrides: Partial<{
+    contextId: string | null;
+    resourceLinkId: string | null;
+    ags: unknown;
+  }> = {}
+) {
   return {
     role: 'student' as const,
     messageType: 'LtiResourceLinkRequest',
@@ -132,7 +146,10 @@ function makeLaunch(overrides: Partial<{
     ags: { lineitem: 'https://lms/lineitems/1', scope: [] } as unknown,
     nrps: null,
     deepLinking: null,
-    custom: { kind: 'quiz', quiz_code: 'ABC123' } as Record<string, unknown> | null,
+    custom: { kind: 'quiz', quiz_code: 'ABC123' } as Record<
+      string,
+      unknown
+    > | null,
     email: null,
     name: null,
     ...overrides,
