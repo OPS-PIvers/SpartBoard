@@ -136,14 +136,14 @@ export const RemoteTimerControl: React.FC<RemoteTimerControlProps> = ({
       <div className="flex gap-4">
         <button
           onClick={resetTimer}
-          className="touch-manipulation w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center transition-all active:scale-95"
+          className="touch-manipulation w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60"
           aria-label="Reset"
         >
           <RotateCcw className="w-6 h-6" />
         </button>
         <button
           onClick={togglePlay}
-          className={`touch-manipulation w-20 h-20 rounded-full border-2 text-white flex items-center justify-center transition-all active:scale-95 shadow-lg ${
+          className={`touch-manipulation w-20 h-20 rounded-full border-2 text-white flex items-center justify-center transition-all active:scale-95 shadow-lg focus-visible:ring-2 focus-visible:ring-blue-400/60 ${
             config.isRunning
               ? 'bg-red-500/80 border-red-400 hover:bg-red-500'
               : 'bg-blue-500/80 border-blue-400 hover:bg-blue-500'
@@ -166,7 +166,7 @@ export const RemoteTimerControl: React.FC<RemoteTimerControlProps> = ({
             <button
               key={s}
               onClick={() => setPreset(s)}
-              className={`touch-manipulation px-3 py-1.5 rounded-lg text-sm font-bold transition-all active:scale-95 ${
+              className={`touch-manipulation px-3 py-1.5 rounded-lg text-sm font-bold transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60 ${
                 config.duration === s
                   ? 'bg-blue-500 text-white'
                   : 'bg-white/10 hover:bg-white/20 text-white/80'
