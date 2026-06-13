@@ -305,9 +305,10 @@ export const ltiExchange = onCall(
         // student — the same preservation pattern applied to contextTitle in
         // nrpsStore.ts.
         const existingGradeLink = await gradeLinkRef.get();
-        const storedContextId =
-          typeof existingGradeLink.data()?.contextId === 'string'
-            ? (existingGradeLink.data()?.contextId as string)
+        const gradeLinkData = existingGradeLink.data();
+        const storedContextId: string | null =
+          gradeLinkData && typeof gradeLinkData.contextId === 'string'
+            ? gradeLinkData.contextId
             : null;
         await gradeLinkRef.set(
           {
