@@ -156,6 +156,7 @@
 
 | Build & Tooling | SSRF redirect guard: any `axios.head`/`axios.get` call in `functions/src/` that validates a URL against a blocklist must include `maxRedirects: 0`. `fetchExternalProxy` and `checkUrlCompatibility` are now both guarded (#1937). Enforce this as a code-review check on any new Cloud Function that fetches user-supplied URLs. | 2026-06-11 | open (enforce pattern) |
 | State & Data | Dedup pattern (6th instance fixed — `classroomGradePush` #1935): all known scoring paths (VA #1728, plcContributions #1777, VA assignments #1787, quiz unanswered #1803, quizScoreboard #1827, classroomGradePush #1935) are now guarded. If a new scoring utility is added that accumulates per-question or per-step totals from a Firestore array, add a `Set<string>` dedup fence at loop entry. | 2026-06-11 | open (enforce pattern) |
+| Widgets | `CalendarWidget` (`components/widgets/Calendar/Widget.tsx` ~line 265): `const today = new Date().toISOString().split('T')[0]` for the date-input `min` attribute still uses `.toISOString()` — the same UTC timezone shift risk fixed for `isBlocked` in #1955. If a UTC+ user opens the event-date picker near midnight, `today` will resolve to the previous calendar day. Low urgency (cosmetic date-picker bound), but should be aligned to local-time methods for consistency. | 2026-06-13 | open |
 
 ## Notes & Gotchas
 
