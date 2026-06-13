@@ -890,7 +890,7 @@
       "autoPickNext": "Sélectionner le suivant automatiquement",
       "triggerRandomizerWhenTimerEnds": "Déclencher le Randomiseur à la fin du minuteur",
       "autoRotateStations": "Rotation automatique des stations",
-      "addStationsTip": "Ajoutez un widget Stations pour faire tourner les élèves automatiquement à la fin du minuteur.",
+      "addStationsTip": "Ajoutez un widget Stations pour effectuer une rotation automatique des élèves à la fin du minuteur.",
       "rotateStationsClockwise": "Faire tourner les stations dans le sens horaire",
       "rotateStationsOnEnd": "Déplacer chaque élève d'une station à la fin du minuteur",
       "autoAdvanceNextUpQueue": "Avancer automatiquement la file d'attente",
