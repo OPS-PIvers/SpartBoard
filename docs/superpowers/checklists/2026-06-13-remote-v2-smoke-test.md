@@ -37,6 +37,7 @@ re-run once on `main` after deploy.
 - [ ] Approve from the phone moves a submission onto the board (live).
 - [ ] Remove from the phone deletes the submission from the board (live).
 - [ ] Join QR button shows only when `anonymous-join` is permitted; hidden cleanly otherwise.
+- [ ] Approve/remove fails gracefully with a visible error banner if the Firestore write is rejected (e.g. offline).
 - [ ] (If your widget's activities are NOT migrated to the library) Start/Pause from
       the phone toggles the wall — otherwise expect Start/Pause to no-op (caveat below).
 

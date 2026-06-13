@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export type RemoteConnectionStatus = 'connected' | 'reconnecting';
 
@@ -32,5 +32,8 @@ export const useRemoteConnection = (): RemoteConnection => {
     };
   }, []);
   const markSynced = useCallback(() => setLastSyncedAt(Date.now()), []);
-  return { status, lastSyncedAt, markSynced };
+  return useMemo(
+    () => ({ status, lastSyncedAt, markSynced }),
+    [status, lastSyncedAt, markSynced]
+  );
 };

@@ -162,6 +162,28 @@ describe('RemoteActivityWallControl', () => {
     });
   });
 
+  it('surfaces an error banner when an approve write is rejected', async () => {
+    mockUpdateDoc.mockRejectedValueOnce(new Error('x'));
+    snapshotDocs = [
+      {
+        id: 'submission-1',
+        content: 'Pending idea one',
+        submittedAt: 100,
+        status: 'pending',
+      },
+    ];
+
+    renderControl();
+
+    const approveBtn = await screen.findByRole('button', {
+      name: /approve submission submission-1/i,
+    });
+    await userEvent.click(approveBtn);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/couldn't update the submission/i);
+  });
+
   it('removes a pending submission via deleteDoc', async () => {
     snapshotDocs = [
       {

@@ -59,7 +59,7 @@ describe('MobileRemoteView', () => {
       dashboardCtx(makeDashboard([makeWidget('w1')]))
     );
     render(<MobileRemoteView />);
-    expect(screen.getByText(/connected/i)).toBeInTheDocument();
+    expect(screen.getByText('remote.status.connected')).toBeInTheDocument();
   });
 
   it('reflects a new context snapshot without a manual Sync tap', () => {

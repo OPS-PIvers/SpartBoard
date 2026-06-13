@@ -77,7 +77,11 @@ export const MobileRemoteView: React.FC = () => {
     dashboards,
   } = useDashboard();
   const { remoteControlEnabled: accountRemoteEnabled } = useAuth();
-  const conn = useRemoteConnection();
+  const {
+    status: connStatus,
+    lastSyncedAt: connLastSyncedAt,
+    markSynced,
+  } = useRemoteConnection();
 
   // ---- Local snapshot state ----
   // Initialised once from activeDashboard, then only updated on manual Sync.
@@ -181,12 +185,8 @@ export const MobileRemoteView: React.FC = () => {
     }
 
     // A fresh context snapshot has been reflected — keep "updated just now" honest.
-    conn.markSynced();
-    // conn.markSynced is intentionally the sole conn dependency: it's useCallback([])-stable,
-    // whereas depending on the whole `conn` object would re-fire this effect on every
-    // lastSyncedAt change → render loop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDashboard, initializedDashboardId, conn.markSynced]);
+    markSynced();
+  }, [activeDashboard, initializedDashboardId, markSynced]);
 
   // Manual sync — pull latest state from context and clear any pending write guards.
   const handleSync = useCallback(() => {
@@ -197,9 +197,9 @@ export const MobileRemoteView: React.FC = () => {
     setLocalSettings(
       activeDashboard.settings ? { ...activeDashboard.settings } : undefined
     );
-    conn.markSynced();
+    markSynced();
     setTimeout(() => setSyncing(false), 600);
-  }, [activeDashboard, clearPendingWriteGuards, conn]);
+  }, [activeDashboard, clearPendingWriteGuards, markSynced]);
 
   // Write-through updateWidget: update local snapshot AND write to Firestore.
   // Cancels any existing timer for this widget before starting a fresh one so
@@ -365,7 +365,7 @@ export const MobileRemoteView: React.FC = () => {
           <div className="flex items-center gap-1.5">
             <span
               className={`w-1.5 h-1.5 rounded-full ${
-                conn.status === 'connected'
+                connStatus === 'connected'
                   ? 'bg-emerald-400'
                   : 'bg-amber-400 animate-pulse'
               }`}
@@ -373,14 +373,16 @@ export const MobileRemoteView: React.FC = () => {
             />
             <span
               className={`text-[10px] font-semibold ${
-                conn.status === 'connected'
+                connStatus === 'connected'
                   ? 'text-emerald-300/80'
                   : 'text-amber-300/80'
               }`}
             >
-              {conn.status === 'connected' ? 'Connected' : 'Reconnecting…'}
+              {connStatus === 'connected'
+                ? t('remote.status.connected')
+                : t('remote.status.reconnecting')}
             </span>
-            {conn.lastSyncedAt !== null && (
+            {connLastSyncedAt !== null && (
               <span className="text-white/30 text-[10px]">· live</span>
             )}
           </div>

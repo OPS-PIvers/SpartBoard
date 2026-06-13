@@ -87,7 +87,7 @@ export const RemoteActivityWallControl: React.FC<
   RemoteActivityWallControlProps
 > = ({ widget, updateWidget }) => {
   const { user, canAccessFeature } = useAuth();
-  const config = widget.config as ActivityWallConfig;
+  const config = (widget.config ?? {}) as ActivityWallConfig;
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
 
   // Activities the widget knows about. The remote reads the same
@@ -104,6 +104,7 @@ export const RemoteActivityWallControl: React.FC<
 
   const [submissions, setSubmissions] = useState<RemoteSubmission[]>([]);
   const [showQr, setShowQr] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Participant join URL for the active activity, identical to the desktop
   // widget's. Empty until an activity is active and the teacher is known.
@@ -175,16 +176,26 @@ export const RemoteActivityWallControl: React.FC<
 
   const approve = (submissionId: string) => {
     if (!activeActivity || !user) return;
+    setActionError(null);
     void updateDoc(submissionRef(submissionId), { status: 'approved' }).catch(
-      (err) => console.error('[RemoteActivityWall] approve failed:', err)
+      (err) => {
+        console.error('[RemoteActivityWall] approve failed:', err);
+        setActionError(
+          "Couldn't update the submission. Check your connection and try again."
+        );
+      }
     );
   };
 
   const remove = (submissionId: string) => {
     if (!activeActivity || !user) return;
-    void deleteDoc(submissionRef(submissionId)).catch((err) =>
-      console.error('[RemoteActivityWall] remove failed:', err)
-    );
+    setActionError(null);
+    void deleteDoc(submissionRef(submissionId)).catch((err) => {
+      console.error('[RemoteActivityWall] remove failed:', err);
+      setActionError(
+        "Couldn't update the submission. Check your connection and try again."
+      );
+    });
   };
 
   const toggleRunning = () => {
@@ -273,6 +284,24 @@ export const RemoteActivityWallControl: React.FC<
               Start the wall to generate a join link.
             </p>
           )}
+        </div>
+      )}
+
+      {/* Moderation action error banner */}
+      {actionError && (
+        <div
+          role="alert"
+          className="flex items-start justify-between gap-3 px-4 py-3 rounded-xl bg-red-500/20 border border-red-400/50 text-red-200 text-sm"
+        >
+          <span className="flex-1">{actionError}</span>
+          <button
+            onClick={() => setActionError(null)}
+            style={{ touchAction: 'manipulation' }}
+            className="touch-manipulation shrink-0 text-red-200/80 hover:text-red-100 font-black leading-none"
+            aria-label="Dismiss error"
+          >
+            ×
+          </button>
         </div>
       )}
 

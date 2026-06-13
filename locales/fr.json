@@ -1,4 +1,10 @@
 {
+  "remote": {
+    "status": {
+      "connected": "Connecté",
+      "reconnecting": "Reconnexion…"
+    }
+  },
   "common": {
     "cancel": "Annuler",
     "save": "Enregistrer",
