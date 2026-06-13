@@ -1229,7 +1229,25 @@ export interface ActivityWallLibraryEntry {
   mode: ActivityWallMode;
   moderationEnabled: boolean;
   identificationMode: ActivityWallIdentificationMode;
+  /**
+   * @deprecated Phase 3D single-class targeting. Prefer `classIds` (Phase 5A).
+   * Retained so legacy entries created before multi-class support continue to
+   * gate student access correctly. New entries written by post-Phase-5A clients
+   * set `classIds` and mirror `classIds[0]` here.
+   */
   classId?: string;
+  /**
+   * Phase 5A multi-class ClassLink targeting. When non-empty, mirrors the
+   * session doc's `classIds` so students see this activity on their
+   * `/my-assignments` page if enrolled in any of the listed classes.
+   * Empty / absent preserves the classic code/PIN (`?data=`) flow.
+   */
+  classIds?: string[];
+  /**
+   * Roster IDs backing the multi-class targeting. Derived from ClassLink
+   * roster metadata; stored for reverse lookup and future migration.
+   */
+  rosterIds?: string[];
   createdAt: number;
   updatedAt: number;
 }
