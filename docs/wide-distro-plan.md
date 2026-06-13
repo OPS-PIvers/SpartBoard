@@ -157,6 +157,43 @@ Implementation notes:
 - The participant routes themselves stay anonymous and untouched — this gates
   the TEACHER's ability to generate the link, not the participant experience.
 
+#### Status (2026-06-13, commit `885ea0b6`)
+
+- DONE: `anonymous-join` global feature registered (default-public), admin UI
+  entry "Anonymous join links (no sign-in)" in `GlobalPermissionsManager` with
+  accessLevel + buildings + minTier controls, tests, full suite green.
+- DONE: **Activity Wall** anonymous join affordances gated
+  (`components/widgets/ActivityWall/Widget.tsx` — the "Copy link" + "Pop-out
+  QR" buttons exposing the participant `/activity-wall/{id}?data=...` URL). The
+  view-only "Share gallery" button stays. Participant route untouched.
+- KEY FINDING: the two-link model only cleanly exists in Activity Wall today.
+  In **Quiz**, **Video Activity**, **Guided Learning**, and **NextUp**, the
+  "anonymous join URL" _is_ the normal in-class PIN-join lobby (the live-
+  session join-code bar, archive "copy student link", PLC/peer share), not a
+  separate wide-distribution link. Gating those as-is would break ordinary
+  in-class teaching the moment an admin restricted the feature. They were
+  deliberately left UNGATED and flagged. NextUp has no share/join affordance
+  at all.
+
+#### Phase 3b follow-up — build the rostered-join path (NOT yet done)
+
+Offering a genuine "no sign-in vs. rostered sign-in" CHOICE on quiz / video-
+activity / guided-learning (and a share affordance for NextUp if wanted)
+requires first building the **rostered-join link** alongside the existing
+anonymous one — routing participants through `spartboard.web.app/student/login`
+(PII-free GIS → custom token, like the existing student academic flow) so they
+land in the activity as a rostered student with saved data. Only once both
+links exist per widget can the anonymous side be gated behind
+`canAccessFeature('anonymous-join')` without removing the teacher's only way to
+start an in-class activity.
+
+Per widget this means: a share surface that presents both links; the rostered
+URL carrying enough context to resolve the student into the right
+session/roster after `/student/login`; and then ANDing the anonymous affordance
+with the `anonymous-join` gate. Treat each widget as its own slice (Quiz is the
+natural first). This is the real remaining build; the gate is already in place
+waiting for it.
+
 ### Phase 5 (deferred) — Formal trials / licensing
 
 Only after the operator-model decision and real external demand. Needs an
