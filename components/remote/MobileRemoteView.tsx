@@ -55,6 +55,7 @@ const REMOTE_SUPPORTED_TYPES: WidgetType[] = [
   'sound',
   'webcam',
   'activity-wall',
+  'embed',
 ];
 
 /** Widget types that are always skipped on the remote (truly non-interactive) */
