@@ -193,7 +193,11 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   // Blocked Date logic
   const isBlocked = useMemo(() => {
     if (!isBuildingSyncEnabled) return false;
-    const today = new Date(todayMidnightMs).toISOString().split('T')[0];
+    // Use local time methods — toISOString() shifts to UTC and can give the
+    // previous day for users in UTC+ timezones (e.g. UTC+12 local midnight
+    // is still yesterday in UTC).
+    const d = new Date(todayMidnightMs);
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     return globalConfig?.blockedDates?.includes(today);
   }, [isBuildingSyncEnabled, globalConfig, todayMidnightMs]);
 
