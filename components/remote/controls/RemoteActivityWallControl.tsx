@@ -33,6 +33,47 @@ interface RemoteActivityWallControlProps {
   updateWidget: (id: string, updates: Partial<WidgetData>) => void;
 }
 
+/**
+ * Reconstruct the EXACT participant join URL the desktop Activity Wall widget
+ * hands out. The widget builds it in `components/widgets/ActivityWall/Widget.tsx`
+ * via `buildPublicActivityLink` → `encodeActivityData`: a base64url JSON `?data=`
+ * payload appended to `/activity-wall/<activityId>`. The remote's
+ * `config.activities` carries the same `ActivityWallActivity` fields, and the
+ * teacher's `user.uid` is the `teacherUid`, so the remote can build a byte-for-byte
+ * identical URL without inventing a shape. The student app
+ * (`ActivityWallStudentApp.tsx`) decodes this `?data=` payload directly — no
+ * Firestore session-doc read or ClassLink class gate required — so a scan lands
+ * the participant in the right session immediately.
+ */
+const encodeActivityData = (
+  activity: ActivityWallActivity,
+  teacherUid: string
+): string => {
+  const payload = JSON.stringify({
+    id: activity.id,
+    title: activity.title,
+    prompt: activity.prompt,
+    mode: activity.mode,
+    moderationEnabled: activity.moderationEnabled,
+    identificationMode: activity.identificationMode,
+    teacherUid,
+  });
+  const bytes = new TextEncoder().encode(payload);
+  let binary = '';
+  for (let index = 0; index < bytes.length; index += 1) {
+    binary += String.fromCharCode(bytes[index]);
+  }
+  return encodeURIComponent(btoa(binary));
+};
+
+const buildPublicActivityLink = (
+  activity: ActivityWallActivity,
+  teacherUid: string
+): string => {
+  const encoded = encodeActivityData(activity, teacherUid);
+  return `${window.location.origin}/activity-wall/${activity.id}?data=${encoded}`;
+};
+
 /** Live submission shape mirrored from the desktop widget's onSnapshot map. */
 interface RemoteSubmission {
   id: string;
@@ -63,6 +104,20 @@ export const RemoteActivityWallControl: React.FC<
 
   const [submissions, setSubmissions] = useState<RemoteSubmission[]>([]);
   const [showQr, setShowQr] = useState(false);
+
+  // Participant join URL for the active activity, identical to the desktop
+  // widget's. Empty until an activity is active and the teacher is known.
+  const participantUrl = useMemo(() => {
+    if (!activeActivity || !user) return '';
+    return buildPublicActivityLink(activeActivity, user.uid);
+  }, [activeActivity, user]);
+
+  const qrUrl = useMemo(() => {
+    if (!participantUrl) return '';
+    return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+      participantUrl
+    )}`;
+  }, [participantUrl]);
 
   // Subscribe to the active session's submissions subcollection. Path and
   // session-id format match the desktop widget exactly so writes line up.
@@ -188,6 +243,37 @@ export const RemoteActivityWallControl: React.FC<
           <QrCode className="w-5 h-5" />
           {showQr ? 'Hide Join QR' : 'Show Join QR'}
         </button>
+      )}
+
+      {/* Join QR panel — shows a scannable code + the join URL so students can
+          land in the active session. Only meaningful with an active activity. */}
+      {canOfferAnonymousJoin && showQr && (
+        <div className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
+          {participantUrl ? (
+            <>
+              <img
+                src={qrUrl}
+                alt="Join QR code"
+                width={220}
+                height={220}
+                className="rounded-xl bg-white p-2"
+              />
+              <p className="text-white/50 text-xs text-center">
+                Scan to join, or open this link:
+              </p>
+              <code
+                data-testid="activity-wall-join-url"
+                className="select-all break-all text-center text-blue-300 text-xs font-mono px-2"
+              >
+                {participantUrl}
+              </code>
+            </>
+          ) : (
+            <p className="text-white/40 text-sm text-center">
+              Start the wall to generate a join link.
+            </p>
+          )}
+        </div>
       )}
 
       {/* Moderation queue */}

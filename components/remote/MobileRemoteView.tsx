@@ -182,6 +182,10 @@ export const MobileRemoteView: React.FC = () => {
 
     // A fresh context snapshot has been reflected — keep "updated just now" honest.
     conn.markSynced();
+    // conn.markSynced is intentionally the sole conn dependency: it's useCallback([])-stable,
+    // whereas depending on the whole `conn` object would re-fire this effect on every
+    // lastSyncedAt change → render loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDashboard, initializedDashboardId, conn.markSynced]);
 
   // Manual sync — pull latest state from context and clear any pending write guards.
@@ -377,9 +381,7 @@ export const MobileRemoteView: React.FC = () => {
               {conn.status === 'connected' ? 'Connected' : 'Reconnecting…'}
             </span>
             {conn.lastSyncedAt !== null && (
-              <span className="text-white/30 text-[10px]">
-                · updated just now
-              </span>
+              <span className="text-white/30 text-[10px]">· live</span>
             )}
           </div>
         </div>

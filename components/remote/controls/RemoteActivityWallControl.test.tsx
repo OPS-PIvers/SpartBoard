@@ -208,4 +208,51 @@ describe('RemoteActivityWallControl', () => {
       await screen.findByRole('button', { name: /join qr/i })
     ).toBeInTheDocument();
   });
+
+  it('renders a scannable join QR + join URL when the QR button is toggled on', async () => {
+    mockCanAccessFeature.mockReturnValue(true);
+    snapshotDocs = [];
+
+    renderControl();
+
+    // Panel is hidden until toggled.
+    expect(screen.queryByAltText(/join qr/i)).not.toBeInTheDocument();
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /show join qr/i })
+    );
+
+    // QR image points at the qrserver endpoint and encodes the participant
+    // join URL (which must contain the activity id, a ?data= payload, and the
+    // /activity-wall/ path the student app routes on).
+    const qrImg = await screen.findByAltText(/join qr/i);
+    const src = qrImg.getAttribute('src') ?? '';
+    expect(src).toContain('https://api.qrserver.com/v1/create-qr-code/');
+    const decoded = decodeURIComponent(src.split('data=')[1] ?? '');
+    expect(decoded).toContain('/activity-wall/activity-1');
+    expect(decoded).toContain('data=');
+
+    // The join URL is also rendered as selectable/copyable text.
+    const joinUrlText = screen.getByTestId('activity-wall-join-url');
+    expect(joinUrlText.textContent ?? '').toContain(
+      '/activity-wall/activity-1'
+    );
+  });
+
+  it('hides the QR panel (not just the button) when anonymous-join is gated off', async () => {
+    mockCanAccessFeature.mockReturnValue(false);
+    snapshotDocs = [];
+
+    renderControl();
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', { name: /join qr/i })
+      ).not.toBeInTheDocument();
+    });
+    expect(screen.queryByAltText(/join qr/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('activity-wall-join-url')
+    ).not.toBeInTheDocument();
+  });
 });
