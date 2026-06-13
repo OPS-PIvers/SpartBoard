@@ -64,6 +64,23 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   );
   const [personalEvents, setPersonalEvents] = useState<CalendarEvent[]>([]);
 
+  // Midnight refresh: update every 60 s so the event filter and blocked-date
+  // check re-evaluate when the calendar day rolls over without any other dep
+  // changing (same pattern as CountdownWidget).
+  const [todayMidnightMs, setTodayMidnightMs] = useState(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  });
+  useEffect(() => {
+    const id = setInterval(() => {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      setTodayMidnightMs(d.getTime());
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   // 1. Subscribe to Global Admin Config (Proxy Source)
   useEffect(() => {
     return subscribeToPermission('calendar', (perm) => {
@@ -147,8 +164,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
 
     // Filter by daysVisible if set
     const daysVisible = config.daysVisible ?? 5;
-    const now = new Date();
-    const today = new Date(now.setHours(0, 0, 0, 0));
+    const today = new Date(todayMidnightMs);
     const futureLimit = new Date(today);
     futureLimit.setDate(today.getDate() + daysVisible);
 
@@ -171,14 +187,15 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     isConnected,
     calendarService,
     personalIds,
+    todayMidnightMs,
   ]);
 
   // Blocked Date logic
   const isBlocked = useMemo(() => {
     if (!isBuildingSyncEnabled) return false;
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date(todayMidnightMs).toISOString().split('T')[0];
     return globalConfig?.blockedDates?.includes(today);
-  }, [isBuildingSyncEnabled, globalConfig]);
+  }, [isBuildingSyncEnabled, globalConfig, todayMidnightMs]);
 
   const getFontClass = () => {
     if (fontFamily === 'global') return `font-${globalStyle.fontFamily}`;
