@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-06-10_
+_Last audited: 2026-06-13_
 _Last action: 2026-06-05 — MEDIUM `stations` admin building-default appearance panel added; MEDIUM raw-`<select>` item resolved as stale (already styled)_
 
 ---
@@ -16,7 +16,18 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-06-13: Weekly audit pass (Saturday). Rebase onto dev-paul: pr-review batch, isCardOpacity refactor, [AI] wide-distro phases 1-3 (new pages/tiering/rollout form), [AI] legal pages, [AI] OAuth scope drops. New pages (landing, /privacy, /terms, /support, /request) are static/auth routes — not widget settings panels. [AI] tiering changes (userTier.ts, per-feature AI gates) touch AuthContext and admin permission checks, not widget settings. Scanned all new Settings.tsx and admin panel files — none introduced. All existing open items re-confirmed valid. 0 new open items._
+
+_2026-06-12: Weekly audit pass. Scanned Settings.tsx files and admin ConfigurationPanel files after rebase onto dev-paul (docs/unifier run 13, D4 @/ alias in tests/, perf baseline, fix DraggableWindow, debugger run 14). None of these commits touch widget Settings.tsx or admin config panels. All existing open items re-confirmed valid. New finding: ClockWidget/Settings.tsx custom color palette button group (lines 120-139) is distinct from the font-family picker issue already tracked under the ClockWidget/TimeTool MEDIUM item — the color palette should use SurfaceColorSettings or a shared color-picker. 1 new LOW open item added._
+
 _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widgets/ and all \*ConfigurationPanel.tsx under components/admin/. New findings: (1) TimeTool/Settings.tsx duplicates the identical custom 4-button font picker as ClockWidget — added as extension of the existing ClockWidget open item. (2) Segmented-control pill selector pattern (`flex bg-slate-100 p-1 rounded-xl`) duplicated 12× across settings panels with no shared component. (3) Font-options arrays (`{ value: 'global', label: 'Inherit' }` pattern) duplicated in 5+ admin panels. (4) 27 hardcoded hex instances across additional files not yet tracked. Existing open items (ClockWidget font picker, MusicWidget color picker, nextUp/video-activity/guided-learning missing appearance panels, ExpectationsWidget custom toggle, two hardcoded-hex LOW items, InstructionalRoutines, TextConfig) all re-confirmed valid. 4 new open items added._
+
+### LOW `ClockWidget/Settings.tsx` implements inline custom color palette button group distinct from font-family issue
+
+- **Detected:** 2026-06-12
+- **File:** components/widgets/ClockWidget/Settings.tsx (lines 120-139 approx)
+- **Detail:** In addition to the inline font-family selector already tracked in the MEDIUM ClockWidget/TimeTool item, the Clock settings panel also implements a custom color palette picker — a row of inline `<button>` elements for selecting the clock face/hand color. This is separate from the shared color-picking approach used in other widget settings panels and is not consistent with `SurfaceColorSettings` or any documented shared color primitive. If `ClockConfig` has `cardColor` / `clockColor` fields, a shared color picker should be used; if the color choice is widget-specific, the pattern should at minimum be extracted into a shared `ColorPalettePicker` primitive alongside the `TypographySettings` fix already planned.
+- **Fix:** When addressing the ClockWidget MEDIUM font-family item, simultaneously replace the inline color palette button group with either (a) `SurfaceColorSettings` if `ClockConfig` gains `cardColor`/`cardOpacity`, or (b) a small shared `ColorPalettePicker` component that can also serve TimeTool and any other widget with a fixed palette. Remove the local button-group markup and associated color-state logic.
 
 ### LOW `FeatureConfigurationPanel.tsx` is 706 lines — complex per-feature layout that could use `SchemaDrivenConfigurationPanel`
 

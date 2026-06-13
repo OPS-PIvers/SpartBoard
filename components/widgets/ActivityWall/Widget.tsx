@@ -1373,7 +1373,11 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                         moderationEnabled: event.target.checked,
                       })
                     }
-                    className="h-4 w-4 accent-brand-blue-primary"
+                    className="accent-brand-blue-primary"
+                    style={{
+                      width: 'min(16px, 4cqmin)',
+                      height: 'min(16px, 4cqmin)',
+                    }}
                   />
                 </label>
 
