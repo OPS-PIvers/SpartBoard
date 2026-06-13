@@ -116,9 +116,46 @@ Prereqs, in order:
    answer.
 4. Console → Google Auth Platform → Audience: switch User type to External,
    publish to production.
-5. Before/alongside: phase out anonymous auth (student PIN flow) and tighten
-   Firestore rules that assume `request.auth != null` implies a real Google
-   account.
+5. Before/alongside: phase out anonymous auth **for the student academic
+   flow only** and tighten Firestore rules that assume `request.auth != null`
+   implies a real Google account. **Keep anonymous auth enabled** — it is the
+   right primitive for public presentations and the no-sign-in join option
+   (see "Two-link join model" below). The phase-out is scoped to the rostered
+   student path, NOT a global disable of the Anonymous provider.
+
+### Phase 3b — Two-link join model + admin-gated anonymous join
+
+Every assignable / student-facing widget (quiz, video activity, activity
+wall, guided learning, NextUp) offers the teacher two ways to share an
+activity:
+
+1. **No sign-in (anonymous):** a join-code URL. Participants enter via
+   `signInAnonymously` — temporary results, nothing saved to a roster. This
+   is what powers public presentations (e.g. the Activity Wall with a room of
+   attendees). Stays working regardless of the Phase 4 external flip.
+2. **Sign in (rostered):** routes through `spartboard.web.app/student/login`
+   (PII-free GIS → custom token). Gives rostered courses and saved/persistent
+   student data.
+
+**Admin gate on the anonymous link.** Whether a teacher may offer the
+no-sign-in link is an admin-configurable capability, modeled as a
+`GlobalFeaturePermission` doc (proposed featureId `anonymous-join`) — the
+exact `accessLevel` (`admin` | `beta` | `public`) + `buildings[]` shape the
+permission system already supports, consumed via `canAccessFeature` and
+edited in `GlobalPermissionsManager`. This composes with the Phase 3 `minTier`
+field too. When denied, the teacher's share UI hides the no-sign-in option
+and offers only the rostered sign-in link (hide cleanly, no error).
+
+Implementation notes:
+
+- Add `'anonymous-join'` to the `GlobalFeature` union + a `FEATURE_DEFAULTS`
+  entry (default-public to preserve today's behavior until an admin restricts
+  it), and register it in the Global Permissions manager's feature registry.
+- Gate the "no sign-in / anonymous link" affordance in each widget's share
+  modal (e.g. `components/widgets/ActivityWall/ShareModal.tsx` and the quiz /
+  video-activity share surfaces) behind `canAccessFeature('anonymous-join')`.
+- The participant routes themselves stay anonymous and untouched — this gates
+  the TEACHER's ability to generate the link, not the participant experience.
 
 ### Phase 5 (deferred) — Formal trials / licensing
 
