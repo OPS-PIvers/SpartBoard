@@ -4,6 +4,33 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-13
+
+- PRs reviewed: 11 (all open PRs; one head is `dev-paul` — read-only, review-only)
+  - #1960 — fix(state): extract `normalizeActivityWallLibraryEntry` to prevent field-stripping on snapshot refresh (head `nightly/state-data-2026-06-13`, base `dev-paul`)
+  - #1959 — chore(memory): nightly run 16 log (head `nightly/debugger-log-2026-06-13`, base `dev-paul`)
+  - #1958 — fix(lti): preserve `contextId` across privacy-stripped LTI relaunches (head `nightly/build-tooling-2026-06-13`, base `dev-paul`)
+  - #1957 — fix(i18n): extract 4 hardcoded TimeTool Stations strings (head `nightly/admin-config-2026-06-13`, base `dev-paul`)
+  - #1956 — fix(keyboard): Alt+P pin shortcut drops when CapsLock is active (head `nightly/dashboard-layout-2026-06-13`, base `dev-paul`)
+  - #1955 — fix(widgets): CalendarWidget midnight staleness + useEffect ref-sync anti-pattern (head `nightly/widgets-2026-06-13`, base `dev-paul`)
+  - #1954 — docs(unifier): run 14 memory log (head `nightly/unifier-log-2026-06-13`, base `dev-paul`)
+  - #1953 — action(css-scaling): scale ActivityWall moderation checkbox with cqmin (head `scheduled-tasks`, base `dev-paul`)
+  - #1951 — fix(i18n): replace EN-placeholder strings in boardsModal/shareCollection (DE/ES/FR) (head `nightly/admin-config-2026-06-12`, base `dev-paul`)
+  - #1945 — docs(unifier): run 14 memory log (head `nightly/unifier-log-2026-06-12`, base `dev-paul`)
+  - #1943 — Enhance Guided Learning editor with media upload/playback (head `dev-paul`, base `main` — read-only; large integration PR)
+- Comments processed: 4 total — 0 fixed, 4 already-addressed/no-op (all 4 resolved + replied)
+  - #1958: 1 gemini thread (MEDIUM) — already addressed in HEAD. `launchEndpoints.ts` already caches `existingGradeLink.data()` in `gradeLinkData` with explicit `string | null` typing (no repeated `.data()`, no `any`, no assertion). Replied + resolved.
+  - #1957: 1 gemini thread (MEDIUM) — already addressed in HEAD. `fr.json` `addStationsTip` already reads "…effectuer une rotation automatique des élèves…". Replied + resolved.
+  - #1956: 1 gemini thread (MEDIUM) — already addressed in HEAD. CapsLock test already wraps dispatch in `try…finally` with listener cleanup. Replied + resolved.
+  - #1955: 1 gemini thread (HIGH) — already addressed in HEAD. `isBlocked` already derives the date string via local-time `getFullYear()/getMonth()/getDate()` instead of `.toISOString()`. Replied + resolved.
+  - #1960, #1959, #1954, #1953, #1951 (resolved), #1945, #1943 (all 7 prior threads resolved): no open review comments requiring action.
+- Fixes pushed: 0 — every open review comment was already satisfied by a follow-up commit on its branch; no code changes were warranted. No pushes to `main`/`dev-*`.
+- Reviews posted: 11 (one structured `COMMENT` review per open PR)
+  - Ready: #1960, #1959, #1958, #1957, #1956, #1955, #1954, #1953, #1951, #1945
+  - Needs human review (scope, not defect): #1943 — 100+ file `dev-paul → main` integration PR; highest risk in the `dashboardCanvasStore`/`DashboardContext` refactor. New `rollout_requests` Firestore rule verified (identity-pinned, `hasOnly` allow-list, admin-only triage); `functions/src/index.ts` change is additive + adds an SSRF `maxRedirects: 0` guard. CI status pending at review time.
+
+---
+
 ## 2026-06-12
 
 - PRs reviewed: 12 (all open PRs; one head is `dev-paul` — read-only, review-only)
