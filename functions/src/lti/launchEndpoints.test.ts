@@ -105,14 +105,12 @@ vi.mock('../classlinkShared', () => ({
 
 vi.mock('./config', async (orig) => ({
   ...(await orig<typeof import('./config')>()),
-  getLtiPlatformConfig: vi
-    .fn()
-    .mockResolvedValue({
-      issuer: 'https://lms',
-      clientId: 'c1',
-      deploymentId: 'd1',
-      authorizeUrl: 'https://lms/auth',
-    }),
+  getLtiPlatformConfig: vi.fn().mockResolvedValue({
+    issuer: 'https://lms',
+    clientId: 'c1',
+    deploymentId: 'd1',
+    authorizeUrl: 'https://lms/auth',
+  }),
   TOOL_ORIGIN: 'https://app.example',
   TOOL_LAUNCH_URL: 'https://app.example/lti/launch',
   MESSAGE_TYPE_DEEP_LINKING: 'LtiDeepLinkingRequest',
