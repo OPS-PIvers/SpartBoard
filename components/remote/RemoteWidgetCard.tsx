@@ -190,7 +190,7 @@ export const RemoteWidgetCard: React.FC<RemoteWidgetCardProps> = ({
           <button
             onClick={handleSpotlight}
             style={{ touchAction: 'manipulation' }}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-bold transition-all active:scale-95 ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-bold transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60 ${
               isSpotlighted
                 ? 'bg-yellow-400/20 border-yellow-400/60 text-yellow-300'
                 : 'bg-white/10 border-white/20 text-white/60 hover:bg-white/20'
@@ -212,7 +212,7 @@ export const RemoteWidgetCard: React.FC<RemoteWidgetCardProps> = ({
           <button
             onClick={handleMaximize}
             style={{ touchAction: 'manipulation' }}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-bold transition-all active:scale-95 ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-bold transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60 ${
               isMaximized
                 ? 'bg-blue-500/20 border-blue-400/60 text-blue-300'
                 : 'bg-white/10 border-white/20 text-white/60 hover:bg-white/20'

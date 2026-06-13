@@ -35,6 +35,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { WidgetData, WidgetType, DashboardSettings } from '@/types';
 import { RemoteWidgetCard } from './RemoteWidgetCard';
+import { useRemoteConnection } from './useRemoteConnection';
 
 /** Widget types with full custom remote controls — sorted to the front of the carousel */
 const REMOTE_SUPPORTED_TYPES: WidgetType[] = [
@@ -74,6 +75,7 @@ export const MobileRemoteView: React.FC = () => {
     dashboards,
   } = useDashboard();
   const { remoteControlEnabled: accountRemoteEnabled } = useAuth();
+  const conn = useRemoteConnection();
 
   // ---- Local snapshot state ----
   // Initialised once from activeDashboard, then only updated on manual Sync.
@@ -175,7 +177,10 @@ export const MobileRemoteView: React.FC = () => {
         activeDashboard.settings ? { ...activeDashboard.settings } : undefined
       );
     }
-  }, [activeDashboard, initializedDashboardId]);
+
+    // A fresh context snapshot has been reflected — keep "updated just now" honest.
+    conn.markSynced();
+  }, [activeDashboard, initializedDashboardId, conn.markSynced]);
 
   // Manual sync — pull latest state from context and clear any pending write guards.
   const handleSync = useCallback(() => {
@@ -186,8 +191,9 @@ export const MobileRemoteView: React.FC = () => {
     setLocalSettings(
       activeDashboard.settings ? { ...activeDashboard.settings } : undefined
     );
+    conn.markSynced();
     setTimeout(() => setSyncing(false), 600);
-  }, [activeDashboard, clearPendingWriteGuards]);
+  }, [activeDashboard, clearPendingWriteGuards, conn]);
 
   // Write-through updateWidget: update local snapshot AND write to Firestore.
   // Cancels any existing timer for this widget before starting a fresh one so
@@ -213,7 +219,7 @@ export const MobileRemoteView: React.FC = () => {
           };
         });
       });
-      ctxUpdateWidget(id, updates);
+      ctxUpdateWidget(id, updates, { immediate: true });
     },
     [ctxUpdateWidget]
   );
@@ -230,7 +236,7 @@ export const MobileRemoteView: React.FC = () => {
         pendingSettingsTimer.current = null;
       }, 5000);
       setLocalSettings((prev) => ({ ...(prev ?? {}), ...updates }));
-      ctxUpdateDashboardSettings(updates);
+      ctxUpdateDashboardSettings(updates, { immediate: true });
     },
     [ctxUpdateDashboardSettings]
   );
@@ -350,6 +356,30 @@ export const MobileRemoteView: React.FC = () => {
             {activeDashboard.name}
           </span>
           <span className="text-white/40 text-xs">Remote Control</span>
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                conn.status === 'connected'
+                  ? 'bg-emerald-400'
+                  : 'bg-amber-400 animate-pulse'
+              }`}
+              aria-hidden="true"
+            />
+            <span
+              className={`text-[10px] font-semibold ${
+                conn.status === 'connected'
+                  ? 'text-emerald-300/80'
+                  : 'text-amber-300/80'
+              }`}
+            >
+              {conn.status === 'connected' ? 'Connected' : 'Reconnecting…'}
+            </span>
+            {conn.lastSyncedAt !== null && (
+              <span className="text-white/30 text-[10px]">
+                · updated just now
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Sync button — manually pull the latest board state from Firestore */}
