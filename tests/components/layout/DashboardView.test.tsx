@@ -847,12 +847,14 @@ describe('DashboardView Gestures & Navigation', () => {
       const handler = (e: Event) => dispatched.push(e as CustomEvent);
       window.addEventListener('widget-keyboard-action', handler);
 
-      expect(document.activeElement).toBe(childButton);
+      try {
+        expect(document.activeElement).toBe(childButton);
 
-      // Simulate CapsLock-active Alt+P: browsers produce key === 'P' (uppercase).
-      fireEvent.keyDown(window, { key: 'P', altKey: true });
-
-      window.removeEventListener('widget-keyboard-action', handler);
+        // Simulate CapsLock-active Alt+P: browsers produce key === 'P' (uppercase).
+        fireEvent.keyDown(window, { key: 'P', altKey: true });
+      } finally {
+        window.removeEventListener('widget-keyboard-action', handler);
+      }
 
       expect(dispatched).toHaveLength(1);
       const detail = (
