@@ -26,6 +26,7 @@ const {
   mockHttpsCallable,
   mockGetDownloadURL,
   mockStorageRef,
+  mockCanAccessFeature,
 } = vi.hoisted(() => ({
   mockAddWidget: vi.fn<
     (
@@ -55,6 +56,10 @@ const {
   mockHttpsCallable: vi.fn(),
   mockGetDownloadURL: vi.fn(),
   mockStorageRef: vi.fn(),
+  // Phase 3b: gate on the no-sign-in (anonymous) join affordances. Defaults
+  // to allowed (set in beforeEach) so existing assertions about the
+  // "Copy link"/"Pop-out QR" buttons keep passing.
+  mockCanAccessFeature: vi.fn(() => true),
 }));
 
 let snapshotDocs: Record<string, unknown>[] = [];
@@ -74,6 +79,7 @@ vi.mock('@/context/useAuth', () => ({
     refreshGoogleToken: mockRefreshGoogleToken,
     featurePermissions: [],
     selectedBuildings: [],
+    canAccessFeature: mockCanAccessFeature,
   }),
 }));
 
@@ -165,6 +171,9 @@ describe('ActivityWallWidget', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: teacher may offer the no-sign-in join link (anonymous-join
+    // is default-public). Individual tests override to exercise the gate.
+    mockCanAccessFeature.mockReturnValue(true);
     mockUseGoogleDrive.mockReturnValue({
       isConnected: false,
     });
@@ -589,5 +598,44 @@ describe('ActivityWallWidget', () => {
     expect(widgetConfig?.config.url).toContain(
       '/activity-wall/activity-1?data='
     );
+  });
+
+  it('shows the no-sign-in join affordances when anonymous-join is allowed', async () => {
+    render(<ActivityWallWidget widget={baseWidget} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'View' }));
+
+    expect(
+      screen.getByRole('button', { name: 'Copy link' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Pop-out QR' })
+    ).toBeInTheDocument();
+    // The view-only gallery share is a separate affordance and stays visible.
+    expect(
+      screen.getByRole('button', { name: 'Share gallery' })
+    ).toBeInTheDocument();
+  });
+
+  it('hides the no-sign-in join affordances when anonymous-join is denied', async () => {
+    // Phase 3b: an admin has restricted `anonymous-join`. The teacher loses
+    // the anonymous link/QR but keeps the view-only gallery share, and the
+    // UI degrades cleanly (no error).
+    // The widget only consults canAccessFeature for 'anonymous-join', so a
+    // blanket false models the restricted state for this gate.
+    mockCanAccessFeature.mockReturnValue(false);
+    render(<ActivityWallWidget widget={baseWidget} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'View' }));
+
+    expect(
+      screen.queryByRole('button', { name: 'Copy link' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Pop-out QR' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Share gallery' })
+    ).toBeInTheDocument();
   });
 });

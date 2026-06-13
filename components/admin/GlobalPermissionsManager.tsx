@@ -43,6 +43,7 @@ import {
   ListChecks,
   PlayCircle,
   Music2,
+  Link2,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -150,6 +151,13 @@ const GLOBAL_FEATURES: {
     icon: Music2,
     description:
       'Let teachers connect their personal Spotify account in the Music widget. When off, Music shows only curated stations.',
+  },
+  {
+    id: 'anonymous-join',
+    label: 'Anonymous join links (no sign-in)',
+    icon: Link2,
+    description:
+      "Controls which teachers can offer the no-sign-in join URL for activities. Restrict by access level, beta users, building, or minimum tier. Participants' join experience is unaffected.",
   },
 ];
 

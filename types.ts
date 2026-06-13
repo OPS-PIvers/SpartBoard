@@ -5700,7 +5700,8 @@ export type GlobalFeature =
   | 'assignment-modes'
   | 'share-link-tracking'
   | 'personal-spotify'
-  | 'google-classroom';
+  | 'google-classroom'
+  | 'anonymous-join';
 
 export interface GlobalFeaturePermission {
   featureId: GlobalFeature;
