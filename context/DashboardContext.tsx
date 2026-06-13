@@ -390,7 +390,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // not a useEffect — per CLAUDE.md, refs derived from values can be
   // assigned in the render body and don't need an effect.
   const updateWidgetRef = useRef<
-    ((id: string, updates: Partial<WidgetData>) => void) | null
+    | ((
+        id: string,
+        updates: Partial<WidgetData>,
+        opts?: { immediate?: boolean }
+      ) => void)
+    | null
   >(null);
   // Keep a ref to account-level remote control so the Firestore snapshot
   // handler can read the latest value without triggering a re-subscription.
@@ -1197,6 +1202,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // (e.g. spotlight/maximize toggle).  Used to apply a faster Firestore
   // write debounce for these small, high-priority changes.
   const lastUpdateWasSettingsOnly = useRef<boolean>(false);
+  // Set true by a remote-originated control write to bypass the auto-save
+  // debounce for that one scheduling pass; consumed (reset) inside the effect.
+  const pendingImmediateWrite = useRef<boolean>(false);
   // Counter (not boolean) to correctly track overlapping in-flight saves
   const pendingSaveCountRef = useRef<number>(0);
   // Tracks Drive file IDs for PII supplements per dashboard to enable in-place updates
@@ -2226,16 +2234,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // Settings-only changes (spotlight, maximize) are small and urgent —
     // use a fast 100 ms debounce so the desktop board reflects remote-
     // controlled presentation changes with minimal perceived delay.
-    const debounceMs = isStructuralChange
-      ? 200 // add/remove widget
-      : lastUpdateWasSettingsOnly.current
-        ? 100 // settings toggle (spotlight, maximize, etc.)
-        : 800; // widget config / position
+    const debounceMs = pendingImmediateWrite.current
+      ? 0 // remote control write — flush now
+      : isStructuralChange
+        ? 200 // add/remove widget
+        : lastUpdateWasSettingsOnly.current
+          ? 100 // settings toggle (spotlight, maximize, etc.)
+          : 800; // widget config / position
 
     const showSavingTimer = setTimeout(() => setIsSaving(true), 0);
     auxTimers.add(showSavingTimer);
     saveTimerRef.current = setTimeout(() => {
       lastUpdateWasSettingsOnly.current = false; // reset after consuming debounce
+      pendingImmediateWrite.current = false; // reset after consuming debounce
       const savedData = currentData;
       // Capture per-field state at save time for field-granular merge decisions
       const savedFields = {
@@ -4657,11 +4668,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [activeId, addToast]);
 
   const updateWidget = useCallback(
-    (id: string, updates: Partial<WidgetData>) => {
+    (
+      id: string,
+      updates: Partial<WidgetData>,
+      opts?: { immediate?: boolean }
+    ) => {
       if (!activeIdRef.current) return;
       if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
+      if (opts?.immediate) pendingImmediateWrite.current = true;
 
       // A pixel-size change implies the user resized — refresh aspectRatio.
       // A pure position change keeps the locked aspect ratio.
@@ -5068,11 +5084,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const updateDashboardSettings = useCallback(
-    (updates: Partial<Dashboard['settings']>) => {
+    (
+      updates: Partial<Dashboard['settings']>,
+      opts?: { immediate?: boolean }
+    ) => {
       if (!activeIdRef.current) return;
       if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = true;
+      if (opts?.immediate) pendingImmediateWrite.current = true;
       setDashboards((prev) =>
         prev.map((d) =>
           d.id === activeIdRef.current
@@ -5386,8 +5406,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Empty deps is the point: identity fixed for the provider's lifetime.
   const stableActions = useMemo<DashboardActions>(
     () => ({
-      updateWidget: (id, updates) =>
-        liveActionsRef.current.updateWidget(id, updates),
+      updateWidget: (id, updates, opts) =>
+        liveActionsRef.current.updateWidget(id, updates, opts),
       updateWidgets: (updates) => liveActionsRef.current.updateWidgets(updates),
       removeWidget: (id) => liveActionsRef.current.removeWidget(id),
       duplicateWidget: (id) => liveActionsRef.current.duplicateWidget(id),
