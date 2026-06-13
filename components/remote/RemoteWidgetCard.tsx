@@ -24,6 +24,7 @@ import { RemoteMusicControl } from './controls/RemoteMusicControl';
 import { RemoteNextUpControl } from './controls/RemoteNextUpControl';
 import { RemoteSoundControl } from './controls/RemoteSoundControl';
 import { RemoteWebcamControl } from './controls/RemoteWebcamControl';
+import { RemoteActivityWallControl } from './controls/RemoteActivityWallControl';
 
 interface RemoteWidgetCardProps {
   widget: WidgetData;
@@ -128,6 +129,13 @@ const renderControls = (
     case 'webcam':
       return (
         <RemoteWebcamControl widget={widget} updateWidget={updateWidget} />
+      );
+    case 'activity-wall':
+      return (
+        <RemoteActivityWallControl
+          widget={widget}
+          updateWidget={updateWidget}
+        />
       );
     default:
       return (

@@ -54,6 +54,7 @@ const REMOTE_SUPPORTED_TYPES: WidgetType[] = [
   'nextUp',
   'sound',
   'webcam',
+  'activity-wall',
 ];
 
 /** Widget types that are always skipped on the remote (truly non-interactive) */
