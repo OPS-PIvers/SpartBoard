@@ -88,10 +88,17 @@ New `components/remote/controls/RemoteActivityWallControl.tsx`:
 
 - Toggle the wall **active/paused**.
 - **Show/hide the join QR** (drive the existing QR/popout affordance).
-- A **moderation** action (hide/clear a submission) if it maps cleanly to
-  existing Activity Wall config/Firestore writes; otherwise ship active-toggle
-  - QR for Tuesday and defer moderation.
-- Register `activityWall` (the actual widget type id — verify in
+- **Moderation — GUARANTEED in scope.** Approve pending submissions and
+  remove/hide submissions from the phone. This reuses the widget's existing
+  writes (verified 2026-06-13): live submissions are a Firestore subcollection
+  with `status: 'approved' | 'pending'`; `Widget.tsx` already approves via a
+  `setDoc` status→`approved` (~L872) and removes via `deleteDoc` (~L1212), and
+  tracks approved/pending counts (~L1099). The remote control adds a listener
+  on that submissions subcollection (path `{teacherUid}_{activityId}`) to show
+  the pending queue and a count badge, then fires the same approve/remove
+  writes. This is the core audience-engagement loop: attendees submit, Paul
+  approves live from his phone, the board updates.
+- Register `activityWall` (confirm the exact widget type id in
   `WidgetRegistry`/`REMOTE_SUPPORTED_TYPES`) into the remote supported list.
 - Respects the `anonymous-join` gate shipped 2026-06-13: if the teacher can't
   offer the anonymous link, the QR/show-link affordance hides cleanly.
@@ -118,9 +125,10 @@ dark-on-projector styling, clearer active/selected states, tap feedback from
 ## Testing
 
 - Unit: write-classification (control writes immediate vs structural debounced);
-  `RemoteActivityWallControl` behavior; `MobileRemoteView` live-sync reflection
-  (snapshot updates appear without manual Sync; pending-guard still suppresses
-  echo).
+  `RemoteActivityWallControl` behavior (pending-queue listener renders pending
+  submissions; approve fires status→approved; remove fires deleteDoc; count
+  badge); `MobileRemoteView` live-sync reflection (snapshot updates appear
+  without manual Sync; pending-guard still suppresses echo).
 - **Manual two-device smoke test** (phone + projected board) is the real
   acceptance gate before Tuesday — delivered as a checklist covering each demo
   widget, the latency feel, connection-drop/reconnect, and the Embed path.
