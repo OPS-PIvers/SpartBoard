@@ -2241,12 +2241,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         : lastUpdateWasSettingsOnly.current
           ? 100 // settings toggle (spotlight, maximize, etc.)
           : 800; // widget config / position
+    // The immediate-write flag has now been consumed for this scheduling pass.
+    // Reset it immediately so that a normal write whose state update lands
+    // before the 0 ms timer fires (re-running this effect) does not inherit the
+    // immediate fast-path and lose its own debounce. See immediate.test.tsx.
+    pendingImmediateWrite.current = false;
 
     const showSavingTimer = setTimeout(() => setIsSaving(true), 0);
     auxTimers.add(showSavingTimer);
     saveTimerRef.current = setTimeout(() => {
       lastUpdateWasSettingsOnly.current = false; // reset after consuming debounce
-      pendingImmediateWrite.current = false; // reset after consuming debounce
+      // pendingImmediateWrite is reset on consume (above, right after debounceMs)
       const savedData = currentData;
       // Capture per-field state at save time for field-granular merge decisions
       const savedFields = {

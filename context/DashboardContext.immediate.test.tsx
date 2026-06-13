@@ -287,4 +287,45 @@ describe('DashboardContext immediate-write fast-path', () => {
     });
     expect(saveDashboardMock).toHaveBeenCalledTimes(1);
   });
+
+  it('does not let an immediate write leak its 0ms fast-path onto a following normal write', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [makeDashboard([makeWidget('w1')])]);
+    saveDashboardMock.mockClear();
+
+    // 1) Immediate write — schedules a 0ms flush.
+    act(() => {
+      stateRef.current?.updateWidget(
+        'w1',
+        { config: { text: 'immediate' } as WidgetData['config'] },
+        { immediate: true }
+      );
+    });
+
+    // 2) Normal write lands BEFORE the 0ms timer fires. This re-runs the
+    //    auto-save effect, clearing the immediate write's pending timer. If the
+    //    immediate flag were still set at this point, the normal write would
+    //    inherit the 0ms fast-path and flush immediately, defeating its debounce.
+    act(() => {
+      stateRef.current?.updateWidget('w1', {
+        config: { text: 'normal' } as WidgetData['config'],
+      });
+    });
+    expect(
+      stateRef.current?.activeDashboard?.widgets[0].config as { text: string }
+    ).toMatchObject({ text: 'normal' });
+
+    // 3) After ~20ms the normal write must NOT have persisted (still in its
+    //    800ms debounce). No leak means saveDashboard is untouched here.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20);
+    });
+    expect(saveDashboardMock).not.toHaveBeenCalled();
+
+    // 4) Only after the full 800ms config debounce does it persist.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(800);
+    });
+    expect(saveDashboardMock).toHaveBeenCalled();
+  });
 });
