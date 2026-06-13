@@ -19,10 +19,14 @@ const multiplierForHeldMs = (heldMs: number): number => {
  *  - Cancels on pointerup, pointercancel, pointerleave, or unmount.
  */
 export const useHoldAccelerate = (onTick: (multiplier: number) => void) => {
+  // Sync inline in the hook body (equivalent to a render-body assignment) so
+  // the ref is always current BEFORE the interval callback fires in the same
+  // frame. A useEffect sync would leave a one-render-stale window: the RAF
+  // loop in TimeTool re-renders at 60fps while the user holds the button, so
+  // the stale window is effectively always open during a running timer.
   const onTickRef = useRef(onTick);
-  useEffect(() => {
-    onTickRef.current = onTick;
-  }, [onTick]);
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync
+  onTickRef.current = onTick;
 
   const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
