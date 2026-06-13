@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-06-12_
+_Last audited: 2026-06-13_
 _Last action: 2026-06-12 — MEDIUM cardOpacity range-check extracted into shared `isCardOpacity` guard in adminBuildingConfig.ts_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-13: Weekly audit pass (Saturday). Rebase onto dev-paul: pr-review batch 12 PRs, refactor(admin-config) isCardOpacity guard, [AI] wide-distro phases 1-3 (tiering, landing page, rollout form, rollout_requests rules, user tier model, minTier permission gating, google-classroom feature gate), [AI] legal pages, [AI] OAuth scope drops. DashboardContext.tsx now **5,722 lines** (+126 from 5,596 on 2026-06-12) — continued steady growth. Single-use utils list extended: `adminBuildingConfig.ts` (only importer: DashboardContext), `collectionsMigration.ts` (only importer: DashboardContext), `ai_security.ts` (only importer: DashboardContext), `pickInitialBoard.ts` (only importer: DashboardContext), `mapWithConcurrency.ts` (only importer: single util), `pexelsService.ts` (single importer), `googleSession.ts` (single importer), `previewMode.ts` (single importer), `userTier.ts` (single importer) — added to existing LOW single-use-utils item. Cloud Functions confirmed v2. No data-fetching duplication in new contexts (tiering/permission gate added to AuthContext reads featurePermissions already owned there). All existing open items re-confirmed valid. 0 new open items._
 
 _2026-06-12: Weekly audit pass. Rebase onto dev-paul (docs/unifier run 13, D4 @/ alias conversion in tests/, perf baseline refresh, fix DraggableWindow duplicate handler, debugger run 14). None touch context/DashboardContext.tsx, functions/src/index.ts, or adminBuildingConfig.ts structure. All existing open items re-confirmed valid. New finding: multiple large component/layout files not previously tracked now exceed 500 lines — QuizStudentApp.tsx (3762 lines), DashboardView.tsx (1908 lines), Dock.tsx (1597 lines), GlobalPermissionsManager.tsx (1497 lines), StarterPackConfigurationModal.tsx (1251 lines), VideoActivityStudentApp.tsx (990 lines). Cloud Functions all confirmed on v2. No data-fetching duplication detected. No deep relative imports (3+ levels of ../) in source files. Single-use utils list extended: assignToClassroom.ts, deleteDrawingPageSubcollection.ts, imageWorker.ts, lastActiveThrottle.ts, migrateDrawingToSubcollection.ts, miniAppNormalize.ts added to existing LOW item. 1 new MEDIUM open item added._
 
@@ -58,6 +60,7 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
 ### HIGH `DashboardContext.tsx` grew 1262 lines since May 13 extraction — now 5596 lines
 
 - **Detected:** 2026-05-22
+- **Updated:** 2026-06-13 — file is now **5,722 lines** (+126 from 5,596 on 2026-06-12). [AI] wide-distro phases added tiering, minTier permission gating, google-classroom feature gate (+~130 lines). BLOCKED status unchanged.
 - **Updated:** 2026-06-05 — file is now **5,596 lines** (+321 from 5,275 on 2026-05-27). Continued growth despite no new extractions. BLOCKED status unchanged — collections/Drive extraction still requires supervised runtime-verified session.
 - **File:** context/DashboardContext.tsx
 - **Detail:** After the May 13 extraction of `getAdminBuildingConfig` reduced the file from 4441 to 4041 lines, nine days of new features grew it back to 5303 (+1262, +31%). The file now exceeds 5000 lines. Primary drivers: (1) PLC collaborative space redesign added collection navigation state, `lastBoardIdByCollection` tracking, `setActiveCollectionId`, and related callbacks (~400 lines); (2) boards-modal inline share/duplicate actions; (3) admin personal-spotify building scoping; (4) PLC in-progress assignment monitor/results. Collections management in particular introduces a new distinct responsibility (board/collection relationship state) that belongs in a dedicated hook or context. The `useGoogleDrive` orchestration and Drive reconnect error handling are also clearly separable.
@@ -135,6 +138,15 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
   - `utils/migrateDrawingToSubcollection.ts` — 1 consumer (2026-06-12, migration helper)
   - `utils/miniAppNormalize.ts` — 1 consumer (2026-06-12, consider colocation)
   - `utils/smartPaste.ts` — 1 consumer
+  - `utils/adminBuildingConfig.ts` — 1 consumer (DashboardContext) (2026-06-13)
+  - `utils/collectionsMigration.ts` — 1 consumer (DashboardContext) (2026-06-13)
+  - `utils/ai_security.ts` — 1 consumer (DashboardContext) (2026-06-13)
+  - `utils/pickInitialBoard.ts` — 1 consumer (DashboardContext) (2026-06-13)
+  - `utils/mapWithConcurrency.ts` — 1 consumer (2026-06-13)
+  - `utils/pexelsService.ts` — 1 consumer (2026-06-13)
+  - `utils/googleSession.ts` — 1 consumer (2026-06-13)
+  - `utils/previewMode.ts` — 1 consumer (2026-06-13)
+  - `utils/userTier.ts` — 1 consumer (2026-06-13)
     Single-consumer utils are not necessarily wrong — domain separation is valid — but warrant a quick sanity check that they are not duplicating logic that already exists elsewhere, and that they are documented or self-explanatory.
 - **Fix:** Verify each file's consumer. For `migration.ts` (owned entirely by DashboardContext), consider whether inlining or consolidating the migration logic into the context would reduce indirection. No action required if each file's scope is intentionally bounded.
 

@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-12_
+_Last audited: 2026-06-13_
 _Last action: 2026-06-06_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-13: Full scan of all Widget.tsx files after rebasing onto dev-paul (new commits since 2026-06-12: pr-review batch, admin-config cardOpacity refactor, [AI] wide-distro phases 1-3, [AI] legal pages, [AI] OAuth scopes). None of these touch widget front-face content. Countdown cqh/cqw mix (min(42cqh,55cqw) etc.) re-confirmed as intentional WON'T FIX per journal guidance — fill-better formula. ExpectationsWidget verified clean: uses min(Npx, Xcqmin) throughout (e.g. min(80px,22cqmin) for icons, min(24px,8cqmin) for text). CarRiderPro and First5 loading states (bg-slate-50 full-bleed) exist but show only during initial iframe load — not front-face content violations (widget surface is fully covered by the iframe once loaded; background flash is brief and outside the scaling context). All pre-existing open items re-confirmed valid. Zero new anti-patterns detected._
 
 _2026-06-12: Full scan of all Widget.tsx files after rebasing onto dev-paul (new commits since 2026-06-11: docs(unifier) run 13 log, D4 @/ alias conversion in tests/, chore(perf) baseline refresh, fix(layout) DraggableWindow duplicate handler, docs(debugger) run 14 log). None of these touch widget front-face content. All pre-existing open items re-confirmed valid. Zero new anti-patterns detected._
 

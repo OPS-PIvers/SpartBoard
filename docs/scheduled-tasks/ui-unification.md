@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-06-12_
+_Last audited: 2026-06-13_
 _Last action: 2026-06-05 — MEDIUM `stations` admin building-default appearance panel added; MEDIUM raw-`<select>` item resolved as stale (already styled)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-13: Weekly audit pass (Saturday). Rebase onto dev-paul: pr-review batch, isCardOpacity refactor, [AI] wide-distro phases 1-3 (new pages/tiering/rollout form), [AI] legal pages, [AI] OAuth scope drops. New pages (landing, /privacy, /terms, /support, /request) are static/auth routes — not widget settings panels. [AI] tiering changes (userTier.ts, per-feature AI gates) touch AuthContext and admin permission checks, not widget settings. Scanned all new Settings.tsx and admin panel files — none introduced. All existing open items re-confirmed valid. 0 new open items._
 
 _2026-06-12: Weekly audit pass. Scanned Settings.tsx files and admin ConfigurationPanel files after rebase onto dev-paul (docs/unifier run 13, D4 @/ alias in tests/, perf baseline, fix DraggableWindow, debugger run 14). None of these commits touch widget Settings.tsx or admin config panels. All existing open items re-confirmed valid. New finding: ClockWidget/Settings.tsx custom color palette button group (lines 120-139) is distinct from the font-family picker issue already tracked under the ClockWidget/TimeTool MEDIUM item — the color palette should use SurfaceColorSettings or a shared color-picker. 1 new LOW open item added._
 
