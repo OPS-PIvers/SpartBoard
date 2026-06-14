@@ -1,0 +1,46 @@
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { Play } from 'lucide-react';
+import { ActionButton } from '@/components/common/sessionViews/ActionButton';
+
+describe('ActionButton', () => {
+  it('renders label + primary styling and fires onClick', () => {
+    const onClick = vi.fn();
+    render(
+      <ActionButton
+        variant="primary"
+        label="Export"
+        icon={Play}
+        onClick={onClick}
+      />
+    );
+    const btn = screen.getByRole('button', { name: 'Export' });
+    expect(btn).toHaveTextContent('Export');
+    expect(btn.className).toContain('bg-brand-blue-primary');
+    fireEvent.click(btn);
+    expect(onClick).toHaveBeenCalled();
+  });
+
+  it('uses danger styling for the danger variant', () => {
+    render(<ActionButton variant="danger" label="End" onClick={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'End' }).className).toContain(
+      'bg-brand-red-primary'
+    );
+  });
+
+  it('hides the label text but keeps the accessible name when labelHidden', () => {
+    render(
+      <ActionButton
+        variant="secondary"
+        label="Scoreboard"
+        icon={Play}
+        onClick={vi.fn()}
+        labelHidden
+      />
+    );
+    expect(screen.queryByText('Scoreboard')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Scoreboard' })
+    ).toBeInTheDocument();
+  });
+});
