@@ -292,6 +292,7 @@ describe('PollSettings', () => {
       activeRosterId: null,
     });
     (useAuth as Mock).mockReturnValue({
+      user: { uid: 'teacher-1' },
       canAccessFeature: mockCanAccessFeature,
     });
     vi.clearAllMocks();
@@ -532,5 +533,111 @@ describe('PollSettings', () => {
       'Results exported to CSV',
       'success'
     );
+  });
+
+  it('starts a fresh device-voting session when there is no prior session', async () => {
+    const widget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Pick one',
+        options: [
+          { id: 'opt-1', label: 'A', votes: 0 },
+          { id: 'opt-2', label: 'B', votes: 0 },
+        ],
+      },
+    };
+
+    render(<PollSettings widget={widget} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /start device voting/i })
+    );
+
+    // Session doc is written active, then config gains an activePollSessionId.
+    await waitFor(() => expect(mockSetDoc).toHaveBeenCalled());
+    await waitFor(() => {
+      const lastCall = mockUpdateWidget.mock.calls[
+        mockUpdateWidget.mock.calls.length - 1
+      ] as [string, { config: { activePollSessionId?: string | null } }];
+      expect(lastCall[0]).toBe('poll-1');
+      expect(typeof lastCall[1].config.activePollSessionId).toBe('string');
+      expect(lastCall[1].config.activePollSessionId).toBeTruthy();
+    });
+  });
+
+  it('offers Resume / Restart when a prior session exists', () => {
+    const widget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Pick one',
+        options: [{ id: 'opt-1', label: 'A', votes: 0 }],
+        lastPollSessionId: 'prev-1',
+      },
+    };
+
+    render(<PollSettings widget={widget} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /start device voting/i })
+    );
+
+    expect(
+      screen.getByRole('button', { name: /resume previous/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /start fresh/i })
+    ).toBeInTheDocument();
+  });
+
+  it('stops a live session', async () => {
+    const widget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Pick one',
+        options: [{ id: 'opt-1', label: 'A', votes: 0 }],
+        activePollSessionId: 'sess-9',
+      },
+    };
+
+    render(<PollSettings widget={widget} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /stop voting/i }));
+
+    await waitFor(() => {
+      const lastCall = mockUpdateWidget.mock.calls[
+        mockUpdateWidget.mock.calls.length - 1
+      ] as [
+        string,
+        {
+          config: {
+            activePollSessionId?: string | null;
+            lastPollSessionId?: string | null;
+          };
+        },
+      ];
+      expect(lastCall[1].config.activePollSessionId).toBeNull();
+      expect(lastCall[1].config.lastPollSessionId).toBe('sess-9');
+    });
   });
 });
