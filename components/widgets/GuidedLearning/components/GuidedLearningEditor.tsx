@@ -398,8 +398,7 @@ const glContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.state.imageError === next.state.imageError &&
   prev.state.addingStep === next.state.addingStep &&
   prev.state.selectedStepId === next.state.selectedStepId &&
-  prev.state.steps === next.state.steps &&
-  prev.state.currentImageSteps === next.state.currentImageSteps;
+  prev.state.steps === next.state.steps;
 
 export const GuidedLearningEditorContextPane = React.memo(
   function GuidedLearningEditorContextPane({ state }: PaneProps) {
@@ -1087,6 +1086,25 @@ const VideoTrimBar: React.FC<{
   onChange: (trim: GuidedLearningVideoTrim | null) => void;
 }> = ({ videoRef, duration, trim, onChange }) => {
   const trackRef = useRef<HTMLDivElement>(null);
+  // Holds the in-flight drag's window listeners so they can be torn down if
+  // the bar unmounts mid-drag. The editor unmounts this on slide change
+  // (setTrimOpen(false)); without cleanup the orphaned onMove keeps firing
+  // and writes a trim to the *previous* slide's index.
+  const dragRef = useRef<{
+    onMove: (e: PointerEvent) => void;
+    onUp: (e: PointerEvent) => void;
+  } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (dragRef.current) {
+        window.removeEventListener('pointermove', dragRef.current.onMove);
+        window.removeEventListener('pointerup', dragRef.current.onUp);
+        window.removeEventListener('pointercancel', dragRef.current.onUp);
+        dragRef.current = null;
+      }
+    };
+  }, []);
 
   if (duration === null) {
     return (
@@ -1163,6 +1181,7 @@ const VideoTrimBar: React.FC<{
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
+      dragRef.current = null;
       try {
         if (target.hasPointerCapture(ev.pointerId)) {
           target.releasePointerCapture(ev.pointerId);
@@ -1172,6 +1191,7 @@ const VideoTrimBar: React.FC<{
       }
       void videoRef.current?.play().catch(() => undefined);
     };
+    dragRef.current = { onMove, onUp };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
@@ -1286,8 +1306,7 @@ const glDetailPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.state.selectedStepId === next.state.selectedStepId &&
   prev.state.addingStep === next.state.addingStep &&
   prev.state.imageUrls === next.state.imageUrls &&
-  prev.state.currentImageIndex === next.state.currentImageIndex &&
-  prev.state.currentImageSteps === next.state.currentImageSteps;
+  prev.state.currentImageIndex === next.state.currentImageIndex;
 
 export const GuidedLearningEditorDetailPane = React.memo(
   function GuidedLearningEditorDetailPane({ state }: PaneProps) {

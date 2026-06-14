@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-06-08_
+_Last audited: 2026-06-12_
 _Last action: 2026-05-01_
 
 ---
@@ -15,6 +15,20 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### LOW `utils/dashboardPII.ts` and `utils/smartPaste.ts` use `as WidgetConfig` single-casts that may mask type mismatches
+
+- **Detected:** 2026-06-12
+- **File:** utils/dashboardPII.ts (lines 48, 102), utils/smartPaste.ts (multiple instances including lines 182, 199, 261, 278 approx)
+- **Detail:** Both utility files cast plain objects to `WidgetConfig` using single-cast `as WidgetConfig` (not `as unknown as`). Unlike the existing tracked `as unknown as` items, these single-casts are only safe if the object's runtime shape is a known-good superset of `WidgetConfig` at every call site. `dashboardPII.ts` scrubs sensitive fields from widget configs and then casts the result back — if a new required field is added to `WidgetConfig`, the scrubbed object may silently fail to satisfy the type. `smartPaste.ts` casts plain-object widget configs from clipboard data, where the shape is entirely user-controlled and not validated. Classified as class (b) for smartPaste.ts (masking possible mismatch on untrusted input) and class (a) for dashboardPII.ts (likely safe but not provably so).
+- **Fix:** For `smartPaste.ts`: introduce a runtime schema validator (zod or a hand-written guard) that narrows the clipboard object to `WidgetConfig` before the cast. For `dashboardPII.ts`: replace `as WidgetConfig` with a strongly-typed scrub function that returns the correct type through structural manipulation rather than casting.
+
+### LOW `QuizWidget/Widget.tsx` has high component-level state density (12 useState + 5 useRef)
+
+- **Detected:** 2026-06-12
+- **File:** components/widgets/QuizWidget/Widget.tsx (lines 227-281 approx for useState, lines 453-482 approx for useRef)
+- **Detail:** The QuizWidget component declares 12 separate `useState` calls and 5 `useRef` calls at the top level of a single component. Related groups: editing state (`editingQuiz`, `editingAssignment`, `editingMeta`, `shareWithPlcTarget`), load state (`loadedQuizData`, `loadingQuizData`, `dataError`), and navigation state (`prevView`, `resultsEnterToken`, `assigningToClassroom`). This is distinct from the hook-level state density tracked for `useQuizSession` — this is a rendering component accumulating orchestration state that logically belongs in a custom hook or sub-component. High state density makes effect dependency arrays large and error-prone.
+- **Fix:** Extract quiz orchestration state into a `useQuizWidgetState` hook that encapsulates the editing, load, and navigation groups. This reduces the component to a view layer with a single hook import, makes state transitions testable in isolation, and shrinks effect dependency arrays. Follow the pattern used in `SpecialistScheduleWidget` which delegates session state to `useSpecialistSchedule`. Prioritize the edit-state group (4 state items that always change together) as the first extraction.
 
 ### MEDIUM `as unknown as` double-casts in `utils/ai_security.ts` mask structuredClone type loss
 
@@ -62,6 +76,8 @@ _Nothing currently in progress._
 - **Fix:** For `useScreenRecord`, group `{ isRecording, duration, error }` into a single `useState` object to reduce the state surface. The 4 refs are all distinct external handles and should remain individual. For `useLiveSession`, group `{ studentId, studentPin }` (always set/cleared together) into a single state object. Severity is LOW because the individual state declarations are cohesive and readable.
 
 ---
+
+_2026-06-12: Audited new code from dev-paul rebase (docs/unifier run 13, D4 @/ alias in tests/, perf baseline, fix DraggableWindow, debugger run 14). No new Object.assign or config-merge duplication patterns in changed files. No new `as unknown as` casts. Hook complexity: useQuizSession.ts and useVideoActivitySession.ts counts unchanged from 2026-06-08 (22 and 18 respectively). New findings: (1) utils/dashboardPII.ts (line 48, 102) and utils/smartPaste.ts (multiple instances) use `as WidgetConfig` single-casts that may mask type mismatches — these are distinct from the `as unknown as` double-casts already tracked; added as new LOW item. (2) QuizWidget/Widget.tsx has 12 useState calls (plus 5 useRef) — high component-level state density distinct from the hook-level state density already tracked for useQuizSession. 2 new LOW open items added._
 
 _2026-06-08: Audited new code from dev-paul merge. Object.assign: DashboardContext still has zero Object.assign calls. `as unknown as` casts: no new ones in this merge (diff shows only `specificFeatureId` string assignments in functions/src/index.ts — no TypeScript changes in frontend code). Hook complexity: `useQuizSession.ts` unchanged at 22 useState/useRef calls; `useVideoActivitySession.ts` grew from 17 to 18 calls (minor growth, existing open item still valid and counts are current). New hooks: none added in this merge. Nested ternaries: no new complex ternary chains in changed files. Zero new simplification items._
 

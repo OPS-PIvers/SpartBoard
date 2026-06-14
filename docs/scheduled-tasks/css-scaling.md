@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-11_
-_Last action: 2026-06-06_
+_Last audited: 2026-06-14_
+_Last action: 2026-06-13_
 
 ---
 
@@ -21,6 +21,14 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-14: Full scan of all Widget.tsx files after rebasing onto dev-paul (new commits since 2026-06-13: Remote v2 series, wide-distro anonymous-join gating, CalendarWidget midnight staleness fix, ActivityWall state extract, bug fixes). Widget.tsx files changed: (1) ActivityWall/Widget.tsx — changed by 885ea0b6 (wide-distro: adds anonymous-join gating UI to share modals; no new hardcoded Tailwind sizing in front-face content) and confirmed a0c2666b (ActivityWall checkbox cqmin fix already marked Completed in last entry). (2) CalendarWidget/Widget.tsx — changed by 6aa57535 (fix(widgets): CalendarWidget midnight staleness + useEffect ref-sync anti-pattern; logic-only change). Full Calendar widget CSS audit: widget has skipScaling:true; uses `min(calc((100% - min(30px, 6cqmin)) / 4), min(120px, 22cqmin))` for row heights and `min(Npx, Xcqmin)` throughout for all text/icon/spacing — no violations. Remote v2 control components (components/remote/controls/Remote\*.tsx) are not widget front-face content (they render in the MobileRemoteView on the teacher's phone, not inside a CSS container query context). All pre-existing open items re-confirmed valid. Zero new anti-patterns detected._
+
+_2026-06-13 (action): Fixed the highest-priority genuinely-open item — ActivityWall inline activity-editor "Require moderation" checkbox hardcoded `h-4 w-4` (ActivityWall/Widget.tsx, now :1376). Replaced the fixed 16px `h-4 w-4` Tailwind size classes with an inline `cqmin` size (`style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}`), keeping `accent-brand-blue-primary` on className for the accent color. This caps the checkbox at 16px on large widgets while scaling it down proportionally at small sizes, matching the sibling "Require moderation" label which uses `min(12px, 3.8cqmin)`. File-recency check passed: ActivityWall/Widget.tsx was last touched at 592dd523 (2026-06-11 audit) — outside the last 5 branch commits. `tsc --noEmit`, `eslint --max-warnings 0`, and `prettier --check` on the changed file all clean; ActivityWall test suite (Widget + Settings, 11 tests) green. Moved the item to Completed. ALSO cleaned up two stale Open entries: (1) the CarRiderPro/First5 external-link overlay button group was already resolved in commit f60141cc (PR #1768 — both files now use `top: min(8px, 2cqmin)` / `right: min(8px, 2cqmin)` / `padding: min(6px, 1.5cqmin)`); removed from Open. (2) the GraphicOrganizer EditableNode `min-h-[50px]` entry was a duplicate of the already-Completed entry (completed 2026-05-31); removed from Open. Remaining open items: PollWidget progress bar (:161), EmbedWidget portaled toolbar, QuizResults period-filter text-sm (:1530), RevealGrid spacing, multi-widget group, MiniApp dialog text sizes._
+
+_2026-06-13: Full scan of all Widget.tsx files after rebasing onto dev-paul (new commits since 2026-06-12: pr-review batch, admin-config cardOpacity refactor, [AI] wide-distro phases 1-3, [AI] legal pages, [AI] OAuth scopes). None of these touch widget front-face content. Countdown cqh/cqw mix (min(42cqh,55cqw) etc.) re-confirmed as intentional WON'T FIX per journal guidance — fill-better formula. ExpectationsWidget verified clean: uses min(Npx, Xcqmin) throughout (e.g. min(80px,22cqmin) for icons, min(24px,8cqmin) for text). CarRiderPro and First5 loading states (bg-slate-50 full-bleed) exist but show only during initial iframe load — not front-face content violations (widget surface is fully covered by the iframe once loaded; background flash is brief and outside the scaling context). All pre-existing open items re-confirmed valid. Zero new anti-patterns detected._
+
+_2026-06-12: Full scan of all Widget.tsx files after rebasing onto dev-paul (new commits since 2026-06-11: docs(unifier) run 13 log, D4 @/ alias conversion in tests/, chore(perf) baseline refresh, fix(layout) DraggableWindow duplicate handler, docs(debugger) run 14 log). None of these touch widget front-face content. All pre-existing open items re-confirmed valid. Zero new anti-patterns detected._
 
 _2026-06-11: Full scan of all Widget.tsx files after rebasing onto dev-paul (new commits: ui(library) modernize views, test(hooks) useVideoActivitySessionTeacher, fix(stores) consumeLaunchCode, fix(i18n) seatingChart, fix(export) dedup buildResultsSheetData, fix(DashboardView) groupBuildMode Escape, perf(dashboard) DashboardContext split). None of these touch widget front-face content. The DashboardContext split is a context-internal structural refactor — no widget canvas changes. All pre-existing open items re-confirmed valid. Zero new anti-patterns detected._
 
@@ -80,27 +88,6 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### LOW ActivityWall inline activity-editor checkbox uses hardcoded `h-4 w-4` icon size
-
-- **Detected:** 2026-06-01
-- **File:** components/widgets/ActivityWall/Widget.tsx:1352
-- **Detail:** The inline activity-editor (rendered inside the widget's front-face content, not inside a Modal overlay) has a `<input type="checkbox">` with `className="h-4 w-4 accent-brand-blue-primary"`. Widget has `skipScaling: true`. The `h-4 w-4` (16 px) size is fixed and does not scale with the container. This is distinct from the `max-h-[75vh]` uses at lines 2101-2110, which are inside a fullscreen Modal and exempt.
-- **Fix:** Native checkbox size via CSS is limited — the `h-4 w-4` classes drive the rendered size on Chromium but may be overridden by OS styles. Best approach: wrap in a `<label>` with `style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}` and visually hide the native input (`sr-only`), replacing it with a styled div. If keeping the native checkbox, at minimum remove the hardcoded size classes and rely on `accent-color` alone.
-
-### LOW CarRiderPro and First5 share a hardcoded external-link overlay button (group)
-
-- **Detected:** 2026-05-29
-- **File:** components/widgets/CarRiderPro/Widget.tsx:62, components/widgets/First5/Widget.tsx:56
-- **Detail:** Both widgets render an absolute-positioned external-link overlay button with the className `"absolute top-2 right-2 z-10 bg-white/80 ... rounded-lg p-1.5 ..."`. Both have `skipScaling: true`. The `top-2`, `right-2`, and `p-1.5` classes produce fixed-pixel positioning (8 px, 8 px, 6 px) that does not scale with the container, causing the button to appear disproportionately small at large widget sizes and potentially clipping at small sizes. This is an identical copy-pasted snippet in both files.
-- **Fix:** Replace the three fixed-pixel Tailwind utilities with inline `cqmin` equivalents: `top-2 right-2` → `style={{ top: 'min(8px, 2cqmin)', right: 'min(8px, 2cqmin)' }}`, `p-1.5` → `style={{ padding: 'min(6px, 1.5cqmin)' }}`. Apply the same fix to both files. The visual/color Tailwind classes (`bg-white/80`, `backdrop-blur-sm`, `hover:bg-white`, etc.) do not carry pixel sizes and can remain on `className`.
-
-### LOW GraphicOrganizer EditableNode uses min-h-[50px] fixed minimum height on contenteditable
-
-- **Detected:** 2026-05-29
-- **File:** components/widgets/GraphicOrganizer/Widget.tsx:79
-- **Detail:** The internal `EditableNode` component renders a `contenteditable` div with `className="... min-h-[50px] ..."`. This sets a fixed 50 px minimum height on every editable node inside the graphic organizer (Frayer, T-chart, Venn, KWL, Cause-Effect layouts). Widget has `skipScaling: true`. At small widget sizes this 50 px floor can crowd out other content; at large widget sizes it looks sparse. Note: the prior Completed entries for GraphicOrganizer addressed outer structural padding (`p-4` on Frayer cells, `w-32 h-32` center circle, etc.) — this specific EditableNode `min-h-[50px]` was not covered.
-- **Fix:** Replace `min-h-[50px]` with a `cqmin` inline style: add a `minHeight` key to the existing `style` prop on the contenteditable div → `style={{ ..., minHeight: 'min(50px, 10cqmin)' }}`. This caps the floor at 50 px on large widgets while allowing proportional reduction at small sizes. Alternatively, `min-h-0` with `flex-1` on the parent cell could let the node fill available space.
-
 ### LOW PollWidget progress bar has no upper size cap — grows excessively at large widget sizes
 
 - **Detected:** 2026-05-28
@@ -156,6 +143,14 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW ActivityWall inline activity-editor checkbox uses hardcoded `h-4 w-4` icon size
+
+- **Detected:** 2026-06-01
+- **Completed:** 2026-06-13
+- **File:** components/widgets/ActivityWall/Widget.tsx:1376 (was :1352 at detection; line shifted as the file grew)
+- **Detail:** The inline activity-editor "Require moderation" `<input type="checkbox">` carried `className="h-4 w-4 accent-brand-blue-primary"`. The widget has `skipScaling: true`, so the fixed 16 px size did not respond to the container query — it stayed 16 px regardless of widget size while the sibling label scaled via `min(12px, 3.8cqmin)`.
+- **Resolution:** Removed the `h-4 w-4` Tailwind size classes and applied an inline `cqmin` size instead: `style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}`, keeping `accent-brand-blue-primary` on `className` for the accent color. Caps the checkbox at 16 px on large widgets while scaling it down proportionally at small sizes. `tsc --noEmit`, `eslint --max-warnings 0`, and `prettier --check` on the changed file all clean; ActivityWall test suite (Widget + Settings, 11 tests) green.
 
 ### LOW NextUp session-name header has hardcoded `maxWidth: '120px'` pixel cap
 

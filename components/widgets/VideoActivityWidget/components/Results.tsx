@@ -81,7 +81,7 @@ export const Results: React.FC<ResultsProps> = ({
   onBack,
   plc: _plc,
 }) => {
-  const { googleAccessToken, user, orgId } = useAuth();
+  const { googleAccessToken, user, orgId, canAccessFeature } = useAuth();
   const { showConfirm } = useDialog();
   const { addToast } = useDashboard();
   // Use the multi-class variant — `session.classId` is a transitional
@@ -451,38 +451,41 @@ export const Results: React.FC<ResultsProps> = ({
 
         <div className="flex items-center" style={{ gap: 'min(8px, 2cqmin)' }}>
           {/* Push grades to Google Classroom — only when this assignment was
-              attached to one or more Classroom coursework items via the add-on. */}
-          {classroomAttachments.length > 0 && (
-            <button
-              onClick={() => void handlePushGrades()}
-              disabled={pushingGrades}
-              className="flex items-center font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-              style={{
-                gap: 'min(6px, 1.5cqmin)',
-                padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                fontSize: 'min(11px, 3cqmin)',
-              }}
-              title="Write draft grades to this assignment's Google Classroom gradebook (matches the score shown here)."
-            >
-              {pushingGrades ? (
-                <Loader2
-                  className="animate-spin"
-                  style={{
-                    width: 'min(12px, 3cqmin)',
-                    height: 'min(12px, 3cqmin)',
-                  }}
-                />
-              ) : (
-                <GraduationCap
-                  style={{
-                    width: 'min(12px, 3cqmin)',
-                    height: 'min(12px, 3cqmin)',
-                  }}
-                />
-              )}
-              Push Grades
-            </button>
-          )}
+              attached to one or more Classroom coursework items via the add-on.
+              The admin-managed `google-classroom` gate hides it for users
+              below the doc's minTier. */}
+          {classroomAttachments.length > 0 &&
+            canAccessFeature('google-classroom') && (
+              <button
+                onClick={() => void handlePushGrades()}
+                disabled={pushingGrades}
+                className="flex items-center font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                style={{
+                  gap: 'min(6px, 1.5cqmin)',
+                  padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                  fontSize: 'min(11px, 3cqmin)',
+                }}
+                title="Write draft grades to this assignment's Google Classroom gradebook (matches the score shown here)."
+              >
+                {pushingGrades ? (
+                  <Loader2
+                    className="animate-spin"
+                    style={{
+                      width: 'min(12px, 3cqmin)',
+                      height: 'min(12px, 3cqmin)',
+                    }}
+                  />
+                ) : (
+                  <GraduationCap
+                    style={{
+                      width: 'min(12px, 3cqmin)',
+                      height: 'min(12px, 3cqmin)',
+                    }}
+                  />
+                )}
+                Push Grades
+              </button>
+            )}
 
           {/* Push grades to Schoology — only when this assignment was launched
               from a Schoology resource link (server sets `ltiAttachment` on the

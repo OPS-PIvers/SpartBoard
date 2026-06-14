@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-11T05:29:36.979Z",
+  "generatedAt": "2026-06-14T03:10:46.403Z",
   "runCommand": "pnpm exec vitest run tests/perf/dashboardPerf.test.tsx",
   "note": "Profiler commit counts and per-shell render counts are the deterministic primary metrics and must be identical across runs. totalShellRenders sums DraggableWindow render invocations across all widgets per scenario; shellRendersByWidget shows which shells rendered (widgets added mid-test are keyed \"added-widget\"). actualDurationMs is machine-dependent and indicative only — compare medians of 3 runs.",
   "skipped": "Snap-overlay edge snapping and the snap-layout menu need real viewport geometry, so they are not exercised in jsdom; the drag path deliberately stays away from screen edges.",

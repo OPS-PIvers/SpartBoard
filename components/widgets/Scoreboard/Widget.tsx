@@ -56,11 +56,14 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
     [teams, layout]
   );
 
-  // Keep a ref to the latest config to ensure handleUpdateScore is stable
+  // Keep a ref to the latest config to ensure handleUpdateScore is stable.
+  // Assigned inline in the render body (not in a useEffect) so the ref is
+  // always current by the time any click handler fires in the same frame —
+  // a useEffect sync would leave a stale window between render and paint
+  // where rapid clicks or live-quiz score pushes could build off old data.
   const configRef = useRef(config);
-  useEffect(() => {
-    configRef.current = config;
-  }, [config]);
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync
+  configRef.current = config;
 
   const handleUpdateScore = useCallback(
     (teamId: string, delta: number) => {

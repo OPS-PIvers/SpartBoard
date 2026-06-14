@@ -20,6 +20,9 @@ vi.mock('@/context/useAuth', () => ({
     googleAccessToken: null,
     user: { uid: 'teacher-1', email: 'teacher@orono.k12.mn.us' },
     orgId: null,
+    // The grade-push button is additionally gated on the admin-managed
+    // `google-classroom` feature doc; default-allow in this suite.
+    canAccessFeature: () => true,
   }),
 }));
 // Auto-confirm the "Push grades?" dialog so the handler proceeds.

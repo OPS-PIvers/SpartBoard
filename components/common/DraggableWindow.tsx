@@ -514,7 +514,22 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   // Track drag delta for group sibling commit (works for both DOM and state-driven widgets)
   const groupDragDeltaRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
+  // Set to true by the Escape handler before calling setIsEditingTitle(false).
+  // Checked by saveTitle to short-circuit the Firestore write when Escape
+  // fires blur on a stale onBlur prop that still holds the typed (not-yet-
+  // reverted) tempTitle. The ref is read synchronously in the same event
+  // flush, so it is always up-to-date regardless of closure staleness.
+  const isCancellingTitleRef = useRef(false);
+
   const saveTitle = useCallback(() => {
+    // Guard: if the user pressed Escape the Escape handler set this flag before
+    // triggering the unmount that fires this blur. Skip the Firestore write.
+    if (isCancellingTitleRef.current) {
+      // The Escape handler already called setIsEditingTitle(false) before
+      // setting this flag, so there is nothing left to do but skip the write.
+      isCancellingTitleRef.current = false;
+      return;
+    }
     if (tempTitle.trim()) {
       updateWidget(widget.id, { customTitle: tempTitle.trim() });
     } else {
@@ -2836,6 +2851,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     if (e.key === 'Enter') saveTitle();
                     if (e.key === 'Escape') {
                       setTempTitle(widget.customTitle ?? title);
+                      // Set the cancellation flag BEFORE calling setIsEditingTitle —
+                      // the state update unmounts the input, which fires onBlur on
+                      // the stale saveTitle (still holding the typed tempTitle).
+                      // The flag is read synchronously in saveTitle to skip the write.
+                      isCancellingTitleRef.current = true;
                       setIsEditingTitle(false);
                     }
                     e.stopPropagation();

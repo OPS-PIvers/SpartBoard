@@ -5,13 +5,12 @@
  * for Orono Public Schools as the operator. District counsel must confirm:
  *   - governing law / venue (drafted as Minnesota)
  *   - the liability / disclaimer posture for a public-school-operated tool
- *   - the contact address (currently support@spartboard.app)
  *   - the effective date (set to publish date below)
  */
 import React from 'react';
 import { LegalPageLayout, LegalH2, LegalP, LegalList } from './LegalPageLayout';
 
-const TERMS_CONTACT = 'support@spartboard.app';
+const TERMS_CONTACT = 'spartboard@orono.k12.mn.us';
 
 export const TermsOfServicePage: React.FC = () => (
   <LegalPageLayout title="Terms of Service" lastUpdated="May 29, 2026">

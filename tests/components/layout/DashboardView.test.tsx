@@ -833,6 +833,36 @@ describe('DashboardView Gestures & Navigation', () => {
       expect(detail2.widgetId).toBe(WIDGET_ID);
       expect(detail2.key).toBe('Pin');
     });
+
+    // Regression: Alt+P must fire even when CapsLock is active (e.key === 'P').
+    // Previously the guard used a case-sensitive `e.key === 'p'` comparison, so
+    // the shortcut was silently swallowed whenever CapsLock was on and no widget
+    // held keyboard focus (the DraggableWindow path was unaffected because it
+    // uses e.key.toLowerCase()).  Fix: normalize the key with .toLowerCase()
+    // before comparing.
+    it('dispatches Pin action with correct widgetId when Alt+P is pressed with CapsLock active (e.key === "P")', () => {
+      renderView();
+
+      const dispatched: CustomEvent[] = [];
+      const handler = (e: Event) => dispatched.push(e as CustomEvent);
+      window.addEventListener('widget-keyboard-action', handler);
+
+      try {
+        expect(document.activeElement).toBe(childButton);
+
+        // Simulate CapsLock-active Alt+P: browsers produce key === 'P' (uppercase).
+        fireEvent.keyDown(window, { key: 'P', altKey: true });
+      } finally {
+        window.removeEventListener('widget-keyboard-action', handler);
+      }
+
+      expect(dispatched).toHaveLength(1);
+      const detail = (
+        dispatched[0] as CustomEvent<{ widgetId: string; key: string }>
+      ).detail;
+      expect(detail.widgetId).toBe(WIDGET_ID);
+      expect(detail.key).toBe('Pin');
+    });
   });
 
   // Toast accessibility: the ToastContainer must expose live-region roles so
@@ -1029,6 +1059,169 @@ describe('DashboardView Gestures & Navigation', () => {
       // Without a focused typing field, group-build mode should exit.
       expect(mockSetGroupBuildMode).toHaveBeenCalledWith(false);
       expect(mockSetSelectedWidgetIds).toHaveBeenCalledWith([]);
+    });
+  });
+
+  // Regression: Ctrl+/ (Open Cheat Sheet) lacked a typing-field guard.
+  //
+  // Bug: the `if ((e.ctrlKey || e.metaKey) && e.key === '/')` branch in the
+  // global keydown handler unconditionally called e.preventDefault() and
+  // toggled the Cheat Sheet even when the user had focus inside an INPUT,
+  // TEXTAREA, SELECT, or contentEditable element.  Ctrl+/ is a common
+  // "comment/uncomment" shortcut in code editors and rich-text widgets, so
+  // typing it inside any text field was silently hijacked: the browser's
+  // default action was suppressed and the Cheat Sheet opened instead.
+  //
+  // Fix: add the same isTypingField guard that every other shortcut branch
+  // (Escape, Delete/Backspace, Alt+P, Alt+Left/Right) already carries.
+  describe('Ctrl+/ does not open Cheat Sheet when a typing field is focused', () => {
+    const collectionsStub = {
+      collections: [],
+      loading: false,
+      error: null,
+      createCollection: vi.fn(),
+      renameCollection: vi.fn(),
+      moveCollection: vi.fn(),
+      deleteCollection: vi.fn(),
+      reorderSiblings: vi.fn(),
+      setCollectionMetadata: vi.fn(),
+      setCollectionDefaultBoard: vi.fn(),
+    };
+
+    let focusedEl: HTMLElement;
+
+    afterEach(() => {
+      if (focusedEl?.parentNode) focusedEl.parentNode.removeChild(focusedEl);
+    });
+
+    const setupTypingField = (el: HTMLElement) => {
+      focusedEl = el;
+      document.body.appendChild(el);
+      el.focus();
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        activeDashboard: mockDashboards[1],
+        dashboards: mockDashboards,
+        toasts: [],
+        addWidget: mockAddWidget,
+        loadDashboard: mockLoadDashboard,
+        removeToast: vi.fn(),
+        updateWidget: vi.fn(),
+        removeWidget: vi.fn(),
+        duplicateWidget: vi.fn(),
+        bringToFront: vi.fn(),
+        addToast: vi.fn(),
+        minimizeAllWidgets: vi.fn(),
+        restoreAllWidgets: vi.fn(),
+        deleteAllWidgets: vi.fn(),
+        setSelectedWidgetId: vi.fn(),
+        updateDashboardSettings: vi.fn(),
+        zoom: 1,
+        setZoom: vi.fn(),
+        collectionsApi: collectionsStub,
+      });
+    };
+
+    it('does NOT dispatch spart:cheatsheet-opened when Ctrl+/ is pressed inside an INPUT', () => {
+      const input = document.createElement('input');
+      input.type = 'text';
+      setupTypingField(input);
+      renderView();
+
+      expect(document.activeElement).toBe(input);
+
+      const openedEvents: Event[] = [];
+      const spy = (e: Event) => openedEvents.push(e);
+      window.addEventListener('spart:cheatsheet-opened', spy);
+
+      fireEvent.keyDown(window, { key: '/', ctrlKey: true });
+
+      window.removeEventListener('spart:cheatsheet-opened', spy);
+
+      // The typing-field guard must prevent the Cheat Sheet from opening —
+      // no spart:cheatsheet-opened event should have been dispatched.
+      expect(openedEvents).toHaveLength(0);
+    });
+
+    it('does NOT dispatch spart:cheatsheet-opened when Ctrl+/ is pressed inside a TEXTAREA', () => {
+      const textarea = document.createElement('textarea');
+      setupTypingField(textarea);
+      renderView();
+
+      expect(document.activeElement).toBe(textarea);
+
+      const openedEvents: Event[] = [];
+      const spy = (e: Event) => openedEvents.push(e);
+      window.addEventListener('spart:cheatsheet-opened', spy);
+
+      fireEvent.keyDown(window, { key: '/', ctrlKey: true });
+
+      window.removeEventListener('spart:cheatsheet-opened', spy);
+      expect(openedEvents).toHaveLength(0);
+    });
+
+    it('does NOT dispatch spart:cheatsheet-opened when Ctrl+/ is pressed inside a SELECT', () => {
+      const select = document.createElement('select');
+      setupTypingField(select);
+      renderView();
+
+      expect(document.activeElement).toBe(select);
+
+      const openedEvents: Event[] = [];
+      const spy = (e: Event) => openedEvents.push(e);
+      window.addEventListener('spart:cheatsheet-opened', spy);
+
+      fireEvent.keyDown(window, { key: '/', ctrlKey: true });
+
+      window.removeEventListener('spart:cheatsheet-opened', spy);
+      expect(openedEvents).toHaveLength(0);
+    });
+
+    it('DOES dispatch spart:cheatsheet-opened when Ctrl+/ is pressed with no typing field focused', async () => {
+      // Make sure no typing field holds focus — body is the default.
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        activeDashboard: mockDashboards[1],
+        dashboards: mockDashboards,
+        toasts: [],
+        addWidget: mockAddWidget,
+        loadDashboard: mockLoadDashboard,
+        removeToast: vi.fn(),
+        updateWidget: vi.fn(),
+        removeWidget: vi.fn(),
+        duplicateWidget: vi.fn(),
+        bringToFront: vi.fn(),
+        addToast: vi.fn(),
+        minimizeAllWidgets: vi.fn(),
+        restoreAllWidgets: vi.fn(),
+        deleteAllWidgets: vi.fn(),
+        setSelectedWidgetId: vi.fn(),
+        updateDashboardSettings: vi.fn(),
+        zoom: 1,
+        setZoom: vi.fn(),
+        collectionsApi: collectionsStub,
+      });
+
+      renderView();
+
+      // Ensure no typing field is active.
+      expect(
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(
+          (document.activeElement as HTMLElement)?.tagName || ''
+        )
+      ).toBe(false);
+      expect(
+        (document.activeElement as HTMLElement)?.isContentEditable
+      ).toBeFalsy();
+
+      const openedEvents: Event[] = [];
+      const spy = (e: Event) => openedEvents.push(e);
+      window.addEventListener('spart:cheatsheet-opened', spy);
+
+      fireEvent.keyDown(window, { key: '/', ctrlKey: true });
+
+      // Allow useEffects (the CheatSheetModal's open-notification effect) to flush.
+      await waitFor(() => expect(openedEvents).toHaveLength(1));
+
+      window.removeEventListener('spart:cheatsheet-opened', spy);
     });
   });
 });

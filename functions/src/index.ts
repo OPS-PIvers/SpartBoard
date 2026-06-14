@@ -37,6 +37,7 @@ export { organizationBuildingCounters } from './organizationBuildingCounters';
 export { resetOrganizationUserPassword } from './organizationResetPassword';
 export { getOrgUserActivity } from './organizationUserActivity';
 export { plcInvitationEmail } from './plcInviteEmails';
+export { rolloutRequestEmail } from './rolloutRequestEmail';
 export { joinSyncedQuizGroup, leaveSyncedQuizGroup } from './syncedQuizGroups';
 export {
   joinSyncedVideoActivityGroup,

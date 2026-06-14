@@ -27,6 +27,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { ActivityWallLibraryEntry } from '@/types';
+import { normalizeActivityWallLibraryEntry } from '@/utils/activityWallNormalize';
 
 const COLLECTION = 'activity_wall_activities';
 
@@ -72,23 +73,12 @@ export const useActivityWallLibrary = (
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const list: ActivityWallLibraryEntry[] = snap.docs.map((d) => {
-          const data = d.data() as Partial<ActivityWallLibraryEntry>;
-          const entry: ActivityWallLibraryEntry = {
-            id: data.id ?? d.id,
-            title: data.title ?? '',
-            prompt: data.prompt ?? '',
-            mode: data.mode ?? 'text',
-            moderationEnabled: !!data.moderationEnabled,
-            identificationMode: data.identificationMode ?? 'anonymous',
-            createdAt: data.createdAt ?? 0,
-            updatedAt: data.updatedAt ?? 0,
-          };
-          if (typeof data.classId === 'string' && data.classId.length > 0) {
-            entry.classId = data.classId;
-          }
-          return entry;
-        });
+        const list = snap.docs.map((d) =>
+          normalizeActivityWallLibraryEntry(
+            d.id,
+            d.data() as Partial<ActivityWallLibraryEntry>
+          )
+        );
         setActivities(list);
         setLoading(false);
       },
@@ -105,22 +95,16 @@ export const useActivityWallLibrary = (
   const saveActivity = useCallback(
     async (entry: ActivityWallLibraryEntry) => {
       if (!userId) throw new Error('Not signed in');
-      // Strip `classId` when empty so Firestore doesn't store an empty
-      // string that breaks the `passesStudentClassGate` rule, which
-      // expects either a real sourcedId or an absent field.
-      const payload: Record<string, unknown> = {
-        id: entry.id,
-        title: entry.title,
-        prompt: entry.prompt,
-        mode: entry.mode,
-        moderationEnabled: entry.moderationEnabled,
-        identificationMode: entry.identificationMode,
-        createdAt: entry.createdAt,
-        updatedAt: entry.updatedAt,
+      // Spread the full entry so all optional fields (including classIds,
+      // rosterIds, and any future additions) are persisted. Strip `classId`
+      // when empty so Firestore doesn't store an empty string that breaks
+      // the `passesStudentClassGate` rule, which expects either a real
+      // sourcedId or an absent field.
+      const { classId, ...rest } = entry;
+      const payload: ActivityWallLibraryEntry = {
+        ...rest,
+        ...(classId ? { classId } : {}),
       };
-      if (entry.classId) {
-        payload.classId = entry.classId;
-      }
       await setDoc(doc(db, 'users', userId, COLLECTION, entry.id), payload);
     },
     [userId]

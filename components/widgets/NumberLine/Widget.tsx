@@ -140,9 +140,16 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
   }, [min, safeMax, safeStep, range, MAX_TICKS]);
 
   const addMarker = (value: number) => {
+    // Strip floating-point noise accumulated by the index-based tick formula
+    // (e.g. 0 + 3×0.1 = 0.30000000000000004). Without rounding, the raw dirty
+    // value is persisted to Firestore and displayed verbatim in the settings
+    // panel, so teachers see "0.30000000000000004" instead of "0.3".
+    // toFixed(10) is well above any precision needed (step ≥ 0.01 → 2 d.p.),
+    // so it removes only the noise without truncating real digits.
+    const cleanValue = parseFloat(value.toFixed(10));
     const newMarker: NumberLineMarker = {
       id: crypto.randomUUID(),
-      value,
+      value: cleanValue,
       color: WIDGET_PALETTE[markers.length % WIDGET_PALETTE.length],
     };
     updateWidget(widget.id, {

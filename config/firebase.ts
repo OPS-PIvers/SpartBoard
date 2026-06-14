@@ -45,11 +45,18 @@ let storage: FirebaseStorage;
 let functions: Functions;
 let googleProvider: GoogleAuthProvider;
 
-/** All Google OAuth scopes the app requests at sign-in and when refreshing tokens. */
+/**
+ * All Google OAuth scopes the app requests at sign-in and when refreshing
+ * tokens.
+ *
+ * Deliberately excludes restricted scopes (e.g. drive.readonly): the Google
+ * Picker grants per-file access under drive.file via PickerBuilder.setAppId,
+ * so broad Drive read access is never needed. Keeping this list free of
+ * restricted scopes is what keeps the app exempt from Google's CASA security
+ * assessment if the OAuth consent screen ever moves to External.
+ */
 export const GOOGLE_OAUTH_SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
-  'https://www.googleapis.com/auth/drive.readonly',
-  'https://www.googleapis.com/auth/spreadsheets.readonly',
   'https://www.googleapis.com/auth/spreadsheets',
   'https://www.googleapis.com/auth/calendar.readonly',
 ];

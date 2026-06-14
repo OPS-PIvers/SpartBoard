@@ -5,7 +5,6 @@
  * honest DRAFT grounded in how SpartBoard actually handles data, written for
  * Orono Public Schools as the operator. The district's data-privacy officer /
  * counsel must review and confirm the bracketed/uncertain specifics:
- *   - the official privacy contact (currently support@spartboard.app)
  *   - data retention periods (kept general here — confirm against district policy)
  *   - the exact Google Workspace for Education / DPA references
  *   - the effective date (set to publish date below)
@@ -14,7 +13,7 @@
 import React from 'react';
 import { LegalPageLayout, LegalH2, LegalP, LegalList } from './LegalPageLayout';
 
-const PRIVACY_CONTACT = 'support@spartboard.app';
+const PRIVACY_CONTACT = 'spartboard@orono.k12.mn.us';
 
 export const PrivacyPolicyPage: React.FC = () => (
   <LegalPageLayout title="Privacy Policy" lastUpdated="May 29, 2026">
@@ -89,6 +88,25 @@ export const PrivacyPolicyPage: React.FC = () => (
       These providers process data on the District&rsquo;s behalf subject to
       Google&rsquo;s Workspace for Education terms and data-protection
       commitments.
+    </LegalP>
+    <LegalP>
+      SpartBoard&rsquo;s use and transfer of information received from Google
+      APIs adheres to the{' '}
+      <a
+        className="text-blue-700 underline hover:text-blue-900"
+        href="https://developers.google.com/terms/api-services-user-data-policy"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Google API Services User Data Policy
+      </a>
+      , including the Limited Use requirements. In particular, data obtained
+      through Google APIs (such as Drive, Sheets, Calendar, or Classroom) is
+      used only to provide the user-facing features described above, is never
+      sold, never used for advertising, and is never transferred to third
+      parties except as needed to provide those features, for security purposes,
+      or as required by law. We do not use Google user data to train generalized
+      artificial-intelligence or machine-learning models.
     </LegalP>
 
     <LegalH2>Student data, FERPA, and children&rsquo;s privacy</LegalH2>

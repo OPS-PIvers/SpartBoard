@@ -101,6 +101,11 @@ const ActivityWallGalleryView = lazy(() =>
     })
   )
 );
+const PollVoteApp = lazy(() =>
+  import('./components/poll/PollVoteApp').then((module) => ({
+    default: module.PollVoteApp,
+  }))
+);
 const MiniAppStudentApp = lazy(() =>
   import('./components/miniApp/MiniAppStudentApp').then((module) => ({
     default: module.MiniAppStudentApp,
@@ -119,6 +124,16 @@ const StudentLoginPage = lazy(() =>
 const MyAssignmentsPage = lazy(() =>
   import('./components/student/MyAssignmentsPage').then((module) => ({
     default: module.MyAssignmentsPage,
+  }))
+);
+const LandingPage = lazy(() =>
+  import('./components/landing/LandingPage').then((module) => ({
+    default: module.LandingPage,
+  }))
+);
+const RequestRolloutPage = lazy(() =>
+  import('./components/landing/RequestRolloutPage').then((module) => ({
+    default: module.RequestRolloutPage,
   }))
 );
 const LoginScreen = lazy(() =>
@@ -209,12 +224,20 @@ const FullPageLoader = () => (
 const AuthenticatedApp: React.FC<{ isRemote?: boolean }> = ({
   isRemote = false,
 }) => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
   if (!user) {
+    // While the persisted session resolves, show a plain loader so returning
+    // teachers don't get a flash of the marketing page before the dashboard.
+    if (loading) {
+      return <FullPageLoader />;
+    }
+    // Signed-out fork (docs/wide-distro-plan.md Phase 1): the root route gets
+    // the public landing page (sign-in is its hero CTA); the mobile remote
+    // keeps the minimal login screen.
     return (
       <Suspense fallback={<FullPageLoader />}>
-        <LoginScreen />
+        {isRemote ? <LoginScreen /> : <LandingPage />}
       </Suspense>
     );
   }
@@ -387,6 +410,7 @@ const App: React.FC = () => {
     pathname === '/activity' || pathname.startsWith('/activity/');
   const isActivityWallRoute =
     pathname === '/activity-wall' || pathname.startsWith('/activity-wall/');
+  const isPollVoteRoute = pathname === '/poll' || pathname.startsWith('/poll/');
   const isInviteRoute = pathname.startsWith('/invite/');
   const isPlcInviteRoute = pathname.startsWith('/plc-invite/');
   const isStudentLoginRoute =
@@ -441,22 +465,41 @@ const App: React.FC = () => {
 
   // Public legal/support pages. Anonymous, no providers — they must render
   // without sign-in so Google's OAuth consent + Marketplace review can reach
-  // the Privacy Policy / Terms URLs.
+  // the Privacy Policy / Terms URLs. Trailing-slash tolerant because the
+  // prerendered static copies (dist/privacy/index.html etc.) make Firebase
+  // Hosting redirect /privacy → /privacy/ before the SPA boots.
+  const legalPath = pathname.replace(/\/+$/, '');
   if (
-    pathname === '/privacy' ||
-    pathname === '/terms' ||
-    pathname === '/support'
+    legalPath === '/privacy' ||
+    legalPath === '/terms' ||
+    legalPath === '/support'
   ) {
     const LegalPage =
-      pathname === '/privacy'
+      legalPath === '/privacy'
         ? PrivacyPolicyPage
-        : pathname === '/terms'
+        : legalPath === '/terms'
           ? TermsOfServicePage
           : SupportPage;
     return (
       <Suspense fallback={<FullPageLoader />}>
         <LegalPage />
       </Suspense>
+    );
+  }
+
+  // Pilot / district-rollout request form (docs/wide-distro-plan.md Phase 2).
+  // Public route; AuthProvider so signed-in users can submit the form, but no
+  // dashboard providers (the page must stay light and load for anyone).
+  if (legalPath === '/request') {
+    return (
+      <DialogProvider>
+        <AuthProvider>
+          <Suspense fallback={<FullPageLoader />}>
+            <RequestRolloutPage />
+          </Suspense>
+        </AuthProvider>
+        <DialogContainer />
+      </DialogProvider>
     );
   }
 
@@ -617,6 +660,22 @@ const App: React.FC = () => {
           ) : (
             <ActivityWallStudentApp />
           )}
+        </Suspense>
+        <DialogContainer />
+      </DialogProvider>
+    );
+  }
+
+  // Public poll voting route — anonymous entry, no teacher auth needed.
+  // Mirrors the activity-wall branch: DialogProvider + StudentIdleTimeoutGuard
+  // wrap a lazy participant app. The `?data=` payload carries everything the
+  // app needs to render and route the vote.
+  if (isPollVoteRoute) {
+    return (
+      <DialogProvider>
+        <StudentIdleTimeoutGuard />
+        <Suspense fallback={<FullPageLoader />}>
+          <PollVoteApp />
         </Suspense>
         <DialogContainer />
       </DialogProvider>
