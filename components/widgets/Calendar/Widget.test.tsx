@@ -64,6 +64,7 @@ describe('CalendarWidget', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('labels an event as Today using local date, not UTC date (regression: UTC+12 midnight)', () => {
@@ -79,7 +80,7 @@ describe('CalendarWidget', () => {
     //
     // The test environment pins TZ=UTC (tests/setTz.ts), so we mock the three
     // local-time methods on Date.prototype to simulate a UTC+12 local date.
-    // vi.restoreAllMocks() in afterEach is NOT wired up here, so we restore manually.
+    // The prototype spies are restored by vi.restoreAllMocks() in afterEach.
     vi.setSystemTime(new Date('2026-06-14T12:00:00.000Z')); // UTC epoch
 
     vi.spyOn(Date.prototype, 'getFullYear').mockReturnValue(2026);
@@ -97,9 +98,6 @@ describe('CalendarWidget', () => {
     // With the old bug: today = "2026-06-14" (UTC) → event not labeled "Today".
     expect(screen.getByText('Today')).toBeInTheDocument();
     expect(screen.getByText('Class Photo Day')).toBeInTheDocument();
-
-    // Restore prototype spies before next test.
-    vi.restoreAllMocks();
   });
 
   it('re-evaluates the date window when midnight passes without any other dep change', () => {
