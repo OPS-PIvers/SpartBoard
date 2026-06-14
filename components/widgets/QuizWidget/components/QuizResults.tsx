@@ -1233,14 +1233,64 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     }
   };
 
-  // Overflow-menu items. Send to Scoreboard always lives here (decluttered out
-  // of the visible header), gated identically to the old visible button
-  // (`completed.length > 0`). When a Schoology push applies it's the visible
-  // primary action, so it's NOT duplicated here; there is no Classroom-vs-
-  // Schoology overlap (an assignment is one or the other), so the visible
-  // primary push is Classroom when attached, else Schoology — and the overflow
-  // never carries a push that's already visible.
+  // Overflow-menu items. The Sheet/Export family (Export, Re-export solo,
+  // Re-export/Update PLC, Open Sheet) and Send to Scoreboard all live here
+  // (decluttered out of the visible header per the approved design). Each
+  // item keeps the EXACT gate/handler/disabled condition it had as a visible
+  // header button — only the placement changes:
+  //   • Export            — shown when `!exportUrl`; handleExport; disabled
+  //                         while exporting or with zero responses.
+  //   • Re-export (solo)  — gated on `canShowSoloReExport`; handleExport.
+  //   • Re-export/Update  — gated on `canShowUpdateSheet`; handleUpdateSheet
+  //     (PLC)               (smart append-or-rebuild). Informative label.
+  //   • Open Sheet        — shown when `exportUrl` is truthy; opens the sheet
+  //                         in a new tab (was an <a target="_blank"> link).
+  //   • Send to Scoreboard— gated on `completed.length > 0`.
+  // When a Schoology push applies it's the visible primary action, so it's
+  // NOT duplicated here; there is no Classroom-vs-Schoology overlap (an
+  // assignment is one or the other), so the visible primary push is Classroom
+  // when attached, else Schoology — and the overflow never carries a push
+  // that's already visible.
   const overflowItems: OverflowMenuItem[] = [];
+  if (!exportUrl) {
+    overflowItems.push({
+      label: 'Export to Sheets',
+      icon: exporting ? Loader2 : Download,
+      onClick: () => void handleExport(),
+      disabled: exporting || responses.length === 0,
+    });
+  }
+  if (exportUrl) {
+    const sheetUrl = exportUrl;
+    overflowItems.push({
+      label: 'Open Sheet',
+      icon: ExternalLink,
+      onClick: () => window.open(sheetUrl, '_blank', 'noopener,noreferrer'),
+    });
+  }
+  if (canShowSoloReExport) {
+    overflowItems.push({
+      label: 'Re-export sheet (creates a new sheet)',
+      icon: exporting ? Loader2 : RefreshCw,
+      onClick: () => void handleExport(),
+      disabled: exporting,
+    });
+  }
+  if (canShowUpdateSheet) {
+    // Smart re-export: appends new responses when the sheet is behind,
+    // otherwise clears and rewrites the same sheet from scratch. Always
+    // enabled in PLC mode so the teacher always has a path to refresh — the
+    // label tells them which mode the next click will run in.
+    overflowItems.push({
+      label:
+        newResponsesToAppend.length === 0
+          ? 'Re-export sheet (rebuild from scratch)'
+          : `Re-export sheet (${newResponsesToAppend.length} new responses to append)`,
+      icon: updatingSheet ? Loader2 : RefreshCw,
+      onClick: () => void handleUpdateSheet(),
+      disabled: updatingSheet,
+    });
+  }
   if (completed.length > 0) {
     overflowItems.push({
       label: 'Send to Scoreboard',
@@ -1293,66 +1343,6 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
                 disabled={
                   pushingSchoologyGrades || schoologyGrades.length === 0
                 }
-              />
-            )}
-            {exportUrl ? (
-              <>
-                <a
-                  href={exportUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Open Sheet"
-                  className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl font-bold transition-all shadow-sm active:scale-95 bg-emerald-600 hover:bg-emerald-700 text-white"
-                  style={{
-                    paddingInline: 'min(14px, 3cqmin)',
-                    paddingBlock: 'min(8px, 1.8cqmin)',
-                    fontSize: 'min(14px, 4cqmin)',
-                  }}
-                >
-                  <ExternalLink
-                    style={{
-                      width: 'min(16px, 4.5cqmin)',
-                      height: 'min(16px, 4.5cqmin)',
-                    }}
-                    className="shrink-0"
-                  />
-                  <span className="truncate">Open Sheet</span>
-                </a>
-                {canShowSoloReExport && (
-                  <ActionButton
-                    variant="primary"
-                    label="Re-export sheet (creates a new sheet)"
-                    icon={exporting ? Loader2 : RefreshCw}
-                    onClick={() => void handleExport()}
-                    disabled={exporting}
-                  />
-                )}
-                {canShowUpdateSheet && (
-                  // Smart re-export: appends new responses when the sheet is
-                  // behind, otherwise clears and rewrites the same sheet from
-                  // scratch. The button is always enabled in PLC mode so the
-                  // teacher always has a path to refresh — the title/aria hint
-                  // tells them which mode the next click will run in.
-                  <ActionButton
-                    variant="primary"
-                    label={
-                      newResponsesToAppend.length === 0
-                        ? 'Re-export sheet (rebuild from scratch)'
-                        : `Re-export sheet (${newResponsesToAppend.length} new responses to append)`
-                    }
-                    icon={updatingSheet ? Loader2 : RefreshCw}
-                    onClick={() => void handleUpdateSheet()}
-                    disabled={updatingSheet}
-                  />
-                )}
-              </>
-            ) : (
-              <ActionButton
-                variant="primary"
-                label="Export"
-                icon={exporting ? Loader2 : Download}
-                onClick={() => void handleExport()}
-                disabled={exporting || responses.length === 0}
               />
             )}
             {overflowItems.length > 0 && (

@@ -179,7 +179,9 @@ describe('QuizResults — Re-export Sheet 404 regenerate-sheet recovery', () => 
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /re-export sheet/i }));
+    // Re-export Sheet now lives in the overflow menu: open the kebab first.
+    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /re-export sheet/i }));
 
     await waitFor(() => {
       expect(mockExportResultsToSheet).toHaveBeenCalledTimes(2);
@@ -234,7 +236,9 @@ describe('QuizResults — Re-export Sheet rebuild branch (no delta)', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /re-export sheet/i }));
+    // Re-export Sheet now lives in the overflow menu: open the kebab first.
+    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /re-export sheet/i }));
 
     // Rebuild branch fires regeneratePlcSheet, NOT exportResultsToSheet —
     // the latter would append duplicate rows. Verify both: regenerate
