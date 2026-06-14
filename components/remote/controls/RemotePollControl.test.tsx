@@ -139,4 +139,21 @@ describe('RemotePollControl', () => {
     expect(screen.getByTestId('poll-remote-tally-0')).toHaveTextContent('2');
     expect(screen.getByTestId('poll-remote-tally-1')).toHaveTextContent('1');
   });
+
+  it('stops a live session and clears the active id', async () => {
+    const updateWidget = vi.fn();
+    render(
+      <RemotePollControl widget={liveWidget} updateWidget={updateWidget} />
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /stop voting/i }));
+
+    await waitFor(() => expect(mockSetDoc).toHaveBeenCalled());
+    await waitFor(() => {
+      const lastCall = updateWidget.mock.calls[
+        updateWidget.mock.calls.length - 1
+      ] as [string, { config: { activePollSessionId?: unknown } }];
+      expect(lastCall[1].config.activePollSessionId).toBeNull();
+    });
+  });
 });

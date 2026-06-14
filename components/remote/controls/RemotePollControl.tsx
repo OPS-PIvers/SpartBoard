@@ -55,9 +55,8 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
   const [sessionTally, setSessionTally] = useState<number[]>([]);
 
   // Subscribe to the live votes subcollection while a session is active.
-  // When there is no active session this effect is a no-op; tally resets to
-  // its initial [] value naturally when the component re-renders with a new
-  // widget prop (the hook initializer runs fresh for each render cycle).
+  // `options.length` is in the deps, so the effect re-subscribes (with a fresh
+  // closure) if the teacher edits the option count mid-session — no stale count.
   useEffect(() => {
     if (!activePollSessionId || !user) return;
     const sessionId = makePollSessionId(user.uid, activePollSessionId);
@@ -68,7 +67,12 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
         setSessionTally(aggregateVotes(votes, options.length));
       }
     );
-    return unsub;
+    return () => {
+      unsub();
+      // Clear on teardown so a stopped session's tally doesn't flash on the
+      // board when a fresh session starts before its first snapshot arrives.
+      setSessionTally([]);
+    };
   }, [activePollSessionId, user, options.length]);
 
   const joinUrl = useMemo(() => {
@@ -119,8 +123,14 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
   const beginSession = async (mode: 'fresh' | 'resume') => {
     if (!user) return;
     setShowResumePopover(false);
-    const next = await startPollSession(config, user.uid, mode);
-    updateWidget(widget.id, { config: next });
+    try {
+      const next = await startPollSession(config, user.uid, mode);
+      updateWidget(widget.id, { config: next });
+    } catch (err) {
+      // On a flaky phone connection the session write can fail; surface it in
+      // logs rather than silently leaving the teacher thinking voting started.
+      console.error('[RemotePollControl] startPollSession failed:', err);
+    }
   };
 
   const handleStartClick = () => {
@@ -133,8 +143,13 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
 
   const handleStopClick = async () => {
     if (!user) return;
-    const next = await stopPollSession(config, user.uid);
-    updateWidget(widget.id, { config: next });
+    setShowQr(false);
+    try {
+      const next = await stopPollSession(config, user.uid);
+      updateWidget(widget.id, { config: next });
+    } catch (err) {
+      console.error('[RemotePollControl] stopPollSession failed:', err);
+    }
   };
 
   const totalVotes = options.reduce((s, o) => s + (o.votes ?? 0), 0);
@@ -187,7 +202,8 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
             </div>
             <button
               onClick={() => setShowResumePopover(false)}
-              className="text-white/40 hover:text-white/70 text-xs font-semibold"
+              style={{ touchAction: 'manipulation' }}
+              className="touch-manipulation py-2 text-white/40 hover:text-white/70 text-xs font-semibold"
             >
               Cancel
             </button>
