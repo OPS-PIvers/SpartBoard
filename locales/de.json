@@ -970,7 +970,7 @@
     "dndFailed": "Verschieben fehlgeschlagen – bitte erneut versuchen",
     "bulkDeleteSuccess": "{{count}} Element(e) gelöscht",
     "bulkPinSuccess": "{{count}} Board(s) angeheftet",
-    "bulkUnpinSuccess": "{{count}} Board(s) abgeheftet",
+    "bulkUnpinSuccess": "{{count}} Board(s) entpinnt",
     "bulkMoveSuccess": "{{count}} Board(s) verschoben",
     "bulkPartialFailure": "{{succeeded}} Element(e) aktualisiert – {{failed}} fehlgeschlagen",
     "bulkAllFailed": "Keine Elemente konnten aktualisiert werden – bitte erneut versuchen",
