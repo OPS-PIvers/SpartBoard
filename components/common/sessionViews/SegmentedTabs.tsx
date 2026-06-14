@@ -19,6 +19,14 @@ interface SegmentedTabsProps<K extends string = string> {
   /** Accessible name for the tablist — required so multiple tab controls on a
    *  page are distinguishable (WCAG 4.1.2). */
   ariaLabel: string;
+  /**
+   * When set, each tab gets `id="{panelIdPrefix}-tab-{key}"` +
+   * `aria-controls="{panelIdPrefix}-panel-{key}"`. The caller must render the
+   * active panel with `id="{panelIdPrefix}-panel-{value}"` +
+   * `aria-labelledby="{panelIdPrefix}-tab-{value}"` to complete the ARIA tabs
+   * linkage. Use a per-instance prefix (e.g. React `useId()`).
+   */
+  panelIdPrefix?: string;
 }
 
 /**
@@ -31,6 +39,7 @@ export function SegmentedTabs<K extends string = string>({
   onChange,
   labelsHidden = false,
   ariaLabel,
+  panelIdPrefix,
 }: SegmentedTabsProps<K>): React.ReactElement {
   return (
     <nav
@@ -46,7 +55,11 @@ export function SegmentedTabs<K extends string = string>({
             key={key}
             type="button"
             role="tab"
+            id={panelIdPrefix ? `${panelIdPrefix}-tab-${key}` : undefined}
             aria-selected={selected}
+            aria-controls={
+              panelIdPrefix ? `${panelIdPrefix}-panel-${key}` : undefined
+            }
             aria-label={label}
             title={labelsHidden ? label : undefined}
             onClick={() => onChange(key)}

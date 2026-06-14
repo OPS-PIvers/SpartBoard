@@ -10,6 +10,7 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useId,
 } from 'react';
 import {
   Download,
@@ -304,6 +305,9 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   const [activeTab, setActiveTab] = useState<
     'overview' | 'questions' | 'students' | 'plc'
   >('overview');
+  // Per-instance prefix for the ARIA tab↔panel linkage (multiple quiz widgets
+  // can render on one dashboard).
+  const tabPanelId = useId();
   const [showScoreboardPrompt, setShowScoreboardPrompt] = useState(false);
   const scoreboardPromptRef = useRef<HTMLDivElement>(null);
 
@@ -1525,6 +1529,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           >
             <SegmentedTabs
               ariaLabel="Quiz results sections"
+              panelIdPrefix={tabPanelId}
               value={activeTab}
               onChange={setActiveTab}
               tabs={[
@@ -1551,7 +1556,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
 
           <div
             role="tabpanel"
-            aria-label={`${activeTab} results`}
+            id={`${tabPanelId}-panel-${activeTab}`}
+            aria-labelledby={`${tabPanelId}-tab-${activeTab}`}
             className="flex-1 overflow-y-auto custom-scrollbar"
             style={{ padding: 'min(16px, 4cqmin)' }}
           >

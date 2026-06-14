@@ -3,7 +3,7 @@
  * Adapted from QuizResults. Shows per-student scores and per-question accuracy.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import {
   Download,
   ExternalLink,
@@ -135,6 +135,8 @@ export const Results: React.FC<ResultsProps> = ({
   const [activeTab, setActiveTab] = useState<
     'overview' | 'questions' | 'students'
   >('overview');
+  // Per-instance prefix for the ARIA tab↔panel linkage.
+  const tabPanelId = useId();
 
   const questions = session.questions;
   const totalStudents = responses.length;
@@ -525,6 +527,7 @@ export const Results: React.FC<ResultsProps> = ({
       >
         <SegmentedTabs
           ariaLabel="Video activity results sections"
+          panelIdPrefix={tabPanelId}
           value={activeTab}
           onChange={setActiveTab}
           tabs={[
@@ -549,7 +552,8 @@ export const Results: React.FC<ResultsProps> = ({
       {/* Tab content */}
       <div
         role="tabpanel"
-        aria-label={`${activeTab} results`}
+        id={`${tabPanelId}-panel-${activeTab}`}
+        aria-labelledby={`${tabPanelId}-tab-${activeTab}`}
         className="flex-1 overflow-y-auto custom-scrollbar"
         style={{ padding: 'min(14px, 3.5cqmin)' }}
       >

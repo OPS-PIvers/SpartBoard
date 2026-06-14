@@ -62,4 +62,19 @@ describe('SegmentedTabs', () => {
     expect(screen.queryByText('Overview')).toBeNull();
     expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument();
   });
+
+  it('wires id + aria-controls when panelIdPrefix is set', () => {
+    render(
+      <SegmentedTabs
+        tabs={TABS}
+        value="overview"
+        onChange={vi.fn()}
+        ariaLabel="Sections"
+        panelIdPrefix="qr"
+      />
+    );
+    const tab = screen.getByRole('tab', { name: 'Overview' });
+    expect(tab).toHaveAttribute('id', 'qr-tab-overview');
+    expect(tab).toHaveAttribute('aria-controls', 'qr-panel-overview');
+  });
 });
