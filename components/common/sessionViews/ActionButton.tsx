@@ -1,4 +1,5 @@
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 interface ActionButtonProps {
@@ -8,6 +9,8 @@ interface ActionButtonProps {
   onClick: () => void;
   disabled?: boolean;
   disabledReason?: string;
+  /** Show a spinner in place of the icon while an async operation is in flight. */
+  loading?: boolean;
   /** Collapse to icon-only (tooltip shows the label). */
   labelHidden?: boolean;
 }
@@ -30,6 +33,7 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
   onClick,
   disabled = false,
   disabledReason,
+  loading = false,
   labelHidden = false,
 }) => (
   <button
@@ -47,11 +51,21 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
       height: labelHidden ? 'min(36px, 10cqmin)' : undefined,
     }}
   >
-    {Icon && (
-      <Icon
+    {loading ? (
+      <Loader2
         style={{ width: 'min(16px, 4.5cqmin)', height: 'min(16px, 4.5cqmin)' }}
-        className="shrink-0"
+        className="shrink-0 animate-spin"
       />
+    ) : (
+      Icon && (
+        <Icon
+          style={{
+            width: 'min(16px, 4.5cqmin)',
+            height: 'min(16px, 4.5cqmin)',
+          }}
+          className="shrink-0"
+        />
+      )
     )}
     {!labelHidden && <span className="truncate">{label}</span>}
   </button>

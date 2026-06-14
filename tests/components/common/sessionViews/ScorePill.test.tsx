@@ -29,4 +29,17 @@ describe('ScorePill', () => {
     expect(pill).toHaveTextContent('1200');
     expect(pill.className).toContain('text-brand-blue-dark');
   });
+
+  it('appends the suffix to the value (e.g. gamified points)', () => {
+    render(
+      <ScorePill
+        score={0}
+        display="percent"
+        gamified
+        points={247}
+        suffix=" pts"
+      />
+    );
+    expect(screen.getByTestId('score-pill')).toHaveTextContent('247 pts');
+  });
 });

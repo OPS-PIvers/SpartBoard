@@ -984,6 +984,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                 icon={session.status === 'paused' ? Play : Pause}
                 onClick={() => void handleTogglePause()}
                 disabled={toggling}
+                loading={toggling}
               />
             )}
             {showScoreboardControl && (
@@ -1016,6 +1017,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
               icon={Square}
               onClick={() => void handleEnd()}
               disabled={ending}
+              loading={ending}
             />
           </>
         }
@@ -2581,6 +2583,7 @@ const StudentRow: React.FC<{
           display="percent"
           gamified={isGamified}
           points={displayScore}
+          suffix={isGamified ? ' pts' : undefined}
         />
       );
     }

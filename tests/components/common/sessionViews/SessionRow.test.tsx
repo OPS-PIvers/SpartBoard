@@ -36,4 +36,30 @@ describe('SessionRow', () => {
     fireEvent.click(screen.getByTestId('session-row'));
     expect(onClick).toHaveBeenCalled();
   });
+
+  it('is keyboard-activatable (role/tabindex + Enter/Space) when onClick is set', () => {
+    const onClick = vi.fn();
+    render(
+      <SessionRow onClick={onClick}>
+        <span>x</span>
+      </SessionRow>
+    );
+    const row = screen.getByTestId('session-row');
+    expect(row).toHaveAttribute('role', 'button');
+    expect(row).toHaveAttribute('tabindex', '0');
+    fireEvent.keyDown(row, { key: 'Enter' });
+    fireEvent.keyDown(row, { key: ' ' });
+    expect(onClick).toHaveBeenCalledTimes(2);
+  });
+
+  it('is not interactive (no role/tabindex) without onClick', () => {
+    render(
+      <SessionRow>
+        <span>x</span>
+      </SessionRow>
+    );
+    const row = screen.getByTestId('session-row');
+    expect(row).not.toHaveAttribute('role');
+    expect(row).not.toHaveAttribute('tabindex');
+  });
 });

@@ -13,6 +13,8 @@ interface ScorePillProps {
   gamified?: boolean;
   /** Raw points to show when gamified. */
   points?: number;
+  /** Optional unit suffix appended to the value (e.g. ' pts' for gamified points). */
+  suffix?: string;
 }
 
 /**
@@ -27,6 +29,7 @@ export const ScorePill: React.FC<ScorePillProps> = ({
   total,
   gamified = false,
   points,
+  suffix,
 }) => {
   if (display === 'hidden') return null;
   const colorClass = gamified
@@ -38,6 +41,7 @@ export const ScorePill: React.FC<ScorePillProps> = ({
   if (gamified) text = `${points ?? 0}`;
   else if (display === 'count') text = `${count ?? 0}/${total ?? 0}`;
   else text = `${Math.round(score)}%`;
+  if (suffix) text += suffix;
   return (
     <span
       data-testid="score-pill"

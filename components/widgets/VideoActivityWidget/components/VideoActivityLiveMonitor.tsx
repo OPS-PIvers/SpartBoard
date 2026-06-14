@@ -486,6 +486,7 @@ export const VideoActivityLiveMonitor: React.FC<
                 icon={isLive ? Pause : Play}
                 onClick={() => void handleTogglePause()}
                 disabled={toggling}
+                loading={toggling}
               />
             )}
             <ActionButton
@@ -494,6 +495,7 @@ export const VideoActivityLiveMonitor: React.FC<
               icon={Square}
               onClick={() => void handleEnd()}
               disabled={ending}
+              loading={ending}
             />
           </>
         }

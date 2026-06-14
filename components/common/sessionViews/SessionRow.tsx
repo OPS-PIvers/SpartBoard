@@ -45,6 +45,18 @@ export const SessionRow: React.FC<SessionRowProps> = ({
     <div
       data-testid="session-row"
       onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
       className={`flex items-center border-b border-slate-200/60 last:border-b-0 rounded-lg transition-colors ${
         tintTone ? TINT[tintTone] : 'hover:bg-white/60'
       } ${onClick ? 'cursor-pointer' : ''}`}

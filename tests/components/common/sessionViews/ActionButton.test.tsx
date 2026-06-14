@@ -43,4 +43,19 @@ describe('ActionButton', () => {
       screen.getByRole('button', { name: 'Scoreboard' })
     ).toBeInTheDocument();
   });
+
+  it('shows a spinner in place of the icon when loading', () => {
+    const { container } = render(
+      <ActionButton
+        variant="danger"
+        label="End"
+        icon={Play}
+        onClick={vi.fn()}
+        loading
+      />
+    );
+    // Spinner present, accessible name preserved.
+    expect(container.querySelector('.animate-spin')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'End' })).toBeInTheDocument();
+  });
 });
