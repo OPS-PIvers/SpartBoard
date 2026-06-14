@@ -1,13 +1,10 @@
 /**
  * Support — public page at /support.
- *
- * Confirm the support contact (currently support@spartboard.app) and any
- * District-specific help channel before publishing.
  */
 import React from 'react';
 import { LegalPageLayout, LegalH2, LegalP, LegalList } from './LegalPageLayout';
 
-const SUPPORT_EMAIL = 'support@spartboard.app';
+const SUPPORT_EMAIL = 'spartboard@orono.k12.mn.us';
 
 export const SupportPage: React.FC = () => (
   <LegalPageLayout title="Support" lastUpdated="May 29, 2026">

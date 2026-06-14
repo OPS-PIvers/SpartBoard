@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-11_
+_Last audited: 2026-06-14_
 _Last action: never_
 
 ---
@@ -15,6 +15,12 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-14. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Rebased onto dev-paul: Remote v2 series (useRemoteConnection hook, RemoteActivityWallControl, RemoteEmbedControl, live-sync, immediate-write fast-path, board-name navigation, review-fixes), [AI] Phase 3b wide-distro anonymous-join gating (utils/userTier.ts, GlobalPermissionsManager, ActivityWall/Widget.tsx, config/featureDefaults.ts), fix(state) normalizeActivityWallLibraryEntry extraction (utils/activityWallNormalize.ts, hooks/useActivityWallLibrary.ts), fix(widgets) CalendarWidget midnight staleness (logic-only refactor), fix(lti) contextId privacy-strip, fix(i18n) TimeTool Stations strings, fix(keyboard) Alt+P CapsLock guard, action(css-scaling) ActivityWall checkbox cqmin. All new and modified code type-safe and lint-clean._
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-13. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Rebased onto dev-paul: pr-review batch 12 PRs reviewed/5 fixes pushed, refactor(admin-config) shared isCardOpacity guard in adminBuildingConfig.ts, audit(friday) journal updates, [AI] wide-distro phases 1-3 (tiering/landing page/rollout), [AI] legal pages, [AI] drop restricted OAuth scopes. All new and modified code type-safe and lint-clean._
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-12. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Rebased onto dev-paul: docs(unifier) run 13 memory log, D4 cross-dir relative imports → @/ alias in tests/, chore(perf) refresh performance baseline timestamps, fix(layout) remove duplicate Alt+Delete handler from DraggableWindow, docs(debugger) nightly run 14 log. All new and modified code type-safe and lint-clean._
 
 _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-11. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Rebased onto dev-paul: ui(library) modernize unified library/in-progress/archive views, test(hooks) cover useVideoActivitySessionTeacher (27 tests), fix(stores) consumeLaunchCode null coalescing, fix(i18n) seatingChart DE/ES/FR, fix(export) dedup buildResultsSheetData, fix(DashboardView) groupBuildMode Escape guard, perf(dashboard) DashboardContext split — stable actions + canvas hot-state store. The DashboardContext split is the most significant structural change; all new context code is fully type-safe and lint-clean._
 

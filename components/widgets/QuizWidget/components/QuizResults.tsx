@@ -246,7 +246,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
 }) => {
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
-  const { googleAccessToken, user, orgId } = useAuth();
+  const { googleAccessToken, user, orgId, canAccessFeature } = useAuth();
   const { showConfirm } = useDialog();
   const { plcs, clearPlcSharedSheetUrl, setPlcSharedSheetUrl } = usePlcs();
   const [exporting, setExporting] = useState(false);
@@ -1358,37 +1358,40 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
             )}
           </div>
         )}
-        {classroomAttachments.length > 0 && (
-          <button
-            onClick={() => void handlePushGrades()}
-            disabled={pushingGrades}
-            className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-md active:scale-95 shrink-0"
-            style={{
-              gap: 'min(6px, 1.5cqmin)',
-              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-              fontSize: 'min(11px, 3.5cqmin)',
-            }}
-            title="Write draft grades to this assignment's Google Classroom gradebook (matches the quiz score exactly)."
-          >
-            {pushingGrades ? (
-              <Loader2
-                className="animate-spin"
-                style={{
-                  width: 'min(14px, 4cqmin)',
-                  height: 'min(14px, 4cqmin)',
-                }}
-              />
-            ) : (
-              <GraduationCap
-                style={{
-                  width: 'min(14px, 4cqmin)',
-                  height: 'min(14px, 4cqmin)',
-                }}
-              />
-            )}
-            PUSH GRADES
-          </button>
-        )}
+        {/* Admin-managed `google-classroom` gate hides the draft grade-push
+            entry point for users below the doc's minTier. */}
+        {classroomAttachments.length > 0 &&
+          canAccessFeature('google-classroom') && (
+            <button
+              onClick={() => void handlePushGrades()}
+              disabled={pushingGrades}
+              className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-md active:scale-95 shrink-0"
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                fontSize: 'min(11px, 3.5cqmin)',
+              }}
+              title="Write draft grades to this assignment's Google Classroom gradebook (matches the quiz score exactly)."
+            >
+              {pushingGrades ? (
+                <Loader2
+                  className="animate-spin"
+                  style={{
+                    width: 'min(14px, 4cqmin)',
+                    height: 'min(14px, 4cqmin)',
+                  }}
+                />
+              ) : (
+                <GraduationCap
+                  style={{
+                    width: 'min(14px, 4cqmin)',
+                    height: 'min(14px, 4cqmin)',
+                  }}
+                />
+              )}
+              PUSH GRADES
+            </button>
+          )}
         {ltiAttachment && (
           <button
             onClick={() => void handlePushSchoologyGrades()}

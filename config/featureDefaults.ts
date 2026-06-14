@@ -141,4 +141,21 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: false,
     missingDocPublic: false,
   },
+  // Default-public matches the historical missing-doc convention; the
+  // intended restriction is an admin-created doc with `minTier:
+  // 'internal'` (docs/wide-distro-plan.md Phase 3), not a default-off.
+  'google-classroom': {
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
+  },
+  // Default-public preserves today's behavior: every teacher keeps the
+  // no-sign-in (anonymous) join link until an admin creates a restricting
+  // doc (docs/wide-distro-plan.md Phase 3b). Gates the TEACHER's ability to
+  // offer the link, not the participant join experience.
+  'anonymous-join': {
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
+  },
 };

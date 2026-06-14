@@ -308,10 +308,20 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
           });
         })
         .catch((err: unknown) => {
+          // The token only covers files the app created or the user picked
+          // (drive.file scope), so pasted Drive links can 403 here. Fall back
+          // to the public download URL, which works for link-shared files.
           console.error(
-            `[Soundboard] Failed to fetch Drive audio ${sound.id}:`,
+            `[Soundboard] Failed to fetch Drive audio ${sound.id}, falling back to public URL:`,
             err
           );
+          const audio = new Audio(normalizeSoundboardAudioUrl(url));
+          void audio.play().catch((playErr: unknown) => {
+            console.error(
+              `[Soundboard] Failed to play sound ${sound.id}:`,
+              playErr
+            );
+          });
         });
     } else {
       // Non-Drive URL, or no token available — fall back to direct URL.

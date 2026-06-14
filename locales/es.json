@@ -1,4 +1,15 @@
 {
+  "remote": {
+    "status": {
+      "connected": "Conectado",
+      "reconnecting": "Reconectando…"
+    },
+    "boardPicker": {
+      "title": "Tableros",
+      "switch": "Cambiar de tablero",
+      "close": "Cerrar"
+    }
+  },
   "common": {
     "cancel": "Cancelar",
     "save": "Guardar",
@@ -728,6 +739,10 @@
       "addRandomizerTip": "Añade un widget de Aleatorizador para seleccionar automáticamente al siguiente alumno cuando termine el temporizador.",
       "autoPickNext": "Seleccionar el siguiente automáticamente",
       "triggerRandomizerWhenTimerEnds": "Activar aleatorizador al terminar el temporizador",
+      "autoRotateStations": "Rotar estaciones automáticamente",
+      "addStationsTip": "Añade un widget de Estaciones para rotar automáticamente a los alumnos cuando termine este temporizador.",
+      "rotateStationsClockwise": "Rotar estaciones en sentido horario",
+      "rotateStationsOnEnd": "Mover a cada alumno una estación cuando termine el temporizador",
       "autoAdvanceNextUpQueue": "Avanzar cola automáticamente",
       "addNextUpTip": "¡Añade un widget de «Siguiente» para avanzar automáticamente al siguiente alumno cuando termine el temporizador!",
       "autoAdvanceNext": "Avanzar automáticamente",
@@ -1063,7 +1078,7 @@
     "customGradient": "Degradado personalizado",
     "applied": "Aplicado",
     "apply": "Aplicar",
-    "favoriteSaveFailed": "Could not save favorite. Please try again.",
+    "favoriteSaveFailed": "No se pudo guardar el favorito. Por favor, inténtalo de nuevo.",
     "typeAll": "All",
     "typeStill": "Stills",
     "typeVideo": "Video",
@@ -1075,7 +1090,7 @@
     "directionDownRight": "Down-Right",
     "directionDown": "Down",
     "directionDownLeft": "Down-Left",
-    "uploadFailed": "Upload failed. Check your connection and try again."
+    "uploadFailed": "Error al subir. Comprueba tu conexión e inténtalo de nuevo."
   },
   "quickAccess": {
     "title": "Widgets de acceso rápido",
@@ -1083,7 +1098,7 @@
     "emptyResults": "No hay widgets que coincidan."
   },
   "style": {
-    "readOnlyNotice": "This board is read-only. Style changes are not saved."
+    "readOnlyNotice": "Este tablero es de solo lectura. Los cambios de estilo no se guardan."
   },
   "whatsNew": {
     "title": "Novedades",

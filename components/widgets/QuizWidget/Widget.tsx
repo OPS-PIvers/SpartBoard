@@ -122,6 +122,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     isAdmin,
     googleAccessToken,
     orgId,
+    canAccessFeature,
     getAssignmentMode,
     appSettings,
     updateAppSettings,
@@ -243,10 +244,14 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     classlinkClassIds?: string[];
   } | null>(null);
   // "Assign to Google Classroom" visibility: master flag, restricted to admins
-  // during the staged Spike-A rollout (CLASSROOM_ASSIGN_ADMIN_ONLY).
+  // during the staged Spike-A rollout (CLASSROOM_ASSIGN_ADMIN_ONLY). The
+  // hardcoded constants stay (they document the Marketplace-scope rollout
+  // interlocks); the admin-managed `google-classroom` permission doc is
+  // ANDed in on top — e.g. `minTier: 'internal'` keeps the flow staff-only.
   const canAssignToClassroom =
     CLASSROOM_ASSIGN_ENABLED &&
-    (!CLASSROOM_ASSIGN_ADMIN_ONLY || isAdmin === true);
+    (!CLASSROOM_ASSIGN_ADMIN_ONLY || isAdmin === true) &&
+    canAccessFeature('google-classroom');
 
   // Local state for views that need loaded data
   const [loadedQuizData, setLoadedQuizData] = useState<QuizData | null>(null);

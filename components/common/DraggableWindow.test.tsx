@@ -1091,4 +1091,85 @@ describe('DraggableWindow', () => {
       fireEvent.pointerUp(seHandle, { pointerId: 1 });
     });
   });
+
+  // Regression: pressing Escape while editing a widget title should discard
+  // the in-progress edit and NOT save the typed text to Firestore.
+  //
+  // Root cause: the title input's onKeyDown handler called
+  //   setTempTitle(revertedValue); setIsEditingTitle(false);
+  // React batches these, re-renders, and commits — unmounting the input.
+  // Unmounting fires onBlur, which calls saveTitle(). But saveTitle is a
+  // useCallback that closed over the *old* tempTitle (the typed text, before
+  // setTempTitle reverted it). So the old stale typed value was persisted via
+  // updateWidget even though the user pressed Escape to cancel.
+  //
+  // Fix: the Escape branch must prevent the onBlur from saving. The correct
+  // approach is to call e.preventDefault() in the Escape onKeyDown handler
+  // so the browser does not fire blur, then do the state cleanup ourselves —
+  // OR (the approach taken) call `setIsEditingTitle(false)` only after having
+  // set a ref that saveTitle checks before persisting, so the stale onBlur
+  // becomes a no-op.
+  it('does NOT save the typed text when Escape is pressed while editing the widget title', async () => {
+    // Regression: pressing Escape in the title input should discard the edit.
+    //
+    // Root cause: the onKeyDown Escape handler called
+    //   setTempTitle(revertedValue); setIsEditingTitle(false);
+    // React batched these, re-rendered (removing the input from the VDOM), then
+    // committed — unmounting the input DOM node. In a real browser, unmounting
+    // fires a blur event on the focused input synchronously during the commit,
+    // while the element is still being removed. The input's onBlur prop at that
+    // moment is still the OLD saveTitle (from before the batch was committed),
+    // which closed over the typed (not-yet-reverted) tempTitle. So the old
+    // stale typed value was persisted via updateWidget even though the user
+    // pressed Escape to cancel.
+    //
+    // jsdom does not fire blur during DOM unmount the same way browsers do,
+    // so we replicate the browser behaviour by firing blur on the input
+    // BEFORE React flushes (i.e., inside the same act() that presses Escape,
+    // but before the commit). We do this by using act() with manual React
+    // batching: fire keyDown (which schedules state updates), then immediately
+    // fire blur while the input is still mounted — matching the order the
+    // browser's focus manager would produce.
+
+    // Pass test-widget as selected so the floating toolbar (and title) shows
+    renderComponent({}, <div>Content</div>, <div>Settings</div>, 'test-widget');
+
+    // Click the title span to enter edit mode
+    const titleEl = screen.getByText('Test Widget');
+    fireEvent.click(titleEl);
+
+    // Verify the input appeared
+    const input = screen.getByDisplayValue('Test Widget');
+    expect(input).toBeInTheDocument();
+
+    // Type something new
+    fireEvent.change(input, { target: { value: 'Cancelled Title' } });
+    expect(screen.getByDisplayValue('Cancelled Title')).toBeInTheDocument();
+
+    // Simulate the browser's Escape-then-blur sequence inside a single act()
+    // so React processes them in order before flushing:
+    //   1. keyDown schedules setTempTitle(revert) + setIsEditingTitle(false)
+    //   2. blur fires (still in same synchronous sequence, before React commits)
+    //      → calls the stale saveTitle(tempTitle='Cancelled Title')
+    act(() => {
+      fireEvent.keyDown(input, { key: 'Escape', bubbles: true });
+      // Blur fires synchronously while the input is still in the DOM
+      // (React has queued state updates but not yet committed)
+      fireEvent.blur(input);
+    });
+
+    // The input should be gone (editing exited)
+    await waitFor(() => {
+      expect(
+        screen.queryByDisplayValue('Cancelled Title')
+      ).not.toBeInTheDocument();
+    });
+
+    // CRITICAL: updateWidget must NOT have been called with the typed title.
+    // If it was, the stale-closure onBlur bug fired and saved the cancelled edit.
+    expect(mockUpdateWidget).not.toHaveBeenCalledWith(
+      'test-widget',
+      expect.objectContaining({ customTitle: 'Cancelled Title' })
+    );
+  });
 });

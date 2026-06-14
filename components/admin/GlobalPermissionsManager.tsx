@@ -43,6 +43,7 @@ import {
   ListChecks,
   PlayCircle,
   Music2,
+  Link2,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -51,6 +52,7 @@ import { logError } from '@/utils/logError';
 import { Toggle } from '@/components/common/Toggle';
 import { Toast } from '@/components/common/Toast';
 import { PermissionBuildingMultiSelect } from '@/components/admin/PermissionBuildingMultiSelect';
+import { MinTierSelect } from '@/components/admin/MinTierSelect';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
 
 const GLOBAL_FEATURES: {
@@ -137,11 +139,25 @@ const GLOBAL_FEATURES: {
       'Show "N views" on view-only Share cards in the Quiz, Video Activity, Mini App, and Guided Learning archives. Each visible card fires a Firestore aggregation query when the dashboard tab regains focus — keep this Admin-only unless you specifically want every teacher to see open counts.',
   },
   {
+    id: 'google-classroom',
+    label: 'Google Classroom integration',
+    icon: Send,
+    description:
+      'Assign quizzes/video activities to Google Classroom and push draft/final grades. Restrict with Minimum tier = Internal to keep the Google-API-backed flows staff-only.',
+  },
+  {
     id: 'personal-spotify',
     label: 'Personal Spotify',
     icon: Music2,
     description:
       'Let teachers connect their personal Spotify account in the Music widget. When off, Music shows only curated stations.',
+  },
+  {
+    id: 'anonymous-join',
+    label: 'Anonymous join links (no sign-in)',
+    icon: Link2,
+    description:
+      "Controls which teachers can offer the no-sign-in join URL for activities. Restrict by access level, beta users, building, or minimum tier. Participants' join experience is unaffected.",
   },
 ];
 
@@ -554,7 +570,13 @@ export const GlobalPermissionsManager: React.FC = () => {
       setSaving((prev) => new Set(prev).add(featureId));
       const permission = getPermission(featureId);
 
-      await setDoc(doc(db, 'global_permissions', featureId), permission);
+      // Firestore rejects explicit `undefined` values; "no minimum tier"
+      // is modeled as an absent field, so strip it before persisting.
+      const { minTier, ...withoutMinTier } = permission;
+      await setDoc(
+        doc(db, 'global_permissions', featureId),
+        minTier === undefined ? withoutMinTier : permission
+      );
 
       // Audit log for model config changes
       if (
@@ -1176,6 +1198,16 @@ export const GlobalPermissionsManager: React.FC = () => {
                     />
                   </div>
 
+                  {/* Minimum Tier */}
+                  <div className="border-t border-slate-100 bg-slate-50 p-4">
+                    <MinTierSelect
+                      value={permission.minTier}
+                      onChange={(minTier) =>
+                        updatePermission(feature.id, { minTier })
+                      }
+                    />
+                  </div>
+
                   {/* Beta Users Panel */}
                   {permission.accessLevel === 'beta' && (
                     <div className="border-t border-slate-100 bg-slate-50 p-4 text-left">
@@ -1462,6 +1494,16 @@ export const GlobalPermissionsManager: React.FC = () => {
                     selectedIds={permission.buildings ?? []}
                     onChange={(buildings) =>
                       updatePermission(feature.id, { buildings })
+                    }
+                  />
+                </div>
+
+                {/* Minimum Tier */}
+                <div className="mb-6">
+                  <MinTierSelect
+                    value={permission.minTier}
+                    onChange={(minTier) =>
+                      updatePermission(feature.id, { minTier })
                     }
                   />
                 </div>

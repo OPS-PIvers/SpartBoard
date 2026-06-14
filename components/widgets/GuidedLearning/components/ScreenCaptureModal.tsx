@@ -114,17 +114,27 @@ export const ScreenCaptureModal: React.FC<Props> = ({
     };
   }, []);
 
+  // `onClose` is typically an inline lambda (`() => setCaptureMode(null)`),
+  // so it gets a fresh identity on every parent render — including each
+  // uploadProgress tick while the modal is open. Mirror it into a ref and
+  // read that inside the handler so the keydown listener below stays stable
+  // instead of tearing down/re-adding on every update.
+  const onCloseRef = useRef(onClose);
+  // Keep the ref in sync with the prop in the render body (per repo convention)
+  // rather than in an effect, so the keydown handler never reads a stale closure.
+  onCloseRef.current = onClose;
+
   // Escape closes the modal (standard modal affordance). Skipped while a
   // recording is in flight so a stray Escape can't silently discard it.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || recording) return;
       e.stopPropagation();
-      onClose();
+      onCloseRef.current();
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [recording, onClose]);
+  }, [recording]);
 
   // Recording duration ticker.
   useEffect(() => {

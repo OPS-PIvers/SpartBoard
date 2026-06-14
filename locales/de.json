@@ -1,4 +1,15 @@
 {
+  "remote": {
+    "status": {
+      "connected": "Verbunden",
+      "reconnecting": "Wird neu verbunden…"
+    },
+    "boardPicker": {
+      "title": "Boards",
+      "switch": "Board wechseln",
+      "close": "Schließen"
+    }
+  },
   "common": {
     "cancel": "Abbrechen",
     "save": "Speichern",
@@ -889,6 +900,10 @@
       "addRandomizerTip": "Füge ein Zufallsgenerator-Widget hinzu, um beim Timer-Ende automatisch den nächsten Schüler auszuwählen.",
       "autoPickNext": "Nächsten automatisch auswählen",
       "triggerRandomizerWhenTimerEnds": "Zufallsgenerator beim Timer-Ende auslösen",
+      "autoRotateStations": "Stationen automatisch rotieren",
+      "addStationsTip": "Füge ein Stationen-Widget hinzu, um Schüler automatisch zu rotieren, wenn dieser Timer endet.",
+      "rotateStationsClockwise": "Stationen im Uhrzeigersinn rotieren",
+      "rotateStationsOnEnd": "Jeden Schüler eine Station weiterrücken, wenn der Timer endet",
       "autoAdvanceNextUpQueue": "Nächste-Warteschlange automatisch vorrücken",
       "addNextUpTip": "Füge ein \"Nächster\"-Widget hinzu, um beim Timer-Ende automatisch zum nächsten Schüler zu wechseln!",
       "autoAdvanceNext": "Automatisch weiter",
@@ -1063,7 +1078,7 @@
     "customGradient": "Benutzerdefinierter Verlauf",
     "applied": "Angewendet",
     "apply": "Anwenden",
-    "favoriteSaveFailed": "Could not save favorite. Please try again.",
+    "favoriteSaveFailed": "Favorit konnte nicht gespeichert werden. Bitte erneut versuchen.",
     "typeAll": "All",
     "typeStill": "Stills",
     "typeVideo": "Video",
@@ -1075,7 +1090,7 @@
     "directionDownRight": "Down-Right",
     "directionDown": "Down",
     "directionDownLeft": "Down-Left",
-    "uploadFailed": "Upload failed. Check your connection and try again."
+    "uploadFailed": "Upload fehlgeschlagen. Bitte Verbindung prüfen und erneut versuchen."
   },
   "quickAccess": {
     "title": "Schnellzugriff-Widgets",
@@ -1083,7 +1098,7 @@
     "emptyResults": "Keine passenden Widgets."
   },
   "style": {
-    "readOnlyNotice": "This board is read-only. Style changes are not saved."
+    "readOnlyNotice": "Dieses Board ist schreibgeschützt. Stiländerungen werden nicht gespeichert."
   },
   "whatsNew": {
     "title": "Was ist neu",

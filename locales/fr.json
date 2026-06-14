@@ -1,4 +1,15 @@
 {
+  "remote": {
+    "status": {
+      "connected": "Connecté",
+      "reconnecting": "Reconnexion…"
+    },
+    "boardPicker": {
+      "title": "Tableaux",
+      "switch": "Changer de tableau",
+      "close": "Fermer"
+    }
+  },
   "common": {
     "cancel": "Annuler",
     "save": "Enregistrer",
@@ -889,6 +900,10 @@
       "addRandomizerTip": "Ajoutez un widget Randomiseur pour sélectionner automatiquement l'élève suivant à la fin du minuteur.",
       "autoPickNext": "Sélectionner le suivant automatiquement",
       "triggerRandomizerWhenTimerEnds": "Déclencher le Randomiseur à la fin du minuteur",
+      "autoRotateStations": "Rotation automatique des stations",
+      "addStationsTip": "Ajoutez un widget Stations pour effectuer une rotation automatique des élèves à la fin du minuteur.",
+      "rotateStationsClockwise": "Faire tourner les stations dans le sens horaire",
+      "rotateStationsOnEnd": "Déplacer chaque élève d'une station à la fin du minuteur",
       "autoAdvanceNextUpQueue": "Avancer automatiquement la file d'attente",
       "addNextUpTip": "Ajoutez un widget « Suivant » pour passer automatiquement à l'élève suivant à la fin du minuteur !",
       "autoAdvanceNext": "Avancer automatiquement",
@@ -1063,7 +1078,7 @@
     "customGradient": "Dégradé personnalisé",
     "applied": "Appliqué",
     "apply": "Appliquer",
-    "favoriteSaveFailed": "Could not save favorite. Please try again.",
+    "favoriteSaveFailed": "Impossible d'enregistrer le favori. Veuillez réessayer.",
     "typeAll": "All",
     "typeStill": "Stills",
     "typeVideo": "Video",
@@ -1075,7 +1090,7 @@
     "directionDownRight": "Down-Right",
     "directionDown": "Down",
     "directionDownLeft": "Down-Left",
-    "uploadFailed": "Upload failed. Check your connection and try again."
+    "uploadFailed": "Échec du téléversement. Vérifiez votre connexion et réessayez."
   },
   "quickAccess": {
     "title": "Widgets d'accès rapide",
@@ -1083,7 +1098,7 @@
     "emptyResults": "Aucun widget ne correspond."
   },
   "style": {
-    "readOnlyNotice": "This board is read-only. Style changes are not saved."
+    "readOnlyNotice": "Ce tableau est en lecture seule. Les modifications de style ne sont pas enregistrées."
   },
   "whatsNew": {
     "title": "Nouveautés",

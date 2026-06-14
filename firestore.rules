@@ -742,6 +742,40 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Pilot / district-rollout requests submitted from the public /request
+    // form (docs/wide-distro-plan.md Phase 2). Any signed-in user may CREATE
+    // one with a strictly validated shape (identity fields pinned to their
+    // token so requests can't impersonate); only admins read/triage. The
+    // rolloutRequestEmail CF (Admin SDK) relays each create to /mail.
+    match /rollout_requests/{requestId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if request.auth != null
+        && request.auth.token.get('email', '') != ''
+        && request.resource.data.keys().hasOnly([
+             'kind', 'name', 'email', 'role', 'organization', 'domain',
+             'size', 'message', 'status', 'createdAt', 'submittedByUid'
+           ])
+        && request.resource.data.kind in ['pilot', 'district']
+        && request.resource.data.status == 'new'
+        && request.resource.data.submittedByUid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email.lower()
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 200
+        && request.resource.data.role is string
+        && request.resource.data.role.size() <= 200
+        && request.resource.data.organization is string
+        && request.resource.data.organization.size() > 0
+        && request.resource.data.organization.size() <= 300
+        && request.resource.data.domain is string
+        && request.resource.data.domain.size() <= 200
+        && request.resource.data.size is string
+        && request.resource.data.size.size() <= 100
+        && request.resource.data.message is string
+        && request.resource.data.message.size() <= 5000
+        && request.resource.data.createdAt is number;
+    }
+
     // Mail queue consumed by the `firestore-send-email` Firebase extension.
     // Writes happen server-side only (Admin SDK bypasses rules, so the
     // `createOrganizationInvites` CF can still enqueue sends). Clients must
@@ -3251,6 +3285,53 @@ service cloud.firestore {
                             (!('driveFileId' in request.resource.data) || request.resource.data.driveFileId is string) &&
                             (!('archiveError' in request.resource.data) || request.resource.data.archiveError is string) &&
                             (!('archivedAt' in request.resource.data) || request.resource.data.archivedAt is int);
+      }
+    }
+
+    // Poll Sessions — public, anonymous device-voting for the Poll widget.
+    // sessionId is formatted as {teacherUid}_{pollSessionId}. The teacher owns
+    // the session doc (UID prefix); participants write one uid-keyed vote each.
+    match /poll_sessions/{sessionId} {
+      // Reads are permissive for any authed caller (mirrors activity_wall_sessions).
+      allow read: if request.auth != null;
+      // Only a non-anonymous teacher whose uid prefixes the sessionId (or an
+      // admin) may create/update the session doc itself.
+      allow create, update: if request.auth != null &&
+                            request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+                            (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
+      allow delete: if false;
+
+      match /votes/{participantUid} {
+        // Single read of the parent session doc, reused for the active-gate
+        // and the optionIndex range check (avoids a redundant second get()).
+        // Only called after the allow rule has confirmed optionIndex is an int
+        // and the session doc exists, so the comparison + get() are safe.
+        function voteTargetsActiveInRangeOption() {
+          let session = get(/databases/$(database)/documents/poll_sessions/$(sessionId)).data;
+          return session.get('active', false) == true &&
+            request.resource.data.optionIndex >= 0 &&
+            request.resource.data.optionIndex < session.get('optionCount', 0);
+        }
+
+        // Any authed user (incl. anonymous) may create/update ONLY the vote
+        // doc whose id equals their own uid. Exactly {optionIndex, votedAt};
+        // optionIndex an int within [0, optionCount); only while the session
+        // is active. Re-voting overwrites (one vote per device).
+        allow create, update: if request.auth != null &&
+          request.auth.uid == participantUid &&
+          exists(/databases/$(database)/documents/poll_sessions/$(sessionId)) &&
+          request.resource.data.keys().hasOnly(['optionIndex', 'votedAt']) &&
+          request.resource.data.optionIndex is int &&
+          request.resource.data.votedAt is int &&
+          voteTargetsActiveInRangeOption();
+
+        // Reads open to any authed user — vote docs are anonymous tallies
+        // (no PII), which is what powers the live results on phones + board.
+        allow read: if request.auth != null;
+
+        // Delete (reset) is teacher/admin-only.
+        allow delete: if request.auth != null &&
+          (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
       }
     }
 

@@ -22,6 +22,7 @@ const mockAuth: AuthContextType = {
   updateAppSettings: () => Promise.resolve(),
   canAccessWidget: () => true, // Allow everything in student view
   canAccessFeature: () => true,
+  userTier: 'free',
   // Student view doesn't render assignment-creation UI; the default keeps
   // any consumers that read this returning the safe pre-feature default.
   getAssignmentMode: () => 'submissions',

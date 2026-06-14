@@ -289,7 +289,14 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     refreshGoogleToken,
     featurePermissions,
     selectedBuildings,
+    canAccessFeature,
   } = useAuth();
+  // Phase 3b (docs/wide-distro-plan.md): admin-gated capability for offering
+  // the no-sign-in (anonymous) participant join link. Default-public, so this
+  // is true for every teacher until an admin restricts `anonymous-join`. The
+  // participant route itself stays anonymous — this only hides the teacher's
+  // link/QR affordances, not the join experience.
+  const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
   const { isConnected: isDriveConnected } = useGoogleDrive();
   const config = widget.config as ActivityWallConfig;
   const {
@@ -1373,7 +1380,11 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                         moderationEnabled: event.target.checked,
                       })
                     }
-                    className="h-4 w-4 accent-brand-blue-primary"
+                    className="accent-brand-blue-primary"
+                    style={{
+                      width: 'min(16px, 4cqmin)',
+                      height: 'min(16px, 4cqmin)',
+                    }}
                   />
                 </label>
 
@@ -1778,45 +1789,56 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             )}
 
             <div
-              className="grid grid-cols-3"
+              className={`grid ${
+                canOfferAnonymousJoin ? 'grid-cols-3' : 'grid-cols-1'
+              }`}
               style={{ gap: 'min(6px, 1.8cqmin)' }}
             >
-              <button
-                type="button"
-                onClick={copyLink}
-                className="rounded-xl bg-brand-blue-primary text-white font-bold flex items-center justify-center"
-                style={{
-                  gap: 'min(6px, 1.8cqmin)',
-                  padding: 'min(8px, 2cqmin)',
-                  fontSize: 'min(11px, 3.8cqmin)',
-                }}
-              >
-                <Copy
-                  style={{
-                    width: 'min(14px, 4cqmin)',
-                    height: 'min(14px, 4cqmin)',
-                  }}
-                />
-                Copy link
-              </button>
-              <button
-                type="button"
-                onClick={spawnQrWidget}
-                className="rounded-xl bg-emerald-600 text-white font-bold flex items-center justify-center"
-                style={{
-                  gap: 'min(6px, 1.8cqmin)',
-                  padding: 'min(8px, 2cqmin)',
-                  fontSize: 'min(11px, 3.8cqmin)',
-                }}
-              >
-                <QrCode
-                  style={{
-                    width: 'min(14px, 4cqmin)',
-                    height: 'min(14px, 4cqmin)',
-                  }}
-                />
-                Pop-out QR
-              </button>
+              {/* No-sign-in (anonymous) join affordances — gated behind the
+                  admin-configurable `anonymous-join` feature (Phase 3b). When
+                  denied, only the view-only "Share gallery" option below
+                  remains; the rostered sign-in join link is separate planned
+                  work (TODO: wire a rostered link for Activity Wall). */}
+              {canOfferAnonymousJoin && (
+                <>
+                  <button
+                    type="button"
+                    onClick={copyLink}
+                    className="rounded-xl bg-brand-blue-primary text-white font-bold flex items-center justify-center"
+                    style={{
+                      gap: 'min(6px, 1.8cqmin)',
+                      padding: 'min(8px, 2cqmin)',
+                      fontSize: 'min(11px, 3.8cqmin)',
+                    }}
+                  >
+                    <Copy
+                      style={{
+                        width: 'min(14px, 4cqmin)',
+                        height: 'min(14px, 4cqmin)',
+                      }}
+                    />
+                    Copy link
+                  </button>
+                  <button
+                    type="button"
+                    onClick={spawnQrWidget}
+                    className="rounded-xl bg-emerald-600 text-white font-bold flex items-center justify-center"
+                    style={{
+                      gap: 'min(6px, 1.8cqmin)',
+                      padding: 'min(8px, 2cqmin)',
+                      fontSize: 'min(11px, 3.8cqmin)',
+                    }}
+                  >
+                    <QrCode
+                      style={{
+                        width: 'min(14px, 4cqmin)',
+                        height: 'min(14px, 4cqmin)',
+                      }}
+                    />
+                    Pop-out QR
+                  </button>
+                </>
+              )}
               <button
                 type="button"
                 onClick={() => setIsShareModalOpen(true)}

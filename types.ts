@@ -1165,6 +1165,20 @@ export interface PollGlobalConfig {
 export interface PollConfig {
   question: string;
   options: PollOption[];
+  /**
+   * Public device-voting session id. When non-null, a public poll session
+   * is LIVE: the board shows aggregated tallies from
+   * `poll_sessions/{teacherUid}_{activePollSessionId}/votes` and manual ±
+   * voting is disabled. This id is also the `:pollId` route segment of the
+   * participant join link.
+   */
+  activePollSessionId?: string | null;
+  /**
+   * Most recent session id. Kept after a session stops so "Resume" can
+   * reopen the same `poll_sessions` doc (and its prior votes); "Restart"
+   * mints a fresh id instead.
+   */
+  lastPollSessionId?: string | null;
 }
 
 export type ActivityWallMode = 'text' | 'photo';
@@ -1229,7 +1243,25 @@ export interface ActivityWallLibraryEntry {
   mode: ActivityWallMode;
   moderationEnabled: boolean;
   identificationMode: ActivityWallIdentificationMode;
+  /**
+   * @deprecated Phase 3D single-class targeting. Prefer `classIds` (Phase 5A).
+   * Retained so legacy entries created before multi-class support continue to
+   * gate student access correctly. New entries written by post-Phase-5A clients
+   * set `classIds` and mirror `classIds[0]` here.
+   */
   classId?: string;
+  /**
+   * Phase 5A multi-class ClassLink targeting. When non-empty, mirrors the
+   * session doc's `classIds` so students see this activity on their
+   * `/my-assignments` page if enrolled in any of the listed classes.
+   * Empty / absent preserves the classic code/PIN (`?data=`) flow.
+   */
+  classIds?: string[];
+  /**
+   * Roster IDs backing the multi-class targeting. Derived from ClassLink
+   * roster metadata; stored for reverse lookup and future migration.
+   */
+  rosterIds?: string[];
   createdAt: number;
   updatedAt: number;
 }
@@ -5019,6 +5051,27 @@ export interface NeedDoPutThenConfig {
   };
 }
 
+// --- Need / Do / Put / Then Global Config ---
+export interface BuildingNeedDoPutThenDefaults {
+  buildingId: string;
+  /**
+   * Stored in the shared `TypographySettings` value space — a `FONTS` id such
+   * as `'font-sans'` / `'font-mono'`. The `'global'` sentinel (inherit from the
+   * dashboard) is represented by absence/`undefined`, never the literal string.
+   * Seeds `NeedDoPutThenConfig.fontFamily`, decoded at render via
+   * `getFontClass()` (same prefixed space the Stations widget uses).
+   */
+  fontFamily?: string;
+  fontColor?: string;
+  cardColor?: string;
+  cardOpacity?: number;
+  textSizePreset?: TextSizePreset;
+}
+
+export interface NeedDoPutThenGlobalConfig {
+  buildingDefaults: Record<string, BuildingNeedDoPutThenDefaults>;
+}
+
 /**
  * One station in the Stations widget. Stations are defined by the teacher in the
  * settings panel; students drag their name chips into the corresponding StationCard
@@ -5655,6 +5708,16 @@ export interface ToolMetadata {
 
 export type AccessLevel = 'admin' | 'beta' | 'public';
 
+/**
+ * Distribution tier of the signed-in user (docs/wide-distro-plan.md Phase 3).
+ * Ordering for `minTier` checks: free < org < internal.
+ * - 'internal': email domain is in the internal-domains list (Orono staff).
+ * - 'org': not internal, but a member of an organization
+ *   (`/organizations/{orgId}/members/{email}` doc exists).
+ * - 'free': everyone else.
+ */
+export type UserTier = 'internal' | 'org' | 'free';
+
 export type GlobalFeature =
   | 'live-session'
   | 'gemini-functions'
@@ -5671,7 +5734,9 @@ export type GlobalFeature =
   | 'org-admin-writes'
   | 'assignment-modes'
   | 'share-link-tracking'
-  | 'personal-spotify';
+  | 'personal-spotify'
+  | 'google-classroom'
+  | 'anonymous-join';
 
 export interface GlobalFeaturePermission {
   featureId: GlobalFeature;
@@ -5685,6 +5750,13 @@ export interface GlobalFeaturePermission {
    * buildings in their `selectedBuildings` to pass the gate.
    */
   buildings?: string[];
+  /**
+   * Minimum user tier required to access the feature (free < org <
+   * internal). `undefined` means available to all tiers — the back-compat
+   * default for every doc written before the tier model existed.
+   * Admins bypass this check (same as accessLevel).
+   */
+  minTier?: UserTier;
   config?: Record<string, unknown>;
 }
 
@@ -5776,6 +5848,13 @@ export interface FeaturePermission {
   gradeLevels?: GradeLevel[];
   /** Optional override for the widget's display name. */
   displayName?: string;
+  /**
+   * Minimum user tier required to access the widget (free < org <
+   * internal). `undefined` means available to all tiers — the back-compat
+   * default for every doc written before the tier model existed.
+   * Admins bypass this check (same as accessLevel).
+   */
+  minTier?: UserTier;
   /** Optional global configuration for the widget (e.g., API keys, target IDs). */
   config?: Record<string, unknown>;
 }

@@ -12,6 +12,7 @@ import {
   DockPosition,
   AssignmentMode,
   AssignmentWidgetKey,
+  UserTier,
 } from '@/types';
 import type { BuildingRecord } from '@/types/organization';
 
@@ -37,6 +38,13 @@ export interface AuthContextType {
     customBuildings?: string[]
   ) => boolean;
   canAccessFeature: (featureId: GlobalFeature) => boolean;
+  /**
+   * Distribution tier derived from email domain + org membership
+   * (docs/wide-distro-plan.md Phase 3). Drives the `minTier` checks inside
+   * `canAccessWidget`/`canAccessFeature`; exposed for UI that wants to
+   * explain a denial rather than just hide.
+   */
+  userTier: UserTier;
   /**
    * The org-wide assignment mode for a student-facing widget. Reads from the
    * `assignment-modes` GlobalFeaturePermission doc; defaults to `'submissions'`

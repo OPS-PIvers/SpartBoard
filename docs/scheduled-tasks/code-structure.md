@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-06-10_
-_Last action: 2026-05-22 — HIGH DashboardContext extraction assessed and BLOCKED pending supervised runtime-verified session_
+_Last audited: 2026-06-13_
+_Last action: 2026-06-12 — MEDIUM cardOpacity range-check extracted into shared `isCardOpacity` guard in adminBuildingConfig.ts_
 
 ---
 
@@ -16,9 +16,20 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-06-13: Weekly audit pass (Saturday). Rebase onto dev-paul: pr-review batch 12 PRs, refactor(admin-config) isCardOpacity guard, [AI] wide-distro phases 1-3 (tiering, landing page, rollout form, rollout_requests rules, user tier model, minTier permission gating, google-classroom feature gate), [AI] legal pages, [AI] OAuth scope drops. DashboardContext.tsx now **5,722 lines** (+126 from 5,596 on 2026-06-12) — continued steady growth. Single-use utils list extended: `adminBuildingConfig.ts` (only importer: DashboardContext), `collectionsMigration.ts` (only importer: DashboardContext), `ai_security.ts` (only importer: DashboardContext), `pickInitialBoard.ts` (only importer: DashboardContext), `mapWithConcurrency.ts` (only importer: single util), `pexelsService.ts` (single importer), `googleSession.ts` (single importer), `previewMode.ts` (single importer), `userTier.ts` (single importer) — added to existing LOW single-use-utils item. Cloud Functions confirmed v2. No data-fetching duplication in new contexts (tiering/permission gate added to AuthContext reads featurePermissions already owned there). All existing open items re-confirmed valid. 0 new open items._
+
+_2026-06-12: Weekly audit pass. Rebase onto dev-paul (docs/unifier run 13, D4 @/ alias conversion in tests/, perf baseline refresh, fix DraggableWindow duplicate handler, debugger run 14). None touch context/DashboardContext.tsx, functions/src/index.ts, or adminBuildingConfig.ts structure. All existing open items re-confirmed valid. New finding: multiple large component/layout files not previously tracked now exceed 500 lines — QuizStudentApp.tsx (3762 lines), DashboardView.tsx (1908 lines), Dock.tsx (1597 lines), GlobalPermissionsManager.tsx (1497 lines), StarterPackConfigurationModal.tsx (1251 lines), VideoActivityStudentApp.tsx (990 lines). Cloud Functions all confirmed on v2. No data-fetching duplication detected. No deep relative imports (3+ levels of ../) in source files. Single-use utils list extended: assignToClassroom.ts, deleteDrawingPageSubcollection.ts, imageWorker.ts, lastActiveThrottle.ts, migrateDrawingToSubcollection.ts, miniAppNormalize.ts added to existing LOW item. 1 new MEDIUM open item added._
+
 _2026-06-10: Weekly audit pass. DashboardContext.tsx confirmed at 5,596 lines (same as 2026-06-05 — no structural changes since). BLOCKED extraction status unchanged. functions/src/index.ts confirmed at 4,305 lines — organically growing domain-split pattern continues. Four new open items added: cardOpacity validation duplication in adminBuildingConfig.ts, stale v1 logger import in finalizeIdleQuizAttempts.ts, OAuth Cloud Functions missing explicit timeoutSeconds, and concurrent userProfile reads/writes between AuthContext and DashboardContext._
 
 _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 5,275 on 2026-05-27). BLOCKED extraction status unchanged. functions/src/index.ts now 4,305 lines — domain split organically in progress (spotifyOAuth.ts, syncedQuizGroups.ts etc.). All Cloud Functions confirmed on v2; no v1 imports found. New LOW finding: feature_permissions and global_permissions read coordination between AuthContext and DashboardContext could benefit from documentation. adminBuildingConfig.ts: font-validation constants duplicated across reveal-grid/numberLine/concept-web cases (related to existing LOW simple-switch-cases item). Test imports with 3+ ../../ levels are all in .test.tsx files using vi.mock() — acceptable. No new large-file violations beyond what's already tracked. 1 new LOW open item added._
+
+### MEDIUM Large component files not tracked by DashboardContext or functions/src items — 5 files exceed 1000 lines
+
+- **Detected:** 2026-06-12
+- **Files:** components/student/QuizStudentApp.tsx (3762 lines), components/layout/DashboardView.tsx (1908 lines), components/layout/Dock.tsx (1597 lines), components/admin/GlobalPermissionsManager.tsx (1497 lines), components/admin/StarterPackConfigurationModal.tsx (1251 lines), components/student/VideoActivityStudentApp.tsx (990 lines)
+- **Detail:** Six source component files exceed 500 lines and were not previously tracked in this journal. The most critical: `QuizStudentApp.tsx` (3762 lines) bundles auth, lobby, question rendering, timer state, PIN entry, and score tracking; `DashboardView.tsx` (1908 lines) contains the main app shell, widget placement, toolbar, and menu logic; `Dock.tsx` (1597 lines) bundles dock header, folder panel, tool list rendering, and animation logic; `GlobalPermissionsManager.tsx` (1497 lines) contains all admin feature/access/quota UI in one component; `StarterPackConfigurationModal.tsx` (1251 lines) is a long form modal with no section decomposition; `VideoActivityStudentApp.tsx` (990 lines) mirrors the QuizStudentApp pattern.
+- **Fix:** For QuizStudentApp and VideoActivityStudentApp: extract `TimerController`, `PinEntryForm`, `SessionLobby`, and `QuestionRenderer` into sibling components under their respective directories. For DashboardView: extract the toolbar/menu as `DashboardToolbar`. For Dock: extract `FolderPanel` and `ToolItem` into sub-components. For GlobalPermissionsManager: split into `WidgetAccessPanel`, `QuotaEditor`, and `BetaListManager`. These are view-layer extractions (no shared state changes) — lower risk than the DashboardContext extraction. Prioritize QuizStudentApp first given its size.
 
 ### MEDIUM `DashboardContext.tsx` is 3481 lines and growing — at least three extractable responsibilities
 
@@ -49,6 +60,7 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
 ### HIGH `DashboardContext.tsx` grew 1262 lines since May 13 extraction — now 5596 lines
 
 - **Detected:** 2026-05-22
+- **Updated:** 2026-06-13 — file is now **5,722 lines** (+126 from 5,596 on 2026-06-12). [AI] wide-distro phases added tiering, minTier permission gating, google-classroom feature gate (+~130 lines). BLOCKED status unchanged.
 - **Updated:** 2026-06-05 — file is now **5,596 lines** (+321 from 5,275 on 2026-05-27). Continued growth despite no new extractions. BLOCKED status unchanged — collections/Drive extraction still requires supervised runtime-verified session.
 - **File:** context/DashboardContext.tsx
 - **Detail:** After the May 13 extraction of `getAdminBuildingConfig` reduced the file from 4441 to 4041 lines, nine days of new features grew it back to 5303 (+1262, +31%). The file now exceeds 5000 lines. Primary drivers: (1) PLC collaborative space redesign added collection navigation state, `lastBoardIdByCollection` tracking, `setActiveCollectionId`, and related callbacks (~400 lines); (2) boards-modal inline share/duplicate actions; (3) admin personal-spotify building scoping; (4) PLC in-progress assignment monitor/results. Collections management in particular introduces a new distinct responsibility (board/collection relationship state) that belongs in a dedicated hook or context. The `useGoogleDrive` orchestration and Drive reconnect error handling are also clearly separable.
@@ -58,20 +70,6 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
   - **`useDashboardDriveSync`** — Drive logic is not one isolated block: the background-export effect (2255–2302) is intertwined with `saveDashboardFirestore` + `scrubDashboardPII`, the PII-restore effect (2319+) mutates widget config, and Drive calls are also embedded in save/share/restore paths (1171–1460). The auth-error handler (615–632) and `useDriveReconnected` latch (2315) are separable but small.
   - **Pure-function seams** — already harvested: `getAdminBuildingConfig` (utils/adminBuildingConfig.ts, May 13), `pickInitialBoard` (utils/pickInitialBoard.ts), migration (utils/migration.ts, migrateProportionalLayout.ts, collectionsMigration.ts). No clean unit-testable pure block remains inline.
   - **Verification gap:** there is no unit-test coverage for the navigation or Drive-sync effects, and no Firebase/Drive runtime in the scheduled-task environment, so `type-check`/`lint`/`vitest` would not catch a navigation, sync-timing, or PII-restore regression on the app's most critical state file. Recommend a dedicated supervised session that can exercise board switching, collection switching, and Drive sync against a live/emulated Firebase project before landing this extraction.
-
-### MEDIUM `adminBuildingConfig.ts` — `cardOpacity` range-check block copy-pasted 4 times
-
-- **Detected:** 2026-06-10
-- **File:** utils/adminBuildingConfig.ts (lines 183–187, 266–270, 282–286, 412–416)
-- **Detail:** The following five-line cardOpacity guard is duplicated verbatim in four switch cases (`numberLine`, `checklist`, `stations`, `concept-web`):
-  ```typescript
-  typeof raw.cardOpacity === 'number' &&
-    Number.isFinite(raw.cardOpacity) &&
-    raw.cardOpacity >= 0 &&
-    raw.cardOpacity <= 1;
-  ```
-  This is distinct from the existing LOW "simple switch cases" item (which concerns single-field type-check cases). The cardOpacity block is a multi-condition range validator — any future fix (e.g., allowing `null` as a reset sentinel, or widening the valid range to `0.05–1`) must be applied in four places, and the current duplication has already caused one appearance (the `stations` case) to diverge slightly in guard structure from the others.
-- **Fix:** Extract a private `validateCardOpacity(raw: unknown): boolean` helper at the top of `adminBuildingConfig.ts` (or reuse the existing `isCardOpacity` if one already exists in `utils/widgetHelpers.ts`). Replace the four inline blocks with a call to the helper. Pure refactor — no behavior change. Then extend the existing LOW "simple switch cases" item's data-declaration approach to cover the appearance-field quartet (`cardColor`, `cardOpacity`, `fontFamily`, `fontColor`) shared by multiple cases.
 
 ### MEDIUM Concurrent reads and writes to `userProfile` document between `AuthContext` and `DashboardContext`
 
@@ -128,18 +126,42 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
 - **Detail:** The following utils files have only one import consumer in components/context/hooks/utils (0 = unused tests only, 1 = single consumer):
   - `utils/accessibility.ts` — 1 consumer
   - `utils/ai_security.ts` — 1 consumer (likely `utils/ai.ts`)
+  - `utils/assignToClassroom.ts` — 1 consumer (2026-06-12)
   - `utils/backgroundCategories.ts` — 1 consumer
   - `utils/dashboardPII.ts` — 1 consumer
+  - `utils/deleteDrawingPageSubcollection.ts` — 1 consumer (2026-06-12, migration helper)
   - `utils/googleCalendarService.ts` — 1 consumer
   - `utils/guidedLearningDriveService.ts` — 1 consumer
+  - `utils/imageWorker.ts` — 1 consumer (2026-06-12, Web Worker — correct isolation)
+  - `utils/lastActiveThrottle.ts` — 1 consumer (2026-06-12)
   - `utils/migration.ts` — 1 consumer (`context/DashboardContext.tsx`)
+  - `utils/migrateDrawingToSubcollection.ts` — 1 consumer (2026-06-12, migration helper)
+  - `utils/miniAppNormalize.ts` — 1 consumer (2026-06-12, consider colocation)
   - `utils/smartPaste.ts` — 1 consumer
+  - `utils/adminBuildingConfig.ts` — 1 consumer (DashboardContext) (2026-06-13)
+  - `utils/collectionsMigration.ts` — 1 consumer (DashboardContext) (2026-06-13)
+  - `utils/ai_security.ts` — 1 consumer (DashboardContext) (2026-06-13)
+  - `utils/pickInitialBoard.ts` — 1 consumer (DashboardContext) (2026-06-13)
+  - `utils/mapWithConcurrency.ts` — 1 consumer (2026-06-13)
+  - `utils/pexelsService.ts` — 1 consumer (2026-06-13)
+  - `utils/googleSession.ts` — 1 consumer (2026-06-13)
+  - `utils/previewMode.ts` — 1 consumer (2026-06-13)
+  - `utils/userTier.ts` — 1 consumer (2026-06-13)
     Single-consumer utils are not necessarily wrong — domain separation is valid — but warrant a quick sanity check that they are not duplicating logic that already exists elsewhere, and that they are documented or self-explanatory.
 - **Fix:** Verify each file's consumer. For `migration.ts` (owned entirely by DashboardContext), consider whether inlining or consolidating the migration logic into the context would reduce indirection. No action required if each file's scope is intentionally bounded.
 
 ---
 
 ## Completed
+
+### MEDIUM `adminBuildingConfig.ts` — `cardOpacity` range-check block copy-pasted 4 times
+
+- **Detected:** 2026-06-10
+- **Completed:** 2026-06-12
+- **File:** utils/adminBuildingConfig.ts, tests/utils/adminBuildingConfig.test.ts
+- **Detail:** The five-line `cardOpacity` range guard (`typeof === 'number' && Number.isFinite && >= 0 && <= 1`) was duplicated verbatim across four switch cases (`numberLine`, `checklist`, `stations`, `concept-web`), with the `stations` copy having already drifted in guard structure.
+- **Resolution:** Extracted a module-level `isCardOpacity(value: unknown): value is number` type-guard helper (placed alongside the existing `isHexColor` / `isGlobalFontFamily` / `isWidgetFontFamily` guards). Replaced all four inline blocks with a single-line `if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;`. The type guard also narrows `raw.cardOpacity` to `number`, so the assignment no longer relies on the inline `typeof` widening. Pure refactor — no behavior change. `pnpm type-check`, `eslint --max-warnings 0`, and `prettier --check` all clean; the existing 30 tests in `tests/utils/adminBuildingConfig.test.ts` all pass.
+- **Follow-up:** The LOW "simple switch cases" item above can still be addressed separately to cover the broader appearance-field quartet (`cardColor`, `cardOpacity`, `fontFamily`, `fontColor`) via a data-declaration approach.
 
 ### HIGH `DashboardContext.tsx` grew 937 lines in one week — now 4441 lines
 

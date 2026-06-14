@@ -187,7 +187,11 @@ export interface DashboardContextValue {
   removeWidgets: (ids: string[]) => void;
   clearAllStickers: () => void;
   clearAllWidgets: () => void;
-  updateWidget: (id: string, updates: Partial<WidgetData>) => void;
+  updateWidget: (
+    id: string,
+    updates: Partial<WidgetData>,
+    opts?: { immediate?: boolean }
+  ) => void;
   bringToFront: (id: string) => void;
   moveWidgetLayer: (id: string, direction: 'up' | 'down') => void;
   minimizeAllWidgets: () => void;
@@ -202,7 +206,10 @@ export interface DashboardContextValue {
   reorderLibrary: (tools: (WidgetType | InternalToolType)[]) => void;
   reorderDockItems: (items: DockItem[]) => void;
   libraryOrder: (WidgetType | InternalToolType)[];
-  updateDashboardSettings: (settings: Partial<Dashboard['settings']>) => void;
+  updateDashboardSettings: (
+    settings: Partial<Dashboard['settings']>,
+    opts?: { immediate?: boolean }
+  ) => void;
   updateDashboard: (updates: Partial<Dashboard>) => void;
 
   // Annotation (ephemeral full-screen draw-over overlay; NOT a widget)

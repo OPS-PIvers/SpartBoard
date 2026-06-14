@@ -61,6 +61,19 @@ const isWidgetFontFamily = (value: unknown): value is string =>
   (VALID_WIDGET_FONT_FAMILIES as readonly string[]).includes(value);
 
 /**
+ * Validates a `cardOpacity` default: a finite number within the panel slider's
+ * `0–1` range. Shared by every widget case that exposes a card-surface opacity
+ * default so the range check lives in one place — previously this four-line
+ * guard was copy-pasted across the `numberLine`, `checklist`, `stations`, and
+ * `concept-web` cases, where one copy had already drifted in structure.
+ */
+const isCardOpacity = (value: unknown): value is number =>
+  typeof value === 'number' &&
+  Number.isFinite(value) &&
+  value >= 0 &&
+  value <= 1;
+
+/**
  * Extracts building-level config overrides for a widget type from the admin's
  * feature_permissions config. These are applied between widget defaults and
  * explicit overrides so that per-building admin settings pre-configure new
@@ -178,13 +191,7 @@ export const getAdminBuildingConfig = (
         out.displayMode = raw.displayMode;
       if (typeof raw.showArrows === 'boolean') out.showArrows = raw.showArrows;
       if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
-      if (
-        typeof raw.cardOpacity === 'number' &&
-        Number.isFinite(raw.cardOpacity) &&
-        raw.cardOpacity >= 0 &&
-        raw.cardOpacity <= 1
-      )
-        out.cardOpacity = raw.cardOpacity;
+      if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;
       if (isGlobalFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
       if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
       break;
@@ -261,13 +268,7 @@ export const getAdminBuildingConfig = (
         out.scaleMultiplier = Math.max(0.5, Math.min(2.5, raw.scaleMultiplier));
       if (isGlobalFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
       if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
-      if (
-        typeof raw.cardOpacity === 'number' &&
-        Number.isFinite(raw.cardOpacity) &&
-        raw.cardOpacity >= 0 &&
-        raw.cardOpacity <= 1
-      )
-        out.cardOpacity = raw.cardOpacity;
+      if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;
       if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
       break;
     case 'stations':
@@ -277,14 +278,32 @@ export const getAdminBuildingConfig = (
       if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
       if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
       if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
-      if (
-        typeof raw.cardOpacity === 'number' &&
-        Number.isFinite(raw.cardOpacity) &&
-        raw.cardOpacity >= 0 &&
-        raw.cardOpacity <= 1
-      )
-        out.cardOpacity = raw.cardOpacity;
+      if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;
       break;
+    case 'need-do-put-then': {
+      // Like `stations`, the widget uses the shared TypographySettings /
+      // SurfaceColorSettings / TextSizePresetSettings primitives, so
+      // `fontFamily` is a prefixed `FONTS`-id (validated by
+      // `isWidgetFontFamily`). All five fields are actively consumed by
+      // NeedDoPutThen/Widget.tsx (getFontClass, hexToRgba, fontColor,
+      // resolveTextPresetMultiplier).
+      const validTextSizePresets = [
+        'small',
+        'medium',
+        'large',
+        'x-large',
+      ] as const;
+      if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
+      if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
+      if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
+      if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;
+      if (
+        typeof raw.textSizePreset === 'string' &&
+        (validTextSizePresets as readonly string[]).includes(raw.textSizePreset)
+      )
+        out.textSizePreset = raw.textSizePreset;
+      break;
+    }
     case 'sound':
       if (raw.visual) out.visual = raw.visual;
       if (raw.sensitivity !== undefined) out.sensitivity = raw.sensitivity;
@@ -407,13 +426,7 @@ export const getAdminBuildingConfig = (
       }
       if (isGlobalFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
       if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
-      if (
-        typeof raw.cardOpacity === 'number' &&
-        Number.isFinite(raw.cardOpacity) &&
-        raw.cardOpacity >= 0 &&
-        raw.cardOpacity <= 1
-      )
-        out.cardOpacity = raw.cardOpacity;
+      if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;
       // No `fontColor` default: ConceptWeb's widget renders node text with a
       // hardcoded `text-slate-800` and never reads `config.fontColor`.
       break;

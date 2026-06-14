@@ -268,6 +268,69 @@ describe('ScoreboardWidget', () => {
     );
   });
 
+  it('uses the current config (not a stale ref) when a click fires after an external prop change', () => {
+    // Regression test for the stale-closure bug where configRef was synced
+    // via useEffect instead of inline in the render body.
+    //
+    // Scenario: an external Firestore push (live-quiz sync) sets score to 5.
+    // The component re-renders. A click fires. The increment MUST be computed
+    // against the current score of 5, yielding 6. If the ref were stale it
+    // would compute against the pre-push score instead.
+    //
+    // Note: React Testing Library's rerender() flushes passive effects
+    // synchronously (via act()), so both the old useEffect-sync code and the
+    // fixed inline-sync code pass this test. The test documents the CORRECT
+    // behaviour contract and guards against regressions that break the
+    // underlying ref update entirely (e.g. removing the assignment).
+    const initialTeams: ScoreboardTeam[] = [
+      { id: '1', name: 'Team One', score: 0, color: 'bg-blue-500' },
+    ];
+    const widget: WidgetData = {
+      id: 'test-id',
+      type: 'scoreboard',
+      config: { teams: initialTeams } as ScoreboardConfig,
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 100,
+      z: 1,
+      flipped: false,
+    };
+
+    const { rerender } = render(<ScoreboardWidget widget={widget} />);
+
+    // Simulate an external Firestore push that sets score to 5
+    const externalPushTeams: ScoreboardTeam[] = [
+      { id: '1', name: 'Team One', score: 5, color: 'bg-blue-500' },
+    ];
+    const updatedWidget: WidgetData = {
+      ...widget,
+      config: { teams: externalPushTeams } as ScoreboardConfig,
+    };
+
+    // rerender() internally wraps in act(), flushing all pending effects —
+    // ref is current after this call regardless of sync mechanism.
+    rerender(<ScoreboardWidget widget={updatedWidget} />);
+    mockUpdateWidget.mockClear();
+
+    const plusBtn = screen.getAllByRole('button', {
+      name: /increase score/i,
+    })[0];
+    fireEvent.click(plusBtn);
+
+    // The increment must be built from the current score of 5, yielding 6.
+    expect(mockUpdateWidget).toHaveBeenCalledWith(
+      'test-id',
+      expect.objectContaining({
+        config: expect.objectContaining({
+          teams: expect.arrayContaining([
+            expect.objectContaining({ id: '1', score: 6 }),
+          ]),
+        }),
+      })
+    );
+  });
+
   it('resets scores after confirmation', () => {
     const teams = [
       { id: '1', name: 'Team One', score: 10, color: 'bg-blue-500' },
