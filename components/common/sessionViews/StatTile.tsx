@@ -33,7 +33,7 @@ export const StatTile: React.FC<StatTileProps> = ({
   label,
   tone = 'blue',
   interactive = false,
-  selected = false,
+  selected,
   onClick,
   children,
 }) => {
@@ -77,6 +77,7 @@ export const StatTile: React.FC<StatTileProps> = ({
         type="button"
         data-testid="stat-tile"
         onClick={onClick}
+        aria-pressed={selected}
         className={`block w-full text-center ${surface} ${interactiveClass}`}
         style={style}
       >

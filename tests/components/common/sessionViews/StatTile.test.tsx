@@ -25,6 +25,8 @@ describe('StatTile', () => {
     );
     const tile = screen.getByTestId('stat-tile');
     expect(tile.tagName).toBe('BUTTON');
+    // Not a toggle (no `selected`) → no aria-pressed.
+    expect(tile).not.toHaveAttribute('aria-pressed');
     fireEvent.click(tile);
     expect(onClick).toHaveBeenCalledTimes(1);
   });
@@ -39,8 +41,8 @@ describe('StatTile', () => {
         selected
       />
     );
-    expect(screen.getByTestId('stat-tile').className).toContain(
-      'ring-brand-blue-primary/40'
-    );
+    const tile = screen.getByTestId('stat-tile');
+    expect(tile.className).toContain('ring-brand-blue-primary/40');
+    expect(tile).toHaveAttribute('aria-pressed', 'true');
   });
 });
