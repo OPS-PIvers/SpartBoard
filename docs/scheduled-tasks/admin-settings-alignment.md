@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
 _Last audited: 2026-06-14_
-_Last action: 2026-06-11_
+_Last action: 2026-06-14_
 
 ---
 
@@ -65,16 +65,18 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 - **Detail:** `GuidedLearningConfigurationPanel` is registered in `BUILDING_CONFIG_PANELS` in `FeatureConfigurationPanel.tsx`. The panel renders only an informational message: "Guided Learning settings are managed directly — please interact with the widget directly on your board." It has no `onChange` handler, writes nothing to Firestore, and there is no building defaults infrastructure for guided-learning (`GuidedLearningConfig` does not have a `BuildingGuidedLearningDefaults` interface in types.ts, and there is no `case 'guided-learning':` in `utils/adminBuildingConfig.ts`). The GuidedLearning widget reads `widget.config` directly — it does not read from feature_permissions at all. The admin panel button for this widget opens a panel that provides no functional value and shows a message that could be misleading (implying settings exist but are in-widget only).
 - **Fix:** Option (a): Remove `guided-learning` from `BUILDING_CONFIG_PANELS` so the admin UI falls through to the standard "No global settings available for this widget." placeholder — more accurate than an info stub. Option (b): If guided-learning admin defaults are genuinely planned (e.g., default view, default set library source), implement building defaults infrastructure (types.ts interface + adminBuildingConfig.ts case + real panel controls). Option (a) is lower-effort and more honest about current state.
 
-### MEDIUM `need-do-put-then` has stub admin config panel but no getAdminBuildingConfig handler
-
-- **Detected:** 2026-04-26
-- **File:** components/admin/NeedDoPutThenConfigurationPanel.tsx, context/DashboardContext.tsx (getAdminBuildingConfig)
-- **Detail:** `need-do-put-then` was added with `NeedDoPutThenConfigurationPanel.tsx` registered in `BUILDING_CONFIG_PANELS`. However: (1) the panel is a non-functional stub showing "No building-level defaults yet" with no input controls; (2) there is no `case 'need-do-put-then':` in `getAdminBuildingConfig()` in DashboardContext.tsx; (3) `NeedDoPutThenConfig` (types.ts:2897) has no building defaults interface. When a teacher adds the widget, `getAdminBuildingConfig('need-do-put-then')` falls through to `default: break` and returns `{}`. The admin gear button for this widget opens a panel but provides no functional controls and stores nothing useful.
-- **Fix:** Either (a) implement building-level defaults for the widget: add a `NeedDoPutThenBuildingDefaults` interface to types.ts, add a `case 'need-do-put-then':` handler in `getAdminBuildingConfig()`, and replace the stub panel with actual form controls for preset items per column; or (b) remove `NeedDoPutThenConfigurationPanel` from `BUILDING_CONFIG_PANELS` so the admin UI shows the standard "No global settings available" placeholder instead of a misleading stub.
-
 ---
 
 ## Completed
+
+### MEDIUM `need-do-put-then` has stub admin config panel but no getAdminBuildingConfig handler
+
+- **Detected:** 2026-04-26
+- **Completed:** 2026-06-14
+- **File:** types.ts (`BuildingNeedDoPutThenDefaults`, `NeedDoPutThenGlobalConfig`), components/admin/NeedDoPutThenConfigurationPanel.tsx, utils/adminBuildingConfig.ts (`case 'need-do-put-then'`), tests/utils/adminBuildingConfig.test.ts
+- **Detail:** `need-do-put-then` was registered in `BUILDING_CONFIG_PANELS` but (1) the panel was a non-functional stub ("No building-level defaults yet", no controls, took only `config` and no `onChange` so it could never persist), (2) there was no `case 'need-do-put-then':` in `getAdminBuildingConfig()`, and (3) there was no building-defaults interface. The admin gear opened a panel that stored nothing.
+- **Resolution:** Chose option (a) scoped to the **appearance** surface (not the per-column preset-tile editor — those Need/Do/Put/Then tiles are inherently per-instance content, not building-wide defaults). Verified `NeedDoPutThen/Widget.tsx` actively consumes all five appearance fields: `fontFamily` via `getFontClass()` (prefixed `FONTS`-id space, like `stations`), `fontColor`, `cardColor`/`cardOpacity` via `hexToRgba()`, and `textSizePreset` via `resolveTextPresetMultiplier()`. The widget's Settings tab uses the shared `TypographySettings` / `SurfaceColorSettings` / `TextSizePresetSettings` primitives, so this mirrors the resolved `stations` case exactly, plus `textSizePreset`. Added `BuildingNeedDoPutThenDefaults` + `NeedDoPutThenGlobalConfig` to types.ts; rewrote the panel into a functional `{config, onChange}` form (building selector + font family / text size / text colour / surface colour / surface opacity, mirroring `StationsConfigurationPanel`); added a validating `case 'need-do-put-then':` to `getAdminBuildingConfig()` (`isWidgetFontFamily` for the prefixed font, `isHexColor` for colours, `isCardOpacity` for opacity, enum-membership check for `textSizePreset`).
+- **Verification:** 4 new unit tests in `tests/utils/adminBuildingConfig.test.ts` (pass-through of all five fields; rejection of bare `GlobalFontFamily` ids; rejection of invalid font/colour/opacity/preset values; `cardOpacity` exact bounds 0 and 1) — `vitest run tests/utils/adminBuildingConfig.test.ts` → 34 passed. `pnpm exec tsc --noEmit`, `eslint --max-warnings 0`, and `prettier --check` all clean on the four changed files.
 
 ### MEDIUM `activity-wall` admin ConfigurationPanel writes building defaults that nothing reads
 
