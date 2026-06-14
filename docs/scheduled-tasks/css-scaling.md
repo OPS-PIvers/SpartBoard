@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-13_
+_Last audited: 2026-06-14_
 _Last action: 2026-06-13_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-14: Full scan of all Widget.tsx files after rebasing onto dev-paul (new commits since 2026-06-13: Remote v2 series, wide-distro anonymous-join gating, CalendarWidget midnight staleness fix, ActivityWall state extract, bug fixes). Widget.tsx files changed: (1) ActivityWall/Widget.tsx — changed by 885ea0b6 (wide-distro: adds anonymous-join gating UI to share modals; no new hardcoded Tailwind sizing in front-face content) and confirmed a0c2666b (ActivityWall checkbox cqmin fix already marked Completed in last entry). (2) CalendarWidget/Widget.tsx — changed by 6aa57535 (fix(widgets): CalendarWidget midnight staleness + useEffect ref-sync anti-pattern; logic-only change). Full Calendar widget CSS audit: widget has skipScaling:true; uses `min(calc((100% - min(30px, 6cqmin)) / 4), min(120px, 22cqmin))` for row heights and `min(Npx, Xcqmin)` throughout for all text/icon/spacing — no violations. Remote v2 control components (components/remote/controls/Remote\*.tsx) are not widget front-face content (they render in the MobileRemoteView on the teacher's phone, not inside a CSS container query context). All pre-existing open items re-confirmed valid. Zero new anti-patterns detected._
 
 _2026-06-13 (action): Fixed the highest-priority genuinely-open item — ActivityWall inline activity-editor "Require moderation" checkbox hardcoded `h-4 w-4` (ActivityWall/Widget.tsx, now :1376). Replaced the fixed 16px `h-4 w-4` Tailwind size classes with an inline `cqmin` size (`style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}`), keeping `accent-brand-blue-primary` on className for the accent color. This caps the checkbox at 16px on large widgets while scaling it down proportionally at small sizes, matching the sibling "Require moderation" label which uses `min(12px, 3.8cqmin)`. File-recency check passed: ActivityWall/Widget.tsx was last touched at 592dd523 (2026-06-11 audit) — outside the last 5 branch commits. `tsc --noEmit`, `eslint --max-warnings 0`, and `prettier --check` on the changed file all clean; ActivityWall test suite (Widget + Settings, 11 tests) green. Moved the item to Completed. ALSO cleaned up two stale Open entries: (1) the CarRiderPro/First5 external-link overlay button group was already resolved in commit f60141cc (PR #1768 — both files now use `top: min(8px, 2cqmin)` / `right: min(8px, 2cqmin)` / `padding: min(6px, 1.5cqmin)`); removed from Open. (2) the GraphicOrganizer EditableNode `min-h-[50px]` entry was a duplicate of the already-Completed entry (completed 2026-05-31); removed from Open. Remaining open items: PollWidget progress bar (:161), EmbedWidget portaled toolbar, QuizResults period-filter text-sm (:1530), RevealGrid spacing, multi-widget group, MiniApp dialog text sizes._
 

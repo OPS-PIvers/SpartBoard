@@ -5051,6 +5051,27 @@ export interface NeedDoPutThenConfig {
   };
 }
 
+// --- Need / Do / Put / Then Global Config ---
+export interface BuildingNeedDoPutThenDefaults {
+  buildingId: string;
+  /**
+   * Stored in the shared `TypographySettings` value space — a `FONTS` id such
+   * as `'font-sans'` / `'font-mono'`. The `'global'` sentinel (inherit from the
+   * dashboard) is represented by absence/`undefined`, never the literal string.
+   * Seeds `NeedDoPutThenConfig.fontFamily`, decoded at render via
+   * `getFontClass()` (same prefixed space the Stations widget uses).
+   */
+  fontFamily?: string;
+  fontColor?: string;
+  cardColor?: string;
+  cardOpacity?: number;
+  textSizePreset?: TextSizePreset;
+}
+
+export interface NeedDoPutThenGlobalConfig {
+  buildingDefaults: Record<string, BuildingNeedDoPutThenDefaults>;
+}
+
 /**
  * One station in the Stations widget. Stations are defined by the teacher in the
  * settings panel; students drag their name chips into the corresponding StationCard

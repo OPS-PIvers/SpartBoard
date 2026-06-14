@@ -4,6 +4,37 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-14
+
+- PRs reviewed: 8 (all open PRs; all head branches are `nightly/*` or `scheduled-tasks` → base `dev-paul`, all in-scope for pushing)
+  - #1969 — action(admin-config): wire need-do-put-then building defaults + Sunday audit (head `scheduled-tasks`)
+  - #1966 — chore: nightly debugger log 2026-06-14 (run 17) (head `nightly/debugger-log-2026-06-14`)
+  - #1965 — fix: Escape while editing widget title saves cancelled text to Firestore (head `nightly/dashboard-layout-2026-06-14`)
+  - #1964 — fix(i18n): translate 59 verbatim-English strings in DE/ES/FR collection UI (head `nightly/admin-config-2026-06-14`)
+  - #1963 — fix: CalendarWidget 'Today' label uses UTC date instead of local date (head `nightly/widgets-2026-06-14`)
+  - #1962 — chore(unifier): run 15 log (head `nightly/unifier-log-2026-06-14`)
+  - #1951 — fix(i18n): replace EN-placeholder strings in boardsModal/shareCollection (DE/ES/FR) (head `nightly/admin-config-2026-06-12`)
+  - #1945 — docs(unifier): run 14 memory log (head `nightly/unifier-log-2026-06-12`)
+- Comments processed: 8 total — 8 fixed, 0 explained-no-op (plus 1 pre-resolved thread on #1951 skipped)
+  - #1965: 1 gemini thread (MEDIUM) — removed redundant `setIsEditingTitle(false)` in `saveTitle` cancel guard. Fixed + replied.
+  - #1964: 3 gemini threads (MEDIUM) — DE `abgeheftet`→`entpinnt`; FR `échoué(s)`→`en échec` (×2). Fixed + replied.
+  - #1963: 3 gemini threads (MEDIUM) — `vi.restoreAllMocks()` to `afterEach`; drop manual call; derive `todayD` from `todayMidnightMs`. Fixed + replied.
+  - #1962: 1 gemini thread (MEDIUM) — corrected run-15 file-location wording (`useRemoteConnection.ts` is at `remote/` root; `.test.tsx` files). Fixed + replied.
+  - #1969, #1966, #1945: no open review comments.
+  - #1951: 1 pre-existing thread already resolved (Cyrillic fix) — no action.
+- Fixes pushed: 5
+  - #1965 / `nightly/dashboard-layout-2026-06-14` — remove redundant setState in saveTitle cancel guard (b7251be)
+  - #1964 / `nightly/admin-config-2026-06-14` — DE/FR translation phrasing fixes (7ee2af6)
+  - #1963 / `nightly/widgets-2026-06-14` — sync Today label to todayMidnightMs + centralize mock cleanup (e7bcf26)
+  - #1962 / `nightly/unifier-log-2026-06-14` — correct run-15 file-location note (f2c5720)
+  - (no push needed for #1969/#1966/#1945/#1951)
+  - All verified with type-check ✓ / lint ✓ / targeted tests ✓ before push. No pushes to `main`/`dev-*`.
+- Reviews posted: 8 (one structured `COMMENT` review per open PR)
+  - Ready: #1965, #1964, #1963, #1966, #1962, #1945, #1951
+  - Ready with minor notes: #1969 (small preset-list duplication in the new `getAdminBuildingConfig` case — non-blocking)
+
+---
+
 ## 2026-06-13
 
 - PRs reviewed: 11 (all open PRs; one head is `dev-paul` — read-only, review-only)
