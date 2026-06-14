@@ -36,7 +36,6 @@ import {
   Medal,
   Pause,
   Play,
-  ArrowLeft,
   Lock,
   Unlock,
 } from 'lucide-react';
@@ -81,6 +80,15 @@ import {
 } from '@/utils/quizAudio';
 import { logError } from '@/utils/logError';
 import { withPreviewFlag } from '@/utils/urlHelpers';
+import {
+  SessionViewHeader,
+  StatTile,
+  SessionBadge,
+  ScorePill,
+  SessionRow,
+  ActionButton,
+} from '@/components/common/sessionViews';
+import { scoreTone } from '@/utils/scoreColor';
 
 interface QuizLiveMonitorProps {
   session: QuizSession;
@@ -152,7 +160,7 @@ const LiveScoreboardSetupPopup: React.FC<LiveScoreboardSetupPopupProps> = ({
 }) => (
   <div
     ref={setupRef}
-    className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-brand-blue-primary/10 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+    className="absolute right-0 top-full mt-2 w-64 bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm z-50 animate-in fade-in slide-in-from-top-2 duration-200"
     style={{ padding: 'min(16px, 4cqmin)' }}
   >
     <p
@@ -953,154 +961,65 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
       };
     }, [filteredResponses, currentQ, pinToName, byStudentUid]);
 
-  const modeIcon =
-    session.sessionMode === 'auto' ? (
-      <Zap className="w-3.5 h-3.5" />
-    ) : session.sessionMode === 'student' ? (
-      <Clock className="w-3.5 h-3.5" />
-    ) : (
-      <User className="w-3.5 h-3.5" />
-    );
-
-  const modeLabel =
-    session.sessionMode === 'auto'
-      ? 'Auto-progress'
-      : session.sessionMode === 'student'
-        ? 'Self-paced'
-        : 'Teacher-paced';
-
   return (
     <div className="flex flex-col h-full font-sans">
-      {/* Header */}
-      <div
-        className="border-b border-brand-red-primary/10"
-        style={{ padding: 'min(12px, 2.5cqmin) min(16px, 4cqmin)' }}
-      >
-        <div className="flex items-center justify-between">
-          <div
-            className="flex items-center"
-            style={{ gap: 'min(8px, 2cqmin)' }}
-          >
-            {onBack && (
-              <button
-                onClick={onBack}
-                className="flex items-center justify-center rounded-lg text-brand-blue-dark/70 hover:text-brand-blue-dark hover:bg-brand-blue-lighter/30 transition-colors"
-                style={{
-                  width: 'min(28px, 7cqmin)',
-                  height: 'min(28px, 7cqmin)',
-                }}
-                title="Back to assignments"
-                aria-label="Back to assignments"
-              >
-                <ArrowLeft
-                  style={{
-                    width: 'min(16px, 4cqmin)',
-                    height: 'min(16px, 4cqmin)',
-                  }}
-                />
-              </button>
-            )}
-            <div
-              className="rounded-full bg-brand-red-primary animate-pulse shadow-[0_0_8px_rgba(173,33,34,0.5)]"
-              style={{
-                width: 'min(10px, 2.5cqmin)',
-                height: 'min(10px, 2.5cqmin)',
-              }}
-            />
-            <div className="flex flex-col">
-              <div
-                className="flex items-center gap-1.5 font-black text-brand-red-primary leading-none uppercase tracking-tight"
-                style={{ fontSize: 'min(12px, 4cqmin)' }}
-              >
-                {modeIcon}
-                <span>{modeLabel}</span>
-              </div>
-              <span
-                className="text-brand-blue-dark font-bold truncate"
-                style={{ fontSize: 'min(11px, 3.5cqmin)', maxWidth: '140px' }}
-              >
-                {session.quizTitle}
-              </span>
-            </div>
-          </div>
-          <div
-            className="flex items-center"
-            style={{ gap: 'min(6px, 1.5cqmin)' }}
-          >
+      {/* Header — shared session-view chrome (status pulse, title, actions) */}
+      <SessionViewHeader
+        onBack={onBack ?? (() => undefined)}
+        status={
+          session.status === 'paused'
+            ? 'paused'
+            : session.status === 'ended'
+              ? 'ended'
+              : 'live'
+        }
+        title={session.quizTitle || quizData.title}
+        subtitle={session.code ? `Join code ${session.code}` : undefined}
+        actions={
+          <>
             {(onPause ?? onResume) && session.status !== 'ended' && (
-              <button
+              <ActionButton
+                variant="secondary"
+                label={session.status === 'paused' ? 'Resume' : 'Pause'}
+                icon={session.status === 'paused' ? Play : Pause}
                 onClick={() => void handleTogglePause()}
                 disabled={toggling}
-                className="flex items-center bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-black rounded-xl transition-all shadow-md active:scale-95"
-                style={{
-                  gap: 'min(6px, 1.5cqmin)',
-                  padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                  fontSize: 'min(11px, 3.5cqmin)',
-                }}
-                title={
-                  session.status === 'paused'
-                    ? 'Resume — students can answer again'
-                    : 'Pause — students see a paused screen'
-                }
-              >
-                {toggling ? (
-                  <Loader2
-                    className="animate-spin"
-                    style={{
-                      width: 'min(14px, 3.5cqmin)',
-                      height: 'min(14px, 3.5cqmin)',
-                    }}
-                  />
-                ) : session.status === 'paused' ? (
-                  <Play
-                    style={{
-                      width: 'min(14px, 3.5cqmin)',
-                      height: 'min(14px, 3.5cqmin)',
-                    }}
-                  />
-                ) : (
-                  <Pause
-                    style={{
-                      width: 'min(14px, 3.5cqmin)',
-                      height: 'min(14px, 3.5cqmin)',
-                    }}
+              />
+            )}
+            {showScoreboardControl && (
+              <div className="relative flex">
+                <ActionButton
+                  variant="secondary"
+                  label={
+                    isLiveScoreboardActive ? 'Scoreboard on' : 'Scoreboard'
+                  }
+                  icon={Trophy}
+                  onClick={handleToggleLiveScoreboard}
+                  labelHidden
+                />
+                {showLiveScoreboardSetup && (
+                  <LiveScoreboardSetupPopup
+                    setupRef={liveScoreboardSetupRef}
+                    mode={liveScoreboardMode}
+                    onModeChange={setLiveScoreboardMode}
+                    scoring={liveScoreboardScoring}
+                    onScoringChange={setLiveScoreboardScoring}
+                    hasNames={hasNames}
+                    onEnable={handleEnableLiveScoreboard}
                   />
                 )}
-                {session.status === 'paused' ? 'RESUME' : 'PAUSE'}
-              </button>
+              </div>
             )}
-            <button
+            <ActionButton
+              variant="danger"
+              label="End"
+              icon={Square}
               onClick={() => void handleEnd()}
               disabled={ending}
-              className="flex items-center bg-brand-red-primary hover:bg-brand-red-dark disabled:opacity-50 text-white font-black rounded-xl transition-all shadow-md active:scale-95"
-              style={{
-                gap: 'min(6px, 1.5cqmin)',
-                padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                fontSize: 'min(11px, 3.5cqmin)',
-              }}
-              title="Make this assignment inactive. Responses are preserved."
-            >
-              {ending ? (
-                <Loader2
-                  className="animate-spin"
-                  style={{
-                    width: 'min(14px, 3.5cqmin)',
-                    height: 'min(14px, 3.5cqmin)',
-                  }}
-                />
-              ) : (
-                <Square
-                  style={{
-                    width: 'min(14px, 3.5cqmin)',
-                    height: 'min(14px, 3.5cqmin)',
-                  }}
-                />
-              )}
-              END
-            </button>
-          </div>
-        </div>
-      </div>
+            />
+          </>
+        }
+      />
 
       <div
         className="flex-1 overflow-y-auto custom-scrollbar"
@@ -1163,7 +1082,10 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                 </div>
               ) : (
                 /* 1b. QUESTION — hero content (teacher/auto-paced only) */
-                <div className="relative">
+                <div
+                  className="relative bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm"
+                  style={{ padding: 'min(12px, 3cqmin) min(16px, 4cqmin)' }}
+                >
                   {autoCountdown !== null && (
                     <div
                       className="absolute top-0 left-0 right-0 rounded-full overflow-hidden bg-brand-blue-lighter"
@@ -1274,7 +1196,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                   {((session.showCorrectOnBoard ?? false) || isReviewing) &&
                     session.revealedAnswers?.[currentQ.id] && (
                       <div
-                        className="bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between"
+                        className="bg-emerald-50/70 border border-emerald-200 rounded-2xl backdrop-blur-sm shadow-sm flex items-center justify-between"
                         style={{
                           fontSize: 'min(13px, 4.5cqmin)',
                           marginTop: 'min(6px, 1.5cqmin)',
@@ -1363,7 +1285,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                   {/* Live answer distribution (MC only) */}
                   {showStats && currentQ.type === 'MC' && (
                     <div
-                      className="border-t border-brand-blue-primary/5"
+                      className="border-t border-slate-200/60"
                       style={{
                         marginTop: 'min(8px, 2cqmin)',
                         paddingTop: 'min(8px, 2cqmin)',
@@ -1411,71 +1333,86 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                 onPointerDown={(e) => e.stopPropagation()}
                 style={{ gap: 'min(4px, 1cqmin)', touchAction: 'auto' }}
               >
-                <InteractiveStatBox
+                <StatTile
                   label="Joined"
                   value={joined + inProgress + completed}
                   icon={
                     <Users
                       style={{
-                        width: 'min(12px, 3.5cqmin)',
-                        height: 'min(12px, 3.5cqmin)',
+                        width: 'min(14px, 4cqmin)',
+                        height: 'min(14px, 4cqmin)',
                       }}
                     />
                   }
-                  color="blue"
-                  expanded={expandedStat === 'joined'}
-                  onToggle={() =>
+                  tone="blue"
+                  interactive
+                  selected={expandedStat === 'joined'}
+                  onClick={() =>
                     setExpandedStat(expandedStat === 'joined' ? null : 'joined')
                   }
-                  students={[
-                    ...studentsByStatus.joined,
-                    ...studentsByStatus.active,
-                    ...studentsByStatus.finished,
-                  ]}
-                />
-                <InteractiveStatBox
+                >
+                  <StatTileStudentList
+                    show={expandedStat === 'joined'}
+                    students={[
+                      ...studentsByStatus.joined,
+                      ...studentsByStatus.active,
+                      ...studentsByStatus.finished,
+                    ]}
+                  />
+                </StatTile>
+                <StatTile
                   label="Active"
                   value={inProgress}
                   icon={
                     <Clock
                       style={{
-                        width: 'min(12px, 3.5cqmin)',
-                        height: 'min(12px, 3.5cqmin)',
+                        width: 'min(14px, 4cqmin)',
+                        height: 'min(14px, 4cqmin)',
                       }}
                     />
                   }
-                  color="amber"
-                  expanded={expandedStat === 'active'}
-                  onToggle={() =>
+                  tone="amber"
+                  interactive
+                  selected={expandedStat === 'active'}
+                  onClick={() =>
                     setExpandedStat(expandedStat === 'active' ? null : 'active')
                   }
-                  students={studentsByStatus.active}
-                />
-                <InteractiveStatBox
+                >
+                  <StatTileStudentList
+                    show={expandedStat === 'active'}
+                    students={studentsByStatus.active}
+                  />
+                </StatTile>
+                <StatTile
                   label="Finished"
                   value={completed}
                   icon={
                     <CheckCircle2
                       style={{
-                        width: 'min(12px, 3.5cqmin)',
-                        height: 'min(12px, 3.5cqmin)',
+                        width: 'min(14px, 4cqmin)',
+                        height: 'min(14px, 4cqmin)',
                       }}
                     />
                   }
-                  color="green"
-                  expanded={expandedStat === 'finished'}
-                  onToggle={() =>
+                  tone="green"
+                  interactive
+                  selected={expandedStat === 'finished'}
+                  onClick={() =>
                     setExpandedStat(
                       expandedStat === 'finished' ? null : 'finished'
                     )
                   }
-                  students={studentsByStatus.finished}
-                />
+                >
+                  <StatTileStudentList
+                    show={expandedStat === 'finished'}
+                    students={studentsByStatus.finished}
+                  />
+                </StatTile>
               </div>
 
               {/* 3. JOIN CODE bar (compact) */}
               <div
-                className="flex items-center bg-white border border-brand-blue-primary/10 rounded-xl shadow-sm"
+                className="flex items-center bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm"
                 style={{
                   padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
                   gap: 'min(6px, 1.5cqmin)',
@@ -1591,53 +1528,6 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                 )}
               </div>
 
-              {/* 4. Live Scoreboard Toggle (compact) — icon-only, gated on
-                  gamification signals so plain quizzes don't surface it. */}
-              {showScoreboardControl && (
-                <div className="relative flex justify-end">
-                  <button
-                    onClick={handleToggleLiveScoreboard}
-                    aria-label={
-                      isLiveScoreboardActive
-                        ? 'Live scoreboard on — click to configure or disable'
-                        : 'Enable live scoreboard'
-                    }
-                    title={
-                      isLiveScoreboardActive
-                        ? 'Live scoreboard on'
-                        : 'Enable live scoreboard'
-                    }
-                    className={`flex items-center justify-center rounded-lg transition-all active:scale-95 border ${
-                      isLiveScoreboardActive
-                        ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 ring-1 ring-amber-300 shadow-sm'
-                        : 'bg-white hover:bg-amber-50 text-amber-600 border-amber-200'
-                    }`}
-                    style={{
-                      width: 'min(28px, 7cqmin)',
-                      height: 'min(28px, 7cqmin)',
-                    }}
-                  >
-                    <Trophy
-                      style={{
-                        width: 'min(14px, 3.5cqmin)',
-                        height: 'min(14px, 3.5cqmin)',
-                      }}
-                    />
-                  </button>
-                  {showLiveScoreboardSetup && (
-                    <LiveScoreboardSetupPopup
-                      setupRef={liveScoreboardSetupRef}
-                      mode={liveScoreboardMode}
-                      onModeChange={setLiveScoreboardMode}
-                      scoring={liveScoreboardScoring}
-                      onScoringChange={setLiveScoreboardScoring}
-                      hasNames={hasNames}
-                      onEnable={handleEnableLiveScoreboard}
-                    />
-                  )}
-                </div>
-              )}
-
               {/* 5. ROSTER show/hide + student list. The gate also stays
                    open when a class-period filter is active even if the
                    filter currently produces zero rows — otherwise the
@@ -1645,7 +1535,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                    no way for the teacher to widen the selection again. */}
               {(responses.length > 0 || filterActive) && (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between border-b border-brand-blue-primary/10 pb-1">
+                  <div className="flex items-center justify-between border-b border-slate-200/60 pb-1">
                     <button
                       onClick={() => setShowRoster(!showRoster)}
                       className="flex items-center gap-1"
@@ -1712,14 +1602,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                     </div>
                   )}
                   {showRoster && filteredResponses.length > 0 && (
-                    <div
-                      className="max-h-60 overflow-y-auto pr-1 custom-scrollbar"
-                      style={{
-                        gap: 'min(6px, 1.5cqmin)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                      }}
-                    >
+                    <div className="max-h-60 overflow-y-auto pr-1 custom-scrollbar flex flex-col">
                       {filteredResponses
                         .slice()
                         .sort((a, b) =>
@@ -1816,7 +1699,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
             <>
               {/* Join code bar (full size) */}
               <div
-                className="flex items-center bg-white border border-brand-blue-primary/10 rounded-xl shadow-sm"
+                className="flex items-center bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm"
                 style={{
                   padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
                   gap: 'min(8px, 2cqmin)',
@@ -1931,53 +1814,6 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                 )}
               </div>
 
-              {/* Live Scoreboard Toggle (full size) — icon-only, gated on
-                  gamification signals so plain quizzes don't surface it. */}
-              {showScoreboardControl && (
-                <div className="relative flex justify-end">
-                  <button
-                    onClick={handleToggleLiveScoreboard}
-                    aria-label={
-                      isLiveScoreboardActive
-                        ? 'Live scoreboard on — click to configure or disable'
-                        : 'Enable live scoreboard'
-                    }
-                    title={
-                      isLiveScoreboardActive
-                        ? 'Live scoreboard on'
-                        : 'Enable live scoreboard'
-                    }
-                    className={`flex items-center justify-center rounded-lg transition-all active:scale-95 border ${
-                      isLiveScoreboardActive
-                        ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 ring-1 ring-amber-300 shadow-sm'
-                        : 'bg-white hover:bg-amber-50 text-amber-600 border-amber-200'
-                    }`}
-                    style={{
-                      width: 'min(32px, 8cqmin)',
-                      height: 'min(32px, 8cqmin)',
-                    }}
-                  >
-                    <Trophy
-                      style={{
-                        width: 'min(16px, 4cqmin)',
-                        height: 'min(16px, 4cqmin)',
-                      }}
-                    />
-                  </button>
-                  {showLiveScoreboardSetup && (
-                    <LiveScoreboardSetupPopup
-                      setupRef={liveScoreboardSetupRef}
-                      mode={liveScoreboardMode}
-                      onModeChange={setLiveScoreboardMode}
-                      scoring={liveScoreboardScoring}
-                      onScoringChange={setLiveScoreboardScoring}
-                      hasNames={hasNames}
-                      onEnable={handleEnableLiveScoreboard}
-                    />
-                  )}
-                </div>
-              )}
-
               {/* Period chips above stat boxes — same pattern as the
                   active layout so teachers can preview / review one
                   period at a time before starting or after ending. */}
@@ -1993,7 +1829,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                 className="grid grid-cols-3"
                 style={{ gap: 'min(8px, 2cqmin)' }}
               >
-                <StatBox
+                <StatTile
                   label="Joined"
                   value={joined + inProgress + completed}
                   icon={
@@ -2004,9 +1840,9 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                       }}
                     />
                   }
-                  color="blue"
+                  tone="blue"
                 />
-                <StatBox
+                <StatTile
                   label="Active"
                   value={inProgress}
                   icon={
@@ -2017,9 +1853,9 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                       }}
                     />
                   }
-                  color="amber"
+                  tone="amber"
                 />
-                <StatBox
+                <StatTile
                   label="Finished"
                   value={completed}
                   icon={
@@ -2030,7 +1866,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                       }}
                     />
                   }
-                  color="green"
+                  tone="green"
                 />
               </div>
 
@@ -2096,7 +1932,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                    zero rows. */}
               {(responses.length > 0 || filterActive) && (
                 <div className="space-y-2 mt-2">
-                  <div className="flex items-center justify-between border-b border-brand-blue-primary/10 pb-1">
+                  <div className="flex items-center justify-between border-b border-slate-200/60 pb-1">
                     <button
                       onClick={() => setShowRoster(!showRoster)}
                       className="flex items-center gap-1"
@@ -2163,14 +1999,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                     </div>
                   )}
                   {showRoster && filteredResponses.length > 0 && (
-                    <div
-                      className="max-h-60 overflow-y-auto pr-1 custom-scrollbar"
-                      style={{
-                        gap: 'min(6px, 1.5cqmin)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                      }}
-                    >
+                    <div className="max-h-60 overflow-y-auto pr-1 custom-scrollbar flex flex-col">
                       {filteredResponses
                         .slice()
                         .sort((a, b) =>
@@ -2268,7 +2097,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
       {(session.status === 'waiting' ||
         (session.status === 'active' && session.sessionMode !== 'student')) && (
         <div
-          className="border-t border-brand-blue-primary/10"
+          className="border-t border-slate-200/60"
           style={{ padding: 'min(16px, 4cqmin)' }}
         >
           <button
@@ -2318,54 +2147,8 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   );
 };
 
-const StatBox: React.FC<{
-  label: string;
-  value: number;
-  icon: React.ReactNode;
-  color: 'blue' | 'amber' | 'green';
-}> = ({ label, value, icon, color }) => {
-  const themes = {
-    blue: 'bg-brand-blue-lighter border-brand-blue-primary/10 text-brand-blue-primary',
-    amber: 'bg-amber-50 border-amber-200 text-amber-600',
-    green: 'bg-emerald-50 border-emerald-200 text-emerald-600',
-  };
-
-  return (
-    <div
-      className={`${themes[color]} rounded-2xl text-center border shadow-sm`}
-      style={{ padding: 'min(10px, 2.5cqmin)' }}
-    >
-      <div
-        className="opacity-60"
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          marginBottom: 'min(4px, 1cqmin)',
-        }}
-      >
-        {icon}
-      </div>
-      <p
-        className="font-black leading-none"
-        style={{ fontSize: 'min(20px, 6.5cqmin)' }}
-      >
-        {value}
-      </p>
-      <p
-        className="font-bold uppercase tracking-tighter opacity-70"
-        style={{
-          fontSize: 'min(10px, 3.5cqmin)',
-          marginTop: 'min(2px, 0.5cqmin)',
-        }}
-      >
-        {label}
-      </p>
-    </div>
-  );
-};
-
 /**
- * Row shape passed to `InteractiveStatBox`. `key` is whatever uniquely
+ * Row shape passed to the interactive KPI tiles. `key` is whatever uniquely
  * identifies the student within the session — `pin` for anonymous joiners,
  * `studentUid` for SSO joiners.
  */
@@ -2374,83 +2157,37 @@ interface StatBoxStudent {
   name: string;
 }
 
-const InteractiveStatBox: React.FC<{
-  label: string;
-  value: number;
-  icon: React.ReactNode;
-  color: 'blue' | 'amber' | 'green';
-  expanded: boolean;
-  onToggle: () => void;
+/**
+ * Expandable student-name list rendered inside an interactive `StatTile`
+ * (the KPI tile's `children`). Shown only when the tile is selected and at
+ * least one student is in that bucket, mirroring the previous inline
+ * stat-box expansion.
+ */
+const StatTileStudentList: React.FC<{
+  show: boolean;
   students: StatBoxStudent[];
-}> = ({ label, value, icon, color, expanded, onToggle, students }) => {
-  const themes = {
-    blue: 'bg-brand-blue-lighter border-brand-blue-primary/10 text-brand-blue-primary',
-    amber: 'bg-amber-50 border-amber-200 text-amber-600',
-    green: 'bg-emerald-50 border-emerald-200 text-emerald-600',
-  };
-  const expandedBorder = {
-    blue: 'border-brand-blue-primary/30',
-    amber: 'border-amber-300',
-    green: 'border-emerald-300',
-  };
-
+}> = ({ show, students }) => {
+  if (!show || students.length === 0) return null;
   return (
-    <div className="flex flex-col">
-      <button
-        onClick={onToggle}
-        className={`${themes[color]} rounded-xl text-center border shadow-sm transition-all active:scale-95 cursor-pointer ${
-          expanded ? `ring-2 ring-offset-1 ${expandedBorder[color]}` : ''
-        }`}
-        style={{ padding: 'min(6px, 1.5cqmin) min(4px, 1cqmin)' }}
-      >
-        <div
-          className="opacity-60"
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            marginBottom: 'min(2px, 0.5cqmin)',
-          }}
-        >
-          {icon}
-        </div>
+    <div
+      className="text-left overflow-y-auto"
+      style={{
+        maxHeight: 'min(100px, 25cqmin)',
+        marginTop: 'min(6px, 1.5cqmin)',
+      }}
+    >
+      {students.map((s) => (
         <p
-          className="font-black leading-none"
-          style={{ fontSize: 'min(18px, 5.5cqmin)' }}
-        >
-          {value}
-        </p>
-        <p
-          className="font-bold uppercase tracking-tighter opacity-70"
+          key={s.key}
+          className="truncate font-bold text-slate-600"
           style={{
-            fontSize: 'min(9px, 3cqmin)',
-            marginTop: 'min(1px, 0.3cqmin)',
+            fontSize: 'min(10px, 2.8cqmin)',
+            padding: 'min(2px, 0.5cqmin) min(4px, 1cqmin)',
           }}
         >
-          {label}
+          {s.name}
         </p>
-      </button>
-      {expanded && students.length > 0 && (
-        <div
-          className={`${themes[color]} rounded-lg border mt-1 overflow-y-auto`}
-          style={{
-            maxHeight: 'min(100px, 25cqmin)',
-            padding: 'min(4px, 1cqmin)',
-          }}
-        >
-          {students.map((s) => (
-            <p
-              key={s.key}
-              className="truncate font-bold"
-              style={{
-                fontSize: 'min(10px, 2.8cqmin)',
-                padding: 'min(2px, 0.5cqmin) min(4px, 1cqmin)',
-              }}
-            >
-              {s.name}
-            </p>
-          ))}
-        </div>
-      )}
+      ))}
     </div>
   );
 };
@@ -2745,36 +2482,24 @@ const StudentRow: React.FC<{
   const displayScore = scoreable
     ? getDisplayScore(response, questions, scoringConfig)
     : null;
-  const scoreSuffix = getScoreSuffix(scoringConfig);
 
-  // Row background. When colors are enabled AND the student has finished,
-  // tint by score band (≥80% green / 60-79% amber / <60% rose). Active and
-  // joined rows always render as a clean white surface — there's no score
-  // to encode yet. With colors off, every row is white.
-  const rowBg = (() => {
-    if (!colorsEnabled || bandScore == null) {
-      return 'bg-white border-slate-200';
-    }
-    if (bandScore >= 80) return 'bg-emerald-50 border-emerald-200';
-    if (bandScore >= 60) return 'bg-amber-50 border-amber-200';
-    return 'bg-rose-50 border-rose-200';
-  })();
+  // Row score-band wash. When colors are enabled AND the student has
+  // finished, tint by score band via the unified scoreColor scale (≥80
+  // success / 60-79 warn / <60 danger) — the same un-bonused band score the
+  // local `scoreBandBg` helper used. Active and joined rows have no score to
+  // encode yet, and with colors off every row stays untinted.
+  const tintTone =
+    colorsEnabled && bandScore != null ? scoreTone(bandScore) : undefined;
 
-  // Status icon mirrors the KPI cards above (Joined → Users, Active → Clock,
-  // Finished → CheckCircle2). Renders in a neutral slate so the row band
-  // carries the semantic color.
-  const StatusIcon =
-    response.status === 'completed'
-      ? CheckCircle2
-      : response.status === 'in-progress'
-        ? Clock
-        : Users;
-  const statusIconColor =
-    response.status === 'completed'
-      ? 'text-emerald-600'
-      : response.status === 'in-progress'
-        ? 'text-amber-600'
-        : 'text-slate-400';
+  // Leading status dot mirrors the KPI buckets: in-progress students pulse
+  // (actively answering), completed students are a steady success dot, and
+  // joined-but-not-started rows get a neutral dot.
+  const statusDot: { tone: 'success' | 'neutral'; pulse?: boolean } =
+    response.status === 'in-progress'
+      ? { tone: 'success', pulse: true }
+      : response.status === 'completed'
+        ? { tone: 'success' }
+        : { tone: 'neutral' };
 
   const displayName = resolveResponseDisplayName(
     response,
@@ -2784,97 +2509,209 @@ const StudentRow: React.FC<{
 
   if (confirmRemove) {
     return (
-      <div
-        className="flex items-center rounded-xl border bg-red-50 border-red-200"
-        style={{
-          gap: 'min(8px, 2cqmin)',
-          padding: 'min(8px, 2cqmin)',
-        }}
+      <SessionRow
+        dot={{ tone: 'danger' }}
+        tintTone="danger"
+        trailing={
+          <>
+            <button
+              onClick={onRemove}
+              className="bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-colors"
+              style={{
+                padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
+                fontSize: 'min(10px, 3cqmin)',
+              }}
+            >
+              Yes
+            </button>
+            <button
+              onClick={onConfirmRemoveToggle}
+              className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-colors"
+              style={{
+                padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
+                fontSize: 'min(10px, 3cqmin)',
+              }}
+            >
+              No
+            </button>
+          </>
+        }
       >
         <span
-          className="flex-1 text-red-700 font-bold"
+          className="text-red-700 font-bold"
           style={{ fontSize: 'min(11px, 3.5cqmin)' }}
         >
           Remove {displayName}?
         </span>
-        <button
-          onClick={onRemove}
-          className="bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-colors"
-          style={{
-            padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
-            fontSize: 'min(10px, 3cqmin)',
-          }}
-        >
-          Yes
-        </button>
-        <button
-          onClick={onConfirmRemoveToggle}
-          className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-colors"
-          style={{
-            padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
-            fontSize: 'min(10px, 3cqmin)',
-          }}
-        >
-          No
-        </button>
-      </div>
+      </SessionRow>
     );
   }
 
-  // Right-column pill content. `count` mode is intentionally
+  // Right-column score chip. `count` mode is intentionally
   // "answered / total" (progress), not "correct / total" — teachers
   // running self-paced sessions want to see where each student is in
   // the quiz, which is why the toolbar button title spells out
   // "Answered / Total" rather than the ambiguous "n/N".
-  let pillText: string | null;
-  if (scoreDisplay === 'hidden') {
-    pillText = null;
-  } else if (scoreDisplay === 'count') {
-    pillText = `${response.answers.length}/${totalQuestions}`;
-  } else if (response.status === 'completed' && displayScore != null) {
-    pillText = `${displayScore}${scoreSuffix}`;
-  } else if (response.status === 'completed') {
-    // Completed but not scoreable yet — the answer key is still loading, or
-    // this response's answers don't match the loaded quiz (e.g. synced-quiz
-    // id drift). Show a neutral placeholder rather than a misleading 0% or an
-    // "answered/total" count that could be misread as a perfect score.
-    pillText = '—';
-  } else {
-    // No completed score yet — fall back to progress so teachers always see
-    // *something* about in-progress students even when "percent" is selected.
-    pillText = `${response.answers.length}/${totalQuestions}`;
-  }
-  const pillTextClass =
-    response.status === 'completed'
-      ? 'text-emerald-700 font-black'
-      : response.status === 'in-progress'
-        ? 'text-amber-700 font-bold'
-        : 'text-brand-gray-primary font-medium';
+  //
+  // The shared ScorePill renders the score cases (count mode + a completed,
+  // scoreable score in percent mode). The two cases ScorePill can't express
+  // are preserved with a styled span so behavior stays identical:
+  //   - completed but not yet scoreable → a neutral "—" placeholder (rather
+  //     than a misleading 0% / count that reads like a perfect score);
+  //   - in-progress / joined under percent mode → progress fallback so
+  //     teachers always see *something* even when "percent" is selected.
+  const isGamified = isGamificationActive(scoringConfig);
+  const scoreTrailing = (() => {
+    if (scoreDisplay === 'hidden') return null;
+    if (scoreDisplay === 'count') {
+      return (
+        <ScorePill
+          score={0}
+          display="count"
+          count={response.answers.length}
+          total={totalQuestions}
+        />
+      );
+    }
+    // percent mode
+    if (response.status === 'completed' && displayScore != null) {
+      return (
+        <ScorePill
+          score={displayScore}
+          display="percent"
+          gamified={isGamified}
+          points={displayScore}
+        />
+      );
+    }
+    const fallbackText =
+      response.status === 'completed'
+        ? '—'
+        : `${response.answers.length}/${totalQuestions}`;
+    const fallbackClass =
+      response.status === 'completed'
+        ? 'text-emerald-700 font-black'
+        : response.status === 'in-progress'
+          ? 'text-amber-700 font-bold'
+          : 'text-brand-gray-primary font-medium';
+    return (
+      <span
+        className={`px-1.5 py-0.5 rounded-md bg-white/60 border border-white/80 shrink-0 ${fallbackClass}`}
+        style={{ fontSize: 'min(11px, 3cqmin)' }}
+      >
+        {fallbackText}
+      </span>
+    );
+  })();
+
+  // Lock state — a row is "locked" when the student's attempt was
+  // auto-submitted by the tab-switch tripwire (3+ warnings on a completed
+  // response) or when they hit the cross-launch attempt cap. The teacher
+  // clicks the badge to reopen the attempt — underlying answers are
+  // preserved and the next strike finalizes immediately.
+  const lockBadge = (() => {
+    if (!onUnlock) return null;
+    const isAutoSubmittedByWarnings =
+      response.status === 'completed' && warnings >= 3 && !response.unlocked;
+    const completedCount = response.completedAttempts ?? 0;
+    const hitAttemptCap =
+      typeof attemptLimit === 'number' &&
+      attemptLimit > 0 &&
+      completedCount >= attemptLimit &&
+      !response.unlocked;
+    const isLocked = isAutoSubmittedByWarnings || hitAttemptCap;
+    if (isLocked) {
+      return (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onUnlock(displayName);
+          }}
+          className="shrink-0 rounded-full transition-opacity hover:opacity-80"
+          title={
+            isAutoSubmittedByWarnings
+              ? 'Auto-submitted from tab-switch warnings — click to allow resume'
+              : 'Attempt limit reached — click to allow resume'
+          }
+          aria-label={`Unlock ${displayName}'s attempt`}
+        >
+          <SessionBadge tone="warn" label="Locked" icon={Lock} />
+        </button>
+      );
+    }
+    if (
+      response.unlocked &&
+      (response.status === 'in-progress' || response.status === 'joined')
+    ) {
+      return (
+        <span
+          className="shrink-0"
+          title="Unlocked — one more tab-switch will finalize the attempt"
+        >
+          <SessionBadge tone="success" label="Resumed" icon={Unlock} />
+        </span>
+      );
+    }
+    return null;
+  })();
 
   return (
-    <div
-      className={`flex items-center rounded-xl border transition-all ${rowBg}`}
-      style={{
-        gap: 'min(8px, 2cqmin)',
-        padding: 'min(8px, 2cqmin)',
-      }}
+    <SessionRow
+      dot={statusDot}
+      tintTone={tintTone}
+      trailing={
+        <>
+          {scoreTrailing}
+          {/* Unlock-results action — only when the student is currently
+              locked out of viewing published results. Decrements warnings by
+              1 and clears the lockout (one more tab-switch will re-lock). */}
+          {response.resultsLockedOut === true && onUnlockResults && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onUnlockResults(displayName);
+              }}
+              className="bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold rounded-md transition-colors shrink-0"
+              style={{
+                padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                fontSize: 'min(10px, 3cqmin)',
+              }}
+              title="Decrement warnings by 1 and reopen the results view for this student"
+              aria-label={`Unlock results for ${displayName}`}
+            >
+              Unlock results
+            </button>
+          )}
+          {/* Remove button — always visible. Hover-only discoverability
+              failed on touch devices and made the action effectively
+              invisible. The icon stays muted so it doesn't compete with
+              the row content. */}
+          {onRemove && (
+            <button
+              onClick={onConfirmRemoveToggle}
+              className="text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors shrink-0 flex items-center justify-center"
+              style={{
+                width: 'min(20px, 5cqmin)',
+                height: 'min(20px, 5cqmin)',
+              }}
+              title="Remove student"
+              aria-label="Remove student"
+            >
+              <X
+                style={{
+                  width: 'min(14px, 3.5cqmin)',
+                  height: 'min(14px, 3.5cqmin)',
+                }}
+              />
+            </button>
+          )}
+        </>
+      }
     >
-      <StatusIcon
-        className={`shrink-0 ${statusIconColor}`}
-        style={{
-          width: 'min(14px, 3.5cqmin)',
-          height: 'min(14px, 3.5cqmin)',
-        }}
-        aria-label={
-          response.status === 'completed'
-            ? 'Finished'
-            : response.status === 'in-progress'
-              ? 'Active'
-              : 'Joined'
-        }
-      />
       <span
-        className="flex-1 flex items-center gap-1.5 text-brand-blue-dark font-bold truncate"
+        className="flex items-center gap-1.5 text-brand-blue-dark font-bold truncate"
         style={{ fontSize: 'min(12px, 3.5cqmin)' }}
       >
         <span
@@ -2892,191 +2729,48 @@ const StudentRow: React.FC<{
 
         {isPossibleDuplicate && (
           <span
-            className="flex items-center gap-0.5 bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded uppercase font-black shrink-0"
-            style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+            className="shrink-0"
             title="This name appears on more than one submission — a student may have joined twice (e.g. via Google sign-in and a PIN, or under the wrong class period). Review and remove the extra copy before grading."
           >
-            <Users
-              style={{
-                width: 'min(12px, 3cqmin)',
-                height: 'min(12px, 3cqmin)',
-              }}
-            />
-            Dup?
+            <SessionBadge tone="warn" label="Dup?" icon={Users} />
           </span>
         )}
 
         {showTabWarnings && warnings > 0 && (
           <span
-            className="flex items-center gap-0.5 bg-red-100 text-red-700 px-1.5 py-0.5 rounded uppercase font-black shrink-0"
-            style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+            className="shrink-0"
             title={`${warnings} Tab Switch Warning(s)`}
           >
-            <AlertTriangle
-              style={{
-                width: 'min(12px, 3cqmin)',
-                height: 'min(12px, 3cqmin)',
-              }}
+            <SessionBadge
+              tone="danger"
+              label={`${warnings}`}
+              icon={AlertTriangle}
             />
-            {warnings}
           </span>
         )}
 
-        {/* Lock indicator + unlock action. A row is "locked" when the
-            student's attempt was auto-submitted by the tab-switch
-            tripwire (3+ warnings on a completed response) or when they
-            hit the cross-launch attempt cap. The teacher clicks to
-            reopen the attempt — the underlying answers are preserved
-            and the next strike will finalize immediately. */}
-        {(() => {
-          if (!onUnlock) return null;
-          const isAutoSubmittedByWarnings =
-            response.status === 'completed' &&
-            warnings >= 3 &&
-            !response.unlocked;
-          const completedCount = response.completedAttempts ?? 0;
-          const hitAttemptCap =
-            typeof attemptLimit === 'number' &&
-            attemptLimit > 0 &&
-            completedCount >= attemptLimit &&
-            !response.unlocked;
-          const isLocked = isAutoSubmittedByWarnings || hitAttemptCap;
-          if (isLocked) {
-            return (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onUnlock(displayName);
-                }}
-                className="flex items-center gap-0.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded uppercase font-black shrink-0 transition-colors"
-                style={{
-                  fontSize: 'min(9px, 2.5cqmin)',
-                  padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
-                }}
-                title={
-                  isAutoSubmittedByWarnings
-                    ? 'Auto-submitted from tab-switch warnings — click to allow resume'
-                    : 'Attempt limit reached — click to allow resume'
-                }
-                aria-label={`Unlock ${displayName}'s attempt`}
-              >
-                <Lock
-                  style={{
-                    width: 'min(12px, 3cqmin)',
-                    height: 'min(12px, 3cqmin)',
-                  }}
-                />
-                Locked
-              </button>
-            );
-          }
-          if (
-            response.unlocked &&
-            (response.status === 'in-progress' || response.status === 'joined')
-          ) {
-            return (
-              <span
-                className="flex items-center gap-0.5 bg-emerald-100 text-emerald-800 rounded uppercase font-black shrink-0"
-                style={{
-                  fontSize: 'min(9px, 2.5cqmin)',
-                  padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
-                }}
-                title="Unlocked — one more tab-switch will finalize the attempt"
-              >
-                <Unlock
-                  style={{
-                    width: 'min(12px, 3cqmin)',
-                    height: 'min(12px, 3cqmin)',
-                  }}
-                />
-                Resumed
-              </span>
-            );
-          }
-          return null;
-        })()}
+        {lockBadge}
 
-        {/* Results-view lockout indicator + unlock action. A row enters this
-            state when the student crossed `protection.tabWarningThreshold`
-            tab-switches while viewing published results — the student app
-            redirects them out and writes `resultsLockedOut: true`. The
-            teacher's unlock here decrements warnings by 1 (so a single
-            additional tab-switch re-locks them) and clears the flag. */}
+        {/* Results-view lockout indicator. A row enters this state when the
+            student crossed `protection.tabWarningThreshold` tab-switches while
+            viewing published results — the student app redirects them out and
+            writes `resultsLockedOut: true`. The accompanying unlock action
+            lives in the trailing slot. */}
         {response.resultsLockedOut === true && (
           <span
+            className="shrink-0"
             aria-label="Results locked"
-            className="flex items-center gap-0.5 bg-rose-100 text-rose-800 rounded uppercase font-black shrink-0"
-            style={{
-              fontSize: 'min(9px, 2.5cqmin)',
-              padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
-            }}
             title={`Results locked after ${response.resultsTabWarnings ?? 0} of ${resultsTabWarningThreshold} tab-switch warnings`}
           >
-            <Lock
-              style={{
-                width: 'min(12px, 3cqmin)',
-                height: 'min(12px, 3cqmin)',
-              }}
+            <SessionBadge
+              tone="danger"
+              label={`Results locked (${response.resultsTabWarnings ?? 0}/${resultsTabWarningThreshold})`}
+              icon={Lock}
             />
-            Results locked ({response.resultsTabWarnings ?? 0}/
-            {resultsTabWarningThreshold})
           </span>
         )}
       </span>
-      {pillText !== null && (
-        <span
-          className={`px-1.5 py-0.5 rounded-md bg-white/60 border border-white/80 ${pillTextClass}`}
-          style={{ fontSize: 'min(11px, 3cqmin)' }}
-        >
-          {pillText}
-        </span>
-      )}
-      {/* Unlock-results action — only when the student is currently locked
-          out of viewing published results. Decrements warnings by 1 and
-          clears the lockout (one more tab-switch will re-lock them). */}
-      {response.resultsLockedOut === true && onUnlockResults && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onUnlockResults(displayName);
-          }}
-          className="bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold rounded-md transition-colors shrink-0"
-          style={{
-            padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-            fontSize: 'min(10px, 3cqmin)',
-          }}
-          title="Decrement warnings by 1 and reopen the results view for this student"
-          aria-label={`Unlock results for ${displayName}`}
-        >
-          Unlock results
-        </button>
-      )}
-      {/* Remove button — always visible. Hover-only discoverability
-          failed on touch devices and made the action effectively
-          invisible. The icon stays muted so it doesn't compete with
-          the row content. */}
-      {onRemove && (
-        <button
-          onClick={onConfirmRemoveToggle}
-          className="text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors shrink-0 flex items-center justify-center"
-          style={{
-            width: 'min(20px, 5cqmin)',
-            height: 'min(20px, 5cqmin)',
-          }}
-          title="Remove student"
-          aria-label="Remove student"
-        >
-          <X
-            style={{
-              width: 'min(14px, 3.5cqmin)',
-              height: 'min(14px, 3.5cqmin)',
-            }}
-          />
-        </button>
-      )}
-    </div>
+    </SessionRow>
   );
 };
 
@@ -3115,7 +2809,7 @@ const PodiumView: React.FC<{
 
   return (
     <div
-      className="bg-white border border-amber-200 rounded-2xl shadow-md text-center animate-in fade-in slide-in-from-bottom-2 duration-300"
+      className="bg-white/70 border border-amber-200 rounded-2xl backdrop-blur-sm shadow-sm text-center animate-in fade-in slide-in-from-bottom-2 duration-300"
       style={{ padding: 'min(16px, 4cqmin)' }}
     >
       <div
