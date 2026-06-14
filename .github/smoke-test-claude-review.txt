@@ -1,0 +1,1 @@
+Smoke test to confirm the Claude PR review workflow triggers and posts a review. Safe to delete.
