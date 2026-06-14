@@ -64,6 +64,10 @@ describe('PollWidget', () => {
   const mockUpdateWidget = vi.fn();
 
   beforeEach(() => {
+    // Clear call history FIRST, then install stubs — clearing afterward would
+    // wipe nothing functional (clearAllMocks keeps implementations) but reads
+    // as a footgun. Order it conventionally so the stubs are the final word.
+    vi.clearAllMocks();
     (useDashboard as Mock).mockReturnValue({
       updateWidget: mockUpdateWidget,
       activeDashboard: { globalStyle: { fontFamily: 'sans' } },
@@ -83,7 +87,6 @@ describe('PollWidget', () => {
         return vi.fn();
       }
     );
-    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -285,6 +288,7 @@ describe('PollSettings', () => {
   const mockCanAccessFeature = vi.fn(() => true);
 
   beforeEach(() => {
+    vi.clearAllMocks();
     (useDashboard as Mock).mockReturnValue({
       updateWidget: mockUpdateWidget,
       addToast: mockAddToast,
@@ -295,7 +299,6 @@ describe('PollSettings', () => {
       user: { uid: 'teacher-1' },
       canAccessFeature: mockCanAccessFeature,
     });
-    vi.clearAllMocks();
   });
 
   afterEach(() => {

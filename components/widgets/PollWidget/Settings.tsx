@@ -43,8 +43,14 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const beginSession = async (mode: 'fresh' | 'resume') => {
     if (!user) return;
     setShowResumePopover(false);
-    const next = await startPollSession(config, user.uid, mode);
-    updateWidget(widget.id, { config: next });
+    try {
+      const next = await startPollSession(config, user.uid, mode);
+      updateWidget(widget.id, { config: next });
+    } catch (err) {
+      // Match RemotePollControl: surface the failure in logs rather than
+      // leaving the teacher with a half-started session and no feedback.
+      console.error('[PollSettings] startPollSession failed:', err);
+    }
   };
 
   const handleStartClick = () => {
@@ -57,8 +63,12 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const handleStopClick = async () => {
     if (!user) return;
-    const next = await stopPollSession(config, user.uid);
-    updateWidget(widget.id, { config: next });
+    try {
+      const next = await stopPollSession(config, user.uid);
+      updateWidget(widget.id, { config: next });
+    } catch (err) {
+      console.error('[PollSettings] stopPollSession failed:', err);
+    }
   };
   const { question = 'Vote Now!' } = config;
   const options = Array.isArray(config.options) ? config.options : [];

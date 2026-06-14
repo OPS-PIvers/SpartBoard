@@ -39,8 +39,7 @@ export const PollVoteApp: React.FC = () => {
   // which is what useEffect is for.
   useEffect(() => {
     if (!ready) return;
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    let unsubscribe = () => {};
+    let unsubscribe: () => void = () => undefined;
     let cancelled = false;
     void (async () => {
       try {
@@ -140,7 +139,7 @@ export const PollVoteApp: React.FC = () => {
                 <button
                   key={option.id}
                   type="button"
-                  disabled={submitting}
+                  disabled={submitting || closed}
                   onClick={() => {
                     void castVote(index);
                   }}
