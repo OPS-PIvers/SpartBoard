@@ -2494,9 +2494,9 @@ const StudentRow: React.FC<{
   // Leading status dot mirrors the KPI buckets: in-progress students pulse
   // (actively answering), completed students are a steady success dot, and
   // joined-but-not-started rows get a neutral dot.
-  const statusDot: { tone: 'success' | 'neutral'; pulse?: boolean } =
+  const statusDot: { tone: 'success' | 'warn' | 'neutral'; pulse?: boolean } =
     response.status === 'in-progress'
-      ? { tone: 'success', pulse: true }
+      ? { tone: 'warn', pulse: true }
       : response.status === 'completed'
         ? { tone: 'success' }
         : { tone: 'neutral' };

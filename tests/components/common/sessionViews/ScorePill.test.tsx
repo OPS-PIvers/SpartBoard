@@ -13,6 +13,9 @@ describe('ScorePill', () => {
   it('renders count form as answered/total', () => {
     render(<ScorePill score={0} display="count" count={3} total={5} />);
     expect(screen.getByTestId('score-pill')).toHaveTextContent('3/5');
+    expect(screen.getByTestId('score-pill').className).toContain(
+      'text-slate-600'
+    );
   });
 
   it('renders nothing when hidden', () => {

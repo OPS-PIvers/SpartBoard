@@ -31,7 +31,9 @@ export const ScorePill: React.FC<ScorePillProps> = ({
   if (display === 'hidden') return null;
   const colorClass = gamified
     ? 'text-brand-blue-dark'
-    : scoreColorClasses(score).text;
+    : display === 'count'
+      ? 'text-slate-600'
+      : scoreColorClasses(score).text;
   let text: string;
   if (gamified) text = `${points ?? 0}`;
   else if (display === 'count') text = `${count ?? 0}/${total ?? 0}`;
