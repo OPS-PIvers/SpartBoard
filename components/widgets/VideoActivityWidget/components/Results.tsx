@@ -133,7 +133,7 @@ export const Results: React.FC<ResultsProps> = ({
   const [pushingGrades, setPushingGrades] = useState(false);
   const [pushingSchoology, setPushingSchoology] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'questions' | 'students' | 'plc'
+    'overview' | 'questions' | 'students'
   >('overview');
 
   const questions = session.questions;

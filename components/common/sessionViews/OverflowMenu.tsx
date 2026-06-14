@@ -121,6 +121,9 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
                 disabled={!!item.disabled || !!item.loading}
                 onClick={() => {
                   setOpen(false);
+                  // Return focus to the trigger so keyboard users keep their
+                  // place on the header bar after a secondary action.
+                  triggerRef.current?.focus();
                   item.onClick();
                 }}
                 className={`flex w-full items-center gap-2 px-3 py-1.5 text-left font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
