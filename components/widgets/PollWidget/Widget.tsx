@@ -72,7 +72,12 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         setSessionTally(aggregateVotes(votes, options.length));
       }
     );
-    return unsub;
+    return () => {
+      unsub();
+      // Clear on teardown so a stopped session's counts don't flash on the
+      // board when a fresh session starts before its first snapshot arrives.
+      setSessionTally([]);
+    };
   }, [activePollSessionId, user, options.length]);
 
   const vote = (index: number) => {
