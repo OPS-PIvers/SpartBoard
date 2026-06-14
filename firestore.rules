@@ -3302,8 +3302,15 @@ service cloud.firestore {
       allow delete: if false;
 
       match /votes/{participantUid} {
-        function pollSession() {
-          return get(/databases/$(database)/documents/poll_sessions/$(sessionId)).data;
+        // Single read of the parent session doc, reused for the active-gate
+        // and the optionIndex range check (avoids a redundant second get()).
+        // Only called after the allow rule has confirmed optionIndex is an int
+        // and the session doc exists, so the comparison + get() are safe.
+        function voteTargetsActiveInRangeOption() {
+          let session = get(/databases/$(database)/documents/poll_sessions/$(sessionId)).data;
+          return session.get('active', false) == true &&
+            request.resource.data.optionIndex >= 0 &&
+            request.resource.data.optionIndex < session.get('optionCount', 0);
         }
 
         // Any authed user (incl. anonymous) may create/update ONLY the vote
@@ -3313,12 +3320,10 @@ service cloud.firestore {
         allow create, update: if request.auth != null &&
           request.auth.uid == participantUid &&
           exists(/databases/$(database)/documents/poll_sessions/$(sessionId)) &&
-          pollSession().get('active', false) == true &&
           request.resource.data.keys().hasOnly(['optionIndex', 'votedAt']) &&
           request.resource.data.optionIndex is int &&
-          request.resource.data.optionIndex >= 0 &&
-          request.resource.data.optionIndex < pollSession().get('optionCount', 0) &&
-          request.resource.data.votedAt is int;
+          request.resource.data.votedAt is int &&
+          voteTargetsActiveInRangeOption();
 
         // Reads open to any authed user — vote docs are anonymous tallies
         // (no PII), which is what powers the live results on phones + board.

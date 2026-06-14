@@ -54,6 +54,17 @@ const asTeacher = () =>
     })
     .firestore();
 
+// A different non-anonymous teacher whose uid does NOT prefix the session id.
+const asOtherTeacher = () =>
+  testEnv
+    .authenticatedContext('teacher-other', {
+      email: 'other@school.edu',
+      firebase: { sign_in_provider: 'google.com' },
+    })
+    .firestore();
+
+const asUnauthed = () => testEnv.unauthenticatedContext().firestore();
+
 beforeAll(async () => {
   const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
   const [hostPart, portPart] = emulatorHost ? emulatorHost.split(':') : [];
@@ -170,6 +181,10 @@ describe('poll votes — read', () => {
   it('any authed user can read a vote doc (live tally)', async () => {
     await assertSucceeds(getDoc(voteRef(asAnonVoter(), OTHER_UID)));
   });
+
+  it('an unauthenticated caller cannot read a vote doc', async () => {
+    await assertFails(getDoc(voteRef(asUnauthed(), OTHER_UID)));
+  });
 });
 
 describe('poll votes — delete (reset)', () => {
@@ -179,6 +194,22 @@ describe('poll votes — delete (reset)', () => {
 
   it('a participant cannot delete another participant’s vote', async () => {
     await assertFails(deleteDoc(voteRef(asAnonVoter(), OTHER_UID)));
+  });
+
+  it('a voter cannot delete their own vote', async () => {
+    // Delete is teacher/admin-only — participants never delete, even their own.
+    await assertFails(deleteDoc(voteRef(asAnonVoter(), VOTER_UID)));
+  });
+});
+
+describe('poll votes — unauthenticated write', () => {
+  it('an unauthenticated caller cannot cast a vote', async () => {
+    await assertFails(
+      setDoc(voteRef(asUnauthed(), VOTER_UID), {
+        optionIndex: 1,
+        votedAt: 2000,
+      })
+    );
   });
 });
 
@@ -203,6 +234,30 @@ describe('poll session doc', () => {
         optionCount: 2,
         active: true,
         updatedAt: 4000,
+      })
+    );
+  });
+
+  it('a different teacher cannot create a session under another teacher’s uid', async () => {
+    await assertFails(
+      setDoc(doc(asOtherTeacher(), `poll_sessions/${TEACHER_UID}_foreign`), {
+        id: 'foreign',
+        teacherUid: TEACHER_UID,
+        optionCount: 2,
+        active: true,
+        updatedAt: 4000,
+      })
+    );
+  });
+
+  it('a different teacher cannot update another teacher’s existing session', async () => {
+    await assertFails(
+      setDoc(doc(asOtherTeacher(), `poll_sessions/${ACTIVE_SESSION_ID}`), {
+        id: ACTIVE_POLL_ID,
+        teacherUid: TEACHER_UID,
+        optionCount: 3,
+        active: false,
+        updatedAt: 5000,
       })
     );
   });
