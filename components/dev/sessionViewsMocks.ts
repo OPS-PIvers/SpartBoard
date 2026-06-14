@@ -34,8 +34,10 @@ const QUIZ_SESSION_ID = 'dev-quiz-session-1';
 const VA_ID = 'dev-va-1';
 const VA_SESSION_ID = 'dev-va-session-1';
 
-// Stable-ish base time so timestamps look realistic relative to one another.
-const NOW = 1_700_000_000_000;
+// Current time so relative-time formatting in the views reads realistically
+// ("5 minutes ago", not "2 years ago"). Date.now() is fine in source files —
+// the restriction is specific to workflow scripts.
+const NOW = Date.now();
 
 /* ─── Quiz quiz data ─────────────────────────────────────────────────────── */
 
@@ -100,7 +102,8 @@ export function makeQuizSession(
     teacherUid: 'mock-user-id',
     status,
     sessionMode: 'teacher',
-    currentQuestionIndex: status === 'waiting' ? -1 : 0,
+    currentQuestionIndex:
+      status === 'waiting' ? -1 : status === 'ended' ? 1 : 0,
     startedAt: status === 'waiting' ? null : NOW - 600_000,
     endedAt: status === 'ended' ? NOW - 60_000 : null,
     code: 'ABC123',

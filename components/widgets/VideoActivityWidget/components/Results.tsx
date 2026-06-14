@@ -691,7 +691,17 @@ export const Results: React.FC<ResultsProps> = ({
             <div className="bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm overflow-hidden">
               {responses
                 .slice()
-                .sort((a, b) => getStudentScore(b) - getStudentScore(a))
+                .sort((a, b) => {
+                  // Unscorable responses (answer key not loaded) sink to the
+                  // bottom instead of intermixing with genuine 0% students.
+                  const sa = canScoreVideoActivityResponse(questions, a.answers)
+                    ? getStudentScore(a)
+                    : -1;
+                  const sb = canScoreVideoActivityResponse(questions, b.answers)
+                    ? getStudentScore(b)
+                    : -1;
+                  return sb - sa;
+                })
                 .map((r) => {
                   const score = getStudentScore(r);
                   // When the question set hasn't loaded (or the response's

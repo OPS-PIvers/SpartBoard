@@ -51,7 +51,7 @@ export const SessionBadge: React.FC<SessionBadgeProps> = ({
     >
       {dot && (
         <span
-          className={`rounded-full ${t.dot} ${tone === 'success' ? 'animate-pulse' : ''}`}
+          className={`rounded-full ${t.dot} ${tone === 'success' ? 'animate-pulse motion-reduce:animate-none' : ''}`}
           style={{ width: 'min(6px, 1.8cqmin)', height: 'min(6px, 1.8cqmin)' }}
         />
       )}

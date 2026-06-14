@@ -579,13 +579,13 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     (mode: 'pin' | 'name') => {
       setShowScoreboardPrompt(false);
 
-      if (completed.length === 0) {
+      if (filteredCompleted.length === 0) {
         addToast('No completed students yet', 'error');
         return;
       }
 
       const newTeams = buildScoreboardTeams(
-        completed,
+        filteredCompleted,
         quiz.questions,
         mode,
         pinToName,
@@ -634,7 +634,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       }
     },
     [
-      completed,
+      filteredCompleted,
       quiz.questions,
       pinToName,
       byStudentUid,
@@ -647,7 +647,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   );
 
   const handleScoreboardClick = useCallback(() => {
-    if (completed.length === 0) {
+    if (filteredCompleted.length === 0) {
       addToast('No completed students yet', 'error');
       return;
     }
@@ -656,7 +656,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     } else {
       handleSendToScoreboard('pin');
     }
-  }, [completed.length, hasNames, addToast, handleSendToScoreboard]);
+  }, [filteredCompleted.length, hasNames, addToast, handleSendToScoreboard]);
 
   // Recovery path shared by handleExport (initial export) and
   // handleUpdateSheet (delta append). When the configured PLC sheet is
@@ -1245,7 +1245,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   //     (PLC)               (smart append-or-rebuild). Informative label.
   //   • Open Sheet        — shown when `exportUrl` is truthy; opens the sheet
   //                         in a new tab (was an <a target="_blank"> link).
-  //   • Send to Scoreboard— gated on `completed.length > 0`.
+  //   • Send to Scoreboard— gated on `filteredCompleted.length > 0` (respects
+  //                         the active period filter).
   // When a Schoology push applies it's the visible primary action, so it's
   // NOT duplicated here; there is no Classroom-vs-Schoology overlap (an
   // assignment is one or the other), so the visible primary push is Classroom
@@ -1294,7 +1295,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       disabled: updatingSheet,
     });
   }
-  if (completed.length > 0) {
+  if (filteredCompleted.length > 0) {
     overflowItems.push({
       label: 'Send to Scoreboard',
       icon: Trophy,

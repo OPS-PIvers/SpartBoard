@@ -74,7 +74,7 @@ export const SessionRow: React.FC<SessionRowProps> = ({
         {dot && (
           <span
             className={`rounded-full ${DOT_COLOR[dot.tone]} ${
-              dot.pulse ? 'animate-pulse' : ''
+              dot.pulse ? 'animate-pulse motion-reduce:animate-none' : ''
             }`}
             style={{ width: 'min(8px, 2cqmin)', height: 'min(8px, 2cqmin)' }}
           />

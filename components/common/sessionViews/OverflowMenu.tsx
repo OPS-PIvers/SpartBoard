@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MoreHorizontal, Loader2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { Z_INDEX } from '@/config/zIndex';
 
 export interface OverflowMenuItem {
   label: string;
@@ -109,7 +110,8 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
           ref={menuRef}
           role="menu"
           onKeyDown={onMenuKeyDown}
-          className="absolute right-0 top-full mt-1 z-50 min-w-[176px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
+          style={{ zIndex: Z_INDEX.dropdown }}
+          className="absolute right-0 top-full mt-1 min-w-[176px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
         >
           {items.map((item) => {
             const Icon = item.icon;

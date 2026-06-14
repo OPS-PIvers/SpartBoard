@@ -85,7 +85,7 @@ export const SessionViewHeader: React.FC<SessionViewHeaderProps> = ({
             style={{ gap: 'min(5px, 1.2cqmin)' }}
           >
             <span
-              className={`rounded-full ${s.dot} ${s.pulse ? 'animate-pulse' : ''}`}
+              className={`rounded-full ${s.dot} ${s.pulse ? 'animate-pulse motion-reduce:animate-none' : ''}`}
               style={{ width: 'min(8px, 2cqmin)', height: 'min(8px, 2cqmin)' }}
             />
             <span
