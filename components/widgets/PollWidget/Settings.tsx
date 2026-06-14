@@ -11,6 +11,8 @@ import {
   Type,
   Users,
   RefreshCw,
+  Radio,
+  Square,
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { MagicInput } from '@/components/common/MagicInput';
@@ -21,14 +23,43 @@ import {
 } from '@/utils/ai';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
+import {
+  startPollSession,
+  stopPollSession,
+} from '@/components/poll/pollSession';
 
 import { OptionInput } from './components/OptionInput';
 
 export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget, addToast, rosters, activeRosterId } = useDashboard();
   const { showConfirm } = useDialog();
-  const { canAccessFeature } = useAuth();
+  const { canAccessFeature, user } = useAuth();
   const config = (widget.config || {}) as PollConfig;
+  const [showResumePopover, setShowResumePopover] = useState(false);
+
+  const activePollSessionId = config.activePollSessionId ?? null;
+  const isLive = !!activePollSessionId;
+
+  const beginSession = async (mode: 'fresh' | 'resume') => {
+    if (!user) return;
+    setShowResumePopover(false);
+    const next = await startPollSession(config, user.uid, mode);
+    updateWidget(widget.id, { config: next });
+  };
+
+  const handleStartClick = () => {
+    if (config.lastPollSessionId) {
+      setShowResumePopover(true);
+    } else {
+      void beginSession('fresh');
+    }
+  };
+
+  const handleStopClick = async () => {
+    if (!user) return;
+    const next = await stopPollSession(config, user.uid);
+    updateWidget(widget.id, { config: next });
+  };
   const { question = 'Vote Now!' } = config;
   const options = Array.isArray(config.options) ? config.options : [];
 
@@ -279,6 +310,57 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           </Button>
         </div>
       </div>
+
+      {/* Live Device Voting — gated by anonymous-join */}
+      {canAccessFeature('anonymous-join') && (
+        <div className="pt-4 border-t border-slate-100">
+          <SettingsLabel icon={Radio}>Live Device Voting</SettingsLabel>
+          <p className="text-xxs text-slate-400 font-medium mb-3">
+            Let students vote from their own devices. The board shows live
+            results and a join QR while voting is open.
+          </p>
+
+          {isLive ? (
+            <Button
+              variant="secondary"
+              onClick={handleStopClick}
+              icon={<Square className="w-3.5 h-3.5" />}
+            >
+              Stop voting
+            </Button>
+          ) : showResumePopover ? (
+            <div className="flex flex-col gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <p className="text-xs font-bold text-slate-600">
+                A previous session exists. Resume it, or start fresh?
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => void beginSession('resume')}
+                >
+                  Resume previous
+                </Button>
+                <Button onClick={() => void beginSession('fresh')}>
+                  Start fresh
+                </Button>
+              </div>
+              <button
+                onClick={() => setShowResumePopover(false)}
+                className="text-xxs text-slate-400 hover:text-slate-600 font-semibold"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <Button
+              onClick={handleStartClick}
+              icon={<Radio className="w-3.5 h-3.5" />}
+            >
+              Start device voting
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

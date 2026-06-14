@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-13_
+_Last audited: 2026-06-14_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-14: Full audit after rebasing scheduled-tasks onto dev-paul (new commits since 2026-06-13: [AI] Remote v2 series — useRemoteConnection hook, RemoteActivityWallControl, RemoteEmbedControl, demo-path polish, live sync reflection, immediate-write fast-path, two-device smoke-test, review fixes, tap-board-name navigation; [AI] Phase 3b wide-distro anonymous-join gating; [AI] Specs for public poll participation and remote v2 design; fix(state) normalizeActivityWallLibraryEntry extraction; fix(lti) contextId across relaunches; fix(i18n) TimeTool Stations strings; fix(keyboard) Alt+P CapsLock guard; fix(widgets) CalendarWidget midnight staleness; docs(unifier) run 14; action(css-scaling) ActivityWall checkbox cqmin). None of these touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. types.ts was changed only for GlobalFeaturePermission (wide-distro tier gating), ActivityWall assignment classIds/rosterIds, and a GL commit that reformatted the WidgetType union but added no new members. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered: 62 non-sticker in WIDGET_COMPONENTS (sticker intentional WidgetRenderer special-case per JSDoc), 63/63 in widgetDefaults.ts and widgetGradeLevels.ts, 59 user-selectable in tools.ts (7 intentionally excluded sub-types: blooms-detail, catalyst-instruction, catalyst-visual, custom-widget, mathTool, onboarding, sticker), 3 InternalToolType entries (magic, record, remote) correctly in tools.ts and widgetGradeLevels.ts but not WidgetType union (documented). pnpm type-check and pnpm lint both clean. Zero new gaps._
 
 _2026-06-13: Full audit after rebasing scheduled-tasks onto dev-paul (new commits since 2026-06-12: pr-review batch 12 PRs, refactor(admin-config) shared isCardOpacity guard, audit(friday) journals, [AI] wide-distro phases 1-3, [AI] legal pages, [AI] drop restricted OAuth scopes). None of these touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered: 62 non-sticker in WIDGET_COMPONENTS (sticker intentional WidgetRenderer special-case per JSDoc), 63/63 in widgetDefaults.ts and widgetGradeLevels.ts, 59 user-selectable in tools.ts (7 intentionally excluded sub-types: blooms-detail, catalyst-instruction, catalyst-visual, custom-widget, mathTool, onboarding, sticker), 3 InternalToolType entries (magic, record, remote) correctly in tools.ts and widgetGradeLevels.ts but not WidgetType union (documented). pnpm type-check and pnpm lint both clean. Zero new gaps._
 

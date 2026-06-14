@@ -64,6 +64,40 @@ describe('CalendarWidget', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('labels an event as Today using local date, not UTC date (regression: UTC+12 midnight)', () => {
+    // Scenario: UTC+12 user at local midnight 2026-06-15 (= 2026-06-14T12:00:00Z).
+    //
+    // Bug (old code):  new Date().toISOString().split('T')[0]
+    //   → toISOString() converts to UTC → "2026-06-14T12:00:00.000Z" → today = "2026-06-14"
+    //   → event on "2026-06-15" does NOT match → "Today" badge never shown.
+    //
+    // Fix (new code):  getFullYear/getMonth/getDate (local-time methods)
+    //   → mocked to return 2026-06-15 → today = "2026-06-15"
+    //   → event on "2026-06-15" matches → "Today" badge shown correctly.
+    //
+    // The test environment pins TZ=UTC (tests/setTz.ts), so we mock the three
+    // local-time methods on Date.prototype to simulate a UTC+12 local date.
+    // The prototype spies are restored by vi.restoreAllMocks() in afterEach.
+    vi.setSystemTime(new Date('2026-06-14T12:00:00.000Z')); // UTC epoch
+
+    vi.spyOn(Date.prototype, 'getFullYear').mockReturnValue(2026);
+    vi.spyOn(Date.prototype, 'getMonth').mockReturnValue(5); // June (0-indexed)
+    vi.spyOn(Date.prototype, 'getDate').mockReturnValue(15); // local day in UTC+12
+
+    const widget = buildWidget({
+      events: [{ date: '2026-06-15', title: 'Class Photo Day' }],
+      daysVisible: 5,
+    });
+
+    render(<CalendarWidget widget={widget} />);
+
+    // With the fix: today = "2026-06-15" (local) → badge shows "Today".
+    // With the old bug: today = "2026-06-14" (UTC) → event not labeled "Today".
+    expect(screen.getByText('Today')).toBeInTheDocument();
+    expect(screen.getByText('Class Photo Day')).toBeInTheDocument();
   });
 
   it('re-evaluates the date window when midnight passes without any other dep change', () => {

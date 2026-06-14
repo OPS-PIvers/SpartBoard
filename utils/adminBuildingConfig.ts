@@ -280,6 +280,30 @@ export const getAdminBuildingConfig = (
       if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
       if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;
       break;
+    case 'need-do-put-then': {
+      // Like `stations`, the widget uses the shared TypographySettings /
+      // SurfaceColorSettings / TextSizePresetSettings primitives, so
+      // `fontFamily` is a prefixed `FONTS`-id (validated by
+      // `isWidgetFontFamily`). All five fields are actively consumed by
+      // NeedDoPutThen/Widget.tsx (getFontClass, hexToRgba, fontColor,
+      // resolveTextPresetMultiplier).
+      const validTextSizePresets = [
+        'small',
+        'medium',
+        'large',
+        'x-large',
+      ] as const;
+      if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
+      if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
+      if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
+      if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;
+      if (
+        typeof raw.textSizePreset === 'string' &&
+        (validTextSizePresets as readonly string[]).includes(raw.textSizePreset)
+      )
+        out.textSizePreset = raw.textSizePreset;
+      break;
+    }
     case 'sound':
       if (raw.visual) out.visual = raw.visual;
       if (raw.sensitivity !== undefined) out.sensitivity = raw.sensitivity;

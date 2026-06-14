@@ -262,7 +262,11 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     );
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  // Use local-time methods — toISOString() converts to UTC first, which shifts
+  // the date backward for UTC+ users (e.g. a user at UTC+12 at local midnight
+  // sees the *previous* date in UTC, so "Today" never highlights correctly).
+  const todayD = new Date(todayMidnightMs);
+  const today = `${todayD.getFullYear()}-${String(todayD.getMonth() + 1).padStart(2, '0')}-${String(todayD.getDate()).padStart(2, '0')}`;
   const now = new Date();
   const nowSeconds =
     now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();

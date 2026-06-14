@@ -16,6 +16,27 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(),
 }));
 
+const { mockOnSnapshot, mockCollection, mockDoc, mockSetDoc } = vi.hoisted(
+  () => ({
+    mockOnSnapshot: vi.fn(),
+    mockCollection: vi.fn(() => 'col'),
+    mockDoc: vi.fn((..._args: unknown[]) => ({
+      __path: _args.slice(1).join('/'),
+    })),
+    mockSetDoc: vi.fn(),
+  })
+);
+
+let pollSnapshotDocs: Record<string, unknown>[] = [];
+
+vi.mock('firebase/firestore', () => ({
+  collection: mockCollection,
+  doc: mockDoc,
+  onSnapshot: mockOnSnapshot,
+  setDoc: mockSetDoc,
+  increment: (n: number) => ({ __increment: n }),
+}));
+
 // Mock MagicInput to simulate interaction
 vi.mock('@/components/common/MagicInput', () => ({
   MagicInput: ({
@@ -47,6 +68,21 @@ describe('PollWidget', () => {
       updateWidget: mockUpdateWidget,
       activeDashboard: { globalStyle: { fontFamily: 'sans' } },
     });
+    (useAuth as Mock).mockReturnValue({
+      user: { uid: 'teacher-1' },
+      canAccessFeature: vi.fn(() => true),
+    });
+    pollSnapshotDocs = [];
+    mockSetDoc.mockResolvedValue(undefined);
+    mockOnSnapshot.mockImplementation(
+      (
+        _ref: unknown,
+        cb: (snap: { docs: { data: () => Record<string, unknown> }[] }) => void
+      ) => {
+        cb({ docs: pollSnapshotDocs.map((d) => ({ data: () => d })) });
+        return vi.fn();
+      }
+    );
     vi.clearAllMocks();
   });
 
@@ -130,6 +166,117 @@ describe('PollWidget', () => {
       })
     );
   });
+
+  it('shows live aggregated tallies from the session when voting is live', () => {
+    pollSnapshotDocs = [
+      { optionIndex: 0 },
+      { optionIndex: 0 },
+      { optionIndex: 1 },
+    ];
+    const widget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Pick one',
+        options: [
+          { id: 'opt-1', label: 'Red', votes: 99 },
+          { id: 'opt-2', label: 'Blue', votes: 99 },
+        ],
+        activePollSessionId: 'sess-1',
+      },
+    };
+
+    render(<PollWidget widget={widget} />);
+
+    // Live counts (2 / 1) replace the stale local config votes (99 / 99).
+    expect(screen.getByText(/2 \(67%\)/)).toBeInTheDocument();
+    expect(screen.getByText(/1 \(33%\)/)).toBeInTheDocument();
+  });
+
+  it('renders an on-board join QR + link when voting is live and anonymous-join is allowed', () => {
+    const widget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Pick one',
+        options: [{ id: 'opt-1', label: 'Red', votes: 0 }],
+        activePollSessionId: 'sess-1',
+      },
+    };
+
+    render(<PollWidget widget={widget} />);
+
+    const link = screen.getByTestId('poll-join-url');
+    expect(link.textContent ?? '').toContain('/poll/sess-1');
+    const qr = screen.getByAltText(/join qr/i);
+    expect(qr.getAttribute('src') ?? '').toContain(
+      'https://api.qrserver.com/v1/create-qr-code/'
+    );
+  });
+
+  it('does not increment local votes when clicking an option while live', () => {
+    const widget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Pick one',
+        options: [{ id: 'opt-1', label: 'Red', votes: 0 }],
+        activePollSessionId: 'sess-1',
+      },
+    };
+
+    render(<PollWidget widget={widget} />);
+    fireEvent.click(screen.getByRole('button', { name: /Red/i }));
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
+  it('shows the "Voting open" indicator but no QR/link when anonymous-join is denied', () => {
+    (useAuth as Mock).mockReturnValue({
+      user: { uid: 'teacher-1' },
+      canAccessFeature: vi.fn(() => false),
+    });
+    const widget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Pick one',
+        options: [{ id: 'opt-1', label: 'Red', votes: 0 }],
+        activePollSessionId: 'sess-1',
+      },
+    };
+
+    render(<PollWidget widget={widget} />);
+
+    // Live session is active, so the board still signals voting is open...
+    expect(screen.getByText(/voting open/i)).toBeInTheDocument();
+    // ...but the join QR + link are gated off without anonymous-join.
+    expect(screen.queryByTestId('poll-join-url')).not.toBeInTheDocument();
+    expect(screen.queryByAltText(/join qr/i)).not.toBeInTheDocument();
+  });
 });
 
 describe('PollSettings', () => {
@@ -145,6 +292,7 @@ describe('PollSettings', () => {
       activeRosterId: null,
     });
     (useAuth as Mock).mockReturnValue({
+      user: { uid: 'teacher-1' },
       canAccessFeature: mockCanAccessFeature,
     });
     vi.clearAllMocks();
@@ -385,5 +533,111 @@ describe('PollSettings', () => {
       'Results exported to CSV',
       'success'
     );
+  });
+
+  it('starts a fresh device-voting session when there is no prior session', async () => {
+    const widget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Pick one',
+        options: [
+          { id: 'opt-1', label: 'A', votes: 0 },
+          { id: 'opt-2', label: 'B', votes: 0 },
+        ],
+      },
+    };
+
+    render(<PollSettings widget={widget} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /start device voting/i })
+    );
+
+    // Session doc is written active, then config gains an activePollSessionId.
+    await waitFor(() => expect(mockSetDoc).toHaveBeenCalled());
+    await waitFor(() => {
+      const lastCall = mockUpdateWidget.mock.calls[
+        mockUpdateWidget.mock.calls.length - 1
+      ] as [string, { config: { activePollSessionId?: string | null } }];
+      expect(lastCall[0]).toBe('poll-1');
+      expect(typeof lastCall[1].config.activePollSessionId).toBe('string');
+      expect(lastCall[1].config.activePollSessionId).toBeTruthy();
+    });
+  });
+
+  it('offers Resume / Restart when a prior session exists', () => {
+    const widget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Pick one',
+        options: [{ id: 'opt-1', label: 'A', votes: 0 }],
+        lastPollSessionId: 'prev-1',
+      },
+    };
+
+    render(<PollSettings widget={widget} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /start device voting/i })
+    );
+
+    expect(
+      screen.getByRole('button', { name: /resume previous/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /start fresh/i })
+    ).toBeInTheDocument();
+  });
+
+  it('stops a live session', async () => {
+    const widget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Pick one',
+        options: [{ id: 'opt-1', label: 'A', votes: 0 }],
+        activePollSessionId: 'sess-9',
+      },
+    };
+
+    render(<PollSettings widget={widget} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /stop voting/i }));
+
+    await waitFor(() => {
+      const lastCall = mockUpdateWidget.mock.calls[
+        mockUpdateWidget.mock.calls.length - 1
+      ] as [
+        string,
+        {
+          config: {
+            activePollSessionId?: string | null;
+            lastPollSessionId?: string | null;
+          };
+        },
+      ];
+      expect(lastCall[1].config.activePollSessionId).toBeNull();
+      expect(lastCall[1].config.lastPollSessionId).toBe('sess-9');
+    });
   });
 });
