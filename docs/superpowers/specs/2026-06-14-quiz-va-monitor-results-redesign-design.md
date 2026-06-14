@@ -93,7 +93,7 @@ Extract the pill-tab markup currently embedded in `LibraryShell.tsx` into the st
 
 ### QuizResults.tsx
 
-- Header → `SessionViewHeader`. Action buttons: **Export + Push Grades visible**; remaining secondary actions (Grade Written, Send to Scoreboard, Push to Schoology, Open Sheet, Re-export Sheet) move into `OverflowMenu`.
+- Header → `SessionViewHeader`. Action buttons: **Grade Written + Push Grades visible** (Push Grades = whichever push applies — Google Classroom or Schoology); remaining secondary actions (Export / Re-export Sheet, Open Sheet, Send to Scoreboard) move into `OverflowMenu`.
 - Tab strip → `SegmentedTabs` (Overview / Questions / Students / PLC).
 - Overview: stat cards → `StatTile` (drop the colored top-bar); distribution chart on a glass surface; buckets colored via `scoreColor`.
 - Questions: hairline rows; accuracy bar restyled; manual-grading marker → `SessionBadge`.
@@ -103,7 +103,7 @@ Extract the pill-tab markup currently embedded in `LibraryShell.tsx` into the st
 
 ### Results.tsx (Video Activity)
 
-- Header → `SessionViewHeader`. Actions: Push Grades + Export primary; Open Sheet / Push to Schoology secondary or in `OverflowMenu`. Fix the odd outlined "Open Sheet" button to match the system.
+- Header → `SessionViewHeader`. Actions: **Push Grades visible** (Google Classroom or Schoology, whichever applies); Export / Open Sheet move into `OverflowMenu`. (VA has no written-response grading, so there is no Grade Written button here.) Fix the odd outlined "Open Sheet" button to match the system.
 - Tab strip → `SegmentedTabs` (Overview / Questions / Students).
 - Overview: 3 stat cards → `StatTile`.
 - Questions: hairline rows; accuracy bar.
