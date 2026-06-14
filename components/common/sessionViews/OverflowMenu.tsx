@@ -97,7 +97,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-white/70 hover:text-brand-blue-primary"
+        className="inline-flex items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-white/70 hover:text-brand-blue-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1"
         style={{ width: 'min(36px, 10cqmin)', height: 'min(36px, 10cqmin)' }}
       >
         <MoreHorizontal
@@ -126,10 +126,10 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
                   triggerRef.current?.focus();
                   item.onClick();
                 }}
-                className={`flex w-full items-center gap-2 px-3 py-1.5 text-left font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                className={`flex w-full items-center gap-2 px-3 py-1.5 text-left font-medium transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-40 ${
                   item.destructive
-                    ? 'text-brand-red-dark hover:bg-brand-red-lighter/30'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'text-brand-red-dark hover:bg-brand-red-lighter/30 focus:bg-brand-red-lighter/30'
+                    : 'text-slate-700 hover:bg-slate-100 focus:bg-slate-100'
                 }`}
               >
                 {item.loading ? (

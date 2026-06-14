@@ -13,6 +13,7 @@ describe('SegmentedTabs', () => {
     const active = screen.getByRole('tab', { name: 'Overview' });
     expect(active).toHaveAttribute('aria-selected', 'true');
     expect(active.className).toContain('bg-white');
+    expect(active.className).toContain('focus-visible:ring-brand-blue-primary');
   });
 
   it('fires onChange with the tab key', () => {

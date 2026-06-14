@@ -48,6 +48,7 @@ describe('SessionRow', () => {
     const row = screen.getByTestId('session-row');
     expect(row).toHaveAttribute('role', 'button');
     expect(row).toHaveAttribute('tabindex', '0');
+    expect(row.className).toContain('focus-visible:ring-brand-blue-primary');
     fireEvent.keyDown(row, { key: 'Enter' });
     fireEvent.keyDown(row, { key: ' ' });
     expect(onClick).toHaveBeenCalledTimes(2);

@@ -19,6 +19,8 @@ describe('ActionButton', () => {
     expect(btn.className).toContain('bg-brand-blue-primary');
     // Non-toggle buttons must not expose aria-pressed.
     expect(btn).not.toHaveAttribute('aria-pressed');
+    // Keyboard focus ring present (WCAG AA).
+    expect(btn.className).toContain('focus-visible:ring-brand-blue-primary');
     fireEvent.click(btn);
     expect(onClick).toHaveBeenCalled();
   });

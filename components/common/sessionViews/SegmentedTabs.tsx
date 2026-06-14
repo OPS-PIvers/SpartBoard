@@ -48,7 +48,7 @@ export function SegmentedTabs<K extends string = string>({
             aria-label={label}
             title={labelsHidden ? label : undefined}
             onClick={() => onChange(key)}
-            className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-lg font-bold transition-colors ${
+            className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-lg font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${
               selected
                 ? 'bg-white text-brand-blue-dark shadow-sm'
                 : 'text-slate-500 hover:text-slate-800'

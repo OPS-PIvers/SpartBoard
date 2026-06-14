@@ -707,7 +707,7 @@ export const Results: React.FC<ResultsProps> = ({
                   ).length;
                   return (
                     <SessionRow
-                      key={r.pin}
+                      key={r._responseKey ?? r.studentUid ?? r.pin}
                       trailing={
                         <>
                           <div

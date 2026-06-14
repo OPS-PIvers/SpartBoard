@@ -47,7 +47,7 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
     title={disabled ? disabledReason : labelHidden ? label : undefined}
     aria-label={label}
     aria-pressed={active}
-    className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+    className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${
       active
         ? 'bg-amber-100 text-amber-700 ring-2 ring-amber-400 hover:bg-amber-200'
         : VARIANT[variant]

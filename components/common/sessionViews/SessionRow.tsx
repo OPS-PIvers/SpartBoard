@@ -59,7 +59,7 @@ export const SessionRow: React.FC<SessionRowProps> = ({
       }
       className={`flex items-center border-b border-slate-200/60 last:border-b-0 rounded-lg transition-colors ${
         tintTone ? `${TINT[tintTone]} hover:brightness-95` : 'hover:bg-white/60'
-      } ${onClick ? 'cursor-pointer' : ''}`}
+      } ${onClick ? 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1' : ''}`}
       style={{
         gap: 'min(10px, 2.2cqmin)',
         paddingInline: 'min(12px, 2.6cqmin)',
