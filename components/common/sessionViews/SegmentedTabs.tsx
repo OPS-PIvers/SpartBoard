@@ -60,7 +60,7 @@ export function SegmentedTabs<K extends string = string>({
             aria-controls={
               panelIdPrefix ? `${panelIdPrefix}-panel-${key}` : undefined
             }
-            aria-label={label}
+            aria-label={labelsHidden ? label : undefined}
             title={labelsHidden ? label : undefined}
             onClick={() => onChange(key)}
             className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-lg font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${
@@ -87,6 +87,7 @@ export function SegmentedTabs<K extends string = string>({
             {!labelsHidden && <span>{label}</span>}
             {count != null && count > 0 && (
               <span
+                aria-hidden="true"
                 className={`inline-flex items-center justify-center rounded-full font-bold leading-none ${
                   selected
                     ? 'bg-brand-blue-primary text-white'
