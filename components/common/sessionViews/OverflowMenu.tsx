@@ -4,6 +4,9 @@ import type { LucideIcon } from 'lucide-react';
 
 export interface OverflowMenuItem {
   label: string;
+  /** Stable React key; falls back to `label` when omitted. Set this when two
+   *  items could share a label (e.g. re-export variants). */
+  id?: string;
   icon?: LucideIcon;
   onClick: () => void;
   destructive?: boolean;
@@ -25,7 +28,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  // External-system sync (document click) — a valid useEffect use.
+  // External-system sync (document click + Escape key) — a valid useEffect use.
   useEffect(() => {
     if (!open) return undefined;
     const onDown = (e: MouseEvent): void => {
@@ -33,8 +36,15 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
         setOpen(false);
       }
     };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setOpen(false);
+    };
     document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
   }, [open]);
   return (
     <div className="relative" ref={ref}>
@@ -60,7 +70,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
             const Icon = item.icon;
             return (
               <button
-                key={item.label}
+                key={item.id ?? item.label}
                 type="button"
                 role="menuitem"
                 disabled={item.disabled}

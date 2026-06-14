@@ -29,4 +29,10 @@ describe('SessionViewHeader', () => {
     );
     expect(screen.getByRole('button', { name: 'End' })).toBeInTheDocument();
   });
+
+  it('renders no back button when onBack is omitted', () => {
+    render(<SessionViewHeader title="Q" />);
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
+    expect(screen.getByText('Q')).toBeInTheDocument();
+  });
 });

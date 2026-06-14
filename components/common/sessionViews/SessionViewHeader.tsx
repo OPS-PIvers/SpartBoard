@@ -4,7 +4,8 @@ import { ChevronLeft } from 'lucide-react';
 type ViewStatus = 'live' | 'paused' | 'ended' | 'none';
 
 interface SessionViewHeaderProps {
-  onBack: () => void;
+  /** Back handler. When omitted, no back button renders. */
+  onBack?: () => void;
   status?: ViewStatus;
   title: string;
   subtitle?: string;
@@ -62,17 +63,22 @@ export const SessionViewHeader: React.FC<SessionViewHeaderProps> = ({
         className="flex items-center min-w-0"
         style={{ gap: 'min(10px, 2.2cqmin)' }}
       >
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label="Back"
-          className="inline-flex shrink-0 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-white/70 hover:text-brand-blue-primary"
-          style={{ width: 'min(32px, 8cqmin)', height: 'min(32px, 8cqmin)' }}
-        >
-          <ChevronLeft
-            style={{ width: 'min(18px, 5cqmin)', height: 'min(18px, 5cqmin)' }}
-          />
-        </button>
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Back"
+            className="inline-flex shrink-0 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-white/70 hover:text-brand-blue-primary"
+            style={{ width: 'min(32px, 8cqmin)', height: 'min(32px, 8cqmin)' }}
+          >
+            <ChevronLeft
+              style={{
+                width: 'min(18px, 5cqmin)',
+                height: 'min(18px, 5cqmin)',
+              }}
+            />
+          </button>
+        )}
         {s && (
           <span
             className="flex shrink-0 items-center"

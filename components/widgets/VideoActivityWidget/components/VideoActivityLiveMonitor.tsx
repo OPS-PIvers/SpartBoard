@@ -471,7 +471,7 @@ export const VideoActivityLiveMonitor: React.FC<
     <div className="flex flex-col h-full font-sans bg-slate-50">
       {/* ─── Header strip ───────────────────────────────────────────────── */}
       <SessionViewHeader
-        onBack={onBack ?? (() => undefined)}
+        onBack={onBack}
         status={isLive ? 'live' : 'paused'}
         title={session.assignmentName}
         subtitle={`${session.activityTitle} · ${questions.length} question${

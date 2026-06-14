@@ -21,4 +21,12 @@ describe('OverflowMenu', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('menu')).toBeNull();
   });
+
+  it('closes on Escape', () => {
+    render(<OverflowMenu items={[{ label: 'Export', onClick: vi.fn() }]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
 });

@@ -965,7 +965,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
     <div className="flex flex-col h-full font-sans">
       {/* Header — shared session-view chrome (status pulse, title, actions) */}
       <SessionViewHeader
-        onBack={onBack ?? (() => undefined)}
+        onBack={onBack}
         status={
           session.status === 'paused'
             ? 'paused'
