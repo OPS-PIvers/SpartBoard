@@ -21,9 +21,10 @@ describe('SessionRow', () => {
         <span>x</span>
       </SessionRow>
     );
-    expect(screen.getByTestId('session-row').className).toContain(
-      'bg-emerald-50/60'
-    );
+    const row = screen.getByTestId('session-row').className;
+    expect(row).toContain('bg-emerald-50/60');
+    // Tinted rows still get a hover affordance.
+    expect(row).toContain('hover:brightness-95');
   });
 
   it('fires onClick', () => {

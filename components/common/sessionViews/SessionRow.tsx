@@ -58,7 +58,7 @@ export const SessionRow: React.FC<SessionRowProps> = ({
           : undefined
       }
       className={`flex items-center border-b border-slate-200/60 last:border-b-0 rounded-lg transition-colors ${
-        tintTone ? TINT[tintTone] : 'hover:bg-white/60'
+        tintTone ? `${TINT[tintTone]} hover:brightness-95` : 'hover:bg-white/60'
       } ${onClick ? 'cursor-pointer' : ''}`}
       style={{
         gap: 'min(10px, 2.2cqmin)',

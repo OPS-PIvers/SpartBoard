@@ -2089,7 +2089,7 @@ const StudentsTab: React.FC<{
                         {scoreable ? (
                           <>
                             <ScorePill
-                              score={score}
+                              score={gamified ? 0 : score}
                               display="percent"
                               gamified={gamified}
                               points={earned}
