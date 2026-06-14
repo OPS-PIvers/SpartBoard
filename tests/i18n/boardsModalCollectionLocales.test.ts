@@ -152,9 +152,10 @@ const QUICK_ACCESS_TRANSLATED_KEYS: [string[], string][] = [
 ];
 
 /** collectionMenu keys */
-const COLLECTION_MENU_TRANSLATED_KEYS: [string[], string][] = [
-  [['collectionMenu', 'share'], en.collectionMenu.share],
-  [['collectionMenu', 'saveAsTemplate'], en.collectionMenu.saveAsTemplate],
+const QUICK_ACCESS_TRANSLATED_KEYS: [string[], string][] = [
+  [['quickAccess', 'title'], en.quickAccess.title],
+  [['quickAccess', 'searchPlaceholder'], en.quickAccess.searchPlaceholder],
+  [['quickAccess', 'emptyResults'], en.quickAccess.emptyResults],
 ];
 
 /** subCollections keys */
