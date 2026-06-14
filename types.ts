@@ -1165,6 +1165,20 @@ export interface PollGlobalConfig {
 export interface PollConfig {
   question: string;
   options: PollOption[];
+  /**
+   * Public device-voting session id. When non-null, a public poll session
+   * is LIVE: the board shows aggregated tallies from
+   * `poll_sessions/{teacherUid}_{activePollSessionId}/votes` and manual ±
+   * voting is disabled. This id is also the `:pollId` route segment of the
+   * participant join link.
+   */
+  activePollSessionId?: string | null;
+  /**
+   * Most recent session id. Kept after a session stops so "Resume" can
+   * reopen the same `poll_sessions` doc (and its prior votes); "Restart"
+   * mints a fresh id instead.
+   */
+  lastPollSessionId?: string | null;
 }
 
 export type ActivityWallMode = 'text' | 'photo';
