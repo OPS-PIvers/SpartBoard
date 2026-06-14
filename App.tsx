@@ -101,6 +101,11 @@ const ActivityWallGalleryView = lazy(() =>
     })
   )
 );
+const PollVoteApp = lazy(() =>
+  import('./components/poll/PollVoteApp').then((module) => ({
+    default: module.PollVoteApp,
+  }))
+);
 const MiniAppStudentApp = lazy(() =>
   import('./components/miniApp/MiniAppStudentApp').then((module) => ({
     default: module.MiniAppStudentApp,
@@ -405,6 +410,7 @@ const App: React.FC = () => {
     pathname === '/activity' || pathname.startsWith('/activity/');
   const isActivityWallRoute =
     pathname === '/activity-wall' || pathname.startsWith('/activity-wall/');
+  const isPollVoteRoute = pathname === '/poll' || pathname.startsWith('/poll/');
   const isInviteRoute = pathname.startsWith('/invite/');
   const isPlcInviteRoute = pathname.startsWith('/plc-invite/');
   const isStudentLoginRoute =
@@ -654,6 +660,22 @@ const App: React.FC = () => {
           ) : (
             <ActivityWallStudentApp />
           )}
+        </Suspense>
+        <DialogContainer />
+      </DialogProvider>
+    );
+  }
+
+  // Public poll voting route — anonymous entry, no teacher auth needed.
+  // Mirrors the activity-wall branch: DialogProvider + StudentIdleTimeoutGuard
+  // wrap a lazy participant app. The `?data=` payload carries everything the
+  // app needs to render and route the vote.
+  if (isPollVoteRoute) {
+    return (
+      <DialogProvider>
+        <StudentIdleTimeoutGuard />
+        <Suspense fallback={<FullPageLoader />}>
+          <PollVoteApp />
         </Suspense>
         <DialogContainer />
       </DialogProvider>
