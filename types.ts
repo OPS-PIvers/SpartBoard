@@ -1165,6 +1165,31 @@ export interface PollGlobalConfig {
 export interface PollConfig {
   question: string;
   options: PollOption[];
+  /**
+   * Public device-voting session id. When non-null, a public poll session
+   * is LIVE: the board shows aggregated tallies from
+   * `poll_sessions/{teacherUid}_{activePollSessionId}/votes` and manual ±
+   * voting is disabled. This id is also the `:pollId` route segment of the
+   * participant join link.
+   */
+  activePollSessionId?: string | null;
+  /**
+   * Most recent session id. Kept after a session stops so "Resume" can
+   * reopen the same `poll_sessions` doc (and its prior votes); "Restart"
+   * mints a fresh id instead.
+   */
+  lastPollSessionId?: string | null;
+}
+
+/**
+ * A single public-poll vote document
+ * (`poll_sessions/{teacherUid}_{pollId}/votes/{participantUid}`). Keyed by the
+ * anonymous voter's uid (one vote per device); the Firestore rules enforce the
+ * exact `{optionIndex, votedAt}` shape.
+ */
+export interface PollVoteDoc {
+  optionIndex: number;
+  votedAt: number;
 }
 
 export type ActivityWallMode = 'text' | 'photo';
@@ -5035,6 +5060,27 @@ export interface NeedDoPutThenConfig {
     then?: number;
     put?: number;
   };
+}
+
+// --- Need / Do / Put / Then Global Config ---
+export interface BuildingNeedDoPutThenDefaults {
+  buildingId: string;
+  /**
+   * Stored in the shared `TypographySettings` value space — a `FONTS` id such
+   * as `'font-sans'` / `'font-mono'`. The `'global'` sentinel (inherit from the
+   * dashboard) is represented by absence/`undefined`, never the literal string.
+   * Seeds `NeedDoPutThenConfig.fontFamily`, decoded at render via
+   * `getFontClass()` (same prefixed space the Stations widget uses).
+   */
+  fontFamily?: string;
+  fontColor?: string;
+  cardColor?: string;
+  cardOpacity?: number;
+  textSizePreset?: TextSizePreset;
+}
+
+export interface NeedDoPutThenGlobalConfig {
+  buildingDefaults: Record<string, BuildingNeedDoPutThenDefaults>;
 }
 
 /**

@@ -348,6 +348,71 @@ describe('getAdminBuildingConfig', () => {
     });
   });
 
+  describe('need-do-put-then', () => {
+    it('passes through the prefixed font family, surface fields, and text size preset', () => {
+      const perm = makePerm('need-do-put-then', {
+        high: {
+          fontFamily: 'font-handwritten',
+          fontColor: '#0f172a',
+          cardColor: '#fef3c7',
+          cardOpacity: 0.6,
+          textSizePreset: 'large',
+        },
+      });
+      expect(
+        getAdminBuildingConfig('need-do-put-then', [perm], ['high'])
+      ).toEqual({
+        fontFamily: 'font-handwritten',
+        fontColor: '#0f172a',
+        cardColor: '#fef3c7',
+        cardOpacity: 0.6,
+        textSizePreset: 'large',
+      });
+    });
+
+    it('rejects bare GlobalFontFamily ids — uses the prefixed space', () => {
+      // 'sans' is a valid GlobalFontFamily value but NOT a FONTS id; the
+      // TypographySettings-backed widget expects 'font-sans'.
+      const perm = makePerm('need-do-put-then', {
+        high: { fontFamily: 'sans' },
+      });
+      expect(
+        getAdminBuildingConfig('need-do-put-then', [perm], ['high'])
+      ).toEqual({});
+    });
+
+    it('rejects invalid surface values, fonts, and text size presets', () => {
+      const perm = makePerm('need-do-put-then', {
+        high: {
+          fontFamily: 'not-a-font',
+          fontColor: 'rgb(0,0,0)',
+          cardColor: 'banana',
+          cardOpacity: 1.5,
+          textSizePreset: 'gigantic',
+        },
+      });
+      expect(
+        getAdminBuildingConfig('need-do-put-then', [perm], ['high'])
+      ).toEqual({});
+    });
+
+    it('accepts cardOpacity at exact bounds 0 and 1', () => {
+      const permZero = makePerm('need-do-put-then', {
+        high: { cardOpacity: 0 },
+      });
+      expect(
+        getAdminBuildingConfig('need-do-put-then', [permZero], ['high'])
+      ).toEqual({ cardOpacity: 0 });
+
+      const permOne = makePerm('need-do-put-then', {
+        high: { cardOpacity: 1 },
+      });
+      expect(
+        getAdminBuildingConfig('need-do-put-then', [permOne], ['high'])
+      ).toEqual({ cardOpacity: 1 });
+    });
+  });
+
   describe('checklist', () => {
     it('passes through scale, items, font family, and appearance fields', () => {
       const perm = makePerm('checklist', {

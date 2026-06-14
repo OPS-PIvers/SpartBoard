@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   collection,
   doc,
@@ -8,11 +8,22 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useDashboard } from '@/context/useDashboard';
-import { WidgetData, PollConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
-import { RotateCcw } from 'lucide-react';
+import { useAuth } from '@/context/useAuth';
+import {
+  WidgetData,
+  PollConfig,
+  PollVoteDoc,
+  DEFAULT_GLOBAL_STYLE,
+} from '@/types';
+import { RotateCcw, Radio } from 'lucide-react';
 
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { useDialog } from '@/context/useDialog';
+import { buildPublicPollLink } from '@/components/poll/pollLink';
+import {
+  aggregateVotes,
+  makePollSessionId,
+} from '@/components/poll/pollSession';
 
 export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget, activeDashboard } = useDashboard();
@@ -20,7 +31,17 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const config = widget.config as PollConfig & { _announcementId?: string };
   const { question = 'Vote Now!', _announcementId } = config;
-  const options = Array.isArray(config.options) ? config.options : [];
+  const options = useMemo(
+    () => (Array.isArray(config.options) ? config.options : []),
+    [config.options]
+  );
+
+  const { user, canAccessFeature } = useAuth();
+  const activePollSessionId = config.activePollSessionId ?? null;
+  const isLive = !!activePollSessionId;
+
+  // Live device-voting tallies, aggregated from the votes subcollection.
+  const [sessionTally, setSessionTally] = useState<number[]>([]);
 
   // When rendered inside an announcement, votes are stored in Firestore
   // under /announcements/{id}/pollVotes/{optionIndex} so all users share
@@ -46,7 +67,32 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     return unsub;
   }, [_announcementId]);
 
+  // Subscribe to the public voting session's votes subcollection while a
+  // session is live. Aggregated counts replace the local/announcement tally
+  // on the board. Synchronisation with Firestore — the correct use of effect.
+  useEffect(() => {
+    if (!activePollSessionId || !user) return;
+    const sessionId = makePollSessionId(user.uid, activePollSessionId);
+    const unsub = onSnapshot(
+      collection(db, 'poll_sessions', sessionId, 'votes'),
+      (snap) => {
+        const votes = snap.docs.map((d) => d.data() as PollVoteDoc);
+        setSessionTally(aggregateVotes(votes, options.length));
+      }
+    );
+    return () => {
+      unsub();
+      // Clear on teardown so a stopped session's counts don't flash on the
+      // board when a fresh session starts before its first snapshot arrives.
+      setSessionTally([]);
+    };
+    // `options` is memoised above; option editing is locked while live, so this
+    // doesn't re-subscribe spuriously. Depend on the whole object (not
+    // `options.length`) to satisfy exhaustive-deps unambiguously.
+  }, [activePollSessionId, user, options]);
+
   const vote = (index: number) => {
+    if (isLive) return; // Live device-voting: tallies come from participants.
     if (_announcementId) {
       if (userVoted !== null) return; // one vote per session
       setUserVoted(index);
@@ -81,12 +127,46 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     });
   };
 
-  // Merge Firestore live counts with config option labels
-  const displayOptions = _announcementId
-    ? options.map((o, i) => ({ ...o, votes: announcementVotes[i] ?? 0 }))
-    : options;
+  // Three tally modes: live public session > announcement > local config.
+  const displayOptions = isLive
+    ? options.map((o, i) => ({ ...o, votes: sessionTally[i] ?? 0 }))
+    : _announcementId
+      ? options.map((o, i) => ({ ...o, votes: announcementVotes[i] ?? 0 }))
+      : options;
 
   const total = displayOptions.reduce((sum, o) => sum + o.votes, 0);
+
+  // On-board join link/QR for the live session (gated by anonymous-join).
+  // Memoised so the base64 encode doesn't re-run on every vote snapshot while
+  // the session is live (the widget re-renders on each tally update).
+  const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
+  const joinUrl = useMemo(() => {
+    if (!isLive || !user || !canOfferAnonymousJoin || !activePollSessionId) {
+      return '';
+    }
+    return buildPublicPollLink({
+      id: activePollSessionId,
+      question,
+      options: options.map((o) => ({ id: o.id, label: o.label })),
+      teacherUid: user.uid,
+    });
+  }, [
+    isLive,
+    user,
+    canOfferAnonymousJoin,
+    activePollSessionId,
+    question,
+    options,
+  ]);
+  const qrUrl = useMemo(
+    () =>
+      joinUrl
+        ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(
+            joinUrl
+          )}`
+        : '',
+    [joinUrl]
+  );
 
   return (
     <WidgetLayout
@@ -145,7 +225,10 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 onClick={() => {
                   vote(i);
                 }}
-                disabled={_announcementId !== undefined && userVoted !== null}
+                disabled={
+                  isLive ||
+                  (_announcementId !== undefined && userVoted !== null)
+                }
                 className={buttonCls}
               >
                 <div
@@ -170,7 +253,72 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         </div>
       }
       footer={
-        !_announcementId ? (
+        isLive ? (
+          <div
+            className="flex items-center justify-center"
+            style={{
+              gap: 'min(12px, 3cqmin)',
+              paddingLeft: 'min(16px, 3cqmin)',
+              paddingRight: 'min(16px, 3cqmin)',
+              paddingBottom: 'min(8px, 1.5cqmin)',
+            }}
+          >
+            {qrUrl ? (
+              <>
+                <img
+                  src={qrUrl}
+                  alt="Join QR code"
+                  className="rounded bg-white"
+                  style={{
+                    width: 'min(72px, 22cqmin)',
+                    height: 'min(72px, 22cqmin)',
+                    padding: 'min(4px, 1cqmin)',
+                  }}
+                />
+                <div className="flex flex-col min-w-0">
+                  <span
+                    className="flex items-center font-black uppercase text-emerald-600"
+                    style={{
+                      gap: 'min(4px, 1cqmin)',
+                      fontSize: 'min(12px, 4cqmin)',
+                    }}
+                  >
+                    <Radio
+                      style={{
+                        width: 'min(12px, 4cqmin)',
+                        height: 'min(12px, 4cqmin)',
+                      }}
+                    />
+                    Voting open
+                  </span>
+                  <code
+                    data-testid="poll-join-url"
+                    className="truncate text-indigo-500 font-mono"
+                    style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+                  >
+                    {joinUrl}
+                  </code>
+                </div>
+              </>
+            ) : (
+              <span
+                className="flex items-center font-black uppercase text-emerald-600"
+                style={{
+                  gap: 'min(4px, 1cqmin)',
+                  fontSize: 'min(12px, 4cqmin)',
+                }}
+              >
+                <Radio
+                  style={{
+                    width: 'min(12px, 4cqmin)',
+                    height: 'min(12px, 4cqmin)',
+                  }}
+                />
+                Voting open
+              </span>
+            )}
+          </div>
+        ) : !_announcementId ? (
           <div
             style={{
               paddingLeft: 'min(16px, 3cqmin)',

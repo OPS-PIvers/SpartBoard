@@ -3288,6 +3288,56 @@ service cloud.firestore {
       }
     }
 
+    // Poll Sessions — public, anonymous device-voting for the Poll widget.
+    // sessionId is formatted as {teacherUid}_{pollSessionId}. The teacher owns
+    // the session doc (UID prefix); participants write one uid-keyed vote each.
+    match /poll_sessions/{sessionId} {
+      // Reads are permissive for any authed caller (mirrors activity_wall_sessions).
+      allow read: if request.auth != null;
+      // Only a non-anonymous teacher whose uid prefixes the sessionId (or an
+      // admin) may create/update the session doc itself.
+      allow create, update: if request.auth != null &&
+                            request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+                            (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
+      allow delete: if false;
+
+      match /votes/{participantUid} {
+        // Reads the parent session doc once (let-bound) and reuses it for both
+        // the active-gate and the optionIndex range check, rather than calling
+        // a get()-wrapping helper twice. The allow rule's preceding exists()
+        // guard is a separate access, but Firestore caches reads to the same
+        // path within a single rule evaluation, so it is not double-billed.
+        // Only invoked after the allow rule confirmed the doc exists and
+        // optionIndex is an int, so the get() + comparison are safe.
+        function voteTargetsActiveInRangeOption() {
+          let session = get(/databases/$(database)/documents/poll_sessions/$(sessionId)).data;
+          return session.get('active', false) == true &&
+            request.resource.data.optionIndex >= 0 &&
+            request.resource.data.optionIndex < session.get('optionCount', 0);
+        }
+
+        // Any authed user (incl. anonymous) may create/update ONLY the vote
+        // doc whose id equals their own uid. Exactly {optionIndex, votedAt};
+        // optionIndex an int within [0, optionCount); only while the session
+        // is active. Re-voting overwrites (one vote per device).
+        allow create, update: if request.auth != null &&
+          request.auth.uid == participantUid &&
+          exists(/databases/$(database)/documents/poll_sessions/$(sessionId)) &&
+          request.resource.data.keys().hasOnly(['optionIndex', 'votedAt']) &&
+          request.resource.data.optionIndex is int &&
+          request.resource.data.votedAt is int &&
+          voteTargetsActiveInRangeOption();
+
+        // Reads open to any authed user — vote docs are anonymous tallies
+        // (no PII), which is what powers the live results on phones + board.
+        allow read: if request.auth != null;
+
+        // Delete (reset) is teacher/admin-only.
+        allow delete: if request.auth != null &&
+          (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
+      }
+    }
+
     // === Video Activity assignments (Wave 2-VA) ===
     // Per-teacher archive of video activity assignments — mirrors quiz_assignments.
     match /users/{userId}/video_activity_assignments/{id} {

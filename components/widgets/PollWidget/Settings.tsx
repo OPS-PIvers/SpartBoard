@@ -11,6 +11,8 @@ import {
   Type,
   Users,
   RefreshCw,
+  Radio,
+  Square,
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { MagicInput } from '@/components/common/MagicInput';
@@ -21,14 +23,55 @@ import {
 } from '@/utils/ai';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
+import {
+  startPollSession,
+  stopPollSession,
+} from '@/components/poll/pollSession';
 
 import { OptionInput } from './components/OptionInput';
 
 export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget, addToast, rosters, activeRosterId } = useDashboard();
   const { showConfirm } = useDialog();
-  const { canAccessFeature } = useAuth();
+  const { canAccessFeature, user } = useAuth();
   const config = (widget.config || {}) as PollConfig;
+  const [showResumePopover, setShowResumePopover] = useState(false);
+
+  const activePollSessionId = config.activePollSessionId ?? null;
+  const isLive = !!activePollSessionId;
+
+  const beginSession = async (mode: 'fresh' | 'resume') => {
+    if (!user) return;
+    setShowResumePopover(false);
+    try {
+      const next = await startPollSession(config, user.uid, mode);
+      updateWidget(widget.id, { config: next });
+    } catch (err) {
+      // Surface the failure rather than leaving the teacher with a
+      // half-started session and a button that silently returned to idle.
+      console.error('[PollSettings] startPollSession failed:', err);
+      addToast('Could not start voting. Check your connection.', 'error');
+    }
+  };
+
+  const handleStartClick = () => {
+    if (config.lastPollSessionId) {
+      setShowResumePopover(true);
+    } else {
+      void beginSession('fresh');
+    }
+  };
+
+  const handleStopClick = async () => {
+    if (!user) return;
+    try {
+      const next = await stopPollSession(config, user.uid);
+      updateWidget(widget.id, { config: next });
+    } catch (err) {
+      console.error('[PollSettings] stopPollSession failed:', err);
+      addToast('Could not stop voting. Check your connection.', 'error');
+    }
+  };
   const { question = 'Vote Now!' } = config;
   const options = Array.isArray(config.options) ? config.options : [];
 
@@ -157,11 +200,13 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             size="sm"
             variant="secondary"
             onClick={importFromRoster}
-            disabled={!activeRoster}
+            disabled={!activeRoster || isLive}
             title={
-              !activeRoster
-                ? 'Select a class in the Classes widget'
-                : `Import ${activeRoster.name}`
+              isLive
+                ? 'Stop voting to change options'
+                : !activeRoster
+                  ? 'Select a class in the Classes widget'
+                  : `Import ${activeRoster.name}`
             }
             icon={<RefreshCw className="w-3 h-3" />}
           >
@@ -175,9 +220,13 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         )}
       </div>
 
-      {/* AI poll generator */}
+      {/* AI poll generator — disabled while a session is live (replacing the
+          options mid-vote would desync the rules' optionCount + remap votes). */}
       {canAccessFeature('smart-poll') && (
-        <div>
+        <fieldset
+          disabled={isLive}
+          className="min-w-0 m-0 border-0 p-0 disabled:opacity-50"
+        >
           <SettingsLabel>Draft with AI</SettingsLabel>
           {canAccessFeature('ai-file-context') && (
             <DriveFileAttachment
@@ -213,7 +262,7 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             placeholder="e.g. Photosynthesis, Civil War, 3rd Grade Math..."
             buttonLabel="Draft with AI"
           />
-        </div>
+        </fieldset>
       )}
 
       {/* Question Edit */}
@@ -230,9 +279,19 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         />
       </div>
 
-      {/* Options List */}
-      <div>
+      {/* Options List — locked while a session is live, because the rules pin
+          optionCount at start and votes are keyed by index: editing options
+          mid-vote would reject new-option votes and remap existing ones. */}
+      <fieldset
+        disabled={isLive}
+        className="min-w-0 m-0 border-0 p-0 disabled:opacity-50"
+      >
         <SettingsLabel>Options</SettingsLabel>
+        {isLive && (
+          <p className="text-xxs text-amber-600 font-semibold mb-2">
+            Stop voting to add, remove, or rename options.
+          </p>
+        )}
         <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
           {options.map((option, idx) => (
             <div key={option.id} className="flex gap-2 items-center">
@@ -258,7 +317,7 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         >
           <Plus className="w-3.5 h-3.5" /> Add Option
         </button>
-      </div>
+      </fieldset>
 
       {/* Actions */}
       <div className="pt-4 border-t border-slate-100">
@@ -279,6 +338,57 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           </Button>
         </div>
       </div>
+
+      {/* Live Device Voting — gated by anonymous-join */}
+      {canAccessFeature('anonymous-join') && (
+        <div className="pt-4 border-t border-slate-100">
+          <SettingsLabel icon={Radio}>Live Device Voting</SettingsLabel>
+          <p className="text-xxs text-slate-400 font-medium mb-3">
+            Let students vote from their own devices. The board shows live
+            results and a join QR while voting is open.
+          </p>
+
+          {isLive ? (
+            <Button
+              variant="secondary"
+              onClick={handleStopClick}
+              icon={<Square className="w-3.5 h-3.5" />}
+            >
+              Stop voting
+            </Button>
+          ) : showResumePopover ? (
+            <div className="flex flex-col gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <p className="text-xs font-bold text-slate-600">
+                A previous session exists. Resume it, or start fresh?
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => void beginSession('resume')}
+                >
+                  Resume previous
+                </Button>
+                <Button onClick={() => void beginSession('fresh')}>
+                  Start fresh
+                </Button>
+              </div>
+              <button
+                onClick={() => setShowResumePopover(false)}
+                className="text-xxs text-slate-400 hover:text-slate-600 font-semibold"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <Button
+              onClick={handleStartClick}
+              icon={<Radio className="w-3.5 h-3.5" />}
+            >
+              Start device voting
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
