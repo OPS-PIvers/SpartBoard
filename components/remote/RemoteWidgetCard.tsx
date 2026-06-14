@@ -24,6 +24,8 @@ import { RemoteMusicControl } from './controls/RemoteMusicControl';
 import { RemoteNextUpControl } from './controls/RemoteNextUpControl';
 import { RemoteSoundControl } from './controls/RemoteSoundControl';
 import { RemoteWebcamControl } from './controls/RemoteWebcamControl';
+import { RemoteActivityWallControl } from './controls/RemoteActivityWallControl';
+import { RemoteEmbedControl } from './controls/RemoteEmbedControl';
 
 interface RemoteWidgetCardProps {
   widget: WidgetData;
@@ -129,6 +131,15 @@ const renderControls = (
       return (
         <RemoteWebcamControl widget={widget} updateWidget={updateWidget} />
       );
+    case 'activity-wall':
+      return (
+        <RemoteActivityWallControl
+          widget={widget}
+          updateWidget={updateWidget}
+        />
+      );
+    case 'embed':
+      return <RemoteEmbedControl widget={widget} updateWidget={updateWidget} />;
     default:
       return (
         <div className="flex flex-col items-center justify-center h-full gap-4 text-white/40 p-8 text-center">
@@ -190,7 +201,7 @@ export const RemoteWidgetCard: React.FC<RemoteWidgetCardProps> = ({
           <button
             onClick={handleSpotlight}
             style={{ touchAction: 'manipulation' }}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-bold transition-all active:scale-95 ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-bold transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60 ${
               isSpotlighted
                 ? 'bg-yellow-400/20 border-yellow-400/60 text-yellow-300'
                 : 'bg-white/10 border-white/20 text-white/60 hover:bg-white/20'
@@ -212,7 +223,7 @@ export const RemoteWidgetCard: React.FC<RemoteWidgetCardProps> = ({
           <button
             onClick={handleMaximize}
             style={{ touchAction: 'manipulation' }}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-bold transition-all active:scale-95 ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-bold transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60 ${
               isMaximized
                 ? 'bg-blue-500/20 border-blue-400/60 text-blue-300'
                 : 'bg-white/10 border-white/20 text-white/60 hover:bg-white/20'

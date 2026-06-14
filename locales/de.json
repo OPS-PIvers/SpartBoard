@@ -1,4 +1,15 @@
 {
+  "remote": {
+    "status": {
+      "connected": "Verbunden",
+      "reconnecting": "Wird neu verbunden…"
+    },
+    "boardPicker": {
+      "title": "Boards",
+      "switch": "Board wechseln",
+      "close": "Schließen"
+    }
+  },
   "common": {
     "cancel": "Abbrechen",
     "save": "Speichern",

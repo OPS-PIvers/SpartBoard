@@ -1,4 +1,15 @@
 {
+  "remote": {
+    "status": {
+      "connected": "Conectado",
+      "reconnecting": "Reconectando…"
+    },
+    "boardPicker": {
+      "title": "Tableros",
+      "switch": "Cambiar de tablero",
+      "close": "Cerrar"
+    }
+  },
   "common": {
     "cancel": "Cancelar",
     "save": "Guardar",

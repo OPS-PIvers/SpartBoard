@@ -16,7 +16,7 @@ const ToggleRow: React.FC<{
     // touch-action:manipulation prevents the 300 ms ghost-click delay on mobile
     // and stops double-fire events that would immediately re-toggle the value.
     style={{ touchAction: 'manipulation' }}
-    className={`flex items-center justify-between w-full px-4 py-4 rounded-2xl border transition-all active:scale-95 ${
+    className={`flex items-center justify-between w-full px-4 py-4 rounded-2xl border transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60 ${
       value
         ? 'bg-blue-500/20 border-blue-400/60 text-white'
         : 'bg-white/5 border-white/10 text-white/60'
