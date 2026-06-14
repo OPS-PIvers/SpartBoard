@@ -724,27 +724,38 @@ export const Results: React.FC<ResultsProps> = ({
                             className="flex items-center shrink-0"
                             style={{ gap: 'min(6px, 1.5cqmin)' }}
                           >
-                            {r.answers.map((a) =>
-                              isAnswerCorrect(a.questionId, a.answer) ? (
-                                <CheckCircle2
-                                  key={a.questionId}
-                                  className="text-emerald-500"
-                                  style={{
-                                    width: 'min(14px, 3.5cqmin)',
-                                    height: 'min(14px, 3.5cqmin)',
-                                  }}
-                                />
-                              ) : (
-                                <XCircle
-                                  key={a.questionId}
-                                  className="text-brand-red-primary"
-                                  style={{
-                                    width: 'min(14px, 3.5cqmin)',
-                                    height: 'min(14px, 3.5cqmin)',
-                                  }}
-                                />
+                            {/* Iterate in canonical question order (not
+                                submission order) so the icon strip matches the
+                                Live Monitor for self-paced revisits. */}
+                            {questions
+                              .map((q) =>
+                                r.answers.find((a) => a.questionId === q.id)
                               )
-                            )}
+                              .filter(
+                                (a): a is (typeof r.answers)[number] =>
+                                  a !== undefined
+                              )
+                              .map((a) =>
+                                isAnswerCorrect(a.questionId, a.answer) ? (
+                                  <CheckCircle2
+                                    key={a.questionId}
+                                    className="text-emerald-500"
+                                    style={{
+                                      width: 'min(14px, 3.5cqmin)',
+                                      height: 'min(14px, 3.5cqmin)',
+                                    }}
+                                  />
+                                ) : (
+                                  <XCircle
+                                    key={a.questionId}
+                                    className="text-brand-red-primary"
+                                    style={{
+                                      width: 'min(14px, 3.5cqmin)',
+                                      height: 'min(14px, 3.5cqmin)',
+                                    }}
+                                  />
+                                )
+                              )}
                           </div>
                           {scoreable ? (
                             <ScorePill score={score} display="percent" />
