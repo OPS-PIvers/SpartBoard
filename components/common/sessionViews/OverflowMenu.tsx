@@ -73,6 +73,12 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   }, [open]);
 
   const onMenuKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (e.key === 'Tab') {
+      // Close on Tab so focus continues in normal document order (unlike
+      // Escape, we don't pull focus back to the trigger).
+      setOpen(false);
+      return;
+    }
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
     e.preventDefault();
     const nodes = Array.from(

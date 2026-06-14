@@ -2580,7 +2580,7 @@ const StudentRow: React.FC<{
     if (response.status === 'completed' && displayScore != null) {
       return (
         <ScorePill
-          score={displayScore}
+          score={isGamified ? 0 : displayScore}
           display="percent"
           gamified={isGamified}
           points={displayScore}
