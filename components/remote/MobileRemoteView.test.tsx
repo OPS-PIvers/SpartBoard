@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MobileRemoteView } from './MobileRemoteView';
 import { useDashboard } from '@/context/useDashboard';
@@ -80,5 +81,75 @@ describe('MobileRemoteView', () => {
     expect(screen.getAllByRole('button', { name: /spotlight/i })).toHaveLength(
       2
     );
+  });
+
+  describe('board picker', () => {
+    const multiBoardCtx = () => {
+      const boardA = {
+        id: 'board-a',
+        name: 'Board A',
+        widgets: [makeWidget('w1')],
+        settings: {},
+      };
+      const boardB = {
+        id: 'board-b',
+        name: 'Board B',
+        widgets: [makeWidget('w2')],
+        settings: {},
+      };
+      return {
+        activeDashboard: boardA,
+        updateWidget: vi.fn(),
+        updateDashboardSettings: vi.fn(),
+        loadDashboard: vi.fn(),
+        dashboards: [boardA, boardB],
+      };
+    };
+
+    it('opens the picker showing all board names when the board name is tapped', async () => {
+      const user = userEvent.setup();
+      mockedUseDashboard.mockReturnValue(multiBoardCtx());
+      render(<MobileRemoteView />);
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+      await user.click(
+        screen.getByRole('button', { name: 'remote.boardPicker.switch' })
+      );
+
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toBeInTheDocument();
+      expect(within(dialog).getByText('Board A')).toBeInTheDocument();
+      expect(within(dialog).getByText('Board B')).toBeInTheDocument();
+    });
+
+    it('jumps to a non-active board and closes the picker', async () => {
+      const user = userEvent.setup();
+      const ctx = multiBoardCtx();
+      mockedUseDashboard.mockReturnValue(ctx);
+      render(<MobileRemoteView />);
+
+      await user.click(
+        screen.getByRole('button', { name: 'remote.boardPicker.switch' })
+      );
+      const dialog = screen.getByRole('dialog');
+      await user.click(within(dialog).getByRole('button', { name: /Board B/ }));
+
+      expect(ctx.loadDashboard).toHaveBeenCalledWith('board-b');
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('marks the active board row as current', async () => {
+      const user = userEvent.setup();
+      mockedUseDashboard.mockReturnValue(multiBoardCtx());
+      render(<MobileRemoteView />);
+
+      await user.click(
+        screen.getByRole('button', { name: 'remote.boardPicker.switch' })
+      );
+      const dialog = screen.getByRole('dialog');
+      const activeRow = within(dialog).getByRole('button', { name: /Board A/ });
+      expect(activeRow).toHaveAttribute('aria-current', 'true');
+    });
   });
 });

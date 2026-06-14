@@ -3,6 +3,11 @@
     "status": {
       "connected": "Connecté",
       "reconnecting": "Reconnexion…"
+    },
+    "boardPicker": {
+      "title": "Tableaux",
+      "switch": "Changer de tableau",
+      "close": "Fermer"
     }
   },
   "common": {

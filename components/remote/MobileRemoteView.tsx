@@ -24,12 +24,15 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
   Loader2,
   RefreshCw,
   Smartphone,
+  X,
 } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -260,6 +263,7 @@ export const MobileRemoteView: React.FC = () => {
   );
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isBoardPickerOpen, setIsBoardPickerOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const remoteWidgets = React.useMemo(() => {
@@ -358,9 +362,17 @@ export const MobileRemoteView: React.FC = () => {
         </button>
 
         <div className="flex flex-col items-center gap-0.5">
-          <span className="text-white font-black text-sm truncate max-w-40">
-            {activeDashboard.name}
-          </span>
+          <button
+            type="button"
+            onClick={() => setIsBoardPickerOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={isBoardPickerOpen}
+            aria-label={t('remote.boardPicker.switch')}
+            className="flex items-center gap-1 text-white font-black text-sm touch-manipulation active:scale-95 transition-transform"
+          >
+            <span className="truncate max-w-40">{activeDashboard.name}</span>
+            <ChevronDown className="w-3.5 h-3.5 text-white/40 shrink-0" />
+          </button>
           <span className="text-white/40 text-xs">Remote Control</span>
           <div className="flex items-center gap-1.5">
             <span
@@ -465,6 +477,68 @@ export const MobileRemoteView: React.FC = () => {
               aria-label={`Go to widget ${i + 1}`}
             />
           ))}
+        </div>
+      )}
+
+      {/* Board picker overlay — jump directly to any board */}
+      {isBoardPickerOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setIsBoardPickerOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-label={t('remote.boardPicker.title')}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-slate-900 border-t border-white/10 rounded-t-2xl flex flex-col max-h-[70vh]"
+            style={{
+              paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0.75rem)',
+            }}
+          >
+            <div className="flex items-center justify-between px-4 py-3 shrink-0 border-b border-white/5">
+              <span className="text-white font-black text-sm">
+                {t('remote.boardPicker.title')}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsBoardPickerOpen(false)}
+                aria-label={t('remote.boardPicker.close')}
+                className="p-2 -mr-2 text-white/40 hover:text-white touch-manipulation active:scale-95 transition-transform"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto p-2 flex flex-col gap-1">
+              {dashboards.map((board) => {
+                const isActive = board.id === activeDashboard.id;
+                return (
+                  <button
+                    key={board.id}
+                    type="button"
+                    aria-current={isActive ? 'true' : undefined}
+                    onClick={() => {
+                      handleLoadDashboard(board.id);
+                      setCurrentIndex(0);
+                      if (scrollRef.current) scrollRef.current.scrollLeft = 0;
+                      setIsBoardPickerOpen(false);
+                    }}
+                    className={`flex items-center justify-between gap-3 min-h-12 px-4 rounded-2xl text-left touch-manipulation active:scale-95 transition-all ${
+                      isActive
+                        ? 'bg-blue-500/20 text-white'
+                        : 'text-white/70 hover:bg-white/5'
+                    }`}
+                  >
+                    <span className="font-semibold text-sm truncate">
+                      {board.name}
+                    </span>
+                    {isActive && (
+                      <Check className="w-5 h-5 text-blue-400 shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
     </div>
