@@ -241,7 +241,7 @@ const StudentRow: React.FC<StudentRowProps> = ({
         ) : (
           <XCircle
             key={q.id}
-            className="text-red-500"
+            className="text-brand-red-primary"
             style={{
               width: 'min(14px, 3.5cqmin)',
               height: 'min(14px, 3.5cqmin)',

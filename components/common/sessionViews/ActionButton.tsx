@@ -11,6 +11,9 @@ interface ActionButtonProps {
   disabledReason?: string;
   /** Show a spinner in place of the icon while an async operation is in flight. */
   loading?: boolean;
+  /** Toggle "on" state — applies a glanceable amber treatment (e.g. for the
+   *  live-scoreboard toggle). Overrides the variant colors while active. */
+  active?: boolean;
   /** Collapse to icon-only (tooltip shows the label). */
   labelHidden?: boolean;
 }
@@ -34,6 +37,7 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
   disabled = false,
   disabledReason,
   loading = false,
+  active = false,
   labelHidden = false,
 }) => (
   <button
@@ -42,7 +46,12 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
     disabled={disabled}
     title={disabled ? disabledReason : labelHidden ? label : undefined}
     aria-label={label}
-    className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${VARIANT[variant]}`}
+    aria-pressed={active}
+    className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+      active
+        ? 'bg-amber-100 text-amber-700 ring-2 ring-amber-400 hover:bg-amber-200'
+        : VARIANT[variant]
+    }`}
     style={{
       paddingInline: labelHidden ? '0' : 'min(14px, 3cqmin)',
       paddingBlock: 'min(8px, 1.8cqmin)',

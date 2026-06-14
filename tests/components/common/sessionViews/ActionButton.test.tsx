@@ -58,4 +58,20 @@ describe('ActionButton', () => {
     expect(container.querySelector('.animate-spin')).not.toBeNull();
     expect(screen.getByRole('button', { name: 'End' })).toBeInTheDocument();
   });
+
+  it('applies the amber on-state treatment when active', () => {
+    render(
+      <ActionButton
+        variant="secondary"
+        label="Scoreboard"
+        icon={Play}
+        onClick={vi.fn()}
+        active
+      />
+    );
+    const btn = screen.getByRole('button', { name: 'Scoreboard' });
+    expect(btn.className).toContain('ring-amber-400');
+    expect(btn.className).toContain('bg-amber-100');
+    expect(btn).toHaveAttribute('aria-pressed', 'true');
+  });
 });

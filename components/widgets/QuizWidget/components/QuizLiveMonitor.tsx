@@ -991,6 +991,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
               <div className="relative flex">
                 <ActionButton
                   variant="secondary"
+                  active={isLiveScoreboardActive}
                   label={
                     isLiveScoreboardActive ? 'Scoreboard on' : 'Scoreboard'
                   }
