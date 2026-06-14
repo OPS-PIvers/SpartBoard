@@ -40,7 +40,7 @@ export const ScorePill: React.FC<ScorePillProps> = ({
   let text: string;
   if (gamified) text = `${points ?? 0}`;
   else if (display === 'count') text = `${count ?? 0}/${total ?? 0}`;
-  else text = `${Math.round(score)}%`;
+  else text = `${Number.isFinite(score) ? Math.round(score) : 0}%`;
   if (suffix) text += suffix;
   return (
     <span

@@ -1296,7 +1296,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                     >
                       <MCDistribution
                         question={currentQ}
-                        responses={responses}
+                        responses={filteredResponses}
                       />
                     </div>
                   )}

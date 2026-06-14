@@ -42,4 +42,9 @@ describe('ScorePill', () => {
     );
     expect(screen.getByTestId('score-pill')).toHaveTextContent('247 pts');
   });
+
+  it('renders 0% instead of NaN% when the score is not finite', () => {
+    render(<ScorePill score={NaN} display="percent" />);
+    expect(screen.getByTestId('score-pill')).toHaveTextContent('0%');
+  });
 });
