@@ -148,14 +148,14 @@ const IMPORT_SHARED_COLLECTION_TRANSLATED_KEYS: [string[], string][] = [
 /** quickAccess keys */
 const QUICK_ACCESS_TRANSLATED_KEYS: [string[], string][] = [
   [['quickAccess', 'title'], en.quickAccess.title],
+  [['quickAccess', 'searchPlaceholder'], en.quickAccess.searchPlaceholder],
   [['quickAccess', 'emptyResults'], en.quickAccess.emptyResults],
 ];
 
 /** collectionMenu keys */
-const QUICK_ACCESS_TRANSLATED_KEYS: [string[], string][] = [
-  [['quickAccess', 'title'], en.quickAccess.title],
-  [['quickAccess', 'searchPlaceholder'], en.quickAccess.searchPlaceholder],
-  [['quickAccess', 'emptyResults'], en.quickAccess.emptyResults],
+const COLLECTION_MENU_TRANSLATED_KEYS: [string[], string][] = [
+  [['collectionMenu', 'share'], en.collectionMenu.share],
+  [['collectionMenu', 'saveAsTemplate'], en.collectionMenu.saveAsTemplate],
 ];
 
 /** subCollections keys */
@@ -188,7 +188,10 @@ const SIDEBAR_BOARDS_TRANSLATED_KEYS: [string[], string][] = [
 // ---------------------------------------------------------------------------
 
 function get(obj: Record<string, unknown>, path: string[]): unknown {
-  return path.reduce<unknown>((acc, key) => (acc as Record<string, unknown>)?.[key], obj);
+  return path.reduce<unknown>(
+    (acc, key) => (acc as Record<string, unknown>)?.[key],
+    obj
+  );
 }
 
 // ---------------------------------------------------------------------------
