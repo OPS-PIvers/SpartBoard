@@ -29,7 +29,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   useEffect(() => {
     if (!open) return undefined;
     const onDown = (e: MouseEvent): void => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      if (ref.current && e.target && !ref.current.contains(e.target as Node)) {
         setOpen(false);
       }
     };

@@ -160,8 +160,8 @@ const LiveScoreboardSetupPopup: React.FC<LiveScoreboardSetupPopupProps> = ({
 }) => (
   <div
     ref={setupRef}
-    className="absolute right-0 top-full mt-2 w-64 bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm z-50 animate-in fade-in slide-in-from-top-2 duration-200"
-    style={{ padding: 'min(16px, 4cqmin)' }}
+    className="absolute right-0 top-full mt-2 bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+    style={{ width: 'min(256px, 80cqw)', padding: 'min(16px, 4cqmin)' }}
   >
     <p
       className="font-black text-brand-blue-dark text-center uppercase tracking-wider"

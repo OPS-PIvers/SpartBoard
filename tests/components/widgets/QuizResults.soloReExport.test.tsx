@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { QuizConfig, QuizData, QuizResponse } from '@/types';
 
@@ -108,6 +108,11 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
   beforeEach(() => {
     addToast.mockClear();
     mockExportResultsToSheet.mockClear();
+  });
+
+  afterEach(() => {
+    // Restore any vi.spyOn (e.g. window.open) even if a test throws first.
+    vi.restoreAllMocks();
   });
 
   it('does not render the Re-Export button before the first export (initialExportUrl is null)', () => {
