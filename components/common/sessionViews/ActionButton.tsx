@@ -37,7 +37,7 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
   disabled = false,
   disabledReason,
   loading = false,
-  active = false,
+  active,
   labelHidden = false,
 }) => (
   <button

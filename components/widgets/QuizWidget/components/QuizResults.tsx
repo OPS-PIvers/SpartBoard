@@ -2092,7 +2092,7 @@ const StudentsTab: React.FC<{
                               score={score}
                               display="percent"
                               gamified={gamified}
-                              points={score}
+                              points={earned}
                             />
                             <p
                               className="text-brand-blue-primary/60 font-bold"

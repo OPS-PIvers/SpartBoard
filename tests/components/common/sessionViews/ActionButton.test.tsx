@@ -17,6 +17,8 @@ describe('ActionButton', () => {
     const btn = screen.getByRole('button', { name: 'Export' });
     expect(btn).toHaveTextContent('Export');
     expect(btn.className).toContain('bg-brand-blue-primary');
+    // Non-toggle buttons must not expose aria-pressed.
+    expect(btn).not.toHaveAttribute('aria-pressed');
     fireEvent.click(btn);
     expect(onClick).toHaveBeenCalled();
   });
