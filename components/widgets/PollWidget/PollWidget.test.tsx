@@ -247,6 +247,36 @@ describe('PollWidget', () => {
     fireEvent.click(screen.getByRole('button', { name: /Red/i }));
     expect(mockUpdateWidget).not.toHaveBeenCalled();
   });
+
+  it('shows the "Voting open" indicator but no QR/link when anonymous-join is denied', () => {
+    (useAuth as Mock).mockReturnValue({
+      user: { uid: 'teacher-1' },
+      canAccessFeature: vi.fn(() => false),
+    });
+    const widget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Pick one',
+        options: [{ id: 'opt-1', label: 'Red', votes: 0 }],
+        activePollSessionId: 'sess-1',
+      },
+    };
+
+    render(<PollWidget widget={widget} />);
+
+    // Live session is active, so the board still signals voting is open...
+    expect(screen.getByText(/voting open/i)).toBeInTheDocument();
+    // ...but the join QR + link are gated off without anonymous-join.
+    expect(screen.queryByTestId('poll-join-url')).not.toBeInTheDocument();
+    expect(screen.queryByAltText(/join qr/i)).not.toBeInTheDocument();
+  });
 });
 
 describe('PollSettings', () => {
