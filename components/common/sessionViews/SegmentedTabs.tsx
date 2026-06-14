@@ -16,7 +16,9 @@ interface SegmentedTabsProps<K extends string = string> {
   onChange: (key: K) => void;
   /** Collapse labels to icon-only (the caller measures width). */
   labelsHidden?: boolean;
-  ariaLabel?: string;
+  /** Accessible name for the tablist — required so multiple tab controls on a
+   *  page are distinguishable (WCAG 4.1.2). */
+  ariaLabel: string;
 }
 
 /**

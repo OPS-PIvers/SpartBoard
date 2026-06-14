@@ -139,6 +139,18 @@ export const SessionViewsDevHarness: React.FC = () => {
   const [state, setState] = useState<StateKey>('live');
   const [width, setWidth] = useState<number>(520);
 
+  // Guard: without auth-bypass this harness would boot the real AuthProvider +
+  // DashboardProvider against a live Firebase account (real Firestore
+  // listeners). Bail early. (Hooks above run unconditionally — rules-of-hooks.)
+  if (import.meta.env.VITE_AUTH_BYPASS !== 'true') {
+    return (
+      <div className="flex h-screen items-center justify-center text-slate-500">
+        Set <code className="mx-1 font-mono">VITE_AUTH_BYPASS=true</code> to use
+        this harness.
+      </div>
+    );
+  }
+
   return (
     <DialogProvider>
       <AuthProvider>

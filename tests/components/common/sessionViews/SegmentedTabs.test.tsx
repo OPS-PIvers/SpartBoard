@@ -9,7 +9,14 @@ const TABS = [
 
 describe('SegmentedTabs', () => {
   it('marks the active tab with aria-selected and white surface', () => {
-    render(<SegmentedTabs tabs={TABS} value="overview" onChange={vi.fn()} />);
+    render(
+      <SegmentedTabs
+        tabs={TABS}
+        value="overview"
+        onChange={vi.fn()}
+        ariaLabel="Sections"
+      />
+    );
     const active = screen.getByRole('tab', { name: 'Overview' });
     expect(active).toHaveAttribute('aria-selected', 'true');
     expect(active.className).toContain('bg-white');
@@ -18,13 +25,27 @@ describe('SegmentedTabs', () => {
 
   it('fires onChange with the tab key', () => {
     const onChange = vi.fn();
-    render(<SegmentedTabs tabs={TABS} value="overview" onChange={onChange} />);
+    render(
+      <SegmentedTabs
+        tabs={TABS}
+        value="overview"
+        onChange={onChange}
+        ariaLabel="Sections"
+      />
+    );
     fireEvent.click(screen.getByRole('tab', { name: 'Students' }));
     expect(onChange).toHaveBeenCalledWith('students');
   });
 
   it('renders a count badge when count > 0', () => {
-    render(<SegmentedTabs tabs={TABS} value="overview" onChange={vi.fn()} />);
+    render(
+      <SegmentedTabs
+        tabs={TABS}
+        value="overview"
+        onChange={vi.fn()}
+        ariaLabel="Sections"
+      />
+    );
     expect(screen.getByText('4')).toBeInTheDocument();
   });
 
@@ -35,6 +56,7 @@ describe('SegmentedTabs', () => {
         value="overview"
         onChange={vi.fn()}
         labelsHidden
+        ariaLabel="Sections"
       />
     );
     expect(screen.queryByText('Overview')).toBeNull();

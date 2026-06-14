@@ -1354,65 +1354,70 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
             {overflowItems.length > 0 && (
               <div className="relative shrink-0">
                 <OverflowMenu items={overflowItems} />
-                {showScoreboardPrompt && (
-                  <div
-                    ref={scoreboardPromptRef}
-                    className="absolute right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-brand-blue-primary/10 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+              </div>
+            )}
+            {/* Anchored separately from the overflow menu so deleting the last
+                completed student (which empties overflowItems) can't unmount the
+                prompt mid-interaction. */}
+            {showScoreboardPrompt && (
+              <div className="relative shrink-0">
+                <div
+                  ref={scoreboardPromptRef}
+                  className="absolute right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-brand-blue-primary/10 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+                  style={{
+                    padding: 'min(16px, 4cqmin)',
+                    width: 'max(220px, 50cqw)',
+                  }}
+                >
+                  <p
+                    className="font-black text-brand-blue-dark text-center uppercase tracking-wider"
                     style={{
-                      padding: 'min(16px, 4cqmin)',
-                      width: 'max(220px, 50cqw)',
+                      fontSize: 'min(11px, 3.5cqmin)',
+                      marginBottom: 'min(12px, 3cqmin)',
                     }}
                   >
-                    <p
-                      className="font-black text-brand-blue-dark text-center uppercase tracking-wider"
+                    How should students appear?
+                  </p>
+                  <div
+                    className="flex flex-col"
+                    style={{ gap: 'min(8px, 2cqmin)' }}
+                  >
+                    <button
+                      onClick={() => handleSendToScoreboard('name')}
+                      className="flex items-center w-full bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95"
                       style={{
-                        fontSize: 'min(11px, 3.5cqmin)',
-                        marginBottom: 'min(12px, 3cqmin)',
+                        gap: 'min(8px, 2cqmin)',
+                        padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
+                        fontSize: 'min(12px, 3.5cqmin)',
                       }}
                     >
-                      How should students appear?
-                    </p>
-                    <div
-                      className="flex flex-col"
-                      style={{ gap: 'min(8px, 2cqmin)' }}
+                      <User
+                        style={{
+                          width: 'min(16px, 4cqmin)',
+                          height: 'min(16px, 4cqmin)',
+                        }}
+                      />
+                      Student Names
+                    </button>
+                    <button
+                      onClick={() => handleSendToScoreboard('pin')}
+                      className="flex items-center w-full bg-slate-100 hover:bg-slate-200 text-brand-blue-dark font-bold rounded-xl transition-all active:scale-95"
+                      style={{
+                        gap: 'min(8px, 2cqmin)',
+                        padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
+                        fontSize: 'min(12px, 3.5cqmin)',
+                      }}
                     >
-                      <button
-                        onClick={() => handleSendToScoreboard('name')}
-                        className="flex items-center w-full bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95"
+                      <Hash
                         style={{
-                          gap: 'min(8px, 2cqmin)',
-                          padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
-                          fontSize: 'min(12px, 3.5cqmin)',
+                          width: 'min(16px, 4cqmin)',
+                          height: 'min(16px, 4cqmin)',
                         }}
-                      >
-                        <User
-                          style={{
-                            width: 'min(16px, 4cqmin)',
-                            height: 'min(16px, 4cqmin)',
-                          }}
-                        />
-                        Student Names
-                      </button>
-                      <button
-                        onClick={() => handleSendToScoreboard('pin')}
-                        className="flex items-center w-full bg-slate-100 hover:bg-slate-200 text-brand-blue-dark font-bold rounded-xl transition-all active:scale-95"
-                        style={{
-                          gap: 'min(8px, 2cqmin)',
-                          padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
-                          fontSize: 'min(12px, 3.5cqmin)',
-                        }}
-                      >
-                        <Hash
-                          style={{
-                            width: 'min(16px, 4cqmin)',
-                            height: 'min(16px, 4cqmin)',
-                          }}
-                        />
-                        PINs Only
-                      </button>
-                    </div>
+                      />
+                      PINs Only
+                    </button>
                   </div>
-                )}
+                </div>
               </div>
             )}
           </>

@@ -35,7 +35,7 @@ describe('OverflowMenu', () => {
     const trigger = screen.getByRole('button', { name: 'More actions' });
     fireEvent.click(trigger);
     expect(screen.getByRole('menu')).toBeInTheDocument();
-    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
     expect(screen.queryByRole('menu')).toBeNull();
     expect(trigger).toHaveFocus();
   });
@@ -58,13 +58,14 @@ describe('OverflowMenu', () => {
   });
 
   it('renders a spinner for a loading item', () => {
-    const { container } = render(
+    render(
       <OverflowMenu
         items={[{ label: 'Export', loading: true, onClick: vi.fn() }]}
       />
     );
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
-    expect(container.querySelector('.animate-spin')).not.toBeNull();
+    // Menu is portalled to document.body, so query the document, not container.
+    expect(document.querySelector('.animate-spin')).not.toBeNull();
     // A loading item is disabled so it can't double-fire.
     expect(screen.getByRole('menuitem', { name: 'Export' })).toBeDisabled();
   });
