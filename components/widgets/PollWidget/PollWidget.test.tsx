@@ -643,4 +643,33 @@ describe('PollSettings', () => {
       expect(lastCall[1].config.lastPollSessionId).toBe('sess-9');
     });
   });
+
+  it('locks option editing while a session is live', () => {
+    const widget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Pick one',
+        options: [{ id: 'opt-1', label: 'A', votes: 0 }],
+        activePollSessionId: 'sess-1',
+      },
+    };
+
+    render(<PollSettings widget={widget} />);
+
+    // Editing options mid-vote would desync the rules' fixed optionCount and
+    // remap index-keyed votes, so the controls are disabled (fieldset) + a
+    // notice is shown while a session is live.
+    expect(screen.getByRole('button', { name: /add option/i })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: /import class/i })
+    ).toBeDisabled();
+    expect(screen.getByText(/stop voting to add/i)).toBeInTheDocument();
+  });
 });

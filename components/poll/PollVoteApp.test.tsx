@@ -21,6 +21,7 @@ const {
 }));
 
 let snapshotDocs: Record<string, unknown>[] = [];
+let sessionActive = true;
 
 vi.mock('@/config/firebase', () => ({
   db: {},
@@ -52,14 +53,19 @@ const mountWith = (search: string) =>
 beforeEach(() => {
   vi.clearAllMocks();
   snapshotDocs = [];
+  sessionActive = true;
   mockSignInAnonymously.mockResolvedValue(undefined);
   mockSetDoc.mockResolvedValue(undefined);
+  // Two listeners now: the votes collection (ref === 'votes-col' from
+  // mockCollection) and the session doc (a doc ref from mockDoc). Branch so
+  // each gets the snapshot shape it expects.
   mockOnSnapshot.mockImplementation(
-    (
-      _ref: unknown,
-      cb: (snap: { docs: { data: () => Record<string, unknown> }[] }) => void
-    ) => {
-      cb({ docs: snapshotDocs.map((d) => ({ data: () => d })) });
+    (ref: unknown, cb: (snap: unknown) => void) => {
+      if (ref === 'votes-col') {
+        cb({ docs: snapshotDocs.map((d) => ({ data: () => d })) });
+      } else {
+        cb({ exists: () => true, data: () => ({ active: sessionActive }) });
+      }
       return vi.fn();
     }
   );
@@ -139,5 +145,17 @@ describe('PollVoteApp', () => {
     expect(
       screen.queryByText(/tap another option to change it/i)
     ).not.toBeInTheDocument();
+  });
+
+  it('reflects a closed session reactively from the session doc (no vote attempt needed)', async () => {
+    // The participant loaded the page after the teacher stopped voting. The
+    // session-doc listener (active === false) drives the closed banner +
+    // disabled buttons without the participant having to attempt a failing vote.
+    sessionActive = false;
+    mountWith(`?data=${encodePollData(payload)}`);
+    render(<PollVoteApp />);
+
+    expect(await screen.findByText(/voting is closed/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Apple/i })).toBeDisabled();
   });
 });

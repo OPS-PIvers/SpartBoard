@@ -1181,6 +1181,17 @@ export interface PollConfig {
   lastPollSessionId?: string | null;
 }
 
+/**
+ * A single public-poll vote document
+ * (`poll_sessions/{teacherUid}_{pollId}/votes/{participantUid}`). Keyed by the
+ * anonymous voter's uid (one vote per device); the Firestore rules enforce the
+ * exact `{optionIndex, votedAt}` shape.
+ */
+export interface PollVoteDoc {
+  optionIndex: number;
+  votedAt: number;
+}
+
 export type ActivityWallMode = 'text' | 'photo';
 export type ActivityWallIdentificationMode =
   | 'anonymous'

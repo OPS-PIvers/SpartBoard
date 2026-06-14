@@ -35,6 +35,11 @@ export const aggregateVotes = (
  * (tallies start at zero); `mode: 'resume'` reuses `config.lastPollSessionId`
  * (prior votes persist). Writes/updates the session doc with `active: true`
  * and returns the config to persist via `updateWidget`.
+ *
+ * Note: a `'fresh'` start abandons the previous session's doc (left at
+ * `active: false`, which blocks further votes server-side). Those inert docs +
+ * their votes are intentionally left in place — no TTL/cleanup — which is an
+ * accepted cost trade-off for this classroom-scale feature.
  */
 export const startPollSession = async (
   config: PollConfig,

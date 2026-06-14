@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Minus, QrCode, Radio, RotateCcw, Square } from 'lucide-react';
-import { WidgetData, PollConfig, PollOption } from '@/types';
+import { WidgetData, PollConfig, PollOption, PollVoteDoc } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { db } from '@/config/firebase';
 import { collection, onSnapshot } from 'firebase/firestore';
@@ -63,7 +63,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
     const unsub = onSnapshot(
       collection(db, 'poll_sessions', sessionId, 'votes'),
       (snap) => {
-        const votes = snap.docs.map((d) => d.data() as { optionIndex: number });
+        const votes = snap.docs.map((d) => d.data() as PollVoteDoc);
         setSessionTally(aggregateVotes(votes, options.length));
       }
     );

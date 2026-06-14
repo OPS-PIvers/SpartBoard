@@ -142,6 +142,24 @@ describe('poll votes — create/update', () => {
     );
   });
 
+  it('rejects a negative optionIndex', async () => {
+    await assertFails(
+      setDoc(voteRef(asAnonVoter(), VOTER_UID), {
+        optionIndex: -1,
+        votedAt: 2000,
+      })
+    );
+  });
+
+  it('rejects a vote against a non-existent session', async () => {
+    await assertFails(
+      setDoc(
+        voteRef(asAnonVoter(), VOTER_UID, `${TEACHER_UID}_does-not-exist`),
+        { optionIndex: 0, votedAt: 2000 }
+      )
+    );
+  });
+
   it('rejects extra fields beyond optionIndex/votedAt', async () => {
     await assertFails(
       setDoc(voteRef(asAnonVoter(), VOTER_UID), {

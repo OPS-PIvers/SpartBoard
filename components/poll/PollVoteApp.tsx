@@ -3,6 +3,7 @@ import { Check, Loader2 } from 'lucide-react';
 import { auth, db } from '@/config/firebase';
 import { signInAnonymously } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { type PollVoteDoc } from '@/types';
 import { decodePollPayload, type PollVotePayload } from './pollLink';
 import { aggregateVotes, makePollSessionId } from './pollSession';
 
@@ -33,13 +34,17 @@ export const PollVoteApp: React.FC = () => {
   const [closed, setClosed] = useState(false);
   const [tally, setTally] = useState<number[]>([]);
 
-  // Subscribe to the live votes subcollection (read is open to any authed
-  // user — anonymous vote docs carry no PII). Sign in anonymously first so
-  // the read is authorized. This is synchronisation with an external system,
+  // Subscribe to the live votes subcollection AND the session doc (reads are
+  // open to any authed user — anonymous vote docs carry no PII). Sign in
+  // anonymously first so the reads are authorized. The session-doc listener
+  // drives the `closed` banner reactively from the `active` flag, so a
+  // participant learns the teacher closed voting without having to attempt a
+  // (guaranteed-to-fail) write first. Synchronisation with an external system,
   // which is what useEffect is for.
   useEffect(() => {
     if (!ready) return;
-    let unsubscribe: () => void = () => undefined;
+    let unsubVotes: () => void = () => undefined;
+    let unsubSession: () => void = () => undefined;
     let cancelled = false;
     void (async () => {
       try {
@@ -47,23 +52,28 @@ export const PollVoteApp: React.FC = () => {
           await signInAnonymously(auth);
         }
       } catch {
-        // If anonymous sign-in fails the listener simply won't attach;
+        // If anonymous sign-in fails the listeners simply won't attach;
         // the vote attempt below will surface the error.
       }
       if (cancelled) return;
-      unsubscribe = onSnapshot(
+      unsubVotes = onSnapshot(
         collection(db, 'poll_sessions', sessionId, 'votes'),
         (snap) => {
-          const votes = snap.docs.map(
-            (d) => d.data() as { optionIndex: number }
-          );
+          const votes = snap.docs.map((d) => d.data() as PollVoteDoc);
           setTally(aggregateVotes(votes, ready.options.length));
         }
       );
+      unsubSession = onSnapshot(doc(db, 'poll_sessions', sessionId), (snap) => {
+        const active =
+          snap.exists() &&
+          (snap.data() as { active?: boolean }).active === true;
+        setClosed(!active);
+      });
     })();
     return () => {
       cancelled = true;
-      unsubscribe();
+      unsubVotes();
+      unsubSession();
     };
   }, [ready, sessionId]);
 
@@ -71,11 +81,13 @@ export const PollVoteApp: React.FC = () => {
     if (!ready) return;
     setSubmitting(true);
     try {
-      if (!auth.currentUser) {
-        await signInAnonymously(auth);
+      // Prefer the uid from the sign-in credential over reading auth.currentUser
+      // afterward — robust even if the SDK ever deferred the currentUser update.
+      let uid = auth.currentUser?.uid;
+      if (!uid) {
+        const credential = await signInAnonymously(auth);
+        uid = credential.user.uid;
       }
-      const uid = auth.currentUser?.uid;
-      if (!uid) throw new Error('no-auth');
       await setDoc(doc(db, 'poll_sessions', sessionId, 'votes', uid), {
         optionIndex: index,
         votedAt: Date.now(),

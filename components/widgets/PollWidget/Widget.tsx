@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   collection,
   doc,
@@ -9,7 +9,12 @@ import {
 import { db } from '@/config/firebase';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
-import { WidgetData, PollConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
+import {
+  WidgetData,
+  PollConfig,
+  PollVoteDoc,
+  DEFAULT_GLOBAL_STYLE,
+} from '@/types';
 import { RotateCcw, Radio } from 'lucide-react';
 
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
@@ -26,7 +31,10 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const config = widget.config as PollConfig & { _announcementId?: string };
   const { question = 'Vote Now!', _announcementId } = config;
-  const options = Array.isArray(config.options) ? config.options : [];
+  const options = useMemo(
+    () => (Array.isArray(config.options) ? config.options : []),
+    [config.options]
+  );
 
   const { user, canAccessFeature } = useAuth();
   const activePollSessionId = config.activePollSessionId ?? null;
@@ -68,7 +76,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     const unsub = onSnapshot(
       collection(db, 'poll_sessions', sessionId, 'votes'),
       (snap) => {
-        const votes = snap.docs.map((d) => d.data() as { optionIndex: number });
+        const votes = snap.docs.map((d) => d.data() as PollVoteDoc);
         setSessionTally(aggregateVotes(votes, options.length));
       }
     );
@@ -78,7 +86,10 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       // board when a fresh session starts before its first snapshot arrives.
       setSessionTally([]);
     };
-  }, [activePollSessionId, user, options.length]);
+    // `options` is memoised above; option editing is locked while live, so this
+    // doesn't re-subscribe spuriously. Depend on the whole object (not
+    // `options.length`) to satisfy exhaustive-deps unambiguously.
+  }, [activePollSessionId, user, options]);
 
   const vote = (index: number) => {
     if (isLive) return; // Live device-voting: tallies come from participants.
@@ -126,20 +137,36 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const total = displayOptions.reduce((sum, o) => sum + o.votes, 0);
 
   // On-board join link/QR for the live session (gated by anonymous-join).
-  const joinUrl =
-    isLive && user && canAccessFeature('anonymous-join')
-      ? buildPublicPollLink({
-          id: activePollSessionId,
-          question,
-          options: options.map((o) => ({ id: o.id, label: o.label })),
-          teacherUid: user.uid,
-        })
-      : '';
-  const qrUrl = joinUrl
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(
-        joinUrl
-      )}`
-    : '';
+  // Memoised so the base64 encode doesn't re-run on every vote snapshot while
+  // the session is live (the widget re-renders on each tally update).
+  const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
+  const joinUrl = useMemo(() => {
+    if (!isLive || !user || !canOfferAnonymousJoin || !activePollSessionId) {
+      return '';
+    }
+    return buildPublicPollLink({
+      id: activePollSessionId,
+      question,
+      options: options.map((o) => ({ id: o.id, label: o.label })),
+      teacherUid: user.uid,
+    });
+  }, [
+    isLive,
+    user,
+    canOfferAnonymousJoin,
+    activePollSessionId,
+    question,
+    options,
+  ]);
+  const qrUrl = useMemo(
+    () =>
+      joinUrl
+        ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(
+            joinUrl
+          )}`
+        : '',
+    [joinUrl]
+  );
 
   return (
     <WidgetLayout

@@ -95,6 +95,11 @@ describe('stopPollSession', () => {
     );
     expect(next.activePollSessionId).toBeNull();
     expect(next.lastPollSessionId).toBe('sess-7');
+    expect(mockDoc).toHaveBeenCalledWith(
+      {},
+      'poll_sessions',
+      'teacher-1_sess-7'
+    );
     const [, payload]: [unknown, Record<string, unknown>] = mockSetDoc.mock
       .calls[0] as [unknown, Record<string, unknown>];
     expect(payload).toMatchObject({ active: false });

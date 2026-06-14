@@ -3302,10 +3302,13 @@ service cloud.firestore {
       allow delete: if false;
 
       match /votes/{participantUid} {
-        // Single read of the parent session doc, reused for the active-gate
-        // and the optionIndex range check (avoids a redundant second get()).
-        // Only called after the allow rule has confirmed optionIndex is an int
-        // and the session doc exists, so the comparison + get() are safe.
+        // Reads the parent session doc once (let-bound) and reuses it for both
+        // the active-gate and the optionIndex range check, rather than calling
+        // a get()-wrapping helper twice. The allow rule's preceding exists()
+        // guard is a separate access, but Firestore caches reads to the same
+        // path within a single rule evaluation, so it is not double-billed.
+        // Only invoked after the allow rule confirmed the doc exists and
+        // optionIndex is an int, so the get() + comparison are safe.
         function voteTargetsActiveInRangeOption() {
           let session = get(/databases/$(database)/documents/poll_sessions/$(sessionId)).data;
           return session.get('active', false) == true &&
