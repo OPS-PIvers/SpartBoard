@@ -525,8 +525,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     // Guard: if the user pressed Escape the Escape handler set this flag before
     // triggering the unmount that fires this blur. Skip the Firestore write.
     if (isCancellingTitleRef.current) {
+      // The Escape handler already called setIsEditingTitle(false) before
+      // setting this flag, so there is nothing left to do but skip the write.
       isCancellingTitleRef.current = false;
-      setIsEditingTitle(false);
       return;
     }
     if (tempTitle.trim()) {
