@@ -129,9 +129,9 @@ describe('QuizResults — Students tab results-lockout unlock control', () => {
       />
     );
 
-    // Default tab is overview — switch to Students. The tab buttons render
-    // their lowercase key as label, so the accessible name is "students".
-    fireEvent.click(screen.getByRole('button', { name: /^students$/i }));
+    // Default tab is overview — switch to Students. The SegmentedTabs control
+    // renders each tab with role="tab" and the label as its accessible name.
+    fireEvent.click(screen.getByRole('tab', { name: /^students$/i }));
 
     // Students tab gates the per-student rows behind a Show/Hide toggle so a
     // teacher doesn't accidentally project scores. Reveal them so the
@@ -188,7 +188,7 @@ describe('QuizResults — Students tab results-lockout unlock control', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /^students$/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /^students$/i }));
     fireEvent.click(screen.getByRole('button', { name: /show results/i }));
 
     const unlockButton = await screen.findByRole('button', {
@@ -224,7 +224,7 @@ describe('QuizResults — Students tab results-lockout unlock control', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /^students$/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /^students$/i }));
     fireEvent.click(screen.getByRole('button', { name: /show results/i }));
 
     // The student row mounts (verify by looking for the score), but neither

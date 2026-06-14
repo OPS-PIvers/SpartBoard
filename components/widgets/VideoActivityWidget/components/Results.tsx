@@ -5,9 +5,7 @@
 
 import React, { useMemo, useState } from 'react';
 import {
-  ArrowLeft,
   Download,
-  Loader2,
   ExternalLink,
   AlertTriangle,
   BarChart3,
@@ -58,6 +56,19 @@ import {
 } from '@/hooks/useAssignmentPseudonyms';
 import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
 import { logError } from '@/utils/logError';
+import {
+  SessionViewHeader,
+  SegmentedTabs,
+  StatTile,
+  SessionBadge,
+  ScorePill,
+  SessionRow,
+  ActionButton,
+  OverflowMenu,
+} from '@/components/common/sessionViews';
+import type { OverflowMenuItem } from '@/components/common/sessionViews';
+import { scoreColorClasses } from '@/utils/scoreColor';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 
 interface ResultsProps {
   session: VideoActivitySession;
@@ -122,7 +133,7 @@ export const Results: React.FC<ResultsProps> = ({
   const [pushingGrades, setPushingGrades] = useState(false);
   const [pushingSchoology, setPushingSchoology] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'questions' | 'students' | 'plc'
+    'overview' | 'questions' | 'students'
   >('overview');
 
   const questions = session.questions;
@@ -411,170 +422,81 @@ export const Results: React.FC<ResultsProps> = ({
     }
   };
 
+  // Visible primary push: Classroom when this assignment is add-on-attached
+  // (and the admin gate permits), otherwise Schoology when LTI-launched. Same
+  // gating conditions/handlers as before — only the placement changes.
+  const showClassroomPush =
+    classroomAttachments.length > 0 && canAccessFeature('google-classroom');
+  const showSchoologyPush = !!ltiAttachment;
+
+  // Overflow-menu items. The Sheet/Export family (Export, Open Sheet) lives
+  // here, decluttered out of the visible header per the approved design. Each
+  // item keeps the EXACT gate/handler it had as a visible header button — only
+  // the placement changes:
+  //   • Export    — shown when `!exportUrl`; handleExport; disabled while
+  //                 exporting or with zero responses.
+  //   • Open Sheet — shown when `exportUrl` is truthy; opens the sheet in a
+  //                  new tab (was an outlined <a target="_blank"> link).
+  const overflowItems: OverflowMenuItem[] = [];
+  if (!exportUrl) {
+    overflowItems.push({
+      label: 'Export',
+      icon: Download,
+      loading: exporting,
+      onClick: () => void handleExport(),
+      disabled: exporting || totalStudents === 0,
+    });
+  }
+  if (exportUrl) {
+    const sheetUrl = exportUrl;
+    overflowItems.push({
+      label: 'Open Sheet',
+      icon: ExternalLink,
+      onClick: () => window.open(sheetUrl, '_blank', 'noopener,noreferrer'),
+    });
+  }
+
   return (
     <div className="flex flex-col h-full font-sans">
       {/* Header */}
-      <div
-        className="flex items-center justify-between border-b border-brand-blue-primary/10 bg-brand-blue-lighter/30"
-        style={{ padding: 'min(10px, 2.5cqmin) min(16px, 4cqmin)' }}
-      >
-        <div className="flex items-center" style={{ gap: 'min(8px, 2cqmin)' }}>
-          <button
-            onClick={onBack}
-            className="text-brand-blue-primary hover:text-brand-blue-dark transition-colors"
-          >
-            <ArrowLeft
-              style={{
-                width: 'min(18px, 4.5cqmin)',
-                height: 'min(18px, 4.5cqmin)',
-              }}
-            />
-          </button>
-          <div>
-            <p
-              className="font-bold text-brand-blue-dark truncate"
-              style={{ fontSize: 'min(13px, 4cqmin)' }}
-            >
-              Results: {session.assignmentName}
-            </p>
-            <p
-              className="text-brand-blue-primary/60"
-              style={{ fontSize: 'min(10px, 3cqmin)' }}
-            >
-              {session.activityTitle} · {totalStudents} student
-              {totalStudents !== 1 ? 's' : ''} ·{' '}
-              {session.status === 'ended' ? 'Closed' : 'Active'} · {completed}{' '}
-              completed
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center" style={{ gap: 'min(8px, 2cqmin)' }}>
-          {/* Push grades to Google Classroom — only when this assignment was
-              attached to one or more Classroom coursework items via the add-on.
-              The admin-managed `google-classroom` gate hides it for users
-              below the doc's minTier. */}
-          {classroomAttachments.length > 0 &&
-            canAccessFeature('google-classroom') && (
-              <button
+      <SessionViewHeader
+        onBack={onBack}
+        status={session.status === 'ended' ? 'ended' : 'live'}
+        title={session.assignmentName}
+        subtitle={session.activityTitle}
+        actions={
+          <>
+            {/* Push grades to Google Classroom — only when this assignment was
+                attached to one or more Classroom coursework items via the add-on.
+                The admin-managed `google-classroom` gate hides it for users
+                below the doc's minTier. */}
+            {showClassroomPush && (
+              <ActionButton
+                variant="primary"
+                label="Push Grades"
+                icon={GraduationCap}
+                loading={pushingGrades}
                 onClick={() => void handlePushGrades()}
                 disabled={pushingGrades}
-                className="flex items-center font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-                style={{
-                  gap: 'min(6px, 1.5cqmin)',
-                  padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                  fontSize: 'min(11px, 3cqmin)',
-                }}
-                title="Write draft grades to this assignment's Google Classroom gradebook (matches the score shown here)."
-              >
-                {pushingGrades ? (
-                  <Loader2
-                    className="animate-spin"
-                    style={{
-                      width: 'min(12px, 3cqmin)',
-                      height: 'min(12px, 3cqmin)',
-                    }}
-                  />
-                ) : (
-                  <GraduationCap
-                    style={{
-                      width: 'min(12px, 3cqmin)',
-                      height: 'min(12px, 3cqmin)',
-                    }}
-                  />
-                )}
-                Push Grades
-              </button>
-            )}
-
-          {/* Push grades to Schoology — only when this assignment was launched
-              from a Schoology resource link (server sets `ltiAttachment` on the
-              first student launch). */}
-          {ltiAttachment && (
-            <button
-              onClick={() => void handlePushSchoologyGrades()}
-              disabled={pushingSchoology || completed === 0}
-              className="flex items-center font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-              style={{
-                gap: 'min(6px, 1.5cqmin)',
-                padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                fontSize: 'min(11px, 3cqmin)',
-              }}
-              title="Write grades to this assignment's Schoology gradebook (matches the score shown here)."
-            >
-              {pushingSchoology ? (
-                <Loader2
-                  className="animate-spin"
-                  style={{
-                    width: 'min(12px, 3cqmin)',
-                    height: 'min(12px, 3cqmin)',
-                  }}
-                />
-              ) : (
-                <Send
-                  style={{
-                    width: 'min(12px, 3cqmin)',
-                    height: 'min(12px, 3cqmin)',
-                  }}
-                />
-              )}
-              Push to Schoology
-            </button>
-          )}
-
-          {/* Export button */}
-          {exportUrl ? (
-            <a
-              href={exportUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-colors"
-              style={{
-                gap: 'min(6px, 1.5cqmin)',
-                padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                fontSize: 'min(11px, 3cqmin)',
-              }}
-            >
-              <ExternalLink
-                style={{
-                  width: 'min(12px, 3cqmin)',
-                  height: 'min(12px, 3cqmin)',
-                }}
               />
-              Open Sheet
-            </a>
-          ) : (
-            <button
-              onClick={handleExport}
-              disabled={exporting || totalStudents === 0}
-              className="flex items-center font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all active:scale-95 disabled:opacity-50"
-              style={{
-                gap: 'min(6px, 1.5cqmin)',
-                padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                fontSize: 'min(11px, 3cqmin)',
-              }}
-            >
-              {exporting ? (
-                <Loader2
-                  className="animate-spin"
-                  style={{
-                    width: 'min(12px, 3cqmin)',
-                    height: 'min(12px, 3cqmin)',
-                  }}
-                />
-              ) : (
-                <Download
-                  style={{
-                    width: 'min(12px, 3cqmin)',
-                    height: 'min(12px, 3cqmin)',
-                  }}
-                />
-              )}
-              Export
-            </button>
-          )}
-        </div>
-      </div>
+            )}
+            {/* Push grades to Schoology — only when this assignment was launched
+                from a Schoology resource link (server sets `ltiAttachment` on the
+                first student launch). */}
+            {showSchoologyPush && (
+              <ActionButton
+                variant="primary"
+                label="Push to Schoology"
+                icon={Send}
+                loading={pushingSchoology}
+                onClick={() => void handlePushSchoologyGrades()}
+                disabled={pushingSchoology || completed === 0}
+              />
+            )}
+            {overflowItems.length > 0 && <OverflowMenu items={overflowItems} />}
+          </>
+        }
+      />
 
       {exportError && (
         <div
@@ -599,48 +521,35 @@ export const Results: React.FC<ResultsProps> = ({
       {/* Tabs */}
       <div
         className="flex border-b border-slate-200"
-        style={{ padding: '0 min(16px, 4cqmin)' }}
+        style={{ padding: 'min(8px, 2cqmin) min(16px, 4cqmin)' }}
       >
-        {(
-          [
-            { id: 'overview', icon: <BarChart3 />, label: 'Overview' },
-            { id: 'questions', icon: <Clock />, label: 'Questions' },
-            { id: 'students', icon: <Users />, label: 'Students' },
+        <SegmentedTabs
+          ariaLabel="Video activity results sections"
+          value={activeTab}
+          onChange={setActiveTab}
+          tabs={[
+            { key: 'overview', label: 'Overview', icon: BarChart3 },
+            { key: 'questions', label: 'Questions', icon: Clock },
+            {
+              key: 'students',
+              label: 'Students',
+              icon: Users,
+              count: responses.length,
+            },
             // PLC tab intentionally hidden for Video Activity until the
             // VA-side auto-publish path lands. The Quiz path writes its
             // contributions to `/plcs/{plcId}/contributions/`; if we
             // rendered PlcTab here it would aggregate quiz responses
             // under VA question labels (cross-contamination). Re-enable
             // alongside the VA `publishPlcContribution` wiring.
-          ] as const
-        ).map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center font-bold transition-colors border-b-2 ${
-              activeTab === tab.id
-                ? 'text-brand-blue-primary border-brand-blue-primary'
-                : 'text-slate-400 border-transparent hover:text-slate-600'
-            }`}
-            style={{
-              gap: 'min(5px, 1.2cqmin)',
-              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-              fontSize: 'min(11px, 3cqmin)',
-            }}
-          >
-            {React.cloneElement(tab.icon, {
-              style: {
-                width: 'min(13px, 3.5cqmin)',
-                height: 'min(13px, 3.5cqmin)',
-              },
-            })}
-            {tab.label}
-          </button>
-        ))}
+          ]}
+        />
       </div>
 
       {/* Tab content */}
       <div
+        role="tabpanel"
+        aria-label={`${activeTab} results`}
         className="flex-1 overflow-y-auto custom-scrollbar"
         style={{ padding: 'min(14px, 3.5cqmin)' }}
       >
@@ -648,150 +557,151 @@ export const Results: React.FC<ResultsProps> = ({
         {activeTab === 'overview' && (
           <div className="space-y-3">
             <div className="grid grid-cols-3 gap-2">
-              {[
-                {
-                  label: 'Students',
-                  value: totalStudents,
-                  color: 'text-brand-blue-primary',
-                },
-                {
-                  label: 'Completed',
-                  value: completed,
-                  color: 'text-emerald-600',
-                },
-                {
-                  label: 'Avg Score',
-                  value: avgScore === null ? '—' : `${avgScore}%`,
-                  color: 'text-violet-600',
-                },
-              ].map((stat) => (
-                <div
-                  key={stat.label}
-                  className="bg-white border border-slate-100 rounded-xl text-center"
-                  style={{ padding: 'min(10px, 2.5cqmin)' }}
-                >
-                  <p
-                    className={`font-black ${stat.color}`}
-                    style={{ fontSize: 'min(22px, 7cqmin)' }}
-                  >
-                    {stat.value}
-                  </p>
-                  <p
-                    className="text-slate-500 font-medium"
-                    style={{ fontSize: 'min(10px, 3cqmin)' }}
-                  >
-                    {stat.label}
-                  </p>
-                </div>
-              ))}
+              <StatTile
+                tone="blue"
+                icon={
+                  <Users
+                    style={{
+                      width: 'min(20px, 5cqmin)',
+                      height: 'min(20px, 5cqmin)',
+                    }}
+                  />
+                }
+                value={totalStudents}
+                label="Students"
+              />
+              <StatTile
+                tone="green"
+                icon={
+                  <CheckCircle2
+                    style={{
+                      width: 'min(20px, 5cqmin)',
+                      height: 'min(20px, 5cqmin)',
+                    }}
+                  />
+                }
+                value={completed}
+                label="Completed"
+              />
+              <StatTile
+                tone="violet"
+                icon={
+                  <BarChart3
+                    style={{
+                      width: 'min(20px, 5cqmin)',
+                      height: 'min(20px, 5cqmin)',
+                    }}
+                  />
+                }
+                value={avgScore === null ? '—' : `${avgScore}%`}
+                label="Avg Score"
+              />
             </div>
 
             {totalStudents === 0 && (
-              <p
-                className="text-center text-slate-400"
-                style={{
-                  fontSize: 'min(12px, 4cqmin)',
-                  marginTop: 'min(24px, 6cqmin)',
-                }}
-              >
-                No students have joined this session yet.
-              </p>
+              <ScaledEmptyState
+                icon={Users}
+                title="No students yet"
+                subtitle="No students have joined this session yet."
+              />
             )}
           </div>
         )}
 
         {/* Questions tab */}
-        {activeTab === 'questions' && (
-          <div className="space-y-2">
-            {questions.map((q, idx) => {
-              const accuracy = getQuestionAccuracy(q.id);
-              return (
-                <div
-                  key={q.id}
-                  className="bg-white border border-slate-100 rounded-xl"
-                  style={{ padding: 'min(10px, 2.5cqmin)' }}
-                >
-                  <div
-                    className="flex items-start justify-between"
-                    style={{ gap: 'min(8px, 2cqmin)' }}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div
-                        className="flex items-center"
-                        style={{
-                          gap: 'min(6px, 1.5cqmin)',
-                          marginBottom: 'min(4px, 1cqmin)',
-                        }}
-                      >
-                        <span
-                          className="bg-brand-blue-lighter text-brand-blue-primary font-black rounded-md shrink-0"
-                          style={{
-                            fontSize: 'min(9px, 2.5cqmin)',
-                            padding: 'min(1px, 0.2cqmin) min(5px, 1.2cqmin)',
-                          }}
-                        >
-                          {formatTimestamp(q.timestamp)}
-                        </span>
+        {activeTab === 'questions' &&
+          (questions.length === 0 ? (
+            <ScaledEmptyState
+              icon={Clock}
+              title="No questions"
+              subtitle="This activity has no questions."
+            />
+          ) : (
+            <div className="bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm overflow-hidden">
+              {questions.map((q, idx) => {
+                const accuracy = getQuestionAccuracy(q.id);
+                const colors = scoreColorClasses(accuracy);
+                return (
+                  <SessionRow
+                    key={q.id}
+                    trailing={
+                      <div className="shrink-0 text-right">
                         <p
-                          className="text-slate-700 font-medium truncate"
-                          style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                          className={`font-black tabular-nums ${colors.text}`}
+                          style={{ fontSize: 'min(16px, 5cqmin)' }}
                         >
-                          {idx + 1}. {q.text}
+                          {accuracy}%
+                        </p>
+                        <p
+                          className="text-slate-400"
+                          style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+                        >
+                          accuracy
                         </p>
                       </div>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p
-                        className={`font-black ${accuracy >= 70 ? 'text-emerald-600' : accuracy >= 40 ? 'text-amber-600' : 'text-brand-red-primary'}`}
-                        style={{ fontSize: 'min(16px, 5cqmin)' }}
-                      >
-                        {accuracy}%
-                      </p>
-                      <p
-                        className="text-slate-400"
-                        style={{ fontSize: 'min(9px, 2.5cqmin)' }}
-                      >
-                        accuracy
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Accuracy bar */}
-                  <div
-                    className="bg-slate-100 rounded-full overflow-hidden"
-                    style={{
-                      height: 'min(6px, 1.5cqmin)',
-                      marginTop: 'min(6px, 1.5cqmin)',
-                    }}
+                    }
                   >
                     <div
-                      className={`h-full rounded-full transition-all ${accuracy >= 70 ? 'bg-emerald-500' : accuracy >= 40 ? 'bg-amber-500' : 'bg-brand-red-primary'}`}
-                      style={{ width: `${accuracy}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                      className="flex items-center"
+                      style={{
+                        gap: 'min(6px, 1.5cqmin)',
+                        marginBottom: 'min(4px, 1cqmin)',
+                      }}
+                    >
+                      <SessionBadge
+                        tone="info"
+                        label={formatTimestamp(q.timestamp)}
+                      />
+                      <p
+                        className="text-slate-700 font-medium truncate"
+                        style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                      >
+                        {idx + 1}. {q.text}
+                      </p>
+                    </div>
+
+                    {/* Accuracy bar */}
+                    <div
+                      className="bg-slate-100 rounded-full overflow-hidden"
+                      style={{
+                        height: 'min(6px, 1.5cqmin)',
+                        marginTop: 'min(6px, 1.5cqmin)',
+                      }}
+                    >
+                      <div
+                        className={`h-full rounded-full transition-all ${colors.bar}`}
+                        style={{ width: `${accuracy}%` }}
+                      />
+                    </div>
+                  </SessionRow>
+                );
+              })}
+            </div>
+          ))}
 
         {/* Students tab */}
-        {activeTab === 'students' && (
-          <div className="space-y-2">
-            {responses.length === 0 ? (
-              <p
-                className="text-center text-slate-400"
-                style={{
-                  fontSize: 'min(12px, 4cqmin)',
-                  marginTop: 'min(24px, 6cqmin)',
-                }}
-              >
-                No students have joined this session yet.
-              </p>
-            ) : (
-              responses
+        {activeTab === 'students' &&
+          (responses.length === 0 ? (
+            <ScaledEmptyState
+              icon={Users}
+              title="No students yet"
+              subtitle="No students have joined this session yet."
+            />
+          ) : (
+            <div className="bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm overflow-hidden">
+              {responses
                 .slice()
-                .sort((a, b) => getStudentScore(b) - getStudentScore(a))
+                .sort((a, b) => {
+                  // Unscorable responses (answer key not loaded) sink to the
+                  // bottom instead of intermixing with genuine 0% students.
+                  const sa = canScoreVideoActivityResponse(questions, a.answers)
+                    ? getStudentScore(a)
+                    : -1;
+                  const sb = canScoreVideoActivityResponse(questions, b.answers)
+                    ? getStudentScore(b)
+                    : -1;
+                  return sb - sa;
+                })
                 .map((r) => {
                   const score = getStudentScore(r);
                   // When the question set hasn't loaded (or the response's
@@ -806,80 +716,94 @@ export const Results: React.FC<ResultsProps> = ({
                     isAnswerCorrect(a.questionId, a.answer)
                   ).length;
                   return (
-                    <div
-                      key={r.pin}
-                      className="flex items-center bg-white border border-slate-100 rounded-xl"
-                      style={{
-                        padding: 'min(10px, 2.5cqmin)',
-                        gap: 'min(10px, 2.5cqmin)',
-                      }}
+                    <SessionRow
+                      key={r._responseKey ?? r.studentUid ?? r.pin}
+                      trailing={
+                        <>
+                          <div
+                            className="flex items-center shrink-0"
+                            style={{ gap: 'min(6px, 1.5cqmin)' }}
+                          >
+                            {/* Iterate in canonical question order (not
+                                submission order) so the icon strip matches the
+                                Live Monitor for self-paced revisits. */}
+                            {questions
+                              .map((q) =>
+                                r.answers.find((a) => a.questionId === q.id)
+                              )
+                              .filter(
+                                (a): a is (typeof r.answers)[number] =>
+                                  a !== undefined
+                              )
+                              .map((a) =>
+                                isAnswerCorrect(a.questionId, a.answer) ? (
+                                  <CheckCircle2
+                                    key={a.questionId}
+                                    className="text-emerald-500"
+                                    style={{
+                                      width: 'min(14px, 3.5cqmin)',
+                                      height: 'min(14px, 3.5cqmin)',
+                                    }}
+                                  />
+                                ) : (
+                                  <XCircle
+                                    key={a.questionId}
+                                    className="text-brand-red-primary"
+                                    style={{
+                                      width: 'min(14px, 3.5cqmin)',
+                                      height: 'min(14px, 3.5cqmin)',
+                                    }}
+                                  />
+                                )
+                              )}
+                          </div>
+                          {scoreable ? (
+                            <ScorePill score={score} display="percent" />
+                          ) : (
+                            <span
+                              className="font-black tabular-nums shrink-0 text-slate-400"
+                              style={{ fontSize: 'min(14px, 4.5cqmin)' }}
+                            >
+                              —
+                            </span>
+                          )}
+                        </>
+                      }
                     >
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className="font-bold text-slate-800 truncate"
-                          style={{ fontSize: 'min(13px, 4cqmin)' }}
-                        >
-                          {/* `formatStudentName` returns '' on roster miss and legacy rows may carry '' for `r.name`; pick the first non-empty string so the falsy-fallthrough intent is explicit (no `||` chain that ESLint would flag). */}
-                          {[
-                            formatStudentName(byStudentUid.get(r.studentUid)),
-                            r.name,
-                            r.pin,
-                          ].find((s) => typeof s === 'string' && s.length > 0)}
-                        </p>
-                        <p
+                      <p
+                        className="font-bold text-slate-800 truncate"
+                        style={{ fontSize: 'min(13px, 4cqmin)' }}
+                      >
+                        {/* `formatStudentName` returns '' on roster miss and legacy rows may carry '' for `r.name`; pick the first non-empty string so the falsy-fallthrough intent is explicit (no `||` chain that ESLint would flag). */}
+                        {[
+                          formatStudentName(byStudentUid.get(r.studentUid)),
+                          r.name,
+                          r.pin,
+                        ].find((s) => typeof s === 'string' && s.length > 0)}
+                      </p>
+                      <div
+                        className="flex items-center"
+                        style={{
+                          gap: 'min(6px, 1.5cqmin)',
+                          marginTop: 'min(3px, 0.8cqmin)',
+                        }}
+                      >
+                        <SessionBadge
+                          tone={r.completedAt ? 'success' : 'warn'}
+                          label={r.completedAt ? 'Completed' : 'In progress'}
+                        />
+                        <span
                           className="text-slate-400"
                           style={{ fontSize: 'min(10px, 3cqmin)' }}
                         >
-                          {r.completedAt ? 'Completed' : 'In progress'} ·{' '}
                           {correct}/{questions.length} correct
-                        </p>
-                      </div>
-                      <div
-                        className="flex items-center shrink-0"
-                        style={{ gap: 'min(6px, 1.5cqmin)' }}
-                      >
-                        {r.answers.map((a) =>
-                          isAnswerCorrect(a.questionId, a.answer) ? (
-                            <CheckCircle2
-                              key={a.questionId}
-                              className="text-emerald-500"
-                              style={{
-                                width: 'min(14px, 3.5cqmin)',
-                                height: 'min(14px, 3.5cqmin)',
-                              }}
-                            />
-                          ) : (
-                            <XCircle
-                              key={a.questionId}
-                              className="text-brand-red-primary"
-                              style={{
-                                width: 'min(14px, 3.5cqmin)',
-                                height: 'min(14px, 3.5cqmin)',
-                              }}
-                            />
-                          )
-                        )}
-                        <span
-                          className={`font-black ml-1 ${
-                            !scoreable
-                              ? 'text-slate-400'
-                              : score >= 70
-                                ? 'text-emerald-600'
-                                : score >= 40
-                                  ? 'text-amber-600'
-                                  : 'text-brand-red-primary'
-                          }`}
-                          style={{ fontSize: 'min(14px, 4.5cqmin)' }}
-                        >
-                          {scoreable ? `${score}%` : '—'}
                         </span>
                       </div>
-                    </div>
+                    </SessionRow>
                   );
-                })
-            )}
-          </div>
-        )}
+                })}
+            </div>
+          ))}
 
         {/* PLC tab intentionally not rendered for Video Activity — see
             tab-strip comment above for the cross-contamination reason. */}

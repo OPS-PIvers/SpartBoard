@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { QuizConfig, QuizData, QuizResponse } from '@/types';
 
 // Locks in the solo Re-Export Sheet affordance — without it, teachers had no
@@ -110,6 +110,11 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
     mockExportResultsToSheet.mockClear();
   });
 
+  afterEach(() => {
+    // Restore any vi.spyOn (e.g. window.open) even if a test throws first.
+    vi.restoreAllMocks();
+  });
+
   it('does not render the Re-Export button before the first export (initialExportUrl is null)', () => {
     render(
       <QuizResults
@@ -144,17 +149,49 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
       />
     );
 
+    // The Re-Export and Open Sheet actions now live in the overflow (kebab)
+    // menu — open it before asserting they're present.
+    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
+
     expect(
-      screen.getByRole('button', {
+      screen.getByRole('menuitem', {
         name: /re-export sheet \(creates a new sheet\)/i,
       })
     ).toBeInTheDocument();
-    // OPEN SHEET is rendered alongside it so the teacher can still navigate
+    // OPEN SHEET is offered alongside it so the teacher can still navigate
     // to (or recover) the previous sheet if needed.
-    expect(screen.getByRole('link', { name: /open sheet/i })).toHaveAttribute(
-      'href',
-      'https://docs.google.com/spreadsheets/d/OLD/edit'
+    expect(
+      screen.getByRole('menuitem', { name: /open sheet/i })
+    ).toBeInTheDocument();
+  });
+
+  it('clicking Open Sheet opens the export URL in a new tab', () => {
+    const exportUrl = 'https://docs.google.com/spreadsheets/d/OLD/edit';
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    render(
+      <QuizResults
+        quiz={makeQuiz()}
+        responses={[makeResponse('01')]}
+        config={soloConfig()}
+        onBack={vi.fn()}
+        plcId={null}
+        syncGroupId={null}
+        initialExportUrl={exportUrl}
+      />
     );
+
+    // Open Sheet now lives in the overflow menu: open the kebab, then click it.
+    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /open sheet/i }));
+
+    expect(openSpy).toHaveBeenCalledWith(
+      exportUrl,
+      '_blank',
+      'noopener,noreferrer'
+    );
+
+    openSpy.mockRestore();
   });
 
   it('clicking Re-Export calls exportResultsToSheet with plcMode false and shows a re-export toast', async () => {
@@ -178,9 +215,13 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
       />
     );
 
-    screen
-      .getByRole('button', { name: /re-export sheet \(creates a new sheet\)/i })
-      .click();
+    // Re-Export now lives in the overflow menu: open the kebab, then click it.
+    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
+    fireEvent.click(
+      screen.getByRole('menuitem', {
+        name: /re-export sheet \(creates a new sheet\)/i,
+      })
+    );
 
     await waitFor(() => {
       expect(mockExportResultsToSheet).toHaveBeenCalledTimes(1);
@@ -224,8 +265,12 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
       />
     );
 
-    // First-export path uses the plain "EXPORT" button (not Re-Export).
-    screen.getByRole('button', { name: /^export$/i }).click();
+    // First-export path uses the plain "Export to Sheets" overflow item (not
+    // Re-Export): open the kebab, then click it.
+    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: /export to sheets/i })
+    );
 
     await waitFor(() => {
       expect(mockExportResultsToSheet).toHaveBeenCalledTimes(1);
@@ -259,9 +304,13 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
       />
     );
 
-    screen
-      .getByRole('button', { name: /re-export sheet \(creates a new sheet\)/i })
-      .click();
+    // Re-Export now lives in the overflow menu: open the kebab, then click it.
+    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
+    fireEvent.click(
+      screen.getByRole('menuitem', {
+        name: /re-export sheet \(creates a new sheet\)/i,
+      })
+    );
 
     await waitFor(() => {
       const errorCalls = addToast.mock.calls.filter(
