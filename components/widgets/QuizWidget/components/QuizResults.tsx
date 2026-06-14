@@ -1255,7 +1255,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   if (!exportUrl) {
     overflowItems.push({
       label: 'Export to Sheets',
-      icon: exporting ? Loader2 : Download,
+      icon: Download,
+      loading: exporting,
       onClick: () => void handleExport(),
       disabled: exporting || responses.length === 0,
     });
@@ -1271,7 +1272,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   if (canShowSoloReExport) {
     overflowItems.push({
       label: 'Re-export sheet (creates a new sheet)',
-      icon: exporting ? Loader2 : RefreshCw,
+      icon: RefreshCw,
+      loading: exporting,
       onClick: () => void handleExport(),
       disabled: exporting,
     });
@@ -1286,7 +1288,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         newResponsesToAppend.length === 0
           ? 'Re-export sheet (rebuild from scratch)'
           : `Re-export sheet (${newResponsesToAppend.length} new responses to append)`,
-      icon: updatingSheet ? Loader2 : RefreshCw,
+      icon: RefreshCw,
+      loading: updatingSheet,
       onClick: () => void handleUpdateSheet(),
       disabled: updatingSheet,
     });
@@ -1329,7 +1332,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               <ActionButton
                 variant="primary"
                 label="Push Grades"
-                icon={pushingGrades ? Loader2 : GraduationCap}
+                icon={GraduationCap}
+                loading={pushingGrades}
                 onClick={() => void handlePushGrades()}
                 disabled={pushingGrades}
               />
@@ -1338,7 +1342,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               <ActionButton
                 variant="primary"
                 label="Push to Schoology"
-                icon={pushingSchoologyGrades ? Loader2 : Send}
+                icon={Send}
+                loading={pushingSchoologyGrades}
                 onClick={() => void handlePushSchoologyGrades()}
                 disabled={
                   pushingSchoologyGrades || schoologyGrades.length === 0

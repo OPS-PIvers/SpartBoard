@@ -22,11 +22,40 @@ describe('OverflowMenu', () => {
     expect(screen.queryByRole('menu')).toBeNull();
   });
 
-  it('closes on Escape', () => {
+  it('closes on Escape and returns focus to the trigger', () => {
     render(<OverflowMenu items={[{ label: 'Export', onClick: vi.fn() }]} />);
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    const trigger = screen.getByRole('button', { name: 'More actions' });
+    fireEvent.click(trigger);
     expect(screen.getByRole('menu')).toBeInTheDocument();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('menu')).toBeNull();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('focuses the first item on open and navigates with Arrow keys', () => {
+    render(
+      <OverflowMenu
+        items={[
+          { label: 'A', onClick: vi.fn() },
+          { label: 'B', onClick: vi.fn() },
+        ]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getByRole('menuitem', { name: 'A' })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowDown' });
+    expect(screen.getByRole('menuitem', { name: 'B' })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowUp' });
+    expect(screen.getByRole('menuitem', { name: 'A' })).toHaveFocus();
+  });
+
+  it('renders a spinner for a loading item', () => {
+    const { container } = render(
+      <OverflowMenu
+        items={[{ label: 'Export', loading: true, onClick: vi.fn() }]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(container.querySelector('.animate-spin')).not.toBeNull();
   });
 });

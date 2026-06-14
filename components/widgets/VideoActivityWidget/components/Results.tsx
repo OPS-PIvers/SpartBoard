@@ -6,7 +6,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   Download,
-  Loader2,
   ExternalLink,
   AlertTriangle,
   BarChart3,
@@ -442,7 +441,8 @@ export const Results: React.FC<ResultsProps> = ({
   if (!exportUrl) {
     overflowItems.push({
       label: 'Export',
-      icon: exporting ? Loader2 : Download,
+      icon: Download,
+      loading: exporting,
       onClick: () => void handleExport(),
       disabled: exporting || totalStudents === 0,
     });
@@ -474,7 +474,8 @@ export const Results: React.FC<ResultsProps> = ({
               <ActionButton
                 variant="primary"
                 label="Push Grades"
-                icon={pushingGrades ? Loader2 : GraduationCap}
+                icon={GraduationCap}
+                loading={pushingGrades}
                 onClick={() => void handlePushGrades()}
                 disabled={pushingGrades}
               />
@@ -486,7 +487,8 @@ export const Results: React.FC<ResultsProps> = ({
               <ActionButton
                 variant="primary"
                 label="Push to Schoology"
-                icon={pushingSchoology ? Loader2 : Send}
+                icon={Send}
+                loading={pushingSchoology}
                 onClick={() => void handlePushSchoologyGrades()}
                 disabled={pushingSchoology || completed === 0}
               />
