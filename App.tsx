@@ -214,6 +214,13 @@ const LibraryDevHarness = import.meta.env.DEV
       }))
     )
   : null;
+const SessionViewsDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/SessionViewsDevHarness').then((module) => ({
+        default: module.SessionViewsDevHarness,
+      }))
+    )
+  : null;
 
 const FullPageLoader = () => (
   <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
@@ -525,6 +532,22 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <LibraryDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: visual harness for the four live teacher session views (Quiz
+  // Monitor / Quiz Results / VA Monitor / VA Results) against mock data, so
+  // the redesign can be iterated without Firestore. Relies on
+  // VITE_AUTH_BYPASS. Same import.meta.env.DEV gating as the harnesses above.
+  if (
+    import.meta.env.DEV &&
+    SessionViewsDevHarness &&
+    pathname === '/session-views-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <SessionViewsDevHarness />
       </Suspense>
     );
   }
