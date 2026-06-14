@@ -1544,6 +1544,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           </div>
 
           <div
+            role="tabpanel"
+            aria-label={`${activeTab} results`}
             className="flex-1 overflow-y-auto custom-scrollbar"
             style={{ padding: 'min(16px, 4cqmin)' }}
           >

@@ -56,9 +56,10 @@ describe('ActionButton', () => {
         loading
       />
     );
-    // Spinner present, accessible name preserved.
+    // Spinner present, accessible name preserved, and disabled so it can't double-fire.
     expect(container.querySelector('.animate-spin')).not.toBeNull();
     expect(screen.getByRole('button', { name: 'End' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'End' })).toBeDisabled();
   });
 
   it('applies the amber on-state treatment when active', () => {

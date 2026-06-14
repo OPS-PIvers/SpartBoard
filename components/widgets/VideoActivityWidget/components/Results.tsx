@@ -548,6 +548,8 @@ export const Results: React.FC<ResultsProps> = ({
 
       {/* Tab content */}
       <div
+        role="tabpanel"
+        aria-label={`${activeTab} results`}
         className="flex-1 overflow-y-auto custom-scrollbar"
         style={{ padding: 'min(14px, 3.5cqmin)' }}
       >

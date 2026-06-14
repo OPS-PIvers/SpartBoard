@@ -43,7 +43,7 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
   <button
     type="button"
     onClick={onClick}
-    disabled={disabled}
+    disabled={disabled || loading}
     title={disabled ? disabledReason : labelHidden ? label : undefined}
     aria-label={label}
     aria-pressed={active}

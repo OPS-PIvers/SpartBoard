@@ -118,7 +118,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
                 key={item.id ?? item.label}
                 type="button"
                 role="menuitem"
-                disabled={item.disabled}
+                disabled={!!item.disabled || !!item.loading}
                 onClick={() => {
                   setOpen(false);
                   item.onClick();

@@ -57,5 +57,7 @@ describe('OverflowMenu', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
     expect(container.querySelector('.animate-spin')).not.toBeNull();
+    // A loading item is disabled so it can't double-fire.
+    expect(screen.getByRole('menuitem', { name: 'Export' })).toBeDisabled();
   });
 });
