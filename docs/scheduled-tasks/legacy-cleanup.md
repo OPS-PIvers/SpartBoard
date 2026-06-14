@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-06-07_
+_Last audited: 2026-06-14_
 _Last action: never_
 
 ---
@@ -40,6 +40,18 @@ _Nothing currently in progress._
 ---
 
 ## Clean (no issues found)
+
+Migration code + dead exports + console.log audit (2026-06-14, re-verified after dev-paul rebase):
+
+- Old type strings 'timer', 'stopwatch': Only in `utils/migration.ts:71-80` and as `TimeToolMode` values in components — correct.
+- Old type string 'workSymbols': Only in `utils/migration.ts:93` — correct.
+- `migrateLocalStorageToFirestore()`: Still actively called in `context/DashboardContext.tsx:2042`. Still needed.
+- New dev-paul commits merged since 2026-06-07: Remote v2 series (components/remote/controls/ + MobileRemoteView.tsx + useRemoteConnection.ts), wide-distro (utils/userTier.ts + config/featureDefaults.ts), fix(state) utils/activityWallNormalize.ts. All new utilities confirmed actively imported in production code: `userTier.ts` imported by `context/AuthContext.tsx`; `activityWallNormalize.ts` imported by `hooks/useActivityWallLibrary.ts`; all `components/remote/controls/` files imported by `RemoteWidgetCard.tsx`; `useRemoteConnection.ts` imported by `MobileRemoteView.tsx`. Clean.
+- Commented-out code: None in new commits. `components/remote/` files have inline explanatory comments only — not commented-out code.
+- console.log(): Zero in components/, context/, hooks/, utils/.
+- `useScaledFont.ts`: Still dead — `ScheduleWidget.test.tsx` mocks it but no production component imports it. Existing LOW open item still valid.
+- `videoActivityDriveService.ts`: Still no production imports. Existing LOW open item still valid.
+- `scripts/tools/`: Still present with 9 Python/Playwright scripts. Existing LOW open item still valid.
 
 Migration code + dead exports + console.log audit (2026-06-07, re-verified after dev-paul merge):
 

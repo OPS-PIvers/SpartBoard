@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-06-07_
-_Last action: 2026-06-07_
+_Last audited: 2026-06-14_
+_Last action: 2026-06-11_
 
 ---
 
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-14 audit notes (Sunday): Full cross-check of commits since 2026-06-07 (Remote v2 series, wide-distro anonymous-join + user-tier gating, GL media pipeline overhaul, per-slide playback-range trim, GL PR review fixes, TimeTool i18n, bug fixes). Key findings: (1) GL media pipeline (013c58d3) added `GuidedLearning/Settings.tsx` (new file) — panel is stub-only ("Use the main widget panel…"; "Go to Library" button only), no new building-config fields needed. GuidedLearningConfig has no new per-building-defaultable fields in this commit. The existing LOW open item for the GL stub admin panel remains. (2) GL per-slide playback-range trim (d964872d) added `videoTrims` to `GuidedLearningSet` — this is a Firestore document field (per-set, not per-widget), not a widget config field; no building-config impact. (3) TimeTool i18n (bcfde20a) replaced 4 hardcoded strings with t() keys in `TimeTool/Settings.tsx` — string extraction only, no new config fields. (4) Wide-distro user tier (20a5dc17) added `utils/userTier.ts` + `userTier` field to `AuthContextValue` — this is auth state, not widget config. (5) Wide-distro anonymous join (885ea0b6) changed ActivityWall/Widget.tsx (adding join-link UI), types.ts (GlobalFeaturePermission minTier/userTiers fields) — no new widget-config building-default impact. (6) Checklist `rosterMode` status re-verified: `case 'checklist'` in adminBuildingConfig.ts handles items/scaleMultiplier/fontFamily/cardColor/cardOpacity/fontColor — no rosterMode. `BuildingChecklistDefaults` interface confirmed: buildingId/items/scaleMultiplier/fontFamily/fontColor/cardColor/cardOpacity (no rosterMode). The LOW open item remains valid. All other existing open items (MEDIUM: need-do-put-then stub; LOWs: SmartNotebook dead controls, Drawing shapeFill, Scoreboard layout) also remain unresolved. No new items found._
 
 _2026-06-11 action notes (Thursday): Selected the MEDIUM `activity-wall` item — highest-severity Open across today's reading list (dailies widget-registry/typescript-eslint had no open items, css-scaling only LOW; legacy-cleanup only LOW). The other MEDIUM (`need-do-put-then` stub panel) was the same severity in the same weekly journal but lower in document order. File-recency check passed: `components/widgets/ActivityWall/`, `hooks/useActivityWallLibrary.ts`, and `utils/adminBuildingConfig.ts` are all outside the last 5 branch commits. **Resolved via wiring (the journal's recommended fix), not by adding a `case 'activity-wall'` to `getAdminBuildingConfig()`** — these are activity-level (not widget-instance) defaults, so they're applied at activity-creation time. Added a pure, tested helper `resolveActivityWallBuildingDefaults()` (`components/widgets/ActivityWall/buildingDefaults.ts`) that reads `feature_permissions/activity-wall → config.buildingDefaults[building]` (canonicalizing legacy building keys, validating each persisted value), and seeded `buildBlankActivity()` from it in `ActivityWall/Widget.tsx` so the "New" activity editor opens pre-filled with the building's `defaultMode` / `defaultIdentificationMode` / `defaultModerationEnabled`. 8 new unit tests + updated the existing Widget test mock (added `featurePermissions`/`selectedBuildings`). `pnpm type-check`/`lint`/`format:check` clean; ActivityWall + new tests green. Moved the item to Completed. See PR to dev-paul._
 
