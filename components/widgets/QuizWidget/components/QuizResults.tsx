@@ -1320,7 +1320,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       <SessionViewHeader
         onBack={onBack}
         title={quiz.title}
-        subtitle={`${completed.length} of ${responses.length} students finished`}
+        subtitle={`${filteredCompleted.length} of ${filteredResponses.length} students finished`}
         actions={
           <>
             {hasWrittenQuestions && (

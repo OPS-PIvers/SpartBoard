@@ -90,9 +90,12 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
       return;
     }
     if (e.key === 'Tab') {
-      // Close on Tab so focus continues in normal document order (unlike
-      // Escape, we don't pull focus back to the trigger).
+      // The menu is portalled to <body>, so a native Tab from a menu item would
+      // jump to the end of the document, not the trigger's neighbour. Close and
+      // return focus to the trigger; the user's next Tab then advances naturally.
+      e.preventDefault();
       setOpen(false);
+      triggerRef.current?.focus();
       return;
     }
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;

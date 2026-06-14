@@ -22,12 +22,14 @@ describe('OverflowMenu', () => {
     expect(screen.queryByRole('menu')).toBeNull();
   });
 
-  it('closes on Tab so focus continues in document order', () => {
+  it('closes on Tab and returns focus to the trigger', () => {
     render(<OverflowMenu items={[{ label: 'Export', onClick: vi.fn() }]} />);
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    const trigger = screen.getByRole('button', { name: 'More actions' });
+    fireEvent.click(trigger);
     expect(screen.getByRole('menu')).toBeInTheDocument();
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Tab' });
     expect(screen.queryByRole('menu')).toBeNull();
+    expect(trigger).toHaveFocus();
   });
 
   it('closes on Escape and returns focus to the trigger', () => {
