@@ -119,7 +119,9 @@ export const PollVoteApp: React.FC = () => {
             {hasVoted && (
               <div className="flex items-center justify-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2 text-emerald-700 text-sm font-bold">
                 <Check className="w-4 h-4" />
-                Your vote is in! Tap another option to change it.
+                {closed
+                  ? 'Your vote is in!'
+                  : 'Your vote is in! Tap another option to change it.'}
               </div>
             )}
 

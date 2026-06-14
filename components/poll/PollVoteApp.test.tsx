@@ -120,4 +120,24 @@ describe('PollVoteApp', () => {
     await userEvent.click(screen.getByRole('button', { name: /Apple/i }));
     expect(await screen.findByText(/voting is closed/i)).toBeInTheDocument();
   });
+
+  it('does not contradict itself when a re-vote is rejected after a successful vote', async () => {
+    // First vote succeeds, then the poll closes and the change-vote attempt
+    // is rejected. The confirmation must NOT keep inviting another tap while
+    // also saying voting is closed.
+    mockSetDoc
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('permission-denied'));
+    mountWith(`?data=${encodePollData(payload)}`);
+    render(<PollVoteApp />);
+
+    await userEvent.click(screen.getByRole('button', { name: /Apple/i }));
+    expect(await screen.findByText(/your vote is in/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Banana/i }));
+    expect(await screen.findByText(/voting is closed/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/tap another option to change it/i)
+    ).not.toBeInTheDocument();
+  });
 });
