@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-14_
+_Last audited: 2026-06-15_
 _Last action: 2026-06-13_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-15: Full scan of all Widget.tsx files after rebasing onto dev-paul (new commits since 2026-06-14: Optimize-pass wave 1 touched ClockWidget/Widget.tsx (seconds fontSize `0.85em` — em-relative to cqmin parent, acceptable), First5/Widget.tsx (icon size from `min(12px, 2.5cqmin)` → `min(16px, 4cqmin)` — clean), WidgetRenderer.tsx (memoization only); fix(sessionViews)/ui(quiz)/ui(video-activity) #1971 touched QuizResults.tsx (text-sm period-filter select at :1509 — same tracked LOW open item, line shifted from :1530 to :1509) and VideoActivityWidget/components/Results.tsx (no text size classes — clean)). No new anti-patterns introduced. QuizResults period-filter open item line reference updated from :1530 to :1509. All pre-existing open items remain valid._
 
 _2026-06-14: Full scan of all Widget.tsx files after rebasing onto dev-paul (new commits since 2026-06-13: Remote v2 series, wide-distro anonymous-join gating, CalendarWidget midnight staleness fix, ActivityWall state extract, bug fixes). Widget.tsx files changed: (1) ActivityWall/Widget.tsx — changed by 885ea0b6 (wide-distro: adds anonymous-join gating UI to share modals; no new hardcoded Tailwind sizing in front-face content) and confirmed a0c2666b (ActivityWall checkbox cqmin fix already marked Completed in last entry). (2) CalendarWidget/Widget.tsx — changed by 6aa57535 (fix(widgets): CalendarWidget midnight staleness + useEffect ref-sync anti-pattern; logic-only change). Full Calendar widget CSS audit: widget has skipScaling:true; uses `min(calc((100% - min(30px, 6cqmin)) / 4), min(120px, 22cqmin))` for row heights and `min(Npx, Xcqmin)` throughout for all text/icon/spacing — no violations. Remote v2 control components (components/remote/controls/Remote\*.tsx) are not widget front-face content (they render in the MobileRemoteView on the teacher's phone, not inside a CSS container query context). All pre-existing open items re-confirmed valid. Zero new anti-patterns detected._
 
@@ -105,7 +107,7 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ### LOW QuizResults period-filter `<select>` uses hardcoded `text-sm`
 
 - **Detected:** 2026-04-27
-- **File:** components/widgets/QuizWidget/components/QuizResults.tsx:1530 (line shifted from :968 as of 2026-06-03 merge)
+- **File:** components/widgets/QuizWidget/components/QuizResults.tsx:1509 (line shifted from :1530 as of 2026-06-15 sessionViews restyle)
 - **Detail:** The period filter `<select>` in the quiz results view uses `text-sm` (hardcoded Tailwind). The QuizWidget has `skipScaling: true`, so this element is inside a CSS container-query context. Introduced by the 2026-04-26 commit `fix(quiz): persist Results export URL on assignment doc (#1419)`. QuizResults grew significantly in the 2026-05-05 merge (matching/ordering editor addition) — line number has shifted.
 - **Fix:** Replace `text-sm` with an inline style: `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`. The surrounding `px-2 py-1` padding on the same element should also be converted: `style={{ padding: 'min(4px, 1.5cqmin) min(8px, 2.5cqmin)' }}`.
 
