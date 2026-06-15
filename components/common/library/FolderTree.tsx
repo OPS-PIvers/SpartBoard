@@ -92,7 +92,11 @@ const RenameInput: React.FC<{
     ref.current?.select();
   }, []);
 
-  const handleBlur = () => {
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    // Pressing Enter commits and unmounts this input; the browser then fires a
+    // synchronous blur during DOM removal. Bail out if the input is no longer
+    // connected so onCommit() can't fire a second time (duplicate commit).
+    if (!e.currentTarget?.isConnected) return;
     if (isCancellingRef.current) {
       isCancellingRef.current = false;
       return;

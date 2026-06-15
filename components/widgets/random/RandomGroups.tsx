@@ -236,7 +236,14 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
             type="text"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
+            onBlur={(e) => {
+              // Pressing Enter commits and unmounts this input; the browser
+              // then fires a synchronous blur during DOM removal. Bail out if
+              // the input is no longer connected so commit() can't fire a
+              // second time and persist a duplicate rename.
+              if (!e.currentTarget?.isConnected) return;
+              commit();
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
