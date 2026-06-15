@@ -264,6 +264,110 @@ describe('migrateWidgetToProportional', () => {
     expect(out.version).toBe(5);
     expect(out.config).toBe(w.config); // structural identity preserved
   });
+
+  // Happy-path arithmetic tests: verify known pixel → proportional values.
+  it('converts known pixel coordinates to correct proportional values on 1920×1080', () => {
+    const vpW = 1920;
+    const vpH = 1080;
+    const { safeW, safeH } = getSafeViewport(vpW, vpH);
+    const w = baseWidget({ x: 200, y: 100, w: 400, h: 300 });
+    const out = migrateWidgetToProportional(w, vpW, vpH);
+    expect(out.xProp).toBeCloseTo((200 - PADDING) / safeW, 6);
+    expect(out.yProp).toBeCloseTo((100 - PADDING) / safeH, 6);
+    expect(out.wProp).toBeCloseTo(400 / safeW, 6);
+    expect(out.hProp).toBeCloseTo(300 / safeH, 6);
+    expect(out.aspectRatio).toBeCloseTo(400 / 300, 6);
+  });
+
+  it('round-trips pixel → proportion → pixel correctly (same viewport)', () => {
+    // Verifies that migrateWidgetToProportional + hydrateWidgetPixels
+    // (fill mode, same viewport) recovers the original pixel coordinates
+    // exactly (within rounding).
+    const vpW = 1920;
+    const vpH = 1080;
+    const pixelX = 200;
+    const pixelY = 100;
+    const pixelW = 400;
+    const pixelH = 300;
+    const w = baseWidget({ x: pixelX, y: pixelY, w: pixelW, h: pixelH });
+    const migrated = migrateWidgetToProportional(w, vpW, vpH);
+    const hydrated = hydrateWidgetPixels(migrated, vpW, vpH, 'fill');
+    expect(hydrated.x).toBe(pixelX);
+    expect(hydrated.y).toBe(pixelY);
+    expect(hydrated.w).toBe(pixelW);
+    expect(hydrated.h).toBe(pixelH);
+  });
+
+  // Regression test for the proportionsValid early-return bug:
+  // When xProp/yProp contain pixel values (e.g. from a partial migration)
+  // and wProp/hProp are valid proportions, widgetNeedsProportionalMigration
+  // correctly flags the widget (Math.abs(300) > 1.5). However, the old
+  // migrateWidgetToProportional only checked Number.isFinite on all four
+  // fields — pixel values like 300 are finite, so the early-return path
+  // would skip re-deriving xProp/yProp and leave the widget at the wrong
+  // on-screen position.
+  it('fixes pixel-valued xProp/yProp even when wProp/hProp are already valid proportions', () => {
+    const vpW = 1920;
+    const vpH = 1080;
+    const { safeW, safeH } = getSafeViewport(vpW, vpH);
+    // Simulate a partial migration: position props are still pixel values,
+    // but size props look like valid proportions. This state is reachable
+    // when a migration was interrupted or applied only partially.
+    const w = baseWidget({
+      x: 300,
+      y: 150,
+      w: 400,
+      h: 200,
+      xProp: 300, // pixel value masquerading as proportion
+      yProp: 150, // pixel value masquerading as proportion
+      wProp: 0.15, // already a valid proportion
+      hProp: 0.18, // already a valid proportion
+      // aspectRatio intentionally absent to force full re-migration path
+    });
+    // The guard must have flagged this widget first:
+    expect(widgetNeedsProportionalMigration(w)).toBe(true);
+
+    const out = migrateWidgetToProportional(w, vpW, vpH);
+
+    // After migration, all proportional fields must be in proportion range
+    expect(Math.abs(out.xProp as number)).toBeLessThanOrEqual(1.5);
+    expect(Math.abs(out.yProp as number)).toBeLessThanOrEqual(1.5);
+    expect((out.wProp as number) <= 1.5).toBe(true);
+    expect((out.hProp as number) <= 1.5).toBe(true);
+
+    // The corrected position props must reflect the pixel x/y, not the
+    // stale pixel-valued xProp/yProp.
+    expect(out.xProp).toBeCloseTo((300 - PADDING) / safeW, 6);
+    expect(out.yProp).toBeCloseTo((150 - PADDING) / safeH, 6);
+
+    // The widget must no longer need migration:
+    expect(widgetNeedsProportionalMigration(out)).toBe(false);
+  });
+
+  it('fixes pixel-valued wProp/hProp even when xProp/yProp are already valid proportions', () => {
+    const vpW = 1920;
+    const vpH = 1080;
+    const { safeW, safeH } = getSafeViewport(vpW, vpH);
+    const w = baseWidget({
+      x: 100,
+      y: 100,
+      w: 400,
+      h: 300,
+      xProp: 0.05, // valid proportion
+      yProp: 0.09, // valid proportion
+      wProp: 400, // pixel value masquerading as proportion
+      hProp: 300, // pixel value masquerading as proportion
+    });
+    expect(widgetNeedsProportionalMigration(w)).toBe(true);
+
+    const out = migrateWidgetToProportional(w, vpW, vpH);
+
+    expect((out.wProp as number) <= 1.5).toBe(true);
+    expect((out.hProp as number) <= 1.5).toBe(true);
+    expect(out.wProp).toBeCloseTo(400 / safeW, 6);
+    expect(out.hProp).toBeCloseTo(300 / safeH, 6);
+    expect(widgetNeedsProportionalMigration(out)).toBe(false);
+  });
 });
 
 describe('migrateDashboardWidgets idempotency', () => {
