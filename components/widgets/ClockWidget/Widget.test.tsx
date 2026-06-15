@@ -155,6 +155,19 @@ describe('ClockWidget', () => {
     expect(seconds.className).toContain('opacity-80');
   });
 
+  // Seconds are rendered slightly smaller than the main time (em-based so they
+  // scale with it), but were bumped up from 0.7em to 0.85em for distance
+  // legibility on a projector. Guard against regressing back below that.
+  it('renders seconds at a glanceable relative size', () => {
+    const date = new Date('2023-01-01T14:30:45');
+    vi.setSystemTime(date);
+
+    renderWidget(createWidget({ format24: true, showSeconds: true }));
+
+    const seconds = screen.getByText('45');
+    expect(seconds).toHaveStyle({ fontSize: '0.85em' });
+  });
+
   it('keeps the AM/PM label above the low-contrast opacity floor', () => {
     const date = new Date('2023-01-01T14:30:45');
     vi.setSystemTime(date);

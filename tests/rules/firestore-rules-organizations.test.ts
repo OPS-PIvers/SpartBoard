@@ -1249,6 +1249,95 @@ describe('organizations/invitations — fully locked from every client role (Pha
   });
 });
 
+describe('organizations/members — email case normalization (F15)', () => {
+  // Every membership read keys off `request.auth.token.email.lower()`, which is
+  // always lowercase. If a member doc were stored with a mixed-case email/id it
+  // would be orphaned and the matching member would get permission-denied. The
+  // create rule rejects mixed-case writes at the source; these tests pin that
+  // behavior down end-to-end.
+  const validMember = (email: string) => ({
+    email,
+    orgId: ORG_ID,
+    roleId: 'teacher',
+    status: 'invited',
+    buildingIds: ['high'],
+  });
+
+  // An auth context whose token email is mixed-case; `.lower()` in the rules
+  // normalizes it to the lowercase member-doc id when reading.
+  const asMixedCaseTeacher = () =>
+    testEnv
+      .authenticatedContext('mixedcase-uid', {
+        email: 'New.Teacher@Orono.K12.MN.US',
+      })
+      .firestore();
+
+  it('a lowercase-stored member can self-read via a mixed-case auth email (lower() normalizes both sides)', async () => {
+    // Seed the canonical lowercase member doc directly.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(
+          ctx.firestore(),
+          'organizations/orono/members/new.teacher@orono.k12.mn.us'
+        ),
+        validMember('new.teacher@orono.k12.mn.us')
+      );
+    });
+
+    // The self-read branch compares `request.auth.token.email.lower()` to the
+    // (lowercase) doc id, so a mixed-case token email still resolves.
+    await assertSucceeds(
+      getDoc(
+        doc(
+          asMixedCaseTeacher(),
+          `organizations/${ORG_ID}/members/new.teacher@orono.k12.mn.us`
+        )
+      )
+    );
+  });
+
+  it('domain admin can create a member whose email + doc id are both lowercase', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/members/lower.case@orono.k12.mn.us`
+        ),
+        validMember('lower.case@orono.k12.mn.us')
+      )
+    );
+  });
+
+  it('domain admin cannot create a member with a mixed-case email field (rejected, not normalized)', async () => {
+    // Doc id is lowercase but the payload email field carries mixed-case —
+    // `request.resource.data.email == request.resource.data.email.lower()`
+    // rejects it.
+    await assertFails(
+      setDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/members/case.member@orono.k12.mn.us`
+        ),
+        validMember('Case.Member@orono.k12.mn.us')
+      )
+    );
+  });
+
+  it('domain admin cannot create a member with a mixed-case doc id even if the email field is lowercase', async () => {
+    // `request.resource.data.email == emailLower` ties the lowercase payload
+    // email to the doc id, so a mixed-case id cannot match.
+    await assertFails(
+      setDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/members/Mixed.Id@orono.k12.mn.us`
+        ),
+        validMember('mixed.id@orono.k12.mn.us')
+      )
+    );
+  });
+});
+
 describe('organizations/members — uid write restricted to Cloud Functions (Phase 4)', () => {
   // Phase 4 first-sign-in links a member's uid to their Google auth uid. This
   // MUST go through the `claimOrganizationInvite` callable — the Admin SDK

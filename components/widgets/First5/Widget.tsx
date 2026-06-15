@@ -53,19 +53,20 @@ export const First5Widget: React.FC<{ widget: WidgetData }> = ({
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="absolute z-10 bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-blue-500 shadow-sm border border-slate-200/50 rounded-lg transition-colors"
+            className="absolute z-10 bg-white/80 backdrop-blur-sm hover:bg-white text-slate-700 hover:text-blue-600 shadow-sm border border-slate-200/50 rounded-lg transition-colors"
             style={{
               top: 'min(8px, 2cqmin)',
               right: 'min(8px, 2cqmin)',
               padding: 'min(6px, 1.5cqmin)',
             }}
             title="Open in new tab"
+            aria-label="Open in new tab"
             onPointerDown={(e) => e.stopPropagation()}
           >
             <ExternalLink
               style={{
-                width: 'min(12px, 2.5cqmin)',
-                height: 'min(12px, 2.5cqmin)',
+                width: 'min(16px, 4cqmin)',
+                height: 'min(16px, 4cqmin)',
               }}
             />
           </a>

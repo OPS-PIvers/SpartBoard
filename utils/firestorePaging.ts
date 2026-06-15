@@ -1,5 +1,4 @@
 import {
-  collection,
   documentId,
   getDocs,
   limit,
@@ -22,13 +21,17 @@ import {
 export const FIRESTORE_PAGE_SIZE = 500;
 
 /**
- * Read every doc in a (sub)collection in bounded pages, returning the
- * accumulated snapshots. Shared by the quiz / video-activity / guided-learning
- * score-publish paths so grading still sees the full response set while no
- * single Firestore query is unbounded.
+ * Read every doc matched by a (sub)collection reference OR an already-filtered
+ * query in bounded pages, returning the accumulated snapshots. Shared by the
+ * quiz / video-activity / guided-learning score-publish paths (which pass a
+ * plain collection ref) and the collection delete-all cascade (which passes a
+ * `where(...)`-filtered query) so the full result set is still visited while
+ * no single Firestore query is unbounded. A `CollectionReference` is itself a
+ * `Query`, so existing callers are unaffected; the `orderBy(documentId())` +
+ * `startAfter` cursor composes onto whatever filters the caller already set.
  */
 export async function readAllDocsPaged(
-  coll: ReturnType<typeof collection>,
+  coll: Query<DocumentData>,
   pageSize: number = FIRESTORE_PAGE_SIZE
 ): Promise<QueryDocumentSnapshot<DocumentData>[]> {
   if (!(pageSize >= 1)) {
