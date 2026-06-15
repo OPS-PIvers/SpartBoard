@@ -68,7 +68,11 @@ describe('OverflowMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
     // Menu is portalled to document.body, so query the document, not container.
     expect(document.querySelector('.animate-spin')).not.toBeNull();
-    // A loading item is disabled so it can't double-fire.
-    expect(screen.getByRole('menuitem', { name: 'Export' })).toBeDisabled();
+    // A loading item is aria-disabled (stays focusable/announced) and its
+    // onClick is guarded so it can't double-fire.
+    expect(screen.getByRole('menuitem', { name: 'Export' })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
   });
 });

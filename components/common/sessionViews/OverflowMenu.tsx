@@ -66,9 +66,14 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   // Move focus to the first enabled item once the menu is positioned + rendered.
   useEffect(() => {
     if (!open || !menuPos) return;
-    menuRef.current
-      ?.querySelector<HTMLButtonElement>('[role="menuitem"]:not([disabled])')
-      ?.focus();
+    const menu = menuRef.current;
+    // Prefer the first enabled item, but fall back to the first item so focus
+    // still enters the menu when every item is (transiently) disabled.
+    const target =
+      menu?.querySelector<HTMLButtonElement>(
+        '[role="menuitem"]:not([aria-disabled="true"])'
+      ) ?? menu?.querySelector<HTMLButtonElement>('[role="menuitem"]');
+    target?.focus();
   }, [open, menuPos]);
 
   // Close on scroll/resize — the fixed position is captured at open time.
@@ -102,7 +107,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
     e.preventDefault();
     const nodes = Array.from(
       menuRef.current?.querySelectorAll<HTMLButtonElement>(
-        '[role="menuitem"]:not([disabled])'
+        '[role="menuitem"]'
       ) ?? []
     );
     if (nodes.length === 0) return;
@@ -152,13 +157,16 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
                   key={item.id ?? item.label}
                   type="button"
                   role="menuitem"
-                  disabled={!!item.disabled || !!item.loading}
+                  aria-disabled={!!item.disabled || !!item.loading || undefined}
                   onClick={() => {
+                    // aria-disabled (not the native attribute) keeps the item
+                    // focusable + announced; guard activation here instead.
+                    if (item.disabled || item.loading) return;
                     setOpen(false);
                     triggerRef.current?.focus();
                     item.onClick();
                   }}
-                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-left font-medium transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-40 ${
+                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-left font-medium transition-colors focus:outline-none aria-disabled:cursor-not-allowed aria-disabled:opacity-40 ${
                     item.destructive
                       ? 'text-brand-red-dark hover:bg-brand-red-lighter/30 focus:bg-brand-red-lighter/30'
                       : 'text-slate-700 hover:bg-slate-100 focus:bg-slate-100'
