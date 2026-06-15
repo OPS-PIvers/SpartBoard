@@ -92,7 +92,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  vi.useRealTimers();
+  // Restores the vi.spyOn(Date, 'now') spies used in several cases —
+  // clearAllMocks (beforeEach) resets call data but not implementations.
   vi.restoreAllMocks();
 });
 
