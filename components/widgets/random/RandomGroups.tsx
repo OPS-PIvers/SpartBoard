@@ -120,6 +120,9 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const paletteButtonRef = useRef<HTMLButtonElement>(null);
+  // Tracks whether Escape was pressed so the synchronous blur event that fires
+  // when the input unmounts does not re-invoke commit() with a stale draft.
+  const cancelledRef = useRef(false);
   const renameEnabled = editable && !!onRename;
   const colorEnabled = editable && !!onChangeColor;
 
@@ -134,6 +137,9 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
 
   useEffect(() => {
     if (editingName) {
+      // A new rename session is starting — clear any leftover cancel flag from
+      // a previous Escape press so commit() is not suppressed this session.
+      cancelledRef.current = false;
       inputRef.current?.focus();
       inputRef.current?.select();
     }
@@ -174,6 +180,13 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
   }, [colorPickerOpen]);
 
   const commit = () => {
+    // If Escape was pressed, cancel() already ran and set cancelledRef — bail
+    // out here so the blur event that fires when the input unmounts does not
+    // persist the value the user intended to discard.
+    if (cancelledRef.current) {
+      cancelledRef.current = false;
+      return;
+    }
     setEditingName(false);
     const trimmed = draft.trim();
     if (trimmed && trimmed !== groupName) {
@@ -184,6 +197,10 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
   };
 
   const cancel = () => {
+    // Set the flag BEFORE updating state so that the synchronous blur event
+    // (fired when React removes the focused <input> from the DOM) sees it and
+    // skips commit().
+    cancelledRef.current = true;
     setEditingName(false);
     setDraft(groupName);
   };

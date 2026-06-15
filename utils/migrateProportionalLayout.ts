@@ -75,11 +75,31 @@ export const migrateWidgetToProportional = (
   // when the saved viewport is missing/untrusted we fall back to
   // REFERENCE_VIEWPORT, producing wrong proportions for a widget that was
   // originally authored on a different-sized viewport.
+  //
+  // The range check mirrors widgetNeedsProportionalMigration exactly:
+  // wProp/hProp must not exceed 1.5 (pixel-valued), and Math.abs of
+  // xProp/yProp must not exceed 1.5 (catches both positive and negative
+  // pixel coordinates that leaked into the proportional fields).
+  // A finite-only check is insufficient — e.g. xProp=300 is finite but
+  // is a pixel value, not a proportion; without the range guard the
+  // function would early-return without correcting the bad position fields.
+  //
+  // Destructure first so downstream comparisons see `number`, not
+  // `number | undefined`, satisfying TypeScript's control-flow analysis.
+  const { xProp, yProp, wProp, hProp } = widget;
   const proportionsValid =
-    Number.isFinite(widget.xProp) &&
-    Number.isFinite(widget.yProp) &&
-    Number.isFinite(widget.wProp) &&
-    Number.isFinite(widget.hProp);
+    typeof xProp === 'number' &&
+    typeof yProp === 'number' &&
+    typeof wProp === 'number' &&
+    typeof hProp === 'number' &&
+    Number.isFinite(xProp) &&
+    Number.isFinite(yProp) &&
+    Number.isFinite(wProp) &&
+    Number.isFinite(hProp) &&
+    wProp <= 1.5 &&
+    hProp <= 1.5 &&
+    Math.abs(xProp) <= 1.5 &&
+    Math.abs(yProp) <= 1.5;
   if (proportionsValid) {
     return {
       ...widget,

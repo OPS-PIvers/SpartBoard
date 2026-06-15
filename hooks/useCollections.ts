@@ -34,6 +34,7 @@ import {
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import { readAllDocsPaged } from '@/utils/firestorePaging';
 import type { Collection } from '@/types';
 
 const COLLECTIONS_SUBPATH = 'collections';
@@ -509,7 +510,9 @@ export const useCollections = (
 
         // Phase 1: re-home Boards anywhere in this tree to target's parent.
         // Chunk the `where('collectionId', 'in', ...)` queries by 30 (Firestore
-        // 'in' limit), and chunk the resulting batch writes at 400.
+        // 'in' limit), and chunk the resulting batch writes at 400. Each chunk
+        // query is read in bounded pages so a tree with thousands of boards
+        // can't pull a whole chunk's result set into memory in one read.
         const QUERY_CHUNK = 30;
         let rehomeBatch = writeBatch(db);
         let rehomeCount = 0;
@@ -520,9 +523,9 @@ export const useCollections = (
             where('collectionId', 'in', chunkIds)
           );
           phase = 'rehome-boards-read';
-          const boardSnap = await getDocs(boardsQuery);
+          const boardDocs = await readAllDocsPaged(boardsQuery);
           phase = 'rehome-boards-write';
-          for (const d of boardSnap.docs) {
+          for (const d of boardDocs) {
             if (rehomeCount >= 400) {
               await rehomeBatch.commit();
               boardsRehomed += rehomeCount;

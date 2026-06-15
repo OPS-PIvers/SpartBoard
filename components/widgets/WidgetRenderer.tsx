@@ -179,7 +179,11 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
   const SettingsComponent = WIDGET_SETTINGS_COMPONENTS[widget.type];
   const AppearanceComponent = WIDGET_APPEARANCE_COMPONENTS[widget.type];
 
-  const getWidgetSettings = () => {
+  // Memoize the JSX value itself (not a factory): DraggableWindow receives these
+  // as props, so a stable element reference is what lets its React.memo skip
+  // re-renders when neither the component type nor the widget changed. A
+  // useCallback here would be useless because the value is consumed inline.
+  const widgetSettings = useMemo(() => {
     if (SettingsComponent) {
       return (
         <Suspense fallback={<LoadingFallback />}>
@@ -192,9 +196,9 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
         Standard settings available.
       </div>
     );
-  };
+  }, [SettingsComponent, widget]);
 
-  const getWidgetAppearanceSettings = () => {
+  const widgetAppearanceSettings = useMemo(() => {
     if (AppearanceComponent) {
       return (
         <Suspense fallback={<LoadingFallback />}>
@@ -203,7 +207,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
       );
     }
     return null;
-  };
+  }, [AppearanceComponent, widget]);
 
   // When spotlighted we switch to position:fixed so the element escapes all
   // parent stacking contexts (will-change:transform / container-type:size on
@@ -211,15 +215,19 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
   // the widget below the backdrop overlay). position:fixed is relative to the
   // viewport, and the dashboard is always full-screen, so widget.x / widget.y
   // map 1:1 to viewport coordinates — the widget stays visually in place.
-  const customStyle: React.CSSProperties = isSpotlighted
-    ? {
-        position: 'fixed',
-        zIndex: Z_INDEX.backdrop + 1,
-        outline: '3px solid #facc15', // yellow-400 ring
-        outlineOffset: '2px',
-        boxShadow: '0 0 32px 8px rgba(250,204,21,0.25)',
-      }
-    : {};
+  const customStyle: React.CSSProperties = useMemo(
+    () =>
+      isSpotlighted
+        ? {
+            position: 'fixed',
+            zIndex: Z_INDEX.backdrop + 1,
+            outline: '3px solid #facc15', // yellow-400 ring
+            outlineOffset: '2px',
+            boxShadow: '0 0 32px 8px rgba(250,204,21,0.25)',
+          }
+        : {},
+    [isSpotlighted]
+  );
 
   const scaling = WIDGET_SCALING_CONFIG[widget.type];
   const effectiveWidth = widget.maximized ? windowSize.width : widget.w;
@@ -338,8 +346,8 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
     <DraggableWindow
       widget={widget}
       title={getTitle(widget, permission)}
-      settings={getWidgetSettings()}
-      appearanceSettings={getWidgetAppearanceSettings()}
+      settings={widgetSettings}
+      appearanceSettings={widgetAppearanceSettings}
       style={customStyle}
       isSpotlighted={isSpotlighted}
       skipCloseConfirmation={
