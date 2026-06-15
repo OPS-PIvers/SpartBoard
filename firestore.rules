@@ -311,10 +311,22 @@ service cloud.firestore {
         // always looks up `members/{token.email.lower()}` — can find the
         // record), required fields present, and only the invite-shape keys
         // are allowed.
+        //
+        // Email case handling (F15): every membership read keys off
+        // `request.auth.token.email.lower()` (always lowercase), so a member
+        // doc whose stored email/id is mixed-case is orphaned and matching
+        // legitimate members get permission-denied. We therefore reject any
+        // mixed-case write at the source:
+        //   - `request.resource.data.email == request.resource.data.email.lower()`
+        //     pins the stored email field to lowercase, and
+        //   - `request.resource.data.email == emailLower` ties it to the
+        //     (lowercased) doc id `emailLower`.
+        // Together these guarantee the doc id is lowercase too, so the earlier
+        // standalone `emailLower == emailLower.lower()` guard is redundant and
+        // has been dropped.
         allow create: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
-          emailLower == emailLower.lower() &&
-          request.resource.data.email == emailLower &&
           request.resource.data.email == request.resource.data.email.lower() &&
+          request.resource.data.email == emailLower &&
           request.resource.data.orgId == orgId &&
           request.resource.data.keys().hasAll(['email', 'orgId', 'roleId', 'buildingIds', 'status']) &&
           request.resource.data.keys().hasOnly([

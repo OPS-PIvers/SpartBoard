@@ -104,7 +104,7 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             {showSeconds && (
               <>
                 <span className="opacity-60 mx-[0.1em]">:</span>
-                <span className="opacity-80" style={{ fontSize: '0.7em' }}>
+                <span className="opacity-80" style={{ fontSize: '0.85em' }}>
                   {seconds}
                 </span>
               </>

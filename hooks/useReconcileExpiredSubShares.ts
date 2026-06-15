@@ -35,14 +35,9 @@
  */
 
 import { useEffect, useRef } from 'react';
-import {
-  collection,
-  deleteDoc,
-  getDocs,
-  query,
-  where,
-} from 'firebase/firestore';
+import { collection, deleteDoc, query, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { readAllDocsPaged } from '@/utils/firestorePaging';
 import type { GoogleDriveService } from '@/utils/googleDriveService';
 
 const SESSION_KEY_PREFIX = 'spart_sub_reconcile_';
@@ -136,8 +131,12 @@ async function reconcileExpiredSubShares(
     where('originalAuthor', '==', uid),
     where('intendedMode', '==', 'substitute')
   );
-  const snap = await getDocs(allQuery);
-  if (snap.empty) return;
+  // Read in bounded pages so a teacher with a large share history can't pull
+  // the whole filtered result set into memory in a single unbounded read.
+  // We iterate every doc below (to decide expired vs. still-referenced), so a
+  // full paged read — not a capped limit() — is the right bound here.
+  const allDocs = await readAllDocsPaged(allQuery);
+  if (allDocs.length === 0) return;
 
   const now = Date.now();
   const stillReferenced = new Set<string>();
@@ -146,7 +145,7 @@ async function reconcileExpiredSubShares(
     grants: PersistedGrant[];
   }> = [];
 
-  for (const docSnap of snap.docs) {
+  for (const docSnap of allDocs) {
     const data = docSnap.data() as {
       expiresAt?: number;
       driveGrants?: PersistedGrant[];

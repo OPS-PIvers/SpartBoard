@@ -1967,9 +1967,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const checkBuildings = customBuildings ?? selectedBuildings;
       if (rawDockDefaults && checkBuildings.length > 0) {
         const dockDefaults = canonicalizeBuildingKeyedRecord(rawDockDefaults);
-        const allExplicitlyOff = checkBuildings.every(
-          (bid) => dockDefaults[bid] === false
-        );
+        // A missing entry (`undefined`) is treated as "no opinion → allow",
+        // NOT as "off" — so a building that the admin hasn't configured for
+        // this widget keeps the public-by-default behavior. Only an entry
+        // that is *present and explicitly* `false` counts as "off"; we deny
+        // solely when every selected building is off by that definition.
+        const allExplicitlyOff = checkBuildings.every((bid) => {
+          const setting = dockDefaults[bid];
+          return setting === false;
+        });
         if (allExplicitlyOff) return false;
       }
 

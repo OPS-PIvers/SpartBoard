@@ -20,7 +20,6 @@ import {
   doc,
   getDoc,
   onSnapshot,
-  getDocs,
   query,
   orderBy,
   updateDoc,
@@ -526,8 +525,10 @@ export const useVideoActivityAssignments = (
     async (assignmentId) => {
       if (!userId) throw new Error('Not authenticated');
 
-      // Delete all response documents first (batched)
-      const responsesSnap = await getDocs(
+      // Delete all response documents first (batched). Read in bounded pages
+      // so a session with thousands of responses can't pull the whole
+      // subcollection into memory in a single unbounded read.
+      const responseDocs = await readAllDocsPaged(
         collection(
           db,
           VIDEO_ACTIVITY_SESSIONS_COLLECTION,
@@ -536,9 +537,9 @@ export const useVideoActivityAssignments = (
         )
       );
       const BATCH_LIMIT = 500;
-      for (let i = 0; i < responsesSnap.docs.length; i += BATCH_LIMIT) {
+      for (let i = 0; i < responseDocs.length; i += BATCH_LIMIT) {
         const batch = writeBatch(db);
-        responsesSnap.docs
+        responseDocs
           .slice(i, i + BATCH_LIMIT)
           .forEach((d) => batch.delete(d.ref));
         await batch.commit();

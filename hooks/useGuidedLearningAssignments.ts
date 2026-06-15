@@ -17,7 +17,6 @@ import {
   collection,
   deleteField,
   doc,
-  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -262,7 +261,9 @@ export const useGuidedLearningAssignments = (
       if (!userId) throw new Error('Not authenticated');
 
       // Delete response documents in batches of 500 (Firestore batch limit).
-      const responsesSnap = await getDocs(
+      // Read in bounded pages so a session with thousands of responses can't
+      // pull the whole subcollection into memory in a single unbounded read.
+      const responseDocs = await readAllDocsPaged(
         collection(
           db,
           GL_SESSIONS_COLLECTION,
@@ -271,9 +272,9 @@ export const useGuidedLearningAssignments = (
         )
       );
       const BATCH_LIMIT = 500;
-      for (let i = 0; i < responsesSnap.docs.length; i += BATCH_LIMIT) {
+      for (let i = 0; i < responseDocs.length; i += BATCH_LIMIT) {
         const batch = writeBatch(db);
-        responsesSnap.docs
+        responseDocs
           .slice(i, i + BATCH_LIMIT)
           .forEach((d) => batch.delete(d.ref));
         await batch.commit();

@@ -25,7 +25,19 @@ export default mergeConfig(
         '.claude/worktrees/**',
         '.pnpm-store/**',
       ],
-      coverage: { exclude: ['locales/**'] },
+      coverage: {
+        exclude: ['locales/**'],
+        // Conservative regression floor — intentionally well below current
+        // coverage so CI doesn't break today. Ratchet these up over time as
+        // coverage improves; they exist to catch silent regressions, not to
+        // act as a stretch goal.
+        thresholds: {
+          lines: 30,
+          functions: 30,
+          statements: 30,
+          branches: 30,
+        },
+      },
     },
   })
 );
