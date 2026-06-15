@@ -28,6 +28,36 @@ describe('scoresUrl', () => {
       'https://x/lineitems/1/lineitem/scores?type_id=5'
     );
   });
+
+  // Regression guard: the trailing-slash strip is the ONLY protection against a
+  // Schoology-issued lineitem URL that ends in `/` producing a 404-prone double
+  // slash (`.../lineitem//scores`). Without the strip these cases all yield the
+  // wrong URL and every AGS grade push for that student would 404.
+  it('strips a single trailing slash before inserting /scores', () => {
+    expect(scoresUrl('https://x/lineitems/1/lineitem/')).toBe(
+      'https://x/lineitems/1/lineitem/scores'
+    );
+  });
+
+  it('strips multiple consecutive trailing slashes', () => {
+    expect(scoresUrl('https://x/lineitems/1/lineitem///')).toBe(
+      'https://x/lineitems/1/lineitem/scores'
+    );
+  });
+
+  it('strips a trailing slash that precedes a query string', () => {
+    // e.g. Schoology returns "https://platform/lineitem/?type_id=5"
+    expect(scoresUrl('https://x/lineitems/1/lineitem/?type_id=5')).toBe(
+      'https://x/lineitems/1/lineitem/scores?type_id=5'
+    );
+  });
+
+  it('is a no-op when there is no trailing slash (baseline)', () => {
+    // Ensures the strip doesn't corrupt clean URLs.
+    expect(scoresUrl('https://x/lineitems/1/lineitem')).toBe(
+      'https://x/lineitems/1/lineitem/scores'
+    );
+  });
 });
 
 describe('getAgsAccessToken', () => {
