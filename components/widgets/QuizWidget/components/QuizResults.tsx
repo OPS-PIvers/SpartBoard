@@ -10,9 +10,9 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useId,
 } from 'react';
 import {
-  ArrowLeft,
   Download,
   BarChart3,
   Users,
@@ -67,6 +67,19 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
 import { PlcTab } from '@/components/common/library/PlcTab';
+import {
+  SessionViewHeader,
+  SegmentedTabs,
+  StatTile,
+  SessionBadge,
+  ScorePill,
+  SessionRow,
+  ActionButton,
+  OverflowMenu,
+} from '@/components/common/sessionViews';
+import type { OverflowMenuItem } from '@/components/common/sessionViews';
+import { scoreColorClasses } from '@/utils/scoreColor';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WrittenResponseGrader } from './WrittenResponseGrader';
 import { doc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -292,6 +305,9 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   const [activeTab, setActiveTab] = useState<
     'overview' | 'questions' | 'students' | 'plc'
   >('overview');
+  // Per-instance prefix for the ARIA tab↔panel linkage (multiple quiz widgets
+  // can render on one dashboard).
+  const tabPanelId = useId();
   const [showScoreboardPrompt, setShowScoreboardPrompt] = useState(false);
   const scoreboardPromptRef = useRef<HTMLDivElement>(null);
 
@@ -567,13 +583,13 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     (mode: 'pin' | 'name') => {
       setShowScoreboardPrompt(false);
 
-      if (completed.length === 0) {
+      if (filteredCompleted.length === 0) {
         addToast('No completed students yet', 'error');
         return;
       }
 
       const newTeams = buildScoreboardTeams(
-        completed,
+        filteredCompleted,
         quiz.questions,
         mode,
         pinToName,
@@ -622,7 +638,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       }
     },
     [
-      completed,
+      filteredCompleted,
       quiz.questions,
       pinToName,
       byStudentUid,
@@ -635,7 +651,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   );
 
   const handleScoreboardClick = useCallback(() => {
-    if (completed.length === 0) {
+    if (filteredCompleted.length === 0) {
       addToast('No completed students yet', 'error');
       return;
     }
@@ -644,7 +660,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     } else {
       handleSendToScoreboard('pin');
     }
-  }, [completed.length, hasNames, addToast, handleSendToScoreboard]);
+  }, [filteredCompleted.length, hasNames, addToast, handleSendToScoreboard]);
 
   // Recovery path shared by handleExport (initial export) and
   // handleUpdateSheet (delta append). When the configured PLC sheet is
@@ -1221,361 +1237,196 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     }
   };
 
+  // Overflow-menu items. The Sheet/Export family (Export, Re-export solo,
+  // Re-export/Update PLC, Open Sheet) and Send to Scoreboard all live here
+  // (decluttered out of the visible header per the approved design). Each
+  // item keeps the EXACT gate/handler/disabled condition it had as a visible
+  // header button — only the placement changes:
+  //   • Export            — shown when `!exportUrl`; handleExport; disabled
+  //                         while exporting or with zero responses.
+  //   • Re-export (solo)  — gated on `canShowSoloReExport`; handleExport.
+  //   • Re-export/Update  — gated on `canShowUpdateSheet`; handleUpdateSheet
+  //     (PLC)               (smart append-or-rebuild). Informative label.
+  //   • Open Sheet        — shown when `exportUrl` is truthy; opens the sheet
+  //                         in a new tab (was an <a target="_blank"> link).
+  //   • Send to Scoreboard— gated on `filteredCompleted.length > 0` (respects
+  //                         the active period filter).
+  // When a Schoology push applies it's the visible primary action, so it's
+  // NOT duplicated here; there is no Classroom-vs-Schoology overlap (an
+  // assignment is one or the other), so the visible primary push is Classroom
+  // when attached, else Schoology — and the overflow never carries a push
+  // that's already visible.
+  const overflowItems: OverflowMenuItem[] = [];
+  if (!exportUrl) {
+    overflowItems.push({
+      label: 'Export to Sheets',
+      icon: Download,
+      loading: exporting,
+      onClick: () => void handleExport(),
+      disabled: exporting || responses.length === 0,
+    });
+  }
+  if (exportUrl) {
+    const sheetUrl = exportUrl;
+    overflowItems.push({
+      label: 'Open Sheet',
+      icon: ExternalLink,
+      onClick: () => window.open(sheetUrl, '_blank', 'noopener,noreferrer'),
+    });
+  }
+  if (canShowSoloReExport) {
+    overflowItems.push({
+      label: 'Re-export sheet (creates a new sheet)',
+      icon: RefreshCw,
+      loading: exporting,
+      onClick: () => void handleExport(),
+      disabled: exporting,
+    });
+  }
+  if (canShowUpdateSheet) {
+    // Smart re-export: appends new responses when the sheet is behind,
+    // otherwise clears and rewrites the same sheet from scratch. Always
+    // enabled in PLC mode so the teacher always has a path to refresh — the
+    // label tells them which mode the next click will run in.
+    overflowItems.push({
+      label:
+        newResponsesToAppend.length === 0
+          ? 'Re-export sheet (rebuild from scratch)'
+          : `Re-export sheet (${newResponsesToAppend.length} new responses to append)`,
+      icon: RefreshCw,
+      loading: updatingSheet,
+      onClick: () => void handleUpdateSheet(),
+      disabled: updatingSheet,
+    });
+  }
+  if (filteredCompleted.length > 0) {
+    overflowItems.push({
+      label: 'Send to Scoreboard',
+      icon: Trophy,
+      onClick: handleScoreboardClick,
+    });
+  }
+
+  // Visible primary push: Classroom when this assignment is add-on-attached
+  // (and the admin gate permits), otherwise Schoology when LTI-launched. Same
+  // gating conditions/handlers as before — only the placement changes.
+  const showClassroomPush =
+    classroomAttachments.length > 0 && canAccessFeature('google-classroom');
+  const showSchoologyPush = !!ltiAttachment;
+
   return (
     <div className="flex flex-col h-full font-sans">
       {/* Header */}
-      <div
-        className="flex items-center border-b border-brand-blue-primary/10"
-        style={{
-          gap: 'min(12px, 3cqmin)',
-          padding: 'min(12px, 2.5cqmin) min(16px, 4cqmin)',
-        }}
-      >
-        <button
-          onClick={onBack}
-          className="p-1.5 hover:bg-brand-blue-primary/10 rounded-lg transition-colors text-brand-blue-primary shrink-0"
-        >
-          <ArrowLeft
-            style={{
-              width: 'min(16px, 4.5cqmin)',
-              height: 'min(16px, 4.5cqmin)',
-            }}
-          />
-        </button>
-        <div className="flex-1 min-w-0">
-          <p
-            className="font-black text-brand-blue-dark truncate"
-            style={{ fontSize: 'min(14px, 4.5cqmin)' }}
-          >
-            Results: {quiz.title}
-          </p>
-          <p
-            className="text-brand-blue-primary/60 font-bold"
-            style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-          >
-            {completed.length} of {responses.length} students finished
-          </p>
-        </div>
-
-        {hasWrittenQuestions && (
-          <button
-            onClick={() => setShowGrader(true)}
-            className="flex items-center bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 shrink-0"
-            style={{
-              gap: 'min(6px, 1.5cqmin)',
-              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-              fontSize: 'min(11px, 3.5cqmin)',
-            }}
-            title="Open the manual grading view for short-answer and essay responses."
-          >
-            <Pencil
-              style={{
-                width: 'min(14px, 4cqmin)',
-                height: 'min(14px, 4cqmin)',
-              }}
-            />
-            GRADE WRITTEN
-          </button>
-        )}
-
-        {completed.length > 0 && (
-          <div className="relative shrink-0">
-            <button
-              onClick={handleScoreboardClick}
-              className="flex items-center bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-all shadow-md active:scale-95"
-              style={{
-                gap: 'min(6px, 1.5cqmin)',
-                padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                fontSize: 'min(11px, 3.5cqmin)',
-              }}
-            >
-              <Trophy
-                style={{
-                  width: 'min(14px, 4cqmin)',
-                  height: 'min(14px, 4cqmin)',
-                }}
+      <SessionViewHeader
+        onBack={onBack}
+        title={quiz.title}
+        subtitle={`${filteredCompleted.length} of ${filteredResponses.length} students finished`}
+        actions={
+          <>
+            {hasWrittenQuestions && (
+              <ActionButton
+                variant="secondary"
+                label="Grade Written"
+                icon={Pencil}
+                onClick={() => setShowGrader(true)}
               />
-              SEND TO SCOREBOARD
-            </button>
+            )}
+            {/* Admin-managed `google-classroom` gate hides the draft grade-push
+                entry point for users below the doc's minTier. */}
+            {showClassroomPush && (
+              <ActionButton
+                variant="primary"
+                label="Push Grades"
+                icon={GraduationCap}
+                loading={pushingGrades}
+                onClick={() => void handlePushGrades()}
+                disabled={pushingGrades}
+              />
+            )}
+            {showSchoologyPush && (
+              <ActionButton
+                variant="primary"
+                label="Push to Schoology"
+                icon={Send}
+                loading={pushingSchoologyGrades}
+                onClick={() => void handlePushSchoologyGrades()}
+                disabled={
+                  pushingSchoologyGrades || schoologyGrades.length === 0
+                }
+              />
+            )}
+            {overflowItems.length > 0 && (
+              <div className="relative shrink-0">
+                <OverflowMenu items={overflowItems} />
+              </div>
+            )}
+            {/* Anchored separately from the overflow menu so deleting the last
+                completed student (which empties overflowItems) can't unmount the
+                prompt mid-interaction. */}
             {showScoreboardPrompt && (
-              <div
-                ref={scoreboardPromptRef}
-                className="absolute right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-brand-blue-primary/10 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
-                style={{
-                  padding: 'min(16px, 4cqmin)',
-                  width: 'max(220px, 50cqw)',
-                }}
-              >
-                <p
-                  className="font-black text-brand-blue-dark text-center uppercase tracking-wider"
+              <div className="relative shrink-0">
+                <div
+                  ref={scoreboardPromptRef}
+                  className="absolute right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-brand-blue-primary/10 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
                   style={{
-                    fontSize: 'min(11px, 3.5cqmin)',
-                    marginBottom: 'min(12px, 3cqmin)',
+                    padding: 'min(16px, 4cqmin)',
+                    width: 'max(220px, 50cqw)',
                   }}
                 >
-                  How should students appear?
-                </p>
-                <div
-                  className="flex flex-col"
-                  style={{ gap: 'min(8px, 2cqmin)' }}
-                >
-                  <button
-                    onClick={() => handleSendToScoreboard('name')}
-                    className="flex items-center w-full bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95"
+                  <p
+                    className="font-black text-brand-blue-dark text-center uppercase tracking-wider"
                     style={{
-                      gap: 'min(8px, 2cqmin)',
-                      padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
-                      fontSize: 'min(12px, 3.5cqmin)',
+                      fontSize: 'min(11px, 3.5cqmin)',
+                      marginBottom: 'min(12px, 3cqmin)',
                     }}
                   >
-                    <User
-                      style={{
-                        width: 'min(16px, 4cqmin)',
-                        height: 'min(16px, 4cqmin)',
-                      }}
-                    />
-                    Student Names
-                  </button>
-                  <button
-                    onClick={() => handleSendToScoreboard('pin')}
-                    className="flex items-center w-full bg-slate-100 hover:bg-slate-200 text-brand-blue-dark font-bold rounded-xl transition-all active:scale-95"
-                    style={{
-                      gap: 'min(8px, 2cqmin)',
-                      padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
-                      fontSize: 'min(12px, 3.5cqmin)',
-                    }}
+                    How should students appear?
+                  </p>
+                  <div
+                    className="flex flex-col"
+                    style={{ gap: 'min(8px, 2cqmin)' }}
                   >
-                    <Hash
+                    <button
+                      onClick={() => handleSendToScoreboard('name')}
+                      className="flex items-center w-full bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95"
                       style={{
-                        width: 'min(16px, 4cqmin)',
-                        height: 'min(16px, 4cqmin)',
+                        gap: 'min(8px, 2cqmin)',
+                        padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
+                        fontSize: 'min(12px, 3.5cqmin)',
                       }}
-                    />
-                    PINs Only
-                  </button>
+                    >
+                      <User
+                        style={{
+                          width: 'min(16px, 4cqmin)',
+                          height: 'min(16px, 4cqmin)',
+                        }}
+                      />
+                      Student Names
+                    </button>
+                    <button
+                      onClick={() => handleSendToScoreboard('pin')}
+                      className="flex items-center w-full bg-slate-100 hover:bg-slate-200 text-brand-blue-dark font-bold rounded-xl transition-all active:scale-95"
+                      style={{
+                        gap: 'min(8px, 2cqmin)',
+                        padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
+                        fontSize: 'min(12px, 3.5cqmin)',
+                      }}
+                    >
+                      <Hash
+                        style={{
+                          width: 'min(16px, 4cqmin)',
+                          height: 'min(16px, 4cqmin)',
+                        }}
+                      />
+                      PINs Only
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
-          </div>
-        )}
-        {/* Admin-managed `google-classroom` gate hides the draft grade-push
-            entry point for users below the doc's minTier. */}
-        {classroomAttachments.length > 0 &&
-          canAccessFeature('google-classroom') && (
-            <button
-              onClick={() => void handlePushGrades()}
-              disabled={pushingGrades}
-              className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-md active:scale-95 shrink-0"
-              style={{
-                gap: 'min(6px, 1.5cqmin)',
-                padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                fontSize: 'min(11px, 3.5cqmin)',
-              }}
-              title="Write draft grades to this assignment's Google Classroom gradebook (matches the quiz score exactly)."
-            >
-              {pushingGrades ? (
-                <Loader2
-                  className="animate-spin"
-                  style={{
-                    width: 'min(14px, 4cqmin)',
-                    height: 'min(14px, 4cqmin)',
-                  }}
-                />
-              ) : (
-                <GraduationCap
-                  style={{
-                    width: 'min(14px, 4cqmin)',
-                    height: 'min(14px, 4cqmin)',
-                  }}
-                />
-              )}
-              PUSH GRADES
-            </button>
-          )}
-        {ltiAttachment && (
-          <button
-            onClick={() => void handlePushSchoologyGrades()}
-            disabled={pushingSchoologyGrades || schoologyGrades.length === 0}
-            className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-md active:scale-95 shrink-0"
-            style={{
-              gap: 'min(6px, 1.5cqmin)',
-              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-              fontSize: 'min(11px, 3.5cqmin)',
-            }}
-            title="Write grades to this assignment's Schoology gradebook (matches the quiz score exactly)."
-          >
-            {pushingSchoologyGrades ? (
-              <Loader2
-                className="animate-spin"
-                style={{
-                  width: 'min(14px, 4cqmin)',
-                  height: 'min(14px, 4cqmin)',
-                }}
-              />
-            ) : (
-              <Send
-                style={{
-                  width: 'min(14px, 4cqmin)',
-                  height: 'min(14px, 4cqmin)',
-                }}
-              />
-            )}
-            Push to Schoology
-          </button>
-        )}
-        {exportUrl ? (
-          <>
-            <a
-              href={exportUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 shrink-0"
-              style={{
-                gap: 'min(6px, 1.5cqmin)',
-                padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                fontSize: 'min(11px, 3.5cqmin)',
-              }}
-            >
-              <ExternalLink
-                style={{
-                  width: 'min(14px, 4cqmin)',
-                  height: 'min(14px, 4cqmin)',
-                }}
-              />
-              OPEN SHEET
-            </a>
-            {canShowSoloReExport && (
-              <span
-                title="Re-export — creates a new sheet (the previous sheet stays in Drive)"
-                className="shrink-0 inline-flex"
-              >
-                <button
-                  onClick={() => void handleExport()}
-                  disabled={exporting}
-                  aria-label="Re-export sheet (creates a new sheet)"
-                  className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-md active:scale-95"
-                  style={{
-                    gap: 'min(6px, 1.5cqmin)',
-                    padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                    fontSize: 'min(11px, 3.5cqmin)',
-                  }}
-                >
-                  {exporting ? (
-                    <Loader2
-                      className="animate-spin"
-                      style={{
-                        width: 'min(14px, 4cqmin)',
-                        height: 'min(14px, 4cqmin)',
-                      }}
-                    />
-                  ) : (
-                    <RefreshCw
-                      style={{
-                        width: 'min(14px, 4cqmin)',
-                        height: 'min(14px, 4cqmin)',
-                      }}
-                    />
-                  )}
-                  RE-EXPORT SHEET
-                </button>
-              </span>
-            )}
-            {canShowUpdateSheet && (
-              // Smart re-export: appends new responses when the sheet is
-              // behind, otherwise clears and rewrites the same sheet from
-              // scratch. The button is always enabled in PLC mode so the
-              // teacher always has a path to refresh — the title hint
-              // tells them which mode the next click will run in.
-              <span
-                title={
-                  newResponsesToAppend.length === 0
-                    ? 'Re-export — rebuild this sheet from scratch'
-                    : `Add ${newResponsesToAppend.length} new response${
-                        newResponsesToAppend.length === 1 ? '' : 's'
-                      } to the sheet`
-                }
-                className="shrink-0 inline-flex"
-              >
-                <button
-                  onClick={() => void handleUpdateSheet()}
-                  disabled={updatingSheet}
-                  aria-label={
-                    newResponsesToAppend.length === 0
-                      ? 'Re-export sheet (rebuild from scratch)'
-                      : `Re-export sheet (${newResponsesToAppend.length} new responses to append)`
-                  }
-                  className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-md active:scale-95"
-                  style={{
-                    gap: 'min(6px, 1.5cqmin)',
-                    padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                    fontSize: 'min(11px, 3.5cqmin)',
-                  }}
-                >
-                  {updatingSheet ? (
-                    <Loader2
-                      className="animate-spin"
-                      style={{
-                        width: 'min(14px, 4cqmin)',
-                        height: 'min(14px, 4cqmin)',
-                      }}
-                    />
-                  ) : (
-                    <RefreshCw
-                      style={{
-                        width: 'min(14px, 4cqmin)',
-                        height: 'min(14px, 4cqmin)',
-                      }}
-                    />
-                  )}
-                  RE-EXPORT SHEET
-                  {newResponsesToAppend.length > 0 && (
-                    <span
-                      className="ml-1 inline-flex items-center justify-center bg-white/25 rounded-full font-black"
-                      style={{
-                        minWidth: 'min(18px, 5cqmin)',
-                        height: 'min(18px, 5cqmin)',
-                        padding: '0 min(6px, 1.5cqmin)',
-                        fontSize: 'min(10px, 3cqmin)',
-                      }}
-                    >
-                      {newResponsesToAppend.length}
-                    </span>
-                  )}
-                </button>
-              </span>
-            )}
           </>
-        ) : (
-          <button
-            onClick={() => void handleExport()}
-            disabled={exporting || responses.length === 0}
-            className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-brand-gray-lighter text-white font-bold rounded-xl transition-all shadow-md active:scale-95 shrink-0"
-            style={{
-              gap: 'min(6px, 1.5cqmin)',
-              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-              fontSize: 'min(11px, 3.5cqmin)',
-            }}
-          >
-            {exporting ? (
-              <Loader2
-                className="animate-spin"
-                style={{
-                  width: 'min(14px, 4cqmin)',
-                  height: 'min(14px, 4cqmin)',
-                }}
-              />
-            ) : (
-              <Download
-                style={{
-                  width: 'min(14px, 4cqmin)',
-                  height: 'min(14px, 4cqmin)',
-                }}
-              />
-            )}
-            EXPORT
-          </button>
-        )}
-      </div>
+        }
+      />
 
       {exportError &&
         !(exportError.kind === 'schemaMismatch' && exportError.recoveryUrl) && (
@@ -1628,22 +1479,11 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       )}
 
       {responses.length === 0 ? (
-        <div
-          className="flex flex-col items-center justify-center h-full text-brand-blue-primary/30"
-          style={{ gap: 'min(16px, 4cqmin)' }}
-        >
-          <div className="bg-brand-blue-lighter/50 p-6 rounded-full border-2 border-dashed border-brand-blue-primary/10">
-            <BarChart3
-              style={{
-                width: 'min(48px, 12cqmin)',
-                height: 'min(48px, 12cqmin)',
-              }}
-            />
-          </div>
-          <p className="font-bold" style={{ fontSize: 'min(14px, 4.5cqmin)' }}>
-            No data available yet.
-          </p>
-        </div>
+        <ScaledEmptyState
+          icon={BarChart3}
+          title="No data available yet"
+          subtitle="Results appear here once students submit."
+        />
       ) : (
         <>
           {/* Period Filter (only when responses have classPeriod data) */}
@@ -1685,38 +1525,39 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               for legacy assignments (same precedence as the export path). */}
           <div
             className="flex border-b border-brand-blue-primary/10"
-            style={{
-              padding: 'min(8px, 2cqmin) min(16px, 4cqmin) 0',
-              gap: 'min(4px, 1cqmin)',
-            }}
+            style={{ padding: 'min(8px, 2cqmin) min(16px, 4cqmin)' }}
           >
-            {(
-              [
-                'overview',
-                'questions',
-                'students',
-                ...(plcId ? (['plc'] as const) : []),
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`font-black uppercase tracking-widest rounded-t-xl transition-all ${
-                  activeTab === tab
-                    ? 'bg-white text-brand-blue-primary border-x border-t border-brand-blue-primary/10'
-                    : 'text-brand-blue-primary/40 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/30'
-                }`}
-                style={{
-                  padding: 'min(10px, 2.5cqmin) min(16px, 4cqmin)',
-                  fontSize: 'min(10px, 3cqmin)',
-                }}
-              >
-                {tab}
-              </button>
-            ))}
+            <SegmentedTabs
+              ariaLabel="Quiz results sections"
+              panelIdPrefix={tabPanelId}
+              value={activeTab}
+              onChange={setActiveTab}
+              tabs={[
+                { key: 'overview', label: 'Overview', icon: BarChart3 },
+                { key: 'questions', label: 'Questions', icon: Target },
+                {
+                  key: 'students',
+                  label: 'Students',
+                  icon: Users,
+                  count: responses.length,
+                },
+                ...(plcId
+                  ? ([
+                      {
+                        key: 'plc' as const,
+                        label: 'PLC',
+                        icon: GraduationCap,
+                      },
+                    ] as const)
+                  : []),
+              ]}
+            />
           </div>
 
           <div
+            role="tabpanel"
+            id={`${tabPanelId}-panel-${activeTab}`}
+            aria-labelledby={`${tabPanelId}-tab-${activeTab}`}
             className="flex-1 overflow-y-auto custom-scrollbar"
             style={{ padding: 'min(16px, 4cqmin)' }}
           >
@@ -1822,48 +1663,36 @@ const OverviewTab: React.FC<{
     <div className="flex flex-col" style={{ gap: 'min(20px, 5cqmin)' }}>
       {/* Top Level Scoreboard */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white border-2 border-brand-blue-primary/10 rounded-2xl p-4 text-center shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-full h-1 bg-amber-400"></div>
-          <Trophy
-            className="text-amber-400 mx-auto mb-1 group-hover:scale-110 transition-transform"
-            style={{ width: 'min(24px, 6cqmin)', height: 'min(24px, 6cqmin)' }}
-          />
-          <p
-            className="font-black text-brand-blue-dark leading-none"
-            style={{ fontSize: 'min(28px, 9cqmin)' }}
-          >
-            {avgScore !== null ? `${avgScore}${suffix}` : '—'}
-          </p>
-          <p
-            className="text-brand-blue-primary/60 font-black uppercase tracking-widest mt-1"
-            style={{ fontSize: 'min(10px, 3cqmin)' }}
-          >
-            Class Average
-          </p>
-        </div>
-        <div className="bg-white border-2 border-brand-blue-primary/10 rounded-2xl p-4 text-center shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-full h-1 bg-brand-blue-primary"></div>
-          <Users
-            className="text-brand-blue-primary mx-auto mb-1 group-hover:scale-110 transition-transform"
-            style={{ width: 'min(24px, 6cqmin)', height: 'min(24px, 6cqmin)' }}
-          />
-          <p
-            className="font-black text-brand-blue-dark leading-none"
-            style={{ fontSize: 'min(28px, 9cqmin)' }}
-          >
-            {completed.length}
-          </p>
-          <p
-            className="text-brand-blue-primary/60 font-black uppercase tracking-widest mt-1"
-            style={{ fontSize: 'min(10px, 3cqmin)' }}
-          >
-            Finished
-          </p>
-        </div>
+        <StatTile
+          tone="amber"
+          icon={
+            <Trophy
+              style={{
+                width: 'min(24px, 6cqmin)',
+                height: 'min(24px, 6cqmin)',
+              }}
+            />
+          }
+          value={avgScore !== null ? `${avgScore}${suffix}` : '—'}
+          label="Class Average"
+        />
+        <StatTile
+          tone="blue"
+          icon={
+            <Users
+              style={{
+                width: 'min(24px, 6cqmin)',
+                height: 'min(24px, 6cqmin)',
+              }}
+            />
+          }
+          value={completed.length}
+          label="Finished"
+        />
       </div>
 
       {/* Distribution Chart */}
-      <div className="bg-white border border-brand-blue-primary/10 rounded-2xl p-5 shadow-sm">
+      <div className="bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm p-5">
         <div className="flex items-center gap-2 mb-4">
           <Target className="w-4 h-4 text-brand-blue-primary" />
           <span
@@ -1956,7 +1785,7 @@ const QuestionsTab: React.FC<{
   }, [responses, questions]);
 
   return (
-    <div className="space-y-3">
+    <div className="bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm overflow-hidden">
       {questions.map((q, i) => {
         const stats = questionStats[q.id] || {
           answered: 0,
@@ -1973,45 +1802,45 @@ const QuestionsTab: React.FC<{
             : 0;
 
         return (
-          <div
+          <SessionRow
             key={q.id}
-            className="bg-white border border-brand-blue-primary/10 rounded-2xl p-4 shadow-sm hover:border-brand-blue-primary/20 transition-all"
+            trailing={
+              isWritten ? (
+                <SessionBadge tone="warn" label="Manual" />
+              ) : (
+                <span
+                  className={`font-black tabular-nums shrink-0 ${scoreColorClasses(pct).text}`}
+                  style={{ fontSize: 'min(14px, 4.5cqmin)' }}
+                >
+                  {pct}%
+                </span>
+              )
+            }
           >
-            <div className="flex items-start justify-between mb-2">
+            <div
+              className="flex items-center"
+              style={{ gap: 'min(8px, 2cqmin)' }}
+            >
               <div
-                className="bg-brand-blue-lighter px-2 py-0.5 rounded text-brand-blue-primary font-black uppercase tracking-tighter"
+                className="bg-brand-blue-lighter px-2 py-0.5 rounded text-brand-blue-primary font-black uppercase tracking-tighter shrink-0"
                 style={{ fontSize: 'min(9px, 2.5cqmin)' }}
               >
-                Question {i + 1}
+                Q{i + 1}
               </div>
-              {q.type === 'short' || q.type === 'essay' ? (
-                <div
-                  className="font-black text-rose-700 bg-rose-50 border border-rose-200 rounded px-2 py-0.5"
-                  style={{ fontSize: 'min(10px, 3cqmin)' }}
-                  title="Written responses are graded manually by the teacher."
-                >
-                  Manual grading
-                </div>
-              ) : (
-                <div
-                  className="font-black text-brand-blue-dark"
-                  style={{ fontSize: 'min(12px, 4cqmin)' }}
-                >
-                  {pct}% Accuracy
-                </div>
-              )}
+              <p
+                className="font-bold text-brand-blue-dark leading-tight truncate"
+                style={{ fontSize: 'min(13px, 4.5cqmin)' }}
+              >
+                {q.text}
+              </p>
             </div>
 
-            <p
-              className="font-bold text-brand-blue-dark leading-tight line-clamp-2"
-              style={{ fontSize: 'min(13px, 4.5cqmin)' }}
+            <div
+              className="flex items-center mt-1.5"
+              style={{ gap: 'min(12px, 3cqmin)' }}
             >
-              {q.text}
-            </p>
-
-            <div className="flex items-center gap-4 mt-4 pt-3 border-t border-brand-blue-primary/5">
               <div
-                className="flex items-center gap-1.5 text-emerald-600 font-bold"
+                className="flex items-center gap-1.5 text-emerald-600 font-bold shrink-0"
                 style={{ fontSize: 'min(11px, 3.5cqmin)' }}
               >
                 <CheckCircle2
@@ -2024,7 +1853,7 @@ const QuestionsTab: React.FC<{
                 {isWritten ? 'Graded' : 'Correct'}
               </div>
               <div
-                className="flex items-center gap-1.5 text-brand-red-primary font-bold"
+                className="flex items-center gap-1.5 text-brand-red-primary font-bold shrink-0"
                 style={{ fontSize: 'min(11px, 3.5cqmin)' }}
               >
                 <XCircle
@@ -2036,21 +1865,14 @@ const QuestionsTab: React.FC<{
                 {stats.answered - (isWritten ? stats.graded : stats.correct)}{' '}
                 {isWritten ? 'Ungraded' : 'Missed'}
               </div>
+              <div className="flex-1 h-2 bg-brand-blue-lighter rounded-full overflow-hidden min-w-0">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${scoreColorClasses(pct).bar}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
             </div>
-
-            <div className="h-2 bg-brand-blue-lighter rounded-full overflow-hidden mt-3">
-              <div
-                className={`h-full rounded-full transition-all duration-700 ${
-                  pct >= 80
-                    ? 'bg-emerald-500'
-                    : pct >= 60
-                      ? 'bg-amber-500'
-                      : 'bg-brand-red-primary'
-                }`}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-          </div>
+          </SessionRow>
         );
       })}
     </div>
@@ -2090,7 +1912,6 @@ const StudentsTab: React.FC<{
   const [unlockingKey, setUnlockingKey] = useState<ResponseDocKey | null>(null);
   const maxPoints = questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
   const gamified = isGamificationActive(session);
-  const suffix = getScoreSuffix(session);
 
   // Mirror QuizLiveMonitor.handleUnlockResultsForStudent — same toast copy
   // and same one-shot semantics (decrement warnings by 1; one more
@@ -2121,7 +1942,7 @@ const StudentsTab: React.FC<{
   );
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col" style={{ gap: 'min(10px, 2.5cqmin)' }}>
       <button
         onClick={() => setShowResults(!showResults)}
         className="w-full flex items-center justify-between p-3 bg-white/60 border border-brand-blue-primary/10 rounded-xl hover:bg-white/80 transition-all"
@@ -2160,119 +1981,252 @@ const StudentsTab: React.FC<{
         </span>
       </button>
 
-      {showResults &&
-        responses
-          .slice()
-          .sort((a, b) => {
-            // Match the row's display gate (below): an unscoreable response
-            // renders "—", so rank it with not-started (-1) rather than letting
-            // its phantom 0 sort it in among genuine low scores. Computed inline
-            // (no nested helper) so a closure isn't re-allocated per comparison.
-            const scoreA =
-              (a.status === 'completed' || a.status === 'in-progress') &&
-              canScoreResponse(a, questions)
-                ? getDisplayScore(a, questions, session)
-                : -1;
-            const scoreB =
-              (b.status === 'completed' || b.status === 'in-progress') &&
-              canScoreResponse(b, questions)
-                ? getDisplayScore(b, questions, session)
-                : -1;
-            return scoreB - scoreA;
-          })
-          .map((r) => {
-            const score = getDisplayScore(r, questions, session);
-            const earned = getEarnedPoints(r, questions, session);
-            // A finished/in-progress response is only shown with a numeric
-            // score once it can actually be graded — answer key loaded AND at
-            // least one answer maps to a loaded question. Otherwise we render a
-            // neutral placeholder instead of a misleading 0 (see
-            // `canScoreResponse`).
-            const scoreable =
-              (r.status === 'completed' || r.status === 'in-progress') &&
-              canScoreResponse(r, questions);
-            const warnings = r.tabSwitchWarnings ?? 0;
-            const resultsLockedOut = r.resultsLockedOut === true;
-            const resultsTabWarnings = r.resultsTabWarnings ?? 0;
+      {showResults && (
+        <div className="bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm overflow-hidden">
+          {responses
+            .slice()
+            .sort((a, b) => {
+              // Match the row's display gate (below): an unscoreable response
+              // renders "—", so rank it with not-started (-1) rather than letting
+              // its phantom 0 sort it in among genuine low scores. Computed inline
+              // (no nested helper) so a closure isn't re-allocated per comparison.
+              const scoreA =
+                (a.status === 'completed' || a.status === 'in-progress') &&
+                canScoreResponse(a, questions)
+                  ? getDisplayScore(a, questions, session)
+                  : -1;
+              const scoreB =
+                (b.status === 'completed' || b.status === 'in-progress') &&
+                canScoreResponse(b, questions)
+                  ? getDisplayScore(b, questions, session)
+                  : -1;
+              return scoreB - scoreA;
+            })
+            .map((r) => {
+              const score = getDisplayScore(r, questions, session);
+              const earned = getEarnedPoints(r, questions, session);
+              // A finished/in-progress response is only shown with a numeric
+              // score once it can actually be graded — answer key loaded AND at
+              // least one answer maps to a loaded question. Otherwise we render a
+              // neutral placeholder instead of a misleading 0 (see
+              // `canScoreResponse`).
+              const scoreable =
+                (r.status === 'completed' || r.status === 'in-progress') &&
+                canScoreResponse(r, questions);
+              const warnings = r.tabSwitchWarnings ?? 0;
+              const resultsLockedOut = r.resultsLockedOut === true;
+              const resultsTabWarnings = r.resultsTabWarnings ?? 0;
 
-            const displayName = resolveResponseDisplayName(
-              r,
-              pinToName,
-              byStudentUid
-            );
-            // Mono face is reserved for the literal `PIN <num>` fallback —
-            // anything else (real name, ClassLink name, or the "Student"
-            // SSO fallback) renders in the regular sans face. Mirrors the
-            // contract used by QuizLiveMonitor's StudentRow.
-            const isResolved = !r.pin || displayName !== `PIN ${r.pin}`;
-            const rowKey = getResponseDocKey(r);
-            const canDelete = Boolean(onDeleteResponse);
-            const canUnlockResults =
-              resultsLockedOut && Boolean(onUnlockResultsForStudent);
-            const isConfirming = confirmDeleteKey === rowKey;
-            const isDeleting = deletingKey === rowKey;
-            const isUnlocking = unlockingKey === rowKey;
-
-            if (isConfirming) {
-              return (
-                <div
-                  key={rowKey}
-                  className="flex items-center rounded-xl border bg-red-50 border-red-200 p-3 gap-2"
-                >
-                  <span
-                    className="flex-1 text-red-700 font-bold truncate"
-                    style={{ fontSize: 'min(12px, 4cqmin)' }}
-                  >
-                    Delete {displayName}&rsquo;s submission?
-                  </span>
-                  <button
-                    onClick={() => {
-                      setDeletingKey(rowKey);
-                      setConfirmDeleteKey(null);
-                      const pending = onDeleteResponse?.(rowKey);
-                      if (!pending) {
-                        setDeletingKey((k) => (k === rowKey ? null : k));
-                        return;
-                      }
-                      void pending
-                        .catch((err: unknown) => {
-                          console.error(
-                            '[QuizResults] failed to delete response',
-                            err
-                          );
-                          addToast(
-                            `Failed to delete ${displayName}\u2019s submission. Please try again.`,
-                            'error'
-                          );
-                        })
-                        .finally(() => {
-                          setDeletingKey((k) => (k === rowKey ? null : k));
-                        });
-                    }}
-                    disabled={isDeleting}
-                    className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-bold rounded-lg px-3 py-1"
-                    style={{ fontSize: 'min(11px, 3cqmin)' }}
-                  >
-                    Yes
-                  </button>
-                  <button
-                    onClick={() => setConfirmDeleteKey(null)}
-                    className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg px-3 py-1"
-                    style={{ fontSize: 'min(11px, 3cqmin)' }}
-                  >
-                    Cancel
-                  </button>
-                </div>
+              const displayName = resolveResponseDisplayName(
+                r,
+                pinToName,
+                byStudentUid
               );
-            }
+              // Mono face is reserved for the literal `PIN <num>` fallback —
+              // anything else (real name, ClassLink name, or the "Student"
+              // SSO fallback) renders in the regular sans face. Mirrors the
+              // contract used by QuizLiveMonitor's StudentRow.
+              const isResolved = !r.pin || displayName !== `PIN ${r.pin}`;
+              const rowKey = getResponseDocKey(r);
+              const canDelete = Boolean(onDeleteResponse);
+              const canUnlockResults =
+                resultsLockedOut && Boolean(onUnlockResultsForStudent);
+              const isConfirming = confirmDeleteKey === rowKey;
+              const isDeleting = deletingKey === rowKey;
+              const isUnlocking = unlockingKey === rowKey;
 
-            return (
-              <div
-                key={rowKey}
-                className="flex items-center bg-white border border-brand-blue-primary/10 rounded-xl p-3 shadow-sm hover:shadow-md transition-all"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+              if (isConfirming) {
+                return (
+                  <SessionRow
+                    key={rowKey}
+                    tintTone="danger"
+                    trailing={
+                      <>
+                        <button
+                          onClick={() => {
+                            setDeletingKey(rowKey);
+                            setConfirmDeleteKey(null);
+                            const pending = onDeleteResponse?.(rowKey);
+                            if (!pending) {
+                              setDeletingKey((k) => (k === rowKey ? null : k));
+                              return;
+                            }
+                            void pending
+                              .catch((err: unknown) => {
+                                console.error(
+                                  '[QuizResults] failed to delete response',
+                                  err
+                                );
+                                addToast(
+                                  `Failed to delete ${displayName}\u2019s submission. Please try again.`,
+                                  'error'
+                                );
+                              })
+                              .finally(() => {
+                                setDeletingKey((k) =>
+                                  k === rowKey ? null : k
+                                );
+                              });
+                          }}
+                          disabled={isDeleting}
+                          className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-bold rounded-lg px-3 py-1 shrink-0"
+                          style={{ fontSize: 'min(11px, 3cqmin)' }}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteKey(null)}
+                          className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg px-3 py-1 shrink-0"
+                          style={{ fontSize: 'min(11px, 3cqmin)' }}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    }
+                  >
+                    <span
+                      className="text-red-700 font-bold truncate"
+                      style={{ fontSize: 'min(12px, 4cqmin)' }}
+                    >
+                      Delete {displayName}&rsquo;s submission?
+                    </span>
+                  </SessionRow>
+                );
+              }
+
+              return (
+                <SessionRow
+                  key={rowKey}
+                  trailing={
+                    <>
+                      <div className="text-right shrink-0">
+                        {scoreable ? (
+                          <>
+                            <ScorePill
+                              score={gamified ? 0 : score}
+                              display="percent"
+                              gamified={gamified}
+                              points={earned}
+                            />
+                            <p
+                              className="text-brand-blue-primary/60 font-bold"
+                              style={{ fontSize: 'min(10px, 3cqmin)' }}
+                            >
+                              {earned}/{maxPoints} pts
+                              {r.status === 'in-progress' && ' (In Progress)'}
+                            </p>
+                            {/* Fresh responses now carry preSyncVersion: 0
+                             * so the server-side sync query
+                             * (`where('preSyncVersion', '==', 0)`) can find
+                             * untagged rows. The chip should only render once
+                             * a sync has actually tagged the response — i.e.
+                             * when the value is greater than zero. */}
+                            {typeof r.preSyncVersion === 'number' &&
+                              r.preSyncVersion > 0 && (
+                                <span
+                                  className="mt-0.5 inline-flex"
+                                  title="This response was started on an earlier version of the quiz. The teacher synced new content after the student began."
+                                >
+                                  <SessionBadge
+                                    tone="warn"
+                                    label={`Pre-sync v${r.preSyncVersion}`}
+                                  />
+                                </span>
+                              )}
+                          </>
+                        ) : r.status === 'completed' ||
+                          r.status === 'in-progress' ? (
+                          <p
+                            className="font-black text-brand-gray-primary"
+                            style={{ fontSize: 'min(15px, 5cqmin)' }}
+                            title="Scoring unavailable — the quiz answer key hasn't loaded yet, or this submission doesn't match the current quiz version."
+                          >
+                            &mdash;
+                          </p>
+                        ) : (
+                          <div
+                            className="bg-brand-gray-lightest text-brand-gray-primary font-black uppercase rounded px-2 py-1 tracking-tighter"
+                            style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+                          >
+                            {r.status}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Unlock-results action — only when this student is
+                        currently locked out of viewing published results.
+                        Decrements `resultsTabWarnings` by 1 and clears the
+                        flag; one more tab-switch re-locks them (zero grace
+                        warnings post-unlock, matching QuizLiveMonitor's
+                        behavior). */}
+                      {canUnlockResults && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleUnlockResultsForStudent(
+                              rowKey,
+                              displayName
+                            )
+                          }
+                          disabled={isUnlocking}
+                          title="Decrement warnings by 1 and reopen the results view for this student"
+                          aria-label={`Unlock results for ${displayName}`}
+                          className="shrink-0 bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-slate-900 font-bold rounded-lg px-3 py-1.5 transition-colors flex items-center gap-1"
+                          style={{ fontSize: 'min(11px, 3cqmin)' }}
+                        >
+                          {isUnlocking ? (
+                            <Loader2
+                              className="animate-spin"
+                              style={{
+                                width: 'min(14px, 4cqmin)',
+                                height: 'min(14px, 4cqmin)',
+                              }}
+                            />
+                          ) : (
+                            <Lock
+                              style={{
+                                width: 'min(14px, 4cqmin)',
+                                height: 'min(14px, 4cqmin)',
+                              }}
+                            />
+                          )}
+                          Unlock results
+                        </button>
+                      )}
+
+                      {canDelete && (
+                        <button
+                          onClick={() => setConfirmDeleteKey(rowKey)}
+                          disabled={isDeleting}
+                          title="Delete this submission"
+                          aria-label={`Delete ${displayName}'s submission`}
+                          className="shrink-0 p-1.5 rounded-lg text-brand-red-primary/50 hover:text-brand-red-primary hover:bg-brand-red-primary/10 disabled:opacity-30 transition-colors"
+                        >
+                          {isDeleting ? (
+                            <Loader2
+                              className="animate-spin"
+                              style={{
+                                width: 'min(14px, 4cqmin)',
+                                height: 'min(14px, 4cqmin)',
+                              }}
+                            />
+                          ) : (
+                            <Trash2
+                              style={{
+                                width: 'min(14px, 4cqmin)',
+                                height: 'min(14px, 4cqmin)',
+                              }}
+                            />
+                          )}
+                        </button>
+                      )}
+                    </>
+                  }
+                >
+                  <div
+                    className="flex items-center"
+                    style={{ gap: 'min(8px, 2cqmin)' }}
+                  >
                     <p
                       className={`font-bold text-brand-blue-dark truncate ${isResolved ? '' : 'font-mono'}`}
                       style={{ fontSize: 'min(13px, 4.5cqmin)' }}
@@ -2281,166 +2235,43 @@ const StudentsTab: React.FC<{
                     </p>
                     {tabWarningsEnabled && warnings > 0 && (
                       <span
-                        className="flex items-center gap-1 bg-red-100 text-red-700 px-1.5 py-0.5 rounded uppercase font-black shrink-0"
-                        style={{ fontSize: 'min(10px, 3cqmin)' }}
                         title={`${warnings} Tab Switch Warning(s)`}
+                        className="shrink-0"
                       >
-                        <AlertTriangle
-                          style={{
-                            width: 'min(10px, 3cqmin)',
-                            height: 'min(10px, 3cqmin)',
-                          }}
+                        <SessionBadge
+                          tone="danger"
+                          icon={AlertTriangle}
+                          label={`${warnings}`}
                         />
-                        {warnings}
                       </span>
                     )}
                     {/* Results-view lockout indicator. Student crossed the
-                        `protection.tabWarningThreshold` while viewing
-                        published results — the student app redirected
-                        them out and wrote `resultsLockedOut: true`. Sits
-                        next to the in-quiz tab-switch warning badge above
-                        because both come from the same "nav warning"
-                        family but track different surfaces (live attempt
-                        vs. published results). */}
+                      `protection.tabWarningThreshold` while viewing
+                      published results — the student app redirected
+                      them out and wrote `resultsLockedOut: true`. Sits
+                      next to the in-quiz tab-switch warning badge above
+                      because both come from the same "nav warning"
+                      family but track different surfaces (live attempt
+                      vs. published results). */}
                     {resultsLockedOut && (
                       <span
                         aria-label="Results locked"
-                        className="flex items-center gap-1 bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded uppercase font-black shrink-0"
-                        style={{ fontSize: 'min(10px, 3cqmin)' }}
                         title={`Results locked after ${resultsTabWarnings} of ${resultsTabWarningThreshold} tab-switch warnings`}
+                        className="shrink-0"
                       >
-                        <Lock
-                          style={{
-                            width: 'min(10px, 3cqmin)',
-                            height: 'min(10px, 3cqmin)',
-                          }}
+                        <SessionBadge
+                          tone="warn"
+                          icon={Lock}
+                          label={`Locked (${resultsTabWarnings}/${resultsTabWarningThreshold})`}
                         />
-                        Locked ({resultsTabWarnings}/
-                        {resultsTabWarningThreshold})
                       </span>
                     )}
                   </div>
-                </div>
-
-                <div className="text-right shrink-0 ml-4 pl-4 border-l border-brand-blue-primary/5">
-                  {scoreable ? (
-                    <>
-                      <p
-                        className={`font-black ${gamified ? 'text-brand-blue-dark' : score >= 80 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-brand-red-primary'}`}
-                        style={{ fontSize: 'min(15px, 5cqmin)' }}
-                      >
-                        {score}
-                        {suffix}
-                      </p>
-                      <p
-                        className="text-brand-blue-primary/60 font-bold"
-                        style={{ fontSize: 'min(10px, 3cqmin)' }}
-                      >
-                        {earned}/{maxPoints} pts
-                        {r.status === 'in-progress' && ' (In Progress)'}
-                      </p>
-                      {/* Fresh responses now carry preSyncVersion: 0
-                       * so the server-side sync query
-                       * (`where('preSyncVersion', '==', 0)`) can find
-                       * untagged rows. The chip should only render once
-                       * a sync has actually tagged the response — i.e.
-                       * when the value is greater than zero. */}
-                      {typeof r.preSyncVersion === 'number' &&
-                        r.preSyncVersion > 0 && (
-                          <span
-                            className="mt-0.5 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-wider text-amber-700"
-                            style={{ fontSize: 'min(8px, 2.2cqmin)' }}
-                            title="This response was started on an earlier version of the quiz. The teacher synced new content after the student began."
-                          >
-                            Pre-sync v{r.preSyncVersion}
-                          </span>
-                        )}
-                    </>
-                  ) : r.status === 'completed' || r.status === 'in-progress' ? (
-                    <p
-                      className="font-black text-brand-gray-primary"
-                      style={{ fontSize: 'min(15px, 5cqmin)' }}
-                      title="Scoring unavailable — the quiz answer key hasn't loaded yet, or this submission doesn't match the current quiz version."
-                    >
-                      &mdash;
-                    </p>
-                  ) : (
-                    <div
-                      className="bg-brand-gray-lightest text-brand-gray-primary font-black uppercase rounded px-2 py-1 tracking-tighter"
-                      style={{ fontSize: 'min(9px, 2.5cqmin)' }}
-                    >
-                      {r.status}
-                    </div>
-                  )}
-                </div>
-
-                {/* Unlock-results action — only when this student is
-                    currently locked out of viewing published results.
-                    Decrements `resultsTabWarnings` by 1 and clears the
-                    flag; one more tab-switch re-locks them (zero grace
-                    warnings post-unlock, matching QuizLiveMonitor's
-                    behavior). */}
-                {canUnlockResults && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void handleUnlockResultsForStudent(rowKey, displayName)
-                    }
-                    disabled={isUnlocking}
-                    title="Decrement warnings by 1 and reopen the results view for this student"
-                    aria-label={`Unlock results for ${displayName}`}
-                    className="ml-2 shrink-0 bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-slate-900 font-bold rounded-lg px-3 py-1.5 transition-colors flex items-center gap-1"
-                    style={{ fontSize: 'min(11px, 3cqmin)' }}
-                  >
-                    {isUnlocking ? (
-                      <Loader2
-                        className="animate-spin"
-                        style={{
-                          width: 'min(14px, 4cqmin)',
-                          height: 'min(14px, 4cqmin)',
-                        }}
-                      />
-                    ) : (
-                      <Lock
-                        style={{
-                          width: 'min(14px, 4cqmin)',
-                          height: 'min(14px, 4cqmin)',
-                        }}
-                      />
-                    )}
-                    Unlock results
-                  </button>
-                )}
-
-                {canDelete && (
-                  <button
-                    onClick={() => setConfirmDeleteKey(rowKey)}
-                    disabled={isDeleting}
-                    title="Delete this submission"
-                    aria-label={`Delete ${displayName}'s submission`}
-                    className="ml-2 shrink-0 p-1.5 rounded-lg text-brand-red-primary/50 hover:text-brand-red-primary hover:bg-brand-red-primary/10 disabled:opacity-30 transition-colors"
-                  >
-                    {isDeleting ? (
-                      <Loader2
-                        className="animate-spin"
-                        style={{
-                          width: 'min(14px, 4cqmin)',
-                          height: 'min(14px, 4cqmin)',
-                        }}
-                      />
-                    ) : (
-                      <Trash2
-                        style={{
-                          width: 'min(14px, 4cqmin)',
-                          height: 'min(14px, 4cqmin)',
-                        }}
-                      />
-                    )}
-                  </button>
-                )}
-              </div>
-            );
-          })}
+                </SessionRow>
+              );
+            })}
+        </div>
+      )}
     </div>
   );
 };

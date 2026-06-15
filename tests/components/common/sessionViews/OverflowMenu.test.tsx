@@ -1,0 +1,78 @@
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { OverflowMenu } from '@/components/common/sessionViews/OverflowMenu';
+
+describe('OverflowMenu', () => {
+  it('opens on click and shows items', () => {
+    render(<OverflowMenu items={[{ label: 'Export', onClick: vi.fn() }]} />);
+    expect(screen.queryByRole('menu')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    expect(
+      screen.getByRole('menuitem', { name: 'Export' })
+    ).toBeInTheDocument();
+  });
+
+  it('fires the item onClick and closes', () => {
+    const onClick = vi.fn();
+    render(<OverflowMenu items={[{ label: 'Export', onClick }]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Export' }));
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('closes on Tab and returns focus to the trigger', () => {
+    render(<OverflowMenu items={[{ label: 'Export', onClick: vi.fn() }]} />);
+    const trigger = screen.getByRole('button', { name: 'More actions' });
+    fireEvent.click(trigger);
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Tab' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('closes on Escape and returns focus to the trigger', () => {
+    render(<OverflowMenu items={[{ label: 'Export', onClick: vi.fn() }]} />);
+    const trigger = screen.getByRole('button', { name: 'More actions' });
+    fireEvent.click(trigger);
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('focuses the first item on open and navigates with Arrow keys', () => {
+    render(
+      <OverflowMenu
+        items={[
+          { label: 'A', onClick: vi.fn() },
+          { label: 'B', onClick: vi.fn() },
+        ]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getByRole('menuitem', { name: 'A' })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowDown' });
+    expect(screen.getByRole('menuitem', { name: 'B' })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowUp' });
+    expect(screen.getByRole('menuitem', { name: 'A' })).toHaveFocus();
+  });
+
+  it('renders a spinner for a loading item', () => {
+    render(
+      <OverflowMenu
+        items={[{ label: 'Export', loading: true, onClick: vi.fn() }]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    // Menu is portalled to document.body, so query the document, not container.
+    expect(document.querySelector('.animate-spin')).not.toBeNull();
+    // A loading item is aria-disabled (stays focusable/announced) and its
+    // onClick is guarded so it can't double-fire.
+    expect(screen.getByRole('menuitem', { name: 'Export' })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+  });
+});

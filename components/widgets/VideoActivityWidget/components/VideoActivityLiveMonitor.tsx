@@ -12,11 +12,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   AlertTriangle,
-  ArrowLeft,
   CheckCircle2,
   Circle,
   Clock,
-  Loader2,
   Lock,
   Pause,
   Play,
@@ -39,6 +37,14 @@ import {
 } from '@/hooks/useAssignmentPseudonyms';
 import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import {
+  SessionViewHeader,
+  StatTile,
+  SessionBadge,
+  ScorePill,
+  SessionRow,
+  ActionButton,
+} from '@/components/common/sessionViews';
 import { logError } from '@/utils/logError';
 
 interface VideoActivityLiveMonitorProps {
@@ -160,250 +166,145 @@ const StudentRow: React.FC<StudentRowProps> = ({
     });
   };
 
-  return (
-    <div
-      className="flex items-center bg-white border border-slate-100 rounded-xl"
-      style={{
-        padding: 'min(10px, 2.5cqmin)',
-        gap: 'min(10px, 2.5cqmin)',
-      }}
-    >
-      <div className="flex-1 min-w-0">
-        <div
-          className="flex items-center"
-          style={{ gap: 'min(6px, 1.5cqmin)' }}
-        >
-          <p
-            className="font-bold text-slate-800 truncate"
-            style={{ fontSize: 'min(13px, 4cqmin)' }}
-          >
-            {displayName}
-          </p>
-          {response.classPeriod && (
-            <span
-              className="bg-brand-blue-lighter text-brand-blue-primary font-bold rounded-md shrink-0"
-              style={{
-                fontSize: 'min(9px, 2.5cqmin)',
-                padding: 'min(1px, 0.2cqmin) min(5px, 1.2cqmin)',
-              }}
-            >
-              {response.classPeriod}
-            </span>
-          )}
-          {completed ? (
-            <span
-              className="bg-emerald-50 text-emerald-700 font-bold rounded-md shrink-0"
-              style={{
-                fontSize: 'min(9px, 2.5cqmin)',
-                padding: 'min(1px, 0.2cqmin) min(5px, 1.2cqmin)',
-              }}
-            >
-              Done
-            </span>
-          ) : (
-            <span
-              className="bg-amber-50 text-amber-700 font-bold rounded-md shrink-0"
-              style={{
-                fontSize: 'min(9px, 2.5cqmin)',
-                padding: 'min(1px, 0.2cqmin) min(5px, 1.2cqmin)',
-              }}
-            >
-              In progress
-            </span>
-          )}
-          {showTabWarnings && warnings > 0 && (
-            <span
-              className="flex items-center gap-0.5 bg-red-100 text-red-700 px-1.5 py-0.5 rounded uppercase font-black shrink-0"
-              style={{ fontSize: 'min(9px, 2.5cqmin)' }}
-              title={`${warnings} Tab Switch Warning(s)`}
-            >
-              <AlertTriangle
-                style={{
-                  width: 'min(12px, 3cqmin)',
-                  height: 'min(12px, 3cqmin)',
-                }}
-              />
-              {warnings}
-            </span>
-          )}
-          {(() => {
-            if (!onUnlock) return null;
-            const isAutoSubmittedByWarnings =
-              completed && warnings >= 3 && !response.unlocked;
-            const completedCount = response.completedAttempts ?? 0;
-            const hitAttemptCap =
-              typeof attemptLimit === 'number' &&
-              attemptLimit > 0 &&
-              completedCount >= attemptLimit &&
-              !response.unlocked;
-            const isLocked = isAutoSubmittedByWarnings || hitAttemptCap;
-            if (isLocked) {
-              return (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onUnlock(displayName);
-                  }}
-                  className="flex items-center gap-0.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded uppercase font-black shrink-0 transition-colors"
-                  style={{
-                    fontSize: 'min(9px, 2.5cqmin)',
-                    padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
-                  }}
-                  title={
-                    isAutoSubmittedByWarnings
-                      ? 'Auto-submitted from tab-switch warnings — click to allow resume'
-                      : 'Attempt limit reached — click to allow resume'
-                  }
-                  aria-label={`Unlock ${displayName}'s attempt`}
-                >
-                  <Lock
-                    style={{
-                      width: 'min(12px, 3cqmin)',
-                      height: 'min(12px, 3cqmin)',
-                    }}
-                  />
-                  Locked
-                </button>
-              );
-            }
-            if (response.unlocked && !completed) {
-              return (
-                <span
-                  className="flex items-center gap-0.5 bg-emerald-100 text-emerald-800 rounded uppercase font-black shrink-0"
-                  style={{
-                    fontSize: 'min(9px, 2.5cqmin)',
-                    padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
-                  }}
-                  title="Unlocked — one more tab-switch will finalize the attempt"
-                >
-                  <Unlock
-                    style={{
-                      width: 'min(12px, 3cqmin)',
-                      height: 'min(12px, 3cqmin)',
-                    }}
-                  />
-                  Resumed
-                </span>
-              );
-            }
-            return null;
-          })()}
-        </div>
-        <p
-          className="text-slate-400"
-          style={{
-            fontSize: 'min(10px, 3cqmin)',
-            marginTop: 'min(2px, 0.5cqmin)',
+  // Resolve the lock/resume badge state once so the row content stays flat.
+  let lockBadge: React.ReactNode = null;
+  if (onUnlock) {
+    const isAutoSubmittedByWarnings =
+      completed && warnings >= 3 && !response.unlocked;
+    const completedCount = response.completedAttempts ?? 0;
+    const hitAttemptCap =
+      typeof attemptLimit === 'number' &&
+      attemptLimit > 0 &&
+      completedCount >= attemptLimit &&
+      !response.unlocked;
+    const isLocked = isAutoSubmittedByWarnings || hitAttemptCap;
+    if (isLocked) {
+      lockBadge = (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onUnlock(displayName);
           }}
-        >
-          {response.pin ? `PIN ${response.pin} · ` : null}
-          {answeredCount}/{questions.length} answered · last{' '}
-          {formatTime(latestAnsweredAt)}
-        </p>
-      </div>
-
-      <div
-        className="flex items-center shrink-0 flex-wrap justify-end"
-        style={{ gap: 'min(4px, 1cqmin)', maxWidth: '50%' }}
-      >
-        {questions.map((q) => {
-          const submitted = answerByQid.get(q.id);
-          if (submitted === undefined) {
-            return (
-              <Circle
-                key={q.id}
-                className="text-slate-300"
-                style={{
-                  width: 'min(14px, 3.5cqmin)',
-                  height: 'min(14px, 3.5cqmin)',
-                }}
-              />
-            );
+          className="inline-flex shrink-0 rounded-full transition-opacity hover:opacity-80"
+          title={
+            isAutoSubmittedByWarnings
+              ? 'Auto-submitted from tab-switch warnings — click to allow resume'
+              : 'Attempt limit reached — click to allow resume'
           }
-          const isCorrect = submitted === correctAnswerById.get(q.id);
-          return isCorrect ? (
-            <CheckCircle2
+          aria-label={`Unlock ${displayName}'s attempt`}
+        >
+          <SessionBadge tone="warn" label="Locked" icon={Lock} />
+        </button>
+      );
+    } else if (response.unlocked && !completed) {
+      lockBadge = (
+        <span
+          title="Unlocked — one more tab-switch will finalize the attempt"
+          className="inline-flex shrink-0"
+        >
+          <SessionBadge tone="success" label="Resumed" icon={Unlock} />
+        </span>
+      );
+    }
+  }
+
+  const trailing = (
+    <div
+      className="flex items-center flex-wrap justify-end"
+      style={{ gap: 'min(4px, 1cqmin)', maxWidth: 'min(220px, 50cqmin)' }}
+    >
+      {questions.map((q) => {
+        const submitted = answerByQid.get(q.id);
+        if (submitted === undefined) {
+          return (
+            <Circle
               key={q.id}
-              className="text-emerald-500"
-              style={{
-                width: 'min(14px, 3.5cqmin)',
-                height: 'min(14px, 3.5cqmin)',
-              }}
-            />
-          ) : (
-            <XCircle
-              key={q.id}
-              className="text-brand-red-primary"
+              className="text-slate-300"
               style={{
                 width: 'min(14px, 3.5cqmin)',
                 height: 'min(14px, 3.5cqmin)',
               }}
             />
           );
-        })}
+        }
+        const isCorrect = submitted === correctAnswerById.get(q.id);
+        return isCorrect ? (
+          <CheckCircle2
+            key={q.id}
+            className="text-emerald-500"
+            style={{
+              width: 'min(14px, 3.5cqmin)',
+              height: 'min(14px, 3.5cqmin)',
+            }}
+          />
+        ) : (
+          <XCircle
+            key={q.id}
+            className="text-brand-red-primary"
+            style={{
+              width: 'min(14px, 3.5cqmin)',
+              height: 'min(14px, 3.5cqmin)',
+            }}
+          />
+        );
+      })}
+      {score === null ? (
         <span
-          className={`font-black ml-1 ${
-            score === null
-              ? 'text-slate-400'
-              : score >= 70
-                ? 'text-emerald-600'
-                : score >= 40
-                  ? 'text-amber-600'
-                  : 'text-brand-red-primary'
-          }`}
+          className="font-black tabular-nums shrink-0 text-slate-400"
           style={{ fontSize: 'min(14px, 4.5cqmin)' }}
         >
-          {score === null ? '—' : `${score}%`}
+          —
         </span>
-      </div>
+      ) : (
+        <ScorePill score={score} display="percent" />
+      )}
     </div>
   );
-};
 
-/* ─── KPI tile ──────────────────────────────────────────────────────────── */
-
-interface StatTileProps {
-  label: string;
-  value: number | string;
-  icon: React.ReactNode;
-  color: 'blue' | 'amber' | 'green';
-}
-
-const StatTile: React.FC<StatTileProps> = ({ label, value, icon, color }) => {
-  const colorClasses =
-    color === 'blue'
-      ? 'text-brand-blue-primary'
-      : color === 'amber'
-        ? 'text-amber-600'
-        : 'text-emerald-600';
   return (
-    <div
-      className="bg-white border border-slate-100 rounded-xl text-center"
-      style={{ padding: 'min(10px, 2.5cqmin)' }}
+    <SessionRow
+      dot={{ tone: completed ? 'success' : 'warn' }}
+      trailing={trailing}
     >
-      <div
-        className={`flex items-center justify-center ${colorClasses}`}
-        style={{
-          gap: 'min(4px, 1cqmin)',
-          marginBottom: 'min(4px, 1cqmin)',
-        }}
-      >
-        {icon}
-        <span
-          className="font-bold uppercase tracking-wider"
-          style={{ fontSize: 'min(10px, 3cqmin)' }}
+      <div className="flex items-center" style={{ gap: 'min(6px, 1.5cqmin)' }}>
+        <p
+          className="font-bold text-slate-800 truncate"
+          style={{ fontSize: 'min(13px, 4cqmin)' }}
         >
-          {label}
-        </span>
+          {displayName}
+        </p>
+        {response.classPeriod && (
+          <SessionBadge tone="info" label={response.classPeriod} />
+        )}
+        {completed ? (
+          <SessionBadge tone="success" label="Done" />
+        ) : (
+          <SessionBadge tone="warn" label="In progress" />
+        )}
+        {showTabWarnings && warnings > 0 && (
+          <span title={`${warnings} Tab Switch Warning(s)`}>
+            <SessionBadge
+              tone="danger"
+              label={String(warnings)}
+              icon={AlertTriangle}
+            />
+          </span>
+        )}
+        {lockBadge}
       </div>
       <p
-        className={`font-black ${colorClasses}`}
-        style={{ fontSize: 'min(22px, 7cqmin)' }}
+        className="text-slate-400"
+        style={{
+          fontSize: 'min(10px, 3cqmin)',
+          marginTop: 'min(2px, 0.5cqmin)',
+        }}
       >
-        {value}
+        {response.pin ? `PIN ${response.pin} · ` : null}
+        {answeredCount}/{questions.length} answered · last{' '}
+        {formatTime(latestAnsweredAt)}
       </p>
-    </div>
+    </SessionRow>
   );
 };
 
@@ -567,152 +468,38 @@ export const VideoActivityLiveMonitor: React.FC<
   }, [responses]);
 
   return (
-    <div className="flex flex-col h-full font-sans bg-brand-blue-lighter/10">
+    <div className="flex flex-col h-full font-sans bg-slate-50">
       {/* ─── Header strip ───────────────────────────────────────────────── */}
-      <div
-        className="border-b border-brand-blue-primary/10 bg-white"
-        style={{ padding: 'min(12px, 2.5cqmin) min(16px, 4cqmin)' }}
-      >
-        <div className="flex items-center justify-between">
-          <div
-            className="flex items-center min-w-0"
-            style={{ gap: 'min(8px, 2cqmin)' }}
-          >
-            {onBack && (
-              <button
-                onClick={onBack}
-                className="flex items-center justify-center rounded-lg text-brand-blue-dark/70 hover:text-brand-blue-dark hover:bg-brand-blue-lighter/30 transition-colors shrink-0"
-                style={{
-                  width: 'min(28px, 7cqmin)',
-                  height: 'min(28px, 7cqmin)',
-                }}
-                title="Back to assignments"
-                aria-label="Back to assignments"
-              >
-                <ArrowLeft
-                  style={{
-                    width: 'min(16px, 4cqmin)',
-                    height: 'min(16px, 4cqmin)',
-                  }}
-                />
-              </button>
-            )}
-            <div
-              className={`rounded-full shrink-0 ${
-                isLive
-                  ? 'bg-brand-red-primary animate-pulse shadow-[0_0_8px_rgba(173,33,34,0.5)]'
-                  : 'bg-amber-500'
-              }`}
-              style={{
-                width: 'min(10px, 2.5cqmin)',
-                height: 'min(10px, 2.5cqmin)',
-              }}
-            />
-            <div className="flex flex-col min-w-0">
-              <div
-                className={`font-black leading-none uppercase tracking-tight ${
-                  isLive ? 'text-brand-red-primary' : 'text-amber-600'
-                }`}
-                style={{ fontSize: 'min(12px, 4cqmin)' }}
-              >
-                {isLive ? 'Live' : 'Paused'}
-              </div>
-              <span
-                className="text-brand-blue-dark font-bold truncate"
-                style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-              >
-                {session.assignmentName}
-              </span>
-            </div>
-          </div>
-          <div
-            className="flex items-center shrink-0"
-            style={{ gap: 'min(6px, 1.5cqmin)' }}
-          >
+      <SessionViewHeader
+        onBack={onBack}
+        status={isLive ? 'live' : 'paused'}
+        title={session.assignmentName}
+        subtitle={`${session.activityTitle} · ${questions.length} question${
+          questions.length === 1 ? '' : 's'
+        }`}
+        actions={
+          <>
             {(onPause ?? onResume) && (
-              <button
+              <ActionButton
+                variant="secondary"
+                label={isLive ? 'Pause' : 'Resume'}
+                icon={isLive ? Pause : Play}
                 onClick={() => void handleTogglePause()}
                 disabled={toggling}
-                className="flex items-center bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-black rounded-xl transition-all shadow-md active:scale-95"
-                style={{
-                  gap: 'min(6px, 1.5cqmin)',
-                  padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                  fontSize: 'min(11px, 3.5cqmin)',
-                }}
-                title={
-                  isLive
-                    ? 'Pause — students see a paused screen'
-                    : 'Resume — students can rejoin'
-                }
-              >
-                {toggling ? (
-                  <Loader2
-                    className="animate-spin"
-                    style={{
-                      width: 'min(14px, 3.5cqmin)',
-                      height: 'min(14px, 3.5cqmin)',
-                    }}
-                  />
-                ) : isLive ? (
-                  <Pause
-                    style={{
-                      width: 'min(14px, 3.5cqmin)',
-                      height: 'min(14px, 3.5cqmin)',
-                    }}
-                  />
-                ) : (
-                  <Play
-                    style={{
-                      width: 'min(14px, 3.5cqmin)',
-                      height: 'min(14px, 3.5cqmin)',
-                    }}
-                  />
-                )}
-                {isLive ? 'PAUSE' : 'RESUME'}
-              </button>
+                loading={toggling}
+              />
             )}
-            <button
+            <ActionButton
+              variant="danger"
+              label="End"
+              icon={Square}
               onClick={() => void handleEnd()}
               disabled={ending}
-              className="flex items-center bg-brand-red-primary hover:bg-brand-red-dark disabled:opacity-50 text-white font-black rounded-xl transition-all shadow-md active:scale-95"
-              style={{
-                gap: 'min(6px, 1.5cqmin)',
-                padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                fontSize: 'min(11px, 3.5cqmin)',
-              }}
-              title="End the assignment. Responses are preserved."
-            >
-              {ending ? (
-                <Loader2
-                  className="animate-spin"
-                  style={{
-                    width: 'min(14px, 3.5cqmin)',
-                    height: 'min(14px, 3.5cqmin)',
-                  }}
-                />
-              ) : (
-                <Square
-                  style={{
-                    width: 'min(14px, 3.5cqmin)',
-                    height: 'min(14px, 3.5cqmin)',
-                  }}
-                />
-              )}
-              END
-            </button>
-          </div>
-        </div>
-        <p
-          className="text-slate-500 truncate"
-          style={{
-            fontSize: 'min(10px, 3cqmin)',
-            marginTop: 'min(4px, 1cqmin)',
-          }}
-        >
-          {session.activityTitle} · {questions.length} question
-          {questions.length === 1 ? '' : 's'}
-        </p>
-      </div>
+              loading={ending}
+            />
+          </>
+        }
+      />
 
       {/* ─── Body ───────────────────────────────────────────────────────── */}
       <div
@@ -733,7 +520,7 @@ export const VideoActivityLiveMonitor: React.FC<
                   }}
                 />
               }
-              color="blue"
+              tone="blue"
             />
             <StatTile
               label="Active"
@@ -746,7 +533,7 @@ export const VideoActivityLiveMonitor: React.FC<
                   }}
                 />
               }
-              color="amber"
+              tone="amber"
             />
             <StatTile
               label="Finished"
@@ -759,7 +546,7 @@ export const VideoActivityLiveMonitor: React.FC<
                   }}
                 />
               }
-              color="green"
+              tone="green"
             />
           </div>
 
@@ -817,10 +604,7 @@ export const VideoActivityLiveMonitor: React.FC<
                 subtitle="Share the assignment link from the In Progress tab."
               />
             ) : (
-              <div
-                className="flex flex-col"
-                style={{ gap: 'min(6px, 1.5cqmin)' }}
-              >
+              <div className="flex flex-col rounded-2xl bg-white/50 border border-slate-200/60 backdrop-blur-sm overflow-hidden">
                 {sortedResponses.map((r) => {
                   const rowKey = r._responseKey ?? r.studentUid;
                   return (
