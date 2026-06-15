@@ -239,6 +239,20 @@ describe('useSubstituteShares — error handling', () => {
 
     expect(result.current.error).toBe('This board could not be loaded.');
   });
+
+  it('logs the canonical building ID (not the raw input) in the error context', () => {
+    renderHook(() => useSubstituteShares('orono-high-school'));
+    act(() => {
+      lastListener().error({ code: 'permission-denied' });
+    });
+
+    // canonicalBuildingId('orono-high-school') === 'high'
+    expect(mockLogError).toHaveBeenCalledWith(
+      'useSubstituteShares.snapshot',
+      { code: 'permission-denied' },
+      { buildingId: 'high' }
+    );
+  });
 });
 
 describe('useSubstituteShares — building change & cleanup', () => {
