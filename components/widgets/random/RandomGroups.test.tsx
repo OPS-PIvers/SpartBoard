@@ -39,12 +39,12 @@ const makeGroups = (data: Record<string, string[]>): RandomGroup[] =>
 
 describe('GroupDropZone — rename input', () => {
   const groups = makeGroups({ g1: ['Alice', 'Bob'], g2: ['Carol'] });
-  const sharedGroups = [{ id: 'g1', name: 'Team Alpha', color: null }];
+  const sharedGroups = [{ id: 'g1', name: 'Team Alpha' }];
 
-  let onRenameGroup: ReturnType<typeof vi.fn>;
+  let onRenameGroup: (groupId: string, newName: string) => void;
 
   beforeEach(() => {
-    onRenameGroup = vi.fn();
+    onRenameGroup = vi.fn() as (groupId: string, newName: string) => void;
   });
 
   function renderEditable(extraProps = {}) {
