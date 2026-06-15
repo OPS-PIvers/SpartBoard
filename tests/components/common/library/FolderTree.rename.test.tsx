@@ -35,8 +35,8 @@ const makeFolder = (overrides: Partial<LibraryFolder> = {}): LibraryFolder => ({
   parentId: null,
   ownerId: 'user-1',
   widget: 'quiz',
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
   ...overrides,
 });
 
