@@ -10,7 +10,7 @@
  * Intended slot: `LibraryShellProps.filterSidebarSlot`.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { FolderPlus, Inbox, X, AlertTriangle } from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
 import type { LibraryFolder, LibraryFolderWidget } from '@/types';
@@ -364,19 +364,41 @@ const NewFolderInput: React.FC<{
   onCommit: () => void;
   onCancel: () => void;
 }> = ({ value, onChange, onCommit, onCancel }) => {
+  // Set to true synchronously before calling onCancel() so that the
+  // synchronous blur event fired by unmounting the focused input (which
+  // carries a stale onBlur closure still holding the typed text) does not
+  // accidentally call onCommit with the cancelled value. Same pattern as
+  // DraggableWindow's isCancellingTitleRef (Bug #1965).
+  const isCancellingRef = useRef(false);
+
   return (
     <input
       autoFocus
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      onBlur={onCommit}
+      onBlur={(e) => {
+        // Pressing Enter commits and unmounts this input; the browser then
+        // fires a synchronous blur during DOM removal. Bail out if the input
+        // is no longer connected so onCommit() can't fire a second time and
+        // create a duplicate folder.
+        if (!e.currentTarget?.isConnected) return;
+        if (isCancellingRef.current) {
+          isCancellingRef.current = false;
+          return;
+        }
+        onCommit();
+      }}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
           onCommit();
         } else if (e.key === 'Escape') {
           e.preventDefault();
+          // Set the cancellation flag BEFORE calling onCancel() — onCancel()
+          // unmounts this input, which synchronously fires blur with the stale
+          // onBlur closure. The flag is read in the onBlur handler to skip the write.
+          isCancellingRef.current = true;
           onCancel();
         }
       }}
