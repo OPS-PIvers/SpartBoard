@@ -137,9 +137,6 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
 
   useEffect(() => {
     if (editingName) {
-      // A new rename session is starting — clear any leftover cancel flag from
-      // a previous Escape press so commit() is not suppressed this session.
-      cancelledRef.current = false;
       inputRef.current?.focus();
       inputRef.current?.select();
     }
@@ -203,6 +200,17 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
     cancelledRef.current = true;
     setEditingName(false);
     setDraft(groupName);
+  };
+
+  // Open a rename session. Clearing cancelledRef here — at the only two entry
+  // points (pencil button + double-click) — replaces the old reset-in-effect:
+  // resetting a ref belongs in the event handler, not a DOM-sync effect (see
+  // CLAUDE.md). It also covers the rare path where commit() never fires (no
+  // blur at all), which would otherwise leave the flag stuck true and suppress
+  // the next session's commit.
+  const startRename = () => {
+    cancelledRef.current = false;
+    setEditingName(true);
   };
 
   return (
@@ -272,9 +280,7 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
                 ? `${groupName} (click pencil or double-click to rename)`
                 : groupName
             }
-            onDoubleClick={
-              renameEnabled ? () => setEditingName(true) : undefined
-            }
+            onDoubleClick={renameEnabled ? startRename : undefined}
           >
             {groupName}
           </span>
@@ -285,7 +291,7 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
             className="shrink-0 text-white/70 hover:text-white transition-colors rounded"
             onClick={(e) => {
               e.stopPropagation();
-              setEditingName(true);
+              startRename();
             }}
             onPointerDown={(e) => e.stopPropagation()}
             aria-label={`Rename ${groupName}`}
