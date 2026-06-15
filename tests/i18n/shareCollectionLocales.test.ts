@@ -68,7 +68,7 @@ const REQUIRED_KEYS = [
  * English source (e.g. interpolation-only strings). All 10 keys that were
  * confirmed untranslated on 2026-06-15 are listed here.
  */
-const MUST_DIFFER_FROM_EN_KEYS = [
+const MUST_DIFFER_FROM_EN_KEYS: readonly (keyof ShareCollectionSection)[] = [
   'title',
   'mode',
   'copyMode',
@@ -79,14 +79,18 @@ const MUST_DIFFER_FROM_EN_KEYS = [
   'createLink',
   'creating',
   'copy',
-] as const;
+];
 
-type LocaleFile = typeof en;
 type ShareCollectionSection = (typeof en)['shareCollection'];
 
-function getShareCollection(locale: LocaleFile): ShareCollectionSection {
-  return (locale as unknown as { shareCollection: ShareCollectionSection })
-    .shareCollection;
+interface LocaleWithShareCollection {
+  shareCollection: ShareCollectionSection;
+}
+
+function getShareCollection(
+  locale: LocaleWithShareCollection
+): ShareCollectionSection {
+  return locale.shareCollection;
 }
 
 // ─── EN baseline ────────────────────────────────────────────────────────────
@@ -109,16 +113,16 @@ describe('EN locale — shareCollection baseline', () => {
 // ─── DE / ES / FR parity ────────────────────────────────────────────────────
 
 describe.each([
-  { code: 'de', locale: de as unknown as LocaleFile },
-  { code: 'es', locale: es as unknown as LocaleFile },
-  { code: 'fr', locale: fr as unknown as LocaleFile },
+  { code: 'de', locale: de as unknown as LocaleWithShareCollection },
+  { code: 'es', locale: es as unknown as LocaleWithShareCollection },
+  { code: 'fr', locale: fr as unknown as LocaleWithShareCollection },
 ])('$code locale — shareCollection parity with EN', ({ code, locale }) => {
   const sc = getShareCollection(locale);
   const enSc = en.shareCollection;
 
   it(`${code}: has a shareCollection section`, () => {
     expect(
-      locale as unknown as Record<string, unknown>,
+      locale,
       `${code}.shareCollection section is entirely missing`
     ).toHaveProperty('shareCollection');
   });
@@ -133,12 +137,12 @@ describe.each([
 
   it(`${code}: verbatim-EN guard — previously-untranslated keys must differ from EN source`, () => {
     for (const key of MUST_DIFFER_FROM_EN_KEYS) {
-      const localeValue = (sc as Record<string, unknown>)[key];
-      const enValue = (enSc as Record<string, unknown>)[key];
+      const localeValue = sc[key];
+      const enValue = enSc[key];
       expect(
         localeValue,
         `${code}.shareCollection.${key} is still a verbatim-EN placeholder ` +
-          `("${String(enValue)}") — translate it for ${code} speakers`
+          `("${enValue}") — translate it for ${code} speakers`
       ).not.toBe(enValue);
     }
   });
