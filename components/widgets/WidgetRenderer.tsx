@@ -179,7 +179,11 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
   const SettingsComponent = WIDGET_SETTINGS_COMPONENTS[widget.type];
   const AppearanceComponent = WIDGET_APPEARANCE_COMPONENTS[widget.type];
 
-  const getWidgetSettings = useCallback(() => {
+  // Memoize the JSX value itself (not a factory): DraggableWindow receives these
+  // as props, so a stable element reference is what lets its React.memo skip
+  // re-renders when neither the component type nor the widget changed. A
+  // useCallback here would be useless because the value is consumed inline.
+  const widgetSettings = useMemo(() => {
     if (SettingsComponent) {
       return (
         <Suspense fallback={<LoadingFallback />}>
@@ -194,7 +198,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
     );
   }, [SettingsComponent, widget]);
 
-  const getWidgetAppearanceSettings = useCallback(() => {
+  const widgetAppearanceSettings = useMemo(() => {
     if (AppearanceComponent) {
       return (
         <Suspense fallback={<LoadingFallback />}>
@@ -342,8 +346,8 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
     <DraggableWindow
       widget={widget}
       title={getTitle(widget, permission)}
-      settings={getWidgetSettings()}
-      appearanceSettings={getWidgetAppearanceSettings()}
+      settings={widgetSettings}
+      appearanceSettings={widgetAppearanceSettings}
       style={customStyle}
       isSpotlighted={isSpotlighted}
       skipCloseConfirmation={
