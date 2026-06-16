@@ -246,4 +246,73 @@ describe('GroupBoundingBox', () => {
     expect(call.changes.w).toBeCloseTo(200 * 1.2, 3);
     expect(call.changes.h).toBeCloseTo(200 * 1.2, 3);
   });
+
+  /**
+   * NaN-guard regression: dragging a corner handle past the opposite anchor so
+   * that one scale factor goes negative produces Math.sqrt(negative * positive)
+   * = NaN without the guard. Math.max(floor, NaN) = NaN (IEEE 754), so the
+   * committed dimensions would be NaN and silently corrupt Firestore.
+   *
+   * Fix: Math.sqrt(Math.max(0, fScaleX) * Math.max(0, fScaleY)) clamps the
+   * negative factor to 0, yielding 0 for the product, then Math.max(minScale, 0)
+   * floors the result at the minimum-dimension scale.
+   */
+  it('clamps to minScale floor (not NaN) when drag overshoots past the anchor making a scale factor negative', () => {
+    // Single 200×200 widget. bbox: left=0, top=0, width=200, height=200.
+    const widgets = [makeWidget('w1', 0, 0)];
+
+    render(
+      <DashboardContext.Provider value={mockContextValue}>
+        <GroupBoundingBox groupWidgets={widgets} zoom={1} />
+      </DashboardContext.Provider>
+    );
+
+    const seHandleEl = document.querySelector<HTMLElement>(
+      '[style*="nwse-resize"]'
+    );
+    if (!seHandleEl) throw new Error('SE handle not found');
+    seHandleEl.setPointerCapture = vi.fn();
+    seHandleEl.hasPointerCapture = vi.fn().mockReturnValue(false);
+    seHandleEl.releasePointerCapture = vi.fn();
+
+    // Pointer starts at the SE corner: (200, 200).
+    fireEvent.pointerDown(seHandleEl, {
+      clientX: 200,
+      clientY: 200,
+      pointerId: 1,
+    });
+
+    // Drag 250px left past the bbox origin — fdx = −250, fdy = +50.
+    // fScaleX = (200 + (−250)) / 200 = −0.25  ← negative, would produce NaN
+    // fScaleY = (200 + 50)   / 200 =  1.25
+    // Without guard: Math.sqrt(−0.25 * 1.25) = NaN → Math.max(floor, NaN) = NaN
+    // With guard:    Math.sqrt(0 * 1.25) = 0  → Math.max(minScale, 0) = minScale
+    // minScale = max(0.2, 150/200, 100/200) = 0.75
+    fireEvent.pointerMove(window, {
+      clientX: -50,
+      clientY: 250,
+      pointerId: 1,
+    });
+
+    act(() => {
+      fireEvent.pointerUp(window, {
+        clientX: -50,
+        clientY: 250,
+        pointerId: 1,
+      });
+    });
+
+    expect(mockUpdateWidgets).toHaveBeenCalledTimes(1);
+    const committed = mockUpdateWidgets.mock.calls[0][0] as CommittedChange[];
+    const call = committed[0];
+    if (!call) throw new Error('No committed changes');
+
+    // Committed dimensions must be finite (no NaN corruption).
+    expect(Number.isFinite(call.changes.w)).toBe(true);
+    expect(Number.isFinite(call.changes.h)).toBe(true);
+
+    // Must be floored at the minimum dimension (150px wide, 100px tall).
+    expect(call.changes.w).toBeGreaterThanOrEqual(150);
+    expect(call.changes.h).toBeGreaterThanOrEqual(100);
+  });
 });
