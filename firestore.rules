@@ -2109,6 +2109,8 @@ service cloud.firestore {
       // can verify by id without a query.
       allow create, update: if request.auth != null
         && request.resource.data.invitedByUid == request.auth.uid
+        && request.resource.data.inviteeEmailLower is string
+        && request.resource.data.inviteeEmailLower.size() <= 255
         && get(/databases/$(database)/documents/plcs/$(request.resource.data.plcId)).data.leadUid == request.auth.uid
         && inviteId == plcInviteDocId(request.resource.data.plcId, request.resource.data.inviteeEmailLower);
 
