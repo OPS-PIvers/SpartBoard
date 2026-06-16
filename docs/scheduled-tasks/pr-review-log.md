@@ -1282,3 +1282,35 @@ _Automated nightly review by claude-opus-4-6_
 - Notes:
   - Branch-safety: all 8 head branches are non-`main` / non-`dev-*` → pushable. Only #1911 required a fix push.
   - #1916 head is `scheduled-tasks` (this log's branch). The deps bump + audit journals it carries are scheduled-task artifacts in the same family as this log, so appending today's entry here is in-scope; pushed to `scheduled-tasks` per the POST-TASK workflow.
+
+## 2026-06-16
+
+- PRs reviewed: 8
+  - #1991 — fix(deps): override qs to ^6.15.2 in functions, clears GHSA-q8mj-m7cp-5q26 (head `claude/compassionate-noether-qb9lws`, base `dev-paul`)
+  - #1989 — audit(scheduled-tasks): Tuesday daily clean + dependency-version notes (head `scheduled-tasks`, base `dev-paul`)
+  - #1987 — docs(nightly): debugger run 19 log (head `nightly/debugger-log-2026-06-16`, base `dev-paul`)
+  - #1986 — fix(a11y): SegmentedTabs WAI-ARIA tablist keyboard navigation (head `nightly/widgets-2026-06-16`, base `dev-paul`)
+  - #1985 — fix(poll): clear lastPollSessionId when starting a fresh session (head `nightly/state-data-2026-06-16`, base `dev-paul`)
+  - #1984 — fix(layout): align GroupBoundingBox commit scale + NaN clamp (head `nightly/dashboard-layout-2026-06-16`, base `dev-paul`)
+  - #1983 — fix(i18n): translate sidebar.boards.rootBoards in DE/ES/FR (head `nightly/admin-config-2026-06-16`, base `dev-paul`)
+  - #1982 — docs(unifier): run 17 staleness scan (head `nightly/unifier-log-2026-06-16`, base `dev-paul`)
+- Comments processed: 11 total — 0 fixed, 11 already-addressed (10 threads resolved, 1 left open as informational discussion)
+  - #1991: 2 threads — (a) `claude` caret suggestion `^6.15.2` already applied at HEAD (`functions/package.json` shows `"qs": "^6.15.2"`); (b) `gemini` comment targets `utils/migrateProportionalLayout.ts:102`, a file NOT in this PR's 2-file diff (outdated/misattributed). Both resolved as not-applicable.
+  - #1986: 6 threads, ALL addressed at HEAD — `nodes.length===0` guard now precedes `preventDefault`; modifier-key bailout present; roving `tabIndex={selected?0:-1}`; handler calls `onChange(tabs[nextIdx].key)` (select-follows-focus, closes the tabIndex/onChange mismatch); test now covers Home/End + modifier no-op + roving-tabindex assertion. All 6 resolved.
+  - #1984: 2 threads — (a) `gemini` HIGH NaN clamp `Math.max(0, …)` already applied at both `onMove` (~156) and `onUp` (~234), resolved; (b) `claude` informational note about the onMove behavior change left OPEN for author awareness (discussion, not a change request).
+  - #1983: 1 thread — `claude` over-long test comment already trimmed to a single line at HEAD; resolved.
+  - #1989, #1987, #1985, #1982: no review comments.
+- Fixes pushed: 0 — every actionable review comment was already addressed in the current branch HEAD (branches were updated after the reviews were left). No code change needed.
+- Reviews posted: 8 (one structured review per PR)
+  - #1991: Ready — qs override clears a DoS advisory; caret convention matches siblings; security-positive, low risk.
+  - #1986: Ready — full WAI-ARIA §3.23 tablist keyboard model; all six review threads addressed; comprehensive tests.
+  - #1985: Ready — `mode==='fresh'` clears stale `lastPollSessionId`; correct root-cause fix; 3 regression tests.
+  - #1984: Ready with minor notes — geometric-mean alignment + NaN clamp at both call sites; suggested a small test for the defensive clamp branch.
+  - #1983: Ready — DE/ES/FR rootBoards translations; correct root-cause (not a `defaultValue` band-aid); 11 regression tests.
+  - #1982: Ready — doc-only unifier run 17 journal; RandomGroups empty-state correctly deferred to designer sign-off.
+  - #1987: Ready — doc-only debugger run 19 journal; entries match the four fix PRs.
+  - #1989: Ready — standing nightly-audit branch; only non-doc change is a sound test-file rebase resolution; standing dependency vulns are tracked, not introduced here.
+- Notes:
+  - Branch-safety: all 8 head branches are non-`main` / non-`dev-*` → pushable; Phase 1 produced zero fixes so no PR-branch pushes were needed.
+  - Local verification of `pnpm` checks was not run this cycle (no code changes pushed); CI on Node 24 remains the authoritative gate for each PR.
+  - This log appended to `scheduled-tasks` per the POST-TASK workflow (continuous log; prior entry was 2026-06-09).
