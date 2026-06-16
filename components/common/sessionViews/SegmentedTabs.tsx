@@ -41,37 +41,43 @@ export function SegmentedTabs<K extends string = string>({
   ariaLabel,
   panelIdPrefix,
 }: SegmentedTabsProps<K>): React.ReactElement {
-  // WAI-ARIA 1.2 § 3.23 tablist keyboard pattern: ArrowRight/Left move focus
-  // between tabs (wrapping); Home/End jump to first/last. Using event
-  // delegation on the <nav> avoids attaching per-tab handlers.
-  const onNavKeyDown = useCallback((e: React.KeyboardEvent<HTMLElement>) => {
-    if (
-      e.key !== 'ArrowRight' &&
-      e.key !== 'ArrowLeft' &&
-      e.key !== 'Home' &&
-      e.key !== 'End'
-    )
-      return;
-    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-    const nodes = Array.from(
-      e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')
-    );
-    if (nodes.length === 0) return;
-    e.preventDefault();
-    const idx = nodes.indexOf(document.activeElement as HTMLButtonElement);
-    let next: HTMLButtonElement;
-    if (e.key === 'Home') {
-      next = nodes[0];
-    } else if (e.key === 'End') {
-      next = nodes[nodes.length - 1];
-    } else if (e.key === 'ArrowRight') {
-      next = nodes[(idx + 1) % nodes.length];
-    } else {
-      // ArrowLeft
-      next = nodes[(idx - 1 + nodes.length) % nodes.length];
-    }
-    next.focus();
-  }, []);
+  // WAI-ARIA 1.2 § 3.23 tablist keyboard pattern — select-follows-focus model:
+  // arrow keys move focus AND selection simultaneously so tabIndex=0 always
+  // tracks the active tab. Event delegation on <nav> avoids per-tab handlers.
+  const onNavKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLElement>) => {
+      if (
+        e.key !== 'ArrowRight' &&
+        e.key !== 'ArrowLeft' &&
+        e.key !== 'Home' &&
+        e.key !== 'End'
+      )
+        return;
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      const nodes = Array.from(
+        e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+      );
+      if (nodes.length === 0) return;
+      e.preventDefault();
+      const idx = nodes.indexOf(document.activeElement as HTMLButtonElement);
+      // Clamp -1 (focus outside list) to 0 so ArrowLeft wraps to last tab
+      // rather than second-to-last. Practically unreachable with roving tabIndex.
+      const safeIdx = idx < 0 ? 0 : idx;
+      let nextIdx: number;
+      if (e.key === 'Home') {
+        nextIdx = 0;
+      } else if (e.key === 'End') {
+        nextIdx = nodes.length - 1;
+      } else if (e.key === 'ArrowRight') {
+        nextIdx = (safeIdx + 1) % nodes.length;
+      } else {
+        nextIdx = (safeIdx - 1 + nodes.length) % nodes.length;
+      }
+      nodes[nextIdx].focus();
+      onChange(tabs[nextIdx].key);
+    },
+    [onChange, tabs]
+  );
 
   return (
     <nav
