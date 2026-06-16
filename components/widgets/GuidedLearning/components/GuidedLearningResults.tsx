@@ -229,7 +229,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
               <div className="text-2xl font-bold text-white">
                 {responses.length}
               </div>
-              <div className="text-slate-400 text-xs mt-0.5 flex items-center justify-center gap-1">
+              <div className="text-slate-300 text-xs mt-0.5 flex items-center justify-center gap-1">
                 <Users className="w-3 h-3" /> Total
               </div>
             </div>
@@ -237,7 +237,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
               <div className="text-2xl font-bold text-emerald-400">
                 {completedResponsesCount}
               </div>
-              <div className="text-slate-400 text-xs mt-0.5 flex items-center justify-center gap-1">
+              <div className="text-slate-300 text-xs mt-0.5 flex items-center justify-center gap-1">
                 <CheckCircle2 className="w-3 h-3" /> Done
               </div>
             </div>
@@ -245,7 +245,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
               <div className="text-2xl font-bold text-indigo-400">
                 {avgScore !== null ? `${avgScore}%` : '—'}
               </div>
-              <div className="text-slate-400 text-xs mt-0.5">Avg Score</div>
+              <div className="text-slate-300 text-xs mt-0.5">Avg Score</div>
             </div>
           </div>
 

@@ -1056,6 +1056,7 @@ All agents must follow the shared widget appearance model when building or updat
 - Keep universal transparency in the global settings shell; do not duplicate full-widget transparency controls inside widget-specific style tabs.
 - Ensure front-face widgets actually consume settings values (no dead controls).
 - Default widget roots should remain visually transparent; only add localized readability surfaces where content legibility requires it.
+- Muted text on dark surfaces (dashboard `slate-900` / semi-transparent widgets over user backgrounds): use `text-slate-300` for body/label text and `text-slate-200` for headings/emphasis (both clear WCAG AA on `slate-900`). Do NOT use `text-slate-400`/`text-slate-500` for real text on dark surfaces — once rendered over translucent/over-background surfaces they erode below the AA 4.5:1 minimum. `text-slate-400`/`500` stay fine for (a) decorative/icon glyphs (give purely decorative icons `aria-hidden`) and (b) text on LIGHT surfaces (admin/library/student/login UI), where bumping toward white would REDUCE contrast — leave those untouched.
 
 ## Design Context
 
