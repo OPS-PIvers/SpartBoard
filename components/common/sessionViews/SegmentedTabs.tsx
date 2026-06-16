@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 
 export interface SegmentedTab<K extends string = string> {
   key: K;
@@ -41,10 +41,49 @@ export function SegmentedTabs<K extends string = string>({
   ariaLabel,
   panelIdPrefix,
 }: SegmentedTabsProps<K>): React.ReactElement {
+  // WAI-ARIA 1.2 § 3.23 tablist keyboard pattern — select-follows-focus model:
+  // arrow keys move focus AND selection simultaneously so tabIndex=0 always
+  // tracks the active tab. Event delegation on <nav> avoids per-tab handlers.
+  const onNavKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLElement>) => {
+      if (
+        e.key !== 'ArrowRight' &&
+        e.key !== 'ArrowLeft' &&
+        e.key !== 'Home' &&
+        e.key !== 'End'
+      )
+        return;
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      const nodes = Array.from(
+        e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+      );
+      if (nodes.length === 0) return;
+      e.preventDefault();
+      const idx = nodes.indexOf(document.activeElement as HTMLButtonElement);
+      // Clamp -1 (focus outside list) to 0 so ArrowLeft wraps to last tab
+      // rather than second-to-last. Practically unreachable with roving tabIndex.
+      const safeIdx = idx < 0 ? 0 : idx;
+      let nextIdx: number;
+      if (e.key === 'Home') {
+        nextIdx = 0;
+      } else if (e.key === 'End') {
+        nextIdx = nodes.length - 1;
+      } else if (e.key === 'ArrowRight') {
+        nextIdx = (safeIdx + 1) % nodes.length;
+      } else {
+        nextIdx = (safeIdx - 1 + nodes.length) % nodes.length;
+      }
+      nodes[nextIdx].focus();
+      onChange(tabs[nextIdx].key);
+    },
+    [onChange, tabs]
+  );
+
   return (
     <nav
       role="tablist"
       aria-label={ariaLabel}
+      onKeyDown={onNavKeyDown}
       className="flex items-center rounded-xl bg-slate-200/50 min-w-0"
       style={{ padding: 'min(3px, 0.8cqmin)', gap: 'min(2px, 0.5cqmin)' }}
     >
@@ -55,6 +94,7 @@ export function SegmentedTabs<K extends string = string>({
             key={key}
             type="button"
             role="tab"
+            tabIndex={selected ? 0 : -1}
             id={panelIdPrefix ? `${panelIdPrefix}-tab-${key}` : undefined}
             aria-selected={selected}
             aria-controls={
