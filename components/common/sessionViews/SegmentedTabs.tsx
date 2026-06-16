@@ -52,11 +52,11 @@ export function SegmentedTabs<K extends string = string>({
       e.key !== 'End'
     )
       return;
-    e.preventDefault();
     const nodes = Array.from(
       e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')
     );
     if (nodes.length === 0) return;
+    e.preventDefault();
     const idx = nodes.indexOf(document.activeElement as HTMLButtonElement);
     let next: HTMLButtonElement;
     if (e.key === 'Home') {
@@ -87,6 +87,7 @@ export function SegmentedTabs<K extends string = string>({
             key={key}
             type="button"
             role="tab"
+            tabIndex={selected ? 0 : -1}
             id={panelIdPrefix ? `${panelIdPrefix}-tab-${key}` : undefined}
             aria-selected={selected}
             aria-controls={

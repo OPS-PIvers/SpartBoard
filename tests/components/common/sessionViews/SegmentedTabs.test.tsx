@@ -78,11 +78,7 @@ describe('SegmentedTabs', () => {
     expect(tab).toHaveAttribute('aria-controls', 'qr-panel-overview');
   });
 
-  it('moves focus with ArrowRight/ArrowLeft per ARIA tablist keyboard pattern', () => {
-    // role="tablist" requires arrow-key navigation (WAI-ARIA 1.2 § 3.23):
-    // ArrowRight moves focus to the next tab, ArrowLeft to the previous,
-    // both wrapping around. Without this, keyboard-only and AT users cannot
-    // navigate between tabs.
+  it('moves focus with ArrowRight/ArrowLeft/Home/End per ARIA tablist keyboard pattern', () => {
     const onChange = vi.fn();
     render(
       <SegmentedTabs
@@ -98,11 +94,11 @@ describe('SegmentedTabs', () => {
     firstTab.focus();
     expect(firstTab).toHaveFocus();
 
-    // ArrowRight from first tab → second tab should receive focus
+    // ArrowRight from first tab → second tab
     fireEvent.keyDown(firstTab, { key: 'ArrowRight' });
     expect(secondTab).toHaveFocus();
 
-    // ArrowLeft from second tab → first tab should receive focus
+    // ArrowLeft from second tab → first tab
     fireEvent.keyDown(secondTab, { key: 'ArrowLeft' });
     expect(firstTab).toHaveFocus();
 
@@ -113,5 +109,28 @@ describe('SegmentedTabs', () => {
     // ArrowRight from last tab → wraps to first tab
     fireEvent.keyDown(secondTab, { key: 'ArrowRight' });
     expect(firstTab).toHaveFocus();
+
+    // End from first tab → jumps to last tab
+    fireEvent.keyDown(firstTab, { key: 'End' });
+    expect(secondTab).toHaveFocus();
+
+    // Home from last tab → jumps to first tab
+    fireEvent.keyDown(secondTab, { key: 'Home' });
+    expect(firstTab).toHaveFocus();
+  });
+
+  it('applies roving tabindex: selected tab has tabIndex=0, others have tabIndex=-1', () => {
+    render(
+      <SegmentedTabs
+        tabs={TABS}
+        value="overview"
+        onChange={vi.fn()}
+        ariaLabel="Sections"
+      />
+    );
+    const selectedTab = screen.getByRole('tab', { name: 'Overview' });
+    const otherTab = screen.getByRole('tab', { name: /Students/i });
+    expect(selectedTab).toHaveAttribute('tabindex', '0');
+    expect(otherTab).toHaveAttribute('tabindex', '-1');
   });
 });
