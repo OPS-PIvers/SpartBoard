@@ -385,6 +385,15 @@ service cloud.firestore {
           // building admin — the domain admin must assign a building first.
           // This is intentional: building admins shouldn't be able to act on
           // members who haven't been scoped into their building yet.
+          //
+          // KNOWN GAP (follow-up): this list-vs-list overlap is NOT alias-aware
+          // like the building-doc rule's `manages()` helper, so if the target
+          // member and the acting admin store buildingIds in mismatched
+          // canonical/legacy formats the overlap can falsely fail (false DENIAL
+          // only — never a false grant). Canonicalizing two lists in CEL has no
+          // clean form (no `.map()`), unlike the single-id `buildingIdAliasGroup`
+          // case. Low incidence since member buildingIds are canonicalized on
+          // write; tracked for a dedicated rules pass. See config/buildings.ts.
           (isBuildingAdmin(orgId) &&
            resource.data.buildingIds.hasAny(orgMember(orgId).buildingIds) &&
            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
