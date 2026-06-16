@@ -115,13 +115,12 @@ describe('GroupBoundingBox', () => {
       </DashboardContext.Provider>
     );
 
-    // GroupBoundingBox renders 4 corner handles via map(['se','sw','ne','nw']).
-    // 'se' and 'nw' share the nwse-resize cursor; 'se' is the first in DOM order.
-    const handles = document.querySelectorAll<HTMLElement>(
-      '[style*="nwse-resize"], [style*="nesw-resize"]'
+    // Select the SE handle explicitly by test id so the test does not depend
+    // on the render order of the ['se','sw','ne','nw'] map.
+    const seHandleEl = document.querySelector<HTMLElement>(
+      '[data-testid="group-resize-handle-se"]'
     );
-    const seHandleEl = handles[0];
-    expect(seHandleEl).toBeTruthy();
+    if (!seHandleEl) throw new Error('SE resize handle not found');
 
     // Patch pointer-capture methods (not implemented in jsdom).
     seHandleEl.setPointerCapture = vi.fn();

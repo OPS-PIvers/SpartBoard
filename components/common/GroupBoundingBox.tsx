@@ -153,7 +153,10 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
           for (const w of rs.widgets) {
             minScale = Math.max(minScale, 150 / w.startW, 100 / w.startH);
           }
-          const scale = Math.max(minScale, Math.sqrt(Math.max(0, scaleX) * Math.max(0, scaleY)));
+          const scale = Math.max(
+            minScale,
+            Math.sqrt(Math.max(0, scaleX) * Math.max(0, scaleY))
+          );
 
           // Apply to each widget via direct DOM manipulation. The DOM write
           // is the fast path; setWidgetOverride is the correctness path that
@@ -328,6 +331,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
         return (
           <div
             key={corner}
+            data-testid={`group-resize-handle-${corner}`}
             style={{
               ...handleStyle,
               pointerEvents: 'auto',
