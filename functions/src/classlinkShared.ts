@@ -47,6 +47,42 @@ export interface ClassLinkStudent {
 }
 
 /**
+ * OneRoster class shape (subset). Mirrors the canonical `ClassLinkClass` in the
+ * repo-root `types.ts` (which adds an optional `subject?`). Kept as a
+ * functions-local single source rather than imported from root: pulling the
+ * root `.ts` into the `functions/` compilation makes `tsc` emit a stray root
+ * `types.js`, which would shadow `types.ts` under Vite's `.js`-before-`.ts`
+ * resolution. If a field is added to the root type and functions needs it,
+ * mirror it here.
+ */
+export interface ClassLinkClass {
+  sourcedId: string;
+  title: string;
+  classCode?: string;
+  subject?: string;
+}
+
+/**
+ * OneRoster teacher/user shape (subset) used when looking a caller up in
+ * ClassLink by email. Single source of truth for both `index.ts` (which used
+ * to declare its own copy) and the `OneRosterUserWithRole` extension. Unlike
+ * `ClassLinkStudent` these fields are required because the consuming code only
+ * ever reads them off the first matched `users[0]` after a successful filter
+ * lookup, where OneRoster always returns the core identity fields.
+ *
+ * NOTE: deliberately NOT imported from the repo-root `types.ts` — root does
+ * not define a `ClassLinkUser`, and this OneRoster-API shape is a
+ * functions-only concern, so `classlinkShared.ts` (the existing ClassLink
+ * single-source module) is its correct home.
+ */
+export interface ClassLinkUser {
+  sourcedId: string;
+  email: string;
+  givenName: string;
+  familyName: string;
+}
+
+/**
  * Stable per-student pseudonym: `HMAC-SHA256("sid:"+sourcedId, secret)` in hex.
  * THE pseudonym contract — see the module header. Must produce the byte-identical
  * uid for a given (sourcedId, secret) across every caller.
@@ -58,6 +94,20 @@ export function computeStudentUid(
   return CryptoJS.HmacSHA256(`sid:${sourcedId}`, hmacSecret).toString(
     CryptoJS.enc.Hex
   );
+}
+
+/**
+ * Rejects emails that would break (or be injected into) an unquoted
+ * OneRoster `filter=email='...'` string. Real Google-verified school emails
+ * never contain `'` or `\`, so callers short-circuit to the standard
+ * "not in roster" path rather than disclosing the guard's existence.
+ *
+ * Shared by `getClassLinkRosterV1` (classlinkRoster.ts) and the student
+ * identity callables (studentIdentity.ts) — kept here, the ClassLink
+ * single-source module, so the two never drift.
+ */
+export function isSafeEmailForOneRosterFilter(email: string): boolean {
+  return !/['\\]/.test(email);
 }
 
 /**
