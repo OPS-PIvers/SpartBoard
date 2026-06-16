@@ -380,10 +380,7 @@ export const generateWithAI = onCall(
     }
 
     try {
-      const genType = String(data?.type || '')
-        .toLowerCase()
-        .trim();
-
+      // `genType` is already computed above (feature-permission gate); reuse it.
       const ai = new GoogleGenAI({ apiKey });
 
       // Input size guards

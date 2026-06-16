@@ -20,11 +20,11 @@ import {
   isSafeEmailForOneRosterFilter,
   normalizeEmailDomain,
   resolveOrgIdForDomain,
+  type ClassLinkClass,
   type ClassLinkStudent,
   type ClassLinkUser,
 } from './classlinkShared';
 import { normalizeQuizCode } from './quizCode';
-import type { ClassLinkClass } from './classlinkShared';
 
 // Student identity (ClassLink-via-Google) — PII-free auth flow
 // ---------------------------------------------------------------------------

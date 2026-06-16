@@ -10,6 +10,7 @@ import {
   ONEROSTER_BASE,
   getOAuthHeaders,
   isSafeEmailForOneRosterFilter,
+  type ClassLinkClass,
   type ClassLinkStudent,
   type ClassLinkUser,
 } from './classlinkShared';
@@ -20,7 +21,6 @@ import {
   CLASSLINK_TENANT_URL,
 } from './secrets';
 import './functionsInit';
-import type { ClassLinkClass } from './classlinkShared';
 
 export const getClassLinkRosterV1 = onCall(
   {
