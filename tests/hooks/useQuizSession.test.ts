@@ -10,6 +10,8 @@ import {
   isUnsafeBlankDraft,
   isUnsafeStatusDowngrade,
   shouldSnapshotHistory,
+  isHistoryDocInRemovalWindow,
+  HISTORY_WINDOW_GUARD_MS,
 } from '@/hooks/useQuizSession';
 import { auth } from '@/config/firebase';
 import type {
@@ -686,6 +688,58 @@ describe('shouldSnapshotHistory (#5 throttle)', () => {
         THROTTLE
       )
     ).toBe(false);
+  });
+});
+
+describe('isHistoryDocInRemovalWindow (F7 PIN-mate history scoping)', () => {
+  // Use a tiny guard so the math stays readable; production uses
+  // HISTORY_WINDOW_GUARD_MS (60s).
+  const GUARD = 10;
+
+  it('keeps a doc inside the window', () => {
+    expect(isHistoryDocInRemovalWindow(500, 100, 1000, GUARD)).toBe(true);
+  });
+
+  it('keeps a doc on the (guard-padded) lower boundary', () => {
+    // answeredAt just below windowStart but within the guard margin.
+    expect(isHistoryDocInRemovalWindow(95, 100, 1000, GUARD)).toBe(true);
+  });
+
+  it('keeps a doc on the (unpadded) upper boundary', () => {
+    // The upper bound is `removalTime` ("now"), so it is NOT guard-padded —
+    // exactly `windowEnd` is the last in-window value.
+    expect(isHistoryDocInRemovalWindow(1000, 100, 1000, GUARD)).toBe(true);
+  });
+
+  it('excludes a doc just past the (unpadded) upper boundary', () => {
+    // No upper guard: padding the top would reach forward into a
+    // fast-following PIN-mate's drafts (F7 over-reach).
+    expect(isHistoryDocInRemovalWindow(1001, 100, 1000, GUARD)).toBe(false);
+  });
+
+  it('excludes a PIN-mate doc that predates the window (below start - guard)', () => {
+    // A different student answered long before this student joined.
+    expect(isHistoryDocInRemovalWindow(50, 100, 1000, GUARD)).toBe(false);
+  });
+
+  it('excludes a PIN-mate doc that postdates the window (above end)', () => {
+    expect(isHistoryDocInRemovalWindow(2000, 100, 1000, GUARD)).toBe(false);
+  });
+
+  it('treats a missing/non-finite answeredAt as in-window (deleted) so it cannot leak to a rejoiner', () => {
+    expect(isHistoryDocInRemovalWindow(undefined, 100, 1000, GUARD)).toBe(true);
+    expect(isHistoryDocInRemovalWindow(NaN, 100, 1000, GUARD)).toBe(true);
+    expect(isHistoryDocInRemovalWindow('500', 100, 1000, GUARD)).toBe(true);
+  });
+
+  it('exposes a non-trivial default guard margin', () => {
+    // Sanity: the default guard is large enough to absorb intra-attempt
+    // jitter (tens of seconds) but the helper still uses it when omitted.
+    expect(HISTORY_WINDOW_GUARD_MS).toBeGreaterThanOrEqual(1000);
+    // answeredAt exactly windowStart - default guard is still in-window.
+    expect(
+      isHistoryDocInRemovalWindow(100 - HISTORY_WINDOW_GUARD_MS, 100, 1000)
+    ).toBe(true);
   });
 });
 
@@ -2024,6 +2078,368 @@ describe('useQuizSessionTeacher — removeStudent / revealAnswer / hideAnswer', 
       'history',
       'h2',
     ]);
+  });
+
+  it('scopes the history sweep to the removed occupant under a shared PIN key — preserving a PIN-mate sequential occupant (F7)', async () => {
+    // The `pin-{period}-{pin}` response key is deterministic and SHARED:
+    // every student with the same normalized (period, PIN) maps to the same
+    // response doc + `/history` subcollection. Two students occupy the key
+    // sequentially over the session — first occupant A, then occupant B (the
+    // doc is reset in place on B's rejoin, so its `joinedAt` stays A's).
+    // Removing B must delete ONLY B's history snapshots; A's must survive so
+    // the wholesale sweep can't clobber a PIN-mate's recoverable drafts.
+    (auth as unknown as { currentUser: { uid: string } | null }).currentUser = {
+      uid: 'teacher-1',
+    };
+
+    // Realistic ms timestamps. A was active ~1000s before B took over the
+    // shared key, comfortably beyond the guard margin.
+    const A_ANSWERED_AT = 1_000_000_000;
+    const B_ANSWERED_AT = 1_000_000_000 + 1_000_000; // +1000s
+
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+
+    // Drive the responses listener so `target` resolves to occupant B, the
+    // CURRENT holder of the shared doc. `joinedAt` is the STALE value from
+    // occupant A (immutable across the in-place rejoin reset) — the fix must
+    // NOT use it as the floor when B has live answers.
+    act(() => {
+      env.responsesCallback?.({
+        docs: [
+          {
+            id: 'pin-period_1-9999',
+            ref: {
+              __type: 'doc',
+              path: [
+                'quiz_sessions',
+                'sess-1',
+                'responses',
+                'pin-period_1-9999',
+              ],
+            },
+            data: () => ({
+              studentUid: 'anon-b-uid',
+              status: 'in-progress',
+              joinedAt: A_ANSWERED_AT - 50_000, // stale, from occupant A
+              answers: [
+                {
+                  questionId: 'q1',
+                  answer: 'B current',
+                  answeredAt: B_ANSWERED_AT,
+                },
+              ],
+            }),
+          },
+        ],
+      } as never);
+    });
+
+    // History subcollection holds BOTH students' snapshots: A's (early,
+    // out-of-window) and B's (recent, in-window).
+    const historyDocs = [
+      {
+        ref: {
+          __type: 'doc',
+          path: [
+            'quiz_sessions',
+            'sess-1',
+            'responses',
+            'pin-period_1-9999',
+            'history',
+            'a-hist', // occupant A
+          ],
+        },
+        data: () => ({
+          questionId: 'q1',
+          answer: 'A draft',
+          answeredAt: A_ANSWERED_AT,
+          status: 'draft',
+        }),
+      },
+      {
+        ref: {
+          __type: 'doc',
+          path: [
+            'quiz_sessions',
+            'sess-1',
+            'responses',
+            'pin-period_1-9999',
+            'history',
+            'b-hist', // occupant B (the one being removed)
+          ],
+        },
+        data: () => ({
+          questionId: 'q1',
+          answer: 'B draft',
+          answeredAt: B_ANSWERED_AT,
+          status: 'draft',
+        }),
+      },
+    ];
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({ docs: historyDocs, empty: false });
+
+    await act(async () => {
+      await result.current.removeStudent('pin-period_1-9999');
+    });
+
+    const deletedPaths = env.batch.delete.mock.calls.map(
+      (c) => (c[0] as { path: string[] }).path
+    );
+
+    // B's history doc IS deleted...
+    expect(deletedPaths).toContainEqual([
+      'quiz_sessions',
+      'sess-1',
+      'responses',
+      'pin-period_1-9999',
+      'history',
+      'b-hist',
+    ]);
+    // ...but A's (the PIN-mate's) history is PRESERVED — the bug F7 fixes.
+    expect(deletedPaths).not.toContainEqual([
+      'quiz_sessions',
+      'sess-1',
+      'responses',
+      'pin-period_1-9999',
+      'history',
+      'a-hist',
+    ]);
+    // The parent response doc is still deleted, freeing the key for a rejoin.
+    expect(deletedPaths).toContainEqual([
+      'quiz_sessions',
+      'sess-1',
+      'responses',
+      'pin-period_1-9999',
+    ]);
+    // And B's partial work is archived before deletion.
+    expect(env.batch.set).toHaveBeenCalledTimes(1);
+  });
+
+  it('wholesale-sweeps a provably single-occupant (SSO) key so an early revised draft cannot leak to a rejoiner (F7 floor undershoot)', async () => {
+    // F7 leak boundary. The SSO/studentRole key is the auth `uid` itself, which
+    // is per-user and can NEVER be shared, so the `/history` subcollection is
+    // provably single-occupant. A clock-only window floored at the earliest
+    // LIVE answer UNDERSHOOTS the occupant's OWN early history whenever they
+    // revise an answer more than the guard margin after first entering it:
+    // their first draft's `answeredAt` falls below `windowStart - guard` and
+    // would survive as a readable orphan for a same-key rejoiner (the exact
+    // leak the cleanup exists to prevent). The fix routes single-occupant keys
+    // to the wholesale sweep, deleting ALL of their history regardless of when
+    // it was entered.
+    (auth as unknown as { currentUser: { uid: string } | null }).currentUser = {
+      uid: 'teacher-1',
+    };
+
+    // Pin `removalTime` so the early-draft boundary is deterministic.
+    const NOW = 1_700_000_000_000;
+    const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(NOW);
+
+    try {
+      const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+
+      // Occupant B's LIVE answer is the REVISED value, entered well after the
+      // first draft — so the window floor (earliest live answer) sits above
+      // the early draft's timestamp.
+      const REVISED_AT = NOW - 5_000;
+      act(() => {
+        env.responsesCallback?.({
+          docs: [
+            {
+              id: 'sso-uid-b',
+              ref: {
+                __type: 'doc',
+                path: ['quiz_sessions', 'sess-1', 'responses', 'sso-uid-b'],
+              },
+              data: () => ({
+                studentUid: 'sso-uid-b',
+                status: 'in-progress',
+                joinedAt: NOW - 120_000,
+                answers: [
+                  {
+                    questionId: 'q1',
+                    answer: 'revised',
+                    answeredAt: REVISED_AT,
+                  },
+                ],
+              }),
+            },
+          ],
+        } as never);
+      });
+
+      // The early draft predates `windowStart - HISTORY_WINDOW_GUARD_MS`, i.e.
+      // it would be EXCLUDED by the window filter — the leak. The wholesale
+      // sweep must delete it anyway.
+      const earlyDraftAt = REVISED_AT - HISTORY_WINDOW_GUARD_MS - 1;
+      const historyDocs = [
+        {
+          ref: {
+            __type: 'doc',
+            path: [
+              'quiz_sessions',
+              'sess-1',
+              'responses',
+              'sso-uid-b',
+              'history',
+              'early-draft',
+            ],
+          },
+          data: () => ({
+            questionId: 'q1',
+            answer: 'first try',
+            answeredAt: earlyDraftAt,
+            status: 'draft',
+          }),
+        },
+      ];
+      (
+        firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+      ).mockResolvedValueOnce({ docs: historyDocs, empty: false });
+
+      await act(async () => {
+        await result.current.removeStudent('sso-uid-b');
+      });
+
+      const deletedPaths = env.batch.delete.mock.calls.map(
+        (c) => (c[0] as { path: string[] }).path
+      );
+      // The early revised draft IS deleted — no orphan survives for a rejoiner.
+      expect(deletedPaths).toContainEqual([
+        'quiz_sessions',
+        'sess-1',
+        'responses',
+        'sso-uid-b',
+        'history',
+        'early-draft',
+      ]);
+    } finally {
+      dateNowSpy.mockRestore();
+    }
+  });
+
+  it('preserves a fast-following PIN-mate draft entered after removal time on a shared PIN key (F7 upper-boundary over-reach)', async () => {
+    // F7 over-reach boundary. On a SHARED `pin-…` key the window ceiling is
+    // `removalTime` ("now"), already past every write the removed occupant
+    // could have made. Padding the top would reach FORWARD into a PIN-mate who
+    // started typing in the moments around the teacher's removal click, nuking
+    // their drafts — the very bug F7 fixes, at the window edge. With the upper
+    // guard removed, a doc whose `answeredAt` is just past `removalTime` is
+    // left intact.
+    (auth as unknown as { currentUser: { uid: string } | null }).currentUser = {
+      uid: 'teacher-1',
+    };
+
+    const NOW = 1_700_000_000_000;
+    const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(NOW);
+
+    try {
+      const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+
+      // Removed occupant B's live answer sits just below removalTime.
+      act(() => {
+        env.responsesCallback?.({
+          docs: [
+            {
+              id: 'pin-period_1-1234',
+              ref: {
+                __type: 'doc',
+                path: [
+                  'quiz_sessions',
+                  'sess-1',
+                  'responses',
+                  'pin-period_1-1234',
+                ],
+              },
+              data: () => ({
+                studentUid: 'anon-b-uid',
+                status: 'in-progress',
+                joinedAt: NOW - 60_000,
+                answers: [
+                  { questionId: 'q1', answer: 'B', answeredAt: NOW - 1_000 },
+                ],
+              }),
+            },
+          ],
+        } as never);
+      });
+
+      const historyDocs = [
+        {
+          ref: {
+            __type: 'doc',
+            path: [
+              'quiz_sessions',
+              'sess-1',
+              'responses',
+              'pin-period_1-1234',
+              'history',
+              'b-hist',
+            ],
+          },
+          data: () => ({
+            questionId: 'q1',
+            answer: 'B draft',
+            answeredAt: NOW - 1_000,
+            status: 'draft',
+          }),
+        },
+        {
+          // PIN-mate C's draft entered 1ms AFTER removalTime — a student who
+          // started typing as the teacher removed B.
+          ref: {
+            __type: 'doc',
+            path: [
+              'quiz_sessions',
+              'sess-1',
+              'responses',
+              'pin-period_1-1234',
+              'history',
+              'c-hist',
+            ],
+          },
+          data: () => ({
+            questionId: 'q1',
+            answer: 'C draft',
+            answeredAt: NOW + 1,
+            status: 'draft',
+          }),
+        },
+      ];
+      (
+        firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+      ).mockResolvedValueOnce({ docs: historyDocs, empty: false });
+
+      await act(async () => {
+        await result.current.removeStudent('pin-period_1-1234');
+      });
+
+      const deletedPaths = env.batch.delete.mock.calls.map(
+        (c) => (c[0] as { path: string[] }).path
+      );
+      // B's own draft IS deleted...
+      expect(deletedPaths).toContainEqual([
+        'quiz_sessions',
+        'sess-1',
+        'responses',
+        'pin-period_1-1234',
+        'history',
+        'b-hist',
+      ]);
+      // ...but the fast-following PIN-mate's draft (just past removalTime) is
+      // PRESERVED — no upper-guard over-reach.
+      expect(deletedPaths).not.toContainEqual([
+        'quiz_sessions',
+        'sess-1',
+        'responses',
+        'pin-period_1-1234',
+        'history',
+        'c-hist',
+      ]);
+    } finally {
+      dateNowSpy.mockRestore();
+    }
   });
 
   it('skips the ledger delete (and still commits) when the response has no attempt-ledger doc', async () => {

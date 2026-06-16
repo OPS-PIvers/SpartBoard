@@ -186,6 +186,62 @@ export function shouldSnapshotHistory(
   return now - lastSnapshotAt >= throttleMs;
 }
 
+/**
+ * Lower-bound guard margin (ms) for the removed student's history-deletion
+ * window on a SHARED anonymous-PIN key. The PIN response key is deterministic
+ * (`pin-{period}-{pin}`), so two students sharing a normalized (period, PIN)
+ * map to the SAME `/history` subcollection. The window bound (below) uses
+ * `answeredAt` — a client `Date.now()` produced by the student's own device,
+ * the same clock domain as the entries in `answers[]`. The margin absorbs
+ * intra-attempt clock jitter and snapshot "boundary entries" (a snapshot whose
+ * `answeredAt` is the prior answer's timestamp, which can sit slightly outside
+ * the live answers' range). It is applied ONLY to the lower bound: the upper
+ * bound is `removalTime` ("now", after every write the removed occupant could
+ * have made), so padding the top would only risk reaching forward into a
+ * fast-following PIN-mate's drafts (F7 over-reach). 60 s comfortably covers a
+ * re-typed essay across a couple of autosave/lockout round-trips.
+ *
+ * NOTE: this windowed scoping is a best-effort PIN-mate protection and is used
+ * ONLY for shared `pin-…` keys. Provably single-occupant keys (SSO `auth.uid`,
+ * which can never be shared) take the wholesale sweep in `removeStudent` — that
+ * avoids the floor undershooting the occupant's OWN early drafts, which would
+ * otherwise leave a readable orphan for a rejoiner.
+ */
+export const HISTORY_WINDOW_GUARD_MS = 60_000;
+
+/**
+ * Decide whether a single history-snapshot doc belongs to the student being
+ * removed, given that student's session window. Used by `removeStudent` to
+ * scope the `/history` cleanup on a SHARED `pin-{period}-{pin}` key to the
+ * removed occupant instead of nuking the whole subcollection — which would
+ * destroy a PIN-mate's history too (F7).
+ *
+ * A doc is in-window when its `answeredAt` falls within
+ * `[windowStart - guard, windowEnd]`. The lower bound is guard-padded (clock
+ * jitter / boundary entries); the upper bound is NOT — `windowEnd` is the
+ * `removalTime` ("now"), already past every write the removed occupant could
+ * have made, so padding it would only reach forward into a fast-following
+ * PIN-mate's drafts. `answeredAt` is the only per-occupant, client-clock
+ * timestamp on the history doc (`snapshotAt` is server time and is NOT mixed
+ * in here to avoid cross-clock comparison).
+ *
+ * Docs with a missing / non-finite `answeredAt` are treated as in-window
+ * (deleted): they predate the field or are malformed, can't be attributed to
+ * a PIN-mate, and leaving them readable would let a rejoiner on the same key
+ * read prior drafts — the leak this cleanup exists to prevent.
+ */
+export function isHistoryDocInRemovalWindow(
+  answeredAt: unknown,
+  windowStart: number,
+  windowEnd: number,
+  guardMs: number = HISTORY_WINDOW_GUARD_MS
+): boolean {
+  if (typeof answeredAt !== 'number' || !Number.isFinite(answeredAt)) {
+    return true;
+  }
+  return answeredAt >= windowStart - guardMs && answeredAt <= windowEnd;
+}
+
 /** Unbiased Fisher-Yates in-place shuffle (returns new array) */
 function fisherYatesShuffle<T>(arr: T[]): T[] {
   const result = [...arr];
@@ -873,6 +929,11 @@ export const useQuizSessionTeacher = (
             )
           : null;
 
+      // Single removal timestamp, reused as both the upper bound of the
+      // history-deletion window and the archive doc's `archivedAt` below,
+      // so the window end and the recorded removal time agree.
+      const removalTime = Date.now();
+
       // Clean up the answer-history subcollection BEFORE deleting the
       // parent response. Firestore does not cascade subcollection
       // deletes, so without this the snapshots orphan — and because the
@@ -885,7 +946,49 @@ export const useQuizSessionTeacher = (
       // stay under the 500-op Firestore batch limit; these are independent
       // of the atomic archive+delete batch below, so a partial failure
       // just leaves a smaller orphan tail that a retry sweeps.
-      const historyDocs = (
+      //
+      // F7: the `pin-{period}-{pin}` key is SHARED across every student with
+      // the same normalized (period, PIN), so this one subcollection can hold
+      // history from more than one student. Deleting it wholesale would
+      // destroy a PIN-mate's recoverable drafts. Scope the delete to the
+      // removed student's own session window instead — but ONLY for the shared
+      // PIN keyspace, and only when an occupant is loaded:
+      //
+      //   - SSO/studentRole keys are the auth `uid` itself, which is per-user
+      //     and can NEVER be shared, so the subcollection is provably
+      //     single-occupant. Window-scoping such a key is not just unnecessary,
+      //     it is HARMFUL: the floor (earliest LIVE answer) undershoots the
+      //     occupant's OWN early history whenever they revise an answer more
+      //     than the guard margin after first entering it, leaving that early
+      //     draft as a readable orphan for a same-key rejoiner. We therefore
+      //     wholesale-sweep these (and the doc-already-gone fallback case,
+      //     where we have no occupant to attribute history to) — eliminating
+      //     the leak for the common case.
+      //
+      //   - Shared `pin-…` keys keep the best-effort windowed scoping to
+      //     protect a PIN-mate's drafts. The floor is the earliest `answeredAt`
+      //     in the removed student's LIVE `answers` (reset to `[]` on rejoin,
+      //     so they fingerprint the CURRENT occupant on the client's own clock;
+      //     the doc's `joinedAt` is immutable/STALE from whichever PIN-mate
+      //     created the doc and is therefore NOT a usable floor). The no-answers
+      //     case (joined-but-never-answered, whose own history is empty anyway)
+      //     floors at `removalTime`, leaving any pre-existing history for the
+      //     prior occupant. The ceiling is `removalTime` with no upper guard
+      //     (see `isHistoryDocInRemovalWindow`).
+      //
+      // Each history doc carries `answeredAt` on the SAME client clock as the
+      // occupant's answers (it is a prior `answers[i].answeredAt`), so the
+      // comparison stays within one clock domain. `snapshotAt` (server time) is
+      // deliberately NOT mixed in.
+      const isSharedPinKey = responseKey.startsWith('pin-');
+      const answerTimes = (target?.answers ?? [])
+        .map((a) => a.answeredAt)
+        .filter(
+          (t): t is number => typeof t === 'number' && Number.isFinite(t)
+        );
+      const windowStart =
+        answerTimes.length > 0 ? Math.min(...answerTimes) : removalTime;
+      const allHistoryDocs = (
         await getDocs(
           collection(
             db,
@@ -897,6 +1000,19 @@ export const useQuizSessionTeacher = (
           )
         )
       ).docs;
+      // Wholesale sweep when the key is provably single-occupant (non-PIN) or
+      // when no occupant is loaded (doc already gone); otherwise scope the
+      // delete to the removed student's window on the shared PIN key.
+      const historyDocs =
+        target && isSharedPinKey
+          ? allHistoryDocs.filter((d) =>
+              isHistoryDocInRemovalWindow(
+                (d.data() as { answeredAt?: unknown }).answeredAt,
+                windowStart,
+                removalTime
+              )
+            )
+          : allHistoryDocs;
       const HISTORY_DELETE_CHUNK = 450;
       for (let i = 0; i < historyDocs.length; i += HISTORY_DELETE_CHUNK) {
         const historyBatch = writeBatch(db);
@@ -947,8 +1063,10 @@ export const useQuizSessionTeacher = (
         // update and rejected, breaking the entire removeStudent
         // batch. Querying by `originalResponseKey` (a field on the
         // archive doc) or by `archived_responses` collection-group +
-        // path filter recovers per-student history.
-        const archivedAt = Date.now();
+        // path filter recovers per-student history. Reuse `removalTime`
+        // (the history-window ceiling) so the archive id and the window
+        // share one clock reading.
+        const archivedAt = removalTime;
         const archiveRef = doc(
           db,
           QUIZ_SESSIONS_COLLECTION,
