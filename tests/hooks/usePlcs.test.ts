@@ -22,6 +22,8 @@ import {
 import { act, renderHook } from '@testing-library/react';
 import {
   collection,
+  doc,
+  getDoc,
   limit,
   onSnapshot,
   orderBy,
@@ -65,6 +67,8 @@ const mockQuery = query as Mock;
 const mockWhere = where as Mock;
 const mockOrderBy = orderBy as Mock;
 const mockLimit = limit as Mock;
+const mockGetDoc = getDoc as Mock;
+const mockDoc = doc as Mock;
 
 const USER_UID = 'user-1';
 
@@ -76,6 +80,11 @@ beforeEach(() => {
     segs.join('/')
   );
   mockOnSnapshot.mockReturnValue(() => undefined);
+  // Resolve doc refs to an addressable string so getDoc-fallback assertions
+  // can verify the path.
+  mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
+    segs.join('/')
+  );
   useAuthMock.mockReturnValue({ user: { uid: USER_UID } });
 });
 
@@ -111,18 +120,17 @@ describe('usePlcs - subscription wiring', () => {
     expect(mockOnSnapshot).toHaveBeenCalledTimes(1);
   });
 
-  it('admin mode bounds the whole-collection listen with orderBy + limit', () => {
+  it('admin mode bounds the whole-collection listen with limit only (no server orderBy)', () => {
     renderHook(() => usePlcs({ asAdmin: true }));
 
     // The unbounded admin listen is capped so it can't stream the entire
-    // collection. `orderBy('name')` makes the truncation deterministic.
-    expect(mockOrderBy).toHaveBeenCalledWith('name');
+    // collection. F21: we do NOT `orderBy('name')` on the server (that would
+    // add an index dependency); the snapshot handler sorts by name
+    // client-side instead, so the query relies only on the automatic
+    // `__name__` index.
+    expect(mockOrderBy).not.toHaveBeenCalled();
     expect(mockLimit).toHaveBeenCalledWith(500);
-    expect(mockQuery).toHaveBeenCalledWith(
-      'plcs',
-      { __orderBy: { field: 'name', dir: undefined } },
-      { __limit: 500 }
-    );
+    expect(mockQuery).toHaveBeenCalledWith('plcs', { __limit: 500 });
   });
 
   it('skips the listener when signed out', () => {
@@ -224,5 +232,87 @@ describe('usePlcs - subscription wiring', () => {
   it('defaults error to null before any snapshot resolves', () => {
     const { result } = renderHook(() => usePlcs({ asAdmin: true }));
     expect(result.current.error).toBeNull();
+  });
+});
+
+describe('usePlcs - getPlcSharedSheetUrl caching (F10)', () => {
+  // Helper: render the hook and drive its snapshot to seed `plcs` state with
+  // a single PLC carrying the given sharedSheetUrl.
+  function renderWithPlc(sharedSheetUrl: string | null) {
+    let cb: (snap: unknown) => void = () => {
+      throw new Error('snapshot callback not captured');
+    };
+    mockOnSnapshot.mockImplementation((_q, onNext) => {
+      cb = onNext;
+      return () => undefined;
+    });
+
+    const rendered = renderHook(() => usePlcs());
+
+    act(() => {
+      cb({
+        forEach: (fn: (d: { id: string; data: () => unknown }) => void) => {
+          fn({
+            id: 'plc-1',
+            data: () => ({
+              name: 'Algebra PLC',
+              leadUid: 'lead-1',
+              memberUids: ['lead-1', USER_UID],
+              memberEmails: { 'lead-1': 'lead@x.com' },
+              ...(sharedSheetUrl != null ? { sharedSheetUrl } : {}),
+              createdAt: 1,
+              updatedAt: 2,
+            }),
+          });
+        },
+      });
+    });
+
+    return rendered;
+  }
+
+  it('reads sharedSheetUrl from live snapshot state WITHOUT a redundant getDoc', async () => {
+    const { result } = renderWithPlc('https://sheet/abc');
+
+    let url: string | null = null;
+    await act(async () => {
+      url = await result.current.getPlcSharedSheetUrl('plc-1');
+    });
+
+    // Cached path: the value comes straight from the subscribed snapshot.
+    expect(url).toBe('https://sheet/abc');
+    // The whole point of F10 — no extra Firestore read on the hot path.
+    expect(mockGetDoc).not.toHaveBeenCalled();
+  });
+
+  it('returns null (no getDoc) when the cached PLC has no sharedSheetUrl', async () => {
+    const { result } = renderWithPlc(null);
+
+    let url: string | null = 'unset';
+    await act(async () => {
+      url = await result.current.getPlcSharedSheetUrl('plc-1');
+    });
+
+    expect(url).toBeNull();
+    expect(mockGetDoc).not.toHaveBeenCalled();
+  });
+
+  it('falls back to a one-off getDoc when the PLC is not in local state', async () => {
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => ({ sharedSheetUrl: 'https://sheet/fallback' }),
+    });
+
+    const { result } = renderWithPlc('https://sheet/abc');
+
+    let url: string | null = null;
+    await act(async () => {
+      // 'plc-other' is not in the seeded snapshot — slow path.
+      url = await result.current.getPlcSharedSheetUrl('plc-other');
+    });
+
+    expect(url).toBe('https://sheet/fallback');
+    expect(mockGetDoc).toHaveBeenCalledTimes(1);
+    expect(mockDoc).toHaveBeenCalledWith({ __mock: 'db' }, 'plcs', 'plc-other');
   });
 });
