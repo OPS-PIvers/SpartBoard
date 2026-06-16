@@ -19,7 +19,17 @@ export default tseslint.config(
       '**/*.config.js',
       '**/*.config.ts',
       'scripts',
-      'functions/lib',
+      // `functions/` is linted by its own pass (functions/eslint.config.mjs,
+      // run via `pnpm run lint:functions`). Keeping it OUT of this root pass
+      // is deliberate: a single type-aware ESLint run that loads BOTH the root
+      // and functions TS programs into one process needed a 6GB Node heap to
+      // avoid OOM in CI. Splitting into two processes (root here, functions in
+      // its own config) means peak heap is bounded by the larger single
+      // program, not the sum of both. Rule coverage is unchanged — see
+      // functions/eslint.config.mjs, which reapplies the same base rule sets
+      // (js.configs.recommended + tseslint recommendedTypeChecked + the
+      // functions-specific overrides) that previously applied to these files.
+      'functions',
       // `remotion/` is an optional self-contained sub-package (own
       // tsconfig + package.json) for rendering demo videos. Not part of
       // the main app's TypeScript project.
@@ -43,7 +53,7 @@ export default tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        project: ['./tsconfig.json', './functions/tsconfig.json'],
+        project: ['./tsconfig.json'],
         tsconfigRootDir: __dirname,
         ecmaFeatures: {
           jsx: true,
@@ -56,7 +66,6 @@ export default tseslint.config(
   },
   {
     files: ['**/*.{ts,tsx}'],
-    ignores: ['functions/**'],
     plugins: {
       react: reactPlugin,
       'react-hooks': reactHooksPlugin,
@@ -137,19 +146,6 @@ export default tseslint.config(
       // expect.objectContaining / expect.stringContaining return `any`;
       // nesting them inside matchers is standard Vitest/Jest practice.
       '@typescript-eslint/no-unsafe-assignment': 'off',
-    },
-  },
-  {
-    files: ['functions/**/*.ts'],
-    languageOptions: {
-      globals: {
-        ...globals.node,
-      },
-    },
-    rules: {
-      'no-console': 'off',
-      'react/jsx-no-target-blank': 'off',
-      'react-refresh/only-export-components': 'off',
     },
   },
   prettierConfig

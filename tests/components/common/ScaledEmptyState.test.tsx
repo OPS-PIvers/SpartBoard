@@ -46,13 +46,15 @@ describe('ScaledEmptyState', () => {
     expect(outer).toHaveClass('flex', 'flex-col', 'items-center');
   });
 
-  it('uses default color classes when no overrides provided', () => {
+  it('uses contrast-safe default color classes when no overrides provided', () => {
+    // Defaults must clear WCAG AA on the dark dashboard surface (slate-900):
+    // slate-200 (~14.5:1) for the title, slate-300 (~12:1) for the subtitle.
     render(<ScaledEmptyState icon={Clock} title="Title" subtitle="Subtitle" />);
     const title = screen.getByText('Title');
-    expect(title).toHaveClass('text-slate-500');
+    expect(title).toHaveClass('text-slate-200');
 
     const subtitle = screen.getByText('Subtitle');
-    expect(subtitle).toHaveClass('text-slate-400');
+    expect(subtitle).toHaveClass('text-slate-300');
   });
 
   it('applies custom iconClassName', () => {

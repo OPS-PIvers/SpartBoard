@@ -555,6 +555,125 @@ describe('organizations/buildings — writes', () => {
   });
 });
 
+// F6 — building-admin membership check must canonicalize legacy ↔ canonical
+// building IDs (config/buildings.ts BUILDING_ID_ALIASES). A building doc and a
+// member's buildingIds may be stored in either format; the rule's manages()
+// helper must match them regardless of which side is legacy.
+describe('organizations/buildings — building-admin ID canonicalization (F6)', () => {
+  const CANON_MEMBER_EMAIL = 'canon.admin@orono.k12.mn.us';
+  const LEGACY_MEMBER_EMAIL = 'legacy.admin@orono.k12.mn.us';
+  const NONMEMBER_ADMIN_EMAIL = 'nonmember.admin@orono.k12.mn.us';
+
+  const asCanonAdmin = () =>
+    testEnv
+      .authenticatedContext('canon-uid', { email: CANON_MEMBER_EMAIL })
+      .firestore();
+  const asLegacyAdmin = () =>
+    testEnv
+      .authenticatedContext('legacy-uid', { email: LEGACY_MEMBER_EMAIL })
+      .firestore();
+  const asNonMemberAdmin = () =>
+    testEnv
+      .authenticatedContext('nonmember-uid', { email: NONMEMBER_ADMIN_EMAIL })
+      .firestore();
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      // Canonical-format member managing 'high'.
+      await setDoc(
+        doc(db, `organizations/${ORG_ID}/members/${CANON_MEMBER_EMAIL}`),
+        {
+          email: CANON_MEMBER_EMAIL,
+          orgId: ORG_ID,
+          roleId: 'building_admin',
+          status: 'active',
+          buildingIds: ['high'],
+        }
+      );
+      // Legacy-format member managing 'orono-high-school'.
+      await setDoc(
+        doc(db, `organizations/${ORG_ID}/members/${LEGACY_MEMBER_EMAIL}`),
+        {
+          email: LEGACY_MEMBER_EMAIL,
+          orgId: ORG_ID,
+          roleId: 'building_admin',
+          status: 'active',
+          buildingIds: ['orono-high-school'],
+        }
+      );
+      // Building admin who manages a DIFFERENT building (middle), so neither
+      // ID format of 'high' is in scope.
+      await setDoc(
+        doc(db, `organizations/${ORG_ID}/members/${NONMEMBER_ADMIN_EMAIL}`),
+        {
+          email: NONMEMBER_ADMIN_EMAIL,
+          orgId: ORG_ID,
+          roleId: 'building_admin',
+          status: 'active',
+          buildingIds: ['middle'],
+        }
+      );
+      // A building doc stored in the LEGACY ID format.
+      await setDoc(
+        doc(db, `organizations/${ORG_ID}/buildings/orono-high-school`),
+        {
+          id: 'orono-high-school',
+          orgId: ORG_ID,
+          name: 'Orono High (legacy id)',
+        }
+      );
+    });
+  });
+
+  it('canonical-member can edit a legacy-id building (canonical member ↔ legacy building)', async () => {
+    await assertSucceeds(
+      updateDoc(
+        doc(
+          asCanonAdmin(),
+          `organizations/${ORG_ID}/buildings/orono-high-school`
+        ),
+        { address: '1 Canon St' }
+      )
+    );
+  });
+
+  it('legacy-member can edit a canonical-id building (legacy member ↔ canonical building)', async () => {
+    await assertSucceeds(
+      updateDoc(
+        doc(asLegacyAdmin(), `organizations/${ORG_ID}/buildings/high`),
+        { address: '2 Legacy Ave' }
+      )
+    );
+  });
+
+  it('canonical-member can edit the canonical-id building (same-format sanity)', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asCanonAdmin(), `organizations/${ORG_ID}/buildings/high`), {
+        address: '3 Same St',
+      })
+    );
+  });
+
+  it('non-managing building admin is denied on both ID formats', async () => {
+    await assertFails(
+      updateDoc(
+        doc(asNonMemberAdmin(), `organizations/${ORG_ID}/buildings/high`),
+        { address: 'nope' }
+      )
+    );
+    await assertFails(
+      updateDoc(
+        doc(
+          asNonMemberAdmin(),
+          `organizations/${ORG_ID}/buildings/orono-high-school`
+        ),
+        { address: 'nope' }
+      )
+    );
+  });
+});
+
 describe('organizations/domains — writes', () => {
   const pendingDomain = (id: string, domain: string) => ({
     id,

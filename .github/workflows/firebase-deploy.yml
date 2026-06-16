@@ -37,9 +37,14 @@ jobs:
         run: pnpm run type-check:all
 
       - name: Run linter
-        # eslint's type-aware linting loads the whole TS program; the default
-        # Node heap OOMs on this repo's size. Cap higher (runners have 16GB).
-        run: NODE_OPTIONS=--max-old-space-size=6144 pnpm run lint
+        # `pnpm run lint` runs two SEPARATE type-aware ESLint passes in their
+        # own processes: the root app (root tsconfig) and functions/ (functions
+        # tsconfig). Splitting them means peak heap is bounded by the larger
+        # single TS program (the app, ~4.5GB measured) instead of both programs
+        # held in one process (which previously needed a 6144MB cap). 5120MB
+        # leaves comfortable headroom above the measured peak. Rule coverage is
+        # unchanged — see eslint.config.js and functions/eslint.config.mjs.
+        run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint
 
       - name: Check code formatting
         run: pnpm run format:check

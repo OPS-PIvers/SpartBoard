@@ -116,6 +116,44 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.token.email.lower())).data;
     }
 
+    // Maps a legacy long-form building id to its canonical short id.
+    // MUST stay in sync with BUILDING_ID_ALIASES in config/buildings.ts —
+    // the client canonicalizes member.buildingIds and building doc ids via
+    // canonicalBuildingId() there, and CEL cannot reuse the JS map, so the
+    // table is mirrored here. A mismatch re-introduces false denials/grants
+    // in the building-admin update rule. Unknown ids pass through unchanged.
+    function canonicalBuildingId(id) {
+      return id == 'orono-high-school' ? 'high'
+           : id == 'orono-middle-school' ? 'middle'
+           : id == 'orono-intermediate-school' ? 'intermediate'
+           : id == 'schumann-elementary' ? 'schumann'
+           : id;
+    }
+
+    // True when a building (identified in either ID format) is among the
+    // caller's managed buildingIds, comparing on canonical ids so legacy
+    // stored ids on either side still match. Both the building doc id and
+    // each member buildingId are normalized before the membership check.
+    function manages(orgId, buildingId) {
+      return orgMember(orgId).get('buildingIds', [])
+               .hasAny(buildingIdAliasGroup(buildingId));
+    }
+
+    // Returns all ID forms (canonical + any legacy aliases) equivalent to the
+    // given building id, so hasAny() matches a member buildingId stored in
+    // either format. Mirrors the inverse of canonicalBuildingId() above.
+    function buildingIdAliasGroup(buildingId) {
+      return canonicalBuildingId(buildingId) == 'high'
+               ? ['high', 'orono-high-school']
+           : canonicalBuildingId(buildingId) == 'middle'
+               ? ['middle', 'orono-middle-school']
+           : canonicalBuildingId(buildingId) == 'intermediate'
+               ? ['intermediate', 'orono-intermediate-school']
+           : canonicalBuildingId(buildingId) == 'schumann'
+               ? ['schumann', 'schumann-elementary']
+           : [buildingId];
+    }
+
     // The caller's roleId within an org, or empty string when not a member.
     function memberRole(orgId, emailLower) {
       return exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(emailLower))
@@ -208,7 +246,7 @@ service cloud.firestore {
         allow update: if isSuperAdmin() ||
             ((isDomainAdmin(orgId) ||
               (isBuildingAdmin(orgId) &&
-               buildingId in orgMember(orgId).buildingIds)) &&
+               manages(orgId, buildingId))) &&
              request.resource.data.id == resource.data.id &&
              request.resource.data.orgId == resource.data.orgId &&
              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -347,6 +385,15 @@ service cloud.firestore {
           // building admin — the domain admin must assign a building first.
           // This is intentional: building admins shouldn't be able to act on
           // members who haven't been scoped into their building yet.
+          //
+          // KNOWN GAP (follow-up): this list-vs-list overlap is NOT alias-aware
+          // like the building-doc rule's `manages()` helper, so if the target
+          // member and the acting admin store buildingIds in mismatched
+          // canonical/legacy formats the overlap can falsely fail (false DENIAL
+          // only — never a false grant). Canonicalizing two lists in CEL has no
+          // clean form (no `.map()`), unlike the single-id `buildingIdAliasGroup`
+          // case. Low incidence since member buildingIds are canonicalized on
+          // write; tracked for a dedicated rules pass. See config/buildings.ts.
           (isBuildingAdmin(orgId) &&
            resource.data.buildingIds.hasAny(orgMember(orgId).buildingIds) &&
            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
@@ -2109,6 +2156,8 @@ service cloud.firestore {
       // can verify by id without a query.
       allow create, update: if request.auth != null
         && request.resource.data.invitedByUid == request.auth.uid
+        && request.resource.data.inviteeEmailLower is string
+        && request.resource.data.inviteeEmailLower.size() <= 255
         && get(/databases/$(database)/documents/plcs/$(request.resource.data.plcId)).data.leadUid == request.auth.uid
         && inviteId == plcInviteDocId(request.resource.data.plcId, request.resource.data.inviteeEmailLower);
 

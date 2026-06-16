@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   collection,
   query,
   where,
-  orderBy,
   limit,
   onSnapshot,
   doc,
@@ -22,8 +21,14 @@ const PLCS_COLLECTION = 'plcs';
 // naturally bounded by membership, but the admin picker reads ALL PLCs, so
 // bound it to avoid streaming an unbounded collection (and the Firestore read
 // cost that comes with it). 500 is comfortably above the real-world PLC count
-// for a single district; `orderBy('name')` makes the truncation deterministic
-// (the first 500 alphabetically) rather than an arbitrary subset.
+// for a single district. The query relies ONLY on the automatic `__name__`
+// (document-id) index — there is no server-side `orderBy('name')` — so no
+// custom composite index in firestore.indexes.json is required. The
+// snapshot handler sorts the (capped) result set by name client-side, so the
+// user-visible admin list is still alphabetical; the only consequence of
+// truncating by `__name__` rather than by name is that, in the (unrealistic)
+// event the district ever exceeds 500 PLCs, the dropped tail is an arbitrary
+// rather than the alphabetically-last subset.
 const ADMIN_PLCS_LIMIT = 500;
 // Mirrors the constant in `usePlcInvitations` — kept here so `deletePlc` can
 // sweep outstanding invites in the same batch as the PLC doc.
@@ -69,10 +74,20 @@ interface UsePlcsResult {
    */
   clearPlcSharedSheetUrl: (plcId: string) => Promise<void>;
   /**
-   * One-off read of a PLC's sharedSheetUrl. Used at assignment-create
-   * time when we need the current value without waiting for the next
-   * snapshot tick (the snapshot is trustworthy but we want a strong-read
-   * for the "already created?" check to avoid racing two teachers).
+   * Read a PLC's sharedSheetUrl on the assignment-create path. When the
+   * PLC is already in this hook's live `plcs` state (i.e. the caller is a
+   * member, which is the case for every real "assign a PLC quiz" flow),
+   * we read the value straight from the already-subscribed snapshot —
+   * NO extra Firestore `getDoc`. The `onSnapshot` listener keeps that
+   * value current, so the cached read is not stale. Only when the PLC is
+   * absent from local state (e.g. an admin/non-member surface, or before
+   * the first snapshot has landed) do we fall back to a one-off `getDoc`.
+   *
+   * Note: the transactional "set-if-empty" race guard for two teachers
+   * assigning their first PLC quiz simultaneously lives in
+   * `setPlcSharedSheetUrl` (which always re-reads inside its transaction);
+   * this getter is just the cheap "do we already have a sheet?" probe, so
+   * trading the strong-read for the live-snapshot value here is safe.
    */
   getPlcSharedSheetUrl: (plcId: string) => Promise<string | null>;
   /**
@@ -192,6 +207,16 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  // Latest `plcs` snapshot accessible from the stable `getPlcSharedSheetUrl`
+  // callback without re-creating it (and the memoized result object) on every
+  // list change. The `onSnapshot` listener keeps this current, so reading
+  // `sharedSheetUrl` from here is not a stale read. Assigned directly in the
+  // render body (per CLAUDE.md house rules) so it stays in sync with state
+  // synchronously and is readable from the callback without an effect commit.
+  const plcsRef = useRef<Plc[]>(plcs);
+  // eslint-disable-next-line react-hooks/refs
+  plcsRef.current = plcs;
+
   useEffect(() => {
     if (!enabled || !user || isAuthBypass) {
       // Defer so we don't trip react-hooks/set-state-in-effect. Same pattern as
@@ -205,15 +230,14 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     }
 
     // Admin mode reads the whole collection (unfiltered apart from a bounded
-    // `orderBy('name') + limit`); member mode scopes to PLCs the current user
-    // belongs to. Single-field `orderBy('name')` needs only the automatic
-    // index, so no composite index is required.
+    // `limit`); member mode scopes to PLCs the current user belongs to. We do
+    // NOT `orderBy('name')` on the server — that would add an index dependency
+    // (and the latency/index-build surprises that come with it). Instead the
+    // snapshot handler sorts by name client-side, so the admin list ordering
+    // the user sees is unchanged while the query relies only on the automatic
+    // `__name__` index.
     const q = asAdmin
-      ? query(
-          collection(db, PLCS_COLLECTION),
-          orderBy('name'),
-          limit(ADMIN_PLCS_LIMIT)
-        )
+      ? query(collection(db, PLCS_COLLECTION), limit(ADMIN_PLCS_LIMIT))
       : query(
           collection(db, PLCS_COLLECTION),
           where('memberUids', 'array-contains', user.uid)
@@ -442,6 +466,17 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
 
   const getPlcSharedSheetUrl = useCallback(
     async (plcId: string): Promise<string | null> => {
+      // Fast path: the PLC is already in our live, snapshot-backed state
+      // (true for every member-initiated assignment flow), so we can read
+      // `sharedSheetUrl` without a redundant Firestore read. Normalize the
+      // empty string to null to match the slow path's `raw.length > 0` check.
+      const cached = plcsRef.current.find((p) => p.id === plcId);
+      if (cached) {
+        const url = cached.sharedSheetUrl;
+        return typeof url === 'string' && url.length > 0 ? url : null;
+      }
+      // Slow path: PLC not in local state (non-member surface, or before
+      // the first snapshot). Fall back to a one-off read.
       const snap = await getDoc(doc(db, PLCS_COLLECTION, plcId));
       if (!snap.exists()) return null;
       const raw = (snap.data() as { sharedSheetUrl?: unknown }).sharedSheetUrl;
