@@ -467,12 +467,13 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
   const getPlcSharedSheetUrl = useCallback(
     async (plcId: string): Promise<string | null> => {
       // Fast path: the PLC is already in our live, snapshot-backed state
-      // (true for every member-initiated assignment flow). `parsePlc`
-      // normalizes `sharedSheetUrl` to a non-empty string or null, so we
-      // can return it directly without a redundant Firestore read.
+      // (true for every member-initiated assignment flow), so we can read
+      // `sharedSheetUrl` without a redundant Firestore read. Normalize the
+      // empty string to null to match the slow path's `raw.length > 0` check.
       const cached = plcsRef.current.find((p) => p.id === plcId);
       if (cached) {
-        return cached.sharedSheetUrl ?? null;
+        const url = cached.sharedSheetUrl;
+        return typeof url === 'string' && url.length > 0 ? url : null;
       }
       // Slow path: PLC not in local state (non-member surface, or before
       // the first snapshot). Fall back to a one-off read.

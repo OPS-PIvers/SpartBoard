@@ -234,10 +234,11 @@ export function snapshotAtToMillis(value: unknown): number | null {
  * normalized period+PIN. Deleting the *entire* subcollection on
  * `removeStudent` would clobber a still-present classmate's recovery history.
  * We bound the delete to `[joinedAt - skew, removalTime + skew]` — the window
- * during which the removed student occupied the doc. A prior occupant's
- * snapshots were all written before this occupant's `joinedAt` (the response
- * doc's `joinedAt` is rewritten on every join/reset), so they fall outside the
- * window and survive.
+ * during which the removed student occupied the doc. `joinedAt` is immutable
+ * once set and is stamped only when the response doc is (re)created, i.e. after
+ * any prior occupant's doc was deleted and the key freed. So a prior occupant's
+ * orphaned snapshots were all written before this occupant's `joinedAt`, fall
+ * outside the window, and survive.
  *
  * Callers only invoke this when a `joinedAt` lower bound is actually known
  * (the removed student's response doc was resolved). Without that anchor there
@@ -972,10 +973,11 @@ export const useQuizSessionTeacher = (
       // still-present classmate's recovery history. So we scope the delete
       // to the removed student's own occupancy window —
       // `[joinedAt - skew, removalTime + skew]` — using each history doc's
-      // server-stamped `snapshotAt`. A prior occupant's snapshots were all
-      // written before this occupant's `joinedAt` (the response doc's
-      // `joinedAt` is rewritten on every join/reset) and so fall outside the
-      // window and survive. The history `create` rule pins the doc shape to
+      // server-stamped `snapshotAt`. `joinedAt` is immutable and stamped only
+      // when the response doc is (re)created after the key was freed, so a
+      // prior occupant's orphaned snapshots predate this occupant's `joinedAt`
+      // and fall outside the window, surviving. The history `create` rule pins
+      // the doc shape to
       // exactly `[questionId, answer, answeredAt, status, snapshotAt]`, so we
       // can't add an explicit owner marker without a rules change — the
       // server timestamp is the cheapest robust discriminator available.
