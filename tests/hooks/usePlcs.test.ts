@@ -22,6 +22,8 @@ import {
 import { act, renderHook } from '@testing-library/react';
 import {
   collection,
+  doc,
+  getDoc,
   limit,
   onSnapshot,
   orderBy,
@@ -65,6 +67,8 @@ const mockQuery = query as Mock;
 const mockWhere = where as Mock;
 const mockOrderBy = orderBy as Mock;
 const mockLimit = limit as Mock;
+const mockDoc = doc as Mock;
+const mockGetDoc = getDoc as Mock;
 
 const USER_UID = 'user-1';
 
@@ -111,18 +115,16 @@ describe('usePlcs - subscription wiring', () => {
     expect(mockOnSnapshot).toHaveBeenCalledTimes(1);
   });
 
-  it('admin mode bounds the whole-collection listen with orderBy + limit', () => {
+  it('admin mode bounds the whole-collection listen with limit only (no orderBy)', () => {
     renderHook(() => usePlcs({ asAdmin: true }));
 
     // The unbounded admin listen is capped so it can't stream the entire
-    // collection. `orderBy('name')` makes the truncation deterministic.
-    expect(mockOrderBy).toHaveBeenCalledWith('name');
+    // collection. We deliberately omit `orderBy('name')` so the query relies
+    // only on the automatic `__name__` index — the snapshot handler sorts by
+    // name client-side (asserted in the parse-and-sort test below).
+    expect(mockOrderBy).not.toHaveBeenCalled();
     expect(mockLimit).toHaveBeenCalledWith(500);
-    expect(mockQuery).toHaveBeenCalledWith(
-      'plcs',
-      { __orderBy: { field: 'name', dir: undefined } },
-      { __limit: 500 }
-    );
+    expect(mockQuery).toHaveBeenCalledWith('plcs', { __limit: 500 });
   });
 
   it('skips the listener when signed out', () => {
@@ -224,5 +226,142 @@ describe('usePlcs - subscription wiring', () => {
   it('defaults error to null before any snapshot resolves', () => {
     const { result } = renderHook(() => usePlcs({ asAdmin: true }));
     expect(result.current.error).toBeNull();
+  });
+});
+
+describe('usePlcs - getPlcSharedSheetUrl state-first caching (F10)', () => {
+  /**
+   * Render the hook and push a snapshot containing the given PLC docs so the
+   * live `plcs` state (and the mirrored ref the selectors read) is hydrated.
+   * Returns the hook result handle for the caller to exercise.
+   */
+  function renderWithHydratedPlcs(
+    docs: Array<{ id: string; data: Record<string, unknown> }>
+  ) {
+    let cb: (snap: unknown) => void = () => {
+      throw new Error('snapshot callback not captured');
+    };
+    mockOnSnapshot.mockImplementation((_q, onNext) => {
+      cb = onNext;
+      return () => undefined;
+    });
+
+    const view = renderHook(() => usePlcs({ asAdmin: true }));
+
+    act(() => {
+      cb({
+        forEach: (fn: (d: { id: string; data: () => unknown }) => void) => {
+          docs.forEach((d) => fn({ id: d.id, data: () => d.data }));
+        },
+      });
+    });
+
+    return view;
+  }
+
+  it('returns the cached sharedSheetUrl from live state WITHOUT a getDoc', async () => {
+    const { result } = renderWithHydratedPlcs([
+      {
+        id: 'plc-1',
+        data: {
+          name: 'Algebra PLC',
+          leadUid: 'lead-1',
+          memberUids: ['lead-1'],
+          memberEmails: { 'lead-1': 'a@x.com' },
+          sharedSheetUrl: 'https://docs.google.com/spreadsheets/d/abc',
+          createdAt: 1,
+          updatedAt: 2,
+        },
+      },
+    ]);
+
+    // The snapshot already carried a populated sharedSheetUrl, so the
+    // assignment-create "already created?" check must be served from state.
+    let url: string | null = null;
+    await act(async () => {
+      url = await result.current.getPlcSharedSheetUrl('plc-1');
+    });
+
+    expect(url).toBe('https://docs.google.com/spreadsheets/d/abc');
+    // The whole point of F10: no redundant network read for data already in
+    // the live subscription.
+    expect(mockGetDoc).not.toHaveBeenCalled();
+  });
+
+  it('falls back to getDoc when the PLC is not in state (subscription not hydrated)', async () => {
+    // No snapshot pushed → `plcs` state stays empty, so the selector misses.
+    const { result } = renderHook(() => usePlcs({ asAdmin: true }));
+
+    mockDoc.mockReturnValue({ __ref: 'plcs/plc-missing' });
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => ({ sharedSheetUrl: 'https://docs.google.com/strong-read' }),
+    });
+
+    let url: string | null = null;
+    await act(async () => {
+      url = await result.current.getPlcSharedSheetUrl('plc-missing');
+    });
+
+    // Safety guarantee: a PLC absent from state must still resolve via the
+    // authoritative strong read, never regress to a missing value.
+    expect(mockGetDoc).toHaveBeenCalledTimes(1);
+    expect(url).toBe('https://docs.google.com/strong-read');
+  });
+
+  it('falls back to getDoc when state reports a null/absent sharedSheetUrl (strong-read race guard)', async () => {
+    const { result } = renderWithHydratedPlcs([
+      {
+        id: 'plc-2',
+        data: {
+          name: 'Biology PLC',
+          leadUid: 'lead-2',
+          memberUids: ['lead-2'],
+          memberEmails: { 'lead-2': 'b@x.com' },
+          // sharedSheetUrl absent → parsed as null in state.
+          createdAt: 1,
+          updatedAt: 2,
+        },
+      },
+    ]);
+
+    mockDoc.mockReturnValue({ __ref: 'plcs/plc-2' });
+    // A racing teammate populated the URL after our last snapshot tick — the
+    // strong read must surface it rather than trusting the stale "empty"
+    // state value.
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => ({ sharedSheetUrl: 'https://docs.google.com/raced' }),
+    });
+
+    let url: string | null = null;
+    await act(async () => {
+      url = await result.current.getPlcSharedSheetUrl('plc-2');
+    });
+
+    expect(mockGetDoc).toHaveBeenCalledTimes(1);
+    expect(url).toBe('https://docs.google.com/raced');
+  });
+
+  it('getPlcFromState returns the live PLC, or undefined when absent', () => {
+    const { result } = renderWithHydratedPlcs([
+      {
+        id: 'plc-3',
+        data: {
+          name: 'Chemistry PLC',
+          leadUid: 'lead-3',
+          memberUids: ['lead-3'],
+          memberEmails: { 'lead-3': 'c@x.com' },
+          sharedSheetUrl: 'https://docs.google.com/spreadsheets/d/xyz',
+          createdAt: 1,
+          updatedAt: 2,
+        },
+      },
+    ]);
+
+    expect(result.current.getPlcFromState('plc-3')?.sharedSheetUrl).toBe(
+      'https://docs.google.com/spreadsheets/d/xyz'
+    );
+    expect(result.current.getPlcFromState('nope')).toBeUndefined();
   });
 });

@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   collection,
   query,
   where,
-  orderBy,
   limit,
   onSnapshot,
   doc,
@@ -22,8 +21,9 @@ const PLCS_COLLECTION = 'plcs';
 // naturally bounded by membership, but the admin picker reads ALL PLCs, so
 // bound it to avoid streaming an unbounded collection (and the Firestore read
 // cost that comes with it). 500 is comfortably above the real-world PLC count
-// for a single district; `orderBy('name')` makes the truncation deterministic
-// (the first 500 alphabetically) rather than an arbitrary subset.
+// for a single district. The query relies only on the automatic `__name__`
+// index (no custom `orderBy`); the snapshot handler sorts by name client-side
+// for the visible alphabetical order — see the `list.sort` below.
 const ADMIN_PLCS_LIMIT = 500;
 // Mirrors the constant in `usePlcInvitations` — kept here so `deletePlc` can
 // sweep outstanding invites in the same batch as the PLC doc.
@@ -71,10 +71,29 @@ interface UsePlcsResult {
   /**
    * One-off read of a PLC's sharedSheetUrl. Used at assignment-create
    * time when we need the current value without waiting for the next
-   * snapshot tick (the snapshot is trustworthy but we want a strong-read
-   * for the "already created?" check to avoid racing two teachers).
+   * snapshot tick.
+   *
+   * State-first with a `getDoc` fallback (F10): when the PLC is already
+   * in the live `usePlcs` subscription AND its snapshotted `sharedSheetUrl`
+   * is non-null, we return that cached value and skip the network read —
+   * the snapshot is the authoritative, real-time-synced copy, so a present
+   * non-null value can be trusted. We fall back to a `getDoc` only when the
+   * PLC is absent from state (subscription not yet hydrated, or an
+   * admin-only doc the member-scoped listen never sees) OR state reports a
+   * null/absent URL — in the latter case the `getDoc` re-confirms with a
+   * strong read so the "already created?" race check can't be defeated by a
+   * locally-stale "still empty" snapshot.
    */
   getPlcSharedSheetUrl: (plcId: string) => Promise<string | null>;
+  /**
+   * Synchronous selector returning the live-subscribed PLC metadata for
+   * `plcId`, or `undefined` when the PLC isn't in the current subscription
+   * (not yet hydrated, or out of scope for this read mode). Lets callers on
+   * a hot path read `sharedSheetUrl` / `features` / etc. straight from the
+   * real-time-synced state instead of issuing a per-call `getDoc`. Always
+   * pair with a `getDoc` fallback when `undefined` is returned.
+   */
+  getPlcFromState: (plcId: string) => Plc | undefined;
   /**
    * Any member: toggle the PLC dashboard `features` map. Always writes the
    * full canonical map (defaults merged in) so partial historical writes
@@ -192,6 +211,17 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  // Latest `plcs` snapshot reachable from the stable `getPlcSharedSheetUrl`
+  // / `getPlcFromState` callbacks without re-creating them every render.
+  // Updated via `useEffect` (not during render) to keep the
+  // `react-hooks/refs` lint happy — same pattern as `assignmentsRef` in
+  // useQuizAssignments.ts. By the time a consumer calls one of those
+  // selectors the effect has run and the ref reflects the live state.
+  const plcsRef = useRef<Plc[]>(plcs);
+  useEffect(() => {
+    plcsRef.current = plcs;
+  }, [plcs]);
+
   useEffect(() => {
     if (!enabled || !user || isAuthBypass) {
       // Defer so we don't trip react-hooks/set-state-in-effect. Same pattern as
@@ -204,16 +234,14 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       return () => clearTimeout(timer);
     }
 
-    // Admin mode reads the whole collection (unfiltered apart from a bounded
-    // `orderBy('name') + limit`); member mode scopes to PLCs the current user
-    // belongs to. Single-field `orderBy('name')` needs only the automatic
-    // index, so no composite index is required.
+    // Admin mode reads the whole collection (bounded only by `limit`); member
+    // mode scopes to PLCs the current user belongs to. The admin query
+    // deliberately omits `orderBy('name')` so it relies only on the automatic
+    // `__name__` index — the snapshot handler sorts the results by name
+    // client-side (see `list.sort` below), preserving the visible alphabetical
+    // order without requiring a custom single-field index.
     const q = asAdmin
-      ? query(
-          collection(db, PLCS_COLLECTION),
-          orderBy('name'),
-          limit(ADMIN_PLCS_LIMIT)
-        )
+      ? query(collection(db, PLCS_COLLECTION), limit(ADMIN_PLCS_LIMIT))
       : query(
           collection(db, PLCS_COLLECTION),
           where('memberUids', 'array-contains', user.uid)
@@ -440,14 +468,37 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     [user]
   );
 
+  // Synchronous selector over the live `plcs` subscription. Reads from the
+  // ref (not `plcs` directly) so the callback identity stays stable across
+  // snapshot ticks. `undefined` ⇒ the PLC isn't in scope for this read mode
+  // / hasn't hydrated yet; callers must fall back to a `getDoc` in that case.
+  const getPlcFromState = useCallback(
+    (plcId: string): Plc | undefined =>
+      plcsRef.current.find((p) => p.id === plcId),
+    []
+  );
+
   const getPlcSharedSheetUrl = useCallback(
     async (plcId: string): Promise<string | null> => {
+      // State-first (F10): if the live subscription already carries this PLC
+      // with a populated `sharedSheetUrl`, trust the real-time-synced value
+      // and skip the network read. A present non-null URL can only have come
+      // from a committed write, so it's safe for the "already created?"
+      // check. We deliberately do NOT short-circuit on a state value of
+      // `null`/absent — a locally-stale "still empty" snapshot must not let a
+      // racing teammate's just-created sheet go unnoticed, so we re-confirm
+      // with a strong `getDoc` in that case (and whenever the PLC is missing
+      // from state entirely, e.g. before the subscription hydrates).
+      const cached = getPlcFromState(plcId)?.sharedSheetUrl;
+      if (typeof cached === 'string' && cached.length > 0) {
+        return cached;
+      }
       const snap = await getDoc(doc(db, PLCS_COLLECTION, plcId));
       if (!snap.exists()) return null;
       const raw = (snap.data() as { sharedSheetUrl?: unknown }).sharedSheetUrl;
       return typeof raw === 'string' && raw.length > 0 ? raw : null;
     },
-    []
+    [getPlcFromState]
   );
 
   // Any current member: write the canonical features map. We always send
@@ -485,6 +536,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       setPlcSharedSheetUrl,
       clearPlcSharedSheetUrl,
       getPlcSharedSheetUrl,
+      getPlcFromState,
       updatePlcFeatures,
     }),
     [
@@ -499,6 +551,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       setPlcSharedSheetUrl,
       clearPlcSharedSheetUrl,
       getPlcSharedSheetUrl,
+      getPlcFromState,
       updatePlcFeatures,
     ]
   );
