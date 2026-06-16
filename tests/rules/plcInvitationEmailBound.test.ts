@@ -121,29 +121,25 @@ describe('plc_invitations — invitee email length bound (F24)', () => {
     );
   });
 
-  it('lead cannot update (overwrite) an invite to an over-limit email', async () => {
-    // Seed a valid invite first, then attempt a lead overwrite (the
-    // create/update rule is combined via `allow create, update`) whose new
-    // email blows the bound. The doc id matches the over-limit email so the
-    // plcInviteDocId() id check passes and the length bound is what fails.
-    const validEmail = 'invitee@orono.k12.mn.us';
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(
-        doc(
-          ctx.firestore(),
-          `plc_invitations/${inviteDocId(PLC_ID, validEmail)}`
-        ),
-        inviteDoc(validEmail)
-      );
-    });
-
+  it('lead cannot update an existing invite that carries an over-limit email', async () => {
+    // Seed an over-limit invite *at its own path* with rules disabled, then
+    // attempt a lead overwrite of that same doc. Because the doc already
+    // exists, this exercises the `update` branch of `allow create, update`
+    // (not `create`). The doc id is derived from the over-limit email so the
+    // plcInviteDocId() id check passes and the `size() <= 255` length bound is
+    // what rejects the write.
     const local = 'a'.repeat(300 - '@orono.k12.mn.us'.length);
     const overEmail = `${local}@orono.k12.mn.us`;
+    const overPath = `plc_invitations/${inviteDocId(PLC_ID, overEmail)}`;
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), overPath), inviteDoc(overEmail));
+    });
+
     await assertFails(
-      setDoc(
-        doc(asLead(), `plc_invitations/${inviteDocId(PLC_ID, overEmail)}`),
-        inviteDoc(overEmail)
-      )
+      setDoc(doc(asLead(), overPath), {
+        ...inviteDoc(overEmail),
+        plcName: 'Math PLC (renamed)',
+      })
     );
   });
 });
