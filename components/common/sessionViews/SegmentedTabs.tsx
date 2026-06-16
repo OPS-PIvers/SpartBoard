@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 
 export interface SegmentedTab<K extends string = string> {
   key: K;
@@ -41,10 +41,42 @@ export function SegmentedTabs<K extends string = string>({
   ariaLabel,
   panelIdPrefix,
 }: SegmentedTabsProps<K>): React.ReactElement {
+  // WAI-ARIA 1.2 § 3.23 tablist keyboard pattern: ArrowRight/Left move focus
+  // between tabs (wrapping); Home/End jump to first/last. Using event
+  // delegation on the <nav> avoids attaching per-tab handlers.
+  const onNavKeyDown = useCallback((e: React.KeyboardEvent<HTMLElement>) => {
+    if (
+      e.key !== 'ArrowRight' &&
+      e.key !== 'ArrowLeft' &&
+      e.key !== 'Home' &&
+      e.key !== 'End'
+    )
+      return;
+    e.preventDefault();
+    const nodes = Array.from(
+      e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+    );
+    if (nodes.length === 0) return;
+    const idx = nodes.indexOf(document.activeElement as HTMLButtonElement);
+    let next: HTMLButtonElement;
+    if (e.key === 'Home') {
+      next = nodes[0];
+    } else if (e.key === 'End') {
+      next = nodes[nodes.length - 1];
+    } else if (e.key === 'ArrowRight') {
+      next = nodes[(idx + 1) % nodes.length];
+    } else {
+      // ArrowLeft
+      next = nodes[(idx - 1 + nodes.length) % nodes.length];
+    }
+    next.focus();
+  }, []);
+
   return (
     <nav
       role="tablist"
       aria-label={ariaLabel}
+      onKeyDown={onNavKeyDown}
       className="flex items-center rounded-xl bg-slate-200/50 min-w-0"
       style={{ padding: 'min(3px, 0.8cqmin)', gap: 'min(2px, 0.5cqmin)' }}
     >
