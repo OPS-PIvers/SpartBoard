@@ -52,6 +52,7 @@ export function SegmentedTabs<K extends string = string>({
       e.key !== 'End'
     )
       return;
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
     const nodes = Array.from(
       e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')
     );
