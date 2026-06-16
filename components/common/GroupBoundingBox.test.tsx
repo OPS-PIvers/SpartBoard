@@ -204,7 +204,7 @@ describe('GroupBoundingBox', () => {
     );
 
     const seHandleEl = document.querySelector<HTMLElement>(
-      '[style*="nwse-resize"]'
+      '[data-testid="group-resize-handle-se"]'
     );
     if (!seHandleEl) throw new Error('SE handle not found');
     seHandleEl.setPointerCapture = vi.fn();
@@ -267,7 +267,7 @@ describe('GroupBoundingBox', () => {
     );
 
     const seHandleEl = document.querySelector<HTMLElement>(
-      '[style*="nwse-resize"]'
+      '[data-testid="group-resize-handle-se"]'
     );
     if (!seHandleEl) throw new Error('SE handle not found');
     seHandleEl.setPointerCapture = vi.fn();
