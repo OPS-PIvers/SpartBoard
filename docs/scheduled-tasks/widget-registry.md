@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-15_
+_Last audited: 2026-06-16_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-16: Full audit after rebasing scheduled-tasks onto dev-paul (new commits since 2026-06-15: fix(widgets/random) guard group-rename onBlur against stale Escape-cancel closure (#1974), fix(library) guard folder-rename onBlur against stale Escape-cancel closure (#1975), fix(migration) proportionsValid range guards, test(lti/ags) trailing-slash regression, Scheduled tasks: test coverage + admin-config defaults (#1980), docs(routines) nightly run 18, fix(i18n) shareCollection DE/ES/FR, fix(library,widgets/random) guard rename onBlur against Enter-unmount double-commit + test (#1981)). None of these touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered: 62 non-sticker in WIDGET_COMPONENTS (sticker intentional WidgetRenderer special-case per JSDoc), 63/63 in widgetDefaults.ts and widgetGradeLevels.ts, 59 user-selectable in tools.ts (7 intentionally excluded sub-types: blooms-detail, catalyst-instruction, catalyst-visual, custom-widget, mathTool, onboarding, sticker), 3 InternalToolType entries (magic, record, remote) correctly in tools.ts and widgetGradeLevels.ts but not WidgetType union (documented). pnpm type-check and pnpm lint both clean. Zero new gaps._
 
 _2026-06-15: Full audit after rebasing scheduled-tasks onto dev-paul (new commits since 2026-06-14: Optimize-pass wave 1 (#1973) — ClockWidget seconds legibility (fontSize: '0.85em' relative to cqmin parent, no registry impact), First5 a11y/contrast fix (cqmin-scaled icon size enlarged from 2.5→4cqmin, aria-label added), WidgetRenderer memoize settings/appearance JSX; docs(sessionViews) handoff brief; fix(sessionViews)/ui(quiz)/ui(video-activity) 30-commit PR #1971 — sessionViews atom library + quiz/VA monitor+results restyle; fix(admin-config) NeedDoPutThen building name fallback; action(admin-config) NeedDoPutThen appearance defaults). None of these touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered: 62 non-sticker in WIDGET_COMPONENTS (sticker intentional WidgetRenderer special-case per JSDoc), 63/63 in widgetDefaults.ts and widgetGradeLevels.ts, 59 user-selectable in tools.ts (7 intentionally excluded sub-types: blooms-detail, catalyst-instruction, catalyst-visual, custom-widget, mathTool, onboarding, sticker), 3 InternalToolType entries (magic, record, remote) correctly in tools.ts and widgetGradeLevels.ts but not WidgetType union (documented). pnpm type-check and pnpm lint both clean. Zero new gaps._
 

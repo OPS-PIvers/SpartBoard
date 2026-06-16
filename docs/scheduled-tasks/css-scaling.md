@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-15_
+_Last audited: 2026-06-16_
 _Last action: 2026-06-13_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-16: Full scan after rebasing onto dev-paul (new commits since 2026-06-15: fix(widgets/random) guard group-rename onBlur — only `components/widgets/random/RandomGroups.tsx` touched; fix(library,widgets/random) guard rename onBlur against Enter-unmount double-commit — same RandomGroups.tsx; no other Widget.tsx files modified). No Widget.tsx content changes that could introduce scaling anti-patterns. All pre-existing open items remain valid._
 
 _2026-06-15: Full scan of all Widget.tsx files after rebasing onto dev-paul (new commits since 2026-06-14: Optimize-pass wave 1 touched ClockWidget/Widget.tsx (seconds fontSize `0.85em` — em-relative to cqmin parent, acceptable), First5/Widget.tsx (icon size from `min(12px, 2.5cqmin)` → `min(16px, 4cqmin)` — clean), WidgetRenderer.tsx (memoization only); fix(sessionViews)/ui(quiz)/ui(video-activity) #1971 touched QuizResults.tsx (text-sm period-filter select at :1509 — same tracked LOW open item, line shifted from :1530 to :1509) and VideoActivityWidget/components/Results.tsx (no text size classes — clean)). No new anti-patterns introduced. QuizResults period-filter open item line reference updated from :1530 to :1509. All pre-existing open items remain valid._
 

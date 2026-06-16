@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-06-09_
+_Last audited: 2026-06-16_
 _Last action: 2026-06-09_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 high | 2 critical). pnpm audit (functions): 59 vulnerabilities (4 low | 24 moderate | 30 high | 1 critical). No new vulnerabilities beyond existing tracked items. Status updates: (a) vitest@4.1.8 — CRITICAL GHSA-5xrq-8626-4rwp NOT reported in audit output (resolved — already in Completed from 2026-06-09); (b) firebase-admin latest jumped to 14.0.0 (major) — MEDIUM firebase-admin item updated; (c) firebase-tools latest is now 15.20.0 (up from 15.19.1); (d) vite latest is 8.0.16 (2 majors); (e) hono still at 4.12.15 (both MEDIUM and HIGH open items remain). @modelcontextprotocol/sdk still at 1.25.2. All open items confirmed still active._
 
 ### MEDIUM `qs` DoS in functions via `@google-cloud/functions-framework` — patched in >=6.15.2
 
@@ -103,8 +105,8 @@ _Nothing currently in progress._
     - **HIGH** signature forgery in Ed25519 (<1.4.0)
     - **HIGH** DoS via Infinite Loop (<1.4.0)
     - **HIGH** RSA-PKCS signature forgery (<1.4.0)
-      Root: firebase-admin is a transitive dep of the `firebase` SDK. Functions: firebase-admin@13.6.0 direct, latest 13.9.0. `firebase` root: 12.8.0, latest 12.13.0. (Updated: firebase-admin latest moved from 13.8.0 → 13.9.0; firebase latest moved from 12.12.0 → 12.13.0 as of 2026-05-12.)
-- **Fix:** Update `firebase` in root to latest (12.13.0) and `firebase-admin` in functions/ to 13.9.0. Check if newer versions pin fixed transitive versions. May not fully resolve if firebase-admin itself hasn't updated @google-cloud/storage.
+      Root: firebase-admin is a transitive dep of the `firebase` SDK. Functions: firebase-admin@13.6.0 direct, latest **14.0.0** (major version jump). `firebase` root: 12.8.0, latest 12.14.0. (Updated 2026-06-16: firebase-admin latest jumped to 14.0.0 — a major version — from 13.9.0; firebase latest moved to 12.14.0. Note: major version of firebase-admin indicates potential breaking changes; check migration guide before updating.)
+- **Fix:** Update `firebase` in root to latest (12.14.0) and `firebase-admin` in functions/ to 14.0.0 (review changelog for breaking changes first). Check if newer versions pin fixed transitive versions of fast-xml-parser and node-forge. May not fully resolve if firebase-admin itself hasn't updated @google-cloud/storage.
 
 ### MEDIUM `@modelcontextprotocol/sdk` cross-client data leak (still resolves to 1.25.2 after `@google/genai` upgrade)
 
@@ -141,7 +143,7 @@ _Nothing currently in progress._
   - `lint-staged`: 16.2.7 → **17.0.5** (major — check husky integration compatibility)
   - `@google/genai`: 1.51.0 → **2.8.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade; bumped from 2.7.0 → 2.8.0 as of 2026-06-09)
   - Functions: `jose` 4.15.9 → **6.2.3** (2 major versions behind; jose is a JWT/JWK library used transitively via `firebase-admin`; no direct import in project code confirmed. Major version gap may involve breaking API changes if ever imported directly.)
-    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → 19.2.7, `firebase-tools` 15.8.0 → 15.19.1, `firebase` 12.8.0 → 12.14.0, `firebase-admin` (functions) 13.6.0 → 14.0.0 (major), `@playwright/test` 1.58.0 → 1.60.0, `@typescript-eslint/*` 8.54.0 → 8.61.0, `vitest` (root) 4.0.18 → 4.1.8 (CRITICAL CVE — see separate HIGH entry above), `hono` 4.12.15 → 4.12.25, `dompurify` 3.4.2 → 3.4.8, `postcss` 8.5.6 → 8.5.15, `prettier` 3.8.1 → 3.8.3, `eslint-plugin-prettier` 5.5.5 → 5.5.6, `eslint-plugin-react-hooks` 7.0.1 → 7.1.1, `globals` 17.2.0 → 17.6.0, `@firebase/rules-unit-testing` 5.0.0 → 5.0.1, `google-auth-library` (functions) 10.5.0 → 10.7.0. (Updated 2026-06-09)
+    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → 19.2.7, `firebase-tools` 15.8.0 → **15.20.0** (updated from 15.19.1), `firebase` 12.8.0 → 12.14.0, `firebase-admin` (functions) 13.6.0 → **14.0.0** (major — now 1 major behind), `@playwright/test` 1.58.0 → 1.60.0, `@typescript-eslint/*` 8.54.0 → 8.61.0, `vitest` (root) resolved to 4.1.8 ✅ (CRITICAL CVE resolved — see Completed), `hono` 4.12.15 → 4.12.25, `dompurify` 3.4.2 → 3.4.8, `postcss` 8.5.6 → 8.5.15, `prettier` 3.8.1 → 3.8.3, `eslint-plugin-prettier` 5.5.5 → 5.5.6, `eslint-plugin-react-hooks` 7.0.1 → 7.1.1, `globals` 17.2.0 → 17.6.0, `@firebase/rules-unit-testing` 5.0.0 → 5.0.1, `google-auth-library` (functions) 10.5.0 → 10.7.0, `vite` 6.4.2 → **8.0.16** (2 majors ahead), `lucide-react` 0.563.0 → **1.18.0** (major), `@vitejs/plugin-react` 5.1.2 → **6.0.2** (major), `eslint-plugin-react-hooks` 7.0.1 → 7.1.1, `react-i18next` 16.5.4 → **17.0.8** (major), functions `axios` 1.15.0 → 1.18.0, functions `@google-cloud/functions-framework` 5.0.0 → 5.0.2. (Updated 2026-06-16)
     These should not be done in a single commit — each needs its own migration PR with testing.
 - **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 6 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix. `@google/genai` major bump warrants dedicated testing of all AI generation flows (quiz, mini-app, widget builder, OCR, etc.). jsdom update to v29 also resolves the ws CVE tracked separately.
 
