@@ -120,6 +120,9 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const paletteButtonRef = useRef<HTMLButtonElement>(null);
+  // Tracks whether Escape was pressed so the synchronous blur event that fires
+  // when the input unmounts does not re-invoke commit() with a stale draft.
+  const cancelledRef = useRef(false);
   const renameEnabled = editable && !!onRename;
   const colorEnabled = editable && !!onChangeColor;
 
@@ -174,6 +177,13 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
   }, [colorPickerOpen]);
 
   const commit = () => {
+    // If Escape was pressed, cancel() already ran and set cancelledRef — bail
+    // out here so the blur event that fires when the input unmounts does not
+    // persist the value the user intended to discard.
+    if (cancelledRef.current) {
+      cancelledRef.current = false;
+      return;
+    }
     setEditingName(false);
     const trimmed = draft.trim();
     if (trimmed && trimmed !== groupName) {
@@ -184,8 +194,23 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
   };
 
   const cancel = () => {
+    // Set the flag BEFORE updating state so that the synchronous blur event
+    // (fired when React removes the focused <input> from the DOM) sees it and
+    // skips commit().
+    cancelledRef.current = true;
     setEditingName(false);
     setDraft(groupName);
+  };
+
+  // Open a rename session. Clearing cancelledRef here — at the only two entry
+  // points (pencil button + double-click) — replaces the old reset-in-effect:
+  // resetting a ref belongs in the event handler, not a DOM-sync effect (see
+  // CLAUDE.md). It also covers the rare path where commit() never fires (no
+  // blur at all), which would otherwise leave the flag stuck true and suppress
+  // the next session's commit.
+  const startRename = () => {
+    cancelledRef.current = false;
+    setEditingName(true);
   };
 
   return (
@@ -219,7 +244,14 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
             type="text"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
+            onBlur={(e) => {
+              // Pressing Enter commits and unmounts this input; the browser
+              // then fires a synchronous blur during DOM removal. Bail out if
+              // the input is no longer connected so commit() can't fire a
+              // second time and persist a duplicate rename.
+              if (!e.currentTarget?.isConnected) return;
+              commit();
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
@@ -248,9 +280,7 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
                 ? `${groupName} (click pencil or double-click to rename)`
                 : groupName
             }
-            onDoubleClick={
-              renameEnabled ? () => setEditingName(true) : undefined
-            }
+            onDoubleClick={renameEnabled ? startRename : undefined}
           >
             {groupName}
           </span>
@@ -261,7 +291,7 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
             className="shrink-0 text-white/70 hover:text-white transition-colors rounded"
             onClick={(e) => {
               e.stopPropagation();
-              setEditingName(true);
+              startRename();
             }}
             onPointerDown={(e) => e.stopPropagation()}
             aria-label={`Rename ${groupName}`}

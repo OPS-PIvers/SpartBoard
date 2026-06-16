@@ -4,6 +4,45 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-15
+
+- PRs reviewed: 10 (all open PRs)
+  - #1980 — Scheduled tasks: test coverage + admin-config defaults (head `scheduled-tasks`, base `dev-paul`)
+  - #1979 — docs: nightly debugger log 2026-06-15 run #18 (head `nightly/debugger-log-2026-06-15`, base `dev-paul`)
+  - #1978 — test(lti/ags): trailing-slash regression coverage for scoresUrl (head `nightly/build-tooling-2026-06-15`, base `dev-paul`)
+  - #1977 — fix(i18n): translate 10 verbatim-EN shareCollection keys DE/ES/FR (head `nightly/admin-config-2026-06-15`, base `dev-paul`)
+  - #1976 — fix(migration): range guards in proportionsValid (head `nightly/state-data-2026-06-15`, base `dev-paul`)
+  - #1975 — fix(library): guard folder-rename onBlur against stale Escape-cancel (head `nightly/dashboard-layout-2026-06-15`, base `dev-paul`)
+  - #1974 — fix(widgets/random): guard group-rename onBlur (head `nightly/widgets-2026-06-15`, base `dev-paul`)
+  - #1972 — docs(unifier): run 16 (head `nightly/unifier-log-2026-06-15`, base `dev-paul`)
+  - #1971 — UI: redesign Quiz/Video Activity monitor & results views (head `dev-paul`, base `main`)
+  - #1951 — fix(i18n): EN-placeholder strings boardsModal/shareCollection DE/ES/FR (head `nightly/admin-config-2026-06-12`, base `dev-paul`)
+- Comments processed: 11 total — 7 fixed, 3 explained-no-op, 1 skipped (author rationale present)
+  - #1975: 4 unresolved threads — gemini HIGH Enter-commit double-fire on unmount blur in `NewFolderInput` + claude's matching pre-existing-risk note → FIXED with one `if (!e.currentTarget?.isConnected) return;` guard on `onBlur`; 2 claude test-gap threads (NewFolderInput has no regression test) → EXPLAINED (component is non-exported; needs full-FolderSidebar harness that actually unmounts the input — flagged for manual follow-up).
+  - #1977: 4 unresolved threads — 3 gemini type-safety threads (remove `as unknown as`/`Record<string, unknown>` casts) → FIXED via `LocaleWithShareCollection` interface + `keyof ShareCollectionSection`-typed key list; 1 claude FR terminology thread (`Établissement` vs established `bâtiment`) → FIXED to `Bâtiment`/`— Sélectionner un bâtiment —`.
+  - #1972: 1 gemini thread — stale `D3-E12` reference in 2026-06-14 log row → FIXED to `D3-E13`.
+  - #1980: 1 gemini thread — `vi.restoreAllMocks()` cleanup → EXPLAINED (already present in the branch's `afterEach`, lines 94–97; `vi.useRealTimers()` correctly omitted, no fake timers).
+  - #1971: 56/57 review threads resolved by author; 1 unresolved (copilot — fixed `size={16}` icons in `OverflowMenu`) → SKIPPED, author already replied with a rationale (intentional fixed-size chrome matching the library menu).
+  - #1974, #1976, #1978, #1979, #1951: no unresolved review comments.
+- Fixes pushed: 3
+  - #1975 / `nightly/dashboard-layout-2026-06-15` (08dda10) — `NewFolderInput.onBlur` `isConnected` guard against the Enter-unmount double-commit. type-check ✓ lint ✓ format ✓ existing rename test ✓
+  - #1977 / `nightly/admin-config-2026-06-15` (7f70499) — FR `building`/`selectBuilding` aligned to "bâtiment" + type-safe `shareCollectionLocales.test.ts`. type-check ✓ lint ✓ format ✓ 11/11 locale tests ✓
+  - #1972 / `nightly/unifier-log-2026-06-15` (d4e8b74) — `D3-E12` → `D3-E13` in run log. prettier ✓ (doc-only)
+- Reviews posted: 10 (one structured review per PR)
+  - #1980: Ready — substitute-portal hook tests (20); mock cleanup already correct.
+  - #1979: Ready — doc-only debugger run #18 log.
+  - #1978: Ready — additive trailing-slash AGS coverage (528→532).
+  - #1977: Ready — root-cause i18n fix + verbatim guard; type-safety/terminology nits resolved.
+  - #1976: Ready — root-cause `proportionsValid` range-guard fix with FAIL-before/PASS-after tests.
+  - #1975: Ready with minor notes — Escape + Enter-double-commit fixes; `NewFolderInput` test gap flagged.
+  - #1974: Ready — `cancelledRef` stale-closure guard + 8 tests.
+  - #1972: Ready — doc-only unifier run 16; numbering fix applied.
+  - #1971: Ready with minor notes — large shared-atom Quiz/VA monitor/results refactor into `main`; 56/57 threads resolved; CI `pending`, recommend confirming green + manual live-session smoke test (touches live monitor/results path).
+  - #1951: Ready — boardsModal/collection i18n (~335 values) + regression suite; all 6 threads resolved.
+- Notes:
+  - Branch-safety: all 9 nightly/scheduled head branches are non-`main` / non-`dev-*` → pushable; only #1975, #1977, #1972 needed fix pushes. #1971's head is `dev-paul` (matches `dev-*`, read-only) — review comment only, no push.
+  - Verification ran on Node 22 locally (project wants Node 24); type-check/lint/format/tests all green for the touched files. CI on Node 24 remains the authoritative gate.
+
 ## 2026-06-14
 
 - PRs reviewed: 8 (all open PRs; all head branches are `nightly/*` or `scheduled-tasks` → base `dev-paul`, all in-scope for pushing)

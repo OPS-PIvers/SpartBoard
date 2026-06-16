@@ -80,12 +80,27 @@ const RenameInput: React.FC<{
   onCancel: () => void;
 }> = ({ initial, onCommit, onCancel }) => {
   const ref = useRef<HTMLInputElement>(null);
+  // Set to true synchronously before calling onCancel() so that the
+  // synchronous blur event fired by unmounting the focused input (which
+  // carries a stale onBlur closure still holding the typed text) does not
+  // accidentally call onCommit with the cancelled value. Same pattern as
+  // DraggableWindow's isCancellingTitleRef (Bug #1965).
+  const isCancellingRef = useRef(false);
+
   useEffect(() => {
     ref.current?.focus();
     ref.current?.select();
   }, []);
 
-  const handleBlur = () => {
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    // Pressing Enter commits and unmounts this input; the browser then fires a
+    // synchronous blur during DOM removal. Bail out if the input is no longer
+    // connected so onCommit() can't fire a second time (duplicate commit).
+    if (!e.currentTarget?.isConnected) return;
+    if (isCancellingRef.current) {
+      isCancellingRef.current = false;
+      return;
+    }
     const v = ref.current?.value ?? '';
     const trimmed = v.trim();
     if (trimmed && trimmed !== initial) onCommit(trimmed);
@@ -104,6 +119,10 @@ const RenameInput: React.FC<{
           if (v) onCommit(v);
           else onCancel();
         } else if (e.key === 'Escape') {
+          // Set the cancellation flag BEFORE calling onCancel() — onCancel()
+          // unmounts this input, which synchronously fires blur with the stale
+          // onBlur closure. The flag is read in handleBlur to skip the write.
+          isCancellingRef.current = true;
           onCancel();
         }
         e.stopPropagation();
