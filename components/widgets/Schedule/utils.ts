@@ -1,5 +1,29 @@
 import { DailySchedule, ScheduleItem } from '@/types';
 
+/**
+ * Build a container-query size expression for Schedule widget content.
+ *
+ * The widget content area is a `container-type: size` container, so sizing can
+ * react to width (`cqw`) and height (`cqh`) independently. We want:
+ *
+ *   • Autoscale *down* with the smaller dimension — a short OR narrow widget
+ *     shrinks text/rows so more content fits — but never below a floor.
+ *   • Width growth alone must NOT enlarge anything: widening past a comfortable
+ *     point should reveal more of each row (longer titles), not zoom it.
+ *   • Making the widget taller still grows the content (the wanted scaling).
+ *
+ * Mechanism: `clamp(floor, min(coeff·cqw, coeff·HEIGHT_CAP·cqh), maxPx)`.
+ * The `cqw` term only binds when the widget is narrow (so narrowing shrinks);
+ * the `cqh` cap binds at normal/wide aspect ratios (so widening can't grow the
+ * size). `coeff`/`maxPx` mirror the previous `min(maxPx, coeff·cqmin)` values
+ * (already multiplied by any text-size preset scale).
+ */
+const SCHEDULE_HEIGHT_CAP = 0.45; // height-cap coefficient (× coeff), applied to cqh
+const SCHEDULE_SIZE_FLOOR = 0.45; // floor as a fraction of maxPx
+
+export const scheduleSize = (coeff: number, maxPx: number): string =>
+  `clamp(${(maxPx * SCHEDULE_SIZE_FLOOR).toFixed(2)}px, min(${coeff.toFixed(2)}cqw, ${(coeff * SCHEDULE_HEIGHT_CAP).toFixed(2)}cqh), ${maxPx.toFixed(2)}px)`;
+
 /** Returns today's date as YYYY-MM-DD in the user's local timezone. */
 export const getTodayStr = (): string => {
   const d = new Date();

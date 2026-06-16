@@ -5,6 +5,7 @@ import { Circle, CheckCircle2, Timer } from 'lucide-react';
 import {
   formatCountdown,
   formatScheduleTime,
+  scheduleSize,
 } from '@/components/widgets/Schedule/utils';
 import { hexToRgba } from '@/utils/styles';
 
@@ -36,11 +37,11 @@ export const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
   const progress = total > 0 ? rem / total : 0;
 
   return (
-    <div className="flex flex-col w-full" style={{ gap: 'min(4px, 0.8cqmin)' }}>
+    <div className="flex flex-col w-full" style={{ gap: scheduleSize(0.8, 4) }}>
       <span
         className="text-indigo-400"
         style={{
-          fontSize: 'min(24px, 6cqmin)',
+          fontSize: scheduleSize(6, 24),
           fontVariantNumeric: 'tabular-nums',
           opacity: isIdle ? 0.6 : 1,
         }}
@@ -49,7 +50,7 @@ export const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
       </span>
       <div
         className="w-full rounded-full overflow-hidden bg-slate-200"
-        style={{ height: 'min(5px, 1.2cqmin)' }}
+        style={{ height: scheduleSize(1.2, 5) }}
       >
         <div
           className="h-full rounded-full bg-indigo-400"
@@ -216,8 +217,13 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
   // tall enough. Auto-scroll keeps the active item in view.
   const rowStyle = {
     flex: '0 0 auto',
-    minHeight: 'min(72px, 18cqmin)',
+    minHeight: scheduleSize(18, 72),
     backgroundColor: bgColor,
+    // Active rows get a thicker accent border; width set inline so it can use
+    // the same clamp()-based sizing (Tailwind arbitrary values can't hold the
+    // commas/spaces a clamp() expression needs). border-style:solid comes from
+    // Tailwind's preflight, so only the width + color need setting here.
+    borderWidth: isActive ? scheduleSize(1.5, 6) : '1px',
   };
 
   // Timer-start icon: strictly mode-aware so the button only appears when
@@ -241,8 +247,8 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
     <div
       className={`w-full flex items-center rounded-2xl transition-all relative snap-start overflow-hidden ${
         isActive
-          ? 'border-[min(6px,1.5cqmin)] border-brand-blue-primary shadow-md z-10'
-          : 'border border-slate-200 shadow-sm'
+          ? 'border-brand-blue-primary shadow-md z-10'
+          : 'border-slate-200 shadow-sm'
       }`}
       style={rowStyle}
     >
@@ -250,9 +256,9 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
         <div
           className="absolute top-0 right-0 bg-brand-blue-primary text-white font-black uppercase tracking-widest z-20"
           style={{
-            fontSize: `min(${Math.round(10 * textScale)}px, ${(2.5 * textScale).toFixed(2)}cqmin)`,
-            padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-            borderBottomLeftRadius: 'min(12px, 3cqmin)',
+            fontSize: scheduleSize(2.5 * textScale, 10 * textScale),
+            padding: `${scheduleSize(1, 4)} ${scheduleSize(2, 8)}`,
+            borderBottomLeftRadius: scheduleSize(3, 12),
           }}
         >
           Now
@@ -261,22 +267,22 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
       <button
         onClick={() => onToggle(index)}
         className="flex items-center flex-1 min-w-0 h-full"
-        style={{ gap: 'min(16px, 3cqmin)', padding: 'min(16px, 3cqmin)' }}
+        style={{ gap: scheduleSize(3, 16), padding: scheduleSize(3, 16) }}
       >
         {item.done ? (
           <CheckCircle2
             className="text-green-500 shrink-0"
             style={{
-              width: 'min(32px, 8cqmin)',
-              height: 'min(32px, 8cqmin)',
+              width: scheduleSize(8, 32),
+              height: scheduleSize(8, 32),
             }}
           />
         ) : (
           <Circle
             className="text-indigo-300 shrink-0"
             style={{
-              width: 'min(32px, 8cqmin)',
-              height: 'min(32px, 8cqmin)',
+              width: scheduleSize(8, 32),
+              height: scheduleSize(8, 32),
             }}
           />
         )}
@@ -289,9 +295,9 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
             />
           ) : (
             <span
-              className={`font-black leading-none ${item.done ? 'text-slate-400' : 'text-indigo-400'}`}
+              className={`font-black leading-none whitespace-nowrap ${item.done ? 'text-slate-400' : 'text-indigo-400'}`}
               style={{
-                fontSize: `min(${Math.round(24 * textScale)}px, ${(6 * textScale).toFixed(2)}cqmin)`,
+                fontSize: scheduleSize(6 * textScale, 24 * textScale),
                 color: !item.done ? fontColor : undefined,
               }}
             >
@@ -301,7 +307,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
           <span
             className={`font-black leading-tight truncate w-full text-left ${item.done ? 'text-slate-400 line-through' : 'text-slate-700'}`}
             style={{
-              fontSize: `min(${Math.round(36 * textScale)}px, ${(10 * textScale).toFixed(2)}cqmin)`,
+              fontSize: scheduleSize(10 * textScale, 36 * textScale),
               color: !item.done ? fontColor : undefined,
             }}
           >
@@ -314,8 +320,8 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
           onClick={() => onStartTimer?.(item)}
           className="shrink-0 text-indigo-300 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
           style={{
-            padding: 'min(4px, 1cqmin)',
-            marginRight: 'min(12px, 2.5cqmin)',
+            padding: scheduleSize(1, 4),
+            marginRight: scheduleSize(2.5, 12),
           }}
           title={timerLaunchLabel}
           aria-label={timerLaunchLabel}
@@ -323,8 +329,8 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
           <Timer
             className="shrink-0"
             style={{
-              width: 'min(28px, 7cqmin)',
-              height: 'min(28px, 7cqmin)',
+              width: scheduleSize(7, 28),
+              height: scheduleSize(7, 28),
             }}
           />
         </button>

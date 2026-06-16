@@ -27,11 +27,12 @@ import {
   parseScheduleTime,
   computeEffectiveTimes,
   getItemDurationSeconds,
+  scheduleSize,
 } from '@/components/widgets/Schedule/utils';
 import { ScheduleRow } from '@/components/widgets/Schedule/components/ScheduleRow';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 
-const GAP_STYLE = 'min(10px, 2cqmin)';
+const GAP_STYLE = scheduleSize(2, 10);
 
 export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -522,7 +523,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
       content={
         <div
           className={`h-full w-full flex flex-col overflow-hidden ${getFontClass()}`}
-          style={{ padding: 'min(12px, 2.5cqmin)' }}
+          style={{ padding: scheduleSize(2.5, 12) }}
         >
           <div
             ref={scrollContainerRef}
