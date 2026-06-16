@@ -19,14 +19,14 @@ export default tseslint.config(
       '**/*.config.js',
       '**/*.config.ts',
       'scripts',
-      // `functions/` is linted by its own pass (functions/eslint.config.js,
+      // `functions/` is linted by its own pass (functions/eslint.config.mjs,
       // run via `pnpm run lint:functions`). Keeping it OUT of this root pass
       // is deliberate: a single type-aware ESLint run that loads BOTH the root
       // and functions TS programs into one process needed a 6GB Node heap to
       // avoid OOM in CI. Splitting into two processes (root here, functions in
       // its own config) means peak heap is bounded by the larger single
       // program, not the sum of both. Rule coverage is unchanged — see
-      // functions/eslint.config.js, which reapplies the same base rule sets
+      // functions/eslint.config.mjs, which reapplies the same base rule sets
       // (js.configs.recommended + tseslint recommendedTypeChecked + the
       // functions-specific overrides) that previously applied to these files.
       'functions',
