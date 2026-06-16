@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
 _Last audited: 2026-06-16_
-_Last action: 2026-06-09_
+_Last action: 2026-06-16_
 
 ---
 
@@ -16,14 +16,9 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-06-16 (action): Fixed MEDIUM `qs` DoS in functions (GHSA-q8mj-m7cp-5q26). Added `"qs": ">=6.15.2"` to `functions/package.json` `pnpm.overrides` (option (b) — the deterministic fix). Before: `pnpm -C functions why qs` showed two vulnerable resolutions (qs@6.14.2 via `@google-cloud/functions-framework>body-parser>qs` and qs@6.15.0 via `@google-cloud/functions-framework>express>qs`, both in the vulnerable range >=6.11.1 <=6.15.1). After `pnpm -C functions install`: `pnpm -C functions why qs` reports a single `qs@6.15.2`, and `pnpm -C functions audit` no longer reports GHSA-q8mj-m7cp-5q26 (grep count 0). File-recency check passed: `functions/package.json` last touched at 316d3062 (#1973) — outside the last 5 branch commits. Verified clean: `prettier --check functions/package.json` (clean), `pnpm -C functions type-check` (0 errors), `pnpm -C functions build` (tsc succeeds), `pnpm -C functions test` (29 files / 532 tests all pass). Moved item to Completed. PR opened against dev-paul: #1991 (rebased directly on dev-paul so the diff is just the two functions/ files — the code change does NOT carry this journal update; the journal record lives here on scheduled-tasks). The root-side instance of this advisory (via `@google/genai > @modelcontextprotocol/sdk > express > qs`) remains covered by the separate MEDIUM MCP SDK item. Remaining MEDIUM items (flatted, ws, yaml, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash) and the LOW major-versions item all still active._
+
 _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 high | 2 critical). pnpm audit (functions): 59 vulnerabilities (4 low | 24 moderate | 30 high | 1 critical). No new vulnerabilities beyond existing tracked items. Status updates: (a) vitest@4.1.8 — CRITICAL GHSA-5xrq-8626-4rwp NOT reported in audit output (resolved — already in Completed from 2026-06-09); (b) firebase-admin latest jumped to 14.0.0 (major) — MEDIUM firebase-admin item updated; (c) firebase-tools latest is now 15.20.0 (up from 15.19.1); (d) vite latest is 8.0.16 (2 majors); (e) hono still at 4.12.15 (both MEDIUM and HIGH open items remain). @modelcontextprotocol/sdk still at 1.25.2. All open items confirmed still active._
-
-### MEDIUM `qs` DoS in functions via `@google-cloud/functions-framework` — patched in >=6.15.2
-
-- **Detected:** 2026-05-26
-- **File:** functions/package.json (transitive via `@google-cloud/functions-framework@5.0.0`)
-- **Detail:** `qs` >=6.11.1 <=6.15.1 has a remotely triggerable DoS: `qs.stringify` crashes with `TypeError` on `null`/`undefined` entries in comma-format arrays when `encodeValuesOnly` is set (GHSA-q8mj-m7cp-5q26, moderate). In functions/, this reaches the codebase via two paths: `@google-cloud/functions-framework@5.0.0 > body-parser > qs` and `@google-cloud/functions-framework@5.0.0 > express > qs`. The same advisory also appears in root via `@google/genai > @modelcontextprotocol/sdk > express > qs`, which is covered by the existing MCP SDK item. `@google-cloud/functions-framework@5.0.0` (latest: 5.0.2) — updating to 5.0.2 may pull in a patched `qs`. Functions deploy is impacted if `qs.stringify` is called with comma-format arrays in any HTTP request handler.
-- **Fix:** (a) Update `@google-cloud/functions-framework` from `^5.0.0` to `^5.0.2` in `functions/package.json` and check `pnpm why qs` to confirm the new version resolves qs >= 6.15.2; (b) alternatively add `"qs": ">=6.15.2"` to `functions/package.json` `pnpm.overrides`.
 
 ### MEDIUM `flatted@3.3.3` has unbounded recursion DoS + prototype pollution — via eslint chain
 
@@ -150,6 +145,14 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 ---
 
 ## Completed
+
+### MEDIUM `qs` DoS in functions via `@google-cloud/functions-framework` — patched in >=6.15.2
+
+- **Detected:** 2026-05-26
+- **Completed:** 2026-06-16
+- **File:** functions/package.json (`pnpm.overrides`; transitive via `@google-cloud/functions-framework@5.0.0`)
+- **Detail:** `qs` >=6.11.1 <=6.15.1 has a remotely triggerable DoS: `qs.stringify` crashes with `TypeError` on `null`/`undefined` entries in comma-format arrays when `encodeValuesOnly` is set (GHSA-q8mj-m7cp-5q26, moderate). In functions/, this reached the codebase via two paths: `@google-cloud/functions-framework@5.0.0 > body-parser > qs` (resolving `qs@6.14.2`) and `@google-cloud/functions-framework@5.0.0 > express > qs` (resolving `qs@6.15.0`) — both in the vulnerable range. The same advisory also appears in root via `@google/genai > @modelcontextprotocol/sdk > express > qs`, which remains covered by the separate MCP SDK Open item.
+- **Resolution:** Chose option (b) — added `"qs": ">=6.15.2"` to the `pnpm.overrides` block in `functions/package.json` (deterministic, version-independent of `@google-cloud/functions-framework`). After `pnpm -C functions install`, `pnpm -C functions why qs` reports a single `qs@6.15.2` (patched) and `pnpm -C functions audit` no longer reports GHSA-q8mj-m7cp-5q26 (grep count 0). Verified clean: `prettier --check functions/package.json` (clean), `pnpm -C functions type-check` (0 errors), `pnpm -C functions build` (tsc succeeds), `pnpm -C functions test` (29 files / 532 tests all pass). Shipped as PR #1991 against dev-paul (branch rebased directly on dev-paul tip so the PR diff is exactly the two `functions/` files — `package.json` + `pnpm-lock.yaml`). The override-only approach (vs. bumping `@google-cloud/functions-framework` to 5.0.2) avoids touching the direct dependency's version while guaranteeing the patched qs across all transitive paths.
 
 ### HIGH `vitest@4.0.18` (root) — CRITICAL arbitrary file read/execute when UI server is active
 
