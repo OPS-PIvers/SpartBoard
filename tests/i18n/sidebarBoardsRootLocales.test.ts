@@ -1,21 +1,4 @@
-/**
- * Regression test for sidebar.boards.rootBoards verbatim-EN placeholder bug.
- *
- * The sidebar.boards.rootBoards key was set to the English string 'Boards' in
- * DE, ES, and FR locales. This causes the breadcrumb label shown in
- * SidebarBoardsActive.tsx (line: t('sidebar.boards.rootBoards', ...)) to display
- * the English word "Boards" to German, Spanish, and French users instead of the
- * correct translated term.
- *
- * Evidence: every other key that translates "Boards" in each locale uses the
- * correct term (DE='Tafeln', ES='Tableros', FR='Tableaux') — e.g.
- * boardsModal.allBoards, boardsModal.boards, boardNav.boardList.
- *
- * This test:
- * 1. Checks that all 4 locales carry the sidebar.boards.rootBoards key.
- * 2. Checks that DE, ES, and FR each use their established locale-native
- *    translation, NOT the verbatim English string.
- */
+// Regression: sidebar.boards.rootBoards was stored as verbatim EN 'Boards' in DE/ES/FR — fixes PR #1983.
 
 import { describe, it, expect } from 'vitest';
 import en from '@/locales/en.json';
