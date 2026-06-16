@@ -153,7 +153,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
           for (const w of rs.widgets) {
             minScale = Math.max(minScale, 150 / w.startW, 100 / w.startH);
           }
-          const scale = Math.max(minScale, Math.sqrt(scaleX * scaleY));
+          const scale = Math.max(minScale, Math.sqrt(Math.max(0, scaleX) * Math.max(0, scaleY)));
 
           // Apply to each widget via direct DOM manipulation. The DOM write
           // is the fast path; setWidgetOverride is the correctness path that
@@ -234,7 +234,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
         // non-proportional drags, causing a visible widget jump on release.
         const finalScale = Math.max(
           minFinalScale,
-          Math.sqrt(fScaleX * fScaleY)
+          Math.sqrt(Math.max(0, fScaleX) * Math.max(0, fScaleY))
         );
 
         // Commit all positions+dimensions in one batch, then clear each
