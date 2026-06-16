@@ -11,7 +11,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        # Immutable version pin (was the floating @v6 tag) for supply-chain
+        # hygiene, matching the action-hosting-deploy pin below.
+        uses: actions/checkout@v6.0.3
 
       - name: Setup Node.js and pnpm
         uses: ./.github/actions/setup
