@@ -210,13 +210,12 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
   // Latest `plcs` snapshot accessible from the stable `getPlcSharedSheetUrl`
   // callback without re-creating it (and the memoized result object) on every
   // list change. The `onSnapshot` listener keeps this current, so reading
-  // `sharedSheetUrl` from here is not a stale read. Updated via effect rather
-  // than during render to keep the `react-hooks/refs` lint happy. Mirrors the
-  // `assignmentsRef` pattern in `useQuizAssignments`.
+  // `sharedSheetUrl` from here is not a stale read. Assigned directly in the
+  // render body (per CLAUDE.md house rules) so it stays in sync with state
+  // synchronously and is readable from the callback without an effect commit.
   const plcsRef = useRef<Plc[]>(plcs);
-  useEffect(() => {
-    plcsRef.current = plcs;
-  }, [plcs]);
+  // eslint-disable-next-line react-hooks/refs
+  plcsRef.current = plcs;
 
   useEffect(() => {
     if (!enabled || !user || isAuthBypass) {
