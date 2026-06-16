@@ -11,7 +11,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        # Immutable version pin (was the floating @v6 tag) for supply-chain
+        # hygiene, matching the action-hosting-deploy pin below.
+        uses: actions/checkout@v6.0.3
 
       - name: Setup Node.js and pnpm
         uses: ./.github/actions/setup
@@ -80,7 +82,12 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ./service-account.json
 
       - name: Deploy to Firebase Hosting (Live)
-        uses: FirebaseExtended/action-hosting-deploy@v0
+        # Pinned to the latest immutable release instead of the moving @v0 tag.
+        # NOTE: v0.10.0 still declares Node 20. Upstream's Node 24 runtime bump
+        # (PR #450) is merged but unreleased (tracking: issue #457). GitHub
+        # auto-runs Node 20 actions on Node 24 from 2026-06-16, so this is
+        # forward-safe; re-pin to a clean Node 24 release once upstream cuts one.
+        uses: FirebaseExtended/action-hosting-deploy@v0.10.0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
