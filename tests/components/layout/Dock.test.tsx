@@ -31,6 +31,11 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
 }));
 
+// F9 — Dock now reads tool-visibility fields from a separate context.
+vi.mock('@/context/useToolVisibility', () => ({
+  useToolVisibility: vi.fn(),
+}));
+
 vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(),
 }));
@@ -199,6 +204,7 @@ vi.mock('@dnd-kit/sortable', () => ({
 // ── Imports after mocks ────────────────────────────────────────────────────
 
 import { useDashboard } from '@/context/useDashboard';
+import { useToolVisibility } from '@/context/useToolVisibility';
 import { useAuth } from '@/context/useAuth';
 import { useCustomWidgets } from '@/context/useCustomWidgets';
 import { useSavedWidgets } from '@/context/useSavedWidgets';
@@ -226,24 +232,28 @@ function setupMocks({
     addWidget: vi.fn(),
     removeWidget: vi.fn(),
     removeWidgets: vi.fn(),
-    visibleTools: [],
-    dockItems,
-    reorderDockItems: vi.fn(),
     activeDashboard: null,
     updateWidget: vi.fn(),
+    addToast: vi.fn(),
+    setPendingQuizShareId: vi.fn(),
+    setPendingAssignmentShareId: vi.fn(),
+  } as unknown as ReturnType<typeof useDashboard>);
+
+  // F9 — tool-visibility fields now live on their own context.
+  vi.mocked(useToolVisibility).mockReturnValue({
+    visibleTools: [],
+    dockItems,
+    libraryOrder: [],
+    reorderDockItems: vi.fn(),
     toggleToolVisibility: vi.fn(),
     reorderLibrary: vi.fn(),
-    libraryOrder: [],
     addFolder: vi.fn(),
     renameFolder: vi.fn(),
     deleteFolder: vi.fn(),
     addItemToFolder: vi.fn(),
     moveItemOutOfFolder: vi.fn(),
     reorderFolderItems: vi.fn(),
-    addToast: vi.fn(),
-    setPendingQuizShareId: vi.fn(),
-    setPendingAssignmentShareId: vi.fn(),
-  } as unknown as ReturnType<typeof useDashboard>);
+  } as unknown as ReturnType<typeof useToolVisibility>);
 
   vi.mocked(useAuth).mockReturnValue({
     canAccessWidget,

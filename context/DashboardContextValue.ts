@@ -6,8 +6,6 @@ import {
   Dashboard,
   GradeFilter,
   ClassRoster,
-  DockItem,
-  InternalToolType,
   WidgetConfig,
   GlobalStyle,
   Student,
@@ -129,8 +127,6 @@ export interface DashboardContextValue {
   dashboards: Dashboard[];
   activeDashboard: Dashboard | null;
   toasts: Toast[];
-  visibleTools: (WidgetType | InternalToolType)[];
-  dockItems: DockItem[];
   loading: boolean;
   isSaving: boolean;
   gradeFilter: GradeFilter;
@@ -173,7 +169,6 @@ export interface DashboardContextValue {
     options?: { silent?: boolean }
   ) => Promise<void>;
   setActiveCollectionId: (collectionId: string | null) => void;
-  resetDockToDefaults: () => void;
   addWidget: (type: WidgetType, overrides?: AddWidgetOverrides) => void;
   addWidgets: (
     widgetsToAdd: {
@@ -200,12 +195,6 @@ export interface DashboardContextValue {
   resetWidgetSize: (id: string) => void;
   setBackground: (bg: string) => void;
   setGlobalStyle: (style: Partial<GlobalStyle>) => void;
-  toggleToolVisibility: (type: WidgetType | InternalToolType) => void;
-  setAllToolsVisibility: (visible: boolean) => void;
-  reorderTools: (tools: (WidgetType | InternalToolType)[]) => void;
-  reorderLibrary: (tools: (WidgetType | InternalToolType)[]) => void;
-  reorderDockItems: (items: DockItem[]) => void;
-  libraryOrder: (WidgetType | InternalToolType)[];
   updateDashboardSettings: (
     settings: Partial<Dashboard['settings']>,
     opts?: { immediate?: boolean }
@@ -387,32 +376,6 @@ export interface DashboardContextValue {
   deleteRoster: (id: string) => Promise<void>;
   setActiveRoster: (id: string | null) => void;
   setAbsentStudents: (rosterId: string, studentIds: string[]) => Promise<void>;
-
-  // Folder system
-  addFolder: (name: string) => void;
-  createFolderWithItems: (
-    name: string,
-    items: (WidgetType | InternalToolType)[]
-  ) => void;
-  renameFolder: (id: string, name: string) => void;
-  deleteFolder: (id: string) => void;
-  addItemToFolder: (
-    folderId: string,
-    type: WidgetType | InternalToolType
-  ) => void;
-  removeItemFromFolder: (
-    folderId: string,
-    type: WidgetType | InternalToolType
-  ) => void;
-  moveItemOutOfFolder: (
-    folderId: string,
-    type: WidgetType | InternalToolType,
-    index: number
-  ) => void;
-  reorderFolderItems: (
-    folderId: string,
-    newItems: (WidgetType | InternalToolType)[]
-  ) => void;
 }
 
 export const DashboardContext = createContext<

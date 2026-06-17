@@ -73,6 +73,7 @@ import { act, fireEvent, render } from '@testing-library/react';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DashboardProvider } from '@/context/DashboardContext';
 import { useDashboard } from '@/context/useDashboard';
+import { useToolVisibility } from '@/context/useToolVisibility';
 import { BoardCanvas } from '@/components/layout/BoardCanvas';
 import type {
   Dashboard,
@@ -177,8 +178,13 @@ vi.mock('@/context/useAuth', () => {
 type SnapshotCb = (dashboards: Dashboard[], hasPendingWrites: boolean) => void;
 let capturedSnapshotCb: SnapshotCb | null = null;
 
-vi.mock('@/hooks/useFirestore', () => ({
-  useFirestore: () => ({
+// Stable singleton (same rationale as the other hook mocks). The real
+// useFirestore memoizes its result; a fresh object per call would make
+// saveDashboardFirestore / subscribeToDashboards / etc. churn identity every
+// provider render, which recomputes the big contextValue (those feed its
+// callbacks' deps) even on a pure tool-vis toggle — masking the F9 split.
+vi.mock('@/hooks/useFirestore', () => {
+  const value = {
     saveDashboard: vi.fn().mockResolvedValue(Date.now()),
     saveDashboards: vi.fn().mockResolvedValue(undefined),
     deleteDashboard: vi.fn().mockResolvedValue(undefined),
@@ -190,11 +196,20 @@ vi.mock('@/hooks/useFirestore', () => ({
     }),
     shareDashboard: vi.fn(),
     loadSharedDashboard: vi.fn().mockResolvedValue(null),
-  }),
-}));
+  };
+  return { useFirestore: () => value };
+});
 
-vi.mock('@/hooks/useRosters', () => ({
-  useRosters: () => ({
+// Stable singletons (same rationale as the useAuth mock above). The real
+// useRosters / useCollections / useSharedCollection hooks memoize their result,
+// so their identity survives an unrelated provider re-render. A fresh object
+// per call would make rosters/collectionsApi/share* churn identity on EVERY
+// provider render, recomputing the big contextValue even when only tool
+// visibility changed — which would defeat the F9 split's measurement (the
+// bystander probes would re-render on a toggle via collectionsApi churn, not a
+// genuine tool-vis fan-out).
+vi.mock('@/hooks/useRosters', () => {
+  const value = {
     rosters: [],
     activeRosterId: null,
     addRoster: vi.fn(),
@@ -202,11 +217,12 @@ vi.mock('@/hooks/useRosters', () => ({
     deleteRoster: vi.fn(),
     setActiveRoster: vi.fn(),
     setAbsentStudents: vi.fn(),
-  }),
-}));
+  };
+  return { useRosters: () => value };
+});
 
-vi.mock('@/hooks/useCollections', () => ({
-  useCollections: () => ({
+vi.mock('@/hooks/useCollections', () => {
+  const value = {
     collections: [],
     loading: false,
     error: null,
@@ -217,11 +233,12 @@ vi.mock('@/hooks/useCollections', () => ({
     reorderSiblings: vi.fn(),
     setCollectionMetadata: vi.fn(),
     setCollectionDefaultBoard: vi.fn(),
-  }),
-}));
+  };
+  return { useCollections: () => value };
+});
 
-vi.mock('@/hooks/useSharedCollection', () => ({
-  useSharedCollection: () => ({
+vi.mock('@/hooks/useSharedCollection', () => {
+  const value = {
     shareCollection: vi.fn().mockResolvedValue('mock-collection-share-id'),
     shareSubstituteCollection: vi
       .fn()
@@ -230,8 +247,9 @@ vi.mock('@/hooks/useSharedCollection', () => ({
       .fn()
       .mockResolvedValue({ ok: false, reason: 'not-found' }),
     loadSharedCollectionBoards: vi.fn().mockResolvedValue([]),
-  }),
-}));
+  };
+  return { useSharedCollection: () => value };
+});
 
 vi.mock('firebase/firestore', async (importOriginal) => {
   // Real module reference so any unmocked Firestore function still resolves
@@ -545,6 +563,21 @@ function getCtx(): ReturnType<typeof useDashboard> {
   return ctxRef.current;
 }
 
+// F9 — tool visibility now lives on its own context (ToolVisibilityContext),
+// captured separately so the toggleToolVisibility scenario can drive it after
+// the split. The BystanderProbe deliberately keeps reading the legacy
+// useDashboard() value (NOT this), so it still measures the DashboardContext
+// fan-out the split is meant to silence.
+const toolVisRef: { current: ReturnType<typeof useToolVisibility> | null } = {
+  current: null,
+};
+
+function getToolVis(): ReturnType<typeof useToolVisibility> {
+  if (!toolVisRef.current)
+    throw new Error('Tool-visibility context not captured');
+  return toolVisRef.current;
+}
+
 /**
  * Bystander consumer probe. Stands in for the ~189 widget-content/settings
  * components that call the legacy `useDashboard()` for an unrelated field and
@@ -593,8 +626,10 @@ const BYSTANDER_IDS = [
  */
 const BoardHarness: React.FC = () => {
   const ctx = useDashboard();
+  const toolVis = useToolVisibility();
   useEffect(() => {
     ctxRef.current = ctx;
+    toolVisRef.current = toolVis;
   });
   if (!ctx.activeDashboard) return null;
   return (
@@ -817,27 +852,28 @@ describe('dashboard canvas performance baseline', () => {
     ).toBe(false);
 
     // (7) toggleToolVisibility — flip one tool's dock visibility through the
-    // real context action, the same control mechanism (getCtx().<action>) the
-    // addWidget/removeWidget/minimize scenarios use. 'clock' is a real
+    // real context action. Post-F9 this action lives on ToolVisibilityContext
+    // (captured via getToolVis()), NOT DashboardContext. 'clock' is a real
     // WidgetType (config/tools.ts); the harness seeds an empty dock, so the
-    // toggle ADDS it — mutating both visibleTools and dockItems, which are in
-    // the contextValue useMemo deps (context/DashboardContext.tsx), recreating
-    // the value object's identity. On CURRENT (pre-F9) code that fans out to
-    // EVERY useDashboard() consumer, so the 5 bystander probes all re-render.
-    // This bystanderRenders count is the "before" baseline the F9 split drives
-    // to 0; the shells, by contrast, read the isolated canvas store and stay
-    // put.
+    // toggle ADDS it — mutating visibleTools and dockItems, which are now in
+    // the toolVisibilityValue useMemo deps (context/DashboardContext.tsx).
+    // Because that value is a SEPARATE context, recreating it does NOT churn
+    // DashboardContext's value identity, so the 5 bystander probes (which read
+    // legacy useDashboard()) stay put — bystanderRenders drops to 0. The
+    // shells likewise read the isolated canvas store and never re-render here.
     const toolToToggle: WidgetType = 'clock';
-    const visibleBefore = getCtx().visibleTools.includes(toolToToggle);
+    const visibleBefore = getToolVis().visibleTools.includes(toolToToggle);
     rec.start();
     act(() => {
-      getCtx().toggleToolVisibility(toolToToggle);
+      getToolVis().toggleToolVisibility(toolToToggle);
     });
     await settle();
     rec.record('toggleToolVisibility');
     // Behavioral validity: the toggle actually flipped the tool's visibility,
-    // so contextValue genuinely churned (not a no-op).
-    expect(getCtx().visibleTools.includes(toolToToggle)).toBe(!visibleBefore);
+    // so toolVisibilityValue genuinely churned (not a no-op).
+    expect(getToolVis().visibleTools.includes(toolToToggle)).toBe(
+      !visibleBefore
+    );
 
     // The harness only asserts that metrics were produced — no duration
     // thresholds (CI machines vary; this must never be flaky).
@@ -893,28 +929,20 @@ describe('dashboard canvas performance baseline', () => {
     const sanityAddWidgetProbeDelta = metricFor('addWidget').bystanderRenders;
     expect(sanityAddWidgetProbeDelta).toBeGreaterThan(0);
 
-    // PRIMARY: on current (pre-F9) code, toggling a tool recreates
-    // contextValue and fans out to every useDashboard() consumer, so all 5
-    // bystander probes re-render. This non-zero number is the 'before'
-    // baseline the context split must drive to 0. A 0 here would mean the
-    // instrument is NOT capturing the churn (probe memoized off the wrong
-    // hook, or the toggle was a no-op) — investigate before trusting it.
+    // PRIMARY (post-F9): tool visibility lives on its own context, so toggling
+    // a tool recreates ONLY toolVisibilityValue — DashboardContext's value
+    // identity is untouched. The 5 bystander probes read legacy useDashboard()
+    // (the DashboardContext value), so NONE of them re-render: bystanderRenders
+    // is 0 and the per-probe breakdown is empty. This is the F9 win the harness
+    // exists to prove. The sanity check above (addWidget DOES churn the probes)
+    // confirms the instrument still detects real DashboardContext fan-out, so a
+    // 0 here is a genuine isolation result, not a dead probe.
     const toggle = metricFor('toggleToolVisibility');
-    expect(toggle.bystanderRenders).toBeGreaterThan(0);
-    // Each of the 5 probes is an independent consumer of the same churning
-    // value, so on current code all 5 re-render exactly once per toggle.
-    expect(toggle.bystanderRenders).toBe(5);
-    expect(Object.keys(toggle.bystanderRendersById).sort()).toEqual([
-      'bystander-1',
-      'bystander-2',
-      'bystander-3',
-      'bystander-4',
-      'bystander-5',
-    ]);
+    expect(toggle.bystanderRenders).toBe(0);
+    expect(toggle.bystanderRendersById).toEqual({});
     // The toggle must NOT have re-rendered any widget shell — shells read the
-    // isolated canvas store, not the churning DashboardContext value, so the
-    // tool-visibility churn is invisible to them. (This is the contrast that
-    // makes the bystander probe necessary in the first place.)
+    // isolated canvas store, not the tool-visibility context, so the
+    // tool-visibility churn is invisible to them too.
     expect(shellDiff('toggleToolVisibility')).toEqual([]);
   });
 });
@@ -940,10 +968,11 @@ afterAll(() => {
           'rendered (widgets added mid-test are keyed "added-widget"). ' +
           'bystanderRenders/bystanderRendersById count how many of the 5 ' +
           'legacy-DashboardContext consumer probes re-rendered per scenario — ' +
-          'this is the F9 context-split ruler: the toggleToolVisibility ' +
-          'scenario should read 5 today (every consumer re-renders on a tool ' +
-          'toggle) and drop to 0 once tool visibility moves to its own ' +
-          'context. ' +
+          'this is the F9 context-split ruler: post-split the ' +
+          'toggleToolVisibility scenario reads 0 (tool visibility lives on its ' +
+          'own ToolVisibilityContext, so a toggle no longer churns the ' +
+          'DashboardContext value the probes subscribe to), while addWidget ' +
+          'still churns the probes (sanity that the instrument is live). ' +
           'actualDurationMs is machine-dependent and indicative only — ' +
           'compare medians of 3 runs.',
         skipped:
