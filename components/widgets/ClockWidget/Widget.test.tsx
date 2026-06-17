@@ -179,4 +179,28 @@ describe('ClockWidget', () => {
     expect(ampm.className).toContain('opacity-70');
     expect(ampm.className).not.toContain('opacity-40');
   });
+
+  // Regression: font-size formulas must use cqmin (not cqh or cqw separately).
+  // cqh/cqw formulas like `min(82cqh, 20cqw)` break at non-default aspect ratios:
+  // a very tall narrow clock (200×400) gives `min(328px, 40px) = 40px` (10% of
+  // height — near-invisible); a very wide clock (800×100) gives `min(82px, 160px)
+  // = 82px` (82% of height — overflows into the date row). cqmin scales both axes
+  // symmetrically: `40cqmin` = 40% of the smaller dimension in all orientations.
+  it('time display uses cqmin units for font scaling (not cqh/cqw)', () => {
+    renderWidget(createWidget({ showSeconds: true }));
+
+    const fontSize = screen.getByTestId('clock-time-container').style.fontSize;
+    expect(fontSize).not.toMatch(/cqh/);
+    expect(fontSize).not.toMatch(/cqw/);
+    expect(fontSize).toMatch(/cqmin/);
+  });
+
+  it('date label uses cqmin units for font scaling (not cqh/cqw)', () => {
+    renderWidget(createWidget());
+
+    const fontSize = screen.getByTestId('clock-date').style.fontSize;
+    expect(fontSize).not.toMatch(/cqh/);
+    expect(fontSize).not.toMatch(/cqw/);
+    expect(fontSize).toMatch(/cqmin/);
+  });
 });
