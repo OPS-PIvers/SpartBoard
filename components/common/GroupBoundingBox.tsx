@@ -153,7 +153,10 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
           for (const w of rs.widgets) {
             minScale = Math.max(minScale, 150 / w.startW, 100 / w.startH);
           }
-          const scale = Math.max(minScale, Math.sqrt(scaleX * scaleY));
+          const scale = Math.max(
+            minScale,
+            Math.sqrt(Math.max(0, scaleX) * Math.max(0, scaleY))
+          );
 
           // Apply to each widget via direct DOM manipulation. The DOM write
           // is the fast path; setWidgetOverride is the correctness path that
@@ -227,17 +230,22 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
             100 / w.startH
           );
         }
-        const finalScale = Math.max(minFinalScale, (fScaleX + fScaleY) / 2);
+        // Use the same geometric-mean formula as onMove so the committed
+        // dimensions match the last drag-frame exactly. The previous
+        // arithmetic mean ((fScaleX + fScaleY) / 2) differed from the
+        // geometric mean (√(fScaleX · fScaleY)) by up to ~6% on
+        // non-proportional drags, causing a visible widget jump on release.
+        const finalScale = Math.max(
+          minFinalScale,
+          Math.sqrt(Math.max(0, fScaleX) * Math.max(0, fScaleY))
+        );
 
         // Commit all positions+dimensions in one batch, then clear each
-        // widget's transient override. Explicit clear avoids relying on
-        // tolerance comparison between the move-frame (geometric-mean) and
-        // commit (arithmetic-mean) scales — they differ for non-uniform
-        // diagonal drags so post-commit props would not match the last
-        // override within a small epsilon, leaving widgets stuck at the
-        // mid-resize size. Clearing unconditionally also makes read-only
-        // boards (where updateWidgets no-ops) fail loudly: widgets snap
-        // back to their original size instead of silently appearing resized.
+        // widget's transient override. Both the commit and the last move-frame
+        // now use the same geometric-mean scale, so post-commit props match
+        // the last override exactly. Clearing unconditionally also ensures
+        // read-only boards (where updateWidgets no-ops) fail loudly: widgets
+        // snap back to their original size instead of silently appearing resized.
         updateWidgets(
           rs.widgets.map((w) => {
             const relX = w.startX - rs.anchorX;
@@ -323,6 +331,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
         return (
           <div
             key={corner}
+            data-testid={`group-resize-handle-${corner}`}
             style={{
               ...handleStyle,
               pointerEvents: 'auto',
