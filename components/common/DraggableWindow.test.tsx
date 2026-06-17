@@ -827,20 +827,8 @@ describe('DraggableWindow', () => {
     expect(mockResetWidgetSize).toHaveBeenCalledWith('test-widget');
   });
 
-  // Regression: Alt+P in DraggableWindow's handleKeyDown toggled the pin
-  // state but did NOT call e.stopPropagation(). The keydown event therefore
-  // continued to bubble up to DashboardView's global window listener, which
-  // dispatched a second widget-keyboard-action Pin event. DraggableWindow's
-  // widget-keyboard-action listener then fired and called updateWidget a
-  // second time with the same stale isPinned value — producing an extra
-  // Firestore write and a double invocation of handleCloseTools().
-  //
-  // Root cause: the 'p' case in the Alt shortcuts switch was missing
-  // e.stopPropagation() (the only case that overlaps with DashboardView's
-  // global Alt+P handler).
-  //
-  // Fix: add e.stopPropagation() to the 'p' case so the event is consumed
-  // entirely by DraggableWindow and never reaches the global handler.
+  // Regression: Alt+P was missing stopPropagation, causing DashboardView's global
+  // Alt+P handler to dispatch a second widget-keyboard-action Pin event → double updateWidget.
   it('Alt+P pins the widget and stops event propagation to prevent double-action with DashboardView', () => {
     renderComponent();
     const windowEl = screen.getByTestId('draggable-window');
