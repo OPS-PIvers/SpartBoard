@@ -32,20 +32,10 @@ const baseWidget: WidgetData = {
   },
 };
 
+// NumberLineWidget only consumes updateWidget from useDashboardActions(); the
+// mock mirrors exactly that to make the dependency explicit.
 const defaultDashboardMock = {
-  activeDashboard: { id: 'dash-1', widgets: [] },
-  dashboards: [],
   updateWidget: vi.fn(),
-  addWidget: vi.fn(),
-  removeWidget: vi.fn(),
-  setDashboards: vi.fn(),
-  setActiveDashboardId: vi.fn(),
-  updateDashboardSettings: vi.fn(),
-  hasWriteAccess: true,
-  syncStatus: 'synced' as const,
-  duplicateDashboard: vi.fn(),
-  globalPermissions: [],
-  lastLocalUpdateRef: { current: 0 },
 } as unknown as ReturnType<typeof DashboardCanvasStore.useDashboardActions>;
 
 describe('NumberLineWidget', () => {
