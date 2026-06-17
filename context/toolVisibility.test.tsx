@@ -28,7 +28,7 @@
 
 import React, { useEffect } from 'react';
 import { render, waitFor, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DashboardProvider } from './DashboardContext';
 import { useDashboard } from './useDashboard';
 import { useToolVisibility } from './useToolVisibility';
@@ -229,6 +229,12 @@ const captured: Captured = { dashboard: null, toolVis: null };
 const CaptureProbe: React.FC = () => {
   const dashboard = useDashboard();
   const toolVis = useToolVisibility();
+  // Capture into the module-level holder from a post-commit effect, NOT the
+  // render body: the `react-hooks/immutability` rule fires on any module-level
+  // mutation inside a render function (see tests/context/
+  // AuthContext.quizMonitorPrefs.test.tsx for the same pattern). Tests read
+  // captured.* inside act() after the commit settles, so a post-commit write is
+  // exactly when the value is needed.
   useEffect(() => {
     captured.dashboard = dashboard;
     captured.toolVis = toolVis;
@@ -333,6 +339,10 @@ beforeEach(() => {
   captured.dashboard = null;
   captured.toolVis = null;
   localStorage.clear();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('tool-visibility isolation — useDashboard() consumers stay put', () => {
@@ -538,10 +548,10 @@ describe('useToolVisibility provider guard', () => {
       return null;
     };
     // Silence React's error boundary console noise for the expected throw.
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    // The global afterEach (vi.restoreAllMocks) restores this spy.
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
     expect(() => render(<ThrowProbe />)).toThrow(
       'useToolVisibility must be used within DashboardProvider'
     );
-    spy.mockRestore();
   });
 });

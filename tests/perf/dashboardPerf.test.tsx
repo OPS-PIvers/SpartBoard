@@ -627,6 +627,13 @@ const BYSTANDER_IDS = [
 const BoardHarness: React.FC = () => {
   const ctx = useDashboard();
   const toolVis = useToolVisibility();
+  // Capture into the module-level holders from a post-commit effect, NOT the
+  // render body: ctxRef/toolVisRef are module-level objects (not useRef()
+  // values), so writing them during render trips the `react-hooks/immutability`
+  // rule (it fires on any module-level mutation inside a render function — see
+  // tests/context/AuthContext.quizMonitorPrefs.test.tsx). getCtx()/getToolVis()
+  // are read inside act() after the commit settles, so a post-commit write is
+  // when the value is needed.
   useEffect(() => {
     ctxRef.current = ctx;
     toolVisRef.current = toolVis;
