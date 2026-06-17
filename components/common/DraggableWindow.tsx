@@ -934,6 +934,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         case 'p': // Pin/Unpin position
           if (isLocked) break;
           e.preventDefault();
+          e.stopPropagation(); // prevent DashboardView's global Alt+P handler from firing a second updateWidget
           if (!isPinned) setShowSnapMenu(false);
           updateWidget(widget.id, { isPinned: !isPinned });
           handleCloseTools();

@@ -827,6 +827,48 @@ describe('DraggableWindow', () => {
     expect(mockResetWidgetSize).toHaveBeenCalledWith('test-widget');
   });
 
+  // Regression: Alt+P in DraggableWindow's handleKeyDown toggled the pin
+  // state but did NOT call e.stopPropagation(). The keydown event therefore
+  // continued to bubble up to DashboardView's global window listener, which
+  // dispatched a second widget-keyboard-action Pin event. DraggableWindow's
+  // widget-keyboard-action listener then fired and called updateWidget a
+  // second time with the same stale isPinned value — producing an extra
+  // Firestore write and a double invocation of handleCloseTools().
+  //
+  // Root cause: the 'p' case in the Alt shortcuts switch was missing
+  // e.stopPropagation() (the only case that overlaps with DashboardView's
+  // global Alt+P handler).
+  //
+  // Fix: add e.stopPropagation() to the 'p' case so the event is consumed
+  // entirely by DraggableWindow and never reaches the global handler.
+  it('Alt+P pins the widget and stops event propagation to prevent double-action with DashboardView', () => {
+    renderComponent();
+    const windowEl = screen.getByTestId('draggable-window');
+
+    // Add a window-level keydown spy BEFORE firing the event. If the bug is
+    // present (no stopPropagation), the event will bubble to window and the
+    // spy will be called. After the fix, stopPropagation prevents bubbling
+    // and the spy must remain uncalled.
+    const windowKeydownSpy = vi.fn();
+    window.addEventListener('keydown', windowKeydownSpy);
+
+    try {
+      fireEvent.keyDown(windowEl, { key: 'p', altKey: true });
+    } finally {
+      window.removeEventListener('keydown', windowKeydownSpy);
+    }
+
+    // The direct updateWidget call from handleKeyDown must have fired.
+    expect(mockUpdateWidget).toHaveBeenCalledWith('test-widget', {
+      isPinned: true,
+    });
+
+    // stopPropagation must have been called so the event does NOT reach
+    // DashboardView's window handler (which would otherwise dispatch a
+    // second widget-keyboard-action Pin event → second updateWidget call).
+    expect(windowKeydownSpy).not.toHaveBeenCalled();
+  });
+
   it('settings button toggles flipped to true when closed', () => {
     // Pass test-widget as selected so toolbar shows
     renderComponent({}, <div>Content</div>, <div>Settings</div>, 'test-widget');
