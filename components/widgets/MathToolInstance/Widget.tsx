@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useRef } from 'react';
 import { WidgetData, MathToolConfig } from '@/types';
-import { useDashboard } from '@/context/useDashboard';
+import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { CSS_PPI } from '../math-tools/mathToolUtils';
 import { StickerPieceSVG } from '../math-tools/StickerPieces';
 import { WidgetLayout } from '../WidgetLayout';
@@ -133,7 +133,7 @@ function ToolContent({
 export const MathToolInstanceWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget } = useDashboard();
+  const { updateWidget } = useDashboardActions();
   const config = widget.config as MathToolConfig;
   const containerRef = useRef<HTMLDivElement>(null);
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useDashboard } from '@/context/useDashboard';
+import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { WidgetData, TrafficConfig } from '@/types';
 
 import { WidgetLayout } from '../WidgetLayout';
@@ -7,7 +7,7 @@ import { WidgetLayout } from '../WidgetLayout';
 export const TrafficLightWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget } = useDashboard();
+  const { updateWidget } = useDashboardActions();
   const config = widget.config as TrafficConfig;
 
   const current = config.active ?? 'none';

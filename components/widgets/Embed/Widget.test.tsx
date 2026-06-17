@@ -125,6 +125,13 @@ const mockDashboardContext = {
   addToast: mockAddToast,
 };
 
+vi.mock('@/context/dashboardCanvasStore', () => ({
+  useDashboardActions: () => mockDashboardContext,
+}));
+
+// EmbedSettings (rendered in the EmbedSettings describe block) still reads the
+// full legacy context; keep it stubbed so those cases don't hit the real
+// provider.
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => mockDashboardContext,
 }));

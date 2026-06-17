@@ -17,7 +17,7 @@ import {
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useDashboard } from '@/context/useDashboard';
+import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 import { Z_INDEX } from '@/config/zIndex';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
@@ -144,7 +144,7 @@ export const SyntaxFramerWidget: React.FC<WidgetComponentProps> = ({
   widget,
 }) => {
   const config = widget.config as SyntaxFramerConfig;
-  const { updateWidget } = useDashboard();
+  const { updateWidget } = useDashboardActions();
   const { tokens = [], mode = 'text', alignment = 'center' } = config;
 
   const sensors = useSensors(

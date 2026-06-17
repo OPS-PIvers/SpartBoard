@@ -1,5 +1,5 @@
 import React from 'react';
-import { useDashboard } from '@/context/useDashboard';
+import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { WidgetData, HotspotImageConfig } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -15,7 +15,7 @@ const ICON_MAP = {
 export const HotspotImageWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget } = useDashboard();
+  const { updateWidget } = useDashboardActions();
   const config = widget.config as HotspotImageConfig;
   const [activePinId, setActivePinId] = React.useState<string | null>(null);
 

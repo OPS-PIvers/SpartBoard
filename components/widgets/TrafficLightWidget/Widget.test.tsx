@@ -1,14 +1,17 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { useDashboard } from '@/context/useDashboard';
+import {
+  useDashboardActions,
+  type DashboardActions,
+} from '@/context/dashboardCanvasStore';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { WidgetData, TrafficConfig } from '@/types';
 import { TrafficLightWidget } from './Widget';
 
-vi.mock('@/context/useDashboard');
+vi.mock('@/context/dashboardCanvasStore');
 
 const mockUpdateWidget = vi.fn();
 
-const mockDashboardContext = {
+const mockDashboardActions = {
   updateWidget: mockUpdateWidget,
 };
 
@@ -20,8 +23,8 @@ const renderWidget = (widget: WidgetData) => {
 describe('TrafficLightWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
-      mockDashboardContext
+    vi.mocked(useDashboardActions).mockReturnValue(
+      mockDashboardActions as unknown as DashboardActions
     );
   });
 
