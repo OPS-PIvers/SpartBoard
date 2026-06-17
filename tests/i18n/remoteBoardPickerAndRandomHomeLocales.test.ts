@@ -57,11 +57,10 @@ describe.each(NON_EN)(
     // ── remote.boardPicker.title ──────────────────────────────────────────────
 
     it(`${code}: remote.boardPicker.title is present`, () => {
-      expect(locale, `${code}.remote.boardPicker.title is missing`).toHaveProperty([
-        'remote',
-        'boardPicker',
-        'title',
-      ]);
+      expect(
+        locale,
+        `${code}.remote.boardPicker.title is missing`
+      ).toHaveProperty(['remote', 'boardPicker', 'title']);
     });
 
     it(`${code}: remote.boardPicker.title is not the verbatim English value "${en.remote?.boardPicker?.title}"`, () => {
@@ -96,7 +95,9 @@ describe.each(NON_EN)(
 
 describe('DE locale — exact German translations', () => {
   it('de: remote.boardPicker.title is "Tafeln"', () => {
-    expect((de as unknown as LocaleFile).remote?.boardPicker?.title).toBe('Tafeln');
+    expect((de as unknown as LocaleFile).remote?.boardPicker?.title).toBe(
+      'Tafeln'
+    );
   });
 
   it('de: widgets.random.homeLabelShort is "HEIM"', () => {

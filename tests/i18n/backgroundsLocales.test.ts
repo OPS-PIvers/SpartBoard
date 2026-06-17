@@ -94,5 +94,7 @@ describe.each([
 // ---------------------------------------------------------------------------
 
 it('fr.backgrounds.typeVideo is "Vidéo" (not the verbatim English "Video")', () => {
-  expect((fr as unknown as LocaleWithBackgrounds).backgrounds['typeVideo']).toBe('Vidéo');
+  expect(
+    (fr as unknown as LocaleWithBackgrounds).backgrounds['typeVideo']
+  ).toBe('Vidéo');
 });
