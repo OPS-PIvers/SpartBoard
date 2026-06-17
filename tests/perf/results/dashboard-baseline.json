@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-06-16T06:20:00.168Z",
+  "generatedAt": "2026-06-17T01:04:04.194Z",
   "runCommand": "pnpm exec vitest run tests/perf/dashboardPerf.test.tsx",
-  "note": "Profiler commit counts and per-shell render counts are the deterministic primary metrics and must be identical across runs. totalShellRenders sums DraggableWindow render invocations across all widgets per scenario; shellRendersByWidget shows which shells rendered (widgets added mid-test are keyed \"added-widget\"). actualDurationMs is machine-dependent and indicative only — compare medians of 3 runs.",
+  "note": "Profiler commit counts and per-shell render counts are the deterministic primary metrics and must be identical across runs. totalShellRenders sums DraggableWindow render invocations across all widgets per scenario; shellRendersByWidget shows which shells rendered (widgets added mid-test are keyed \"added-widget\"). bystanderRenders/bystanderRendersById count how many of the 5 legacy-DashboardContext consumer probes re-rendered per scenario — this is the F9 context-split ruler: post-split the toggleToolVisibility scenario reads 0 (tool visibility lives on its own ToolVisibilityContext, so a toggle no longer churns the DashboardContext value the probes subscribe to), while addWidget still churns the probes (sanity that the instrument is live). actualDurationMs is machine-dependent and indicative only — compare medians of 3 runs.",
   "skipped": "Snap-overlay edge snapping and the snap-layout menu need real viewport geometry, so they are not exercised in jsdom; the drag path deliberately stays away from screen edges.",
   "scenarios": [
     {
       "scenario": "mount15",
-      "commits": 4,
-      "actualDurationMs": 395.816,
+      "commits": 3,
+      "actualDurationMs": 483.293,
       "totalShellRenders": 15,
       "shellRendersByWidget": {
         "w-1": 1,
@@ -25,15 +25,31 @@
         "w-7": 1,
         "w-8": 1,
         "w-9": 1
+      },
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
       }
     },
     {
       "scenario": "drag.press",
       "commits": 2,
-      "actualDurationMs": 5.475,
+      "actualDurationMs": 21.447,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-5": 1
+      },
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
       }
     },
     {
@@ -41,44 +57,66 @@
       "commits": 0,
       "actualDurationMs": 0,
       "totalShellRenders": 0,
-      "shellRendersByWidget": {}
+      "shellRendersByWidget": {},
+      "bystanderRenders": 0,
+      "bystanderRendersById": {}
     },
     {
       "scenario": "drag.release",
-      "commits": 2,
-      "actualDurationMs": 3.777,
+      "commits": 3,
+      "actualDurationMs": 8.299,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-5": 1
+      },
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
       }
     },
     {
       "scenario": "resize.press",
       "commits": 1,
-      "actualDurationMs": 9.602,
+      "actualDurationMs": 2.299,
       "totalShellRenders": 0,
-      "shellRendersByWidget": {}
+      "shellRendersByWidget": {},
+      "bystanderRenders": 0,
+      "bystanderRendersById": {}
     },
     {
       "scenario": "resize.move30",
       "commits": 0,
       "actualDurationMs": 0,
       "totalShellRenders": 0,
-      "shellRendersByWidget": {}
+      "shellRendersByWidget": {},
+      "bystanderRenders": 0,
+      "bystanderRendersById": {}
     },
     {
       "scenario": "resize.release",
-      "commits": 2,
-      "actualDurationMs": 14.486,
+      "commits": 3,
+      "actualDurationMs": 6.236,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-7": 1
+      },
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
       }
     },
     {
       "scenario": "bringToFront5",
       "commits": 10,
-      "actualDurationMs": 20.183,
+      "actualDurationMs": 21.812,
       "totalShellRenders": 5,
       "shellRendersByWidget": {
         "w-1": 1,
@@ -86,41 +124,90 @@
         "w-3": 1,
         "w-4": 1,
         "w-6": 1
+      },
+      "bystanderRenders": 25,
+      "bystanderRendersById": {
+        "bystander-1": 5,
+        "bystander-2": 5,
+        "bystander-3": 5,
+        "bystander-4": 5,
+        "bystander-5": 5
       }
     },
     {
       "scenario": "addWidget",
-      "commits": 2,
-      "actualDurationMs": 31.092,
+      "commits": 3,
+      "actualDurationMs": 13.46,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "added-widget": 1
+      },
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
       }
     },
     {
       "scenario": "removeWidget",
       "commits": 2,
-      "actualDurationMs": 1.093,
+      "actualDurationMs": 2.305,
       "totalShellRenders": 0,
-      "shellRendersByWidget": {}
+      "shellRendersByWidget": {},
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
+      }
     },
     {
       "scenario": "minimize",
       "commits": 2,
-      "actualDurationMs": 16.43,
+      "actualDurationMs": 2.922,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-3": 1
+      },
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
       }
     },
     {
       "scenario": "restore",
       "commits": 2,
-      "actualDurationMs": 12.377,
+      "actualDurationMs": 4.434,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-3": 1
+      },
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
       }
+    },
+    {
+      "scenario": "toggleToolVisibility",
+      "commits": 1,
+      "actualDurationMs": 1.32,
+      "totalShellRenders": 0,
+      "shellRendersByWidget": {},
+      "bystanderRenders": 0,
+      "bystanderRendersById": {}
     }
   ]
 }

@@ -28,6 +28,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useDashboard } from '@/context/useDashboard';
+import { useToolVisibility } from '@/context/useToolVisibility';
 import { useAuth } from '@/context/useAuth';
 import { useCustomWidgets } from '@/context/useCustomWidgets';
 import { useSavedWidgets } from '@/context/useSavedWidgets';
@@ -87,11 +88,16 @@ export const Dock: React.FC = () => {
     addWidget,
     removeWidget,
     removeWidgets,
+    activeDashboard,
+    updateWidget,
+    addToast,
+    setPendingQuizShareId,
+    setPendingAssignmentShareId,
+  } = useDashboard();
+  const {
     visibleTools,
     dockItems,
     reorderDockItems,
-    activeDashboard,
-    updateWidget,
     toggleToolVisibility,
     reorderLibrary,
     libraryOrder,
@@ -101,10 +107,7 @@ export const Dock: React.FC = () => {
     addItemToFolder,
     moveItemOutOfFolder,
     reorderFolderItems,
-    addToast,
-    setPendingQuizShareId,
-    setPendingAssignmentShareId,
-  } = useDashboard();
+  } = useToolVisibility();
   const {
     canAccessWidget,
     canAccessFeature,

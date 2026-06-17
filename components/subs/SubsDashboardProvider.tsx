@@ -40,7 +40,6 @@ import type {
   Toast,
   GradeFilter,
   GlobalStyle,
-  InternalToolType,
   AddWidgetOverrides,
   ClassRoster,
   WidgetConfig,
@@ -226,12 +225,9 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
 
       // === Safe defaults =================================================
       toasts: EMPTY_ARRAY as Toast[],
-      visibleTools: EMPTY_ARRAY as (WidgetType | InternalToolType)[],
-      dockItems: EMPTY_ARRAY as DashboardContextValue['dockItems'],
       loading: false,
       isSaving: false,
       gradeFilter: 'all' as GradeFilter,
-      libraryOrder: EMPTY_ARRAY as (WidgetType | InternalToolType)[],
       annotationActive: false,
       annotationState: DEFAULT_ANNOTATION_STATE,
       zoom: 1,
@@ -278,7 +274,6 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       pinBoard: NOOP_ASYNC as (boardId: string) => Promise<void>,
       unpinBoard: NOOP_ASYNC as (boardId: string) => Promise<void>,
       setActiveCollectionId: NOOP,
-      resetDockToDefaults: NOOP,
       setGradeFilter: NOOP,
 
       // Widget CRUD — disallowed for subs. The read-only flag already
@@ -307,11 +302,6 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       resetWidgetSize: NOOP,
       setBackground: NOOP,
       setGlobalStyle: NOOP as (style: Partial<GlobalStyle>) => void,
-      toggleToolVisibility: NOOP,
-      setAllToolsVisibility: NOOP,
-      reorderTools: NOOP,
-      reorderLibrary: NOOP,
-      reorderDockItems: NOOP,
       updateDashboardSettings: NOOP as (
         settings: Partial<Dashboard['settings']>
       ) => void,
@@ -391,16 +381,6 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       setActiveRoster: NOOP,
       setAbsentStudents:
         NOOP_ASYNC as DashboardContextValue['setAbsentStudents'],
-
-      // Folder CRUD — subs don't see the dock so this never runs.
-      addFolder: NOOP,
-      createFolderWithItems: NOOP,
-      renameFolder: NOOP,
-      deleteFolder: NOOP,
-      addItemToFolder: NOOP,
-      removeItemFromFolder: NOOP,
-      moveItemOutOfFolder: NOOP,
-      reorderFolderItems: NOOP,
     };
   }, [activeDashboard, updateWidget, bringToFront]);
 

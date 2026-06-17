@@ -36,7 +36,7 @@ import { TOOLS } from '@/config/tools';
 import { WidgetType, GlobalStyle, InternalToolType } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useDialog } from '@/context/useDialog';
-import { useDashboard } from '@/context/useDashboard';
+import { useToolVisibility } from '@/context/useToolVisibility';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 
 // O(1) Lookup Map for TOOLS optimization.
@@ -170,7 +170,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
     ref
   ) => {
     const { showConfirm } = useDialog();
-    const { resetDockToDefaults } = useDashboard();
+    const { resetDockToDefaults } = useToolVisibility();
 
     const sensors = useSensors(
       useSensor(PointerSensor, {
