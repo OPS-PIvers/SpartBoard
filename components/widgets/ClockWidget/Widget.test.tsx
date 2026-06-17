@@ -195,6 +195,15 @@ describe('ClockWidget', () => {
     expect(fontSize).toMatch(/cqmin/);
   });
 
+  it('time display uses cqmin units in no-seconds path', () => {
+    renderWidget(createWidget({ showSeconds: false }));
+
+    const fontSize = screen.getByTestId('clock-time-container').style.fontSize;
+    expect(fontSize).not.toMatch(/cqh/);
+    expect(fontSize).not.toMatch(/cqw/);
+    expect(fontSize).toMatch(/cqmin/);
+  });
+
   it('date label uses cqmin units for font scaling (not cqh/cqw)', () => {
     renderWidget(createWidget());
 
