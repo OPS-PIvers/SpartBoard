@@ -5,8 +5,8 @@
       "reconnecting": "Wird neu verbunden…"
     },
     "boardPicker": {
-      "title": "Boards",
-      "switch": "Board wechseln",
+      "title": "Tafeln",
+      "switch": "Tafel wechseln",
       "close": "Schließen"
     }
   },
@@ -637,7 +637,7 @@
       "shuffleHint": "Klicke auf Zufällig, um zu mischen",
       "groupSize": "Gruppengröße",
       "expertLabelShort": "EXPERTE",
-      "homeLabelShort": "HOME",
+      "homeLabelShort": "HEIM",
       "launchJigsaw": "Puzzle-Gruppen starten",
       "launchJigsawHint": "Expertengruppen anzeigen",
       "launchHomeGroup": "Heimgruppen starten",
