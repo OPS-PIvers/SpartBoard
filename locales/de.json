@@ -5,8 +5,8 @@
       "reconnecting": "Wird neu verbunden…"
     },
     "boardPicker": {
-      "title": "Boards",
-      "switch": "Board wechseln",
+      "title": "Tafeln",
+      "switch": "Tafel wechseln",
       "close": "Schließen"
     }
   },
@@ -637,7 +637,7 @@
       "shuffleHint": "Klicke auf Zufällig, um zu mischen",
       "groupSize": "Gruppengröße",
       "expertLabelShort": "EXPERTE",
-      "homeLabelShort": "HOME",
+      "homeLabelShort": "HEIM",
       "launchJigsaw": "Puzzle-Gruppen starten",
       "launchJigsawHint": "Expertengruppen anzeigen",
       "launchHomeGroup": "Heimgruppen starten",
@@ -1079,17 +1079,17 @@
     "applied": "Angewendet",
     "apply": "Anwenden",
     "favoriteSaveFailed": "Favorit konnte nicht gespeichert werden. Bitte erneut versuchen.",
-    "typeAll": "All",
-    "typeStill": "Stills",
+    "typeAll": "Alle",
+    "typeStill": "Bilder",
     "typeVideo": "Video",
-    "typeUpload": "Uploads",
-    "uploadedImage": "Uploaded image",
-    "gradientStart": "Start",
-    "gradientEnd": "End",
-    "directionRight": "Right",
-    "directionDownRight": "Down-Right",
-    "directionDown": "Down",
-    "directionDownLeft": "Down-Left",
+    "typeUpload": "Hochgeladen",
+    "uploadedImage": "Hochgeladenes Bild",
+    "gradientStart": "Anfang",
+    "gradientEnd": "Ende",
+    "directionRight": "Rechts",
+    "directionDownRight": "Unten-Rechts",
+    "directionDown": "Unten",
+    "directionDownLeft": "Unten-Links",
     "uploadFailed": "Upload fehlgeschlagen. Bitte Verbindung prüfen und erneut versuchen."
   },
   "quickAccess": {
