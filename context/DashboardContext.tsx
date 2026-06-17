@@ -5391,6 +5391,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // dispatches to the freshest closure — no stale-closure hazard even for
   // actions whose useCallback deps churn.
   const liveActions: DashboardActions = {
+    addWidget,
     updateWidget,
     updateWidgets,
     removeWidget,
@@ -5412,6 +5413,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Empty deps is the point: identity fixed for the provider's lifetime.
   const stableActions = useMemo<DashboardActions>(
     () => ({
+      addWidget: (type, overrides) =>
+        liveActionsRef.current.addWidget(type, overrides),
       updateWidget: (id, updates, opts) =>
         liveActionsRef.current.updateWidget(id, updates, opts),
       updateWidgets: (updates) => liveActionsRef.current.updateWidgets(updates),

@@ -130,6 +130,7 @@ export function createDashboardCanvasStore(
  */
 export type DashboardActions = Pick<
   DashboardContextValue,
+  | 'addWidget'
   | 'updateWidget'
   | 'updateWidgets'
   | 'removeWidget'

@@ -73,6 +73,7 @@ import { act, fireEvent, render } from '@testing-library/react';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DashboardProvider } from '@/context/DashboardContext';
 import { useDashboard } from '@/context/useDashboard';
+import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { useToolVisibility } from '@/context/useToolVisibility';
 import { BoardCanvas } from '@/components/layout/BoardCanvas';
 import type {
@@ -91,6 +92,8 @@ const {
   countShellRender,
   bystanderRenderCounts,
   countBystanderRender,
+  actionsProbeRenderCounts,
+  countActionsProbeRender,
 } = vi.hoisted(() => {
   // Render-invocation counts of the DraggableWindow shell, keyed by widget
   // id. Widgets added mid-test get random UUIDs, so those are normalized to
@@ -105,6 +108,15 @@ const {
   // re-render on a tool toggle — a separate counter is required to prove the
   // context fan-out.
   const bystanderCounts = new Map<string, number>();
+  // Render-invocation counts of the ActionsProbe consumers, keyed by probe id
+  // ('actions-1'..'actions-5'). These probes stand in for a MIGRATED content
+  // component: they call `useDashboardActions()` (the mount-stable actions
+  // surface) instead of the legacy whole-value `useDashboard()`. Because the
+  // actions object identity is fixed for the provider's lifetime, a discrete
+  // widget op (bringToFront / drag-release) does NOT re-render them — that
+  // 0-delta, contrasted against the legacy bystander's >0 delta on the same
+  // scenarios, is the proof the migration eliminates the fan-out.
+  const actionsProbeCounts = new Map<string, number>();
   return {
     shellRenderCounts: counts,
     countShellRender: (widgetId: string) => {
@@ -114,6 +126,13 @@ const {
     bystanderRenderCounts: bystanderCounts,
     countBystanderRender: (probeId: string) => {
       bystanderCounts.set(probeId, (bystanderCounts.get(probeId) ?? 0) + 1);
+    },
+    actionsProbeRenderCounts: actionsProbeCounts,
+    countActionsProbeRender: (probeId: string) => {
+      actionsProbeCounts.set(
+        probeId,
+        (actionsProbeCounts.get(probeId) ?? 0) + 1
+      );
     },
     // 15 widgets across 8 distinct types — all on the standard (non-position-
     // aware) drag path, which is what every widget except the 3 catalyst types
@@ -408,6 +427,14 @@ interface ScenarioMetric {
   // visibility moves into its own context.
   bystanderRenders: number;
   bystanderRendersById: Record<string, number>;
+  // Actions-consumer fan-out: how many of the 5 ActionsProbe consumers (which
+  // read the mount-stable `useDashboardActions()` surface, modeling a MIGRATED
+  // content component) re-rendered during the scenario (sum), plus the per-probe
+  // breakdown. This is the migration CONTRAST metric — on bringToFront5 and
+  // drag.release it must be 0 (the actions object identity never changes), while
+  // the legacy `bystanderRenders` above stays > 0 on the same scenarios.
+  actionsProbeRenders: number;
+  actionsProbeRendersById: Record<string, number>;
 }
 
 const metrics: ScenarioMetric[] = [];
@@ -437,11 +464,25 @@ function bystanderRenderDeltas(
   return deltas;
 }
 
+/** Per-probe delta of actionsProbeRenderCounts since the given baseline snapshot. */
+function actionsProbeRenderDeltas(
+  baseline: ReadonlyMap<string, number>
+): Record<string, number> {
+  const deltas: Record<string, number> = {};
+  for (const key of [...actionsProbeRenderCounts.keys()].sort()) {
+    const delta =
+      (actionsProbeRenderCounts.get(key) ?? 0) - (baseline.get(key) ?? 0);
+    if (delta > 0) deltas[key] = delta;
+  }
+  return deltas;
+}
+
 function createRecorder() {
   let commits = 0;
   let duration = 0;
   let shellBaseline: ReadonlyMap<string, number> = new Map();
   let bystanderBaseline: ReadonlyMap<string, number> = new Map();
+  let actionsProbeBaseline: ReadonlyMap<string, number> = new Map();
   const onRender: ProfilerOnRenderCallback = (_id, _phase, actualDuration) => {
     commits += 1;
     duration += actualDuration;
@@ -453,10 +494,13 @@ function createRecorder() {
       duration = 0;
       shellBaseline = new Map(shellRenderCounts);
       bystanderBaseline = new Map(bystanderRenderCounts);
+      actionsProbeBaseline = new Map(actionsProbeRenderCounts);
     },
     record(scenario: string) {
       const shellRendersByWidget = shellRenderDeltas(shellBaseline);
       const bystanderRendersById = bystanderRenderDeltas(bystanderBaseline);
+      const actionsProbeRendersById =
+        actionsProbeRenderDeltas(actionsProbeBaseline);
       metrics.push({
         scenario,
         commits,
@@ -471,6 +515,11 @@ function createRecorder() {
           0
         ),
         bystanderRendersById,
+        actionsProbeRenders: Object.values(actionsProbeRendersById).reduce(
+          (sum, n) => sum + n,
+          0
+        ),
+        actionsProbeRendersById,
       });
     },
   };
@@ -615,6 +664,41 @@ const BYSTANDER_IDS = [
 ] as const;
 
 /**
+ * Migrated-consumer probe. Stands in for a content/settings component AFTER the
+ * useDashboard()→useDashboardActions() migration: it reads only the
+ * mount-stable actions surface (`useDashboardActions()`), exactly like the 9
+ * widgets migrated in this slice (Traffic, HotspotImage, NumberLine, MathTool,
+ * SyntaxFramer, CustomWidget, Embed, MathTools, StarterPack).
+ *
+ * With DashboardProvider mounted the actions object identity NEVER changes
+ * after mount (it delegates to a live-ref of the freshest closures), so a
+ * discrete widget op (bringToFront / drag-release) cannot re-render this probe
+ * — its scenario delta is 0. Contrasted against BystanderProbe (which reads the
+ * churning legacy value and re-renders on those same ops), this 0 is the direct
+ * proof the migration isolates content consumers from board-wide fan-out.
+ *
+ * Wrapped in React.memo with a stable `id` prop so the ONLY thing that could
+ * drive a re-render is the actions context changing identity — which it never
+ * does — isolating the metric to the surface under test.
+ */
+const ActionsProbe: React.FC<{ id: string }> = React.memo(({ id }) => {
+  const { updateWidget } = useDashboardActions();
+  countActionsProbeRender(id);
+  // Reference the read so the subscription is real and not optimized away.
+  void updateWidget;
+  return null;
+});
+ActionsProbe.displayName = 'ActionsProbe';
+
+const ACTIONS_PROBE_IDS = [
+  'actions-1',
+  'actions-2',
+  'actions-3',
+  'actions-4',
+  'actions-5',
+] as const;
+
+/**
  * Mirrors the production wiring in DashboardView → MountedBoardsLayer →
  * BoardCanvas: context state and callbacks flow down as props, while
  * DraggableWindow/WidgetRenderer read the stable actions context and the
@@ -643,6 +727,9 @@ const BoardHarness: React.FC = () => {
     <>
       {BYSTANDER_IDS.map((id) => (
         <BystanderProbe key={id} id={id} />
+      ))}
+      {ACTIONS_PROBE_IDS.map((id) => (
+        <ActionsProbe key={id} id={id} />
       ))}
       <BoardCanvas
         dashboard={ctx.activeDashboard}
@@ -951,6 +1038,39 @@ describe('dashboard canvas performance baseline', () => {
     // isolated canvas store, not the tool-visibility context, so the
     // tool-visibility churn is invisible to them too.
     expect(shellDiff('toggleToolVisibility')).toEqual([]);
+
+    // ── Migration contrast-proof (the win this slice delivers) ────────────
+    // The 5 ActionsProbe consumers model a MIGRATED content component: they
+    // read the mount-stable `useDashboardActions()` surface instead of the
+    // churning legacy `useDashboard()` value. The contrast below is the proof
+    // that swapping that one hook eliminates the per-op fan-out.
+
+    // SANITY: the actions probes are actually mounted and counted — they each
+    // render at least once during mount15. Without this, a 0 delta on the hot
+    // scenarios could just mean the probe never mounted (a dead instrument).
+    expect(
+      Object.keys(metricFor('mount15').actionsProbeRendersById)
+    ).toHaveLength(5);
+
+    // bringToFront5: each of the 5 pointer-downs raises a widget →
+    // setDashboards → new activeDashboard identity → the big contextValue memo
+    // recreates → every legacy useDashboard() consumer re-renders. The legacy
+    // bystander probes therefore churn (5 probes × 5 raises = 25), while the
+    // migrated actions probes stay at 0 — their actions object identity is
+    // fixed for the provider's lifetime, so the raises are invisible to them.
+    const bringToFront = metricFor('bringToFront5');
+    expect(bringToFront.bystanderRenders).toBe(25);
+    expect(bringToFront.actionsProbeRenders).toBe(0);
+    expect(bringToFront.actionsProbeRendersById).toEqual({});
+
+    // drag.release: the pointer-up commits the moved widget → setDashboards →
+    // new activeDashboard identity → one contextValue recreation → the 5 legacy
+    // bystanders each re-render once (5), while the 5 migrated actions probes
+    // stay at 0. Same fan-out, silenced by the migration.
+    const dragRelease = metricFor('drag.release');
+    expect(dragRelease.bystanderRenders).toBe(5);
+    expect(dragRelease.actionsProbeRenders).toBe(0);
+    expect(dragRelease.actionsProbeRendersById).toEqual({});
   });
 });
 
@@ -980,6 +1100,14 @@ afterAll(() => {
           'own ToolVisibilityContext, so a toggle no longer churns the ' +
           'DashboardContext value the probes subscribe to), while addWidget ' +
           'still churns the probes (sanity that the instrument is live). ' +
+          'actionsProbeRenders/actionsProbeRendersById count how many of the 5 ' +
+          'ActionsProbe consumers (which read the mount-stable ' +
+          'useDashboardActions() surface, modeling a MIGRATED content ' +
+          'component) re-rendered per scenario — the migration contrast-proof: ' +
+          'on bringToFront5 and drag.release the actions probes read 0 while ' +
+          'the legacy bystander probes read 25 and 5 respectively, showing the ' +
+          'useDashboard()→useDashboardActions() swap isolates content consumers ' +
+          'from the per-op DashboardContext fan-out. ' +
           'actualDurationMs is machine-dependent and indicative only — ' +
           'compare medians of 3 runs.',
         skipped:

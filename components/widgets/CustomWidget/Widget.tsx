@@ -14,7 +14,7 @@ import {
   CustomGridDefinition,
   CustomWidgetDoc,
 } from '@/types';
-import { useDashboard } from '@/context/useDashboard';
+import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { WidgetBlockState, WidgetAction } from './types';
 import {
   blockReducer,
@@ -68,7 +68,7 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const config = widget.config as CustomWidgetConfig;
   const { customWidgetId } = config;
-  const { addToast } = useDashboard();
+  const { addToast } = useDashboardActions();
 
   // Live Firestore doc for the custom widget definition
   const [widgetDoc, setWidgetDoc] = React.useState<CustomWidgetDoc | null>(

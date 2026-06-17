@@ -19,7 +19,7 @@ import {
   extractGoogleFileId,
 } from '@/utils/urlHelpers';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
-import { useDashboard } from '@/context/useDashboard';
+import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { generateMiniAppCode } from '@/utils/ai';
 import { useEmbedConfig } from './hooks/useEmbedConfig';
 import { TRUSTED_EMBED_HOSTNAMES } from './trustedHostnames';
@@ -36,7 +36,7 @@ const TOOLBAR_GAP = 6;
 const ESTIMATED_TOOLBAR_HEIGHT = 44;
 
 export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const { addWidget, addToast, updateWidget } = useDashboard();
+  const { addWidget, addToast, updateWidget } = useDashboardActions();
   const { canAccessFeature } = useAuth();
   const buildingId = useWidgetBuildingId(widget);
   const { config: globalConfig } = useEmbedConfig(buildingId);
