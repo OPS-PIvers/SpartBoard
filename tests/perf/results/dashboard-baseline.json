@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T02:16:28.307Z",
+  "generatedAt": "2026-06-17T04:11:22.622Z",
   "runCommand": "pnpm exec vitest run tests/perf/dashboardPerf.test.tsx",
   "note": "Profiler commit counts and per-shell render counts are the deterministic primary metrics and must be identical across runs. totalShellRenders sums DraggableWindow render invocations across all widgets per scenario; shellRendersByWidget shows which shells rendered (widgets added mid-test are keyed \"added-widget\"). actualDurationMs is machine-dependent and indicative only — compare medians of 3 runs.",
   "skipped": "Snap-overlay edge snapping and the snap-layout menu need real viewport geometry, so they are not exercised in jsdom; the drag path deliberately stays away from screen edges.",
@@ -7,7 +7,7 @@
     {
       "scenario": "mount15",
       "commits": 4,
-      "actualDurationMs": 569.537,
+      "actualDurationMs": 328.554,
       "totalShellRenders": 15,
       "shellRendersByWidget": {
         "w-1": 1,
@@ -30,7 +30,7 @@
     {
       "scenario": "drag.press",
       "commits": 2,
-      "actualDurationMs": 4.2,
+      "actualDurationMs": 2.932,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-5": 1
@@ -46,7 +46,7 @@
     {
       "scenario": "drag.release",
       "commits": 2,
-      "actualDurationMs": 6.799,
+      "actualDurationMs": 4.582,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-5": 1
@@ -55,7 +55,7 @@
     {
       "scenario": "resize.press",
       "commits": 1,
-      "actualDurationMs": 1.747,
+      "actualDurationMs": 1.375,
       "totalShellRenders": 0,
       "shellRendersByWidget": {}
     },
@@ -69,7 +69,7 @@
     {
       "scenario": "resize.release",
       "commits": 2,
-      "actualDurationMs": 9.743,
+      "actualDurationMs": 5.211,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-7": 1
@@ -78,7 +78,7 @@
     {
       "scenario": "bringToFront5",
       "commits": 10,
-      "actualDurationMs": 21.938,
+      "actualDurationMs": 13.611,
       "totalShellRenders": 5,
       "shellRendersByWidget": {
         "w-1": 1,
@@ -91,7 +91,7 @@
     {
       "scenario": "addWidget",
       "commits": 2,
-      "actualDurationMs": 9.921,
+      "actualDurationMs": 10.128,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "added-widget": 1
@@ -100,14 +100,14 @@
     {
       "scenario": "removeWidget",
       "commits": 2,
-      "actualDurationMs": 1.229,
+      "actualDurationMs": 1.154,
       "totalShellRenders": 0,
       "shellRendersByWidget": {}
     },
     {
       "scenario": "minimize",
       "commits": 2,
-      "actualDurationMs": 3.19,
+      "actualDurationMs": 2.922,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-3": 1
@@ -116,7 +116,7 @@
     {
       "scenario": "restore",
       "commits": 2,
-      "actualDurationMs": 6.176,
+      "actualDurationMs": 2.442,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-3": 1
