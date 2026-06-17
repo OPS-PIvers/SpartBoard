@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-16_
+_Last audited: 2026-06-17_
 _Last action: 2026-06-13_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-17: Full scan of all Widget.tsx files after rebasing onto dev-paul (new commits since 2026-06-16: test(hooks) useSubstituteShares — no widget front-face content changes; pr-review batch — no widget front-face content changes). Two findings confirmed as intentional design: (1) `Stations/Widget.tsx` `maxHeight: '40cqh'` at line ~437 — re-confirmed WON'T FIX per 2026-05-14 journal entry (cq-relative cap on unassigned sub-section is design intent to prevent it dominating layout); (2) `LunchCount/Widget.tsx` `maxHeight: '45cqh'` at line ~954 — newly verified, identical design rationale to Stations: cq-relative cap on the unassigned students collection area prevents it from dominating the main lunch-count grid at large widget sizes; inner zone has `overflow-y-auto` for scrolling when students overflow. This is the same "cq-relative sub-section cap as layout guard" pattern — WON'T FIX, consistent with Stations precedent. `ActivityWall/Widget.tsx` modal `max-h-[75vh]` re-confirmed viewport-scoped modal (correct). All pre-existing open items remain valid. Zero new anti-patterns._
 
 _2026-06-16: Full scan after rebasing onto dev-paul (new commits since 2026-06-15: fix(widgets/random) guard group-rename onBlur — only `components/widgets/random/RandomGroups.tsx` touched; fix(library,widgets/random) guard rename onBlur against Enter-unmount double-commit — same RandomGroups.tsx; no other Widget.tsx files modified). No Widget.tsx content changes that could introduce scaling anti-patterns. All pre-existing open items remain valid._
 
