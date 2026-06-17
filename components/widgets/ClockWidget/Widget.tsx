@@ -59,9 +59,10 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       padding="p-0"
       content={
         <div
-          className={`flex flex-col items-center justify-center h-full w-full gap-[1cqmin] transition-all duration-500 ${
+          className={`flex flex-col items-center justify-center h-full w-full transition-all duration-500 ${
             clockStyle === 'lcd' ? 'bg-black/5' : ''
           }`}
+          style={{ gap: '1cqmin' }}
         >
           <div
             data-testid="clock-time-container"
