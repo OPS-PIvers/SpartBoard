@@ -32,18 +32,25 @@ function readWorkflow(name: string): string {
 }
 
 /**
- * Returns true when the YAML content includes a step that runs the functions
- * test suite.  Accepts either:
+ * Returns true when the YAML content includes an uncommented step that runs
+ * the functions test suite.  Accepts either:
  *   - `pnpm run test:all`   (the canonical combined runner)
  *   - `pnpm test:all`       (shorthand)
  *   - `pnpm -C functions`   (direct functions invocation)
+ *
+ * Lines starting with '#' are skipped to avoid false positives from
+ * commented-out commands or descriptive prose.
  */
 function includesFunctionsTests(yaml: string): boolean {
-  return (
-    yaml.includes('pnpm run test:all') ||
-    yaml.includes('pnpm test:all') ||
-    yaml.includes('pnpm -C functions')
-  );
+  return yaml.split('\n').some((line) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('#')) return false;
+    return (
+      trimmed.includes('pnpm run test:all') ||
+      trimmed.includes('pnpm test:all') ||
+      trimmed.includes('pnpm -C functions')
+    );
+  });
 }
 
 describe('CI workflow: functions tests must run in deploy pipelines', () => {
