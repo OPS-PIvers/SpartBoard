@@ -1314,3 +1314,43 @@ _Automated nightly review by claude-opus-4-6_
   - Branch-safety: all 8 head branches are non-`main` / non-`dev-*` → pushable; Phase 1 produced zero fixes so no PR-branch pushes were needed.
   - Local verification of `pnpm` checks was not run this cycle (no code changes pushed); CI on Node 24 remains the authoritative gate for each PR.
   - This log appended to `scheduled-tasks` per the POST-TASK workflow (continuous log; prior entry was 2026-06-09).
+
+## 2026-06-17
+
+- PRs reviewed: 10
+  - #2004 — perf(widgets): migrate 9 content widgets to stable `useDashboardActions()` (head `perf-content-actions-migration`, base `f9-toolvis-context-split`)
+  - #2003 — fix(ci): run functions tests in both deploy workflows (head `nightly/build-2026-06-17`, base `dev-paul`)
+  - #2002 — docs(routines): Run 20 debugger log (head `nightly/debugger-log-2026-06-17`, base `dev-paul`)
+  - #2001 — fix(DraggableWindow): add stopPropagation to Alt+P (head `nightly/dashboard-2026-06-17`, base `dev-paul`)
+  - #2000 — fix(videoActivityGrading): dedup question IDs in videoActivityMaxPoints (head `nightly/state-2026-06-17`, base `dev-paul`)
+  - #1999 — fix(i18n): translate verbatim-English values in DE/ES/FR (head `nightly/admin-2026-06-17`, base `dev-paul`)
+  - #1998 — fix(ClockWidget): cqh/cqw → cqmin font scaling (head `nightly/widgets-2026-06-17`, base `dev-paul`)
+  - #1997 — docs(unifier): run 18 staleness scan (head `nightly/unifier-log-2026-06-17`, base `dev-paul`)
+  - #1996 — perf(dashboard): split tool visibility into its own context (F9) (head `f9-toolvis-context-split`, base `dev-paul`)
+  - #1984 — fix(layout): align GroupBoundingBox commit scale with drag-frame formula (head `nightly/dashboard-layout-2026-06-16`, base `dev-paul`)
+- Comments processed: 13 total — 1 fixed, 12 explained
+  - #2004: 1 gemini thread (use `vi.mocked`) → FIXED. Applied `vi.mocked(useDashboardActions)` but kept `as unknown as DashboardActions` on the value since `mockDashboardActions` is an intentional partial of the 16-member surface (verbatim suggestion would not type-check). Verified type-check ✓ lint ✓ tests ✓; pushed.
+  - #2003: 1 gemini thread (robust `includesFunctionsTests`) → EXPLAINED (already addressed): the function already splits by line and skips `#`-commented lines.
+  - #2002: 2 gemini threads (React 17+ stopPropagation accuracy, both outdated) → EXPLAINED (already addressed): lines 142 and 233 already carry the corrected statement.
+  - #2001: 1 claude thread (condense comment block, outdated) → EXPLAINED (already addressed): already condensed to the two-line note.
+  - #1999: 4 threads → 2 EXPLAINED as already addressed (`typeStill` = "Bilder"; FR `typeVideo` dedicated assertion exists), 2 EXPLAINED as declined cosmetic Vitest-style nits (`?.` removal — presence checks already use `toHaveProperty`).
+  - #1998: 1 gemini thread (`gap-[1cqmin]` → inline style) → EXPLAINED (already addressed): gap is already in the `style` prop.
+  - #1984: 2 open claude threads (use `data-testid` selectors) → EXPLAINED (already addressed): all three tests already select via `[data-testid="group-resize-handle-se"]`.
+  - #2000, #1997, #1996: no actionable unresolved threads (#1996 all six resolved).
+- Fixes pushed: 1
+  - #2004 / `perf-content-actions-migration` — `fix(pr-2004): use vi.mocked for useDashboardActions mock typing`.
+- Reviews posted: 10 (one structured review per PR)
+  - #2004: Ready with minor notes — clean mount-stable migration; merge base #1996 first.
+  - #2003: Ready — CI deploy-gate fix + hermetic YAML test.
+  - #2002: Ready with minor notes — accurate log; pre-existing contradiction at line 107 (#1939 row) flagged for a future pass.
+  - #2001: Ready — minimal, correct, tested stopPropagation fix.
+  - #2000: Ready — denominator dedup mirrors numerator; strong coverage.
+  - #1999: Ready — i18n parity fix; declined cosmetic test nits.
+  - #1998: Ready — cqmin aspect-ratio fix per container-query standard.
+  - #1997: Ready — doc-only unifier run-18 log.
+  - #1996: Ready — measured, host-safe context split; base for #2004.
+  - #1984: Ready — geometric-mean alignment + NaN guard + non-vacuous tests.
+- Notes:
+  - Branch-safety: all 10 head branches are non-`main` / non-`dev-*` → pushable. Only #2004 required a fix push.
+  - Local verification for the #2004 fix ran on Node 22 (env wants 24): targeted `tsc --noEmit` (0 errors), `eslint --max-warnings 0` (clean), and the TrafficLight test (6/6) all passed; full CI on Node 24 remains the authoritative gate.
+  - Most nightly PRs had already incorporated reviewer suggestions in later commits before this run, so most threads were explanatory rather than fixes.
