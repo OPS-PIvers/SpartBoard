@@ -1,5 +1,8 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { useDashboardActions } from '@/context/dashboardCanvasStore';
+import {
+  useDashboardActions,
+  type DashboardActions,
+} from '@/context/dashboardCanvasStore';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { WidgetData, TrafficConfig } from '@/types';
 import { TrafficLightWidget } from './Widget';
@@ -20,9 +23,9 @@ const renderWidget = (widget: WidgetData) => {
 describe('TrafficLightWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (
-      useDashboardActions as unknown as ReturnType<typeof vi.fn>
-    ).mockReturnValue(mockDashboardActions);
+    vi.mocked(useDashboardActions).mockReturnValue(
+      mockDashboardActions as unknown as DashboardActions
+    );
   });
 
   const createWidget = (active?: string): WidgetData => ({
