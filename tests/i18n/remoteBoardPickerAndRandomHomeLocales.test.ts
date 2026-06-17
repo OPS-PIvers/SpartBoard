@@ -57,18 +57,16 @@ describe.each(NON_EN)(
     // ── remote.boardPicker.title ──────────────────────────────────────────────
 
     it(`${code}: remote.boardPicker.title is present`, () => {
-      expect(
-        (locale as Record<string, unknown>).remote,
-        `${code}.remote.boardPicker.title is missing`
-      ).toHaveProperty(['boardPicker', 'title']);
+      expect(locale, `${code}.remote.boardPicker.title is missing`).toHaveProperty([
+        'remote',
+        'boardPicker',
+        'title',
+      ]);
     });
 
     it(`${code}: remote.boardPicker.title is not the verbatim English value "${en.remote?.boardPicker?.title}"`, () => {
-      const actual = (
-        (locale as Record<string, unknown>).remote as Record<string, unknown>
-      )?.boardPicker as Record<string, unknown> | undefined;
       expect(
-        actual?.title,
+        locale.remote?.boardPicker?.title,
         `${code}.remote.boardPicker.title is still the English placeholder — needs a real translation`
       ).not.toBe(en.remote?.boardPicker?.title);
     });
@@ -98,13 +96,7 @@ describe.each(NON_EN)(
 
 describe('DE locale — exact German translations', () => {
   it('de: remote.boardPicker.title is "Tafeln"', () => {
-    const remote = (de as unknown as Record<string, unknown>).remote as
-      | Record<string, unknown>
-      | undefined;
-    const boardPicker = remote?.boardPicker as
-      | Record<string, unknown>
-      | undefined;
-    expect(boardPicker?.title).toBe('Tafeln');
+    expect((de as unknown as LocaleFile).remote?.boardPicker?.title).toBe('Tafeln');
   });
 
   it('de: widgets.random.homeLabelShort is "HEIM"', () => {

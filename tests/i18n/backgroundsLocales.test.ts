@@ -33,8 +33,9 @@ import fr from '@/locales/fr.json';
 
 /**
  * Keys whose EN values should NOT appear verbatim in non-EN locales.
- * "Video" is intentionally excluded — it is the same word in all four
- * languages (a loanword/proper noun in DE/ES/FR).
+ * "Video" is intentionally excluded for DE and ES — it is a loanword in
+ * those languages. FR uses "Vidéo" (with accent), which is covered by a
+ * dedicated assertion below.
  */
 const TRANSLATABLE_KEYS = [
   'typeAll',
@@ -85,3 +86,13 @@ describe.each([
     }
   }
 );
+
+// ---------------------------------------------------------------------------
+// FR typeVideo — not a loanword; FR uses "Vidéo" (with accent). Excluded
+// from TRANSLATABLE_KEYS above because DE/ES treat it as a loanword, but FR
+// must have a specific guard so this can't silently regress to "Video".
+// ---------------------------------------------------------------------------
+
+it('fr.backgrounds.typeVideo is "Vidéo" (not the verbatim English "Video")', () => {
+  expect((fr as unknown as LocaleWithBackgrounds).backgrounds['typeVideo']).toBe('Vidéo');
+});
