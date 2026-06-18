@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-17T05:16:33.905Z",
+  "generatedAt": "2026-06-18T02:15:33.236Z",
   "runCommand": "pnpm exec vitest run tests/perf/dashboardPerf.test.tsx",
   "note": "Profiler commit counts and per-shell render counts are the deterministic primary metrics and must be identical across runs. totalShellRenders sums DraggableWindow render invocations across all widgets per scenario; shellRendersByWidget shows which shells rendered (widgets added mid-test are keyed \"added-widget\"). bystanderRenders/bystanderRendersById count how many of the 5 legacy-DashboardContext consumer probes re-rendered per scenario — this is the F9 context-split ruler: post-split the toggleToolVisibility scenario reads 0 (tool visibility lives on its own ToolVisibilityContext, so a toggle no longer churns the DashboardContext value the probes subscribe to), while addWidget still churns the probes (sanity that the instrument is live). actionsProbeRenders/actionsProbeRendersById count how many of the 5 ActionsProbe consumers (which read the mount-stable useDashboardActions() surface, modeling a MIGRATED content component) re-rendered per scenario — the migration contrast-proof: on bringToFront5 and drag.release the actions probes read 0 while the legacy bystander probes read 25 and 5 respectively, showing the useDashboard()→useDashboardActions() swap isolates content consumers from the per-op DashboardContext fan-out. actualDurationMs is machine-dependent and indicative only — compare medians of 3 runs.",
   "skipped": "Snap-overlay edge snapping and the snap-layout menu need real viewport geometry, so they are not exercised in jsdom; the drag path deliberately stays away from screen edges.",
@@ -7,7 +7,7 @@
     {
       "scenario": "mount15",
       "commits": 3,
-      "actualDurationMs": 150.274,
+      "actualDurationMs": 419.652,
       "totalShellRenders": 15,
       "shellRendersByWidget": {
         "w-1": 1,
@@ -46,7 +46,7 @@
     {
       "scenario": "drag.press",
       "commits": 2,
-      "actualDurationMs": 2.364,
+      "actualDurationMs": 2.62,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-5": 1
@@ -76,7 +76,7 @@
     {
       "scenario": "drag.release",
       "commits": 3,
-      "actualDurationMs": 3.104,
+      "actualDurationMs": 23.033,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-5": 1
@@ -95,7 +95,7 @@
     {
       "scenario": "resize.press",
       "commits": 1,
-      "actualDurationMs": 0.989,
+      "actualDurationMs": 1.351,
       "totalShellRenders": 0,
       "shellRendersByWidget": {},
       "bystanderRenders": 0,
@@ -117,7 +117,7 @@
     {
       "scenario": "resize.release",
       "commits": 3,
-      "actualDurationMs": 3.267,
+      "actualDurationMs": 5.626,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-7": 1
@@ -136,7 +136,7 @@
     {
       "scenario": "bringToFront5",
       "commits": 10,
-      "actualDurationMs": 10.493,
+      "actualDurationMs": 11.773,
       "totalShellRenders": 5,
       "shellRendersByWidget": {
         "w-1": 1,
@@ -159,7 +159,7 @@
     {
       "scenario": "addWidget",
       "commits": 3,
-      "actualDurationMs": 6.601,
+      "actualDurationMs": 7.844,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "added-widget": 1
@@ -178,7 +178,7 @@
     {
       "scenario": "removeWidget",
       "commits": 2,
-      "actualDurationMs": 0.931,
+      "actualDurationMs": 4.129,
       "totalShellRenders": 0,
       "shellRendersByWidget": {},
       "bystanderRenders": 5,
@@ -195,7 +195,7 @@
     {
       "scenario": "minimize",
       "commits": 2,
-      "actualDurationMs": 2.094,
+      "actualDurationMs": 2.28,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-3": 1
@@ -214,7 +214,7 @@
     {
       "scenario": "restore",
       "commits": 2,
-      "actualDurationMs": 1.942,
+      "actualDurationMs": 5.405,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-3": 1
@@ -233,7 +233,7 @@
     {
       "scenario": "toggleToolVisibility",
       "commits": 1,
-      "actualDurationMs": 0.621,
+      "actualDurationMs": 0.718,
       "totalShellRenders": 0,
       "shellRendersByWidget": {},
       "bystanderRenders": 0,
