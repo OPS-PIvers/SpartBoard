@@ -101,12 +101,10 @@ describe('PageEditor — Escape-cancel must not commit stale text via onBlur', (
 
     // After React flushes, the textarea should be present.
     const textarea = container.querySelector('textarea');
-    if (!textarea) {
-      // If jsdom geometry stubs prevented the text-drop path from running
-      // (e.g. objectNearClient returned something unexpected), skip rather
-      // than fail — the pointerup test already covers the path.
-      return;
-    }
+    // Fail loudly rather than silently passing — a phantom green would give
+    // false confidence that the cancellingRef guard is being exercised.
+    expect(textarea).not.toBeNull();
+    if (!textarea) return; // TypeScript narrowing only; assertion above already fails
 
     // Count onChange calls so far (one expected: the text-object insert).
     const callsAfterInsert = onChange.mock.calls.length;
