@@ -241,7 +241,10 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   </span>
                 </div>
 
-                <div className="h-[min(5cqmin)] min-h-[16px] bg-slate-100 rounded-full overflow-hidden relative border border-slate-200/50">
+                <div
+                  className="bg-slate-100 rounded-full overflow-hidden relative border border-slate-200/50"
+                  style={{ height: 'clamp(16px, 5cqmin, 24px)' }}
+                >
                   <div
                     className={`h-full transition-all duration-500 shadow-[inset_0_2px_4px_rgba(255,255,255,0.3)] ${isVoted ? 'bg-emerald-500' : 'bg-indigo-500'}`}
                     style={{ width: `${percent}%` }}

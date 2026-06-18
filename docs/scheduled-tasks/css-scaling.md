@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-06-17_
-_Last action: 2026-06-13_
+_Last action: 2026-06-18_
 
 ---
 
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-18 (action): Fixed the highest-priority open item — PollWidget progress bar had no upper size cap. The results bar wrapper used `className="h-[min(5cqmin)] min-h-[16px] ..."` (now at PollWidget/Widget.tsx:244), which floored the bar at 16px and scaled with `5cqmin` but had no cap, so at large widget sizes the bar grew disproportionately tall. Replaced the two Tailwind height classes with an inline `style={{ height: 'clamp(16px, 5cqmin, 24px)' }}` (16px floor, scales with `5cqmin`, capped at 24px), keeping the visual classes (`bg-slate-100 rounded-full overflow-hidden relative border border-slate-200/50`) on className. File-recency check passed: PollWidget/Widget.tsx last touched at 934fe09a (2026-06-14) — outside the last 5 branch commits. `pnpm type-check`, `eslint --max-warnings 0`, and `prettier` on the changed file all clean. Moved the item to Completed. Note: rebase onto dev-paul aborted (add/add conflicts in test-coverage.md journal + useSubstituteShares.test.ts already-upstream); working from scheduled-tasks HEAD 77de6548. Opened a PR to dev-paul for the code change._
 
 _2026-06-17: Full scan of all Widget.tsx files after rebasing onto dev-paul (new commits since 2026-06-16: test(hooks) useSubstituteShares — no widget front-face content changes; pr-review batch — no widget front-face content changes). Two findings confirmed as intentional design: (1) `Stations/Widget.tsx` `maxHeight: '40cqh'` at line ~437 — re-confirmed WON'T FIX per 2026-05-14 journal entry (cq-relative cap on unassigned sub-section is design intent to prevent it dominating layout); (2) `LunchCount/Widget.tsx` `maxHeight: '45cqh'` at line ~954 — newly verified, identical design rationale to Stations: cq-relative cap on the unassigned students collection area prevents it from dominating the main lunch-count grid at large widget sizes; inner zone has `overflow-y-auto` for scrolling when students overflow. This is the same "cq-relative sub-section cap as layout guard" pattern — WON'T FIX, consistent with Stations precedent. `ActivityWall/Widget.tsx` modal `max-h-[75vh]` re-confirmed viewport-scoped modal (correct). All pre-existing open items remain valid. Zero new anti-patterns._
 
@@ -94,13 +96,6 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### LOW PollWidget progress bar has no upper size cap — grows excessively at large widget sizes
-
-- **Detected:** 2026-05-28
-- **File:** components/widgets/PollWidget/Widget.tsx:161
-- **Detail:** The poll results progress bar uses `className="h-[min(5cqmin)] min-h-[16px] ..."`. The `h-[min(5cqmin)]` is effectively `height: 5cqmin` (single-argument `min()` is valid CSS but unusual). The `min-h-[16px]` adds a 16px floor. There is no upper cap, so at large widget sizes (e.g., 1000px wide) the bar becomes ~50px tall, taking up a disproportionate amount of the widget area. Widget has `skipScaling: true`.
-- **Fix:** Replace both Tailwind classes with a single inline style using the recommended cap pattern: `style={{ height: 'clamp(16px, 5cqmin, 24px)' }}`. This gives a 16px floor (bar never invisible), scales with `5cqmin`, and caps at 24px (bar never oversized).
-
 ### LOW EmbedWidget zoom toolbar uses hardcoded sizes — portaled outside container query context
 
 - **Detected:** 2026-04-28
@@ -149,6 +144,14 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW PollWidget progress bar has no upper size cap — grows excessively at large widget sizes
+
+- **Detected:** 2026-05-28
+- **Completed:** 2026-06-18
+- **File:** components/widgets/PollWidget/Widget.tsx:244 (was :161 at detection; line shifted as the file grew with the live-session QR/tally feature)
+- **Detail:** The poll results progress bar wrapper used `className="h-[min(5cqmin)] min-h-[16px] ..."`. The `h-[min(5cqmin)]` is effectively `height: 5cqmin` and `min-h-[16px]` adds a 16px floor, but there was no upper cap — at large widget sizes the bar grew disproportionately tall. Widget has `skipScaling: true`.
+- **Resolution:** Replaced the two Tailwind height classes with a single inline style using the recommended cap pattern: `style={{ height: 'clamp(16px, 5cqmin, 24px)' }}` (16px floor, scales with `5cqmin`, capped at 24px). Kept the visual classes (`bg-slate-100 rounded-full overflow-hidden relative border border-slate-200/50`) on `className`. `pnpm type-check`, `eslint --max-warnings 0`, and `prettier` on the changed file all clean.
 
 ### LOW ActivityWall inline activity-editor checkbox uses hardcoded `h-4 w-4` icon size
 
