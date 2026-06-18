@@ -251,7 +251,7 @@ export const linkLtiCourseV1 = onCall(
       // linking UI — the same preservation pattern applied in nrpsStore.ts
       // (contextTitle) and launchEndpoints.ts (contextId).
       const storedTitle =
-        typeof priorData?.contextTitle === 'string'
+        priorData && typeof priorData.contextTitle === 'string'
           ? priorData.contextTitle
           : null;
       const finalContextTitle = contextTitle ?? storedTitle;
