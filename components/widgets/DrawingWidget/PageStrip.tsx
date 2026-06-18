@@ -373,6 +373,8 @@ const InlineTitle: React.FC<{
   // state commits. The blur's commit() closure sees the pre-cancel draft.
   // Setting this ref synchronously in cancel() lets commit() short-circuit.
   const isCancellingRef = useRef(false);
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync (CLAUDE.md pattern)
+  if (isEditing) isCancellingRef.current = false;
 
   // Sync local draft when the parent's `value` changes while we're NOT
   // editing (external rename, page switch). Uses the "adjusting state while

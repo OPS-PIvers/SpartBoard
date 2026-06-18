@@ -450,6 +450,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   // a queued state update would not be committed in time.
   // Identical pattern to RandomGroups.GroupDropZone (PR #1965).
   const cancellingRef = useRef(false);
+  if (editing) cancellingRef.current = false;
 
   // PageEditor is purely write-only after mount: it reads the `svg` prop
   // exactly once (in the mount effect below) and never reacts to subsequent
