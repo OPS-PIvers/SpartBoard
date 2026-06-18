@@ -3,6 +3,11 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ScoreboardWidget } from './Widget';
 import { ScoreboardSettings } from './Settings';
 import { useDashboard } from '@/context/useDashboard';
+import {
+  useGlobalStyle,
+  useDashboardActions,
+  type DashboardActions,
+} from '@/context/dashboardCanvasStore';
 import { vi, describe, it, expect, beforeEach, Mock } from 'vitest';
 import * as ScoreboardItemModule from './components/ScoreboardItem';
 import {
@@ -11,9 +16,13 @@ import {
   RandomConfig,
   WidgetType,
   ScoreboardTeam,
+  DEFAULT_GLOBAL_STYLE,
 } from '@/types';
 
+// ScoreboardSettings still consumes the legacy context; ScoreboardWidget reads
+// the mount-stable store surfaces.
 vi.mock('@/context/useDashboard');
+vi.mock('@/context/dashboardCanvasStore');
 
 // Mock ScoreboardItem to spy on renders
 vi.mock('./components/ScoreboardItem', async (importOriginal) => {
@@ -63,6 +72,10 @@ describe('ScoreboardWidget', () => {
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
       mockDashboardContext
     );
+    vi.mocked(useGlobalStyle).mockReturnValue(DEFAULT_GLOBAL_STYLE);
+    vi.mocked(useDashboardActions).mockReturnValue({
+      updateWidget: mockUpdateWidget,
+    } as unknown as DashboardActions);
   });
 
   it('migrates legacy config on mount', () => {

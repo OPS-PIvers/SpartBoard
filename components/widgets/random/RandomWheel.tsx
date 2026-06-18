@@ -1,6 +1,5 @@
 import React from 'react';
-import { useDashboard } from '@/context/useDashboard';
-import { DEFAULT_GLOBAL_STYLE } from '@/types';
+import { useGlobalStyle } from '@/context/dashboardCanvasStore';
 import { PASTEL_PALETTE } from '@/config/colors';
 
 const WHEEL_COLORS = PASTEL_PALETTE;
@@ -22,8 +21,7 @@ export const RandomWheel: React.FC<RandomWheelProps> = ({
   isSpinning,
   resultFontSize,
 }) => {
-  const { activeDashboard } = useDashboard();
-  const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
+  const globalStyle = useGlobalStyle();
   const radius = 145;
   const centerX = 150;
   const centerY = 150;

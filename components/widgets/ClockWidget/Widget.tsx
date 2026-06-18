@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useDashboard } from '@/context/useDashboard';
-import { WidgetData, ClockConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
+import { useGlobalStyle } from '@/context/dashboardCanvasStore';
+import { WidgetData, ClockConfig } from '@/types';
 import { STANDARD_COLORS } from '@/config/colors';
 
 import { WidgetLayout } from '../WidgetLayout';
 
 export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { i18n } = useTranslation();
-  const { activeDashboard } = useDashboard();
-  const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
+  const globalStyle = useGlobalStyle();
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {

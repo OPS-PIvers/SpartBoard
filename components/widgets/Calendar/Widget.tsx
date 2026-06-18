@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useDashboard } from '@/context/useDashboard';
+import {
+  useGlobalStyle,
+  useDashboardActions,
+} from '@/context/dashboardCanvasStore';
 import {
   WidgetData,
   CalendarConfig,
   CalendarGlobalConfig,
   CalendarEvent,
-  DEFAULT_GLOBAL_STYLE,
 } from '@/types';
 import { Calendar as CalendarIcon, Ban, Timer } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -38,11 +40,11 @@ const parseTimeSeconds = (t: string | undefined): number => {
 export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { activeDashboard, addWidget } = useDashboard();
+  const { addWidget } = useDashboardActions();
   const buildingId = useWidgetBuildingId(widget);
   const { subscribeToPermission } = useFeaturePermissions();
   const { calendarService, isConnected } = useGoogleCalendar();
-  const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
+  const globalStyle = useGlobalStyle();
   const config = widget.config as CalendarConfig;
   const localEvents = useMemo(() => config.events ?? [], [config.events]);
   const isBuildingSyncEnabled = config.isBuildingSyncEnabled ?? true;

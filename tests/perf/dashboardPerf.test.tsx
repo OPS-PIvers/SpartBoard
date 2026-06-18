@@ -73,7 +73,10 @@ import { act, fireEvent, render } from '@testing-library/react';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DashboardProvider } from '@/context/DashboardContext';
 import { useDashboard } from '@/context/useDashboard';
-import { useDashboardActions } from '@/context/dashboardCanvasStore';
+import {
+  useDashboardActions,
+  useGlobalStyle,
+} from '@/context/dashboardCanvasStore';
 import { useToolVisibility } from '@/context/useToolVisibility';
 import { BoardCanvas } from '@/components/layout/BoardCanvas';
 import type {
@@ -94,6 +97,8 @@ const {
   countBystanderRender,
   actionsProbeRenderCounts,
   countActionsProbeRender,
+  globalStyleProbeRenderCounts,
+  countGlobalStyleProbeRender,
 } = vi.hoisted(() => {
   // Render-invocation counts of the DraggableWindow shell, keyed by widget
   // id. Widgets added mid-test get random UUIDs, so those are normalized to
@@ -117,6 +122,16 @@ const {
   // 0-delta, contrasted against the legacy bystander's >0 delta on the same
   // scenarios, is the proof the migration eliminates the fan-out.
   const actionsProbeCounts = new Map<string, number>();
+  // Render-invocation counts of the GlobalStyleProbe consumers, keyed by probe
+  // id ('gs-1'..'gs-5'). These probes call `useGlobalStyle()` — a selector over
+  // the canvas store that returns `activeDashboard.globalStyle`. Because a
+  // discrete widget op (bringToFront / drag-release) spreads a new board +
+  // widgets array but never touches the nested `globalStyle` object, the
+  // selector's `Object.is` cache bails and these probes do NOT re-render. Only a
+  // genuine `setGlobalStyle` allocates a new style identity and fires them. That
+  // 0-delta on widget ops, contrasted against a 5-delta on a real style change,
+  // proves the selector isolates style consumers from the per-op fan-out.
+  const globalStyleProbeCounts = new Map<string, number>();
   return {
     shellRenderCounts: counts,
     countShellRender: (widgetId: string) => {
@@ -132,6 +147,13 @@ const {
       actionsProbeCounts.set(
         probeId,
         (actionsProbeCounts.get(probeId) ?? 0) + 1
+      );
+    },
+    globalStyleProbeRenderCounts: globalStyleProbeCounts,
+    countGlobalStyleProbeRender: (probeId: string) => {
+      globalStyleProbeCounts.set(
+        probeId,
+        (globalStyleProbeCounts.get(probeId) ?? 0) + 1
       );
     },
     // 15 widgets across 8 distinct types — all on the standard (non-position-
@@ -435,6 +457,15 @@ interface ScenarioMetric {
   // the legacy `bystanderRenders` above stays > 0 on the same scenarios.
   actionsProbeRenders: number;
   actionsProbeRendersById: Record<string, number>;
+  // GlobalStyle-consumer fan-out: how many of the 5 GlobalStyleProbe consumers
+  // (which call `useGlobalStyle()`, a selector over the canvas store's
+  // `activeDashboard.globalStyle`) re-rendered during the scenario (sum), plus
+  // the per-probe breakdown. This is the selector-isolation proof — on
+  // bringToFront5 and drag.release it must be 0 (those ops never touch the
+  // nested globalStyle object, so the selector's Object.is cache bails), while a
+  // real setGlobalStyle change re-renders all 5.
+  globalStyleProbeRenders: number;
+  globalStyleProbeRendersById: Record<string, number>;
 }
 
 const metrics: ScenarioMetric[] = [];
@@ -477,12 +508,26 @@ function actionsProbeRenderDeltas(
   return deltas;
 }
 
+/** Per-probe delta of globalStyleProbeRenderCounts since the given baseline snapshot. */
+function globalStyleProbeRenderDeltas(
+  baseline: ReadonlyMap<string, number>
+): Record<string, number> {
+  const deltas: Record<string, number> = {};
+  for (const key of [...globalStyleProbeRenderCounts.keys()].sort()) {
+    const delta =
+      (globalStyleProbeRenderCounts.get(key) ?? 0) - (baseline.get(key) ?? 0);
+    if (delta > 0) deltas[key] = delta;
+  }
+  return deltas;
+}
+
 function createRecorder() {
   let commits = 0;
   let duration = 0;
   let shellBaseline: ReadonlyMap<string, number> = new Map();
   let bystanderBaseline: ReadonlyMap<string, number> = new Map();
   let actionsProbeBaseline: ReadonlyMap<string, number> = new Map();
+  let globalStyleProbeBaseline: ReadonlyMap<string, number> = new Map();
   const onRender: ProfilerOnRenderCallback = (_id, _phase, actualDuration) => {
     commits += 1;
     duration += actualDuration;
@@ -495,12 +540,16 @@ function createRecorder() {
       shellBaseline = new Map(shellRenderCounts);
       bystanderBaseline = new Map(bystanderRenderCounts);
       actionsProbeBaseline = new Map(actionsProbeRenderCounts);
+      globalStyleProbeBaseline = new Map(globalStyleProbeRenderCounts);
     },
     record(scenario: string) {
       const shellRendersByWidget = shellRenderDeltas(shellBaseline);
       const bystanderRendersById = bystanderRenderDeltas(bystanderBaseline);
       const actionsProbeRendersById =
         actionsProbeRenderDeltas(actionsProbeBaseline);
+      const globalStyleProbeRendersById = globalStyleProbeRenderDeltas(
+        globalStyleProbeBaseline
+      );
       metrics.push({
         scenario,
         commits,
@@ -520,6 +569,10 @@ function createRecorder() {
           0
         ),
         actionsProbeRendersById,
+        globalStyleProbeRenders: Object.values(
+          globalStyleProbeRendersById
+        ).reduce((sum, n) => sum + n, 0),
+        globalStyleProbeRendersById,
       });
     },
   };
@@ -699,6 +752,37 @@ const ACTIONS_PROBE_IDS = [
 ] as const;
 
 /**
+ * GlobalStyle-consumer probe. Stands in for a content/settings component that
+ * reads only the active board's `globalStyle` via the mount-stable
+ * `useGlobalStyle()` selector (context/dashboardCanvasStore.ts) — e.g. a widget
+ * face that honors the dashboard's font family / window transparency.
+ *
+ * The selector subscribes to the canvas store but projects only
+ * `activeDashboard.globalStyle`. A discrete widget op (bringToFront /
+ * drag-release) spreads a new board object + widgets array yet leaves the nested
+ * `globalStyle` reference untouched, so the selector's `Object.is` cache bails
+ * and this probe does NOT re-render — its scenario delta is 0. Only a genuine
+ * `setGlobalStyle` allocates a new style identity and fires all 5. Contrasted
+ * against the legacy BystanderProbe (which re-renders on those same widget ops),
+ * this 0 is the direct proof the selector isolates style consumers from the
+ * board-wide fan-out.
+ *
+ * Wrapped in React.memo with a stable `id` prop so the ONLY thing that can drive
+ * a re-render is the projected `globalStyle` slice changing identity —
+ * isolating the metric to the selector under test.
+ */
+const GlobalStyleProbe: React.FC<{ id: string }> = React.memo(({ id }) => {
+  const globalStyle = useGlobalStyle();
+  countGlobalStyleProbeRender(id);
+  // Reference the read so the subscription is real and not optimized away.
+  void globalStyle;
+  return null;
+});
+GlobalStyleProbe.displayName = 'GlobalStyleProbe';
+
+const GLOBALSTYLE_PROBE_IDS = ['gs-1', 'gs-2', 'gs-3', 'gs-4', 'gs-5'] as const;
+
+/**
  * Mirrors the production wiring in DashboardView → MountedBoardsLayer →
  * BoardCanvas: context state and callbacks flow down as props, while
  * DraggableWindow/WidgetRenderer read the stable actions context and the
@@ -730,6 +814,9 @@ const BoardHarness: React.FC = () => {
       ))}
       {ACTIONS_PROBE_IDS.map((id) => (
         <ActionsProbe key={id} id={id} />
+      ))}
+      {GLOBALSTYLE_PROBE_IDS.map((id) => (
+        <GlobalStyleProbe key={id} id={id} />
       ))}
       <BoardCanvas
         dashboard={ctx.activeDashboard}
@@ -969,9 +1056,29 @@ describe('dashboard canvas performance baseline', () => {
       !visibleBefore
     );
 
+    // (8) setGlobalStyle — positive control for the GlobalStyleProbe. Change the
+    // active board's font family through the real context action. The seed
+    // widgets carry no globalStyle, so this writes
+    // {...DEFAULT_GLOBAL_STYLE, fontFamily:'handwritten'} → a brand-new style
+    // object identity → every useGlobalStyle() selector consumer re-renders.
+    // This proves the probe is wired to the real mechanism (so the 0-deltas on
+    // bringToFront5/drag.release below are genuine isolation, not a dead probe),
+    // while the action-only ActionsProbe consumers stay put (the actions surface
+    // never changes identity).
+    rec.start();
+    act(() => {
+      getCtx().setGlobalStyle({ fontFamily: 'handwritten' });
+    });
+    await settle();
+    rec.record('setGlobalStyle');
+    // Behavioral validity: the style change actually landed on the active board.
+    expect(getCtx().activeDashboard?.globalStyle?.fontFamily).toBe(
+      'handwritten'
+    );
+
     // The harness only asserts that metrics were produced — no duration
     // thresholds (CI machines vary; this must never be flaky).
-    expect(metrics).toHaveLength(13);
+    expect(metrics).toHaveLength(14);
     for (const m of metrics) {
       expect(m.commits).toBeGreaterThanOrEqual(0);
       expect(m.actualDurationMs).toBeGreaterThanOrEqual(0);
@@ -1016,10 +1123,13 @@ describe('dashboard canvas performance baseline', () => {
       return m;
     };
 
-    // SANITY: the probe is wired correctly — a real DashboardContext change
-    // (addWidget mutates dashboards/activeDashboard → contextValue identity)
-    // makes the bystander probes re-render. If THIS were 0, the probe isn't
-    // subscribed to the churning context and every other reading is worthless.
+    // SANITY: the BYSTANDER probe specifically is wired correctly — a real
+    // DashboardContext change (addWidget mutates dashboards/activeDashboard →
+    // contextValue identity) re-renders the legacy `useDashboard()` consumers.
+    // Post-migration only the bystander probes churn on addWidget; the
+    // actions/globalStyle probes do NOT (they read mount-stable surfaces). If
+    // this bystander delta were 0, the probe isn't subscribed to the churning
+    // context and every other bystander reading is worthless.
     const sanityAddWidgetProbeDelta = metricFor('addWidget').bystanderRenders;
     expect(sanityAddWidgetProbeDelta).toBeGreaterThan(0);
 
@@ -1071,6 +1181,39 @@ describe('dashboard canvas performance baseline', () => {
     expect(dragRelease.bystanderRenders).toBe(5);
     expect(dragRelease.actionsProbeRenders).toBe(0);
     expect(dragRelease.actionsProbeRendersById).toEqual({});
+
+    // ── Selector-isolation proof (the win this slice delivers) ────────────
+    // The 5 GlobalStyleProbe consumers read the active board's `globalStyle`
+    // via the mount-stable `useGlobalStyle()` selector. A discrete widget op
+    // spreads a new board + widgets array but never touches the nested
+    // `globalStyle` object, so the selector's Object.is cache bails and these
+    // probes do NOT re-render on those ops — while a real setGlobalStyle change
+    // fires all 5. The contrast is the proof the selector isolates style
+    // consumers from the per-op fan-out.
+
+    // SANITY: the globalStyle probes are actually mounted and counted — they
+    // each render at least once during mount15. Without this, a 0 delta on the
+    // hot scenarios could just mean the probe never mounted (a dead instrument).
+    expect(
+      Object.keys(metricFor('mount15').globalStyleProbeRendersById)
+    ).toHaveLength(5);
+
+    // bringToFront5 / drag.release: each raise/commit spreads a new board +
+    // widgets array but leaves the nested `globalStyle` reference untouched, so
+    // the useGlobalStyle() selector's Object.is cache bails — the 5 globalStyle
+    // probes never re-render. (Contrast: the legacy bystanders churn 25 and 5
+    // on these same ops above.)
+    expect(metricFor('bringToFront5').globalStyleProbeRenders).toBe(0);
+    expect(metricFor('drag.release').globalStyleProbeRenders).toBe(0);
+
+    // POSITIVE CONTROL: a real setGlobalStyle change allocates a new style
+    // object identity → all 5 globalStyle probes re-render, while the
+    // action-only ActionsProbe consumers stay at 0 (the actions surface never
+    // changes identity). This is the live-instrument check that makes the two
+    // 0-deltas above genuine isolation rather than a dead probe.
+    const setStyle = metricFor('setGlobalStyle');
+    expect(setStyle.globalStyleProbeRenders).toBe(5);
+    expect(setStyle.actionsProbeRenders).toBe(0);
   });
 });
 
@@ -1108,6 +1251,14 @@ afterAll(() => {
           'the legacy bystander probes read 25 and 5 respectively, showing the ' +
           'useDashboard()→useDashboardActions() swap isolates content consumers ' +
           'from the per-op DashboardContext fan-out. ' +
+          'globalStyleProbeRenders/globalStyleProbeRendersById count how many of ' +
+          'the 5 GlobalStyleProbe consumers (which read the active board ' +
+          'globalStyle via the mount-stable useGlobalStyle() selector) ' +
+          're-rendered per scenario — the selector-isolation proof: on ' +
+          'bringToFront5 and drag.release they read 0 (those ops never touch the ' +
+          'nested globalStyle object, so the selector Object.is cache bails), ' +
+          'while the setGlobalStyle scenario reads 5 (a real style change ' +
+          'allocates a new style identity) with the actions probes still at 0. ' +
           'actualDurationMs is machine-dependent and indicative only — ' +
           'compare medians of 3 runs.',
         skipped:
