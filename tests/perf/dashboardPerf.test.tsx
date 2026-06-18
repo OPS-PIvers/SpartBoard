@@ -1536,6 +1536,14 @@ describe('dashboard canvas performance baseline', () => {
     expect(metricFor('bringToFront5').readOnlyProbeRenders).toBe(0);
     expect(metricFor('drag.release').readOnlyProbeRenders).toBe(0);
 
+    // ORTHOGONALITY: a selection change (selectOther/selectSelf) flips
+    // selectedWidgetId but never touches read-only-ness, so the read-only probes
+    // stay at 0 — making explicit that the two new selectors subscribe to
+    // independent slice fields (the converse of loadReadOnlyBoard, which fires the
+    // ReadOnlyProbe while leaving the w-8-bound SelectionProbe untouched).
+    expect(metricFor('selectOther').readOnlyProbeRenders).toBe(0);
+    expect(metricFor('selectSelf').readOnlyProbeRenders).toBe(0);
+
     // POSITIVE CONTROL: activating a genuinely read-only board flips
     // isActiveBoardReadOnly false→true → all 5 read-only probes re-render, while
     // the action-only ActionsProbe consumers stay at 0 (the actions surface never
