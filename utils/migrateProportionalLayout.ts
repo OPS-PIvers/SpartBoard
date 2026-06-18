@@ -18,14 +18,18 @@ export const widgetNeedsProportionalMigration = (w: WidgetData): boolean => {
   if (typeof w.xProp !== 'number') return true;
   if (typeof w.yProp !== 'number') return true;
   // Defensive: any proportional field that is non-finite (NaN / Infinity) or
-  // whose magnitude is unmistakably a pixel value (>1.5) means the
-  // proportional fields were never populated correctly — re-derive from the
-  // pixel x/y/w/h. All four checks use Math.abs: xProp / yProp because widgets
-  // dragged past the viewport edge can legitimately have a negative pixel
-  // coordinate (so -150 must still flag as "not a proportion"), and wProp /
-  // hProp because a corrupt Firestore document could carry a negative
-  // pixel-valued dimension (e.g. -400) that a bare `> 1.5` comparison would
-  // miss, permanently stranding the widget with an invalid negative size.
+  // out of the valid proportion range means the proportional fields were never
+  // populated correctly — re-derive from the pixel x/y/w/h.
+  //
+  // xProp / yProp use Math.abs because widgets dragged past the viewport edge
+  // can legitimately have a negative pixel coordinate (so -150 must still flag
+  // as "not a proportion") — a valid position proportion is just |v| <= 1.5.
+  //
+  // wProp / hProp must be *strictly positive* (0 < v <= 1.5): a width/height
+  // proportion can never be zero or negative. A strict lower bound catches both
+  // a corrupt pixel-valued dimension (e.g. 400 or -400) AND a small non-positive
+  // value (e.g. 0 or -0.5) that a `Math.abs(v) <= 1.5` check would let pass,
+  // permanently stranding the widget with an invalid size.
   if (
     !Number.isFinite(w.wProp) ||
     !Number.isFinite(w.hProp) ||
@@ -35,8 +39,10 @@ export const widgetNeedsProportionalMigration = (w: WidgetData): boolean => {
     return true;
   }
   if (
-    Math.abs(w.wProp) > 1.5 ||
-    Math.abs(w.hProp) > 1.5 ||
+    w.wProp <= 0 ||
+    w.wProp > 1.5 ||
+    w.hProp <= 0 ||
+    w.hProp > 1.5 ||
     Math.abs(w.xProp) > 1.5 ||
     Math.abs(w.yProp) > 1.5
   ) {
@@ -79,14 +85,14 @@ export const migrateWidgetToProportional = (
   // REFERENCE_VIEWPORT, producing wrong proportions for a widget that was
   // originally authored on a different-sized viewport.
   //
-  // The range check mirrors widgetNeedsProportionalMigration exactly: the
-  // Math.abs of all four fields must not exceed 1.5, catching both positive
-  // and negative pixel values that leaked into the proportional fields.
-  // A finite-only check is insufficient — e.g. xProp=300 is finite but
-  // is a pixel value, not a proportion; without the range guard the
-  // function would early-return without correcting the bad position fields.
-  // wProp/hProp also use Math.abs so a corrupt negative pixel dimension
-  // (e.g. -400) is treated as invalid rather than passing a bare `<= 1.5`.
+  // The range check mirrors widgetNeedsProportionalMigration exactly. A
+  // finite-only check is insufficient — e.g. xProp=300 is finite but is a
+  // pixel value, not a proportion; without the range guard the function would
+  // early-return without correcting the bad position fields.
+  // xProp/yProp use Math.abs (negative positions are legitimate for widgets
+  // dragged off-edge), while wProp/hProp require a strictly-positive proportion
+  // (0 < v <= 1.5) so a corrupt pixel dimension (e.g. -400) or a non-positive
+  // value (0 / -0.5) is treated as invalid rather than passing `Math.abs <= 1.5`.
   //
   // Destructure first so downstream comparisons see `number`, not
   // `number | undefined`, satisfying TypeScript's control-flow analysis.
@@ -100,8 +106,10 @@ export const migrateWidgetToProportional = (
     Number.isFinite(yProp) &&
     Number.isFinite(wProp) &&
     Number.isFinite(hProp) &&
-    Math.abs(wProp) <= 1.5 &&
-    Math.abs(hProp) <= 1.5 &&
+    wProp > 0 &&
+    wProp <= 1.5 &&
+    hProp > 0 &&
+    hProp <= 1.5 &&
     Math.abs(xProp) <= 1.5 &&
     Math.abs(yProp) <= 1.5;
   if (proportionsValid) {
