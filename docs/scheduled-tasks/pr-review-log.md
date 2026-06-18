@@ -1354,3 +1354,40 @@ _Automated nightly review by claude-opus-4-6_
   - Branch-safety: all 10 head branches are non-`main` / non-`dev-*` → pushable. Only #2004 required a fix push.
   - Local verification for the #2004 fix ran on Node 22 (env wants 24): targeted `tsc --noEmit` (0 errors), `eslint --max-warnings 0` (clean), and the TrafficLight test (6/6) all passed; full CI on Node 24 remains the authoritative gate.
   - Most nightly PRs had already incorporated reviewer suggestions in later commits before this run, so most threads were explanatory rather than fixes.
+
+## 2026-06-18
+
+- PRs reviewed: 9 (all open PRs)
+  - #2016 — fix(poll): cap progress-bar height at large widget sizes (head `scheduled-tasks`, base `dev-paul`)
+  - #2014 — fix(Modal): prevent scroll-lock flicker on new onClose reference (head `nightly/layout-2026-06-18`, base `dev-paul`)
+  - #2013 — docs(routines): Run 21 debugger log (head `nightly/debugger-log-2026-06-18`, base `dev-paul`)
+  - #2012 — fix(i18n): DE widgets.timeTool.timer → "Countdown" (head `nightly/admin-2026-06-18`, base `dev-paul`)
+  - #2011 — fix(widgets): Escape-cancel guards — DrawingWidget InlineTitle + SmartNotebook PageEditor (head `nightly/widgets-2026-06-18`, base `dev-paul`)
+  - #2010 — fix(lti): preserve stored contextTitle in linkLtiCourseV1 (head `nightly/build-2026-06-18`, base `dev-paul`)
+  - #2009 — fix(quizMaxPoints): dedup Set guard against scoreMaximum inflation (head `nightly/state-2026-06-18`, base `dev-paul`)
+  - #2007 — chore(perf): update baseline timing snapshots (head `nightly/perf-baseline-2026-06-18`, base `dev-paul`)
+  - #2006 — docs(unifier): run 19 staleness scan (head `nightly/unifier-log-2026-06-18`, base `dev-paul`)
+- Comments processed: 17 total — 2 fixed, 9 explained, 6 skipped (already answered by author / outdated nitpicks)
+  - #2016: 2 gemini threads (migrateProportionalLayout `Math.abs` on wProp/hProp) → EXPLAINED (already addressed): current code uses strict `wProp <= 0 || wProp > 1.5` (lines 42-45) and `wProp > 0 && wProp <= 1.5` (lines 109-112).
+  - #2014: 2 gemini threads (body.style.overflow restore) → FIXED: replaced dummy getter/setter restore with `delete` of the shadowed instance property in both `afterEach` and the in-test restore.
+  - #2011: 2 gemini ref-reset threads → EXPLAINED (already addressed): render-body resets `if (isEditing) isCancellingRef.current = false;` / `if (editing) cancellingRef.current = false;` already present. 4 further threads (eslint-disable back-and-forth answered by author; 2 outdated claude test-quality nitpicks) → SKIPPED.
+  - #2010: 1 gemini TS-narrowing thread → EXPLAINED (already addressed): code already uses `priorData && typeof priorData.contextTitle === 'string'`.
+  - #2009: 2 gemini threads (defensive null/Array guards + tests) → EXPLAINED (declined): out of scope for the dedup fence; `if (!q || !q.id) continue` would change semantics for id-less questions.
+  - #2007: 3 threads (gl.switchSlide10/addStep commit-count drop) → EXPLAINED (resolved in follow-up): counts restored to 10 / 3, the 10→1 / 3→1 was a full-suite isolation artifact.
+  - #2013, #2012, #2006: no unresolved threads.
+- Fixes pushed: 1
+  - #2014 / `nightly/layout-2026-06-18` — `fix(pr-2014): restore native body.style.overflow via delete in Modal test cleanup`.
+- Reviews posted: 9 (one structured review per PR)
+  - #2016: Ready with minor notes — clean PollWidget `clamp()` cap; net diff vs dev-paul is 29 files / +2560 (scheduled-tasks divergence) — confirm intended scope.
+  - #2014: Ready — Modal onClose-ref flicker fix + regression test; follow-up test-hygiene fix pushed.
+  - #2013: Ready — doc-only debugger run-21 log.
+  - #2012: Ready — i18n DE Countdown fix, well-justified and tested.
+  - #2011: Ready — pattern-consistent Escape-cancel guards with regression tests.
+  - #2010: Ready — LTI contextTitle null-clobber fix; transaction-safe, tested.
+  - #2009: Ready — quizMaxPoints dedup fence mirrors push-path seenIds; tested.
+  - #2007: Ready — deterministic commit counts intact; only indicative timings moved.
+  - #2006: Ready — doc-only unifier run-19 log.
+- Notes:
+  - Branch-safety: all 9 head branches are non-`main` / non-`dev-*` → pushable. Only #2014 required a fix push.
+  - Local verification for the #2014 fix ran on Node 22 (env wants 24): `tsc --noEmit` (0 errors), `eslint --max-warnings 0` (clean), and `vitest` Modal suite (16/16) all passed; full CI on Node 24 remains the authoritative gate.
+  - #2016 scope: the `scheduled-tasks` head has diverged ~29 files from `dev-paul`, so its PR diff far exceeds the stated one-line PollWidget change — flagged in the review for human confirmation.
