@@ -14,7 +14,7 @@ const baseProps = {
 };
 
 describe('InlineTitle (via PageStrip) — Escape-cancel stale onBlur guard', () => {
-  it('FAIL-BEFORE / PASS-AFTER: Escape + synchronous blur must NOT commit the edited text', async () => {
+  it('FAIL-BEFORE / PASS-AFTER: Escape + synchronous blur must NOT commit the edited text', () => {
     // Root cause: cancel() calls setIsEditing(false) which unmounts the
     // focused <input>. React batches the state update; the browser fires a
     // synchronous blur event on the still-mounted input BEFORE the new state
@@ -41,7 +41,7 @@ describe('InlineTitle (via PageStrip) — Escape-cancel stale onBlur guard', () 
     // Replicate the browser's synchronous blur-during-unmount sequence.
     // Both events must be inside the SAME act() so React's flush is deferred
     // until after both have fired (jsdom does not auto-fire blur on removal).
-    await act(async () => {
+    act(() => {
       fireEvent.keyDown(input, { key: 'Escape' });
       fireEvent.blur(input);
     });
@@ -50,7 +50,7 @@ describe('InlineTitle (via PageStrip) — Escape-cancel stale onBlur guard', () 
     expect(onRenamePage).not.toHaveBeenCalled();
   });
 
-  it('calls onRenamePage with edited text on plain blur (normal commit path)', async () => {
+  it('calls onRenamePage with edited text on plain blur (normal commit path)', () => {
     const onRenamePage = vi.fn();
     render(
       <PageStrip
@@ -64,14 +64,14 @@ describe('InlineTitle (via PageStrip) — Escape-cancel stale onBlur guard', () 
     const input = screen.getByRole('textbox', { name: /page title/i });
     fireEvent.change(input, { target: { value: 'New Name' } });
 
-    await act(async () => {
+    act(() => {
       fireEvent.blur(input);
     });
 
     expect(onRenamePage).toHaveBeenCalledWith(0, 'New Name');
   });
 
-  it('calls onRenamePage with edited text on Enter (normal commit path)', async () => {
+  it('calls onRenamePage with edited text on Enter (normal commit path)', () => {
     const onRenamePage = vi.fn();
     render(
       <PageStrip
@@ -85,7 +85,7 @@ describe('InlineTitle (via PageStrip) — Escape-cancel stale onBlur guard', () 
     const input = screen.getByRole('textbox', { name: /page title/i });
     fireEvent.change(input, { target: { value: 'Enter Name' } });
 
-    await act(async () => {
+    act(() => {
       fireEvent.keyDown(input, { key: 'Enter' });
     });
 

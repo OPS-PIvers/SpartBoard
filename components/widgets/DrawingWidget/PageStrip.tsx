@@ -375,6 +375,7 @@ const InlineTitle: React.FC<{
   const isCancellingRef = useRef(false);
   // Intentional render-body ref sync (CLAUDE.md pattern): reset when a new
   // edit session opens so a prior cancel flag doesn't leak across sessions.
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync (CLAUDE.md pattern)
   if (isEditing) isCancellingRef.current = false;
 
   // Sync local draft when the parent's `value` changes while we're NOT
