@@ -6,7 +6,10 @@ import {
   SoundboardSound,
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
-import { useDashboard } from '@/context/useDashboard';
+import {
+  useDashboardActions,
+  useIsWidgetSelected,
+} from '@/context/dashboardCanvasStore';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -210,8 +213,8 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
   const { selectedSoundIds = [], activeSoundIds } = config;
 
   const { featurePermissions, googleAccessToken } = useAuth();
-  const { updateWidget, selectedWidgetId } = useDashboard();
-  const isFocused = selectedWidgetId === widget.id;
+  const { updateWidget } = useDashboardActions();
+  const isFocused = useIsWidgetSelected(widget.id);
   const buildingId = useWidgetBuildingId(widget) ?? null;
 
   const globalConfig = useMemo(() => {

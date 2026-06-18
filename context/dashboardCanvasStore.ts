@@ -265,6 +265,31 @@ export function useGlobalStyle(): GlobalStyle {
 }
 
 /**
+ * Selector hook for the active board's read-only flag. Returns a boolean, so
+ * the `Object.is` snapshot cache bails on any commit that doesn't flip
+ * read-only — a discrete widget op (updateWidget/bringToFront) never touches
+ * the `linkedShareRole`/`linkedShareEnded` this is derived from, so consumers
+ * never re-render on unrelated ops. Prefer this over reading
+ * `isActiveBoardReadOnly` off the legacy `useDashboard()` value, which pierces
+ * `memo()` on every provider commit.
+ */
+export function useIsActiveBoardReadOnly(): boolean {
+  return useDashboardCanvasSelector((s) => s.isActiveBoardReadOnly);
+}
+
+/**
+ * Per-instance selector for "is THIS widget the selected one". Returns the
+ * boolean `selectedWidgetId === id`, NOT the raw `selectedWidgetId` — so a
+ * given widget re-renders only when ITS OWN selected-ness flips, and selecting
+ * a DIFFERENT widget leaves it untouched (the `Object.is` cache returns the
+ * same `false`). Reading the raw `selectedWidgetId` instead would re-render
+ * every consumer on any selection change. `id` is the widget's id.
+ */
+export function useIsWidgetSelected(id: string): boolean {
+  return useDashboardCanvasSelector((s) => s.selectedWidgetId === id);
+}
+
+/**
  * Returns a STABLE function for event-handler-time reads of the canvas hot
  * slice (e.g. pointer-down group-sibling capture) without subscribing the
  * component to any of it.

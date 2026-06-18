@@ -1,7 +1,12 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useDashboard } from '@/context/useDashboard';
-import { WidgetData, TextConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
+import {
+  useDashboardActions,
+  useGlobalStyle,
+  useIsActiveBoardReadOnly,
+  useIsWidgetSelected,
+} from '@/context/dashboardCanvasStore';
+import { WidgetData, TextConfig } from '@/types';
 import { STICKY_NOTE_COLORS } from '@/config/colors';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 import { sanitizeHtml } from '@/utils/security';
@@ -28,15 +33,11 @@ const TOOLBAR_GAP = 8;
 const TOOLBAR_FLIP_THRESHOLD = 50;
 
 export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const {
-    updateWidget,
-    activeDashboard,
-    selectedWidgetId,
-    setSelectedWidgetId,
-    isActiveBoardReadOnly,
-  } = useDashboard();
+  const { updateWidget, setSelectedWidgetId } = useDashboardActions();
+  const isSelected = useIsWidgetSelected(widget.id);
+  const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
+  const globalStyle = useGlobalStyle();
   const { showPrompt } = useDialog();
-  const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const config = widget.config as TextConfig;
   const {
     content = '',
@@ -53,7 +54,6 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   );
 
   const fontClass = getFontClass(fontFamily, globalStyle.fontFamily);
-  const isSelected = selectedWidgetId === widget.id;
 
   const editorRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);

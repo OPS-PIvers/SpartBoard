@@ -76,6 +76,8 @@ import { useDashboard } from '@/context/useDashboard';
 import {
   useDashboardActions,
   useGlobalStyle,
+  useIsActiveBoardReadOnly,
+  useIsWidgetSelected,
 } from '@/context/dashboardCanvasStore';
 import { useToolVisibility } from '@/context/useToolVisibility';
 import { BoardCanvas } from '@/components/layout/BoardCanvas';
@@ -99,6 +101,10 @@ const {
   countActionsProbeRender,
   globalStyleProbeRenderCounts,
   countGlobalStyleProbeRender,
+  selectionProbeRenderCounts,
+  countSelectionProbeRender,
+  readOnlyProbeRenderCounts,
+  countReadOnlyProbeRender,
 } = vi.hoisted(() => {
   // Render-invocation counts of the DraggableWindow shell, keyed by widget
   // id. Widgets added mid-test get random UUIDs, so those are normalized to
@@ -132,6 +138,28 @@ const {
   // 0-delta on widget ops, contrasted against a 5-delta on a real style change,
   // proves the selector isolates style consumers from the per-op fan-out.
   const globalStyleProbeCounts = new Map<string, number>();
+  // Render-invocation counts of the SelectionProbe consumers, keyed by probe id
+  // ('sel-1'..'sel-5'). Each probe calls `useIsWidgetSelected(widgetId)` — a
+  // PER-INSTANCE selector over the canvas store that projects the boolean
+  // `selectedWidgetId === widgetId`. All 5 are bound to a FIXED widget id (w-8)
+  // that no scenario touches, so selecting a DIFFERENT widget leaves the
+  // projected boolean at `false` and the selector's `Object.is` cache bails —
+  // the probes do NOT re-render (0 delta). Only selecting w-8 itself flips the
+  // boolean to `true` and fires all 5. That 0-on-other / 5-on-self contrast is
+  // the proof the per-instance selector isolates each widget's selection
+  // subscription from unrelated selection changes — and the broader proof that
+  // a discrete widget op (bringToFront / drag-release) never touches selection.
+  const selectionProbeCounts = new Map<string, number>();
+  // Render-invocation counts of the ReadOnlyProbe consumers, keyed by probe id
+  // ('ro-1'..'ro-5'). Each probe calls `useIsActiveBoardReadOnly()` — a selector
+  // over the canvas store that returns the active board's read-only boolean
+  // (derived from `linkedShareRole === 'viewer' && !linkedShareEnded`). A
+  // discrete widget op (bringToFront / drag-release) spreads a new board +
+  // widgets array but never touches the `linkedShareRole`/`linkedShareEnded` the
+  // flag is derived from, so the boolean is unchanged and the selector's
+  // `Object.is` cache bails — the probes do NOT re-render (0 delta). Activating a
+  // genuinely read-only board flips the boolean to `true` and fires all 5.
+  const readOnlyProbeCounts = new Map<string, number>();
   return {
     shellRenderCounts: counts,
     countShellRender: (widgetId: string) => {
@@ -154,6 +182,20 @@ const {
       globalStyleProbeCounts.set(
         probeId,
         (globalStyleProbeCounts.get(probeId) ?? 0) + 1
+      );
+    },
+    selectionProbeRenderCounts: selectionProbeCounts,
+    countSelectionProbeRender: (probeId: string) => {
+      selectionProbeCounts.set(
+        probeId,
+        (selectionProbeCounts.get(probeId) ?? 0) + 1
+      );
+    },
+    readOnlyProbeRenderCounts: readOnlyProbeCounts,
+    countReadOnlyProbeRender: (probeId: string) => {
+      readOnlyProbeCounts.set(
+        probeId,
+        (readOnlyProbeCounts.get(probeId) ?? 0) + 1
       );
     },
     // 15 widgets across 8 distinct types — all on the standard (non-position-
@@ -466,6 +508,25 @@ interface ScenarioMetric {
   // real setGlobalStyle change re-renders all 5.
   globalStyleProbeRenders: number;
   globalStyleProbeRendersById: Record<string, number>;
+  // Selection-consumer fan-out: how many of the 5 SelectionProbe consumers
+  // (each calling `useIsWidgetSelected('w-8')`, a PER-INSTANCE selector over the
+  // canvas store's `selectedWidgetId === id`) re-rendered during the scenario
+  // (sum), plus the per-probe breakdown. This is the per-instance isolation
+  // proof — on selectOther (a DIFFERENT widget is selected) it must be 0 (the
+  // w-8 boolean stays false → Object.is cache bails), and on bringToFront5 /
+  // drag.release it must be 0 (those ops never touch selection), while
+  // selectSelf (w-8 itself is selected) re-renders all 5.
+  selectionProbeRenders: number;
+  selectionProbeRendersById: Record<string, number>;
+  // ReadOnly-consumer fan-out: how many of the 5 ReadOnlyProbe consumers (each
+  // calling `useIsActiveBoardReadOnly()`, a selector over the canvas store's
+  // read-only boolean) re-rendered during the scenario (sum), plus the per-probe
+  // breakdown. This is the read-only isolation proof — on bringToFront5 /
+  // drag.release it must be 0 (those ops never touch the linkedShareRole the flag
+  // is derived from), while activating a genuinely read-only board re-renders
+  // all 5.
+  readOnlyProbeRenders: number;
+  readOnlyProbeRendersById: Record<string, number>;
 }
 
 const metrics: ScenarioMetric[] = [];
@@ -521,6 +582,32 @@ function globalStyleProbeRenderDeltas(
   return deltas;
 }
 
+/** Per-probe delta of selectionProbeRenderCounts since the given baseline snapshot. */
+function selectionProbeRenderDeltas(
+  baseline: ReadonlyMap<string, number>
+): Record<string, number> {
+  const deltas: Record<string, number> = {};
+  for (const key of [...selectionProbeRenderCounts.keys()].sort()) {
+    const delta =
+      (selectionProbeRenderCounts.get(key) ?? 0) - (baseline.get(key) ?? 0);
+    if (delta > 0) deltas[key] = delta;
+  }
+  return deltas;
+}
+
+/** Per-probe delta of readOnlyProbeRenderCounts since the given baseline snapshot. */
+function readOnlyProbeRenderDeltas(
+  baseline: ReadonlyMap<string, number>
+): Record<string, number> {
+  const deltas: Record<string, number> = {};
+  for (const key of [...readOnlyProbeRenderCounts.keys()].sort()) {
+    const delta =
+      (readOnlyProbeRenderCounts.get(key) ?? 0) - (baseline.get(key) ?? 0);
+    if (delta > 0) deltas[key] = delta;
+  }
+  return deltas;
+}
+
 function createRecorder() {
   let commits = 0;
   let duration = 0;
@@ -528,6 +615,8 @@ function createRecorder() {
   let bystanderBaseline: ReadonlyMap<string, number> = new Map();
   let actionsProbeBaseline: ReadonlyMap<string, number> = new Map();
   let globalStyleProbeBaseline: ReadonlyMap<string, number> = new Map();
+  let selectionProbeBaseline: ReadonlyMap<string, number> = new Map();
+  let readOnlyProbeBaseline: ReadonlyMap<string, number> = new Map();
   const onRender: ProfilerOnRenderCallback = (_id, _phase, actualDuration) => {
     commits += 1;
     duration += actualDuration;
@@ -541,6 +630,8 @@ function createRecorder() {
       bystanderBaseline = new Map(bystanderRenderCounts);
       actionsProbeBaseline = new Map(actionsProbeRenderCounts);
       globalStyleProbeBaseline = new Map(globalStyleProbeRenderCounts);
+      selectionProbeBaseline = new Map(selectionProbeRenderCounts);
+      readOnlyProbeBaseline = new Map(readOnlyProbeRenderCounts);
     },
     record(scenario: string) {
       const shellRendersByWidget = shellRenderDeltas(shellBaseline);
@@ -549,6 +640,12 @@ function createRecorder() {
         actionsProbeRenderDeltas(actionsProbeBaseline);
       const globalStyleProbeRendersById = globalStyleProbeRenderDeltas(
         globalStyleProbeBaseline
+      );
+      const selectionProbeRendersById = selectionProbeRenderDeltas(
+        selectionProbeBaseline
+      );
+      const readOnlyProbeRendersById = readOnlyProbeRenderDeltas(
+        readOnlyProbeBaseline
       );
       metrics.push({
         scenario,
@@ -573,6 +670,16 @@ function createRecorder() {
           globalStyleProbeRendersById
         ).reduce((sum, n) => sum + n, 0),
         globalStyleProbeRendersById,
+        selectionProbeRenders: Object.values(selectionProbeRendersById).reduce(
+          (sum, n) => sum + n,
+          0
+        ),
+        selectionProbeRendersById,
+        readOnlyProbeRenders: Object.values(readOnlyProbeRendersById).reduce(
+          (sum, n) => sum + n,
+          0
+        ),
+        readOnlyProbeRendersById,
       });
     },
   };
@@ -783,6 +890,88 @@ GlobalStyleProbe.displayName = 'GlobalStyleProbe';
 const GLOBALSTYLE_PROBE_IDS = ['gs-1', 'gs-2', 'gs-3', 'gs-4', 'gs-5'] as const;
 
 /**
+ * Per-instance selection probe. Stands in for a widget shell/content component
+ * that subscribes ONLY to "am I the selected widget?" via the mount-stable
+ * `useIsWidgetSelected(widgetId)` selector (context/dashboardCanvasStore.ts) —
+ * the per-instance projection `selectedWidgetId === widgetId`.
+ *
+ * All 5 instances are bound to a FIXED widget id (`w-8`) that NO scenario
+ * touches: drag moves w-5, resize moves w-7, bringToFront5 raises w-1..w-6, and
+ * the add/remove/minimize scenarios target other ids — so w-8's selected-ness
+ * never flips through any of those ops. Because the selector projects a boolean
+ * and `Object.is(false, false)` holds, selecting a DIFFERENT widget (selectOther)
+ * leaves these probes untouched (0 delta) — true per-instance isolation, NOT the
+ * board-wide re-render a raw `selectedWidgetId` read would cause. Only selecting
+ * w-8 itself (selectSelf) flips the projected boolean and fires all 5.
+ *
+ * Wrapped in React.memo with stable `id`/`widgetId` props so the ONLY thing that
+ * can drive a re-render is the projected boolean changing identity — isolating
+ * the metric to the per-instance selector under test.
+ */
+const SelectionProbe: React.FC<{ id: string; widgetId: string }> = React.memo(
+  ({ id, widgetId }) => {
+    const isSelected = useIsWidgetSelected(widgetId);
+    countSelectionProbeRender(id);
+    // Reference the read so the subscription is real and not optimized away.
+    void isSelected;
+    return null;
+  }
+);
+SelectionProbe.displayName = 'SelectionProbe';
+
+const SELECTION_PROBE_IDS = [
+  'sel-1',
+  'sel-2',
+  'sel-3',
+  'sel-4',
+  'sel-5',
+] as const;
+
+// The widget all SelectionProbes are bound to. Chosen because NO scenario
+// touches it: drag→w-5, resize→w-7, bringToFront5→w-1..w-4,w-6, add/remove→a
+// fresh uuid, minimize/restore→w-3. So w-8's selected-ness only flips when a
+// scenario explicitly selects it (selectSelf), never as a side effect.
+const SELECTION_PROBE_WIDGET_ID = 'w-8';
+
+/**
+ * Read-only-board probe. Stands in for a widget shell/toolbar component that
+ * subscribes ONLY to "is the active board read-only?" via the mount-stable
+ * `useIsActiveBoardReadOnly()` selector (context/dashboardCanvasStore.ts) — the
+ * boolean derived from the active board's `linkedShareRole === 'viewer' &&
+ * !linkedShareEnded` (DashboardContext.tsx).
+ *
+ * A discrete widget op (bringToFront / drag-release) spreads a new board +
+ * widgets array but never touches `linkedShareRole`/`linkedShareEnded`, so the
+ * derived boolean is unchanged and the selector's `Object.is` cache bails — these
+ * probes do NOT re-render on those ops (0 delta). Activating a genuinely
+ * read-only board (`loadReadOnlyBoard`, a viewer-role snapshot pushed + made
+ * active) flips the boolean to `true` and fires all 5.
+ *
+ * Note on the positive control: the SELECTOR MECHANISM these probes ride
+ * (`useDashboardCanvasSelector` over a boolean projection) is identical to the
+ * mechanism the SelectionProbe and GlobalStyleProbe positive controls already
+ * exercise — a real state change to the projected slice re-renders exactly the
+ * subscribed consumers and nothing else. Here we ALSO prove the read-only path
+ * end-to-end with a dedicated `loadReadOnlyBoard` positive control (a viewer
+ * board is pushed cleanly through the harness snapshot path), so the two
+ * 0-deltas above are demonstrably genuine isolation rather than a dead probe.
+ *
+ * Wrapped in React.memo with a stable `id` prop so the ONLY thing that can drive
+ * a re-render is the projected boolean changing identity — isolating the metric
+ * to the selector under test.
+ */
+const ReadOnlyProbe: React.FC<{ id: string }> = React.memo(({ id }) => {
+  const isReadOnly = useIsActiveBoardReadOnly();
+  countReadOnlyProbeRender(id);
+  // Reference the read so the subscription is real and not optimized away.
+  void isReadOnly;
+  return null;
+});
+ReadOnlyProbe.displayName = 'ReadOnlyProbe';
+
+const RO_PROBE_IDS = ['ro-1', 'ro-2', 'ro-3', 'ro-4', 'ro-5'] as const;
+
+/**
  * Mirrors the production wiring in DashboardView → MountedBoardsLayer →
  * BoardCanvas: context state and callbacks flow down as props, while
  * DraggableWindow/WidgetRenderer read the stable actions context and the
@@ -817,6 +1006,12 @@ const BoardHarness: React.FC = () => {
       ))}
       {GLOBALSTYLE_PROBE_IDS.map((id) => (
         <GlobalStyleProbe key={id} id={id} />
+      ))}
+      {SELECTION_PROBE_IDS.map((id) => (
+        <SelectionProbe key={id} id={id} widgetId={SELECTION_PROBE_WIDGET_ID} />
+      ))}
+      {RO_PROBE_IDS.map((id) => (
+        <ReadOnlyProbe key={id} id={id} />
       ))}
       <BoardCanvas
         dashboard={ctx.activeDashboard}
@@ -1076,9 +1271,78 @@ describe('dashboard canvas performance baseline', () => {
       'handwritten'
     );
 
+    // (9) selectOther — per-instance ISOLATION for the SelectionProbe. Select a
+    // DIFFERENT widget (w-9) than the one the 5 probes are bound to (w-8). Each
+    // probe reads `useIsWidgetSelected('w-8')`, which projects the boolean
+    // `selectedWidgetId === 'w-8'`. Selecting w-9 leaves that boolean at `false`,
+    // so the selector's Object.is cache bails and NONE of the probes re-render —
+    // proof the per-instance selector isolates each widget's selection
+    // subscription from unrelated selection changes (a raw `selectedWidgetId`
+    // read would re-render every consumer here).
+    rec.start();
+    act(() => {
+      getCtx().setSelectedWidgetId('w-9');
+    });
+    await settle();
+    rec.record('selectOther');
+    // Behavioral validity: the selection actually moved to w-9 (so the store
+    // genuinely changed — this is not a no-op masquerading as isolation).
+    expect(getCtx().selectedWidgetId).toBe('w-9');
+
+    // (10) selectSelf — positive control for the SelectionProbe. Select w-8
+    // itself, the id all 5 probes are bound to. The projected boolean flips
+    // false→true, allocating a new snapshot for each probe, so all 5 re-render.
+    // This live-instrument check makes the selectOther / bringToFront5 /
+    // drag.release 0-deltas genuine isolation rather than a dead probe.
+    rec.start();
+    act(() => {
+      getCtx().setSelectedWidgetId('w-8');
+    });
+    await settle();
+    rec.record('selectSelf');
+    // Behavioral validity: w-8 is now the selected widget.
+    expect(getCtx().selectedWidgetId).toBe('w-8');
+
+    // (11) loadReadOnlyBoard — positive control for the ReadOnlyProbe. Push a
+    // fresh snapshot that ADDS a viewer-role board (linkedShareRole:'viewer',
+    // linkedShareEnded falsy) alongside the existing board, then activate it via
+    // the real loadDashboard action. The provider derives
+    // isActiveBoardReadOnly = activeBoard.linkedShareRole === 'viewer' &&
+    // !linkedShareEnded (DashboardContext.tsx ~4277) and publishes it to the
+    // canvas store, so the active board flipping read-only changes the boolean
+    // false→true → all 5 useIsActiveBoardReadOnly() probes re-render. This is a
+    // clean push: a brand-new board id is accepted wholesale by the snapshot
+    // handler (no surgical-merge for non-active boards). We deliberately set NO
+    // `linkedShareId` — it isn't part of the read-only derivation, and including
+    // it would arm the live-share subscribe effect (which calls
+    // subscribeToSharedBoard, outside this harness's useFirestore mock surface).
+    // The role alone is sufficient to flip the derived flag.
+    const readOnlyBoard: Dashboard = {
+      ...buildDashboard(buildWidgets()),
+      id: 'perf-dash-ro',
+      name: 'Perf Read-Only Board',
+      linkedShareRole: 'viewer',
+      linkedShareEnded: false,
+    };
+    rec.start();
+    await pushSnapshot([
+      buildDashboard(getCtx().activeDashboard?.widgets ?? []),
+      readOnlyBoard,
+    ]);
+    act(() => {
+      getCtx().loadDashboard('perf-dash-ro');
+    });
+    await settle();
+    rec.record('loadReadOnlyBoard');
+    // Behavioral validity: the active board is now the viewer board AND the
+    // derived read-only flag is true (so the 5 RO-probe renders are a real
+    // read-only transition, not noise).
+    expect(getCtx().activeDashboard?.id).toBe('perf-dash-ro');
+    expect(getCtx().isActiveBoardReadOnly).toBe(true);
+
     // The harness only asserts that metrics were produced — no duration
     // thresholds (CI machines vary; this must never be flaky).
-    expect(metrics).toHaveLength(14);
+    expect(metrics).toHaveLength(17);
     for (const m of metrics) {
       expect(m.commits).toBeGreaterThanOrEqual(0);
       expect(m.actualDurationMs).toBeGreaterThanOrEqual(0);
@@ -1214,6 +1478,80 @@ describe('dashboard canvas performance baseline', () => {
     const setStyle = metricFor('setGlobalStyle');
     expect(setStyle.globalStyleProbeRenders).toBe(5);
     expect(setStyle.actionsProbeRenders).toBe(0);
+
+    // ── Per-instance selection-isolation proof (the win this slice delivers) ─
+    // The 5 SelectionProbe consumers each read `useIsWidgetSelected('w-8')` — a
+    // per-instance selector projecting `selectedWidgetId === 'w-8'`. Because no
+    // scenario touches w-8's selected-ness, selecting any OTHER widget leaves the
+    // projected boolean false and the selector's Object.is cache bails; only
+    // selecting w-8 itself flips it and fires all 5.
+
+    // SANITY: the selection probes are actually mounted and counted — they each
+    // render at least once during mount15. Without this, a 0 delta on the
+    // isolation scenarios could just mean the probe never mounted (a dead
+    // instrument), so the per-instance claim would be vacuous.
+    expect(
+      Object.keys(metricFor('mount15').selectionProbeRendersById)
+    ).toHaveLength(5);
+
+    // selectOther: selecting a DIFFERENT widget (w-9) than the bound id (w-8)
+    // leaves `selectedWidgetId === 'w-8'` at false → the per-instance selector's
+    // Object.is cache bails → 0 of the 5 w-8 probes re-render. This is the
+    // headline per-instance isolation result: a raw `selectedWidgetId` read would
+    // re-render every consumer here.
+    expect(metricFor('selectOther').selectionProbeRenders).toBe(0);
+
+    // selectSelf: positive control — selecting w-8 itself flips the projected
+    // boolean false→true, so all 5 bound probes re-render. This live-instrument
+    // check proves the selectOther / bringToFront5 / drag.release 0-deltas are
+    // genuine isolation, not a dead probe.
+    expect(metricFor('selectSelf').selectionProbeRenders).toBe(5);
+
+    // ISOLATION: a discrete widget op never touches selection of the bound w-8 —
+    // bringToFront5 raises w-1..w-6 (and selects each in turn, but never w-8) and
+    // drag.release commits w-5 — so the w-8 probes stay at 0 on both. (If
+    // SelectionProbe read the RAW `selectedWidgetId` off the churning legacy
+    // value instead, both of these would be > 0 — that's the falsifiability
+    // pivot documented in the test header.)
+    expect(metricFor('bringToFront5').selectionProbeRenders).toBe(0);
+    expect(metricFor('drag.release').selectionProbeRenders).toBe(0);
+
+    // ── Read-only-board isolation proof (the win this slice delivers) ────────
+    // The 5 ReadOnlyProbe consumers each read `useIsActiveBoardReadOnly()` — a
+    // selector over the active board's read-only boolean. A discrete widget op
+    // never touches the `linkedShareRole`/`linkedShareEnded` the flag is derived
+    // from, so the boolean is unchanged and the selector's Object.is cache bails.
+
+    // SANITY: the read-only probes are actually mounted and counted — they each
+    // render at least once during mount15. Without this, a 0 delta on the
+    // isolation scenarios could just mean the probe never mounted (a dead
+    // instrument).
+    expect(
+      Object.keys(metricFor('mount15').readOnlyProbeRendersById)
+    ).toHaveLength(5);
+
+    // ISOLATION: bringToFront5 / drag.release spread a new board + widgets array
+    // but never touch read-only-ness, so the derived boolean is unchanged and the
+    // 5 read-only probes stay at 0 on both.
+    expect(metricFor('bringToFront5').readOnlyProbeRenders).toBe(0);
+    expect(metricFor('drag.release').readOnlyProbeRenders).toBe(0);
+
+    // ORTHOGONALITY: a selection change (selectOther/selectSelf) flips
+    // selectedWidgetId but never touches read-only-ness, so the read-only probes
+    // stay at 0 — making explicit that the two new selectors subscribe to
+    // independent slice fields (the converse of loadReadOnlyBoard, which fires the
+    // ReadOnlyProbe while leaving the w-8-bound SelectionProbe untouched).
+    expect(metricFor('selectOther').readOnlyProbeRenders).toBe(0);
+    expect(metricFor('selectSelf').readOnlyProbeRenders).toBe(0);
+
+    // POSITIVE CONTROL: activating a genuinely read-only board flips
+    // isActiveBoardReadOnly false→true → all 5 read-only probes re-render, while
+    // the action-only ActionsProbe consumers stay at 0 (the actions surface never
+    // changes identity). This live-instrument check makes the two 0-deltas above
+    // genuine isolation rather than a dead probe.
+    const loadReadOnly = metricFor('loadReadOnlyBoard');
+    expect(loadReadOnly.readOnlyProbeRenders).toBe(5);
+    expect(loadReadOnly.actionsProbeRenders).toBe(0);
   });
 });
 
@@ -1259,6 +1597,20 @@ afterAll(() => {
           'nested globalStyle object, so the selector Object.is cache bails), ' +
           'while the setGlobalStyle scenario reads 5 (a real style change ' +
           'allocates a new style identity) with the actions probes still at 0. ' +
+          'selectionProbeRenders/selectionProbeRendersById count how many of the ' +
+          '5 SelectionProbe consumers (each reading useIsWidgetSelected("w-8"), a ' +
+          'PER-INSTANCE selector projecting selectedWidgetId === id) re-rendered ' +
+          'per scenario — the per-instance isolation proof: on selectOther (a ' +
+          'DIFFERENT widget is selected), bringToFront5, and drag.release they ' +
+          'read 0 (the w-8 boolean stays false, so the selector Object.is cache ' +
+          'bails), while selectSelf (w-8 itself is selected) reads 5. ' +
+          'readOnlyProbeRenders/readOnlyProbeRendersById count how many of the 5 ' +
+          'ReadOnlyProbe consumers (each reading useIsActiveBoardReadOnly(), a ' +
+          'selector over the active board read-only boolean) re-rendered per ' +
+          'scenario — the read-only isolation proof: on bringToFront5 and ' +
+          'drag.release they read 0 (those ops never touch the linkedShareRole the ' +
+          'flag is derived from), while loadReadOnlyBoard (a viewer-role board is ' +
+          'pushed and activated) reads 5 with the actions probes still at 0. ' +
           'actualDurationMs is machine-dependent and indicative only — ' +
           'compare medians of 3 runs.',
         skipped:
