@@ -1,8 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { WidgetData, CountdownConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
+import { WidgetData, CountdownConfig } from '@/types';
 import { WidgetLayout } from '../WidgetLayout';
 import { getFontClass, hexToRgba } from '@/utils/styles';
-import { useDashboard } from '@/context/useDashboard';
+import { useGlobalStyle } from '@/context/dashboardCanvasStore';
 
 interface CountdownDay {
   date: Date;
@@ -26,8 +26,7 @@ const isWeekendDate = (value: Date): boolean => {
 export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { activeDashboard } = useDashboard();
-  const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
+  const globalStyle = useGlobalStyle();
   const config = widget.config as CountdownConfig;
 
   const {

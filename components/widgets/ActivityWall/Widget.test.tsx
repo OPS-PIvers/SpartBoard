@@ -64,11 +64,23 @@ const {
 
 let snapshotDocs: Record<string, unknown>[] = [];
 
-vi.mock('@/context/useDashboard', () => ({
-  useDashboard: () => ({
+vi.mock('@/context/dashboardCanvasStore', () => ({
+  useDashboardActions: () => ({
     addWidget: mockAddWidget,
     addToast: mockAddToast,
     updateWidget: mockUpdateWidget,
+  }),
+  // Tests don't set up a read-only board, so the widget renders in its
+  // default editable state (matching the prior mock, which omitted the flag).
+  useIsActiveBoardReadOnly: () => false,
+}));
+
+// ActivityWallShareModal (a child still on the legacy useDashboard() value)
+// reads `addToast` when the live view mounts the share UI, so keep the legacy
+// mock for that unmigrated component.
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({
+    addToast: mockAddToast,
   }),
 }));
 

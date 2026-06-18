@@ -1,6 +1,5 @@
 import React from 'react';
-import { useDashboard } from '@/context/useDashboard';
-import { DEFAULT_GLOBAL_STYLE } from '@/types';
+import { useGlobalStyle } from '@/context/dashboardCanvasStore';
 
 /**
  * Placeholder text shown when no winner has been picked yet. Exported so the
@@ -20,8 +19,7 @@ export const RandomFlash: React.FC<RandomFlashProps> = ({
   isSpinning,
   fontSize,
 }) => {
-  const { activeDashboard } = useDashboard();
-  const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
+  const globalStyle = useGlobalStyle();
 
   const fontStyle = typeof fontSize === 'number' ? `${fontSize}px` : fontSize;
 

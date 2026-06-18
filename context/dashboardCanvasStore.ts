@@ -48,7 +48,8 @@ import {
   useRef,
   useSyncExternalStore,
 } from 'react';
-import type { Dashboard } from '@/types';
+import type { Dashboard, GlobalStyle } from '@/types';
+import { DEFAULT_GLOBAL_STYLE } from '@/types';
 import {
   DashboardContext,
   type DashboardContextValue,
@@ -241,6 +242,51 @@ export function useDashboardCanvasSelector<T>(
   if (!legacy)
     throw new Error('useDashboard must be used within DashboardProvider');
   return selector(sliceFromLegacy(legacy));
+}
+
+/**
+ * Selector hook for the active board's `globalStyle`. Reads it off the canvas
+ * hot slice (`activeDashboard.globalStyle`) so consumers re-render ONLY when
+ * the style object identity changes — NOT on unrelated widget ops. A discrete
+ * op (updateWidget/bringToFront) spreads a new board object + widgets array but
+ * never touches `globalStyle`, so the nested reference survives and the
+ * selector's `Object.is` cache bails the re-render; only `setGlobalStyle`
+ * allocates a new style object.
+ *
+ * The `?? DEFAULT_GLOBAL_STYLE` fallback MUST reference the module-level
+ * singleton (a stable identity), never an inline object literal — a fresh
+ * object each call would defeat the `Object.is` dedupe and trip
+ * `useSyncExternalStore`'s render-loop guard (see `useDashboardCanvasSelector`).
+ */
+export function useGlobalStyle(): GlobalStyle {
+  return useDashboardCanvasSelector(
+    (s) => s.activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE
+  );
+}
+
+/**
+ * Selector hook for the active board's read-only flag. Returns a boolean, so
+ * the `Object.is` snapshot cache bails on any commit that doesn't flip
+ * read-only — a discrete widget op (updateWidget/bringToFront) never touches
+ * the `linkedShareRole`/`linkedShareEnded` this is derived from, so consumers
+ * never re-render on unrelated ops. Prefer this over reading
+ * `isActiveBoardReadOnly` off the legacy `useDashboard()` value, which pierces
+ * `memo()` on every provider commit.
+ */
+export function useIsActiveBoardReadOnly(): boolean {
+  return useDashboardCanvasSelector((s) => s.isActiveBoardReadOnly);
+}
+
+/**
+ * Per-instance selector for "is THIS widget the selected one". Returns the
+ * boolean `selectedWidgetId === id`, NOT the raw `selectedWidgetId` — so a
+ * given widget re-renders only when ITS OWN selected-ness flips, and selecting
+ * a DIFFERENT widget leaves it untouched (the `Object.is` cache returns the
+ * same `false`). Reading the raw `selectedWidgetId` instead would re-render
+ * every consumer on any selection change. `id` is the widget's id.
+ */
+export function useIsWidgetSelected(id: string): boolean {
+  return useDashboardCanvasSelector((s) => s.selectedWidgetId === id);
 }
 
 /**

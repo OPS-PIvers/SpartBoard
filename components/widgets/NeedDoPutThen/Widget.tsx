@@ -9,13 +9,11 @@ import {
   ListTodo,
   Package,
 } from 'lucide-react';
+import { WidgetData, NeedDoPutThenConfig, NeedDoPutThenTile } from '@/types';
 import {
-  WidgetData,
-  NeedDoPutThenConfig,
-  NeedDoPutThenTile,
-  DEFAULT_GLOBAL_STYLE,
-} from '@/types';
-import { useDashboard } from '@/context/useDashboard';
+  useGlobalStyle,
+  useDashboardActions,
+} from '@/context/dashboardCanvasStore';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { getFontClass, hexToRgba } from '@/utils/styles';
@@ -562,7 +560,8 @@ const Drawer: React.FC<DrawerProps> = ({
 export const NeedDoPutThenWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { activeDashboard, updateWidget } = useDashboard();
+  const globalStyle = useGlobalStyle();
+  const { updateWidget } = useDashboardActions();
   const config = widget.config as NeedDoPutThenConfig;
 
   const {
@@ -609,8 +608,7 @@ export const NeedDoPutThenWidget: React.FC<{ widget: WidgetData }> = ({
     setPortalTarget((prev) => (prev === target ? prev : target));
   }, []);
 
-  const globalFont =
-    activeDashboard?.globalStyle?.fontFamily ?? DEFAULT_GLOBAL_STYLE.fontFamily;
+  const globalFont = globalStyle.fontFamily;
   const fontClass = getFontClass(config.fontFamily ?? 'global', globalFont);
   const sizeMultiplier = resolveTextPresetMultiplier(config.textSizePreset);
 

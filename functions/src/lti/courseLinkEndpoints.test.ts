@@ -160,6 +160,17 @@ const seenSession = () => {
     }),
   };
 };
+/** Simulates a privacy-stripped relaunch where the LMS omits the context title. */
+const seenSessionNullTitle = () => {
+  sessionDoc = { exists: true, data: () => ({ teacherUid: 'teacher-1' }) };
+  contextDoc = {
+    exists: true,
+    data: () => ({
+      contextTitle: null,
+      contextMembershipsUrl: 'https://lms/ctx/members',
+    }),
+  };
+};
 
 beforeEach(() => {
   sessionDoc = { exists: false, data: () => undefined };
@@ -257,6 +268,34 @@ describe('linkLtiCourseV1', () => {
     expect(courseLinks.get('ctx-1')).toMatchObject({
       teacherUid: 'teacher-1',
       classlinkClassId: 'cl-new',
+    });
+  });
+
+  it('preserves a stored contextTitle when a privacy-stripped relaunch yields null (#null-clobber)', async () => {
+    // Regression: a Schoology deployment with privacy configuration may omit the
+    // context title on relaunches. nrpsStore.ts stores null for the title in the
+    // NEW session's membership doc (there's no prior doc for that session to
+    // fall back on). linkLtiCourseV1 was writing `contextTitle: null` directly
+    // to lti_course_links, silently clearing the section name captured from an
+    // earlier launch — the same clobber pattern fixed in nrpsStore.ts and
+    // launchEndpoints.ts. The fix: prefer the stored title over null, matching
+    // the pattern `contextTitle ?? storedTitle`.
+    seenSessionNullTitle(); // session membership doc has contextTitle: null
+    courseLinks.set('ctx-1', {
+      teacherUid: 'teacher-1',
+      classlinkClassId: 'cl-old',
+      contextTitle: 'Algebra 1 · P1', // previously captured valid title
+      createdAt: 1,
+    });
+    await callLink({
+      auth: TEACHER,
+      data: { ...base, classlinkClassId: 'cl-new' },
+    });
+    // The stored title must survive the relink — it must NOT be overwritten with null.
+    expect(courseLinks.get('ctx-1')).toMatchObject({
+      teacherUid: 'teacher-1',
+      classlinkClassId: 'cl-new',
+      contextTitle: 'Algebra 1 · P1',
     });
   });
 });

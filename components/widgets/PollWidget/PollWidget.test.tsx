@@ -1,15 +1,23 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PollWidget, PollSettings } from '.';
 import { useDashboard } from '@/context/useDashboard';
+import {
+  useGlobalStyle,
+  useDashboardActions,
+  type DashboardActions,
+} from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
 import { vi, describe, it, expect, Mock, beforeEach, afterEach } from 'vitest';
-import { WidgetData } from '@/types';
+import { WidgetData, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { GeneratedPoll } from '@/utils/ai';
 
-// Mock useDashboard
+// Mock useDashboard (PollSettings still consumes the legacy context).
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
 }));
+
+// Mock the mount-stable store surfaces (PollWidget consumes these).
+vi.mock('@/context/dashboardCanvasStore');
 
 // Mock useAuth
 vi.mock('@/context/useAuth', () => ({
@@ -68,10 +76,13 @@ describe('PollWidget', () => {
     // wipe nothing functional (clearAllMocks keeps implementations) but reads
     // as a footgun. Order it conventionally so the stubs are the final word.
     vi.clearAllMocks();
-    (useDashboard as Mock).mockReturnValue({
-      updateWidget: mockUpdateWidget,
-      activeDashboard: { globalStyle: { fontFamily: 'sans' } },
+    vi.mocked(useGlobalStyle).mockReturnValue({
+      ...DEFAULT_GLOBAL_STYLE,
+      fontFamily: 'sans',
     });
+    vi.mocked(useDashboardActions).mockReturnValue({
+      updateWidget: mockUpdateWidget,
+    } as unknown as DashboardActions);
     (useAuth as Mock).mockReturnValue({
       user: { uid: 'teacher-1' },
       canAccessFeature: vi.fn(() => true),

@@ -442,6 +442,16 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     isPlaceholder: boolean;
   } | null>(null);
 
+  // Synchronous cancel flag: set to true in the Escape keyDown handler
+  // BEFORE setEditing(null) so that the stale onBlur={applyTextEdit} closure
+  // can see it and bail out without persisting the discarded text.
+  // A ref is used (not state) because the write must be visible to the blur
+  // handler that fires in the same synchronous event-processing microtask —
+  // a queued state update would not be committed in time.
+  // Identical pattern to RandomGroups.GroupDropZone (PR #1965).
+  const cancellingRef = useRef(false);
+  if (editing) cancellingRef.current = false;
+
   // PageEditor is purely write-only after mount: it reads the `svg` prop
   // exactly once (in the mount effect below) and never reacts to subsequent
   // prop changes. The host's autosave feedback (Storage URL bouncing back
@@ -1490,6 +1500,13 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   };
 
   const applyTextEdit = () => {
+    // If the user pressed Escape just before this blur fired, bail out so
+    // the stale closure doesn't persist text the user intended to discard.
+    if (cancellingRef.current) {
+      cancellingRef.current = false;
+      setEditing(null);
+      return;
+    }
     const svgEl = svgRef.current;
     if (!svgEl || !editing) return;
     const obj = findObjectById(svgEl, editing.id);
@@ -2210,6 +2227,11 @@ export const PageEditor: React.FC<PageEditorProps> = ({
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
               e.preventDefault();
+              // Signal applyTextEdit (via onBlur) to bail out. This ref write
+              // is synchronous and is therefore visible to the blur handler
+              // that fires in the same microtask before React commits the
+              // setEditing(null) state update below.
+              cancellingRef.current = true;
               if (
                 editing &&
                 editing.isPlaceholder &&

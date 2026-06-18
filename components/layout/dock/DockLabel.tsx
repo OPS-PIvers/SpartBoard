@@ -1,6 +1,5 @@
 import React from 'react';
-import { useDashboard } from '@/context/useDashboard';
-import { DEFAULT_GLOBAL_STYLE } from '@/types';
+import { useGlobalStyle } from '@/context/dashboardCanvasStore';
 
 /**
  * Custom Label Component for consistent readability
@@ -13,8 +12,7 @@ export const DockLabel = ({
   children: React.ReactNode;
   className?: string;
 }) => {
-  const { activeDashboard } = useDashboard();
-  const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
+  const globalStyle = useGlobalStyle();
 
   return (
     <span

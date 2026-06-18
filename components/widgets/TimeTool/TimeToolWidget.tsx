@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { WidgetData, DEFAULT_GLOBAL_STYLE, TimeToolConfig } from '@/types';
-import { useDashboard } from '@/context/useDashboard';
+import { WidgetData, TimeToolConfig } from '@/types';
+import { useGlobalStyle } from '@/context/dashboardCanvasStore';
 import { useTimeTool } from './useTimeTool';
 import { useHoldAccelerate } from './useHoldAccelerate';
 import {
@@ -333,8 +333,7 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { t } = useTranslation();
-  const { activeDashboard } = useDashboard();
-  const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
+  const globalStyle = useGlobalStyle();
   const {
     displayTime,
     isRunning,

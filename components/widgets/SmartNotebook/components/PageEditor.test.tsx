@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { act, fireEvent, render } from '@testing-library/react';
 import { PageEditor } from './PageEditor';
 
 // jsdom does not implement SVGGraphicsElement.getBBox or DOMMatrix; stub them
@@ -51,6 +51,87 @@ const fire = (target: Element, type: string, props: PointerEventInit): void => {
 };
 
 const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+
+/**
+ * Regression test: Escape-cancel stale onBlur in the inline text editor.
+ *
+ * Bug summary
+ * -----------
+ * When the user pressed Escape to cancel a text edit, React queued
+ * `setEditing(null)` but the DOM blur event fired synchronously BEFORE
+ * that state update was committed.  The `onBlur={applyTextEdit}` handler
+ * ran with a stale closure where `editing` was still non-null, so it
+ * called `writeTextLines` + `emitChange` — saving the text the user
+ * intended to discard and firing `onChange` a second time.
+ *
+ * Fix: `cancellingRef.current = true` is set synchronously at the start
+ * of the Escape branch; `applyTextEdit` short-circuits when it sees that
+ * flag.  Identical pattern to RandomGroups.GroupDropZone (PR #1965).
+ */
+describe('PageEditor — Escape-cancel must not commit stale text via onBlur', () => {
+  it('does not call onChange when Escape cancels a modified text placeholder', async () => {
+    // Open a PageEditor in text-tool mode.
+    const onChange = vi.fn();
+    const { container } = render(
+      <PageEditor tool="text" svg={TEST_SVG} onChange={onChange} />
+    );
+    // Let the mount useEffect run (sets up the editable SVG DOM).
+    await tick();
+
+    // The editor container is the inner div with onPointerDown.
+    const editorDiv = container.querySelector(
+      '[data-no-drag="true"] div'
+    ) as HTMLElement;
+    expect(editorDiv).toBeTruthy();
+
+    // Fire a text-tool pointerdown on empty canvas → creates a placeholder
+    // text object and opens the inline textarea editor.
+    // The container uses React synthetic pointer events (onPointerDown) so
+    // fireEvent is the right vehicle here; native dispatchEvent bypasses
+    // React's SyntheticEvent system and would not reach the handler.
+    act(() => {
+      fireEvent.pointerDown(editorDiv, {
+        clientX: 400,
+        clientY: 300,
+        pointerId: 1,
+        buttons: 1,
+        isPrimary: true,
+      });
+    });
+
+    // After React flushes, the textarea should be present.
+    const textarea = container.querySelector('textarea');
+    // Fail loudly rather than silently passing — a phantom green would give
+    // false confidence that the cancellingRef guard is being exercised.
+    expect(textarea).not.toBeNull();
+    if (!textarea) return; // TypeScript narrowing only; assertion above already fails
+
+    // Count onChange calls so far (one expected: the text-object insert).
+    const callsAfterInsert = onChange.mock.calls.length;
+
+    // Simulate the user typing — now editing.value !== editing.initialValue,
+    // which is the exact precondition that triggers the stale-closure bug:
+    // the Escape handler won't call emitChange (it only does so for
+    // unchanged placeholders), so only the stale onBlur path produces the
+    // spurious second onChange call.
+    fireEvent.change(textarea, { target: { value: 'Hello' } });
+
+    // Press Escape + blur in the same act() so React processes them in the
+    // same batch.  The sequence replicates the browser's synchronous
+    // focus-manager order:
+    //   1. keyDown schedules setEditing(null) → queued state update
+    //   2. blur fires (still inside the batch, before React commits)
+    //      → with the bug this calls applyTextEdit with stale editing
+    //      → with the fix it sees cancellingRef and exits early
+    act(() => {
+      fireEvent.keyDown(textarea, { key: 'Escape' });
+      fireEvent.blur(textarea);
+    });
+
+    // onChange must NOT have been called again after the insert.
+    expect(onChange.mock.calls.length).toBe(callsAfterInsert);
+  });
+});
 
 describe('PageEditor — pointerup robustness', () => {
   // Hold the original behind a wrapper so the lint rule against unbound
