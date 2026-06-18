@@ -27,6 +27,11 @@ describe('Modal Component', () => {
     // singleton counter and scroll-lock are both back at baseline before the
     // next test runs.
     cleanup();
+    // Delete any shadowed instance property so JSDOM falls back to the native
+    // prototype getter/setter, then reset to baseline. This guarantees a test
+    // that intercepts overflow (see scroll-lock test below) cannot leak a dummy
+    // accessor into subsequent tests.
+    delete (document.body.style as { overflow?: string }).overflow;
     document.body.style.overflow = '';
   });
 
@@ -232,14 +237,11 @@ describe('Modal Component', () => {
     // With the fix: no overflow changes during re-renders → [].
     const midRenderWrites = overflowWrites.slice();
 
-    // Restore so afterEach cleanup doesn't use the intercepted property.
-    Object.defineProperty(document.body.style, 'overflow', {
-      get: () => currentOverflow,
-      set: (v: string) => {
-        currentOverflow = v;
-      },
-      configurable: true,
-    });
+    // Restore the native property by deleting the shadowed instance accessor.
+    // Re-defining a dummy getter/setter here would leave a closure-bound
+    // accessor in place that never updates the real DOM style, breaking any
+    // later test that reads/writes document.body.style.overflow.
+    delete (document.body.style as { overflow?: string }).overflow;
 
     // Final cleanup.
     unmount();
