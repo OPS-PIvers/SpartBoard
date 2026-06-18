@@ -1,5 +1,9 @@
 import React, { useRef, useState, useMemo } from 'react';
-import { useDashboard } from '@/context/useDashboard';
+import {
+  useDashboardActions,
+  useGlobalStyle,
+  useIsActiveBoardReadOnly,
+} from '@/context/dashboardCanvasStore';
 import {
   WidgetComponentProps,
   ConceptWebConfig,
@@ -13,8 +17,9 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   widget,
   isStudentView,
 }) => {
-  const { updateWidget, bringToFront, activeDashboard, isActiveBoardReadOnly } =
-    useDashboard();
+  const { updateWidget, bringToFront } = useDashboardActions();
+  const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
+  const globalStyle = useGlobalStyle();
   // Treat substitute / view-only boards the same as the student view —
   // both modes want the diagram visible but uneditable. Promote a single
   // `isReadOnly` flag so the existing student-view guards extend cleanly.
@@ -368,14 +373,9 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     return displayNodes.find((n) => n.id === drawingFromId);
   }, [drawingFromId, displayNodes]);
 
-  const globalStyle = activeDashboard?.globalStyle;
   const fontClassName = useMemo(
-    () =>
-      getFontClass(
-        config.fontFamily ?? 'global',
-        globalStyle?.fontFamily ?? 'sans'
-      ),
-    [config.fontFamily, globalStyle?.fontFamily]
+    () => getFontClass(config.fontFamily ?? 'global', globalStyle.fontFamily),
+    [config.fontFamily, globalStyle.fontFamily]
   );
 
   return (

@@ -15,7 +15,7 @@ import {
 import { WidgetData, WebcamConfig } from '@/types';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useAuth } from '@/context/useAuth';
-import { useDashboard } from '@/context/useDashboard';
+import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { useDialog } from '@/context/useDialog';
 import { extractTextWithGemini } from '@/utils/ai';
 import Tesseract from 'tesseract.js';
@@ -27,7 +27,7 @@ export const WebcamWidget: React.FC<{
   isActive?: boolean;
 }> = ({ widget: _widget, isActive = true }) => {
   const { canAccessFeature } = useAuth();
-  const { addWidget, addToast, updateWidget } = useDashboard();
+  const { addWidget, addToast, updateWidget } = useDashboardActions();
   const { showAlert, showConfirm } = useDialog();
   const ocrMode: 'standard' | 'gemini' = canAccessFeature('gemini-functions')
     ? 'gemini'

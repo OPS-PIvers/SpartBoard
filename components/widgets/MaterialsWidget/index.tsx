@@ -1,11 +1,14 @@
 import React from 'react';
 import {
   MaterialsConfig,
-  DEFAULT_GLOBAL_STYLE,
   WidgetComponentProps,
   MaterialsGlobalConfig,
 } from '@/types';
-import { useDashboard } from '@/context/useDashboard';
+import {
+  useDashboardActions,
+  useGlobalStyle,
+  useIsWidgetSelected,
+} from '@/context/dashboardCanvasStore';
 import { Package } from 'lucide-react';
 import { getMaterialMap } from './constants';
 import { MaterialsSettings } from './Settings';
@@ -17,11 +20,11 @@ export { MaterialsSettings };
 import { WidgetLayout } from '../WidgetLayout';
 
 export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
-  const { updateWidget, activeDashboard, selectedWidgetId } = useDashboard();
+  const { updateWidget } = useDashboardActions();
   const { featurePermissions } = useAuth();
-  const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
+  const globalStyle = useGlobalStyle();
   const config = widget.config as MaterialsConfig;
-  const isFocused = selectedWidgetId === widget.id;
+  const isFocused = useIsWidgetSelected(widget.id);
   const permission = featurePermissions.find(
     (item) => item.widgetType === 'materials'
   );
