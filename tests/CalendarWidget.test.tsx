@@ -1,13 +1,16 @@
 import { render, screen } from '@testing-library/react';
 import { CalendarWidget } from '@/components/widgets/Calendar/Widget';
 import { expect, test, vi, describe, beforeEach, afterEach } from 'vitest';
-import { WidgetData } from '@/types';
+import { WidgetData, DEFAULT_GLOBAL_STYLE } from '@/types';
 
-vi.mock('@/context/useDashboard', () => ({
-  useDashboard: () => ({
+// CalendarWidget reads addWidget from the mount-stable useDashboardActions()
+// surface and the active board style from useGlobalStyle() — both from the
+// canvas store, not the legacy useDashboard() context.
+vi.mock('@/context/dashboardCanvasStore', () => ({
+  useDashboardActions: () => ({
     addWidget: vi.fn(),
-    activeDashboard: { globalStyle: { fontFamily: 'sans' } },
   }),
+  useGlobalStyle: () => DEFAULT_GLOBAL_STYLE,
 }));
 
 vi.mock('@/hooks/useFeaturePermissions', () => ({

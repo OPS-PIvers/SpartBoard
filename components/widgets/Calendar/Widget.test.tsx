@@ -3,7 +3,13 @@ import React from 'react';
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CalendarWidget } from './Widget';
+import { DEFAULT_GLOBAL_STYLE } from '@/types';
 import type { CalendarConfig, WidgetData } from '@/types';
+import {
+  useGlobalStyle,
+  useDashboardActions,
+  type DashboardActions,
+} from '@/context/dashboardCanvasStore';
 
 vi.mock('../WidgetLayout', () => ({
   WidgetLayout: ({ content }: { content: React.ReactNode }) => (
@@ -11,16 +17,7 @@ vi.mock('../WidgetLayout', () => ({
   ),
 }));
 
-vi.mock('@/context/useDashboard', () => ({
-  useDashboard: () => ({
-    activeDashboard: {
-      globalStyle: { fontFamily: 'sans' },
-      widgets: [],
-    },
-    addWidget: vi.fn(),
-    updateWidget: vi.fn(),
-  }),
-}));
+vi.mock('@/context/dashboardCanvasStore');
 
 vi.mock('@/hooks/useFeaturePermissions', () => ({
   useFeaturePermissions: () => ({
@@ -59,6 +56,14 @@ const buildWidget = (config: Partial<CalendarConfig>): WidgetData =>
 
 describe('CalendarWidget', () => {
   beforeEach(() => {
+    vi.mocked(useGlobalStyle).mockReturnValue({
+      ...DEFAULT_GLOBAL_STYLE,
+      fontFamily: 'sans',
+    });
+    vi.mocked(useDashboardActions).mockReturnValue({
+      addWidget: vi.fn(),
+      updateWidget: vi.fn(),
+    } as unknown as DashboardActions);
     vi.useFakeTimers();
   });
 

@@ -3,7 +3,8 @@ import React from 'react';
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CountdownWidget } from './Widget';
-import { CountdownConfig, WidgetData } from '@/types';
+import { CountdownConfig, WidgetData, DEFAULT_GLOBAL_STYLE } from '@/types';
+import { useGlobalStyle } from '@/context/dashboardCanvasStore';
 
 vi.mock('../WidgetLayout', () => ({
   WidgetLayout: ({ content }: { content: React.ReactNode }) => (
@@ -11,12 +12,7 @@ vi.mock('../WidgetLayout', () => ({
   ),
 }));
 
-vi.mock('@/context/useDashboard', () => ({
-  useDashboard: () => ({
-    activeDashboard: { globalStyle: { fontFamily: 'sans' } },
-    updateWidget: vi.fn(),
-  }),
-}));
+vi.mock('@/context/dashboardCanvasStore');
 
 const buildWidget = (config: Partial<CountdownConfig>): WidgetData =>
   ({
@@ -41,6 +37,10 @@ const buildWidget = (config: Partial<CountdownConfig>): WidgetData =>
 
 describe('CountdownWidget', () => {
   beforeEach(() => {
+    vi.mocked(useGlobalStyle).mockReturnValue({
+      ...DEFAULT_GLOBAL_STYLE,
+      fontFamily: 'sans',
+    });
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-03T09:00:00.000Z'));
   });

@@ -48,7 +48,8 @@ import {
   useRef,
   useSyncExternalStore,
 } from 'react';
-import type { Dashboard } from '@/types';
+import type { Dashboard, GlobalStyle } from '@/types';
+import { DEFAULT_GLOBAL_STYLE } from '@/types';
 import {
   DashboardContext,
   type DashboardContextValue,
@@ -241,6 +242,26 @@ export function useDashboardCanvasSelector<T>(
   if (!legacy)
     throw new Error('useDashboard must be used within DashboardProvider');
   return selector(sliceFromLegacy(legacy));
+}
+
+/**
+ * Selector hook for the active board's `globalStyle`. Reads it off the canvas
+ * hot slice (`activeDashboard.globalStyle`) so consumers re-render ONLY when
+ * the style object identity changes — NOT on unrelated widget ops. A discrete
+ * op (updateWidget/bringToFront) spreads a new board object + widgets array but
+ * never touches `globalStyle`, so the nested reference survives and the
+ * selector's `Object.is` cache bails the re-render; only `setGlobalStyle`
+ * allocates a new style object.
+ *
+ * The `?? DEFAULT_GLOBAL_STYLE` fallback MUST reference the module-level
+ * singleton (a stable identity), never an inline object literal — a fresh
+ * object each call would defeat the `Object.is` dedupe and trip
+ * `useSyncExternalStore`'s render-loop guard (see `useDashboardCanvasSelector`).
+ */
+export function useGlobalStyle(): GlobalStyle {
+  return useDashboardCanvasSelector(
+    (s) => s.activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE
+  );
 }
 
 /**
