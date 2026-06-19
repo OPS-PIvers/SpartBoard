@@ -38,6 +38,7 @@ import fr from '@/locales/fr.json';
  * dedicated assertion below.
  */
 const TRANSLATABLE_KEYS = [
+  'presets',
   'typeAll',
   'typeStill',
   'typeUpload',
