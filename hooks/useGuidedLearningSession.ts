@@ -47,6 +47,8 @@ const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
  * Mirrors the identical dedup fence in
  * `useGuidedLearningAssignments.publishAssignmentScores` (#1728–#1935).
  */
+const escapeCsvCell = (v: string) => `"${v.replace(/"/g, '""')}"`;
+
 export function buildGLResponsesCSV(
   responseList: GuidedLearningResponse[],
   set: GuidedLearningSet
@@ -94,9 +96,9 @@ export function buildGLResponsesCSV(
     ];
   });
 
-  const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
-
-  return [headers, ...rows].map((row) => row.map(escape).join(',')).join('\n');
+  return [headers, ...rows]
+    .map((row) => row.map(escapeCsvCell).join(','))
+    .join('\n');
 }
 
 /** Verify a stored answer against the teacher's answer key. */
