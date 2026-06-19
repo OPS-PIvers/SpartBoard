@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-06-12_
+_Last audited: 2026-06-19_
 _Last action: 2026-05-01_
 
 ---
@@ -36,6 +36,20 @@ _Nothing currently in progress._
 - **File:** utils/ai_security.ts (7 instances at lines approximately 51, 56, 62, 88, 110, 144, 174)
 - **Detail:** The `sanitizeAIConfig` function calls `structuredClone(config)` to deep-copy widget config objects before sanitization. `structuredClone` returns `unknown`, and the function then casts back to specific config types with `as unknown as Partial<MiniAppConfig>` (and similar). The `as unknown as` bridges hide the fact that the clone lost its type — if `structuredClone` is ever replaced or a partial type guard is added, the double-cast will silently accept an incompatible type. This is the same anti-pattern tracked in the existing LOW item for `FeatureConfigurationPanel.tsx`, extended to a utility with 7 occurrences.
 - **Fix:** Replace `structuredClone(config) as unknown as T` with a type-preserving helper: `function typedClone<T>(v: T): T { return structuredClone(v) as T; }`. This single-cast form is safer — it preserves the input type through the round-trip without the unsafe `unknown` bridge. Alternatively, replace `structuredClone` with a typed JSON round-trip: `JSON.parse(JSON.stringify(config)) as T` (acceptable for plain widget config objects). Add the helper to `utils/typeUtils.ts` if that file exists, or inline it in `ai_security.ts`.
+
+### LOW `CustomWidget/BlockRenderer.tsx` has 18 consecutive `as unknown as <BlockConfig>` casts — no shared discriminated union
+
+- **Detected:** 2026-06-19
+- **File:** components/widgets/CustomWidget/BlockRenderer.tsx (lines 1353–1504 approx)
+- **Detail:** The block renderer dispatches to 18 block-type renderers, each receiving its config via a double-cast: `cfg as unknown as TextBlockConfig`, `cfg as unknown as HeadingBlockConfig`, etc. There is no shared `BlockConfig` discriminated union — each cast is independent. If any block's props shape diverges from the expected type, the cast will succeed silently and a runtime error will occur instead of a TypeScript error. This is class (b): masking potential mismatch across 18 sites. Each addition of a new block type copies the pattern without improving type safety. The parallel with `FeatureConfigurationPanel` (34 panel casts) makes this a systemic simplification opportunity.
+- **Fix:** Define a `BlockConfig` discriminated union type with a `type` discriminant field (matching the existing block-type string constants) and a `config` payload typed per block. Replace the per-block `as unknown as XBlockConfig` casts with a typed switch/narrowing that TypeScript can verify. Alternatively, define a `BlockComponent<T extends BaseBlockConfig>` interface that each block component explicitly implements, making the renderer generic over the block type and eliminating all casts.
+
+### LOW Icon registry cast `as unknown as Record<string, React.ElementType>` in 3 files
+
+- **Detected:** 2026-06-19
+- **File:** components/widgets/InstructionalRoutines/Widget.tsx (lines 175, 486), components/widgets/InstructionalRoutines/IconPicker.tsx (lines 22, 26, 52), components/widgets/MaterialsWidget/constants.ts (line 5)
+- **Detail:** All three files import `Icons` from lucide-react and cast it as `as unknown as Record<string, React.ElementType>` in order to perform dynamic icon lookups by string key. The double-cast hides the fact that `Icons` doesn't have a static type matching `Record<string, React.ElementType>`. If lucide-react changes its export shape (as it has in past major versions), these casts will silently succeed but fail at runtime when `Icons[step.icon]` returns `undefined`. Classified as class (c): a workaround for the missing explicit `Record<string, ElementType>` type on the lucide-react namespace export.
+- **Fix:** Create a typed icon-map constant once and share it: `const LucideIconMap: Record<string, React.ElementType> = Icons as Record<string, React.ElementType>` — a single `as` cast (not double-cast) in a shared constant at `utils/iconMap.ts`. All three files import from this constant. Alternatively, if only a fixed subset of icons is used, build an explicit `const ICON_MAP = { Star, Clock, ... }` record to eliminate the cast entirely and make dynamic lookups fully type-safe.
 
 ### LOW `as unknown as BuildingConfigPanel` repeated throughout FeatureConfigurationPanel
 
@@ -76,6 +90,8 @@ _Nothing currently in progress._
 - **Fix:** For `useScreenRecord`, group `{ isRecording, duration, error }` into a single `useState` object to reduce the state surface. The 4 refs are all distinct external handles and should remain individual. For `useLiveSession`, group `{ studentId, studentPin }` (always set/cleared together) into a single state object. Severity is LOW because the individual state declarations are cohesive and readable.
 
 ---
+
+_2026-06-19: Full weekly audit pass (Friday). New commits since 2026-06-12: fix(Modal), fix(i18n), fix(widgets), fix(lti), fix(quizMaxPoints), pr-review batch. No new Object.assign config merge patterns. Existing `as unknown as` items re-confirmed. New findings: (1) `CustomWidget/BlockRenderer.tsx` has 18 consecutive `as unknown as <BlockConfig>` casts with no shared discriminated union — added as new LOW item; (2) 3 files cast lucide-react `Icons` object as `unknown as Record<string, ElementType>` — added as new LOW item. Hook complexity: useQuizSession 22 calls (unchanged), useVideoActivitySession 18 calls (unchanged). No new pass-through prop issues or nested ternary violations. 2 new LOW open items added._
 
 _2026-06-12: Audited new code from dev-paul rebase (docs/unifier run 13, D4 @/ alias in tests/, perf baseline, fix DraggableWindow, debugger run 14). No new Object.assign or config-merge duplication patterns in changed files. No new `as unknown as` casts. Hook complexity: useQuizSession.ts and useVideoActivitySession.ts counts unchanged from 2026-06-08 (22 and 18 respectively). New findings: (1) utils/dashboardPII.ts (line 48, 102) and utils/smartPaste.ts (multiple instances) use `as WidgetConfig` single-casts that may mask type mismatches — these are distinct from the `as unknown as` double-casts already tracked; added as new LOW item. (2) QuizWidget/Widget.tsx has 12 useState calls (plus 5 useRef) — high component-level state density distinct from the hook-level state density already tracked for useQuizSession. 2 new LOW open items added._
 

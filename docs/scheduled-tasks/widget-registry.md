@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-17_
+_Last audited: 2026-06-19_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-19: Full audit. New commits since 2026-06-17: fix(Modal) prevent scroll-lock flicker, fix(i18n) timeTool DE translation, fix(widgets) stale onBlur Escape-cancel guard (DrawingWidget + SmartNotebook), fix(lti) null-clobber on linkLtiCourseV1, fix(quizMaxPoints) Set dedup fence. None touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations. reveal-grid exports generic 'Widget' via index.ts barrel re-export — confirmed intentional. pnpm type-check and pnpm lint both clean. Zero new gaps._
 
 _2026-06-17: Full audit after rebasing onto dev-paul (new commits since 2026-06-16: test(hooks) cover useSubstituteShares + useSubstituteShare (19 tests), pr-review batch — none of these touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts). VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered: 62 non-sticker in WIDGET_COMPONENTS (sticker intentional WidgetRenderer special-case per JSDoc), 63/63 in widgetDefaults.ts and widgetGradeLevels.ts, 59 user-selectable in tools.ts (7 intentionally excluded sub-types: blooms-detail, catalyst-instruction, catalyst-visual, custom-widget, mathTool, onboarding, sticker), 3 InternalToolType entries (magic, record, remote) correctly in tools.ts and widgetGradeLevels.ts but not WidgetType union (documented). reveal-grid exports generic 'Widget' via index.ts barrel re-export — confirmed intentional per prior audits. pnpm type-check and pnpm lint both clean. Zero new gaps._
 

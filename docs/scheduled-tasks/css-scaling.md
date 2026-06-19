@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-17_
+_Last audited: 2026-06-19_
 _Last action: 2026-06-18_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-19: Full scan of all Widget.tsx files. New commits since 2026-06-17: fix(Modal), fix(i18n), fix(widgets) stale onBlur guard (DrawingWidget + SmartNotebook), fix(lti), fix(quizMaxPoints). None modify widget front-face content. Reviewed 5 candidate flagged items from automated scan (MaterialsWidget min(80px,45cqmin), Weather min(64px,15cqmin), First5 min(16px,4cqmin), QuizWidget min(32px,8cqmin), Calendar min(14px,3.5cqmin)) — all are correct `min(Xpx, Ycqmin)` patterns where Xpx is a reasonable pixel CAP, not a floor. The `min()` function picks the smaller value so these scale correctly downward; the px value only applies as a maximum at large widget sizes, which is exactly the intended behavior. No false anti-patterns logged. All pre-existing open items remain valid. Zero new items._
 
 _2026-06-18 (action): Fixed the highest-priority open item — PollWidget progress bar had no upper size cap. The results bar wrapper used `className="h-[min(5cqmin)] min-h-[16px] ..."` (now at PollWidget/Widget.tsx:244), which floored the bar at 16px and scaled with `5cqmin` but had no cap, so at large widget sizes the bar grew disproportionately tall. Replaced the two Tailwind height classes with an inline `style={{ height: 'clamp(16px, 5cqmin, 24px)' }}` (16px floor, scales with `5cqmin`, capped at 24px), keeping the visual classes (`bg-slate-100 rounded-full overflow-hidden relative border border-slate-200/50`) on className. File-recency check passed: PollWidget/Widget.tsx last touched at 934fe09a (2026-06-14) — outside the last 5 branch commits. `pnpm type-check`, `eslint --max-warnings 0`, and `prettier` on the changed file all clean. Moved the item to Completed. Note: rebase onto dev-paul aborted (add/add conflicts in test-coverage.md journal + useSubstituteShares.test.ts already-upstream); working from scheduled-tasks HEAD 77de6548. Opened a PR to dev-paul for the code change._
 

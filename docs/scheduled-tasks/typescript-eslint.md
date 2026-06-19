@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-17_
+_Last audited: 2026-06-19_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-19. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). New commits since 2026-06-17: fix(Modal) scroll-lock flicker, fix(i18n) timeTool timer DE, fix(widgets) stale onBlur DrawingWidget + SmartNotebook, fix(lti) linkLtiCourseV1 null-clobber, fix(quizMaxPoints) Set dedup fence, pr-review batch. All new and modified code type-safe and lint-clean._
 
 _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-17. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Rebased onto dev-paul: test(hooks) useSubstituteShares + useSubstituteShare (19 tests), pr-review batch 8 PRs reviewed. All new and modified code type-safe and lint-clean._
 
