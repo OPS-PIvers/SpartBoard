@@ -268,6 +268,44 @@ describe('buildGLResponsesCSV — duplicate-step dedup', () => {
     expect(rows[0][5]).toBe('Q1: Original text');
   });
 
+  /**
+   * Regression: cells starting with formula-trigger characters (=, +, -, @,
+   * tab, CR) must be prefixed with a single-quote so spreadsheet apps treat
+   * them as plain text, not as formulas to execute.
+   *
+   * escapeCsvCell is unexported, so coverage comes through buildGLResponsesCSV
+   * with a formula-prefixed answer value.
+   */
+  it.each([
+    ['=SUM(1,1)', "'=SUM(1,1)"],
+    ['+1234567890', "'+1234567890"],
+    ['-evil', "'-evil"],
+    ['@SUM(A1)', "'@SUM(A1)"],
+  ])(
+    'prefixes formula-trigger answer %s with apostrophe to prevent injection',
+    (answer, expected) => {
+      const set = minimalSet([mcQuestionStep('s1', 'Q?', 'safe')]);
+      const response = minimalResponse([{ stepId: 's1', answer }]);
+
+      const csv = buildGLResponsesCSV([response], set);
+      const rows = parseCsv(csv);
+
+      // parseCsv strips the RFC-4180 outer double-quotes; the apostrophe prefix
+      // that prevents formula execution remains as the first character.
+      expect(rows[1][5]).toBe(expected);
+    }
+  );
+
+  it('does NOT prefix plain-text answers that start with a letter', () => {
+    const set = minimalSet([mcQuestionStep('s1', 'Q?', 'Paris')]);
+    const response = minimalResponse([{ stepId: 's1', answer: 'Paris' }]);
+
+    const csv = buildGLResponsesCSV([response], set);
+    const rows = parseCsv(csv);
+
+    expect(rows[1][5]).toBe('Paris');
+  });
+
   it('records "Yes" in the correct column for a correct answer with no duplicates', () => {
     const set = minimalSet([mcQuestionStep('s1', 'Q?', 'correct-answer')]);
     const response = minimalResponse([
