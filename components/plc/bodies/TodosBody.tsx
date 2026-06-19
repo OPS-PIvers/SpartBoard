@@ -31,6 +31,14 @@ export const TodosBody: React.FC<TodosBodyProps> = ({ plc }) => {
   // handler bail out instead of committing the cancelled edit to Firestore.
   // Same pattern as DraggableWindow's isCancellingTitleRef (Bug #1965).
   const isCancellingEditRef = useRef(false);
+  // Reset the flag in the render body whenever an edit is active so it can
+  // never leak from one editing session into the next (CLAUDE.md: render-body
+  // ref assignment; suppressed because react-hooks/refs fires on conditional
+  // render-body mutations).
+  if (editingId !== null) {
+    // eslint-disable-next-line react-hooks/refs
+    isCancellingEditRef.current = false;
+  }
 
   const incomplete = todos.filter((t) => !t.done);
   const complete = todos.filter((t) => t.done);
@@ -144,7 +152,6 @@ export const TodosBody: React.FC<TodosBodyProps> = ({ plc }) => {
           <button
             type="button"
             onClick={() => {
-              isCancellingEditRef.current = false;
               setEditingId(todo.id);
               setEditingText(todo.text);
             }}
