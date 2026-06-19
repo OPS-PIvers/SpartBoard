@@ -1391,7 +1391,9 @@ export const generateVideoActivity = onCall(
         .collection('global_permissions')
         .doc('gemini-functions')
         .get();
-      const accessPerm = accessPermDoc.data() as GlobalPermission | undefined;
+      const accessPerm = accessPermDoc.exists
+        ? (accessPermDoc.data() as GlobalPermission)
+        : undefined;
 
       if (accessPerm && !accessPerm.enabled) {
         throw new HttpsError(
