@@ -16,19 +16,17 @@ import { describe, it, expect } from 'vitest';
 import en from '@/locales/en.json';
 import es from '@/locales/es.json';
 
-type BackgroundsNs = { backgrounds: Record<string, string> };
-
 describe('backgrounds.presets locale — ES must not be verbatim English', () => {
   it('es.backgrounds.presets is present', () => {
     expect(
-      (es as unknown as BackgroundsNs).backgrounds,
+      es.backgrounds,
       'es.backgrounds namespace is missing'
     ).toHaveProperty('presets');
   });
 
   it('es.backgrounds.presets is not the verbatim English value "Presets"', () => {
-    const enVal = (en as unknown as BackgroundsNs).backgrounds['presets'];
-    const esVal = (es as unknown as BackgroundsNs).backgrounds['presets'];
+    const enVal = en.backgrounds.presets;
+    const esVal = es.backgrounds.presets;
 
     expect(
       esVal,
