@@ -1628,6 +1628,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       const myToken = ++writeTokenRef.current;
       try {
+        // `merge: true` is mandatory: DashboardContext also writes this doc
+        // (see the UserProfile ownership contract in types.ts). A non-merge
+        // write here would clobber Dashboard-owned fields like `dockItems`.
         await setDoc(
           doc(db, 'users', user.uid, 'userProfile', 'profile'),
           sanitizedUpdates,
