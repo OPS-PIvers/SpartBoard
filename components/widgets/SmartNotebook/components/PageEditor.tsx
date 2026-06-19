@@ -405,10 +405,10 @@ export const PageEditor: React.FC<PageEditorProps> = ({
 
   const onSelRef = useRef(onSelectionChange);
   const onChangeRef = useRef(onChange);
-  useEffect(() => {
-    onSelRef.current = onSelectionChange;
-    onChangeRef.current = onChange;
-  });
+  // Assign in the render body so handlers always read the latest callbacks.
+  // CLAUDE.md: "Assign refs directly in the render body — no effect needed."
+  onSelRef.current = onSelectionChange;
+  onChangeRef.current = onChange;
 
   // Mirror controlled tool props into refs so the pointer handlers always see
   // the latest value at fire time. Assigning in render body is the project's
