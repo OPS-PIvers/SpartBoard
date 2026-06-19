@@ -54,7 +54,9 @@ const MOCK_PLC: Plc = {
   leadUid: 'uid-1',
   memberUids: ['uid-1'],
   memberEmails: { 'uid-1': 'teacher@test.com' },
-} as Plc;
+  createdAt: 0,
+  updatedAt: 0,
+};
 
 const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
