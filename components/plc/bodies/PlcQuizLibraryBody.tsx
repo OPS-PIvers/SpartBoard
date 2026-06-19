@@ -62,6 +62,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { usePlcAssignments } from '@/hooks/usePlcAssignments';
 import { usePlcQuizzes, writePlcQuizEntry } from '@/hooks/usePlcQuizzes';
+import { usePlcSoftDelete } from '@/hooks/usePlcTrash';
 import { SyncedQuizVersionConflictError, useQuiz } from '@/hooks/useQuiz';
 import {
   callJoinPlcAssignmentSyncGroup,
@@ -142,7 +143,9 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
     quizzes: plcQuizzes,
     loading,
     unshareQuizFromPlc,
+    restoreQuizInPlc,
   } = usePlcQuizzes(plc.id);
+  const { softDelete } = usePlcSoftDelete(plc.id);
   // Read-time union with legacy assignment templates so template-only rows
   // (authored before the libraries collapsed) stay visible and assignable
   // during the transition. Deduped by syncGroupId — a PlcQuizEntry wins.
@@ -864,14 +867,16 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
       if (!confirmed) return;
       setBusyRowId(plcQuizId);
       try {
-        await unshareQuizFromPlc(plcQuizId);
-        addToast(
-          t('plcDashboard.quizLibrary.unshared', {
-            title,
-            defaultValue: '"{{title}}" removed from this PLC.',
-          }),
-          'success'
-        );
+        // Soft-delete with undo (Decision 3.1): tombstone the PLC quiz entry,
+        // log `item_deleted`, and pop an Undo toast that restores it. The
+        // canonical synced group is untouched.
+        await softDelete({
+          type: 'quiz',
+          id: plcQuizId,
+          title,
+          runDelete: () => unshareQuizFromPlc(plcQuizId),
+          runRestore: () => restoreQuizInPlc(plcQuizId),
+        });
       } catch (err) {
         logError('PlcQuizLibraryBody.unshare', err, {
           plcId: plc.id,
@@ -889,7 +894,15 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
         setBusyRowId(null);
       }
     },
-    [addToast, plc.id, showConfirm, t, unshareQuizFromPlc]
+    [
+      addToast,
+      plc.id,
+      showConfirm,
+      t,
+      softDelete,
+      unshareQuizFromPlc,
+      restoreQuizInPlc,
+    ]
   );
 
   /**

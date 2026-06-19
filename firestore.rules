@@ -547,6 +547,24 @@ service cloud.firestore {
                    && request.resource.data.updatedAt is int;
     }
 
+    // Per-user private unread cursor for a PLC's activity feed (Decision 2.2,
+    // §3.4). One doc per (user, plc): `{ lastSeenAt }`. "Since you were here"
+    // is the set of activity events with `createdAt > lastSeenAt`; the sidebar
+    // badge counts them. Strictly owner-only — no teammate ever reads or writes
+    // another member's cursor. Schema is locked to the single `lastSeenAt`
+    // field, which dual-accepts `int || timestamp` during the serverTimestamp
+    // rollout (§3.2).
+    match /users/{userId}/plc_state/{plcId} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.data.keys().hasOnly(['lastSeenAt'])
+                   && (
+                        request.resource.data.lastSeenAt is int
+                        || request.resource.data.lastSeenAt is timestamp
+                      );
+    }
+
     // Mini Apps - users can only access their own mini apps in their subcollection
     match /users/{userId}/miniapps/{appId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -1589,6 +1607,21 @@ service cloud.firestore {
       return v is timestamp || v is int;
     }
 
+    // True when the optional soft-delete tombstone (`deletedAt`, Decision 3.1)
+    // on a PLC subcollection doc is well-formed: absent (live doc / legacy),
+    // explicitly null (live / restored), a Firestore `timestamp`
+    // (serverTimestamp() at soft-delete time), or a legacy `int` millis value
+    // (dual-accept during the serverTimestamp rollout, §3.2). Notes, todos,
+    // docs, quizzes, video_activities and comments all carry this field; the
+    // helper keeps the accepted shape consistent across them. Hard-deletion of
+    // tombstoned docs (deletedAt older than 30 days) is performed server-side by
+    // the Wave-4 `gcPlcOrphans` scheduled function via the Admin SDK — these
+    // rules only govern the soft-delete/restore flips, never the GC sweep.
+    function plcSubDeletedAtOk() {
+      let v = request.resource.data.get('deletedAt', null);
+      return v == null || v is timestamp || v is int;
+    }
+
     // True when a tenancy field (`orgId` / `buildingId`, Decision 1.1) is
     // immutable-after-set: it may be backfilled once (null/absent → value),
     // re-written idempotently (value → same value), or left untouched, but a
@@ -2108,6 +2141,9 @@ service cloud.firestore {
         // Create: any member, doc id pinned, sharedBy must equal caller.
         // No content (questions) on this doc — those live in the synced
         // group, which has its own rule layer.
+        // Schema widened in Wave 2 (§3.10): the optional `deletedAt` soft-delete
+        // tombstone (Decision 3.1). Optional so legacy entries keep validating;
+        // `keys().hasOnly([...])` still closes the doc shape.
         allow create: if request.auth != null
           && request.auth.uid in get(
                /databases/$(database)/documents/plcs/$(plcId)
@@ -2115,7 +2151,7 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'questionCount', 'syncGroupId',
                'sharedBy', 'sharedByEmail', 'sharedByName',
-               'sharedAt', 'updatedAt'
+               'sharedAt', 'updatedAt', 'deletedAt'
              ])
           && plcQuizId == request.resource.data.id
           && request.resource.data.sharedBy == request.auth.uid
@@ -2130,12 +2166,14 @@ service cloud.firestore {
           && request.resource.data.sharedByEmail is string
           && request.resource.data.sharedByName is string
           && request.resource.data.sharedAt is int
-          && request.resource.data.updatedAt is int;
+          && request.resource.data.updatedAt is int
+          && plcSubDeletedAtOk();
 
         // Update: any member can mirror title/questionCount/updatedAt
-        // (e.g. after a peer publishes an edit). Identity + attribution
-        // fields are immutable so stale-mirror writes can't quietly
-        // retarget the entry or rewrite who shared it.
+        // (e.g. after a peer publishes an edit) or soft-delete/restore via
+        // `deletedAt`. Identity + attribution fields are immutable so
+        // stale-mirror writes can't quietly retarget the entry or rewrite who
+        // shared it.
         allow update: if request.auth != null
           && request.auth.uid in get(
                /databases/$(database)/documents/plcs/$(plcId)
@@ -2143,7 +2181,7 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'questionCount', 'syncGroupId',
                'sharedBy', 'sharedByEmail', 'sharedByName',
-               'sharedAt', 'updatedAt'
+               'sharedAt', 'updatedAt', 'deletedAt'
              ])
           && request.resource.data.id == resource.data.id
           && request.resource.data.syncGroupId == resource.data.syncGroupId
@@ -2154,7 +2192,8 @@ service cloud.firestore {
           && request.resource.data.title is string
           && request.resource.data.questionCount is int
           && request.resource.data.questionCount >= 0
-          && request.resource.data.updatedAt is int;
+          && request.resource.data.updatedAt is int
+          && plcSubDeletedAtOk();
 
         // Any member can unshare. Matches the "PLC-owned" model — a quiz
         // shared with the PLC belongs to the PLC, not the original sharer.
@@ -2181,6 +2220,9 @@ service cloud.firestore {
 
         // Create: any member, doc id pinned, sharedBy must equal caller.
         // Questions live in the synced group, not on this doc.
+        // Schema widened in Wave 2 (§3.10): the optional `deletedAt` soft-delete
+        // tombstone (Decision 3.1). Optional so legacy entries keep validating;
+        // `keys().hasOnly([...])` still closes the doc shape.
         allow create: if request.auth != null
           && request.auth.uid in get(
                /databases/$(database)/documents/plcs/$(plcId)
@@ -2188,7 +2230,7 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'youtubeUrl', 'questionCount', 'syncGroupId',
                'sharedBy', 'sharedByEmail', 'sharedByName',
-               'sharedAt', 'updatedAt'
+               'sharedAt', 'updatedAt', 'deletedAt'
              ])
           && plcVideoActivityId == request.resource.data.id
           && request.resource.data.sharedBy == request.auth.uid
@@ -2204,12 +2246,13 @@ service cloud.firestore {
           && request.resource.data.sharedByEmail is string
           && request.resource.data.sharedByName is string
           && request.resource.data.sharedAt is int
-          && request.resource.data.updatedAt is int;
+          && request.resource.data.updatedAt is int
+          && plcSubDeletedAtOk();
 
         // Update: any member can mirror title/questionCount/youtubeUrl/
-        // updatedAt. Identity + attribution fields are immutable so
-        // stale-mirror writes can't retarget the entry or rewrite who
-        // shared it.
+        // updatedAt or soft-delete/restore via `deletedAt`. Identity +
+        // attribution fields are immutable so stale-mirror writes can't
+        // retarget the entry or rewrite who shared it.
         allow update: if request.auth != null
           && request.auth.uid in get(
                /databases/$(database)/documents/plcs/$(plcId)
@@ -2217,7 +2260,7 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'youtubeUrl', 'questionCount', 'syncGroupId',
                'sharedBy', 'sharedByEmail', 'sharedByName',
-               'sharedAt', 'updatedAt'
+               'sharedAt', 'updatedAt', 'deletedAt'
              ])
           && request.resource.data.id == resource.data.id
           && request.resource.data.syncGroupId == resource.data.syncGroupId
@@ -2229,7 +2272,8 @@ service cloud.firestore {
           && request.resource.data.youtubeUrl is string
           && request.resource.data.questionCount is int
           && request.resource.data.questionCount >= 0
-          && request.resource.data.updatedAt is int;
+          && request.resource.data.updatedAt is int
+          && plcSubDeletedAtOk();
 
         // Any member can unshare. Matches the PLC-owned model — once
         // shared, the entry belongs to the PLC, not the original sharer.
@@ -2335,20 +2379,44 @@ service cloud.firestore {
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.memberUids;
 
+        // Schema widened in Wave 2 (§3.8): structured meeting notes add the
+        // optional `kind` ('freeform' | 'meeting') + `meetingId` link, the
+        // optimistic-concurrency `version` counter (Decision 2.4), and the
+        // `deletedAt` soft-delete tombstone (Decision 3.1). All four are
+        // OPTIONAL so legacy notes (and clients that haven't shipped the new
+        // fields) keep validating; `keys().hasOnly([...])` still closes the
+        // doc shape against unknown fields.
         allow create: if request.auth != null
           && request.auth.uid in get(
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.memberUids
           && request.resource.data.keys().hasOnly([
-               'id', 'title', 'body',
+               'id', 'title', 'body', 'kind', 'meetingId',
                'createdBy', 'createdAt',
-               'lastEditedBy', 'lastEditedAt'
+               'lastEditedBy', 'lastEditedAt',
+               'version', 'deletedAt'
              ])
           && request.resource.data.id == noteId
           && request.resource.data.createdBy == request.auth.uid
           && request.resource.data.lastEditedBy == request.auth.uid
           && request.resource.data.title is string
           && request.resource.data.body is string
+          && (
+               !('kind' in request.resource.data)
+               || request.resource.data.kind in ['freeform', 'meeting']
+             )
+          && (
+               !('meetingId' in request.resource.data)
+               || request.resource.data.meetingId == null
+               || request.resource.data.meetingId is string
+             )
+          // A fresh note may omit `version` (legacy/no-version) or start it at
+          // an int (clients seed 0/1). The update branch enforces the +1 bump.
+          && (
+               !('version' in request.resource.data)
+               || request.resource.data.version is int
+             )
+          && plcSubDeletedAtOk()
           && plcSubTimeFieldOk('createdAt')
           && plcSubTimeFieldOk('lastEditedAt');
 
@@ -2357,14 +2425,23 @@ service cloud.firestore {
         // the note and shouldn't be rewritten by later editors. The
         // editor must stamp themselves into `lastEditedBy` so the audit
         // trail is honest.
+        //
+        // Optimistic concurrency (Decision 2.4): the incoming `version` must be
+        // exactly `oldVersion + 1` (a stale writer who fetched an older copy
+        // bumps to a number that no longer equals old+1, so the write is
+        // rejected and the client raises the conflict toast — mirroring the
+        // `synced_quizzes` version posture). During rollout, an update where
+        // BOTH the stored and incoming docs omit `version` is also accepted so
+        // un-migrated notes keep saving until every client writes the field.
         allow update: if request.auth != null
           && request.auth.uid in get(
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.memberUids
           && request.resource.data.keys().hasOnly([
-               'id', 'title', 'body',
+               'id', 'title', 'body', 'kind', 'meetingId',
                'createdBy', 'createdAt',
-               'lastEditedBy', 'lastEditedAt'
+               'lastEditedBy', 'lastEditedAt',
+               'version', 'deletedAt'
              ])
           && request.resource.data.id == resource.data.id
           && request.resource.data.createdBy == resource.data.createdBy
@@ -2372,7 +2449,29 @@ service cloud.firestore {
           && request.resource.data.lastEditedBy == request.auth.uid
           && plcSubTimeFieldOk('lastEditedAt')
           && request.resource.data.title is string
-          && request.resource.data.body is string;
+          && request.resource.data.body is string
+          && (
+               !('kind' in request.resource.data)
+               || request.resource.data.kind in ['freeform', 'meeting']
+             )
+          && (
+               !('meetingId' in request.resource.data)
+               || request.resource.data.meetingId == null
+               || request.resource.data.meetingId is string
+             )
+          && plcSubDeletedAtOk()
+          // Version precondition: new == old + 1, OR both absent (rollout).
+          && (
+               (
+                 'version' in request.resource.data
+                 && 'version' in resource.data
+                 && request.resource.data.version == resource.data.version + 1
+               )
+               || (
+                 !('version' in request.resource.data)
+                 && !('version' in resource.data)
+               )
+             );
 
         // Any member can delete (matches the "shared notebook" model —
         // notes are PLC-owned, not creator-owned).
@@ -2390,19 +2489,24 @@ service cloud.firestore {
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.memberUids;
 
+        // Schema widened in Wave 2 (§3.10): docs add the optional `deletedAt`
+        // soft-delete tombstone (Decision 3.1). Optional so legacy docs keep
+        // validating; `keys().hasOnly([...])` still closes the doc shape.
         allow create: if request.auth != null
           && request.auth.uid in get(
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.memberUids
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'url',
-               'createdBy', 'createdByName', 'createdAt', 'updatedAt'
+               'createdBy', 'createdByName', 'createdAt', 'updatedAt',
+               'deletedAt'
              ])
           && request.resource.data.id == docId
           && request.resource.data.createdBy == request.auth.uid
           && request.resource.data.title is string
           && request.resource.data.url is string
           && request.resource.data.createdByName is string
+          && plcSubDeletedAtOk()
           && plcSubTimeFieldOk('createdAt')
           && plcSubTimeFieldOk('updatedAt');
 
@@ -2412,13 +2516,15 @@ service cloud.firestore {
              ).data.memberUids
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'url',
-               'createdBy', 'createdByName', 'createdAt', 'updatedAt'
+               'createdBy', 'createdByName', 'createdAt', 'updatedAt',
+               'deletedAt'
              ])
           && request.resource.data.id == resource.data.id
           && request.resource.data.createdBy == resource.data.createdBy
           && request.resource.data.createdAt == resource.data.createdAt
           && request.resource.data.title is string
           && request.resource.data.url is string
+          && plcSubDeletedAtOk()
           && plcSubTimeFieldOk('updatedAt');
 
         allow delete: if request.auth != null
@@ -2436,39 +2542,257 @@ service cloud.firestore {
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.memberUids;
 
+        // Schema widened in Wave 2 (§3.9): to-dos add the optional
+        // `assigneeUid` (member this is assigned to), `dueAt` (due date),
+        // `meetingId` (provenance from a meeting action item — Decision 3.9),
+        // and `deletedAt` soft-delete tombstone (Decision 3.1). All four are
+        // OPTIONAL so legacy to-dos keep validating; `keys().hasOnly([...])`
+        // still closes the doc shape.
         allow create: if request.auth != null
           && request.auth.uid in get(
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.memberUids
           && request.resource.data.keys().hasOnly([
-               'id', 'text', 'done', 'createdBy', 'createdAt'
+               'id', 'text', 'done', 'createdBy', 'createdAt',
+               'assigneeUid', 'dueAt', 'meetingId', 'deletedAt'
              ])
           && request.resource.data.id == todoId
           && request.resource.data.createdBy == request.auth.uid
           && request.resource.data.text is string
           && request.resource.data.done is bool
+          && (
+               !('assigneeUid' in request.resource.data)
+               || request.resource.data.assigneeUid == null
+               || request.resource.data.assigneeUid is string
+             )
+          && (
+               !('dueAt' in request.resource.data)
+               || request.resource.data.dueAt == null
+               || request.resource.data.dueAt is int
+             )
+          && (
+               !('meetingId' in request.resource.data)
+               || request.resource.data.meetingId == null
+               || request.resource.data.meetingId is string
+             )
+          && plcSubDeletedAtOk()
           && plcSubTimeFieldOk('createdAt');
 
-        // Update: createdBy / createdAt / id are immutable. `done` and
-        // `text` are mutable so any teammate can mark a todo complete or
-        // tweak the wording.
+        // Update: createdBy / createdAt / id are immutable. `done`, `text`,
+        // `assigneeUid`, `dueAt`, `meetingId`, and `deletedAt` are mutable so
+        // any teammate can mark a todo complete, tweak the wording, (re)assign
+        // it, set a due date, link it to a meeting, or soft-delete/restore it.
         allow update: if request.auth != null
           && request.auth.uid in get(
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.memberUids
           && request.resource.data.keys().hasOnly([
-               'id', 'text', 'done', 'createdBy', 'createdAt'
+               'id', 'text', 'done', 'createdBy', 'createdAt',
+               'assigneeUid', 'dueAt', 'meetingId', 'deletedAt'
              ])
           && request.resource.data.id == resource.data.id
           && request.resource.data.createdBy == resource.data.createdBy
           && request.resource.data.createdAt == resource.data.createdAt
           && request.resource.data.text is string
-          && request.resource.data.done is bool;
+          && request.resource.data.done is bool
+          && (
+               !('assigneeUid' in request.resource.data)
+               || request.resource.data.assigneeUid == null
+               || request.resource.data.assigneeUid is string
+             )
+          && (
+               !('dueAt' in request.resource.data)
+               || request.resource.data.dueAt == null
+               || request.resource.data.dueAt is int
+             )
+          && (
+               !('meetingId' in request.resource.data)
+               || request.resource.data.meetingId == null
+               || request.resource.data.meetingId is string
+             )
+          && plcSubDeletedAtOk();
 
         allow delete: if request.auth != null
           && request.auth.uid in get(
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.memberUids;
+      }
+
+      // PLC presence (Decision 2.1, §3.3). Coarse per-section "who's here":
+      // each member maintains their OWN doc (id == their uid), heartbeating
+      // `lastActiveAt` on a ~45s cadence while the dashboard is open. Any
+      // member may read every presence doc (that's the whole point of the
+      // "who's here" strip); a member may only write the doc keyed to their
+      // own uid (`presenceUid == request.auth.uid`), so nobody can spoof a
+      // teammate's presence. Schema is locked via `keys().hasOnly([...])`;
+      // `lastActiveAt` dual-accepts `int || timestamp` during the
+      // serverTimestamp rollout (§3.2). Stale-presence garbage collection
+      // (docs older than ~5 min) is DEFERRED to the Wave-4 `gcPlcOrphans`
+      // scheduled function (Admin SDK) — these rules govern only the
+      // member-owned heartbeat writes, never the GC sweep.
+      match /presence/{presenceUid} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        allow create, update: if request.auth != null
+          && request.auth.uid == presenceUid
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'uid', 'displayName', 'section', 'lastActiveAt'
+             ])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.displayName is string
+          && request.resource.data.section is string
+          && (
+               request.resource.data.lastActiveAt is int
+               || request.resource.data.lastActiveAt is timestamp
+             );
+
+        // A member may clear their own presence on unmount / sign-out.
+        allow delete: if request.auth != null
+          && request.auth.uid == presenceUid;
+      }
+
+      // PLC activity log (Decision 2.2, §3.4). Append-only feed of materialized
+      // events written fire-and-forget from the mutation paths. Any current
+      // member may read (the "since you were here" digest + sidebar badge);
+      // any current member may CREATE an event, but ONLY one whose `actorUid`
+      // equals their own uid (no forging another teammate's actions). Clients
+      // may NEVER update or delete an event — the log is immutable from the
+      // client; bounded trimming (events older than ~90 days) is DEFERRED to
+      // the Wave-4 `gcPlcOrphans` scheduled function (Admin SDK), which bypasses
+      // these rules. Schema is locked via `keys().hasOnly([...])`; `type` is
+      // pinned to the closed `PlcActivityType` union; the optional `targetType`
+      // / `targetId` / `targetTitle` fields are validated when present.
+      match /activity/{eventId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        allow create: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'type', 'actorUid', 'actorName',
+               'targetType', 'targetId', 'targetTitle', 'createdAt'
+             ])
+          && request.resource.data.id == eventId
+          && request.resource.data.actorUid == request.auth.uid
+          && request.resource.data.type in [
+               'member_joined', 'member_left', 'role_changed',
+               'assessment_created', 'assessment_shared',
+               'assessment_results_ready', 'meeting_held',
+               'note_created', 'comment_added',
+               'item_deleted', 'item_restored'
+             ]
+          && request.resource.data.actorName is string
+          && (
+               !('targetType' in request.resource.data)
+               || request.resource.data.targetType is string
+             )
+          && (
+               !('targetId' in request.resource.data)
+               || request.resource.data.targetId is string
+             )
+          && (
+               !('targetTitle' in request.resource.data)
+               || request.resource.data.targetTitle is string
+             )
+          && plcSubTimeFieldOk('createdAt');
+
+        // No client update/delete — see the block comment above (Wave-4 GC).
+        allow update, delete: if false;
+      }
+
+      // PLC comments + @mentions (Decision 2.6, §3.5). Scoped comments that
+      // start on Shared Data result cards (`targetType: 'dataCard'`) and extend
+      // to assessments/notes. Any current member may read all comments. Create:
+      // any member, but `authorUid` must equal the caller (no impersonation),
+      // doc id pinned to `commentId`, schema locked. Update is limited to the
+      // mutable surface — the AUTHOR may edit `body`/`editedAt` and/or soft-
+      // delete via `deletedAt`; ANY member may flip `deletedAt` (tidy-up soft-
+      // delete posture). Identity fields (`id`, `targetType`, `targetId`,
+      // `authorUid`, `authorName`, `createdAt`, `mentions`) are immutable on
+      // update. `mentions` is a list of member uids. Hard-deletion of tombstoned
+      // comments is DEFERRED to the Wave-4 `gcPlcOrphans` function.
+      match /comments/{commentId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        allow create: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'targetType', 'targetId',
+               'authorUid', 'authorName', 'body', 'mentions',
+               'createdAt', 'editedAt', 'deletedAt'
+             ])
+          && request.resource.data.id == commentId
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.targetType in ['dataCard', 'assessment', 'note']
+          && request.resource.data.targetId is string
+          && request.resource.data.authorName is string
+          && request.resource.data.body is string
+          && request.resource.data.mentions is list
+          && (
+               !('editedAt' in request.resource.data)
+               || request.resource.data.editedAt == null
+               || request.resource.data.editedAt is int
+               || request.resource.data.editedAt is timestamp
+             )
+          && plcSubDeletedAtOk()
+          && plcSubTimeFieldOk('createdAt');
+
+        // Update: identity + attribution + targeting + mentions are immutable.
+        // The author may edit body/editedAt and/or soft-delete; any member may
+        // soft-delete (flip `deletedAt`). The membership gate + the immutability
+        // pins together mean a non-author can only ever change `deletedAt`.
+        allow update: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'targetType', 'targetId',
+               'authorUid', 'authorName', 'body', 'mentions',
+               'createdAt', 'editedAt', 'deletedAt'
+             ])
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.targetType == resource.data.targetType
+          && request.resource.data.targetId == resource.data.targetId
+          && request.resource.data.authorUid == resource.data.authorUid
+          && request.resource.data.authorName == resource.data.authorName
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.mentions == resource.data.mentions
+          && request.resource.data.body is string
+          && (
+               !('editedAt' in request.resource.data)
+               || request.resource.data.editedAt == null
+               || request.resource.data.editedAt is int
+               || request.resource.data.editedAt is timestamp
+             )
+          && plcSubDeletedAtOk()
+          // Only the author may change body/editedAt; a non-author update must
+          // leave body + editedAt untouched (i.e. it may only flip deletedAt).
+          && (
+               request.auth.uid == resource.data.authorUid
+               || (
+                 request.resource.data.body == resource.data.body
+                 && request.resource.data.get('editedAt', null)
+                      == resource.data.get('editedAt', null)
+               )
+             );
+
+        // Hard delete is server-only (GC). Clients soft-delete via `deletedAt`.
+        allow delete: if false;
       }
     }
 

@@ -67,6 +67,7 @@ function setMocks(over: {
     createDoc: createDocMock,
     updateDoc: updateDocMock,
     deleteDoc: deleteDocMock,
+    restoreDoc: vi.fn(),
   });
 }
 

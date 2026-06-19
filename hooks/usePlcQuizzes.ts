@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   collection,
-  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -114,8 +113,15 @@ interface UsePlcQuizzesResult {
     plcQuizId: string,
     patch: { title?: string; questionCount?: number }
   ) => Promise<void>;
-  /** Remove a PLC quiz entry. Any member can unshare (PLC-owned model). */
+  /**
+   * Unshare (soft-delete, Decision 3.1) a PLC quiz entry. Any member can
+   * unshare (PLC-owned model). Writes a `deletedAt` tombstone so the entry
+   * drops out of the live library but stays restorable from Trash; the
+   * canonical synced group is untouched. Restore with `restoreQuizInPlc`.
+   */
   unshareQuizFromPlc: (plcQuizId: string) => Promise<void>;
+  /** Restore a soft-deleted PLC quiz entry by clearing its `deletedAt`. */
+  restoreQuizInPlc: (plcQuizId: string) => Promise<void>;
 }
 
 export function parsePlcQuizEntry(
@@ -174,6 +180,13 @@ export function parsePlcQuizEntry(
     entry.attemptLimit = data.attemptLimit;
   }
   if (typeof data.quizId === 'string') entry.quizId = data.quizId;
+  // Soft-delete tombstone (Decision 3.1): optional so legacy entries parse
+  // cleanly; written as a plain int (Date.now()) like the other time fields.
+  if (typeof data.deletedAt === 'number') {
+    entry.deletedAt = data.deletedAt;
+  } else if (data.deletedAt === null) {
+    entry.deletedAt = null;
+  }
   return entry;
 }
 
@@ -221,7 +234,9 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
             d.id,
             d.data() as Record<string, unknown>
           );
-          if (parsed) list.push(parsed);
+          // Soft-deleted (unshared) entries drop out of the live library — they
+          // live in Trash until restored or GC'd (Decision 3.1).
+          if (parsed && parsed.deletedAt == null) list.push(parsed);
         });
         setQuizzes(list);
         setLoading(false);
@@ -290,11 +305,27 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
     [plcId, user]
   );
 
+  // Soft-delete (Decision 3.1): write a `deletedAt` tombstone (+ bump
+  // updatedAt) instead of hard-deleting. The post-merge doc still passes the
+  // rule's widened `keys().hasOnly([...])` + `plcSubDeletedAtOk()`; identity +
+  // attribution fields stay untouched.
   const unshareQuizFromPlc = useCallback(
     async (plcQuizId: string): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      await deleteDoc(
-        doc(db, PLCS_COLLECTION, plcId, QUIZZES_SUBCOLLECTION, plcQuizId)
+      await updateDoc(
+        doc(db, PLCS_COLLECTION, plcId, QUIZZES_SUBCOLLECTION, plcQuizId),
+        { deletedAt: Date.now(), updatedAt: Date.now() }
+      );
+    },
+    [plcId, user]
+  );
+
+  const restoreQuizInPlc = useCallback(
+    async (plcQuizId: string): Promise<void> => {
+      if (!plcId || !user) throw new Error('Not signed in');
+      await updateDoc(
+        doc(db, PLCS_COLLECTION, plcId, QUIZZES_SUBCOLLECTION, plcQuizId),
+        { deletedAt: null, updatedAt: Date.now() }
       );
     },
     [plcId, user]
@@ -313,6 +344,7 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
       shareQuizWithPlc,
       mirrorPlcQuizHeader,
       unshareQuizFromPlc,
+      restoreQuizInPlc,
     };
   }, [
     fromProvider,
@@ -322,6 +354,7 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
     shareQuizWithPlc,
     mirrorPlcQuizHeader,
     unshareQuizFromPlc,
+    restoreQuizInPlc,
   ]);
 };
 

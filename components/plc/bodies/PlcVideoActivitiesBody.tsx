@@ -60,6 +60,7 @@ import {
   usePlcVideoActivities,
   writePlcVideoActivityEntry,
 } from '@/hooks/usePlcVideoActivities';
+import { usePlcSoftDelete } from '@/hooks/usePlcTrash';
 import {
   SyncedVideoActivityVersionConflictError,
   useVideoActivity,
@@ -115,7 +116,9 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
     videoActivities: plcEntries,
     loading,
     unshareVideoActivityFromPlc,
+    restoreVideoActivityInPlc,
   } = usePlcVideoActivities(plc.id);
+  const { softDelete } = usePlcSoftDelete(plc.id);
   const {
     activities: personalActivities,
     saveActivity,
@@ -632,14 +635,16 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
       if (!confirmed) return;
       setBusyRowId(plcVideoActivityId);
       try {
-        await unshareVideoActivityFromPlc(plcVideoActivityId);
-        addToast(
-          t('plcDashboard.videoActivities.unshared', {
-            title,
-            defaultValue: '"{{title}}" removed from this PLC.',
-          }),
-          'success'
-        );
+        // Soft-delete with undo (Decision 3.1): tombstone the PLC entry, log
+        // `item_deleted`, and pop an Undo toast that restores it. The canonical
+        // synced group is untouched.
+        await softDelete({
+          type: 'videoActivity',
+          id: plcVideoActivityId,
+          title,
+          runDelete: () => unshareVideoActivityFromPlc(plcVideoActivityId),
+          runRestore: () => restoreVideoActivityInPlc(plcVideoActivityId),
+        });
       } catch (err) {
         logError('PlcVideoActivitiesBody.unshare', err, {
           plcId: plc.id,
@@ -657,7 +662,15 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
         setBusyRowId(null);
       }
     },
-    [addToast, plc.id, showConfirm, t, unshareVideoActivityFromPlc]
+    [
+      addToast,
+      plc.id,
+      showConfirm,
+      t,
+      softDelete,
+      unshareVideoActivityFromPlc,
+      restoreVideoActivityInPlc,
+    ]
   );
 
   if (loading) {

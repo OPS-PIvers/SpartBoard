@@ -333,8 +333,8 @@ describe('usePlcDocs — updateDoc', () => {
   });
 });
 
-describe('usePlcDocs — deleteDoc', () => {
-  it('calls Firestore deleteDoc with the correct path', async () => {
+describe('usePlcDocs — deleteDoc (soft-delete, Decision 3.1)', () => {
+  it('writes a deletedAt tombstone via updateDoc instead of hard-deleting', async () => {
     mockOnSnapshot.mockReturnValue(() => undefined);
     const { result } = renderHook(() => usePlcDocs(PLC_ID));
 
@@ -342,7 +342,40 @@ describe('usePlcDocs — deleteDoc', () => {
       await result.current.deleteDoc('doc-99');
     });
 
-    expect(mockDeleteDoc).toHaveBeenCalledTimes(1);
-    expect(mockDeleteDoc).toHaveBeenCalledWith(`plcs/${PLC_ID}/docs/doc-99`);
+    // Soft-delete never hard-deletes the Firestore doc.
+    expect(mockDeleteDoc).not.toHaveBeenCalled();
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
+    const [path, patch] = mockUpdateDoc.mock.calls[0] ?? [];
+    expect(path).toBe(`plcs/${PLC_ID}/docs/doc-99`);
+    const fields = patch as Record<string, unknown>;
+    // deletedAt + updatedAt are serverTimestamp() sentinels (Decision 1.3).
+    expect(fields.deletedAt).toBe(SERVER_TS);
+    expect(fields.updatedAt).toBe(SERVER_TS);
+    // Tombstone-only patch — must not touch identity/content fields.
+    expect(fields.id).toBeUndefined();
+    expect(fields.title).toBeUndefined();
+    expect(fields.url).toBeUndefined();
+    expect(fields.createdBy).toBeUndefined();
+    expect(fields.createdByName).toBeUndefined();
+    expect(fields.createdAt).toBeUndefined();
+  });
+});
+
+describe('usePlcDocs — restoreDoc (Decision 3.1)', () => {
+  it('clears the deletedAt tombstone via updateDoc', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const { result } = renderHook(() => usePlcDocs(PLC_ID));
+
+    await act(async () => {
+      await result.current.restoreDoc('doc-99');
+    });
+
+    expect(mockDeleteDoc).not.toHaveBeenCalled();
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
+    const [path, patch] = mockUpdateDoc.mock.calls[0] ?? [];
+    expect(path).toBe(`plcs/${PLC_ID}/docs/doc-99`);
+    const fields = patch as Record<string, unknown>;
+    expect(fields.deletedAt).toBeNull();
+    expect(fields.updatedAt).toBe(SERVER_TS);
   });
 });

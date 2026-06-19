@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   collection,
-  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -31,7 +30,15 @@ interface UsePlcTodosResult {
   createTodo: (text: string) => Promise<string>;
   toggleDone: (todoId: string, done: boolean) => Promise<void>;
   updateText: (todoId: string, text: string) => Promise<void>;
+  /**
+   * Soft-delete a to-do (Decision 3.1): writes a `deletedAt` tombstone rather
+   * than hard-deleting, so the item drops out of the live list (the snapshot
+   * filters `deletedAt != null`) but stays restorable from Trash. Restore with
+   * `restoreTodo`.
+   */
   deleteTodo: (todoId: string) => Promise<void>;
+  /** Restore a soft-deleted to-do by clearing its `deletedAt` tombstone. */
+  restoreTodo: (todoId: string) => Promise<void>;
 }
 
 export function parseTodo(
@@ -47,13 +54,39 @@ export function parseTodo(
   }
   // createdAt is serverTimestamp()-backed on write (Decision 1.3); legacy
   // docs carry a plain millis number. `tsToMillis` tolerates both.
-  return {
+  const todo: PlcTodo = {
     id,
     text: data.text,
     done: data.done,
     createdBy: data.createdBy,
     createdAt: tsToMillis(data.createdAt),
   };
+  // Wave-2 fields (§3.9 / §3.10) — all optional so legacy todos parse cleanly.
+  if (typeof data.assigneeUid === 'string') {
+    todo.assigneeUid = data.assigneeUid;
+  } else if (data.assigneeUid === null) {
+    todo.assigneeUid = null;
+  }
+  if (typeof data.dueAt === 'number') {
+    todo.dueAt = data.dueAt;
+  } else if (data.dueAt === null) {
+    todo.dueAt = null;
+  }
+  if (typeof data.meetingId === 'string') {
+    todo.meetingId = data.meetingId;
+  } else if (data.meetingId === null) {
+    todo.meetingId = null;
+  }
+  // Soft-delete tombstone (Decision 3.1): resolved to millis; a live snapshot's
+  // pending serverTimestamp yields 0 (treated as "not deleted yet" by filters).
+  if (typeof data.deletedAt === 'number') {
+    todo.deletedAt = data.deletedAt;
+  } else if (data.deletedAt != null) {
+    todo.deletedAt = tsToMillis(data.deletedAt);
+  } else if (data.deletedAt === null) {
+    todo.deletedAt = null;
+  }
+  return todo;
 }
 
 /**
@@ -95,7 +128,11 @@ export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
         const list: PlcTodo[] = [];
         snap.forEach((d) => {
           const parsed = parseTodo(d.id, d.data() as Record<string, unknown>);
-          if (parsed) list.push(parsed);
+          // Soft-deleted to-dos (Decision 3.1) drop out of the live list — they
+          // live in Trash until restored or GC'd. A pending serverTimestamp
+          // resolves to 0 (still != null), so a just-deleted item disappears
+          // immediately rather than lingering until the timestamp round-trips.
+          if (parsed && parsed.deletedAt == null) list.push(parsed);
         });
         // Incomplete first, then completed — within each group preserve
         // server order (insertion order).
@@ -168,11 +205,27 @@ export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
     [plcId, user]
   );
 
+  // Soft-delete (Decision 3.1): write a `deletedAt` tombstone instead of
+  // hard-deleting. The post-merge doc still passes the rule's
+  // `keys().hasOnly([...])` (deletedAt is in the widened key set) and
+  // `plcSubDeletedAtOk()`; identity/createdBy/createdAt stay untouched.
   const deleteTodo = useCallback(
     async (todoId: string): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      await deleteDoc(
-        doc(db, PLCS_COLLECTION, plcId, TODOS_SUBCOLLECTION, todoId)
+      await updateDoc(
+        doc(db, PLCS_COLLECTION, plcId, TODOS_SUBCOLLECTION, todoId),
+        { deletedAt: serverTimestamp() }
+      );
+    },
+    [plcId, user]
+  );
+
+  const restoreTodo = useCallback(
+    async (todoId: string): Promise<void> => {
+      if (!plcId || !user) throw new Error('Not signed in');
+      await updateDoc(
+        doc(db, PLCS_COLLECTION, plcId, TODOS_SUBCOLLECTION, todoId),
+        { deletedAt: null }
       );
     },
     [plcId, user]
@@ -192,6 +245,7 @@ export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
       toggleDone,
       updateText,
       deleteTodo,
+      restoreTodo,
     };
   }, [
     fromProvider,
@@ -202,5 +256,6 @@ export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
     toggleDone,
     updateText,
     deleteTodo,
+    restoreTodo,
   ]);
 };

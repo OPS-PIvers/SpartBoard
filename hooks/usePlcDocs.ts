@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   collection,
-  deleteDoc as firestoreDeleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -35,7 +34,14 @@ interface UsePlcDocsResult {
     docId: string,
     patch: { title?: string; url?: string }
   ) => Promise<void>;
+  /**
+   * Soft-delete a doc (Decision 3.1): writes a `deletedAt` tombstone rather
+   * than hard-deleting, so the item drops out of the live list but stays
+   * restorable from Trash. Restore with `restoreDoc`.
+   */
   deleteDoc: (docId: string) => Promise<void>;
+  /** Restore a soft-deleted doc by clearing its `deletedAt` tombstone. */
+  restoreDoc: (docId: string) => Promise<void>;
 }
 
 export function parseDoc(
@@ -52,7 +58,7 @@ export function parseDoc(
   }
   // createdAt / updatedAt are serverTimestamp()-backed on write (Decision
   // 1.3); legacy docs carry plain millis numbers. `tsToMillis` tolerates both.
-  return {
+  const plcDoc: PlcDoc = {
     id,
     title: data.title,
     url: data.url,
@@ -61,6 +67,17 @@ export function parseDoc(
     createdAt: tsToMillis(data.createdAt),
     updatedAt: tsToMillis(data.updatedAt),
   };
+  // Soft-delete tombstone (Decision 3.1): optional so legacy docs parse cleanly;
+  // a pending serverTimestamp resolves to 0 (still != null → filtered from the
+  // live list).
+  if (typeof data.deletedAt === 'number') {
+    plcDoc.deletedAt = data.deletedAt;
+  } else if (data.deletedAt != null) {
+    plcDoc.deletedAt = tsToMillis(data.deletedAt);
+  } else if (data.deletedAt === null) {
+    plcDoc.deletedAt = null;
+  }
+  return plcDoc;
 }
 
 /**
@@ -100,7 +117,9 @@ export const usePlcDocs = (plcId: string | null): UsePlcDocsResult => {
         const list: PlcDoc[] = [];
         snap.forEach((d) => {
           const parsed = parseDoc(d.id, d.data() as Record<string, unknown>);
-          if (parsed) list.push(parsed);
+          // Soft-deleted docs (Decision 3.1) drop out of the live list — they
+          // live in Trash until restored or GC'd.
+          if (parsed && parsed.deletedAt == null) list.push(parsed);
         });
         setDocs(list);
         setLoading(false);
@@ -163,11 +182,27 @@ export const usePlcDocs = (plcId: string | null): UsePlcDocsResult => {
     [plcId, user]
   );
 
+  // Soft-delete (Decision 3.1): write a `deletedAt` tombstone instead of
+  // hard-deleting. The post-merge doc still passes the rule's
+  // `keys().hasOnly([...])` (deletedAt is in the widened key set) and
+  // `plcSubDeletedAtOk()`; identity/createdBy/createdAt stay untouched.
   const deleteDoc = useCallback(
     async (docId: string): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      await firestoreDeleteDoc(
-        doc(db, PLCS_COLLECTION, plcId, DOCS_SUBCOLLECTION, docId)
+      await firestoreUpdateDoc(
+        doc(db, PLCS_COLLECTION, plcId, DOCS_SUBCOLLECTION, docId),
+        { deletedAt: serverTimestamp(), updatedAt: serverTimestamp() }
+      );
+    },
+    [plcId, user]
+  );
+
+  const restoreDoc = useCallback(
+    async (docId: string): Promise<void> => {
+      if (!plcId || !user) throw new Error('Not signed in');
+      await firestoreUpdateDoc(
+        doc(db, PLCS_COLLECTION, plcId, DOCS_SUBCOLLECTION, docId),
+        { deletedAt: null, updatedAt: serverTimestamp() }
       );
     },
     [plcId, user]
@@ -181,6 +216,15 @@ export const usePlcDocs = (plcId: string | null): UsePlcDocsResult => {
           error: fromProvider.error,
         }
       : { docs, loading, error };
-    return { ...resolved, createDoc, updateDoc, deleteDoc };
-  }, [fromProvider, docs, loading, error, createDoc, updateDoc, deleteDoc]);
+    return { ...resolved, createDoc, updateDoc, deleteDoc, restoreDoc };
+  }, [
+    fromProvider,
+    docs,
+    loading,
+    error,
+    createDoc,
+    updateDoc,
+    deleteDoc,
+    restoreDoc,
+  ]);
 };

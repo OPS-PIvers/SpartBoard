@@ -32,6 +32,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -40,10 +41,11 @@ import {
   updateDoc,
   type Query,
 } from 'firebase/firestore';
+import { writePlcActivityEvent } from '@/utils/plcActivity';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { usePlcs } from '@/hooks/usePlcs';
-import { parseNote } from '@/hooks/usePlcNotes';
+import { parseNote, PlcNoteVersionConflictError } from '@/hooks/usePlcNotes';
 import { parseTodo } from '@/hooks/usePlcTodos';
 import { parseDoc } from '@/hooks/usePlcDocs';
 import { parseContribution } from '@/hooks/usePlcContributions';
@@ -51,9 +53,12 @@ import { parsePlcQuizEntry } from '@/hooks/usePlcQuizzes';
 import { parsePlcVideoActivityEntry } from '@/hooks/usePlcVideoActivities';
 import { logError } from '@/utils/logError';
 import { getPlcMembers } from '@/utils/plc';
+import { parsePresence, type PlcPresenceEntry } from '@/hooks/usePlcPresence';
+import { parseActivity } from '@/utils/plcActivity';
 import type { PlcSectionId } from '@/components/plc/sections';
 import type {
   Plc,
+  PlcActivityEvent,
   PlcContribution,
   PlcDoc,
   PlcMember,
@@ -74,6 +79,22 @@ import {
 } from '@/context/usePlcContext';
 
 const PLCS_COLLECTION = 'plcs';
+
+/**
+ * Resolve a stable display name for an activity actor: prefer the display name,
+ * then the email, then the uid (empty strings treated as absent). Mirrors the
+ * helper in `hooks/usePlcNotes.ts` / `usePlcTrash` so activity writers snapshot
+ * names the same way.
+ */
+function resolveActorName(user: {
+  displayName?: string | null;
+  email?: string | null;
+  uid: string;
+}): string {
+  const displayName = user.displayName?.trim() ?? '';
+  const email = user.email?.trim() ?? '';
+  return displayName || email || user.uid;
+}
 
 /**
  * Which heavy subcollections each section needs mounted. Sections not listed
@@ -192,15 +213,215 @@ const orderByUpdatedAtDesc = (ref: ReturnType<typeof collection>): Query =>
   query(ref, orderBy('updatedAt', 'desc'));
 const noOrder = (ref: ReturnType<typeof collection>): Query => query(ref);
 
-/** Incomplete-first sort matching the standalone `usePlcTodos` post-process. */
+/**
+ * Drop soft-deleted docs (Decision 3.1) from a live subcollection slice. The
+ * tombstoned items move to Trash (aggregated separately by `usePlcTrash`), so
+ * the normal section lists must never surface them. A pending serverTimestamp
+ * resolves to 0 (still `!= null`), so a just-deleted item disappears
+ * immediately. Generic over any slice carrying an optional `deletedAt`.
+ */
+function filterLive<T extends { deletedAt?: number | null }>(list: T[]): T[] {
+  return list.filter((item) => item.deletedAt == null);
+}
+
+/** Incomplete-first sort matching the standalone `usePlcTodos` post-process,
+ * applied AFTER soft-deleted to-dos are filtered out. */
 function sortTodos(list: PlcTodo[]): PlcTodo[] {
-  return [...list].sort((a, b) => {
+  return filterLive(list).sort((a, b) => {
     if (a.done === b.done) return 0;
     return a.done ? 1 : -1;
   });
 }
 
 const EMPTY_MEMBERS: PlcMember[] = [];
+const EMPTY_PRESENCE: PlcPresenceEntry[] = [];
+const EMPTY_ACTIVITY: PlcActivityEvent[] = [];
+
+/** Heartbeat cadence — re-stamp the caller's own presence doc this often. */
+const PRESENCE_HEARTBEAT_MS = 45_000;
+
+/**
+ * How many of the newest activity events the always-on listener loads
+ * (Decision 2.2, §3.4 — "the activity listener loads the latest N"). Bounds the
+ * read cost: the feed never streams the unbounded log, and the Wave-4
+ * `gcPlcOrphans` function trims events older than ~90 days server-side.
+ */
+const ACTIVITY_PAGE_SIZE = 50;
+
+/**
+ * ALWAYS-ON presence listener (Decision 2.1, §6.3) — NOT section-gated, because
+ * the Home digest renders the "who's here" strip regardless of section. Returns
+ * the parsed presence list ordered newest-heartbeat-first; malformed docs are
+ * dropped. Returns the stable `EMPTY_PRESENCE` reference until the first
+ * snapshot so a no-op render bails via `Object.is`.
+ */
+function usePresenceListener(plcId: string): PlcPresenceEntry[] {
+  const { user } = useAuth();
+  const [presence, setPresence] = useState<PlcPresenceEntry[]>(EMPTY_PRESENCE);
+
+  // Reset to the stable-empty reference when the PLC changes (prev-prop pattern,
+  // not an effect) so the strip never flashes the previous PLC's roster.
+  const [prevPlcId, setPrevPlcId] = useState(plcId);
+  if (plcId !== prevPlcId) {
+    setPrevPlcId(plcId);
+    setPresence(EMPTY_PRESENCE);
+  }
+
+  useEffect(() => {
+    if (!user || isAuthBypass) return;
+    const ref = collection(db, PLCS_COLLECTION, plcId, 'presence');
+    const unsub = onSnapshot(
+      query(ref, orderBy('lastActiveAt', 'desc')),
+      (snap) => {
+        const list: PlcPresenceEntry[] = [];
+        snap.forEach((d) => {
+          const parsed = parsePresence(
+            d.id,
+            d.data() as Record<string, unknown>
+          );
+          if (parsed) list.push(parsed);
+        });
+        setPresence(list);
+      },
+      (err) => {
+        logError('PlcProvider.presence', err, { plcId });
+        setPresence(EMPTY_PRESENCE);
+      }
+    );
+    return () => unsub();
+  }, [plcId, user]);
+
+  return presence;
+}
+
+/**
+ * ALWAYS-ON activity listener (Decision 2.2, §3.4) — NOT section-gated, because
+ * the unread badge + Home "since you were here" digest need the feed regardless
+ * of section. Loads at most the newest `ACTIVITY_PAGE_SIZE` events ordered by
+ * `createdAt` desc (bounded read cost), parsing each via `parseActivity` and
+ * dropping malformed/out-of-union docs. Returns the stable `EMPTY_ACTIVITY`
+ * reference until the first snapshot so a no-op render bails via `Object.is`.
+ */
+function useActivityListener(plcId: string): PlcActivityEvent[] {
+  const { user } = useAuth();
+  const [activity, setActivity] = useState<PlcActivityEvent[]>(EMPTY_ACTIVITY);
+
+  // Reset to the stable-empty reference when the PLC changes (prev-prop pattern,
+  // not an effect) so the feed never flashes the previous PLC's events.
+  const [prevPlcId, setPrevPlcId] = useState(plcId);
+  if (plcId !== prevPlcId) {
+    setPrevPlcId(plcId);
+    setActivity(EMPTY_ACTIVITY);
+  }
+
+  useEffect(() => {
+    if (!user || isAuthBypass) return;
+    const ref = collection(db, PLCS_COLLECTION, plcId, 'activity');
+    const unsub = onSnapshot(
+      query(ref, orderBy('createdAt', 'desc'), limit(ACTIVITY_PAGE_SIZE)),
+      (snap) => {
+        const list: PlcActivityEvent[] = [];
+        snap.forEach((d) => {
+          const parsed = parseActivity(
+            d.id,
+            d.data() as Record<string, unknown>
+          );
+          if (parsed) list.push(parsed);
+        });
+        setActivity(list);
+      },
+      (err) => {
+        logError('PlcProvider.activity', err, { plcId });
+        setActivity(EMPTY_ACTIVITY);
+      }
+    );
+    return () => unsub();
+  }, [plcId, user]);
+
+  return activity;
+}
+
+/**
+ * Heartbeat writer (Decision 2.1, §3.3). Writes the caller's OWN presence doc
+ * (docId == uid) on mount and re-stamps it every ~45s while the dashboard is
+ * open, and whenever `activeSection` changes. Best-effort deletes the doc on
+ * unmount AND on `pagehide` / `visibilitychange:hidden` (covers the tab being
+ * closed/backgrounded without a clean React unmount). All writes are
+ * fire-and-forget — a transient failure must never surface to the UI.
+ *
+ * `displayName` / `section` are read fresh from a latest-ref so the interval
+ * closure always writes the current values without re-arming the timer.
+ */
+function usePresenceHeartbeat(
+  plcId: string,
+  activeSection: PlcSectionId
+): void {
+  const { user } = useAuth();
+  const uid = user?.uid ?? null;
+  const displayName = user?.displayName ?? '';
+
+  // Freshest section/displayName for the interval + section-change writes,
+  // assigned in render (house rule: no effect for ref sync).
+  const latest = useRef({ displayName, section: activeSection });
+  // eslint-disable-next-line react-hooks/refs
+  latest.current = { displayName, section: activeSection };
+
+  useEffect(() => {
+    if (!uid || isAuthBypass) return;
+    const ref = doc(db, PLCS_COLLECTION, plcId, 'presence', uid);
+
+    const beat = (): void => {
+      void setDoc(ref, {
+        uid,
+        displayName: latest.current.displayName,
+        section: latest.current.section,
+        lastActiveAt: serverTimestamp(),
+      }).catch((err) => {
+        logError('PlcProvider.presence.heartbeat', err, { plcId });
+      });
+    };
+
+    // Initial beat + steady cadence.
+    beat();
+    const interval = window.setInterval(beat, PRESENCE_HEARTBEAT_MS);
+
+    // Best-effort teardown: clear our doc when the tab goes away. `pagehide`
+    // fires on navigation/close; `visibilitychange:hidden` covers mobile
+    // backgrounding where `pagehide` may not. Both are idempotent.
+    const clearPresence = (): void => {
+      void deleteDoc(ref).catch(() => undefined);
+    };
+    const onPageHide = (): void => clearPresence();
+    const onVisibility = (): void => {
+      if (document.visibilityState === 'hidden') clearPresence();
+    };
+    window.addEventListener('pagehide', onPageHide);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('pagehide', onPageHide);
+      document.removeEventListener('visibilitychange', onVisibility);
+      clearPresence();
+    };
+  }, [plcId, uid]);
+
+  // Re-stamp immediately when the active section changes so a teammate's strip
+  // reflects the move without waiting for the next ~45s beat. Separate effect so
+  // a section change doesn't tear down/re-arm the heartbeat interval above.
+  useEffect(() => {
+    if (!uid || isAuthBypass) return;
+    const ref = doc(db, PLCS_COLLECTION, plcId, 'presence', uid);
+    void setDoc(ref, {
+      uid,
+      displayName: latest.current.displayName,
+      section: activeSection,
+      lastActiveAt: serverTimestamp(),
+    }).catch((err) => {
+      logError('PlcProvider.presence.section', err, { plcId });
+    });
+  }, [plcId, uid, activeSection]);
+}
 
 export function PlcProvider({
   plcId,
@@ -226,7 +447,8 @@ export function PlcProvider({
     'notes',
     isSectionActive('notes'),
     orderByLastEdited,
-    parseNote
+    parseNote,
+    filterLive
   );
   const todos = useSubcollection<PlcTodo>(
     plcId,
@@ -241,7 +463,8 @@ export function PlcProvider({
     'docs',
     isSectionActive('docs'),
     orderByCreatedAtDesc,
-    parseDoc
+    parseDoc,
+    filterLive
   );
   const contributions = useSubcollection<PlcContribution>(
     plcId,
@@ -255,14 +478,16 @@ export function PlcProvider({
     'quizzes',
     isSectionActive('quizzes'),
     orderByUpdatedAtDesc,
-    parsePlcQuizEntry
+    parsePlcQuizEntry,
+    filterLive
   );
   const videoActivities = useSubcollection<PlcVideoActivityEntry>(
     plcId,
     'video_activities',
     isSectionActive('videoActivities'),
     orderByUpdatedAtDesc,
-    parsePlcVideoActivityEntry
+    parsePlcVideoActivityEntry,
+    filterLive
   );
 
   // --- Derived root + members (always on; ride the `plc` prop) ---
@@ -270,6 +495,13 @@ export function PlcProvider({
     () => (plc ? getPlcMembers(plc) : EMPTY_MEMBERS),
     [plc]
   );
+
+  // --- Presence (always on — Home needs it; not section-gated) ---
+  const presence = usePresenceListener(plcId);
+  usePresenceHeartbeat(plcId, activeSection);
+
+  // --- Activity (always on — unread badge + Home digest; not section-gated) ---
+  const activity = useActivityListener(plcId);
 
   // --- External store ---
   // Lazy-init via useState (the repo's lint-clean store-creation pattern — see
@@ -287,8 +519,8 @@ export function PlcProvider({
       contributions,
       quizzes,
       videoActivities,
-      presence: [],
-      activity: [],
+      presence,
+      activity,
     })
   );
   const [storedPlcId, setStoredPlcId] = useState(plcId);
@@ -304,8 +536,8 @@ export function PlcProvider({
         contributions,
         quizzes,
         videoActivities,
-        presence: [],
-        activity: [],
+        presence,
+        activity,
       })
     );
   }
@@ -324,8 +556,8 @@ export function PlcProvider({
       contributions,
       quizzes,
       videoActivities,
-      presence: [],
-      activity: [],
+      presence,
+      activity,
     });
   }, [
     store,
@@ -337,6 +569,8 @@ export function PlcProvider({
     contributions,
     quizzes,
     videoActivities,
+    presence,
+    activity,
   ]);
 
   // --- Mount-stable actions surface (latest-ref dispatch) ---
@@ -439,14 +673,21 @@ function useStableActions(
 
   // --- Notes ---
   const createNote = useCallback(
-    async (input: { title: string; body: string }): Promise<string> => {
+    async (input: {
+      title: string;
+      body: string;
+      kind?: 'freeform' | 'meeting';
+      meetingId?: string | null;
+    }): Promise<string> => {
       const u = requireUser();
       const ref = doc(
         collection(db, PLCS_COLLECTION, latest.current.plcId, 'notes')
       );
       // serverTimestamp() for the time fields (Decision 1.3); `parseNote`
-      // resolves the Timestamp to millis on read via `tsToMillis`.
-      await setDoc(ref, {
+      // resolves the Timestamp to millis on read via `tsToMillis`. `version: 0`
+      // seeds the optimistic-concurrency counter (Decision 2.4); `kind` /
+      // `meetingId` are only written when provided (structured meeting notes).
+      const payload: Record<string, unknown> = {
         id: ref.id,
         title: input.title,
         body: input.body,
@@ -454,6 +695,24 @@ function useStableActions(
         createdAt: serverTimestamp(),
         lastEditedBy: u.uid,
         lastEditedAt: serverTimestamp(),
+        version: 0,
+      };
+      if (input.kind) payload.kind = input.kind;
+      if (input.meetingId !== undefined) payload.meetingId = input.meetingId;
+      await setDoc(ref, payload);
+
+      // Activity log (Decision 2.2, §3.4) — native notes is Wave 2's headline
+      // feature, so a created note must surface in the "since you were here"
+      // digest + unread badge. Fire-and-forget (mirrors the comment fan-out and
+      // `hooks/usePlcNotes.ts`): never blocks or fails the note write.
+      const actorName = resolveActorName(u);
+      void writePlcActivityEvent(latest.current.plcId, {
+        type: 'note_created',
+        actorUid: u.uid,
+        actorName,
+        targetType: 'note',
+        targetId: ref.id,
+        ...(input.title.trim() ? { targetTitle: input.title.trim() } : {}),
       });
       return ref.id;
     },
@@ -463,27 +722,78 @@ function useStableActions(
   const updateNote = useCallback(
     async (
       noteId: string,
-      patch: { title?: string; body?: string }
+      patch: {
+        title?: string;
+        body?: string;
+        kind?: 'freeform' | 'meeting';
+        meetingId?: string | null;
+        deletedAt?: number | null;
+      },
+      options?: { expectedVersion?: number }
     ): Promise<void> => {
       const u = requireUser();
+      const ref = noteRef(noteId);
+      const expectedVersion = options?.expectedVersion;
+      // Optimistic version precondition (Decision 2.4) via a SINGLE
+      // non-transactional `updateDoc` — NOT a transaction. A transaction
+      // auto-retries on contention and would re-read the new canonical version,
+      // recompute `latest + 1`, and silently overwrite a teammate's concurrent
+      // same-field edit. Sending `version: expectedVersion + 1` (the base the
+      // caller LOADED) instead makes the rule's `new == old + 1` check fail when
+      // a teammate already bumped past it, surfacing
+      // `PlcNoteVersionConflictError` so the caller reloads. Mirrors
+      // `hooks/usePlcNotes.ts`.
       const fields: Record<string, unknown> = {
         lastEditedBy: u.uid,
         lastEditedAt: serverTimestamp(),
       };
       if (patch.title !== undefined) fields.title = patch.title;
       if (patch.body !== undefined) fields.body = patch.body;
-      await updateDoc(noteRef(noteId), fields);
+      if (patch.kind !== undefined) fields.kind = patch.kind;
+      if (patch.meetingId !== undefined) fields.meetingId = patch.meetingId;
+      if (patch.deletedAt !== undefined) fields.deletedAt = patch.deletedAt;
+      // Rollout escape hatch: a legacy un-versioned note omits `expectedVersion`
+      // and we must NOT introduce `version` (the rule rejects it),
+      // last-write-wins like pre-Wave-2.
+      if (expectedVersion !== undefined) {
+        fields.version = expectedVersion + 1;
+      }
+      await updateDoc(ref, fields).catch((err: unknown) => {
+        if (err instanceof PlcNoteVersionConflictError) throw err;
+        const code =
+          typeof err === 'object' && err !== null && 'code' in err
+            ? String((err as { code: unknown }).code)
+            : '';
+        if (code === 'permission-denied' || code === 'failed-precondition') {
+          throw new PlcNoteVersionConflictError(
+            noteId,
+            expectedVersion ?? null,
+            null
+          );
+        }
+        throw err instanceof Error ? err : new Error(String(err));
+      });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [latest]
   );
+  // Soft-delete / restore route through `updateNote` so the optimistic version
+  // precondition + conflict handling apply and the note drops out of / returns
+  // to the filtered live list (Decision 3.1). `deletedAt` is a plain int
+  // (Date.now()) — rule-valid and immediately filterable (no pending-0 window).
+  // The caller passes the note's loaded `version` so the tombstone respects the
+  // precondition.
   const deleteNote = useCallback(
-    async (noteId: string): Promise<void> => {
-      requireUser();
-      await deleteDoc(noteRef(noteId));
+    async (noteId: string, expectedVersion?: number): Promise<void> => {
+      await updateNote(noteId, { deletedAt: Date.now() }, { expectedVersion });
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [latest]
+    [updateNote]
+  );
+  const restoreNote = useCallback(
+    async (noteId: string, expectedVersion?: number): Promise<void> => {
+      await updateNote(noteId, { deletedAt: null }, { expectedVersion });
+    },
+    [updateNote]
   );
 
   // --- To-dos ---
@@ -527,10 +837,21 @@ function useStableActions(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [latest]
   );
+  // Soft-delete / restore (Decision 3.1): write the `deletedAt` tombstone via a
+  // patch — identity/createdBy/createdAt stay untouched, the post-merge doc
+  // passes the widened `keys().hasOnly([...])` + `plcSubDeletedAtOk()`.
   const deleteTodo = useCallback(
     async (todoId: string): Promise<void> => {
       requireUser();
-      await deleteDoc(todoRef(todoId));
+      await updateDoc(todoRef(todoId), { deletedAt: serverTimestamp() });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [latest]
+  );
+  const restoreTodo = useCallback(
+    async (todoId: string): Promise<void> => {
+      requireUser();
+      await updateDoc(todoRef(todoId), { deletedAt: null });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [latest]
@@ -575,10 +896,26 @@ function useStableActions(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [latest]
   );
+  // Soft-delete / restore (Decision 3.1): tombstone via a patch + bump
+  // updatedAt; identity stays untouched.
   const deleteDocAction = useCallback(
     async (docId: string): Promise<void> => {
       requireUser();
-      await deleteDoc(docRef(docId));
+      await updateDoc(docRef(docId), {
+        deletedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [latest]
+  );
+  const restoreDocAction = useCallback(
+    async (docId: string): Promise<void> => {
+      requireUser();
+      await updateDoc(docRef(docId), {
+        deletedAt: null,
+        updatedAt: serverTimestamp(),
+      });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [latest]
@@ -594,13 +931,16 @@ function useStableActions(
       createNote,
       updateNote,
       deleteNote,
+      restoreNote,
       createTodo,
       toggleTodoDone,
       updateTodoText,
       deleteTodo,
+      restoreTodo,
       createDoc,
       updateDoc: updateDocAction,
       deleteDoc: deleteDocAction,
+      restoreDoc: restoreDocAction,
     }),
     [
       setMemberRole,
@@ -611,13 +951,16 @@ function useStableActions(
       createNote,
       updateNote,
       deleteNote,
+      restoreNote,
       createTodo,
       toggleTodoDone,
       updateTodoText,
       deleteTodo,
+      restoreTodo,
       createDoc,
       updateDocAction,
       deleteDocAction,
+      restoreDocAction,
     ]
   );
 }

@@ -9,7 +9,12 @@ import {
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
-import { usePlcNotes } from '@/hooks/usePlcNotes';
+import {
+  parseNote,
+  PlcNoteVersionConflictError,
+  usePlcNotes,
+} from '@/hooks/usePlcNotes';
+import { writePlcActivityEvent } from '@/utils/plcActivity';
 
 // Distinct sentinel so tests can assert serverTimestamp() (Decision 1.3) was
 // used for the time fields rather than a Date.now() number.
@@ -34,12 +39,21 @@ vi.mock('@/config/firebase', () => ({
   isAuthBypass: false,
 }));
 
-const useAuthMock = vi.fn<() => { user: { uid: string } | null }>();
+const useAuthMock =
+  vi.fn<
+    () => { user: { uid: string; displayName?: string; email?: string } | null }
+  >();
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => useAuthMock(),
 }));
 
 vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
+
+// The activity fan-out is fire-and-forget; mock it so createNote can assert the
+// `note_created` emission without touching Firestore.
+vi.mock('@/utils/plcActivity', () => ({
+  writePlcActivityEvent: vi.fn(() => Promise.resolve()),
+}));
 
 const mockCollection = collection as Mock;
 const mockDoc = doc as Mock;
@@ -48,6 +62,24 @@ const mockSetDoc = setDoc as Mock;
 const mockUpdateDoc = updateDoc as Mock;
 const mockDeleteDoc = deleteDoc as Mock;
 const mockOrderBy = orderBy as Mock;
+const mockWriteActivity = writePlcActivityEvent as Mock;
+
+/**
+ * Capture the single `updateDoc(ref, fields)` call `updateNote` makes (it no
+ * longer uses a transaction — it sends one non-transactional patch carrying
+ * `version: expectedVersion + 1`). Returns `captured` with the ref + fields.
+ */
+function captureUpdate() {
+  const captured: { ref?: unknown; fields?: Record<string, unknown> } = {};
+  mockUpdateDoc.mockImplementation(
+    (ref: unknown, fields: Record<string, unknown>) => {
+      captured.ref = ref;
+      captured.fields = fields;
+      return Promise.resolve();
+    }
+  );
+  return captured;
+}
 
 const USER_UID = 'user-1';
 const PLC_ID = 'plc-1';
@@ -68,6 +100,7 @@ beforeEach(() => {
   mockSetDoc.mockResolvedValue(undefined);
   mockUpdateDoc.mockResolvedValue(undefined);
   mockDeleteDoc.mockResolvedValue(undefined);
+  mockWriteActivity.mockResolvedValue(undefined);
   useAuthMock.mockReturnValue({ user: { uid: USER_UID } });
 });
 
@@ -184,50 +217,224 @@ describe('usePlcNotes — createNote', () => {
     // Time fields are serverTimestamp() sentinels (Decision 1.3), not numbers.
     expect(written.createdAt).toBe(SERVER_TS);
     expect(written.lastEditedAt).toBe(SERVER_TS);
-  });
-});
+    // version seeds at 0 so the first edit bumps to 1 (Decision 2.4).
+    expect(written.version).toBe(0);
+    // A freeform note omits kind/meetingId (kept minimal).
+    expect('kind' in written).toBe(false);
+    expect('meetingId' in written).toBe(false);
 
-// updateDoc patches — verify only the changed field travels in the wire
-// payload (plus the always-stamped lastEditedBy / lastEditedAt). The
-// previous setDoc-based implementation rewrote the full doc from local
-// state, which could revert a teammate's concurrent edit on the *other*
-// field.
-describe('usePlcNotes — patch-only updateNote', () => {
-  it('sends only the patched field plus lastEditedBy/At via updateDoc', async () => {
+    // Activity fan-out (Decision 2.2): createNote emits a `note_created` event
+    // so the digest + unread badge surface the new note (Wave 2's headline).
+    expect(mockWriteActivity).toHaveBeenCalledTimes(1);
+    const [activityPlcId, activityEvent] =
+      mockWriteActivity.mock.calls[0] ?? [];
+    expect(activityPlcId).toBe(PLC_ID);
+    expect(activityEvent).toMatchObject({
+      type: 'note_created',
+      actorUid: USER_UID,
+      targetType: 'note',
+      targetId: 'generated-id',
+      targetTitle: 'T',
+    });
+  });
+
+  it('emits note_created without a targetTitle for an empty-title note', async () => {
     mockOnSnapshot.mockReturnValue(() => undefined);
     const { result } = renderHook(() => usePlcNotes(PLC_ID));
 
     await act(async () => {
-      await result.current.updateNote('note-1', { body: 'new body' });
+      await result.current.createNote({ title: '   ', body: 'B' });
     });
 
-    expect(mockSetDoc).not.toHaveBeenCalled();
+    const [, activityEvent] = mockWriteActivity.mock.calls[0] ?? [];
+    expect(activityEvent).toMatchObject({ type: 'note_created' });
+    // A blank title is omitted entirely so the feed uses its placeholder.
+    expect('targetTitle' in (activityEvent as Record<string, unknown>)).toBe(
+      false
+    );
+  });
+
+  it('writes kind + meetingId for a structured meeting note', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const { result } = renderHook(() => usePlcNotes(PLC_ID));
+
+    await act(async () => {
+      await result.current.createNote({
+        title: 'Unit 4 CFA',
+        body: '## Agenda',
+        kind: 'meeting',
+        meetingId: 'm-1',
+      });
+    });
+
+    const written = mockSetDoc.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(written.kind).toBe('meeting');
+    expect(written.meetingId).toBe('m-1');
+    expect(written.version).toBe(0);
+  });
+});
+
+describe('parseNote — Wave-2 fields', () => {
+  const base = {
+    title: 'T',
+    body: 'B',
+    createdBy: 'u1',
+    createdAt: 1,
+    lastEditedBy: 'u1',
+    lastEditedAt: 2,
+  };
+
+  it('reads kind/meetingId/version/deletedAt when present', () => {
+    const note = parseNote('n1', {
+      ...base,
+      kind: 'meeting',
+      meetingId: 'm-1',
+      version: 7,
+      deletedAt: 1700000000000,
+    });
+    expect(note).not.toBeNull();
+    expect(note?.kind).toBe('meeting');
+    expect(note?.meetingId).toBe('m-1');
+    expect(note?.version).toBe(7);
+    expect(note?.deletedAt).toBe(1700000000000);
+  });
+
+  it('tolerates legacy notes lacking version/kind/meetingId/deletedAt', () => {
+    const note = parseNote('n1', { ...base });
+    expect(note).not.toBeNull();
+    // Absent stays absent — consumers treat undefined kind as freeform and
+    // undefined version as "never versioned" (rollout escape hatch).
+    expect(note?.kind).toBeUndefined();
+    expect(note?.meetingId).toBeUndefined();
+    expect(note?.version).toBeUndefined();
+    expect(note?.deletedAt).toBeUndefined();
+  });
+
+  it('drops an out-of-union kind value', () => {
+    const note = parseNote('n1', { ...base, kind: 'agenda' });
+    expect(note?.kind).toBeUndefined();
+  });
+
+  it('reads an explicit null meetingId/deletedAt', () => {
+    const note = parseNote('n1', {
+      ...base,
+      meetingId: null,
+      deletedAt: null,
+    });
+    expect(note?.meetingId).toBeNull();
+    expect(note?.deletedAt).toBeNull();
+  });
+});
+
+// updateNote sends a SINGLE non-transactional updateDoc carrying
+// `version: expectedVersion + 1` computed from the LOADED base (Decision 2.4) —
+// deliberately NOT a transaction (which would re-read + recompute latest+1 on
+// retry and silently overwrite a teammate). The rule rejects a stale base, and
+// the client normalizes that rejection to PlcNoteVersionConflictError.
+describe('usePlcNotes — version-aware updateNote', () => {
+  it('sends expectedVersion + 1 (not a re-read latest) and patches only the changed field', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const captured = captureUpdate();
+    const { result } = renderHook(() => usePlcNotes(PLC_ID));
+
+    await act(async () => {
+      await result.current.updateNote(
+        'note-1',
+        { body: 'new body' },
+        { expectedVersion: 4 }
+      );
+    });
+
     expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
-    const [path, patch] = mockUpdateDoc.mock.calls[0] ?? [];
-    expect(path).toBe(`plcs/${PLC_ID}/notes/note-1`);
-    const fields = patch as Record<string, unknown>;
-    // Only `body` is patched, plus the rule-required `lastEditedBy` and
-    // `lastEditedAt`. `title` must NOT appear — that's the whole point
-    // of the patch-only contract (a teammate's concurrent title edit
-    // would otherwise be reverted by stale local state).
+    const fields = captured.fields ?? {};
+    // Bumped from the LOADED base (4), not from a fresh read — this is the fix:
+    // a teammate who already pushed the canonical version to 5 makes the rule's
+    // `new == old + 1` (5 == 4? no) fail, surfacing the conflict.
+    expect(fields.version).toBe(5);
     expect(fields.body).toBe('new body');
-    expect(fields.title).toBeUndefined();
+    // `title` must NOT appear — patch-only contract avoids reverting a
+    // teammate's concurrent title edit from stale local state.
+    expect('title' in fields).toBe(false);
     expect(fields.lastEditedBy).toBe(USER_UID);
     expect(fields.lastEditedAt).toBe(SERVER_TS);
   });
 
-  it('omits both title and body when patch contains neither (still stamps lastEditedBy)', async () => {
+  it('does NOT introduce version when expectedVersion is omitted (legacy rollout escape hatch)', async () => {
     mockOnSnapshot.mockReturnValue(() => undefined);
+    const captured = captureUpdate();
     const { result } = renderHook(() => usePlcNotes(PLC_ID));
 
     await act(async () => {
-      await result.current.updateNote('note-1', {});
+      await result.current.updateNote('note-1', { body: 'edited' });
     });
 
-    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
-    const fields = mockUpdateDoc.mock.calls[0]?.[1] as Record<string, unknown>;
-    expect(fields.title).toBeUndefined();
-    expect(fields.body).toBeUndefined();
-    expect(fields.lastEditedBy).toBe(USER_UID);
+    const fields = captured.fields ?? {};
+    expect('version' in fields).toBe(false);
+    expect(fields.body).toBe('edited');
+  });
+
+  it('normalizes a permission-denied rejection (stale base lost the race) to PlcNoteVersionConflictError', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    // The rule rejects a stale-base write — Firestore surfaces it as
+    // permission-denied. This is now the path the client ACTUALLY exercises:
+    // it sent `version: expectedVersion + 1` from a stale base, the canonical
+    // had already moved on, the rule's `new == old + 1` failed.
+    mockUpdateDoc.mockRejectedValue(
+      Object.assign(new Error('Missing or insufficient permissions.'), {
+        code: 'permission-denied',
+      })
+    );
+    const { result } = renderHook(() => usePlcNotes(PLC_ID));
+
+    await act(async () => {
+      await expect(
+        result.current.updateNote(
+          'note-1',
+          { body: 'mine' },
+          { expectedVersion: 4 }
+        )
+      ).rejects.toBeInstanceOf(PlcNoteVersionConflictError);
+    });
+    // The conflict carries the base the caller loaded (current is unknown
+    // from the error alone).
+    await act(async () => {
+      try {
+        await result.current.updateNote(
+          'note-1',
+          { body: 'mine' },
+          { expectedVersion: 4 }
+        );
+      } catch (err) {
+        expect((err as PlcNoteVersionConflictError).expectedVersion).toBe(4);
+      }
+    });
+  });
+
+  it('writes a soft-delete tombstone with a version bump from the loaded base', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const captured = captureUpdate();
+    const { result } = renderHook(() => usePlcNotes(PLC_ID));
+
+    await act(async () => {
+      await result.current.deleteNote('note-1', 1);
+    });
+
+    const fields = captured.fields ?? {};
+    expect(fields.deletedAt).toBeTypeOf('number');
+    expect(fields.version).toBe(2);
+  });
+
+  it('restoreNote clears deletedAt and bumps version from the loaded base', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const captured = captureUpdate();
+    const { result } = renderHook(() => usePlcNotes(PLC_ID));
+
+    await act(async () => {
+      await result.current.restoreNote('note-1', 5);
+    });
+
+    const fields = captured.fields ?? {};
+    expect(fields.deletedAt).toBeNull();
+    expect(fields.version).toBe(6);
   });
 });

@@ -23,9 +23,27 @@ import {
   PlcRole,
 } from '@/types';
 import { tsToMillis } from '@/utils/plc';
+import { writePlcActivityEvent } from '@/utils/plcActivity';
 import i18n from '@/i18n/index';
 
 const PLCS_COLLECTION = 'plcs';
+
+/**
+ * Resolve a stable display name for an activity actor: prefer the display name,
+ * then the email, then the uid. Empty strings are treated as absent (the `||`
+ * chain, not `??`) so a blank display name still falls through to the email.
+ * Mirrors the helper in `usePlcComments` / `usePlcTrash` so every activity
+ * writer snapshots names the same way.
+ */
+function resolveActorName(user: {
+  displayName?: string | null;
+  email?: string | null;
+  uid: string;
+}): string {
+  const displayName = user.displayName?.trim() ?? '';
+  const email = user.email?.trim() ?? '';
+  return displayName || email || user.uid;
+}
 // Cap on the admin-mode whole-collection listen. The member-mode query is
 // naturally bounded by membership, but the admin picker reads ALL PLCs, so
 // bound it to avoid streaming an unbounded collection (and the Firestore read
@@ -493,6 +511,12 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
   const removeMember = useCallback(
     async (plcId: string, uid: string) => {
       if (!user) return;
+      // Snapshot the removed member's display label inside the txn so the
+      // post-commit `member_left` activity event renders without a join.
+      // `didRemove` gates the emit so a no-op (member not in the map) doesn't
+      // log a phantom departure.
+      let removedName = '';
+      let didRemove = false;
       await runTransaction(db, async (tx) => {
         const ref = doc(db, PLCS_COLLECTION, plcId);
         const snap = await tx.get(ref);
@@ -512,6 +536,8 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
         // denormalized indexes so the array-contains list query no longer
         // returns this PLC for the removed member.
         if (members[uid]) {
+          removedName = members[uid].displayName || members[uid].email || uid;
+          didRemove = true;
           members[uid] = { ...members[uid], status: 'removed' };
         }
         tx.update(ref, {
@@ -527,6 +553,20 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
           updatedAt: serverTimestamp(),
         });
       });
+      // Activity log (Decision 2.2, §3.4) — fire-and-forget after the canonical
+      // membership write commits; never blocks or fails it. The actor is the
+      // lead performing the removal; `targetId`/`targetTitle` name the removed
+      // member so the feed reads "{lead} removed {member}".
+      if (didRemove) {
+        void writePlcActivityEvent(plcId, {
+          type: 'member_left',
+          actorUid: user.uid,
+          actorName: resolveActorName(user),
+          targetType: 'member',
+          targetId: uid,
+          ...(removedName ? { targetTitle: removedName } : {}),
+        });
+      }
     },
     [user]
   );
@@ -555,6 +595,22 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
           updatedAt: serverTimestamp(),
         });
       });
+      // Activity log (Decision 2.2, §3.4) — fire-and-forget AFTER the leave
+      // commits. The departing member is the actor (no target — the
+      // `member_left` copy reads "{actor} left the PLC"). NOTE: the leave
+      // transaction drops the caller from `memberUids`, and the activity-create
+      // rule gates on PLC membership, so this self-authored write is rejected by
+      // rules post-leave (swallowed by the fire-and-forget helper). Reliable
+      // emission of a self-leave event therefore belongs to the leave Cloud
+      // Function alongside `member_joined` (invite-accept) — see the deferral
+      // note in the structured fix result. The attempt is left here so that, if
+      // the membership write is ever moved server-side (where the actor is still
+      // a member at write time), the event lands without a code change.
+      void writePlcActivityEvent(plcId, {
+        type: 'member_left',
+        actorUid: user.uid,
+        actorName: resolveActorName(user),
+      });
     },
     [user]
   );
@@ -574,6 +630,9 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
         // the invariant (and `leadUid` mirror) can't be bypassed.
         throw new Error(i18n.t('plc.errors.cannotDemoteLead'));
       }
+      // Snapshot the target's display label inside the txn for the post-commit
+      // `role_changed` activity event (renders without a join).
+      let targetName = '';
       await runTransaction(db, async (tx) => {
         const ref = doc(db, PLCS_COLLECTION, plcId);
         const snap = await tx.get(ref);
@@ -588,6 +647,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
           // Can't demote the sitting lead via a role change — transfer first.
           throw new Error(i18n.t('plc.errors.cannotDemoteLead'));
         }
+        targetName = target.displayName || target.email || uid;
         members[uid] = { ...target, role };
         tx.update(ref, {
           members,
@@ -601,6 +661,18 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
           updatedAt: serverTimestamp(),
         });
       });
+      // Activity log (Decision 2.2, §3.4) — fire-and-forget after commit; the
+      // actor (lead/co-lead) stays a member, so this write is authorized. The
+      // target member's label rides on `targetTitle` so the feed reads
+      // "{actor} changed {member}'s role".
+      void writePlcActivityEvent(plcId, {
+        type: 'role_changed',
+        actorUid: user.uid,
+        actorName: resolveActorName(user),
+        targetType: 'member',
+        targetId: uid,
+        ...(targetName ? { targetTitle: targetName } : {}),
+      });
     },
     [user]
   );
@@ -612,6 +684,10 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
   const transferLead = useCallback(
     async (plcId: string, toUid: string) => {
       if (!user) return;
+      // Snapshot the new lead's display label + whether a transfer actually
+      // happened (a no-op transfer to the sitting lead must not log an event).
+      let targetName = '';
+      let didTransfer = false;
       await runTransaction(db, async (tx) => {
         const ref = doc(db, PLCS_COLLECTION, plcId);
         const snap = await tx.get(ref);
@@ -629,6 +705,8 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
         }
         // No-op transfer to the sitting lead — nothing to do, keep invariant.
         if (toUid === fromUid) return;
+        targetName = target.displayName || target.email || toUid;
+        didTransfer = true;
         // Demote every current lead (defensive: a malformed legacy map could
         // carry more than one) then promote exactly the target.
         for (const [uid, m] of Object.entries(members)) {
@@ -643,6 +721,21 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
           updatedAt: serverTimestamp(),
         });
       });
+      // Activity log (Decision 2.2, §3.4) — fire-and-forget after commit. A
+      // leadership transfer IS a role change for the promoted member, so it
+      // reuses `role_changed` (no dedicated transfer type in the union). The
+      // outgoing lead (the actor) remains an active member, so the write is
+      // authorized.
+      if (didTransfer) {
+        void writePlcActivityEvent(plcId, {
+          type: 'role_changed',
+          actorUid: user.uid,
+          actorName: resolveActorName(user),
+          targetType: 'member',
+          targetId: toUid,
+          ...(targetName ? { targetTitle: targetName } : {}),
+        });
+      }
     },
     [user]
   );

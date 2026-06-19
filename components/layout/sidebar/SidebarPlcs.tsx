@@ -14,6 +14,7 @@ import {
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { usePlcUnread } from '@/hooks/usePlcUnread';
 import { Plc, PlcInvitation } from '@/types';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
 import { PlcEditModal } from './PlcEditModal';
@@ -36,6 +37,8 @@ interface SidebarPlcsProps {
 interface PlcRowProps {
   plc: Plc;
   isLead: boolean;
+  /** Gate the per-row unread listeners to while the sidebar drawer is open. */
+  unreadEnabled: boolean;
   onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -57,6 +60,7 @@ interface PlcRowProps {
 const PlcRow: React.FC<PlcRowProps> = ({
   plc,
   isLead,
+  unreadEnabled,
   onOpen,
   onEdit,
   onDelete,
@@ -66,6 +70,12 @@ const PlcRow: React.FC<PlcRowProps> = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const kebabRef = useRef<HTMLButtonElement>(null);
+
+  // "Since you were here" badge (Decision 2.2, §3.4) — count of activity events
+  // newer than this member's `plc_state/{plcId}.lastSeenAt` cursor. The hook
+  // self-subscribes (the sidebar is not under a PlcProvider); gate it to while
+  // the drawer is open so the listeners tear down when the sidebar closes.
+  const { unreadCount } = usePlcUnread(plc.id, { enabled: unreadEnabled });
 
   useClickOutside(menuRef, () => setMenuOpen(false), [kebabRef]);
 
@@ -133,9 +143,25 @@ const PlcRow: React.FC<PlcRowProps> = ({
         </div>
       </div>
 
-      {/* Right-side cluster: chevron affordance + kebab. `pointer-events-auto`
-          re-enables clicks here so the kebab fires its own handler. */}
+      {/* Right-side cluster: unread badge + chevron affordance + kebab.
+          `pointer-events-auto` re-enables clicks here so the kebab fires its own
+          handler. */}
       <div className="relative flex items-center gap-0.5 shrink-0 pointer-events-auto">
+        {unreadCount > 0 && (
+          <span
+            className="min-w-[18px] h-[18px] px-1 mr-0.5 rounded-full bg-brand-red-primary text-white text-xxs font-bold flex items-center justify-center"
+            aria-label={t('sidebar.plcs.unreadBadge', {
+              count: unreadCount,
+              defaultValue: '{{count}} new since your last visit',
+            })}
+            title={t('sidebar.plcs.unreadBadge', {
+              count: unreadCount,
+              defaultValue: '{{count}} new since your last visit',
+            })}
+          >
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
         <ChevronRight
           className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors"
           aria-hidden="true"
@@ -397,6 +423,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                         key={plc.id}
                         plc={plc}
                         isLead={isLead}
+                        unreadEnabled={isVisible}
                         onOpen={() => onOpenDashboard(plc.id)}
                         onEdit={() => setEditingPlcId(plc.id)}
                         onDelete={() => void handleDelete(plc)}

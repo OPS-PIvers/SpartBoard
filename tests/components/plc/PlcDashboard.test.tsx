@@ -122,8 +122,11 @@ vi.mock('@/components/plc/sharedData/PlcSharedDataBody', () => ({
     <div data-testid="section-sharedData">Shared data body</div>
   ),
 }));
-vi.mock('@/components/plc/docs/PlcDocsBody', () => ({
-  PlcDocsBody: () => <div data-testid="section-docs">Docs body</div>,
+// The Docs section now renders the combined Notes & Docs surface (T4).
+vi.mock('@/components/plc/bodies/NotesDocsBody', () => ({
+  NotesDocsBody: () => (
+    <div data-testid="section-docs">Notes &amp; docs body</div>
+  ),
 }));
 vi.mock('@/components/plc/resources/PlcResourcesBody', () => ({
   PlcResourcesBody: () => (

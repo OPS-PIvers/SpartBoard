@@ -11,8 +11,8 @@
  * - A `useSyncExternalStore`-backed **state slice** read through cheap
  *   selectors with `Object.is` bailout (`usePlcRootDoc`, `usePlcMembers`,
  *   `usePlcRole`, `usePlcNotesData`, `usePlcTodosData`, `usePlcDocsData`,
- *   `usePlcContributionsData`, plus the Wave-2 stub selectors `usePlcPresence`
- *   / `usePlcActivity`, which return `[]` this wave).
+ *   `usePlcContributionsData`, plus the Wave-2 collaboration selectors
+ *   `usePlcPresence` / `usePlcWhoIsHere` / `usePlcActivity`).
  *
  * The provider DEDUPES the per-component `onSnapshot` listeners that today fire
  * once per surface, and standardizes every subcollection's error contract on
@@ -28,19 +28,29 @@
  * `components/common/modalStore.ts`.
  */
 
-import { createContext, useContext, useRef, useSyncExternalStore } from 'react';
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+} from 'react';
 import type {
   Plc,
+  PlcActivityEvent,
+  PlcActivityType,
   PlcContribution,
   PlcDoc,
   PlcMember,
   PlcNote,
+  PlcPresence,
   PlcQuizEntry,
   PlcRole,
   PlcTodo,
   PlcVideoActivityEntry,
 } from '@/types';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
+import { filterWhoIsHere } from '@/hooks/usePlcPresence';
 import type { PlcSectionId } from '@/components/plc/sections';
 
 /**
@@ -67,28 +77,27 @@ export interface PlcSlice<T> {
 }
 
 /**
- * Coarse per-section presence (Decision 2.1). Full implementation lands in
- * Wave 2; the type is declared now so the stub selector + store slot have a
- * stable shape that Wave 2 fills in without churning consumers.
+ * Coarse per-section presence (Decision 2.1) as carried by the store slot and
+ * selectors. This is the canonical `PlcPresence` (T1, `@/types`) with its
+ * `section` narrowed from the dependency-free `string` it must use in `types.ts`
+ * to the component-layer `PlcSectionId | 'meeting'` union — so consumers get
+ * the precise section type without forcing a `types.ts → components/` import
+ * cycle. The remaining fields are inherited unchanged from `PlcPresence`.
  */
-export interface PlcPresenceEntry {
-  uid: string;
-  displayName: string;
+export interface PlcPresenceEntry extends Omit<PlcPresence, 'section'> {
   section: PlcSectionId | 'meeting';
-  lastActiveAt: number;
 }
 
 /**
- * Minimal materialized activity event (Decision 2.2). Wave-2 stub — see
- * `PlcPresenceEntry`.
+ * Minimal materialized activity event (Decision 2.2) as carried by the store
+ * slot and selectors. Aliases the canonical `PlcActivityEvent` (T1, `@/types`)
+ * so the store and Wave-2 activity surfaces share one shape; `type` is the
+ * closed `PlcActivityType` union.
  */
-export interface PlcActivityEntry {
-  id: string;
-  type: string;
-  actorUid: string;
-  actorName: string;
-  createdAt: number;
-}
+export type PlcActivityEntry = PlcActivityEvent;
+
+/** Re-exported so consumers can narrow on the activity event union. */
+export type { PlcActivityType };
 
 /**
  * The full snapshot the store exposes. Mirrored from the provider's live
@@ -107,9 +116,18 @@ export interface PlcStoreState {
   contributions: PlcSlice<PlcContribution[]>;
   quizzes: PlcSlice<PlcQuizEntry[]>;
   videoActivities: PlcSlice<PlcVideoActivityEntry[]>;
-  /** Wave-2 stub: always `[]` this wave. */
+  /**
+   * Coarse per-section presence (Decision 2.1). Mirrored from the provider's
+   * ALWAYS-ON `plcs/{id}/presence` listener (Home needs it, so it is not
+   * section-gated). Ordered newest-heartbeat-first; the `usePlcWhoIsHere`
+   * selector client-filters this to the ~90s freshness window.
+   */
   presence: PlcPresenceEntry[];
-  /** Wave-2 stub: always `[]` this wave. */
+  /**
+   * Minimal materialized activity log (Decision 2.2, §3.4). Mirrored from the
+   * provider's ALWAYS-ON `plcs/{id}/activity` listener (bounded to the latest
+   * 50 events, newest-first). Powers the unread badge + Home digest.
+   */
   activity: PlcActivityEntry[];
 }
 
@@ -128,24 +146,58 @@ export interface PlcActions {
   leavePlc: () => Promise<void>;
   renamePlc: (name: string) => Promise<void>;
   // --- Notes ---
-  createNote: (input: { title: string; body: string }) => Promise<string>;
+  createNote: (input: {
+    title: string;
+    body: string;
+    kind?: 'freeform' | 'meeting';
+    meetingId?: string | null;
+  }) => Promise<string>;
+  // Patch shape mirrors `UpdateNotePatch` in `hooks/usePlcNotes.ts` (kept
+  // inline to avoid a context↔hook import cycle). Enforces the optimistic
+  // version precondition (Decision 2.4): the caller passes the `expectedVersion`
+  // its draft was loaded from; the write sends `expectedVersion + 1` and throws
+  // `PlcNoteVersionConflictError` when a teammate already bumped past it (no
+  // silent overwrite). Omit `expectedVersion` only for a legacy un-versioned
+  // note (rollout escape hatch, last-write-wins).
   updateNote: (
     noteId: string,
-    patch: { title?: string; body?: string }
+    patch: {
+      title?: string;
+      body?: string;
+      kind?: 'freeform' | 'meeting';
+      meetingId?: string | null;
+      deletedAt?: number | null;
+    },
+    options?: { expectedVersion?: number }
   ) => Promise<void>;
-  deleteNote: (noteId: string) => Promise<void>;
+  /**
+   * Soft-delete a note (Decision 3.1) — sets the `deletedAt` tombstone via the
+   * version-aware update path (may throw `PlcNoteVersionConflictError`). The
+   * note drops out of the live list and into Trash. Restore with `restoreNote`.
+   * Pass the note's loaded `version` so the tombstone write respects the
+   * precondition.
+   */
+  deleteNote: (noteId: string, expectedVersion?: number) => Promise<void>;
+  /** Restore a soft-deleted note by clearing its `deletedAt` tombstone. */
+  restoreNote: (noteId: string, expectedVersion?: number) => Promise<void>;
   // --- To-dos ---
   createTodo: (text: string) => Promise<string>;
   toggleTodoDone: (todoId: string, done: boolean) => Promise<void>;
   updateTodoText: (todoId: string, text: string) => Promise<void>;
+  /** Soft-delete a to-do (Decision 3.1). Restore with `restoreTodo`. */
   deleteTodo: (todoId: string) => Promise<void>;
+  /** Restore a soft-deleted to-do by clearing its `deletedAt` tombstone. */
+  restoreTodo: (todoId: string) => Promise<void>;
   // --- Docs ---
   createDoc: (input: { title: string; url: string }) => Promise<string>;
   updateDoc: (
     docId: string,
     patch: { title?: string; url?: string }
   ) => Promise<void>;
+  /** Soft-delete a doc (Decision 3.1). Restore with `restoreDoc`. */
   deleteDoc: (docId: string) => Promise<void>;
+  /** Restore a soft-deleted doc by clearing its `deletedAt` tombstone. */
+  restoreDoc: (docId: string) => Promise<void>;
 }
 
 /**
@@ -306,12 +358,42 @@ export function usePlcContributionsData(): PlcSlice<PlcContribution[]> {
   return usePlcSelector((s) => s.contributions) ?? EMPTY_CONTRIBUTIONS_SLICE;
 }
 
-/** Wave-2 stub: coarse per-section presence. Always `[]` this wave. */
+/**
+ * The full live presence list (every member's doc, including stale ones),
+ * ordered newest-heartbeat-first. Mirrored from the provider's always-on
+ * presence listener. For the rendered "who's here" strip use `usePlcWhoIsHere`
+ * — it client-filters to the ~90s freshness window. Re-renders only when the
+ * underlying presence array changes (the provider replaces the reference only
+ * on a real snapshot).
+ */
 export function usePlcPresence(): PlcPresenceEntry[] {
   return usePlcSelector((s) => s.presence) ?? EMPTY_PRESENCE;
 }
 
-/** Wave-2 stub: minimal activity log. Always `[]` this wave. */
+/**
+ * The "who's here NOW" view (Decision 2.1, §6.3): presence docs heartbeated
+ * within `PRESENCE_FRESH_WINDOW_MS` (~90s). Client-filtered so an abandoned tab
+ * drops off the strip before the server-side GC sweep runs (Wave-4).
+ *
+ * Memoized on the raw `presence` reference, which the provider replaces only on
+ * a real snapshot — so the returned array keeps `Object.is` identity between
+ * renders (a fresh `.filter()` every render would defeat downstream
+ * `useMemo`/`React.memo`). `now` is captured at filter time; because any
+ * member's heartbeat (~45s) produces a new snapshot, the strip re-filters
+ * frequently and a teammate who goes silent drops off at the next snapshot.
+ */
+export function usePlcWhoIsHere(): PlcPresenceEntry[] {
+  const presence = usePlcPresence();
+  return useMemo(() => filterWhoIsHere(presence), [presence]);
+}
+
+/**
+ * The minimal materialized activity feed (Decision 2.2, §3.4), newest-first.
+ * Mirrored from the provider's ALWAYS-ON `plcs/{id}/activity` listener (bounded
+ * to the latest 50 events). Powers the Home "since you were here" digest and the
+ * `usePlcUnread` derivation. Re-renders only when the underlying array changes
+ * (the provider replaces the reference only on a real snapshot).
+ */
 export function usePlcActivity(): PlcActivityEntry[] {
   return usePlcSelector((s) => s.activity) ?? EMPTY_ACTIVITY;
 }

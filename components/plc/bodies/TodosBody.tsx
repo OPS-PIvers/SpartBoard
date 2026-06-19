@@ -4,6 +4,7 @@ import { ListChecks, Loader2, Plus, Trash2 } from 'lucide-react';
 import { Plc, PlcTodo } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import { usePlcTodos } from '@/hooks/usePlcTodos';
+import { usePlcSoftDelete } from '@/hooks/usePlcTrash';
 import { logError } from '@/utils/logError';
 
 interface TodosBodyProps {
@@ -18,8 +19,16 @@ interface TodosBodyProps {
 export const TodosBody: React.FC<TodosBodyProps> = ({ plc }) => {
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
-  const { todos, loading, createTodo, toggleDone, updateText, deleteTodo } =
-    usePlcTodos(plc.id);
+  const {
+    todos,
+    loading,
+    createTodo,
+    toggleDone,
+    updateText,
+    deleteTodo,
+    restoreTodo,
+  } = usePlcTodos(plc.id);
+  const { softDelete } = usePlcSoftDelete(plc.id);
 
   const [draft, setDraft] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -69,7 +78,15 @@ export const TodosBody: React.FC<TodosBodyProps> = ({ plc }) => {
     );
     if (!confirmed) return;
     try {
-      await deleteTodo(todo.id);
+      // Soft-delete with undo (Decision 3.1): tombstone the to-do, log
+      // `item_deleted`, and pop an Undo toast that restores it.
+      await softDelete({
+        type: 'todo',
+        id: todo.id,
+        title: todo.text,
+        runDelete: () => deleteTodo(todo.id),
+        runRestore: () => restoreTodo(todo.id),
+      });
     } catch (err) {
       logError('TodosBody.deleteTodo', err, {
         plcId: plc.id,

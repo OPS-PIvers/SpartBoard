@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   collection,
-  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -68,8 +67,16 @@ interface UsePlcVideoActivitiesResult {
       youtubeUrl?: string;
     }
   ) => Promise<void>;
-  /** Remove a PLC video activity entry. Any member can unshare (PLC-owned model). */
+  /**
+   * Unshare (soft-delete, Decision 3.1) a PLC video activity entry. Any member
+   * can unshare (PLC-owned model). Writes a `deletedAt` tombstone so the entry
+   * drops out of the live library but stays restorable from Trash; the
+   * canonical synced group is untouched. Restore with
+   * `restoreVideoActivityInPlc`.
+   */
   unshareVideoActivityFromPlc: (plcVideoActivityId: string) => Promise<void>;
+  /** Restore a soft-deleted PLC video activity entry by clearing `deletedAt`. */
+  restoreVideoActivityInPlc: (plcVideoActivityId: string) => Promise<void>;
 }
 
 export function parsePlcVideoActivityEntry(
@@ -86,7 +93,7 @@ export function parsePlcVideoActivityEntry(
   ) {
     return null;
   }
-  return {
+  const entry: PlcVideoActivityEntry = {
     id,
     title: data.title,
     // `youtubeUrl` was added with the type. Pre-rollout entries (if any
@@ -104,6 +111,14 @@ export function parsePlcVideoActivityEntry(
     sharedAt: data.sharedAt,
     updatedAt: data.updatedAt,
   };
+  // Soft-delete tombstone (Decision 3.1): optional so legacy entries parse
+  // cleanly; written as a plain int (Date.now()) like the other time fields.
+  if (typeof data.deletedAt === 'number') {
+    entry.deletedAt = data.deletedAt;
+  } else if (data.deletedAt === null) {
+    entry.deletedAt = null;
+  }
+  return entry;
 }
 
 /**
@@ -159,7 +174,9 @@ export const usePlcVideoActivities = (
             d.id,
             d.data() as Record<string, unknown>
           );
-          if (parsed) list.push(parsed);
+          // Soft-deleted (unshared) entries drop out of the live library — they
+          // live in Trash until restored or GC'd (Decision 3.1).
+          if (parsed && parsed.deletedAt == null) list.push(parsed);
         });
         setVideoActivities(list);
         setLoading(false);
@@ -238,17 +255,38 @@ export const usePlcVideoActivities = (
     [plcId, user]
   );
 
+  // Soft-delete (Decision 3.1): write a `deletedAt` tombstone (+ bump
+  // updatedAt) instead of hard-deleting. Identity + attribution fields stay
+  // untouched; the post-merge doc passes the widened `keys().hasOnly([...])`.
   const unshareVideoActivityFromPlc = useCallback(
     async (plcVideoActivityId: string): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      await deleteDoc(
+      await updateDoc(
         doc(
           db,
           PLCS_COLLECTION,
           plcId,
           VIDEO_ACTIVITIES_SUBCOLLECTION,
           plcVideoActivityId
-        )
+        ),
+        { deletedAt: Date.now(), updatedAt: Date.now() }
+      );
+    },
+    [plcId, user]
+  );
+
+  const restoreVideoActivityInPlc = useCallback(
+    async (plcVideoActivityId: string): Promise<void> => {
+      if (!plcId || !user) throw new Error('Not signed in');
+      await updateDoc(
+        doc(
+          db,
+          PLCS_COLLECTION,
+          plcId,
+          VIDEO_ACTIVITIES_SUBCOLLECTION,
+          plcVideoActivityId
+        ),
+        { deletedAt: null, updatedAt: Date.now() }
       );
     },
     [plcId, user]
@@ -267,6 +305,7 @@ export const usePlcVideoActivities = (
       shareVideoActivityWithPlc,
       mirrorPlcVideoActivityHeader,
       unshareVideoActivityFromPlc,
+      restoreVideoActivityInPlc,
     };
   }, [
     fromProvider,
@@ -276,6 +315,7 @@ export const usePlcVideoActivities = (
     shareVideoActivityWithPlc,
     mirrorPlcVideoActivityHeader,
     unshareVideoActivityFromPlc,
+    restoreVideoActivityInPlc,
   ]);
 };
 

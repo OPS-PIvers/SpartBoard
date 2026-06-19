@@ -107,6 +107,27 @@ const REQUIRED_NOTES_KEYS = [
   'confirmDeleteTitle',
   'lastEdited',
   'pickOrCreate',
+  // Wave-2 (T4): markdown preview + meeting template + version-conflict.
+  'createFailed',
+  'previewMarkdown',
+  'editMarkdown',
+  'emptyPreview',
+  'conflictTitle',
+  'conflictMessage',
+  'conflictReload',
+  'meeting.label',
+  'meeting.newMeetingNote',
+  'meeting.newMeetingNoteShort',
+  'meeting.agenda',
+  'meeting.decisions',
+  'meeting.actionItems',
+] as const;
+
+/** Keys within plcDashboard.notesDocs (Wave-2 T4 combined surface). */
+const REQUIRED_NOTES_DOCS_KEYS = [
+  'notesTab',
+  'docsTab',
+  'tablistLabel',
 ] as const;
 
 /** Keys within plcDashboard.todos */
@@ -127,6 +148,83 @@ const REQUIRED_SETTINGS_KEYS = [
   'heading',
   'description',
   'saveFailed',
+] as const;
+
+/** Keys within plcDashboard.trash (Wave-2 soft-delete + Trash, Decision 3.1) */
+const REQUIRED_TRASH_KEYS = [
+  'heading',
+  'description',
+  'empty',
+  'emptySubtitle',
+  'restore',
+  'restored',
+  'restoreFailed',
+  'restoreItem',
+  'deletedWhen',
+  'deletedToast',
+  'undo',
+  'loadError',
+  'untitled',
+] as const;
+
+/** Per-type label keys within plcDashboard.trash.type */
+const REQUIRED_TRASH_TYPE_KEYS = [
+  'note',
+  'todo',
+  'doc',
+  'comment',
+  'quiz',
+  'videoActivity',
+] as const;
+
+/** Keys within plcDashboard.presence (T7 who's-here strip, Decision 2.1) */
+const REQUIRED_PRESENCE_KEYS = [
+  'heading',
+  'othersHere',
+  'othersHere_plural',
+  'inSection',
+  'justYou',
+  'youLabel',
+  'includingYou',
+  'overflow',
+  'stripAria',
+  'stripAria_plural',
+  'meetingSection',
+] as const;
+
+/** Keys within plcDashboard.activity (T8 activity feed + since-you-were-here) */
+const REQUIRED_ACTIVITY_KEYS = [
+  'heading',
+  'empty',
+  'sinceLastVisit',
+  'sinceSubtitle',
+  'olderHeading',
+  'caughtUp',
+  'caughtUpSubtitle',
+  'unreadBadge',
+  'loadError',
+  'feedHeading',
+  'feedAria',
+  'unknownActor',
+  'untitled',
+  'youMentioned',
+  'mentionBadge',
+  'justNow',
+] as const;
+
+/** Keys within plcDashboard.activity.event — one per PlcActivityType. */
+const REQUIRED_ACTIVITY_EVENT_KEYS = [
+  'member_joined',
+  'member_left',
+  'role_changed',
+  'assessment_created',
+  'assessment_shared',
+  'assessment_results_ready',
+  'meeting_held',
+  'note_created',
+  'comment_added',
+  'item_deleted',
+  'item_restored',
 ] as const;
 
 /** Keys within plcDashboard.overview */
@@ -236,6 +334,18 @@ describe('EN locale — plcDashboard baseline', () => {
     }
   });
 
+  it('has all required plcDashboard.notesDocs keys', () => {
+    const notesDocs = (en.plcDashboard as Record<string, unknown>).notesDocs as
+      | Record<string, unknown>
+      | undefined;
+    for (const key of REQUIRED_NOTES_DOCS_KEYS) {
+      expect(
+        notesDocs,
+        `en.plcDashboard.notesDocs.${key} is missing from EN`
+      ).toHaveProperty(key);
+    }
+  });
+
   it('has all required plcDashboard.todos keys', () => {
     for (const key of REQUIRED_TODOS_KEYS) {
       expect(
@@ -266,6 +376,25 @@ describe('EN locale — plcDashboard baseline', () => {
       expect(
         roles,
         `en.plcDashboard.members.roles.${key} is missing from EN`
+      ).toHaveProperty(key);
+    }
+  });
+
+  it('has all required plcDashboard.activity keys', () => {
+    const activity = (en.plcDashboard as Record<string, unknown>).activity as
+      | Record<string, unknown>
+      | undefined;
+    for (const key of REQUIRED_ACTIVITY_KEYS) {
+      expect(
+        activity,
+        `en.plcDashboard.activity.${key} is missing from EN`
+      ).toHaveProperty(key);
+    }
+    const event = activity?.event as Record<string, unknown> | undefined;
+    for (const key of REQUIRED_ACTIVITY_EVENT_KEYS) {
+      expect(
+        event,
+        `en.plcDashboard.activity.event.${key} is missing from EN`
       ).toHaveProperty(key);
     }
   });
@@ -333,6 +462,19 @@ describe.each([
     }
   });
 
+  it(`${code}: has all required plcDashboard.notesDocs keys`, () => {
+    const plc = (locale as Record<string, unknown>).plcDashboard as
+      | Record<string, unknown>
+      | undefined;
+    const notesDocs = plc?.notesDocs as Record<string, unknown> | undefined;
+    for (const key of REQUIRED_NOTES_DOCS_KEYS) {
+      expect(
+        notesDocs,
+        `${code}.plcDashboard.notesDocs.${key} is missing`
+      ).toHaveProperty(key);
+    }
+  });
+
   it(`${code}: has all required plcDashboard.todos keys`, () => {
     const plc = (locale as Record<string, unknown>).plcDashboard as
       | Record<string, unknown>
@@ -368,6 +510,59 @@ describe.each([
       expect(
         overview,
         `${code}.plcDashboard.overview.${key} is missing`
+      ).toHaveProperty(key);
+    }
+  });
+
+  it(`${code}: has all required plcDashboard.trash keys`, () => {
+    const plc = (locale as Record<string, unknown>).plcDashboard as
+      | Record<string, unknown>
+      | undefined;
+    const trash = plc?.trash as Record<string, unknown> | undefined;
+    for (const key of REQUIRED_TRASH_KEYS) {
+      expect(
+        trash,
+        `${code}.plcDashboard.trash.${key} is missing`
+      ).toHaveProperty(key);
+    }
+    const type = trash?.type as Record<string, unknown> | undefined;
+    for (const key of REQUIRED_TRASH_TYPE_KEYS) {
+      expect(
+        type,
+        `${code}.plcDashboard.trash.type.${key} is missing`
+      ).toHaveProperty(key);
+    }
+  });
+
+  it(`${code}: has all required plcDashboard.presence keys`, () => {
+    const plc = (locale as Record<string, unknown>).plcDashboard as
+      | Record<string, unknown>
+      | undefined;
+    const presence = plc?.presence as Record<string, unknown> | undefined;
+    for (const key of REQUIRED_PRESENCE_KEYS) {
+      expect(
+        presence,
+        `${code}.plcDashboard.presence.${key} is missing`
+      ).toHaveProperty(key);
+    }
+  });
+
+  it(`${code}: has all required plcDashboard.activity keys`, () => {
+    const plc = (locale as Record<string, unknown>).plcDashboard as
+      | Record<string, unknown>
+      | undefined;
+    const activity = plc?.activity as Record<string, unknown> | undefined;
+    for (const key of REQUIRED_ACTIVITY_KEYS) {
+      expect(
+        activity,
+        `${code}.plcDashboard.activity.${key} is missing`
+      ).toHaveProperty(key);
+    }
+    const event = activity?.event as Record<string, unknown> | undefined;
+    for (const key of REQUIRED_ACTIVITY_EVENT_KEYS) {
+      expect(
+        event,
+        `${code}.plcDashboard.activity.event.${key} is missing`
       ).toHaveProperty(key);
     }
   });

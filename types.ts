@@ -557,6 +557,12 @@ export interface PlcQuizEntry {
    * shared from. Absent on legacy entries.
    */
   quizId?: string;
+  /**
+   * Soft-delete tombstone (Decision 3.1). `null`/absent means live; a non-null
+   * ms timestamp moves the shared quiz into Trash (restorable until the Wave-4
+   * GC hard-deletes it after 30 days).
+   */
+  deletedAt?: number | null;
 }
 
 /**
@@ -599,19 +605,53 @@ export interface PlcVideoActivityEntry {
   sharedAt: number;
   /** ms timestamp; bumped on title/questionCount mirror updates. */
   updatedAt: number;
+  /**
+   * Soft-delete tombstone (Decision 3.1). `null`/absent means live; a non-null
+   * ms timestamp moves the shared video activity into Trash (restorable until
+   * the Wave-4 GC hard-deletes it after 30 days).
+   */
+  deletedAt?: number | null;
 }
 
 /**
- * One shared note in a PLC notebook. Members CRUD freely; LWW on edits.
+ * One shared note in a PLC notebook. Members CRUD freely; LWW on edits,
+ * upgraded with an optimistic-concurrency `version` precondition (Decision 2.4)
+ * to surface edit conflicts instead of silently last-write-wins.
  */
 export interface PlcNote {
   id: string;
   title: string;
   body: string;
+  /**
+   * Note flavor (Decision 2.5b). `'freeform'` (default / legacy) is a plain
+   * shared note; `'meeting'` notes carry the agenda → decisions → action-items
+   * template and link to a `PlcMeeting` via `meetingId`. Absent on legacy notes
+   * — read as `'freeform'`.
+   */
+  kind?: 'freeform' | 'meeting';
+  /**
+   * Link to the `PlcMeeting` record this note documents (Decision 2.5b). Set
+   * only on `kind === 'meeting'` notes; `null`/absent otherwise.
+   */
+  meetingId?: string | null;
   createdBy: string;
   createdAt: number;
   lastEditedBy: string;
   lastEditedAt: number;
+  /**
+   * Monotonic edit counter for optimistic concurrency (Decision 2.4). Each
+   * successful update bumps it by exactly 1; a stale writer's precondition
+   * fails and the client raises the conflict toast (reuse the
+   * `SyncedQuizVersionConflictError` pattern). Absent on legacy notes — both
+   * sides treat "absent" as a valid no-version state during rollout.
+   */
+  version?: number;
+  /**
+   * Soft-delete tombstone (Decision 3.1). `null`/absent means live; a non-null
+   * ms timestamp moves the note into Trash (restorable until the Wave-4 GC
+   * hard-deletes it after 30 days).
+   */
+  deletedAt?: number | null;
 }
 
 /**
@@ -622,8 +662,28 @@ export interface PlcTodo {
   id: string;
   text: string;
   done: boolean;
+  /**
+   * uid of the member this to-do is assigned to (Decision 3.9 / meeting action
+   * items). `null`/absent means unassigned. Must be a current PLC member uid.
+   */
+  assigneeUid?: string | null;
+  /**
+   * Optional due date (ms since epoch). `null`/absent means no due date.
+   */
+  dueAt?: number | null;
+  /**
+   * Provenance link to the `PlcMeeting` whose action item spawned this to-do
+   * (Decision 3.9). `null`/absent for to-dos created directly in the list.
+   */
+  meetingId?: string | null;
   createdBy: string;
   createdAt: number;
+  /**
+   * Soft-delete tombstone (Decision 3.1). `null`/absent means live; a non-null
+   * ms timestamp moves the to-do into Trash (restorable until the Wave-4 GC
+   * hard-deletes it after 30 days).
+   */
+  deletedAt?: number | null;
 }
 
 // --- PLC shared Google Docs ---
@@ -637,6 +697,131 @@ export interface PlcDoc {
   createdByName: string;
   createdAt: number;
   updatedAt: number;
+  /**
+   * Soft-delete tombstone (Decision 3.1). `null`/absent means live; a non-null
+   * ms timestamp moves the doc into Trash (restorable until the Wave-4 GC
+   * hard-deletes it after 30 days).
+   */
+  deletedAt?: number | null;
+}
+
+/**
+ * Coarse per-section presence (Decision 2.1), stored at
+ * `plcs/{plcId}/presence/{uid}` (doc id == the member's uid). The client writes
+ * its own doc on mount and on a ~45s heartbeat while the dashboard is open, and
+ * best-effort deletes it on unmount / `pagehide`. "Who's here" = presence docs
+ * whose `lastActiveAt` falls within ~90s, filtered client-side. The Wave-4
+ * `gcPlcOrphans` function prunes stale docs so abandoned tabs don't linger.
+ *
+ * `section` widens to `string` here (rather than importing the component-layer
+ * `PlcSectionId`, which would create a `types.ts` → `components/` cycle). The
+ * canonical narrowed alias lives in `context/usePlcContext.ts` as
+ * `PlcPresenceEntry`, which re-types `section` as `PlcSectionId | 'meeting'`
+ * and is the shape the store slot and selectors carry.
+ */
+export interface PlcPresence {
+  uid: string;
+  displayName: string;
+  /** Active PLC section id (or `'meeting'`); a `PlcSectionId | 'meeting'`. */
+  section: string;
+  /** serverTimestamp resolved to ms on read; heartbeat ~45s. */
+  lastActiveAt: number;
+}
+
+/**
+ * The closed set of activity event types written to the append-only PLC
+ * activity log (Decision 2.2). Each maps to one user-facing summary string
+ * under `plcDashboard.activity.event.*`.
+ */
+export type PlcActivityType =
+  | 'member_joined'
+  | 'member_left'
+  | 'role_changed'
+  | 'assessment_created'
+  | 'assessment_shared'
+  | 'assessment_results_ready'
+  | 'meeting_held'
+  | 'note_created'
+  | 'comment_added'
+  | 'item_deleted'
+  | 'item_restored';
+
+/**
+ * One entry in the append-only PLC activity log (Decision 2.2), stored at
+ * `plcs/{plcId}/activity/{eventId}`. Written fire-and-forget from the mutation
+ * paths (never blocking the canonical write — mirrors
+ * `writePlcAssignmentIndexEntry`). The listener loads the latest N (e.g.
+ * `limit(50)`); the Wave-4 `gcPlcOrphans` function trims events older than
+ * ~90 days. Clients may create but never update/delete (GC is server-side).
+ *
+ * "Since you were here" = events whose `createdAt > PlcUnreadState.lastSeenAt`.
+ */
+export interface PlcActivityEvent {
+  id: string;
+  type: PlcActivityType;
+  /** uid of the member who triggered the event. Must equal `request.auth.uid`. */
+  actorUid: string;
+  /** Display-name snapshot — survives later display-name changes. */
+  actorName: string;
+  /**
+   * The kind of object the event is about (e.g. `'assessment' | 'note' |
+   * 'comment' | 'dataCard' | 'meeting' | 'todo' | 'member'`). Free-form string
+   * so new target kinds don't require a rules/type change; absent for events
+   * with no specific target. */
+  targetType?: string;
+  /** Id of the target object (e.g. assessmentId or `assessmentId:questionId`). */
+  targetId?: string;
+  /** Display-title snapshot of the target, for rendering without a join. */
+  targetTitle?: string;
+  /** serverTimestamp resolved to ms on read. */
+  createdAt: number;
+}
+
+/**
+ * One scoped comment with @mentions (Decision 2.6), stored at
+ * `plcs/{plcId}/comments/{commentId}`. Comments start on Shared Data result
+ * cards (`targetType: 'dataCard'`) and extend to assessments/notes. Each
+ * mention raises an activity event + unread for the mentioned member.
+ *
+ * Edit/soft-delete posture: the author may edit `body`/`editedAt` or soft-
+ * delete via `deletedAt`; any member may soft-delete (tidy-up). Identity fields
+ * (`id`, `targetType`, `targetId`, `authorUid`, `authorName`, `createdAt`,
+ * `mentions`) are immutable on update.
+ */
+export interface PlcComment {
+  id: string;
+  /** Comment target kind. Starts with `'dataCard'`. */
+  targetType: 'dataCard' | 'assessment' | 'note';
+  /** Target id — e.g. `assessmentId` or `assessmentId:questionId`. */
+  targetId: string;
+  /** Author uid. Must equal `request.auth.uid` on create. Immutable. */
+  authorUid: string;
+  /** Display-name snapshot — survives later display-name changes. Immutable. */
+  authorName: string;
+  body: string;
+  /** Mentioned member uids; each → an activity event + unread for that user. */
+  mentions: string[];
+  /** serverTimestamp resolved to ms on read. Immutable. */
+  createdAt: number;
+  /** ms timestamp of the last body edit; `null`/absent if never edited. */
+  editedAt?: number | null;
+  /**
+   * Soft-delete tombstone (Decision 3.1). `null`/absent means live; a non-null
+   * ms timestamp hides the comment (restorable until the Wave-4 GC hard-deletes
+   * it). Unlike most content, ANY member may soft-delete a comment.
+   */
+  deletedAt?: number | null;
+}
+
+/**
+ * Per-user, per-PLC private unread cursor (Decision 2.2), stored at
+ * `/users/{uid}/plc_state/{plcId}` (owner-only). "Since you were here" is the
+ * set of activity events with `createdAt > lastSeenAt`; the sidebar badge
+ * counts them. Advanced when the member opens the PLC / Home.
+ */
+export interface PlcUnreadState {
+  /** serverTimestamp resolved to ms on read; the last time the member visited. */
+  lastSeenAt: number;
 }
 
 // --- Admin-curated resources pushed to PLCs ---

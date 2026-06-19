@@ -75,6 +75,8 @@ const REQUIRED_PLCS_KEYS = [
   'revokeFailed',
   'acceptFailed',
   'declineFailed',
+  'unreadBadge_one',
+  'unreadBadge_other',
 ] as const;
 
 type LocaleFile = typeof en;

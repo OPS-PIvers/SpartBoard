@@ -113,14 +113,27 @@ vi.mock('@/context/useDashboard', () => ({
 // --- PLC content hooks: drive the unified row list. -----------------------
 
 const unshareQuizFromPlc = vi.fn().mockResolvedValue(undefined);
+const restoreQuizInPlc = vi.fn().mockResolvedValue(undefined);
 let mockPlcQuizzes: PlcQuizEntry[] = [];
 vi.mock('@/hooks/usePlcQuizzes', () => ({
   usePlcQuizzes: () => ({
     quizzes: mockPlcQuizzes,
     loading: false,
     unshareQuizFromPlc,
+    restoreQuizInPlc,
   }),
   writePlcQuizEntry: vi.fn().mockResolvedValue(undefined),
+}));
+
+// usePlcSoftDelete (Decision 3.1): the unshare handler routes through it. The
+// mock runs the supplied `runDelete` so the unshare path is still exercised.
+const softDeleteMock = vi.fn(
+  async (input: { runDelete: () => Promise<void> }) => {
+    await input.runDelete();
+  }
+);
+vi.mock('@/hooks/usePlcTrash', () => ({
+  usePlcSoftDelete: () => ({ softDelete: softDeleteMock }),
 }));
 
 const deleteAssignmentTemplate = vi.fn().mockResolvedValue(undefined);

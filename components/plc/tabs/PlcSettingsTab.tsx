@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   BookOpen,
+  ChevronDown,
   Film,
   ListChecks,
   StickyNote,
   SquareSquare,
+  Trash2,
 } from 'lucide-react';
 import {
   DEFAULT_PLC_FEATURE_SETTINGS,
@@ -15,6 +17,7 @@ import {
 } from '@/types';
 import { usePlcs } from '@/hooks/usePlcs';
 import { useDashboard } from '@/context/useDashboard';
+import { PlcTrashBody } from '../settings/PlcTrashBody';
 
 interface PlcSettingsTabProps {
   plc: Plc;
@@ -85,6 +88,9 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
   const { addToast } = useDashboard();
   const features = getPlcFeatures(plc);
   const [busyKey, setBusyKey] = useState<keyof PlcFeatureSettings | null>(null);
+  // Trash is a collapsed subsection inside Settings (Decision §6.1) — it mounts
+  // its own (heavy-ish) listeners only once expanded.
+  const [trashOpen, setTrashOpen] = useState(false);
 
   const handleToggle = async (key: keyof PlcFeatureSettings) => {
     if (busyKey) return;
@@ -181,6 +187,36 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
             </button>
           );
         })}
+      </div>
+
+      {/* Trash (Decision §6.1) — collapsed by default; expanding mounts the
+          PlcTrashBody listeners. */}
+      <div className="border-t border-slate-200 pt-4">
+        <button
+          type="button"
+          onClick={() => setTrashOpen((o) => !o)}
+          aria-expanded={trashOpen}
+          aria-controls="plc-settings-trash"
+          className="w-full flex items-center justify-between gap-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 rounded-lg"
+        >
+          <span className="flex items-center gap-2">
+            <Trash2 className="w-4 h-4 text-slate-500" aria-hidden="true" />
+            <span className="text-sm font-bold text-slate-800">
+              {t('plcDashboard.trash.heading', { defaultValue: 'Trash' })}
+            </span>
+          </span>
+          <ChevronDown
+            className={`w-4 h-4 text-slate-400 transition-transform ${
+              trashOpen ? 'rotate-180' : ''
+            }`}
+            aria-hidden="true"
+          />
+        </button>
+        {trashOpen && (
+          <div id="plc-settings-trash" className="mt-3">
+            <PlcTrashBody plc={plc} />
+          </div>
+        )}
       </div>
     </div>
   );

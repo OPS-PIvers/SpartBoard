@@ -29,6 +29,37 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+// PlcHome renders the PlcPresenceStrip, which reads useAuth + the PLC store
+// selectors. This test does not mount an AuthProvider/PlcProvider, so stub them
+// to inert values — with no presence the strip renders nothing, which is the
+// correct no-provider behavior.
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ user: { uid: 'uid-a' } }),
+}));
+vi.mock('@/context/usePlcContext', async (importActual) => {
+  const actual = await importActual<typeof import('@/context/usePlcContext')>();
+  return {
+    ...actual,
+    usePlcWhoIsHere: () => [],
+    usePlcMembers: () => [],
+    // PlcHome now mounts the activity feed + since-you-were-here digest, both of
+    // which read the provider activity slice. No provider here → empty feed.
+    usePlcActivity: () => [],
+  };
+});
+
+// PlcHome owns a usePlcUnread instance (cursor + markSeen-on-mount). Stub it so
+// this test doesn't touch Firebase; the markSeen-on-mount behavior is covered in
+// PlcActivityFeed.test.tsx.
+vi.mock('@/hooks/usePlcUnread', () => ({
+  usePlcUnread: () => ({
+    lastSeenAt: null,
+    unreadCount: 0,
+    markSeen: vi.fn(() => Promise.resolve()),
+    loading: false,
+  }),
+}));
+
 // All four hooks are mocked at the module level. Each test can override the
 // returned value via the vi.mocked().mockReturnValue() pattern.
 vi.mock('@/hooks/usePlcAssignmentIndex', () => ({
@@ -125,6 +156,7 @@ function setDefaultMocks() {
     createDoc: vi.fn(),
     updateDoc: vi.fn(),
     deleteDoc: vi.fn(),
+    restoreDoc: vi.fn(),
   });
   vi.mocked(usePlcQuizzes).mockReturnValue({
     quizzes: [],
@@ -133,6 +165,7 @@ function setDefaultMocks() {
     shareQuizWithPlc: vi.fn(),
     mirrorPlcQuizHeader: vi.fn(),
     unshareQuizFromPlc: vi.fn(),
+    restoreQuizInPlc: vi.fn(),
   });
 }
 

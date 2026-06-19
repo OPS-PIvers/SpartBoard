@@ -10,7 +10,7 @@ import { PlcDashboardRail, type PlcRailItem } from './PlcDashboardRail';
 import { PLC_SECTIONS, type PlcSectionId } from './sections';
 import { PlcHome } from './home/PlcHome';
 import { PlcSharedDataBody } from './sharedData/PlcSharedDataBody';
-import { PlcDocsBody } from './docs/PlcDocsBody';
+import { NotesDocsBody } from './bodies/NotesDocsBody';
 import { PlcResourcesBody } from './resources/PlcResourcesBody';
 import { PlcQuizLibraryTab } from './tabs/PlcQuizLibraryTab';
 import { PlcVideoActivitiesTab } from './tabs/PlcVideoActivitiesTab';
@@ -18,6 +18,7 @@ import { PlcTodosTab } from './tabs/PlcTodosTab';
 import { PlcSharedBoardsTab } from './tabs/PlcSharedBoardsTab';
 import { PlcSettingsTab } from './tabs/PlcSettingsTab';
 import { MembersBody } from './bodies/MembersBody';
+import { PlcPresenceStrip } from './presence/PlcPresenceStrip';
 
 interface PlcDashboardProps {
   plc: Plc;
@@ -128,7 +129,10 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
       case 'sharedData':
         return <PlcSharedDataBody plc={plc} />;
       case 'docs':
-        return <PlcDocsBody plc={plc} />;
+        // The Docs section now hosts the combined Notes & Docs surface: native
+        // structured meeting notes (live default) with the Google-Doc embed one
+        // tab away (Decisions 2.5, 6.5).
+        return <NotesDocsBody plc={plc} />;
       case 'todos':
         return <PlcTodosTab plc={plc} />;
       case 'sharedBoards':
@@ -200,6 +204,10 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
               defaultValue: '{{count}} Member',
               defaultValue_other: '{{count}} Members',
             })}
+          </span>
+          {/* Compact who's-here indicator — visible on every section (md+). */}
+          <span className="hidden md:inline-flex items-center">
+            <PlcPresenceStrip plc={plc} variant="compact" />
           </span>
           {isLead && (
             <>

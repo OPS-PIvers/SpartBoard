@@ -45,6 +45,7 @@ import { usePlcAssignmentIndex } from '@/hooks/usePlcAssignmentIndex';
 import { usePlcContributions } from '@/hooks/usePlcContributions';
 import { PlcAggregateSection } from '@/components/common/library/PlcTab';
 import { groupBySchema } from '@/components/common/library/plcAnalyticsAggregate';
+import { PlcCommentsThread } from '@/components/plc/comments/PlcCommentsThread';
 import { PlcSharedDataFilters } from './PlcSharedDataFilters';
 import {
   filterContributionResponses,
@@ -104,9 +105,10 @@ function collectTeachers(
 
 interface ResultCardProps {
   group: ContributionQuizGroup;
+  plcId: string;
 }
 
-const ResultCard: React.FC<ResultCardProps> = ({ group }) => {
+const ResultCard: React.FC<ResultCardProps> = ({ group, plcId }) => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
@@ -196,7 +198,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ group }) => {
       </button>
 
       {/* Drilldown — per-quiz schema-drift breakdown (existing PlcAggregateSection) */}
-      {expanded && schemaGroups.length > 0 && (
+      {expanded && (
         <div className="border-t border-slate-100 bg-slate-50 p-4 space-y-4">
           {schemaGroups.map((schemaGroup, idx) => (
             <PlcAggregateSection
@@ -206,6 +208,18 @@ const ResultCard: React.FC<ResultCardProps> = ({ group }) => {
               groupNumber={idx + 1}
             />
           ))}
+          {/* Scoped comments + @mentions on this data card (Decision 2.6,
+              §6.2). The thread is keyed to the quiz identity so a card's
+              discussion survives re-aggregation; the `assessment:` prefix
+              forward-aligns the id with the Common Assessment object (Wave 3). */}
+          <div className="border-t border-slate-200 pt-4">
+            <PlcCommentsThread
+              plcId={plcId}
+              targetType="dataCard"
+              targetId={`assessment:${group.identity}`}
+              targetLabel={title}
+            />
+          </div>
         </div>
       )}
     </div>
@@ -402,7 +416,7 @@ export const PlcSharedDataBody: React.FC<PlcSharedDataBodyProps> = ({
       ) : (
         <div className="space-y-3">
           {filteredGroups.map((group) => (
-            <ResultCard key={group.identity} group={group} />
+            <ResultCard key={group.identity} group={group} plcId={plc.id} />
           ))}
         </div>
       )}

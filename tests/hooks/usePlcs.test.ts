@@ -33,6 +33,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { usePlcs } from '@/hooks/usePlcs';
+import { writePlcActivityEvent } from '@/utils/plcActivity';
 
 // A distinct sentinel object so tests can assert serverTimestamp() was used
 // (rather than a Date.now() number) for every PLC write.
@@ -63,6 +64,12 @@ vi.mock('@/config/firebase', () => ({
   isAuthBypass: false,
 }));
 
+// Membership mutators emit fire-and-forget activity events (Decision 2.2);
+// mock the writer so the tests can assert the emission without Firestore.
+vi.mock('@/utils/plcActivity', () => ({
+  writePlcActivityEvent: vi.fn(() => Promise.resolve()),
+}));
+
 // Non-React i18n shim — return the key so assertions can match on the key
 // instead of the translated copy (and so the test doesn't depend on the EN
 // wording).
@@ -85,6 +92,7 @@ const mockGetDoc = getDoc as Mock;
 const mockDoc = doc as Mock;
 const mockRunTransaction = runTransaction as Mock;
 const mockSetDoc = setDoc as Mock;
+const mockWriteActivity = writePlcActivityEvent as Mock;
 
 const USER_UID = 'user-1';
 
@@ -485,6 +493,29 @@ describe('usePlcs - transferLead', () => {
     // Membership set is unchanged (transfer reassigns a role).
     expect(w.memberUids).toEqual([LEAD_UID, MEMBER_UID, OTHER_UID]);
     expect(w.updatedAt).toBe(SERVER_TS);
+
+    // Activity (Decision 2.2): a transfer is a role change for the promoted
+    // member, emitted fire-and-forget after the commit.
+    expect(mockWriteActivity).toHaveBeenCalledTimes(1);
+    const [plcId, ev] = mockWriteActivity.mock.calls[0] ?? [];
+    expect(plcId).toBe('plc-1');
+    expect(ev).toMatchObject({
+      type: 'role_changed',
+      actorUid: LEAD_UID,
+      targetType: 'member',
+      targetId: MEMBER_UID,
+    });
+  });
+
+  it('does NOT emit a role_changed event for a no-op transfer to the sitting lead', async () => {
+    stubTransaction(basePlcDoc());
+    const { result } = render();
+
+    await act(async () => {
+      await result.current.transferLead('plc-1', LEAD_UID);
+    });
+
+    expect(mockWriteActivity).not.toHaveBeenCalled();
   });
 
   it('rejects transferring to a non-member', async () => {
@@ -538,6 +569,17 @@ describe('usePlcs - setMemberRole', () => {
     // co-leads' only authorized path needs the changed uid named on the write.
     expect(w.roleChangeUid).toBe(MEMBER_UID);
     expect(w.updatedAt).toBe(SERVER_TS);
+
+    // Activity (Decision 2.2): role change emitted fire-and-forget post-commit.
+    expect(mockWriteActivity).toHaveBeenCalledTimes(1);
+    const [plcId, ev] = mockWriteActivity.mock.calls[0] ?? [];
+    expect(plcId).toBe('plc-1');
+    expect(ev).toMatchObject({
+      type: 'role_changed',
+      actorUid: LEAD_UID,
+      targetType: 'member',
+      targetId: MEMBER_UID,
+    });
   });
 
   it('rejects demoting the sitting lead (must transfer instead)', async () => {
@@ -600,6 +642,18 @@ describe('usePlcs - removeMember', () => {
       [OTHER_UID]: 'm3@x.com',
     });
     expect(w.updatedAt).toBe(SERVER_TS);
+
+    // Activity (Decision 2.2): the lead removing a member logs member_left,
+    // actor = the lead, target = the removed member.
+    expect(mockWriteActivity).toHaveBeenCalledTimes(1);
+    const [plcId, ev] = mockWriteActivity.mock.calls[0] ?? [];
+    expect(plcId).toBe('plc-1');
+    expect(ev).toMatchObject({
+      type: 'member_left',
+      actorUid: LEAD_UID,
+      targetType: 'member',
+      targetId: MEMBER_UID,
+    });
   });
 
   it('rejects removing the lead', async () => {
@@ -632,6 +686,15 @@ describe('usePlcs - leavePlc', () => {
     expect(w.memberUids).toEqual([LEAD_UID, OTHER_UID]);
     expect(members[LEAD_UID].role).toBe('lead'); // leadership untouched
     expect(w.updatedAt).toBe(SERVER_TS);
+
+    // Activity (Decision 2.2): a self-leave logs member_left with the leaver as
+    // actor and no target. (Best-effort: the post-commit write is rejected by
+    // rules once the leaver drops out of memberUids — see leavePlc's comment;
+    // here the writer is mocked, so we assert the call shape.)
+    expect(mockWriteActivity).toHaveBeenCalledTimes(1);
+    const [plcId, ev] = mockWriteActivity.mock.calls[0] ?? [];
+    expect(plcId).toBe('plc-1');
+    expect(ev).toMatchObject({ type: 'member_left', actorUid: MEMBER_UID });
   });
 
   it('rejects the lead leaving (must transfer first)', async () => {

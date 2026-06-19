@@ -44,11 +44,13 @@ vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   doc: vi.fn(),
   onSnapshot: vi.fn(),
+  limit: vi.fn((n: number) => ({ __limit: n })),
   orderBy: vi.fn((field: string, dir: string) => ({ __orderBy: [field, dir] })),
   query: vi.fn((ref: unknown, ...constraints: unknown[]) => ({
     __query: ref,
     constraints,
   })),
+  runTransaction: vi.fn(),
   serverTimestamp: vi.fn(() => ({ __serverTimestamp: true })),
   setDoc: vi.fn().mockResolvedValue(undefined),
   updateDoc: vi.fn().mockResolvedValue(undefined),
@@ -373,8 +375,11 @@ describe('usePlc* selectors — Object.is bailout', () => {
 // 3. Stub selectors
 // ---------------------------------------------------------------------------
 
-describe('presence/activity stub selectors', () => {
-  it('return empty arrays this wave', () => {
+describe('presence/activity selectors', () => {
+  // Presence + activity are live always-on listeners (T2/T3), but this test
+  // never emits a snapshot for either, so both selectors report their stable
+  // empty initial reference — the "no data yet" state.
+  it('return empty arrays before any snapshot', () => {
     const cap: { presence?: unknown[]; activity?: unknown[] } = {};
     const Probe: React.FC = () => {
       const presence = usePlcPresence();

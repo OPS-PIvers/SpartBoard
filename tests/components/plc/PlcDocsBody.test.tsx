@@ -37,6 +37,18 @@ vi.mock('@/hooks/usePlcDocs', () => ({
   usePlcDocs: vi.fn(),
 }));
 
+// usePlcSoftDelete (Decision 3.1): the delete handler routes through it. The
+// mock just runs the supplied `runDelete` so the component's delete path is
+// still exercised end-to-end without pulling in activity/auth wiring.
+const softDeleteMock = vi.fn(
+  async (input: { runDelete: () => Promise<void> }) => {
+    await input.runDelete();
+  }
+);
+vi.mock('@/hooks/usePlcTrash', () => ({
+  usePlcSoftDelete: () => ({ softDelete: softDeleteMock }),
+}));
+
 const mockAddToast = vi.fn();
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast: mockAddToast }),
@@ -72,6 +84,7 @@ const fakeDoc: PlcDoc = {
 const createDocMock = vi.fn().mockResolvedValue('new-doc-id');
 const updateDocMock = vi.fn().mockResolvedValue(undefined);
 const deleteDocMock = vi.fn().mockResolvedValue(undefined);
+const restoreDocMock = vi.fn().mockResolvedValue(undefined);
 
 function setDefaultMocks(docs: PlcDoc[] = []) {
   vi.mocked(usePlcDocs).mockReturnValue({
@@ -81,6 +94,7 @@ function setDefaultMocks(docs: PlcDoc[] = []) {
     createDoc: createDocMock,
     updateDoc: updateDocMock,
     deleteDoc: deleteDocMock,
+    restoreDoc: restoreDocMock,
   });
 }
 
@@ -284,6 +298,7 @@ describe('PlcDocsBody', () => {
       createDoc: createDocMock,
       updateDoc: updateDocMock,
       deleteDoc: deleteDocMock,
+      restoreDoc: restoreDocMock,
     });
     render(<PlcDocsBody plc={fakePlc} />);
     // Should not crash; no iframe visible
@@ -300,6 +315,7 @@ describe('PlcDocsBody', () => {
       createDoc: createDocMock,
       updateDoc: updateDocMock,
       deleteDoc: deleteDocMock,
+      restoreDoc: restoreDocMock,
     });
     render(<PlcDocsBody plc={fakePlc} />);
 
@@ -318,6 +334,7 @@ describe('PlcDocsBody', () => {
       createDoc: createDocMock,
       updateDoc: updateDocMock,
       deleteDoc: deleteDocMock,
+      restoreDoc: restoreDocMock,
     });
     render(<PlcDocsBody plc={fakePlc} />);
 

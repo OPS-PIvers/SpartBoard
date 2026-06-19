@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { FileText, ExternalLink, AlertCircle } from 'lucide-react';
 import type { Plc } from '@/types';
 import { usePlcDocs } from '@/hooks/usePlcDocs';
+import { usePlcSoftDelete } from '@/hooks/usePlcTrash';
 import { useDashboard } from '@/context/useDashboard';
 import { convertToEmbedUrl, ensureProtocol } from '@/utils/urlHelpers';
 import { PlcDocPicker, type PlcDocPickerHandle } from './PlcDocPicker';
@@ -50,9 +51,9 @@ function isGoogleUrl(url: string): boolean {
 export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({ plc }) => {
   const { t } = useTranslation();
   const { addToast } = useDashboard();
-  const { docs, loading, error, createDoc, updateDoc, deleteDoc } = usePlcDocs(
-    plc.id
-  );
+  const { docs, loading, error, createDoc, updateDoc, deleteDoc, restoreDoc } =
+    usePlcDocs(plc.id);
+  const { softDelete } = usePlcSoftDelete(plc.id);
 
   // Imperative handle into the picker so the empty-state CTA can focus its
   // add-title input directly (no document-wide querySelector).
@@ -85,8 +86,17 @@ export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({ plc }) => {
   };
 
   const handleDeleteDoc = async (id: string): Promise<void> => {
+    const target = docs.find((d) => d.id === id);
     try {
-      await deleteDoc(id);
+      // Soft-delete with undo (Decision 3.1): tombstone the doc, log
+      // `item_deleted`, and pop an Undo toast that restores it.
+      await softDelete({
+        type: 'doc',
+        id,
+        title: target?.title ?? '',
+        runDelete: () => deleteDoc(id),
+        runRestore: () => restoreDoc(id),
+      });
     } catch (err) {
       addToast(
         err instanceof Error
