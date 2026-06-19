@@ -19,9 +19,9 @@ export const useDriveReconnected = (callback: () => void): void => {
   const callbackRef = useRef(callback);
 
   // Sync the latest callback into the ref AFTER render so the lint rule
-  // about "Cannot update ref during render" stays happy. The cost is one
-  // extra effect run per render, which is negligible — the subscription
-  // itself only mounts once via the empty-deps effect below.
+  // about "Cannot update ref during render" (react-hooks/refs) stays happy.
+  // The cost is one extra effect run per render, which is negligible — the
+  // subscription itself only mounts once via the empty-deps effect below.
   useEffect(() => {
     callbackRef.current = callback;
   });

@@ -241,7 +241,8 @@ export const useVideoActivityAssignments = (
   // Live mirror of `assignments` so status mutators can look up a
   // PLC linkage by id without re-creating the callback every render
   // (which would churn downstream `useCallback` users). Mirrors the
-  // `assignmentsRef` pattern in `useQuizAssignments.ts`.
+  // `assignmentsRef` pattern in `useQuizAssignments.ts`. Updated via
+  // `useEffect` (not inline in render) to satisfy the react-hooks/refs rule.
   const assignmentsRef = useRef<VideoActivityAssignment[]>(assignments);
   useEffect(() => {
     assignmentsRef.current = assignments;
