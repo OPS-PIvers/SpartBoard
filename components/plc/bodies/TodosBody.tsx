@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListChecks, Loader2, Plus, Trash2 } from 'lucide-react';
 import { Plc, PlcTodo } from '@/types';
@@ -24,6 +24,21 @@ export const TodosBody: React.FC<TodosBodyProps> = ({ plc }) => {
   const [draft, setDraft] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
+  // Guards against the stale-onBlur race: pressing Escape calls
+  // setEditingId(null) which unmounts the focused input. The browser then
+  // fires a synchronous blur carrying the stale onBlur closure (still holding
+  // the typed text). Setting this ref before unmounting lets the onBlur
+  // handler bail out instead of committing the cancelled edit to Firestore.
+  // Same pattern as DraggableWindow's isCancellingTitleRef (Bug #1965).
+  const isCancellingEditRef = useRef(false);
+  // Reset the flag in the render body whenever an edit is active so it can
+  // never leak from one editing session into the next (CLAUDE.md: render-body
+  // ref assignment; suppressed because react-hooks/refs fires on conditional
+  // render-body mutations).
+  if (editingId !== null) {
+    // eslint-disable-next-line react-hooks/refs
+    isCancellingEditRef.current = false;
+  }
 
   const incomplete = todos.filter((t) => !t.done);
   const complete = todos.filter((t) => t.done);
@@ -107,12 +122,26 @@ export const TodosBody: React.FC<TodosBodyProps> = ({ plc }) => {
             type="text"
             value={editingText}
             onChange={(e) => setEditingText(e.target.value)}
-            onBlur={() => void handleSubmitEdit(todo)}
+            onBlur={(e) => {
+              // Bail out if the input is no longer connected (e.g. Enter
+              // committed the edit and React already unmounted it).
+              if (!e.currentTarget?.isConnected) return;
+              if (isCancellingEditRef.current) {
+                isCancellingEditRef.current = false;
+                return;
+              }
+              void handleSubmitEdit(todo);
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
                 void handleSubmitEdit(todo);
               } else if (e.key === 'Escape') {
+                // Set the cancellation flag BEFORE calling setEditingId(null)
+                // — the state update unmounts the input, which synchronously
+                // fires blur with the stale onBlur closure (still holding the
+                // typed text). The flag is read in onBlur to skip the write.
+                isCancellingEditRef.current = true;
                 setEditingId(null);
               }
             }}
