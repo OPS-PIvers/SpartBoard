@@ -221,7 +221,15 @@ export const generateWithAI = onCall(
     // Check if user is an admin (cached for 5 minutes per warm instance).
     const isAdmin = await getCachedAdminStatus(db, email.toLowerCase());
 
-    // 1. Determine specific feature ID if applicable
+    // 1. Determine specific feature ID if applicable.
+    //
+    // Only include genTypes that are ALSO keys in the promptMap below.
+    // `video-activity` and `guided-learning` are handled by dedicated Cloud
+    // Functions (`generateVideoActivity` / `generateGuidedLearning`) that own
+    // their own usage-counter writes. Including them here was dead code that
+    // silently inflated their per-feature usage counters for any request that
+    // reached this branch with those types — the counters were incremented
+    // before the promptMap lookup threw "Invalid generation type".
     let specificFeatureId: string | null = null;
     const genType = String(data?.type || '')
       .toLowerCase()
@@ -229,10 +237,7 @@ export const generateWithAI = onCall(
     if (genType === 'mini-app') specificFeatureId = 'embed-mini-app';
     if (genType === 'poll') specificFeatureId = 'smart-poll';
     if (genType === 'quiz') specificFeatureId = 'quiz';
-    if (genType === 'video-activity')
-      specificFeatureId = 'video-activity-audio-transcription';
     if (genType === 'ocr') specificFeatureId = 'ocr';
-    if (genType === 'guided-learning') specificFeatureId = 'guided-learning';
     if (genType === 'blooms-ai') specificFeatureId = 'blooms-ai';
     if (genType === 'video-activity-recommend')
       specificFeatureId = 'video-activity-recommend';
@@ -1381,29 +1386,55 @@ export const generateVideoActivity = onCall(
     const isAdmin = adminDoc.exists;
 
     if (!isAdmin) {
+      // --- Check Global Gemini Permission (enabled + accessLevel) ---
+      const globalPermDoc = await db
+        .collection('global_permissions')
+        .doc('gemini-functions')
+        .get();
+      const globalPerm = globalPermDoc.data() as GlobalPermission | undefined;
+
+      if (globalPerm && !globalPerm.enabled) {
+        throw new HttpsError(
+          'permission-denied',
+          'Gemini functions are currently disabled by an administrator.'
+        );
+      }
+
+      if (globalPerm) {
+        const { accessLevel, betaUsers = [] } = globalPerm;
+        if (accessLevel === 'admin') {
+          throw new HttpsError(
+            'permission-denied',
+            'Gemini functions are currently restricted to administrators.'
+          );
+        }
+        if (
+          accessLevel === 'beta' &&
+          !betaUsers.includes(email.toLowerCase())
+        ) {
+          throw new HttpsError(
+            'permission-denied',
+            'You do not have access to Gemini beta functions.'
+          );
+        }
+      }
+
       // --- Check Overall Gemini Limit ---
       const today = new Date().toISOString().split('T')[0];
       const overallUsageRef = db.collection('ai_usage').doc(`${uid}_${today}`);
 
       try {
         await db.runTransaction(async (transaction) => {
-          const globalPermDoc = await transaction.get(
+          const globalPermDoc2 = await transaction.get(
             db.collection('global_permissions').doc('gemini-functions')
           );
-          const globalPerm = globalPermDoc.data() as
+          const globalPerm2 = globalPermDoc2.data() as
             | GlobalPermission
             | undefined;
 
-          if (globalPerm && !globalPerm.enabled) {
-            throw new HttpsError(
-              'permission-denied',
-              'Gemini functions are currently disabled by an administrator.'
-            );
-          }
-
           const overallLimitEnabled =
-            globalPerm?.config?.dailyLimitEnabled !== false;
-          const overallLimit = globalPerm?.config?.dailyLimit ?? 20;
+            globalPerm2?.config?.dailyLimitEnabled !== false;
+          const overallLimit = globalPerm2?.config?.dailyLimit ?? 20;
 
           const overallUsageDoc = await transaction.get(overallUsageRef);
           const currentOverallUsage =

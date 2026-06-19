@@ -381,6 +381,7 @@ import {
   adminAnalytics,
   getPseudonymsForAssignmentV1,
   archiveActivityWallPhoto,
+  generateVideoActivity,
   __getCachedAdminStatus,
   __getGeminiModelConfig,
   __resetGenerateWithAICaches,
@@ -2814,5 +2815,129 @@ describe('getGeminiModelConfig usedFallback flag', () => {
     /* eslint-enable @typescript-eslint/no-unsafe-argument */
 
     expect(result.usedFallback).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateVideoActivity — accessLevel enforcement (regression test)
+// ---------------------------------------------------------------------------
+// Bug: before the fix, generateVideoActivity only checked `enabled: false`
+// from the `global_permissions/gemini-functions` doc. It did NOT check the
+// `accessLevel` field, so a non-admin teacher could bypass an admin-only or
+// beta restriction by calling generateVideoActivity instead of generateWithAI.
+//
+// Fix: read globalPerm outside the usage-counter transaction and throw
+// `permission-denied` when accessLevel === 'admin' (and the caller is not an
+// admin) or when accessLevel === 'beta' and the caller is not in betaUsers.
+// ---------------------------------------------------------------------------
+describe('generateVideoActivity — accessLevel enforcement', () => {
+  // Minimal valid YouTube URL and type counts so input validation passes
+  // before we reach the permission check under test.
+  const VALID_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+  const VALID_DATA = { url: VALID_URL, questionCount: 3 };
+  const NON_ADMIN_AUTH = {
+    uid: 'uid-teacher-1',
+    token: { email: 'teacher@school.org' },
+  };
+
+  const handler = generateVideoActivity as unknown as (
+    data: unknown,
+    context: unknown
+  ) => Promise<unknown>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFirestoreState.admins = new Set<string>();
+    __resetGenerateWithAICaches();
+    // Default: gemini-functions doc does not exist → no restrictions.
+    geminiConfigDocGet.mockResolvedValue({
+      exists: false,
+      data: () => undefined as Record<string, unknown> | undefined,
+    });
+  });
+
+  it('throws permission-denied for non-admin when accessLevel is "admin"', async () => {
+    // Arrange: global permission restricts Gemini to admins only.
+    geminiConfigDocGet.mockResolvedValue({
+      exists: true,
+      data: () =>
+        ({
+          enabled: true,
+          accessLevel: 'admin',
+          betaUsers: [],
+        }) as Record<string, unknown>,
+    });
+
+    // Act / Assert: non-admin teacher must be rejected.
+    await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
+      'Gemini functions are currently restricted to administrators.'
+    );
+  });
+
+  it('throws permission-denied for non-beta user when accessLevel is "beta"', async () => {
+    // Arrange: global permission restricts Gemini to beta users.
+    geminiConfigDocGet.mockResolvedValue({
+      exists: true,
+      data: () =>
+        ({
+          enabled: true,
+          accessLevel: 'beta',
+          betaUsers: ['beta@school.org'],
+        }) as Record<string, unknown>,
+    });
+
+    // teacher@school.org is NOT in betaUsers → must be rejected.
+    await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
+      'You do not have access to Gemini beta functions.'
+    );
+  });
+
+  it('does not throw for a beta user when accessLevel is "beta"', async () => {
+    // Arrange: caller is in betaUsers — should pass the accessLevel gate.
+    // runTransaction mock won't call its callback, so the function will
+    // resolve (no Gemini API call needed — the function throws from the
+    // try/catch wrapper when the transaction is a no-op). We just need to
+    // confirm it does NOT throw a permission-denied error.
+    geminiConfigDocGet.mockResolvedValue({
+      exists: true,
+      data: () =>
+        ({
+          enabled: true,
+          accessLevel: 'beta',
+          betaUsers: ['teacher@school.org'],
+        }) as Record<string, unknown>,
+    });
+
+    // The function will reach runTransaction (which is a no-op mock) and
+    // then proceed; it will eventually fail because GEMINI_API_KEY is a
+    // mock secret and the AI client is not configured, but it must NOT
+    // throw the permission-denied error from the accessLevel check.
+    const result = handler(VALID_DATA, { auth: NON_ADMIN_AUTH });
+    await expect(result).rejects.not.toThrow(
+      'You do not have access to Gemini beta functions.'
+    );
+    await expect(result).rejects.not.toThrow(
+      'Gemini functions are currently restricted to administrators.'
+    );
+  });
+
+  it('does not throw accessLevel errors for an admin regardless of accessLevel setting', async () => {
+    // Arrange: caller is an admin; even with accessLevel === 'admin' the
+    // admin check short-circuits and skips the permission gate entirely.
+    mockFirestoreState.admins.add('teacher@school.org');
+    geminiConfigDocGet.mockResolvedValue({
+      exists: true,
+      data: () =>
+        ({
+          enabled: true,
+          accessLevel: 'admin',
+          betaUsers: [],
+        }) as Record<string, unknown>,
+    });
+
+    const result = handler(VALID_DATA, { auth: NON_ADMIN_AUTH });
+    await expect(result).rejects.not.toThrow(
+      'Gemini functions are currently restricted to administrators.'
+    );
   });
 });
