@@ -23,8 +23,10 @@ import type { Plc } from '@/types';
 import { usePlcDocs } from '@/hooks/usePlcDocs';
 import { usePlcSoftDelete } from '@/hooks/usePlcTrash';
 import { useDashboard } from '@/context/useDashboard';
+import { useCanEditPlcContent } from '@/context/usePlcContext';
 import { convertToEmbedUrl, ensureProtocol } from '@/utils/urlHelpers';
 import { PlcDocPicker, type PlcDocPickerHandle } from './PlcDocPicker';
+import { PlcViewerReadOnlyBadge } from '../viewer/PlcViewerReadOnlyBadge';
 
 interface PlcDocsBodyProps {
   plc: Plc;
@@ -51,6 +53,9 @@ function isGoogleUrl(url: string): boolean {
 export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({ plc }) => {
   const { t } = useTranslation();
   const { addToast } = useDashboard();
+  // Viewers can read/select docs + view the embed, but can't add/rename/remove
+  // (Decision 3.2). Rules hard-deny viewer writes; this gates the UI to match.
+  const canEdit = useCanEditPlcContent();
   const { docs, loading, error, createDoc, updateDoc, deleteDoc, restoreDoc } =
     usePlcDocs(plc.id);
   const { softDelete } = usePlcSoftDelete(plc.id);
@@ -179,6 +184,7 @@ export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({ plc }) => {
             onDeleteDoc={handleDeleteDoc}
             onAddError={handleAddError}
             onUpdateError={handleUpdateError}
+            canEdit={canEdit}
           />
         )}
       </div>
@@ -219,28 +225,43 @@ export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({ plc }) => {
                 })}
               </p>
               <p className="text-sm text-slate-500 max-w-xs">
-                {t('plcDashboard.docs.emptySubtitle', {
-                  defaultValue:
-                    'Paste a Google Doc link to embed it here for the whole PLC.',
-                })}
+                {canEdit
+                  ? t('plcDashboard.docs.emptySubtitle', {
+                      defaultValue:
+                        'Paste a Google Doc link to embed it here for the whole PLC.',
+                    })
+                  : t('plcDashboard.docs.emptySubtitleViewer', {
+                      defaultValue:
+                        'When a teammate adds a Google Doc, it will appear here.',
+                    })}
               </p>
             </div>
             {/* Inline CTA that focuses the add-title input in the left-rail
                 picker via its imperative ref handle (scoped to this picker,
-                not a document-wide querySelector). */}
-            <button
-              className="flex items-center gap-2 bg-brand-blue-primary text-white rounded-xl px-5 py-2.5 text-sm font-semibold hover:bg-brand-blue-dark transition-colors shadow-sm"
-              onClick={() => {
-                pickerRef.current?.focusAddInput();
-              }}
-              aria-label={t('plcDashboard.docs.addCta', {
-                defaultValue: 'Add a Google Doc',
-              })}
-            >
-              {t('plcDashboard.docs.addCta', {
-                defaultValue: 'Add a Google Doc',
-              })}
-            </button>
+                not a document-wide querySelector). Viewers get the read-only
+                affordance instead (Decision 3.2). */}
+            {canEdit ? (
+              <button
+                className="flex items-center gap-2 bg-brand-blue-primary text-white rounded-xl px-5 py-2.5 text-sm font-semibold hover:bg-brand-blue-dark transition-colors shadow-sm"
+                onClick={() => {
+                  pickerRef.current?.focusAddInput();
+                }}
+                aria-label={t('plcDashboard.docs.addCta', {
+                  defaultValue: 'Add a Google Doc',
+                })}
+              >
+                {t('plcDashboard.docs.addCta', {
+                  defaultValue: 'Add a Google Doc',
+                })}
+              </button>
+            ) : (
+              <PlcViewerReadOnlyBadge
+                note={t('plcDashboard.viewer.notesNote', {
+                  defaultValue:
+                    'Viewers can read notes and docs but can’t add or change them.',
+                })}
+              />
+            )}
           </div>
         ) : selectedDoc !== null && embedUrl ? (
           <>

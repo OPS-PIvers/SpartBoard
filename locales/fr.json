@@ -281,7 +281,8 @@
       "notAMember": "Cette personne n'est pas membre de cette CAP.",
       "targetNotActiveMember": "Vous ne pouvez transférer la direction qu'à un membre actif.",
       "cannotDemoteLead": "Utilisez « Transférer la direction » pour changer le responsable de la CAP.",
-      "invalidRole": "Ce n'est pas un rôle de CAP valide."
+      "invalidRole": "Ce n'est pas un rôle de CAP valide.",
+      "alreadyLead": "Ce membre est déjà le responsable de cette CAP."
     }
   },
   "plcDashboard": {
@@ -348,16 +349,22 @@
       "overview": "Vue d'ensemble",
       "quizzes": "Quiz",
       "videoActivities": "Activités vidéo",
+      "assessments": "Évaluations",
       "notes": "Notes",
-      "todos": "Liste de tâches",
-      "sharedBoards": "Tableaux partagés",
+      "todos": "Tâches",
+      "sharedBoards": "Tableaux",
       "settings": "Paramètres",
       "home": "Accueil",
       "members": "Membres",
-      "sharedData": "Données partagées",
+      "sharedData": "Données",
       "meeting": "Mode Réunion",
-      "docs": "Documents",
+      "docs": "Notes et documents",
       "resources": "Ressources"
+    },
+    "assessmentsTypes": {
+      "label": "Type d'évaluation",
+      "quizzes": "Quiz",
+      "videoActivities": "Activités vidéo"
     },
     "assignmentsSubTabs": {
       "label": "Vues des activités",
@@ -461,9 +468,6 @@
       "emptyTitle": "Aucune activité terminée pour l'instant",
       "emptySubtitle": "Quand une activité en mode Communauté est arrêtée depuis le tableau d'un collègue, elle apparaît ici avec un lien vers la feuille de résultats partagée."
     },
-    "placeholder": {
-      "comingSoon": "Bientôt disponible"
-    },
     "settings": {
       "heading": "Sections du tableau",
       "description": "Choisissez les sections qui apparaissent dans le tableau de cette Communauté. Tout membre peut mettre à jour ces paramètres.",
@@ -487,6 +491,13 @@
       "sharedBoards": {
         "title": "Tableaux partagés",
         "description": "Affiche les tableaux partagés avec cette Communauté."
+      },
+      "digest": {
+        "heading": "Notifications",
+        "description": "Contrôlez comment cette Communauté reste informée.",
+        "title": "Résumé hebdomadaire par e-mail",
+        "optInDescription": "Envoie à chaque membre un e-mail hebdomadaire résumant ce qui s'est passé dans la Communauté. Désactivé par défaut ; tout membre peut le modifier.",
+        "saveFailed": "Échec de la mise à jour du paramètre de résumé"
       }
     },
     "overview": {
@@ -600,6 +611,7 @@
       "emptyPreview": "Rien à prévisualiser pour l'instant.",
       "lastEdited": "Dernière modification {{when}}",
       "pickOrCreate": "Sélectionnez une note à modifier ou créez-en une nouvelle.",
+      "pickToRead": "Sélectionnez une note à lire.",
       "conflictTitle": "Cette note a changé",
       "conflictMessage": "Un coéquipier a modifié cette note pendant que vous écriviez. Rechargez pour voir ses changements — votre texte non enregistré est conservé ci-dessous.",
       "conflictReload": "Recharger la note",
@@ -942,6 +954,64 @@
         "quiz": "Quiz",
         "videoActivity": "Activité vidéo"
       }
+    },
+    "versions": {
+      "open": "Historique des versions",
+      "openAriaLabel": "Historique des versions de {{title}}",
+      "title": "Historique des versions",
+      "ariaLabel": "Historique des versions de {{title}}",
+      "close": "Fermer",
+      "intro": "Versions enregistrées récentes de cette évaluation partagée. La restauration republie cette version pour tout le monde — la version actuelle est également conservée dans l’historique.",
+      "loading": "Chargement de l’historique des versions…",
+      "loadError": "Impossible de charger l’historique des versions.",
+      "retry": "Réessayer",
+      "emptyTitle": "Aucune version antérieure pour l’instant",
+      "emptySubtitle": "Les versions antérieures apparaîtront ici après la publication de la prochaine modification.",
+      "versionShort": "v{{version}}",
+      "versionLabel": "Version {{version}}",
+      "savedByAt": "Enregistré par {{name}} · {{when}}",
+      "unknownAuthor": "un collègue",
+      "restoreAction": "Restaurer cette version",
+      "restoreAriaLabel": "Restaurer la version {{version}}",
+      "restored": "Version {{version}} de « {{title}} » restaurée. Les collègues se synchroniseront à la prochaine actualisation.",
+      "restoreFailed": "Impossible de restaurer cette version. Réessayez.",
+      "conflict": "Un autre enseignant vient de publier une mise à jour. Nous avons rechargé l’historique des versions — consultez-le et réessayez la restauration."
+    },
+    "sync": {
+      "autoPulled": "« {{title}} » a été mis à jour vers la dernière version de votre collègue.",
+      "autoPullFailed": "Impossible de récupérer la dernière version de « {{title}} ». Nous réessaierons à la prochaine mise à jour.",
+      "conflictTitle": "La copie synchronisée a changé",
+      "conflictBody": "Un collègue a publié une nouvelle version de « {{title}} » alors que vous avez des modifications non enregistrées. Conserver vos modifications ou récupérer sa version (vos modifications non enregistrées seront supprimées) ?",
+      "keepMine": "Garder les vôtres",
+      "pullTheirs": "Récupérer les leurs",
+      "keptMine": "Vos modifications de « {{title}} » ont été conservées. Vous pouvez les publier pour les partager avec votre équipe.",
+      "pulledTheirs": "La version de votre collègue de « {{title}} » a été récupérée. Vos modifications non enregistrées ont été supprimées.",
+      "resolveFailed": "Impossible de résoudre le conflit de synchronisation pour « {{title}} ». Réessayez."
+    },
+    "search": {
+      "ariaLabel": "Rechercher dans cette CAP",
+      "placeholder": "Rechercher dans cette CAP…",
+      "clear": "Effacer la recherche",
+      "searching": "Recherche…",
+      "resultsLabel": "Résultats de la recherche",
+      "resultCount_one": "{{count}} résultat",
+      "resultCount_other": "{{count}} résultats",
+      "noResults": "Aucun résultat pour « {{query}} »",
+      "untitled": "Sans titre",
+      "groupAssessments": "Évaluations",
+      "groupData": "Données",
+      "groupDocs": "Notes et documents",
+      "groupBoards": "Tableaux"
+    },
+    "viewer": {
+      "badge": "Observateur — lecture seule",
+      "badgeTooltip": "Vous avez un accès observateur à ce PLC. Vous pouvez tout lire, mais la création, la modification et la suppression sont désactivées.",
+      "readOnly": "Lecture seule",
+      "assessmentsNote": "Les observateurs peuvent parcourir les évaluations partagées, mais ne peuvent pas les partager, les modifier ni les attribuer.",
+      "notesNote": "Les observateurs peuvent lire les notes et documents, mais ne peuvent pas les ajouter ni les modifier.",
+      "todosNote": "Les observateurs peuvent lire la liste des tâches, mais ne peuvent pas ajouter ni modifier d’éléments.",
+      "meetingNote": "Les observateurs peuvent suivre la réunion, mais ne peuvent pas la modifier ni l’enregistrer.",
+      "homeNote": "Les observateurs peuvent tout lire ici, mais ne peuvent pas créer de nouveau contenu."
     }
   },
   "widgetWindow": {
@@ -1551,6 +1621,30 @@
       "deleteSticker": "Supprimer l'autocollant",
       "dragFromLibrary": "Faites glisser les autocollants de la bibliothèque vers le tableau",
       "stickerAdded": "Autocollant ajouté au tableau !"
+    },
+    "plc": {
+      "recovery": {
+        "title": "Récupération de CAP",
+        "subtitle": "Réattribuer le responsable ou dissoudre une CAP abandonnée dans votre organisation.",
+        "explainer": "Seules les CAP de votre organisation peuvent être récupérées. Utilisez cette option lorsque le responsable d'une CAP est parti sans pouvoir transférer la direction.",
+        "empty": "Aucune CAP récupérable dans votre organisation.",
+        "leadLabel": "Responsable",
+        "membersLabel_one": "{{count}} membre",
+        "membersLabel_other": "{{count}} membres",
+        "reassignLead": "Réattribuer le responsable",
+        "reassignTitle": "Réattribuer le responsable",
+        "reassignDescription": "Choisissez un membre actif comme nouveau responsable de « {{name}} ».",
+        "newLeadLabel": "Nouveau responsable",
+        "noEligibleMembers": "Aucun autre membre actif à promouvoir.",
+        "confirmReassign": "Faire de {{member}} le responsable de « {{name}} » ? Le responsable actuel sera rétrogradé au rang de membre.",
+        "reassignSuccess": "{{member}} est désormais responsable de « {{name}} ».",
+        "dissolve": "Dissoudre la CAP",
+        "confirmDissolve": "Dissoudre « {{name}} » ? Cela supprime définitivement la CAP pour tous les membres et est irréversible.",
+        "dissolveSuccess": "« {{name}} » a été dissoute.",
+        "actionFailed": "Cette action n'a pas pu être effectuée. Veuillez réessayer.",
+        "cancel": "Annuler",
+        "confirm": "Confirmer"
+      }
     }
   },
   "plcRoute": {

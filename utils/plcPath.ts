@@ -10,12 +10,19 @@
  *   /plc/:plcId/meeting              → Meeting Mode     { plcId, section: 'meeting' }
  *   /plc/:plcId/meeting/:meetingId   → a meeting record { plcId, section: 'meeting', meetingId }
  *
- * Section is validated against the `PlcSectionId` union via `isPlcSectionId`;
- * an unknown section falls back to `'home'` (never throws — a bad deep link
- * lands the user on the PLC home rather than a blank screen).
+ * Section is validated against the router-accepted token set via
+ * `isPlcRouteSection`, then normalised to a canonical `PlcSectionId` via
+ * `resolvePlcSection` (so legacy aliases like `quizzes` / `videoActivities`
+ * rewrite to `assessments`). An unknown section falls back to `'home'` (never
+ * throws — a bad deep link lands the user on the PLC home rather than a blank
+ * screen).
  */
 
-import { isPlcSectionId, type PlcSectionId } from '@/components/plc/sections';
+import {
+  isPlcRouteSection,
+  resolvePlcSection,
+  type PlcSectionId,
+} from '@/components/plc/sections';
 
 export interface ParsedPlcPath {
   /** The PLC id from the path, or `null` for the bare `/plc` index hub. */
@@ -57,13 +64,15 @@ export function parsePlcPath(pathname: string): ParsedPlcPath {
   const plcId = segments[0] ?? null;
   if (!plcId) return fallback;
 
+  // Validate against the router-accepted token set (canonical ids + legacy
+  // aliases), then collapse aliases to their canonical section. `quizzes` and
+  // `videoActivities` therefore both resolve to `assessments` so old deep
+  // links never 404.
   const rawSection = segments[1];
   const section: PlcSectionId =
-    rawSection === undefined
-      ? 'home'
-      : isPlcSectionId(rawSection)
-        ? rawSection
-        : 'home';
+    rawSection !== undefined && isPlcRouteSection(rawSection)
+      ? resolvePlcSection(rawSection)
+      : 'home';
 
   // Only `/plc/:id/meeting/:meetingId` carries a meeting id. We accept it
   // regardless of whether the section coerced (defensive) but only when the

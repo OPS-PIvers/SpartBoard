@@ -28,12 +28,14 @@ import { useTranslation } from 'react-i18next';
 import { BookOpen, Film, FileText, type LucideIcon } from 'lucide-react';
 import type { Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
+import { useCanEditPlcContent } from '@/context/usePlcContext';
 import { useQuiz } from '@/hooks/useQuiz';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import type { PlcSectionId } from '@/components/plc/sections';
 import { PlcNewQuizAssignmentModal } from '@/components/plc/PlcNewQuizAssignmentModal';
 import { PlcNewVideoActivityAssignmentModal } from '@/components/plc/PlcNewVideoActivityAssignmentModal';
 import { PlcAddDocModal } from '@/components/plc/docs/PlcAddDocModal';
+import { PlcViewerReadOnlyBadge } from '@/components/plc/viewer/PlcViewerReadOnlyBadge';
 
 interface QuickCreateBarProps {
   plc: Plc;
@@ -57,6 +59,10 @@ export const QuickCreateBar: React.FC<QuickCreateBarProps> = ({
 }) => {
   const { t } = useTranslation();
   const { user, getAssignmentMode } = useAuth();
+  // Viewers can read Home but create nothing (Decision 3.2). Replace the whole
+  // quick-create row with a calm read-only affordance — the rules layer already
+  // hard-denies viewer writes, this is the matching client gate.
+  const canEdit = useCanEditPlcContent();
 
   // Library + Drive status feed the two assignment buttons' disabled reasons —
   // mirrors the Quizzes / Video Activities body CTAs so the affordance is
@@ -130,6 +136,19 @@ export const QuickCreateBar: React.FC<QuickCreateBarProps> = ({
     setOpenModal(action.key);
   }, []);
 
+  // Viewer: no create affordances at all — show the read-only badge in their
+  // place so the row reads intentionally read-only, not mysteriously empty.
+  if (!canEdit) {
+    return (
+      <PlcViewerReadOnlyBadge
+        note={t('plcDashboard.viewer.homeNote', {
+          defaultValue:
+            'Viewers can read everything here but can’t create new content.',
+        })}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       {actions.map((action, index) => {
@@ -165,9 +184,9 @@ export const QuickCreateBar: React.FC<QuickCreateBarProps> = ({
           onClose={() => setOpenModal(null)}
           onCreated={() => {
             setOpenModal(null);
-            // Land the teacher on the Quizzes section so they see the new
+            // Land the teacher on the Assessments section so they see the new
             // (paused) assignment under In-progress.
-            onNavigate('quizzes');
+            onNavigate('assessments');
           }}
         />
       )}
@@ -179,7 +198,7 @@ export const QuickCreateBar: React.FC<QuickCreateBarProps> = ({
           onClose={() => setOpenModal(null)}
           onCreated={() => {
             setOpenModal(null);
-            onNavigate('videoActivities');
+            onNavigate('assessments');
           }}
         />
       )}

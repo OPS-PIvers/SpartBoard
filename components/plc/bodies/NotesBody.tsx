@@ -18,11 +18,13 @@ import {
 import { Plc, PlcNote } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
+import { useCanEditPlcContent } from '@/context/usePlcContext';
 import { PlcNoteVersionConflictError, usePlcNotes } from '@/hooks/usePlcNotes';
 import { usePlcSoftDelete } from '@/hooks/usePlcTrash';
 import { logError } from '@/utils/logError';
 import { NotesMarkdown } from './notesMarkdown';
 import { buildMeetingNoteTemplate } from './notesTemplate';
+import { PlcViewerReadOnlyBadge } from '../viewer/PlcViewerReadOnlyBadge';
 
 interface NotesBodyProps {
   plc: Plc;
@@ -63,6 +65,9 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc }) => {
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
   const { addToast } = useDashboard();
+  // Viewers can read notes but can't create / edit / delete (Decision 3.2).
+  // Rules hard-deny viewer writes; this gates the UI to match.
+  const canEdit = useCanEditPlcContent();
   const { notes, loading, createNote, updateNote, deleteNote, restoreNote } =
     usePlcNotes(plc.id);
   const { softDelete } = usePlcSoftDelete(plc.id);
@@ -377,29 +382,31 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc }) => {
           <h3 className="text-xxs font-bold uppercase tracking-widest text-slate-500">
             {t('plcDashboard.notes.heading', { defaultValue: 'Notes' })}
           </h3>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => void handleCreate('meeting')}
-              className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
-              title={t('plcDashboard.notes.meeting.newMeetingNote', {
-                defaultValue: 'New meeting note',
-              })}
-            >
-              <CalendarClock className="w-3 h-3" />
-              {t('plcDashboard.notes.meeting.newMeetingNoteShort', {
-                defaultValue: 'Meeting',
-              })}
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleCreate('freeform')}
-              className="inline-flex items-center gap-1 px-2 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
-            >
-              <Plus className="w-3 h-3" />
-              {t('plcDashboard.notes.newNote', { defaultValue: 'New' })}
-            </button>
-          </div>
+          {canEdit && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => void handleCreate('meeting')}
+                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
+                title={t('plcDashboard.notes.meeting.newMeetingNote', {
+                  defaultValue: 'New meeting note',
+                })}
+              >
+                <CalendarClock className="w-3 h-3" />
+                {t('plcDashboard.notes.meeting.newMeetingNoteShort', {
+                  defaultValue: 'Meeting',
+                })}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleCreate('freeform')}
+                className="inline-flex items-center gap-1 px-2 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                {t('plcDashboard.notes.newNote', { defaultValue: 'New' })}
+              </button>
+            </div>
+          )}
         </div>
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {notes.length === 0 ? (
@@ -485,7 +492,9 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc }) => {
               <input
                 type="text"
                 value={draftTitle}
+                readOnly={!canEdit}
                 onChange={(e) => {
+                  if (!canEdit) return;
                   setDraftTitle(e.target.value);
                   scheduleSave(
                     selectedNote.id,
@@ -529,24 +538,28 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc }) => {
                   <Pencil className="w-4 h-4" />
                 )}
               </button>
-              <button
-                type="button"
-                onClick={() => void handleDelete(selectedNote)}
-                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
-                aria-label={t('plcDashboard.notes.deleteNote', {
-                  defaultValue: 'Delete note',
-                })}
-                title={t('plcDashboard.notes.deleteNote', {
-                  defaultValue: 'Delete note',
-                })}
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => void handleDelete(selectedNote)}
+                  className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                  aria-label={t('plcDashboard.notes.deleteNote', {
+                    defaultValue: 'Delete note',
+                  })}
+                  title={t('plcDashboard.notes.deleteNote', {
+                    defaultValue: 'Delete note',
+                  })}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </div>
             {bodyMode === 'edit' ? (
               <textarea
                 value={draftBody}
+                readOnly={!canEdit}
                 onChange={(e) => {
+                  if (!canEdit) return;
                   setDraftBody(e.target.value);
                   scheduleSave(
                     selectedNote.id,
@@ -583,30 +596,47 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc }) => {
           <div className="flex flex-col items-center justify-center h-full text-center text-slate-500 p-8">
             <StickyNote className="w-10 h-10 text-slate-300 mb-3" />
             <p className="text-sm font-bold text-slate-700 mb-1">
-              {t('plcDashboard.notes.pickOrCreate', {
-                defaultValue: 'Select a note to edit, or create a new one.',
-              })}
+              {canEdit
+                ? t('plcDashboard.notes.pickOrCreate', {
+                    defaultValue: 'Select a note to edit, or create a new one.',
+                  })
+                : t('plcDashboard.notes.pickToRead', {
+                    defaultValue: 'Select a note to read.',
+                  })}
             </p>
-            <div className="mt-3 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => void handleCreate('freeform')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold uppercase tracking-wider rounded-lg transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                {t('plcDashboard.notes.newNote', { defaultValue: 'New note' })}
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleCreate('meeting')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xxs font-bold uppercase tracking-wider rounded-lg transition-colors"
-              >
-                <CalendarClock className="w-3.5 h-3.5" />
-                {t('plcDashboard.notes.meeting.newMeetingNote', {
-                  defaultValue: 'New meeting note',
-                })}
-              </button>
-            </div>
+            {canEdit ? (
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleCreate('freeform')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold uppercase tracking-wider rounded-lg transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  {t('plcDashboard.notes.newNote', {
+                    defaultValue: 'New note',
+                  })}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleCreate('meeting')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xxs font-bold uppercase tracking-wider rounded-lg transition-colors"
+                >
+                  <CalendarClock className="w-3.5 h-3.5" />
+                  {t('plcDashboard.notes.meeting.newMeetingNote', {
+                    defaultValue: 'New meeting note',
+                  })}
+                </button>
+              </div>
+            ) : (
+              <div className="mt-3">
+                <PlcViewerReadOnlyBadge
+                  note={t('plcDashboard.viewer.notesNote', {
+                    defaultValue:
+                      'Viewers can read notes and docs but can’t add or change them.',
+                  })}
+                />
+              </div>
+            )}
           </div>
         )}
       </main>

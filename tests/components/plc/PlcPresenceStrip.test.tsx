@@ -142,7 +142,7 @@ describe('PlcPresenceStrip', () => {
 
     // Bob (fresh) is present, labelled with his member display name + section.
     expect(
-      screen.getByRole('listitem', { name: /Bob Builder · in Docs/i })
+      screen.getByRole('listitem', { name: /Bob Builder · in Notes & Docs/i })
     ).toBeInTheDocument();
     // Cara (stale) is excluded entirely.
     expect(
@@ -165,7 +165,7 @@ describe('PlcPresenceStrip', () => {
       {
         uid: 'uid-c',
         displayName: 'Cara',
-        section: 'quizzes',
+        section: 'assessments',
         lastActiveAt: now,
       },
     ];
@@ -176,10 +176,10 @@ describe('PlcPresenceStrip', () => {
       screen.getByRole('listitem', { name: /^You · in Home$/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('listitem', { name: /Bob Builder · in Docs/i })
+      screen.getByRole('listitem', { name: /Bob Builder · in Notes & Docs/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('listitem', { name: /Cara Coder · in Quizzes/i })
+      screen.getByRole('listitem', { name: /Cara Coder · in Assessments/i })
     ).toBeInTheDocument();
     // Two teammates besides you → plural copy.
     expect(screen.getByText(/2 teammates here now/i)).toBeInTheDocument();
@@ -200,7 +200,7 @@ describe('PlcPresenceStrip', () => {
 
     expect(screen.getByText(/just you here/i)).toBeInTheDocument();
     expect(
-      screen.getByRole('listitem', { name: /You · in Shared Data/i })
+      screen.getByRole('listitem', { name: /You · in Data/i })
     ).toBeInTheDocument();
   });
 
@@ -262,7 +262,7 @@ describe('PlcPresenceStrip', () => {
     render(<PlcPresenceStrip plc={fakePlc} />);
 
     expect(
-      screen.getByRole('listitem', { name: /Ghost Guest · in Docs/i })
+      screen.getByRole('listitem', { name: /Ghost Guest · in Notes & Docs/i })
     ).toBeInTheDocument();
   });
 });

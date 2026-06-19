@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Film,
   ListChecks,
+  Mail,
   StickyNote,
   SquareSquare,
   Trash2,
@@ -84,13 +85,38 @@ const FEATURE_ROWS: readonly FeatureRow[] = [
  */
 export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
   const { t } = useTranslation();
-  const { updatePlcFeatures } = usePlcs({ enabled: false });
+  const { updatePlcFeatures, updatePlcDigestOptIn } = usePlcs({
+    enabled: false,
+  });
   const { addToast } = useDashboard();
   const features = getPlcFeatures(plc);
   const [busyKey, setBusyKey] = useState<keyof PlcFeatureSettings | null>(null);
   // Trash is a collapsed subsection inside Settings (Decision §6.1) — it mounts
   // its own (heavy-ish) listeners only once expanded.
   const [trashOpen, setTrashOpen] = useState(false);
+  // Opt-in weekly digest (Decision 2.3). The flag lives on the PLC root doc;
+  // any member can flip it. `digestOptIn` defaults to false (absent ⇒ off).
+  const digestOptIn = plc.digestOptIn === true;
+  const [digestBusy, setDigestBusy] = useState(false);
+
+  const handleDigestToggle = async () => {
+    if (digestBusy) return;
+    setDigestBusy(true);
+    try {
+      await updatePlcDigestOptIn(plc.id, !digestOptIn);
+    } catch (err) {
+      addToast(
+        err instanceof Error
+          ? err.message
+          : t('plcDashboard.settings.digest.saveFailed', {
+              defaultValue: 'Failed to update digest setting',
+            }),
+        'error'
+      );
+    } finally {
+      setDigestBusy(false);
+    }
+  };
 
   const handleToggle = async (key: keyof PlcFeatureSettings) => {
     if (busyKey) return;
@@ -187,6 +213,67 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
             </button>
           );
         })}
+      </div>
+
+      {/* Notifications — opt-in weekly email digest (Decision 2.3). Any
+          member can flip it; default OFF. */}
+      <div className="border-t border-slate-200 pt-4">
+        <h3 className="text-sm font-bold text-slate-800">
+          {t('plcDashboard.settings.digest.heading', {
+            defaultValue: 'Notifications',
+          })}
+        </h3>
+        <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+          {t('plcDashboard.settings.digest.description', {
+            defaultValue: 'Control how this PLC stays in the loop.',
+          })}
+        </p>
+        <button
+          type="button"
+          onClick={() => void handleDigestToggle()}
+          disabled={digestBusy}
+          role="switch"
+          aria-checked={digestOptIn}
+          className={`mt-3 w-full flex items-start gap-3 p-3 bg-white border rounded-xl text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${
+            digestOptIn
+              ? 'border-brand-blue-light/60 hover:border-brand-blue-primary'
+              : 'border-slate-200 hover:border-slate-300'
+          } ${digestBusy ? 'opacity-60 cursor-wait' : ''}`}
+        >
+          <div
+            className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+              digestOptIn
+                ? 'bg-brand-blue-lighter text-brand-blue-primary'
+                : 'bg-slate-100 text-slate-400'
+            }`}
+          >
+            <Mail className="w-4 h-4" aria-hidden="true" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-bold text-slate-800">
+              {t('plcDashboard.settings.digest.title', {
+                defaultValue: 'Weekly email digest',
+              })}
+            </div>
+            <div className="text-xxs text-slate-500 leading-relaxed mt-0.5">
+              {t('plcDashboard.settings.digest.optInDescription', {
+                defaultValue:
+                  'Send every member one weekly email summarizing what happened in the PLC. Off by default; any member can change this.',
+              })}
+            </div>
+          </div>
+          <div
+            className={`shrink-0 relative w-10 h-5 rounded-full transition-colors ${
+              digestOptIn ? 'bg-brand-blue-primary' : 'bg-slate-300'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${
+                digestOptIn ? 'left-[22px]' : 'left-0.5'
+              }`}
+            />
+          </div>
+        </button>
       </div>
 
       {/* Trash (Decision §6.1) — collapsed by default; expanding mounts the

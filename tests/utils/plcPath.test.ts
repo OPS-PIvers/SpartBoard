@@ -61,8 +61,7 @@ describe('parsePlcPath', () => {
   });
 
   it.each<[PlcSectionId]>([
-    ['quizzes'],
-    ['videoActivities'],
+    ['assessments'],
     ['docs'],
     ['todos'],
     ['sharedBoards'],
@@ -72,6 +71,20 @@ describe('parsePlcPath', () => {
   ])('accepts the %s section id', (section) => {
     expect(parsePlcPath(`/plc/plc-123/${section}`).section).toBe(section);
   });
+
+  // The pre-Wave-4 Quizzes / Video Activities sections were unified into
+  // Assessments (Decision 4.5). Old deep links must resolve to `assessments`
+  // (alias rewrite) rather than 404 / fall back to home.
+  it.each<[string]>([['quizzes'], ['videoActivities']])(
+    'rewrites the legacy %s alias to the assessments section',
+    (alias) => {
+      expect(parsePlcPath(`/plc/plc-123/${alias}`)).toEqual({
+        plcId: 'plc-123',
+        section: 'assessments',
+        meetingId: null,
+      });
+    }
+  );
 
   it('coerces an unknown section to home', () => {
     expect(parsePlcPath('/plc/plc-123/not-a-section')).toEqual({

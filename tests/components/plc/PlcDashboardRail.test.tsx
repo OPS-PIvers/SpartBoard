@@ -17,13 +17,13 @@ describe('PlcDashboardRail', () => {
         onSelect={onSelect}
         visibleSections={[
           { id: 'home', label: 'Home', icon: () => null },
-          { id: 'quizzes', label: 'Quizzes', icon: () => null },
+          { id: 'assessments', label: 'Assessments', icon: () => null },
         ]}
       />
     );
     const home = screen.getByRole('tab', { name: 'Home' });
     expect(home).toHaveAttribute('aria-selected', 'true');
-    fireEvent.click(screen.getByRole('tab', { name: 'Quizzes' }));
-    expect(onSelect).toHaveBeenCalledWith('quizzes');
+    fireEvent.click(screen.getByRole('tab', { name: 'Assessments' }));
+    expect(onSelect).toHaveBeenCalledWith('assessments');
   });
 });

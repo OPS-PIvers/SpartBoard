@@ -58,6 +58,9 @@ vi.mock('@/context/usePlcContext', async (importActual) => {
     // aggregates provider slices. No provider here → empty slices.
     usePlcAssessmentsData: () => emptySlice,
     usePlcAggregatesData: () => emptySlice,
+    // Wave-4 (T10): QuickCreateBar gates its create buttons behind the viewer
+    // read-only check. This suite renders as a full member, so allow edits.
+    useCanEditPlcContent: () => true,
   };
 });
 

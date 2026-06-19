@@ -15,22 +15,33 @@
 
 import { useEffect, useState } from 'react';
 import {
+  collection,
+  deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
+  orderBy,
+  query,
   runTransaction,
   setDoc,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import { VERSION_HISTORY_LIMIT } from '@/hooks/useSyncedQuizGroups';
 import type {
+  PlcVideoActivityVersionContent,
   SyncedVideoActivityGroup,
+  SyncedVideoActivityVersionSnapshot,
   VideoActivityBehaviorSettings,
   VideoActivityQuestion,
 } from '@/types';
 
 const SYNCED_COLLECTION = 'synced_video_activities';
+const VERSIONS_SUBCOLLECTION = 'versions';
+
+export { VERSION_HISTORY_LIMIT };
 
 export interface PublishSyncedVideoActivityInput {
   title: string;
@@ -216,7 +227,7 @@ export async function publishSyncedVideoActivity(
   input: PublishSyncedVideoActivityInput
 ): Promise<PublishSyncedVideoActivityResult> {
   const ref = doc(db, SYNCED_COLLECTION, groupId);
-  return runTransaction(db, async (tx) => {
+  const result = await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists()) {
       throw new Error('Synced video activity group not found.');
@@ -247,7 +258,136 @@ export async function publishSyncedVideoActivity(
       updatedBy: input.uid,
       ...(input.behavior ? { behavior: input.behavior } : {}),
     });
-    return { version: nextVersion };
+    // Capture the PRE-edit content so the post-commit snapshot writer can
+    // archive the version this publish is about to overwrite.
+    return {
+      version: nextVersion,
+      preEditContent: buildVideoActivityVersionContent(current),
+      preEditVersion: current.version,
+    };
+  });
+
+  // Fire-and-forget the version snapshot AFTER the canonical commit so
+  // versioning never blocks (or fails) the publish.
+  void writeVideoActivityVersionSnapshot(groupId, {
+    version: result.preEditVersion,
+    content: result.preEditContent,
+    savedBy: input.uid,
+    savedAt: Date.now(),
+  });
+
+  return { version: result.version };
+}
+
+/**
+ * Normalize a canonical VA doc into the snapshot `content` payload — drops the
+ * `behavior` key when absent so we never persist `undefined`.
+ */
+function buildVideoActivityVersionContent(
+  source: Pick<
+    SyncedVideoActivityGroup,
+    'title' | 'youtubeUrl' | 'questions' | 'behavior'
+  >
+): PlcVideoActivityVersionContent {
+  return {
+    title: source.title,
+    youtubeUrl: source.youtubeUrl ?? '',
+    questions: source.questions ?? [],
+    ...(source.behavior ? { behavior: source.behavior } : {}),
+  };
+}
+
+/**
+ * Write one snapshot to `versions/{version}` and prune to the newest
+ * `VERSION_HISTORY_LIMIT`. Keyed by canonical version for idempotency.
+ * Best-effort; invoked fire-and-forget after the canonical commit.
+ */
+async function writeVideoActivityVersionSnapshot(
+  groupId: string,
+  snapshot: SyncedVideoActivityVersionSnapshot
+): Promise<void> {
+  try {
+    await setDoc(
+      doc(
+        db,
+        SYNCED_COLLECTION,
+        groupId,
+        VERSIONS_SUBCOLLECTION,
+        String(snapshot.version)
+      ),
+      snapshot
+    );
+    await pruneVideoActivityVersions(groupId);
+  } catch (err) {
+    logError('useSyncedVideoActivityGroups.writeVersionSnapshot', err, {
+      groupId,
+    });
+  }
+}
+
+/**
+ * Delete any snapshots beyond the newest `VERSION_HISTORY_LIMIT`.
+ */
+async function pruneVideoActivityVersions(groupId: string): Promise<void> {
+  const versionsRef = collection(
+    db,
+    SYNCED_COLLECTION,
+    groupId,
+    VERSIONS_SUBCOLLECTION
+  );
+  const snap = await getDocs(query(versionsRef, orderBy('version', 'asc')));
+  const overflow = snap.docs.length - VERSION_HISTORY_LIMIT;
+  if (overflow <= 0) return;
+  await Promise.all(snap.docs.slice(0, overflow).map((d) => deleteDoc(d.ref)));
+}
+
+/**
+ * List the bounded version history for a synced video activity group,
+ * newest-first. Used by the "Restore version" UI.
+ */
+export async function listSyncedVideoActivityVersions(
+  groupId: string
+): Promise<SyncedVideoActivityVersionSnapshot[]> {
+  const versionsRef = collection(
+    db,
+    SYNCED_COLLECTION,
+    groupId,
+    VERSIONS_SUBCOLLECTION
+  );
+  const snap = await getDocs(query(versionsRef, orderBy('version', 'desc')));
+  return snap.docs.map((d) => d.data() as SyncedVideoActivityVersionSnapshot);
+}
+
+/**
+ * Restore a snapshot's content back to the canonical doc via the normal
+ * version-precondition publish path (bumps `version`, snapshots the
+ * pre-restore content), reusing `SyncedVideoActivityVersionConflictError` on a
+ * concurrent edit.
+ */
+export async function restoreSyncedVideoActivityVersion(
+  groupId: string,
+  version: number,
+  uid: string
+): Promise<PublishSyncedVideoActivityResult> {
+  const versionSnap = await getDoc(
+    doc(db, SYNCED_COLLECTION, groupId, VERSIONS_SUBCOLLECTION, String(version))
+  );
+  if (!versionSnap.exists()) {
+    throw new Error('Synced video activity version snapshot not found.');
+  }
+  const { content } = versionSnap.data() as SyncedVideoActivityVersionSnapshot;
+  const groupSnap = await getDoc(doc(db, SYNCED_COLLECTION, groupId));
+  if (!groupSnap.exists()) {
+    throw new Error('Synced video activity group not found.');
+  }
+  const current = groupSnap.data() as SyncedVideoActivityGroup;
+  return publishSyncedVideoActivity(groupId, {
+    title: content.title,
+    youtubeUrl: content.youtubeUrl,
+    questions: content.questions,
+    expectedVersion: current.version,
+    uid,
+    ...(content.behavior ? { behavior: content.behavior } : {}),
   });
 }
 

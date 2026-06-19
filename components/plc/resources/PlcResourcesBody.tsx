@@ -68,12 +68,12 @@ const ONE_CLICK_KINDS: ReadonlySet<PlcResourceKind> = new Set([
  * section, where the existing per-row import UI handles the import.
  */
 const DEEP_LINK_TARGET: Partial<Record<PlcResourceKind, PlcSectionId>> = {
-  // The standalone Assignments section was collapsed into Quizzes /
-  // Video Activities. A pushed `assignment` resource is a generic
-  // hand-typed id with no quiz/video discriminator, so route it to the
-  // Quizzes section — its In-progress / Completed sub-tabs surface the
+  // The standalone Assignments section was collapsed into the unified
+  // Assessments section (Decision 4.5). A pushed `assignment` resource is a
+  // generic hand-typed id with no quiz/video discriminator, so route it to the
+  // Assessments section — its In-progress / Completed sub-tabs surface the
   // full assignment index and per-row import UI.
-  assignment: 'quizzes',
+  assignment: 'assessments',
   board: 'sharedBoards',
 };
 

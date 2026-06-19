@@ -30,7 +30,11 @@ import { useAuth } from '@/context/useAuth';
 import { logError } from '@/utils/logError';
 import { tsToMillis } from '@/utils/plc';
 import type { PlcPresence } from '@/types';
-import type { PlcSectionId } from '@/components/plc/sections';
+import {
+  isPlcRouteSection,
+  resolvePlcSection,
+  type PlcSectionId,
+} from '@/components/plc/sections';
 import type { PlcPresenceEntry } from '@/context/usePlcContext';
 
 const PLCS_COLLECTION = 'plcs';
@@ -47,11 +51,13 @@ export const PRESENCE_FRESH_WINDOW_MS = 90_000;
 /**
  * Narrow the canonical `PlcPresence.section` (`string` in `types.ts`, to avoid a
  * `types.ts → components/` cycle) to the component-layer union the store carries.
- * Unrecognised section ids fall back to `'home'` so a malformed/legacy doc never
- * crashes the strip.
+ * Legacy presence docs written by a pre-Wave-4 client may still carry the old
+ * `quizzes` / `videoActivities` section ids; those are rewritten to the unified
+ * `assessments` section. Any unrecognised section id falls back to `'home'` so a
+ * malformed/legacy doc never crashes the strip.
  */
-function narrowSection(section: string): PlcSectionId | 'meeting' {
-  return section as PlcSectionId | 'meeting';
+function narrowSection(section: string): PlcSectionId {
+  return isPlcRouteSection(section) ? resolvePlcSection(section) : 'home';
 }
 
 /**

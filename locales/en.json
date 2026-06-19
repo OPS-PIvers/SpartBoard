@@ -281,7 +281,8 @@
       "notAMember": "That person is not a member of this PLC.",
       "targetNotActiveMember": "You can only transfer leadership to an active member.",
       "cannotDemoteLead": "Use \"Transfer leadership\" to change who leads the PLC.",
-      "invalidRole": "That is not a valid PLC role."
+      "invalidRole": "That is not a valid PLC role.",
+      "alreadyLead": "That member is already the lead of this PLC."
     }
   },
   "plcDashboard": {
@@ -348,16 +349,22 @@
       "overview": "Overview",
       "quizzes": "Quizzes",
       "videoActivities": "Video Activities",
+      "assessments": "Assessments",
       "notes": "Notes",
-      "todos": "To-Do List",
-      "sharedBoards": "Shared Boards",
+      "todos": "To-Dos",
+      "sharedBoards": "Boards",
       "settings": "Settings",
       "home": "Home",
       "members": "Members",
-      "sharedData": "Shared Data",
+      "sharedData": "Data",
       "meeting": "Meeting Mode",
-      "docs": "Docs",
+      "docs": "Notes & Docs",
       "resources": "Resources"
+    },
+    "assessmentsTypes": {
+      "label": "Assessment type",
+      "quizzes": "Quizzes",
+      "videoActivities": "Video Activities"
     },
     "assignmentsSubTabs": {
       "label": "Assignment views",
@@ -461,9 +468,6 @@
       "emptyTitle": "No completed assignments yet",
       "emptySubtitle": "When a PLC-mode assignment is stopped from any teammate's board, it lands here with a link to the shared results sheet."
     },
-    "placeholder": {
-      "comingSoon": "Coming soon"
-    },
     "settings": {
       "heading": "Dashboard Sections",
       "description": "Choose which sections appear in this PLC's dashboard. Any PLC member can update these.",
@@ -487,6 +491,13 @@
       "sharedBoards": {
         "title": "Shared Boards",
         "description": "Surface dashboards shared with this PLC."
+      },
+      "digest": {
+        "heading": "Notifications",
+        "description": "Control how this PLC stays in the loop.",
+        "title": "Weekly email digest",
+        "optInDescription": "Send every member one weekly email summarizing what happened in the PLC. Off by default; any member can change this.",
+        "saveFailed": "Failed to update digest setting"
       }
     },
     "overview": {
@@ -600,6 +611,7 @@
       "emptyPreview": "Nothing to preview yet.",
       "lastEdited": "Last edited {{when}}",
       "pickOrCreate": "Select a note to edit, or create a new one.",
+      "pickToRead": "Select a note to read.",
       "conflictTitle": "This note changed",
       "conflictMessage": "A teammate edited this note while you were writing. Reload to see their changes — your unsaved text is kept below.",
       "conflictReload": "Reload note",
@@ -942,6 +954,64 @@
         "quiz": "Quiz",
         "videoActivity": "Video activity"
       }
+    },
+    "versions": {
+      "open": "Version history",
+      "openAriaLabel": "Version history for {{title}}",
+      "title": "Version history",
+      "ariaLabel": "Version history for {{title}}",
+      "close": "Close",
+      "intro": "Recent saved versions of this shared assessment. Restoring re-publishes that version to everyone — the current version is kept in history too.",
+      "loading": "Loading version history…",
+      "loadError": "Couldn’t load version history.",
+      "retry": "Try again",
+      "emptyTitle": "No previous versions yet",
+      "emptySubtitle": "Earlier versions appear here after the next edit is published.",
+      "versionShort": "v{{version}}",
+      "versionLabel": "Version {{version}}",
+      "savedByAt": "Saved by {{name}} · {{when}}",
+      "unknownAuthor": "a teammate",
+      "restoreAction": "Restore this version",
+      "restoreAriaLabel": "Restore version {{version}}",
+      "restored": "Restored version {{version}} of \"{{title}}\". Teammates sync on next refresh.",
+      "restoreFailed": "Couldn’t restore that version. Try again.",
+      "conflict": "Another teacher just published an update. We reloaded the version history — review it and try the restore again."
+    },
+    "sync": {
+      "autoPulled": "\"{{title}}\" updated to your teammate’s latest version.",
+      "autoPullFailed": "Couldn’t pull the latest version of \"{{title}}\". We’ll retry on the next update.",
+      "conflictTitle": "Synced copy changed",
+      "conflictBody": "A teammate published a new version of \"{{title}}\" while you have unsaved edits. Keep your edits, or pull their version (your unsaved edits will be discarded)?",
+      "keepMine": "Keep yours",
+      "pullTheirs": "Pull theirs",
+      "keptMine": "Kept your edits to \"{{title}}\". You can publish them to share with your team.",
+      "pulledTheirs": "Pulled your teammate’s version of \"{{title}}\". Your unsaved edits were discarded.",
+      "resolveFailed": "Couldn’t resolve the sync conflict for \"{{title}}\". Try again."
+    },
+    "search": {
+      "ariaLabel": "Search this PLC",
+      "placeholder": "Search this PLC…",
+      "clear": "Clear search",
+      "searching": "Searching…",
+      "resultsLabel": "Search results",
+      "resultCount_one": "{{count}} result",
+      "resultCount_other": "{{count}} results",
+      "noResults": "No matches for “{{query}}”",
+      "untitled": "Untitled",
+      "groupAssessments": "Assessments",
+      "groupData": "Data",
+      "groupDocs": "Notes & Docs",
+      "groupBoards": "Boards"
+    },
+    "viewer": {
+      "badge": "Viewer — read only",
+      "badgeTooltip": "You have viewer access to this PLC. You can read everything, but creating, editing, and deleting are turned off.",
+      "readOnly": "Read only",
+      "assessmentsNote": "Viewers can browse shared assessments but can’t share, edit, or assign them.",
+      "notesNote": "Viewers can read notes and docs but can’t add or change them.",
+      "todosNote": "Viewers can read the to-do list but can’t add or change items.",
+      "meetingNote": "Viewers can follow the meeting but can’t edit or save it.",
+      "homeNote": "Viewers can read everything here but can’t create new content."
     }
   },
   "widgetWindow": {
@@ -1487,6 +1557,30 @@
       "deleteSticker": "Delete Sticker",
       "dragFromLibrary": "Drag stickers from library to the board",
       "stickerAdded": "Sticker added to board!"
+    },
+    "plc": {
+      "recovery": {
+        "title": "PLC Recovery",
+        "subtitle": "Reassign the lead or dissolve an abandoned PLC in your organization.",
+        "explainer": "Only PLCs in your organization are recoverable. Use this when a PLC's lead has left and can't transfer leadership.",
+        "empty": "No recoverable PLCs in your organization.",
+        "leadLabel": "Lead",
+        "membersLabel_one": "{{count}} member",
+        "membersLabel_other": "{{count}} members",
+        "reassignLead": "Reassign lead",
+        "reassignTitle": "Reassign lead",
+        "reassignDescription": "Choose an active member to become the new lead of “{{name}}”.",
+        "newLeadLabel": "New lead",
+        "noEligibleMembers": "No other active members to promote.",
+        "confirmReassign": "Make {{member}} the lead of “{{name}}”? The current lead will be demoted to member.",
+        "reassignSuccess": "{{member}} is now the lead of “{{name}}”.",
+        "dissolve": "Dissolve PLC",
+        "confirmDissolve": "Dissolve “{{name}}”? This permanently deletes the PLC for all members and cannot be undone.",
+        "dissolveSuccess": "“{{name}}” has been dissolved.",
+        "actionFailed": "That action couldn't be completed. Please try again.",
+        "cancel": "Cancel",
+        "confirm": "Confirm"
+      }
     }
   },
   "backgrounds": {

@@ -25,9 +25,14 @@
 
 import { useEffect, useState } from 'react';
 import {
+  collection,
+  deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
+  orderBy,
+  query,
   runTransaction,
   setDoc,
 } from 'firebase/firestore';
@@ -35,12 +40,24 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import type {
+  PlcQuizVersionContent,
   QuizBehaviorSettings,
   QuizQuestion,
   SyncedQuizGroup,
+  SyncedQuizVersionSnapshot,
 } from '@/types';
 
 const SYNCED_QUIZZES_COLLECTION = 'synced_quizzes';
+const VERSIONS_SUBCOLLECTION = 'versions';
+
+/**
+ * Bounded version-history cap (PRD §5.1 / §3.10, Decision 5.1). After each
+ * publish writes a pre-edit snapshot, the client prunes the `versions`
+ * subcollection down to the newest `VERSION_HISTORY_LIMIT`; a server-side GC
+ * handles any further trimming. Kept identical for quizzes and video
+ * activities so the two histories stay symmetric.
+ */
+export const VERSION_HISTORY_LIMIT = 10;
 
 export interface PublishSyncedQuizInput {
   /** Title to publish to the canonical doc. */
@@ -260,7 +277,7 @@ export async function publishSyncedQuiz(
   input: PublishSyncedQuizInput
 ): Promise<PublishSyncedQuizResult> {
   const ref = doc(db, SYNCED_QUIZZES_COLLECTION, groupId);
-  return runTransaction(db, async (tx) => {
+  const result = await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists()) {
       throw new Error('Synced quiz group not found.');
@@ -298,7 +315,141 @@ export async function publishSyncedQuiz(
       updatedBy: input.uid,
       ...(input.behavior ? { behavior: input.behavior } : {}),
     });
-    return { version: nextVersion };
+    // Capture the PRE-edit content so the post-commit snapshot writer can
+    // archive the version this publish is about to overwrite.
+    return {
+      version: nextVersion,
+      preEditContent: buildQuizVersionContent(current),
+      preEditVersion: current.version,
+    };
+  });
+
+  // Fire-and-forget the version snapshot AFTER the canonical commit so
+  // versioning never blocks (or fails) the publish. A snapshot/prune error
+  // is logged but swallowed — the canonical write already succeeded.
+  void writeQuizVersionSnapshot(groupId, {
+    version: result.preEditVersion,
+    content: result.preEditContent,
+    savedBy: input.uid,
+    savedAt: Date.now(),
+  });
+
+  return { version: result.version };
+}
+
+/**
+ * Normalize a canonical quiz doc into the snapshot `content` payload — drops
+ * the `behavior` key entirely when absent so we never persist `undefined`
+ * (Firestore rejects it) and the schema-locked rule stays satisfied.
+ */
+function buildQuizVersionContent(
+  source: Pick<SyncedQuizGroup, 'title' | 'questions' | 'behavior'>
+): PlcQuizVersionContent {
+  return {
+    title: source.title,
+    questions: source.questions ?? [],
+    ...(source.behavior ? { behavior: source.behavior } : {}),
+  };
+}
+
+/**
+ * Write one snapshot to `versions/{version}` and prune the subcollection to
+ * the newest `VERSION_HISTORY_LIMIT`. Keyed by canonical version so a retried
+ * publish is idempotent (same version overwrites rather than duplicating).
+ * Best-effort: callers invoke this fire-and-forget after the canonical commit.
+ */
+async function writeQuizVersionSnapshot(
+  groupId: string,
+  snapshot: SyncedQuizVersionSnapshot
+): Promise<void> {
+  try {
+    await setDoc(
+      doc(
+        db,
+        SYNCED_QUIZZES_COLLECTION,
+        groupId,
+        VERSIONS_SUBCOLLECTION,
+        String(snapshot.version)
+      ),
+      snapshot
+    );
+    await pruneQuizVersions(groupId);
+  } catch (err) {
+    logError('useSyncedQuizGroups.writeVersionSnapshot', err, { groupId });
+  }
+}
+
+/**
+ * Delete any snapshots beyond the newest `VERSION_HISTORY_LIMIT`. Reads the
+ * full (bounded) versions collection ordered oldest-first and batch-deletes
+ * the overflow head.
+ */
+async function pruneQuizVersions(groupId: string): Promise<void> {
+  const versionsRef = collection(
+    db,
+    SYNCED_QUIZZES_COLLECTION,
+    groupId,
+    VERSIONS_SUBCOLLECTION
+  );
+  const snap = await getDocs(query(versionsRef, orderBy('version', 'asc')));
+  const overflow = snap.docs.length - VERSION_HISTORY_LIMIT;
+  if (overflow <= 0) return;
+  await Promise.all(snap.docs.slice(0, overflow).map((d) => deleteDoc(d.ref)));
+}
+
+/**
+ * List the bounded version history for a synced quiz group, newest-first.
+ * Used by the "Restore version" UI to surface the recoverable snapshots.
+ */
+export async function listSyncedVersions(
+  groupId: string
+): Promise<SyncedQuizVersionSnapshot[]> {
+  const versionsRef = collection(
+    db,
+    SYNCED_QUIZZES_COLLECTION,
+    groupId,
+    VERSIONS_SUBCOLLECTION
+  );
+  const snap = await getDocs(query(versionsRef, orderBy('version', 'desc')));
+  return snap.docs.map((d) => d.data() as SyncedQuizVersionSnapshot);
+}
+
+/**
+ * Restore a snapshot's content back to the canonical doc. Re-publishes the
+ * archived `content` through the normal version-precondition publish path so
+ * the restore bumps `version` (and itself snapshots the pre-restore content),
+ * reusing `SyncedQuizVersionConflictError` on a concurrent edit. Reads the
+ * current canonical version first so the caller doesn't have to track it.
+ */
+export async function restoreSyncedVersion(
+  groupId: string,
+  version: number,
+  uid: string
+): Promise<PublishSyncedQuizResult> {
+  const versionSnap = await getDoc(
+    doc(
+      db,
+      SYNCED_QUIZZES_COLLECTION,
+      groupId,
+      VERSIONS_SUBCOLLECTION,
+      String(version)
+    )
+  );
+  if (!versionSnap.exists()) {
+    throw new Error('Synced quiz version snapshot not found.');
+  }
+  const { content } = versionSnap.data() as SyncedQuizVersionSnapshot;
+  const groupSnap = await getDoc(doc(db, SYNCED_QUIZZES_COLLECTION, groupId));
+  if (!groupSnap.exists()) {
+    throw new Error('Synced quiz group not found.');
+  }
+  const current = groupSnap.data() as SyncedQuizGroup;
+  return publishSyncedQuiz(groupId, {
+    title: content.title,
+    questions: content.questions,
+    expectedVersion: current.version,
+    uid,
+    ...(content.behavior ? { behavior: content.behavior } : {}),
   });
 }
 
@@ -314,6 +465,15 @@ interface JoinResponse {
 }
 interface LeaveResponse {
   remainingParticipants: number;
+}
+
+/** Discriminator for the PLC clean-detach callable (see detachPlcSyncLinkage). */
+export type PlcSyncLinkageKind = 'quiz' | 'video-activity';
+
+interface DetachPlcSyncLinkageResponse {
+  groupId: string;
+  remainingParticipants: number;
+  alreadyDetached: boolean;
 }
 
 /**
@@ -383,5 +543,38 @@ export async function callJoinPlcAssignmentSyncGroup(
     JoinResponse
   >(functions, 'joinPlcAssignmentSyncGroup');
   const result = await fn({ plcId, plcAssignmentId });
+  return result.data;
+}
+
+/**
+ * Wave 4 (PRD §5.3, Decision 5.3) — clean-detach a PLC synced linkage.
+ *
+ * The inverse of `callJoinPlcQuizSyncGroup` /
+ * `callJoinPlcVideoActivitySyncGroup`. Given a PLC content header
+ * (`plcs/{plcId}/quizzes/{id}` or `plcs/{plcId}/video_activities/{id}`),
+ * the Cloud Function verifies the caller is a current PLC member, resolves
+ * the header's `syncGroupId`, and removes the caller's uid from the
+ * canonical `synced_*` `participants` map via the Admin SDK.
+ *
+ * Why a callable and not a client write? Firestore rules forbid clients
+ * from mutating a synced group's `participants` map — detach MUST be a
+ * server op. This is the canonical fix for the "orphanedGroup" gap where
+ * unshare tombstoned the PLC header but left the teacher as a phantom
+ * participant on the canonical doc.
+ *
+ * Idempotent (`alreadyDetached: true` when the caller was already absent);
+ * empty groups are intentionally preserved for re-share (gcPlcOrphans
+ * reaps them).
+ */
+export async function callDetachPlcSyncLinkage(
+  plcId: string,
+  kind: PlcSyncLinkageKind,
+  plcContentId: string
+): Promise<DetachPlcSyncLinkageResponse> {
+  const fn = httpsCallable<
+    { plcId: string; kind: PlcSyncLinkageKind; plcContentId: string },
+    DetachPlcSyncLinkageResponse
+  >(functions, 'detachPlcSyncLinkage');
+  const result = await fn({ plcId, kind, plcContentId });
   return result.data;
 }

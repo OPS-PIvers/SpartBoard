@@ -35,6 +35,15 @@ import {
   useRef,
   useSyncExternalStore,
 } from 'react';
+import {
+  flattenSearchGroups,
+  searchPlcRecords,
+  type PlcSearchGroup,
+  type PlcSearchRecord,
+  type PlcSearchResult,
+} from '@/components/plc/search/plcSearchIndex';
+import { useAuth } from '@/context/useAuth';
+import { usePlcSharedBoards } from '@/hooks/usePlcSharedBoards';
 import type {
   Plc,
   PlcActivityEvent,
@@ -477,6 +486,27 @@ export function usePlcRole(uid: string | null | undefined): PlcRole | null {
   return getPlcRole(root, uid);
 }
 
+/**
+ * True when the signed-in user may EDIT this PLC's content (author / edit /
+ * delete / share assessments, notes, todos, docs, meetings, comments) — i.e.
+ * any active member except a `viewer` (Decision 3.2; mirrors T1
+ * `canEditPlcContent`). The viewer-role read-only UI gate (W4-T10): content
+ * surfaces call this once instead of re-threading `plc` + `uid` to
+ * `canEditPlcContent` at every affordance.
+ *
+ * Pulls the acting uid from `useAuth` and the role from the store root doc, so
+ * a call site only needs the hook — no props. Returns `false` while the root
+ * doc hasn't loaded, when no provider is mounted, or when the user is a viewer
+ * / not a member. This is purely a defense-in-depth UI gate: the rules layer
+ * (W4-T1 `plcCanEditContent`) is the source of truth and hard-denies viewer
+ * writes regardless of what the client renders.
+ */
+export function useCanEditPlcContent(): boolean {
+  const { user } = useAuth();
+  const role = usePlcRole(user?.uid);
+  return role !== null && role !== 'viewer';
+}
+
 /** Notes slice (data/loading/error). */
 export function usePlcNotesData(): PlcSlice<PlcNote[]> {
   return usePlcSelector((s) => s.notes) ?? EMPTY_NOTES_SLICE;
@@ -552,6 +582,175 @@ export function usePlcActivity(): PlcActivityEntry[] {
   return usePlcSelector((s) => s.activity) ?? EMPTY_ACTIVITY;
 }
 
+// --- Per-PLC search (PRD §6.4, Decision 4.3) ------------------------------
+
+/**
+ * The grouped, ranked results of a per-PLC search, plus the cursor-navigable flat
+ * list and a loading flag for the on-demand boards slice. Returned by
+ * {@link usePlcSearch}.
+ */
+export interface PlcSearchState {
+  /** Grouped results in fixed section order (empty when the query is too short). */
+  groups: PlcSearchGroup[];
+  /** The same results flattened in render order — for arrow-key navigation. */
+  flat: PlcSearchResult[];
+  /**
+   * True while the on-demand boards query is in flight. The store-backed slices
+   * (assessments / quizzes / VAs / docs / notes) are already loaded, so this only
+   * reflects the boards listener spun up for search.
+   */
+  loadingBoards: boolean;
+}
+
+const EMPTY_SEARCH_GROUPS: PlcSearchGroup[] = [];
+const EMPTY_SEARCH_FLAT: PlcSearchResult[] = [];
+
+/**
+ * Build the flat searchable record set from the provider's already-loaded slices
+ * plus the on-demand boards list. Pure projection — extracted so the slice → record
+ * mapping is testable and the hook body stays a thin orchestration.
+ *
+ * Soft-deleted entries are ALREADY filtered out of the provider slices
+ * (`filterLive` in `PlcContext`), so this never re-checks `deletedAt`.
+ */
+function buildPlcSearchRecords(input: {
+  assessments: PlcCommonAssessment[];
+  quizzes: PlcQuizEntry[];
+  videoActivities: PlcVideoActivityEntry[];
+  docs: PlcDoc[];
+  notes: PlcNote[];
+  boards: { id: string; name: string }[];
+}): PlcSearchRecord[] {
+  const records: PlcSearchRecord[] = [];
+
+  // Common assessments → Shared Data section (where they're designated/reviewed).
+  for (const a of input.assessments) {
+    records.push({
+      id: a.id,
+      kind: 'assessment',
+      section: 'sharedData',
+      title: a.title,
+      ...(a.unitLabel ? { snippet: a.unitLabel } : {}),
+    });
+  }
+  // Synced quizzes + video activities → unified Assessments section.
+  for (const q of input.quizzes) {
+    records.push({
+      id: q.id,
+      kind: 'quiz',
+      section: 'assessments',
+      title: q.title,
+    });
+  }
+  for (const v of input.videoActivities) {
+    records.push({
+      id: v.id,
+      kind: 'video-activity',
+      section: 'assessments',
+      title: v.title,
+    });
+  }
+  // Shared notes + Google docs → Notes & Docs section.
+  for (const n of input.notes) {
+    records.push({
+      id: n.id,
+      kind: 'note',
+      section: 'docs',
+      title: n.title,
+      ...(n.body ? { snippet: n.body } : {}),
+    });
+  }
+  for (const d of input.docs) {
+    records.push({
+      id: d.id,
+      kind: 'doc',
+      section: 'docs',
+      title: d.title,
+      ...(d.url ? { snippet: d.url } : {}),
+    });
+  }
+  // PLC-shared dashboards → Boards section (on-demand boards query).
+  for (const b of input.boards) {
+    records.push({
+      id: b.id,
+      kind: 'board',
+      section: 'sharedBoards',
+      title: b.name,
+    });
+  }
+  return records;
+}
+
+/**
+ * Per-PLC search selector (PRD §6.4, Decision 4.3). Runs client-side over the
+ * provider's already-loaded slices — common assessments, synced quizzes + video
+ * activities, shared notes, and Google docs — and additionally spins up a LIGHT
+ * on-demand boards subscription (boards are not a provider slice for any section,
+ * so they're fetched here while the search box is mounted).
+ *
+ * The expensive parts — slice flattening and match/rank/group — are `useMemo`'d on
+ * the slice references (the provider replaces a slice reference only on a real
+ * snapshot) and the trimmed query, so typing only re-runs the pure search, not the
+ * record projection, when the underlying data is stable.
+ *
+ * `plcId` is required so the on-demand boards listener targets the right PLC; pass
+ * the active PLC's id. Returns empty groups when the query is below the minimum
+ * length (see `searchPlcRecords`).
+ */
+export function usePlcSearch(plcId: string, query: string): PlcSearchState {
+  // Already-loaded slices (Object.is-stable references from the provider).
+  const assessments = usePlcAssessmentsData();
+  const quizzes = usePlcSelector((s) => s.quizzes) ?? EMPTY_QUIZZES_SLICE;
+  const videoActivities =
+    usePlcSelector((s) => s.videoActivities) ?? EMPTY_VIDEO_ACTIVITIES_SLICE;
+  const docs = usePlcDocsData();
+  const notes = usePlcNotesData();
+
+  // Light on-demand boards subscription — only the header fields are read; the
+  // hook tears the listener down when the search box unmounts (plcId → null).
+  const { boards, loading: loadingBoards } = usePlcSharedBoards(plcId);
+
+  const boardRecords = useMemo(
+    () => boards.map((b) => ({ id: b.id, name: b.name })),
+    [boards]
+  );
+
+  const records = useMemo(
+    () =>
+      buildPlcSearchRecords({
+        assessments: assessments.data,
+        quizzes: quizzes.data,
+        videoActivities: videoActivities.data,
+        docs: docs.data,
+        notes: notes.data,
+        boards: boardRecords,
+      }),
+    [
+      assessments.data,
+      quizzes.data,
+      videoActivities.data,
+      docs.data,
+      notes.data,
+      boardRecords,
+    ]
+  );
+
+  const groups = useMemo(
+    () => searchPlcRecords(records, query),
+    [records, query]
+  );
+  const flat = useMemo(() => flattenSearchGroups(groups), [groups]);
+
+  return useMemo(
+    () => ({
+      groups: groups.length > 0 ? groups : EMPTY_SEARCH_GROUPS,
+      flat: flat.length > 0 ? flat : EMPTY_SEARCH_FLAT,
+      loadingBoards,
+    }),
+    [groups, flat, loadingBoards]
+  );
+}
+
 /**
  * Mount-stable actions surface. Throws if used outside a `PlcProvider` — every
  * caller of the actions surface lives under the provider (the subcollection
@@ -606,6 +805,18 @@ const EMPTY_DOCS_SLICE: PlcSlice<PlcDoc[]> = {
   enabled: false,
 };
 const EMPTY_CONTRIBUTIONS_SLICE: PlcSlice<PlcContribution[]> = {
+  data: [],
+  loading: false,
+  error: null,
+  enabled: false,
+};
+const EMPTY_QUIZZES_SLICE: PlcSlice<PlcQuizEntry[]> = {
+  data: [],
+  loading: false,
+  error: null,
+  enabled: false,
+};
+const EMPTY_VIDEO_ACTIVITIES_SLICE: PlcSlice<PlcVideoActivityEntry[]> = {
   data: [],
   loading: false,
   error: null,

@@ -133,21 +133,21 @@ vi.mock('@/components/plc/resources/PlcResourcesBody', () => ({
     <div data-testid="section-resources">Resources body</div>
   ),
 }));
-vi.mock('@/components/plc/tabs/PlcQuizLibraryTab', () => ({
-  PlcQuizLibraryTab: () => (
-    <div data-testid="section-quizzes">Quizzes body</div>
+// The Quizzes + Video Activities sections were unified into one Assessments
+// section in Wave 4 (Decision 4.5); the dashboard now renders PlcAssessmentsBody.
+vi.mock('@/components/plc/bodies/PlcAssessmentsBody', () => ({
+  PlcAssessmentsBody: () => (
+    <div data-testid="section-assessments">Assessments body</div>
   ),
 }));
-vi.mock('@/components/plc/tabs/PlcVideoActivitiesTab', () => ({
-  PlcVideoActivitiesTab: () => (
-    <div data-testid="section-videoActivities">Video activities body</div>
-  ),
+// The no-value `PlcTodosTab` / `PlcSharedBoardsTab` shims were removed in
+// Wave-4 cleanup (§6.5 / Decision 4.4); the dashboard now renders the shared
+// bodies directly. Mock the bodies the same way the shims used to be mocked.
+vi.mock('@/components/plc/bodies/TodosBody', () => ({
+  TodosBody: () => <div data-testid="section-todos">To-dos body</div>,
 }));
-vi.mock('@/components/plc/tabs/PlcTodosTab', () => ({
-  PlcTodosTab: () => <div data-testid="section-todos">To-dos body</div>,
-}));
-vi.mock('@/components/plc/tabs/PlcSharedBoardsTab', () => ({
-  PlcSharedBoardsTab: () => (
+vi.mock('@/components/plc/bodies/PlcSharedBoardsBody', () => ({
+  PlcSharedBoardsBody: () => (
     <div data-testid="section-sharedBoards">Shared boards body</div>
   ),
 }));
@@ -163,6 +163,12 @@ vi.mock('@/components/plc/meeting/PlcMeetingMode', () => ({
       Meeting mode
     </div>
   ),
+}));
+// The header search box (Wave-4 T9) boots a Firestore boards listener via
+// usePlcSearch → usePlcSharedBoards; sentinel it so the shell test stays
+// isolated from Firestore. Its own behavior is covered by plcSearchIndex.test.ts.
+vi.mock('@/components/plc/search/PlcSearchBox', () => ({
+  PlcSearchBox: () => <div data-testid="plc-search-box">Search</div>,
 }));
 
 // ---------------------------------------------------------------------------
@@ -270,6 +276,54 @@ describe('PlcDashboard (Wave 1 — pathname-driven render/smoke)', () => {
       'data-meeting-id',
       'meeting-7'
     );
+  });
+
+  it("renders the unified Assessments body when activeSection='assessments'", () => {
+    render(
+      <PlcDashboard
+        plc={fakePlc}
+        activeSection="assessments"
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('rail')).toHaveAttribute(
+      'data-active',
+      'assessments'
+    );
+    expect(screen.getByTestId('section-assessments')).toBeInTheDocument();
+    expect(screen.queryByTestId('section-home')).not.toBeInTheDocument();
+  });
+
+  it('renders the rail in the locked Wave-4 loop order with a single Assessments item', () => {
+    render(
+      <PlcDashboard plc={fakePlc} activeSection="home" onClose={vi.fn()} />
+    );
+
+    const rail = screen.getByTestId('rail');
+    const ids = Array.from(rail.querySelectorAll('button')).map((b) =>
+      b.getAttribute('data-testid')?.replace(/^rail-/, '')
+    );
+    expect(ids).toEqual([
+      'home',
+      'meeting',
+      'assessments',
+      'sharedData',
+      'docs',
+      'todos',
+      'sharedBoards',
+      'members',
+      'resources',
+      'settings',
+    ]);
+    // The merged section appears exactly once; the legacy ids are gone.
+    expect(
+      rail.querySelectorAll('[data-testid="rail-assessments"]')
+    ).toHaveLength(1);
+    expect(screen.queryByTestId('rail-quizzes')).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('rail-videoActivities')
+    ).not.toBeInTheDocument();
   });
 
   it('navigates (pushes history) when a rail item is clicked', () => {

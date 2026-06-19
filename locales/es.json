@@ -281,7 +281,8 @@
       "notAMember": "Esa persona no es miembro de esta PLC.",
       "targetNotActiveMember": "Solo puedes transferir el liderazgo a un miembro activo.",
       "cannotDemoteLead": "Usa «Transferir liderazgo» para cambiar quién lidera la PLC.",
-      "invalidRole": "Ese no es un rol válido de la PLC."
+      "invalidRole": "Ese no es un rol válido de la PLC.",
+      "alreadyLead": "Ese miembro ya es el líder de esta PLC."
     }
   },
   "plcDashboard": {
@@ -348,16 +349,22 @@
       "overview": "Resumen",
       "quizzes": "Cuestionarios",
       "videoActivities": "Actividades de Video",
+      "assessments": "Evaluaciones",
       "notes": "Notas",
-      "todos": "Lista de Tareas",
-      "sharedBoards": "Tableros Compartidos",
+      "todos": "Tareas",
+      "sharedBoards": "Tableros",
       "settings": "Configuración",
       "home": "Inicio",
       "members": "Miembros",
-      "sharedData": "Datos Compartidos",
+      "sharedData": "Datos",
       "meeting": "Modo Reunión",
-      "docs": "Documentos",
+      "docs": "Notas y Documentos",
       "resources": "Recursos"
+    },
+    "assessmentsTypes": {
+      "label": "Tipo de evaluación",
+      "quizzes": "Cuestionarios",
+      "videoActivities": "Actividades de Video"
     },
     "assignmentsSubTabs": {
       "label": "Vistas de tareas",
@@ -461,9 +468,6 @@
       "emptyTitle": "Aún no hay tareas completadas",
       "emptySubtitle": "Cuando se detiene una tarea en modo Comunidad desde el tablero de cualquier compañero, aparece aquí con un enlace a la hoja de resultados compartida."
     },
-    "placeholder": {
-      "comingSoon": "Próximamente"
-    },
     "settings": {
       "heading": "Secciones del Panel",
       "description": "Elige qué secciones aparecen en el panel de esta Comunidad. Cualquier miembro puede actualizar estas opciones.",
@@ -487,6 +491,13 @@
       "sharedBoards": {
         "title": "Tableros Compartidos",
         "description": "Muestra tableros compartidos con esta Comunidad."
+      },
+      "digest": {
+        "heading": "Notificaciones",
+        "description": "Controla cómo esta Comunidad se mantiene informada.",
+        "title": "Resumen semanal por correo",
+        "optInDescription": "Envía a cada miembro un correo semanal con un resumen de lo que ocurrió en la Comunidad. Desactivado de forma predeterminada; cualquier miembro puede cambiarlo.",
+        "saveFailed": "No se pudo actualizar la configuración del resumen"
       }
     },
     "overview": {
@@ -600,6 +611,7 @@
       "emptyPreview": "Aún no hay nada para previsualizar.",
       "lastEdited": "Última edición {{when}}",
       "pickOrCreate": "Selecciona una nota para editar o crea una nueva.",
+      "pickToRead": "Selecciona una nota para leer.",
       "conflictTitle": "Esta nota cambió",
       "conflictMessage": "Un compañero editó esta nota mientras escribías. Vuelve a cargar para ver sus cambios; tu texto sin guardar se conserva abajo.",
       "conflictReload": "Recargar nota",
@@ -942,6 +954,64 @@
         "quiz": "Cuestionario",
         "videoActivity": "Actividad de video"
       }
+    },
+    "versions": {
+      "open": "Historial de versiones",
+      "openAriaLabel": "Historial de versiones de {{title}}",
+      "title": "Historial de versiones",
+      "ariaLabel": "Historial de versiones de {{title}}",
+      "close": "Cerrar",
+      "intro": "Versiones guardadas recientes de esta evaluación compartida. Al restaurar se vuelve a publicar esa versión para todos; la versión actual también se conserva en el historial.",
+      "loading": "Cargando historial de versiones…",
+      "loadError": "No se pudo cargar el historial de versiones.",
+      "retry": "Intentar de nuevo",
+      "emptyTitle": "Aún no hay versiones anteriores",
+      "emptySubtitle": "Las versiones anteriores aparecerán aquí después de publicar la próxima edición.",
+      "versionShort": "v{{version}}",
+      "versionLabel": "Versión {{version}}",
+      "savedByAt": "Guardado por {{name}} · {{when}}",
+      "unknownAuthor": "un compañero",
+      "restoreAction": "Restaurar esta versión",
+      "restoreAriaLabel": "Restaurar la versión {{version}}",
+      "restored": "Se restauró la versión {{version}} de «{{title}}». Los compañeros se sincronizarán en la próxima actualización.",
+      "restoreFailed": "No se pudo restaurar esa versión. Inténtalo de nuevo.",
+      "conflict": "Otro docente acaba de publicar una actualización. Recargamos el historial de versiones: revísalo e intenta restaurar de nuevo."
+    },
+    "sync": {
+      "autoPulled": "«{{title}}» se actualizó a la última versión de tu compañero/a.",
+      "autoPullFailed": "No se pudo obtener la última versión de «{{title}}». Lo reintentaremos en la próxima actualización.",
+      "conflictTitle": "La copia sincronizada cambió",
+      "conflictBody": "Un/a compañero/a publicó una nueva versión de «{{title}}» mientras tienes cambios sin guardar. ¿Conservar tus cambios u obtener su versión (se descartarán tus cambios sin guardar)?",
+      "keepMine": "Conservar los tuyos",
+      "pullTheirs": "Obtener los suyos",
+      "keptMine": "Se conservaron tus cambios en «{{title}}». Puedes publicarlos para compartirlos con tu equipo.",
+      "pulledTheirs": "Se obtuvo la versión de tu compañero/a de «{{title}}». Tus cambios sin guardar se descartaron.",
+      "resolveFailed": "No se pudo resolver el conflicto de sincronización de «{{title}}». Inténtalo de nuevo."
+    },
+    "search": {
+      "ariaLabel": "Buscar en este PLC",
+      "placeholder": "Buscar en este PLC…",
+      "clear": "Borrar búsqueda",
+      "searching": "Buscando…",
+      "resultsLabel": "Resultados de la búsqueda",
+      "resultCount_one": "{{count}} resultado",
+      "resultCount_other": "{{count}} resultados",
+      "noResults": "Sin coincidencias para «{{query}}»",
+      "untitled": "Sin título",
+      "groupAssessments": "Evaluaciones",
+      "groupData": "Datos",
+      "groupDocs": "Notas y documentos",
+      "groupBoards": "Tableros"
+    },
+    "viewer": {
+      "badge": "Espectador: solo lectura",
+      "badgeTooltip": "Tienes acceso de espectador a este PLC. Puedes leer todo, pero crear, editar y eliminar están desactivados.",
+      "readOnly": "Solo lectura",
+      "assessmentsNote": "Los espectadores pueden explorar las evaluaciones compartidas, pero no compartirlas, editarlas ni asignarlas.",
+      "notesNote": "Los espectadores pueden leer notas y documentos, pero no agregarlos ni modificarlos.",
+      "todosNote": "Los espectadores pueden leer la lista de tareas, pero no agregar ni cambiar elementos.",
+      "meetingNote": "Los espectadores pueden seguir la reunión, pero no editarla ni guardarla.",
+      "homeNote": "Los espectadores pueden leer todo aquí, pero no crear contenido nuevo."
     }
   },
   "widgetWindow": {
@@ -1551,6 +1621,30 @@
       "deleteSticker": "Eliminar pegatina",
       "dragFromLibrary": "Arrastra pegatinas de la biblioteca al tablero",
       "stickerAdded": "¡Pegatina añadida al tablero!"
+    },
+    "plc": {
+      "recovery": {
+        "title": "Recuperación de PLC",
+        "subtitle": "Reasigna el líder o disuelve una PLC abandonada en tu organización.",
+        "explainer": "Solo se pueden recuperar las PLC de tu organización. Úsalo cuando el líder de una PLC se haya marchado y no pueda transferir el liderazgo.",
+        "empty": "No hay PLC recuperables en tu organización.",
+        "leadLabel": "Líder",
+        "membersLabel_one": "{{count}} miembro",
+        "membersLabel_other": "{{count}} miembros",
+        "reassignLead": "Reasignar líder",
+        "reassignTitle": "Reasignar líder",
+        "reassignDescription": "Elige un miembro activo para que sea el nuevo líder de «{{name}}».",
+        "newLeadLabel": "Nuevo líder",
+        "noEligibleMembers": "No hay otros miembros activos para promover.",
+        "confirmReassign": "¿Hacer a {{member}} líder de «{{name}}»? El líder actual pasará a ser miembro.",
+        "reassignSuccess": "{{member}} ahora lidera «{{name}}».",
+        "dissolve": "Disolver PLC",
+        "confirmDissolve": "¿Disolver «{{name}}»? Esto elimina la PLC de forma permanente para todos los miembros y no se puede deshacer.",
+        "dissolveSuccess": "«{{name}}» se ha disuelto.",
+        "actionFailed": "No se pudo completar esa acción. Inténtalo de nuevo.",
+        "cancel": "Cancelar",
+        "confirm": "Confirmar"
+      }
     }
   },
   "plcRoute": {

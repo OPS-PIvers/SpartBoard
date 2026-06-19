@@ -287,6 +287,15 @@ export interface Plc {
    * `getPlcFeatures(plc)` rather than `plc.features` directly.
    */
   features?: PlcFeatureSettings;
+  /**
+   * Opt-in weekly email digest flag (Decision 2.3, §5). Default `false` —
+   * absent/false means no digest is sent. Any PLC member may toggle it via the
+   * `isUpdatingPlcDigestOptIn()` rules branch. The scheduled `plcWeeklyDigest`
+   * Cloud Function composes ONE shared summary per opted-in PLC (no per-member
+   * fan-out) only when this is `true` AND the global `plc-digest.enabled` kill
+   * switch is on.
+   */
+  digestOptIn?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -4167,6 +4176,68 @@ export interface SyncedVideoActivityGroup {
   /** Auth uid of whoever last published an edit. */
   updatedBy: string;
 }
+
+/**
+ * A single bounded version-history snapshot of a synced group's PRE-edit
+ * content, stored at `/synced_quizzes/{groupId}/versions/{versionId}` and
+ * `/synced_video_activities/{groupId}/versions/{versionId}` (PRD §5.1, §3.10,
+ * Decision 5.1).
+ *
+ * Snapshots are written fire-and-forget by the publish path AFTER the
+ * canonical transaction commits, so versioning never blocks (or fails) a
+ * publish. The collection is pruned to the newest `VERSION_HISTORY_LIMIT`
+ * (10) on each write; a server-side GC handles any further trimming.
+ * "Restore version" copies a snapshot's `content` back to canonical via the
+ * normal version-precondition publish path, which bumps `version`.
+ *
+ * `content` is the discriminated payload — a quiz snapshot carries the quiz
+ * shape (`title` + `questions` + optional `behavior`), a video-activity
+ * snapshot additionally carries `youtubeUrl`. The `version` field records the
+ * canonical version this snapshot's content represented at capture time.
+ *
+ * Identity is immutable: the doc is create-only from the client; no update or
+ * delete is permitted (GC is server-side via the Admin SDK).
+ */
+export interface PlcQuizVersionContent {
+  title: string;
+  questions: QuizQuestion[];
+  behavior?: QuizBehaviorSettings;
+}
+
+export interface PlcVideoActivityVersionContent {
+  title: string;
+  youtubeUrl: string;
+  questions: VideoActivityQuestion[];
+  behavior?: VideoActivityBehaviorSettings;
+}
+
+/**
+ * Generic version snapshot shape, parameterized by the canonical content it
+ * captures. `SyncedQuizVersionSnapshot` and `SyncedVideoActivityVersionSnapshot`
+ * are the two concrete forms; `SyncedVersionSnapshot` is the union the rules +
+ * restore path discriminate over (a quiz snapshot has no `youtubeUrl`; a VA
+ * snapshot does).
+ */
+export interface PlcVersionSnapshot<
+  TContent = PlcQuizVersionContent | PlcVideoActivityVersionContent,
+> {
+  /** The canonical `version` this snapshot's content represented. */
+  version: number;
+  /** The pre-edit content captured at snapshot time (discriminated by shape). */
+  content: TContent;
+  /** Auth uid of whoever published the edit that produced this snapshot. */
+  savedBy: string;
+  /** Wall-clock millis the snapshot was written. */
+  savedAt: number;
+}
+
+export type SyncedQuizVersionSnapshot =
+  PlcVersionSnapshot<PlcQuizVersionContent>;
+export type SyncedVideoActivityVersionSnapshot =
+  PlcVersionSnapshot<PlcVideoActivityVersionContent>;
+export type SyncedVersionSnapshot =
+  | SyncedQuizVersionSnapshot
+  | SyncedVideoActivityVersionSnapshot;
 
 /**
  * Shared-assignment document stored at

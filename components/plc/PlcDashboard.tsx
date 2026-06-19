@@ -2,24 +2,24 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, Users2 } from 'lucide-react';
 
-import { Plc, getPlcFeatures } from '@/types';
+import { Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
 import { buildPlcPath, spaNavigate, spaReplace } from '@/utils/plcPath';
 import { PlcDashboardRail, type PlcRailItem } from './PlcDashboardRail';
-import { PLC_SECTIONS, type PlcSectionId } from './sections';
+import { getVisiblePlcSections, type PlcSectionId } from './sections';
 import { PlcHome } from './home/PlcHome';
 import { PlcSharedDataBody } from './sharedData/PlcSharedDataBody';
 import { NotesDocsBody } from './bodies/NotesDocsBody';
 import { PlcResourcesBody } from './resources/PlcResourcesBody';
-import { PlcQuizLibraryTab } from './tabs/PlcQuizLibraryTab';
-import { PlcVideoActivitiesTab } from './tabs/PlcVideoActivitiesTab';
-import { PlcTodosTab } from './tabs/PlcTodosTab';
-import { PlcSharedBoardsTab } from './tabs/PlcSharedBoardsTab';
+import { PlcAssessmentsBody } from './bodies/PlcAssessmentsBody';
+import { TodosBody } from './bodies/TodosBody';
+import { PlcSharedBoardsBody } from './bodies/PlcSharedBoardsBody';
 import { PlcSettingsTab } from './tabs/PlcSettingsTab';
 import { MembersBody } from './bodies/MembersBody';
 import { PlcMeetingMode } from './meeting/PlcMeetingMode';
 import { PlcPresenceStrip } from './presence/PlcPresenceStrip';
+import { PlcSearchBox } from './search/PlcSearchBox';
 
 interface PlcDashboardProps {
   plc: Plc;
@@ -70,15 +70,10 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
     return () => document.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  const features = useMemo(() => getPlcFeatures(plc), [plc]);
-
-  const visibleSections = useMemo(
-    () =>
-      PLC_SECTIONS.filter(
-        (section) => !section.feature || features[section.feature]
-      ),
-    [features]
-  );
+  // Locked Wave-4 loop order + feature gating live in `getVisiblePlcSections`
+  // (single source of truth). `assessments` shows when EITHER the quiz or the
+  // video-activity feature is on.
+  const visibleSections = useMemo(() => getVisiblePlcSections(plc), [plc]);
 
   const visibleRailItems: PlcRailItem[] = useMemo(
     () =>
@@ -90,9 +85,9 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
     [visibleSections, t]
   );
 
-  // The requested section may not be visible: it could be a feature-gated
-  // section the team has toggled off, or `meeting` (reserved, not in the rail
-  // this wave). In either case fall back to `home`. We only REWRITE the URL
+  // The requested section may not be visible: a feature-gated section the team
+  // has toggled off (e.g. `assessments` when BOTH quiz + video-activity are
+  // off). In that case fall back to `home`. We only REWRITE the URL
   // (replaceState, no history entry) when the requested section is a real
   // section id that resolved away — not for `home` itself.
   const activeSection: PlcSectionId = visibleSections.find(
@@ -131,10 +126,12 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
     switch (id) {
       case 'home':
         return <PlcHome plc={plc} onNavigate={handleNavigateSection} />;
-      case 'quizzes':
-        return <PlcQuizLibraryTab plc={plc} onCloseDashboard={onClose} />;
-      case 'videoActivities':
-        return <PlcVideoActivitiesTab plc={plc} />;
+      // Unified Assessments section (Decision 4.5): hosts the quiz +
+      // video-activity bodies under one section with a type filter. The legacy
+      // `/plc/:id/quizzes` and `/plc/:id/videoActivities` deep links resolve to
+      // `assessments` in `parsePlcPath` (alias rewrite), so they land here.
+      case 'assessments':
+        return <PlcAssessmentsBody plc={plc} onCloseDashboard={onClose} />;
       case 'sharedData':
         return <PlcSharedDataBody plc={plc} />;
       case 'docs':
@@ -143,9 +140,9 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
         // tab away (Decisions 2.5, 6.5).
         return <NotesDocsBody plc={plc} />;
       case 'todos':
-        return <PlcTodosTab plc={plc} />;
+        return <TodosBody plc={plc} />;
       case 'sharedBoards':
-        return <PlcSharedBoardsTab plc={plc} />;
+        return <PlcSharedBoardsBody plc={plc} />;
       case 'members':
         return <MembersBody plc={plc} />;
       case 'resources':
@@ -208,6 +205,11 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
                 </span>
               </div>
             </div>
+          </div>
+          {/* Per-PLC search (PRD §6.4) — next to the title. Hidden on the
+              narrow mobile header; the drill-in menu owns small viewports. */}
+          <div className="hidden md:block shrink-0 ml-4">
+            <PlcSearchBox plcId={plc.id} onNavigate={handleNavigateSection} />
           </div>
         </div>
 

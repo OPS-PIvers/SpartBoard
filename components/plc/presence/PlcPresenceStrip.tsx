@@ -54,20 +54,19 @@ const SECTION_LABELS: Record<
   { key: string; defaultValue: string }
 > = {
   home: { key: 'plcDashboard.tabs.home', defaultValue: 'Home' },
-  quizzes: { key: 'plcDashboard.tabs.quizzes', defaultValue: 'Quizzes' },
-  videoActivities: {
-    key: 'plcDashboard.tabs.videoActivities',
-    defaultValue: 'Video Activities',
+  assessments: {
+    key: 'plcDashboard.tabs.assessments',
+    defaultValue: 'Assessments',
   },
   sharedData: {
     key: 'plcDashboard.tabs.sharedData',
-    defaultValue: 'Shared Data',
+    defaultValue: 'Data',
   },
-  docs: { key: 'plcDashboard.tabs.docs', defaultValue: 'Docs' },
+  docs: { key: 'plcDashboard.tabs.docs', defaultValue: 'Notes & Docs' },
   todos: { key: 'plcDashboard.tabs.todos', defaultValue: 'To-Dos' },
   sharedBoards: {
     key: 'plcDashboard.tabs.sharedBoards',
-    defaultValue: 'Shared Boards',
+    defaultValue: 'Boards',
   },
   members: { key: 'plcDashboard.tabs.members', defaultValue: 'Members' },
   resources: { key: 'plcDashboard.tabs.resources', defaultValue: 'Resources' },

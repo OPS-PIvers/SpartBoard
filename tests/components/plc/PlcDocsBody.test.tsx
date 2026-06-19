@@ -54,6 +54,13 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast: mockAddToast }),
 }));
 
+// Wave-4 (T10): PlcDocsBody + PlcDocPicker gate add/rename/remove behind the
+// viewer read-only check. These tests exercise the editable path, so report a
+// full (non-viewer) member.
+vi.mock('@/context/usePlcContext', () => ({
+  useCanEditPlcContent: () => true,
+}));
+
 import { usePlcDocs } from '@/hooks/usePlcDocs';
 
 // ---------------------------------------------------------------------------

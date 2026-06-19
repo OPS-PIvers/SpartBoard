@@ -51,6 +51,14 @@ vi.mock('@/context/useAuth', () => ({
   }),
 }));
 
+// Viewer read-only gate (W4-T10). Default: a full member who can edit. Flip
+// `canEdit` to false in the viewer test to assert the create row collapses to
+// the read-only badge.
+let canEdit = true;
+vi.mock('@/context/usePlcContext', () => ({
+  useCanEditPlcContent: () => canEdit,
+}));
+
 let quizDriveConnected = true;
 let videoDriveConnected = true;
 let quizCount = 2;
@@ -140,6 +148,7 @@ describe('QuickCreateBar', () => {
     videoDriveConnected = true;
     quizCount = 2;
     videoCount = 2;
+    canEdit = true;
   });
 
   it('renders all three quick-create buttons', () => {
@@ -213,5 +222,33 @@ describe('QuickCreateBar', () => {
     expect(videoBtn).toHaveAttribute('aria-disabled', 'true');
     fireEvent.click(videoBtn);
     expect(screen.queryByTestId('video-modal')).not.toBeInTheDocument();
+  });
+
+  // --- Viewer read-only gate (W4-T10, Decision 3.2) ------------------------
+
+  it('renders NO create buttons for a viewer — only the read-only badge', () => {
+    canEdit = false;
+    render(<QuickCreateBar plc={fakePlc} onNavigate={vi.fn()} />);
+    // None of the three create affordances render.
+    expect(
+      screen.queryByRole('button', { name: /assign quiz/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /assign video activity/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /add a doc/i })
+    ).not.toBeInTheDocument();
+    // The calm read-only affordance stands in their place.
+    expect(screen.getByText(/viewer — read only/i)).toBeInTheDocument();
+  });
+
+  it('shows all create affordances and no read-only badge for a non-viewer member', () => {
+    canEdit = true;
+    render(<QuickCreateBar plc={fakePlc} onNavigate={vi.fn()} />);
+    expect(
+      screen.getByRole('button', { name: /assign quiz/i })
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/viewer — read only/i)).not.toBeInTheDocument();
   });
 });

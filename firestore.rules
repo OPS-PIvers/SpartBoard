@@ -1395,6 +1395,33 @@ service cloud.firestore {
       // participants), it stays — pasting an old share URL should still
       // resolve the bootstrap snapshot rather than 404.
       allow delete: if false;
+
+      // ---- Bounded version history (PRD §5.1 / §3.10, Decision 5.1) ----
+      //
+      // A pre-edit snapshot of canonical content, written fire-and-forget by
+      // the publish path AFTER the canonical commit so versioning never
+      // blocks a publish. Participants read; participant-create-only with a
+      // schema lock + self-attributed `savedBy`. No client update/delete —
+      // pruning beyond the local ~10 cap is server-side GC via the Admin SDK,
+      // so the history can never be silently rewritten from a client.
+      match /versions/{versionId} {
+        // Participant read (mirrors the parent group's participant gate).
+        allow read: if request.auth != null
+          && request.auth.uid in
+             get(/databases/$(database)/documents/synced_quizzes/$(groupId)).data.participants;
+
+        allow create: if request.auth != null
+          && request.auth.uid in
+             get(/databases/$(database)/documents/synced_quizzes/$(groupId)).data.participants
+          && request.resource.data.keys().hasOnly(['version', 'content', 'savedBy', 'savedAt'])
+          && request.resource.data.savedBy == request.auth.uid
+          && request.resource.data.version is int
+          && request.resource.data.savedAt is int
+          && request.resource.data.content is map;
+
+        // Identity-immutable: snapshots are append-only from clients.
+        allow update, delete: if false;
+      }
     }
 
     // ---- Shared / Synced VIDEO ACTIVITY parallel collections (PR3) ----
@@ -1458,6 +1485,29 @@ service cloud.firestore {
         && (!('behavior' in request.resource.data) || request.resource.data.behavior is map);
 
       allow delete: if false;
+
+      // ---- Bounded version history (PRD §5.1 / §3.10, Decision 5.1) ----
+      //
+      // Mirrors the `synced_quizzes/{groupId}/versions` block exactly, scoped
+      // to Video Activity. Participant read; participant-create-only with a
+      // schema lock + self-attributed `savedBy`; no client update/delete (GC
+      // is server-side).
+      match /versions/{versionId} {
+        allow read: if request.auth != null
+          && request.auth.uid in
+             get(/databases/$(database)/documents/synced_video_activities/$(groupId)).data.participants;
+
+        allow create: if request.auth != null
+          && request.auth.uid in
+             get(/databases/$(database)/documents/synced_video_activities/$(groupId)).data.participants
+          && request.resource.data.keys().hasOnly(['version', 'content', 'savedBy', 'savedAt'])
+          && request.resource.data.savedBy == request.auth.uid
+          && request.resource.data.version is int
+          && request.resource.data.savedAt is int
+          && request.resource.data.content is map;
+
+        allow update, delete: if false;
+      }
     }
 
     // ---- PLC (Professional Learning Community) helpers + rules ----
@@ -1479,6 +1529,36 @@ service cloud.firestore {
     // role/transfer branches to authorize lead + co-lead membership managers.
     function plcRoleOf(plcData, uid) {
       return plcData.get('members', {}).get(uid, {}).get('role', '');
+    }
+
+    // True when the caller may WRITE PLC content (Decision 3.2 — viewer role,
+    // §3.2 / §4 rules discipline). A content editor is an active member whose
+    // role in the canonical `members` map is anything OTHER than 'viewer'
+    // (lead / coLead / member). Reads the canonical map by `get()`-ing the PLC
+    // root once. Legacy (map-less) PLCs that predate the members map (Decision
+    // 1.2) treat ANY uid present in the denormalized `memberUids` index as an
+    // editor — the `viewer` role only ever exists inside the map, so a PLC
+    // without a map simply has no viewers, and gating it on the map alone would
+    // wrongly lock every un-migrated member out of content writes during the
+    // rollout. When the map IS present, a uid keyed there governs: a viewer
+    // entry returns false (read-only), every other role returns true.
+    //
+    // Content subcollections (assessments, meetings, quizzes, video_activities,
+    // assignments, notes, todos, docs, comments) thread this into their
+    // create/update/delete branches so a viewer is denied content writes while
+    // reads stay open. Viewer-writable surfaces — a member's OWN presence doc
+    // and their OWN `/users/{uid}/plc_state` unread cursor — deliberately do
+    // NOT call this (a viewer must still heartbeat presence + track unread).
+    function plcCanEditContent(plcId) {
+      let plcData = get(/databases/$(database)/documents/plcs/$(plcId)).data;
+      let role = plcRoleOf(plcData, request.auth.uid);
+      let mapHasCaller = request.auth.uid in plcData.get('members', {});
+      // Map present + caller keyed: role governs (viewer => denied).
+      // Map absent / caller not keyed: fall back to the denormalized index
+      // (legacy PLCs have no viewers, so membership == edit rights).
+      return mapHasCaller
+        ? role != 'viewer'
+        : request.auth.uid in plcData.memberUids;
     }
 
     // True when the caller is a membership manager of the PLC — the sitting
@@ -1702,6 +1782,27 @@ service cloud.firestore {
         && plcUpdatedAtOk();
     }
 
+    // True iff the pending update is any current member toggling the opt-in
+    // weekly-digest flag (`digestOptIn`, Decision 2.3) and nothing else. The
+    // digest is opt-in shared configuration — every member can flip it, exactly
+    // like `features` — so it's NOT lead-only. Mirrors `isUpdatingPlcFeatures`:
+    // the diff is closed to `digestOptIn` plus the customary `updatedAt` bump
+    // (hasOnly), the flip MUST actually touch `digestOptIn` (hasAny, so this
+    // branch can't be exercised for an updatedAt-only ping), and the value must
+    // be a boolean — so this branch can't smuggle membership / leadership /
+    // sheet-URL / feature changes. The email itself is sent server-side by the
+    // `plcWeeklyDigest` scheduled function, gated additionally by the global
+    // `plc-digest.enabled` kill switch (default OFF).
+    function isUpdatingPlcDigestOptIn() {
+      return (request.auth.uid in resource.data.memberUids)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['digestOptIn', 'updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasAny(['digestOptIn'])
+        && request.resource.data.digestOptIn is bool
+        && plcUpdatedAtOk();
+    }
+
     // True iff the pending update is the caller self-removing from
     // memberUids (i.e. leaving the PLC). The lead can't use this path —
     // they must transfer leadership first or delete the PLC outright.
@@ -1842,6 +1943,69 @@ service cloud.firestore {
         && plcUpdatedAtOk();
     }
 
+    // True iff the pending update is an in-org SITE ADMIN performing recovery on
+    // an abandoned PLC (Decision 3.4, §3.4) — reassigning leadership WITHOUT
+    // being a member of the PLC. This is the admin-recovery escape hatch for a
+    // PLC whose lead has left the district / can't transfer the crown.
+    //
+    // Scoped tightly:
+    //   - the caller is a site admin (`isAdmin()` — a doc under /admins),
+    //   - the PLC carries an `orgId` and the admin belongs to that SAME org
+    //     (`isOrgMember(resource.data.orgId)`) — an admin can never reach into
+    //     another org's PLC,
+    //   - the new leadUid is an EXISTING member of the PLC (no promoting an
+    //     outsider) and differs from the old lead,
+    //   - the leadUid mirror moves in lockstep with the `members` map — the
+    //     INCOMING lead becomes role 'lead' and the OUTGOING lead is demoted to
+    //     a non-lead role — IDENTICAL to the `isTransferringPlcLead` invariant,
+    //     so the map never carries two leads,
+    //   - the membership SET is unchanged (recovery reassigns a role; it does
+    //     not add/drop members), and
+    //   - the diff is closed to ['leadUid','members','memberUids','memberEmails',
+    //     'updatedAt'] — never name/sheet-url/org/features — so this branch
+    //     can't smuggle other field changes.
+    //
+    // Mutually exclusive with every other branch: the broad/transfer/role/
+    // accept/leave branches all require the caller to be a member (leadUid /
+    // memberUids / isPlcMembershipManager / in-memberUids gates), which a
+    // recovering admin is NOT — so only this branch authorizes a non-member
+    // admin write, and an actual member never satisfies the `!isMember` posture
+    // these branches implicitly carry.
+    function isAdminManagingPlc() {
+      let oldLead = resource.data.get('leadUid', '');
+      let newLead = request.resource.data.get('leadUid', '');
+      // Lockstep map<->leadUid checks only apply once the PLC carries a
+      // populated members map (legacy PLCs reassign via leadUid alone).
+      let mapPresent =
+        'members' in request.resource.data
+        && newLead in request.resource.data.members
+        && oldLead in request.resource.data.get('members', {});
+      let mapLockstep =
+        !mapPresent
+        || (
+             request.resource.data.members[newLead].role == 'lead'
+             && request.resource.data.members[oldLead].role != 'lead'
+           );
+      return isAdmin()
+        && resource.data.get('orgId', null) is string
+        && isOrgMember(resource.data.orgId)
+        && newLead != oldLead
+        && (newLead in resource.data.memberUids)
+        && (newLead in request.resource.data.memberUids)
+        && mapLockstep
+        // The membership SET is unchanged — recovery reassigns, never adds/drops.
+        && request.resource.data.memberUids.toSet()
+             .hasAll(resource.data.memberUids.toSet())
+        && resource.data.memberUids.toSet()
+             .hasAll(request.resource.data.memberUids.toSet())
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['leadUid', 'members', 'memberUids', 'memberEmails',
+                       'updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasAny(['leadUid'])
+        && plcUpdatedAtOk();
+    }
+
     match /plcs/{plcId} {
       // Members can read; admins can also read so the admin PLC-resource
       // push UI can enumerate PLCs to target. Additionally, an authenticated
@@ -1913,9 +2077,23 @@ service cloud.firestore {
       // branch: once a non-null value is written it can't be changed (only
       // null→value is allowed, e.g. the migration backfill), so a member can't
       // re-home a PLC into another org's directory. All branches below are
-      // mutually exclusive. Non-leads can only self-add via accepted invite,
-      // self-remove, transfer (lead/co-lead), or change a single member's role
-      // (lead/co-lead).
+      // MUTUALLY EXCLUSIVE — each authorizes a disjoint write shape:
+      //   - broad sitting-lead update (rename / tenancy backfill / single-member
+      //     removal) — caller is the leadUid, leadUid immutable here;
+      //   - isAcceptingPlcInvite — a non-member self-adds via a pending invite;
+      //   - isLeavingPlc — a non-lead member self-removes;
+      //   - isTransferringPlcLead — a lead/co-lead MEMBER moves the crown;
+      //   - isChangingMemberRole — a lead/co-lead MEMBER sets one member's role;
+      //   - isSettingPlcSharedSheetUrl — any member sets/clears the sheet URL;
+      //   - isUpdatingPlcFeatures — any member toggles the features map;
+      //   - isUpdatingPlcDigestOptIn — any member toggles the weekly-digest flag;
+      //   - isAdminManagingPlc — an in-org SITE ADMIN (NON-member) reassigns the
+      //     crown for recovery (Decision 3.4). This is the only branch that
+      //     authorizes a non-member write, and it requires `isAdmin()` +
+      //     same-org membership, which no ordinary member branch grants — so it
+      //     never overlaps the member branches.
+      // Non-leads can only self-add via accepted invite, self-remove, transfer
+      // (lead/co-lead), or change a single member's role (lead/co-lead).
       allow update: if request.auth != null && (
         (
           request.auth.uid == resource.data.leadUid
@@ -1935,11 +2113,23 @@ service cloud.firestore {
         || isChangingMemberRole()
         || isSettingPlcSharedSheetUrl()
         || isUpdatingPlcFeatures()
+        || isUpdatingPlcDigestOptIn()
+        || isAdminManagingPlc()
       );
 
-      // Only the lead can dissolve the PLC.
+      // The lead can dissolve the PLC. An in-org SITE ADMIN can also dissolve an
+      // abandoned PLC for recovery (Decision 3.4, §3.4) — gated to a PLC that
+      // carries an `orgId` matching an org the admin belongs to, so an admin can
+      // never reach into another org's PLC.
       allow delete: if request.auth != null
-        && request.auth.uid == resource.data.leadUid;
+        && (
+          request.auth.uid == resource.data.leadUid
+          || (
+            isAdmin()
+            && resource.data.get('orgId', null) is string
+            && isOrgMember(resource.data.orgId)
+          )
+        );
 
       // Index of PLC-mode assignments authored by any member. Each row is
       // a small snapshot (title, ownerUid, sheetUrl, createdAt) written by
@@ -2165,11 +2355,11 @@ service cloud.firestore {
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.memberUids;
 
-        // Create: any member, doc id pinned, createdBy must equal the caller.
+        // Create: any non-viewer member, doc id pinned, createdBy must equal the
+        // caller. A viewer (Decision 3.2) is denied content writes via
+        // plcCanEditContent (reads stay open above).
         allow create: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'kind', 'syncGroupId', 'unitLabel',
                'opensAt', 'dueAt', 'status',
@@ -2197,14 +2387,13 @@ service cloud.firestore {
           && plcSubTimeFieldOk('createdAt')
           && plcSubTimeFieldOk('updatedAt');
 
-        // Update: any member can mutate the working fields (title, unitLabel,
-        // opensAt, dueAt, status, updatedAt) or soft-delete/restore via
-        // `deletedAt`. Identity (`id`), authorship (`createdBy`, `createdAt`),
-        // the content `kind`, and the `syncGroupId` pointer are immutable.
+        // Update: any non-viewer member can mutate the working fields (title,
+        // unitLabel, opensAt, dueAt, status, updatedAt) or soft-delete/restore
+        // via `deletedAt`. Identity (`id`), authorship (`createdBy`,
+        // `createdAt`), the content `kind`, and the `syncGroupId` pointer are
+        // immutable. A viewer (Decision 3.2) is denied via plcCanEditContent.
         allow update: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'kind', 'syncGroupId', 'unitLabel',
                'opensAt', 'dueAt', 'status',
@@ -2228,15 +2417,15 @@ service cloud.firestore {
           && plcSubDeletedAtOk()
           && plcSubTimeFieldOk('updatedAt');
 
-        // Any member can hard-delete an assessment (PLC-owned model — matches
-        // the quizzes/video_activities/assignments delete posture). Members
-        // typically soft-delete via `deletedAt`; a hard delete is the explicit
-        // "remove entirely" path. The orphaned `aggregates/{assessmentId}` doc
-        // (server-written) is swept by the Wave-4 `gcPlcOrphans` function.
+        // Any non-viewer member can hard-delete an assessment (PLC-owned model —
+        // matches the quizzes/video_activities/assignments delete posture).
+        // Members typically soft-delete via `deletedAt`; a hard delete is the
+        // explicit "remove entirely" path. The orphaned
+        // `aggregates/{assessmentId}` doc (server-written) is swept by the
+        // Wave-4 `gcPlcOrphans` function. A viewer (Decision 3.2) is denied via
+        // plcCanEditContent.
         allow delete: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcCanEditContent(plcId);
       }
 
       // PLC Meeting records (Decisions 4.0, 4.0b, §3.7). The archived,
@@ -2262,11 +2451,10 @@ service cloud.firestore {
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.memberUids;
 
-        // Create: any member, doc id pinned, createdBy must equal the caller.
+        // Create: any non-viewer member, doc id pinned, createdBy must equal the
+        // caller. A viewer (Decision 3.2) is denied via plcCanEditContent.
         allow create: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'heldAt', 'facilitatorUid', 'attendeeUids',
                'assessmentIds', 'agenda', 'decisions', 'actionItems',
@@ -2292,13 +2480,12 @@ service cloud.firestore {
           && plcSubTimeFieldOk('heldAt')
           && plcSubTimeFieldOk('updatedAt');
 
-        // Update: any member can mutate the working fields or soft-delete /
-        // restore via `deletedAt`. Identity (`id`), authorship (`createdBy`),
-        // `heldAt`, and `facilitatorUid` are immutable.
+        // Update: any non-viewer member can mutate the working fields or
+        // soft-delete / restore via `deletedAt`. Identity (`id`), authorship
+        // (`createdBy`), `heldAt`, and `facilitatorUid` are immutable. A viewer
+        // (Decision 3.2) is denied via plcCanEditContent.
         allow update: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'heldAt', 'facilitatorUid', 'attendeeUids',
                'assessmentIds', 'agenda', 'decisions', 'actionItems',
@@ -2324,13 +2511,12 @@ service cloud.firestore {
           && plcSubDeletedAtOk()
           && plcSubTimeFieldOk('updatedAt');
 
-        // Any member can hard-delete a meeting record (PLC-owned model).
-        // Members typically soft-delete via `deletedAt`; tombstone GC is the
-        // Wave-4 `gcPlcOrphans` function's job.
+        // Any non-viewer member can hard-delete a meeting record (PLC-owned
+        // model). Members typically soft-delete via `deletedAt`; tombstone GC is
+        // the Wave-4 `gcPlcOrphans` function's job. A viewer (Decision 3.2) is
+        // denied via plcCanEditContent.
         allow delete: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcCanEditContent(plcId);
       }
 
       // PLC Quiz Library (Phase 2). Lightweight headers pointing at
@@ -2357,10 +2543,10 @@ service cloud.firestore {
         // Schema widened in Wave 2 (§3.10): the optional `deletedAt` soft-delete
         // tombstone (Decision 3.1). Optional so legacy entries keep validating;
         // `keys().hasOnly([...])` still closes the doc shape.
+        // A viewer (Decision 3.2) is denied content writes via plcCanEditContent
+        // (reads stay open above).
         allow create: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'questionCount', 'syncGroupId',
                'sharedBy', 'sharedByEmail', 'sharedByName',
@@ -2382,15 +2568,13 @@ service cloud.firestore {
           && request.resource.data.updatedAt is int
           && plcSubDeletedAtOk();
 
-        // Update: any member can mirror title/questionCount/updatedAt
+        // Update: any non-viewer member can mirror title/questionCount/updatedAt
         // (e.g. after a peer publishes an edit) or soft-delete/restore via
         // `deletedAt`. Identity + attribution fields are immutable so
         // stale-mirror writes can't quietly retarget the entry or rewrite who
-        // shared it.
+        // shared it. A viewer (Decision 3.2) is denied via plcCanEditContent.
         allow update: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'questionCount', 'syncGroupId',
                'sharedBy', 'sharedByEmail', 'sharedByName',
@@ -2408,12 +2592,11 @@ service cloud.firestore {
           && request.resource.data.updatedAt is int
           && plcSubDeletedAtOk();
 
-        // Any member can unshare. Matches the "PLC-owned" model — a quiz
-        // shared with the PLC belongs to the PLC, not the original sharer.
+        // Any non-viewer member can unshare. Matches the "PLC-owned" model — a
+        // quiz shared with the PLC belongs to the PLC, not the original sharer.
+        // A viewer (Decision 3.2) is denied via plcCanEditContent.
         allow delete: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcCanEditContent(plcId);
       }
 
       // PLC Video Activity Library (Phase 4). Mirrors the Phase 2 quiz
@@ -2436,10 +2619,10 @@ service cloud.firestore {
         // Schema widened in Wave 2 (§3.10): the optional `deletedAt` soft-delete
         // tombstone (Decision 3.1). Optional so legacy entries keep validating;
         // `keys().hasOnly([...])` still closes the doc shape.
+        // A viewer (Decision 3.2) is denied content writes via plcCanEditContent
+        // (reads stay open above).
         allow create: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'youtubeUrl', 'questionCount', 'syncGroupId',
                'sharedBy', 'sharedByEmail', 'sharedByName',
@@ -2462,14 +2645,13 @@ service cloud.firestore {
           && request.resource.data.updatedAt is int
           && plcSubDeletedAtOk();
 
-        // Update: any member can mirror title/questionCount/youtubeUrl/
-        // updatedAt or soft-delete/restore via `deletedAt`. Identity +
-        // attribution fields are immutable so stale-mirror writes can't
-        // retarget the entry or rewrite who shared it.
+        // Update: any non-viewer member can mirror title/questionCount/
+        // youtubeUrl/updatedAt or soft-delete/restore via `deletedAt`. Identity
+        // + attribution fields are immutable so stale-mirror writes can't
+        // retarget the entry or rewrite who shared it. A viewer (Decision 3.2)
+        // is denied via plcCanEditContent.
         allow update: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'youtubeUrl', 'questionCount', 'syncGroupId',
                'sharedBy', 'sharedByEmail', 'sharedByName',
@@ -2488,12 +2670,11 @@ service cloud.firestore {
           && request.resource.data.updatedAt is int
           && plcSubDeletedAtOk();
 
-        // Any member can unshare. Matches the PLC-owned model — once
-        // shared, the entry belongs to the PLC, not the original sharer.
+        // Any non-viewer member can unshare. Matches the PLC-owned model — once
+        // shared, the entry belongs to the PLC, not the original sharer. A
+        // viewer (Decision 3.2) is denied via plcCanEditContent.
         allow delete: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcCanEditContent(plcId);
       }
 
       // PLC-authored Assignments (Phase 3). Templates that any member can
@@ -2520,10 +2701,10 @@ service cloud.firestore {
         // and its keys vary by session mode. We pin shape via top-level
         // `keys().hasOnly([...])` and lean on the importer's own client
         // validation for individual option fields.
+        // A viewer (Decision 3.2) is denied content writes via plcCanEditContent
+        // (reads stay open above).
         allow create: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'quizTitle', 'quizId', 'syncGroupId',
                'sessionMode', 'sessionOptions', 'attemptLimit',
@@ -2546,14 +2727,13 @@ service cloud.firestore {
           && request.resource.data.sharedAt is int
           && request.resource.data.updatedAt is int;
 
-        // Update: any member can mirror title/sessionOptions/updatedAt
-        // (e.g. if the author later edits the template). Identity +
+        // Update: any non-viewer member can mirror title/sessionOptions/
+        // updatedAt (e.g. if the author later edits the template). Identity +
         // attribution fields are immutable so stale-mirror writes can't
-        // quietly retarget the entry or rewrite who shared it.
+        // quietly retarget the entry or rewrite who shared it. A viewer
+        // (Decision 3.2) is denied via plcCanEditContent.
         allow update: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'quizTitle', 'quizId', 'syncGroupId',
                'sessionMode', 'sessionOptions', 'attemptLimit',
@@ -2574,12 +2754,11 @@ service cloud.firestore {
                 || request.resource.data.attemptLimit is int)
           && request.resource.data.updatedAt is int;
 
-        // Any member can unshare a template. Already-imported personal
-        // assignments on teammates' boards keep running (independent docs).
+        // Any non-viewer member can unshare a template. Already-imported
+        // personal assignments on teammates' boards keep running (independent
+        // docs). A viewer (Decision 3.2) is denied via plcCanEditContent.
         allow delete: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcCanEditContent(plcId);
       }
 
       // PLC shared notes (Phase 5). Lightweight collaborative notebook —
@@ -2599,10 +2778,10 @@ service cloud.firestore {
         // OPTIONAL so legacy notes (and clients that haven't shipped the new
         // fields) keep validating; `keys().hasOnly([...])` still closes the
         // doc shape against unknown fields.
+        // A viewer (Decision 3.2) is denied content writes via plcCanEditContent
+        // (reads stay open above).
         allow create: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'body', 'kind', 'meetingId',
                'createdBy', 'createdAt',
@@ -2646,10 +2825,9 @@ service cloud.firestore {
         // `synced_quizzes` version posture). During rollout, an update where
         // BOTH the stored and incoming docs omit `version` is also accepted so
         // un-migrated notes keep saving until every client writes the field.
+        // A viewer (Decision 3.2) is denied via plcCanEditContent.
         allow update: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'body', 'kind', 'meetingId',
                'createdBy', 'createdAt',
@@ -2686,12 +2864,11 @@ service cloud.firestore {
                )
              );
 
-        // Any member can delete (matches the "shared notebook" model —
-        // notes are PLC-owned, not creator-owned).
+        // Any non-viewer member can delete (matches the "shared notebook" model
+        // — notes are PLC-owned, not creator-owned). A viewer (Decision 3.2) is
+        // denied via plcCanEditContent.
         allow delete: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcCanEditContent(plcId);
       }
 
       // PLC shared Google Docs. Lightweight pointers — the doc content
@@ -2705,10 +2882,10 @@ service cloud.firestore {
         // Schema widened in Wave 2 (§3.10): docs add the optional `deletedAt`
         // soft-delete tombstone (Decision 3.1). Optional so legacy docs keep
         // validating; `keys().hasOnly([...])` still closes the doc shape.
+        // A viewer (Decision 3.2) is denied content writes via plcCanEditContent
+        // (reads stay open above).
         allow create: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'url',
                'createdBy', 'createdByName', 'createdAt', 'updatedAt',
@@ -2723,10 +2900,9 @@ service cloud.firestore {
           && plcSubTimeFieldOk('createdAt')
           && plcSubTimeFieldOk('updatedAt');
 
+        // A viewer (Decision 3.2) is denied via plcCanEditContent.
         allow update: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'url',
                'createdBy', 'createdByName', 'createdAt', 'updatedAt',
@@ -2740,10 +2916,9 @@ service cloud.firestore {
           && plcSubDeletedAtOk()
           && plcSubTimeFieldOk('updatedAt');
 
+        // A viewer (Decision 3.2) is denied via plcCanEditContent.
         allow delete: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcCanEditContent(plcId);
       }
 
       // PLC shared to-do list (Phase 5). One doc per todo so concurrent
@@ -2761,10 +2936,10 @@ service cloud.firestore {
         // and `deletedAt` soft-delete tombstone (Decision 3.1). All four are
         // OPTIONAL so legacy to-dos keep validating; `keys().hasOnly([...])`
         // still closes the doc shape.
+        // A viewer (Decision 3.2) is denied content writes via plcCanEditContent
+        // (reads stay open above).
         allow create: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'text', 'done', 'createdBy', 'createdAt',
                'assigneeUid', 'dueAt', 'meetingId', 'deletedAt'
@@ -2793,12 +2968,11 @@ service cloud.firestore {
 
         // Update: createdBy / createdAt / id are immutable. `done`, `text`,
         // `assigneeUid`, `dueAt`, `meetingId`, and `deletedAt` are mutable so
-        // any teammate can mark a todo complete, tweak the wording, (re)assign
-        // it, set a due date, link it to a meeting, or soft-delete/restore it.
+        // any non-viewer teammate can mark a todo complete, tweak the wording,
+        // (re)assign it, set a due date, link it to a meeting, or soft-delete/
+        // restore it. A viewer (Decision 3.2) is denied via plcCanEditContent.
         allow update: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'text', 'done', 'createdBy', 'createdAt',
                'assigneeUid', 'dueAt', 'meetingId', 'deletedAt'
@@ -2825,10 +2999,9 @@ service cloud.firestore {
              )
           && plcSubDeletedAtOk();
 
+        // A viewer (Decision 3.2) is denied via plcCanEditContent.
         allow delete: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcCanEditContent(plcId);
       }
 
       // PLC presence (Decision 2.1, §3.3). Coarse per-section "who's here":
@@ -2940,10 +3113,10 @@ service cloud.firestore {
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.memberUids;
 
+        // A viewer (Decision 3.2) is denied content writes via plcCanEditContent
+        // (reads stay open above).
         allow create: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'targetType', 'targetId',
                'authorUid', 'authorName', 'body', 'mentions',
@@ -2966,13 +3139,12 @@ service cloud.firestore {
           && plcSubTimeFieldOk('createdAt');
 
         // Update: identity + attribution + targeting + mentions are immutable.
-        // The author may edit body/editedAt and/or soft-delete; any member may
-        // soft-delete (flip `deletedAt`). The membership gate + the immutability
-        // pins together mean a non-author can only ever change `deletedAt`.
+        // The author may edit body/editedAt and/or soft-delete; any non-viewer
+        // member may soft-delete (flip `deletedAt`). The edit gate +
+        // immutability pins together mean a non-author can only ever change
+        // `deletedAt`. A viewer (Decision 3.2) is denied via plcCanEditContent.
         allow update: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'targetType', 'targetId',
                'authorUid', 'authorName', 'body', 'mentions',

@@ -31,7 +31,6 @@ const REQUIRED_TOP_LEVEL_SECTIONS = [
   'meta',
   'members',
   'completedAssignments',
-  'placeholder',
   'settings',
   'overview',
   'notes',
@@ -44,6 +43,7 @@ const REQUIRED_TABS_KEYS = [
   'overview',
   'quizzes',
   'videoActivities',
+  'assessments',
   'notes',
   'todos',
   'sharedBoards',
@@ -108,6 +108,8 @@ const REQUIRED_NOTES_KEYS = [
   'confirmDeleteTitle',
   'lastEdited',
   'pickOrCreate',
+  // Wave-4 (T10): viewer read-only empty state.
+  'pickToRead',
   // Wave-2 (T4): markdown preview + meeting template + version-conflict.
   'createFailed',
   'previewMarkdown',
@@ -148,6 +150,15 @@ const REQUIRED_TODOS_KEYS = [
 const REQUIRED_SETTINGS_KEYS = [
   'heading',
   'description',
+  'saveFailed',
+] as const;
+
+/** Keys within plcDashboard.settings.digest (Wave-4 opt-in weekly digest, Decision 2.3) */
+const REQUIRED_SETTINGS_DIGEST_KEYS = [
+  'heading',
+  'description',
+  'title',
+  'optInDescription',
   'saveFailed',
 ] as const;
 
@@ -565,6 +576,82 @@ const REQUIRED_NEW_ASSIGNMENT_VIDEO_KEYS = [
   'ctaDisabledEmpty',
 ] as const;
 
+/**
+ * Keys within plcDashboard.versions (Wave-4 T3 version-history + restore panel
+ * — PlcVersionHistoryPanel, PRD §5.1 / §3.10, Decision 5.1).
+ */
+const REQUIRED_VERSIONS_KEYS = [
+  'open',
+  'openAriaLabel',
+  'title',
+  'ariaLabel',
+  'close',
+  'intro',
+  'loading',
+  'loadError',
+  'retry',
+  'emptyTitle',
+  'emptySubtitle',
+  'versionShort',
+  'versionLabel',
+  'savedByAt',
+  'unknownAuthor',
+  'restoreAction',
+  'restoreAriaLabel',
+  'restored',
+  'restoreFailed',
+  'conflict',
+] as const;
+
+const REQUIRED_SYNC_KEYS = [
+  'autoPulled',
+  'autoPullFailed',
+  'conflictTitle',
+  'conflictBody',
+  'keepMine',
+  'pullTheirs',
+  'keptMine',
+  'pulledTheirs',
+  'resolveFailed',
+] as const;
+
+/**
+ * Keys within plcDashboard.search (Wave-4 T9 per-PLC search box — PlcSearchBox,
+ * PRD §6.4 / Decision 4.3). Pluralized leaves are tested by their `_one` / `_other`
+ * suffixed JSON keys.
+ */
+const REQUIRED_SEARCH_KEYS = [
+  'ariaLabel',
+  'placeholder',
+  'clear',
+  'searching',
+  'resultsLabel',
+  'resultCount_one',
+  'resultCount_other',
+  'noResults',
+  'untitled',
+  'groupAssessments',
+  'groupData',
+  'groupDocs',
+  'groupBoards',
+] as const;
+
+/**
+ * Keys within plcDashboard.viewer (Wave-4 T10 viewer read-only UI gate —
+ * Decision 3.2). The calm "Viewer — read only" affordance shown where content
+ * create/edit/delete affordances would otherwise render.
+ */
+const REQUIRED_VIEWER_KEYS = [
+  'badge',
+  'badgeTooltip',
+  'readOnly',
+  'assessmentsNote',
+  'notesNote',
+  'todosNote',
+  'meetingNote',
+  'homeNote',
+] as const;
+
 type LocaleFile = typeof en;
 
 /** Walk a dotted path through a locale object, returning the leaf node. */
@@ -632,6 +719,14 @@ const WAVE3_KEY_GROUPS: ReadonlyArray<{
   {
     path: 'plcDashboard.newAssignment.video',
     keys: REQUIRED_NEW_ASSIGNMENT_VIDEO_KEYS,
+  },
+  { path: 'plcDashboard.versions', keys: REQUIRED_VERSIONS_KEYS },
+  { path: 'plcDashboard.sync', keys: REQUIRED_SYNC_KEYS },
+  { path: 'plcDashboard.search', keys: REQUIRED_SEARCH_KEYS },
+  { path: 'plcDashboard.viewer', keys: REQUIRED_VIEWER_KEYS },
+  {
+    path: 'plcDashboard.settings.digest',
+    keys: REQUIRED_SETTINGS_DIGEST_KEYS,
   },
 ];
 

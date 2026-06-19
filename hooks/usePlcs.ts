@@ -97,6 +97,30 @@ interface UsePlcsResult {
   /** Lead-only: dissolve the PLC entirely. */
   deletePlc: (plcId: string) => Promise<void>;
   /**
+   * Admin recovery (Decision 3.4): reassign the `lead` role of an abandoned
+   * PLC to another EXISTING active member. Intended for an in-org SITE ADMIN
+   * who is NOT a member of the PLC — the only mutator on this hook authorized
+   * for a non-member caller. Authorized server-side by the
+   * `isAdminManagingPlc` rules branch, which requires the caller be an
+   * `isAdmin()` belonging to the PLC's `orgId` (org-less legacy PLCs are NOT
+   * admin-recoverable).
+   *
+   * Moves `leadUid` + the canonical `members` lead role in LOCKSTEP (incoming
+   * → 'lead', outgoing → 'member') with the membership SET unchanged, and
+   * writes ONLY the `['leadUid','members','memberUids','memberEmails',
+   * 'updatedAt']` fields the rule's closed diff admits — so, unlike the
+   * member-facing mutators, it deliberately does NOT stamp a `roleChangeUid`
+   * pointer (that extra key would fail the rule's `hasOnly` check) and does
+   * NOT emit a fire-and-forget activity event (a non-member admin write to the
+   * activity subcollection is denied by rules). Rejects when the target is not
+   * an existing active member or is already the lead.
+   *
+   * Unlike the other mutators, this remains usable in `asAdmin` mode (the
+   * admin picker's read mode) — it is the recovery action that mode exists to
+   * support.
+   */
+  adminReassignLead: (plcId: string, toUid: string) => Promise<void>;
+  /**
    * Any member: persist the auto-created PLC Google Sheet URL on the PLC
    * doc so teammates reuse it on subsequent assignments. Implemented as a
    * transactional "set-if-empty" so two members assigning their first
@@ -143,6 +167,15 @@ interface UsePlcsResult {
     plcId: string,
     features: PlcFeatureSettings
   ) => Promise<void>;
+  /**
+   * Any member: toggle the opt-in weekly email digest flag (`digestOptIn`,
+   * Decision 2.3). Writes ONLY the flag + `updatedAt` so the
+   * `isUpdatingPlcDigestOptIn` rules branch admits it. Rejected by rules if the
+   * caller is not a current member of the PLC. The actual email is sent by the
+   * scheduled `plcWeeklyDigest` Cloud Function, gated additionally by the
+   * global `plc-digest.enabled` kill switch.
+   */
+  updatePlcDigestOptIn: (plcId: string, optIn: boolean) => Promise<void>;
 }
 
 const VALID_PLC_ROLES: ReadonlySet<PlcRole> = new Set<PlcRole>([
@@ -322,6 +355,9 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
           : DEFAULT_PLC_FEATURE_SETTINGS.sharedBoards,
     };
   }
+  // digestOptIn: opt-in weekly digest flag (Decision 2.3). Default false —
+  // only the literal boolean `true` opts a PLC in.
+  const digestOptIn = data.digestOptIn === true;
   // orgId / buildingId: optional tenancy (Decision 1.1). Absent ⇒ null.
   const orgId = typeof data.orgId === 'string' ? data.orgId : null;
   const buildingId =
@@ -340,6 +376,7 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
     memberUids: data.memberUids,
     memberEmails,
     sharedSheetUrl,
+    digestOptIn,
     ...(features ? { features } : {}),
     // serverTimestamp-tolerant (Decision 1.3): accept a Firestore Timestamp
     // or a legacy numeric millis value.
@@ -740,6 +777,63 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     [user]
   );
 
+  // Admin recovery (Decision 3.4, §3.4): an in-org site admin reassigns the
+  // crown of an abandoned PLC to another EXISTING active member. The caller is
+  // a NON-member, so this is the one mutator that does not gate on the acting
+  // user being part of the PLC — only that they are signed in (rules enforce
+  // the `isAdmin()` + same-org gate). Writes EXACTLY the closed diff the
+  // `isAdminManagingPlc` rule admits (`leadUid` / `members` / `memberUids` /
+  // `memberEmails` / `updatedAt`): the membership SET is preserved (recovery
+  // reassigns a role, never adds/drops members), the incoming lead is promoted
+  // and the outgoing lead demoted in lockstep with the `leadUid` mirror, and
+  // NO extra pointer field (e.g. `roleChangeUid`) or activity event is written
+  // — both would either bust the rule's `hasOnly` diff or be denied as a
+  // non-member subcollection write.
+  const adminReassignLead = useCallback(
+    async (plcId: string, toUid: string) => {
+      if (!user) throw new Error(i18n.t('plc.errors.notSignedIn'));
+      await runTransaction(db, async (tx) => {
+        const ref = doc(db, PLCS_COLLECTION, plcId);
+        const snap = await tx.get(ref);
+        if (!snap.exists()) throw new Error(i18n.t('plc.errors.plcNotFound'));
+        const data = snap.data() as Record<string, unknown>;
+        const members = readMembersForWrite(data);
+        const fromUid =
+          typeof data.leadUid === 'string'
+            ? data.leadUid
+            : (Object.values(members).find((m) => m.role === 'lead')?.uid ??
+              '');
+        const target = members[toUid];
+        if (!target || target.status !== 'active') {
+          throw new Error(i18n.t('plc.errors.targetNotActiveMember'));
+        }
+        // No-op reassign to the sitting lead — the rule requires
+        // `newLead != oldLead`, so a same-lead write would be rejected; bail
+        // cleanly instead of issuing a doomed write.
+        if (toUid === fromUid) {
+          throw new Error(i18n.t('plc.errors.alreadyLead'));
+        }
+        // Demote every current lead (defensive against a malformed legacy map
+        // carrying more than one) then promote exactly the target.
+        for (const [uid, m] of Object.entries(members)) {
+          if (m.role === 'lead') members[uid] = { ...m, role: 'member' };
+        }
+        members[toUid] = { ...members[toUid], role: 'lead' };
+        tx.update(ref, {
+          members,
+          leadUid: toUid,
+          // The membership SET is unchanged; re-derive the indexes from the
+          // (role-only-mutated) map so they stay byte-for-byte the same set
+          // the rule's `toSet().hasAll(...)` lockstep check expects.
+          memberUids: activeMemberUids(members),
+          memberEmails: activeMemberEmails(members),
+          updatedAt: serverTimestamp(),
+        });
+      });
+    },
+    [user]
+  );
+
   const deletePlc = useCallback(
     async (plcId: string) => {
       if (!user) return;
@@ -883,6 +977,22 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     [user]
   );
 
+  // Any current member: flip the opt-in weekly digest flag. We write ONLY
+  // `digestOptIn` + `updatedAt` so the `isUpdatingPlcDigestOptIn` rule branch
+  // (which closes the diff to exactly those two keys) admits the write and the
+  // member can't smuggle membership/leadership/feature changes through it.
+  const updatePlcDigestOptIn = useCallback(
+    async (plcId: string, optIn: boolean) => {
+      if (!user) throw new Error(i18n.t('plc.errors.notSignedIn'));
+      await setDoc(
+        doc(db, PLCS_COLLECTION, plcId),
+        { digestOptIn: optIn, updatedAt: serverTimestamp() },
+        { merge: true }
+      );
+    },
+    [user]
+  );
+
   return useMemo(
     () => ({
       plcs,
@@ -895,10 +1005,12 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       setMemberRole,
       transferLead,
       deletePlc,
+      adminReassignLead,
       setPlcSharedSheetUrl,
       clearPlcSharedSheetUrl,
       getPlcSharedSheetUrl,
       updatePlcFeatures,
+      updatePlcDigestOptIn,
     }),
     [
       plcs,
@@ -911,10 +1023,12 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       setMemberRole,
       transferLead,
       deletePlc,
+      adminReassignLead,
       setPlcSharedSheetUrl,
       clearPlcSharedSheetUrl,
       getPlcSharedSheetUrl,
       updatePlcFeatures,
+      updatePlcDigestOptIn,
     ]
   );
 };

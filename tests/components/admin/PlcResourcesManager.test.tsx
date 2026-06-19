@@ -40,6 +40,13 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast: mockAddToast }),
 }));
 
+// The manager now embeds the admin PLC recovery panel, which reads useAuth for
+// its (isAdmin + same-org) gating. These tests focus on the resources surface,
+// so mock useAuth to a non-admin → the recovery panel self-hides.
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ isAdmin: false, orgId: null }),
+}));
+
 describe('PlcResourcesManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();

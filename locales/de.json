@@ -281,7 +281,8 @@
       "notAMember": "Diese Person ist kein Mitglied dieser PLC.",
       "targetNotActiveMember": "Du kannst die Leitung nur an ein aktives Mitglied übertragen.",
       "cannotDemoteLead": "Verwende „Leitung übertragen“, um zu ändern, wer die PLC leitet.",
-      "invalidRole": "Das ist keine gültige PLC-Rolle."
+      "invalidRole": "Das ist keine gültige PLC-Rolle.",
+      "alreadyLead": "Dieses Mitglied leitet diese PLC bereits."
     }
   },
   "plcDashboard": {
@@ -348,16 +349,22 @@
       "overview": "Übersicht",
       "quizzes": "Quizze",
       "videoActivities": "Videoaktivitäten",
+      "assessments": "Bewertungen",
       "notes": "Notizen",
-      "todos": "Aufgabenliste",
-      "sharedBoards": "Geteilte Tafeln",
+      "todos": "Aufgaben",
+      "sharedBoards": "Tafeln",
       "settings": "Einstellungen",
       "home": "Startseite",
       "members": "Mitglieder",
-      "sharedData": "Geteilte Daten",
+      "sharedData": "Daten",
       "meeting": "Besprechungsmodus",
-      "docs": "Dokumente",
+      "docs": "Notizen & Dokumente",
       "resources": "Ressourcen"
+    },
+    "assessmentsTypes": {
+      "label": "Bewertungstyp",
+      "quizzes": "Quizze",
+      "videoActivities": "Videoaktivitäten"
     },
     "assignmentsSubTabs": {
       "label": "Aufgabenansichten",
@@ -461,9 +468,6 @@
       "emptyTitle": "Noch keine abgeschlossenen Aufgaben",
       "emptySubtitle": "Wenn eine PLG-Aufgabe von einer Tafel eines Teammitglieds gestoppt wird, erscheint sie hier mit einem Link zur geteilten Ergebnistabelle."
     },
-    "placeholder": {
-      "comingSoon": "Demnächst verfügbar"
-    },
     "settings": {
       "heading": "Dashboard-Bereiche",
       "description": "Wähle, welche Bereiche im Dashboard dieser PLG angezeigt werden. Jedes PLG-Mitglied kann diese Einstellungen ändern.",
@@ -487,6 +491,13 @@
       "sharedBoards": {
         "title": "Geteilte Tafeln",
         "description": "Zeigt Tafeln, die mit dieser PLG geteilt wurden."
+      },
+      "digest": {
+        "heading": "Benachrichtigungen",
+        "description": "Legen Sie fest, wie diese PLG auf dem Laufenden bleibt.",
+        "title": "Wöchentliche E-Mail-Zusammenfassung",
+        "optInDescription": "Sendet jedem Mitglied eine wöchentliche E-Mail mit einer Zusammenfassung der Aktivitäten in der PLG. Standardmäßig deaktiviert; jedes Mitglied kann dies ändern.",
+        "saveFailed": "Zusammenfassungseinstellung konnte nicht aktualisiert werden"
       }
     },
     "overview": {
@@ -600,6 +611,7 @@
       "emptyPreview": "Noch nichts zur Vorschau.",
       "lastEdited": "Zuletzt bearbeitet {{when}}",
       "pickOrCreate": "Wähle eine Notiz zum Bearbeiten oder erstelle eine neue.",
+      "pickToRead": "Wähle eine Notiz zum Lesen.",
       "conflictTitle": "Diese Notiz hat sich geändert",
       "conflictMessage": "Ein Teammitglied hat diese Notiz bearbeitet, während du geschrieben hast. Lade neu, um die Änderungen zu sehen — dein ungespeicherter Text bleibt unten erhalten.",
       "conflictReload": "Notiz neu laden",
@@ -942,6 +954,64 @@
         "quiz": "Quiz",
         "videoActivity": "Videoaktivität"
       }
+    },
+    "versions": {
+      "open": "Versionsverlauf",
+      "openAriaLabel": "Versionsverlauf für {{title}}",
+      "title": "Versionsverlauf",
+      "ariaLabel": "Versionsverlauf für {{title}}",
+      "close": "Schließen",
+      "intro": "Aktuelle gespeicherte Versionen dieser geteilten Bewertung. Beim Wiederherstellen wird diese Version für alle erneut veröffentlicht – die aktuelle Version bleibt ebenfalls im Verlauf erhalten.",
+      "loading": "Versionsverlauf wird geladen…",
+      "loadError": "Versionsverlauf konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "emptyTitle": "Noch keine früheren Versionen",
+      "emptySubtitle": "Frühere Versionen erscheinen hier, nachdem die nächste Bearbeitung veröffentlicht wurde.",
+      "versionShort": "v{{version}}",
+      "versionLabel": "Version {{version}}",
+      "savedByAt": "Gespeichert von {{name}} · {{when}}",
+      "unknownAuthor": "ein Teammitglied",
+      "restoreAction": "Diese Version wiederherstellen",
+      "restoreAriaLabel": "Version {{version}} wiederherstellen",
+      "restored": "Version {{version}} von „{{title}}“ wiederhergestellt. Teammitglieder synchronisieren beim nächsten Aktualisieren.",
+      "restoreFailed": "Diese Version konnte nicht wiederhergestellt werden. Bitte erneut versuchen.",
+      "conflict": "Eine andere Lehrkraft hat gerade eine Aktualisierung veröffentlicht. Wir haben den Versionsverlauf neu geladen – sieh ihn dir an und versuche die Wiederherstellung erneut."
+    },
+    "sync": {
+      "autoPulled": "„{{title}}“ auf die neueste Version deiner Kollegin/deines Kollegen aktualisiert.",
+      "autoPullFailed": "Die neueste Version von „{{title}}“ konnte nicht abgerufen werden. Wir versuchen es bei der nächsten Aktualisierung erneut.",
+      "conflictTitle": "Synchronisierte Kopie geändert",
+      "conflictBody": "Eine Kollegin/ein Kollege hat eine neue Version von „{{title}}“ veröffentlicht, während du nicht gespeicherte Änderungen hast. Deine Änderungen behalten oder ihre Version abrufen (deine nicht gespeicherten Änderungen werden verworfen)?",
+      "keepMine": "Deine behalten",
+      "pullTheirs": "Ihre abrufen",
+      "keptMine": "Deine Änderungen an „{{title}}“ wurden behalten. Du kannst sie veröffentlichen, um sie mit deinem Team zu teilen.",
+      "pulledTheirs": "Die Version deiner Kollegin/deines Kollegen von „{{title}}“ wurde abgerufen. Deine nicht gespeicherten Änderungen wurden verworfen.",
+      "resolveFailed": "Der Synchronisierungskonflikt für „{{title}}“ konnte nicht gelöst werden. Versuche es erneut."
+    },
+    "search": {
+      "ariaLabel": "Diese PLG durchsuchen",
+      "placeholder": "Diese PLG durchsuchen…",
+      "clear": "Suche löschen",
+      "searching": "Wird gesucht…",
+      "resultsLabel": "Suchergebnisse",
+      "resultCount_one": "{{count}} Ergebnis",
+      "resultCount_other": "{{count}} Ergebnisse",
+      "noResults": "Keine Treffer für „{{query}}“",
+      "untitled": "Ohne Titel",
+      "groupAssessments": "Beurteilungen",
+      "groupData": "Daten",
+      "groupDocs": "Notizen & Dokumente",
+      "groupBoards": "Boards"
+    },
+    "viewer": {
+      "badge": "Betrachter – nur Lesen",
+      "badgeTooltip": "Sie haben Betrachterzugriff auf diese PLG. Sie können alles lesen, aber Erstellen, Bearbeiten und Löschen sind deaktiviert.",
+      "readOnly": "Nur Lesen",
+      "assessmentsNote": "Betrachter können geteilte Beurteilungen ansehen, aber nicht teilen, bearbeiten oder zuweisen.",
+      "notesNote": "Betrachter können Notizen und Dokumente lesen, aber nicht hinzufügen oder ändern.",
+      "todosNote": "Betrachter können die Aufgabenliste lesen, aber keine Einträge hinzufügen oder ändern.",
+      "meetingNote": "Betrachter können dem Meeting folgen, es aber nicht bearbeiten oder speichern.",
+      "homeNote": "Betrachter können hier alles lesen, aber keine neuen Inhalte erstellen."
     }
   },
   "widgetWindow": {
@@ -1551,6 +1621,30 @@
       "deleteSticker": "Sticker löschen",
       "dragFromLibrary": "Sticker aus der Bibliothek auf das Board ziehen",
       "stickerAdded": "Sticker zum Board hinzugefügt!"
+    },
+    "plc": {
+      "recovery": {
+        "title": "PLC-Wiederherstellung",
+        "subtitle": "Leitung neu zuweisen oder eine verlassene PLC in deiner Organisation auflösen.",
+        "explainer": "Nur PLCs in deiner Organisation können wiederhergestellt werden. Verwende dies, wenn die Leitung einer PLC ausgeschieden ist und die Leitung nicht übertragen kann.",
+        "empty": "Keine wiederherstellbaren PLCs in deiner Organisation.",
+        "leadLabel": "Leitung",
+        "membersLabel_one": "{{count}} Mitglied",
+        "membersLabel_other": "{{count}} Mitglieder",
+        "reassignLead": "Leitung neu zuweisen",
+        "reassignTitle": "Leitung neu zuweisen",
+        "reassignDescription": "Wähle ein aktives Mitglied als neue Leitung von „{{name}}“.",
+        "newLeadLabel": "Neue Leitung",
+        "noEligibleMembers": "Keine weiteren aktiven Mitglieder zum Befördern.",
+        "confirmReassign": "{{member}} zur Leitung von „{{name}}“ machen? Die aktuelle Leitung wird zum Mitglied herabgestuft.",
+        "reassignSuccess": "{{member}} leitet jetzt „{{name}}“.",
+        "dissolve": "PLC auflösen",
+        "confirmDissolve": "„{{name}}“ auflösen? Dadurch wird die PLC dauerhaft für alle Mitglieder gelöscht und kann nicht rückgängig gemacht werden.",
+        "dissolveSuccess": "„{{name}}“ wurde aufgelöst.",
+        "actionFailed": "Diese Aktion konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
+        "cancel": "Abbrechen",
+        "confirm": "Bestätigen"
+      }
     }
   },
   "plcRoute": {

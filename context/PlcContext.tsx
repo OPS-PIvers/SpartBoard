@@ -139,8 +139,11 @@ const SLICE_SECTIONS: Record<
   docs: new Set<PlcSectionId>(['docs']),
   // Contributions feed Shared Data analytics.
   contributions: new Set<PlcSectionId>(['sharedData']),
-  quizzes: new Set<PlcSectionId>(['quizzes', 'sharedData']),
-  videoActivities: new Set<PlcSectionId>(['videoActivities', 'sharedData']),
+  // The quiz + video-activity surfaces now both live under the unified
+  // `assessments` section (Decision 4.5), so their heavy listeners mount when
+  // Assessments is open (plus Shared Data, which reads them for analytics).
+  quizzes: new Set<PlcSectionId>(['assessments', 'sharedData']),
+  videoActivities: new Set<PlcSectionId>(['assessments', 'sharedData']),
   // Common assessments surface on Home (assessment cards / meeting CTA), in
   // Meeting Mode (which assessments are reviewed), and in Shared Data (the
   // designated-assessment picker). (§3.6)

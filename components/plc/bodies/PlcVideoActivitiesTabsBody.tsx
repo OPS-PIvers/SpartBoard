@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
+import { useCanEditPlcContent } from '@/context/usePlcContext';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { PlcVideoActivitiesBody } from './PlcVideoActivitiesBody';
 import { PlcAssignmentsInProgressSubTab } from '@/components/plc/tabs/PlcAssignmentsInProgressSubTab';
@@ -76,6 +77,9 @@ export const PlcVideoActivitiesTabsBody: React.FC<
 > = ({ plc }) => {
   const { t } = useTranslation();
   const { user, getAssignmentMode } = useAuth();
+  // Viewers can browse the library + assignment history but can't assign new
+  // video activities (Decision 3.2). Rules hard-deny viewer assignment writes.
+  const canEdit = useCanEditPlcContent();
   const [activeSubTab, setActiveSubTab] = useState<SubTabId>('library');
   // Wizard modal state for the top-level "+ Assign Video" CTA. Ported from
   // the former standalone Assignments page, which was collapsed into this
@@ -158,7 +162,7 @@ export const PlcVideoActivitiesTabsBody: React.FC<
             );
           })}
         </div>
-        {activeSubTab === 'library' && (
+        {activeSubTab === 'library' && canEdit && (
           <div className="flex items-center gap-2">
             <button
               type="button"

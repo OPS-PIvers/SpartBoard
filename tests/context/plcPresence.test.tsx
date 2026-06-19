@@ -236,6 +236,38 @@ describe('parsePresence', () => {
       parsePresence('u-x', { uid: 'u-x', section: 'home', lastActiveAt: 1 })
     ).toBeNull();
   });
+
+  it('rewrites a legacy quizzes/videoActivities section to assessments', () => {
+    // A pre-Wave-4 client could still report the old section ids; the unified
+    // IA (Decision 4.5) collapses both onto `assessments`.
+    expect(
+      parsePresence('u-x', {
+        uid: 'u-x',
+        displayName: 'Xavier',
+        section: 'quizzes',
+        lastActiveAt: 1,
+      })?.section
+    ).toBe('assessments');
+    expect(
+      parsePresence('u-y', {
+        uid: 'u-y',
+        displayName: 'Yara',
+        section: 'videoActivities',
+        lastActiveAt: 1,
+      })?.section
+    ).toBe('assessments');
+  });
+
+  it('falls back to home for an unrecognised section id', () => {
+    expect(
+      parsePresence('u-z', {
+        uid: 'u-z',
+        displayName: 'Zoe',
+        section: 'not-a-real-section',
+        lastActiveAt: 1,
+      })?.section
+    ).toBe('home');
+  });
 });
 
 // ---------------------------------------------------------------------------

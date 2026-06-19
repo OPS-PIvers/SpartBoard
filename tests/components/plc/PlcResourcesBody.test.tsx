@@ -285,7 +285,7 @@ describe('PlcResourcesBody', () => {
     );
   });
 
-  it('deep-links to the Quizzes section for an assignment resource', () => {
+  it('deep-links to the Assessments section for an assignment resource', () => {
     mockUsePlcResources.mockReturnValue({
       resources: [
         makeResource({ id: 'a1', kind: 'assignment', title: 'Unit Test' }),
@@ -298,7 +298,7 @@ describe('PlcResourcesBody', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /open unit test/i }));
 
-    expect(onNavigate).toHaveBeenCalledWith('quizzes');
+    expect(onNavigate).toHaveBeenCalledWith('assessments');
     expect(mockWritePlcQuizEntry).not.toHaveBeenCalled();
   });
 
