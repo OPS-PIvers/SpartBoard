@@ -47,7 +47,13 @@ const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
  * Mirrors the identical dedup fence in
  * `useGuidedLearningAssignments.publishAssignmentScores` (#1728–#1935).
  */
-const escapeCsvCell = (v: string) => `"${v.replace(/"/g, '""')}"`;
+const escapeCsvCell = (v: string) => {
+  // Prefix cells that start with formula-trigger characters (=, +, -, @, tab,
+  // CR) with a single-quote so spreadsheet apps treat them as plain text, not
+  // formulas.  RFC-4180 quoting still wraps the result.
+  const safe = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+  return `"${safe.replace(/"/g, '""')}"`;
+};
 
 export function buildGLResponsesCSV(
   responseList: GuidedLearningResponse[],
