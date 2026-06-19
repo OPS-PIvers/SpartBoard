@@ -1,67 +1,67 @@
 {
-  "generatedAt": "2026-06-16T06:16:37.748Z",
+  "generatedAt": "2026-06-19T07:19:34.073Z",
   "runCommand": "pnpm exec vitest run tests/perf/editorPerf.test.tsx",
   "note": "Profiler commit counts are the deterministic primary metric and must be identical across runs. actualDurationMs is machine-dependent and indicative only — compare medians of 3 runs.",
   "scenarios": [
     {
       "scenario": "quiz.mount",
       "commits": 3,
-      "actualDurationMs": 229.867
+      "actualDurationMs": 202.151
     },
     {
       "scenario": "quiz.type25",
       "commits": 25,
-      "actualDurationMs": 236.985
+      "actualDurationMs": 368.19
     },
     {
       "scenario": "quiz.switchSelection10",
       "commits": 18,
-      "actualDurationMs": 205.257
+      "actualDurationMs": 242.627
     },
     {
       "scenario": "quiz.addQuestion",
       "commits": 2,
-      "actualDurationMs": 9.227
+      "actualDurationMs": 22.438
     },
     {
       "scenario": "va.mount",
       "commits": 4,
-      "actualDurationMs": 132.848
+      "actualDurationMs": 92.766
     },
     {
       "scenario": "va.type25",
       "commits": 25,
-      "actualDurationMs": 345.667
+      "actualDurationMs": 347.825
     },
     {
       "scenario": "va.switchSelection10",
       "commits": 10,
-      "actualDurationMs": 107.241
+      "actualDurationMs": 195.786
     },
     {
       "scenario": "va.addTask",
       "commits": 2,
-      "actualDurationMs": 15.258
+      "actualDurationMs": 47.464
     },
     {
       "scenario": "gl.mount",
       "commits": 3,
-      "actualDurationMs": 68.417
+      "actualDurationMs": 85.537
     },
     {
       "scenario": "gl.type25",
       "commits": 25,
-      "actualDurationMs": 316.703
+      "actualDurationMs": 553.063
     },
     {
       "scenario": "gl.switchSlide10",
       "commits": 10,
-      "actualDurationMs": 153.51
+      "actualDurationMs": 263.512
     },
     {
       "scenario": "gl.addStep",
       "commits": 3,
-      "actualDurationMs": 39.025
+      "actualDurationMs": 52.072
     }
   ]
 }
