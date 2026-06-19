@@ -157,11 +157,12 @@ function minimalResponse(
   answers: Array<{ stepId: string; answer: string }>
 ): GuidedLearningResponse {
   return {
+    sessionId: 'session-1',
     studentAnonymousId: 'student-1',
     startedAt: 0,
     completedAt: 1,
     score: null,
-    answers,
+    answers: answers.map((a) => ({ ...a, isCorrect: null })),
   };
 }
 

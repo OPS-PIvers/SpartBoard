@@ -51,12 +51,15 @@ export function buildGLResponsesCSV(
   responseList: GuidedLearningResponse[],
   set: GuidedLearningSet
 ): string {
-  // Deduplicate steps by id — keep first occurrence (insertion order).
+  // Deduplicate question steps by id — keep first occurrence.
+  // Check interactionType first so non-question step IDs don't consume a slot
+  // in seenStepIds that would exclude a question step with the same id.
   const seenStepIds = new Set<string>();
   const questionSteps = set.steps.filter((s) => {
+    if (s.interactionType !== 'question' || !s.question) return false;
     if (seenStepIds.has(s.id)) return false;
     seenStepIds.add(s.id);
-    return s.interactionType === 'question' && !!s.question;
+    return true;
   });
 
   const headers = [

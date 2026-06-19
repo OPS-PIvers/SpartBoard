@@ -242,7 +242,8 @@ export const useVideoActivityAssignments = (
   // PLC linkage by id without re-creating the callback every render
   // (which would churn downstream `useCallback` users). Mirrors the
   // `assignmentsRef` pattern in `useQuizAssignments.ts`. Updated via
-  // `useEffect` (not inline in render) to satisfy the react-hooks/refs rule.
+  // `useEffect` (not inline in render) to avoid mutating a ref during the
+  // render phase (React Compiler / React 19 constraint).
   const assignmentsRef = useRef<VideoActivityAssignment[]>(assignments);
   useEffect(() => {
     assignmentsRef.current = assignments;

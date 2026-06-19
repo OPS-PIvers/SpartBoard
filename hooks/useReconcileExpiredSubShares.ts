@@ -70,9 +70,10 @@ export function useReconcileExpiredSubShares({
   const didRunRef = useRef(false);
   // Latch the callback so changes to it across renders don't retrigger the
   // sweep effect — only `uid` and `driveService` should gate it. The ref
-  // is updated from an effect (not inline in render) to satisfy the
-  // react-hooks/refs lint rule; the sweep's catch handler reads `.current`
-  // long after the effect runs so always-latest is correct.
+  // is updated from an effect (not inline in render) to avoid mutating a
+  // ref during the render phase (React Compiler / React 19 constraint);
+  // the sweep's catch handler reads `.current` long after the effect runs
+  // so always-latest is correct.
   const onPartialFailureRef = useRef(onPartialFailure);
   useEffect(() => {
     onPartialFailureRef.current = onPartialFailure;
