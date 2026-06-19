@@ -352,11 +352,7 @@ export const useGuidedLearningSessionTeacher = (
     []
   );
 
-  const exportResponsesAsCSV = useCallback(
-    (responseList: GuidedLearningResponse[], set: GuidedLearningSet): string =>
-      buildGLResponsesCSV(responseList, set),
-    []
-  );
+  const exportResponsesAsCSV = buildGLResponsesCSV;
 
   return {
     responses,
