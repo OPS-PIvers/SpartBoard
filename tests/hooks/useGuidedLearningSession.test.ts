@@ -214,6 +214,12 @@ describe('buildGLResponsesCSV — duplicate-step dedup', () => {
     expect(rows[0][6]).toBe('Q2: What is 2+2?');
     expect(rows[0][7]).toBe('Q1 Correct');
     expect(rows[0][8]).toBe('Q2 Correct');
+
+    // Regression: typeof guard on timestamps must render epoch-0 (startedAt: 0)
+    // as an ISO string, not as an empty cell. A truthiness check (0 ? ... : '')
+    // would drop the epoch-0 value.
+    expect(rows[1][2]).toBe('1970-01-01T00:00:00.000Z'); // startedAt: 0
+    expect(rows[1][3]).toBe('1970-01-01T00:00:00.001Z'); // completedAt: 1
   });
 
   it('does NOT produce duplicate columns when set.steps contains a duplicate step id (Drive-sync dup)', () => {
