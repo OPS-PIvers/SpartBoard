@@ -1387,21 +1387,21 @@ export const generateVideoActivity = onCall(
 
     if (!isAdmin) {
       // --- Check Global Gemini Permission (enabled + accessLevel) ---
-      const globalPermDoc = await db
+      const accessPermDoc = await db
         .collection('global_permissions')
         .doc('gemini-functions')
         .get();
-      const globalPerm = globalPermDoc.data() as GlobalPermission | undefined;
+      const accessPerm = accessPermDoc.data() as GlobalPermission | undefined;
 
-      if (globalPerm && !globalPerm.enabled) {
+      if (accessPerm && !accessPerm.enabled) {
         throw new HttpsError(
           'permission-denied',
           'Gemini functions are currently disabled by an administrator.'
         );
       }
 
-      if (globalPerm) {
-        const { accessLevel, betaUsers = [] } = globalPerm;
+      if (accessPerm) {
+        const { accessLevel, betaUsers = [] } = accessPerm;
         if (accessLevel === 'admin') {
           throw new HttpsError(
             'permission-denied',
@@ -1425,16 +1425,16 @@ export const generateVideoActivity = onCall(
 
       try {
         await db.runTransaction(async (transaction) => {
-          const globalPermDoc2 = await transaction.get(
+          const globalPermDoc = await transaction.get(
             db.collection('global_permissions').doc('gemini-functions')
           );
-          const globalPerm2 = globalPermDoc2.data() as
+          const globalPerm = globalPermDoc.data() as
             | GlobalPermission
             | undefined;
 
           const overallLimitEnabled =
-            globalPerm2?.config?.dailyLimitEnabled !== false;
-          const overallLimit = globalPerm2?.config?.dailyLimit ?? 20;
+            globalPerm?.config?.dailyLimitEnabled !== false;
+          const overallLimit = globalPerm?.config?.dailyLimit ?? 20;
 
           const overallUsageDoc = await transaction.get(overallUsageRef);
           const currentOverallUsage =
