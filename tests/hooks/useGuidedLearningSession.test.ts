@@ -281,6 +281,8 @@ describe('buildGLResponsesCSV — duplicate-step dedup', () => {
     ['+1234567890', "'+1234567890"],
     ['-evil', "'-evil"],
     ['@SUM(A1)', "'@SUM(A1)"],
+    ['\t=hidden', "'\t=hidden"],
+    ['\r=hidden', "'\r=hidden"],
   ])(
     'prefixes formula-trigger answer %s with apostrophe to prevent injection',
     (answer, expected) => {
