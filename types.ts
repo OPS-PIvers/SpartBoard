@@ -824,6 +824,167 @@ export interface PlcUnreadState {
   lastSeenAt: number;
 }
 
+/**
+ * The team's designated common assessment (Decision 4.0c), stored at
+ * `plcs/{plcId}/assessments/{assessmentId}`. PLC-owned (automatically gated by
+ * the parent membership check). This is the first-class object that replaces
+ * heuristic title-matching: results aggregate to one canonical id
+ * (`PlcAssessmentAggregate.assessmentId`) and the team can track "who's run it."
+ *
+ * `syncGroupId` pins the canonical content (a `synced_quizzes` /
+ * `synced_video_activities` group); it is immutable on update. `createdBy` and
+ * `id` are likewise identity fields. Soft-deletable via `deletedAt`.
+ */
+export interface PlcCommonAssessment {
+  id: string;
+  /** Team-facing assessment title (e.g. "Unit 4 CFA"). */
+  title: string;
+  /** Which authoring surface backs this assessment. */
+  kind: 'quiz' | 'video-activity';
+  /**
+   * Canonical content group id — the `synced_quizzes` /
+   * `synced_video_activities` group whose results roll up to this assessment.
+   * Immutable on update (pinned in rules).
+   */
+  syncGroupId: string;
+  /** Optional unit/standard label for grouping (e.g. "Unit 4", "RL.6.2"). */
+  unitLabel?: string;
+  /** Optional open date (ms since epoch). `null`/absent means no open gate. */
+  opensAt?: number | null;
+  /** Optional due date (ms since epoch). `null`/absent means no due date. */
+  dueAt?: number | null;
+  /**
+   * Lifecycle status:
+   * - `planning`: designated but not yet open for teachers to run.
+   * - `active`: teachers are running it with their classes.
+   * - `reviewing`: data is being reviewed (typically in Meeting Mode).
+   * - `closed`: review complete; archived.
+   */
+  status: 'planning' | 'active' | 'reviewing' | 'closed';
+  /** uid of the member who designated the assessment. Immutable. */
+  createdBy: string;
+  /** serverTimestamp resolved to ms on read. Immutable. */
+  createdAt: number;
+  /** serverTimestamp resolved to ms on read; bumped on every update. */
+  updatedAt: number;
+  /**
+   * Soft-delete tombstone (Decision 3.1). `null`/absent means live; a non-null
+   * ms timestamp moves the assessment into Trash (restorable until the Wave-4
+   * GC hard-deletes it after 30 days).
+   */
+  deletedAt?: number | null;
+}
+
+/**
+ * The anonymized, member-readable rollup for one common assessment (Decisions
+ * 6.0 + 3.3), stored at `plcs/{plcId}/aggregates/{assessmentId}` and written
+ * **server-side only** by the `aggregatePlcAssessment` Cloud Function (clients
+ * may read but never write). This is the PII fix and the Meeting-Mode data
+ * spine in one: members read this small aggregate instead of every teacher's
+ * raw `PlcContribution` (which carries student names and is owner-read-only).
+ *
+ * Crucially, `perTeacher` rows carry `studentCount` but **no student names and
+ * no per-student rows** — the FERPA boundary is enforced here and in rules.
+ */
+export interface PlcAssessmentAggregate {
+  /** Matches the `PlcCommonAssessment.id` this aggregate rolls up (== doc id). */
+  assessmentId: string;
+  /** Aggregate schema version, for forward-compatible recomputes. */
+  schemaVersion: number;
+  /** Number of teachers who have contributed results. */
+  teacherCount: number;
+  /** Total students across all contributing teachers' classes. */
+  studentCount: number;
+  /** Team-wide average score (0-100) across all teachers' students. */
+  teamAveragePercent: number;
+  /** Per-question correctness rollup, sorted/owned by the function. */
+  perQuestion: Array<{
+    questionId: string;
+    /** Question prompt snapshot, for rendering without a content join. */
+    text: string;
+    /** Percent correct (0-100) across all teachers' students. */
+    correctPercent: number;
+    /** Point value of the question. */
+    points: number;
+  }>;
+  /**
+   * Per-teacher rollup — **anonymized**: a count of that teacher's students,
+   * NEVER student names and NEVER per-student rows.
+   */
+  perTeacher: Array<{
+    teacherUid: string;
+    /** Display-name snapshot of the teacher (teacher identity, not student). */
+    teacherName: string;
+    /** Number of that teacher's classes/sections that ran the assessment. */
+    classCount: number;
+    /** That teacher's average score (0-100) across their students. */
+    averagePercent: number;
+    /** Count of that teacher's students. No names, no per-student rows. */
+    studentCount: number;
+  }>;
+  /** serverTimestamp resolved to ms on read; when the function last recomputed. */
+  ranAt: number;
+}
+
+/**
+ * An archived, exportable record of one live PLC meeting (Decisions 4.0, 4.0b),
+ * stored at `plcs/{plcId}/meetings/{meetingId}`. PLC-owned. Captures the guided
+ * Meeting-Mode flow: which common assessments were reviewed, the decisions made
+ * (optionally linked to a weak-question data card), and action items (which can
+ * spawn `plcs/{plcId}/todos` via `actionItems[].todoId`).
+ *
+ * `attendeeUids` is seeded from presence at meeting time, editable before save.
+ * Identity fields (`id`, `createdBy`) are immutable on update. Soft-deletable.
+ */
+export interface PlcMeeting {
+  id: string;
+  /** serverTimestamp resolved to ms on read; when the meeting was held. */
+  heldAt: number;
+  /** uid of the member facilitating the meeting. */
+  facilitatorUid: string;
+  /** uids of members present (seeded from presence, editable before save). */
+  attendeeUids: string[];
+  /** `PlcCommonAssessment` ids reviewed during the meeting. */
+  assessmentIds: string[];
+  /** Optional free-text agenda. */
+  agenda?: string;
+  /** Decisions captured during the meeting, each optionally linked to a data card. */
+  decisions: Array<{
+    id: string;
+    text: string;
+    /** Optional link to a weak-question / data card the decision responds to. */
+    linkedDataCard?: { assessmentId: string; questionId?: string };
+  }>;
+  /** Action items captured during the meeting; each can spawn a PLC to-do. */
+  actionItems: Array<{
+    id: string;
+    text: string;
+    /** uid of the assignee. `null`/absent means unassigned. */
+    assigneeUid?: string;
+    /** Optional due date (ms since epoch). `null`/absent means no due date. */
+    dueAt?: number | null;
+    /** Id of the spawned `PlcTodo`, if the action item was promoted to one. */
+    todoId?: string;
+  }>;
+  /** Optional free-text notes body (links to a `PlcNote` via `PlcNote.meetingId`). */
+  notesBody?: string;
+  /**
+   * Lifecycle status: `in-progress` while the meeting is live in Meeting Mode,
+   * `completed` once saved as a record.
+   */
+  status: 'in-progress' | 'completed';
+  /** uid of the member who created the record. Immutable. */
+  createdBy: string;
+  /** serverTimestamp resolved to ms on read; bumped on every update. */
+  updatedAt: number;
+  /**
+   * Soft-delete tombstone (Decision 3.1). `null`/absent means live; a non-null
+   * ms timestamp moves the meeting into Trash (restorable until the Wave-4 GC
+   * hard-deletes it after 30 days).
+   */
+  deletedAt?: number | null;
+}
+
 // --- Admin-curated resources pushed to PLCs ---
 export type PlcResourceKind =
   | 'quiz'

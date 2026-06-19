@@ -157,6 +157,13 @@ vi.mock('@/components/plc/tabs/PlcSettingsTab', () => ({
 vi.mock('@/components/plc/bodies/MembersBody', () => ({
   MembersBody: () => <div data-testid="section-members">Members body</div>,
 }));
+vi.mock('@/components/plc/meeting/PlcMeetingMode', () => ({
+  PlcMeetingMode: ({ meetingId }: { meetingId?: string | null }) => (
+    <div data-testid="section-meeting" data-meeting-id={meetingId ?? ''}>
+      Meeting mode
+    </div>
+  ),
+}));
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -233,15 +240,36 @@ describe('PlcDashboard (Wave 1 — pathname-driven render/smoke)', () => {
     expect(screen.queryByTestId('section-home')).not.toBeInTheDocument();
   });
 
-  it('falls back to home when the requested section is not visible (reserved/gated)', () => {
+  it("renders Meeting Mode (live) when activeSection='meeting' with no meetingId", () => {
     render(
       <PlcDashboard plc={fakePlc} activeSection="meeting" onClose={vi.fn()} />
     );
 
-    expect(screen.getByTestId('rail')).toHaveAttribute('data-active', 'home');
-    expect(screen.getAllByTestId('section-home').length).toBeGreaterThan(0);
-    // The bad URL is rewritten (replace, not push) to the canonical home path.
-    expect(mockSpaReplace).toHaveBeenCalledWith('/plc/plc-42');
+    expect(screen.getByTestId('rail')).toHaveAttribute(
+      'data-active',
+      'meeting'
+    );
+    const body = screen.getByTestId('section-meeting');
+    expect(body).toBeInTheDocument();
+    // No record id → live flow (empty meetingId passed through).
+    expect(body).toHaveAttribute('data-meeting-id', '');
+    expect(screen.queryByTestId('section-home')).not.toBeInTheDocument();
+  });
+
+  it('plumbs meetingId into Meeting Mode for the record route', () => {
+    render(
+      <PlcDashboard
+        plc={fakePlc}
+        activeSection="meeting"
+        meetingId="meeting-7"
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('section-meeting')).toHaveAttribute(
+      'data-meeting-id',
+      'meeting-7'
+    );
   });
 
   it('navigates (pushes history) when a rail item is clicked', () => {

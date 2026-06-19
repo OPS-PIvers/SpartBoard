@@ -24,10 +24,12 @@ import type { PlcSectionId } from '../sections';
 import { usePlcActivity } from '@/context/usePlcContext';
 import { usePlcUnread } from '@/hooks/usePlcUnread';
 import { AttentionCard } from './cards/AttentionCard';
+import { CommonAssessmentBanner } from './cards/CommonAssessmentBanner';
 import { QuickCreateBar } from './cards/QuickCreateBar';
 import { RecentDocsCard } from './cards/RecentDocsCard';
 import { MembersHeaderCluster } from './cards/MembersHeaderCluster';
 import { SinceYouWereHereCard } from './cards/SinceYouWereHereCard';
+import { YourActionItemsCard } from './cards/YourActionItemsCard';
 import { PlcPresenceStrip } from '../presence/PlcPresenceStrip';
 import { PlcActivityFeed } from '../activity/PlcActivityFeed';
 
@@ -95,12 +97,18 @@ export const PlcHome: React.FC<PlcHomeProps> = ({ plc, onNavigate }) => {
           <PlcPresenceStrip plc={plc} />
         </div>
         <div className="mt-4">
-          <QuickCreateBar onNavigate={onNavigate} />
+          <QuickCreateBar plc={plc} onNavigate={onNavigate} />
         </div>
       </div>
 
       {/* Two-column dashboard — fills the full content width */}
       <div className="flex-1 p-6">
+        {/* Common-assessment status banner + Start/Resume Meeting CTA — the
+            hero strip spanning both columns (PRD §6.3). */}
+        <div className="mb-5">
+          <CommonAssessmentBanner plc={plc} onNavigate={onNavigate} />
+        </div>
+
         <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
           {/* Primary column — the since-you-were-here digest, then what the
               PLC is working on */}
@@ -113,8 +121,10 @@ export const PlcHome: React.FC<PlcHomeProps> = ({ plc, onNavigate }) => {
             <AttentionCard plc={plc} onNavigate={onNavigate} />
           </div>
 
-          {/* Sidebar column — recent docs + the full activity feed */}
+          {/* Sidebar column — your action items, recent docs, then the full
+              activity feed */}
           <div className="lg:col-span-1 flex flex-col gap-5">
+            <YourActionItemsCard plc={plc} onNavigate={onNavigate} />
             <RecentDocsCard plc={plc} onNavigate={onNavigate} />
             <PlcActivityFeed plc={plc} />
           </div>

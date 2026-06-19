@@ -9,6 +9,7 @@ import {
   SquareSquare,
   Users2,
   Sparkles,
+  Presentation,
   Settings as SettingsIcon,
   type LucideIcon,
 } from 'lucide-react';
@@ -25,9 +26,9 @@ export type PlcSectionId =
   | 'members'
   | 'resources'
   | 'settings'
-  // Reserved for later waves (Meeting Mode — PRD §6.2). It is a valid route
-  // section so `/plc/:id/meeting` parses cleanly, but it is intentionally NOT
-  // in `PLC_SECTIONS` yet, so it does not appear in the rail this wave.
+  // Meeting Mode (PRD §6.2) — the guided projector surface at
+  // `/plc/:id/meeting` (and `/plc/:id/meeting/:meetingId` for a saved record).
+  // A first-class rail item as of Wave 3.
   | 'meeting';
 
 /**
@@ -94,6 +95,12 @@ export const PLC_SECTIONS: readonly PlcSectionDef[] = [
     icon: BarChart3,
     labelKey: 'plcDashboard.tabs.sharedData',
     labelDefault: 'Shared Data',
+  },
+  {
+    id: 'meeting',
+    icon: Presentation,
+    labelKey: 'plcDashboard.tabs.meeting',
+    labelDefault: 'Meeting Mode',
   },
   {
     id: 'docs',

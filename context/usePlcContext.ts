@@ -39,8 +39,11 @@ import type {
   Plc,
   PlcActivityEvent,
   PlcActivityType,
+  PlcAssessmentAggregate,
+  PlcCommonAssessment,
   PlcContribution,
   PlcDoc,
+  PlcMeeting,
   PlcMember,
   PlcNote,
   PlcPresence,
@@ -116,6 +119,28 @@ export interface PlcStoreState {
   contributions: PlcSlice<PlcContribution[]>;
   quizzes: PlcSlice<PlcQuizEntry[]>;
   videoActivities: PlcSlice<PlcVideoActivityEntry[]>;
+  /**
+   * The team's designated common assessments (Decision 4.0c, §3.6). Mirrored
+   * from the provider's `plcs/{id}/assessments` listener, gated to the sections
+   * that surface them (home / meeting / sharedData). Soft-deleted entries are
+   * filtered out; ordered newest-edit-first by `updatedAt`.
+   */
+  assessments: PlcSlice<PlcCommonAssessment[]>;
+  /**
+   * Anonymized, member-readable assessment aggregates (Decisions 6.0 + 3.3,
+   * §3.6) — the FERPA-safe Meeting-Mode data spine. Mirrored from the provider's
+   * `plcs/{id}/aggregates` listener (server-written; clients read-only), gated
+   * to the sections that read them (sharedData / meeting / home). Ordered by
+   * `assessmentId` for a stable render order.
+   */
+  aggregates: PlcSlice<PlcAssessmentAggregate[]>;
+  /**
+   * The team's archived meeting records (Decisions 4.0 / 4.0b, §3.7). Mirrored
+   * from the provider's `plcs/{id}/meetings` listener, gated to the Meeting
+   * section. Soft-deleted entries are filtered out; ordered newest-held-first by
+   * `heldAt`.
+   */
+  meetings: PlcSlice<PlcMeeting[]>;
   /**
    * Coarse per-section presence (Decision 2.1). Mirrored from the provider's
    * ALWAYS-ON `plcs/{id}/presence` listener (Home needs it, so it is not
@@ -198,6 +223,120 @@ export interface PlcActions {
   deleteDoc: (docId: string) => Promise<void>;
   /** Restore a soft-deleted doc by clearing its `deletedAt` tombstone. */
   restoreDoc: (docId: string) => Promise<void>;
+  // --- Common assessments (Decision 4.0c, §3.6) ---
+  /**
+   * Designate a new common assessment for the team (writes a
+   * `PlcCommonAssessment` with `serverTimestamp()` time fields and fires an
+   * `assessment_created` activity event). `status` defaults to `'planning'`.
+   * Returns the new assessment id. Prefer `designateAssessment` — the
+   * intention-revealing alias — at call sites.
+   */
+  createAssessment: (input: {
+    title: string;
+    kind: 'quiz' | 'video-activity';
+    syncGroupId: string;
+    unitLabel?: string;
+    opensAt?: number | null;
+    dueAt?: number | null;
+    status?: PlcCommonAssessment['status'];
+  }) => Promise<string>;
+  /**
+   * Patch a common assessment's working fields (`title` / `unitLabel` /
+   * `opensAt` / `dueAt` / `status`). Identity fields (`id` / `createdBy` /
+   * `createdAt` / `kind` / `syncGroupId`) are immutable in rules and never
+   * written here; `updatedAt` is bumped with `serverTimestamp()`.
+   */
+  updateAssessment: (
+    assessmentId: string,
+    patch: {
+      title?: string;
+      unitLabel?: string;
+      opensAt?: number | null;
+      dueAt?: number | null;
+      status?: PlcCommonAssessment['status'];
+    }
+  ) => Promise<void>;
+  /** Soft-delete a common assessment (Decision 3.1). Restore with `restoreAssessment`. */
+  deleteAssessment: (assessmentId: string) => Promise<void>;
+  /** Restore a soft-deleted assessment by clearing its `deletedAt` tombstone. */
+  restoreAssessment: (assessmentId: string) => Promise<void>;
+  /**
+   * Intention-revealing alias for `createAssessment` — "designate THIS synced
+   * group as the team's common assessment." Same write + activity event;
+   * identical return.
+   */
+  designateAssessment: (input: {
+    title: string;
+    kind: 'quiz' | 'video-activity';
+    syncGroupId: string;
+    unitLabel?: string;
+    opensAt?: number | null;
+    dueAt?: number | null;
+    status?: PlcCommonAssessment['status'];
+  }) => Promise<string>;
+  // --- Meeting records (Decisions 4.0 / 4.0b, §3.7) ---
+  /**
+   * Create an `in-progress` meeting record (Pick step, §6.2) with
+   * `serverTimestamp()` time fields. The facilitator defaults to the caller;
+   * `attendeeUids` / `assessmentIds` / `decisions` / `actionItems` default to
+   * empty lists (the rules require them present). Returns the new meeting id.
+   */
+  createMeeting: (input?: {
+    facilitatorUid?: string;
+    assessmentIds?: string[];
+    attendeeUids?: string[];
+    agenda?: string;
+  }) => Promise<string>;
+  /**
+   * Patch a meeting's working fields (`attendeeUids` / `assessmentIds` /
+   * `agenda` / `decisions` / `actionItems` / `notesBody` / `status`). Identity
+   * fields (`id` / `createdBy` / `heldAt` / `facilitatorUid`) are immutable in
+   * rules and never written here; `updatedAt` is bumped with `serverTimestamp()`.
+   */
+  updateMeeting: (
+    meetingId: string,
+    patch: {
+      attendeeUids?: string[];
+      assessmentIds?: string[];
+      agenda?: string;
+      decisions?: PlcMeeting['decisions'];
+      actionItems?: PlcMeeting['actionItems'];
+      notesBody?: string;
+      status?: PlcMeeting['status'];
+    }
+  ) => Promise<void>;
+  /**
+   * Finalize a meeting (Save step, §6.2): captures `attendeeUids` from the
+   * current presence list (auto from presence, editable before save via the
+   * optional `attendeeUids` override per §11), marks `status: 'completed'`,
+   * persists any passed working fields, and fires a `meeting_held` activity
+   * event. Then spawns a `PlcTodo` for every action item lacking a `todoId`
+   * (assignee/due/`meetingId` provenance) and back-links the new `todoId` onto
+   * the meeting record (§3.9). Returns the spawned to-do ids.
+   */
+  saveMeeting: (
+    meetingId: string,
+    input?: {
+      attendeeUids?: string[];
+      assessmentIds?: string[];
+      agenda?: string;
+      decisions?: PlcMeeting['decisions'];
+      actionItems?: PlcMeeting['actionItems'];
+      notesBody?: string;
+    }
+  ) => Promise<string[]>;
+  /** Soft-delete a meeting record (Decision 3.1). Restore with `restoreMeeting`. */
+  deleteMeeting: (meetingId: string) => Promise<void>;
+  /** Restore a soft-deleted meeting by clearing its `deletedAt` tombstone. */
+  restoreMeeting: (meetingId: string) => Promise<void>;
+  /**
+   * Spawn a `PlcTodo` for each of a meeting's action items lacking a `todoId`
+   * (Act step, §6.2 / §3.9) and back-link the new `todoId` onto the meeting.
+   * Idempotent — already-promoted action items are skipped. Returns the spawned
+   * to-do ids. (`saveMeeting` calls this; exposed standalone so Meeting Mode can
+   * promote action items to to-dos mid-meeting.)
+   */
+  spawnTodosForMeeting: (meetingId: string) => Promise<string[]>;
 }
 
 /**
@@ -358,6 +497,21 @@ export function usePlcContributionsData(): PlcSlice<PlcContribution[]> {
   return usePlcSelector((s) => s.contributions) ?? EMPTY_CONTRIBUTIONS_SLICE;
 }
 
+/** Common-assessments slice (data/loading/error) — Decision 4.0c, §3.6. */
+export function usePlcAssessmentsData(): PlcSlice<PlcCommonAssessment[]> {
+  return usePlcSelector((s) => s.assessments) ?? EMPTY_ASSESSMENTS_SLICE;
+}
+
+/** Anonymized assessment-aggregates slice (data/loading/error) — Decisions 6.0 + 3.3. */
+export function usePlcAggregatesData(): PlcSlice<PlcAssessmentAggregate[]> {
+  return usePlcSelector((s) => s.aggregates) ?? EMPTY_AGGREGATES_SLICE;
+}
+
+/** Meeting-records slice (data/loading/error) — Decisions 4.0 / 4.0b, §3.7. */
+export function usePlcMeetingsData(): PlcSlice<PlcMeeting[]> {
+  return usePlcSelector((s) => s.meetings) ?? EMPTY_MEETINGS_SLICE;
+}
+
 /**
  * The full live presence list (every member's doc, including stale ones),
  * ordered newest-heartbeat-first. Mirrored from the provider's always-on
@@ -452,6 +606,24 @@ const EMPTY_DOCS_SLICE: PlcSlice<PlcDoc[]> = {
   enabled: false,
 };
 const EMPTY_CONTRIBUTIONS_SLICE: PlcSlice<PlcContribution[]> = {
+  data: [],
+  loading: false,
+  error: null,
+  enabled: false,
+};
+const EMPTY_ASSESSMENTS_SLICE: PlcSlice<PlcCommonAssessment[]> = {
+  data: [],
+  loading: false,
+  error: null,
+  enabled: false,
+};
+const EMPTY_AGGREGATES_SLICE: PlcSlice<PlcAssessmentAggregate[]> = {
+  data: [],
+  loading: false,
+  error: null,
+  enabled: false,
+};
+const EMPTY_MEETINGS_SLICE: PlcSlice<PlcMeeting[]> = {
   data: [],
   loading: false,
   error: null,

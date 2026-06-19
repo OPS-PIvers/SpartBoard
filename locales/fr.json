@@ -286,6 +286,62 @@
   },
   "plcDashboard": {
     "subtitle": "Tableau de la Communauté",
+    "home": {
+      "commonAssessment": {
+        "loading": "Chargement de votre évaluation commune…",
+        "emptyTitle": "Pas encore d’évaluation commune",
+        "emptySubtitle": "Désignez-en une dans Données partagées, puis examinez ensemble les résultats regroupés.",
+        "reviewData": "Voir les données partagées",
+        "ranIt": "{{ran}} sur {{total}} l’ont réalisée",
+        "startMeeting": "Démarrer la réunion",
+        "resumeMeeting": "Reprendre la réunion",
+        "phase": {
+          "planning": "Planification — pas encore réalisée",
+          "running": "En cours",
+          "ready": "Prête à être examinée",
+          "reviewing": "Examen en équipe",
+          "closed": "Clôturée"
+        }
+      },
+      "actionItems": {
+        "heading": "Vos tâches",
+        "empty": "Vous êtes à jour",
+        "emptySubtitle": "Les tâches qui vous sont assignées apparaîtront ici.",
+        "loadError": "Impossible de charger vos tâches",
+        "toggleFailed": "Impossible de mettre à jour cette tâche.",
+        "markDone": "Marquer comme terminée",
+        "openAll": "Ouvrir la liste de tâches",
+        "due": {
+          "overdue": "En retard",
+          "today": "Aujourd'hui"
+        }
+      },
+      "quickCreate": {
+        "quiz": "Attribuer un quiz",
+        "video": "Attribuer une activité vidéo",
+        "doc": "Ajouter un document",
+        "docModal": {
+          "title": "Ajouter un document partagé",
+          "subtitle": "Partagé avec {{name}}",
+          "titleLabel": "Titre",
+          "urlLabel": "URL Google Doc",
+          "add": "Ajouter le document",
+          "adding": "Ajout…",
+          "created": "« {{title}} » a été ajouté à cette communauté.",
+          "failed": "Impossible d'ajouter ce document. Veuillez réessayer."
+        }
+      }
+    },
+    "newAssignment": {
+      "quiz": {
+        "ctaDisabledDrive": "Connectez Google Drive pour attribuer un quiz.",
+        "ctaDisabledEmpty": "Vous n'avez encore aucun quiz dans votre bibliothèque personnelle. Créez-en un d'abord dans le widget Quiz."
+      },
+      "video": {
+        "ctaDisabledDrive": "Connectez Google Drive pour attribuer une activité vidéo.",
+        "ctaDisabledEmpty": "Vous n'avez encore aucune activité vidéo dans votre bibliothèque personnelle. Créez-en une d'abord dans le widget Activité vidéo."
+      }
+    },
     "backToMenu": "Retour",
     "close": "Fermer",
     "tabs": {
@@ -299,6 +355,7 @@
       "home": "Accueil",
       "members": "Membres",
       "sharedData": "Données partagées",
+      "meeting": "Mode Réunion",
       "docs": "Documents",
       "resources": "Ressources"
     },
@@ -675,6 +732,192 @@
       "threadLabel": "Commentaires sur {{subject}}",
       "mentionNoMatch": "Aucun coéquipier correspondant",
       "mentionListLabel": "Mentionner un coéquipier"
+    },
+    "sharedData": {
+      "loading": "Chargement des données partagées…",
+      "loadError": "Impossible de charger les données partagées",
+      "emptyTitle": "Aucune donnée partagée pour l'instant",
+      "emptySubtitle": "Lorsque des membres réalisent une évaluation commune en mode PLC, des résultats anonymisés apparaissent ici.",
+      "noResults": "Aucun résultat ne correspond à vos filtres",
+      "untitledQuiz": "Évaluation sans titre",
+      "untitledQuestion": "Question sans titre",
+      "kindQuiz": "Quiz",
+      "kindVA": "Activité vidéo",
+      "common": "Commune",
+      "avg": "moy.",
+      "teacher": "enseignant",
+      "teachers": "enseignants",
+      "students": "élèves",
+      "studentsShort": "él.",
+      "classCount": "{{count}} cl.",
+      "ranOf": "{{ran}} sur {{total}} l'ont réalisée",
+      "teamAverage": "moyenne de l'équipe",
+      "weakestQuestions": "Questions les plus faibles",
+      "byClass": "Par enseignant / classe",
+      "you": "(vous)",
+      "whoRanIt": "Qui l'a réalisée",
+      "hasRun": "l'a réalisée",
+      "notRun": "ne l'a pas encore réalisée",
+      "updating": "mise à jour…",
+      "updatingHint": "Les nouveaux résultats sont encore en cours d'agrégation — les chiffres seront actualisés sous peu.",
+      "designateTitle": "En faire l'évaluation commune de l'équipe",
+      "designateSubtitle": "La désigner lui donne un titre, une unité et un statut partagés que toute l'équipe suit.",
+      "designateAction": "Désigner",
+      "designatePrompt": "Nommez cette évaluation commune pour que toute l'équipe la reconnaisse.",
+      "designatePromptTitle": "Désigner l'évaluation commune",
+      "designatePlaceholder": "ex. Unité 4 CFA",
+      "designated": "« {{title}} » est désormais l'évaluation commune de l'équipe.",
+      "designateFailed": "Impossible de désigner cette évaluation. Réessayez.",
+      "status": {
+        "planning": "Planification",
+        "active": "Active",
+        "reviewing": "En révision",
+        "closed": "Clôturée"
+      },
+      "filters": {
+        "label": "Filtrer les données partagées",
+        "search": "Rechercher des évaluations",
+        "searchPlaceholder": "Rechercher…",
+        "type": "Type",
+        "typeAll": "Tous les types",
+        "typeQuiz": "Quiz",
+        "typeVA": "Activités vidéo",
+        "teacher": "Enseignant",
+        "teacherAll": "Tous les enseignants",
+        "unit": "Unité",
+        "unitAll": "Toutes les unités",
+        "status": "Statut",
+        "statusAll": "Tous les statuts"
+      }
+    },
+    "meeting": {
+      "loading": "Chargement des données de la réunion…",
+      "loadError": "Impossible de charger les données de la réunion",
+      "createFailed": "Impossible de démarrer la réunion. Réessayez.",
+      "saved": "Réunion enregistrée. L’équipe peut consulter le compte rendu à tout moment.",
+      "saveFailed": "Impossible d’enregistrer la réunion. Réessayez.",
+      "pickRequired": "Choisissez au moins une évaluation à examiner.",
+      "untitledAssessment": "Évaluation sans titre",
+      "untitledQuestion": "Question sans titre",
+      "common": "Commune",
+      "you": "(vous)",
+      "teamAverage": "Moyenne de l’équipe",
+      "teacherStudentCount": "{{teachers}} enseignants · {{students}} élèves",
+      "classCount": "{{count}} cl.",
+      "weakestQuestions": "Questions les plus faibles",
+      "byClass": "Par enseignant / classe",
+      "whoRanIt": "Qui l’a fait passer",
+      "ranOf": "({{ran}} sur {{total}})",
+      "hasRun": "l’a fait passer",
+      "notRun": "ne l’a pas encore fait passer",
+      "noQuestions": "Aucune donnée par question disponible pour l’instant.",
+      "strongAcross": "Solide partout — chaque question dépasse 80 %.",
+      "updating": "mise à jour…",
+      "updatingHint": "De nouveaux résultats sont encore en cours de traitement — les chiffres se mettront à jour sous peu.",
+      "reviewCardLabel": "Résultats agrégés pour {{title}}",
+      "discussAssessment": "En discuter",
+      "discussQuestion": "Discuter de cette question dans une décision",
+      "designatePrompt": "Nommez cette évaluation commune pour que toute l’équipe la reconnaisse.",
+      "designatePromptTitle": "Désigner une évaluation commune",
+      "designatePlaceholder": "ex. Unité 4 CFA",
+      "designated": "« {{title}} » est désormais l’évaluation commune de l’équipe.",
+      "designateFailed": "Impossible de désigner cette évaluation. Réessayez.",
+      "back": "Retour",
+      "next": "Suivant",
+      "saveMeeting": "Enregistrer la réunion",
+      "stepsLabel": "Étapes de la réunion",
+      "pastMeetings": "Réunions passées ({{count}})",
+      "startOver": "Recommencer",
+      "startOverTitle": "Commencer une nouvelle réunion",
+      "startOverConfirm": "Commencer une nouvelle réunion ? Cela efface la sélection et les notes actuelles.",
+      "steps": {
+        "pick": "Choisir",
+        "review": "Examiner",
+        "decide": "Décider",
+        "act": "Agir",
+        "save": "Enregistrer"
+      },
+      "pick": {
+        "heading": "Que regardons-nous aujourd’hui ?",
+        "subtitle": "Choisissez la ou les évaluations communes que cette réunion examine.",
+        "emptyTitle": "Aucune donnée d’évaluation pour l’instant",
+        "emptySubtitle": "Lorsque l’équipe fait passer une évaluation commune en mode PLC, les résultats anonymisés apparaissent ici, prêts à être examinés ensemble.",
+        "cardMeta": "{{avg}}% moy. équipe · {{teachers}} enseignants · {{students}} élèves",
+        "designate": "Désigner"
+      },
+      "review": {
+        "heading": "Que disent les données ?",
+        "subtitle": "Résultats agrégés et anonymisés. Cliquez sur une question pour capturer une décision à son sujet.",
+        "none": "Aucune évaluation sélectionnée — revenez à Choisir."
+      },
+      "decide": {
+        "heading": "Qu’avons-nous décidé ?",
+        "subtitle": "Capturez les décisions de l’équipe. Liez-en une à une carte de données d’Examiner lorsqu’elle répond à un résultat précis.",
+        "addLabel": "Ajouter une décision",
+        "placeholder": "ex. Réexpliquer la question 4 avec le modèle d’aire avant le contrôle.",
+        "add": "Ajouter la décision",
+        "empty": "Aucune décision capturée pour l’instant.",
+        "remove": "Supprimer la décision",
+        "linkedFallback": "une carte de données",
+        "linkedQuestion": " · Q{{q}}"
+      },
+      "act": {
+        "heading": "Qui fait quoi ?",
+        "subtitle": "Créez des actions. À l’enregistrement, chacune devient une tâche PLC suivie pour la personne responsable.",
+        "addLabel": "Ajouter une action",
+        "placeholder": "ex. Préparer un échauffement de remédiation pour la question 4",
+        "assignee": "Responsable",
+        "unassigned": "Non attribuée",
+        "someone": "Un coéquipier",
+        "due": "Échéance",
+        "add": "Ajouter l’action",
+        "empty": "Aucune action pour l’instant.",
+        "remove": "Supprimer l’action",
+        "todoCreated": "Tâche créée"
+      },
+      "save": {
+        "heading": "Prêt à enregistrer ?",
+        "subtitle": "L’enregistrement écrit le compte rendu de la réunion, transforme les actions en tâches et le consigne dans le fil d’activité de l’équipe.",
+        "reviewed": "Évaluations examinées",
+        "decisions": "Décisions",
+        "actions": "Actions → tâches",
+        "attendees": "Participants (depuis la présence)",
+        "whoAttended": "Qui est là maintenant",
+        "noAttendees": "Personne d’autre n’est actif pour l’instant — vous serez enregistré comme animateur.",
+        "viewerNote": "Les observateurs peuvent suivre la réunion mais ne peuvent pas enregistrer le compte rendu.",
+        "doneTitle": "Réunion enregistrée",
+        "doneSubtitle": "Les actions sont désormais des tâches suivies pour leurs responsables. Exportez le compte rendu pour vos dossiers ou commencez une nouvelle réunion.",
+        "viewRecord": "Voir le compte rendu",
+        "startNew": "Commencer une nouvelle réunion"
+      },
+      "export": {
+        "toSheet": "Exporter vers Sheets",
+        "toPdf": "Exporter en PDF",
+        "open": "Ouvrir",
+        "sheetDone": "Compte rendu de réunion exporté vers Google Sheets.",
+        "pdfDone": "Compte rendu de réunion exporté en PDF.",
+        "noGoogle": "Connectez votre compte Google pour exporter le compte rendu.",
+        "notReady": "Le compte rendu n’est pas encore chargé. Réessayez.",
+        "failed": "Impossible d’exporter le compte rendu de la réunion."
+      },
+      "record": {
+        "title": "Compte rendu de réunion",
+        "facilitatedBy": "Animée par {{name}}",
+        "backToLive": "Retour au Mode Réunion",
+        "notFound": "Compte rendu de réunion introuvable",
+        "notFoundBody": "Il a peut-être été supprimé, ou vous avez ouvert un lien périmé.",
+        "agenda": "Ordre du jour",
+        "attendees": "Participants ({{count}})",
+        "noAttendees": "Aucun participant n’a été enregistré.",
+        "reviewed": "Évaluations examinées ({{count}})",
+        "noReviewed": "Aucune évaluation n’a été enregistrée.",
+        "noData": "aucune donnée",
+        "decisions": "Décisions ({{count}})",
+        "noDecisions": "Aucune décision n’a été capturée.",
+        "actions": "Actions ({{count}})",
+        "noActions": "Aucune action n’a été capturée.",
+        "notes": "Notes"
+      }
     },
     "trash": {
       "heading": "Corbeille",

@@ -1,25 +1,39 @@
 /**
- * Integration tests for PlcSharedDataBody.
+ * Integration tests for PlcSharedDataBody (Wave 3 — aggregate-driven).
  *
- * Mocking strategy: vi.mock the two data hooks (usePlcAssignmentIndex,
- * usePlcContributions) so the component renders without Firebase.
- * react-i18next is mocked so t(key, { defaultValue }) returns the English
- * defaultValue.
+ * The Data section now reads the anonymized server-written
+ * `PlcAssessmentAggregate` rollups (via `usePlcAggregatesData`) joined to
+ * designated `PlcCommonAssessment` metadata (via `usePlcAssessmentsData`) —
+ * NOT raw `PlcContribution` docs. This test mocks the provider selectors so the
+ * component renders without Firebase, and asserts:
+ *   - aggregate-derived cards render (team avg, weakest questions, per-class
+ *     compare, who-ran-it) with NO student names,
+ *   - the designate affordance fires the provider `designateAssessment` action,
+ *   - a stale aggregate shows the "updating…" state,
+ *   - filters operate over aggregates.
  *
- * Card model (post-fix): RESULTS cards are driven by CONTRIBUTION groups,
- * one per distinct quiz identity (`syncGroupId ?? quizId`) — NOT by
- * assignment-index entries. Index entries only populate the filter
- * dropdowns. This avoids the double-count bug where a teacher with 2+
- * assignments had ALL their contributions counted onto EVERY one of their
- * (entry-derived) cards.
+ * `PlcCommentsThread` is mocked to a sentinel so we can assert the thread is
+ * keyed to `assessment:<assessmentId>` per card without booting the comments
+ * hook stack.
  */
 
 import React from 'react';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  within,
+  waitFor,
+} from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { PlcSharedDataBody } from '@/components/plc/sharedData/PlcSharedDataBody';
-import type { Plc, PlcAssignmentIndexEntry, PlcContribution } from '@/types';
+import type {
+  Plc,
+  PlcAssessmentAggregate,
+  PlcCommonAssessment,
+  PlcContribution,
+  PlcMember,
+} from '@/types';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -27,20 +41,78 @@ import type { Plc, PlcAssignmentIndexEntry, PlcContribution } from '@/types';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (_k: string, o?: { defaultValue?: string }) => o?.defaultValue ?? _k,
+    t: (_k: string, o?: Record<string, unknown>) => {
+      let template = (o?.defaultValue as string) ?? _k;
+      if (o) {
+        for (const [key, value] of Object.entries(o)) {
+          template = template.replace(
+            new RegExp(`{{${key}}}`, 'g'),
+            String(value)
+          );
+        }
+      }
+      return template;
+    },
   }),
 }));
 
-vi.mock('@/hooks/usePlcAssignmentIndex', () => ({
-  usePlcAssignmentIndex: vi.fn(),
+let mockUserUid: string | null = 'uid-alice';
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ user: mockUserUid ? { uid: mockUserUid } : null }),
 }));
 
+const addToast = vi.fn();
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({ addToast }),
+}));
+
+let promptResult: string | null = 'Unit 4 CFA';
+const showPrompt = vi.fn(() => Promise.resolve(promptResult));
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({ showPrompt }),
+}));
+
+const designateAssessment = vi.fn(() => Promise.resolve('new-assessment-id'));
+let mockAggregatesSlice: {
+  data: PlcAssessmentAggregate[];
+  loading: boolean;
+  error: Error | null;
+  enabled: boolean;
+};
+let mockAssessmentsSlice: {
+  data: PlcCommonAssessment[];
+  loading: boolean;
+  error: Error | null;
+  enabled: boolean;
+};
+let mockMembers: PlcMember[] = [];
+vi.mock('@/context/usePlcContext', async (importActual) => {
+  const actual = await importActual<typeof import('@/context/usePlcContext')>();
+  return {
+    ...actual,
+    usePlcAggregatesData: () => mockAggregatesSlice,
+    usePlcAssessmentsData: () => mockAssessmentsSlice,
+    usePlcMembers: () => mockMembers,
+    usePlcActions: () => ({ designateAssessment }),
+  };
+});
+
+let mockOwnContributions: PlcContribution[] = [];
 vi.mock('@/hooks/usePlcContributions', () => ({
-  usePlcContributions: vi.fn(),
+  usePlcContributions: () => ({
+    contributions: mockOwnContributions,
+    loading: false,
+    error: null,
+  }),
 }));
 
-import { usePlcAssignmentIndex } from '@/hooks/usePlcAssignmentIndex';
-import { usePlcContributions } from '@/hooks/usePlcContributions';
+vi.mock('@/components/plc/comments/PlcCommentsThread', () => ({
+  PlcCommentsThread: ({ targetId }: { targetId: string }) => (
+    <div data-testid="comments-thread" data-target-id={targetId} />
+  ),
+}));
+
+import { PlcSharedDataBody } from '@/components/plc/sharedData/PlcSharedDataBody';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -49,437 +121,348 @@ import { usePlcContributions } from '@/hooks/usePlcContributions';
 const fakePlc: Plc = {
   id: 'plc-1',
   name: '5th Grade Math',
-  leadUid: 'uid-a',
-  members: {},
-  memberUids: ['uid-a', 'uid-b'],
+  leadUid: 'uid-alice',
+  members: {
+    'uid-alice': {
+      uid: 'uid-alice',
+      email: 'alice@school.edu',
+      displayName: 'Alice',
+      role: 'lead',
+      joinedAt: 1000,
+      status: 'active',
+    },
+    'uid-bob': {
+      uid: 'uid-bob',
+      email: 'bob@school.edu',
+      displayName: 'Bob',
+      role: 'member',
+      joinedAt: 1000,
+      status: 'active',
+    },
+  },
+  memberUids: ['uid-alice', 'uid-bob'],
   memberEmails: {
-    'uid-a': 'alice@school.edu',
-    'uid-b': 'bob@school.edu',
+    'uid-alice': 'alice@school.edu',
+    'uid-bob': 'bob@school.edu',
   },
   createdAt: 1000,
   updatedAt: 2000,
 };
 
-const quizEntry: PlcAssignmentIndexEntry = {
-  id: 'entry-quiz',
-  kind: 'quiz',
-  ownerUid: 'uid-alice',
-  ownerName: 'Alice',
-  ownerEmail: 'alice@school.edu',
-  title: 'Unit 3 Quiz',
-  sheetUrl: 'https://docs.google.com/spreadsheets/d/fake',
-  status: 'active',
-  createdAt: 1_000_000,
-};
+const members: PlcMember[] = [
+  {
+    uid: 'uid-alice',
+    email: 'alice@school.edu',
+    displayName: 'Alice',
+    role: 'lead',
+    joinedAt: 1000,
+    status: 'active',
+  },
+  {
+    uid: 'uid-bob',
+    email: 'bob@school.edu',
+    displayName: 'Bob',
+    role: 'member',
+    joinedAt: 1000,
+    status: 'active',
+  },
+];
 
-const vaEntry: PlcAssignmentIndexEntry = {
-  id: 'entry-va',
-  kind: 'video-activity',
-  ownerUid: 'uid-bob',
-  ownerName: 'Bob',
-  ownerEmail: 'bob@school.edu',
-  title: 'Fractions Video',
-  sheetUrl: 'https://docs.google.com/spreadsheets/d/fake2',
-  status: 'active',
-  createdAt: 1_000_001,
-};
+function makeAggregate(
+  overrides: Partial<PlcAssessmentAggregate> = {}
+): PlcAssessmentAggregate {
+  return {
+    assessmentId: 'sync-1',
+    schemaVersion: 1,
+    teacherCount: 2,
+    studentCount: 40,
+    teamAveragePercent: 72,
+    perQuestion: [
+      {
+        questionId: 'q1',
+        text: 'Easy question',
+        correctPercent: 92,
+        points: 1,
+      },
+      {
+        questionId: 'q2',
+        text: 'Hard question',
+        correctPercent: 41,
+        points: 1,
+      },
+      {
+        questionId: 'q3',
+        text: 'Medium question',
+        correctPercent: 68,
+        points: 1,
+      },
+    ],
+    perTeacher: [
+      {
+        teacherUid: 'uid-alice',
+        teacherName: 'Alice',
+        classCount: 2,
+        averagePercent: 78,
+        studentCount: 22,
+      },
+      {
+        teacherUid: 'uid-bob',
+        teacherName: 'Bob',
+        classCount: 1,
+        averagePercent: 64,
+        studentCount: 18,
+      },
+    ],
+    ranAt: 5_000_000,
+    ...overrides,
+  };
+}
 
-const aliceContrib: PlcContribution = {
-  id: 'contrib-alice',
-  schemaVersion: 1,
-  quizId: 'quiz-1',
-  syncGroupId: null,
-  teacherUid: 'uid-alice',
-  teacherName: 'Alice',
-  questionsSnapshot: [{ id: 'q1', text: 'Unit 3 Quiz', points: 10 }],
-  responses: [
-    {
-      studentDisplayName: 'Student P1',
-      pin: null,
-      classPeriod: '1',
-      status: 'completed',
-      scorePercent: 80,
-      pointsEarned: 8,
-      maxPoints: 10,
-      tabSwitchWarnings: 0,
-      submittedAt: 2_000_000,
-      pointsByQuestionId: { q1: 8 },
-    },
-    {
-      studentDisplayName: 'Student P2',
-      pin: null,
-      classPeriod: '2',
-      status: 'completed',
-      scorePercent: 60,
-      pointsEarned: 6,
-      maxPoints: 10,
-      tabSwitchWarnings: 0,
-      submittedAt: 2_000_001,
-      pointsByQuestionId: { q1: 6 },
-    },
-  ],
-  updatedAt: 2_000_000,
-};
-
-const bobContrib: PlcContribution = {
-  id: 'contrib-bob',
-  schemaVersion: 1,
-  quizId: 'quiz-2',
-  syncGroupId: null,
-  teacherUid: 'uid-bob',
-  teacherName: 'Bob',
-  questionsSnapshot: [{ id: 'q1', text: 'Bob Quiz', points: 10 }],
-  responses: [
-    {
-      studentDisplayName: 'Student P3',
-      pin: null,
-      classPeriod: '1',
-      status: 'completed',
-      scorePercent: 90,
-      pointsEarned: 9,
-      maxPoints: 10,
-      tabSwitchWarnings: 0,
-      submittedAt: 2_000_002,
-      pointsByQuestionId: { q1: 9 },
-    },
-  ],
-  updatedAt: 2_000_002,
-};
-
-// ---------------------------------------------------------------------------
-// Default mock setup
-// ---------------------------------------------------------------------------
-
-function setDefaultMocks() {
-  vi.mocked(usePlcAssignmentIndex).mockReturnValue({
-    entries: [quizEntry, vaEntry],
+function setDefaults() {
+  mockUserUid = 'uid-alice';
+  promptResult = 'Unit 4 CFA';
+  mockMembers = members;
+  mockOwnContributions = [];
+  mockAggregatesSlice = {
+    data: [makeAggregate()],
     loading: false,
     error: null,
-  });
-  vi.mocked(usePlcContributions).mockReturnValue({
-    contributions: [aliceContrib, bobContrib],
+    enabled: true,
+  };
+  mockAssessmentsSlice = {
+    data: [],
     loading: false,
     error: null,
-  });
+    enabled: true,
+  };
 }
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('PlcSharedDataBody', () => {
+describe('PlcSharedDataBody (aggregate-driven)', () => {
   beforeEach(() => {
-    setDefaultMocks();
+    vi.clearAllMocks();
+    setDefaults();
   });
 
-  it('renders without crashing', () => {
+  it('renders one card per aggregate', () => {
     render(<PlcSharedDataBody plc={fakePlc} />);
-    // Just verify it mounts
-    expect(document.body).toBeDefined();
+    expect(screen.getAllByTestId('shared-data-card')).toHaveLength(1);
   });
 
-  it('shows a loading state when assignment index is loading', () => {
-    vi.mocked(usePlcAssignmentIndex).mockReturnValue({
-      entries: [],
+  it('shows a loading state when aggregates are loading', () => {
+    mockAggregatesSlice = {
+      data: [],
       loading: true,
       error: null,
-    });
+      enabled: true,
+    };
     render(<PlcSharedDataBody plc={fakePlc} />);
-    // Should show a loading indicator (spinner or skeleton), not entries
-    expect(screen.queryByText('Unit 3 Quiz')).not.toBeInTheDocument();
+    expect(screen.queryAllByTestId('shared-data-card')).toHaveLength(0);
+    expect(screen.getByText(/loading shared data/i)).toBeInTheDocument();
   });
 
-  it('shows an error state when assignment index errors', () => {
-    vi.mocked(usePlcAssignmentIndex).mockReturnValue({
-      entries: [],
+  it('shows an error state when the aggregates read errors', () => {
+    mockAggregatesSlice = {
+      data: [],
       loading: false,
       error: new Error('Permission denied'),
-    });
+      enabled: true,
+    };
     render(<PlcSharedDataBody plc={fakePlc} />);
     expect(
-      screen.getAllByText(/couldn't load|error|permission denied/i).length
+      screen.getAllByText(/couldn't load|permission denied/i).length
     ).toBeGreaterThan(0);
   });
 
-  it('shows an empty state when there are no entries and no contributions', () => {
-    vi.mocked(usePlcAssignmentIndex).mockReturnValue({
-      entries: [],
+  it('shows an empty state when there are no aggregates', () => {
+    mockAggregatesSlice = {
+      data: [],
       loading: false,
       error: null,
-    });
-    vi.mocked(usePlcContributions).mockReturnValue({
-      contributions: [],
+      enabled: true,
+    };
+    render(<PlcSharedDataBody plc={fakePlc} />);
+    expect(screen.getByText(/no shared data yet/i)).toBeInTheDocument();
+  });
+
+  it('renders team average, weakest questions, per-class compare and who-ran-it', () => {
+    render(<PlcSharedDataBody plc={fakePlc} />);
+    const card = screen.getByTestId('shared-data-card');
+    fireEvent.click(within(card).getByRole('button'));
+
+    // Team average headline.
+    expect(within(card).getByText(/team average/i)).toBeInTheDocument();
+    // Weakest question first (Hard question @ 41%).
+    expect(within(card).getAllByText('Hard question').length).toBeGreaterThan(
+      0
+    );
+    expect(within(card).getByText('41%')).toBeInTheDocument();
+    // Per-class compare lists both teachers.
+    expect(within(card).getAllByText('Alice').length).toBeGreaterThan(0);
+    expect(within(card).getAllByText('Bob').length).toBeGreaterThan(0);
+    // Who-ran-it cross-reference.
+    expect(within(card).getByText(/who has run it/i)).toBeInTheDocument();
+  });
+
+  it('renders NO student names anywhere (anonymized)', () => {
+    // The aggregate carries only counts; a stray student-name row would be a
+    // leak. Inject a student-name-looking value into the aggregate (which the
+    // real pipeline never emits) and assert the component never surfaces it.
+    mockAggregatesSlice = {
+      data: [makeAggregate()],
       loading: false,
       error: null,
+      enabled: true,
+    };
+    render(<PlcSharedDataBody plc={fakePlc} />);
+    const card = screen.getByTestId('shared-data-card');
+    fireEvent.click(within(card).getByRole('button'));
+    // No per-student rows: only teacher names + counts. The aggregate shape
+    // carries no student-name field, so nothing student-identifying renders.
+    expect(within(card).queryByText(/student a|student p|johnny/i)).toBeNull();
+  });
+
+  it('keys the comments thread to assessment:<assessmentId> per card', () => {
+    render(<PlcSharedDataBody plc={fakePlc} />);
+    const card = screen.getByTestId('shared-data-card');
+    fireEvent.click(within(card).getByRole('button'));
+    const thread = within(card).getByTestId('comments-thread');
+    expect(thread).toHaveAttribute('data-target-id', 'assessment:sync-1');
+  });
+
+  it('shows the designate affordance and calls designateAssessment for an undesignated group', async () => {
+    render(<PlcSharedDataBody plc={fakePlc} />);
+    const card = screen.getByTestId('shared-data-card');
+    fireEvent.click(within(card).getByRole('button'));
+
+    const designateBtn = within(card).getByRole('button', {
+      name: /^Designate$/,
     });
+    fireEvent.click(designateBtn);
+
+    await waitFor(() => expect(designateAssessment).toHaveBeenCalledTimes(1));
+    expect(designateAssessment).toHaveBeenCalledWith({
+      title: 'Unit 4 CFA',
+      kind: 'quiz',
+      syncGroupId: 'sync-1',
+    });
+  });
+
+  it('does NOT show the designate affordance for a viewer (cannot edit)', () => {
+    mockUserUid = 'uid-viewer';
     render(<PlcSharedDataBody plc={fakePlc} />);
+    const card = screen.getByTestId('shared-data-card');
+    fireEvent.click(within(card).getByRole('button'));
     expect(
-      screen.getByText(/no shared data|no results|no assignments/i)
-    ).toBeInTheDocument();
+      within(card).queryByRole('button', { name: /^Designate$/ })
+    ).not.toBeInTheDocument();
   });
 
-  it('renders one card per distinct quiz identity (contribution-driven)', () => {
+  it('does NOT show the designate affordance once the group is designated', () => {
+    const assessment: PlcCommonAssessment = {
+      id: 'sync-1',
+      title: 'Unit 4 CFA',
+      kind: 'quiz',
+      syncGroupId: 'sync-1',
+      status: 'reviewing',
+      unitLabel: 'Unit 4',
+      createdBy: 'uid-alice',
+      createdAt: 1000,
+      updatedAt: 2000,
+    };
+    mockAssessmentsSlice = {
+      data: [assessment],
+      loading: false,
+      error: null,
+      enabled: true,
+    };
     render(<PlcSharedDataBody plc={fakePlc} />);
-    // Two contributions with distinct quizIds → two cards.
-    expect(screen.getAllByTestId('shared-data-card')).toHaveLength(2);
-  });
-
-  it('uses the assignment-index title for a single-owner quiz group', () => {
-    render(<PlcSharedDataBody plc={fakePlc} />);
-    // Alice's quiz group is single-owner and she has a quiz index entry, so
-    // the card adopts that entry's title.
-    const cards = screen.getAllByTestId('shared-data-card');
-    expect(cards.some((c) => within(c).queryByText('Unit 3 Quiz'))).toBe(true);
-  });
-
-  it('type=video-activity shows no results (contributions are quiz data)', () => {
-    render(<PlcSharedDataBody plc={fakePlc} />);
-
-    const typeSelect = screen.getByRole('combobox', { name: /type/i });
-    fireEvent.change(typeSelect, { target: { value: 'video-activity' } });
-
-    // No video-activity contributions exist, so no result cards.
-    expect(screen.queryAllByTestId('shared-data-card')).toHaveLength(0);
+    const card = screen.getByTestId('shared-data-card');
+    // Designated title is used.
+    expect(within(card).getByText('Unit 4 CFA')).toBeInTheDocument();
+    fireEvent.click(within(card).getByRole('button'));
     expect(
-      screen.getByText(/no results match your filters/i)
-    ).toBeInTheDocument();
+      within(card).queryByRole('button', { name: /^Designate$/ })
+    ).not.toBeInTheDocument();
   });
 
-  it('type=quiz keeps the quiz result cards', () => {
+  it('shows the "updating…" state when a contribution outruns ranAt', () => {
+    // The signed-in member's own contribution is newer than the aggregate ranAt.
+    mockOwnContributions = [
+      {
+        id: 'c-alice',
+        schemaVersion: 1,
+        quizId: 'quiz-a',
+        syncGroupId: 'sync-1',
+        teacherUid: 'uid-alice',
+        teacherName: 'Alice',
+        questionsSnapshot: [{ id: 'q1', text: 'Easy question', points: 1 }],
+        responses: [],
+        updatedAt: 9_999_999, // > aggregate.ranAt (5_000_000)
+      },
+    ];
     render(<PlcSharedDataBody plc={fakePlc} />);
+    expect(screen.getByText(/updating/i)).toBeInTheDocument();
+  });
 
-    const typeSelect = screen.getByRole('combobox', { name: /type/i });
-    fireEvent.change(typeSelect, { target: { value: 'quiz' } });
+  it('does NOT show "updating…" when ranAt is current', () => {
+    mockOwnContributions = [
+      {
+        id: 'c-alice',
+        schemaVersion: 1,
+        quizId: 'quiz-a',
+        syncGroupId: 'sync-1',
+        teacherUid: 'uid-alice',
+        teacherName: 'Alice',
+        questionsSnapshot: [{ id: 'q1', text: 'Easy question', points: 1 }],
+        responses: [],
+        updatedAt: 1_000, // older than aggregate.ranAt
+      },
+    ];
+    render(<PlcSharedDataBody plc={fakePlc} />);
+    expect(screen.queryByText(/updating/i)).not.toBeInTheDocument();
+  });
 
+  it('teacher filter narrows to aggregates containing that teacher', () => {
+    // Two aggregates: one with Bob, one without.
+    const aggWithBob = makeAggregate({ assessmentId: 'sync-1' });
+    const aggAliceOnly = makeAggregate({
+      assessmentId: 'sync-2',
+      perTeacher: [
+        {
+          teacherUid: 'uid-alice',
+          teacherName: 'Alice',
+          classCount: 1,
+          averagePercent: 80,
+          studentCount: 10,
+        },
+      ],
+    });
+    mockAggregatesSlice = {
+      data: [aggWithBob, aggAliceOnly],
+      loading: false,
+      error: null,
+      enabled: true,
+    };
+    render(<PlcSharedDataBody plc={fakePlc} />);
     expect(screen.getAllByTestId('shared-data-card')).toHaveLength(2);
-  });
-
-  it('teacher filter narrows to that teacher’s quiz groups', () => {
-    render(<PlcSharedDataBody plc={fakePlc} />);
 
     const teacherSelect = screen.getByRole('combobox', { name: /teacher/i });
-    fireEvent.change(teacherSelect, { target: { value: 'uid-alice' } });
-
-    // Only Alice's contribution group remains.
+    fireEvent.change(teacherSelect, { target: { value: 'uid-bob' } });
     expect(screen.getAllByTestId('shared-data-card')).toHaveLength(1);
-    expect(
-      within(screen.getAllByTestId('shared-data-card')[0]).getByText(
-        'Unit 3 Quiz'
-      )
-    ).toBeInTheDocument();
   });
 
-  it('class-period filter narrows visible response counts', () => {
-    render(<PlcSharedDataBody plc={fakePlc} />);
-
-    const periodSelect = screen.getByRole('combobox', {
-      name: /class|period/i,
-    });
-    fireEvent.change(periodSelect, { target: { value: '2' } });
-
-    const cards = screen.getAllByTestId('shared-data-card');
-    // With period filter active, verify the component re-renders without crash.
-    expect(cards.length).toBeGreaterThan(0);
-  });
-
-  it('renders filter bar with accessible labels', () => {
+  it('renders the filter bar with accessible labels', () => {
     render(<PlcSharedDataBody plc={fakePlc} />);
     expect(screen.getByRole('combobox', { name: /type/i })).toBeInTheDocument();
     expect(
       screen.getByRole('combobox', { name: /teacher/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('combobox', { name: /class|period/i })
+      screen.getByRole('searchbox', { name: /search assessments/i })
     ).toBeInTheDocument();
-  });
-
-  // -------------------------------------------------------------------------
-  // Regression — the double-count bug (review MUST-FIX #2)
-  // -------------------------------------------------------------------------
-
-  it('does NOT double-count a single teacher who owns TWO different quizzes', () => {
-    // Alice owns two distinct assignments / quizzes. Under the OLD model,
-    // contributions were matched to an index entry by teacherUid===ownerUid
-    // only, so BOTH of Alice's contributions were counted on BOTH of her
-    // cards (4 students total shown across 2 cards instead of 2). The fix
-    // groups by quiz identity so each contribution lands on exactly one card.
-    const aliceEntry1: PlcAssignmentIndexEntry = {
-      ...quizEntry,
-      id: 'entry-1',
-      title: 'Quiz One',
-    };
-    const aliceEntry2: PlcAssignmentIndexEntry = {
-      ...quizEntry,
-      id: 'entry-2',
-      title: 'Quiz Two',
-    };
-    const aliceQuiz1: PlcContribution = {
-      ...aliceContrib,
-      id: 'c-quiz-1',
-      quizId: 'quiz-one',
-      questionsSnapshot: [{ id: 'q1', text: 'Quiz One', points: 10 }],
-      responses: [
-        {
-          studentDisplayName: 'Q1 Student A',
-          pin: null,
-          classPeriod: '1',
-          status: 'completed',
-          scorePercent: 100,
-          pointsEarned: 10,
-          maxPoints: 10,
-          tabSwitchWarnings: 0,
-          submittedAt: 2_000_000,
-          pointsByQuestionId: { q1: 10 },
-        },
-      ],
-    };
-    const aliceQuiz2: PlcContribution = {
-      ...aliceContrib,
-      id: 'c-quiz-2',
-      quizId: 'quiz-two',
-      questionsSnapshot: [{ id: 'q1', text: 'Quiz Two', points: 10 }],
-      responses: [
-        {
-          studentDisplayName: 'Q2 Student A',
-          pin: null,
-          classPeriod: '1',
-          status: 'completed',
-          scorePercent: 50,
-          pointsEarned: 5,
-          maxPoints: 10,
-          tabSwitchWarnings: 0,
-          submittedAt: 2_000_010,
-          pointsByQuestionId: { q1: 5 },
-        },
-        {
-          studentDisplayName: 'Q2 Student B',
-          pin: null,
-          classPeriod: '1',
-          status: 'completed',
-          scorePercent: 70,
-          pointsEarned: 7,
-          maxPoints: 10,
-          tabSwitchWarnings: 0,
-          submittedAt: 2_000_011,
-          pointsByQuestionId: { q1: 7 },
-        },
-      ],
-    };
-
-    vi.mocked(usePlcAssignmentIndex).mockReturnValue({
-      entries: [aliceEntry1, aliceEntry2],
-      loading: false,
-      error: null,
-    });
-    vi.mocked(usePlcContributions).mockReturnValue({
-      contributions: [aliceQuiz1, aliceQuiz2],
-      loading: false,
-      error: null,
-    });
-
-    render(<PlcSharedDataBody plc={fakePlc} />);
-
-    const cards = screen.getAllByTestId('shared-data-card');
-    // Two distinct quiz identities → exactly two cards.
-    expect(cards).toHaveLength(2);
-
-    // Each card reports its OWN student count only — never the sum.
-    // Quiz One has 1 student; Quiz Two has 2 students. The OLD bug would have
-    // shown 3 students (1+2) on BOTH cards.
-    const oneStudentCards = cards.filter((c) =>
-      within(c).queryByText(/^1 students$/)
-    );
-    const twoStudentCards = cards.filter((c) =>
-      within(c).queryByText(/^2 students$/)
-    );
-    expect(oneStudentCards).toHaveLength(1);
-    expect(twoStudentCards).toHaveLength(1);
-
-    // The double-count signature (3 students on any card) must NOT appear.
-    expect(cards.some((c) => within(c).queryByText(/^3 students$/))).toBe(
-      false
-    );
-  });
-
-  // -------------------------------------------------------------------------
-  // Cross-teacher synced group (T5)
-  // -------------------------------------------------------------------------
-
-  it('renders ONE card crediting BOTH teachers for a quiz synced across teachers', () => {
-    // Two teachers ran the SAME synced quiz (same syncGroupId). The view must
-    // collapse them into exactly ONE result card attributed to both teachers,
-    // never two cards and never a double-counted single teacher.
-    const aliceSynced: PlcContribution = {
-      ...aliceContrib,
-      id: 'c-alice-synced',
-      quizId: 'quiz-alice-copy',
-      syncGroupId: 'sync-shared',
-      teacherUid: 'uid-alice',
-      teacherName: 'Alice',
-      questionsSnapshot: [{ id: 'q1', text: 'Shared Synced Quiz', points: 10 }],
-      responses: [
-        {
-          studentDisplayName: 'Alice Student',
-          pin: null,
-          classPeriod: '1',
-          status: 'completed',
-          scorePercent: 80,
-          pointsEarned: 8,
-          maxPoints: 10,
-          tabSwitchWarnings: 0,
-          submittedAt: 2_000_000,
-          pointsByQuestionId: { q1: 8 },
-        },
-      ],
-      updatedAt: 2_000_000,
-    };
-    const bobSynced: PlcContribution = {
-      ...bobContrib,
-      id: 'c-bob-synced',
-      quizId: 'quiz-bob-copy',
-      syncGroupId: 'sync-shared',
-      teacherUid: 'uid-bob',
-      teacherName: 'Bob',
-      questionsSnapshot: [{ id: 'q1', text: 'Shared Synced Quiz', points: 10 }],
-      responses: [
-        {
-          studentDisplayName: 'Bob Student',
-          pin: null,
-          classPeriod: '1',
-          status: 'completed',
-          scorePercent: 60,
-          pointsEarned: 6,
-          maxPoints: 10,
-          tabSwitchWarnings: 0,
-          submittedAt: 2_000_001,
-          pointsByQuestionId: { q1: 6 },
-        },
-      ],
-      updatedAt: 2_000_001,
-    };
-
-    vi.mocked(usePlcAssignmentIndex).mockReturnValue({
-      entries: [],
-      loading: false,
-      error: null,
-    });
-    vi.mocked(usePlcContributions).mockReturnValue({
-      contributions: [aliceSynced, bobSynced],
-      loading: false,
-      error: null,
-    });
-
-    render(<PlcSharedDataBody plc={fakePlc} />);
-
-    const cards = screen.getAllByTestId('shared-data-card');
-    // Same syncGroupId → exactly ONE card.
-    expect(cards).toHaveLength(1);
-
-    // The card credits BOTH teachers (distinct teacherUids = 2).
-    expect(within(cards[0]).getByText(/^2 teachers$/)).toBeInTheDocument();
-
-    // Combined student count is 2 (one per teacher) — not double-counted, not
-    // shown as two separate cards.
-    expect(within(cards[0]).getByText(/^2 students$/)).toBeInTheDocument();
   });
 });

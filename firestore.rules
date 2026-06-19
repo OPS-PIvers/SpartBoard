@@ -1622,6 +1622,18 @@ service cloud.firestore {
       return v == null || v is timestamp || v is int;
     }
 
+    // True when an OPTIONAL, NULLABLE time field on a PLC subcollection doc is
+    // well-formed: absent (legacy / not yet scheduled), explicitly null
+    // (cleared), a Firestore `timestamp` (serverTimestamp() write), or a legacy
+    // `int` millis value (dual-accept during the serverTimestamp rollout, §3.2).
+    // Used for the Common Assessment scheduling fields (`opensAt` / `dueAt`,
+    // §3.6) which differ from the always-present `createdAt`/`updatedAt`
+    // (covered by plcSubTimeFieldOk) in that they may be omitted or null.
+    function plcSubNullableTimeFieldOk(field) {
+      let v = request.resource.data.get(field, null);
+      return v == null || v is timestamp || v is int;
+    }
+
     // True when a tenancy field (`orgId` / `buildingId`, Decision 1.1) is
     // immutable-after-set: it may be backfilled once (null/absent → value),
     // re-written idempotently (value → same value), or left untouched, but a
@@ -2035,9 +2047,18 @@ service cloud.firestore {
                ).data.memberUids;
         }
 
-        // Any current member can read every member's contribution — that's
-        // the whole point of the aggregate view.
-        allow read: if isPlcMember();
+        // OWNER-ONLY READ (FERPA boundary — PRD §3.6 step 2 / §9 PII risk).
+        // A contribution's `responses[]` embed `studentDisplayName` — raw,
+        // student-identifying PII. Only the owning teacher may read her own
+        // raw contribution. Every member-facing reader (Shared Data, Meeting
+        // Mode, Home) consumes the anonymized server-written `/aggregates`
+        // sibling instead (member-readable, PII-free). Tightened from the
+        // earlier `isPlcMember()` once all readers migrated to /aggregates
+        // (Wave 3) so a co-member can no longer read another teacher's raw
+        // student names. The owner's own named roster stays reachable via this
+        // self-read; cross-teacher rollups go through /aggregates.
+        allow read: if isPlcMember()
+          && request.auth.uid == resource.data.teacherUid;
 
         // Only the contributing teacher writes her own doc. Doc id is
         // pinned to `{quizId}_{teacherUid}` so a member can't masquerade
@@ -2118,6 +2139,198 @@ service cloud.firestore {
           );
         // No client writes — server-only (Admin SDK bypasses rules).
         allow create, update, delete: if false;
+      }
+
+      // PLC Common Assessments (Decision 4.0c, §3.6). The team's first-class
+      // designated common assessment — a quiz or video-activity whose pooled
+      // results aggregate to ONE canonical id (`{plcId}/aggregates/{assessmentId}`),
+      // killing the old heuristic title-matching. PLC-owned: any current member
+      // can author, edit, or soft-delete an assessment (matching the
+      // quizzes/video_activities/assignments "shared-once-belongs-to-the-PLC"
+      // posture). Identity (`id`), authorship (`createdBy`, `createdAt`), the
+      // content `kind`, and the `syncGroupId` content pointer are all immutable
+      // post-create so a teammate's stale-mirror write can never retarget an
+      // assessment at a different sync group, flip quiz↔video-activity, or
+      // rewrite who created it (the aggregation pipeline groups raw
+      // contributions onto this `syncGroupId`).
+      //
+      // Schema lock-down (`keys().hasOnly([...])`) keeps the doc shape closed.
+      // The optional scheduling fields (`unitLabel`, `opensAt`, `dueAt`) and the
+      // `deletedAt` soft-delete tombstone (Decision 3.1) are validated when
+      // present; time fields dual-accept `int || timestamp` / null during the
+      // serverTimestamp rollout (§3.2).
+      match /assessments/{assessmentId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        // Create: any member, doc id pinned, createdBy must equal the caller.
+        allow create: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'kind', 'syncGroupId', 'unitLabel',
+               'opensAt', 'dueAt', 'status',
+               'createdBy', 'createdAt', 'updatedAt', 'deletedAt'
+             ])
+          && request.resource.data.id == assessmentId
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.title is string
+          && request.resource.data.kind in ['quiz', 'video-activity']
+          && request.resource.data.syncGroupId is string
+          // Guard against an empty `syncGroupId` smuggling a broken stub past
+          // the rule — the aggregation pipeline keys on it. Defense-in-depth
+          // (the client also rejects empty strings).
+          && request.resource.data.syncGroupId.size() > 0
+          && request.resource.data.status in [
+               'planning', 'active', 'reviewing', 'closed'
+             ]
+          && (
+               !('unitLabel' in request.resource.data)
+               || request.resource.data.unitLabel is string
+             )
+          && plcSubNullableTimeFieldOk('opensAt')
+          && plcSubNullableTimeFieldOk('dueAt')
+          && plcSubDeletedAtOk()
+          && plcSubTimeFieldOk('createdAt')
+          && plcSubTimeFieldOk('updatedAt');
+
+        // Update: any member can mutate the working fields (title, unitLabel,
+        // opensAt, dueAt, status, updatedAt) or soft-delete/restore via
+        // `deletedAt`. Identity (`id`), authorship (`createdBy`, `createdAt`),
+        // the content `kind`, and the `syncGroupId` pointer are immutable.
+        allow update: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'kind', 'syncGroupId', 'unitLabel',
+               'opensAt', 'dueAt', 'status',
+               'createdBy', 'createdAt', 'updatedAt', 'deletedAt'
+             ])
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.kind == resource.data.kind
+          && request.resource.data.syncGroupId == resource.data.syncGroupId
+          && request.resource.data.title is string
+          && request.resource.data.status in [
+               'planning', 'active', 'reviewing', 'closed'
+             ]
+          && (
+               !('unitLabel' in request.resource.data)
+               || request.resource.data.unitLabel is string
+             )
+          && plcSubNullableTimeFieldOk('opensAt')
+          && plcSubNullableTimeFieldOk('dueAt')
+          && plcSubDeletedAtOk()
+          && plcSubTimeFieldOk('updatedAt');
+
+        // Any member can hard-delete an assessment (PLC-owned model — matches
+        // the quizzes/video_activities/assignments delete posture). Members
+        // typically soft-delete via `deletedAt`; a hard delete is the explicit
+        // "remove entirely" path. The orphaned `aggregates/{assessmentId}` doc
+        // (server-written) is swept by the Wave-4 `gcPlcOrphans` function.
+        allow delete: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+      }
+
+      // PLC Meeting records (Decisions 4.0, 4.0b, §3.7). The archived,
+      // exportable record produced by Meeting Mode: facilitator, attendees
+      // (captured from presence), the assessments reviewed, the team's
+      // decisions + action items, and freeform notes. PLC-owned: any current
+      // member can author, edit while the meeting runs, or soft-delete a
+      // record. Identity (`id`), authorship (`createdBy`), the immutable
+      // `heldAt` timestamp, and the `facilitatorUid` are pinned post-create so a
+      // teammate's edit can never rewrite who ran the meeting or when. The
+      // working fields (attendeeUids, assessmentIds, agenda, decisions,
+      // actionItems, notesBody, status, updatedAt) and the `deletedAt`
+      // soft-delete tombstone (Decision 3.1) are mutable.
+      //
+      // The `decisions` / `actionItems` lists carry opaque interior maps
+      // (linkedDataCard, assigneeUid/dueAt/todoId) whose shape varies; CEL
+      // can't `.every()` over a list, so the rule validates the list TYPE here
+      // and leans on the client parser for interior fields — the blast radius
+      // is bounded to a single membership-gated PLC's own record.
+      match /meetings/{meetingId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        // Create: any member, doc id pinned, createdBy must equal the caller.
+        allow create: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'heldAt', 'facilitatorUid', 'attendeeUids',
+               'assessmentIds', 'agenda', 'decisions', 'actionItems',
+               'notesBody', 'status', 'createdBy', 'updatedAt', 'deletedAt'
+             ])
+          && request.resource.data.id == meetingId
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.facilitatorUid is string
+          && request.resource.data.attendeeUids is list
+          && request.resource.data.assessmentIds is list
+          && request.resource.data.decisions is list
+          && request.resource.data.actionItems is list
+          && (
+               !('agenda' in request.resource.data)
+               || request.resource.data.agenda is string
+             )
+          && (
+               !('notesBody' in request.resource.data)
+               || request.resource.data.notesBody is string
+             )
+          && request.resource.data.status in ['in-progress', 'completed']
+          && plcSubDeletedAtOk()
+          && plcSubTimeFieldOk('heldAt')
+          && plcSubTimeFieldOk('updatedAt');
+
+        // Update: any member can mutate the working fields or soft-delete /
+        // restore via `deletedAt`. Identity (`id`), authorship (`createdBy`),
+        // `heldAt`, and `facilitatorUid` are immutable.
+        allow update: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'heldAt', 'facilitatorUid', 'attendeeUids',
+               'assessmentIds', 'agenda', 'decisions', 'actionItems',
+               'notesBody', 'status', 'createdBy', 'updatedAt', 'deletedAt'
+             ])
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.heldAt == resource.data.heldAt
+          && request.resource.data.facilitatorUid == resource.data.facilitatorUid
+          && request.resource.data.attendeeUids is list
+          && request.resource.data.assessmentIds is list
+          && request.resource.data.decisions is list
+          && request.resource.data.actionItems is list
+          && (
+               !('agenda' in request.resource.data)
+               || request.resource.data.agenda is string
+             )
+          && (
+               !('notesBody' in request.resource.data)
+               || request.resource.data.notesBody is string
+             )
+          && request.resource.data.status in ['in-progress', 'completed']
+          && plcSubDeletedAtOk()
+          && plcSubTimeFieldOk('updatedAt');
+
+        // Any member can hard-delete a meeting record (PLC-owned model).
+        // Members typically soft-delete via `deletedAt`; tombstone GC is the
+        // Wave-4 `gcPlcOrphans` function's job.
+        allow delete: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
       }
 
       // PLC Quiz Library (Phase 2). Lightweight headers pointing at

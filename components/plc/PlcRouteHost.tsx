@@ -47,7 +47,7 @@ export const PlcRouteHost: React.FC<PlcRouteHostProps> = ({ parsed }) => {
   // feature toggle / removal by another member is reflected immediately.
   const { plcs, loading } = usePlcs({ enabled: true });
 
-  const { plcId, section } = parsed;
+  const { plcId, section, meetingId } = parsed;
 
   const activePlc = useMemo(
     () => (plcId ? (plcs.find((p) => p.id === plcId) ?? null) : null),
@@ -123,7 +123,12 @@ export const PlcRouteHost: React.FC<PlcRouteHostProps> = ({ parsed }) => {
       plc={activePlc}
       activeSection={section}
     >
-      <PlcDashboard plc={activePlc} activeSection={section} onClose={goHome} />
+      <PlcDashboard
+        plc={activePlc}
+        activeSection={section}
+        meetingId={meetingId}
+        onClose={goHome}
+      />
     </PlcProvider>
   );
 };

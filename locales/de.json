@@ -286,6 +286,62 @@
   },
   "plcDashboard": {
     "subtitle": "PLG-Dashboard",
+    "home": {
+      "commonAssessment": {
+        "loading": "Gemeinsame Bewertung wird geladen…",
+        "emptyTitle": "Noch keine gemeinsame Bewertung",
+        "emptySubtitle": "Legen Sie eine in „Geteilte Daten“ fest und prüfen Sie dann die gebündelten Ergebnisse gemeinsam.",
+        "reviewData": "Geteilte Daten ansehen",
+        "ranIt": "{{ran}} von {{total}} haben sie durchgeführt",
+        "startMeeting": "Besprechung starten",
+        "resumeMeeting": "Besprechung fortsetzen",
+        "phase": {
+          "planning": "Planung – noch nicht durchgeführt",
+          "running": "Läuft",
+          "ready": "Bereit zur Überprüfung",
+          "reviewing": "Gemeinsame Überprüfung",
+          "closed": "Abgeschlossen"
+        }
+      },
+      "actionItems": {
+        "heading": "Ihre Aufgaben",
+        "empty": "Sie sind auf dem neuesten Stand",
+        "emptySubtitle": "Ihnen zugewiesene Aufgaben erscheinen hier.",
+        "loadError": "Ihre Aufgaben konnten nicht geladen werden",
+        "toggleFailed": "Diese Aufgabe konnte nicht aktualisiert werden.",
+        "markDone": "Als erledigt markieren",
+        "openAll": "To-Do-Liste öffnen",
+        "due": {
+          "overdue": "Überfällig",
+          "today": "Heute"
+        }
+      },
+      "quickCreate": {
+        "quiz": "Quiz zuweisen",
+        "video": "Videoaktivität zuweisen",
+        "doc": "Dokument hinzufügen",
+        "docModal": {
+          "title": "Geteiltes Dokument hinzufügen",
+          "subtitle": "Geteilt mit {{name}}",
+          "titleLabel": "Titel",
+          "urlLabel": "Google-Dokument-URL",
+          "add": "Dokument hinzufügen",
+          "adding": "Wird hinzugefügt…",
+          "created": "„{{title}}“ wurde zu dieser PLG hinzugefügt.",
+          "failed": "Dieses Dokument konnte nicht hinzugefügt werden. Bitte versuchen Sie es erneut."
+        }
+      }
+    },
+    "newAssignment": {
+      "quiz": {
+        "ctaDisabledDrive": "Verbinden Sie Google Drive, um ein Quiz zuzuweisen.",
+        "ctaDisabledEmpty": "Sie haben noch keine Quizze in Ihrer persönlichen Bibliothek. Erstellen Sie zuerst eines im Quiz-Widget."
+      },
+      "video": {
+        "ctaDisabledDrive": "Verbinden Sie Google Drive, um eine Videoaktivität zuzuweisen.",
+        "ctaDisabledEmpty": "Sie haben noch keine Videoaktivitäten in Ihrer persönlichen Bibliothek. Erstellen Sie zuerst eine im Videoaktivität-Widget."
+      }
+    },
     "backToMenu": "Zurück",
     "close": "Schließen",
     "tabs": {
@@ -299,6 +355,7 @@
       "home": "Startseite",
       "members": "Mitglieder",
       "sharedData": "Geteilte Daten",
+      "meeting": "Besprechungsmodus",
       "docs": "Dokumente",
       "resources": "Ressourcen"
     },
@@ -675,6 +732,192 @@
       "threadLabel": "Kommentare zu {{subject}}",
       "mentionNoMatch": "Keine passenden Teammitglieder",
       "mentionListLabel": "Ein Teammitglied erwähnen"
+    },
+    "sharedData": {
+      "loading": "Geteilte Daten werden geladen…",
+      "loadError": "Geteilte Daten konnten nicht geladen werden",
+      "emptyTitle": "Noch keine geteilten Daten",
+      "emptySubtitle": "Wenn Mitglieder eine gemeinsame Bewertung im PLC-Modus durchführen, erscheinen hier anonymisierte Ergebnisse.",
+      "noResults": "Keine Ergebnisse entsprechen deinen Filtern",
+      "untitledQuiz": "Bewertung ohne Titel",
+      "untitledQuestion": "Frage ohne Titel",
+      "kindQuiz": "Quiz",
+      "kindVA": "Videoaktivität",
+      "common": "Gemeinsam",
+      "avg": "Durchschn.",
+      "teacher": "Lehrkraft",
+      "teachers": "Lehrkräfte",
+      "students": "Schüler",
+      "studentsShort": "Sch.",
+      "classCount": "{{count}} Kl.",
+      "ranOf": "{{ran}} von {{total}} durchgeführt",
+      "teamAverage": "Team-Durchschnitt",
+      "weakestQuestions": "Schwächste Fragen",
+      "byClass": "Nach Lehrkraft / Klasse",
+      "you": "(du)",
+      "whoRanIt": "Wer hat es durchgeführt",
+      "hasRun": "hat es durchgeführt",
+      "notRun": "hat es noch nicht durchgeführt",
+      "updating": "wird aktualisiert…",
+      "updatingHint": "Neue Ergebnisse werden noch zusammengefasst – die Zahlen aktualisieren sich in Kürze.",
+      "designateTitle": "Dies zur gemeinsamen Bewertung des Teams machen",
+      "designateSubtitle": "Durch das Festlegen erhält sie einen gemeinsamen Titel, eine Einheit und einen Status, die das ganze Team verfolgt.",
+      "designateAction": "Festlegen",
+      "designatePrompt": "Benenne diese gemeinsame Bewertung, damit das ganze Team sie erkennt.",
+      "designatePromptTitle": "Gemeinsame Bewertung festlegen",
+      "designatePlaceholder": "z. B. Einheit 4 CFA",
+      "designated": "„{{title}}“ ist jetzt die gemeinsame Bewertung des Teams.",
+      "designateFailed": "Diese Bewertung konnte nicht festgelegt werden. Versuche es erneut.",
+      "status": {
+        "planning": "Planung",
+        "active": "Aktiv",
+        "reviewing": "Auswertung",
+        "closed": "Abgeschlossen"
+      },
+      "filters": {
+        "label": "Geteilte Daten filtern",
+        "search": "Bewertungen durchsuchen",
+        "searchPlaceholder": "Suchen…",
+        "type": "Typ",
+        "typeAll": "Alle Typen",
+        "typeQuiz": "Quizze",
+        "typeVA": "Videoaktivitäten",
+        "teacher": "Lehrkraft",
+        "teacherAll": "Alle Lehrkräfte",
+        "unit": "Einheit",
+        "unitAll": "Alle Einheiten",
+        "status": "Status",
+        "statusAll": "Alle Status"
+      }
+    },
+    "meeting": {
+      "loading": "Besprechungsdaten werden geladen…",
+      "loadError": "Besprechungsdaten konnten nicht geladen werden",
+      "createFailed": "Die Besprechung konnte nicht gestartet werden. Bitte erneut versuchen.",
+      "saved": "Besprechung gespeichert. Das Team kann das Protokoll jederzeit ansehen.",
+      "saveFailed": "Die Besprechung konnte nicht gespeichert werden. Bitte erneut versuchen.",
+      "pickRequired": "Wähle mindestens eine Bewertung zur Durchsicht aus.",
+      "untitledAssessment": "Bewertung ohne Titel",
+      "untitledQuestion": "Frage ohne Titel",
+      "common": "Gemeinsam",
+      "you": "(du)",
+      "teamAverage": "Team-Durchschnitt",
+      "teacherStudentCount": "{{teachers}} Lehrkräfte · {{students}} Schüler:innen",
+      "classCount": "{{count}} Kl.",
+      "weakestQuestions": "Schwächste Fragen",
+      "byClass": "Nach Lehrkraft / Klasse",
+      "whoRanIt": "Wer hat sie durchgeführt",
+      "ranOf": "({{ran}} von {{total}})",
+      "hasRun": "hat sie durchgeführt",
+      "notRun": "hat sie noch nicht durchgeführt",
+      "noQuestions": "Noch keine Daten auf Fragenebene verfügbar.",
+      "strongAcross": "Durchweg stark — jede Frage über 80 %.",
+      "updating": "wird aktualisiert…",
+      "updatingHint": "Neue Ergebnisse werden noch verarbeitet — die Werte aktualisieren sich gleich.",
+      "reviewCardLabel": "Gepoolte Ergebnisse für {{title}}",
+      "discussAssessment": "Besprechen",
+      "discussQuestion": "Diese Frage in einer Entscheidung besprechen",
+      "designatePrompt": "Benenne diese gemeinsame Bewertung, damit das ganze Team sie erkennt.",
+      "designatePromptTitle": "Gemeinsame Bewertung festlegen",
+      "designatePlaceholder": "z. B. Einheit 4 CFA",
+      "designated": "„{{title}}“ ist jetzt die gemeinsame Bewertung des Teams.",
+      "designateFailed": "Diese Bewertung konnte nicht festgelegt werden. Bitte erneut versuchen.",
+      "back": "Zurück",
+      "next": "Weiter",
+      "saveMeeting": "Besprechung speichern",
+      "stepsLabel": "Besprechungsschritte",
+      "pastMeetings": "Frühere Besprechungen ({{count}})",
+      "startOver": "Neu beginnen",
+      "startOverTitle": "Neue Besprechung beginnen",
+      "startOverConfirm": "Neue Besprechung beginnen? Dadurch werden die aktuelle Auswahl und Notizen gelöscht.",
+      "steps": {
+        "pick": "Wählen",
+        "review": "Prüfen",
+        "decide": "Entscheiden",
+        "act": "Handeln",
+        "save": "Speichern"
+      },
+      "pick": {
+        "heading": "Was schauen wir uns heute an?",
+        "subtitle": "Wähle die gemeinsame(n) Bewertung(en), die diese Besprechung durchgeht.",
+        "emptyTitle": "Noch keine Bewertungsdaten",
+        "emptySubtitle": "Wenn das Team eine gemeinsame Bewertung im PLC-Modus durchführt, erscheinen hier die anonymisierten Ergebnisse zur gemeinsamen Durchsicht.",
+        "cardMeta": "{{avg}}% Team-Schnitt · {{teachers}} Lehrkräfte · {{students}} Schüler:innen",
+        "designate": "Festlegen"
+      },
+      "review": {
+        "heading": "Was sagen die Daten?",
+        "subtitle": "Gepoolte, anonymisierte Ergebnisse. Klicke auf eine Frage, um eine Entscheidung dazu festzuhalten.",
+        "none": "Keine Bewertungen ausgewählt — gehe zurück zu Wählen."
+      },
+      "decide": {
+        "heading": "Was haben wir entschieden?",
+        "subtitle": "Halte die Entscheidungen des Teams fest. Verknüpfe eine mit einer Datenkarte aus „Prüfen“, wenn sie auf ein bestimmtes Ergebnis reagiert.",
+        "addLabel": "Entscheidung hinzufügen",
+        "placeholder": "z. B. Frage 4 mit dem Flächenmodell vor dem Test erneut behandeln.",
+        "add": "Entscheidung hinzufügen",
+        "empty": "Noch keine Entscheidungen festgehalten.",
+        "remove": "Entscheidung entfernen",
+        "linkedFallback": "eine Datenkarte",
+        "linkedQuestion": " · F{{q}}"
+      },
+      "act": {
+        "heading": "Wer macht was?",
+        "subtitle": "Lege Aufgaben an. Beim Speichern wird jede zu einer nachverfolgten PLC-Aufgabe für die zuständige Person.",
+        "addLabel": "Aufgabe hinzufügen",
+        "placeholder": "z. B. Eine Wiederholungs-Aufwärmübung für Frage 4 erstellen",
+        "assignee": "Zuständig",
+        "unassigned": "Nicht zugewiesen",
+        "someone": "Ein Teammitglied",
+        "due": "Fällig",
+        "add": "Aufgabe hinzufügen",
+        "empty": "Noch keine Aufgaben.",
+        "remove": "Aufgabe entfernen",
+        "todoCreated": "Aufgabe erstellt"
+      },
+      "save": {
+        "heading": "Bereit zum Speichern?",
+        "subtitle": "Beim Speichern wird das Besprechungsprotokoll geschrieben, Aufgaben werden zu To-dos und es wird im Team-Aktivitätsfeed protokolliert.",
+        "reviewed": "Geprüfte Bewertungen",
+        "decisions": "Entscheidungen",
+        "actions": "Aufgaben → To-dos",
+        "attendees": "Teilnehmende (aus Anwesenheit)",
+        "whoAttended": "Wer ist gerade da",
+        "noAttendees": "Gerade ist niemand sonst aktiv — du wirst als Moderator:in erfasst.",
+        "viewerNote": "Betrachter:innen können mitverfolgen, das Protokoll aber nicht speichern.",
+        "doneTitle": "Besprechung gespeichert",
+        "doneSubtitle": "Aufgaben sind jetzt nachverfolgte To-dos für die Zuständigen. Exportiere das Protokoll für deine Unterlagen oder beginne eine neue Besprechung.",
+        "viewRecord": "Besprechungsprotokoll ansehen",
+        "startNew": "Neue Besprechung beginnen"
+      },
+      "export": {
+        "toSheet": "Nach Sheets exportieren",
+        "toPdf": "Als PDF exportieren",
+        "open": "Öffnen",
+        "sheetDone": "Besprechungsprotokoll nach Google Sheets exportiert.",
+        "pdfDone": "Besprechungsprotokoll als PDF exportiert.",
+        "noGoogle": "Verbinde dein Google-Konto, um das Besprechungsprotokoll zu exportieren.",
+        "notReady": "Das Besprechungsprotokoll ist noch nicht geladen. Bitte erneut versuchen.",
+        "failed": "Das Besprechungsprotokoll konnte nicht exportiert werden."
+      },
+      "record": {
+        "title": "Besprechungsprotokoll",
+        "facilitatedBy": "Moderiert von {{name}}",
+        "backToLive": "Zurück zum Besprechungsmodus",
+        "notFound": "Besprechungsprotokoll nicht gefunden",
+        "notFoundBody": "Es wurde möglicherweise gelöscht oder du hast einen veralteten Link geöffnet.",
+        "agenda": "Tagesordnung",
+        "attendees": "Teilnehmende ({{count}})",
+        "noAttendees": "Es wurden keine Teilnehmenden erfasst.",
+        "reviewed": "Geprüfte Bewertungen ({{count}})",
+        "noReviewed": "Es wurden keine Bewertungen erfasst.",
+        "noData": "keine Daten",
+        "decisions": "Entscheidungen ({{count}})",
+        "noDecisions": "Es wurden keine Entscheidungen festgehalten.",
+        "actions": "Aufgaben ({{count}})",
+        "noActions": "Es wurden keine Aufgaben festgehalten.",
+        "notes": "Notizen"
+      }
     },
     "trash": {
       "heading": "Papierkorb",

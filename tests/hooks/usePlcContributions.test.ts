@@ -1,11 +1,16 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { usePlcContributions } from '@/hooks/usePlcContributions';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   onSnapshot: vi.fn(),
+  // The hook now scopes the listener to the owner with
+  // `query(ref, where('teacherUid','==', uid))`. Mock both so the wiring
+  // assertions can verify the owner-scoping constraint is applied.
+  query: vi.fn(),
+  where: vi.fn(),
 }));
 
 vi.mock('@/config/firebase', () => ({
@@ -15,8 +20,18 @@ vi.mock('@/config/firebase', () => ({
 
 vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
 
+// The owner-only contributions read rule keys on `request.auth.uid`, so the
+// hook reads the signed-in uid via useAuth() and pins `teacherUid == uid`.
+// Mock a signed-in teacher so the standalone listener activates.
+const TEACHER_UID = 'teacher-self';
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ user: { uid: TEACHER_UID } }),
+}));
+
 const mockCollection = collection as Mock;
 const mockOnSnapshot = onSnapshot as Mock;
+const mockQuery = query as Mock;
+const mockWhere = where as Mock;
 
 const PLC_ID = 'plc-1';
 
@@ -59,6 +74,20 @@ beforeEach(() => {
   mockCollection.mockImplementation((_db: unknown, ...segs: string[]) =>
     segs.join('/')
   );
+  // `where(field, op, value)` → an opaque constraint token the test can
+  // inspect; `query(ref, ...constraints)` → an opaque query object carrying
+  // the ref + constraints so wiring assertions can confirm the owner scope.
+  mockWhere.mockImplementation((field: string, op: string, value: unknown) => ({
+    __constraint: 'where',
+    field,
+    op,
+    value,
+  }));
+  mockQuery.mockImplementation((ref: unknown, ...constraints: unknown[]) => ({
+    __query: true,
+    ref,
+    constraints,
+  }));
 });
 
 describe('usePlcContributions — listener wiring', () => {
@@ -72,6 +101,32 @@ describe('usePlcContributions — listener wiring', () => {
       'contributions'
     );
     expect(mockOnSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('scopes the listener to the OWNER with where(teacherUid == uid) — never an unconstrained collection listen (FERPA boundary)', () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    renderHook(() => usePlcContributions(PLC_ID));
+
+    // The owner-only read rule rejects an unconstrained collection listen
+    // wholesale; the hook MUST pin teacherUid == self.
+    expect(mockWhere).toHaveBeenCalledWith('teacherUid', '==', TEACHER_UID);
+    expect(mockQuery).toHaveBeenCalledWith(
+      'plcs/plc-1/contributions',
+      expect.objectContaining({
+        __constraint: 'where',
+        field: 'teacherUid',
+        op: '==',
+        value: TEACHER_UID,
+      })
+    );
+
+    // onSnapshot subscribes to the OWNER-SCOPED query object, not the bare
+    // collection ref.
+    const firstArg = mockOnSnapshot.mock.calls[0]?.[0];
+    expect(firstArg).toMatchObject({
+      __query: true,
+      ref: 'plcs/plc-1/contributions',
+    });
   });
 
   it('starts in the loading state until the first snapshot arrives', () => {

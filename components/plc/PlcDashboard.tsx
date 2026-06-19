@@ -18,6 +18,7 @@ import { PlcTodosTab } from './tabs/PlcTodosTab';
 import { PlcSharedBoardsTab } from './tabs/PlcSharedBoardsTab';
 import { PlcSettingsTab } from './tabs/PlcSettingsTab';
 import { MembersBody } from './bodies/MembersBody';
+import { PlcMeetingMode } from './meeting/PlcMeetingMode';
 import { PlcPresenceStrip } from './presence/PlcPresenceStrip';
 
 interface PlcDashboardProps {
@@ -29,6 +30,13 @@ interface PlcDashboardProps {
    * forward / refresh / deep-link all preserve the section.
    */
   activeSection: PlcSectionId;
+  /**
+   * A specific meeting record id, present only on the
+   * `/plc/:id/meeting/:meetingId` route. When set (and the active section is
+   * `meeting`), Meeting Mode opens that saved record read-only; when null on the
+   * `meeting` section it opens the live guided flow.
+   */
+  meetingId?: string | null;
   /** Navigate out of the PLC (back to the prior history entry / the board). */
   onClose: () => void;
 }
@@ -42,6 +50,7 @@ interface PlcDashboardProps {
 export const PlcDashboard: React.FC<PlcDashboardProps> = ({
   plc,
   activeSection: requestedSection,
+  meetingId = null,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -145,11 +154,17 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
         );
       case 'settings':
         return <PlcSettingsTab plc={plc} />;
-      // `meeting` is reserved for Meeting Mode (later wave) and never resolves
-      // to a visible section here — `activeSection` coerces it to `home`. The
-      // case keeps the switch exhaustive over the `PlcSectionId` union.
+      // Meeting Mode — the guided projector surface (PRD §6.2). When a
+      // `meetingId` is present (the `/plc/:id/meeting/:meetingId` route) the
+      // saved record opens read-only; otherwise the live guided flow runs.
       case 'meeting':
-        return null;
+        return (
+          <PlcMeetingMode
+            plc={plc}
+            meetingId={meetingId}
+            onNavigate={handleNavigateSection}
+          />
+        );
     }
   };
 

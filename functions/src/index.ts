@@ -74,6 +74,10 @@ export { joinPlcQuizSyncGroup } from './plcQuizSyncJoin';
 export { joinPlcAssignmentSyncGroup } from './plcAssignmentSyncJoin';
 export { joinPlcVideoActivitySyncGroup } from './plcVideoActivitySyncJoin';
 
+// ── PII-safe anonymized PLC analytics rollup (onWrite of a contribution
+// recomputes /aggregates/{assessmentId}). PRD §5 / §6.0 / §3.6 / §3.3. ──────
+export { aggregatePlcAssessment } from './aggregatePlcAssessment';
+
 // ── One-shot PLC migration (arrays→members map, orgId inference, aggregates
 // skeleton). Admin-only callable; see functions/src/migratePlcs.ts. ─────────
 export { migratePlcs } from './migratePlcs';

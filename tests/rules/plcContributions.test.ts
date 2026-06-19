@@ -2,15 +2,17 @@
 // `/plcs/{plcId}/contributions/{contribId}` match block — the
 // Firestore-native replacement for the Google-Sheet-based PLC aggregate.
 // The rules carry a few load-bearing invariants:
-//   - membership-gated reads (everyone in the PLC sees every contribution)
-//     — this is the CURRENT behavior and the FERPA hot spot: a non-owning
-//     member can read another teacher's raw `responses[]`, which embed
-//     `studentDisplayName`. Wave 3 tightens this to owner-only (PRD §3.6
-//     step 2). The `read` describe block below is the Wave 0 baseline for
-//     that flip: it characterizes today's cross-teacher read, pins the
-//     membership gate so the tightening can't accidentally widen reads
-//     back to authenticated-any, and carries the inverted owner-only
-//     assertion as a labeled `it.skip` to un-skip in Wave 3.
+//   - OWNER-ONLY reads (the FERPA boundary, tightened in Wave 3 per PRD
+//     §3.6 step 2 / §9 PII risk row): a contribution's raw `responses[]`
+//     embed `studentDisplayName`, so only the owning teacher may read her
+//     own contribution. A co-member is DENIED — cross-teacher rollups go
+//     through the anonymized `/aggregates` sibling instead. The `read`
+//     describe block pins this: owner reads own, co-member denied,
+//     non-member denied (owner-only is strictly narrower than the prior
+//     member-only gate, never wider). Deeper PII-specific coverage —
+//     proving the denied co-member never sees another teacher's student
+//     names while still reading aggregates — lives in
+//     `plcContributionsPii.test.ts`.
 //   - author-only writes (a member can only write her own teacherUid)
 //   - doc id pinned to `{quizId}_{teacherUid}` so a teammate can't write
 //     into someone else's slot
@@ -129,13 +131,12 @@ const piiResponse = (studentDisplayName: string): Record<string, unknown> => ({
   pointsByQuestionId: { q1: 1 },
 });
 
-describe('plcs/{plcId}/contributions — read', () => {
+describe('plcs/{plcId}/contributions — read (owner-only)', () => {
   // Seed BOTH members' contribution docs, each holding a distinct
-  // student name. This is the Wave 0 net under the single most
-  // security-critical rule in the PRD: the Wave 3 flip from
-  // member-read to owner-only must be a one-line inversion of the
-  // characterization test below against this known baseline, not
-  // net-new coverage written under pressure.
+  // student name. This pins the single most security-critical rule in
+  // the PRD: post-Wave-3 the read is OWNER-ONLY — a co-member is denied
+  // another teacher's raw student names, while the owner still reads her
+  // own. Cross-teacher data flows through the anonymized /aggregates.
   beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
@@ -165,36 +166,21 @@ describe('plcs/{plcId}/contributions — read', () => {
     );
   });
 
-  // CHARACTERIZATION (Wave 0 baseline — to be INVERTED in Wave 3).
-  // Today a non-owning PLC member CAN read another teacher's raw
-  // contribution, whose `responses[]` embed `studentDisplayName` (the
-  // FERPA-protected PII). Wave 3 tightens `allow read` from
-  // `isPlcMember()` to owner-only; when that lands, this expectation
-  // flips from assertSucceeds -> assertFails (see the it.skip below).
-  it('a non-owning PLC member can currently read another teacher’s raw contribution (PII visible)', async () => {
-    await assertSucceeds(
-      getDoc(doc(asMemberB(), `plcs/${PLC_ID}/contributions/${CONTRIB_ID_A}`))
-    );
-  });
-
-  // WAVE 3 INVERSION (intentionally skipped until the read rule is
-  // tightened). Flipping `allow read: if isPlcMember()` to owner-only
-  // (PRD §3.6 step 2, Wave 3 exit: "a member can no longer read another
-  // teacher's raw student names") makes this pass. Un-skip and delete the
-  // characterization above in the same commit that tightens the rule, so
-  // the PII boundary is proven by a rules test rather than asserted in
-  // prose. Until then this documents the target invariant inline.
-  it.skip('WAVE 3: a non-owning PLC member MUST NOT read another teacher’s raw contribution (owner-only)', async () => {
+  // FERPA boundary (Wave 3, PRD §3.6 step 2 / §9 PII risk row). A
+  // non-owning PLC member must NOT read another teacher's raw
+  // contribution, whose `responses[]` embed `studentDisplayName`. The
+  // read rule is owner-only (`resource.data.teacherUid == auth.uid`), so
+  // member B is denied member A's doc.
+  it('a non-owning PLC member CANNOT read another teacher’s raw contribution (owner-only — FERPA)', async () => {
     await assertFails(
       getDoc(doc(asMemberB(), `plcs/${PLC_ID}/contributions/${CONTRIB_ID_A}`))
     );
   });
 
-  // Pins the membership gate so the Wave 3 owner-only change can't
-  // accidentally widen reads back to "any authenticated user". A
-  // non-member is denied today and must stay denied after the tightening
+  // Pins the membership gate so the owner-only change can't accidentally
+  // widen reads back to "any authenticated user". A non-member is denied
   // — owner-only is strictly narrower than member-only, never wider.
-  it('a non-member cannot read contributions (membership gate — must not widen in Wave 3)', async () => {
+  it('a non-member cannot read contributions (owner-only is strictly narrower than the old member gate)', async () => {
     await assertFails(
       getDoc(doc(asNonMember(), `plcs/${PLC_ID}/contributions/${CONTRIB_ID_A}`))
     );

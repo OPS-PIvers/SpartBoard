@@ -50,6 +50,9 @@ vi.mock('firebase/firestore', () => ({
     __query: ref,
     constraints,
   })),
+  where: vi.fn((field: string, op: string, value: unknown) => ({
+    __where: [field, op, value],
+  })),
   runTransaction: vi.fn(),
   serverTimestamp: vi.fn(() => ({ __serverTimestamp: true })),
   setDoc: vi.fn().mockResolvedValue(undefined),

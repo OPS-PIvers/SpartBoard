@@ -62,18 +62,30 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { uid: 'uid-self' } }),
+  useAuth: () => ({
+    user: { uid: 'uid-self' },
+    // Wave-3 Home QuickCreateBar reads getAssignmentMode for the quiz/VA modals.
+    getAssignmentMode: () => 'submissions',
+  }),
+}));
+// Wave-3 Home YourActionItemsCard reads useDashboard().addToast.
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({ addToast: vi.fn() }),
 }));
 
 // Provider activity slice — overridden per-test via mockReturnValue.
 const mockUsePlcActivity = vi.fn<() => PlcActivityEvent[]>(() => []);
 vi.mock('@/context/usePlcContext', async (importActual) => {
   const actual = await importActual<typeof import('@/context/usePlcContext')>();
+  const emptySlice = { data: [], loading: false, error: null };
   return {
     ...actual,
     usePlcActivity: () => mockUsePlcActivity(),
     usePlcWhoIsHere: () => [],
     usePlcMembers: () => [],
+    // Wave-3 Home common-assessment banner reads these provider slices.
+    usePlcAssessmentsData: () => emptySlice,
+    usePlcAggregatesData: () => emptySlice,
   };
 });
 
@@ -122,6 +134,30 @@ vi.mock('@/hooks/usePlcQuizzes', () => ({
     mirrorPlcQuizHeader: vi.fn(),
     unshareQuizFromPlc: vi.fn(),
     restoreQuizInPlc: vi.fn(),
+  }),
+}));
+// Wave-3 Home additions: QuickCreateBar reads the personal-library hooks; the
+// banner + action-items card read meetings/todos. Stub all inert.
+vi.mock('@/hooks/useQuiz', () => ({
+  useQuiz: () => ({ quizzes: [], isDriveConnected: false }),
+}));
+vi.mock('@/hooks/useVideoActivity', () => ({
+  useVideoActivity: () => ({ activities: [], isDriveConnected: false }),
+}));
+vi.mock('@/hooks/usePlcMeetings', () => ({
+  usePlcMeetings: () => ({
+    meetings: [],
+    meetingsById: new Map(),
+    loading: false,
+    error: null,
+  }),
+}));
+vi.mock('@/hooks/usePlcTodos', () => ({
+  usePlcTodos: () => ({
+    todos: [],
+    loading: false,
+    error: null,
+    toggleDone: vi.fn(() => Promise.resolve()),
   }),
 }));
 

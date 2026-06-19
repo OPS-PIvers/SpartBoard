@@ -286,6 +286,62 @@
   },
   "plcDashboard": {
     "subtitle": "PLC Dashboard",
+    "home": {
+      "commonAssessment": {
+        "loading": "Loading your common assessment…",
+        "emptyTitle": "No common assessment yet",
+        "emptySubtitle": "Designate one in Shared Data, then review the pooled results together.",
+        "reviewData": "Review shared data",
+        "ranIt": "{{ran}} of {{total}} ran it",
+        "startMeeting": "Start Meeting",
+        "resumeMeeting": "Resume Meeting",
+        "phase": {
+          "planning": "Planning — not run yet",
+          "running": "In progress",
+          "ready": "Ready to review",
+          "reviewing": "Reviewing together",
+          "closed": "Closed"
+        }
+      },
+      "actionItems": {
+        "heading": "Your action items",
+        "empty": "You're all caught up",
+        "emptySubtitle": "Action items assigned to you will appear here.",
+        "loadError": "Couldn't load your action items",
+        "toggleFailed": "Couldn't update that action item.",
+        "markDone": "Mark done",
+        "openAll": "Open To-Do list",
+        "due": {
+          "overdue": "Overdue",
+          "today": "Today"
+        }
+      },
+      "quickCreate": {
+        "quiz": "Assign quiz",
+        "video": "Assign video activity",
+        "doc": "Add a doc",
+        "docModal": {
+          "title": "Add a shared doc",
+          "subtitle": "Shared with {{name}}",
+          "titleLabel": "Title",
+          "urlLabel": "Google Doc URL",
+          "add": "Add doc",
+          "adding": "Adding…",
+          "created": "\"{{title}}\" added to this PLC.",
+          "failed": "Couldn't add that doc. Please try again."
+        }
+      }
+    },
+    "newAssignment": {
+      "quiz": {
+        "ctaDisabledDrive": "Connect Google Drive to assign a quiz.",
+        "ctaDisabledEmpty": "You have no quizzes in your personal library yet. Create one in the Quiz widget first."
+      },
+      "video": {
+        "ctaDisabledDrive": "Connect Google Drive to assign a video activity.",
+        "ctaDisabledEmpty": "You have no video activities in your personal library yet. Create one in the Video Activity widget first."
+      }
+    },
     "backToMenu": "Back",
     "close": "Close",
     "tabs": {
@@ -299,6 +355,7 @@
       "home": "Home",
       "members": "Members",
       "sharedData": "Shared Data",
+      "meeting": "Meeting Mode",
       "docs": "Docs",
       "resources": "Resources"
     },
@@ -675,6 +732,192 @@
       "threadLabel": "Comments on {{subject}}",
       "mentionNoMatch": "No teammates match",
       "mentionListLabel": "Mention a teammate"
+    },
+    "sharedData": {
+      "loading": "Loading shared data…",
+      "loadError": "Couldn't load shared data",
+      "emptyTitle": "No shared data yet",
+      "emptySubtitle": "When members run a common assessment with PLC mode, anonymized results appear here.",
+      "noResults": "No results match your filters",
+      "untitledQuiz": "Untitled assessment",
+      "untitledQuestion": "Untitled question",
+      "kindQuiz": "Quiz",
+      "kindVA": "Video Activity",
+      "common": "Common",
+      "avg": "avg",
+      "teacher": "teacher",
+      "teachers": "teachers",
+      "students": "students",
+      "studentsShort": "stu",
+      "classCount": "{{count}} cls",
+      "ranOf": "{{ran}} of {{total}} ran it",
+      "teamAverage": "team average",
+      "weakestQuestions": "Weakest questions",
+      "byClass": "By teacher / class",
+      "you": "(you)",
+      "whoRanIt": "Who has run it",
+      "hasRun": "has run it",
+      "notRun": "has not run it yet",
+      "updating": "updating…",
+      "updatingHint": "New results are still being rolled up — numbers will refresh shortly.",
+      "designateTitle": "Make this the team's common assessment",
+      "designateSubtitle": "Designating gives it a shared title, unit, and status the whole team tracks.",
+      "designateAction": "Designate",
+      "designatePrompt": "Name this common assessment so the whole team recognizes it.",
+      "designatePromptTitle": "Designate common assessment",
+      "designatePlaceholder": "e.g. Unit 4 CFA",
+      "designated": "“{{title}}” is now the team's common assessment.",
+      "designateFailed": "Couldn't designate that assessment. Try again.",
+      "status": {
+        "planning": "Planning",
+        "active": "Active",
+        "reviewing": "Reviewing",
+        "closed": "Closed"
+      },
+      "filters": {
+        "label": "Filter shared data",
+        "search": "Search assessments",
+        "searchPlaceholder": "Search…",
+        "type": "Type",
+        "typeAll": "All types",
+        "typeQuiz": "Quizzes",
+        "typeVA": "Video Activities",
+        "teacher": "Teacher",
+        "teacherAll": "All teachers",
+        "unit": "Unit",
+        "unitAll": "All units",
+        "status": "Status",
+        "statusAll": "All statuses"
+      }
+    },
+    "meeting": {
+      "loading": "Loading meeting data…",
+      "loadError": "Couldn’t load meeting data",
+      "createFailed": "Couldn’t start the meeting. Try again.",
+      "saved": "Meeting saved. The team can review the record anytime.",
+      "saveFailed": "Couldn’t save the meeting. Try again.",
+      "pickRequired": "Pick at least one assessment to review.",
+      "untitledAssessment": "Untitled assessment",
+      "untitledQuestion": "Untitled question",
+      "common": "Common",
+      "you": "(you)",
+      "teamAverage": "Team average",
+      "teacherStudentCount": "{{teachers}} teachers · {{students}} students",
+      "classCount": "{{count}} cls",
+      "weakestQuestions": "Weakest questions",
+      "byClass": "By teacher / class",
+      "whoRanIt": "Who has run it",
+      "ranOf": "({{ran}} of {{total}})",
+      "hasRun": "has run it",
+      "notRun": "has not run it yet",
+      "noQuestions": "No question-level data available yet.",
+      "strongAcross": "Strong across the board — every question cleared 80%.",
+      "updating": "updating…",
+      "updatingHint": "New results are still rolling up — numbers refresh shortly.",
+      "reviewCardLabel": "Pooled results for {{title}}",
+      "discussAssessment": "Discuss this",
+      "discussQuestion": "Discuss this question in a decision",
+      "designatePrompt": "Name this common assessment so the whole team recognizes it.",
+      "designatePromptTitle": "Designate common assessment",
+      "designatePlaceholder": "e.g. Unit 4 CFA",
+      "designated": "“{{title}}” is now the team’s common assessment.",
+      "designateFailed": "Couldn’t designate that assessment. Try again.",
+      "back": "Back",
+      "next": "Next",
+      "saveMeeting": "Save meeting",
+      "stepsLabel": "Meeting steps",
+      "pastMeetings": "Past meetings ({{count}})",
+      "startOver": "Start over",
+      "startOverTitle": "Start a new meeting",
+      "startOverConfirm": "Start a new meeting? This clears the current selections and notes.",
+      "steps": {
+        "pick": "Pick",
+        "review": "Review",
+        "decide": "Decide",
+        "act": "Act",
+        "save": "Save"
+      },
+      "pick": {
+        "heading": "What are we looking at today?",
+        "subtitle": "Choose the common assessment (or assessments) this meeting reviews.",
+        "emptyTitle": "No assessment data yet",
+        "emptySubtitle": "When the team runs a common assessment in PLC mode, the anonymized results appear here, ready to review together.",
+        "cardMeta": "{{avg}}% team avg · {{teachers}} teachers · {{students}} students",
+        "designate": "Designate"
+      },
+      "review": {
+        "heading": "What does the data say?",
+        "subtitle": "Pooled, anonymized results. Click a question to capture a decision about it.",
+        "none": "No assessments selected — go back to Pick."
+      },
+      "decide": {
+        "heading": "What did we decide?",
+        "subtitle": "Capture the team’s decisions. Link one to a data card from Review when it responds to a specific result.",
+        "addLabel": "Add a decision",
+        "placeholder": "e.g. Reteach question 4 using the area model before the unit test.",
+        "add": "Add decision",
+        "empty": "No decisions captured yet.",
+        "remove": "Remove decision",
+        "linkedFallback": "a data card",
+        "linkedQuestion": " · Q{{q}}"
+      },
+      "act": {
+        "heading": "Who’s doing what?",
+        "subtitle": "Spin up action items. On save, each becomes a tracked PLC to-do for its assignee.",
+        "addLabel": "Add an action item",
+        "placeholder": "e.g. Build a reteach warm-up for question 4",
+        "assignee": "Assignee",
+        "unassigned": "Unassigned",
+        "someone": "A teammate",
+        "due": "Due",
+        "add": "Add action",
+        "empty": "No action items yet.",
+        "remove": "Remove action item",
+        "todoCreated": "To-do created"
+      },
+      "save": {
+        "heading": "Ready to save?",
+        "subtitle": "Saving writes the meeting record, turns action items into to-dos, and logs it to the team activity feed.",
+        "reviewed": "Assessments reviewed",
+        "decisions": "Decisions",
+        "actions": "Action items → to-dos",
+        "attendees": "Attendees (from presence)",
+        "whoAttended": "Who’s here now",
+        "noAttendees": "No one else is active right now — you’ll be recorded as the facilitator.",
+        "viewerNote": "Viewers can follow along but can’t save the meeting record.",
+        "doneTitle": "Meeting saved",
+        "doneSubtitle": "Action items are now tracked to-dos for their assignees. Export the record for your accountability files, or start a new meeting.",
+        "viewRecord": "View meeting record",
+        "startNew": "Start a new meeting"
+      },
+      "export": {
+        "toSheet": "Export to Sheets",
+        "toPdf": "Export to PDF",
+        "open": "Open",
+        "sheetDone": "Meeting record exported to Google Sheets.",
+        "pdfDone": "Meeting record exported to PDF.",
+        "noGoogle": "Connect your Google account to export the meeting record.",
+        "notReady": "The meeting record isn’t loaded yet. Try again.",
+        "failed": "Couldn’t export the meeting record."
+      },
+      "record": {
+        "title": "Meeting record",
+        "facilitatedBy": "Facilitated by {{name}}",
+        "backToLive": "Back to Meeting Mode",
+        "notFound": "Meeting record not found",
+        "notFoundBody": "It may have been deleted, or you opened a stale link.",
+        "agenda": "Agenda",
+        "attendees": "Attendees ({{count}})",
+        "noAttendees": "No attendees were recorded.",
+        "reviewed": "Reviewed assessments ({{count}})",
+        "noReviewed": "No assessments were recorded.",
+        "noData": "no data",
+        "decisions": "Decisions ({{count}})",
+        "noDecisions": "No decisions were captured.",
+        "actions": "Action items ({{count}})",
+        "noActions": "No action items were captured.",
+        "notes": "Notes"
+      }
     },
     "trash": {
       "heading": "Trash",

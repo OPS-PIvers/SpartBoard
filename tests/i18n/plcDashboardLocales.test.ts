@@ -51,6 +51,7 @@ const REQUIRED_TABS_KEYS = [
   'home',
   'members',
   'sharedData',
+  'meeting',
   'docs',
   'resources',
 ] as const;
@@ -289,7 +290,350 @@ const REQUIRED_MEMBERS_ROLES_KEYS = [
   'viewer',
 ] as const;
 
+/**
+ * Keys within plcDashboard.meeting (Wave-3 Meeting Mode — PRD §6.2, the hero
+ * surface: PlcMeetingMode / PlcMeetingSteps / PlcMeetingReviewCard /
+ * PlcMeetingRecordView). Flat leaf keys + nested step blocks below.
+ */
+const REQUIRED_MEETING_KEYS = [
+  'loading',
+  'loadError',
+  'createFailed',
+  'saved',
+  'saveFailed',
+  'pickRequired',
+  'untitledAssessment',
+  'untitledQuestion',
+  'common',
+  'you',
+  'teamAverage',
+  'teacherStudentCount',
+  'classCount',
+  'weakestQuestions',
+  'byClass',
+  'whoRanIt',
+  'ranOf',
+  'hasRun',
+  'notRun',
+  'noQuestions',
+  'strongAcross',
+  'updating',
+  'updatingHint',
+  'reviewCardLabel',
+  'discussAssessment',
+  'discussQuestion',
+  'designatePrompt',
+  'designatePromptTitle',
+  'designatePlaceholder',
+  'designated',
+  'designateFailed',
+  'back',
+  'next',
+  'saveMeeting',
+  'stepsLabel',
+  'pastMeetings',
+  'startOver',
+  'startOverTitle',
+  'startOverConfirm',
+] as const;
+
+/** plcDashboard.meeting.steps — one label per guided step. */
+const REQUIRED_MEETING_STEPS_KEYS = [
+  'pick',
+  'review',
+  'decide',
+  'act',
+  'save',
+] as const;
+
+/** plcDashboard.meeting.pick */
+const REQUIRED_MEETING_PICK_KEYS = [
+  'heading',
+  'subtitle',
+  'emptyTitle',
+  'emptySubtitle',
+  'cardMeta',
+  'designate',
+] as const;
+
+/** plcDashboard.meeting.review */
+const REQUIRED_MEETING_REVIEW_KEYS = ['heading', 'subtitle', 'none'] as const;
+
+/** plcDashboard.meeting.decide */
+const REQUIRED_MEETING_DECIDE_KEYS = [
+  'heading',
+  'subtitle',
+  'addLabel',
+  'placeholder',
+  'add',
+  'empty',
+  'remove',
+  'linkedFallback',
+  'linkedQuestion',
+] as const;
+
+/** plcDashboard.meeting.act */
+const REQUIRED_MEETING_ACT_KEYS = [
+  'heading',
+  'subtitle',
+  'addLabel',
+  'placeholder',
+  'assignee',
+  'unassigned',
+  'someone',
+  'due',
+  'add',
+  'empty',
+  'remove',
+  'todoCreated',
+] as const;
+
+/** plcDashboard.meeting.save */
+const REQUIRED_MEETING_SAVE_KEYS = [
+  'heading',
+  'subtitle',
+  'reviewed',
+  'decisions',
+  'actions',
+  'attendees',
+  'whoAttended',
+  'noAttendees',
+  'viewerNote',
+  'doneTitle',
+  'doneSubtitle',
+  'viewRecord',
+  'startNew',
+] as const;
+
+/** plcDashboard.meeting.export */
+const REQUIRED_MEETING_EXPORT_KEYS = [
+  'toSheet',
+  'toPdf',
+  'open',
+  'sheetDone',
+  'pdfDone',
+  'noGoogle',
+  'notReady',
+  'failed',
+] as const;
+
+/** plcDashboard.meeting.record */
+const REQUIRED_MEETING_RECORD_KEYS = [
+  'title',
+  'facilitatedBy',
+  'backToLive',
+  'notFound',
+  'notFoundBody',
+  'agenda',
+  'attendees',
+  'noAttendees',
+  'reviewed',
+  'noReviewed',
+  'noData',
+  'decisions',
+  'noDecisions',
+  'actions',
+  'noActions',
+  'notes',
+] as const;
+
+/**
+ * Keys within plcDashboard.sharedData (Wave-3 anonymized aggregate cards —
+ * PlcSharedDataBody / PlcSharedDataFilters, PRD §3.6 / §6.0).
+ */
+const REQUIRED_SHARED_DATA_KEYS = [
+  'loading',
+  'loadError',
+  'emptyTitle',
+  'emptySubtitle',
+  'noResults',
+  'untitledQuiz',
+  'untitledQuestion',
+  'kindQuiz',
+  'kindVA',
+  'common',
+  'avg',
+  'teacher',
+  'teachers',
+  'students',
+  'studentsShort',
+  'classCount',
+  'ranOf',
+  'teamAverage',
+  'weakestQuestions',
+  'byClass',
+  'you',
+  'whoRanIt',
+  'hasRun',
+  'notRun',
+  'updating',
+  'updatingHint',
+  'designateTitle',
+  'designateSubtitle',
+  'designateAction',
+  'designatePrompt',
+  'designatePromptTitle',
+  'designatePlaceholder',
+  'designated',
+  'designateFailed',
+] as const;
+
+/** plcDashboard.sharedData.status — common-assessment lifecycle enum. */
+const REQUIRED_SHARED_DATA_STATUS_KEYS = [
+  'planning',
+  'active',
+  'reviewing',
+  'closed',
+] as const;
+
+/** plcDashboard.sharedData.filters */
+const REQUIRED_SHARED_DATA_FILTERS_KEYS = [
+  'label',
+  'search',
+  'searchPlaceholder',
+  'type',
+  'typeAll',
+  'typeQuiz',
+  'typeVA',
+  'teacher',
+  'teacherAll',
+  'unit',
+  'unitAll',
+  'status',
+  'statusAll',
+] as const;
+
+/**
+ * Keys within plcDashboard.home (Wave-3 activity-driven Home — PRD §6.3:
+ * common-assessment status banner, your-action-items card, QuickCreate bar).
+ */
+const REQUIRED_HOME_COMMON_ASSESSMENT_KEYS = [
+  'loading',
+  'emptyTitle',
+  'emptySubtitle',
+  'reviewData',
+  'ranIt',
+  'startMeeting',
+  'resumeMeeting',
+] as const;
+
+/** plcDashboard.home.commonAssessment.phase — common-assessment phase labels. */
+const REQUIRED_HOME_COMMON_ASSESSMENT_PHASE_KEYS = [
+  'planning',
+  'running',
+  'ready',
+  'reviewing',
+  'closed',
+] as const;
+
+/** plcDashboard.home.actionItems */
+const REQUIRED_HOME_ACTION_ITEMS_KEYS = [
+  'heading',
+  'empty',
+  'emptySubtitle',
+  'loadError',
+  'toggleFailed',
+  'markDone',
+  'openAll',
+] as const;
+
+/** plcDashboard.home.quickCreate */
+const REQUIRED_HOME_QUICK_CREATE_KEYS = ['quiz', 'video', 'doc'] as const;
+
+/** plcDashboard.home.quickCreate.docModal */
+const REQUIRED_HOME_QUICK_CREATE_DOC_MODAL_KEYS = [
+  'title',
+  'subtitle',
+  'titleLabel',
+  'urlLabel',
+  'add',
+  'adding',
+  'created',
+  'failed',
+] as const;
+
+/**
+ * Keys within plcDashboard.newAssignment — the QuickCreate (Wave-3) buttons'
+ * disabled-reason copy (Drive not connected / empty personal library).
+ */
+const REQUIRED_NEW_ASSIGNMENT_QUIZ_KEYS = [
+  'ctaDisabledDrive',
+  'ctaDisabledEmpty',
+] as const;
+const REQUIRED_NEW_ASSIGNMENT_VIDEO_KEYS = [
+  'ctaDisabledDrive',
+  'ctaDisabledEmpty',
+] as const;
+
 type LocaleFile = typeof en;
+
+/** Walk a dotted path through a locale object, returning the leaf node. */
+function getNode(
+  root: unknown,
+  path: string
+): Record<string, unknown> | undefined {
+  let node: unknown = root;
+  for (const segment of path.split('.')) {
+    if (node == null || typeof node !== 'object') return undefined;
+    node = (node as Record<string, unknown>)[segment];
+  }
+  return node != null && typeof node === 'object'
+    ? (node as Record<string, unknown>)
+    : undefined;
+}
+
+/** (path, requiredKeys) pairs shared by the EN baseline + DE/ES/FR parity. */
+const WAVE3_KEY_GROUPS: ReadonlyArray<{
+  path: string;
+  keys: readonly string[];
+}> = [
+  { path: 'plcDashboard.meeting', keys: REQUIRED_MEETING_KEYS },
+  { path: 'plcDashboard.meeting.steps', keys: REQUIRED_MEETING_STEPS_KEYS },
+  { path: 'plcDashboard.meeting.pick', keys: REQUIRED_MEETING_PICK_KEYS },
+  { path: 'plcDashboard.meeting.review', keys: REQUIRED_MEETING_REVIEW_KEYS },
+  { path: 'plcDashboard.meeting.decide', keys: REQUIRED_MEETING_DECIDE_KEYS },
+  { path: 'plcDashboard.meeting.act', keys: REQUIRED_MEETING_ACT_KEYS },
+  { path: 'plcDashboard.meeting.save', keys: REQUIRED_MEETING_SAVE_KEYS },
+  { path: 'plcDashboard.meeting.export', keys: REQUIRED_MEETING_EXPORT_KEYS },
+  { path: 'plcDashboard.meeting.record', keys: REQUIRED_MEETING_RECORD_KEYS },
+  { path: 'plcDashboard.sharedData', keys: REQUIRED_SHARED_DATA_KEYS },
+  {
+    path: 'plcDashboard.sharedData.status',
+    keys: REQUIRED_SHARED_DATA_STATUS_KEYS,
+  },
+  {
+    path: 'plcDashboard.sharedData.filters',
+    keys: REQUIRED_SHARED_DATA_FILTERS_KEYS,
+  },
+  {
+    path: 'plcDashboard.home.commonAssessment',
+    keys: REQUIRED_HOME_COMMON_ASSESSMENT_KEYS,
+  },
+  {
+    path: 'plcDashboard.home.commonAssessment.phase',
+    keys: REQUIRED_HOME_COMMON_ASSESSMENT_PHASE_KEYS,
+  },
+  {
+    path: 'plcDashboard.home.actionItems',
+    keys: REQUIRED_HOME_ACTION_ITEMS_KEYS,
+  },
+  {
+    path: 'plcDashboard.home.quickCreate',
+    keys: REQUIRED_HOME_QUICK_CREATE_KEYS,
+  },
+  {
+    path: 'plcDashboard.home.quickCreate.docModal',
+    keys: REQUIRED_HOME_QUICK_CREATE_DOC_MODAL_KEYS,
+  },
+  {
+    path: 'plcDashboard.newAssignment.quiz',
+    keys: REQUIRED_NEW_ASSIGNMENT_QUIZ_KEYS,
+  },
+  {
+    path: 'plcDashboard.newAssignment.video',
+    keys: REQUIRED_NEW_ASSIGNMENT_VIDEO_KEYS,
+  },
+];
 
 // ─── EN baseline ────────────────────────────────────────────────────────────
 
@@ -398,6 +742,18 @@ describe('EN locale — plcDashboard baseline', () => {
       ).toHaveProperty(key);
     }
   });
+
+  it.each(WAVE3_KEY_GROUPS)(
+    'has all required $path keys (Wave-3)',
+    ({ path, keys }) => {
+      const node = getNode(en, path);
+      for (const key of keys) {
+        expect(node, `en.${path}.${key} is missing from EN`).toHaveProperty(
+          key
+        );
+      }
+    }
+  );
 });
 
 // ─── DE / ES / FR parity ────────────────────────────────────────────────────
@@ -593,4 +949,14 @@ describe.each([
       ).toHaveProperty(key);
     }
   });
+
+  it.each(WAVE3_KEY_GROUPS)(
+    `${code}: has all required $path keys (Wave-3)`,
+    ({ path, keys }) => {
+      const node = getNode(locale, path);
+      for (const key of keys) {
+        expect(node, `${code}.${path}.${key} is missing`).toHaveProperty(key);
+      }
+    }
+  );
 });
