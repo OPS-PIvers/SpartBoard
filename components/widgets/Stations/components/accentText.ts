@@ -102,9 +102,13 @@ export function getAccessibleAccentText(accent: string): string {
     return toHex(rgb);
   }
 
-  const [h, s] = rgbToHsl(...rgb);
-  // Step lightness down until contrast clears the bar (or we hit black).
-  let l = 0.5;
+  const [h, s, origL] = rgbToHsl(...rgb);
+  // Step lightness down from the original value until contrast clears the
+  // 4.5:1 bar (or we hit black). Starting from the original lightness rather
+  // than a hard-coded 0.5 preserves the lightest accessible variant of the
+  // color — starting from 0.5 would overshoot for colors whose accessible
+  // range lies above l=0.5 (blue-violets, purples, desaturated reds).
+  let l = origL;
   for (let i = 0; i < 50; i++) {
     const candidate = hslToRgb(h, s, l);
     if (contrastVsWhite(candidate) >= TARGET_CONTRAST) {
