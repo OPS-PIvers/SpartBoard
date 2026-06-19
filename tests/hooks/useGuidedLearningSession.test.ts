@@ -166,14 +166,31 @@ function minimalResponse(
   };
 }
 
-/** Parse the CSV string into a 2D array (headers + rows). */
+/** Parse the CSV string into a 2D array (headers + rows). Minimal RFC-4180. */
 function parseCsv(csv: string): string[][] {
-  return csv.split('\n').map((line) =>
-    line.split(',').map((cell) =>
-      // Strip the surrounding double-quotes the escaper adds.
-      cell.replace(/^"|"$/g, '').replace(/""/g, '"')
-    )
-  );
+  return csv.split('\n').map((line) => {
+    const cells: string[] = [];
+    let cur = '';
+    let inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuote && line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuote = !inQuote;
+        }
+      } else if (ch === ',' && !inQuote) {
+        cells.push(cur);
+        cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+    cells.push(cur);
+    return cells;
+  });
 }
 
 describe('buildGLResponsesCSV — duplicate-step dedup', () => {
