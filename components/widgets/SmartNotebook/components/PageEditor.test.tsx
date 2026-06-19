@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { act, fireEvent, render } from '@testing-library/react';
+import { flushSync } from 'react-dom';
 import { PageEditor } from './PageEditor';
 
 // jsdom does not implement SVGGraphicsElement.getBBox or DOMMatrix; stub them
@@ -194,5 +195,125 @@ describe('PageEditor — pointerup robustness', () => {
     });
 
     expect(onChange).toHaveBeenCalled();
+  });
+});
+
+/**
+ * Regression test: onChange ref must be current immediately after a
+ * synchronous re-render (flushSync), not deferred to the next passive-effect
+ * flush.
+ *
+ * Bug (fixed)
+ * -----------
+ * The original code used `useEffect(() => { onChangeRef.current = onChange; })`
+ * (no dep array — fires after every render). Between the render commit and the
+ * passive-effect flush there is a window where `onChangeRef.current` still
+ * holds the PREVIOUS render's callback. In production this window is open for
+ * at least one browser paint frame (~16 ms). Any synchronous call into the
+ * editor during that window — e.g. a native window keydown handler invoking
+ * `undo()` → `onChangeRef.current?.(prev)` — would silently call the stale
+ * callback and miss the current one.
+ *
+ * Fix: assign refs in the render body so the ref is always current by the time
+ * any handler fires. CLAUDE.md: "Assign refs directly in the render body —
+ * no effect needed."
+ *
+ * Test strategy
+ * -------------
+ * 1. Render with onChange=fnA, make a drag edit (populates the undo stack and
+ *    calls fnA once via emitChange).
+ * 2. `flushSync(rerender with onChange=fnB)` — commits synchronously, but
+ *    passive effects are NOT flushed (flushSync only runs layout effects).
+ * 3. Dispatch a native `window` keydown Ctrl+Z — the capture-phase listener
+ *    registered in the previous useEffect is still active. It calls `undo()`
+ *    which calls `onChangeRef.current?.(prev)` synchronously.
+ *    • Old code: `onChangeRef.current === fnA` (stale; effect hasn't fired) → FAIL
+ *    • New code: `onChangeRef.current === fnB` (render-body update ran) → PASS
+ *
+ * Why this works in the test environment
+ * ----------------------------------------
+ * `flushSync` commits the React tree (runs synchronous render + layout
+ * effects) but deliberately does NOT drain the passive-effect queue.
+ * `window.dispatchEvent` fires synchronously — no act(), no timer, nothing
+ * that could accidentally flush effects before the assertion.
+ */
+describe('PageEditor — onChange ref is current immediately after flushSync re-render', () => {
+  it('Ctrl+Z calls the NEW onChange after a flushSync prop swap, not the pre-swap one', async () => {
+    const fnA = vi.fn();
+    const fnB = vi.fn();
+
+    // Render in default select-mode so no textarea opens (editing stays null,
+    // which is required for the keydown handler to reach the undo branch).
+    const { container, rerender } = render(
+      <PageEditor svg={TEST_SVG} onChange={fnA} />
+    );
+    // Let the mount useEffect run (sets up the editable SVG DOM and records
+    // initialSvgRef — required for emitChange to push onto the undo stack).
+    await tick();
+
+    const rect = container.querySelector('[data-edit-id]');
+    if (!rect)
+      throw new Error(
+        'PageEditor did not assign edit ids to foreground objects'
+      );
+
+    // Drag the rect past DRAG_THRESHOLD_PX so the pointerup handler calls
+    // emitChange() → onChangeRef.current(serialized). This:
+    //   (a) calls fnA once, and
+    //   (b) pushes the pre-drag SVG baseline onto pastSvgStackRef
+    //       (required for undo() to have something to pop).
+    fire(rect, 'pointerdown', {
+      clientX: 200,
+      clientY: 200,
+      pointerId: 1,
+      buttons: 1,
+      isPrimary: true,
+    });
+    fire(rect, 'pointermove', {
+      clientX: 260,
+      clientY: 220,
+      pointerId: 1,
+      buttons: 1,
+      isPrimary: true,
+    });
+    fire(rect, 'pointerup', {
+      clientX: 260,
+      clientY: 220,
+      pointerId: 1,
+      buttons: 0,
+      isPrimary: true,
+    });
+
+    // fnA must have been called (confirms emitChange ran and undo stack is set).
+    expect(fnA).toHaveBeenCalled();
+    fnA.mockClear();
+    fnB.mockClear();
+
+    // Swap to fnB via flushSync: commits the React tree (layout effects run)
+    // but does NOT flush passive effects. With the old useEffect-based ref
+    // sync, `onChangeRef.current` still equals fnA at this point.
+    // With the render-body fix it already equals fnB.
+    flushSync(() => {
+      rerender(<PageEditor svg={TEST_SVG} onChange={fnB} />);
+    });
+
+    // Dispatch a native capture-phase keydown on window.
+    // • This bypasses React's synthetic event system and act() entirely.
+    // • The listener registered during the previous useEffect is still active.
+    // • It is synchronous: no scheduler, no microtask, no effect flush.
+    // • The listener calls undo() → onChangeRef.current?.(prev).
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'z',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+    );
+
+    // Old code (useEffect ref sync): passive effect hasn't run → fnA called → FAIL
+    // New code (render-body ref sync): ref updated during flushSync → fnB called → PASS
+    expect(fnB).toHaveBeenCalled();
+    expect(fnA).not.toHaveBeenCalled();
   });
 });

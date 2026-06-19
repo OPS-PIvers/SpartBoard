@@ -201,18 +201,12 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
   const firstNamesTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastNamesTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Keep refs current so debounced callbacks always read the latest values
-  const configRef = useRef(config);
+  // Mirror updateWidget into a ref so the debounced setTimeout callbacks
+  // always read the current function even if the context value changes
+  // mid-debounce. CLAUDE.md: assign in the render body, no useEffect needed.
   const updateWidgetRef = useRef(updateWidget);
-
-  // Note: These need to be updated in useEffect or event handlers to avoid react-hooks/refs errors
-  useEffect(() => {
-    configRef.current = config;
-  }, [config]);
-
-  useEffect(() => {
-    updateWidgetRef.current = updateWidget;
-  }, [updateWidget]);
+  // eslint-disable-next-line react-hooks/refs
+  updateWidgetRef.current = updateWidget;
 
   // Sync local inputs when the external value changes (e.g. roster import)
   if (firstNames !== prevFirstNames) {
