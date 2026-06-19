@@ -4,6 +4,8 @@ import { ChevronLeft, ChevronRight, Users2 } from 'lucide-react';
 
 import { Plc, getPlcFeatures } from '@/types';
 import { useAuth } from '@/context/useAuth';
+import { getPlcMembers, getPlcRole } from '@/utils/plc';
+import { buildPlcPath, spaNavigate, spaReplace } from '@/utils/plcPath';
 import { PlcDashboardRail, type PlcRailItem } from './PlcDashboardRail';
 import { PLC_SECTIONS, type PlcSectionId } from './sections';
 import { PlcHome } from './home/PlcHome';
@@ -19,21 +21,37 @@ import { MembersBody } from './bodies/MembersBody';
 
 interface PlcDashboardProps {
   plc: Plc;
+  /**
+   * The active section, derived from the pathname by the route host. The
+   * dashboard is fully controlled by this prop — section changes push history
+   * (`spaNavigate`) which re-derives this prop on the next render, so back /
+   * forward / refresh / deep-link all preserve the section.
+   */
+  activeSection: PlcSectionId;
+  /** Navigate out of the PLC (back to the prior history entry / the board). */
   onClose: () => void;
 }
 
 /**
- * Full-screen PLC Dashboard view. Opens when a member clicks a PLC in the
- * sidebar list. Navigates via a left-side rail (desktop) and a mobile
- * drill-in menu, mirroring the SettingsModal pattern.
+ * Full-screen PLC Dashboard view, mounted at `/plc/:plcId/:section`. Navigates
+ * via a left-side rail (desktop) and a mobile drill-in menu, mirroring the
+ * SettingsModal pattern. `activeSection` is pathname-driven (controlled); the
+ * mobile drill-in (`showMobileMenu`) is local view state.
  */
-export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
+export const PlcDashboard: React.FC<PlcDashboardProps> = ({
+  plc,
+  activeSection: requestedSection,
+  onClose,
+}) => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [activeSection, setActiveSection] = useState<PlcSectionId>('home');
-  const [showMobileMenu, setShowMobileMenu] = useState(true);
+  // On mobile, deep-linking straight to a section (anything but `home`) should
+  // open that section, not the drill-in menu; landing on home shows the menu.
+  const [showMobileMenu, setShowMobileMenu] = useState(
+    requestedSection === 'home'
+  );
 
-  // Close on Escape.
+  // Close on Escape (navigates back to the board / prior entry).
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
@@ -62,17 +80,30 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
     [visibleSections, t]
   );
 
-  // If the active section gets hidden via a settings toggle by another member,
-  // fall back to "home" — which is always visible. Adjust state during render
-  // rather than via an effect to avoid an extra render pass.
-  if (!visibleSections.find((s) => s.id === activeSection)) {
-    setActiveSection('home');
-  }
+  // The requested section may not be visible: it could be a feature-gated
+  // section the team has toggled off, or `meeting` (reserved, not in the rail
+  // this wave). In either case fall back to `home`. We only REWRITE the URL
+  // (replaceState, no history entry) when the requested section is a real
+  // section id that resolved away — not for `home` itself.
+  const activeSection: PlcSectionId = visibleSections.find(
+    (s) => s.id === requestedSection
+  )
+    ? requestedSection
+    : 'home';
+  useEffect(() => {
+    if (activeSection !== requestedSection) {
+      spaReplace(buildPlcPath(plc.id, activeSection));
+    }
+  }, [activeSection, requestedSection, plc.id]);
 
-  const isLead = plc.leadUid === user?.uid;
+  // Read membership through the T1 helpers so the lead badge + member count
+  // work against the canonical `members` map AND legacy arrays.
+  const isLead = user?.uid ? getPlcRole(plc, user.uid) === 'lead' : false;
+  const memberCount = useMemo(() => getPlcMembers(plc).length, [plc]);
 
   const handleBackOrClose = () => {
     if (!showMobileMenu) {
+      // Drill back out to the mobile section list without leaving the PLC.
       setShowMobileMenu(true);
     } else {
       onClose();
@@ -80,8 +111,10 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
   };
 
   const handleNavigateSection = (sectionId: PlcSectionId) => {
-    setActiveSection(sectionId);
     setShowMobileMenu(false);
+    if (sectionId !== activeSection) {
+      spaNavigate(buildPlcPath(plc.id, sectionId));
+    }
   };
 
   const renderSection = (id: PlcSectionId): React.ReactNode => {
@@ -108,6 +141,11 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
         );
       case 'settings':
         return <PlcSettingsTab plc={plc} />;
+      // `meeting` is reserved for Meeting Mode (later wave) and never resolves
+      // to a visible section here — `activeSection` coerces it to `home`. The
+      // case keeps the switch exhaustive over the `PlcSectionId` union.
+      case 'meeting':
+        return null;
     }
   };
 
@@ -158,7 +196,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
         <div className="bg-white border-b border-slate-200 px-4 md:px-6 py-2.5 flex items-center gap-3 text-xxs text-slate-500 shrink-0">
           <span className="font-semibold uppercase tracking-widest">
             {t('plcDashboard.meta.members', {
-              count: plc.memberUids.length,
+              count: memberCount,
               defaultValue: '{{count}} Member',
               defaultValue_other: '{{count}} Members',
             })}
@@ -189,10 +227,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
         <div className="flex-1 flex overflow-hidden">
           <PlcDashboardRail
             activeSection={activeSection}
-            onSelect={(id) => {
-              setActiveSection(id);
-              setShowMobileMenu(false);
-            }}
+            onSelect={handleNavigateSection}
             visibleSections={visibleRailItems}
           />
 
@@ -204,10 +239,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
                 {visibleSections.map((section) => (
                   <button
                     key={section.id}
-                    onClick={() => {
-                      setActiveSection(section.id);
-                      setShowMobileMenu(false);
-                    }}
+                    onClick={() => handleNavigateSection(section.id)}
                     className="flex items-center justify-between p-4 min-h-[60px] hover:bg-slate-100 active:bg-slate-200 transition-colors border-b border-slate-100 last:border-b-0 w-full text-left"
                   >
                     <div className="flex items-center gap-4">

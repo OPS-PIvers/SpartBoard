@@ -72,6 +72,7 @@ import {
   pullSyncedVideoActivityContent,
 } from '@/hooks/useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
+import { getPlcMemberEmail } from '@/utils/plc';
 import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
 import { PlcVideoActivityImportModal } from '../PlcVideoActivityImportModal';
 import {
@@ -557,7 +558,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
         }
 
         const ownerEmailLower =
-          plc.memberEmails?.[user.uid] ??
+          getPlcMemberEmail(plc, user.uid) ??
           (user.email ? user.email.toLowerCase() : '');
         await writePlcVideoActivityEntry(plc.id, user.uid, {
           plcVideoActivityId: crypto.randomUUID(),
@@ -603,8 +604,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
       attachSyncLinkage,
       loadActivityData,
       personalActivities,
-      plc.id,
-      plc.memberEmails,
+      plc,
       plcSyncGroupIds,
       t,
       user,

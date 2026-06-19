@@ -13,13 +13,14 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { PlcQuizEntry, QuizSessionMode, QuizSessionOptions } from '@/types';
 import { logError } from '@/utils/logError';
+import { usePlcSubcollection } from '@/context/usePlcContext';
 
 const PLCS_COLLECTION = 'plcs';
 const QUIZZES_SUBCOLLECTION = 'quizzes';
 
 /**
  * Recognized boolean toggle keys on `QuizSessionOptions` (plus the inherited
- * `BaseSessionOptions` fields). Used by `parseEntry` to validate that a stored
+ * `BaseSessionOptions` fields). Used by `parsePlcQuizEntry` to validate that a stored
  * `sessionOptions` object carries at least one real run-setting before we cast
  * it — guards against `{}` / malformed objects being treated as valid.
  */
@@ -117,7 +118,7 @@ interface UsePlcQuizzesResult {
   unshareQuizFromPlc: (plcQuizId: string) => Promise<void>;
 }
 
-function parseEntry(
+export function parsePlcQuizEntry(
   id: string,
   data: Record<string, unknown>
 ): PlcQuizEntry | null {
@@ -187,6 +188,8 @@ function parseEntry(
  */
 export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
   const { user } = useAuth();
+  // Back-compat (Decision 1.4): read from a mounted PlcProvider when present.
+  const fromProvider = usePlcSubcollection(plcId, (s) => s.quizzes);
   const [quizzes, setQuizzes] = useState<PlcQuizEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -200,6 +203,7 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
   }
 
   useEffect(() => {
+    if (fromProvider) return;
     if (!plcId || !user || isAuthBypass) {
       const t = setTimeout(() => {
         setQuizzes([]);
@@ -213,7 +217,10 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
       (snap) => {
         const list: PlcQuizEntry[] = [];
         snap.forEach((d) => {
-          const parsed = parseEntry(d.id, d.data() as Record<string, unknown>);
+          const parsed = parsePlcQuizEntry(
+            d.id,
+            d.data() as Record<string, unknown>
+          );
           if (parsed) list.push(parsed);
         });
         setQuizzes(list);
@@ -227,7 +234,7 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
       }
     );
     return () => unsub();
-  }, [plcId, user]);
+  }, [plcId, user, fromProvider]);
 
   const shareQuizWithPlc = useCallback(
     async (input: ShareQuizWithPlcInput): Promise<void> => {
@@ -293,24 +300,29 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
     [plcId, user]
   );
 
-  return useMemo(
-    () => ({
-      quizzes,
-      loading,
-      error,
+  return useMemo(() => {
+    const resolved = fromProvider
+      ? {
+          quizzes: fromProvider.data,
+          loading: fromProvider.loading,
+          error: fromProvider.error,
+        }
+      : { quizzes, loading, error };
+    return {
+      ...resolved,
       shareQuizWithPlc,
       mirrorPlcQuizHeader,
       unshareQuizFromPlc,
-    }),
-    [
-      quizzes,
-      loading,
-      error,
-      shareQuizWithPlc,
-      mirrorPlcQuizHeader,
-      unshareQuizFromPlc,
-    ]
-  );
+    };
+  }, [
+    fromProvider,
+    quizzes,
+    loading,
+    error,
+    shareQuizWithPlc,
+    mirrorPlcQuizHeader,
+    unshareQuizFromPlc,
+  ]);
 };
 
 /**

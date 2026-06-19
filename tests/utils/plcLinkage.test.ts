@@ -33,6 +33,7 @@ function makePlc(overrides?: Partial<Plc>): Plc {
     id: 'plc-1',
     name: 'Math PLC',
     leadUid: SELF_UID,
+    members: {},
     memberUids: [SELF_UID, 'peer-uid'],
     memberEmails: {
       [SELF_UID]: 'teacher@orono.k12.mn.us',

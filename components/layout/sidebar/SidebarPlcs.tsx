@@ -15,6 +15,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Plc, PlcInvitation } from '@/types';
+import { getPlcMembers, getPlcRole } from '@/utils/plc';
 import { PlcEditModal } from './PlcEditModal';
 import { PlcInvitesModal } from './PlcInvitesModal';
 
@@ -124,7 +125,7 @@ const PlcRow: React.FC<PlcRowProps> = ({
           </div>
           <div className="text-xxs font-semibold text-slate-400 uppercase tracking-widest">
             {t('sidebar.plcs.memberCount', {
-              count: plc.memberUids.length,
+              count: getPlcMembers(plc).length,
               defaultValue: '{{count}} Member',
               defaultValue_other: '{{count}} Members',
             })}
@@ -388,7 +389,9 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                 </h3>
                 <div className="flex flex-col gap-2">
                   {plcs.map((plc) => {
-                    const isLead = plc.leadUid === user?.uid;
+                    const isLead = user?.uid
+                      ? getPlcRole(plc, user.uid) === 'lead'
+                      : false;
                     return (
                       <PlcRow
                         key={plc.id}

@@ -20,11 +20,19 @@ import type {
   PlcContributionQuestion,
   PlcContributionResponse,
 } from '@/types';
+import { usePlcSubcollection } from '@/context/usePlcContext';
 
 interface UsePlcContributionsResult {
   contributions: PlcContribution[];
   loading: boolean;
-  error: string | null;
+  /**
+   * Snapshot subscription error. Non-null means the empty `contributions`
+   * array is "couldn't load," not "no items yet." Standardized on
+   * `Error | null` (Decision 1.4 — error-contract unification) so every
+   * `usePlc*` hook surfaces the same shape; consumers read `error.message`
+   * for display.
+   */
+  error: Error | null;
 }
 
 /**
@@ -101,7 +109,7 @@ function parseResponse(r: unknown): PlcContributionResponse | null {
  * writes `schemaVersion: 2` with an incompatible shape, parsing it with
  * the v1 parser would produce wrong aggregates without any signal.
  */
-function parseContribution(
+export function parseContribution(
   id: string,
   data: Record<string, unknown>
 ): PlcContribution | null {
@@ -164,9 +172,19 @@ function parseContribution(
 export function usePlcContributions(
   plcId: string | null
 ): UsePlcContributionsResult {
+  // Back-compat path (Decision 1.4): when a PlcProvider is mounted for this
+  // plcId, read the deduped contributions slice from the provider store
+  // instead of opening a second `onSnapshot` listener. `usePlcSubcollection`
+  // always runs (hook order) — it returns `null` when no provider is mounted
+  // (or it covers a different plcId / hasn't gated this slice on yet), and we
+  // fall through to the standalone subscription below (preserving every call
+  // site that renders contributions outside the provider, e.g. AttentionCard
+  // on Home).
+  const fromProvider = usePlcSubcollection(plcId, (s) => s.contributions);
+
   const [contributions, setContributions] = useState<PlcContribution[]>([]);
   const [loading, setLoading] = useState<boolean>(plcId !== null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
 
   // Reset state on plcId transitions using the "adjusting state while
   // rendering" pattern instead of an effect. Doing this in the effect
@@ -184,7 +202,8 @@ export function usePlcContributions(
   }
 
   useEffect(() => {
-    if (!plcId) return;
+    // Provider owns the listener for this plcId — skip the standalone one.
+    if (!plcId || fromProvider) return;
     const ref = collection(db, 'plcs', plcId, 'contributions');
     const unsub = onSnapshot(
       ref,
@@ -207,17 +226,23 @@ export function usePlcContributions(
       },
       (err) => {
         // Permission-denied is expected if the caller leaves the PLC
-        // mid-session — surface the message but don't blow up the UI.
+        // mid-session — surface the error but don't blow up the UI.
         logError('usePlcContributions.snapshot', err, { plcId });
-        setError(err.message);
+        setError(err instanceof Error ? err : new Error(String(err)));
         setLoading(false);
       }
     );
     return () => unsub();
-  }, [plcId]);
+  }, [plcId, fromProvider]);
 
-  return useMemo(
-    () => ({ contributions, loading, error }),
-    [contributions, loading, error]
-  );
+  return useMemo(() => {
+    if (fromProvider) {
+      return {
+        contributions: fromProvider.data,
+        loading: fromProvider.loading,
+        error: fromProvider.error,
+      };
+    }
+    return { contributions, loading, error };
+  }, [fromProvider, contributions, loading, error]);
 }

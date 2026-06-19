@@ -6,6 +6,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  serverTimestamp,
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
@@ -13,6 +14,8 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { PlcNote } from '@/types';
 import { logError } from '@/utils/logError';
+import { tsToMillis } from '@/utils/plc';
+import { usePlcSubcollection } from '@/context/usePlcContext';
 
 const PLCS_COLLECTION = 'plcs';
 const NOTES_SUBCOLLECTION = 'notes';
@@ -35,25 +38,30 @@ interface UsePlcNotesResult {
   deleteNote: (noteId: string) => Promise<void>;
 }
 
-function parseNote(id: string, data: Record<string, unknown>): PlcNote | null {
+export function parseNote(
+  id: string,
+  data: Record<string, unknown>
+): PlcNote | null {
   if (
     typeof data.title !== 'string' ||
     typeof data.body !== 'string' ||
     typeof data.createdBy !== 'string' ||
-    typeof data.createdAt !== 'number' ||
-    typeof data.lastEditedBy !== 'string' ||
-    typeof data.lastEditedAt !== 'number'
+    typeof data.lastEditedBy !== 'string'
   ) {
     return null;
   }
+  // createdAt / lastEditedAt are serverTimestamp()-backed on write (Decision
+  // 1.3) but legacy docs still carry plain millis numbers. `tsToMillis`
+  // tolerates both a Firestore Timestamp and a number (and yields 0 for an
+  // as-yet-unresolved pending server timestamp from the local snapshot).
   return {
     id,
     title: data.title,
     body: data.body,
     createdBy: data.createdBy,
-    createdAt: data.createdAt,
+    createdAt: tsToMillis(data.createdAt),
     lastEditedBy: data.lastEditedBy,
-    lastEditedAt: data.lastEditedAt,
+    lastEditedAt: tsToMillis(data.lastEditedAt),
   };
 }
 
@@ -64,6 +72,9 @@ function parseNote(id: string, data: Record<string, unknown>): PlcNote | null {
  */
 export const usePlcNotes = (plcId: string | null): UsePlcNotesResult => {
   const { user } = useAuth();
+  // Back-compat (Decision 1.4): read the deduped notes slice from a mounted
+  // PlcProvider when present; otherwise keep the standalone subscription below.
+  const fromProvider = usePlcSubcollection(plcId, (s) => s.notes);
   const [notes, setNotes] = useState<PlcNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -77,6 +88,7 @@ export const usePlcNotes = (plcId: string | null): UsePlcNotesResult => {
   }
 
   useEffect(() => {
+    if (fromProvider) return;
     if (!plcId || !user || isAuthBypass) {
       const t = setTimeout(() => {
         setNotes([]);
@@ -104,7 +116,7 @@ export const usePlcNotes = (plcId: string | null): UsePlcNotesResult => {
       }
     );
     return () => unsub();
-  }, [plcId, user]);
+  }, [plcId, user, fromProvider]);
 
   const createNote = useCallback(
     async (input: { title: string; body: string }): Promise<string> => {
@@ -112,17 +124,19 @@ export const usePlcNotes = (plcId: string | null): UsePlcNotesResult => {
       const ref = doc(
         collection(db, PLCS_COLLECTION, plcId, NOTES_SUBCOLLECTION)
       );
-      const now = Date.now();
-      const note: PlcNote = {
+      // serverTimestamp() for the time fields (Decision 1.3); the typed
+      // `PlcNote.createdAt/lastEditedAt: number` is the read-side shape after
+      // `parseNote` resolves the Timestamp via `tsToMillis`. The write payload
+      // therefore can't be the typed `PlcNote` (the sentinel isn't a number).
+      await setDoc(ref, {
         id: ref.id,
         title: input.title,
         body: input.body,
         createdBy: user.uid,
-        createdAt: now,
+        createdAt: serverTimestamp(),
         lastEditedBy: user.uid,
-        lastEditedAt: now,
-      };
-      await setDoc(ref, note);
+        lastEditedAt: serverTimestamp(),
+      });
       return ref.id;
     },
     [plcId, user]
@@ -145,7 +159,7 @@ export const usePlcNotes = (plcId: string | null): UsePlcNotesResult => {
       // `lastEditedAt is int` on update.
       const fields: Record<string, unknown> = {
         lastEditedBy: user.uid,
-        lastEditedAt: Date.now(),
+        lastEditedAt: serverTimestamp(),
       };
       if (patch.title !== undefined) fields.title = patch.title;
       if (patch.body !== undefined) fields.body = patch.body;
@@ -167,8 +181,14 @@ export const usePlcNotes = (plcId: string | null): UsePlcNotesResult => {
     [plcId, user]
   );
 
-  return useMemo(
-    () => ({ notes, loading, error, createNote, updateNote, deleteNote }),
-    [notes, loading, error, createNote, updateNote, deleteNote]
-  );
+  return useMemo(() => {
+    const resolved = fromProvider
+      ? {
+          notes: fromProvider.data,
+          loading: fromProvider.loading,
+          error: fromProvider.error,
+        }
+      : { notes, loading, error };
+    return { ...resolved, createNote, updateNote, deleteNote };
+  }, [fromProvider, notes, loading, error, createNote, updateNote, deleteNote]);
 };

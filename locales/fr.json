@@ -268,6 +268,20 @@
     },
     "confirmClearBoard": "Êtes-vous sûr de vouloir fermer TOUTES les fenêtres de widgets ?"
   },
+  "plc": {
+    "errors": {
+      "notSignedIn": "Vous devez être connecté pour effectuer cette action.",
+      "nameRequired": "Le nom de la CAP est requis.",
+      "accountEmailRequired": "Une adresse e-mail de compte est requise pour créer une CAP.",
+      "plcNotFound": "CAP introuvable.",
+      "leadCannotLeave": "Le responsable doit transférer la direction avant de quitter la CAP.",
+      "leadCannotBeRemoved": "Le responsable ne peut pas être retiré ; transférez la direction ou supprimez la CAP.",
+      "notAMember": "Cette personne n'est pas membre de cette CAP.",
+      "targetNotActiveMember": "Vous ne pouvez transférer la direction qu'à un membre actif.",
+      "cannotDemoteLead": "Utilisez « Transférer la direction » pour changer le responsable de la CAP.",
+      "invalidRole": "Ce n'est pas un rôle de CAP valide."
+    }
+  },
   "plcDashboard": {
     "subtitle": "Tableau de la Communauté",
     "backToMenu": "Retour",
@@ -338,6 +352,45 @@
       "members_one": "{{count}} Membre",
       "members_other": "{{count}} Membres",
       "youLead": "Vous dirigez cette Communauté"
+    },
+    "members": {
+      "heading": "Membres",
+      "you": "Vous",
+      "roles": {
+        "lead": "Responsable",
+        "coLead": "Co-responsable",
+        "member": "Membre",
+        "viewer": "Observateur"
+      },
+      "roleSelectAriaLabel": "Rôle pour {{email}}",
+      "confirmRole": "Changer {{email}} en {{role}} ?",
+      "confirmRoleTitle": "Changer le rôle",
+      "confirmRoleAction": "Changer le rôle",
+      "makeLead": "Nommer responsable",
+      "makeLeadAriaLabel": "Nommer {{email}} responsable",
+      "confirmTransfer": "Nommer {{email}} responsable de cette Communauté ? Vous deviendrez un membre ordinaire.",
+      "confirmTransferTitle": "Transférer la responsabilité",
+      "remove": "Retirer",
+      "removeAriaLabel": "Retirer {{email}}",
+      "confirmRemove": "Retirer {{email}} de cette Communauté ?",
+      "confirmRemoveTitle": "Retirer un membre",
+      "leave": "Quitter",
+      "leavePlc": "Quitter cette Communauté",
+      "confirmLeave": "Quitter cette Communauté ? Vous perdrez l'accès aux résultats des devoirs partagés.",
+      "confirmLeaveTitle": "Quitter la Communauté",
+      "inviteHeading": "Inviter un enseignant",
+      "invitePlaceholder": "enseignant@ecole.fr",
+      "invite": "Inviter",
+      "sending": "Envoi…",
+      "invalidEmail": "Saisissez une adresse e-mail valide.",
+      "alreadyMember": "Cet e-mail est déjà membre de cette Communauté.",
+      "inviteSent": "Invitation envoyée à {{email}}.",
+      "inviteError": "Impossible d'envoyer l'invitation. Réessayez dans un instant.",
+      "pendingHeading": "Invitations en attente",
+      "pendingSince": "Invité {{when}}",
+      "revoke": "Révoquer",
+      "revokeAriaLabel": "Révoquer l'invitation pour {{email}}",
+      "notManager": "Seul le responsable ou un co-responsable de la Communauté peut inviter, retirer ou modifier des membres."
     },
     "completedAssignments": {
       "heading": "Résultats partagés",
@@ -1140,5 +1193,30 @@
       "dragFromLibrary": "Faites glisser les autocollants de la bibliothèque vers le tableau",
       "stickerAdded": "Autocollant ajouté au tableau !"
     }
+  },
+  "plcRoute": {
+    "loading": "Chargement de la CAP…",
+    "notFoundTitle": "CAP introuvable",
+    "notFoundBody": "Cette CAP n'existe pas ou vous n'en êtes plus membre.",
+    "backToBoard": "Retour à mon tableau",
+    "hubTitle": "Mes CAP",
+    "hubSubtitle": "Ouvrez une communauté d'apprentissage professionnelle pour collaborer avec votre équipe.",
+    "hubEmptyTitle": "Aucune CAP pour l'instant",
+    "hubEmptySubtitle": "Créez une CAP depuis la barre latérale et invitez vos collègues.",
+    "leadBadge": "Responsable",
+    "memberCount": "{{count}} membre",
+    "memberCount_other": "{{count}} membres"
+  },
+  "plcDirectory": {
+    "heading": "CAP dans mon établissement",
+    "subtitle": "Équipes de votre établissement que vous pouvez demander à rejoindre.",
+    "memberCount": "{{count}} membre",
+    "memberCount_other": "{{count}} membres",
+    "requestToJoin": "Demander à rejoindre",
+    "requestHint": "Demandez à un membre d'inviter {{email}}.",
+    "emptyTitle": "Aucune autre CAP à afficher",
+    "emptySubtitle": "Il n'y a aucune autre CAP dans votre établissement pour le moment.",
+    "noOrgTitle": "Annuaire de l'établissement indisponible",
+    "noOrgSubtitle": "Votre compte n'est pas encore associé à un établissement, nous ne pouvons donc pas afficher les CAP à proximité."
   }
 }

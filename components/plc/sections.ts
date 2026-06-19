@@ -24,7 +24,40 @@ export type PlcSectionId =
   | 'sharedBoards'
   | 'members'
   | 'resources'
-  | 'settings';
+  | 'settings'
+  // Reserved for later waves (Meeting Mode — PRD §6.2). It is a valid route
+  // section so `/plc/:id/meeting` parses cleanly, but it is intentionally NOT
+  // in `PLC_SECTIONS` yet, so it does not appear in the rail this wave.
+  | 'meeting';
+
+/**
+ * Every section id the router will accept in a `/plc/:plcId/:section` path.
+ * Includes `meeting` (reserved for Meeting Mode) even though it is not yet a
+ * rail item — the router needs to recognise it so deep links don't fall back
+ * to home. Derived from the `PlcSectionId` union so the two never drift.
+ */
+export const PLC_SECTION_IDS: ReadonlySet<PlcSectionId> = new Set<PlcSectionId>(
+  [
+    'home',
+    'quizzes',
+    'videoActivities',
+    'sharedData',
+    'docs',
+    'todos',
+    'sharedBoards',
+    'members',
+    'resources',
+    'settings',
+    'meeting',
+  ]
+);
+
+/** Type guard: is `value` a valid PLC section id (for router parsing)? */
+export function isPlcSectionId(value: unknown): value is PlcSectionId {
+  return (
+    typeof value === 'string' && PLC_SECTION_IDS.has(value as PlcSectionId)
+  );
+}
 
 export interface PlcSectionDef {
   id: PlcSectionId;

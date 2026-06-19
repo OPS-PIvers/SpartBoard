@@ -8,6 +8,7 @@ import { useDialog } from '@/context/useDialog';
 import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { Plc } from '@/types';
+import { getPlcMembers, getPlcRole } from '@/utils/plc';
 
 interface PlcEditModalProps {
   isOpen: boolean;
@@ -39,7 +40,11 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
   const { sentInvites, sendInvite, revokeInvite } = usePlcInvitations();
 
   const isCreate = plc === null;
-  const isLead = !isCreate && plc.leadUid === user?.uid;
+  // Read membership through the T1 helpers so this works against the canonical
+  // `members` map AND legacy arrays.
+  const isLead =
+    !isCreate && !!user?.uid && getPlcRole(plc, user.uid) === 'lead';
+  const memberList = isCreate ? [] : getPlcMembers(plc);
 
   const [name, setName] = useState(plc?.name ?? '');
   const [inviteEmail, setInviteEmail] = useState('');
@@ -90,6 +95,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
         plcId: plc.id,
         plcName: plc.name,
         inviteeEmail: email,
+        orgId: plc.orgId ?? null,
       });
       setInviteEmail('');
     } catch (err) {
@@ -197,14 +203,15 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
                 {t('sidebar.plcs.membersLabel', { defaultValue: 'Members' })}
               </label>
               <span className="text-xxs font-bold text-slate-400">
-                {plc.memberUids.length}
+                {memberList.length}
               </span>
             </div>
             <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-48 overflow-y-auto custom-scrollbar">
-              {plc.memberUids.map((uid) => {
-                const email = plc.memberEmails[uid] ?? '';
+              {memberList.map((m) => {
+                const uid = m.uid;
+                const email = m.email;
                 const isMe = uid === user?.uid;
-                const isMemberLead = uid === plc.leadUid;
+                const isMemberLead = m.role === 'lead';
                 const label = email || uid;
                 return (
                   <div

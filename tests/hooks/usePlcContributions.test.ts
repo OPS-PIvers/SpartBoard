@@ -39,10 +39,10 @@ function fakeSnap(docs: Array<{ id: string; data: Record<string, unknown> }>) {
  */
 function renderWithCapturedSnapshot() {
   let onNext: (snap: unknown) => void = () => undefined;
-  let onError: (err: { message: string }) => void = () => undefined;
+  let onError: (err: Error) => void = () => undefined;
   mockOnSnapshot.mockImplementation((_ref, next, err) => {
     onNext = next as (snap: unknown) => void;
-    onError = err as (e: { message: string }) => void;
+    onError = err as (e: Error) => void;
     return () => undefined;
   });
   const rendered = renderHook(() => usePlcContributions(PLC_ID));
@@ -50,7 +50,7 @@ function renderWithCapturedSnapshot() {
     ...rendered,
     emit: (docs: Array<{ id: string; data: Record<string, unknown> }>) =>
       act(() => onNext(fakeSnap(docs))),
-    emitError: (message: string) => act(() => onError({ message })),
+    emitError: (message: string) => act(() => onError(new Error(message))),
   };
 }
 
@@ -617,7 +617,10 @@ describe('usePlcContributions — error path and recovery', () => {
     expect(result.current.loading).toBe(true);
     emitError('Missing or insufficient permissions.');
 
-    expect(result.current.error).toBe('Missing or insufficient permissions.');
+    expect(result.current.error).toBeInstanceOf(Error);
+    expect(result.current.error?.message).toBe(
+      'Missing or insufficient permissions.'
+    );
     expect(result.current.loading).toBe(false);
     expect(result.current.contributions).toHaveLength(0);
   });
@@ -626,7 +629,7 @@ describe('usePlcContributions — error path and recovery', () => {
     const { result, emit, emitError } = renderWithCapturedSnapshot();
 
     emitError('Transient network blip.');
-    expect(result.current.error).toBe('Transient network blip.');
+    expect(result.current.error?.message).toBe('Transient network blip.');
 
     emit([
       {

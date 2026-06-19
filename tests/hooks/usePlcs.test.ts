@@ -28,9 +28,15 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
+  setDoc,
   where,
 } from 'firebase/firestore';
 import { usePlcs } from '@/hooks/usePlcs';
+
+// A distinct sentinel object so tests can assert serverTimestamp() was used
+// (rather than a Date.now() number) for every PLC write.
+const SERVER_TS = { __serverTimestamp: true };
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
@@ -49,11 +55,19 @@ vi.mock('firebase/firestore', () => ({
   getDocs: vi.fn(),
   writeBatch: vi.fn(),
   runTransaction: vi.fn(),
+  serverTimestamp: vi.fn(() => SERVER_TS),
 }));
 
 vi.mock('@/config/firebase', () => ({
   db: { __mock: 'db' },
   isAuthBypass: false,
+}));
+
+// Non-React i18n shim — return the key so assertions can match on the key
+// instead of the translated copy (and so the test doesn't depend on the EN
+// wording).
+vi.mock('@/i18n/index', () => ({
+  default: { t: (key: string) => key },
 }));
 
 const useAuthMock = vi.fn<() => { user: { uid: string } | null }>();
@@ -69,8 +83,42 @@ const mockOrderBy = orderBy as Mock;
 const mockLimit = limit as Mock;
 const mockGetDoc = getDoc as Mock;
 const mockDoc = doc as Mock;
+const mockRunTransaction = runTransaction as Mock;
+const mockSetDoc = setDoc as Mock;
 
 const USER_UID = 'user-1';
+
+/**
+ * Drive the mocked `runTransaction` against a single fake root doc. Returns
+ * the captured `tx.update(...)` payload (or null if the txn fn returned
+ * early). `data` is the doc's stored shape; `exists` toggles the not-found
+ * branch.
+ */
+function stubTransaction(
+  data: Record<string, unknown> | null,
+  opts: { exists?: boolean } = {}
+) {
+  const exists = opts.exists ?? data !== null;
+  const captured: { update: Record<string, unknown> | null } = {
+    update: null,
+  };
+  mockRunTransaction.mockImplementation(
+    async (_db: unknown, fn: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        get: () =>
+          Promise.resolve({
+            exists: () => exists,
+            data: () => data ?? {},
+          }),
+        update: (_ref: unknown, payload: Record<string, unknown>) => {
+          captured.update = payload;
+        },
+      };
+      return fn(tx);
+    }
+  );
+  return captured;
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -314,5 +362,322 @@ describe('usePlcs - getPlcSharedSheetUrl caching (F10)', () => {
     expect(url).toBe('https://sheet/fallback');
     expect(mockGetDoc).toHaveBeenCalledTimes(1);
     expect(mockDoc).toHaveBeenCalledWith({ __mock: 'db' }, 'plcs', 'plc-other');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Membership mutators (T2): members map + memberUids + leadUid + memberEmails
+// stay consistent on every write; serverTimestamp() is used; invariants hold.
+// ---------------------------------------------------------------------------
+
+const LEAD_UID = 'user-1'; // === USER_UID; the test user is the lead by default
+const MEMBER_UID = 'member-2';
+const OTHER_UID = 'member-3';
+
+/** A migrated PLC root doc carrying the canonical members map + indexes. */
+function basePlcDoc(): Record<string, unknown> {
+  return {
+    name: 'Test PLC',
+    leadUid: LEAD_UID,
+    memberUids: [LEAD_UID, MEMBER_UID, OTHER_UID],
+    memberEmails: {
+      [LEAD_UID]: 'lead@x.com',
+      [MEMBER_UID]: 'm2@x.com',
+      [OTHER_UID]: 'm3@x.com',
+    },
+    members: {
+      [LEAD_UID]: {
+        uid: LEAD_UID,
+        email: 'lead@x.com',
+        displayName: 'Lead',
+        role: 'lead',
+        joinedAt: 100,
+        status: 'active',
+      },
+      [MEMBER_UID]: {
+        uid: MEMBER_UID,
+        email: 'm2@x.com',
+        displayName: 'Two',
+        role: 'member',
+        joinedAt: 200,
+        status: 'active',
+      },
+      [OTHER_UID]: {
+        uid: OTHER_UID,
+        email: 'm3@x.com',
+        displayName: 'Three',
+        role: 'member',
+        joinedAt: 300,
+        status: 'active',
+      },
+    },
+    createdAt: 1,
+    updatedAt: 1,
+  };
+}
+
+function render() {
+  // Snapshot listener is irrelevant for mutator tests; keep it inert.
+  mockOnSnapshot.mockReturnValue(() => undefined);
+  return renderHook(() => usePlcs());
+}
+
+describe('usePlcs - createPlc writes the members map + indexes', () => {
+  it('writes members map, denormalized indexes, and serverTimestamps', async () => {
+    useAuthMock.mockReturnValue({
+      user: { uid: LEAD_UID, email: 'Lead@X.com', displayName: 'Lead' },
+    } as ReturnType<typeof useAuthMock>);
+    mockCollection.mockReturnValue('plcs');
+    mockDoc.mockReturnValue('plcs/new-id');
+    mockSetDoc.mockResolvedValue(undefined);
+
+    const { result } = render();
+    await act(async () => {
+      await result.current.createPlc('My PLC');
+    });
+
+    expect(mockSetDoc).toHaveBeenCalledTimes(1);
+    const payload = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
+    // Lead is the sole member, leader, and appears in every index.
+    expect(payload.leadUid).toBe(LEAD_UID);
+    expect(payload.memberUids).toEqual([LEAD_UID]);
+    expect(payload.memberEmails).toEqual({ [LEAD_UID]: 'lead@x.com' });
+    const members = payload.members as Record<string, Record<string, unknown>>;
+    expect(members[LEAD_UID].role).toBe('lead');
+    expect(members[LEAD_UID].status).toBe('active');
+    expect(members[LEAD_UID].email).toBe('lead@x.com'); // lowercased
+    expect(members[LEAD_UID].joinedAt).toBe(SERVER_TS);
+    // All timestamps are serverTimestamp(), not Date.now() numbers.
+    expect(payload.createdAt).toBe(SERVER_TS);
+    expect(payload.updatedAt).toBe(SERVER_TS);
+    expect(payload.orgId).toBeNull();
+    expect(payload.buildingId).toBeNull();
+  });
+});
+
+describe('usePlcs - transferLead', () => {
+  beforeEach(() => {
+    useAuthMock.mockReturnValue({
+      user: { uid: LEAD_UID, email: 'lead@x.com', displayName: 'Lead' },
+    } as ReturnType<typeof useAuthMock>);
+  });
+
+  it('demotes old lead, promotes target, moves leadUid mirror in lockstep', async () => {
+    const captured = stubTransaction(basePlcDoc());
+    const { result } = render();
+
+    await act(async () => {
+      await result.current.transferLead('plc-1', MEMBER_UID);
+    });
+
+    const w = captured.update as Record<string, unknown>;
+    expect(w).not.toBeNull();
+    // leadUid mirror moved to the target.
+    expect(w.leadUid).toBe(MEMBER_UID);
+    const members = w.members as Record<string, Record<string, unknown>>;
+    // Exactly one lead — the target — and the old lead is now a member.
+    expect(members[MEMBER_UID].role).toBe('lead');
+    expect(members[LEAD_UID].role).toBe('member');
+    const leadCount = Object.values(members).filter(
+      (m) => m.role === 'lead'
+    ).length;
+    expect(leadCount).toBe(1);
+    // Membership set is unchanged (transfer reassigns a role).
+    expect(w.memberUids).toEqual([LEAD_UID, MEMBER_UID, OTHER_UID]);
+    expect(w.updatedAt).toBe(SERVER_TS);
+  });
+
+  it('rejects transferring to a non-member', async () => {
+    stubTransaction(basePlcDoc());
+    const { result } = render();
+
+    await expect(
+      act(async () => {
+        await result.current.transferLead('plc-1', 'stranger');
+      })
+    ).rejects.toThrow('plc.errors.targetNotActiveMember');
+  });
+
+  it('rejects transferring to a removed member', async () => {
+    const data = basePlcDoc();
+    (data.members as Record<string, Record<string, unknown>>)[
+      MEMBER_UID
+    ].status = 'removed';
+    stubTransaction(data);
+    const { result } = render();
+
+    await expect(
+      act(async () => {
+        await result.current.transferLead('plc-1', MEMBER_UID);
+      })
+    ).rejects.toThrow('plc.errors.targetNotActiveMember');
+  });
+});
+
+describe('usePlcs - setMemberRole', () => {
+  beforeEach(() => {
+    useAuthMock.mockReturnValue({
+      user: { uid: LEAD_UID, email: 'lead@x.com', displayName: 'Lead' },
+    } as ReturnType<typeof useAuthMock>);
+  });
+
+  it('flips a member role in the map, leaving indexes untouched', async () => {
+    const captured = stubTransaction(basePlcDoc());
+    const { result } = render();
+
+    await act(async () => {
+      await result.current.setMemberRole('plc-1', MEMBER_UID, 'coLead');
+    });
+
+    const w = captured.update as Record<string, unknown>;
+    const members = w.members as Record<string, Record<string, unknown>>;
+    expect(members[MEMBER_UID].role).toBe('coLead');
+    expect(w.leadUid).toBeUndefined(); // not touched on a role change
+    expect(w.memberUids).toBeUndefined();
+    // Explicit target pointer for the rules' isChangingMemberRole branch (T6):
+    // co-leads' only authorized path needs the changed uid named on the write.
+    expect(w.roleChangeUid).toBe(MEMBER_UID);
+    expect(w.updatedAt).toBe(SERVER_TS);
+  });
+
+  it('rejects demoting the sitting lead (must transfer instead)', async () => {
+    stubTransaction(basePlcDoc());
+    const { result } = render();
+
+    await expect(
+      act(async () => {
+        await result.current.setMemberRole('plc-1', LEAD_UID, 'member');
+      })
+    ).rejects.toThrow('plc.errors.cannotDemoteLead');
+  });
+
+  it("rejects promoting to 'lead' via setMemberRole", async () => {
+    // 'lead' is rejected before the transaction even reads the doc.
+    const { result } = render();
+
+    await expect(
+      act(async () => {
+        await result.current.setMemberRole('plc-1', MEMBER_UID, 'lead');
+      })
+    ).rejects.toThrow('plc.errors.cannotDemoteLead');
+  });
+
+  it('rejects setting a role on a non-member', async () => {
+    stubTransaction(basePlcDoc());
+    const { result } = render();
+
+    await expect(
+      act(async () => {
+        await result.current.setMemberRole('plc-1', 'stranger', 'viewer');
+      })
+    ).rejects.toThrow('plc.errors.notAMember');
+  });
+});
+
+describe('usePlcs - removeMember', () => {
+  beforeEach(() => {
+    useAuthMock.mockReturnValue({
+      user: { uid: LEAD_UID, email: 'lead@x.com', displayName: 'Lead' },
+    } as ReturnType<typeof useAuthMock>);
+  });
+
+  it('drops the member from all indexes + flips their status to removed', async () => {
+    const captured = stubTransaction(basePlcDoc());
+    const { result } = render();
+
+    await act(async () => {
+      await result.current.removeMember('plc-1', MEMBER_UID);
+    });
+
+    const w = captured.update as Record<string, unknown>;
+    const members = w.members as Record<string, Record<string, unknown>>;
+    expect(members[MEMBER_UID].status).toBe('removed');
+    // Removed member is gone from the denormalized indexes (array-contains
+    // list query must no longer return this PLC for them).
+    expect(w.memberUids).toEqual([LEAD_UID, OTHER_UID]);
+    expect(w.memberEmails).toEqual({
+      [LEAD_UID]: 'lead@x.com',
+      [OTHER_UID]: 'm3@x.com',
+    });
+    expect(w.updatedAt).toBe(SERVER_TS);
+  });
+
+  it('rejects removing the lead', async () => {
+    stubTransaction(basePlcDoc());
+    const { result } = render();
+
+    await expect(
+      act(async () => {
+        await result.current.removeMember('plc-1', LEAD_UID);
+      })
+    ).rejects.toThrow('plc.errors.leadCannotBeRemoved');
+  });
+});
+
+describe('usePlcs - leavePlc', () => {
+  it('a non-lead member self-removes and stays consistent across indexes', async () => {
+    useAuthMock.mockReturnValue({
+      user: { uid: MEMBER_UID, email: 'm2@x.com', displayName: 'Two' },
+    } as ReturnType<typeof useAuthMock>);
+    const captured = stubTransaction(basePlcDoc());
+    const { result } = render();
+
+    await act(async () => {
+      await result.current.leavePlc('plc-1');
+    });
+
+    const w = captured.update as Record<string, unknown>;
+    const members = w.members as Record<string, Record<string, unknown>>;
+    expect(members[MEMBER_UID].status).toBe('removed');
+    expect(w.memberUids).toEqual([LEAD_UID, OTHER_UID]);
+    expect(members[LEAD_UID].role).toBe('lead'); // leadership untouched
+    expect(w.updatedAt).toBe(SERVER_TS);
+  });
+
+  it('rejects the lead leaving (must transfer first)', async () => {
+    useAuthMock.mockReturnValue({
+      user: { uid: LEAD_UID, email: 'lead@x.com', displayName: 'Lead' },
+    } as ReturnType<typeof useAuthMock>);
+    stubTransaction(basePlcDoc());
+    const { result } = render();
+
+    await expect(
+      act(async () => {
+        await result.current.leavePlc('plc-1');
+      })
+    ).rejects.toThrow('plc.errors.leadCannotLeave');
+  });
+});
+
+describe('usePlcs - legacy (un-migrated) PLC backfills the members map', () => {
+  it('transferLead on an arrays-only PLC writes a full members map', async () => {
+    useAuthMock.mockReturnValue({
+      user: { uid: LEAD_UID, email: 'lead@x.com', displayName: 'Lead' },
+    } as ReturnType<typeof useAuthMock>);
+    // Legacy doc: NO members map, only the denormalized arrays.
+    const legacy: Record<string, unknown> = {
+      name: 'Legacy PLC',
+      leadUid: LEAD_UID,
+      memberUids: [LEAD_UID, MEMBER_UID],
+      memberEmails: { [LEAD_UID]: 'lead@x.com', [MEMBER_UID]: 'm2@x.com' },
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    const captured = stubTransaction(legacy);
+    const { result } = render();
+
+    await act(async () => {
+      await result.current.transferLead('plc-legacy', MEMBER_UID);
+    });
+
+    const w = captured.update as Record<string, unknown>;
+    const members = w.members as Record<string, Record<string, unknown>>;
+    // The map was synthesized from the arrays and the role moved.
+    expect(members[MEMBER_UID].role).toBe('lead');
+    expect(members[LEAD_UID].role).toBe('member');
+    expect(members[LEAD_UID].status).toBe('active');
+    expect(w.leadUid).toBe(MEMBER_UID);
+    // Synthesized joins get a serverTimestamp so they aren't frozen at 0.
+    expect(members[MEMBER_UID].joinedAt).toBe(SERVER_TS);
   });
 });

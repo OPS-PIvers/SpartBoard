@@ -21,6 +21,7 @@ import { writePlcVideoActivityEntry } from '@/hooks/usePlcVideoActivities';
 import { pullSyncedQuizContent } from '@/hooks/useSyncedQuizGroups';
 import { pullSyncedVideoActivityContent } from '@/hooks/useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
+import { getPlcMemberEmail } from '@/utils/plc';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import type { PlcSectionId } from '../sections';
 
@@ -129,7 +130,8 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
     if (!uid) throw new Error('Not signed in.');
     const sharedByName = user?.displayName ?? '';
     const sharedByEmail =
-      plc.memberEmails?.[uid] ?? (user?.email ? user.email.toLowerCase() : '');
+      getPlcMemberEmail(plc, uid) ??
+      (user?.email ? user.email.toLowerCase() : '');
 
     if (res.kind === 'quiz') {
       const canonical = await pullSyncedQuizContent(res.refId);

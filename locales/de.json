@@ -268,6 +268,20 @@
     },
     "confirmClearBoard": "Bist du sicher, dass du ALLE Widget-Fenster schließen möchtest?"
   },
+  "plc": {
+    "errors": {
+      "notSignedIn": "Du musst angemeldet sein, um das zu tun.",
+      "nameRequired": "PLC-Name erforderlich.",
+      "accountEmailRequired": "Zum Erstellen einer PLC ist eine Konto-E-Mail erforderlich.",
+      "plcNotFound": "PLC nicht gefunden.",
+      "leadCannotLeave": "Die Leitung muss die Leitung übertragen, bevor sie die PLC verlässt.",
+      "leadCannotBeRemoved": "Die Leitung kann nicht entfernt werden; übertrage die Leitung oder lösche die PLC.",
+      "notAMember": "Diese Person ist kein Mitglied dieser PLC.",
+      "targetNotActiveMember": "Du kannst die Leitung nur an ein aktives Mitglied übertragen.",
+      "cannotDemoteLead": "Verwende „Leitung übertragen“, um zu ändern, wer die PLC leitet.",
+      "invalidRole": "Das ist keine gültige PLC-Rolle."
+    }
+  },
   "plcDashboard": {
     "subtitle": "PLG-Dashboard",
     "backToMenu": "Zurück",
@@ -338,6 +352,45 @@
       "members_one": "{{count}} Mitglied",
       "members_other": "{{count}} Mitglieder",
       "youLead": "Du leitest diese PLG"
+    },
+    "members": {
+      "heading": "Mitglieder",
+      "you": "Du",
+      "roles": {
+        "lead": "Leitung",
+        "coLead": "Co-Leitung",
+        "member": "Mitglied",
+        "viewer": "Betrachter"
+      },
+      "roleSelectAriaLabel": "Rolle für {{email}}",
+      "confirmRole": "{{email}} zu {{role}} ändern?",
+      "confirmRoleTitle": "Rolle ändern",
+      "confirmRoleAction": "Rolle ändern",
+      "makeLead": "Zur Leitung machen",
+      "makeLeadAriaLabel": "{{email}} zur Leitung machen",
+      "confirmTransfer": "{{email}} zur Leitung dieser PLG machen? Du wirst dann ein normales Mitglied.",
+      "confirmTransferTitle": "Leitung übertragen",
+      "remove": "Entfernen",
+      "removeAriaLabel": "{{email}} entfernen",
+      "confirmRemove": "{{email}} aus dieser PLG entfernen?",
+      "confirmRemoveTitle": "Mitglied entfernen",
+      "leave": "Verlassen",
+      "leavePlc": "Diese PLG verlassen",
+      "confirmLeave": "Diese PLG verlassen? Du verlierst den Zugriff auf geteilte Aufgabenergebnisse.",
+      "confirmLeaveTitle": "PLG verlassen",
+      "inviteHeading": "Eine Lehrkraft einladen",
+      "invitePlaceholder": "lehrkraft@schule.de",
+      "invite": "Einladen",
+      "sending": "Wird gesendet…",
+      "invalidEmail": "Gib eine gültige E-Mail-Adresse ein.",
+      "alreadyMember": "Diese E-Mail ist bereits Mitglied dieser PLG.",
+      "inviteSent": "Einladung an {{email}} gesendet.",
+      "inviteError": "Einladung konnte nicht gesendet werden. Versuche es gleich erneut.",
+      "pendingHeading": "Ausstehende Einladungen",
+      "pendingSince": "Eingeladen {{when}}",
+      "revoke": "Widerrufen",
+      "revokeAriaLabel": "Einladung für {{email}} widerrufen",
+      "notManager": "Nur die Leitung oder eine Co-Leitung der PLG kann Mitglieder einladen, entfernen oder ändern."
     },
     "completedAssignments": {
       "heading": "Geteilte Ergebnisse",
@@ -1140,5 +1193,30 @@
       "dragFromLibrary": "Sticker aus der Bibliothek auf das Board ziehen",
       "stickerAdded": "Sticker zum Board hinzugefügt!"
     }
+  },
+  "plcRoute": {
+    "loading": "PLG wird geladen…",
+    "notFoundTitle": "PLG nicht gefunden",
+    "notFoundBody": "Diese PLG existiert nicht oder Sie sind kein Mitglied mehr.",
+    "backToBoard": "Zurück zu meinem Board",
+    "hubTitle": "Meine PLGs",
+    "hubSubtitle": "Öffnen Sie eine professionelle Lerngemeinschaft, um mit Ihrem Team zusammenzuarbeiten.",
+    "hubEmptyTitle": "Noch keine PLGs",
+    "hubEmptySubtitle": "Erstellen Sie eine PLG in der Seitenleiste und laden Sie Ihre Kollegen ein.",
+    "leadBadge": "Leitung",
+    "memberCount": "{{count}} Mitglied",
+    "memberCount_other": "{{count}} Mitglieder"
+  },
+  "plcDirectory": {
+    "heading": "PLGs in meinem Gebäude",
+    "subtitle": "Teams in Ihrem Gebäude, denen Sie beitreten können.",
+    "memberCount": "{{count}} Mitglied",
+    "memberCount_other": "{{count}} Mitglieder",
+    "requestToJoin": "Beitritt anfragen",
+    "requestHint": "Bitten Sie ein Mitglied, {{email}} einzuladen.",
+    "emptyTitle": "Keine weiteren PLGs vorhanden",
+    "emptySubtitle": "Derzeit gibt es keine weiteren PLGs in Ihrem Gebäude.",
+    "noOrgTitle": "Gebäudeverzeichnis nicht verfügbar",
+    "noOrgSubtitle": "Ihr Konto ist noch keiner Schule zugeordnet, daher können wir keine PLGs in der Nähe anzeigen."
   }
 }

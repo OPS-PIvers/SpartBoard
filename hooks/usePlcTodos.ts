@@ -6,6 +6,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  serverTimestamp,
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
@@ -13,6 +14,8 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { PlcTodo } from '@/types';
 import { logError } from '@/utils/logError';
+import { tsToMillis } from '@/utils/plc';
+import { usePlcSubcollection } from '@/context/usePlcContext';
 
 const PLCS_COLLECTION = 'plcs';
 const TODOS_SUBCOLLECTION = 'todos';
@@ -31,21 +34,25 @@ interface UsePlcTodosResult {
   deleteTodo: (todoId: string) => Promise<void>;
 }
 
-function parseTodo(id: string, data: Record<string, unknown>): PlcTodo | null {
+export function parseTodo(
+  id: string,
+  data: Record<string, unknown>
+): PlcTodo | null {
   if (
     typeof data.text !== 'string' ||
     typeof data.done !== 'boolean' ||
-    typeof data.createdBy !== 'string' ||
-    typeof data.createdAt !== 'number'
+    typeof data.createdBy !== 'string'
   ) {
     return null;
   }
+  // createdAt is serverTimestamp()-backed on write (Decision 1.3); legacy
+  // docs carry a plain millis number. `tsToMillis` tolerates both.
   return {
     id,
     text: data.text,
     done: data.done,
     createdBy: data.createdBy,
-    createdAt: data.createdAt,
+    createdAt: tsToMillis(data.createdAt),
   };
 }
 
@@ -58,6 +65,8 @@ function parseTodo(id: string, data: Record<string, unknown>): PlcTodo | null {
  */
 export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
   const { user } = useAuth();
+  // Back-compat (Decision 1.4): read from a mounted PlcProvider when present.
+  const fromProvider = usePlcSubcollection(plcId, (s) => s.todos);
   const [todos, setTodos] = useState<PlcTodo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -71,6 +80,7 @@ export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
   }
 
   useEffect(() => {
+    if (fromProvider) return;
     if (!plcId || !user || isAuthBypass) {
       const t = setTimeout(() => {
         setTodos([]);
@@ -104,7 +114,7 @@ export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
       }
     );
     return () => unsub();
-  }, [plcId, user]);
+  }, [plcId, user, fromProvider]);
 
   const createTodo = useCallback(
     async (text: string): Promise<string> => {
@@ -114,14 +124,16 @@ export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
       const ref = doc(
         collection(db, PLCS_COLLECTION, plcId, TODOS_SUBCOLLECTION)
       );
-      const todo: PlcTodo = {
+      // serverTimestamp() for createdAt (Decision 1.3); the typed
+      // `PlcTodo.createdAt: number` is the read-side shape after `parseTodo`
+      // resolves the Timestamp. The write payload can't be the typed `PlcTodo`.
+      await setDoc(ref, {
         id: ref.id,
         text: trimmed,
         done: false,
         createdBy: user.uid,
-        createdAt: Date.now(),
-      };
-      await setDoc(ref, todo);
+        createdAt: serverTimestamp(),
+      });
       return ref.id;
     },
     [plcId, user]
@@ -166,16 +178,29 @@ export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
     [plcId, user]
   );
 
-  return useMemo(
-    () => ({
-      todos,
-      loading,
-      error,
+  return useMemo(() => {
+    const resolved = fromProvider
+      ? {
+          todos: fromProvider.data,
+          loading: fromProvider.loading,
+          error: fromProvider.error,
+        }
+      : { todos, loading, error };
+    return {
+      ...resolved,
       createTodo,
       toggleDone,
       updateText,
       deleteTodo,
-    }),
-    [todos, loading, error, createTodo, toggleDone, updateText, deleteTodo]
-  );
+    };
+  }, [
+    fromProvider,
+    todos,
+    loading,
+    error,
+    createTodo,
+    toggleDone,
+    updateText,
+    deleteTodo,
+  ]);
 };

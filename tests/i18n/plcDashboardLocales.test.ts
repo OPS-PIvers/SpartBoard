@@ -29,6 +29,7 @@ const REQUIRED_TOP_LEVEL_SECTIONS = [
   'assignmentsLibrary',
   'assignmentsInProgress',
   'meta',
+  'members',
   'completedAssignments',
   'placeholder',
   'settings',
@@ -146,6 +147,50 @@ const REQUIRED_OVERVIEW_KEYS = [
   'tiles',
 ] as const;
 
+/** Keys within plcDashboard.members (T10 membership-management surface) */
+const REQUIRED_MEMBERS_KEYS = [
+  'heading',
+  'you',
+  'roles',
+  'roleSelectAriaLabel',
+  'confirmRole',
+  'confirmRoleTitle',
+  'confirmRoleAction',
+  'makeLead',
+  'makeLeadAriaLabel',
+  'confirmTransfer',
+  'confirmTransferTitle',
+  'remove',
+  'removeAriaLabel',
+  'confirmRemove',
+  'confirmRemoveTitle',
+  'leave',
+  'leavePlc',
+  'confirmLeave',
+  'confirmLeaveTitle',
+  'inviteHeading',
+  'invitePlaceholder',
+  'invite',
+  'sending',
+  'invalidEmail',
+  'alreadyMember',
+  'inviteSent',
+  'inviteError',
+  'pendingHeading',
+  'pendingSince',
+  'revoke',
+  'revokeAriaLabel',
+  'notManager',
+] as const;
+
+/** Keys within plcDashboard.members.roles */
+const REQUIRED_MEMBERS_ROLES_KEYS = [
+  'lead',
+  'coLead',
+  'member',
+  'viewer',
+] as const;
+
 type LocaleFile = typeof en;
 
 // ─── EN baseline ────────────────────────────────────────────────────────────
@@ -196,6 +241,31 @@ describe('EN locale — plcDashboard baseline', () => {
       expect(
         en.plcDashboard.todos,
         `en.plcDashboard.todos.${key} is missing from EN`
+      ).toHaveProperty(key);
+    }
+  });
+
+  it('has all required plcDashboard.members keys', () => {
+    const members = (en.plcDashboard as Record<string, unknown>).members as
+      | Record<string, unknown>
+      | undefined;
+    for (const key of REQUIRED_MEMBERS_KEYS) {
+      expect(
+        members,
+        `en.plcDashboard.members.${key} is missing from EN`
+      ).toHaveProperty(key);
+    }
+  });
+
+  it('has all required plcDashboard.members.roles keys', () => {
+    const members = (en.plcDashboard as Record<string, unknown>).members as
+      | Record<string, unknown>
+      | undefined;
+    const roles = members?.roles as Record<string, unknown> | undefined;
+    for (const key of REQUIRED_MEMBERS_ROLES_KEYS) {
+      expect(
+        roles,
+        `en.plcDashboard.members.roles.${key} is missing from EN`
       ).toHaveProperty(key);
     }
   });
@@ -298,6 +368,33 @@ describe.each([
       expect(
         overview,
         `${code}.plcDashboard.overview.${key} is missing`
+      ).toHaveProperty(key);
+    }
+  });
+
+  it(`${code}: has all required plcDashboard.members keys`, () => {
+    const plc = (locale as Record<string, unknown>).plcDashboard as
+      | Record<string, unknown>
+      | undefined;
+    const members = plc?.members as Record<string, unknown> | undefined;
+    for (const key of REQUIRED_MEMBERS_KEYS) {
+      expect(
+        members,
+        `${code}.plcDashboard.members.${key} is missing`
+      ).toHaveProperty(key);
+    }
+  });
+
+  it(`${code}: has all required plcDashboard.members.roles keys`, () => {
+    const plc = (locale as Record<string, unknown>).plcDashboard as
+      | Record<string, unknown>
+      | undefined;
+    const members = plc?.members as Record<string, unknown> | undefined;
+    const roles = members?.roles as Record<string, unknown> | undefined;
+    for (const key of REQUIRED_MEMBERS_ROLES_KEYS) {
+      expect(
+        roles,
+        `${code}.plcDashboard.members.roles.${key} is missing`
       ).toHaveProperty(key);
     }
   });

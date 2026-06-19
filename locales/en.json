@@ -268,6 +268,20 @@
     },
     "confirmClearBoard": "Are you sure you want to close ALL widget windows?"
   },
+  "plc": {
+    "errors": {
+      "notSignedIn": "You must be signed in to do that.",
+      "nameRequired": "PLC name required.",
+      "accountEmailRequired": "An account email is required to create a PLC.",
+      "plcNotFound": "PLC not found.",
+      "leadCannotLeave": "The lead must transfer leadership before leaving the PLC.",
+      "leadCannotBeRemoved": "The lead cannot be removed; transfer leadership or delete the PLC.",
+      "notAMember": "That person is not a member of this PLC.",
+      "targetNotActiveMember": "You can only transfer leadership to an active member.",
+      "cannotDemoteLead": "Use \"Transfer leadership\" to change who leads the PLC.",
+      "invalidRole": "That is not a valid PLC role."
+    }
+  },
   "plcDashboard": {
     "subtitle": "PLC Dashboard",
     "backToMenu": "Back",
@@ -338,6 +352,45 @@
       "members_one": "{{count}} Member",
       "members_other": "{{count}} Members",
       "youLead": "You lead this PLC"
+    },
+    "members": {
+      "heading": "Members",
+      "you": "You",
+      "roles": {
+        "lead": "Lead",
+        "coLead": "Co-lead",
+        "member": "Member",
+        "viewer": "Viewer"
+      },
+      "roleSelectAriaLabel": "Role for {{email}}",
+      "confirmRole": "Change {{email}} to {{role}}?",
+      "confirmRoleTitle": "Change role",
+      "confirmRoleAction": "Change role",
+      "makeLead": "Make lead",
+      "makeLeadAriaLabel": "Make {{email}} the lead",
+      "confirmTransfer": "Make {{email}} the lead of this PLC? You will become a regular member.",
+      "confirmTransferTitle": "Transfer lead",
+      "remove": "Remove",
+      "removeAriaLabel": "Remove {{email}}",
+      "confirmRemove": "Remove {{email}} from this PLC?",
+      "confirmRemoveTitle": "Remove member",
+      "leave": "Leave",
+      "leavePlc": "Leave this PLC",
+      "confirmLeave": "Leave this PLC? You will lose access to shared assignment results.",
+      "confirmLeaveTitle": "Leave PLC",
+      "inviteHeading": "Invite a teacher",
+      "invitePlaceholder": "teacher@school.edu",
+      "invite": "Invite",
+      "sending": "Sending…",
+      "invalidEmail": "Enter a valid email address.",
+      "alreadyMember": "That email is already a member of this PLC.",
+      "inviteSent": "Invitation sent to {{email}}.",
+      "inviteError": "Could not send invite. Try again in a moment.",
+      "pendingHeading": "Pending invitations",
+      "pendingSince": "Invited {{when}}",
+      "revoke": "Revoke",
+      "revokeAriaLabel": "Revoke invite for {{email}}",
+      "notManager": "Only the PLC lead or a co-lead can invite, remove, or change members."
     },
     "completedAssignments": {
       "heading": "Shared Results",
@@ -1140,5 +1193,30 @@
   },
   "style": {
     "readOnlyNotice": "This board is read-only. Style changes are not saved."
+  },
+  "plcRoute": {
+    "loading": "Loading PLC…",
+    "notFoundTitle": "PLC not found",
+    "notFoundBody": "This PLC doesn't exist or you're no longer a member of it.",
+    "backToBoard": "Back to my board",
+    "hubTitle": "My PLCs",
+    "hubSubtitle": "Open a Professional Learning Community to collaborate with your team.",
+    "hubEmptyTitle": "No PLCs yet",
+    "hubEmptySubtitle": "Create a PLC from the sidebar and invite your colleagues.",
+    "leadBadge": "Lead",
+    "memberCount": "{{count}} Member",
+    "memberCount_other": "{{count}} Members"
+  },
+  "plcDirectory": {
+    "heading": "PLCs in my building",
+    "subtitle": "Teams in your building you can ask to join.",
+    "memberCount": "{{count}} member",
+    "memberCount_other": "{{count}} members",
+    "requestToJoin": "Ask to join",
+    "requestHint": "Ask a member to invite {{email}}.",
+    "emptyTitle": "No other PLCs to show",
+    "emptySubtitle": "There aren't any other PLCs in your building right now.",
+    "noOrgTitle": "Building directory unavailable",
+    "noOrgSubtitle": "Your account isn't linked to a school yet, so we can't list nearby PLCs."
   }
 }

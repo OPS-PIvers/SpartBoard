@@ -11,6 +11,9 @@ import {
 } from 'firebase/firestore';
 import { usePlcDocs } from '@/hooks/usePlcDocs';
 
+// Sentinel so create/update tests can assert serverTimestamp() (Decision 1.3).
+const SERVER_TS = { __serverTimestamp: true };
+
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteDoc: vi.fn(),
@@ -20,6 +23,7 @@ vi.mock('firebase/firestore', () => ({
     __orderBy: { field, dir },
   })),
   query: vi.fn((_ref, ...constraints) => ({ __query: constraints })),
+  serverTimestamp: vi.fn(() => SERVER_TS),
   setDoc: vi.fn(),
   updateDoc: vi.fn(),
 }));
@@ -179,24 +183,42 @@ describe('usePlcDocs — snapshot mapping', () => {
             },
           },
           {
-            // createdAt not a number — drop
+            // createdByName missing (a required string) — drop
             id: 'bad-2',
             data: {
               id: 'bad-2',
-              title: 'Bad createdAt',
+              title: 'No author name',
               url: 'https://docs.google.com',
               createdBy: 'u1',
-              createdByName: 'Bob',
-              createdAt: 'yesterday',
+              createdAt: 100,
               updatedAt: 200,
+            },
+          },
+          {
+            // Timestamp-shaped time fields (serverTimestamp on read) — KEEP,
+            // resolved to millis via tsToMillis.
+            id: 'stamped',
+            data: {
+              id: 'stamped',
+              title: 'Stamped',
+              url: 'https://docs.google.com/document/d/stamp',
+              createdBy: 'u1',
+              createdByName: 'Bob',
+              createdAt: { toMillis: () => 1700000000000 },
+              updatedAt: { toMillis: () => 1700000000500 },
             },
           },
         ])
       );
     });
 
-    expect(result.current.docs).toHaveLength(1);
-    expect(result.current.docs[0]?.id).toBe('good');
+    expect(result.current.docs.map((d) => d.id).sort()).toEqual([
+      'good',
+      'stamped',
+    ]);
+    const stamped = result.current.docs.find((d) => d.id === 'stamped');
+    expect(stamped?.createdAt).toBe(1700000000000);
+    expect(stamped?.updatedAt).toBe(1700000000500);
   });
 });
 
@@ -221,9 +243,9 @@ describe('usePlcDocs — createDoc', () => {
     expect(written.url).toBe('https://docs.google.com/document/d/123');
     expect(written.createdBy).toBe(USER_UID);
     expect(written.createdByName).toBe(USER_DISPLAY_NAME);
-    expect(typeof written.createdAt).toBe('number');
-    expect(typeof written.updatedAt).toBe('number');
-    expect(written.createdAt).toBe(written.updatedAt);
+    // Time fields are serverTimestamp() sentinels (Decision 1.3), not numbers.
+    expect(written.createdAt).toBe(SERVER_TS);
+    expect(written.updatedAt).toBe(SERVER_TS);
     // No extra keys beyond the locked schema
     const keys = Object.keys(written).sort();
     expect(keys).toEqual(
@@ -272,7 +294,7 @@ describe('usePlcDocs — updateDoc', () => {
     const fields = patch as Record<string, unknown>;
     expect(fields.title).toBe('New Title');
     expect(fields.url).toBeUndefined();
-    expect(typeof fields.updatedAt).toBe('number');
+    expect(fields.updatedAt).toBe(SERVER_TS);
     // Must NOT touch identity/immutable fields
     expect(fields.id).toBeUndefined();
     expect(fields.createdBy).toBeUndefined();
@@ -293,7 +315,7 @@ describe('usePlcDocs — updateDoc', () => {
     const fields = mockUpdateDoc.mock.calls[0]?.[1] as Record<string, unknown>;
     expect(fields.url).toBe('https://docs.google.com/document/d/new');
     expect(fields.title).toBeUndefined();
-    expect(typeof fields.updatedAt).toBe('number');
+    expect(fields.updatedAt).toBe(SERVER_TS);
   });
 
   it('omits title and url when patch is empty but still stamps updatedAt', async () => {
@@ -307,7 +329,7 @@ describe('usePlcDocs — updateDoc', () => {
     const fields = mockUpdateDoc.mock.calls[0]?.[1] as Record<string, unknown>;
     expect(fields.title).toBeUndefined();
     expect(fields.url).toBeUndefined();
-    expect(typeof fields.updatedAt).toBe('number');
+    expect(fields.updatedAt).toBe(SERVER_TS);
   });
 });
 

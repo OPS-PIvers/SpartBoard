@@ -200,17 +200,73 @@ export interface ClassRoster extends ClassRosterMeta {
  * Stored at the top level (`/plcs/{plcId}`) rather than under a single user
  * because reads must work for every member, not just the lead.
  */
+/**
+ * A PLC member's role. Drives edit/admin permissions:
+ * - `lead`: sole owner; exactly one per PLC. Can rename, invite, remove
+ *   members, change roles, transfer leadership, and delete the PLC.
+ * - `coLead`: shares lead/co-lead management powers (role changes, transfers)
+ *   but is not the canonical owner.
+ * - `member`: can author/edit PLC content but cannot manage membership.
+ * - `viewer`: read-only; cannot edit any PLC content.
+ */
+export type PlcRole = 'lead' | 'coLead' | 'member' | 'viewer';
+
+/**
+ * One entry in the canonical `Plc.members` map (keyed by uid). Replaces the
+ * parallel `memberUids` / `memberEmails` arrays as the source of truth for
+ * membership, while those legacy fields are retained as denormalized indexes
+ * during rollout. `status: 'removed'` marks a member who has left/been removed
+ * but whose record is kept for attribution; only `status === 'active'` members
+ * count as current.
+ */
+export interface PlcMember {
+  uid: string;
+  /** Lowercased email. */
+  email: string;
+  displayName: string;
+  role: PlcRole;
+  /** ms since epoch, resolved from a Firestore `serverTimestamp()` on read. */
+  joinedAt: number;
+  status: 'active' | 'removed';
+}
+
 export interface Plc {
   id: string;
   name: string;
-  /** UID of the teacher who owns the PLC. Only the lead can rename, invite, remove members, or delete the PLC. */
+  /**
+   * Optional org tenancy (Decision 1.1). Inferred from member email domains
+   * (matched against `/organizations/{orgId}/domains`). `null`/absent means
+   * the PLC is tenancy-free (e.g. cross-district PLCs).
+   */
+  orgId?: string | null;
+  /** Optional building tenancy (Decision 1.1). `null`/absent when unscoped. */
+  buildingId?: string | null;
+  /**
+   * Canonical membership map (Decision 1.2): uid → member record. New PLCs
+   * always write this. Legacy PLCs may lack it — read membership via the
+   * `getPlcMembers` helper, which synthesizes from `memberUids` /
+   * `memberEmails` / `leadUid` when `members` is absent.
+   */
+  members: Record<string, PlcMember>;
+  /**
+   * Denormalized convenience mirror of the member whose role is `lead`.
+   * Kept because Firestore can't query inside a map and several read paths
+   * still reference it directly during rollout. Derived from `members` on
+   * every membership write.
+   */
   leadUid: string;
-  /** All current members, including the lead. Drives the `array-contains` snapshot query in `usePlcs`. */
+  /**
+   * Denormalized index of all current member uids, kept because Firestore
+   * can't `array-contains`-query a map and `usePlcs` lists PLCs via
+   * `where('memberUids','array-contains',uid)`. Maintained on every
+   * membership write alongside `members`.
+   */
   memberUids: string[];
   /**
-   * uid → lowercased email for each current member. Persisted so PR2's
-   * Drive-share step can address members without an extra `/users` lookup
-   * per export. Always written alongside `memberUids`.
+   * uid → lowercased email for each current member. Retained as legacy /
+   * back-compat (the `members` map now carries email canonically). Read via
+   * the `getPlcMemberEmails` / `getPlcTeammateEmails` helpers, which prefer
+   * the map and fall back to this array.
    */
   memberEmails: Record<string, string>;
   /**
@@ -641,6 +697,12 @@ export interface PlcInvitation {
   invitedAt: number;
   status: 'pending' | 'accepted' | 'declined';
   respondedAt?: number;
+  /**
+   * Same-org tenancy stamp (Decision 1.1). Present when the inviting PLC's
+   * root carried an `orgId` at send time, so the invite is scoped to the same
+   * organization. Absent for legacy PLCs that have no `orgId` yet.
+   */
+  orgId?: string;
 }
 
 // --- LIVE SESSION TYPES ---

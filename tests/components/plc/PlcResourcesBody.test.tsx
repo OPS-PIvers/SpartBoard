@@ -89,6 +89,7 @@ const PLC: Plc = {
   id: 'plc-test',
   name: 'Test PLC',
   leadUid: 'u1',
+  members: {},
   memberUids: ['u1'],
   memberEmails: { u1: 'u1@school.edu' },
   sharedSheetUrl: null,

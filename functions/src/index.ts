@@ -73,6 +73,10 @@ export {
 export { joinPlcQuizSyncGroup } from './plcQuizSyncJoin';
 export { joinPlcAssignmentSyncGroup } from './plcAssignmentSyncJoin';
 export { joinPlcVideoActivitySyncGroup } from './plcVideoActivitySyncJoin';
+
+// ── One-shot PLC migration (arrays→members map, orgId inference, aggregates
+// skeleton). Admin-only callable; see functions/src/migratePlcs.ts. ─────────
+export { migratePlcs } from './migratePlcs';
 export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 export { expireSubShares } from './expireSubShares';
 export { finalizeIdleQuizAttempts } from './finalizeIdleQuizAttempts';

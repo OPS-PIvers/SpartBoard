@@ -35,7 +35,13 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, updateDoc, doc } from 'firebase/firestore';
+import {
+  setDoc,
+  updateDoc,
+  doc,
+  getDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-plc-root-doc';
 const PLC_ID = 'plc-root-doc-test';
@@ -476,6 +482,362 @@ describe('plcs/{plcId} update — lead broad-update guard', () => {
     await assertFails(
       updateDoc(doc(asNonMember(), `plcs/${PLC_ID}`), {
         name: 'Outsider rename',
+        updatedAt: 2,
+      })
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Members map + tenancy fields (Decisions 1.1, 1.2) — the canonical
+// `members` map and optional `orgId` / `buildingId` are new fields on the
+// root doc. T1 introduces them on the READ side (dual-shape parser); the
+// root-doc rules already permit them on the lead broad-update branch (which
+// imposes no `keys().hasOnly()` lock) and on create (no field lock). The
+// narrow self-service branches (leave / features) keep their tight `hasOnly`
+// diffs, so they cannot be used to smuggle a `members`-map rewrite — that is
+// reserved for the dedicated role/transfer mutator branches (later task).
+// ---------------------------------------------------------------------------
+
+describe('plcs/{plcId} — members map + orgId/buildingId fields', () => {
+  it('a creator can create a PLC carrying members map + orgId/buildingId', async () => {
+    const NEW_PLC = 'plc-members-create';
+    await assertSucceeds(
+      setDoc(doc(asMemberA(), `plcs/${NEW_PLC}`), {
+        name: 'New PLC',
+        leadUid: MEMBER_A_UID,
+        memberUids: [MEMBER_A_UID],
+        memberEmails: { [MEMBER_A_UID]: MEMBER_A_EMAIL },
+        members: {
+          [MEMBER_A_UID]: {
+            uid: MEMBER_A_UID,
+            email: MEMBER_A_EMAIL,
+            displayName: 'Member A',
+            role: 'lead',
+            joinedAt: 1,
+            status: 'active',
+          },
+        },
+        orgId: 'org-1',
+        buildingId: 'bldg-1',
+        createdAt: 1,
+        updatedAt: 1,
+      })
+    );
+  });
+
+  it('the lead can write the members map + orgId/buildingId via broad update', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}`), {
+        members: {
+          [MEMBER_A_UID]: {
+            uid: MEMBER_A_UID,
+            email: MEMBER_A_EMAIL,
+            displayName: 'Member A',
+            role: 'lead',
+            joinedAt: 1,
+            status: 'active',
+          },
+          [MEMBER_B_UID]: {
+            uid: MEMBER_B_UID,
+            email: MEMBER_B_EMAIL,
+            displayName: 'Member B',
+            role: 'member',
+            joinedAt: 1,
+            status: 'active',
+          },
+        },
+        orgId: 'org-1',
+        buildingId: 'bldg-1',
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('rejects a non-member writing the members map', async () => {
+    await assertFails(
+      updateDoc(doc(asNonMember(), `plcs/${PLC_ID}`), {
+        members: {
+          [NON_MEMBER_UID]: {
+            uid: NON_MEMBER_UID,
+            email: NON_MEMBER_EMAIL,
+            displayName: 'Intruder',
+            role: 'lead',
+            joinedAt: 1,
+            status: 'active',
+          },
+        },
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('rejects smuggling a members-map change through the features branch', async () => {
+    // isUpdatingPlcFeatures pins the diff to features/updatedAt only, so a
+    // member cannot use it to rewrite roles in the members map.
+    await assertFails(
+      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
+        features: { sharedBoards: true },
+        members: {
+          [MEMBER_B_UID]: {
+            uid: MEMBER_B_UID,
+            email: MEMBER_B_EMAIL,
+            displayName: 'Member B',
+            role: 'lead',
+            joinedAt: 1,
+            status: 'active',
+          },
+        },
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('rejects smuggling a members-map change through the leave branch', async () => {
+    // isLeavingPlc tolerates `members` in the diff, but ONLY when the single
+    // changed key is the leaver's own entry flipped to status 'removed'. Here
+    // Member B is leaving yet the members diff rewrites Member A's entry (and
+    // never marks B removed), so membersUntouchedOrSelfRemoved rejects it.
+    await assertFails(
+      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
+        memberUids: [MEMBER_A_UID],
+        memberEmails: { [MEMBER_A_UID]: MEMBER_A_EMAIL },
+        members: {
+          [MEMBER_A_UID]: {
+            uid: MEMBER_A_UID,
+            email: MEMBER_A_EMAIL,
+            displayName: 'Member A',
+            role: 'lead',
+            joinedAt: 1,
+            status: 'active',
+          },
+        },
+        updatedAt: 2,
+      })
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// New-model invariants (T6): members-map read gate, the lead-only sole-member
+// `members` map on create, serverTimestamp/int dual-accept, and
+// orgId/buildingId immutable-after-set on the broad lead branch.
+// ---------------------------------------------------------------------------
+
+describe('plcs/{plcId} — T6 members-map read gate + create + dual-accept', () => {
+  // A members-map-only PLC (no denormalized memberUids) still authorizes its
+  // members via the canonical map-key gate.
+  const seedMapOnly = async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        name: 'Map-only PLC',
+        leadUid: MEMBER_A_UID,
+        // Intentionally NO memberUids array — only the canonical map.
+        members: {
+          [MEMBER_A_UID]: {
+            uid: MEMBER_A_UID,
+            email: MEMBER_A_EMAIL,
+            displayName: 'Member A',
+            role: 'lead',
+            joinedAt: 1,
+            status: 'active',
+          },
+          [MEMBER_B_UID]: {
+            uid: MEMBER_B_UID,
+            email: MEMBER_B_EMAIL,
+            displayName: 'Member B',
+            role: 'member',
+            joinedAt: 1,
+            status: 'active',
+          },
+        },
+        memberUids: [],
+        memberEmails: {},
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+  };
+
+  it('a member keyed only in the members map can read the PLC', async () => {
+    await seedMapOnly();
+    await assertSucceeds(getDoc(doc(asMemberB(), `plcs/${PLC_ID}`)));
+  });
+
+  it('a non-member (not in map or memberUids) cannot read the PLC', async () => {
+    await seedMapOnly();
+    await assertFails(getDoc(doc(asNonMember(), `plcs/${PLC_ID}`)));
+  });
+
+  it('create requires a sole-member members map at role lead + mirrors', async () => {
+    const NEW_PLC = 'plc-create-new-model';
+    await assertSucceeds(
+      setDoc(doc(asMemberA(), `plcs/${NEW_PLC}`), {
+        name: 'New PLC',
+        orgId: null,
+        buildingId: null,
+        leadUid: MEMBER_A_UID,
+        memberUids: [MEMBER_A_UID],
+        memberEmails: { [MEMBER_A_UID]: MEMBER_A_EMAIL },
+        members: {
+          [MEMBER_A_UID]: {
+            uid: MEMBER_A_UID,
+            email: MEMBER_A_EMAIL,
+            displayName: 'Member A',
+            role: 'lead',
+            joinedAt: 1,
+            status: 'active',
+          },
+        },
+        createdAt: 1,
+        updatedAt: 1,
+      })
+    );
+  });
+
+  it('rejects create whose sole member is not role lead', async () => {
+    const NEW_PLC = 'plc-create-bad-role';
+    await assertFails(
+      setDoc(doc(asMemberA(), `plcs/${NEW_PLC}`), {
+        name: 'Bad PLC',
+        leadUid: MEMBER_A_UID,
+        memberUids: [MEMBER_A_UID],
+        memberEmails: { [MEMBER_A_UID]: MEMBER_A_EMAIL },
+        members: {
+          [MEMBER_A_UID]: {
+            uid: MEMBER_A_UID,
+            email: MEMBER_A_EMAIL,
+            displayName: 'Member A',
+            role: 'member',
+            joinedAt: 1,
+            status: 'active',
+          },
+        },
+        createdAt: 1,
+        updatedAt: 1,
+      })
+    );
+  });
+
+  it('rejects create whose members map carries a second member', async () => {
+    const NEW_PLC = 'plc-create-two-members';
+    await assertFails(
+      setDoc(doc(asMemberA(), `plcs/${NEW_PLC}`), {
+        name: 'Two-member PLC',
+        leadUid: MEMBER_A_UID,
+        memberUids: [MEMBER_A_UID],
+        memberEmails: { [MEMBER_A_UID]: MEMBER_A_EMAIL },
+        members: {
+          [MEMBER_A_UID]: {
+            uid: MEMBER_A_UID,
+            email: MEMBER_A_EMAIL,
+            displayName: 'Member A',
+            role: 'lead',
+            joinedAt: 1,
+            status: 'active',
+          },
+          [MEMBER_B_UID]: {
+            uid: MEMBER_B_UID,
+            email: MEMBER_B_EMAIL,
+            displayName: 'Member B',
+            role: 'member',
+            joinedAt: 1,
+            status: 'active',
+          },
+        },
+        createdAt: 1,
+        updatedAt: 1,
+      })
+    );
+  });
+
+  it('create accepts a serverTimestamp createdAt/updatedAt (dual-accept)', async () => {
+    const NEW_PLC = 'plc-create-server-ts';
+    await assertSucceeds(
+      setDoc(doc(asMemberA(), `plcs/${NEW_PLC}`), {
+        name: 'Server-TS PLC',
+        leadUid: MEMBER_A_UID,
+        memberUids: [MEMBER_A_UID],
+        memberEmails: { [MEMBER_A_UID]: MEMBER_A_EMAIL },
+        members: {
+          [MEMBER_A_UID]: {
+            uid: MEMBER_A_UID,
+            email: MEMBER_A_EMAIL,
+            displayName: 'Member A',
+            role: 'lead',
+            joinedAt: serverTimestamp(),
+            status: 'active',
+          },
+        },
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  it('the lead can bump updatedAt with a serverTimestamp (dual-accept)', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}`), {
+        name: 'Renamed with server ts',
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+});
+
+describe('plcs/{plcId} — T6 orgId/buildingId immutable-after-set', () => {
+  const seedWithOrg = async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        name: 'Org PLC',
+        leadUid: MEMBER_A_UID,
+        memberUids: [MEMBER_A_UID, MEMBER_B_UID],
+        memberEmails: {
+          [MEMBER_A_UID]: MEMBER_A_EMAIL,
+          [MEMBER_B_UID]: MEMBER_B_EMAIL,
+        },
+        orgId: 'org-1',
+        buildingId: 'bldg-1',
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+  };
+
+  it('the lead can backfill orgId on an org-less PLC (null → value)', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}`), {
+        orgId: 'org-1',
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('the lead can idempotently re-write the same orgId', async () => {
+    await seedWithOrg();
+    await assertSucceeds(
+      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}`), {
+        orgId: 'org-1',
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('rejects the lead changing orgId to a DIFFERENT value (immutable-after-set)', async () => {
+    await seedWithOrg();
+    await assertFails(
+      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}`), {
+        orgId: 'org-2',
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('rejects the lead changing buildingId to a DIFFERENT value', async () => {
+    await seedWithOrg();
+    await assertFails(
+      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}`), {
+        buildingId: 'bldg-2',
         updatedAt: 2,
       })
     );

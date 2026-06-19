@@ -337,8 +337,8 @@ export const PlcSharedDataBody: React.FC<PlcSharedDataBodyProps> = ({
     const errorMsg =
       entriesError instanceof Error
         ? entriesError.message
-        : typeof contribsError === 'string'
-          ? contribsError
+        : contribsError instanceof Error
+          ? contribsError.message
           : t('plcDashboard.sharedData.loadError', {
               defaultValue: "Couldn't load shared data",
             });

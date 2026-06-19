@@ -268,6 +268,20 @@
     },
     "confirmClearBoard": "¿Estás seguro de que deseas cerrar TODAS las ventanas de widgets?"
   },
+  "plc": {
+    "errors": {
+      "notSignedIn": "Debes iniciar sesión para hacer eso.",
+      "nameRequired": "Se requiere el nombre de la PLC.",
+      "accountEmailRequired": "Se requiere un correo electrónico de cuenta para crear una PLC.",
+      "plcNotFound": "PLC no encontrada.",
+      "leadCannotLeave": "El líder debe transferir el liderazgo antes de abandonar la PLC.",
+      "leadCannotBeRemoved": "No se puede eliminar al líder; transfiere el liderazgo o elimina la PLC.",
+      "notAMember": "Esa persona no es miembro de esta PLC.",
+      "targetNotActiveMember": "Solo puedes transferir el liderazgo a un miembro activo.",
+      "cannotDemoteLead": "Usa «Transferir liderazgo» para cambiar quién lidera la PLC.",
+      "invalidRole": "Ese no es un rol válido de la PLC."
+    }
+  },
   "plcDashboard": {
     "subtitle": "Panel de la Comunidad",
     "backToMenu": "Atrás",
@@ -338,6 +352,45 @@
       "members_one": "{{count}} Miembro",
       "members_other": "{{count}} Miembros",
       "youLead": "Tú lideras esta Comunidad"
+    },
+    "members": {
+      "heading": "Miembros",
+      "you": "Tú",
+      "roles": {
+        "lead": "Líder",
+        "coLead": "Co-líder",
+        "member": "Miembro",
+        "viewer": "Espectador"
+      },
+      "roleSelectAriaLabel": "Rol para {{email}}",
+      "confirmRole": "¿Cambiar a {{email}} a {{role}}?",
+      "confirmRoleTitle": "Cambiar rol",
+      "confirmRoleAction": "Cambiar rol",
+      "makeLead": "Hacer líder",
+      "makeLeadAriaLabel": "Hacer a {{email}} el líder",
+      "confirmTransfer": "¿Hacer a {{email}} el líder de esta Comunidad? Pasarás a ser un miembro normal.",
+      "confirmTransferTitle": "Transferir liderazgo",
+      "remove": "Quitar",
+      "removeAriaLabel": "Quitar a {{email}}",
+      "confirmRemove": "¿Quitar a {{email}} de esta Comunidad?",
+      "confirmRemoveTitle": "Quitar miembro",
+      "leave": "Salir",
+      "leavePlc": "Salir de esta Comunidad",
+      "confirmLeave": "¿Salir de esta Comunidad? Perderás el acceso a los resultados de tareas compartidas.",
+      "confirmLeaveTitle": "Salir de la Comunidad",
+      "inviteHeading": "Invitar a un docente",
+      "invitePlaceholder": "docente@escuela.edu",
+      "invite": "Invitar",
+      "sending": "Enviando…",
+      "invalidEmail": "Introduce una dirección de correo válida.",
+      "alreadyMember": "Ese correo ya es miembro de esta Comunidad.",
+      "inviteSent": "Invitación enviada a {{email}}.",
+      "inviteError": "No se pudo enviar la invitación. Inténtalo de nuevo en un momento.",
+      "pendingHeading": "Invitaciones pendientes",
+      "pendingSince": "Invitado {{when}}",
+      "revoke": "Revocar",
+      "revokeAriaLabel": "Revocar invitación para {{email}}",
+      "notManager": "Solo el líder o un co-líder de la Comunidad puede invitar, quitar o cambiar miembros."
     },
     "completedAssignments": {
       "heading": "Resultados Compartidos",
@@ -1140,5 +1193,30 @@
       "dragFromLibrary": "Arrastra pegatinas de la biblioteca al tablero",
       "stickerAdded": "¡Pegatina añadida al tablero!"
     }
+  },
+  "plcRoute": {
+    "loading": "Cargando PLC…",
+    "notFoundTitle": "PLC no encontrada",
+    "notFoundBody": "Esta PLC no existe o ya no eres miembro de ella.",
+    "backToBoard": "Volver a mi tablero",
+    "hubTitle": "Mis PLC",
+    "hubSubtitle": "Abre una Comunidad de Aprendizaje Profesional para colaborar con tu equipo.",
+    "hubEmptyTitle": "Aún no hay PLC",
+    "hubEmptySubtitle": "Crea una PLC desde la barra lateral e invita a tus colegas.",
+    "leadBadge": "Líder",
+    "memberCount": "{{count}} miembro",
+    "memberCount_other": "{{count}} miembros"
+  },
+  "plcDirectory": {
+    "heading": "PLC en mi edificio",
+    "subtitle": "Equipos de tu edificio a los que puedes pedir unirte.",
+    "memberCount": "{{count}} miembro",
+    "memberCount_other": "{{count}} miembros",
+    "requestToJoin": "Pedir unirse",
+    "requestHint": "Pide a un miembro que invite a {{email}}.",
+    "emptyTitle": "No hay otras PLC para mostrar",
+    "emptySubtitle": "Ahora mismo no hay otras PLC en tu edificio.",
+    "noOrgTitle": "Directorio del edificio no disponible",
+    "noOrgSubtitle": "Tu cuenta aún no está vinculada a una escuela, por lo que no podemos mostrar PLC cercanas."
   }
 }

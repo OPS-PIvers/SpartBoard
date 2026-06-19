@@ -11,6 +11,10 @@ import {
 } from 'firebase/firestore';
 import { usePlcNotes } from '@/hooks/usePlcNotes';
 
+// Distinct sentinel so tests can assert serverTimestamp() (Decision 1.3) was
+// used for the time fields rather than a Date.now() number.
+const SERVER_TS = { __serverTimestamp: true };
+
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteDoc: vi.fn(),
@@ -20,6 +24,7 @@ vi.mock('firebase/firestore', () => ({
     __orderBy: { field, dir },
   })),
   query: vi.fn((_ref, ...constraints) => ({ __query: constraints })),
+  serverTimestamp: vi.fn(() => SERVER_TS),
   setDoc: vi.fn(),
   updateDoc: vi.fn(),
 }));
@@ -80,7 +85,7 @@ describe('usePlcNotes — listener wiring', () => {
 });
 
 describe('usePlcNotes — defensive parse', () => {
-  it('drops notes missing required string/number fields', () => {
+  it('drops notes missing required string fields; tolerates non-number time fields', () => {
     let cb: (snap: unknown) => void = () => undefined;
     mockOnSnapshot.mockImplementation((_q, onNext) => {
       cb = onNext;
@@ -122,23 +127,38 @@ describe('usePlcNotes — defensive parse', () => {
             },
           },
           {
-            // lastEditedAt not a number — drop
-            id: 'c',
+            // lastEditedBy missing (a required string) — drop
+            id: 'd',
             data: {
-              title: 'Bad',
+              title: 'No editor',
               body: 'b',
               createdBy: 'u1',
               createdAt: 1,
+              lastEditedAt: 2,
+            },
+          },
+          {
+            // Timestamp-shaped time fields (serverTimestamp on read) — KEEP,
+            // resolved to millis via tsToMillis.
+            id: 'c',
+            data: {
+              title: 'Stamped',
+              body: 'b',
+              createdBy: 'u1',
+              createdAt: { toMillis: () => 1700000000000 },
               lastEditedBy: 'u1',
-              lastEditedAt: 'recent',
+              lastEditedAt: { toMillis: () => 1700000000500 },
             },
           },
         ])
       );
     });
 
-    expect(result.current.notes).toHaveLength(1);
-    expect(result.current.notes[0]?.id).toBe('a');
+    // 'a' (legacy numbers) and 'c' (Timestamps) survive; 'b' + 'd' drop.
+    expect(result.current.notes.map((n) => n.id).sort()).toEqual(['a', 'c']);
+    const stamped = result.current.notes.find((n) => n.id === 'c');
+    expect(stamped?.createdAt).toBe(1700000000000);
+    expect(stamped?.lastEditedAt).toBe(1700000000500);
   });
 });
 
@@ -161,8 +181,9 @@ describe('usePlcNotes — createNote', () => {
     expect(written.body).toBe('B');
     expect(written.createdBy).toBe(USER_UID);
     expect(written.lastEditedBy).toBe(USER_UID);
-    expect(typeof written.createdAt).toBe('number');
-    expect(typeof written.lastEditedAt).toBe('number');
+    // Time fields are serverTimestamp() sentinels (Decision 1.3), not numbers.
+    expect(written.createdAt).toBe(SERVER_TS);
+    expect(written.lastEditedAt).toBe(SERVER_TS);
   });
 });
 
@@ -192,7 +213,7 @@ describe('usePlcNotes — patch-only updateNote', () => {
     expect(fields.body).toBe('new body');
     expect(fields.title).toBeUndefined();
     expect(fields.lastEditedBy).toBe(USER_UID);
-    expect(typeof fields.lastEditedAt).toBe('number');
+    expect(fields.lastEditedAt).toBe(SERVER_TS);
   });
 
   it('omits both title and body when patch contains neither (still stamps lastEditedBy)', async () => {

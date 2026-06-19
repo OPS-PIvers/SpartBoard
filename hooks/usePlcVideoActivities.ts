@@ -13,6 +13,7 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { PlcVideoActivityEntry } from '@/types';
 import { logError } from '@/utils/logError';
+import { usePlcSubcollection } from '@/context/usePlcContext';
 
 const PLCS_COLLECTION = 'plcs';
 const VIDEO_ACTIVITIES_SUBCOLLECTION = 'video_activities';
@@ -71,7 +72,7 @@ interface UsePlcVideoActivitiesResult {
   unshareVideoActivityFromPlc: (plcVideoActivityId: string) => Promise<void>;
 }
 
-function parseEntry(
+export function parsePlcVideoActivityEntry(
   id: string,
   data: Record<string, unknown>
 ): PlcVideoActivityEntry | null {
@@ -118,6 +119,8 @@ export const usePlcVideoActivities = (
   plcId: string | null
 ): UsePlcVideoActivitiesResult => {
   const { user } = useAuth();
+  // Back-compat (Decision 1.4): read from a mounted PlcProvider when present.
+  const fromProvider = usePlcSubcollection(plcId, (s) => s.videoActivities);
   const [videoActivities, setVideoActivities] = useState<
     PlcVideoActivityEntry[]
   >([]);
@@ -133,6 +136,7 @@ export const usePlcVideoActivities = (
   }
 
   useEffect(() => {
+    if (fromProvider) return;
     if (!plcId || !user || isAuthBypass) {
       const t = setTimeout(() => {
         setVideoActivities([]);
@@ -151,7 +155,10 @@ export const usePlcVideoActivities = (
       (snap) => {
         const list: PlcVideoActivityEntry[] = [];
         snap.forEach((d) => {
-          const parsed = parseEntry(d.id, d.data() as Record<string, unknown>);
+          const parsed = parsePlcVideoActivityEntry(
+            d.id,
+            d.data() as Record<string, unknown>
+          );
           if (parsed) list.push(parsed);
         });
         setVideoActivities(list);
@@ -165,7 +172,7 @@ export const usePlcVideoActivities = (
       }
     );
     return () => unsub();
-  }, [plcId, user]);
+  }, [plcId, user, fromProvider]);
 
   const shareVideoActivityWithPlc = useCallback(
     async (input: ShareVideoActivityWithPlcInput): Promise<void> => {
@@ -247,24 +254,29 @@ export const usePlcVideoActivities = (
     [plcId, user]
   );
 
-  return useMemo(
-    () => ({
-      videoActivities,
-      loading,
-      error,
+  return useMemo(() => {
+    const resolved = fromProvider
+      ? {
+          videoActivities: fromProvider.data,
+          loading: fromProvider.loading,
+          error: fromProvider.error,
+        }
+      : { videoActivities, loading, error };
+    return {
+      ...resolved,
       shareVideoActivityWithPlc,
       mirrorPlcVideoActivityHeader,
       unshareVideoActivityFromPlc,
-    }),
-    [
-      videoActivities,
-      loading,
-      error,
-      shareVideoActivityWithPlc,
-      mirrorPlcVideoActivityHeader,
-      unshareVideoActivityFromPlc,
-    ]
-  );
+    };
+  }, [
+    fromProvider,
+    videoActivities,
+    loading,
+    error,
+    shareVideoActivityWithPlc,
+    mirrorPlcVideoActivityHeader,
+    unshareVideoActivityFromPlc,
+  ]);
 };
 
 /**

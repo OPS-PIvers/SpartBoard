@@ -73,6 +73,7 @@ import {
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
 import { logError } from '@/utils/logError';
+import { getPlcMemberEmail } from '@/utils/plc';
 import { getQuizBehavior } from '@/utils/quizBehavior';
 import { PlcAssignmentImportModal } from '../PlcAssignmentImportModal';
 import { PlcQuizImportModal } from '../PlcQuizImportModal';
@@ -778,7 +779,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
         }
 
         const ownerEmailLower =
-          plc.memberEmails?.[user.uid] ??
+          getPlcMemberEmail(plc, user.uid) ??
           (user.email ? user.email.toLowerCase() : '');
         // Capture the quiz's behavior at share time so the shared quiz carries
         // default run-settings a teammate can pick up when assigning.
@@ -835,8 +836,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
       attachSyncLinkage,
       loadQuizData,
       personalQuizzes,
-      plc.id,
-      plc.memberEmails,
+      plc,
       plcSyncGroupIds,
       t,
       user,
