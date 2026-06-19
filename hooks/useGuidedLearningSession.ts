@@ -75,12 +75,15 @@ export function buildGLResponsesCSV(
   ];
 
   const rows = responseList.map((r) => {
+    // Build a stepId -> answer lookup once per response so the two column
+    // passes below are O(N + M) instead of O(N * M) repeated finds.
+    const answersByStepId = new Map(r.answers.map((a) => [a.stepId, a]));
     const questionAnswers = questionSteps.map((s) => {
-      const ans = r.answers.find((a) => a.stepId === s.id);
+      const ans = answersByStepId.get(s.id);
       return ans ? String(ans.answer) : '';
     });
     const questionCorrect = questionSteps.map((s) => {
-      const ans = r.answers.find((a) => a.stepId === s.id);
+      const ans = answersByStepId.get(s.id);
       if (!ans) return '';
       return isAnswerCorrect(s, ans.answer) ? 'Yes' : 'No';
     });
@@ -88,8 +91,14 @@ export function buildGLResponsesCSV(
     return [
       r.studentAnonymousId,
       r.pin ?? '',
-      r.startedAt ? new Date(r.startedAt).toISOString() : '',
-      r.completedAt ? new Date(r.completedAt).toISOString() : '',
+      // typeof guard (not truthiness) so a legitimate 0 epoch timestamp
+      // still renders an ISO date instead of an empty cell.
+      typeof r.startedAt === 'number'
+        ? new Date(r.startedAt).toISOString()
+        : '',
+      typeof r.completedAt === 'number'
+        ? new Date(r.completedAt).toISOString()
+        : '',
       r.score !== null ? String(r.score) : '',
       ...questionAnswers,
       ...questionCorrect,
