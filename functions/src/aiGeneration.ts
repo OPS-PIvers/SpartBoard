@@ -1427,16 +1427,9 @@ export const generateVideoActivity = onCall(
 
       try {
         await db.runTransaction(async (transaction) => {
-          const globalPermDoc = await transaction.get(
-            db.collection('global_permissions').doc('gemini-functions')
-          );
-          const globalPerm = globalPermDoc.data() as
-            | GlobalPermission
-            | undefined;
-
           const overallLimitEnabled =
-            globalPerm?.config?.dailyLimitEnabled !== false;
-          const overallLimit = globalPerm?.config?.dailyLimit ?? 20;
+            accessPerm?.config?.dailyLimitEnabled !== false;
+          const overallLimit = accessPerm?.config?.dailyLimit ?? 20;
 
           const overallUsageDoc = await transaction.get(overallUsageRef);
           const currentOverallUsage =
