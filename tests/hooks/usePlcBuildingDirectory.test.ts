@@ -118,7 +118,7 @@ describe('usePlcBuildingDirectory — query scoping', () => {
     expect(mockWhere).toHaveBeenCalledWith('buildingId', '==', BUILDING_ID);
     expect(mockLimit).toHaveBeenCalledWith(25);
     expect(mockQuery).toHaveBeenCalledWith(
-      'plcs',
+      'plcIndex',
       { __where: { field: 'orgId', op: '==', value: ORG_ID } },
       { __where: { field: 'buildingId', op: '==', value: BUILDING_ID } },
       { __limit: 25 }

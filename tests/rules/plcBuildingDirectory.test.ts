@@ -1,18 +1,23 @@
-// Firestore rules coverage for the PLC "building directory" READ branch on
-// the root doc (`plcs/{plcId}`), added in Wave 1 / T5 (PRD §2.1, Decision 1.1).
+// Firestore rules coverage for the PLC "building directory" discovery surface
+// (PRD §2.1, Decision 1.1) AFTER the code-review PII hardening.
 //
-// The existing read rule allowed only members + admins. The directory branch
-// additionally lets an authenticated member of the PLC's *organization* read a
-// PLC that carries a matching `orgId` — powering the "PLCs in my building"
-// discovery feed. This suite pins:
+// Discovery now reads a slim, PII-free `/plcIndex/{plcId}` mirror (server-
+// written by the `mirrorPlcIndex` function) instead of the full `/plcs` root
+// doc. The root doc carries teacher emails/displayNames (the `members` map +
+// `memberEmails`), so its org-peer read branch was REMOVED — same-org peers can
+// no longer read it. This suite pins:
 //
-//   - A non-member who IS in the PLC's org can read an org-stamped PLC.
-//   - A non-member who is NOT in that org canNOT read it.
-//   - A legacy PLC with NO `orgId` stays member-private (org peers get nothing).
-//   - Existing access is preserved (a member reads; an org peer who is also a
-//     member still reads).
-//   - The directory branch is READ-only — an org peer (non-member) still can't
-//     WRITE the PLC root.
+//   /plcIndex:
+//     - A same-org non-member can read an org-stamped index entry (discovery).
+//     - An outsider (not in the org) canNOT read it.
+//     - A legacy index entry with NO orgId stays member-private to org peers.
+//     - A member can read their own index entry.
+//     - Writes are SERVER-ONLY — no client (member or org peer) can write it.
+//   /plcs root (the PII boundary — the fix):
+//     - A member can still read the root (access preserved).
+//     - A same-org NON-member can NO LONGER read the root (PII not exposed).
+//     - An outsider canNOT read the root.
+//     - An org peer still canNOT write the root.
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -89,7 +94,7 @@ beforeEach(async () => {
       roleId: 'staff',
     });
 
-    // Org-stamped PLC — MEMBER is the sole member; carries orgId.
+    // Full root docs carry member PII (members map + memberEmails).
     await setDoc(doc(db, `plcs/${ORG_PLC_ID}`), {
       name: 'Org-Stamped PLC',
       orgId: ORG_ID,
@@ -97,11 +102,19 @@ beforeEach(async () => {
       leadUid: MEMBER_UID,
       memberUids: [MEMBER_UID],
       memberEmails: { [MEMBER_UID]: MEMBER_EMAIL },
+      members: {
+        [MEMBER_UID]: {
+          uid: MEMBER_UID,
+          email: MEMBER_EMAIL,
+          displayName: 'Member',
+          role: 'lead',
+          joinedAt: 1,
+          status: 'active',
+        },
+      },
       createdAt: 1,
       updatedAt: 1,
     });
-
-    // Legacy PLC — no orgId, MEMBER is the sole member.
     await setDoc(doc(db, `plcs/${LEGACY_PLC_ID}`), {
       name: 'Legacy PLC',
       leadUid: MEMBER_UID,
@@ -110,45 +123,84 @@ beforeEach(async () => {
       createdAt: 1,
       updatedAt: 1,
     });
+
+    // Slim, PII-free index mirrors (what mirrorPlcIndex would write). No emails
+    // / displayNames — only name / orgId / buildingId / opaque memberUids.
+    await setDoc(doc(db, `plcIndex/${ORG_PLC_ID}`), {
+      name: 'Org-Stamped PLC',
+      orgId: ORG_ID,
+      buildingId: 'bldg-oms',
+      memberUids: [MEMBER_UID],
+      memberCount: 1,
+      updatedAt: 1,
+    });
+    await setDoc(doc(db, `plcIndex/${LEGACY_PLC_ID}`), {
+      name: 'Legacy PLC',
+      orgId: null,
+      buildingId: null,
+      memberUids: [MEMBER_UID],
+      memberCount: 1,
+      updatedAt: 1,
+    });
   });
 });
 
-describe('plcs/{plcId} read — building directory branch', () => {
-  it('a member can read their own PLC (existing access preserved)', async () => {
-    await assertSucceeds(getDoc(doc(asMember(), `plcs/${ORG_PLC_ID}`)));
+describe('plcIndex/{plcId} read — PII-free discovery mirror', () => {
+  it('an org peer (non-member, same org) can read an org-stamped index entry', async () => {
+    await assertSucceeds(getDoc(doc(asOrgPeer(), `plcIndex/${ORG_PLC_ID}`)));
   });
 
-  it('an org peer (non-member, same org) can read an org-stamped PLC', async () => {
-    await assertSucceeds(getDoc(doc(asOrgPeer(), `plcs/${ORG_PLC_ID}`)));
+  it('a member can read their own index entry', async () => {
+    await assertSucceeds(getDoc(doc(asMember(), `plcIndex/${ORG_PLC_ID}`)));
   });
 
-  it('an outsider (not in the org, not a member) canNOT read the org-stamped PLC', async () => {
-    await assertFails(getDoc(doc(asOutsider(), `plcs/${ORG_PLC_ID}`)));
+  it('an outsider (not in the org) canNOT read an index entry', async () => {
+    await assertFails(getDoc(doc(asOutsider(), `plcIndex/${ORG_PLC_ID}`)));
   });
 
-  it('an org peer canNOT read a legacy PLC that has no orgId (stays member-private)', async () => {
-    await assertFails(getDoc(doc(asOrgPeer(), `plcs/${LEGACY_PLC_ID}`)));
+  it('an org peer canNOT read a legacy index entry that has no orgId', async () => {
+    await assertFails(getDoc(doc(asOrgPeer(), `plcIndex/${LEGACY_PLC_ID}`)));
   });
 
-  it('the directory branch is read-only — an org peer canNOT write the PLC root', async () => {
+  it('an org peer canNOT WRITE an index entry (server-only mirror)', async () => {
     await assertFails(
-      updateDoc(doc(asOrgPeer(), `plcs/${ORG_PLC_ID}`), {
-        name: 'Hijacked by an org peer',
+      updateDoc(doc(asOrgPeer(), `plcIndex/${ORG_PLC_ID}`), {
+        memberCount: 99,
         updatedAt: 2,
       })
     );
   });
 
-  it('an org peer canNOT self-add to memberUids via a plain update (no invite)', async () => {
-    // The directory read does not grant write access; self-join still requires
-    // the isAcceptingPlcInvite path (a pending invite doc), which is absent.
+  it('even a PLC member canNOT write an index entry (server-only mirror)', async () => {
+    await assertFails(
+      updateDoc(doc(asMember(), `plcIndex/${ORG_PLC_ID}`), {
+        name: 'Renamed via the mirror',
+        updatedAt: 2,
+      })
+    );
+  });
+});
+
+describe('plcs/{plcId} root read — member-gated (no org-peer PII access)', () => {
+  it('a member can read their own PLC root (existing access preserved)', async () => {
+    await assertSucceeds(getDoc(doc(asMember(), `plcs/${ORG_PLC_ID}`)));
+  });
+
+  it('a same-org NON-member can NO LONGER read the PLC root (PII boundary — the fix)', async () => {
+    // The org-peer read branch was removed: org discovery goes through the slim
+    // /plcIndex mirror, so a co-org teacher can never read another PLC's raw
+    // member emails/displayNames off the root doc.
+    await assertFails(getDoc(doc(asOrgPeer(), `plcs/${ORG_PLC_ID}`)));
+  });
+
+  it('an outsider canNOT read the PLC root', async () => {
+    await assertFails(getDoc(doc(asOutsider(), `plcs/${ORG_PLC_ID}`)));
+  });
+
+  it('an org peer still canNOT write the PLC root', async () => {
     await assertFails(
       updateDoc(doc(asOrgPeer(), `plcs/${ORG_PLC_ID}`), {
-        memberUids: [MEMBER_UID, ORG_PEER_UID],
-        memberEmails: {
-          [MEMBER_UID]: MEMBER_EMAIL,
-          [ORG_PEER_UID]: ORG_PEER_EMAIL,
-        },
+        name: 'Hijacked by an org peer',
         updatedAt: 2,
       })
     );

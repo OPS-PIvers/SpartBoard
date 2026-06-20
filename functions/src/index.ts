@@ -93,6 +93,11 @@ export { plcWeeklyDigest } from './plcWeeklyDigest';
 // recomputes /aggregates/{assessmentId}). PRD §5 / §6.0 / §3.6 / §3.3. ──────
 export { aggregatePlcAssessment } from './aggregatePlcAssessment';
 
+// ── Slim, PII-free discovery mirror (onWrite of a PLC root keeps
+// /plcIndex/{plcId} in sync) so the org "PLCs in my building" directory never
+// exposes teacher emails/displayNames. Decision 1.1 hardening. ──────────────
+export { mirrorPlcIndex } from './mirrorPlcIndex';
+
 // ── One-shot PLC migration (arrays→members map, orgId inference, aggregates
 // skeleton). Admin-only callable; see functions/src/migratePlcs.ts. ─────────
 export { migratePlcs } from './migratePlcs';

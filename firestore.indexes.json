@@ -308,7 +308,7 @@
       ]
     },
     {
-      "collectionGroup": "plcs",
+      "collectionGroup": "plcIndex",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "orgId", "order": "ASCENDING" },

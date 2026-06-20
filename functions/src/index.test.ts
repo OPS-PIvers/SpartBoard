@@ -2881,9 +2881,10 @@ describe('index barrel — deployed export set', () => {
     'gcPlcOrphans',
     // PLC opt-in weekly digest (Wave 4, §5/§8/§2.3)
     'plcWeeklyDigest',
-    // PLC analytics rollup + migration
+    // PLC analytics rollup + migration + discovery mirror
     'aggregatePlcAssessment',
     'migratePlcs',
+    'mirrorPlcIndex',
     // Admin analytics snapshot + maintenance
     'recomputeAdminAnalytics',
     'expireSubShares',

@@ -2009,28 +2009,45 @@ service cloud.firestore {
         && plcUpdatedAtOk();
     }
 
-    match /plcs/{plcId} {
-      // Members can read; admins can also read so the admin PLC-resource
-      // push UI can enumerate PLCs to target. Additionally, an authenticated
-      // member of the PLC's organization can read it for the "PLCs in my
-      // building" discovery directory (Decision 1.1) — but ONLY when the PLC
-      // carries an `orgId` that matches an org the caller belongs to. This is
-      // scoped to same-org peers and exposes only teacher membership metadata
-      // (no student PII lives on the root doc); legacy PLCs without an `orgId`
-      // stay fully member-private. Non-members of an org-less PLC get nothing.
-      // The membership gate reads BOTH the canonical `members` map (Decision
-      // 1.2 — a uid keyed in `members` is a member) AND the denormalized
-      // `memberUids` index, keeping both consistent during the rollout so a
-      // PLC that only carries one shape still authorizes its members.
+    // Slim, PII-FREE discovery mirror of each PLC root, server-written by the
+    // `mirrorPlcIndex` function (Decision 1.1 hardening). Powers the "PLCs in
+    // my building" directory WITHOUT exposing teacher emails/displayNames — it
+    // carries only name / orgId / buildingId / OPAQUE memberUids + count. Read
+    // by same-org peers (discovery), the PLC's own members, and admins; writes
+    // are SERVER-ONLY (the Admin SDK bypasses rules) so a client can never
+    // forge or tamper with a discovery entry. The full member PII stays gated
+    // to PLC members on the root doc (whose org-peer read branch was removed in
+    // favor of this mirror).
+    match /plcIndex/{plcId} {
       allow read: if request.auth != null
         && (
-          request.auth.uid in resource.data.get('members', {})
-          || request.auth.uid in resource.data.memberUids
+          request.auth.uid in resource.data.get('memberUids', [])
           || isAdmin()
           || (
             resource.data.get('orgId', null) is string
             && isOrgMember(resource.data.orgId)
           )
+        );
+      // Server-only — clients never write the discovery mirror.
+      allow create, update, delete: if false;
+    }
+
+    match /plcs/{plcId} {
+      // Members + admins only. The root doc carries member PII (the `members`
+      // map's emails/displayNames and the `memberEmails` mirror), so it is
+      // NOT exposed to same-org peers: org discovery ("PLCs in my building",
+      // Decision 1.1) reads the slim, PII-free `/plcIndex/{plcId}` mirror
+      // (server-written by `mirrorPlcIndex`) instead of this root doc. The
+      // membership gate reads BOTH the canonical `members` map (Decision 1.2 —
+      // a uid keyed in `members` is a member) AND the denormalized `memberUids`
+      // index, so a PLC carrying either shape still authorizes its members
+      // during the rollout. Admins read so the admin PLC-resource push UI can
+      // enumerate PLCs to target.
+      allow read: if request.auth != null
+        && (
+          request.auth.uid in resource.data.get('members', {})
+          || request.auth.uid in resource.data.memberUids
+          || isAdmin()
         );
 
       // The creating teacher is the lead and the only initial member. The

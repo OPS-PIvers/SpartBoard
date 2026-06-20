@@ -32,16 +32,18 @@ import { useAuth } from '@/context/useAuth';
  *   - `where('orgId','==', orgId)` is an equality filter → automatic single-field
  *     index, no composite required.
  *   - Adding `where('buildingId','==', buildingId)` makes it two equality filters.
- *     A composite `plcs (orgId ASC, buildingId ASC)` index is committed in
+ *     A composite `plcIndex (orgId ASC, buildingId ASC)` index is committed in
  *     `firestore.indexes.json` so the two-filter query is served deterministically
  *     rather than relying on Firestore's index-merge heuristic.
  *   - Bounded by `limit` so a large district can't stream an unbounded result set.
  *
- * Authorization: the `/plcs` read rule allows an authenticated org member to
- * read PLC docs carrying their `orgId` (the directory read branch). The doc
- * exposes only teacher membership metadata (no student PII); this hook further
- * projects each doc down to `{ id, name, memberCount }` so consumers never
- * surface the raw membership arrays.
+ * Authorization (privacy): the directory reads the slim, PII-free
+ * `/plcIndex/{plcId}` mirror — NOT the `/plcs` root doc, which carries teacher
+ * emails/displayNames and stays gated to PLC members. The `/plcIndex` read rule
+ * lets an authenticated org member read entries carrying their `orgId`; the
+ * mirror exposes only `{ name, orgId, buildingId, memberUids, memberCount }`
+ * (opaque uids, no PII), and this hook projects further to
+ * `{ id, name, memberCount }`.
  *
  * Exclusion: PLCs the user is already a member of are filtered out client-side
  * (they already appear in the "Your PLCs" section from `usePlcs`), so the
@@ -82,7 +84,11 @@ export interface UsePlcBuildingDirectoryResult {
   buildingId: string | null;
 }
 
-const PLCS_COLLECTION = 'plcs';
+// Reads the slim, PII-free `/plcIndex` mirror (server-written by mirrorPlcIndex)
+// rather than `/plcs` — org peers must never read teacher emails/displayNames
+// off the full root doc. The index doc carries name / orgId / buildingId /
+// opaque memberUids + count, which is exactly what this hook projects.
+const PLC_INDEX_COLLECTION = 'plcIndex';
 const DEFAULT_DIRECTORY_LIMIT = 50;
 
 const EMPTY_ENTRIES: PlcDirectoryEntry[] = [];
@@ -172,7 +178,7 @@ export const usePlcBuildingDirectory = (
     }
     constraints.push(fbLimit(max));
 
-    const q = query(collection(db, PLCS_COLLECTION), ...constraints);
+    const q = query(collection(db, PLC_INDEX_COLLECTION), ...constraints);
     const unsubscribe = onSnapshot(
       q,
       (snap) => {
