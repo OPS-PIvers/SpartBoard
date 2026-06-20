@@ -117,7 +117,7 @@ const seedComment = async (overrides: Record<string, unknown> = {}) => {
 // ---------------------------------------------------------------------------
 
 describe('plcs/{plcId}/comments — read', () => {
-  beforeEach(seedComment);
+  beforeEach(() => seedComment());
 
   it('a member can read a comment', async () => {
     await assertSucceeds(
@@ -215,7 +215,7 @@ describe('plcs/{plcId}/comments — create', () => {
 // ---------------------------------------------------------------------------
 
 describe('plcs/{plcId}/comments — update', () => {
-  beforeEach(seedComment);
+  beforeEach(() => seedComment());
 
   it('the author can edit body + editedAt', async () => {
     await assertSucceeds(
@@ -291,7 +291,7 @@ describe('plcs/{plcId}/comments — update', () => {
 // ---------------------------------------------------------------------------
 
 describe('plcs/{plcId}/comments — hard delete denied', () => {
-  beforeEach(seedComment);
+  beforeEach(() => seedComment());
 
   it('the author cannot hard-delete a comment', async () => {
     await assertFails(

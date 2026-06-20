@@ -1737,11 +1737,14 @@ service cloud.firestore {
     // Allowed transitions:
     //   - null/absent → string  (first member sets the URL)
     //   - string → null         (clear, e.g. after a 404 stale-sheet)
-    //   - string → same string  (idempotent set, e.g. retried write)
     //
     // Rejected: string → different string. That would let one member
     // overwrite another's already-cached PLC sheet URL and orphan the
-    // original sheet for everyone else. The client-side
+    // original sheet for everyone else. A no-op re-set to the SAME string is
+    // also rejected: it produces no `sharedSheetUrl` diff, so the
+    // hasAny(['sharedSheetUrl']) guard treats it as an mtime-only ping (the
+    // value is already correct, so the retry is a harmless no-op). The
+    // client-side
     // `setPlcSharedSheetUrl` is also transactional, but we enforce the
     // invariant in rules too as defense-in-depth.
     function isSettingPlcSharedSheetUrl() {

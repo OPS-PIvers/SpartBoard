@@ -232,6 +232,10 @@ describe('plcs/{plcId} update — setMemberRole', () => {
           [MEMBER_UID]: member(MEMBER_UID, MEMBER_EMAIL, 'coLead'),
           [OTHER_UID]: member(OTHER_UID, OTHER_EMAIL, 'member'),
         },
+        // Role changes ride isChangingMemberRole, which requires the
+        // transient roleChangeUid pointer naming the single changed member
+        // (the broad branch only permits removals — Wave-1 plcBroadMembersOk).
+        roleChangeUid: MEMBER_UID,
         updatedAt: 2,
       })
     );
@@ -245,6 +249,8 @@ describe('plcs/{plcId} update — setMemberRole', () => {
           [MEMBER_UID]: member(MEMBER_UID, MEMBER_EMAIL, 'viewer'),
           [OTHER_UID]: member(OTHER_UID, OTHER_EMAIL, 'member'),
         },
+        // setMemberRole requires the roleChangeUid pointer (see above).
+        roleChangeUid: MEMBER_UID,
         updatedAt: 2,
       })
     );

@@ -332,9 +332,13 @@ describe('plcs/{plcId} update — isSettingPlcSharedSheetUrl', () => {
     );
   });
 
-  it('a member can idempotently re-set string → same string', async () => {
+  it('rejects a no-op re-set to the SAME string (no diff = mtime-only ping)', async () => {
+    // Re-writing the identical value produces no `sharedSheetUrl` entry in the
+    // diff, so the write is indistinguishable from an updatedAt-only ping —
+    // which the branch deliberately blocks via hasAny(['sharedSheetUrl']). The
+    // value is already correct, so denying the no-op retry is harmless.
     await seedWithSheetUrl(SHEET_URL);
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
         sharedSheetUrl: SHEET_URL,
         updatedAt: 2,
@@ -541,27 +545,14 @@ describe('plcs/{plcId} — members map + orgId/buildingId fields', () => {
     );
   });
 
-  it('the lead can write the members map + orgId/buildingId via broad update', async () => {
+  it('the lead can backfill orgId/buildingId via broad update (members untouched)', async () => {
+    // The broad sitting-lead branch permits tenancy backfill (null → value) but
+    // NOT an arbitrary members-map rewrite — role/membership changes must go
+    // through transfer / setMemberRole / remove (the Wave-1 plcBroadMembersOk
+    // guard). The canonical members map is seeded at create or by the migration
+    // (Admin SDK); members-map writes are covered in plcMembership.test.ts.
     await assertSucceeds(
       updateDoc(doc(asMemberA(), `plcs/${PLC_ID}`), {
-        members: {
-          [MEMBER_A_UID]: {
-            uid: MEMBER_A_UID,
-            email: MEMBER_A_EMAIL,
-            displayName: 'Member A',
-            role: 'lead',
-            joinedAt: 1,
-            status: 'active',
-          },
-          [MEMBER_B_UID]: {
-            uid: MEMBER_B_UID,
-            email: MEMBER_B_EMAIL,
-            displayName: 'Member B',
-            role: 'member',
-            joinedAt: 1,
-            status: 'active',
-          },
-        },
         orgId: 'org-1',
         buildingId: 'bldg-1',
         updatedAt: 2,

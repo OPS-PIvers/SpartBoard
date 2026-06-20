@@ -141,7 +141,7 @@ const seedAssessment = async (overrides: Record<string, unknown> = {}) => {
 // ---------------------------------------------------------------------------
 
 describe('plcs/{plcId}/assessments — read', () => {
-  beforeEach(seedAssessment);
+  beforeEach(() => seedAssessment());
 
   it('a PLC member can read an assessment', async () => {
     await assertSucceeds(getDoc(assessmentRef(asMember())));
@@ -268,7 +268,7 @@ describe('plcs/{plcId}/assessments — create', () => {
 // ---------------------------------------------------------------------------
 
 describe('plcs/{plcId}/assessments — update', () => {
-  beforeEach(seedAssessment);
+  beforeEach(() => seedAssessment());
 
   it('member can update title and status (working fields)', async () => {
     await assertSucceeds(
@@ -392,7 +392,7 @@ describe('plcs/{plcId}/assessments — update', () => {
 // ---------------------------------------------------------------------------
 
 describe('plcs/{plcId}/assessments — delete', () => {
-  beforeEach(seedAssessment);
+  beforeEach(() => seedAssessment());
 
   it('member can hard-delete an assessment', async () => {
     await assertSucceeds(deleteDoc(assessmentRef(asMember())));

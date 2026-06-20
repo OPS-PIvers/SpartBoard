@@ -152,7 +152,7 @@ const seedMeeting = async (overrides: Record<string, unknown> = {}) => {
 // ---------------------------------------------------------------------------
 
 describe('plcs/{plcId}/meetings — read', () => {
-  beforeEach(seedMeeting);
+  beforeEach(() => seedMeeting());
 
   it('a PLC member can read a meeting', async () => {
     await assertSucceeds(getDoc(meetingRef(asMember())));
@@ -260,7 +260,7 @@ describe('plcs/{plcId}/meetings — create', () => {
 // ---------------------------------------------------------------------------
 
 describe('plcs/{plcId}/meetings — update', () => {
-  beforeEach(seedMeeting);
+  beforeEach(() => seedMeeting());
 
   it('member can update working fields (status, decisions, actionItems)', async () => {
     await assertSucceeds(
@@ -374,7 +374,7 @@ describe('plcs/{plcId}/meetings — update', () => {
 // ---------------------------------------------------------------------------
 
 describe('plcs/{plcId}/meetings — delete', () => {
-  beforeEach(seedMeeting);
+  beforeEach(() => seedMeeting());
 
   it('member can hard-delete a meeting', async () => {
     await assertSucceeds(deleteDoc(meetingRef(asMember())));

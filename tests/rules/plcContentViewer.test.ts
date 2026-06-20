@@ -150,6 +150,9 @@ interface ContentCase {
   // A minimal update patch that satisfies the immutability pins (re-stamps the
   // mutable fields). Soft-delete via deletedAt where the schema supports it.
   patch: () => Record<string, unknown>;
+  // Comments are soft-delete-only — hard deleteDoc is denied for everyone, so a
+  // member "deletes" by writing a deletedAt tombstone instead.
+  softDeleteOnly?: boolean;
 }
 
 const DOC_ID = 'c1';
@@ -300,6 +303,7 @@ const cases: ContentCase[] = [
       createdAt: 1000,
     }),
     patch: () => ({ body: 'comment (edited)', editedAt: 2000 }),
+    softDeleteOnly: true,
   },
 ];
 
@@ -363,7 +367,13 @@ for (const c of cases) {
 
       it('a plain member CAN delete', async () => {
         await seed(c.path(DOC_ID), c.doc(DOC_ID, MEMBER_UID));
-        await assertSucceeds(deleteDoc(ref(asMember())));
+        if (c.softDeleteOnly) {
+          // Hard delete is denied for everyone on this collection; a member
+          // tombstones via a deletedAt patch instead.
+          await assertSucceeds(updateDoc(ref(asMember()), { deletedAt: 2000 }));
+        } else {
+          await assertSucceeds(deleteDoc(ref(asMember())));
+        }
       });
     });
   });
