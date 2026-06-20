@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useDashboard } from '@/context/useDashboard';
 import {
-  WidgetData,
-  RevealGridConfig,
-  DEFAULT_GLOBAL_STYLE,
-  MemoryCard,
-} from '@/types';
+  useGlobalStyle,
+  useDashboardActions,
+} from '@/context/dashboardCanvasStore';
+import { WidgetData, RevealGridConfig, MemoryCard } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { Toggle } from '@/components/common/Toggle';
 import { getFontClass } from '@/utils/styles';
@@ -14,9 +12,9 @@ import { shuffleArray } from '@/utils/randomHelpers';
 export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, activeDashboard } = useDashboard();
+  const { updateWidget } = useDashboardActions();
   const config = widget.config as RevealGridConfig;
-  const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
+  const globalStyle = useGlobalStyle();
   const [isShowAnswersMode, setIsShowAnswersMode] = useState(false);
 
   // Fallback to defaults if needed

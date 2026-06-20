@@ -1,130 +1,139 @@
 /**
- * PlcSharedDataBody — filterable results view for the PLC Shared Data section.
+ * PlcSharedDataBody — the PLC Shared Data (Data) section, rebuilt on the
+ * anonymized server-side aggregate pipeline (Wave 3 — Decisions 6.0 + 3.3 +
+ * 4.0c, PRD §6.2 / §3.6 / §3.3).
+ *
+ * WHAT CHANGED (and why):
+ *   The section used to aggregate every teacher's raw `PlcContribution`
+ *   client-side — those docs embed student names (the PII). It now reads the
+ *   `PlcAssessmentAggregate` rollups the `aggregatePlcAssessment` Cloud Function
+ *   writes at `plcs/{id}/aggregates/{assessmentId}`: anonymized team average,
+ *   per-question correctness, and a per-teacher (per-class) rollup carrying
+ *   counts ONLY — no student names, no per-student rows. This repointing lands
+ *   BEFORE the contributions read is tightened to owner-only (PRD §9 risk
+ *   ordering), so no member-facing read of raw contributions remains in this
+ *   body.
  *
  * Data flow:
- *   usePlcAssignmentIndex  →  index entries (drive the FILTER dropdown options:
- *                             type / teacher / specific-assignment / date)
- *   usePlcContributions    →  contribution docs (drive the RESULTS cards)
+ *   usePlcAggregatesData  →  anonymized rollups (the RESULT CARDS)
+ *   usePlcAssessmentsData →  designated common assessments (title/kind/unit/status,
+ *                            and the join key the aggregator uses for the doc id)
+ *   usePlcMembers         →  team roster (who-ran-it cross-reference + "you")
+ *   usePlcContributions   →  the SIGNED-IN member's OWN contribution read only —
+ *                            used solely to drive the per-card "updating…" state
+ *                            when their just-published result outruns `ranAt`.
+ *                            The owning teacher's own named roster stays available
+ *                            to them through this same read (no self-view
+ *                            regression); no other teacher's PII is exposed.
  *
- * Results cards are grouped by the contribution's OWN quiz identity
- * (`syncGroupId ?? quizId`) — the same grouping `PlcAnalyticsBody` /
- * `plcAnalyticsAggregate.groupBySchema` use. This is deliberate: the
- * assignment-index entry schema is locked and carries NO quizId/syncGroupId,
- * so there's no shared key to map a specific assignment to its contributions.
- * The old code linked them by `teacherUid === ownerUid` only, which
- * double-counted every contribution of a teacher who had 2+ assignments onto
- * EACH of their cards. Grouping by quiz identity counts each contribution
- * exactly once.
- *
- * Filters are still derived from the index entries (so the dropdowns list
- * every assignment/teacher/type) and applied at the correct granularity:
- *   - type: only 'quiz'/'all' surface results (contributions are quiz data;
- *     video activities don't write to the contributions collection)
- *   - teacher: keep quiz groups that include a contribution from that teacher
- *   - assignment: resolve the selected entry → its owner, keep quiz groups
- *     that include that owner (teacher granularity — the honest best-effort
- *     without a shared assignment↔contribution key)
- *   - date: keep quiz groups whose latest contribution falls in range
- *   - class period: filter the responses within each contribution
+ * Each card carries a scoped `PlcCommentsThread` keyed to
+ * `assessment:<assessmentId>` (already forward-aligned in Wave 2). Cards that
+ * have not yet been promoted to a first-class common assessment expose a
+ * "Designate as common assessment" affordance that calls the provider
+ * `designateAssessment` action.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
   BarChart3,
   BookOpen,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Circle,
   Loader2,
+  Sparkles,
   Trophy,
   Users,
+  Video,
 } from 'lucide-react';
-import type { Plc, PlcContribution } from '@/types';
-import { usePlcAssignmentIndex } from '@/hooks/usePlcAssignmentIndex';
+import type { Plc } from '@/types';
+import { useAuth } from '@/context/useAuth';
+import { useDashboard } from '@/context/useDashboard';
+import { useDialog } from '@/context/useDialog';
+import {
+  usePlcActions,
+  usePlcAggregatesData,
+  usePlcAssessmentsData,
+  usePlcMembers,
+} from '@/context/usePlcContext';
 import { usePlcContributions } from '@/hooks/usePlcContributions';
-import { PlcAggregateSection } from '@/components/common/library/PlcTab';
-import { groupBySchema } from '@/components/common/library/plcAnalyticsAggregate';
+import { canEditPlcContent } from '@/utils/plc';
+import { logError } from '@/utils/logError';
+import { PlcCommentsThread } from '@/components/plc/comments/PlcCommentsThread';
 import { PlcSharedDataFilters } from './PlcSharedDataFilters';
 import {
-  filterContributionResponses,
-  summarize,
-  groupContributionsByQuizIdentity,
-  type SharedDataFilters,
-  type ContributionQuizGroup,
+  buildAssessmentCards,
+  collectAggregateTeachers,
+  collectUnitLabels,
+  filterAssessmentCards,
+  latestContributionByAggregateId,
+  type AssessmentDataCard,
+  type SharedDataAggregateFilters,
+  type SharedDataTeamMember,
 } from './sharedDataSelectors';
 
 // ---------------------------------------------------------------------------
-// Types
+// Filters
 // ---------------------------------------------------------------------------
 
-interface CombinedFilters extends SharedDataFilters {
-  classPeriod: string;
-}
-
-const DEFAULT_FILTERS: CombinedFilters = {
+const DEFAULT_FILTERS: SharedDataAggregateFilters = {
   type: 'all',
   teacherUid: 'all',
-  assignmentId: 'all',
-  dateRange: null,
-  classPeriod: 'all',
+  unitLabel: 'all',
+  status: 'all',
+  search: '',
 };
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Score color — shared with the projector palette (calm, glanceable).
 // ---------------------------------------------------------------------------
 
-/** Collect unique class periods across all contribution responses. */
-function collectClassPeriods(contributions: PlcContribution[]): string[] {
-  const set = new Set<string>();
-  for (const c of contributions) {
-    for (const r of c.responses) {
-      if (r.classPeriod) set.add(r.classPeriod);
-    }
-  }
-  return Array.from(set).sort();
+function scoreToneClass(percent: number): string {
+  if (percent >= 80) return 'text-emerald-600';
+  if (percent >= 60) return 'text-amber-600';
+  return 'text-brand-red-primary';
 }
 
-/** Collect unique teachers from contributions. */
-function collectTeachers(
-  contributions: PlcContribution[]
-): { uid: string; name: string }[] {
-  const map = new Map<string, string>();
-  for (const c of contributions) {
-    map.set(c.teacherUid, c.teacherName);
-  }
-  return Array.from(map.entries())
-    .map(([uid, name]) => ({ uid, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+function barToneClass(percent: number): string {
+  if (percent >= 80) return 'bg-emerald-500';
+  if (percent >= 60) return 'bg-amber-500';
+  return 'bg-brand-red-primary';
 }
 
 // ---------------------------------------------------------------------------
-// ResultCard — one quiz-identity group's summary card
+// ResultCard — one aggregate's anonymized summary card
 // ---------------------------------------------------------------------------
 
 interface ResultCardProps {
-  group: ContributionQuizGroup;
+  card: AssessmentDataCard;
+  plcId: string;
+  canEdit: boolean;
+  onDesignate: (card: AssessmentDataCard) => void;
 }
 
-const ResultCard: React.FC<ResultCardProps> = ({ group }) => {
+const ResultCard: React.FC<ResultCardProps> = ({
+  card,
+  plcId,
+  canEdit,
+  onDesignate,
+}) => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
-  const contributions = group.contributions;
-  const summary = useMemo(() => summarize(contributions), [contributions]);
-
-  const schemaGroups = useMemo(
-    () => groupBySchema(contributions),
-    [contributions]
-  );
-
-  const hasDrift = schemaGroups.length > 1;
-
   const title =
-    group.title ||
+    card.title ||
     t('plcDashboard.sharedData.untitledQuiz', {
-      defaultValue: 'Untitled quiz',
+      defaultValue: 'Untitled assessment',
     });
+
+  const KindIcon = card.kind === 'video-activity' ? Video : BookOpen;
+  const kindLabel =
+    card.kind === 'video-activity'
+      ? t('plcDashboard.sharedData.kindVA', { defaultValue: 'Video Activity' })
+      : t('plcDashboard.sharedData.kindQuiz', { defaultValue: 'Quiz' });
 
   return (
     <div
@@ -135,11 +144,13 @@ const ResultCard: React.FC<ResultCardProps> = ({ group }) => {
         type="button"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
-        className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors flex items-center gap-3"
+        className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors flex items-center gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/30"
       >
-        {/* Kind badge — contributions are quiz results */}
         <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-brand-blue-primary/10 shrink-0">
-          <BookOpen className="w-4 h-4 text-brand-blue-primary" />
+          <KindIcon
+            className="w-4 h-4 text-brand-blue-primary"
+            aria-hidden="true"
+          />
         </span>
 
         <div className="flex-1 min-w-0">
@@ -147,30 +158,55 @@ const ResultCard: React.FC<ResultCardProps> = ({ group }) => {
             <span className="text-xs font-bold text-slate-800 truncate">
               {title}
             </span>
-            <span className="text-xxs font-semibold uppercase tracking-wider text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-              {t('plcDashboard.sharedData.kindQuiz', { defaultValue: 'Quiz' })}
+            <span className="text-xxs font-semibold uppercase tracking-wider text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+              {kindLabel}
             </span>
-            {hasDrift && (
+            {card.assessment?.unitLabel && (
+              <span className="text-xxs font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                {card.assessment.unitLabel}
+              </span>
+            )}
+            {card.isDesignated && (
+              <span className="inline-flex items-center gap-1 text-xxs font-bold uppercase tracking-wider text-brand-blue-primary bg-brand-blue-primary/10 px-1.5 py-0.5 rounded">
+                <Sparkles className="w-2.5 h-2.5" aria-hidden="true" />
+                {t('plcDashboard.sharedData.common', {
+                  defaultValue: 'Common',
+                })}
+              </span>
+            )}
+            {card.updating && (
               <span
-                className="text-xxs font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded"
-                title="Members are on different versions of this quiz"
+                className="inline-flex items-center gap-1 text-xxs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded"
+                title={t('plcDashboard.sharedData.updatingHint', {
+                  defaultValue:
+                    'New results are still being rolled up — numbers will refresh shortly.',
+                })}
               >
-                {t('plcDashboard.sharedData.drift', { defaultValue: 'drift' })}
+                <Loader2
+                  className="w-2.5 h-2.5 animate-spin"
+                  aria-hidden="true"
+                />
+                {t('plcDashboard.sharedData.updating', {
+                  defaultValue: 'updating…',
+                })}
               </span>
             )}
           </div>
           <div className="flex items-center gap-3 text-xxs text-slate-500 mt-1 flex-wrap">
-            {summary.avgScore !== null && (
-              <span className="inline-flex items-center gap-1">
-                <Trophy className="w-3 h-3 text-amber-500" />
-                {summary.avgScore}%{' '}
-                {t('plcDashboard.sharedData.avg', { defaultValue: 'avg' })}
-              </span>
-            )}
+            <span className={`inline-flex items-center gap-1 font-semibold`}>
+              <Trophy className="w-3 h-3 text-amber-500" aria-hidden="true" />
+              <span className={scoreToneClass(card.teamAveragePercent)}>
+                {card.teamAveragePercent}%
+              </span>{' '}
+              {t('plcDashboard.sharedData.avg', { defaultValue: 'avg' })}
+            </span>
             <span className="inline-flex items-center gap-1">
-              <Users className="w-3 h-3 text-brand-blue-primary" />
-              {summary.teacherCount}{' '}
-              {summary.teacherCount === 1
+              <Users
+                className="w-3 h-3 text-brand-blue-primary"
+                aria-hidden="true"
+              />
+              {card.teacherCount}{' '}
+              {card.teacherCount === 1
                 ? t('plcDashboard.sharedData.teacher', {
                     defaultValue: 'teacher',
                   })
@@ -179,33 +215,229 @@ const ResultCard: React.FC<ResultCardProps> = ({ group }) => {
                   })}
             </span>
             <span>
-              {summary.studentCount}{' '}
+              {card.studentCount}{' '}
               {t('plcDashboard.sharedData.students', {
                 defaultValue: 'students',
               })}
             </span>
+            {card.expectedCount > 0 && (
+              <span className="text-slate-500">
+                {t('plcDashboard.sharedData.ranOf', {
+                  defaultValue: '{{ran}} of {{total}} ran it',
+                  ran: card.ranCount,
+                  total: card.expectedCount,
+                })}
+              </span>
+            )}
           </div>
         </div>
 
-        {contributions.length > 0 &&
-          (expanded ? (
-            <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
-          ) : (
-            <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
-          ))}
+        {expanded ? (
+          <ChevronDown
+            className="w-4 h-4 text-slate-400 shrink-0"
+            aria-hidden="true"
+          />
+        ) : (
+          <ChevronRight
+            className="w-4 h-4 text-slate-400 shrink-0"
+            aria-hidden="true"
+          />
+        )}
       </button>
 
-      {/* Drilldown — per-quiz schema-drift breakdown (existing PlcAggregateSection) */}
-      {expanded && schemaGroups.length > 0 && (
-        <div className="border-t border-slate-100 bg-slate-50 p-4 space-y-4">
-          {schemaGroups.map((schemaGroup, idx) => (
-            <PlcAggregateSection
-              key={schemaGroup.schemaKey}
-              group={schemaGroup}
-              showHeader={hasDrift}
-              groupNumber={idx + 1}
+      {expanded && (
+        <div className="border-t border-slate-100 bg-slate-50 p-4 space-y-5">
+          {/* Designate affordance — promote this group to a common assessment */}
+          {!card.isDesignated && canEdit && (
+            <div className="flex items-center justify-between gap-3 bg-white border border-brand-blue-primary/20 rounded-xl px-3 py-2.5">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-800">
+                  {t('plcDashboard.sharedData.designateTitle', {
+                    defaultValue: 'Make this the team’s common assessment',
+                  })}
+                </p>
+                <p className="text-xxs text-slate-500 mt-0.5">
+                  {t('plcDashboard.sharedData.designateSubtitle', {
+                    defaultValue:
+                      'Designating gives it a shared title, unit, and status the whole team tracks.',
+                  })}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onDesignate(card)}
+                className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-brand-blue-primary hover:bg-brand-blue-dark px-3 py-1.5 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+              >
+                <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+                {t('plcDashboard.sharedData.designateAction', {
+                  defaultValue: 'Designate',
+                })}
+              </button>
+            </div>
+          )}
+
+          {/* Team average — the headline */}
+          <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-baseline gap-2">
+            <span
+              className={`text-3xl font-extrabold ${scoreToneClass(
+                card.teamAveragePercent
+              )}`}
+            >
+              {card.teamAveragePercent}%
+            </span>
+            <span className="text-xs font-semibold text-slate-500">
+              {t('plcDashboard.sharedData.teamAverage', {
+                defaultValue: 'team average',
+              })}
+            </span>
+          </div>
+
+          {/* Weakest questions — sorted ascending correctPercent */}
+          {card.weakestQuestions.length > 0 && (
+            <div>
+              <h4 className="text-xxs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                {t('plcDashboard.sharedData.weakestQuestions', {
+                  defaultValue: 'Weakest questions',
+                })}
+              </h4>
+              <ul className="space-y-1.5">
+                {card.weakestQuestions.map((q) => (
+                  <li
+                    key={q.questionId}
+                    className="bg-white border border-slate-200 rounded-lg px-3 py-2"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs text-slate-700 truncate">
+                        {q.text ||
+                          t('plcDashboard.sharedData.untitledQuestion', {
+                            defaultValue: 'Untitled question',
+                          })}
+                      </span>
+                      <span
+                        className={`text-xs font-bold shrink-0 ${scoreToneClass(
+                          q.correctPercent
+                        )}`}
+                      >
+                        {q.correctPercent}%
+                      </span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${barToneClass(
+                          q.correctPercent
+                        )}`}
+                        style={{
+                          width: `${Math.min(100, Math.max(0, q.correctPercent))}%`,
+                        }}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Per-class compare — anonymized per-teacher rollup */}
+          {card.perClass.length > 0 && (
+            <div>
+              <h4 className="text-xxs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                {t('plcDashboard.sharedData.byClass', {
+                  defaultValue: 'By teacher / class',
+                })}
+              </h4>
+              <ul className="space-y-1">
+                {card.perClass.map((row) => (
+                  <li
+                    key={row.teacherUid}
+                    className="flex items-center justify-between gap-3 bg-white border border-slate-200 rounded-lg px-3 py-2"
+                  >
+                    <span className="text-xs text-slate-700 truncate">
+                      {row.teacherName}
+                      {row.isYou && (
+                        <span className="ml-1.5 text-xxs font-semibold text-brand-blue-primary">
+                          {t('plcDashboard.sharedData.you', {
+                            defaultValue: '(you)',
+                          })}
+                        </span>
+                      )}
+                    </span>
+                    <span className="flex items-center gap-3 shrink-0">
+                      <span className="text-xxs text-slate-500">
+                        {t('plcDashboard.sharedData.classCount', {
+                          defaultValue: '{{count}} cls',
+                          count: row.classCount,
+                        })}
+                      </span>
+                      <span className="text-xxs text-slate-500">
+                        {row.studentCount}{' '}
+                        {t('plcDashboard.sharedData.studentsShort', {
+                          defaultValue: 'stu',
+                        })}
+                      </span>
+                      <span
+                        className={`text-xs font-bold ${scoreToneClass(
+                          row.averagePercent
+                        )}`}
+                      >
+                        {row.averagePercent}%
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Who has run it — cross-reference against the roster */}
+          {card.whoRan.length > 0 && (
+            <div>
+              <h4 className="text-xxs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                {t('plcDashboard.sharedData.whoRanIt', {
+                  defaultValue: 'Who has run it',
+                })}
+              </h4>
+              <ul className="flex flex-wrap gap-1.5">
+                {card.whoRan.map((w) => (
+                  <li
+                    key={w.teacherUid}
+                    className={`inline-flex items-center gap-1.5 text-xxs font-medium px-2 py-1 rounded-full border ${
+                      w.hasRun
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                        : 'bg-slate-100 border-slate-200 text-slate-500'
+                    }`}
+                  >
+                    {w.hasRun ? (
+                      <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
+                    ) : (
+                      <Circle className="w-3 h-3" aria-hidden="true" />
+                    )}
+                    <span>{w.teacherName}</span>
+                    <span className="sr-only">
+                      {w.hasRun
+                        ? t('plcDashboard.sharedData.hasRun', {
+                            defaultValue: 'has run it',
+                          })
+                        : t('plcDashboard.sharedData.notRun', {
+                            defaultValue: 'has not run it yet',
+                          })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Scoped comments + @mentions (Decision 2.6, §6.2). Keyed to the
+              canonical assessment id so the thread survives re-aggregation and
+              forward-aligns with the Common Assessment object. */}
+          <div className="border-t border-slate-200 pt-4">
+            <PlcCommentsThread
+              plcId={plcId}
+              targetType="dataCard"
+              targetId={`assessment:${card.assessmentId}`}
+              targetLabel={title}
             />
-          ))}
+          </div>
         </div>
       )}
     </div>
@@ -224,127 +456,157 @@ export const PlcSharedDataBody: React.FC<PlcSharedDataBodyProps> = ({
   plc,
 }) => {
   const { t } = useTranslation();
-  const {
-    entries,
-    loading: entriesLoading,
-    error: entriesError,
-  } = usePlcAssignmentIndex(plc.id);
-  const {
-    contributions,
-    loading: contribsLoading,
-    error: contribsError,
-  } = usePlcContributions(plc.id);
+  const { user } = useAuth();
+  const { addToast } = useDashboard();
+  const { showPrompt } = useDialog();
+  const { designateAssessment } = usePlcActions();
 
-  const [filters, setFilters] = useState<CombinedFilters>(DEFAULT_FILTERS);
+  const {
+    data: aggregates,
+    loading: aggregatesLoading,
+    error: aggregatesError,
+  } = usePlcAggregatesData();
+  const {
+    data: assessments,
+    loading: assessmentsLoading,
+    error: assessmentsError,
+  } = usePlcAssessmentsData();
+  const members = usePlcMembers();
 
-  // Derived data for filter dropdowns. Teachers come from contributions
-  // (only teachers with results matter for narrowing the result cards).
+  // The signed-in member's OWN contribution read — used ONLY to drive the
+  // per-card "updating…" state (and keeps the owner's own named roster reachable
+  // to them). No member-facing read of another teacher's raw contributions.
+  const { contributions: ownContributions } = usePlcContributions(plc.id);
+
+  const [filters, setFilters] =
+    useState<SharedDataAggregateFilters>(DEFAULT_FILTERS);
+
+  const canEdit = useMemo(
+    () => (user ? canEditPlcContent(plc, user.uid) : false),
+    [plc, user]
+  );
+
+  const teamMembers = useMemo<SharedDataTeamMember[]>(
+    () => members.map((m) => ({ uid: m.uid, displayName: m.displayName })),
+    [members]
+  );
+
+  const latestContribByAggId = useMemo(
+    () => latestContributionByAggregateId(ownContributions, assessments),
+    [ownContributions, assessments]
+  );
+
+  const cards = useMemo(
+    () =>
+      buildAssessmentCards(
+        aggregates,
+        assessments,
+        teamMembers,
+        user?.uid ?? null,
+        latestContribByAggId
+      ),
+    [aggregates, assessments, teamMembers, user?.uid, latestContribByAggId]
+  );
+
   const teachers = useMemo(
-    () => collectTeachers(contributions),
-    [contributions]
+    () => collectAggregateTeachers(aggregates),
+    [aggregates]
   );
-  const classPeriods = useMemo(
-    () => collectClassPeriods(contributions),
-    [contributions]
+  const unitLabels = useMemo(
+    () => collectUnitLabels(assessments),
+    [assessments]
+  );
+  const hasDesignated = useMemo(
+    () => assessments.some((a) => a.deletedAt == null),
+    [assessments]
   );
 
-  // Best-effort title source: index entries owned by a single teacher. Used
-  // only as a label hint when a quiz group has exactly one contributing
-  // teacher (no quizId/syncGroupId on entries means we can't key on identity).
-  const titleByOwnerUid = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const e of entries) {
-      if (e.kind === 'quiz' && !map.has(e.ownerUid)) {
-        map.set(e.ownerUid, e.title);
+  const filteredCards = useMemo(
+    () => filterAssessmentCards(cards, filters),
+    [cards, filters]
+  );
+
+  const handleDesignate = useCallback(
+    async (card: AssessmentDataCard) => {
+      const title = await showPrompt(
+        t('plcDashboard.sharedData.designatePrompt', {
+          defaultValue:
+            'Name this common assessment so the whole team recognizes it.',
+        }),
+        {
+          title: t('plcDashboard.sharedData.designatePromptTitle', {
+            defaultValue: 'Designate common assessment',
+          }),
+          placeholder: t('plcDashboard.sharedData.designatePlaceholder', {
+            defaultValue: 'e.g. Unit 4 CFA',
+          }),
+          defaultValue: card.title,
+          confirmLabel: t('plcDashboard.sharedData.designateAction', {
+            defaultValue: 'Designate',
+          }),
+        }
+      );
+      if (title == null) return; // cancelled
+      const trimmed = title.trim();
+      if (trimmed.length === 0) return;
+      try {
+        await designateAssessment({
+          title: trimmed,
+          kind: card.kind,
+          syncGroupId: card.syncGroupId,
+        });
+        addToast(
+          t('plcDashboard.sharedData.designated', {
+            defaultValue: '“{{title}}” is now the team’s common assessment.',
+            title: trimmed,
+          }),
+          'success'
+        );
+      } catch (err) {
+        logError('PlcSharedDataBody.designateAssessment', err, {
+          plcId: plc.id,
+          assessmentId: card.assessmentId,
+        });
+        addToast(
+          t('plcDashboard.sharedData.designateFailed', {
+            defaultValue: 'Couldn’t designate that assessment. Try again.',
+          }),
+          'error'
+        );
       }
-    }
-    return map;
-  }, [entries]);
-
-  // Resolve the selected assignment-index entry (for the assignment filter)
-  // to its owner — the finest granularity we can apply to contributions,
-  // which carry no assignment id.
-  const selectedAssignmentOwnerUid = useMemo(() => {
-    if (filters.assignmentId === 'all') return null;
-    return entries.find((e) => e.id === filters.assignmentId)?.ownerUid ?? null;
-  }, [entries, filters.assignmentId]);
-
-  // Apply the class-period filter to responses first, then group the
-  // contributions by quiz identity so each contribution is counted exactly
-  // once on exactly one card.
-  const filteredContributions = useMemo(
-    () =>
-      filterContributionResponses(contributions, {
-        classPeriod: filters.classPeriod,
-      }),
-    [contributions, filters.classPeriod]
-  );
-
-  const quizGroups = useMemo(
-    () =>
-      groupContributionsByQuizIdentity(filteredContributions, titleByOwnerUid),
-    [filteredContributions, titleByOwnerUid]
-  );
-
-  // Apply the entry-derived filters (type / teacher / assignment / date) to
-  // the quiz groups at the correct granularity (see file header).
-  const filteredGroups = useMemo(
-    () =>
-      quizGroups.filter((group) => {
-        // Contributions are quiz data only — a video-activity type filter
-        // matches no results here.
-        if (filters.type === 'video-activity') return false;
-        if (
-          filters.teacherUid !== 'all' &&
-          !group.teacherUids.has(filters.teacherUid)
-        ) {
-          return false;
-        }
-        if (
-          selectedAssignmentOwnerUid !== null &&
-          !group.teacherUids.has(selectedAssignmentOwnerUid)
-        ) {
-          return false;
-        }
-        if (filters.dateRange !== null) {
-          const { from, to } = filters.dateRange;
-          if (group.latestUpdatedAt < from || group.latestUpdatedAt > to) {
-            return false;
-          }
-        }
-        return true;
-      }),
-    [
-      quizGroups,
-      filters.type,
-      filters.teacherUid,
-      selectedAssignmentOwnerUid,
-      filters.dateRange,
-    ]
+    },
+    [showPrompt, designateAssessment, addToast, plc.id, t]
   );
 
   // Loading state
-  if (entriesLoading || contribsLoading) {
+  if (aggregatesLoading || assessmentsLoading) {
     return (
       <div className="flex items-center justify-center h-full min-h-[200px] text-slate-400">
-        <Loader2 className="w-5 h-5 animate-spin" />
+        <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+        <span className="sr-only">
+          {t('plcDashboard.sharedData.loading', {
+            defaultValue: 'Loading shared data…',
+          })}
+        </span>
       </div>
     );
   }
 
   // Error state
-  if (entriesError || contribsError) {
+  if (aggregatesError || assessmentsError) {
+    const err = aggregatesError ?? assessmentsError;
     const errorMsg =
-      entriesError instanceof Error
-        ? entriesError.message
-        : typeof contribsError === 'string'
-          ? contribsError
-          : t('plcDashboard.sharedData.loadError', {
-              defaultValue: "Couldn't load shared data",
-            });
+      err instanceof Error
+        ? err.message
+        : t('plcDashboard.sharedData.loadError', {
+            defaultValue: "Couldn't load shared data",
+          });
     return (
       <div className="bg-white border border-brand-red-primary/20 rounded-2xl p-4 flex items-start gap-3">
-        <AlertCircle className="w-5 h-5 text-brand-red-primary shrink-0 mt-0.5" />
+        <AlertCircle
+          className="w-5 h-5 text-brand-red-primary shrink-0 mt-0.5"
+          aria-hidden="true"
+        />
         <div>
           <p className="text-xs font-bold text-slate-800">
             {t('plcDashboard.sharedData.loadError', {
@@ -357,21 +619,20 @@ export const PlcSharedDataBody: React.FC<PlcSharedDataBodyProps> = ({
     );
   }
 
-  // Empty state — nothing shared at all (no assignment-index entries to
-  // populate filters AND no contributions to aggregate into results).
-  if (entries.length === 0 && contributions.length === 0) {
+  // Empty state — no aggregates at all (nothing has been run + rolled up yet).
+  if (aggregates.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center text-xs text-slate-500 py-12 px-4">
-        <BarChart3 className="w-8 h-8 text-slate-300 mb-3" />
+        <BarChart3 className="w-8 h-8 text-slate-300 mb-3" aria-hidden="true" />
         <p className="font-semibold text-slate-600">
           {t('plcDashboard.sharedData.emptyTitle', {
             defaultValue: 'No shared data yet',
           })}
         </p>
-        <p className="text-xxs text-slate-400 mt-1 max-w-xs">
+        <p className="text-xxs text-slate-500 mt-1 max-w-xs">
           {t('plcDashboard.sharedData.emptySubtitle', {
             defaultValue:
-              'When members assign quizzes or video activities with PLC mode, results appear here.',
+              'When members run a common assessment with PLC mode, anonymized results appear here.',
           })}
         </p>
       </div>
@@ -380,19 +641,22 @@ export const PlcSharedDataBody: React.FC<PlcSharedDataBodyProps> = ({
 
   return (
     <div className="flex flex-col gap-4 p-4 lg:p-6">
-      {/* Filter bar */}
+      {/* Filter bar — now operates over aggregates */}
       <PlcSharedDataFilters
         filters={filters}
         onChange={setFilters}
         teachers={teachers}
-        entries={entries}
-        classPeriods={classPeriods}
+        unitLabels={unitLabels}
+        hasDesignated={hasDesignated}
       />
 
-      {/* Results — one card per distinct quiz identity (no double-count) */}
-      {filteredGroups.length === 0 ? (
+      {/* Results — one card per anonymized aggregate */}
+      {filteredCards.length === 0 ? (
         <div className="flex flex-col items-center justify-center text-center text-xs text-slate-500 py-10 px-4">
-          <BarChart3 className="w-6 h-6 text-slate-300 mb-2" />
+          <BarChart3
+            className="w-6 h-6 text-slate-300 mb-2"
+            aria-hidden="true"
+          />
           <p className="font-semibold text-slate-600">
             {t('plcDashboard.sharedData.noResults', {
               defaultValue: 'No results match your filters',
@@ -401,8 +665,14 @@ export const PlcSharedDataBody: React.FC<PlcSharedDataBodyProps> = ({
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredGroups.map((group) => (
-            <ResultCard key={group.identity} group={group} />
+          {filteredCards.map((card) => (
+            <ResultCard
+              key={card.assessmentId}
+              card={card}
+              plcId={plc.id}
+              canEdit={canEdit}
+              onDesignate={handleDesignate}
+            />
           ))}
         </div>
       )}

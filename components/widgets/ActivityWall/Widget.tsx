@@ -26,7 +26,10 @@ import {
   ActivityWallSubmission,
   ClassLinkClass,
 } from '@/types';
-import { useDashboard } from '@/context/useDashboard';
+import {
+  useDashboardActions,
+  useIsActiveBoardReadOnly,
+} from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
 import { classLinkService } from '@/utils/classlinkService';
 import {
@@ -281,8 +284,8 @@ const formatClassLinkClassLabel = (cls: ClassLinkClass): string => {
 export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, addWidget, addToast, isActiveBoardReadOnly } =
-    useDashboard();
+  const { updateWidget, addWidget, addToast } = useDashboardActions();
+  const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
   const {
     user,
     googleAccessToken,

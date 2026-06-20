@@ -1,9 +1,13 @@
 import React from 'react';
 import { render, screen, act } from '@testing-library/react';
 import { DiceWidget } from './Widget';
-import { useDashboard } from '@/context/useDashboard';
+import {
+  useGlobalStyle,
+  useDashboardActions,
+  type DashboardActions,
+} from '@/context/dashboardCanvasStore';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { WidgetData } from '@/types';
+import { WidgetData, DEFAULT_GLOBAL_STYLE } from '@/types';
 
 // Mock audio utilities to prevent context errors during tests
 vi.mock('./utils/audio', () => ({
@@ -14,20 +18,18 @@ vi.mock('./utils/audio', () => ({
   playRollSound: vi.fn(),
 }));
 
-// Mock the dashboard context provider
-vi.mock('@/context/useDashboard', () => ({
-  useDashboard: vi.fn(),
-}));
+// Mock the mount-stable dashboard store surfaces the widget consumes.
+vi.mock('@/context/dashboardCanvasStore');
 
 describe('DiceWidget', () => {
   const mockUpdateWidget = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      activeDashboard: { globalStyle: { fontFamily: 'sans' } },
+    vi.mocked(useGlobalStyle).mockReturnValue(DEFAULT_GLOBAL_STYLE);
+    vi.mocked(useDashboardActions).mockReturnValue({
       updateWidget: mockUpdateWidget,
-    });
+    } as unknown as DashboardActions);
     // Mock random so dice rolls are deterministic in tests (always roll 1)
     vi.spyOn(Math, 'random').mockReturnValue(0.1);
   });

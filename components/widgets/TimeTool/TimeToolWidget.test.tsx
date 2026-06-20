@@ -2,11 +2,15 @@ import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { useDashboard } from '@/context/useDashboard';
+import { useGlobalStyle } from '@/context/dashboardCanvasStore';
 import { WidgetData, TimeToolConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { TimeToolWidget } from './TimeToolWidget';
 import { DashboardContextValue } from '@/context/DashboardContextValue';
 
+// useTimeTool still reads the legacy context (updateWidget + activeDashboard);
+// TimeToolWidget itself now reads globalStyle from the mount-stable store.
 vi.mock('@/context/useDashboard');
+vi.mock('@/context/dashboardCanvasStore');
 vi.mock('@/utils/timeToolAudio', () => ({
   playTimerAlert: vi.fn(),
   resumeAudio: vi.fn().mockResolvedValue(undefined),
@@ -40,6 +44,7 @@ describe('TimeToolWidget', () => {
     (useDashboard as Mock).mockReturnValue(
       mockDashboardContext as unknown as DashboardContextValue
     );
+    vi.mocked(useGlobalStyle).mockReturnValue(DEFAULT_GLOBAL_STYLE);
   });
 
   afterEach(() => {

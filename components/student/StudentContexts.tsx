@@ -111,7 +111,6 @@ const mockDashboard: DashboardContextValue = {
   dashboards: [],
   activeDashboard: null,
   toasts: [],
-  visibleTools: [],
   loading: false,
   isSaving: false,
   gradeFilter: 'all',
@@ -161,9 +160,6 @@ const mockDashboard: DashboardContextValue = {
   setActiveCollectionId: () => {
     // No-op
   },
-  resetDockToDefaults: () => {
-    // No-op
-  },
   addWidget: () => {
     // No-op
   },
@@ -209,23 +205,6 @@ const mockDashboard: DashboardContextValue = {
   setGlobalStyle: () => {
     // No-op
   },
-  toggleToolVisibility: () => {
-    // No-op
-  },
-  setAllToolsVisibility: () => {
-    // No-op
-  },
-  reorderTools: () => {
-    // No-op
-  },
-  libraryOrder: [],
-  reorderLibrary: () => {
-    // No-op
-  },
-  dockItems: [],
-  reorderDockItems: () => {
-    // No-op
-  },
   updateDashboardSettings: () => {
     // No-op
   },
@@ -258,31 +237,6 @@ const mockDashboard: DashboardContextValue = {
   setGroupBuildMode: () => {
     // No-op
   },
-  addFolder: () => {
-    // No-op
-  },
-  createFolderWithItems: () => {
-    // No-op
-  },
-  renameFolder: () => {
-    // No-op
-  },
-  deleteFolder: () => {
-    // No-op
-  },
-  addItemToFolder: () => {
-    // No-op
-  },
-  removeItemFromFolder: () => {
-    // No-op
-  },
-  moveItemOutOfFolder: () => {
-    // No-op
-  },
-  reorderFolderItems: () => {
-    // No-op
-  },
-
   clearAllStickers: () => {
     // No-op
   },

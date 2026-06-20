@@ -200,17 +200,73 @@ export interface ClassRoster extends ClassRosterMeta {
  * Stored at the top level (`/plcs/{plcId}`) rather than under a single user
  * because reads must work for every member, not just the lead.
  */
+/**
+ * A PLC member's role. Drives edit/admin permissions:
+ * - `lead`: sole owner; exactly one per PLC. Can rename, invite, remove
+ *   members, change roles, transfer leadership, and delete the PLC.
+ * - `coLead`: shares lead/co-lead management powers (role changes, transfers)
+ *   but is not the canonical owner.
+ * - `member`: can author/edit PLC content but cannot manage membership.
+ * - `viewer`: read-only; cannot edit any PLC content.
+ */
+export type PlcRole = 'lead' | 'coLead' | 'member' | 'viewer';
+
+/**
+ * One entry in the canonical `Plc.members` map (keyed by uid). Replaces the
+ * parallel `memberUids` / `memberEmails` arrays as the source of truth for
+ * membership, while those legacy fields are retained as denormalized indexes
+ * during rollout. `status: 'removed'` marks a member who has left/been removed
+ * but whose record is kept for attribution; only `status === 'active'` members
+ * count as current.
+ */
+export interface PlcMember {
+  uid: string;
+  /** Lowercased email. */
+  email: string;
+  displayName: string;
+  role: PlcRole;
+  /** ms since epoch, resolved from a Firestore `serverTimestamp()` on read. */
+  joinedAt: number;
+  status: 'active' | 'removed';
+}
+
 export interface Plc {
   id: string;
   name: string;
-  /** UID of the teacher who owns the PLC. Only the lead can rename, invite, remove members, or delete the PLC. */
+  /**
+   * Optional org tenancy (Decision 1.1). Inferred from member email domains
+   * (matched against `/organizations/{orgId}/domains`). `null`/absent means
+   * the PLC is tenancy-free (e.g. cross-district PLCs).
+   */
+  orgId?: string | null;
+  /** Optional building tenancy (Decision 1.1). `null`/absent when unscoped. */
+  buildingId?: string | null;
+  /**
+   * Canonical membership map (Decision 1.2): uid → member record. New PLCs
+   * always write this. Legacy PLCs may lack it — read membership via the
+   * `getPlcMembers` helper, which synthesizes from `memberUids` /
+   * `memberEmails` / `leadUid` when `members` is absent.
+   */
+  members: Record<string, PlcMember>;
+  /**
+   * Denormalized convenience mirror of the member whose role is `lead`.
+   * Kept because Firestore can't query inside a map and several read paths
+   * still reference it directly during rollout. Derived from `members` on
+   * every membership write.
+   */
   leadUid: string;
-  /** All current members, including the lead. Drives the `array-contains` snapshot query in `usePlcs`. */
+  /**
+   * Denormalized index of all current member uids, kept because Firestore
+   * can't `array-contains`-query a map and `usePlcs` lists PLCs via
+   * `where('memberUids','array-contains',uid)`. Maintained on every
+   * membership write alongside `members`.
+   */
   memberUids: string[];
   /**
-   * uid → lowercased email for each current member. Persisted so PR2's
-   * Drive-share step can address members without an extra `/users` lookup
-   * per export. Always written alongside `memberUids`.
+   * uid → lowercased email for each current member. Retained as legacy /
+   * back-compat (the `members` map now carries email canonically). Read via
+   * the `getPlcMemberEmails` / `getPlcTeammateEmails` helpers, which prefer
+   * the map and fall back to this array.
    */
   memberEmails: Record<string, string>;
   /**
@@ -231,6 +287,15 @@ export interface Plc {
    * `getPlcFeatures(plc)` rather than `plc.features` directly.
    */
   features?: PlcFeatureSettings;
+  /**
+   * Opt-in weekly email digest flag (Decision 2.3, §5). Default `false` —
+   * absent/false means no digest is sent. Any PLC member may toggle it via the
+   * `isUpdatingPlcDigestOptIn()` rules branch. The scheduled `plcWeeklyDigest`
+   * Cloud Function composes ONE shared summary per opted-in PLC (no per-member
+   * fan-out) only when this is `true` AND the global `plc-digest.enabled` kill
+   * switch is on.
+   */
+  digestOptIn?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -501,6 +566,12 @@ export interface PlcQuizEntry {
    * shared from. Absent on legacy entries.
    */
   quizId?: string;
+  /**
+   * Soft-delete tombstone (Decision 3.1). `null`/absent means live; a non-null
+   * ms timestamp moves the shared quiz into Trash (restorable until the Wave-4
+   * GC hard-deletes it after 30 days).
+   */
+  deletedAt?: number | null;
 }
 
 /**
@@ -543,19 +614,53 @@ export interface PlcVideoActivityEntry {
   sharedAt: number;
   /** ms timestamp; bumped on title/questionCount mirror updates. */
   updatedAt: number;
+  /**
+   * Soft-delete tombstone (Decision 3.1). `null`/absent means live; a non-null
+   * ms timestamp moves the shared video activity into Trash (restorable until
+   * the Wave-4 GC hard-deletes it after 30 days).
+   */
+  deletedAt?: number | null;
 }
 
 /**
- * One shared note in a PLC notebook. Members CRUD freely; LWW on edits.
+ * One shared note in a PLC notebook. Members CRUD freely; LWW on edits,
+ * upgraded with an optimistic-concurrency `version` precondition (Decision 2.4)
+ * to surface edit conflicts instead of silently last-write-wins.
  */
 export interface PlcNote {
   id: string;
   title: string;
   body: string;
+  /**
+   * Note flavor (Decision 2.5b). `'freeform'` (default / legacy) is a plain
+   * shared note; `'meeting'` notes carry the agenda → decisions → action-items
+   * template and link to a `PlcMeeting` via `meetingId`. Absent on legacy notes
+   * — read as `'freeform'`.
+   */
+  kind?: 'freeform' | 'meeting';
+  /**
+   * Link to the `PlcMeeting` record this note documents (Decision 2.5b). Set
+   * only on `kind === 'meeting'` notes; `null`/absent otherwise.
+   */
+  meetingId?: string | null;
   createdBy: string;
   createdAt: number;
   lastEditedBy: string;
   lastEditedAt: number;
+  /**
+   * Monotonic edit counter for optimistic concurrency (Decision 2.4). Each
+   * successful update bumps it by exactly 1; a stale writer's precondition
+   * fails and the client raises the conflict toast (reuse the
+   * `SyncedQuizVersionConflictError` pattern). Absent on legacy notes — both
+   * sides treat "absent" as a valid no-version state during rollout.
+   */
+  version?: number;
+  /**
+   * Soft-delete tombstone (Decision 3.1). `null`/absent means live; a non-null
+   * ms timestamp moves the note into Trash (restorable until the Wave-4 GC
+   * hard-deletes it after 30 days).
+   */
+  deletedAt?: number | null;
 }
 
 /**
@@ -566,8 +671,28 @@ export interface PlcTodo {
   id: string;
   text: string;
   done: boolean;
+  /**
+   * uid of the member this to-do is assigned to (Decision 3.9 / meeting action
+   * items). `null`/absent means unassigned. Must be a current PLC member uid.
+   */
+  assigneeUid?: string | null;
+  /**
+   * Optional due date (ms since epoch). `null`/absent means no due date.
+   */
+  dueAt?: number | null;
+  /**
+   * Provenance link to the `PlcMeeting` whose action item spawned this to-do
+   * (Decision 3.9). `null`/absent for to-dos created directly in the list.
+   */
+  meetingId?: string | null;
   createdBy: string;
   createdAt: number;
+  /**
+   * Soft-delete tombstone (Decision 3.1). `null`/absent means live; a non-null
+   * ms timestamp moves the to-do into Trash (restorable until the Wave-4 GC
+   * hard-deletes it after 30 days).
+   */
+  deletedAt?: number | null;
 }
 
 // --- PLC shared Google Docs ---
@@ -581,6 +706,292 @@ export interface PlcDoc {
   createdByName: string;
   createdAt: number;
   updatedAt: number;
+  /**
+   * Soft-delete tombstone (Decision 3.1). `null`/absent means live; a non-null
+   * ms timestamp moves the doc into Trash (restorable until the Wave-4 GC
+   * hard-deletes it after 30 days).
+   */
+  deletedAt?: number | null;
+}
+
+/**
+ * Coarse per-section presence (Decision 2.1), stored at
+ * `plcs/{plcId}/presence/{uid}` (doc id == the member's uid). The client writes
+ * its own doc on mount and on a ~45s heartbeat while the dashboard is open, and
+ * best-effort deletes it on unmount / `pagehide`. "Who's here" = presence docs
+ * whose `lastActiveAt` falls within ~90s, filtered client-side. The Wave-4
+ * `gcPlcOrphans` function prunes stale docs so abandoned tabs don't linger.
+ *
+ * `section` widens to `string` here (rather than importing the component-layer
+ * `PlcSectionId`, which would create a `types.ts` → `components/` cycle). The
+ * canonical narrowed alias lives in `context/usePlcContext.ts` as
+ * `PlcPresenceEntry`, which re-types `section` as `PlcSectionId | 'meeting'`
+ * and is the shape the store slot and selectors carry.
+ */
+export interface PlcPresence {
+  uid: string;
+  displayName: string;
+  /** Active PLC section id (or `'meeting'`); a `PlcSectionId | 'meeting'`. */
+  section: string;
+  /** serverTimestamp resolved to ms on read; heartbeat ~45s. */
+  lastActiveAt: number;
+}
+
+/**
+ * The closed set of activity event types written to the append-only PLC
+ * activity log (Decision 2.2). Each maps to one user-facing summary string
+ * under `plcDashboard.activity.event.*`.
+ */
+export type PlcActivityType =
+  | 'member_joined'
+  | 'member_left'
+  | 'role_changed'
+  | 'assessment_created'
+  | 'assessment_shared'
+  | 'assessment_results_ready'
+  | 'meeting_held'
+  | 'note_created'
+  | 'comment_added'
+  | 'item_deleted'
+  | 'item_restored';
+
+/**
+ * One entry in the append-only PLC activity log (Decision 2.2), stored at
+ * `plcs/{plcId}/activity/{eventId}`. Written fire-and-forget from the mutation
+ * paths (never blocking the canonical write — mirrors
+ * `writePlcAssignmentIndexEntry`). The listener loads the latest N (e.g.
+ * `limit(50)`); the Wave-4 `gcPlcOrphans` function trims events older than
+ * ~90 days. Clients may create but never update/delete (GC is server-side).
+ *
+ * "Since you were here" = events whose `createdAt > PlcUnreadState.lastSeenAt`.
+ */
+export interface PlcActivityEvent {
+  id: string;
+  type: PlcActivityType;
+  /** uid of the member who triggered the event. Must equal `request.auth.uid`. */
+  actorUid: string;
+  /** Display-name snapshot — survives later display-name changes. */
+  actorName: string;
+  /**
+   * The kind of object the event is about (e.g. `'assessment' | 'note' |
+   * 'comment' | 'dataCard' | 'meeting' | 'todo' | 'member'`). Free-form string
+   * so new target kinds don't require a rules/type change; absent for events
+   * with no specific target. */
+  targetType?: string;
+  /** Id of the target object (e.g. assessmentId or `assessmentId:questionId`). */
+  targetId?: string;
+  /** Display-title snapshot of the target, for rendering without a join. */
+  targetTitle?: string;
+  /** serverTimestamp resolved to ms on read. */
+  createdAt: number;
+}
+
+/**
+ * One scoped comment with @mentions (Decision 2.6), stored at
+ * `plcs/{plcId}/comments/{commentId}`. Comments start on Shared Data result
+ * cards (`targetType: 'dataCard'`) and extend to assessments/notes. Each
+ * mention raises an activity event + unread for the mentioned member.
+ *
+ * Edit/soft-delete posture: the author may edit `body`/`editedAt` or soft-
+ * delete via `deletedAt`; any member may soft-delete (tidy-up). Identity fields
+ * (`id`, `targetType`, `targetId`, `authorUid`, `authorName`, `createdAt`,
+ * `mentions`) are immutable on update.
+ */
+export interface PlcComment {
+  id: string;
+  /** Comment target kind. Starts with `'dataCard'`. */
+  targetType: 'dataCard' | 'assessment' | 'note';
+  /** Target id — e.g. `assessmentId` or `assessmentId:questionId`. */
+  targetId: string;
+  /** Author uid. Must equal `request.auth.uid` on create. Immutable. */
+  authorUid: string;
+  /** Display-name snapshot — survives later display-name changes. Immutable. */
+  authorName: string;
+  body: string;
+  /** Mentioned member uids; each → an activity event + unread for that user. */
+  mentions: string[];
+  /** serverTimestamp resolved to ms on read. Immutable. */
+  createdAt: number;
+  /** ms timestamp of the last body edit; `null`/absent if never edited. */
+  editedAt?: number | null;
+  /**
+   * Soft-delete tombstone (Decision 3.1). `null`/absent means live; a non-null
+   * ms timestamp hides the comment (restorable until the Wave-4 GC hard-deletes
+   * it). Unlike most content, ANY member may soft-delete a comment.
+   */
+  deletedAt?: number | null;
+}
+
+/**
+ * Per-user, per-PLC private unread cursor (Decision 2.2), stored at
+ * `/users/{uid}/plc_state/{plcId}` (owner-only). "Since you were here" is the
+ * set of activity events with `createdAt > lastSeenAt`; the sidebar badge
+ * counts them. Advanced when the member opens the PLC / Home.
+ */
+export interface PlcUnreadState {
+  /** serverTimestamp resolved to ms on read; the last time the member visited. */
+  lastSeenAt: number;
+}
+
+/**
+ * The team's designated common assessment (Decision 4.0c), stored at
+ * `plcs/{plcId}/assessments/{assessmentId}`. PLC-owned (automatically gated by
+ * the parent membership check). This is the first-class object that replaces
+ * heuristic title-matching: results aggregate to one canonical id
+ * (`PlcAssessmentAggregate.assessmentId`) and the team can track "who's run it."
+ *
+ * `syncGroupId` pins the canonical content (a `synced_quizzes` /
+ * `synced_video_activities` group); it is immutable on update. `createdBy` and
+ * `id` are likewise identity fields. Soft-deletable via `deletedAt`.
+ */
+export interface PlcCommonAssessment {
+  id: string;
+  /** Team-facing assessment title (e.g. "Unit 4 CFA"). */
+  title: string;
+  /** Which authoring surface backs this assessment. */
+  kind: 'quiz' | 'video-activity';
+  /**
+   * Canonical content group id — the `synced_quizzes` /
+   * `synced_video_activities` group whose results roll up to this assessment.
+   * Immutable on update (pinned in rules).
+   */
+  syncGroupId: string;
+  /** Optional unit/standard label for grouping (e.g. "Unit 4", "RL.6.2"). */
+  unitLabel?: string;
+  /** Optional open date (ms since epoch). `null`/absent means no open gate. */
+  opensAt?: number | null;
+  /** Optional due date (ms since epoch). `null`/absent means no due date. */
+  dueAt?: number | null;
+  /**
+   * Lifecycle status:
+   * - `planning`: designated but not yet open for teachers to run.
+   * - `active`: teachers are running it with their classes.
+   * - `reviewing`: data is being reviewed (typically in Meeting Mode).
+   * - `closed`: review complete; archived.
+   */
+  status: 'planning' | 'active' | 'reviewing' | 'closed';
+  /** uid of the member who designated the assessment. Immutable. */
+  createdBy: string;
+  /** serverTimestamp resolved to ms on read. Immutable. */
+  createdAt: number;
+  /** serverTimestamp resolved to ms on read; bumped on every update. */
+  updatedAt: number;
+  /**
+   * Soft-delete tombstone (Decision 3.1). `null`/absent means live; a non-null
+   * ms timestamp moves the assessment into Trash (restorable until the Wave-4
+   * GC hard-deletes it after 30 days).
+   */
+  deletedAt?: number | null;
+}
+
+/**
+ * The anonymized, member-readable rollup for one common assessment (Decisions
+ * 6.0 + 3.3), stored at `plcs/{plcId}/aggregates/{assessmentId}` and written
+ * **server-side only** by the `aggregatePlcAssessment` Cloud Function (clients
+ * may read but never write). This is the PII fix and the Meeting-Mode data
+ * spine in one: members read this small aggregate instead of every teacher's
+ * raw `PlcContribution` (which carries student names and is owner-read-only).
+ *
+ * Crucially, `perTeacher` rows carry `studentCount` but **no student names and
+ * no per-student rows** — the FERPA boundary is enforced here and in rules.
+ */
+export interface PlcAssessmentAggregate {
+  /** Matches the `PlcCommonAssessment.id` this aggregate rolls up (== doc id). */
+  assessmentId: string;
+  /** Aggregate schema version, for forward-compatible recomputes. */
+  schemaVersion: number;
+  /** Number of teachers who have contributed results. */
+  teacherCount: number;
+  /** Total students across all contributing teachers' classes. */
+  studentCount: number;
+  /** Team-wide average score (0-100) across all teachers' students. */
+  teamAveragePercent: number;
+  /** Per-question correctness rollup, sorted/owned by the function. */
+  perQuestion: Array<{
+    questionId: string;
+    /** Question prompt snapshot, for rendering without a content join. */
+    text: string;
+    /** Percent correct (0-100) across all teachers' students. */
+    correctPercent: number;
+    /** Point value of the question. */
+    points: number;
+  }>;
+  /**
+   * Per-teacher rollup — **anonymized**: a count of that teacher's students,
+   * NEVER student names and NEVER per-student rows.
+   */
+  perTeacher: Array<{
+    teacherUid: string;
+    /** Display-name snapshot of the teacher (teacher identity, not student). */
+    teacherName: string;
+    /** Number of that teacher's classes/sections that ran the assessment. */
+    classCount: number;
+    /** That teacher's average score (0-100) across their students. */
+    averagePercent: number;
+    /** Count of that teacher's students. No names, no per-student rows. */
+    studentCount: number;
+  }>;
+  /** serverTimestamp resolved to ms on read; when the function last recomputed. */
+  ranAt: number;
+}
+
+/**
+ * An archived, exportable record of one live PLC meeting (Decisions 4.0, 4.0b),
+ * stored at `plcs/{plcId}/meetings/{meetingId}`. PLC-owned. Captures the guided
+ * Meeting-Mode flow: which common assessments were reviewed, the decisions made
+ * (optionally linked to a weak-question data card), and action items (which can
+ * spawn `plcs/{plcId}/todos` via `actionItems[].todoId`).
+ *
+ * `attendeeUids` is seeded from presence at meeting time, editable before save.
+ * Identity fields (`id`, `createdBy`) are immutable on update. Soft-deletable.
+ */
+export interface PlcMeeting {
+  id: string;
+  /** serverTimestamp resolved to ms on read; when the meeting was held. */
+  heldAt: number;
+  /** uid of the member facilitating the meeting. */
+  facilitatorUid: string;
+  /** uids of members present (seeded from presence, editable before save). */
+  attendeeUids: string[];
+  /** `PlcCommonAssessment` ids reviewed during the meeting. */
+  assessmentIds: string[];
+  /** Optional free-text agenda. */
+  agenda?: string;
+  /** Decisions captured during the meeting, each optionally linked to a data card. */
+  decisions: Array<{
+    id: string;
+    text: string;
+    /** Optional link to a weak-question / data card the decision responds to. */
+    linkedDataCard?: { assessmentId: string; questionId?: string };
+  }>;
+  /** Action items captured during the meeting; each can spawn a PLC to-do. */
+  actionItems: Array<{
+    id: string;
+    text: string;
+    /** uid of the assignee. `null`/absent means unassigned. */
+    assigneeUid?: string;
+    /** Optional due date (ms since epoch). `null`/absent means no due date. */
+    dueAt?: number | null;
+    /** Id of the spawned `PlcTodo`, if the action item was promoted to one. */
+    todoId?: string;
+  }>;
+  /** Optional free-text notes body (links to a `PlcNote` via `PlcNote.meetingId`). */
+  notesBody?: string;
+  /**
+   * Lifecycle status: `in-progress` while the meeting is live in Meeting Mode,
+   * `completed` once saved as a record.
+   */
+  status: 'in-progress' | 'completed';
+  /** uid of the member who created the record. Immutable. */
+  createdBy: string;
+  /** serverTimestamp resolved to ms on read; bumped on every update. */
+  updatedAt: number;
+  /**
+   * Soft-delete tombstone (Decision 3.1). `null`/absent means live; a non-null
+   * ms timestamp moves the meeting into Trash (restorable until the Wave-4 GC
+   * hard-deletes it after 30 days).
+   */
+  deletedAt?: number | null;
 }
 
 // --- Admin-curated resources pushed to PLCs ---
@@ -641,6 +1052,12 @@ export interface PlcInvitation {
   invitedAt: number;
   status: 'pending' | 'accepted' | 'declined';
   respondedAt?: number;
+  /**
+   * Same-org tenancy stamp (Decision 1.1). Present when the inviting PLC's
+   * root carried an `orgId` at send time, so the invite is scoped to the same
+   * organization. Absent for legacy PLCs that have no `orgId` yet.
+   */
+  orgId?: string;
 }
 
 // --- LIVE SESSION TYPES ---
@@ -3759,6 +4176,68 @@ export interface SyncedVideoActivityGroup {
   /** Auth uid of whoever last published an edit. */
   updatedBy: string;
 }
+
+/**
+ * A single bounded version-history snapshot of a synced group's PRE-edit
+ * content, stored at `/synced_quizzes/{groupId}/versions/{versionId}` and
+ * `/synced_video_activities/{groupId}/versions/{versionId}` (PRD §5.1, §3.10,
+ * Decision 5.1).
+ *
+ * Snapshots are written fire-and-forget by the publish path AFTER the
+ * canonical transaction commits, so versioning never blocks (or fails) a
+ * publish. The collection is pruned to the newest `VERSION_HISTORY_LIMIT`
+ * (10) on each write; a server-side GC handles any further trimming.
+ * "Restore version" copies a snapshot's `content` back to canonical via the
+ * normal version-precondition publish path, which bumps `version`.
+ *
+ * `content` is the discriminated payload — a quiz snapshot carries the quiz
+ * shape (`title` + `questions` + optional `behavior`), a video-activity
+ * snapshot additionally carries `youtubeUrl`. The `version` field records the
+ * canonical version this snapshot's content represented at capture time.
+ *
+ * Identity is immutable: the doc is create-only from the client; no update or
+ * delete is permitted (GC is server-side via the Admin SDK).
+ */
+export interface PlcQuizVersionContent {
+  title: string;
+  questions: QuizQuestion[];
+  behavior?: QuizBehaviorSettings;
+}
+
+export interface PlcVideoActivityVersionContent {
+  title: string;
+  youtubeUrl: string;
+  questions: VideoActivityQuestion[];
+  behavior?: VideoActivityBehaviorSettings;
+}
+
+/**
+ * Generic version snapshot shape, parameterized by the canonical content it
+ * captures. `SyncedQuizVersionSnapshot` and `SyncedVideoActivityVersionSnapshot`
+ * are the two concrete forms; `SyncedVersionSnapshot` is the union the rules +
+ * restore path discriminate over (a quiz snapshot has no `youtubeUrl`; a VA
+ * snapshot does).
+ */
+export interface PlcVersionSnapshot<
+  TContent = PlcQuizVersionContent | PlcVideoActivityVersionContent,
+> {
+  /** The canonical `version` this snapshot's content represented. */
+  version: number;
+  /** The pre-edit content captured at snapshot time (discriminated by shape). */
+  content: TContent;
+  /** Auth uid of whoever published the edit that produced this snapshot. */
+  savedBy: string;
+  /** Wall-clock millis the snapshot was written. */
+  savedAt: number;
+}
+
+export type SyncedQuizVersionSnapshot =
+  PlcVersionSnapshot<PlcQuizVersionContent>;
+export type SyncedVideoActivityVersionSnapshot =
+  PlcVersionSnapshot<PlcVideoActivityVersionContent>;
+export type SyncedVersionSnapshot =
+  | SyncedQuizVersionSnapshot
+  | SyncedVideoActivityVersionSnapshot;
 
 /**
  * Shared-assignment document stored at

@@ -23,6 +23,7 @@ import { ImportShareModePicker } from '@/components/share/ImportShareModePicker'
 import { ImportSharedCollectionModal } from '@/components/share/ImportSharedCollectionModal';
 import { ShareStatusBanner } from '@/components/share/ShareStatusBanner';
 import { logError } from '@/utils/logError';
+import { getPlcRole } from '@/utils/plc';
 import {
   PLC_WRITE_FAILED_EVENT,
   type PlcWriteFailureDetail,
@@ -388,7 +389,9 @@ export const DashboardView: React.FC = () => {
         {
           isMember: (plcId) =>
             !!user &&
-            plcs.some((p) => p.id === plcId && p.memberUids.includes(user.uid)),
+            plcs.some(
+              (p) => p.id === plcId && getPlcRole(p, user.uid) !== null
+            ),
           onNonMember: ({ plcName }) => {
             addToast(
               `This is a PLC quiz assignment for "${plcName}". You're not a member, so your results will export to your own sheet.`,
@@ -491,7 +494,7 @@ export const DashboardView: React.FC = () => {
             !!previewPlcId &&
             !!user &&
             plcs.some(
-              (p) => p.id === previewPlcId && p.memberUids.includes(user.uid)
+              (p) => p.id === previewPlcId && getPlcRole(p, user.uid) !== null
             );
           const canOfferSync =
             !!preview.syncGroupId && (!preview.plc || importerIsPlcMember);

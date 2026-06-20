@@ -81,7 +81,7 @@ export const PlcTab: React.FC<PlcTabProps> = ({ plcId }) => {
               className="text-brand-blue-dark/80"
               style={{ fontSize: 'min(13px, 4cqmin)' }}
             >
-              {error}
+              {error.message}
             </p>
           </div>
         </div>

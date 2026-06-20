@@ -1,13 +1,16 @@
 import React, { useCallback, useMemo } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
-import { useDashboard } from '@/context/useDashboard';
+import {
+  useDashboardActions,
+  useGlobalStyle,
+  useIsWidgetSelected,
+} from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import {
   WidgetData,
   WorkSymbolsConfig,
   WorkSymbolsGlobalConfig,
-  DEFAULT_GLOBAL_STYLE,
 } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -17,12 +20,13 @@ import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 export const WorkSymbolsWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, activeDashboard, selectedWidgetId } = useDashboard();
+  const { updateWidget } = useDashboardActions();
+  const globalStyle = useGlobalStyle();
   const { featurePermissions } = useAuth();
   const buildingId = useWidgetBuildingId(widget);
   const config = widget.config as WorkSymbolsConfig;
   const { selectedSymbolId = null } = config;
-  const isFocused = selectedWidgetId === widget.id;
+  const isFocused = useIsWidgetSelected(widget.id);
 
   // Resolve global config
   const globalConfig = useMemo(() => {
@@ -47,8 +51,7 @@ export const WorkSymbolsWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   // Font resolution
-  const globalFont =
-    activeDashboard?.globalStyle?.fontFamily ?? DEFAULT_GLOBAL_STYLE.fontFamily;
+  const globalFont = globalStyle.fontFamily;
   const fontClass = getFontClass(config.fontFamily ?? 'global', globalFont);
   const sizeMultiplier = resolveTextPresetMultiplier(config.textSizePreset);
   const titlePosition = config.titlePosition ?? 'bottom';

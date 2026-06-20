@@ -2,25 +2,31 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TextWidget, TextSettings } from './index';
-import { WidgetData, TextConfig } from '@/types';
+import { WidgetData, TextConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
+import {
+  useDashboardActions,
+  useGlobalStyle,
+  useIsActiveBoardReadOnly,
+  useIsWidgetSelected,
+  type DashboardActions,
+} from '@/context/dashboardCanvasStore';
 
-// Mock useDashboard
+// Mock the dashboard surfaces both TextWidget (canvas store) and TextSettings
+// (legacy useDashboard) consume.
 const mockUpdateWidget = vi.fn();
 const mockSetSelectedWidgetId = vi.fn();
+// TextSettings (back-face panel) still reads `updateWidget` off the legacy
+// useDashboard() value, so its mock is preserved for that describe block.
 const mockDashboardContext = {
   updateWidget: mockUpdateWidget,
-  selectedWidgetId: null,
-  setSelectedWidgetId: mockSetSelectedWidgetId,
-  activeDashboard: {
-    globalStyle: { fontFamily: 'sans' },
-  },
 };
 
 // Mock useDialog
 const mockShowPrompt = vi.fn();
 
 vi.mock('@/context/useDashboard');
+vi.mock('@/context/dashboardCanvasStore');
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({
     showPrompt: mockShowPrompt,
@@ -36,9 +42,13 @@ describe('TextWidget', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
-      mockDashboardContext
-    );
+    vi.mocked(useDashboardActions).mockReturnValue({
+      updateWidget: mockUpdateWidget,
+      setSelectedWidgetId: mockSetSelectedWidgetId,
+    } as unknown as DashboardActions);
+    vi.mocked(useGlobalStyle).mockReturnValue(DEFAULT_GLOBAL_STYLE);
+    vi.mocked(useIsActiveBoardReadOnly).mockReturnValue(false);
+    vi.mocked(useIsWidgetSelected).mockReturnValue(false);
     // Mock document.execCommand
     execCommandMock = vi.fn(
       (_commandId: string, _showUI?: boolean, _value?: string) => true
@@ -70,10 +80,7 @@ describe('TextWidget', () => {
   });
 
   it('shows toolbar when selected', async () => {
-    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      ...mockDashboardContext,
-      selectedWidgetId: 'test-widget',
-    });
+    vi.mocked(useIsWidgetSelected).mockReturnValue(true);
     render(<TextWidget widget={mockWidget} />);
     // Toolbar renders via portal and depends on RAF-based position tracking.
     // In jsdom getBoundingClientRect returns zeros, so we wait for the RAF to fire.
@@ -83,10 +90,7 @@ describe('TextWidget', () => {
   });
 
   it('updates vertical alignment from the toolbar', async () => {
-    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      ...mockDashboardContext,
-      selectedWidgetId: 'test-widget',
-    });
+    vi.mocked(useIsWidgetSelected).mockReturnValue(true);
 
     render(<TextWidget widget={mockWidget} />);
 
@@ -105,10 +109,7 @@ describe('TextWidget', () => {
   });
 
   it('hides toolbar when not selected', () => {
-    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      ...mockDashboardContext,
-      selectedWidgetId: 'other-widget',
-    });
+    vi.mocked(useIsWidgetSelected).mockReturnValue(false);
     render(<TextWidget widget={mockWidget} />);
     expect(screen.queryByTitle('Bold')).not.toBeInTheDocument();
   });
@@ -127,10 +128,7 @@ describe('TextWidget', () => {
     // toolbar's portal wrapper. This test guards that regression by
     // mounting an ancestor pointerdown handler around TextWidget and
     // verifying it does NOT fire when a toolbar button is pressed.
-    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      ...mockDashboardContext,
-      selectedWidgetId: 'test-widget',
-    });
+    vi.mocked(useIsWidgetSelected).mockReturnValue(true);
 
     const ancestorPointerDown = vi.fn();
     render(

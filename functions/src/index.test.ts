@@ -381,10 +381,12 @@ import {
   adminAnalytics,
   getPseudonymsForAssignmentV1,
   archiveActivityWallPhoto,
+  generateVideoActivity,
   __getCachedAdminStatus,
   __getGeminiModelConfig,
   __resetGenerateWithAICaches,
 } from './index';
+import * as barrel from './index';
 import * as admin from 'firebase-admin';
 import { computeAnalyticsForOrg } from './adminAnalyticsCompute';
 import {
@@ -2814,5 +2816,252 @@ describe('getGeminiModelConfig usedFallback flag', () => {
     /* eslint-enable @typescript-eslint/no-unsafe-argument */
 
     expect(result.usedFallback).toBe(false);
+  });
+});
+
+describe('index barrel — deployed export set', () => {
+  // The barrel is the single source of truth for which Cloud Functions are
+  // deployed. Renaming/removing an export silently re-targets or DELETES a
+  // live deploy target, so the full set is pinned here. Adding a function
+  // means adding its name below (and a re-export line in index.ts).
+  //
+  // The two `__`-prefixed entries are test-only introspection helpers, not
+  // deploy targets — they're still exported from the barrel, so they're
+  // included to keep the set exact.
+  const EXPECTED_EXPORTS = [
+    // ClassLink roster
+    'getClassLinkRosterV1',
+    // AI generation + test-only validators/introspection
+    'generateWithAI',
+    'generateVideoActivity',
+    'transcribeVideoWithGemini',
+    'generateGuidedLearning',
+    'validateAndBucketVideoQuestions',
+    'validateAndBucketQuizQuestions',
+    '__resetGenerateWithAICaches',
+    '__getCachedAdminStatus',
+    '__getGeminiModelConfig',
+    // External-content proxy
+    'fetchExternalProxy',
+    'checkUrlCompatibility',
+    // Activity Wall archive
+    'archiveActivityWallPhoto',
+    // Admin analytics endpoint
+    'adminAnalytics',
+    // Student identity
+    'studentLoginV1',
+    'getAssignmentPseudonymV1',
+    'getStudentClassDirectoryV1',
+    'getPseudonymsForAssignmentV1',
+    'commitRosterPinIndexV1',
+    'pinLoginV1',
+    // Organizations
+    'createOrganizationInvites',
+    'claimOrganizationInvite',
+    'organizationMembersSync',
+    'organizationMemberCounters',
+    'organizationBuildingCounters',
+    'resetOrganizationUserPassword',
+    'getOrgUserActivity',
+    // PLC invites / rollout emails
+    'plcInvitationEmail',
+    'rolloutRequestEmail',
+    // Synced groups (share-id entry points)
+    'joinSyncedQuizGroup',
+    'leaveSyncedQuizGroup',
+    'joinSyncedVideoActivityGroup',
+    'leaveSyncedVideoActivityGroup',
+    // PLC sync joins
+    'joinPlcQuizSyncGroup',
+    'joinPlcAssignmentSyncGroup',
+    'joinPlcVideoActivitySyncGroup',
+    // PLC clean-detach (Wave 4, §5.3)
+    'detachPlcSyncLinkage',
+    // PLC nightly GC sweep (Wave 4, §5.3/§3.4/§3.1/§3.3)
+    'gcPlcOrphans',
+    // PLC opt-in weekly digest (Wave 4, §5/§8/§2.3)
+    'plcWeeklyDigest',
+    // PLC analytics rollup + migration + discovery mirror
+    'aggregatePlcAssessment',
+    'migratePlcs',
+    'mirrorPlcIndex',
+    // Admin analytics snapshot + maintenance
+    'recomputeAdminAnalytics',
+    'expireSubShares',
+    'finalizeIdleQuizAttempts',
+    // Google / Spotify OAuth
+    'exchangeGoogleAuthCode',
+    'refreshGoogleAccessToken',
+    'revokeGoogleRefreshToken',
+    'exchangeSpotifyAuthCode',
+    'refreshSpotifyAccessToken',
+    'revokeSpotifyAuth',
+    // Classroom add-on
+    'classroomAddonLoginV1',
+    'createClassroomAttachment',
+    'assignToClassroomV1',
+    'linkClassroomCourse',
+    'unlinkClassroomCourse',
+    'pushClassroomGradesForAssignment',
+    'pushClassroomFinalGradesForAssignment',
+    // Schoology LTI
+    'ltiJwks',
+    'ltiLogin',
+    'ltiLaunch',
+    'ltiExchange',
+    'ltiSignDeepLinkResponseV1',
+    'ltiPushGradesForAssignmentV1',
+    'ltiResolveNamesForAssignmentV1',
+    'linkLtiCourseV1',
+    'ltiSuggestClassLinkMatchV1',
+  ] as const;
+
+  it('exports exactly the expected identifier set', () => {
+    expect(Object.keys(barrel).sort()).toEqual([...EXPECTED_EXPORTS].sort());
+  });
+
+  it('re-exports the new detachPlcSyncLinkage function', () => {
+    // Wave-4 acceptance: the clean-detach callable is wired into the barrel
+    // so `firebase deploy --only functions` ships it.
+    expect(barrel).toHaveProperty('detachPlcSyncLinkage');
+    expect(barrel.detachPlcSyncLinkage).toBeDefined();
+  });
+
+  it('re-exports the new gcPlcOrphans scheduled function', () => {
+    // Wave-4 acceptance: the nightly GC sweep is wired into the barrel so
+    // `firebase deploy --only functions` ships its schedule.
+    expect(barrel).toHaveProperty('gcPlcOrphans');
+    expect(barrel.gcPlcOrphans).toBeDefined();
+  });
+
+  it('re-exports the new plcWeeklyDigest scheduled function', () => {
+    // Wave-4 acceptance: the opt-in weekly digest is wired into the barrel so
+    // `firebase deploy --only functions` ships its schedule.
+    expect(barrel).toHaveProperty('plcWeeklyDigest');
+    expect(barrel.plcWeeklyDigest).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateVideoActivity — accessLevel enforcement (regression test)
+// ---------------------------------------------------------------------------
+// Bug: before the fix, generateVideoActivity only checked `enabled: false`
+// from the `global_permissions/gemini-functions` doc. It did NOT check the
+// `accessLevel` field, so a non-admin teacher could bypass an admin-only or
+// beta restriction by calling generateVideoActivity instead of generateWithAI.
+//
+// Fix: read globalPerm outside the usage-counter transaction and throw
+// `permission-denied` when accessLevel === 'admin' (and the caller is not an
+// admin) or when accessLevel === 'beta' and the caller is not in betaUsers.
+// ---------------------------------------------------------------------------
+describe('generateVideoActivity — accessLevel enforcement', () => {
+  // Minimal valid YouTube URL and type counts so input validation passes
+  // before we reach the permission check under test.
+  const VALID_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+  const VALID_DATA = { url: VALID_URL, questionCount: 3 };
+  const NON_ADMIN_AUTH = {
+    uid: 'uid-teacher-1',
+    token: { email: 'teacher@school.org' },
+  };
+
+  const handler = generateVideoActivity as unknown as (
+    data: unknown,
+    context: unknown
+  ) => Promise<unknown>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFirestoreState.admins = new Set<string>();
+    __resetGenerateWithAICaches();
+    // Default: gemini-functions doc does not exist → no restrictions.
+    geminiConfigDocGet.mockResolvedValue({
+      exists: false,
+      data: () => undefined as Record<string, unknown> | undefined,
+    });
+  });
+
+  it('throws permission-denied for non-admin when accessLevel is "admin"', async () => {
+    // Arrange: global permission restricts Gemini to admins only.
+    geminiConfigDocGet.mockResolvedValue({
+      exists: true,
+      data: () =>
+        ({
+          enabled: true,
+          accessLevel: 'admin',
+          betaUsers: [],
+        }) as Record<string, unknown>,
+    });
+
+    // Act / Assert: non-admin teacher must be rejected.
+    await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
+      'Gemini functions are currently restricted to administrators.'
+    );
+  });
+
+  it('throws permission-denied for non-beta user when accessLevel is "beta"', async () => {
+    // Arrange: global permission restricts Gemini to beta users.
+    geminiConfigDocGet.mockResolvedValue({
+      exists: true,
+      data: () =>
+        ({
+          enabled: true,
+          accessLevel: 'beta',
+          betaUsers: ['beta@school.org'],
+        }) as Record<string, unknown>,
+    });
+
+    // teacher@school.org is NOT in betaUsers → must be rejected.
+    await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
+      'You do not have access to Gemini beta functions.'
+    );
+  });
+
+  it('does not throw for a beta user when accessLevel is "beta"', async () => {
+    // Arrange: caller is in betaUsers — should pass the accessLevel gate.
+    // runTransaction mock won't call its callback, so the function will
+    // resolve (no Gemini API call needed — the function throws from the
+    // try/catch wrapper when the transaction is a no-op). We just need to
+    // confirm it does NOT throw a permission-denied error.
+    geminiConfigDocGet.mockResolvedValue({
+      exists: true,
+      data: () =>
+        ({
+          enabled: true,
+          accessLevel: 'beta',
+          betaUsers: ['teacher@school.org'],
+        }) as Record<string, unknown>,
+    });
+
+    // The function will reach runTransaction (which is a no-op mock) and
+    // then proceed; it will eventually fail because GEMINI_API_KEY is a
+    // mock secret and the AI client is not configured, but it must NOT
+    // throw the permission-denied error from the accessLevel check.
+    const result = handler(VALID_DATA, { auth: NON_ADMIN_AUTH });
+    await expect(result).rejects.not.toThrow(
+      'You do not have access to Gemini beta functions.'
+    );
+    await expect(result).rejects.not.toThrow(
+      'Gemini functions are currently restricted to administrators.'
+    );
+  });
+
+  it('does not throw accessLevel errors for an admin regardless of accessLevel setting', async () => {
+    // Arrange: caller is an admin; even with accessLevel === 'admin' the
+    // admin check short-circuits and skips the permission gate entirely.
+    mockFirestoreState.admins.add('teacher@school.org');
+    geminiConfigDocGet.mockResolvedValue({
+      exists: true,
+      data: () =>
+        ({
+          enabled: true,
+          accessLevel: 'admin',
+          betaUsers: [],
+        }) as Record<string, unknown>,
+    });
+
+    const result = handler(VALID_DATA, { auth: NON_ADMIN_AUTH });
+    await expect(result).rejects.not.toThrow(
+      'Gemini functions are currently restricted to administrators.'
+    );
   });
 });

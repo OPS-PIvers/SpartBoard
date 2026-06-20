@@ -77,6 +77,7 @@ import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { usePlcs } from '@/hooks/usePlcs';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
+import { getPlcMemberEmail } from '@/utils/plc';
 import { getQuizBehavior } from '@/utils/quizBehavior';
 
 /**
@@ -380,7 +381,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       }
 
       const ownerEmailLower =
-        plc.memberEmails?.[user.uid] ??
+        getPlcMemberEmail(plc, user.uid) ??
         (user.email ? user.email.toLowerCase() : '');
       await writePlcQuizEntry(plcId, user.uid, {
         plcQuizId: crypto.randomUUID(),

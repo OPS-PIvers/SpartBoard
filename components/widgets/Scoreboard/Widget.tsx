@@ -1,11 +1,9 @@
 import React, { useEffect, useRef, useCallback, useMemo } from 'react';
-import { useDashboard } from '@/context/useDashboard';
 import {
-  WidgetData,
-  ScoreboardConfig,
-  ScoreboardTeam,
-  DEFAULT_GLOBAL_STYLE,
-} from '@/types';
+  useGlobalStyle,
+  useDashboardActions,
+} from '@/context/dashboardCanvasStore';
+import { WidgetData, ScoreboardConfig, ScoreboardTeam } from '@/types';
 import { Trophy } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { ScoreboardItem } from './components/ScoreboardItem';
@@ -20,8 +18,8 @@ const DEFAULT_TEAMS: ScoreboardTeam[] = [
 export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, activeDashboard } = useDashboard();
-  const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
+  const { updateWidget } = useDashboardActions();
+  const globalStyle = useGlobalStyle();
   const config = widget.config as ScoreboardConfig;
 
   // Auto-migration: If no teams array, convert legacy A/B to teams

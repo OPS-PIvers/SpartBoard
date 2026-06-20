@@ -34,6 +34,7 @@ const fakePlc: Plc = {
   id: 'plc-1',
   name: '5th Grade Math',
   leadUid: 'uid-a',
+  members: {},
   memberUids: ['uid-a'],
   memberEmails: { 'uid-a': 'alice@school.edu' },
   createdAt: 1000,
@@ -66,6 +67,7 @@ function setMocks(over: {
     createDoc: createDocMock,
     updateDoc: updateDocMock,
     deleteDoc: deleteDocMock,
+    restoreDoc: vi.fn(),
   });
 }
 

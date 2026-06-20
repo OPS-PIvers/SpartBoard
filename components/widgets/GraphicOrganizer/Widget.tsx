@@ -5,7 +5,11 @@ import {
   GraphicOrganizerTemplate,
 } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
-import { useDashboard } from '@/context/useDashboard';
+import {
+  useDashboardActions,
+  useGlobalStyle,
+  useIsActiveBoardReadOnly,
+} from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { getFontClass, hexToRgba } from '@/utils/styles';
@@ -23,7 +27,7 @@ const EditableNode: React.FC<{
   const onUpdateRef = useRef(onUpdate);
   // Disable contentEditable for substitute / view-only boards so subs can
   // see the teacher's diagram but cannot retype or delete cell text.
-  const { isActiveBoardReadOnly } = useDashboard();
+  const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
 
   useEffect(() => {
     onUpdateRef.current = onUpdate;
@@ -86,7 +90,8 @@ const EditableNode: React.FC<{
 export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, activeDashboard } = useDashboard();
+  const { updateWidget } = useDashboardActions();
+  const globalStyle = useGlobalStyle();
   const { featurePermissions } = useAuth();
   const buildingId = useWidgetBuildingId(widget) ?? 'global';
   const config = widget.config as GraphicOrganizerConfig;
@@ -110,7 +115,6 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
     ? selectedTemplate.layout
     : config.templateType;
 
-  const globalStyle = activeDashboard?.globalStyle ?? { fontFamily: 'sans' };
   const templateFontFamily = selectedTemplate?.fontFamily;
   const currentFontFamily = config.fontFamily ?? templateFontFamily ?? 'global';
   const fontClass = getFontClass(currentFontFamily, globalStyle.fontFamily);

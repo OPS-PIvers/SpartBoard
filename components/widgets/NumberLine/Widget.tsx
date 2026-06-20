@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { useDashboard } from '@/context/useDashboard';
+import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { WidgetData, NumberLineConfig, NumberLineMarker } from '@/types';
 import { WidgetLayout } from '../WidgetLayout';
 import { WIDGET_PALETTE } from '@/config/colors';
@@ -44,7 +44,7 @@ function fractionLabel(num: number, denom: number): string {
 export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget } = useDashboard();
+  const { updateWidget } = useDashboardActions();
   const config = widget.config as NumberLineConfig;
   const containerRef = useRef<HTMLDivElement>(null);
   const [svgWidth, setSvgWidth] = useState(700);

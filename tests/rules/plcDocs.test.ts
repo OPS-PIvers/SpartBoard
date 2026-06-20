@@ -17,7 +17,14 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, getDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import {
+  setDoc,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+} from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-plc-docs-rules';
 const PLC_ID = 'p1';
@@ -127,6 +134,29 @@ describe('plcs/{plcId}/docs — create', () => {
     );
   });
 
+  // Decision 1.3: writes carry serverTimestamp() for the time fields; rules
+  // dual-accept `int || timestamp` during rollout.
+  it('accepts serverTimestamp() for createdAt / updatedAt (dual-accept)', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`),
+        validDoc({
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+      )
+    );
+  });
+
+  it('rejects a non-int / non-timestamp createdAt', async () => {
+    await assertFails(
+      setDoc(
+        doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`),
+        validDoc({ createdAt: 'whenever' })
+      )
+    );
+  });
+
   it('non-member cannot create a doc', async () => {
     await assertFails(
       setDoc(
@@ -198,6 +228,15 @@ describe('plcs/{plcId}/docs — update', () => {
         ...validDoc(),
         title: 'Updated Title',
         updatedAt: 2000,
+      })
+    );
+  });
+
+  it('accepts a serverTimestamp() updatedAt patch (dual-accept)', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`), {
+        title: 'Updated Title',
+        updatedAt: serverTimestamp(),
       })
     );
   });

@@ -313,7 +313,7 @@ describe('plcs/{plcId}/quizzes — delete', () => {
   it('any teammate (not just the sharer) can unshare (PLC-owned model)', async () => {
     // Phase 2 spec: quizzes shared with the PLC belong to the PLC, not
     // the original sharer. If this flips to assertFails, the unshare
-    // affordance must hide for non-sharer rows in PlcQuizLibraryTab.
+    // affordance must hide for non-sharer rows in PlcQuizLibraryBody.
     await assertSucceeds(
       deleteDoc(doc(asMemberB(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`))
     );

@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useDashboard } from '@/context/useDashboard';
-import { WidgetData, DiceConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
+import {
+  useGlobalStyle,
+  useDashboardActions,
+} from '@/context/dashboardCanvasStore';
+import { WidgetData, DiceConfig } from '@/types';
 import { RefreshCw } from 'lucide-react';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { DiceFace } from './components/DiceFace';
 import { getDiceAudioCtx, playRollSound } from './utils/audio';
 
 export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const { activeDashboard, updateWidget } = useDashboard();
-  const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
+  const globalStyle = useGlobalStyle();
+  const { updateWidget } = useDashboardActions();
   const config = widget.config as DiceConfig;
   const diceCount = config.count ?? 1;
   const { diceColor = '#ffffff', dotColor = '#1e293b' } = config;

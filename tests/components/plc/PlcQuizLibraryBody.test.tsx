@@ -113,14 +113,27 @@ vi.mock('@/context/useDashboard', () => ({
 // --- PLC content hooks: drive the unified row list. -----------------------
 
 const unshareQuizFromPlc = vi.fn().mockResolvedValue(undefined);
+const restoreQuizInPlc = vi.fn().mockResolvedValue(undefined);
 let mockPlcQuizzes: PlcQuizEntry[] = [];
 vi.mock('@/hooks/usePlcQuizzes', () => ({
   usePlcQuizzes: () => ({
     quizzes: mockPlcQuizzes,
     loading: false,
     unshareQuizFromPlc,
+    restoreQuizInPlc,
   }),
   writePlcQuizEntry: vi.fn().mockResolvedValue(undefined),
+}));
+
+// usePlcSoftDelete (Decision 3.1): the unshare handler routes through it. The
+// mock runs the supplied `runDelete` so the unshare path is still exercised.
+const softDeleteMock = vi.fn(
+  async (input: { runDelete: () => Promise<void> }) => {
+    await input.runDelete();
+  }
+);
+vi.mock('@/hooks/usePlcTrash', () => ({
+  usePlcSoftDelete: () => ({ softDelete: softDeleteMock }),
 }));
 
 const deleteAssignmentTemplate = vi.fn().mockResolvedValue(undefined);
@@ -201,7 +214,19 @@ vi.mock('@/hooks/useSyncedQuizGroups', () => ({
   callJoinPlcAssignmentSyncGroup: (plcId: string, sourceId: string) =>
     callJoinPlcAssignmentSyncGroup(plcId, sourceId),
   callLeaveSyncedQuizGroup: vi.fn().mockResolvedValue(undefined),
+  // §5.3 clean-detach: the unshare path detaches the caller from the canonical
+  // group (best-effort) and re-joins on restore. These tests don't assert on
+  // detach, so a resolved stub is enough.
+  callDetachPlcSyncLinkage: vi.fn().mockResolvedValue({
+    groupId: 'sync-quiz',
+    remainingParticipants: 0,
+    alreadyDetached: false,
+  }),
   createSyncedQuizGroup: vi.fn().mockResolvedValue(undefined),
+  // §5.2 auto-pull: the body subscribes to canonical versions for its synced
+  // replicas. These tests don't exercise the auto-pull path, so return an
+  // empty map (no canonical groups → no auto-pull / conflicts fire).
+  useSyncedQuizGroupsByIds: () => ({ groups: new Map(), loading: false }),
 }));
 
 const plc = {

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   collection,
-  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -13,6 +12,7 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { PlcVideoActivityEntry } from '@/types';
 import { logError } from '@/utils/logError';
+import { usePlcSubcollection } from '@/context/usePlcContext';
 
 const PLCS_COLLECTION = 'plcs';
 const VIDEO_ACTIVITIES_SUBCOLLECTION = 'video_activities';
@@ -67,11 +67,19 @@ interface UsePlcVideoActivitiesResult {
       youtubeUrl?: string;
     }
   ) => Promise<void>;
-  /** Remove a PLC video activity entry. Any member can unshare (PLC-owned model). */
+  /**
+   * Unshare (soft-delete, Decision 3.1) a PLC video activity entry. Any member
+   * can unshare (PLC-owned model). Writes a `deletedAt` tombstone so the entry
+   * drops out of the live library but stays restorable from Trash; the
+   * canonical synced group is untouched. Restore with
+   * `restoreVideoActivityInPlc`.
+   */
   unshareVideoActivityFromPlc: (plcVideoActivityId: string) => Promise<void>;
+  /** Restore a soft-deleted PLC video activity entry by clearing `deletedAt`. */
+  restoreVideoActivityInPlc: (plcVideoActivityId: string) => Promise<void>;
 }
 
-function parseEntry(
+export function parsePlcVideoActivityEntry(
   id: string,
   data: Record<string, unknown>
 ): PlcVideoActivityEntry | null {
@@ -85,7 +93,7 @@ function parseEntry(
   ) {
     return null;
   }
-  return {
+  const entry: PlcVideoActivityEntry = {
     id,
     title: data.title,
     // `youtubeUrl` was added with the type. Pre-rollout entries (if any
@@ -103,6 +111,14 @@ function parseEntry(
     sharedAt: data.sharedAt,
     updatedAt: data.updatedAt,
   };
+  // Soft-delete tombstone (Decision 3.1): optional so legacy entries parse
+  // cleanly; written as a plain int (Date.now()) like the other time fields.
+  if (typeof data.deletedAt === 'number') {
+    entry.deletedAt = data.deletedAt;
+  } else if (data.deletedAt === null) {
+    entry.deletedAt = null;
+  }
+  return entry;
 }
 
 /**
@@ -118,6 +134,8 @@ export const usePlcVideoActivities = (
   plcId: string | null
 ): UsePlcVideoActivitiesResult => {
   const { user } = useAuth();
+  // Back-compat (Decision 1.4): read from a mounted PlcProvider when present.
+  const fromProvider = usePlcSubcollection(plcId, (s) => s.videoActivities);
   const [videoActivities, setVideoActivities] = useState<
     PlcVideoActivityEntry[]
   >([]);
@@ -133,6 +151,7 @@ export const usePlcVideoActivities = (
   }
 
   useEffect(() => {
+    if (fromProvider) return;
     if (!plcId || !user || isAuthBypass) {
       const t = setTimeout(() => {
         setVideoActivities([]);
@@ -151,8 +170,13 @@ export const usePlcVideoActivities = (
       (snap) => {
         const list: PlcVideoActivityEntry[] = [];
         snap.forEach((d) => {
-          const parsed = parseEntry(d.id, d.data() as Record<string, unknown>);
-          if (parsed) list.push(parsed);
+          const parsed = parsePlcVideoActivityEntry(
+            d.id,
+            d.data() as Record<string, unknown>
+          );
+          // Soft-deleted (unshared) entries drop out of the live library — they
+          // live in Trash until restored or GC'd (Decision 3.1).
+          if (parsed && parsed.deletedAt == null) list.push(parsed);
         });
         setVideoActivities(list);
         setLoading(false);
@@ -165,7 +189,7 @@ export const usePlcVideoActivities = (
       }
     );
     return () => unsub();
-  }, [plcId, user]);
+  }, [plcId, user, fromProvider]);
 
   const shareVideoActivityWithPlc = useCallback(
     async (input: ShareVideoActivityWithPlcInput): Promise<void> => {
@@ -231,40 +255,68 @@ export const usePlcVideoActivities = (
     [plcId, user]
   );
 
+  // Soft-delete (Decision 3.1): write a `deletedAt` tombstone (+ bump
+  // updatedAt) instead of hard-deleting. Identity + attribution fields stay
+  // untouched; the post-merge doc passes the widened `keys().hasOnly([...])`.
   const unshareVideoActivityFromPlc = useCallback(
     async (plcVideoActivityId: string): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      await deleteDoc(
+      await updateDoc(
         doc(
           db,
           PLCS_COLLECTION,
           plcId,
           VIDEO_ACTIVITIES_SUBCOLLECTION,
           plcVideoActivityId
-        )
+        ),
+        { deletedAt: Date.now(), updatedAt: Date.now() }
       );
     },
     [plcId, user]
   );
 
-  return useMemo(
-    () => ({
-      videoActivities,
-      loading,
-      error,
-      shareVideoActivityWithPlc,
-      mirrorPlcVideoActivityHeader,
-      unshareVideoActivityFromPlc,
-    }),
-    [
-      videoActivities,
-      loading,
-      error,
-      shareVideoActivityWithPlc,
-      mirrorPlcVideoActivityHeader,
-      unshareVideoActivityFromPlc,
-    ]
+  const restoreVideoActivityInPlc = useCallback(
+    async (plcVideoActivityId: string): Promise<void> => {
+      if (!plcId || !user) throw new Error('Not signed in');
+      await updateDoc(
+        doc(
+          db,
+          PLCS_COLLECTION,
+          plcId,
+          VIDEO_ACTIVITIES_SUBCOLLECTION,
+          plcVideoActivityId
+        ),
+        { deletedAt: null, updatedAt: Date.now() }
+      );
+    },
+    [plcId, user]
   );
+
+  return useMemo(() => {
+    const resolved = fromProvider
+      ? {
+          videoActivities: fromProvider.data,
+          loading: fromProvider.loading,
+          error: fromProvider.error,
+        }
+      : { videoActivities, loading, error };
+    return {
+      ...resolved,
+      shareVideoActivityWithPlc,
+      mirrorPlcVideoActivityHeader,
+      unshareVideoActivityFromPlc,
+      restoreVideoActivityInPlc,
+    };
+  }, [
+    fromProvider,
+    videoActivities,
+    loading,
+    error,
+    shareVideoActivityWithPlc,
+    mirrorPlcVideoActivityHeader,
+    unshareVideoActivityFromPlc,
+    restoreVideoActivityInPlc,
+  ]);
 };
 
 /**
