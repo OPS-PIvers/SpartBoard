@@ -28,7 +28,7 @@ export const ExpectationsSettings: React.FC<{ widget: WidgetData }> = ({
           (w) =>
             w.type === 'expectations' &&
             w.id !== widget.id &&
-            (w.config as ExpectationsConfig).syncSoundWidget
+            (w.config as ExpectationsConfig)?.syncSoundWidget
         )
         .forEach((w) => {
           updateWidget(w.id, {
