@@ -1876,11 +1876,20 @@ service cloud.firestore {
              request.resource.data.members[newLead].role == 'lead'
              && request.resource.data.members[oldLead].role != 'lead'
            );
+      // A transfer may change ONLY the two lead entries in the members map — a
+      // manager can't silently re-role other members in the same write (that
+      // must go through isChangingMemberRole, one entry at a time).
+      let membersDiffOk =
+        !mapPresent
+        || request.resource.data.members
+             .diff(resource.data.get('members', {}))
+             .affectedKeys().hasOnly([newLead, oldLead]);
       return isPlcMembershipManager(resource.data)
         && newLead != oldLead
         && (newLead in resource.data.memberUids)
         && (newLead in request.resource.data.memberUids)
         && mapLockstep
+        && membersDiffOk
         // The leaving/incoming lead both remain members — the set is identical.
         && request.resource.data.memberUids.toSet()
              .hasAll(resource.data.memberUids.toSet())
@@ -1989,6 +1998,13 @@ service cloud.firestore {
              request.resource.data.members[newLead].role == 'lead'
              && request.resource.data.members[oldLead].role != 'lead'
            );
+      // Recovery may change ONLY the two lead entries in the members map — an
+      // admin reassign can't silently re-role other members in the same write.
+      let membersDiffOk =
+        !mapPresent
+        || request.resource.data.members
+             .diff(resource.data.get('members', {}))
+             .affectedKeys().hasOnly([newLead, oldLead]);
       return isAdmin()
         && resource.data.get('orgId', null) is string
         && isOrgMember(resource.data.orgId)
@@ -1996,6 +2012,7 @@ service cloud.firestore {
         && (newLead in resource.data.memberUids)
         && (newLead in request.resource.data.memberUids)
         && mapLockstep
+        && membersDiffOk
         // The membership SET is unchanged — recovery reassigns, never adds/drops.
         && request.resource.data.memberUids.toSet()
              .hasAll(resource.data.memberUids.toSet())

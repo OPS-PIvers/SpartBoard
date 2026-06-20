@@ -217,6 +217,29 @@ describe('plcs/{plcId} update — transferLead', () => {
       })
     );
   });
+
+  it('rejects a transfer that also re-roles a THIRD member in the same write (members-diff guard)', async () => {
+    // A valid transfer touches ONLY the two lead entries. Smuggling a third
+    // member's role change (OTHER member -> viewer) into the same write must be
+    // denied — role changes go through isChangingMemberRole, one at a time.
+    await assertFails(
+      updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
+        leadUid: MEMBER_UID,
+        members: {
+          [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'member'),
+          [MEMBER_UID]: member(MEMBER_UID, MEMBER_EMAIL, 'lead'),
+          [OTHER_UID]: member(OTHER_UID, OTHER_EMAIL, 'viewer'),
+        },
+        memberUids: [LEAD_UID, MEMBER_UID, OTHER_UID],
+        memberEmails: {
+          [LEAD_UID]: LEAD_EMAIL,
+          [MEMBER_UID]: MEMBER_EMAIL,
+          [OTHER_UID]: OTHER_EMAIL,
+        },
+        updatedAt: 2,
+      })
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

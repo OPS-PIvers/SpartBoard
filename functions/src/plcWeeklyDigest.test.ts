@@ -29,7 +29,12 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('firebase-admin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
-  firestore: vi.fn(),
+  // The sweep paginates with admin.firestore.FieldPath.documentId(); expose it
+  // as the '__name__' sentinel so the stub ColRef.orderBy gets a stable value
+  // (the stub sorts any non-'createdAt' orderBy by doc id).
+  firestore: Object.assign(vi.fn(), {
+    FieldPath: { documentId: vi.fn(() => '__name__') },
+  }),
 }));
 
 // `./functionsInit` calls `setGlobalOptions` at import time.
@@ -287,7 +292,8 @@ function makeStubDb(seed: {
 
   interface ColRef {
     limit: (n: number) => ColRef;
-    orderBy: (field: string, dir: string) => ColRef;
+    orderBy: (field: unknown, dir?: string) => ColRef;
+    startAfter: (cursor: DocSnap) => ColRef;
     get: () => Promise<{ docs: DocSnap[]; size: number }>;
     doc: (id: string) => DocRef;
   }
@@ -319,11 +325,18 @@ function makeStubDb(seed: {
 
   const makeColRef = (
     backing: StubDoc[],
-    opts: { orderField?: string; desc?: boolean; lim?: number }
+    opts: {
+      orderField?: unknown;
+      desc?: boolean;
+      lim?: number;
+      afterId?: string;
+    }
   ): ColRef => ({
     limit: (n: number) => makeColRef(backing, { ...opts, lim: n }),
-    orderBy: (field: string, dir: string) =>
+    orderBy: (field: unknown, dir?: string) =>
       makeColRef(backing, { ...opts, orderField: field, desc: dir === 'desc' }),
+    startAfter: (cursor: DocSnap) =>
+      makeColRef(backing, { ...opts, afterId: cursor.id }),
     get: () => {
       let rows = [...backing];
       if (opts.orderField === 'createdAt') {
@@ -332,6 +345,13 @@ function makeStubDb(seed: {
           const bv = (b.data.createdAt as number) ?? 0;
           return opts.desc ? bv - av : av - bv;
         });
+      } else if (opts.orderField != null) {
+        // documentId() ordering — sort by doc id ascending (pagination cursor).
+        rows.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      }
+      if (opts.afterId !== undefined) {
+        const i = rows.findIndex((d) => d.id === opts.afterId);
+        if (i >= 0) rows = rows.slice(i + 1);
       }
       if (opts.lim !== undefined) rows = rows.slice(0, opts.lim);
       return Promise.resolve({
@@ -467,12 +487,14 @@ describe('runPlcWeeklyDigest — switch ON', () => {
     expect(counts.mailQueued).toBe(1);
     expect(mail.size).toBe(1);
     const [[, doc]] = [...mail.entries()];
-    // ONE doc carrying ALL three recipients — not three docs.
-    expect(doc.to).toEqual([
+    // ONE doc carrying ALL three recipients in BCC (no per-member fan-out) —
+    // and no recipient exposed in `to` (this run has no configured `from`).
+    expect(doc.bcc).toEqual([
       'lead@school.org',
       'member@school.org',
       'third@school.org',
     ]);
+    expect(doc.to).toBeUndefined();
   });
 
   it('skips an opted-OUT PLC even with recent activity', async () => {
