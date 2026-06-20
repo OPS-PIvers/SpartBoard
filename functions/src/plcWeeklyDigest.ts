@@ -280,6 +280,9 @@ export function collectRecipientEmails(plc: {
   if (members && typeof members === 'object') {
     for (const member of Object.values(members as Record<string, unknown>)) {
       if (member && typeof member === 'object') {
+        // Removed members keep an audit entry in the map (status 'removed')
+        // but must NOT receive the digest — only active members are recipients.
+        if ((member as { status?: unknown }).status === 'removed') continue;
         add((member as { email?: unknown }).email);
       }
     }

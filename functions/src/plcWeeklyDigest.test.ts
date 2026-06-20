@@ -142,6 +142,16 @@ describe('collectRecipientEmails — de-dupe + lowercase, no fan-out', () => {
     expect(recipients).toEqual(['good@school.org']);
   });
 
+  it('excludes members whose status is removed (audit entry stays, no digest)', () => {
+    const recipients = collectRecipientEmails({
+      members: {
+        u1: { email: 'active@school.org', status: 'active' },
+        u2: { email: 'removed@school.org', status: 'removed' },
+      },
+    });
+    expect(recipients).toEqual(['active@school.org']);
+  });
+
   it('returns empty when there are no recipients', () => {
     expect(collectRecipientEmails({})).toEqual([]);
   });
