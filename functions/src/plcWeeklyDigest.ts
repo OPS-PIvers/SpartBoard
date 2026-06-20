@@ -374,6 +374,15 @@ export async function runPlcWeeklyDigest(
 
   const plcsSnap = await db.collection('plcs').limit(MAX_PLCS_PER_RUN).get();
   counts.plcsConsidered = plcsSnap.size;
+  // Coverage alarm: this is a single bounded page (no pagination). If a tenant
+  // ever grows past the cap, PLCs beyond it are silently skipped every run —
+  // warn so an operator knows to add startAfter pagination before that bites.
+  if (plcsSnap.size >= MAX_PLCS_PER_RUN) {
+    logger.warn(
+      'plcWeeklyDigest: hit MAX_PLCS_PER_RUN — some PLCs may be skipped; add pagination',
+      { cap: MAX_PLCS_PER_RUN }
+    );
+  }
 
   for (const plcDoc of plcsSnap.docs) {
     const plc = plcDoc.data();

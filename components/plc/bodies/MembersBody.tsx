@@ -99,11 +99,6 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
   const myUid = user?.uid ?? null;
   const myRole = myUid ? getPlcRole(plc, myUid) : null;
   const isManager = myUid ? isPlcLeadOrCoLead(plc, myUid) : false;
-  // Inviting new members is LEAD-ONLY (the plc_invitations create rule pins
-  // leadUid == caller). Co-leads are managers for ROW actions (role change /
-  // remove / transfer) but must not see the invite surfaces, or the write would
-  // be denied by Firestore. Gate invite UI on this, not isManager.
-  const isLead = myRole === 'lead';
 
   const members = useMemo(() => {
     const all = getPlcMembers(plc);
@@ -517,7 +512,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
         </ul>
       </section>
 
-      {isLead && (
+      {isManager && (
         <section>
           <header className="flex items-center gap-2 mb-3">
             <UserPlus
@@ -601,7 +596,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
         </section>
       )}
 
-      {isLead && pendingInvitesForThisPlc.length > 0 && (
+      {isManager && pendingInvitesForThisPlc.length > 0 && (
         <section>
           <header className="flex items-center gap-2 mb-3">
             <Mail aria-hidden="true" className="w-4 h-4 text-amber-600" />

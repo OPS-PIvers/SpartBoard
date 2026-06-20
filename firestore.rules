@@ -3219,8 +3219,18 @@ service cloud.firestore {
         && request.resource.data.invitedByUid == request.auth.uid
         && request.resource.data.inviteeEmailLower is string
         && request.resource.data.inviteeEmailLower.size() <= 255
-        && get(/databases/$(database)/documents/plcs/$(request.resource.data.plcId)).data.leadUid == request.auth.uid
-        && inviteId == plcInviteDocId(request.resource.data.plcId, request.resource.data.inviteeEmailLower);
+        // Lead OR co-lead may invite — membership management mirrors the
+        // role-change / remove / transfer actions co-leads already perform
+        // (Decision 1.2). isPlcMembershipManager reads the members map (falling
+        // back to the denormalized leadUid mirror) so it covers both shapes.
+        && isPlcMembershipManager(get(/databases/$(database)/documents/plcs/$(request.resource.data.plcId)).data)
+        && inviteId == plcInviteDocId(request.resource.data.plcId, request.resource.data.inviteeEmailLower)
+        // Schema lock (L-1): pin the invite doc shape so a manager can't inject
+        // arbitrary fields future code/rules might trust. `orgId` is optional.
+        && request.resource.data.keys().hasOnly([
+             'plcId', 'plcName', 'inviteeEmailLower', 'invitedByUid',
+             'invitedByName', 'invitedAt', 'status', 'orgId'
+           ]);
 
       // Invitee can patch only status + respondedAt to mark accepted/declined.
       // Status must transition *from* 'pending' *to* a terminal state — this
@@ -3242,7 +3252,9 @@ service cloud.firestore {
       allow delete: if request.auth != null
         && (
           request.auth.uid == resource.data.invitedByUid
-          || get(/databases/$(database)/documents/plcs/$(resource.data.plcId)).data.leadUid == request.auth.uid
+          // Any membership manager (lead OR co-lead) can revoke an invite, not
+          // only the original inviter — mirrors the create gate (Decision 1.2).
+          || isPlcMembershipManager(get(/databases/$(database)/documents/plcs/$(resource.data.plcId)).data)
         );
     }
 
