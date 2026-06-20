@@ -453,12 +453,27 @@ describe('plcs/{plcId} update — lead broad-update guard', () => {
     );
   });
 
-  it('rejects the lead changing leadUid (no leadership seizure via broad update)', async () => {
-    // leadUid is immutable on the broad lead-update branch — the guard
-    // requires request.resource.data.leadUid == resource.data.leadUid.
-    await assertFails(
+  it('lets the lead transfer leadership to a member via a bare leadUid write (legacy transferLead path)', async () => {
+    // This legacy-shape fixture carries no `members` map, so
+    // isTransferringPlcLead falls back to its leadUid-only path: the sitting
+    // lead may hand the crown to an EXISTING member. (The canonical members-map
+    // transfer — where a bare leadUid change WITHOUT the paired role flips is
+    // rejected by the lockstep guard — is covered in plcRootDocMembers.test.ts.)
+    await assertSucceeds(
       updateDoc(doc(asMemberA(), `plcs/${PLC_ID}`), {
         leadUid: MEMBER_B_UID,
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('rejects the lead installing a NON-member as lead (no seizure / no promoting an outsider)', async () => {
+    // leadUid is immutable on the broad lead-update branch, AND transferLead
+    // rejects a new lead who isn't already a member — so a bare leadUid write
+    // to an outsider matches no update branch and is denied.
+    await assertFails(
+      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}`), {
+        leadUid: NON_MEMBER_UID,
         updatedAt: 2,
       })
     );
