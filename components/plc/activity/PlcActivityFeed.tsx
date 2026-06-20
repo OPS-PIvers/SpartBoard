@@ -46,7 +46,7 @@ export const PlcActivityRow: React.FC<{
   event: PlcActivityEvent;
   selfUid: string | null;
 }> = ({ event, selfUid }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const mention = isMentionOfSelf(event, selfUid);
   const visuals = EVENT_VISUALS[event.type];
   const Icon = mention ? AtSign : (visuals?.Icon ?? ActivityIcon);
@@ -54,7 +54,7 @@ export const PlcActivityRow: React.FC<{
     ? 'text-brand-red-primary'
     : (visuals?.color ?? 'text-slate-500');
   const description = describeActivityEvent(event, t, selfUid);
-  const when = formatActivityRelativeTime(event.createdAt, t);
+  const when = formatActivityRelativeTime(event.createdAt, t, i18n.language);
 
   return (
     <li

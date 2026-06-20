@@ -132,6 +132,7 @@ export function describeActivityEvent(
 export function formatActivityRelativeTime(
   createdAt: number,
   t: TFunction,
+  locale?: string,
   now: number = Date.now()
 ): string {
   const justNow = t('plcDashboard.activity.justNow', {
@@ -140,7 +141,7 @@ export function formatActivityRelativeTime(
   if (createdAt <= 0) return justNow;
   const diffMs = now - createdAt;
   if (diffMs < 60_000) return justNow;
-  const fmt = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+  const fmt = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
   const minutes = Math.floor(diffMs / 60_000);
   if (minutes < 60) return fmt.format(-minutes, 'minute');
   const hours = Math.floor(minutes / 60);

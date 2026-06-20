@@ -312,6 +312,7 @@ export const PlcMeetingDecideStep: React.FC<DecideStepProps> = ({
 }) => {
   const { t } = useTranslation();
   const [draft, setDraft] = useState('');
+  const inputId = React.useId();
 
   const addDecision = (): void => {
     const text = draft.trim();
@@ -343,7 +344,7 @@ export const PlcMeetingDecideStep: React.FC<DecideStepProps> = ({
       {canEdit && (
         <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col gap-3">
           <label
-            htmlFor="meeting-decision-input"
+            htmlFor={inputId}
             className="text-sm font-bold text-slate-700 flex items-center gap-2"
           >
             <Lightbulb className="w-4 h-4 text-amber-500" aria-hidden="true" />
@@ -352,7 +353,7 @@ export const PlcMeetingDecideStep: React.FC<DecideStepProps> = ({
             })}
           </label>
           <textarea
-            id="meeting-decision-input"
+            id={inputId}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -475,6 +476,9 @@ export const PlcMeetingActStep: React.FC<ActStepProps> = ({
   const [draft, setDraft] = useState('');
   const [draftAssignee, setDraftAssignee] = useState('');
   const [draftDue, setDraftDue] = useState('');
+  const actionInputId = React.useId();
+  const assigneeId = React.useId();
+  const dueId = React.useId();
 
   const memberNameByUid = useMemo(() => {
     const map: Record<string, string> = {};
@@ -518,7 +522,7 @@ export const PlcMeetingActStep: React.FC<ActStepProps> = ({
       {canEdit && (
         <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col gap-3">
           <label
-            htmlFor="meeting-action-input"
+            htmlFor={actionInputId}
             className="text-sm font-bold text-slate-700 flex items-center gap-2"
           >
             <ListChecks
@@ -530,7 +534,7 @@ export const PlcMeetingActStep: React.FC<ActStepProps> = ({
             })}
           </label>
           <input
-            id="meeting-action-input"
+            id={actionInputId}
             type="text"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -548,7 +552,7 @@ export const PlcMeetingActStep: React.FC<ActStepProps> = ({
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex flex-col gap-1">
               <label
-                htmlFor="meeting-action-assignee"
+                htmlFor={assigneeId}
                 className="text-xs font-semibold uppercase tracking-wider text-slate-500"
               >
                 {t('plcDashboard.meeting.act.assignee', {
@@ -556,7 +560,7 @@ export const PlcMeetingActStep: React.FC<ActStepProps> = ({
                 })}
               </label>
               <select
-                id="meeting-action-assignee"
+                id={assigneeId}
                 value={draftAssignee}
                 onChange={(e) => setDraftAssignee(e.target.value)}
                 className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
@@ -575,13 +579,13 @@ export const PlcMeetingActStep: React.FC<ActStepProps> = ({
             </div>
             <div className="flex flex-col gap-1">
               <label
-                htmlFor="meeting-action-due"
+                htmlFor={dueId}
                 className="text-xs font-semibold uppercase tracking-wider text-slate-500"
               >
                 {t('plcDashboard.meeting.act.due', { defaultValue: 'Due' })}
               </label>
               <input
-                id="meeting-action-due"
+                id={dueId}
                 type="date"
                 value={draftDue}
                 onChange={(e) => setDraftDue(e.target.value)}

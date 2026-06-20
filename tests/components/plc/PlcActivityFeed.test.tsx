@@ -58,6 +58,9 @@ vi.mock('react-i18next', () => ({
           : (o?.defaultValue ?? _k);
       return interpolate(tmpl, o);
     },
+    // PlcActivityRow + YourActionItemsCard now pass i18n.language to the Intl
+    // date/relative-time formatters.
+    i18n: { language: 'en' },
   }),
 }));
 

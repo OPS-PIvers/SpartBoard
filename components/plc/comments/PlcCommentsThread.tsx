@@ -132,10 +132,10 @@ export const PlcCommentsThread: React.FC<PlcCommentsThreadProps> = ({
   const [activeIndex, setActiveIndex] = useState(0);
   const [posting, setPosting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const idPrefix = useMemo(
-    () => `plc-comment-mention-${targetType}-${targetId}`,
-    [targetType, targetId]
-  );
+  // useId guarantees a unique prefix even when two threads for the same
+  // (targetType, targetId) render on one page — a stable per-instance id.
+  const baseId = React.useId();
+  const idPrefix = `plc-comment-mention-${baseId}`;
 
   const candidates = useMemo(
     () =>

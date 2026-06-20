@@ -181,7 +181,7 @@ const ActionItemRow: React.FC<{
   item: ActionItemView;
   onToggle: () => Promise<void>;
 }> = ({ item, onToggle }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [busy, setBusy] = useState(false);
   const { todo, bucket } = item;
 
@@ -195,7 +195,7 @@ const ActionItemRow: React.FC<{
     }
   };
 
-  const dueLabel = formatDueLabel(t, todo.dueAt ?? null, bucket);
+  const dueLabel = formatDueLabel(t, todo.dueAt ?? null, bucket, i18n.language);
 
   return (
     <li className="group flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-slate-50">
@@ -237,7 +237,8 @@ const ActionItemRow: React.FC<{
 function formatDueLabel(
   t: ReturnType<typeof useTranslation>['t'],
   dueAt: number | null,
-  bucket: DueBucket
+  bucket: DueBucket,
+  locale?: string
 ): string | null {
   if (dueAt == null) return null;
   if (bucket === 'overdue') {
@@ -251,7 +252,7 @@ function formatDueLabel(
     });
   }
   try {
-    return new Date(dueAt).toLocaleDateString(undefined, {
+    return new Date(dueAt).toLocaleDateString(locale, {
       month: 'short',
       day: 'numeric',
     });
