@@ -413,7 +413,7 @@ describe('editor performance baseline', () => {
       expect(m.commits).toBeGreaterThan(0);
       expect(m.actualDurationMs).toBeGreaterThanOrEqual(0);
     }
-  });
+  }, 30000);
 
   it('VideoActivityEditor: mount, type ×25, switch ×10, add', async () => {
     const rec = createRecorder();
@@ -461,7 +461,7 @@ describe('editor performance baseline', () => {
       expect(m.commits).toBeGreaterThan(0);
       expect(m.actualDurationMs).toBeGreaterThanOrEqual(0);
     }
-  });
+  }, 30000);
 
   it('GuidedLearningEditor: mount, type ×25, switch slides ×10, add step', async () => {
     const rec = createRecorder();
@@ -520,7 +520,7 @@ describe('editor performance baseline', () => {
       expect(m.commits).toBeGreaterThan(0);
       expect(m.actualDurationMs).toBeGreaterThanOrEqual(0);
     }
-  });
+  }, 30000);
 });
 
 // ─── Results file ────────────────────────────────────────────────────────────

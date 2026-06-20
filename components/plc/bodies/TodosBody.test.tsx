@@ -16,6 +16,24 @@ vi.mock('@/hooks/usePlcTodos', () => ({
     toggleDone: vi.fn().mockResolvedValue(undefined),
     updateText: mockUpdateText,
     deleteTodo: vi.fn().mockResolvedValue(undefined),
+    restoreTodo: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
+// TodosBody gates every write affordance behind useCanEditPlcContent() (viewer
+// role, Decision 3.2). The real hook reads Auth + PlcProvider context, which
+// this test doesn't mount; a non-editable result also hides the inline edit
+// button this regression drives — so force editable.
+vi.mock('@/context/usePlcContext', () => ({
+  useCanEditPlcContent: () => true,
+}));
+
+// Soft-delete (Decision 3.1) pulls Auth/Dashboard/i18n context; stub it so the
+// component renders without those providers. The Escape-cancel path under test
+// never invokes softDelete.
+vi.mock('@/hooks/usePlcTrash', () => ({
+  usePlcSoftDelete: () => ({
+    softDelete: vi.fn().mockResolvedValue(undefined),
   }),
 }));
 
@@ -52,6 +70,16 @@ const MOCK_PLC: Plc = {
   id: 'plc-1',
   name: 'Test PLC',
   leadUid: 'uid-1',
+  members: {
+    'uid-1': {
+      uid: 'uid-1',
+      email: 'teacher@test.com',
+      displayName: 'Teacher One',
+      role: 'lead',
+      joinedAt: 0,
+      status: 'active',
+    },
+  },
   memberUids: ['uid-1'],
   memberEmails: { 'uid-1': 'teacher@test.com' },
   createdAt: 0,

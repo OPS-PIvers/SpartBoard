@@ -56,6 +56,7 @@ import { Results } from './components/Results';
 import { VideoActivityLiveMonitor } from './components/VideoActivityLiveMonitor';
 import { VideoActivityEditorModal } from './components/VideoActivityEditorModal';
 import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
+import { getPlcMemberEmail } from '@/utils/plc';
 import { AlertTriangle, Loader2, LogIn } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
@@ -333,7 +334,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
       }
 
       const ownerEmailLower =
-        plc.memberEmails?.[user.uid] ??
+        getPlcMemberEmail(plc, user.uid) ??
         (user.email ? user.email.toLowerCase() : '');
       await writePlcVideoActivityEntry(plcId, user.uid, {
         plcVideoActivityId: crypto.randomUUID(),

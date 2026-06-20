@@ -4,16 +4,18 @@ import {
   Crown,
   Mail,
   Plus,
+  ShieldCheck,
   UserMinus,
   UserPlus,
   Users2,
   X,
 } from 'lucide-react';
-import { Plc } from '@/types';
+import { Plc, PlcMember, PlcRole } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
+import { getPlcMembers, getPlcRole, isPlcLeadOrCoLead } from '@/utils/plc';
 import { logError } from '@/utils/logError';
 
 interface MembersBodyProps {
@@ -41,13 +43,34 @@ function initialsFromEmail(email: string): string {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
- * Members body for the PLC dashboard. Compact mode renders a tight avatar
- * grid (the original tile preview); full mode adds an inline invite form
- * (lead-only), a pending-invite list with revoke, and per-row remove for
- * non-lead members.
+ * Roles a membership manager (lead / co-lead) can assign to a non-lead member
+ * via the role `<select>`. `lead` is intentionally excluded — leadership only
+ * moves through `transferLead` (the exactly-one-lead invariant); the rules
+ * reject minting a second lead on the role-change branch.
+ */
+const ASSIGNABLE_ROLES: readonly Exclude<PlcRole, 'lead'>[] = [
+  'coLead',
+  'member',
+  'viewer',
+];
+
+/**
+ * Members body for the PLC dashboard.
  *
- * Phase 6 of the dashboard overhaul. Replaces the previous tab-only
- * member management UI; the avatar tile is now the entry point.
+ * Compact mode renders a tight avatar grid (the original tile preview).
+ *
+ * Full mode is the membership-management surface. It reads the canonical
+ * `members` map through the T1 helpers (`getPlcMembers` / `getPlcRole` /
+ * `isPlcLeadOrCoLead`) so it works against BOTH the new map and legacy
+ * `memberUids` / `memberEmails` / `leadUid` arrays (un-migrated PLCs). A
+ * membership manager (lead or co-lead) can:
+ *   - invite a teacher by email (lead/co-lead),
+ *   - change a non-lead member's role (`coLead | member | viewer`),
+ *   - transfer the lead role to another active member,
+ *   - remove a non-lead member.
+ * Every destructive / privilege-changing action is gated to managers in the UI
+ * (re-enforced server-side by the PLC rules) and confirmed via a dialog. A
+ * non-manager member sees the read-only roster plus a "Leave PLC" action.
  */
 export const MembersBody: React.FC<MembersBodyProps> = ({
   plc,
@@ -56,7 +79,9 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
   const { t } = useTranslation();
   const { user } = useAuth();
   const { showConfirm } = useDialog();
-  const { removeMember } = usePlcs({ enabled: !compact });
+  const { removeMember, setMemberRole, transferLead, leavePlc } = usePlcs({
+    enabled: !compact,
+  });
   const { sentInvites, sendInvite, revokeInvite } = usePlcInvitations({
     enabled: !compact,
   });
@@ -65,18 +90,36 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  // uid currently mid-mutation (role change / remove / transfer), so its row
+  // controls can disable to prevent a double-submit racing the snapshot.
+  const [pendingUid, setPendingUid] = useState<string | null>(null);
 
-  const isLead = user?.uid === plc.leadUid;
+  // Read membership through the T1 helpers so this renders identically whether
+  // the PLC carries the canonical `members` map or only the legacy arrays.
+  const myUid = user?.uid ?? null;
+  const myRole = myUid ? getPlcRole(plc, myUid) : null;
+  const isManager = myUid ? isPlcLeadOrCoLead(plc, myUid) : false;
 
-  const members = useMemo(
-    () =>
-      plc.memberUids.map((uid) => ({
-        uid,
-        email: plc.memberEmails[uid] ?? '',
-        isLead: uid === plc.leadUid,
-        isYou: uid === user?.uid,
-      })),
-    [plc, user]
+  const members = useMemo(() => {
+    const all = getPlcMembers(plc);
+    // Lead first, then co-leads, then everyone else; alphabetical by email
+    // within a role band so the roster is stable and scannable.
+    const rank: Record<PlcRole, number> = {
+      lead: 0,
+      coLead: 1,
+      member: 2,
+      viewer: 3,
+    };
+    return [...all].sort((a, b) => {
+      const byRole = rank[a.role] - rank[b.role];
+      if (byRole !== 0) return byRole;
+      return (a.email || a.uid).localeCompare(b.email || b.uid);
+    });
+  }, [plc]);
+
+  const memberEmailsLower = useMemo(
+    () => new Set(members.map((m) => m.email).filter(Boolean)),
+    [members]
   );
 
   const pendingInvitesForThisPlc = useMemo(() => {
@@ -85,6 +128,26 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
       (inv) => inv.plcId === plc.id && inv.status === 'pending'
     );
   }, [sentInvites, plc.id, compact]);
+
+  const roleLabel = (role: PlcRole): string => {
+    switch (role) {
+      case 'lead':
+        return t('plcDashboard.members.roles.lead', { defaultValue: 'Lead' });
+      case 'coLead':
+        return t('plcDashboard.members.roles.coLead', {
+          defaultValue: 'Co-lead',
+        });
+      case 'viewer':
+        return t('plcDashboard.members.roles.viewer', {
+          defaultValue: 'Viewer',
+        });
+      case 'member':
+      default:
+        return t('plcDashboard.members.roles.member', {
+          defaultValue: 'Member',
+        });
+    }
+  };
 
   const handleSendInvite = async () => {
     setInviteError(null);
@@ -98,9 +161,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
       );
       return;
     }
-    if (
-      Object.values(plc.memberEmails).some((e) => e.toLowerCase() === trimmed)
-    ) {
+    if (memberEmailsLower.has(trimmed)) {
       setInviteError(
         t('plcDashboard.members.alreadyMember', {
           defaultValue: 'That email is already a member of this PLC.',
@@ -114,6 +175,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
         plcId: plc.id,
         plcName: plc.name,
         inviteeEmail: trimmed,
+        orgId: plc.orgId ?? null,
       });
       setInviteEmail('');
       setInviteSuccess(
@@ -137,11 +199,74 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
     }
   };
 
-  const handleRemoveMember = async (member: (typeof members)[number]) => {
+  const handleChangeRole = async (member: PlcMember, nextRole: PlcRole) => {
+    if (nextRole === member.role) return;
+    const confirmed = await showConfirm(
+      t('plcDashboard.members.confirmRole', {
+        defaultValue: 'Change {{email}} to {{role}}?',
+        email: member.email || member.uid,
+        role: roleLabel(nextRole),
+      }),
+      {
+        title: t('plcDashboard.members.confirmRoleTitle', {
+          defaultValue: 'Change role',
+        }),
+        confirmLabel: t('plcDashboard.members.confirmRoleAction', {
+          defaultValue: 'Change role',
+        }),
+      }
+    );
+    if (!confirmed) return;
+    setPendingUid(member.uid);
+    try {
+      await setMemberRole(plc.id, member.uid, nextRole);
+    } catch (err) {
+      logError('MembersBody.setMemberRole', err, {
+        plcId: plc.id,
+        memberUid: member.uid,
+        role: nextRole,
+      });
+    } finally {
+      setPendingUid(null);
+    }
+  };
+
+  const handleTransferLead = async (member: PlcMember) => {
+    const confirmed = await showConfirm(
+      t('plcDashboard.members.confirmTransfer', {
+        defaultValue:
+          'Make {{email}} the lead of this PLC? You will become a regular member.',
+        email: member.email || member.uid,
+      }),
+      {
+        title: t('plcDashboard.members.confirmTransferTitle', {
+          defaultValue: 'Transfer lead',
+        }),
+        variant: 'danger',
+        confirmLabel: t('plcDashboard.members.makeLead', {
+          defaultValue: 'Make lead',
+        }),
+      }
+    );
+    if (!confirmed) return;
+    setPendingUid(member.uid);
+    try {
+      await transferLead(plc.id, member.uid);
+    } catch (err) {
+      logError('MembersBody.transferLead', err, {
+        plcId: plc.id,
+        memberUid: member.uid,
+      });
+    } finally {
+      setPendingUid(null);
+    }
+  };
+
+  const handleRemoveMember = async (member: PlcMember) => {
     const confirmed = await showConfirm(
       t('plcDashboard.members.confirmRemove', {
         defaultValue: 'Remove {{email}} from this PLC?',
-        email: member.email,
+        email: member.email || member.uid,
       }),
       {
         title: t('plcDashboard.members.confirmRemoveTitle', {
@@ -154,6 +279,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
       }
     );
     if (!confirmed) return;
+    setPendingUid(member.uid);
     try {
       await removeMember(plc.id, member.uid);
     } catch (err) {
@@ -161,6 +287,32 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
         plcId: plc.id,
         memberUid: member.uid,
       });
+    } finally {
+      setPendingUid(null);
+    }
+  };
+
+  const handleLeave = async () => {
+    const confirmed = await showConfirm(
+      t('plcDashboard.members.confirmLeave', {
+        defaultValue:
+          'Leave this PLC? You will lose access to shared assignment results.',
+      }),
+      {
+        title: t('plcDashboard.members.confirmLeaveTitle', {
+          defaultValue: 'Leave PLC',
+        }),
+        variant: 'danger',
+        confirmLabel: t('plcDashboard.members.leave', {
+          defaultValue: 'Leave',
+        }),
+      }
+    );
+    if (!confirmed) return;
+    try {
+      await leavePlc(plc.id);
+    } catch (err) {
+      logError('MembersBody.leavePlc', err, { plcId: plc.id });
     }
   };
 
@@ -197,23 +349,24 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
         </div>
         <div className="flex flex-wrap gap-1.5 overflow-y-auto custom-scrollbar -m-0.5 p-0.5">
           {members.map((m) => {
+            const isYou = m.uid === myUid;
             // Compose a single accessible label so screen readers get
             // "alice@school.edu, lead, you" instead of just the initials.
-            const ariaLabel = `${m.email || m.uid}${m.isLead ? ', lead' : ''}${m.isYou ? ', you' : ''}`;
+            const ariaLabel = `${m.email || m.uid}, ${roleLabel(m.role)}${isYou ? `, ${t('plcDashboard.members.you', { defaultValue: 'You' })}` : ''}`;
             return (
               <div
                 key={m.uid}
                 role="img"
                 aria-label={ariaLabel}
                 className={`relative flex items-center justify-center w-9 h-9 rounded-full text-xxs font-bold shadow-sm border ${
-                  m.isYou
+                  isYou
                     ? 'bg-brand-blue-primary text-white border-brand-blue-dark'
                     : 'bg-white text-slate-600 border-slate-200'
                 }`}
-                title={`${m.email}${m.isLead ? ' (lead)' : ''}${m.isYou ? ' (you)' : ''}`}
+                title={`${m.email} (${roleLabel(m.role)})${isYou ? ` · ${t('plcDashboard.members.you', { defaultValue: 'You' })}` : ''}`}
               >
                 <span aria-hidden="true">{initialsFromEmail(m.email)}</span>
-                {m.isLead && (
+                {m.role === 'lead' && (
                   <span
                     aria-hidden="true"
                     className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-brand-red-primary border border-white"
@@ -227,9 +380,9 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
     );
   }
 
-  // Fullscreen: avatar list + invite form (lead) + pending invites + remove.
+  // Fullscreen: roster with roles + manager controls + invite form + leave.
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
       <section>
         <header className="flex items-center gap-2 mb-3">
           <Users2
@@ -244,63 +397,122 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
           <span className="text-xs text-slate-500">{members.length}</span>
         </header>
         <ul className="space-y-1">
-          {members.map((m) => (
-            <li
-              key={m.uid}
-              className="flex items-center gap-3 px-3 py-2 bg-white border border-slate-200 rounded-xl"
-            >
-              <div
-                aria-hidden="true"
-                className={`flex items-center justify-center w-8 h-8 rounded-full text-xxs font-bold shadow-sm border ${
-                  m.isYou
-                    ? 'bg-brand-blue-primary text-white border-brand-blue-dark'
-                    : 'bg-slate-50 text-slate-600 border-slate-200'
-                }`}
+          {members.map((m) => {
+            const isYou = m.uid === myUid;
+            const isMemberLead = m.role === 'lead';
+            // Managers can act on every active member except the sitting lead
+            // and themselves. (A manager demoting / removing themselves is not
+            // offered here — they leave via "Leave PLC".)
+            const canManageRow = isManager && !isMemberLead && !isYou;
+            const rowBusy = pendingUid === m.uid;
+            return (
+              <li
+                key={m.uid}
+                className="flex items-center gap-3 px-3 py-2 bg-white border border-slate-200 rounded-xl"
               >
-                {initialsFromEmail(m.email)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-slate-800 truncate">
-                  {m.email || m.uid}
-                </div>
-                <div className="flex items-center gap-2 text-xxs text-slate-500 mt-0.5">
-                  {m.isLead && (
-                    <span className="inline-flex items-center gap-1 text-brand-red-primary font-bold uppercase tracking-wider">
-                      <Crown aria-hidden="true" className="w-3 h-3" />
-                      {t('plcDashboard.members.lead', {
-                        defaultValue: 'Lead',
-                      })}
-                    </span>
-                  )}
-                  {m.isYou && (
-                    <span className="font-bold uppercase tracking-wider">
-                      {t('plcDashboard.members.you', { defaultValue: 'You' })}
-                    </span>
-                  )}
-                </div>
-              </div>
-              {isLead && !m.isLead && !m.isYou && (
-                <button
-                  type="button"
-                  onClick={() => void handleRemoveMember(m)}
-                  className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                  aria-label={t('plcDashboard.members.removeAriaLabel', {
-                    defaultValue: 'Remove {{email}}',
-                    email: m.email,
-                  })}
-                  title={t('plcDashboard.members.remove', {
-                    defaultValue: 'Remove',
-                  })}
+                <div
+                  aria-hidden="true"
+                  className={`flex items-center justify-center w-8 h-8 rounded-full text-xxs font-bold shadow-sm border ${
+                    isYou
+                      ? 'bg-brand-blue-primary text-white border-brand-blue-dark'
+                      : 'bg-slate-50 text-slate-600 border-slate-200'
+                  }`}
                 >
-                  <UserMinus aria-hidden="true" className="w-4 h-4" />
-                </button>
-              )}
-            </li>
-          ))}
+                  {initialsFromEmail(m.email)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-slate-800 truncate">
+                    {m.email || m.uid}
+                  </div>
+                  <div className="flex items-center gap-2 text-xxs text-slate-500 mt-0.5">
+                    <span
+                      className={`inline-flex items-center gap-1 font-bold uppercase tracking-wider ${
+                        isMemberLead
+                          ? 'text-brand-red-primary'
+                          : m.role === 'coLead'
+                            ? 'text-brand-blue-primary'
+                            : m.role === 'viewer'
+                              ? 'text-slate-400'
+                              : 'text-slate-500'
+                      }`}
+                    >
+                      {isMemberLead && (
+                        <Crown aria-hidden="true" className="w-3 h-3" />
+                      )}
+                      {m.role === 'coLead' && (
+                        <ShieldCheck aria-hidden="true" className="w-3 h-3" />
+                      )}
+                      {roleLabel(m.role)}
+                    </span>
+                    {isYou && (
+                      <span className="font-bold uppercase tracking-wider text-slate-600">
+                        {t('plcDashboard.members.you', { defaultValue: 'You' })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {canManageRow && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <label className="sr-only" htmlFor={`plc-role-${m.uid}`}>
+                      {t('plcDashboard.members.roleSelectAriaLabel', {
+                        defaultValue: 'Role for {{email}}',
+                        email: m.email || m.uid,
+                      })}
+                    </label>
+                    <select
+                      id={`plc-role-${m.uid}`}
+                      value={m.role === 'lead' ? 'member' : m.role}
+                      disabled={rowBusy}
+                      onChange={(e) =>
+                        void handleChangeRole(m, e.target.value as PlcRole)
+                      }
+                      className="text-xxs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {ASSIGNABLE_ROLES.map((r) => (
+                        <option key={r} value={r}>
+                          {roleLabel(r)}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => void handleTransferLead(m)}
+                      disabled={rowBusy}
+                      className="p-1.5 text-slate-400 hover:text-brand-red-primary hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label={t('plcDashboard.members.makeLeadAriaLabel', {
+                        defaultValue: 'Make {{email}} the lead',
+                        email: m.email || m.uid,
+                      })}
+                      title={t('plcDashboard.members.makeLead', {
+                        defaultValue: 'Make lead',
+                      })}
+                    >
+                      <Crown aria-hidden="true" className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleRemoveMember(m)}
+                      disabled={rowBusy}
+                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label={t('plcDashboard.members.removeAriaLabel', {
+                        defaultValue: 'Remove {{email}}',
+                        email: m.email || m.uid,
+                      })}
+                      title={t('plcDashboard.members.remove', {
+                        defaultValue: 'Remove',
+                      })}
+                    >
+                      <UserMinus aria-hidden="true" className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </section>
 
-      {isLead && (
+      {isManager && (
         <section>
           <header className="flex items-center gap-2 mb-3">
             <UserPlus
@@ -384,7 +596,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
         </section>
       )}
 
-      {isLead && pendingInvitesForThisPlc.length > 0 && (
+      {isManager && pendingInvitesForThisPlc.length > 0 && (
         <section>
           <header className="flex items-center gap-2 mb-3">
             <Mail aria-hidden="true" className="w-4 h-4 text-amber-600" />
@@ -437,12 +649,32 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
         </section>
       )}
 
-      {!isLead && (
+      {!isManager && (
         <p className="text-xxs text-slate-500 italic">
-          {t('plcDashboard.members.notLead', {
-            defaultValue: 'Only the PLC lead can invite or remove members.',
+          {t('plcDashboard.members.notManager', {
+            defaultValue:
+              'Only the PLC lead or a co-lead can invite, remove, or change members.',
           })}
         </p>
+      )}
+
+      {/* Leave PLC — available to any active member who is not the lead. The
+          lead must transfer leadership before leaving (rules + hook enforce
+          this); offering "Leave" to the lead would only surface a thrown
+          error, so it is hidden for them. */}
+      {myRole != null && myRole !== 'lead' && (
+        <section className="pt-2 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => void handleLeave()}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xxs font-bold uppercase tracking-wider text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <UserMinus aria-hidden="true" className="w-3.5 h-3.5" />
+            {t('plcDashboard.members.leavePlc', {
+              defaultValue: 'Leave this PLC',
+            })}
+          </button>
+        </section>
       )}
     </div>
   );

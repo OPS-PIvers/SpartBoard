@@ -52,6 +52,7 @@ coverage/
 *.cert
 
 .gemini/
+.codex/
 gha-creds-*.json
 eslint-output.txt
 .claude/scheduled_tasks.lock

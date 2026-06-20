@@ -233,7 +233,9 @@
       "removeFailed": "No se pudo eliminar el miembro",
       "revokeFailed": "No se pudo revocar la invitación",
       "acceptFailed": "No se pudo aceptar la invitación",
-      "declineFailed": "No se pudo rechazar la invitación"
+      "declineFailed": "No se pudo rechazar la invitación",
+      "unreadBadge_one": "{{count}} nuevo desde tu última visita",
+      "unreadBadge_other": "{{count}} nuevos desde tu última visita"
     },
     "widgets": {
       "gradeFilter": "Filtro por Grado",
@@ -268,23 +270,101 @@
     },
     "confirmClearBoard": "¿Estás seguro de que deseas cerrar TODAS las ventanas de widgets?"
   },
+  "plc": {
+    "errors": {
+      "notSignedIn": "Debes iniciar sesión para hacer eso.",
+      "nameRequired": "Se requiere el nombre de la PLC.",
+      "accountEmailRequired": "Se requiere un correo electrónico de cuenta para crear una PLC.",
+      "plcNotFound": "PLC no encontrada.",
+      "leadCannotLeave": "El líder debe transferir el liderazgo antes de abandonar la PLC.",
+      "leadCannotBeRemoved": "No se puede eliminar al líder; transfiere el liderazgo o elimina la PLC.",
+      "notAMember": "Esa persona no es miembro de esta PLC.",
+      "targetNotActiveMember": "Solo puedes transferir el liderazgo a un miembro activo.",
+      "cannotDemoteLead": "Usa «Transferir liderazgo» para cambiar quién lidera la PLC.",
+      "invalidRole": "Ese no es un rol válido de la PLC.",
+      "alreadyLead": "Ese miembro ya es el líder de esta PLC."
+    }
+  },
   "plcDashboard": {
     "subtitle": "Panel de la Comunidad",
+    "home": {
+      "commonAssessment": {
+        "loading": "Cargando tu evaluación común…",
+        "emptyTitle": "Aún no hay evaluación común",
+        "emptySubtitle": "Designa una en Datos compartidos y luego revisen juntos los resultados agrupados.",
+        "reviewData": "Revisar datos compartidos",
+        "ranIt": "{{ran}} de {{total}} la realizaron",
+        "startMeeting": "Iniciar reunión",
+        "resumeMeeting": "Reanudar reunión",
+        "phase": {
+          "planning": "Planificación: aún no realizada",
+          "running": "En curso",
+          "ready": "Lista para revisar",
+          "reviewing": "Revisando en equipo",
+          "closed": "Cerrada"
+        }
+      },
+      "actionItems": {
+        "heading": "Tus tareas pendientes",
+        "empty": "Estás al día",
+        "emptySubtitle": "Las tareas que se te asignen aparecerán aquí.",
+        "loadError": "No se pudieron cargar tus tareas",
+        "toggleFailed": "No se pudo actualizar esa tarea.",
+        "markDone": "Marcar como hecha",
+        "openAll": "Abrir lista de tareas",
+        "due": {
+          "overdue": "Vencida",
+          "today": "Hoy"
+        }
+      },
+      "quickCreate": {
+        "quiz": "Asignar cuestionario",
+        "video": "Asignar actividad de video",
+        "doc": "Agregar un documento",
+        "docModal": {
+          "title": "Agregar un documento compartido",
+          "subtitle": "Compartido con {{name}}",
+          "titleLabel": "Título",
+          "urlLabel": "URL de Google Doc",
+          "add": "Agregar documento",
+          "adding": "Agregando…",
+          "created": "\"{{title}}\" se agregó a esta comunidad.",
+          "failed": "No se pudo agregar ese documento. Inténtalo de nuevo."
+        }
+      }
+    },
+    "newAssignment": {
+      "quiz": {
+        "ctaDisabledDrive": "Conecta Google Drive para asignar un cuestionario.",
+        "ctaDisabledEmpty": "Aún no tienes cuestionarios en tu biblioteca personal. Crea uno primero en el widget de Cuestionario."
+      },
+      "video": {
+        "ctaDisabledDrive": "Conecta Google Drive para asignar una actividad de video.",
+        "ctaDisabledEmpty": "Aún no tienes actividades de video en tu biblioteca personal. Crea una primero en el widget de Actividad de video."
+      }
+    },
     "backToMenu": "Atrás",
     "close": "Cerrar",
     "tabs": {
       "overview": "Resumen",
       "quizzes": "Cuestionarios",
       "videoActivities": "Actividades de Video",
+      "assessments": "Evaluaciones",
       "notes": "Notas",
-      "todos": "Lista de Tareas",
-      "sharedBoards": "Tableros Compartidos",
+      "todos": "Tareas",
+      "sharedBoards": "Tableros",
       "settings": "Configuración",
       "home": "Inicio",
       "members": "Miembros",
-      "sharedData": "Datos Compartidos",
-      "docs": "Documentos",
+      "sharedData": "Datos",
+      "meeting": "Modo Reunión",
+      "docs": "Notas y Documentos",
       "resources": "Recursos"
+    },
+    "assessmentsTypes": {
+      "label": "Tipo de evaluación",
+      "quizzes": "Cuestionarios",
+      "videoActivities": "Actividades de Video"
     },
     "assignmentsSubTabs": {
       "label": "Vistas de tareas",
@@ -339,6 +419,45 @@
       "members_other": "{{count}} Miembros",
       "youLead": "Tú lideras esta Comunidad"
     },
+    "members": {
+      "heading": "Miembros",
+      "you": "Tú",
+      "roles": {
+        "lead": "Líder",
+        "coLead": "Co-líder",
+        "member": "Miembro",
+        "viewer": "Espectador"
+      },
+      "roleSelectAriaLabel": "Rol para {{email}}",
+      "confirmRole": "¿Cambiar a {{email}} a {{role}}?",
+      "confirmRoleTitle": "Cambiar rol",
+      "confirmRoleAction": "Cambiar rol",
+      "makeLead": "Hacer líder",
+      "makeLeadAriaLabel": "Hacer a {{email}} el líder",
+      "confirmTransfer": "¿Hacer a {{email}} el líder de esta Comunidad? Pasarás a ser un miembro normal.",
+      "confirmTransferTitle": "Transferir liderazgo",
+      "remove": "Quitar",
+      "removeAriaLabel": "Quitar a {{email}}",
+      "confirmRemove": "¿Quitar a {{email}} de esta Comunidad?",
+      "confirmRemoveTitle": "Quitar miembro",
+      "leave": "Salir",
+      "leavePlc": "Salir de esta Comunidad",
+      "confirmLeave": "¿Salir de esta Comunidad? Perderás el acceso a los resultados de tareas compartidas.",
+      "confirmLeaveTitle": "Salir de la Comunidad",
+      "inviteHeading": "Invitar a un docente",
+      "invitePlaceholder": "docente@escuela.edu",
+      "invite": "Invitar",
+      "sending": "Enviando…",
+      "invalidEmail": "Introduce una dirección de correo válida.",
+      "alreadyMember": "Ese correo ya es miembro de esta Comunidad.",
+      "inviteSent": "Invitación enviada a {{email}}.",
+      "inviteError": "No se pudo enviar la invitación. Inténtalo de nuevo en un momento.",
+      "pendingHeading": "Invitaciones pendientes",
+      "pendingSince": "Invitado {{when}}",
+      "revoke": "Revocar",
+      "revokeAriaLabel": "Revocar invitación para {{email}}",
+      "notManager": "Solo el líder o un co-líder de la Comunidad puede invitar, quitar o cambiar miembros."
+    },
     "completedAssignments": {
       "heading": "Resultados Compartidos",
       "count_one": "{{count}} tarea",
@@ -348,9 +467,6 @@
       "unsafeSheet": "Sin enlace",
       "emptyTitle": "Aún no hay tareas completadas",
       "emptySubtitle": "Cuando se detiene una tarea en modo Comunidad desde el tablero de cualquier compañero, aparece aquí con un enlace a la hoja de resultados compartida."
-    },
-    "placeholder": {
-      "comingSoon": "Próximamente"
     },
     "settings": {
       "heading": "Secciones del Panel",
@@ -375,6 +491,13 @@
       "sharedBoards": {
         "title": "Tableros Compartidos",
         "description": "Muestra tableros compartidos con esta Comunidad."
+      },
+      "digest": {
+        "heading": "Notificaciones",
+        "description": "Controla cómo esta Comunidad se mantiene informada.",
+        "title": "Resumen semanal por correo",
+        "optInDescription": "Envía a cada miembro un correo semanal con un resumen de lo que ocurrió en la Comunidad. Desactivado de forma predeterminada; cualquier miembro puede cambiarlo.",
+        "saveFailed": "No se pudo actualizar la configuración del resumen"
       }
     },
     "overview": {
@@ -478,12 +601,33 @@
       "emptyTitle": "Aún no hay notas",
       "emptySubtitle": "Crea la primera para comenzar.",
       "titlePlaceholder": "Título de la nota",
-      "bodyPlaceholder": "Escribe tus notas…",
+      "bodyPlaceholder": "Escribe tus notas… (compatible con markdown)",
       "deleteNote": "Eliminar nota",
       "confirmDelete": "¿Eliminar esta nota? Esta acción no se puede deshacer.",
       "confirmDeleteTitle": "Eliminar nota",
+      "createFailed": "No se pudo crear esa nota. Inténtalo de nuevo.",
+      "previewMarkdown": "Ver nota con formato",
+      "editMarkdown": "Editar nota",
+      "emptyPreview": "Aún no hay nada para previsualizar.",
       "lastEdited": "Última edición {{when}}",
-      "pickOrCreate": "Selecciona una nota para editar o crea una nueva."
+      "pickOrCreate": "Selecciona una nota para editar o crea una nueva.",
+      "pickToRead": "Selecciona una nota para leer.",
+      "conflictTitle": "Esta nota cambió",
+      "conflictMessage": "Un compañero editó esta nota mientras escribías. Vuelve a cargar para ver sus cambios; tu texto sin guardar se conserva abajo.",
+      "conflictReload": "Recargar nota",
+      "meeting": {
+        "label": "Notas de reunión",
+        "newMeetingNote": "Nueva nota de reunión",
+        "newMeetingNoteShort": "Reunión",
+        "agenda": "Agenda",
+        "decisions": "Decisiones",
+        "actionItems": "Acciones"
+      }
+    },
+    "notesDocs": {
+      "notesTab": "Notas de reunión",
+      "docsTab": "Google Docs",
+      "tablistLabel": "Notas y documentos"
     },
     "todos": {
       "addPlaceholder": "Agregar una tarea para la Comunidad…",
@@ -530,6 +674,344 @@
       "driveRequired": "Conecta Google Drive en tu cuenta para importar cuestionarios de la Comunidad.",
       "driveRequiredForEdit": "Conecta Google Drive en tu cuenta para editar cuestionarios de la Comunidad.",
       "driveDisconnected": "Conecta Google Drive para importar cuestionarios de la Comunidad a tu biblioteca personal."
+    },
+    "presence": {
+      "heading": "Quién está aquí",
+      "othersHere": "{{count}} compañero aquí ahora",
+      "othersHere_plural": "{{count}} compañeros aquí ahora",
+      "youAreHere": "Estás aquí",
+      "nobodyHere": "Ahora mismo no hay nadie más aquí",
+      "inSection": "en {{section}}",
+      "viewingAria": "{{name}} está en {{section}}",
+      "justYou": "Solo tú estás aquí",
+      "youLabel": "Tú",
+      "includingYou": "incluyéndote a ti",
+      "overflow": "+{{count}} más aquí",
+      "stripAria": "{{count}} persona aquí ahora",
+      "stripAria_plural": "{{count}} personas aquí ahora",
+      "meetingSection": "la reunión"
+    },
+    "activity": {
+      "heading": "Actividad",
+      "empty": "Aún no hay actividad",
+      "sinceLastVisit": "Desde tu última visita",
+      "sinceSubtitle": "Lo que pasó mientras no estabas",
+      "olderHeading": "Antes",
+      "caughtUp": "Estás al día",
+      "caughtUpSubtitle": "No hay actividad nueva desde tu última visita.",
+      "unreadBadge": "{{count}} nuevos",
+      "loadError": "No se pudo cargar la actividad",
+      "feedHeading": "Actividad reciente",
+      "feedAria": "Actividad reciente del PLC",
+      "unknownActor": "Alguien",
+      "untitled": "un elemento",
+      "youMentioned": "{{actor}} te mencionó en un comentario",
+      "mentionBadge": "Te mencionó",
+      "justNow": "Ahora mismo",
+      "event": {
+        "member_joined": "{{actor}} se unió al PLC",
+        "member_left": "{{actor}} salió del PLC",
+        "role_changed": "{{actor}} cambió el rol de {{target}}",
+        "assessment_created": "{{actor}} creó {{target}}",
+        "assessment_shared": "{{actor}} compartió {{target}}",
+        "assessment_results_ready": "Los resultados de {{target}} están listos",
+        "meeting_held": "{{actor}} celebró una reunión",
+        "note_created": "{{actor}} añadió una nota: {{target}}",
+        "comment_added": "{{actor}} comentó en {{target}}",
+        "item_deleted": "{{actor}} eliminó {{target}}",
+        "item_restored": "{{actor}} restauró {{target}}"
+      }
+    },
+    "comments": {
+      "heading": "Comentarios",
+      "add": "Añadir un comentario",
+      "placeholder": "Escribe un comentario… usa @ para mencionar a un compañero",
+      "post": "Publicar",
+      "empty": "Aún no hay comentarios",
+      "edited": "editado",
+      "deleted": "Comentario eliminado",
+      "edit": "Editar",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "delete": "Eliminar comentario",
+      "confirmDelete": "¿Eliminar este comentario?",
+      "confirmDeleteTitle": "Eliminar comentario",
+      "mentionHint": "Escribe @ para mencionar a un compañero",
+      "postFailed": "No se pudo publicar tu comentario. Inténtalo de nuevo.",
+      "deleteFailed": "No se pudo eliminar ese comentario. Inténtalo de nuevo.",
+      "loadError": "No se pudieron cargar los comentarios.",
+      "viewerReadOnly": "Los espectadores pueden leer los comentarios, pero no publicar.",
+      "threadLabel": "Comentarios sobre {{subject}}",
+      "mentionNoMatch": "Ningún compañero coincide",
+      "mentionListLabel": "Mencionar a un compañero"
+    },
+    "sharedData": {
+      "loading": "Cargando datos compartidos…",
+      "loadError": "No se pudieron cargar los datos compartidos",
+      "emptyTitle": "Aún no hay datos compartidos",
+      "emptySubtitle": "Cuando los miembros realicen una evaluación común con el modo PLC, aquí aparecerán resultados anonimizados.",
+      "noResults": "Ningún resultado coincide con tus filtros",
+      "untitledQuiz": "Evaluación sin título",
+      "untitledQuestion": "Pregunta sin título",
+      "kindQuiz": "Cuestionario",
+      "kindVA": "Actividad de video",
+      "common": "Común",
+      "avg": "prom.",
+      "teacher": "docente",
+      "teachers": "docentes",
+      "students": "estudiantes",
+      "studentsShort": "est.",
+      "classCount": "{{count}} clase(s)",
+      "ranOf": "{{ran}} de {{total}} la realizaron",
+      "teamAverage": "promedio del equipo",
+      "weakestQuestions": "Preguntas más débiles",
+      "byClass": "Por docente / clase",
+      "you": "(tú)",
+      "whoRanIt": "Quién la ha realizado",
+      "hasRun": "la ha realizado",
+      "notRun": "aún no la ha realizado",
+      "updating": "actualizando…",
+      "updatingHint": "Los nuevos resultados aún se están consolidando — las cifras se actualizarán en breve.",
+      "designateTitle": "Convertir en la evaluación común del equipo",
+      "designateSubtitle": "Al designarla, obtiene un título, una unidad y un estado compartidos que todo el equipo sigue.",
+      "designateAction": "Designar",
+      "designatePrompt": "Nombra esta evaluación común para que todo el equipo la reconozca.",
+      "designatePromptTitle": "Designar evaluación común",
+      "designatePlaceholder": "p. ej. Unidad 4 CFA",
+      "designated": "«{{title}}» es ahora la evaluación común del equipo.",
+      "designateFailed": "No se pudo designar esa evaluación. Inténtalo de nuevo.",
+      "status": {
+        "planning": "Planificación",
+        "active": "Activa",
+        "reviewing": "En revisión",
+        "closed": "Cerrada"
+      },
+      "filters": {
+        "label": "Filtrar datos compartidos",
+        "search": "Buscar evaluaciones",
+        "searchPlaceholder": "Buscar…",
+        "type": "Tipo",
+        "typeAll": "Todos los tipos",
+        "typeQuiz": "Cuestionarios",
+        "typeVA": "Actividades de video",
+        "teacher": "Docente",
+        "teacherAll": "Todos los docentes",
+        "unit": "Unidad",
+        "unitAll": "Todas las unidades",
+        "status": "Estado",
+        "statusAll": "Todos los estados"
+      }
+    },
+    "meeting": {
+      "loading": "Cargando datos de la reunión…",
+      "loadError": "No se pudieron cargar los datos de la reunión",
+      "createFailed": "No se pudo iniciar la reunión. Inténtalo de nuevo.",
+      "saved": "Reunión guardada. El equipo puede revisar el registro cuando quiera.",
+      "saveFailed": "No se pudo guardar la reunión. Inténtalo de nuevo.",
+      "pickRequired": "Elige al menos una evaluación para revisar.",
+      "untitledAssessment": "Evaluación sin título",
+      "untitledQuestion": "Pregunta sin título",
+      "common": "Común",
+      "you": "(tú)",
+      "teamAverage": "Promedio del equipo",
+      "teacherStudentCount": "{{teachers}} docentes · {{students}} estudiantes",
+      "classCount": "{{count}} cl.",
+      "weakestQuestions": "Preguntas más débiles",
+      "byClass": "Por docente / clase",
+      "whoRanIt": "Quién la aplicó",
+      "ranOf": "({{ran}} de {{total}})",
+      "hasRun": "la aplicó",
+      "notRun": "aún no la aplicó",
+      "noQuestions": "Aún no hay datos por pregunta disponibles.",
+      "strongAcross": "Sólido en todo — cada pregunta superó el 80 %.",
+      "updating": "actualizando…",
+      "updatingHint": "Los nuevos resultados aún se están procesando — los datos se actualizarán en breve.",
+      "reviewCardLabel": "Resultados combinados de {{title}}",
+      "discussAssessment": "Comentar esto",
+      "discussQuestion": "Comentar esta pregunta en una decisión",
+      "designatePrompt": "Nombra esta evaluación común para que todo el equipo la reconozca.",
+      "designatePromptTitle": "Designar evaluación común",
+      "designatePlaceholder": "p. ej. Unidad 4 CFA",
+      "designated": "«{{title}}» es ahora la evaluación común del equipo.",
+      "designateFailed": "No se pudo designar esa evaluación. Inténtalo de nuevo.",
+      "back": "Atrás",
+      "next": "Siguiente",
+      "saveMeeting": "Guardar reunión",
+      "stepsLabel": "Pasos de la reunión",
+      "pastMeetings": "Reuniones anteriores ({{count}})",
+      "startOver": "Empezar de nuevo",
+      "startOverTitle": "Empezar una nueva reunión",
+      "startOverConfirm": "¿Empezar una nueva reunión? Esto borra la selección y las notas actuales.",
+      "steps": {
+        "pick": "Elegir",
+        "review": "Revisar",
+        "decide": "Decidir",
+        "act": "Actuar",
+        "save": "Guardar"
+      },
+      "pick": {
+        "heading": "¿Qué vamos a revisar hoy?",
+        "subtitle": "Elige la evaluación común (o evaluaciones) que revisará esta reunión.",
+        "emptyTitle": "Aún no hay datos de evaluación",
+        "emptySubtitle": "Cuando el equipo aplique una evaluación común en modo PLC, los resultados anonimizados aparecerán aquí, listos para revisarlos juntos.",
+        "cardMeta": "{{avg}}% prom. del equipo · {{teachers}} docentes · {{students}} estudiantes",
+        "designate": "Designar"
+      },
+      "review": {
+        "heading": "¿Qué dicen los datos?",
+        "subtitle": "Resultados combinados y anonimizados. Haz clic en una pregunta para capturar una decisión sobre ella.",
+        "none": "No hay evaluaciones seleccionadas — vuelve a Elegir."
+      },
+      "decide": {
+        "heading": "¿Qué decidimos?",
+        "subtitle": "Captura las decisiones del equipo. Vincula una a una tarjeta de datos de Revisar cuando responda a un resultado concreto.",
+        "addLabel": "Añadir una decisión",
+        "placeholder": "p. ej. Reenseñar la pregunta 4 con el modelo de área antes del examen.",
+        "add": "Añadir decisión",
+        "empty": "Aún no se han capturado decisiones.",
+        "remove": "Eliminar decisión",
+        "linkedFallback": "una tarjeta de datos",
+        "linkedQuestion": " · P{{q}}"
+      },
+      "act": {
+        "heading": "¿Quién hace qué?",
+        "subtitle": "Crea elementos de acción. Al guardar, cada uno se convierte en una tarea PLC seguida para su responsable.",
+        "addLabel": "Añadir un elemento de acción",
+        "placeholder": "p. ej. Crear un calentamiento de refuerzo para la pregunta 4",
+        "assignee": "Responsable",
+        "unassigned": "Sin asignar",
+        "someone": "Un compañero",
+        "due": "Vence",
+        "add": "Añadir acción",
+        "empty": "Aún no hay elementos de acción.",
+        "remove": "Eliminar elemento de acción",
+        "todoCreated": "Tarea creada"
+      },
+      "save": {
+        "heading": "¿Listo para guardar?",
+        "subtitle": "Al guardar se escribe el registro de la reunión, los elementos de acción se convierten en tareas y se registra en el feed de actividad del equipo.",
+        "reviewed": "Evaluaciones revisadas",
+        "decisions": "Decisiones",
+        "actions": "Acciones → tareas",
+        "attendees": "Asistentes (desde presencia)",
+        "whoAttended": "Quién está ahora",
+        "noAttendees": "Ahora mismo no hay nadie más activo — se te registrará como facilitador.",
+        "viewerNote": "Los observadores pueden seguir la reunión pero no guardar el registro.",
+        "doneTitle": "Reunión guardada",
+        "doneSubtitle": "Los elementos de acción ahora son tareas seguidas para sus responsables. Exporta el registro para tus archivos o empieza una nueva reunión.",
+        "viewRecord": "Ver registro de la reunión",
+        "startNew": "Empezar una nueva reunión"
+      },
+      "export": {
+        "toSheet": "Exportar a Sheets",
+        "toPdf": "Exportar a PDF",
+        "open": "Abrir",
+        "sheetDone": "Registro de la reunión exportado a Google Sheets.",
+        "pdfDone": "Registro de la reunión exportado a PDF.",
+        "noGoogle": "Conecta tu cuenta de Google para exportar el registro de la reunión.",
+        "notReady": "El registro de la reunión aún no está cargado. Inténtalo de nuevo.",
+        "failed": "No se pudo exportar el registro de la reunión."
+      },
+      "record": {
+        "title": "Registro de la reunión",
+        "facilitatedBy": "Facilitada por {{name}}",
+        "backToLive": "Volver al Modo Reunión",
+        "notFound": "Registro de la reunión no encontrado",
+        "notFoundBody": "Puede que se haya eliminado o que hayas abierto un enlace caducado.",
+        "agenda": "Agenda",
+        "attendees": "Asistentes ({{count}})",
+        "noAttendees": "No se registraron asistentes.",
+        "reviewed": "Evaluaciones revisadas ({{count}})",
+        "noReviewed": "No se registraron evaluaciones.",
+        "noData": "sin datos",
+        "decisions": "Decisiones ({{count}})",
+        "noDecisions": "No se capturaron decisiones.",
+        "actions": "Elementos de acción ({{count}})",
+        "noActions": "No se capturaron elementos de acción.",
+        "notes": "Notas"
+      }
+    },
+    "trash": {
+      "heading": "Papelera",
+      "description": "Los elementos eliminados permanecen aquí 30 días y luego se eliminan de forma permanente.",
+      "empty": "La papelera está vacía",
+      "restore": "Restaurar",
+      "restored": "Restaurado",
+      "restoreFailed": "No se pudo restaurar ese elemento. Inténtalo de nuevo.",
+      "deletedWhen": "Eliminado {{when}}",
+      "autoPurgeNote": "Los elementos de la papelera se eliminan permanentemente después de 30 días.",
+      "deletedToast": "Elemento movido a la papelera",
+      "undo": "Deshacer",
+      "loadError": "No se pudo cargar la papelera. Inténtalo de nuevo.",
+      "emptySubtitle": "Los elementos eliminados aparecerán aquí.",
+      "untitled": "Sin título",
+      "restoreItem": "Restaurar «{{title}}»",
+      "type": {
+        "note": "Nota",
+        "todo": "Tarea",
+        "doc": "Documento",
+        "comment": "Comentario",
+        "quiz": "Cuestionario",
+        "videoActivity": "Actividad de video"
+      }
+    },
+    "versions": {
+      "open": "Historial de versiones",
+      "openAriaLabel": "Historial de versiones de {{title}}",
+      "title": "Historial de versiones",
+      "ariaLabel": "Historial de versiones de {{title}}",
+      "close": "Cerrar",
+      "intro": "Versiones guardadas recientes de esta evaluación compartida. Al restaurar se vuelve a publicar esa versión para todos; la versión actual también se conserva en el historial.",
+      "loading": "Cargando historial de versiones…",
+      "loadError": "No se pudo cargar el historial de versiones.",
+      "retry": "Intentar de nuevo",
+      "emptyTitle": "Aún no hay versiones anteriores",
+      "emptySubtitle": "Las versiones anteriores aparecerán aquí después de publicar la próxima edición.",
+      "versionShort": "v{{version}}",
+      "versionLabel": "Versión {{version}}",
+      "savedByAt": "Guardado por {{name}} · {{when}}",
+      "unknownAuthor": "un compañero",
+      "restoreAction": "Restaurar esta versión",
+      "restoreAriaLabel": "Restaurar la versión {{version}}",
+      "restored": "Se restauró la versión {{version}} de «{{title}}». Los compañeros se sincronizarán en la próxima actualización.",
+      "restoreFailed": "No se pudo restaurar esa versión. Inténtalo de nuevo.",
+      "conflict": "Otro docente acaba de publicar una actualización. Recargamos el historial de versiones: revísalo e intenta restaurar de nuevo."
+    },
+    "sync": {
+      "autoPulled": "«{{title}}» se actualizó a la última versión de tu compañero/a.",
+      "autoPullFailed": "No se pudo obtener la última versión de «{{title}}». Lo reintentaremos en la próxima actualización.",
+      "conflictTitle": "La copia sincronizada cambió",
+      "conflictBody": "Un/a compañero/a publicó una nueva versión de «{{title}}» mientras tienes cambios sin guardar. ¿Conservar tus cambios u obtener su versión (se descartarán tus cambios sin guardar)?",
+      "keepMine": "Conservar los tuyos",
+      "pullTheirs": "Obtener los suyos",
+      "keptMine": "Se conservaron tus cambios en «{{title}}». Puedes publicarlos para compartirlos con tu equipo.",
+      "pulledTheirs": "Se obtuvo la versión de tu compañero/a de «{{title}}». Tus cambios sin guardar se descartaron.",
+      "resolveFailed": "No se pudo resolver el conflicto de sincronización de «{{title}}». Inténtalo de nuevo."
+    },
+    "search": {
+      "ariaLabel": "Buscar en este PLC",
+      "placeholder": "Buscar en este PLC…",
+      "clear": "Borrar búsqueda",
+      "searching": "Buscando…",
+      "resultsLabel": "Resultados de la búsqueda",
+      "resultCount_one": "{{count}} resultado",
+      "resultCount_other": "{{count}} resultados",
+      "noResults": "Sin coincidencias para «{{query}}»",
+      "untitled": "Sin título",
+      "groupAssessments": "Evaluaciones",
+      "groupData": "Datos",
+      "groupDocs": "Notas y documentos",
+      "groupBoards": "Tableros"
+    },
+    "viewer": {
+      "badge": "Espectador: solo lectura",
+      "badgeTooltip": "Tienes acceso de espectador a este PLC. Puedes leer todo, pero crear, editar y eliminar están desactivados.",
+      "readOnly": "Solo lectura",
+      "assessmentsNote": "Los espectadores pueden explorar las evaluaciones compartidas, pero no compartirlas, editarlas ni asignarlas.",
+      "notesNote": "Los espectadores pueden leer notas y documentos, pero no agregarlos ni modificarlos.",
+      "todosNote": "Los espectadores pueden leer la lista de tareas, pero no agregar ni cambiar elementos.",
+      "meetingNote": "Los espectadores pueden seguir la reunión, pero no editarla ni guardarla.",
+      "homeNote": "Los espectadores pueden leer todo aquí, pero no crear contenido nuevo."
     }
   },
   "widgetWindow": {
@@ -1139,6 +1621,55 @@
       "deleteSticker": "Eliminar pegatina",
       "dragFromLibrary": "Arrastra pegatinas de la biblioteca al tablero",
       "stickerAdded": "¡Pegatina añadida al tablero!"
+    },
+    "plc": {
+      "recovery": {
+        "title": "Recuperación de PLC",
+        "subtitle": "Reasigna el líder o disuelve una PLC abandonada en tu organización.",
+        "explainer": "Solo se pueden recuperar las PLC de tu organización. Úsalo cuando el líder de una PLC se haya marchado y no pueda transferir el liderazgo.",
+        "empty": "No hay PLC recuperables en tu organización.",
+        "leadLabel": "Líder",
+        "membersLabel_one": "{{count}} miembro",
+        "membersLabel_other": "{{count}} miembros",
+        "reassignLead": "Reasignar líder",
+        "reassignTitle": "Reasignar líder",
+        "reassignDescription": "Elige un miembro activo para que sea el nuevo líder de «{{name}}».",
+        "newLeadLabel": "Nuevo líder",
+        "noEligibleMembers": "No hay otros miembros activos para promover.",
+        "confirmReassign": "¿Hacer a {{member}} líder de «{{name}}»? El líder actual pasará a ser miembro.",
+        "reassignSuccess": "{{member}} ahora lidera «{{name}}».",
+        "dissolve": "Disolver PLC",
+        "confirmDissolve": "¿Disolver «{{name}}»? Esto elimina la PLC de forma permanente para todos los miembros y no se puede deshacer.",
+        "dissolveSuccess": "«{{name}}» se ha disuelto.",
+        "actionFailed": "No se pudo completar esa acción. Inténtalo de nuevo.",
+        "cancel": "Cancelar",
+        "confirm": "Confirmar"
+      }
     }
+  },
+  "plcRoute": {
+    "loading": "Cargando PLC…",
+    "notFoundTitle": "PLC no encontrada",
+    "notFoundBody": "Esta PLC no existe o ya no eres miembro de ella.",
+    "backToBoard": "Volver a mi tablero",
+    "hubTitle": "Mis PLC",
+    "hubSubtitle": "Abre una Comunidad de Aprendizaje Profesional para colaborar con tu equipo.",
+    "hubEmptyTitle": "Aún no hay PLC",
+    "hubEmptySubtitle": "Crea una PLC desde la barra lateral e invita a tus colegas.",
+    "leadBadge": "Líder",
+    "memberCount": "{{count}} miembro",
+    "memberCount_other": "{{count}} miembros"
+  },
+  "plcDirectory": {
+    "heading": "PLC en mi edificio",
+    "subtitle": "Equipos de tu edificio a los que puedes pedir unirte.",
+    "memberCount": "{{count}} miembro",
+    "memberCount_other": "{{count}} miembros",
+    "requestToJoin": "Pedir unirse",
+    "requestHint": "Pide a un miembro que invite a {{email}}.",
+    "emptyTitle": "No hay otras PLC para mostrar",
+    "emptySubtitle": "Ahora mismo no hay otras PLC en tu edificio.",
+    "noOrgTitle": "Directorio del edificio no disponible",
+    "noOrgSubtitle": "Tu cuenta aún no está vinculada a una escuela, por lo que no podemos mostrar PLC cercanas."
   }
 }

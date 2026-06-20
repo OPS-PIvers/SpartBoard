@@ -41,6 +41,7 @@ import {
   Download,
   ExternalLink,
   Film,
+  History,
   Loader2,
   Pencil,
   Plus,
@@ -60,6 +61,7 @@ import {
   usePlcVideoActivities,
   writePlcVideoActivityEntry,
 } from '@/hooks/usePlcVideoActivities';
+import { usePlcSoftDelete } from '@/hooks/usePlcTrash';
 import {
   SyncedVideoActivityVersionConflictError,
   useVideoActivity,
@@ -70,9 +72,18 @@ import {
   callLeaveSyncedVideoActivityGroup,
   createSyncedVideoActivityGroup,
   pullSyncedVideoActivityContent,
+  useSyncedVideoActivityGroupsByIds,
 } from '@/hooks/useSyncedVideoActivityGroups';
+// Clean-detach shim (Decision 5.3) — kind-agnostic, lives alongside the quiz
+// sync callables but routes to the PLC's video_activities header server-side.
+import { callDetachPlcSyncLinkage } from '@/hooks/useSyncedQuizGroups';
+import { usePlcAutoPullSync } from '@/hooks/usePlcAutoPullSync';
 import { logError } from '@/utils/logError';
+import { canEditPlcContent, getPlcMemberEmail } from '@/utils/plc';
 import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
+import { PlcVersionHistoryPanel } from '../versions/PlcVersionHistoryPanel';
+import { PlcViewerReadOnlyBadge } from '../viewer/PlcViewerReadOnlyBadge';
+import { PlcSyncConflictPrompt } from '../sync/PlcSyncConflictPrompt';
 import { PlcVideoActivityImportModal } from '../PlcVideoActivityImportModal';
 import {
   PlcSharePickerModal,
@@ -114,7 +125,9 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
     videoActivities: plcEntries,
     loading,
     unshareVideoActivityFromPlc,
+    restoreVideoActivityInPlc,
   } = usePlcVideoActivities(plc.id);
+  const { softDelete } = usePlcSoftDelete(plc.id);
   const {
     activities: personalActivities,
     saveActivity,
@@ -132,6 +145,19 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
     meta: VideoActivityMetadata;
   } | null>(null);
   const [sharePickerOpen, setSharePickerOpen] = useState(false);
+  // Open "Version history" panel target. Hidden for viewers (see `canEdit`).
+  const [versionTarget, setVersionTarget] = useState<{
+    syncGroupId: string;
+    title: string;
+  } | null>(null);
+
+  // Viewers can read the library but not edit/restore content (Decision 3.2 +
+  // §4 rules `plcCanEditContent`). Gate the "Version history" affordance on it
+  // client-side too (defense-in-depth; the rules hard-deny a viewer restore).
+  const canEdit = useMemo(
+    () => (user ? canEditPlcContent(plc, user.uid) : false),
+    [plc, user]
+  );
 
   const personalBySyncGroup = useMemo(() => {
     const map = new Map<string, VideoActivityMetadata>();
@@ -148,6 +174,95 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
     () => new Set(plcEntries.map((a) => a.syncGroupId)),
     [plcEntries]
   );
+
+  // §5.2 auto-pull-when-safe (Decision 5.2). The synced personal replicas that
+  // belong to THIS PLC's shared library — we only auto-reconcile copies the
+  // teacher imported from this PLC, not unrelated synced activities elsewhere.
+  const syncedReplicas = useMemo(
+    () =>
+      personalActivities.filter(
+        (a) => a.sync?.groupId && plcSyncGroupIds.has(a.sync.groupId)
+      ),
+    [personalActivities, plcSyncGroupIds]
+  );
+  const syncedReplicaGroupIds = useMemo(
+    () =>
+      syncedReplicas
+        .map((a) => a.sync?.groupId)
+        .filter((id): id is string => !!id),
+    [syncedReplicas]
+  );
+  const { groups: canonicalGroups } = useSyncedVideoActivityGroupsByIds(
+    syncedReplicaGroupIds
+  );
+  // A replica is "dirty" while its editor is open with unsaved edits — an
+  // auto-pull then would clobber those in-flight changes, so we route to a
+  // conflict prompt instead. Saving publishes immediately (LWW), clearing it.
+  const dirtyReplicaId = editing?.meta.id ?? null;
+  const { conflicts, resolveConflict } =
+    usePlcAutoPullSync<VideoActivityMetadata>({
+      replicas: syncedReplicas,
+      canonicalGroups,
+      dirtyReplicaId,
+      enabled: canEdit && isDriveConnected,
+      pull: pullSyncedVideoActivity,
+      acknowledgeVersion: (replica, canonicalVersion) => {
+        // `syncedReplicas` is filtered to carry `sync`, so this is always set;
+        // the guard keeps TS/lint happy without a non-null assertion.
+        if (!replica.sync) return Promise.resolve();
+        return attachSyncLinkage(replica.id, {
+          groupId: replica.sync.groupId,
+          lastSyncedVersion: canonicalVersion,
+        });
+      },
+      onAutoPulled: (replica) =>
+        addToast(
+          t('plcDashboard.sync.autoPulled', {
+            title: replica.title,
+            defaultValue:
+              '"{{title}}" updated to your teammate’s latest version.',
+          }),
+          'info'
+        ),
+      onAutoPullError: (replica) =>
+        addToast(
+          t('plcDashboard.sync.autoPullFailed', {
+            title: replica.title,
+            defaultValue:
+              'Couldn’t pull the latest version of "{{title}}". We’ll retry on the next update.',
+          }),
+          'error'
+        ),
+      onConflictPulled: (replica) =>
+        addToast(
+          t('plcDashboard.sync.pulledTheirs', {
+            title: replica.title,
+            defaultValue:
+              'Pulled your teammate’s version of "{{title}}". Your unsaved edits were discarded.',
+          }),
+          'info'
+        ),
+      onConflictKept: (replica) =>
+        addToast(
+          t('plcDashboard.sync.keptMine', {
+            title: replica.title,
+            defaultValue:
+              'Kept your edits to "{{title}}". You can publish them to share with your team.',
+          }),
+          'info'
+        ),
+      onError: (replica, err) =>
+        addToast(
+          err instanceof Error
+            ? err.message
+            : t('plcDashboard.sync.resolveFailed', {
+                title: replica.title,
+                defaultValue:
+                  'Couldn’t resolve the sync conflict for "{{title}}". Try again.',
+              }),
+          'error'
+        ),
+    });
 
   const sharePickerItems = useMemo<PlcSharePickerItem[]>(
     () =>
@@ -557,7 +672,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
         }
 
         const ownerEmailLower =
-          plc.memberEmails?.[user.uid] ??
+          getPlcMemberEmail(plc, user.uid) ??
           (user.email ? user.email.toLowerCase() : '');
         await writePlcVideoActivityEntry(plc.id, user.uid, {
           plcVideoActivityId: crypto.randomUUID(),
@@ -603,8 +718,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
       attachSyncLinkage,
       loadActivityData,
       personalActivities,
-      plc.id,
-      plc.memberEmails,
+      plc,
       plcSyncGroupIds,
       t,
       user,
@@ -632,14 +746,52 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
       if (!confirmed) return;
       setBusyRowId(plcVideoActivityId);
       try {
-        await unshareVideoActivityFromPlc(plcVideoActivityId);
-        addToast(
-          t('plcDashboard.videoActivities.unshared', {
-            title,
-            defaultValue: '"{{title}}" removed from this PLC.',
-          }),
-          'success'
-        );
+        // Soft-delete with undo (Decision 3.1): tombstone the PLC entry, log
+        // `item_deleted`, and pop an Undo toast that restores it.
+        //
+        // Clean-detach (Decision 5.3): on unshare we ALSO remove the caller
+        // from the canonical synced group's `participants` map via the
+        // `detachPlcSyncLinkage` Cloud Function (a real server op — rules
+        // forbid client `participants` writes). Symmetric with undo: restore
+        // re-joins via the idempotent `joinPlcVideoActivitySyncGroup`.
+        await softDelete({
+          type: 'videoActivity',
+          id: plcVideoActivityId,
+          title,
+          runDelete: async () => {
+            await unshareVideoActivityFromPlc(plcVideoActivityId);
+            // Best-effort: a detach failure must not block the unshare.
+            // gcPlcOrphans is the backstop for unreachable participants.
+            try {
+              await callDetachPlcSyncLinkage(
+                plc.id,
+                'video-activity',
+                plcVideoActivityId
+              );
+            } catch (detachErr) {
+              logError('PlcVideoActivitiesBody.unshare.detach', detachErr, {
+                plcId: plc.id,
+                plcVideoActivityId,
+              });
+            }
+          },
+          runRestore: async () => {
+            await restoreVideoActivityInPlc(plcVideoActivityId);
+            // Re-attach the caller so the restored header is live-synced
+            // again. Idempotent on the server; failure is non-fatal.
+            try {
+              await callJoinPlcVideoActivitySyncGroup(
+                plc.id,
+                plcVideoActivityId
+              );
+            } catch (rejoinErr) {
+              logError('PlcVideoActivitiesBody.unshare.rejoin', rejoinErr, {
+                plcId: plc.id,
+                plcVideoActivityId,
+              });
+            }
+          },
+        });
       } catch (err) {
         logError('PlcVideoActivitiesBody.unshare', err, {
           plcId: plc.id,
@@ -657,7 +809,15 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
         setBusyRowId(null);
       }
     },
-    [addToast, plc.id, showConfirm, t, unshareVideoActivityFromPlc]
+    [
+      addToast,
+      plc.id,
+      showConfirm,
+      t,
+      softDelete,
+      unshareVideoActivityFromPlc,
+      restoreVideoActivityInPlc,
+    ]
   );
 
   if (loading) {
@@ -668,7 +828,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
     );
   }
 
-  const shareCta = (
+  const shareCta = !canEdit ? null : (
     <button
       type="button"
       onClick={() => setSharePickerOpen(true)}
@@ -734,7 +894,16 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
                 'Open the Video Activity widget in your dashboard, click the kebab on any activity, and choose "Share with PLC" to add it here.',
             })}
           </p>
-          {shareCta}
+          {canEdit ? (
+            shareCta
+          ) : (
+            <PlcViewerReadOnlyBadge
+              note={t('plcDashboard.viewer.assessmentsNote', {
+                defaultValue:
+                  'Viewers can browse shared assessments but can’t share, edit, or assign them.',
+              })}
+            />
+          )}
         </div>
         {sharePickerModal}
       </>
@@ -857,61 +1026,90 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
                         })}
                   </span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    void handleEdit({
-                      plcVideoActivityId: activity.id,
-                      syncGroupId: activity.syncGroupId,
-                      title: activity.title,
-                      sharedByName: activity.sharedByName,
-                    })
-                  }
-                  disabled={isBusy || !isDriveConnected}
-                  aria-label={t('plcDashboard.videoActivities.editAction', {
-                    defaultValue: 'Edit',
-                  })}
-                  title={
-                    inLibrary
-                      ? t('plcDashboard.videoActivities.editTooltip', {
-                          defaultValue:
-                            'Edit collaboratively (changes sync to teammates)',
-                        })
-                      : t(
-                          'plcDashboard.videoActivities.editTooltipAutoImport',
-                          {
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void handleEdit({
+                        plcVideoActivityId: activity.id,
+                        syncGroupId: activity.syncGroupId,
+                        title: activity.title,
+                        sharedByName: activity.sharedByName,
+                      })
+                    }
+                    disabled={isBusy || !isDriveConnected}
+                    aria-label={t('plcDashboard.videoActivities.editAction', {
+                      defaultValue: 'Edit',
+                    })}
+                    title={
+                      inLibrary
+                        ? t('plcDashboard.videoActivities.editTooltip', {
                             defaultValue:
-                              'Edit collaboratively — adds to your library on first edit',
-                          }
-                        )
-                  }
-                  className="p-1.5 rounded-lg text-slate-400 hover:bg-brand-blue-lighter hover:text-brand-blue-primary transition-colors disabled:opacity-40"
-                >
-                  <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    void handleUnshare(activity.id, activity.title)
-                  }
-                  disabled={isBusy}
-                  aria-label={t('plcDashboard.videoActivities.unshareAction', {
-                    defaultValue: 'Unshare',
-                  })}
-                  title={
-                    isMine
-                      ? t('plcDashboard.videoActivities.unshareYours', {
-                          defaultValue: 'Unshare from PLC',
-                        })
-                      : t('plcDashboard.videoActivities.unshareTeammate', {
-                          defaultValue:
-                            'Unshare from PLC (any member can remove)',
-                        })
-                  }
-                  className="p-1.5 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40"
-                >
-                  <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                </button>
+                              'Edit collaboratively (changes sync to teammates)',
+                          })
+                        : t(
+                            'plcDashboard.videoActivities.editTooltipAutoImport',
+                            {
+                              defaultValue:
+                                'Edit collaboratively — adds to your library on first edit',
+                            }
+                          )
+                    }
+                    className="p-1.5 rounded-lg text-slate-400 hover:bg-brand-blue-lighter hover:text-brand-blue-primary transition-colors disabled:opacity-40"
+                  >
+                    <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                  </button>
+                )}
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setVersionTarget({
+                        syncGroupId: activity.syncGroupId,
+                        title: activity.title,
+                      })
+                    }
+                    disabled={isBusy}
+                    aria-label={t('plcDashboard.versions.openAriaLabel', {
+                      title: activity.title,
+                      defaultValue: 'Version history for {{title}}',
+                    })}
+                    title={t('plcDashboard.versions.open', {
+                      defaultValue: 'Version history',
+                    })}
+                    className="p-1.5 rounded-lg text-slate-400 hover:bg-brand-blue-lighter hover:text-brand-blue-primary transition-colors disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                  >
+                    <History className="w-3.5 h-3.5" aria-hidden="true" />
+                  </button>
+                )}
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void handleUnshare(activity.id, activity.title)
+                    }
+                    disabled={isBusy}
+                    aria-label={t(
+                      'plcDashboard.videoActivities.unshareAction',
+                      {
+                        defaultValue: 'Unshare',
+                      }
+                    )}
+                    title={
+                      isMine
+                        ? t('plcDashboard.videoActivities.unshareYours', {
+                            defaultValue: 'Unshare from PLC',
+                          })
+                        : t('plcDashboard.videoActivities.unshareTeammate', {
+                            defaultValue:
+                              'Unshare from PLC (any member can remove)',
+                          })
+                    }
+                    className="p-1.5 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -946,6 +1144,21 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
         onClose={() => setEditing(null)}
         onSave={handleSaveEdit}
       />
+      {versionTarget && canEdit && (
+        <PlcVersionHistoryPanel
+          plc={plc}
+          groupId={versionTarget.syncGroupId}
+          kind="video-activity"
+          title={versionTarget.title}
+          onClose={() => setVersionTarget(null)}
+        />
+      )}
+      {conflicts.length > 0 && (
+        <PlcSyncConflictPrompt
+          conflict={conflicts[0]}
+          onResolve={resolveConflict}
+        />
+      )}
       {sharePickerModal}
     </div>
   );

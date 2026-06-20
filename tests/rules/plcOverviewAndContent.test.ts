@@ -22,7 +22,14 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, getDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import {
+  setDoc,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+} from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-plc-overview-and-content';
 const PLC_ID = 'plc-rules-test';
@@ -218,6 +225,30 @@ describe('plcs/{plcId}/notes — write', () => {
     );
   });
 
+  // Decision 1.3: writes carry serverTimestamp() for the time fields. The
+  // rules dual-accept `int || timestamp` so both the legacy (number) and the
+  // new (Timestamp) shape pass during rollout.
+  it('accepts serverTimestamp() for createdAt / lastEditedAt (dual-accept)', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asMemberA(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
+        validNote({
+          createdAt: serverTimestamp(),
+          lastEditedAt: serverTimestamp(),
+        })
+      )
+    );
+  });
+
+  it('rejects a non-int / non-timestamp createdAt', async () => {
+    await assertFails(
+      setDoc(
+        doc(asMemberA(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
+        validNote({ createdAt: 'yesterday' })
+      )
+    );
+  });
+
   it('rejects creation by a non-member', async () => {
     await assertFails(
       setDoc(
@@ -261,6 +292,16 @@ describe('plcs/{plcId}/notes — write', () => {
           body: 'edited by B',
           lastEditedBy: MEMBER_B_UID,
           lastEditedAt: 2,
+        })
+      );
+    });
+
+    it('accepts a serverTimestamp() lastEditedAt on update (dual-accept)', async () => {
+      await assertSucceeds(
+        updateDoc(doc(asMemberB(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
+          body: 'edited by B',
+          lastEditedBy: MEMBER_B_UID,
+          lastEditedAt: serverTimestamp(),
         })
       );
     });
@@ -347,6 +388,24 @@ describe('plcs/{plcId}/todos — write', () => {
   it('any current member can create a todo', async () => {
     await assertSucceeds(
       setDoc(doc(asMemberA(), `plcs/${PLC_ID}/todos/${TODO_ID}`), validTodo())
+    );
+  });
+
+  it('accepts a serverTimestamp() createdAt (dual-accept, Decision 1.3)', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asMemberA(), `plcs/${PLC_ID}/todos/${TODO_ID}`),
+        validTodo({ createdAt: serverTimestamp() })
+      )
+    );
+  });
+
+  it('rejects a non-int / non-timestamp createdAt', async () => {
+    await assertFails(
+      setDoc(
+        doc(asMemberA(), `plcs/${PLC_ID}/todos/${TODO_ID}`),
+        validTodo({ createdAt: 'soon' })
+      )
     );
   });
 

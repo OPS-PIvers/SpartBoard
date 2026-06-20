@@ -29,6 +29,97 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+// PlcHome renders the PlcPresenceStrip, which reads useAuth + the PLC store
+// selectors. This test does not mount an AuthProvider/PlcProvider, so stub them
+// to inert values — with no presence the strip renders nothing, which is the
+// correct no-provider behavior.
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({
+    user: { uid: 'uid-a' },
+    // QuickCreateBar reads getAssignmentMode for the quiz/VA modals.
+    getAssignmentMode: () => 'submissions',
+  }),
+}));
+// YourActionItemsCard reads useDashboard().addToast for failure toasts.
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({ addToast: vi.fn() }),
+}));
+vi.mock('@/context/usePlcContext', async (importActual) => {
+  const actual = await importActual<typeof import('@/context/usePlcContext')>();
+  const emptySlice = { data: [], loading: false, error: null };
+  return {
+    ...actual,
+    usePlcWhoIsHere: () => [],
+    usePlcMembers: () => [],
+    // PlcHome now mounts the activity feed + since-you-were-here digest, both of
+    // which read the provider activity slice. No provider here → empty feed.
+    usePlcActivity: () => [],
+    // Wave-3 Home: the common-assessment banner reads the assessments +
+    // aggregates provider slices. No provider here → empty slices.
+    usePlcAssessmentsData: () => emptySlice,
+    usePlcAggregatesData: () => emptySlice,
+    // Wave-4 (T10): QuickCreateBar gates its create buttons behind the viewer
+    // read-only check. This suite renders as a full member, so allow edits.
+    useCanEditPlcContent: () => true,
+  };
+});
+
+// Wave-3 Home additions: the QuickCreateBar reads the personal-library hooks for
+// its disabled-reason affordance; mock them as Drive-connected with content so
+// the buttons are enabled and open their modals on click.
+vi.mock('@/hooks/useQuiz', () => ({
+  useQuiz: () => ({ quizzes: [{ id: 'q1' }], isDriveConnected: true }),
+}));
+vi.mock('@/hooks/useVideoActivity', () => ({
+  useVideoActivity: () => ({
+    activities: [{ id: 'va1' }],
+    isDriveConnected: true,
+  }),
+}));
+// The authoring modals are heavy + provider-coupled; stub them so opening them
+// just renders a sentinel we can assert on.
+vi.mock('@/components/plc/PlcNewQuizAssignmentModal', () => ({
+  PlcNewQuizAssignmentModal: () => <div data-testid="quiz-assign-modal" />,
+}));
+vi.mock('@/components/plc/PlcNewVideoActivityAssignmentModal', () => ({
+  PlcNewVideoActivityAssignmentModal: () => (
+    <div data-testid="va-assign-modal" />
+  ),
+}));
+vi.mock('@/components/plc/docs/PlcAddDocModal', () => ({
+  PlcAddDocModal: () => <div data-testid="add-doc-modal" />,
+}));
+// The common-assessment banner + your-action-items card read standalone hooks
+// (meetings + todos) that hit Firebase without a provider; stub them inert.
+vi.mock('@/hooks/usePlcMeetings', () => ({
+  usePlcMeetings: () => ({
+    meetings: [],
+    meetingsById: new Map(),
+    loading: false,
+    error: null,
+  }),
+}));
+vi.mock('@/hooks/usePlcTodos', () => ({
+  usePlcTodos: () => ({
+    todos: [],
+    loading: false,
+    error: null,
+    toggleDone: vi.fn(() => Promise.resolve()),
+  }),
+}));
+
+// PlcHome owns a usePlcUnread instance (cursor + markSeen-on-mount). Stub it so
+// this test doesn't touch Firebase; the markSeen-on-mount behavior is covered in
+// PlcActivityFeed.test.tsx.
+vi.mock('@/hooks/usePlcUnread', () => ({
+  usePlcUnread: () => ({
+    lastSeenAt: null,
+    unreadCount: 0,
+    markSeen: vi.fn(() => Promise.resolve()),
+    loading: false,
+  }),
+}));
+
 // All four hooks are mocked at the module level. Each test can override the
 // returned value via the vi.mocked().mockReturnValue() pattern.
 vi.mock('@/hooks/usePlcAssignmentIndex', () => ({
@@ -57,6 +148,7 @@ const fakePlc: Plc = {
   id: 'plc-1',
   name: '5th Grade Math',
   leadUid: 'uid-a',
+  members: {},
   memberUids: ['uid-a', 'uid-b'],
   memberEmails: {
     'uid-a': 'alice@school.edu',
@@ -124,6 +216,7 @@ function setDefaultMocks() {
     createDoc: vi.fn(),
     updateDoc: vi.fn(),
     deleteDoc: vi.fn(),
+    restoreDoc: vi.fn(),
   });
   vi.mocked(usePlcQuizzes).mockReturnValue({
     quizzes: [],
@@ -132,6 +225,7 @@ function setDefaultMocks() {
     shareQuizWithPlc: vi.fn(),
     mirrorPlcQuizHeader: vi.fn(),
     unshareQuizFromPlc: vi.fn(),
+    restoreQuizInPlc: vi.fn(),
   });
 }
 
@@ -163,27 +257,36 @@ describe('PlcHome', () => {
     expect(screen.queryByText('Old Quiz')).not.toBeInTheDocument();
   });
 
-  it('clicking "Create quiz" calls onNavigate("quizzes")', () => {
+  // Decision 4.2: the QuickCreate buttons OPEN the existing authoring modals
+  // (real content creation) rather than merely navigating.
+  it('clicking "Assign quiz" opens the quiz-assignment modal', () => {
     const onNavigate = vi.fn();
     render(<PlcHome plc={fakePlc} onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByRole('button', { name: /create quiz/i }));
-    expect(onNavigate).toHaveBeenCalledWith('quizzes');
+    expect(screen.queryByTestId('quiz-assign-modal')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /assign quiz/i }));
+    expect(screen.getByTestId('quiz-assign-modal')).toBeInTheDocument();
+    // It opens a modal — it does NOT navigate away.
+    expect(onNavigate).not.toHaveBeenCalled();
   });
 
-  it('clicking "Create video activity" calls onNavigate("videoActivities")', () => {
+  it('clicking "Assign video activity" opens the video-activity modal', () => {
     const onNavigate = vi.fn();
     render(<PlcHome plc={fakePlc} onNavigate={onNavigate} />);
+    expect(screen.queryByTestId('va-assign-modal')).not.toBeInTheDocument();
     fireEvent.click(
-      screen.getByRole('button', { name: /create video activity/i })
+      screen.getByRole('button', { name: /assign video activity/i })
     );
-    expect(onNavigate).toHaveBeenCalledWith('videoActivities');
+    expect(screen.getByTestId('va-assign-modal')).toBeInTheDocument();
+    expect(onNavigate).not.toHaveBeenCalled();
   });
 
-  it('clicking "Add a doc" calls onNavigate("docs")', () => {
+  it('clicking "Add a doc" opens the add-doc modal', () => {
     const onNavigate = vi.fn();
     render(<PlcHome plc={fakePlc} onNavigate={onNavigate} />);
+    expect(screen.queryByTestId('add-doc-modal')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /add a doc/i }));
-    expect(onNavigate).toHaveBeenCalledWith('docs');
+    expect(screen.getByTestId('add-doc-modal')).toBeInTheDocument();
+    expect(onNavigate).not.toHaveBeenCalled();
   });
 
   it('renders recent doc titles in the docs card', () => {

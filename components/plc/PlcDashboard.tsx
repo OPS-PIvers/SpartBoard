@@ -2,38 +2,66 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, Users2 } from 'lucide-react';
 
-import { Plc, getPlcFeatures } from '@/types';
+import { Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
+import { getPlcMembers, getPlcRole } from '@/utils/plc';
+import { buildPlcPath, spaNavigate, spaReplace } from '@/utils/plcPath';
 import { PlcDashboardRail, type PlcRailItem } from './PlcDashboardRail';
-import { PLC_SECTIONS, type PlcSectionId } from './sections';
+import { getVisiblePlcSections, type PlcSectionId } from './sections';
 import { PlcHome } from './home/PlcHome';
 import { PlcSharedDataBody } from './sharedData/PlcSharedDataBody';
-import { PlcDocsBody } from './docs/PlcDocsBody';
+import { NotesDocsBody } from './bodies/NotesDocsBody';
 import { PlcResourcesBody } from './resources/PlcResourcesBody';
-import { PlcQuizLibraryTab } from './tabs/PlcQuizLibraryTab';
-import { PlcVideoActivitiesTab } from './tabs/PlcVideoActivitiesTab';
-import { PlcTodosTab } from './tabs/PlcTodosTab';
-import { PlcSharedBoardsTab } from './tabs/PlcSharedBoardsTab';
+import { PlcAssessmentsBody } from './bodies/PlcAssessmentsBody';
+import { TodosBody } from './bodies/TodosBody';
+import { PlcSharedBoardsBody } from './bodies/PlcSharedBoardsBody';
 import { PlcSettingsTab } from './tabs/PlcSettingsTab';
 import { MembersBody } from './bodies/MembersBody';
+import { PlcMeetingMode } from './meeting/PlcMeetingMode';
+import { PlcPresenceStrip } from './presence/PlcPresenceStrip';
+import { PlcSearchBox } from './search/PlcSearchBox';
 
 interface PlcDashboardProps {
   plc: Plc;
+  /**
+   * The active section, derived from the pathname by the route host. The
+   * dashboard is fully controlled by this prop — section changes push history
+   * (`spaNavigate`) which re-derives this prop on the next render, so back /
+   * forward / refresh / deep-link all preserve the section.
+   */
+  activeSection: PlcSectionId;
+  /**
+   * A specific meeting record id, present only on the
+   * `/plc/:id/meeting/:meetingId` route. When set (and the active section is
+   * `meeting`), Meeting Mode opens that saved record read-only; when null on the
+   * `meeting` section it opens the live guided flow.
+   */
+  meetingId?: string | null;
+  /** Navigate out of the PLC (back to the prior history entry / the board). */
   onClose: () => void;
 }
 
 /**
- * Full-screen PLC Dashboard view. Opens when a member clicks a PLC in the
- * sidebar list. Navigates via a left-side rail (desktop) and a mobile
- * drill-in menu, mirroring the SettingsModal pattern.
+ * Full-screen PLC Dashboard view, mounted at `/plc/:plcId/:section`. Navigates
+ * via a left-side rail (desktop) and a mobile drill-in menu, mirroring the
+ * SettingsModal pattern. `activeSection` is pathname-driven (controlled); the
+ * mobile drill-in (`showMobileMenu`) is local view state.
  */
-export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
+export const PlcDashboard: React.FC<PlcDashboardProps> = ({
+  plc,
+  activeSection: requestedSection,
+  meetingId = null,
+  onClose,
+}) => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [activeSection, setActiveSection] = useState<PlcSectionId>('home');
-  const [showMobileMenu, setShowMobileMenu] = useState(true);
+  // On mobile, deep-linking straight to a section (anything but `home`) should
+  // open that section, not the drill-in menu; landing on home shows the menu.
+  const [showMobileMenu, setShowMobileMenu] = useState(
+    requestedSection === 'home'
+  );
 
-  // Close on Escape.
+  // Close on Escape (navigates back to the board / prior entry).
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
@@ -42,15 +70,10 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
     return () => document.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  const features = useMemo(() => getPlcFeatures(plc), [plc]);
-
-  const visibleSections = useMemo(
-    () =>
-      PLC_SECTIONS.filter(
-        (section) => !section.feature || features[section.feature]
-      ),
-    [features]
-  );
+  // Locked Wave-4 loop order + feature gating live in `getVisiblePlcSections`
+  // (single source of truth). `assessments` shows when EITHER the quiz or the
+  // video-activity feature is on.
+  const visibleSections = useMemo(() => getVisiblePlcSections(plc), [plc]);
 
   const visibleRailItems: PlcRailItem[] = useMemo(
     () =>
@@ -62,17 +85,30 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
     [visibleSections, t]
   );
 
-  // If the active section gets hidden via a settings toggle by another member,
-  // fall back to "home" — which is always visible. Adjust state during render
-  // rather than via an effect to avoid an extra render pass.
-  if (!visibleSections.find((s) => s.id === activeSection)) {
-    setActiveSection('home');
-  }
+  // The requested section may not be visible: a feature-gated section the team
+  // has toggled off (e.g. `assessments` when BOTH quiz + video-activity are
+  // off). In that case fall back to `home`. We only REWRITE the URL
+  // (replaceState, no history entry) when the requested section is a real
+  // section id that resolved away — not for `home` itself.
+  const activeSection: PlcSectionId = visibleSections.find(
+    (s) => s.id === requestedSection
+  )
+    ? requestedSection
+    : 'home';
+  useEffect(() => {
+    if (activeSection !== requestedSection) {
+      spaReplace(buildPlcPath(plc.id, activeSection));
+    }
+  }, [activeSection, requestedSection, plc.id]);
 
-  const isLead = plc.leadUid === user?.uid;
+  // Read membership through the T1 helpers so the lead badge + member count
+  // work against the canonical `members` map AND legacy arrays.
+  const isLead = user?.uid ? getPlcRole(plc, user.uid) === 'lead' : false;
+  const memberCount = useMemo(() => getPlcMembers(plc).length, [plc]);
 
   const handleBackOrClose = () => {
     if (!showMobileMenu) {
+      // Drill back out to the mobile section list without leaving the PLC.
       setShowMobileMenu(true);
     } else {
       onClose();
@@ -80,26 +116,33 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
   };
 
   const handleNavigateSection = (sectionId: PlcSectionId) => {
-    setActiveSection(sectionId);
     setShowMobileMenu(false);
+    if (sectionId !== activeSection) {
+      spaNavigate(buildPlcPath(plc.id, sectionId));
+    }
   };
 
   const renderSection = (id: PlcSectionId): React.ReactNode => {
     switch (id) {
       case 'home':
         return <PlcHome plc={plc} onNavigate={handleNavigateSection} />;
-      case 'quizzes':
-        return <PlcQuizLibraryTab plc={plc} onCloseDashboard={onClose} />;
-      case 'videoActivities':
-        return <PlcVideoActivitiesTab plc={plc} />;
+      // Unified Assessments section (Decision 4.5): hosts the quiz +
+      // video-activity bodies under one section with a type filter. The legacy
+      // `/plc/:id/quizzes` and `/plc/:id/videoActivities` deep links resolve to
+      // `assessments` in `parsePlcPath` (alias rewrite), so they land here.
+      case 'assessments':
+        return <PlcAssessmentsBody plc={plc} onCloseDashboard={onClose} />;
       case 'sharedData':
         return <PlcSharedDataBody plc={plc} />;
       case 'docs':
-        return <PlcDocsBody plc={plc} />;
+        // The Docs section now hosts the combined Notes & Docs surface: native
+        // structured meeting notes (live default) with the Google-Doc embed one
+        // tab away (Decisions 2.5, 6.5).
+        return <NotesDocsBody plc={plc} />;
       case 'todos':
-        return <PlcTodosTab plc={plc} />;
+        return <TodosBody plc={plc} />;
       case 'sharedBoards':
-        return <PlcSharedBoardsTab plc={plc} />;
+        return <PlcSharedBoardsBody plc={plc} />;
       case 'members':
         return <MembersBody plc={plc} />;
       case 'resources':
@@ -108,6 +151,17 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
         );
       case 'settings':
         return <PlcSettingsTab plc={plc} />;
+      // Meeting Mode — the guided projector surface (PRD §6.2). When a
+      // `meetingId` is present (the `/plc/:id/meeting/:meetingId` route) the
+      // saved record opens read-only; otherwise the live guided flow runs.
+      case 'meeting':
+        return (
+          <PlcMeetingMode
+            plc={plc}
+            meetingId={meetingId}
+            onNavigate={handleNavigateSection}
+          />
+        );
     }
   };
 
@@ -152,16 +206,25 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
               </div>
             </div>
           </div>
+          {/* Per-PLC search (PRD §6.4) — next to the title. Hidden on the
+              narrow mobile header; the drill-in menu owns small viewports. */}
+          <div className="hidden md:block shrink-0 ml-4">
+            <PlcSearchBox plcId={plc.id} onNavigate={handleNavigateSection} />
+          </div>
         </div>
 
         {/* Sub-header: PLC meta */}
         <div className="bg-white border-b border-slate-200 px-4 md:px-6 py-2.5 flex items-center gap-3 text-xxs text-slate-500 shrink-0">
           <span className="font-semibold uppercase tracking-widest">
             {t('plcDashboard.meta.members', {
-              count: plc.memberUids.length,
+              count: memberCount,
               defaultValue: '{{count}} Member',
               defaultValue_other: '{{count}} Members',
             })}
+          </span>
+          {/* Compact who's-here indicator — visible on every section (md+). */}
+          <span className="hidden md:inline-flex items-center">
+            <PlcPresenceStrip plc={plc} variant="compact" />
           </span>
           {isLead && (
             <>
@@ -189,10 +252,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
         <div className="flex-1 flex overflow-hidden">
           <PlcDashboardRail
             activeSection={activeSection}
-            onSelect={(id) => {
-              setActiveSection(id);
-              setShowMobileMenu(false);
-            }}
+            onSelect={handleNavigateSection}
             visibleSections={visibleRailItems}
           />
 
@@ -204,10 +264,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
                 {visibleSections.map((section) => (
                   <button
                     key={section.id}
-                    onClick={() => {
-                      setActiveSection(section.id);
-                      setShowMobileMenu(false);
-                    }}
+                    onClick={() => handleNavigateSection(section.id)}
                     className="flex items-center justify-between p-4 min-h-[60px] hover:bg-slate-100 active:bg-slate-200 transition-colors border-b border-slate-100 last:border-b-0 w-full text-left"
                   >
                     <div className="flex items-center gap-4">

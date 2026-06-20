@@ -386,6 +386,7 @@ import {
   __getGeminiModelConfig,
   __resetGenerateWithAICaches,
 } from './index';
+import * as barrel from './index';
 import * as admin from 'firebase-admin';
 import { computeAnalyticsForOrg } from './adminAnalyticsCompute';
 import {
@@ -2815,6 +2816,129 @@ describe('getGeminiModelConfig usedFallback flag', () => {
     /* eslint-enable @typescript-eslint/no-unsafe-argument */
 
     expect(result.usedFallback).toBe(false);
+  });
+});
+
+describe('index barrel — deployed export set', () => {
+  // The barrel is the single source of truth for which Cloud Functions are
+  // deployed. Renaming/removing an export silently re-targets or DELETES a
+  // live deploy target, so the full set is pinned here. Adding a function
+  // means adding its name below (and a re-export line in index.ts).
+  //
+  // The two `__`-prefixed entries are test-only introspection helpers, not
+  // deploy targets — they're still exported from the barrel, so they're
+  // included to keep the set exact.
+  const EXPECTED_EXPORTS = [
+    // ClassLink roster
+    'getClassLinkRosterV1',
+    // AI generation + test-only validators/introspection
+    'generateWithAI',
+    'generateVideoActivity',
+    'transcribeVideoWithGemini',
+    'generateGuidedLearning',
+    'validateAndBucketVideoQuestions',
+    'validateAndBucketQuizQuestions',
+    '__resetGenerateWithAICaches',
+    '__getCachedAdminStatus',
+    '__getGeminiModelConfig',
+    // External-content proxy
+    'fetchExternalProxy',
+    'checkUrlCompatibility',
+    // Activity Wall archive
+    'archiveActivityWallPhoto',
+    // Admin analytics endpoint
+    'adminAnalytics',
+    // Student identity
+    'studentLoginV1',
+    'getAssignmentPseudonymV1',
+    'getStudentClassDirectoryV1',
+    'getPseudonymsForAssignmentV1',
+    'commitRosterPinIndexV1',
+    'pinLoginV1',
+    // Organizations
+    'createOrganizationInvites',
+    'claimOrganizationInvite',
+    'organizationMembersSync',
+    'organizationMemberCounters',
+    'organizationBuildingCounters',
+    'resetOrganizationUserPassword',
+    'getOrgUserActivity',
+    // PLC invites / rollout emails
+    'plcInvitationEmail',
+    'rolloutRequestEmail',
+    // Synced groups (share-id entry points)
+    'joinSyncedQuizGroup',
+    'leaveSyncedQuizGroup',
+    'joinSyncedVideoActivityGroup',
+    'leaveSyncedVideoActivityGroup',
+    // PLC sync joins
+    'joinPlcQuizSyncGroup',
+    'joinPlcAssignmentSyncGroup',
+    'joinPlcVideoActivitySyncGroup',
+    // PLC clean-detach (Wave 4, §5.3)
+    'detachPlcSyncLinkage',
+    // PLC nightly GC sweep (Wave 4, §5.3/§3.4/§3.1/§3.3)
+    'gcPlcOrphans',
+    // PLC opt-in weekly digest (Wave 4, §5/§8/§2.3)
+    'plcWeeklyDigest',
+    // PLC analytics rollup + migration + discovery mirror
+    'aggregatePlcAssessment',
+    'migratePlcs',
+    'mirrorPlcIndex',
+    // Admin analytics snapshot + maintenance
+    'recomputeAdminAnalytics',
+    'expireSubShares',
+    'finalizeIdleQuizAttempts',
+    // Google / Spotify OAuth
+    'exchangeGoogleAuthCode',
+    'refreshGoogleAccessToken',
+    'revokeGoogleRefreshToken',
+    'exchangeSpotifyAuthCode',
+    'refreshSpotifyAccessToken',
+    'revokeSpotifyAuth',
+    // Classroom add-on
+    'classroomAddonLoginV1',
+    'createClassroomAttachment',
+    'assignToClassroomV1',
+    'linkClassroomCourse',
+    'unlinkClassroomCourse',
+    'pushClassroomGradesForAssignment',
+    'pushClassroomFinalGradesForAssignment',
+    // Schoology LTI
+    'ltiJwks',
+    'ltiLogin',
+    'ltiLaunch',
+    'ltiExchange',
+    'ltiSignDeepLinkResponseV1',
+    'ltiPushGradesForAssignmentV1',
+    'ltiResolveNamesForAssignmentV1',
+    'linkLtiCourseV1',
+    'ltiSuggestClassLinkMatchV1',
+  ] as const;
+
+  it('exports exactly the expected identifier set', () => {
+    expect(Object.keys(barrel).sort()).toEqual([...EXPECTED_EXPORTS].sort());
+  });
+
+  it('re-exports the new detachPlcSyncLinkage function', () => {
+    // Wave-4 acceptance: the clean-detach callable is wired into the barrel
+    // so `firebase deploy --only functions` ships it.
+    expect(barrel).toHaveProperty('detachPlcSyncLinkage');
+    expect(barrel.detachPlcSyncLinkage).toBeDefined();
+  });
+
+  it('re-exports the new gcPlcOrphans scheduled function', () => {
+    // Wave-4 acceptance: the nightly GC sweep is wired into the barrel so
+    // `firebase deploy --only functions` ships its schedule.
+    expect(barrel).toHaveProperty('gcPlcOrphans');
+    expect(barrel.gcPlcOrphans).toBeDefined();
+  });
+
+  it('re-exports the new plcWeeklyDigest scheduled function', () => {
+    // Wave-4 acceptance: the opt-in weekly digest is wired into the barrel so
+    // `firebase deploy --only functions` ships its schedule.
+    expect(barrel).toHaveProperty('plcWeeklyDigest');
+    expect(barrel.plcWeeklyDigest).toBeDefined();
   });
 });
 

@@ -143,3 +143,92 @@ describe('plc_invitations — invitee email length bound (F24)', () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// M-1: a lead OR a co-lead may create/revoke invites (membership management,
+// not lead-only); a plain member may not. Uses a members-map-shaped PLC so
+// isPlcMembershipManager resolves the co-lead via plcRoleOf. Also pins the L-1
+// keys().hasOnly schema lock on the invite doc.
+// ---------------------------------------------------------------------------
+const M1_PLC_ID = 'plc-m1';
+const COLEAD_UID = 'colead-uid';
+const COLEAD_EMAIL = 'colead@orono.k12.mn.us';
+const MEMBER_UID = 'member-uid';
+const MEMBER_EMAIL = 'member@orono.k12.mn.us';
+
+const m1Member = (uid: string, email: string, role: string) => ({
+  uid,
+  email,
+  displayName: email.split('@')[0],
+  role,
+  joinedAt: 1,
+  status: 'active',
+});
+
+const asCoLead = () =>
+  testEnv.authenticatedContext(COLEAD_UID, { email: COLEAD_EMAIL }).firestore();
+const asPlainMember = () =>
+  testEnv.authenticatedContext(MEMBER_UID, { email: MEMBER_EMAIL }).firestore();
+
+const m1Invite = (inviterUid: string, emailLower: string) => ({
+  plcId: M1_PLC_ID,
+  plcName: 'M1 PLC',
+  inviteeEmailLower: emailLower,
+  invitedByUid: inviterUid,
+  invitedByName: 'Inviter',
+  invitedAt: Date.now(),
+  status: 'pending',
+});
+
+describe('plc_invitations — manager create gate (M-1: lead OR coLead)', () => {
+  const invitee = 'newteacher@orono.k12.mn.us';
+  const invitePath = `plc_invitations/${inviteDocId(M1_PLC_ID, invitee)}`;
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `plcs/${M1_PLC_ID}`), {
+        id: M1_PLC_ID,
+        name: 'M1 PLC',
+        leadUid: LEAD_UID,
+        memberUids: [LEAD_UID, COLEAD_UID, MEMBER_UID],
+        memberEmails: {
+          [LEAD_UID]: LEAD_EMAIL,
+          [COLEAD_UID]: COLEAD_EMAIL,
+          [MEMBER_UID]: MEMBER_EMAIL,
+        },
+        members: {
+          [LEAD_UID]: m1Member(LEAD_UID, LEAD_EMAIL, 'lead'),
+          [COLEAD_UID]: m1Member(COLEAD_UID, COLEAD_EMAIL, 'coLead'),
+          [MEMBER_UID]: m1Member(MEMBER_UID, MEMBER_EMAIL, 'member'),
+        },
+      });
+    });
+  });
+
+  it('the lead can create an invite', async () => {
+    await assertSucceeds(
+      setDoc(doc(asLead(), invitePath), m1Invite(LEAD_UID, invitee))
+    );
+  });
+
+  it('a co-lead can create an invite (M-1)', async () => {
+    await assertSucceeds(
+      setDoc(doc(asCoLead(), invitePath), m1Invite(COLEAD_UID, invitee))
+    );
+  });
+
+  it('a plain member canNOT create an invite', async () => {
+    await assertFails(
+      setDoc(doc(asPlainMember(), invitePath), m1Invite(MEMBER_UID, invitee))
+    );
+  });
+
+  it('rejects an invite carrying an unknown extra field (L-1 schema lock)', async () => {
+    await assertFails(
+      setDoc(doc(asLead(), invitePath), {
+        ...m1Invite(LEAD_UID, invitee),
+        sneaky: 'unexpected',
+      })
+    );
+  });
+});

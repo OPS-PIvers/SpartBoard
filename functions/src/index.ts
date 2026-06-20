@@ -73,6 +73,34 @@ export {
 export { joinPlcQuizSyncGroup } from './plcQuizSyncJoin';
 export { joinPlcAssignmentSyncGroup } from './plcAssignmentSyncJoin';
 export { joinPlcVideoActivitySyncGroup } from './plcVideoActivitySyncJoin';
+
+// ── Clean-detach: remove the caller from a PLC synced group on unshare
+// (the inverse of the sync-join handlers). PRD §5.3 / Decision 5.3. ─────────
+export { detachPlcSyncLinkage } from './detachPlcSyncLinkage';
+
+// ── Nightly PLC garbage collection: reap empty synced groups, trim activity
+// > 90d, prune stale presence, hard-delete tombstones > 30d, trim version
+// overflow. PRD §5.3 / §3.4 / §3.1 / §3.3, Decisions 5.3 / 3.4 / 3.1 / 2.1. ──
+export { gcPlcOrphans } from './gcPlcOrphans';
+
+// ── Opt-in weekly PLC activity digest: one shared /mail doc per opted-in PLC
+// off the activity log, gated by a separate kill switch (default OFF) and a
+// per-PLC `digestOptIn` flag. NO per-member fan-out. PRD §5 / §8 / §2.3,
+// Decision 2.3. ─────────────────────────────────────────────────────────────
+export { plcWeeklyDigest } from './plcWeeklyDigest';
+
+// ── PII-safe anonymized PLC analytics rollup (onWrite of a contribution
+// recomputes /aggregates/{assessmentId}). PRD §5 / §6.0 / §3.6 / §3.3. ──────
+export { aggregatePlcAssessment } from './aggregatePlcAssessment';
+
+// ── Slim, PII-free discovery mirror (onWrite of a PLC root keeps
+// /plcIndex/{plcId} in sync) so the org "PLCs in my building" directory never
+// exposes teacher emails/displayNames. Decision 1.1 hardening. ──────────────
+export { mirrorPlcIndex } from './mirrorPlcIndex';
+
+// ── One-shot PLC migration (arrays→members map, orgId inference, aggregates
+// skeleton). Admin-only callable; see functions/src/migratePlcs.ts. ─────────
+export { migratePlcs } from './migratePlcs';
 export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 export { expireSubShares } from './expireSubShares';
 export { finalizeIdleQuizAttempts } from './finalizeIdleQuizAttempts';

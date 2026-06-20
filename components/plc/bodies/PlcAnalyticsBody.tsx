@@ -142,7 +142,7 @@ export const PlcAnalyticsBody: React.FC<PlcAnalyticsBodyProps> = ({
           <p className="text-xs font-bold text-slate-800">
             Couldn&apos;t load PLC analytics
           </p>
-          <p className="text-xxs text-slate-500 mt-0.5">{error}</p>
+          <p className="text-xxs text-slate-500 mt-0.5">{error.message}</p>
         </div>
       </div>
     );

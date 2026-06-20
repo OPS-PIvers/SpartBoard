@@ -15,6 +15,9 @@ export default tseslint.config(
   {
     ignores: [
       'dist',
+      // SSR prerender build output (gitignored, same as `dist`). Generated
+      // by the prerender step; never linted as source.
+      'dist-ssr',
       'node_modules',
       '**/*.config.js',
       '**/*.config.ts',

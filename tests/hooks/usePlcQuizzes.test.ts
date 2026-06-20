@@ -585,14 +585,46 @@ describe('usePlcQuizzes - mutators', () => {
     );
   });
 
-  it('unshareQuizFromPlc deletes the canonical doc id', async () => {
+  it('unshareQuizFromPlc soft-deletes via a deletedAt tombstone (Decision 3.1)', async () => {
     mockOnSnapshot.mockReturnValue(() => undefined);
     const { result } = renderHook(() => usePlcQuizzes(PLC_ID));
 
     await result.current.unshareQuizFromPlc('pq-1');
 
-    expect(mockDeleteDoc).toHaveBeenCalledTimes(1);
-    expect(mockDeleteDoc).toHaveBeenCalledWith(`plcs/${PLC_ID}/quizzes/pq-1`);
+    // Soft-delete never hard-deletes the canonical PLC quiz doc.
+    expect(mockDeleteDoc).not.toHaveBeenCalled();
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
+    const [path, fields] = mockUpdateDoc.mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+    ];
+    expect(path).toBe(`plcs/${PLC_ID}/quizzes/pq-1`);
+    // deletedAt + updatedAt are plain millis (Date.now()), like the other
+    // time fields on this doc shape.
+    expect(typeof fields.deletedAt).toBe('number');
+    expect(typeof fields.updatedAt).toBe('number');
+    // Tombstone-only patch — identity/attribution fields stay untouched.
+    expect(fields).not.toHaveProperty('id');
+    expect(fields).not.toHaveProperty('syncGroupId');
+    expect(fields).not.toHaveProperty('sharedBy');
+    expect(fields).not.toHaveProperty('title');
+  });
+
+  it('restoreQuizInPlc clears the deletedAt tombstone (Decision 3.1)', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const { result } = renderHook(() => usePlcQuizzes(PLC_ID));
+
+    await result.current.restoreQuizInPlc('pq-1');
+
+    expect(mockDeleteDoc).not.toHaveBeenCalled();
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
+    const [path, fields] = mockUpdateDoc.mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+    ];
+    expect(path).toBe(`plcs/${PLC_ID}/quizzes/pq-1`);
+    expect(fields.deletedAt).toBeNull();
+    expect(typeof fields.updatedAt).toBe('number');
   });
 });
 

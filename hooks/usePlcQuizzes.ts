@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   collection,
-  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -13,13 +12,14 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { PlcQuizEntry, QuizSessionMode, QuizSessionOptions } from '@/types';
 import { logError } from '@/utils/logError';
+import { usePlcSubcollection } from '@/context/usePlcContext';
 
 const PLCS_COLLECTION = 'plcs';
 const QUIZZES_SUBCOLLECTION = 'quizzes';
 
 /**
  * Recognized boolean toggle keys on `QuizSessionOptions` (plus the inherited
- * `BaseSessionOptions` fields). Used by `parseEntry` to validate that a stored
+ * `BaseSessionOptions` fields). Used by `parsePlcQuizEntry` to validate that a stored
  * `sessionOptions` object carries at least one real run-setting before we cast
  * it — guards against `{}` / malformed objects being treated as valid.
  */
@@ -113,11 +113,18 @@ interface UsePlcQuizzesResult {
     plcQuizId: string,
     patch: { title?: string; questionCount?: number }
   ) => Promise<void>;
-  /** Remove a PLC quiz entry. Any member can unshare (PLC-owned model). */
+  /**
+   * Unshare (soft-delete, Decision 3.1) a PLC quiz entry. Any member can
+   * unshare (PLC-owned model). Writes a `deletedAt` tombstone so the entry
+   * drops out of the live library but stays restorable from Trash; the
+   * canonical synced group is untouched. Restore with `restoreQuizInPlc`.
+   */
   unshareQuizFromPlc: (plcQuizId: string) => Promise<void>;
+  /** Restore a soft-deleted PLC quiz entry by clearing its `deletedAt`. */
+  restoreQuizInPlc: (plcQuizId: string) => Promise<void>;
 }
 
-function parseEntry(
+export function parsePlcQuizEntry(
   id: string,
   data: Record<string, unknown>
 ): PlcQuizEntry | null {
@@ -173,6 +180,13 @@ function parseEntry(
     entry.attemptLimit = data.attemptLimit;
   }
   if (typeof data.quizId === 'string') entry.quizId = data.quizId;
+  // Soft-delete tombstone (Decision 3.1): optional so legacy entries parse
+  // cleanly; written as a plain int (Date.now()) like the other time fields.
+  if (typeof data.deletedAt === 'number') {
+    entry.deletedAt = data.deletedAt;
+  } else if (data.deletedAt === null) {
+    entry.deletedAt = null;
+  }
   return entry;
 }
 
@@ -187,6 +201,8 @@ function parseEntry(
  */
 export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
   const { user } = useAuth();
+  // Back-compat (Decision 1.4): read from a mounted PlcProvider when present.
+  const fromProvider = usePlcSubcollection(plcId, (s) => s.quizzes);
   const [quizzes, setQuizzes] = useState<PlcQuizEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -200,6 +216,7 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
   }
 
   useEffect(() => {
+    if (fromProvider) return;
     if (!plcId || !user || isAuthBypass) {
       const t = setTimeout(() => {
         setQuizzes([]);
@@ -213,8 +230,13 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
       (snap) => {
         const list: PlcQuizEntry[] = [];
         snap.forEach((d) => {
-          const parsed = parseEntry(d.id, d.data() as Record<string, unknown>);
-          if (parsed) list.push(parsed);
+          const parsed = parsePlcQuizEntry(
+            d.id,
+            d.data() as Record<string, unknown>
+          );
+          // Soft-deleted (unshared) entries drop out of the live library — they
+          // live in Trash until restored or GC'd (Decision 3.1).
+          if (parsed && parsed.deletedAt == null) list.push(parsed);
         });
         setQuizzes(list);
         setLoading(false);
@@ -227,7 +249,7 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
       }
     );
     return () => unsub();
-  }, [plcId, user]);
+  }, [plcId, user, fromProvider]);
 
   const shareQuizWithPlc = useCallback(
     async (input: ShareQuizWithPlcInput): Promise<void> => {
@@ -283,34 +305,57 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
     [plcId, user]
   );
 
+  // Soft-delete (Decision 3.1): write a `deletedAt` tombstone (+ bump
+  // updatedAt) instead of hard-deleting. The post-merge doc still passes the
+  // rule's widened `keys().hasOnly([...])` + `plcSubDeletedAtOk()`; identity +
+  // attribution fields stay untouched.
   const unshareQuizFromPlc = useCallback(
     async (plcQuizId: string): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      await deleteDoc(
-        doc(db, PLCS_COLLECTION, plcId, QUIZZES_SUBCOLLECTION, plcQuizId)
+      await updateDoc(
+        doc(db, PLCS_COLLECTION, plcId, QUIZZES_SUBCOLLECTION, plcQuizId),
+        { deletedAt: Date.now(), updatedAt: Date.now() }
       );
     },
     [plcId, user]
   );
 
-  return useMemo(
-    () => ({
-      quizzes,
-      loading,
-      error,
-      shareQuizWithPlc,
-      mirrorPlcQuizHeader,
-      unshareQuizFromPlc,
-    }),
-    [
-      quizzes,
-      loading,
-      error,
-      shareQuizWithPlc,
-      mirrorPlcQuizHeader,
-      unshareQuizFromPlc,
-    ]
+  const restoreQuizInPlc = useCallback(
+    async (plcQuizId: string): Promise<void> => {
+      if (!plcId || !user) throw new Error('Not signed in');
+      await updateDoc(
+        doc(db, PLCS_COLLECTION, plcId, QUIZZES_SUBCOLLECTION, plcQuizId),
+        { deletedAt: null, updatedAt: Date.now() }
+      );
+    },
+    [plcId, user]
   );
+
+  return useMemo(() => {
+    const resolved = fromProvider
+      ? {
+          quizzes: fromProvider.data,
+          loading: fromProvider.loading,
+          error: fromProvider.error,
+        }
+      : { quizzes, loading, error };
+    return {
+      ...resolved,
+      shareQuizWithPlc,
+      mirrorPlcQuizHeader,
+      unshareQuizFromPlc,
+      restoreQuizInPlc,
+    };
+  }, [
+    fromProvider,
+    quizzes,
+    loading,
+    error,
+    shareQuizWithPlc,
+    mirrorPlcQuizHeader,
+    unshareQuizFromPlc,
+    restoreQuizInPlc,
+  ]);
 };
 
 /**
