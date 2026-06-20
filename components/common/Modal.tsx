@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import {
@@ -42,13 +42,29 @@ export const Modal: React.FC<ModalProps> = ({
   ariaLabel,
   ariaLabelledby,
 }) => {
+  // Store onClose in a ref so the effect never needs to list it as a dep.
+  // Callers almost always pass an inline arrow function (e.g.
+  // `onClose={() => setOpen(false)}`), which creates a new reference on every
+  // parent render. Having onClose in the deps array would fire the effect
+  // cleanup + re-run on every such render, momentarily dropping the
+  // openModalCount to 0, which releases the body scroll-lock even though the
+  // modal is still open. Using a ref (same pattern as SettingsPanel.tsx) keeps
+  // the Escape handler always up-to-date while leaving the effect stable.
+  const onCloseRef = useRef(onClose);
+  // Keep ref in sync with the latest onClose on every render.
+  // Intentionally NOT in useEffect deps — see comment below.
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync to avoid stale-closure without re-subscribing the effect (CLAUDE.md pattern)
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (!isOpen) return undefined;
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (captureEscape) e.stopImmediatePropagation();
-        onClose();
+        // Read from ref so we always call the current onClose even though
+        // onClose is not in the effect deps array.
+        onCloseRef.current();
       }
     };
 
@@ -73,7 +89,11 @@ export const Modal: React.FC<ModalProps> = ({
         captureEscape ? { capture: true } : undefined
       );
     };
-  }, [isOpen, onClose, captureEscape]);
+    // onClose is intentionally omitted from deps — it is read via onCloseRef so
+    // a new inline arrow from the parent never triggers a cleanup + re-run that
+    // would momentarily release the body scroll-lock. Only isOpen and
+    // captureEscape need to re-subscribe the listener.
+  }, [isOpen, captureEscape]);
 
   if (!isOpen) return null;
 

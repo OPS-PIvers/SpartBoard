@@ -4,6 +4,37 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-19
+
+- PRs reviewed: 9 (all base `dev-paul`; no head is `main`/`dev-*`, so all pushable)
+  - #2023 — docs(routines): nightly debugger run #21 log (head `nightly/debugger-log-2026-06-19`)
+  - #2022 — fix(widgets): remove stale-ref useEffect in PageEditor and RandomSettings (head `nightly/widgets-2026-06-19`)
+  - #2021 — fix(functions): enforce accessLevel in generateVideoActivity (head `nightly/build-tooling-2026-06-19`)
+  - #2020 — fix(hooks): dedupe steps in buildGLResponsesCSV (head `nightly/state-data-2026-06-19`)
+  - #2019 — fix(plc): guard TodosBody inline-edit onBlur (head `nightly/dashboard-layout-2026-06-19`)
+  - #2018 — fix(i18n): es backgrounds.presets verbatim-EN fix (head `nightly/admin-config-2026-06-19`)
+  - #2017 — docs(unifier): run 20 staleness scan (head `nightly/unifier-log-2026-06-19`)
+  - #2016 — fix(poll): cap progress-bar height (head `scheduled-tasks`)
+  - #2013 — docs(routines): Run 21 debugger log (head `nightly/debugger-log-2026-06-18`)
+- Comments processed: 5 actionable threads across 4 PRs — 1 fixed, 4 explained (remaining open threads were `is_outdated:true` style/doc nits, left per the be-frugal guideline)
+  - #2020: gemini `buildGLResponsesCSV` thread (not outdated) → FIXED. Map answer lookup (O(N+M)) + `typeof … === 'number'` guards so a 0-epoch timestamp renders an ISO date. The two claude threads (missing `sessionId`, react-hooks/refs comment) were already addressed at HEAD → replied.
+  - #2019: gemini render-body-reset thread → already implemented at HEAD (replied). claude "drop the eslint-disable" thread → EXPLAINED no-change: verified empirically that removing the directive errors `Cannot update ref during render react-hooks/refs` under `--max-warnings 0`; the rule is real here and the suppression is required.
+  - #2021: all 3 claude threads (rename, `.exists` guard, reuse `accessPerm?.config`) already addressed at HEAD → replied to the not-outdated one.
+  - #2023: open gemini doc-accuracy note (`checkAccess` helper doesn't exist; checks are inline) → surfaced in the posted review; not pushed (docs log, outdated thread).
+- Fixes pushed: 1
+  - #2020 / `nightly/state-data-2026-06-19` — `buildGLResponsesCSV` stepId→answer Map + 0-epoch timestamp guards; type-check ✓ lint ✓ prettier ✓ tests 12/12 ✓.
+- Reviews posted: 9 (one structured review per PR)
+  - #2022: Ready — documented anti-pattern removal + strong regression tests; nit: undocumented accentText fix.
+  - #2021: Ready — real accessLevel bypass fix; noted pre-existing `.exists` gap in `transcribeVideoWithGemini` as follow-up.
+  - #2020: Ready — dedup fix + my timestamp/perf follow-up.
+  - #2019: Ready with minor notes — pattern-consistent onBlur guard; confirm the regression test landed (not seen in diff).
+  - #2018: Ready — trivial locale fix, consolidated into the backgrounds locale sweep test.
+  - #2016: Needs changes — poll cap is correct, but the `scheduled-tasks` head carries 36 files vs the 5-line described fix; scope/description mismatch flagged.
+  - #2023, #2017, #2013: Ready (docs logs); flagged #2013↔#2023 run-21 overlap and the #2023 `checkAccess` wording.
+- Notes:
+  - Branch-safety: no PR targets `main`; all head branches pushable. Only #2020 needed a fix push.
+  - This log committed to the designated working branch `claude/compassionate-shannon-e8i4ou` (not `scheduled-tasks`, which is itself the head of the open, scope-flagged #2016).
+
 ## 2026-06-15
 
 - PRs reviewed: 10 (all open PRs)

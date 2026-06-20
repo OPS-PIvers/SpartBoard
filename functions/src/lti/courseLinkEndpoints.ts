@@ -225,10 +225,15 @@ export const linkLtiCourseV1 = onCall(
     await db.runTransaction(async (tx) => {
       const ref = db.collection(LTI_COURSE_LINKS_COLLECTION).doc(contextId);
       const existing = await tx.get(ref);
-      if (existing.exists) {
-        const prior = existing.data() as { teacherUid?: unknown };
+      const priorData = existing.exists
+        ? (existing.data() as {
+            teacherUid?: unknown;
+            contextTitle?: unknown;
+          })
+        : null;
+      if (priorData) {
         const priorTeacher =
-          typeof prior?.teacherUid === 'string' ? prior.teacherUid : '';
+          typeof priorData.teacherUid === 'string' ? priorData.teacherUid : '';
         if (priorTeacher && priorTeacher !== callerUid) {
           throw new HttpsError(
             'already-exists',
@@ -236,12 +241,26 @@ export const linkLtiCourseV1 = onCall(
           );
         }
       }
+      // Preserve a previously-captured contextTitle: some Schoology deployments
+      // omit the context title on relaunches (privacy config). The session
+      // membership doc written by nrpsStore.ts may then store null for the
+      // title (a new session has no prior record to fall back on), so
+      // contextTitle arriving here can be null even though a valid title was
+      // captured from an earlier launch and already written to this doc.
+      // Overwriting with null would clear the section name shown in the
+      // linking UI — the same preservation pattern applied in nrpsStore.ts
+      // (contextTitle) and launchEndpoints.ts (contextId).
+      const storedTitle =
+        priorData && typeof priorData.contextTitle === 'string'
+          ? priorData.contextTitle
+          : null;
+      const finalContextTitle = contextTitle ?? storedTitle;
       const payload: Record<string, unknown> = {
         teacherUid: callerUid,
         contextId,
         classlinkClassId,
         classlinkOrgId,
-        contextTitle,
+        contextTitle: finalContextTitle,
         rosterId,
         updatedAt: Date.now(),
       };
