@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
 _Last audited: 2026-06-19_
-_Last action: 2026-06-05 — MEDIUM `stations` admin building-default appearance panel added; MEDIUM raw-`<select>` item resolved as stale (already styled)_
+_Last action: 2026-06-20 — MEDIUM `ExpectationsWidget/Settings.tsx` custom button-pair toggle replaced with shared `Toggle` component_
 
 ---
 
@@ -59,13 +59,6 @@ _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widget
 - **Detail:** `TextConfig` declares `fontFamily?: string`, `fontColor?: string`, and `textSizePreset?: TextSizePreset`. `TextWidget/Widget.tsx` reads all three at lines 37-47 and applies them: `fontFamily` sets the container-level CSS font class, `fontColor` sets the default text color, `textSizePreset` adjusts the base font size multiplier. However, `text` is absent from `WIDGET_APPEARANCE_COMPONENTS` and `TextSettings` only shows template shortcuts — no UI exists to configure these three fields. They can only be set via admin building config. Teachers have no way to change the widget-level font family or base text color from the dashboard. The FormattingToolbar allows per-selection inline font changes in the content HTML, but `config.fontFamily`/`config.fontColor` control the container defaults that show for unformatted text.
 - **Fix:** Create a `TextAppearanceSettings` component in `components/widgets/TextWidget/Settings.tsx` that renders `TypographySettings` (fontFamily + fontColor) and `TextSizePresetSettings` (textSizePreset). Register in `WIDGET_APPEARANCE_COMPONENTS` as `'text': lazyNamed(() => import('./TextWidget/Settings'), 'TextAppearanceSettings')`. This exposes three config fields that are already consumed by the widget but unreachable by end users.
 
-### MEDIUM `ExpectationsWidget/Settings.tsx` implements custom toggle instead of shared `Toggle` component
-
-- **Detected:** 2026-05-27
-- **File:** components/widgets/ExpectationsWidget/Settings.tsx:66–91
-- **Detail:** The settings panel uses a custom button-pair toggle (two `<button>` elements styled with gradient classes and active state toggling) instead of the shared `Toggle` component from `components/common/Toggle.tsx`. The shared `Toggle` is already used in ~15 other widget settings panels. The custom implementation is visually different from the standard toggle, violating design consistency in the dark-mode settings panels.
-- **Fix:** Replace the custom button-pair with `<Toggle value={...} onChange={...} />` from `components/common/Toggle.tsx`, following the pattern in `QRWidget/Settings.tsx` or `LunchCount/Settings.tsx`. Remove the custom gradient button styling.
-
 ### MEDIUM `ClockWidget/Settings.tsx` and `TimeTool/Settings.tsx` implement identical inline font family selector instead of `TypographySettings`
 
 - **Detected:** 2026-06-05 (ClockWidget), 2026-06-10 (TimeTool confirmed identical)
@@ -118,6 +111,14 @@ _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widget
 ---
 
 ## Completed
+
+### MEDIUM `ExpectationsWidget/Settings.tsx` implements custom toggle instead of shared `Toggle` component
+
+- **Detected:** 2026-05-27
+- **Completed:** 2026-06-20
+- **File:** components/widgets/ExpectationsWidget/Settings.tsx
+- **Detail:** The settings panel's "Auto-Adjust Sound Meter" control was a full-card `<button>` whose right edge hand-rolled a pill toggle (a `w-10 h-6` track div with an inner `w-4 h-4` translating knob) instead of the shared `Toggle` component from `components/common/Toggle.tsx`, which ~15 other widget settings panels already use. The custom knob/track had its own colors, sizing, and transition logic that would drift from the shared toggle as it evolves, and the whole-card `<button>` was not exposed as an accessible switch.
+- **Resolution:** Replaced the inline knob/track markup with `<Toggle checked={config.syncSoundWidget ?? false} onChange={handleSyncToggle} label="Auto-Adjust Sound Meter" size="sm" activeColor="bg-indigo-500" showLabels={false} />` (the actual `Toggle` API is `checked`/`onChange`, not the `value`/`onChange` the journal originally noted). Extracted the cross-widget sync side effects (deduping other syncing Expectations widgets, propagating `syncExpectations` to all sound widgets) into a named `handleSyncToggle(isActive)` handler — behavior unchanged. Converted the outer `<button>` to a `<div>` row (keeping the indigo active border/background styling) so the `Toggle` provides the accessible `role="switch"` + `aria-checked` semantics. `pnpm run type-check`, `pnpm exec eslint components/widgets/ExpectationsWidget/Settings.tsx --max-warnings 0`, and `pnpm exec prettier --check` all clean; the 8 existing `ExpectationsWidget.test.tsx` tests still pass. Four additional binary-toggle button-pairs (ClockWidget/TimeTool/MaterialsWidget/NextUp) remain tracked as the separate LOW item above.
 
 ### MEDIUM `stations` widget missing from admin `FeatureConfigurationPanel` — no building defaults
 
