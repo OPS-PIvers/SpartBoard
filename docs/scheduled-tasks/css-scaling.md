@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-19_
+_Last audited: 2026-06-20_
 _Last action: 2026-06-18_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-20: Full scan of all Widget.tsx files. New commits since 2026-06-19: docs(userProfile) field-ownership contract (docs only). No widget front-face content changes. Re-verified three previously-documented WON'T FIX items: (1) ActivityWall/Widget.tsx modal max-h-[75vh] — viewport-scoped modal outside CQ context, correct; (2) MusicWidget max-w-[85%] — structural truncation guard on flex-child label, acceptable; (3) RecessGear max-w-[70%] — identical pattern, acceptable. All three documented in prior journal entries. No new anti-patterns detected. All pre-existing open items remain valid. Zero new items._
 
 _2026-06-19: Full scan of all Widget.tsx files. New commits since 2026-06-17: fix(Modal), fix(i18n), fix(widgets) stale onBlur guard (DrawingWidget + SmartNotebook), fix(lti), fix(quizMaxPoints). None modify widget front-face content. Reviewed 5 candidate flagged items from automated scan (MaterialsWidget min(80px,45cqmin), Weather min(64px,15cqmin), First5 min(16px,4cqmin), QuizWidget min(32px,8cqmin), Calendar min(14px,3.5cqmin)) — all are correct `min(Xpx, Ycqmin)` patterns where Xpx is a reasonable pixel CAP, not a floor. The `min()` function picks the smaller value so these scale correctly downward; the px value only applies as a maximum at large widget sizes, which is exactly the intended behavior. No false anti-patterns logged. All pre-existing open items remain valid. Zero new items._
 
