@@ -152,6 +152,19 @@ describe('collectRecipientEmails — de-dupe + lowercase, no fan-out', () => {
     expect(recipients).toEqual(['active@school.org']);
   });
 
+  it('drops a legacy memberEmails entry whose uid is not in (active-only) memberUids', () => {
+    // Un-migrated PLC: no members map; memberEmails still lists a removed
+    // teacher. memberUids is the active-only source of truth → filter by it.
+    const recipients = collectRecipientEmails({
+      memberUids: ['u1'],
+      memberEmails: {
+        u1: 'active@school.org',
+        u2: 'removed@school.org',
+      },
+    });
+    expect(recipients).toEqual(['active@school.org']);
+  });
+
   it('returns empty when there are no recipients', () => {
     expect(collectRecipientEmails({})).toEqual([]);
   });

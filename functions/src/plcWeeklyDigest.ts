@@ -267,6 +267,7 @@ export async function loadDigestConfig(
 export function collectRecipientEmails(plc: {
   memberEmails?: unknown;
   members?: unknown;
+  memberUids?: unknown;
 }): string[] {
   const out = new Set<string>();
   const add = (raw: unknown) => {
@@ -274,6 +275,13 @@ export function collectRecipientEmails(plc: {
     const email = raw.trim().toLowerCase();
     if (email.includes('@')) out.add(email);
   };
+  // Denormalized index of CURRENT (active) member uids — maintained active-only
+  // since Wave 1. Used to filter the legacy memberEmails mirror so a removed
+  // teacher still lingering there (un-migrated PLC) is never emailed. Null when
+  // absent (cannot filter — fall back to all, the legacy-of-legacy case).
+  const activeMemberUids = Array.isArray(plc.memberUids)
+    ? new Set(plc.memberUids as string[])
+    : null;
   // Prefer the canonical members map (carries email); fall back to the
   // denormalized memberEmails mirror for legacy PLCs.
   const members = plc.members;
@@ -289,9 +297,12 @@ export function collectRecipientEmails(plc: {
   }
   const memberEmails = plc.memberEmails;
   if (memberEmails && typeof memberEmails === 'object') {
-    for (const email of Object.values(
+    for (const [uid, email] of Object.entries(
       memberEmails as Record<string, unknown>
     )) {
+      // Skip emails whose uid is no longer an active member (defends the
+      // legacy/un-migrated path; the members-map path above filters by status).
+      if (activeMemberUids && !activeMemberUids.has(uid)) continue;
       add(email);
     }
   }
