@@ -37,7 +37,9 @@ export function filterMentionCandidates(
     .map((m) => ({
       uid: m.uid,
       displayName: m.displayName || m.email || m.uid,
-      email: m.email,
+      // Default to '' — a member with a missing/null email (incomplete profile)
+      // would otherwise crash the .split('@') / .toLowerCase() filters below.
+      email: m.email ?? '',
     }));
   if (q.length === 0) return pool.slice(0, 8);
   const starts: MentionCandidate[] = [];

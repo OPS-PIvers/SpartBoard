@@ -73,8 +73,14 @@ export function SegmentedTabs<K extends string = string>({
       } else {
         nextIdx = (safeIdx - 1 + nodes.length) % nodes.length;
       }
+      // Guard: `nodes` (live DOM role="tab" query) can contain more elements
+      // than `tabs` (stray tabs, or `tabs` changing between render and keydown),
+      // so nextIdx may be out of range for `tabs` — bail rather than crash on
+      // `.key` of undefined.
+      const nextTab = tabs[nextIdx];
+      if (!nextTab) return;
       nodes[nextIdx].focus();
-      onChange(tabs[nextIdx].key);
+      onChange(nextTab.key);
     },
     [onChange, tabs]
   );

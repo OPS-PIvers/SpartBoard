@@ -47,8 +47,16 @@ import './functionsInit';
 /** Digest window — the trailing 7 days of activity. */
 export const DIGEST_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** Max PLCs visited per run — keeps one sweep from monopolising the slot. */
-export const MAX_PLCS_PER_RUN = 1000;
+/**
+ * Overall safety ceiling on PLCs visited per run — a runaway guard, NOT an
+ * expected limit. The sweep PAGINATES (PLC_PAGE_SIZE pages, startAfter cursor),
+ * so every PLC up to this ceiling is covered every run; set far above any
+ * realistic single-district tenant.
+ */
+export const MAX_PLCS_PER_RUN = 5000;
+
+/** Page size for the paginated PLC sweep (startAfter cursor on document id). */
+export const PLC_PAGE_SIZE = 300;
 
 /** Max activity events scanned per PLC per run (bounded read). */
 export const MAX_ACTIVITY_PER_PLC = 500;
@@ -65,7 +73,10 @@ export interface DigestEmailConfig {
 }
 
 export interface MailDoc {
-  to: string[];
+  /** Visible To — the sender (when a `from` is configured), never recipients. */
+  to?: string[];
+  /** Recipients go here so no teacher sees the others' addresses. */
+  bcc?: string[];
   from?: string;
   replyTo?: string;
   message: {
@@ -372,65 +383,81 @@ export async function runPlcWeeklyDigest(
     return counts;
   }
 
-  const plcsSnap = await db.collection('plcs').limit(MAX_PLCS_PER_RUN).get();
-  counts.plcsConsidered = plcsSnap.size;
-  // Coverage alarm: this is a single bounded page (no pagination). If a tenant
-  // ever grows past the cap, PLCs beyond it are silently skipped every run —
-  // warn so an operator knows to add startAfter pagination before that bites.
-  if (plcsSnap.size >= MAX_PLCS_PER_RUN) {
-    logger.warn(
-      'plcWeeklyDigest: hit MAX_PLCS_PER_RUN — some PLCs may be skipped; add pagination',
-      { cap: MAX_PLCS_PER_RUN }
-    );
+  // Paginated sweep (startAfter cursor on document id) so EVERY PLC is covered,
+  // not just the first page — bounded by MAX_PLCS_PER_RUN (runaway guard) and
+  // the function timeout. Fixes the prior single `limit()` page, which silently
+  // skipped any PLC past the cap every run.
+  let lastDoc: admin.firestore.QueryDocumentSnapshot | undefined;
+  while (counts.plcsConsidered < MAX_PLCS_PER_RUN) {
+    let pageQuery = db
+      .collection('plcs')
+      .orderBy(admin.firestore.FieldPath.documentId())
+      .limit(PLC_PAGE_SIZE);
+    if (lastDoc) pageQuery = pageQuery.startAfter(lastDoc);
+    const page = await pageQuery.get();
+    if (page.size === 0) break;
+
+    for (const plcDoc of page.docs) {
+      counts.plcsConsidered += 1;
+      const plc = plcDoc.data();
+      if (!isDigestOptIn(plc)) continue;
+      counts.optedIn += 1;
+
+      const events = await readWindowedActivity(plcDoc.ref, now);
+      if (events.length === 0) {
+        counts.skippedNoActivity += 1;
+        continue;
+      }
+
+      const recipients = collectRecipientEmails(plc);
+      if (recipients.length === 0) {
+        counts.skippedNoRecipients += 1;
+        continue;
+      }
+
+      const plcName = typeof plc.name === 'string' ? plc.name : 'your PLC';
+      const body = buildPlcDigestEmail({ plcName, events });
+
+      // ONE mail doc per PLC (NO per-member fan-out, §8). Recipients go in BCC
+      // so no teacher sees another's address; the visible To is the sender when
+      // a `from` is configured, else bcc-only (the firestore-send-email
+      // extension supplies the default from). Deterministic doc id keyed by
+      // PLC + run-week so a retried run overwrites rather than duplicates.
+      const weekStamp = Math.floor(now / DIGEST_WINDOW_MS);
+      const mailId = `plc-digest_${plcDoc.id}_${weekStamp}`;
+      const mailDoc: MailDoc = { bcc: recipients, message: body };
+      if (config.from) {
+        mailDoc.from = config.from;
+        mailDoc.to = [config.from];
+      }
+      if (config.replyTo) mailDoc.replyTo = config.replyTo;
+
+      try {
+        await db.collection('mail').doc(mailId).set(mailDoc);
+        counts.mailQueued += 1;
+        logger.info('plcWeeklyDigest: queued digest mail', {
+          plcId: plcDoc.id,
+          recipients: recipients.length,
+          events: events.length,
+        });
+      } catch (err) {
+        // Log and continue — a thrown handler would retry the whole weekly run.
+        logger.error('plcWeeklyDigest: failed to queue digest mail', {
+          plcId: plcDoc.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    if (page.size < PLC_PAGE_SIZE) break;
+    lastDoc = page.docs[page.docs.length - 1];
   }
 
-  for (const plcDoc of plcsSnap.docs) {
-    const plc = plcDoc.data();
-    if (!isDigestOptIn(plc)) continue;
-    counts.optedIn += 1;
-
-    const events = await readWindowedActivity(plcDoc.ref, now);
-    if (events.length === 0) {
-      counts.skippedNoActivity += 1;
-      continue;
-    }
-
-    const recipients = collectRecipientEmails(plc);
-    if (recipients.length === 0) {
-      counts.skippedNoRecipients += 1;
-      continue;
-    }
-
-    const plcName = typeof plc.name === 'string' ? plc.name : 'your PLC';
-    const body = buildPlcDigestEmail({ plcName, events });
-
-    // ONE mail doc per PLC (NO per-member fan-out, §8). Deterministic doc id
-    // keyed by PLC + run-week so a retried run overwrites rather than
-    // duplicates. The `to: [...]` list carries every recipient.
-    const weekStamp = Math.floor(now / DIGEST_WINDOW_MS);
-    const mailId = `plc-digest_${plcDoc.id}_${weekStamp}`;
-    const mailDoc: MailDoc = {
-      to: recipients,
-      message: body,
-    };
-    if (config.from) mailDoc.from = config.from;
-    if (config.replyTo) mailDoc.replyTo = config.replyTo;
-
-    try {
-      await db.collection('mail').doc(mailId).set(mailDoc);
-      counts.mailQueued += 1;
-      logger.info('plcWeeklyDigest: queued digest mail', {
-        plcId: plcDoc.id,
-        recipients: recipients.length,
-        events: events.length,
-      });
-    } catch (err) {
-      // Log and continue — a thrown handler would retry the whole weekly run.
-      logger.error('plcWeeklyDigest: failed to queue digest mail', {
-        plcId: plcDoc.id,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
+  if (counts.plcsConsidered >= MAX_PLCS_PER_RUN) {
+    logger.warn(
+      'plcWeeklyDigest: hit MAX_PLCS_PER_RUN safety ceiling — raise it or shard the sweep',
+      { cap: MAX_PLCS_PER_RUN }
+    );
   }
 
   return counts;
