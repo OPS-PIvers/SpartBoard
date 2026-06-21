@@ -11,27 +11,36 @@ import {
 } from '@/utils/backgrounds';
 import { useAuth } from '@/context/useAuth';
 import { useLiveSession } from '@/hooks/useLiveSession';
-import { useQuiz } from '@/hooks/useQuiz';
-import {
-  useQuizAssignments,
-  type SharedAssignmentImportMode,
-} from '@/hooks/useQuizAssignments';
-import { useVideoActivity } from '@/hooks/useVideoActivity';
-import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
-import { QuizAssignmentImportModeModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentImportModeModal';
 import { ImportShareModePicker } from '@/components/share/ImportShareModePicker';
 import { ImportSharedCollectionModal } from '@/components/share/ImportSharedCollectionModal';
 import { ShareStatusBanner } from '@/components/share/ShareStatusBanner';
 import { logError } from '@/utils/logError';
-import { getPlcRole } from '@/utils/plc';
 import {
   PLC_WRITE_FAILED_EVENT,
   type PlcWriteFailureDetail,
 } from '@/utils/plcWriteNotifications';
-import { usePlcs } from '@/hooks/usePlcs';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
-import { Sidebar } from './sidebar/Sidebar';
-import { Dock } from './Dock';
+// Deep-link share-import machinery (5 Firestore-listener hooks + their import
+// callbacks/effects/modal) is code-split into DeepLinkShareImporter and mounted
+// lazily — only when a pending share id is actually present (see the latch in
+// DashboardView below). On the common teacher load no share import is in
+// flight, so none of those listeners are opened.
+const DeepLinkShareImporter = React.lazy(() =>
+  import('./DeepLinkShareImporter').then((m) => ({
+    default: m.DeepLinkShareImporter,
+  }))
+);
+// Sidebar and Dock are code-split out of the synchronous teacher mount so the
+// board canvas paints first; they stream in (behind the Suspense boundary
+// below) on the next microtask. Both are position:fixed overlays, so deferring
+// them by a tick can't shift the board's layout — the only visible cost is the
+// dock's brief skeleton (ShellPlaceholder) while its chunk resolves.
+const Sidebar = React.lazy(() =>
+  import('./sidebar/Sidebar').then((m) => ({ default: m.Sidebar }))
+);
+const Dock = React.lazy(() =>
+  import('./Dock').then((m) => ({ default: m.Dock }))
+);
 import { AnnotationOverlay } from './AnnotationOverlay';
 import { BoardNavFab } from './BoardNavFab';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
@@ -175,6 +184,29 @@ const ToastContainer: React.FC = () => {
   );
 };
 
+// Skeleton shown in the dock's footprint while the code-split Dock chunk
+// resolves (one microtask after first paint). Mirrors the real dock's
+// position so its arrival doesn't visually jump. aria-hidden — it's a
+// transient visual placeholder with no semantics.
+const ShellPlaceholder: React.FC = () => {
+  const { dockPosition } = useAuth();
+  const isVertical = dockPosition === 'left' || dockPosition === 'right';
+  const positionClasses =
+    dockPosition === 'left'
+      ? 'left-6 top-1/2 -translate-y-1/2'
+      : dockPosition === 'right'
+        ? 'right-6 top-1/2 -translate-y-1/2'
+        : 'bottom-6 left-1/2 -translate-x-1/2';
+  return (
+    <div
+      aria-hidden="true"
+      className={`fixed ${positionClasses} z-dock rounded-full bg-white/5 backdrop-blur-sm border border-white/10 pointer-events-none ${
+        isVertical ? 'w-16 h-64' : 'h-16 w-80'
+      }`}
+    />
+  );
+};
+
 export const DashboardView: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -196,15 +228,13 @@ export const DashboardView: React.FC = () => {
     updateDashboardSettings,
     zoom,
     setZoom,
+    // Pending share ids — read here only to decide whether to mount the
+    // lazy DeepLinkShareImporter (which owns the clear*/import machinery).
     pendingQuizShareId,
-    clearPendingQuizShare,
     pendingAssignmentShareId,
-    clearPendingAssignmentShare,
     pendingVideoActivityShareId,
-    clearPendingVideoActivityShare,
     pendingSharedCollectionId,
     clearPendingSharedCollection,
-    setPendingAssignmentSetup,
     // Widget grouping
     groupWidgets,
     groupBuildMode,
@@ -214,20 +244,6 @@ export const DashboardView: React.FC = () => {
     annotationActive,
     isActiveBoardReadOnly,
   } = useDashboard();
-
-  const { importSharedQuiz, saveQuiz, deleteQuiz, attachSyncLinkage } = useQuiz(
-    user?.uid
-  );
-  const { importSharedAssignment, peekSharedAssignment } = useQuizAssignments(
-    user?.uid
-  );
-  const {
-    saveActivity: saveVideoActivity,
-    attachSyncLinkage: attachVideoActivitySyncLinkage,
-  } = useVideoActivity(user?.uid);
-  const { importSharedAssignment: importSharedVideoActivityAssignment } =
-    useVideoActivityAssignments(user?.uid);
-  const { plcs, loading: plcsLoading } = usePlcs();
 
   // Surface fire-and-forget PLC sync failures as a toast. Helpers
   // (`writePlcAssignment*`, `mirrorPlcAssignmentStatus`) log+swallow so
@@ -256,374 +272,22 @@ export const DashboardView: React.FC = () => {
     return () => window.removeEventListener(PLC_WRITE_FAILED_EVENT, handler);
   }, [addToast, t]);
 
-  // Mode picker state — populated when a synced share is detected; null
-  // means no picker is open. We hold the shareId + a snapshot of the
-  // share doc here so the modal can render the title/originator
-  // immediately without re-fetching, and so the actual import only fires
-  // after the user picks a mode.
-  const [importModePrompt, setImportModePrompt] = React.useState<{
-    shareId: string;
-    title: string;
-    originalAuthor: string;
-  } | null>(null);
-
-  // Helper: open (or create) a Quiz widget and set its managerTab.
-  // Used by pending-share effects to surface the imported content to the user.
-  const openQuizWidgetToTab = React.useCallback(
-    (tab: 'library' | 'active' | 'archive') => {
-      const quizWidget = activeDashboard?.widgets.find(
-        (w) => w.type === 'quiz'
-      );
-      if (quizWidget) {
-        if (quizWidget.minimized) {
-          updateWidget(quizWidget.id, { minimized: false });
-        }
-        updateWidget(quizWidget.id, {
-          config: {
-            ...quizWidget.config,
-            view: 'manager',
-            managerTab: tab,
-          },
-        });
-        bringToFront(quizWidget.id);
-      } else {
-        addWidget('quiz', {
-          config: { view: 'manager', managerTab: tab },
-        });
-      }
-    },
-    [activeDashboard, updateWidget, addWidget, bringToFront]
-  );
-
-  const openVideoActivityWidgetToTab = React.useCallback(
-    (tab: 'library' | 'active' | 'archive') => {
-      const vaWidget = activeDashboard?.widgets.find(
-        (w) => w.type === 'video-activity'
-      );
-      if (vaWidget) {
-        if (vaWidget.minimized) {
-          updateWidget(vaWidget.id, { minimized: false });
-        }
-        updateWidget(vaWidget.id, {
-          config: {
-            ...vaWidget.config,
-            view: 'manager',
-            managerTab: tab,
-          },
-        });
-        bringToFront(vaWidget.id);
-      } else {
-        addWidget('video-activity', {
-          config: { view: 'manager', managerTab: tab },
-        });
-      }
-    },
-    [activeDashboard, updateWidget, addWidget, bringToFront]
-  );
-
-  // Handle pending quiz share import from URL/paste.
-  // After a successful import, surface the Quiz widget to the Library tab so
-  // the user actually sees where the new quiz landed (fixes the "nothing
-  // happened" paste UX).
-  useEffect(() => {
-    if (!pendingQuizShareId || !user) return;
-    // Clear synchronously BEFORE awaiting so effect re-runs (triggered by
-    // unrelated dep churn like `openQuizWidgetToTab` changing reference when
-    // activeDashboard updates) don't re-invoke the import and spawn duplicate
-    // widgets. Previously this was in .finally() and opened a race window
-    // where the same shareId could be imported 2-3× concurrently.
-    const shareId = pendingQuizShareId;
-    clearPendingQuizShare();
-    void importSharedQuiz(shareId)
-      .then(() => {
-        addToast('Shared quiz imported to your library!', 'success');
-        openQuizWidgetToTab('library');
-      })
-      .catch((err: unknown) => {
-        const msg =
-          err instanceof Error
-            ? err.message
-            : typeof err === 'string'
-              ? err
-              : '';
-        addToast(
-          msg
-            ? `Failed to import shared quiz: ${msg}`
-            : 'Failed to import shared quiz.',
-          'error'
-        );
-      });
-  }, [
-    pendingQuizShareId,
-    user,
-    importSharedQuiz,
-    addToast,
-    clearPendingQuizShare,
-    openQuizWidgetToTab,
-  ]);
-
-  // Stable callback: imports a shared assignment with the chosen mode and
-  // surfaces success/failure toasts. Invoked from two places:
-  //   1) The pending-share effect, after a non-synced share is detected
-  //      (mode silently defaults to 'copy').
-  //   2) The QuizAssignmentImportModeModal, after the teacher picks
-  //      Sync vs Copy.
-  // Defined outside the effect so both paths share identical orchestration.
-  const runAssignmentImport = React.useCallback(
-    (shareId: string, mode: SharedAssignmentImportMode) => {
-      if (!user) return;
-      void importSharedAssignment(
-        shareId,
-        async (quiz) => {
-          const meta = await saveQuiz(quiz);
-          return { id: meta.id, driveFileId: meta.driveFileId };
-        },
-        // Roll back the just-copied quiz if assignment creation fails
-        // mid-flight — otherwise the importer is left with a phantom
-        // quiz in their library and a generic "import failed" toast.
-        async (saved) => {
-          await deleteQuiz(saved.id, saved.driveFileId);
-        },
-        // PLC handling: bundled isMember + onNonMember so the contract
-        // "PLC handling is opt-in as a unit" is visible at the call site.
-        {
-          isMember: (plcId) =>
-            !!user &&
-            plcs.some(
-              (p) => p.id === plcId && getPlcRole(p, user.uid) !== null
-            ),
-          onNonMember: ({ plcName }) => {
-            addToast(
-              `This is a PLC quiz assignment for "${plcName}". You're not a member, so your results will export to your own sheet.`,
-              'info',
-              {
-                label: 'PLC Settings',
-                onClick: () => {
-                  window.dispatchEvent(
-                    new CustomEvent('open-sidebar', {
-                      detail: { section: 'plcs' },
-                    })
-                  );
-                },
-              }
-            );
-          },
-        },
-        {
-          mode,
-          attachSyncLinkage,
-        }
-      )
-        .then((newAssignmentId) => {
-          addToast(
-            mode === 'sync'
-              ? 'Synced assignment imported!'
-              : 'Shared assignment imported!',
-            'success'
-          );
-          openQuizWidgetToTab('active');
-          // Prompt the importer to pick rosters/periods for the new
-          // assignment instead of leaving it paused with no targeting.
-          setPendingAssignmentSetup(newAssignmentId);
-        })
-        .catch((err: unknown) => {
-          logError('DashboardView.runAssignmentImport', err, {
-            mode,
-            shareId,
-          });
-          const msg =
-            err instanceof Error
-              ? err.message
-              : typeof err === 'string'
-                ? err
-                : '';
-          addToast(
-            msg
-              ? `Failed to import shared assignment: ${msg}`
-              : 'Failed to import shared assignment.',
-            'error'
-          );
-        });
-    },
-    [
-      user,
-      importSharedAssignment,
-      saveQuiz,
-      deleteQuiz,
-      attachSyncLinkage,
-      addToast,
-      openQuizWidgetToTab,
-      setPendingAssignmentSetup,
-      plcs,
-    ]
-  );
-
-  // Handle pending shared assignment import from URL/paste.
-  //
-  // Two-step flow:
-  //   1. Peek at the share doc to detect synced-mode capability.
-  //   2a. If syncGroupId is present → open QuizAssignmentImportModeModal
-  //       and let the teacher pick Sync or Copy. The modal's onPick
-  //       handler triggers runAssignmentImport with the chosen mode.
-  //   2b. If syncGroupId is absent (legacy share) → run the legacy
-  //       copy-mode import directly, no UI prompt.
-  //
-  // Imports copy the quiz into the user's library and create a paused
-  // assignment, then surface the Quiz widget to the Active tab — which
-  // shows live and paused assignments (Archive only shows inactive ones).
-  // Stable callback: peek the share doc and route to either the mode
-  // picker (synced share) or a direct copy import (legacy share).
-  // Extracted so the failure toast can offer Retry without re-running
-  // the whole effect — the effect synchronously clears
-  // pendingAssignmentShareId to prevent triple-import races, so a
-  // failed peek would otherwise leave the user with no recovery path
-  // short of pasting the URL again.
-  const peekAndDispatchImport = React.useCallback(
-    (shareId: string) => {
-      void peekSharedAssignment(shareId)
-        .then((preview) => {
-          // Sync mode is only offered when the share is sync-enabled AND
-          // (the share has no PLC OR the importer is a member of that
-          // PLC). A non-PLC-member of a PLC-shared synced assignment
-          // shouldn't be able to silently join a synchronized peer group
-          // they have no relationship to — so we transparently fall
-          // through to copy-mode (the existing non-member nudge toast
-          // still fires from runAssignmentImport's plcHandling path).
-          const previewPlcId = preview.plc?.id;
-          const importerIsPlcMember =
-            !!previewPlcId &&
-            !!user &&
-            plcs.some(
-              (p) => p.id === previewPlcId && getPlcRole(p, user.uid) !== null
-            );
-          const canOfferSync =
-            !!preview.syncGroupId && (!preview.plc || importerIsPlcMember);
-          if (canOfferSync) {
-            // Defer the import to the modal's onPick handler.
-            setImportModePrompt({
-              shareId,
-              title: preview.title,
-              originalAuthor: preview.originalAuthor,
-            });
-            return;
-          }
-          runAssignmentImport(shareId, 'copy');
-        })
-        .catch((err: unknown) => {
-          logError('DashboardView.peekAndDispatchImport', err, { shareId });
-          const msg =
-            err instanceof Error
-              ? err.message
-              : typeof err === 'string'
-                ? err
-                : '';
-          addToast(
-            msg
-              ? `Failed to import shared assignment: ${msg}`
-              : 'Failed to import shared assignment.',
-            'error',
-            {
-              label: 'Retry',
-              onClick: () => peekAndDispatchImport(shareId),
-            }
-          );
-        });
-    },
-    [peekSharedAssignment, runAssignmentImport, addToast, plcs, user]
-  );
-
-  useEffect(() => {
-    if (!pendingAssignmentShareId || !user) return;
-    // Wait for /plcs to hydrate before evaluating membership. Without this
-    // gate, a deep-link import that fires before the listener populates
-    // `plcs` sees `[]`, the `isPlcMember` predicate returns false, and a
-    // legitimate member is silently demoted to non-member. Once
-    // plcsLoading flips to false the effect re-runs with the real list.
-    if (plcsLoading) return;
-    // Clear synchronously BEFORE awaiting — see the quiz-share effect above
-    // for the triple-import race rationale. The Retry action in the
-    // failure toast (wired via peekAndDispatchImport) restores the
-    // recovery path without reintroducing the race.
-    const shareId = pendingAssignmentShareId;
-    clearPendingAssignmentShare();
-    peekAndDispatchImport(shareId);
-  }, [
-    pendingAssignmentShareId,
-    user,
-    peekAndDispatchImport,
-    clearPendingAssignmentShare,
-    plcsLoading,
-  ]);
-
-  // Stable dispatcher for VA share imports — extracted so the failure
-  // toast's Retry action can re-invoke it without re-running the
-  // pending-id effect (which clears the id synchronously to avoid the
-  // triple-import race documented on the Quiz path above). Mirrors
-  // `peekAndDispatchImport` for the Quiz flow but skips the peek + mode
-  // picker — VA's sync-mode picker UI hasn't been ported and a synced
-  // share simply imports as a copy.
-  const runVideoActivityImport = React.useCallback(
-    (shareId: string) => {
-      void importSharedVideoActivityAssignment(shareId, {
-        mode: 'copy',
-        saveActivity: saveVideoActivity,
-        attachSyncLinkage: attachVideoActivitySyncLinkage,
-      })
-        .then(() => {
-          addToast('Shared video activity imported!', 'success');
-          openVideoActivityWidgetToTab('active');
-        })
-        .catch((err: unknown) => {
-          logError('DashboardView.importSharedVideoActivity', err, {
-            shareId,
-          });
-          // The VA import hook handles its own rollback (Drive copy +
-          // sync-group leave) on failure paths, so the catch block is
-          // surface-only — no manual cleanup needed.
-          const msg =
-            err instanceof Error
-              ? err.message
-              : typeof err === 'string'
-                ? err
-                : '';
-          addToast(
-            msg
-              ? `Failed to import shared video activity: ${msg}`
-              : 'Failed to import shared video activity.',
-            'error',
-            {
-              label: 'Retry',
-              onClick: () => runVideoActivityImport(shareId),
-            }
-          );
-        });
-    },
-    [
-      importSharedVideoActivityAssignment,
-      saveVideoActivity,
-      attachVideoActivitySyncLinkage,
-      addToast,
-      openVideoActivityWidgetToTab,
-    ]
-  );
-
-  // PR3c — pending video-activity-assignment share import. Mirrors the
-  // quiz-assignment effect above: clears the pending id synchronously
-  // before dispatching to avoid the triple-import race; the dispatcher's
-  // failure toast carries Retry as the recovery path.
-  useEffect(() => {
-    if (!pendingVideoActivityShareId || !user) return;
-    if (plcsLoading) return;
-    const shareId = pendingVideoActivityShareId;
-    clearPendingVideoActivityShare();
-    runVideoActivityImport(shareId);
-  }, [
-    pendingVideoActivityShareId,
-    user,
-    plcsLoading,
-    clearPendingVideoActivityShare,
-    runVideoActivityImport,
-  ]);
+  // Latch the deep-link share importer on the first time any pending share id
+  // appears, then keep it mounted for the rest of the session. The importer's
+  // effects clear the pending id synchronously, so a "mount only while a
+  // pending id is set" gate would tear it down mid-import; latching avoids
+  // that while still keeping the common (no-import) teacher load free of its
+  // 5 Firestore listeners. Adjusting state during render (rather than in an
+  // effect) mounts the child in the same pass, with the pending id still set.
+  const [mountShareImporter, setMountShareImporter] = React.useState(false);
+  if (
+    !mountShareImporter &&
+    (pendingQuizShareId ||
+      pendingAssignmentShareId ||
+      pendingVideoActivityShareId)
+  ) {
+    setMountShareImporter(true);
+  }
 
   const [panOffset, setPanOffset] = React.useState({ x: 0, y: 0 });
 
@@ -1797,9 +1461,22 @@ export const DashboardView: React.FC = () => {
           document.body
         )}
 
-      {/* FIXED UI: Outside the zoom container */}
-      <Sidebar />
-      {!annotationActive && !isActiveBoardReadOnly && <Dock />}
+      {/* FIXED UI: Outside the zoom container. Sidebar + Dock are code-split
+          (see the React.lazy imports at the top of this file) so the board
+          canvas paints before their chunks load; they stream in on the next
+          microtask behind this Suspense boundary. The fallback reserves the
+          dock footprint only when the dock will actually render, so an
+          annotation/read-only board (no dock) shows no skeleton. */}
+      <React.Suspense
+        fallback={
+          !annotationActive && !isActiveBoardReadOnly ? (
+            <ShellPlaceholder />
+          ) : null
+        }
+      >
+        <Sidebar />
+        {!annotationActive && !isActiveBoardReadOnly && <Dock />}
+      </React.Suspense>
       <AnnotationOverlay />
       <ToastContainer />
       <AnnouncementOverlay />
@@ -1819,27 +1496,16 @@ export const DashboardView: React.FC = () => {
       )}
       <BoardActionsFab onOpenCheatSheet={() => setIsCheatSheetOpen(true)} />
 
-      {importModePrompt && (
-        <QuizAssignmentImportModeModal
-          quizTitle={importModePrompt.title}
-          onPick={(mode) => {
-            const { shareId } = importModePrompt;
-            setImportModePrompt(null);
-            runAssignmentImport(shareId, mode);
-          }}
-          onClose={() => {
-            // Closing the picker without choosing drops the deep-link share
-            // (it was cleared synchronously in the effect above to avoid
-            // triple-import races). Surface a Retry toast so the teacher can
-            // re-run the same import without re-pasting the URL.
-            const { shareId } = importModePrompt;
-            setImportModePrompt(null);
-            addToast('Import canceled.', 'info', {
-              label: 'Retry',
-              onClick: () => peekAndDispatchImport(shareId),
-            });
-          }}
-        />
+      {/* Deep-link share-import machinery (Quiz / Video-Activity / PLC) —
+          mounted lazily only once a pending share id appears, so the common
+          teacher load never opens its 5 Firestore listeners. Once mounted it
+          stays for the session (imports are rare and clear their id
+          synchronously); it renders the import mode-picker modal when needed
+          and null otherwise. */}
+      {mountShareImporter && (
+        <React.Suspense fallback={null}>
+          <DeepLinkShareImporter />
+        </React.Suspense>
       )}
 
       {/* Spotlight Dimming Overlay */}
