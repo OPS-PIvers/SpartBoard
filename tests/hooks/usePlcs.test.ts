@@ -461,6 +461,51 @@ describe('usePlcs - createPlc writes the members map + indexes', () => {
     expect(payload.orgId).toBeNull();
     expect(payload.buildingId).toBeNull();
   });
+
+  it('inherits the creator org + building so the PLC is discoverable', async () => {
+    // Creator carries org membership + buildings — the new PLC must stamp
+    // orgId and the resolved building (explicit UI selection wins over the
+    // org-assigned building) so it appears in the building directory at once.
+    useAuthMock.mockReturnValue({
+      user: { uid: LEAD_UID, email: 'Lead@X.com', displayName: 'Lead' },
+      orgId: 'orono',
+      selectedBuildings: ['high'],
+      buildingIds: ['middle'],
+    } as ReturnType<typeof useAuthMock>);
+    mockCollection.mockReturnValue('plcs');
+    mockDoc.mockReturnValue('plcs/new-id');
+    mockSetDoc.mockResolvedValue(undefined);
+
+    const { result } = render();
+    await act(async () => {
+      await result.current.createPlc('My PLC');
+    });
+
+    const payload = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
+    expect(payload.orgId).toBe('orono');
+    expect(payload.buildingId).toBe('high');
+  });
+
+  it('falls back to the org-assigned building when none is UI-selected', async () => {
+    useAuthMock.mockReturnValue({
+      user: { uid: LEAD_UID, email: 'Lead@X.com', displayName: 'Lead' },
+      orgId: 'orono',
+      selectedBuildings: [],
+      buildingIds: ['middle'],
+    } as ReturnType<typeof useAuthMock>);
+    mockCollection.mockReturnValue('plcs');
+    mockDoc.mockReturnValue('plcs/new-id');
+    mockSetDoc.mockResolvedValue(undefined);
+
+    const { result } = render();
+    await act(async () => {
+      await result.current.createPlc('My PLC');
+    });
+
+    const payload = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
+    expect(payload.orgId).toBe('orono');
+    expect(payload.buildingId).toBe('middle');
+  });
 });
 
 describe('usePlcs - transferLead', () => {
