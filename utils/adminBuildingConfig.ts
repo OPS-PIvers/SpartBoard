@@ -308,10 +308,24 @@ export const getAdminBuildingConfig = (
       if (raw.visual) out.visual = raw.visual;
       if (raw.sensitivity !== undefined) out.sensitivity = raw.sensitivity;
       break;
-    case 'text':
-      if (raw.bgColor) out.bgColor = raw.bgColor;
-      if (typeof raw.fontSize === 'number') out.fontSize = raw.fontSize;
+    case 'text': {
+      // The Note/Text widget consumes the prefixed `FONTS`-id space for
+      // fontFamily (via `getFontClass`, default `'global'`), so it is validated
+      // by `isWidgetFontFamily` like `stations`/`need-do-put-then` — not the
+      // bare `GlobalFontFamily` set. `bgColor` is a STICKY_NOTE_COLORS hex.
+      const validVerticalAligns = ['top', 'center', 'bottom'] as const;
+      if (isHexColor(raw.bgColor)) out.bgColor = raw.bgColor;
+      if (typeof raw.fontSize === 'number' && Number.isFinite(raw.fontSize))
+        out.fontSize = raw.fontSize;
+      if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
+      if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
+      if (
+        typeof raw.verticalAlign === 'string' &&
+        (validVerticalAligns as readonly string[]).includes(raw.verticalAlign)
+      )
+        out.verticalAlign = raw.verticalAlign;
       break;
+    }
     case 'traffic':
       if (raw.active !== undefined) out.active = raw.active;
       break;
