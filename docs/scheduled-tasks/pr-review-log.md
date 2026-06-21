@@ -4,6 +4,27 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-21
+
+- PRs reviewed: 4 (all open PRs; all base `dev-paul`, none `main`/`dev-*`)
+  - #2035 — audit(scheduled-tasks): Sunday 2026-06-21 — admin-config audit + TextWidget MEDIUM fix (head `scheduled-tasks`)
+  - #2034 — docs(unifier): run 22 — staleness scan (head `nightly/unifier-log-2026-06-21`)
+  - #2030 — pr-review: nightly PR review log — 2026-06-20 (head `claude/compassionate-shannon-dzln7f`)
+  - #2029 — fix(widgets/expectations): use shared Toggle in Settings panel (head `scheduled/expectations-toggle`)
+- Comments processed: 1 actionable thread — 0 fixed, 1 explained (all other threads empty/resolved)
+  - #2034: 1 unresolved-but-outdated thread (claude) requesting revert of inflated `actualDurationMs` baselines → EXPLAINED, no fix: the current diff already addresses it — only `generatedAt` changed in `baseline.json`/`dashboard-baseline.json`; timing medians are unchanged. Replied marking resolved.
+  - #2029: 1 thread (gemini optional-chaining) already `is_resolved:true` from the 2026-06-20 run → no action.
+  - #2035, #2030: no review comments.
+- Fixes pushed: 0 (no comment required a code change)
+- Reviews posted: 3
+  - #2035: Ready with minor notes — TextWidget admin building defaults (`fontFamily`/`fontColor`/`verticalAlign`) are correct and well-tested (`isHexColor`/`Number.isFinite`/`isWidgetFontFamily`/enum validation; 3 new test cases; panel mirrors Stations). Flagged scope: `scheduled-tasks` head carries 42 changed files, ~38 unrelated to the described change (accumulated-divergence pattern, same as #2016) — human should confirm the bundle is intended for the nightly→`dev-paul` release flow.
+  - #2034: Ready — doc-only unifier run 22; the inline baseline concern is resolved.
+  - #2030: Ready — doc-only nightly review-log entry.
+  - #2029: skipped (not re-reviewed) — already carries a full automated Claude review from 2026-06-20 and has no new commits since; re-reviewing would be noise.
+- Notes:
+  - Branch-safety: all 4 head branches are non-`main` / non-`dev-*` → pushable. Phase 1 produced no fixes, so no pushes to any PR branch.
+  - This log is committed to `claude/compassionate-shannon-l4ziui` (this session's development branch) rather than `scheduled-tasks`, because `scheduled-tasks` is the head of open PR #2035 — committing there would pollute that PR's diff. Consistent with prior runs (#2030 used `claude/compassionate-shannon-dzln7f`).
+
 ## 2026-06-19
 
 - PRs reviewed: 9 (all base `dev-paul`; no head is `main`/`dev-*`, so all pushable)
