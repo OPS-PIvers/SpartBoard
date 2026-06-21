@@ -66,6 +66,15 @@ export const DeepLinkShareImporter: React.FC = () => {
   } = useVideoActivity(user?.uid);
   const { importSharedAssignment: importSharedVideoActivityAssignment } =
     useVideoActivityAssignments(user?.uid);
+  // usePlcs's listener now starts when this importer first mounts rather than
+  // at teacher mount. For a URL-parameter deep link (share id present at app
+  // load) the listener and the import trigger start together, so the
+  // `if (plcsLoading) return` guards in the assignment effects below fire once
+  // and the import waits one extra snapshot round-trip for `plcs` to hydrate
+  // before evaluating PLC membership. Behaviour is unchanged (the effects
+  // re-run when loading completes) — it is only a small one-time latency shift
+  // on the deep-link path, and it's the correct trade for not opening this
+  // listener on every common (no-import) teacher load.
   const { plcs, loading: plcsLoading } = usePlcs();
 
   // Mode picker state — populated when a synced share is detected; null
@@ -239,7 +248,7 @@ export const DeepLinkShareImporter: React.FC = () => {
           setPendingAssignmentSetup(newAssignmentId);
         })
         .catch((err: unknown) => {
-          logError('DashboardView.runAssignmentImport', err, {
+          logError('DeepLinkShareImporter.runAssignmentImport', err, {
             mode,
             shareId,
           });
@@ -328,7 +337,9 @@ export const DeepLinkShareImporter: React.FC = () => {
           runAssignmentImport(shareId, 'copy');
         })
         .catch((err: unknown) => {
-          logError('DashboardView.peekAndDispatchImport', err, { shareId });
+          logError('DeepLinkShareImporter.peekAndDispatchImport', err, {
+            shareId,
+          });
           const msg =
             err instanceof Error
               ? err.message
@@ -397,7 +408,7 @@ export const DeepLinkShareImporter: React.FC = () => {
           openVideoActivityWidgetToTab('active');
         })
         .catch((err: unknown) => {
-          logError('DashboardView.importSharedVideoActivity', err, {
+          logError('DeepLinkShareImporter.importSharedVideoActivity', err, {
             shareId,
           });
           // The VA import hook handles its own rollback (Drive copy +
