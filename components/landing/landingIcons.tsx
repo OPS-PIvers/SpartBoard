@@ -19,12 +19,14 @@ type IconNode = ReadonlyArray<
   readonly [string, Record<string, string | number>]
 >;
 
-interface IconProps {
-  className?: string;
-}
+// Accept the full SVG prop surface (style, onClick, aria-label, etc.) so these
+// stay drop-in compatible with lucide's API. Defaults below come first so
+// callers can override any of them (e.g. pass aria-label + role to make an
+// icon non-decorative) via the spread.
+type IconProps = React.SVGProps<SVGSVGElement>;
 
 const makeIcon = (name: string, node: IconNode): React.FC<IconProps> => {
-  const Icon: React.FC<IconProps> = ({ className }) => (
+  const Icon: React.FC<IconProps> = ({ className, ...props }) => (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width={24}
@@ -37,6 +39,7 @@ const makeIcon = (name: string, node: IconNode): React.FC<IconProps> => {
       strokeLinejoin="round"
       className={className}
       aria-hidden="true"
+      {...props}
     >
       {node.map(([tag, attrs], i) =>
         React.createElement(tag, { ...attrs, key: i })
