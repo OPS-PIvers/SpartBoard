@@ -1768,6 +1768,14 @@ export interface BuildingNoteDefaults {
   buildingId: string;
   fontSize?: number;
   bgColor?: string;
+  /**
+   * Prefixed `FONTS`-id value (e.g. `'font-sans'`), matching the value space
+   * the TextWidget toolbar / `getFontClass()` consume. `'global'` (inherit) is
+   * persisted as absence, same as the Stations/NeedDoPutThen panels.
+   */
+  fontFamily?: string;
+  fontColor?: string;
+  verticalAlign?: 'top' | 'center' | 'bottom';
 }
 
 export interface NoteGlobalConfig {
