@@ -431,6 +431,11 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     selectedBuildings = [],
     buildingIds = [],
   } = useAuth();
+  // Extract the resolved building as primitives so the `createPlc` callback's
+  // dependency array stays referentially stable (the source arrays may be new
+  // references each render).
+  const firstSelectedBuilding = selectedBuildings[0];
+  const firstBuildingId = buildingIds[0];
   const [plcs, setPlcs] = useState<Plc[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -508,11 +513,12 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       // mirrors usePlcBuildingDirectory's "my building" (explicit UI selection
       // first, else the org-assigned building). Absent ⇒ null (a teacher with
       // no org/building simply creates an untenanted PLC, as before).
-      const creatorBuildingId = selectedBuildings[0] ?? buildingIds[0] ?? null;
+      const creatorBuildingId =
+        firstSelectedBuilding ?? firstBuildingId ?? null;
       const ref = doc(collection(db, PLCS_COLLECTION));
       await setDoc(ref, {
         name: trimmed,
-        orgId: orgId ?? null,
+        orgId,
         buildingId: creatorBuildingId,
         // Canonical membership map (Decision 1.2). The creator is the sole
         // member and the lead. `joinedAt` is a serverTimestamp sentinel
@@ -538,7 +544,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       });
       return ref.id;
     },
-    [user, orgId, selectedBuildings, buildingIds]
+    [user, orgId, firstSelectedBuilding, firstBuildingId]
   );
 
   const renamePlc = useCallback(
