@@ -421,7 +421,21 @@ interface UsePlcsOptions {
 export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
   const enabled = options?.enabled ?? true;
   const asAdmin = options?.asAdmin ?? false;
-  const { user } = useAuth();
+  // `orgId` + the creator's building are stamped onto new PLCs (createPlc) so a
+  // freshly created team is immediately discoverable in the org/building
+  // directory (Decision 1.1). Defaults keep this safe if a consumer mocks a
+  // minimal auth surface.
+  const {
+    user,
+    orgId = null,
+    selectedBuildings = [],
+    buildingIds = [],
+  } = useAuth();
+  // Extract the resolved building as primitives so the `createPlc` callback's
+  // dependency array stays referentially stable (the source arrays may be new
+  // references each render).
+  const firstSelectedBuilding = selectedBuildings[0];
+  const firstBuildingId = buildingIds[0];
   const [plcs, setPlcs] = useState<Plc[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -494,11 +508,18 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
         throw new Error(i18n.t('plc.errors.accountEmailRequired'));
       }
       const displayName = user.displayName ?? '';
+      // Inherit the creator's tenancy so the new PLC surfaces in the
+      // org/building directory right away (Decision 1.1). Building resolution
+      // mirrors usePlcBuildingDirectory's "my building" (explicit UI selection
+      // first, else the org-assigned building). Absent ⇒ null (a teacher with
+      // no org/building simply creates an untenanted PLC, as before).
+      const creatorBuildingId =
+        firstSelectedBuilding ?? firstBuildingId ?? null;
       const ref = doc(collection(db, PLCS_COLLECTION));
       await setDoc(ref, {
         name: trimmed,
-        orgId: null,
-        buildingId: null,
+        orgId,
+        buildingId: creatorBuildingId,
         // Canonical membership map (Decision 1.2). The creator is the sole
         // member and the lead. `joinedAt` is a serverTimestamp sentinel
         // resolved to millis on read by `parsePlcMembers`.
@@ -523,7 +544,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       });
       return ref.id;
     },
-    [user]
+    [user, orgId, firstSelectedBuilding, firstBuildingId]
   );
 
   const renamePlc = useCallback(
