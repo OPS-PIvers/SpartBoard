@@ -433,9 +433,11 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
   } = useAuth();
   // Extract the resolved building as primitives so the `createPlc` callback's
   // dependency array stays referentially stable (the source arrays may be new
-  // references each render).
-  const firstSelectedBuilding = selectedBuildings[0];
-  const firstBuildingId = buildingIds[0];
+  // references each render). Optional chaining guards against a `null` (not just
+  // `undefined`) arriving from the auth context or a partial test mock — the
+  // destructure default only covers `undefined`.
+  const firstSelectedBuilding = selectedBuildings?.[0];
+  const firstBuildingId = buildingIds?.[0];
   const [plcs, setPlcs] = useState<Plc[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
