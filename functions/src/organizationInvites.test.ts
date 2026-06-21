@@ -387,8 +387,16 @@ describe('generateToken', () => {
 });
 
 describe('buildClaimUrl', () => {
-  it('assembles the prod origin + /invite/:token', () => {
-    expect(buildClaimUrl('abc123')).toBe(`${CLAIM_URL_ORIGIN}/invite/abc123`);
+  it('assembles the prod origin + /invite/:token?org=:orgId', () => {
+    expect(buildClaimUrl('abc123', 'orono')).toBe(
+      `${CLAIM_URL_ORIGIN}/invite/abc123?org=orono`
+    );
+  });
+
+  it('url-encodes the orgId', () => {
+    expect(buildClaimUrl('tok', 'my org')).toBe(
+      `${CLAIM_URL_ORIGIN}/invite/tok?org=my%20org`
+    );
   });
 });
 

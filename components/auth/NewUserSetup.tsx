@@ -7,6 +7,7 @@ import {
   Building2,
   Palette,
   LayoutGrid,
+  Loader2,
 } from 'lucide-react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
@@ -106,12 +107,14 @@ type StepKind = 'buildings' | 'style' | 'dock';
 
 const STEP_DEFS: Record<
   StepKind,
-  { label: string; icon: typeof Building2; heading: string; subtitle: string }
+  { label: string; icon: typeof Building2; heading?: string; subtitle: string }
 > = {
+  // `buildings` is always the first step when present, and the first step
+  // renders a personalised `Welcome, {firstName}!` heading — so a `heading`
+  // here would never show. Intentionally omitted to avoid dead config.
   buildings: {
     label: 'Your School',
     icon: Building2,
-    heading: 'Welcome!',
     subtitle: 'Which school(s) do you teach at?',
   },
   style: {
@@ -131,16 +134,35 @@ const STEP_DEFS: Record<
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export const NewUserSetup: React.FC = () => {
-  const { user, setSelectedBuildings, completeSetup, orgId } = useAuth();
+  const {
+    user,
+    setSelectedBuildings,
+    completeSetup,
+    orgId,
+    orgBuildings,
+    orgBuildingsLoaded,
+  } = useAuth();
   const { setGlobalStyle } = useDashboard();
   const { reorderDockItems } = useToolVisibility();
 
   // Buildings are an organization concept: the picker only lists buildings
-  // configured for the user's org. A user with no org (an external/free user
-  // whose domain isn't registered to a district) has no buildings to choose
-  // from, so we skip that step entirely rather than forcing them to pick from
-  // a fallback seed list that belongs to a different district.
-  const includeBuildingStep = orgId !== null;
+  // configured for the user's org. We include the step only when the user's
+  // org actually has buildings to choose from. We deliberately gate on the
+  // RAW `orgBuildings` (not `useAdminBuildings()`, which substitutes a seed
+  // fallback list that belongs to a different district) so we can tell a
+  // genuinely empty org apart from one with buildings. Skipped when:
+  //   - the user has no org (external/free user), or
+  //   - the org has zero buildings configured — otherwise the required
+  //     "pick at least one school" gate would soft-lock them with no valid
+  //     option (raised in review).
+  const includeBuildingStep = orgId !== null && orgBuildings.length > 0;
+
+  // While the org's building list is still loading we don't yet know whether
+  // the step applies. Render a loader rather than the wizard so the step count
+  // is decided once — never shifting under the user mid-flow. Org-less users
+  // resolve `orgBuildingsLoaded` immediately, so they never see this.
+  const buildingsResolving = orgId !== null && !orgBuildingsLoaded;
+
   const stepKinds = useMemo<StepKind[]>(
     () =>
       includeBuildingStep ? ['buildings', 'style', 'dock'] : ['style', 'dock'],
@@ -230,6 +252,17 @@ export const NewUserSetup: React.FC = () => {
     currentKind === 'buildings' ? selectedBuildings.length > 0 : true;
 
   const firstName = user?.displayName?.split(' ')[0] ?? 'there';
+
+  // Hold on a loader until the org's building list resolves so the step model
+  // is computed from a settled list. Kept after all hooks above to preserve
+  // hook order.
+  if (buildingsResolving) {
+    return (
+      <div className="fixed inset-0 z-critical bg-slate-900 flex items-center justify-center p-4">
+        <Loader2 className="w-10 h-10 text-blue-400 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-critical bg-slate-900 flex flex-col items-center justify-center p-4">

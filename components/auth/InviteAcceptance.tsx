@@ -11,19 +11,21 @@ import { APP_NAME } from '@/config/constants';
 import { functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 
-// Resilience fallback only. The org a user is claiming an invite for is
-// resolved dynamically from their verified email domain via `resolveOrgForUser`
-// (see `resolveInviteOrgId`); this operator-org id is used solely if that
-// resolution is unavailable, so existing internal invites keep working.
+// Resilience fallback only. The org a user is claiming an invite for normally
+// comes from the invite URL's `?org=` param (see `extractOrgId`); failing that,
+// it's resolved from their verified email domain via `resolveOrgForUser`. This
+// operator-org id is the last resort if both are unavailable, so existing
+// internal invites keep working.
 const OPERATOR_ORG_ID = 'orono';
 
 /**
  * Resolves which org the signed-in invitee belongs to, from their verified
- * email domain. Returns the operator org as a resilience fallback if the
- * resolver call fails (mid-deploy / transient outage) so internal invites
- * never break. A cross-domain invite (invitee's domain maps to a different
- * org, or none) is the one case this can't cover — those resolve via the
- * email domain, matching how membership is resolved everywhere else.
+ * email domain. Used only for legacy invite links that don't carry the org in
+ * their URL. Returns the operator org as a resilience fallback if the resolver
+ * call fails (mid-deploy / transient outage) so internal invites never break.
+ * A cross-domain invite on a legacy link (invitee's domain maps to a different
+ * org, or none) is the one case this can't cover — newer links avoid it
+ * entirely by carrying `?org=`.
  */
 const resolveInviteOrgId = async (): Promise<string> => {
   try {
@@ -55,6 +57,17 @@ const extractToken = (): string => {
   const stopAt = rest.search(/[/?#]/);
   const token = stopAt === -1 ? rest : rest.slice(0, stopAt);
   return token.trim();
+};
+
+/**
+ * Reads the `?org=` query param from the invite URL. Invite links minted by
+ * `createOrganizationInvites` carry the orgId so the claim targets the right
+ * org without a domain lookup — which matters for a newly-onboarded org whose
+ * domain isn't verified yet. Empty string for legacy links that predate it.
+ */
+const extractOrgId = (): string => {
+  if (typeof window === 'undefined') return '';
+  return new URLSearchParams(window.location.search).get('org')?.trim() ?? '';
 };
 
 type ClaimStatus =
@@ -246,9 +259,10 @@ const getErrorCodeFromUnknown = (error: unknown): string => {
 };
 
 export const InviteAcceptance: React.FC = () => {
-  // Capture the token once on mount — even if the URL changes during the auth
-  // flip, we keep the same token through the whole flow.
+  // Capture the token + org once on mount — even if the URL changes during the
+  // auth flip, we keep the same values through the whole flow.
   const [token] = React.useState(() => extractToken());
+  const [orgFromUrl] = React.useState(() => extractOrgId());
   const { user, loading, signOut } = useAuth();
   const [status, setStatus] = React.useState<ClaimStatus>({ kind: 'idle' });
   const claimRanRef = React.useRef(false);
@@ -265,7 +279,9 @@ export const InviteAcceptance: React.FC = () => {
 
     const run = async () => {
       try {
-        const orgId = await resolveInviteOrgId();
+        // Prefer the org carried in the invite URL; fall back to domain
+        // resolution for legacy links that don't include it.
+        const orgId = orgFromUrl || (await resolveInviteOrgId());
         const claim = httpsCallable<
           { token: string; orgId: string },
           { ok: true }
@@ -286,7 +302,7 @@ export const InviteAcceptance: React.FC = () => {
     };
 
     void run();
-  }, [token, loading, user, status.kind]);
+  }, [token, orgFromUrl, loading, user, status.kind]);
 
   if (!token) {
     return <MissingTokenView />;
