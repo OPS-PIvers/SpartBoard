@@ -31,8 +31,8 @@ export const ScaledEmptyState: React.FC<ScaledEmptyStateProps> = ({
   action,
   className = '',
   iconClassName = 'text-slate-300',
-  titleClassName = 'text-slate-500',
-  subtitleClassName = 'text-slate-400',
+  titleClassName = 'text-slate-200',
+  subtitleClassName = 'text-slate-300',
 }) => {
   return (
     <div
@@ -46,7 +46,7 @@ export const ScaledEmptyState: React.FC<ScaledEmptyStateProps> = ({
           height: 'min(48px, 15cqmin)',
         }}
       >
-        <Icon style={{ width: '100%', height: '100%' }} />
+        <Icon aria-hidden="true" style={{ width: '100%', height: '100%' }} />
       </div>
       <div className="flex flex-col" style={{ gap: '0.5cqmin' }}>
         <p

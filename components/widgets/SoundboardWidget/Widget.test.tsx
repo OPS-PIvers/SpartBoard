@@ -2,16 +2,18 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { SoundboardWidget } from './Widget';
 import { useAuth } from '@/context/useAuth';
-import { useDashboard } from '@/context/useDashboard';
+import {
+  useDashboardActions,
+  useIsWidgetSelected,
+  type DashboardActions,
+} from '@/context/dashboardCanvasStore';
 import { WidgetData } from '@/types';
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(),
 }));
 
-vi.mock('@/context/useDashboard', () => ({
-  useDashboard: vi.fn(),
-}));
+vi.mock('@/context/dashboardCanvasStore');
 
 const mockPlay = vi
   .fn<() => Promise<void>>()
@@ -80,10 +82,10 @@ describe('SoundboardWidget', () => {
       ],
     } as unknown as ReturnType<typeof useAuth>);
 
-    vi.mocked(useDashboard).mockReturnValue({
-      selectedWidgetId: null,
+    vi.mocked(useDashboardActions).mockReturnValue({
       updateWidget: vi.fn(),
-    } as unknown as ReturnType<typeof useDashboard>);
+    } as unknown as DashboardActions);
+    vi.mocked(useIsWidgetSelected).mockReturnValue(false);
   });
 
   afterAll(() => {
@@ -267,10 +269,7 @@ describe('SoundboardWidget', () => {
   });
 
   it('shows selection bar when focused', () => {
-    vi.mocked(useDashboard).mockReturnValue({
-      selectedWidgetId: 'soundboard-1',
-      updateWidget: vi.fn(),
-    } as unknown as ReturnType<typeof useDashboard>);
+    vi.mocked(useIsWidgetSelected).mockReturnValue(true);
 
     render(<SoundboardWidget widget={defaultWidget} />);
 

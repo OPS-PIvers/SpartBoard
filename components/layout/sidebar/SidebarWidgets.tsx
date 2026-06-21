@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Filter, CheckSquare } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
+import { useToolVisibility } from '@/context/useToolVisibility';
 import { useAuth } from '@/context/useAuth';
 import { TOOLS } from '@/config/tools';
 import { getWidgetGradeLevels } from '@/config/widgetGradeLevels';
@@ -14,13 +15,9 @@ export const SidebarWidgets: React.FC<SidebarWidgetsProps> = ({
   isVisible,
 }) => {
   const { t } = useTranslation();
-  const {
-    visibleTools,
-    toggleToolVisibility,
-    setAllToolsVisibility,
-    gradeFilter,
-    setGradeFilter,
-  } = useDashboard();
+  const { gradeFilter, setGradeFilter } = useDashboard();
+  const { visibleTools, toggleToolVisibility, setAllToolsVisibility } =
+    useToolVisibility();
   const { featurePermissions } = useAuth();
 
   // Grade filter options for consistent validation and rendering

@@ -1,5 +1,6 @@
-import React, { lazy, Suspense, useEffect } from 'react';
+import React, { lazy, Suspense, useEffect, useSyncExternalStore } from 'react';
 import { Loader2 } from 'lucide-react';
+import { SPA_NAVIGATE_EVENT, parsePlcPath } from './utils/plcPath';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
 import { useReconcileExpiredSubShares } from './hooks/useReconcileExpiredSubShares';
@@ -156,6 +157,11 @@ const DashboardView = lazy(() =>
     default: module.DashboardView,
   }))
 );
+const PlcRouteHost = lazy(() =>
+  import('./components/plc/PlcRouteHost').then((module) => ({
+    default: module.PlcRouteHost,
+  }))
+);
 const AdminWeatherFetcher = lazy(() =>
   import('./components/admin/AdminWeatherFetcher').then((module) => ({
     default: module.AdminWeatherFetcher,
@@ -228,6 +234,26 @@ const FullPageLoader = () => (
   </div>
 );
 
+/**
+ * Reactive `window.location.pathname` for the manual SPA router. Subscribes to
+ * the native `popstate` (browser back/forward) AND our `SPA_NAVIGATE_EVENT`
+ * (programmatic push/replace, which doesn't fire `popstate`) so in-app
+ * navigation re-renders the router without a full reload. Used by the PLC
+ * routes (Decision 0.3) so `/plc/:id/:section` deep-links and back/forward work.
+ */
+function subscribePathname(onChange: () => void): () => void {
+  window.addEventListener('popstate', onChange);
+  window.addEventListener(SPA_NAVIGATE_EVENT, onChange);
+  return () => {
+    window.removeEventListener('popstate', onChange);
+    window.removeEventListener(SPA_NAVIGATE_EVENT, onChange);
+  };
+}
+const getPathnameSnapshot = (): string => window.location.pathname;
+function usePathname(): string {
+  return useSyncExternalStore(subscribePathname, getPathnameSnapshot);
+}
+
 const AuthenticatedApp: React.FC<{ isRemote?: boolean }> = ({
   isRemote = false,
 }) => {
@@ -276,6 +302,7 @@ const AuthenticatedApp: React.FC<{ isRemote?: boolean }> = ({
 
 /** Rendered inside DashboardProvider so it can access both auth and dashboard context. */
 const AppContent: React.FC = () => {
+  const pathname = usePathname();
   const {
     user,
     isAdmin,
@@ -384,6 +411,16 @@ const AppContent: React.FC = () => {
     );
   }
 
+  // PLC route (Decision 0.3): `/plc/:plcId/:section` mounts the PLC workspace
+  // as a full-screen overlay ON TOP of the dashboard, inside the teacher shell
+  // so the PLC section bodies that read `useDashboard` keep working and "close"
+  // returns to the warm board underneath. The route is pathname-driven (the
+  // `usePathname` subscription above re-renders on push/pop), so deep-links and
+  // browser back/forward work.
+  const plcParsed = pathname.startsWith('/plc') ? parsePlcPath(pathname) : null;
+  const isPlcRoute =
+    plcParsed !== null && (pathname === '/plc' || plcParsed.plcId !== null);
+
   return (
     <Suspense fallback={<FullPageLoader />}>
       {isAdmin && (
@@ -396,6 +433,11 @@ const AppContent: React.FC = () => {
       <UpdateNotification />
       <DriveDisconnectBanner />
       <SchoologyLinkNudge />
+      {isPlcRoute && plcParsed && (
+        <Suspense fallback={<FullPageLoader />}>
+          <PlcRouteHost parsed={plcParsed} />
+        </Suspense>
+      )}
     </Suspense>
   );
 };

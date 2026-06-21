@@ -93,6 +93,7 @@ import {
   DashboardCanvasStoreContext,
   type DashboardActions,
 } from './dashboardCanvasStore';
+import { ToolVisibilityContext } from './ToolVisibilityContextValue';
 import { validateGridConfig, sanitizeAIConfig } from '@/utils/ai_security';
 import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '@/utils/adminBuildingConfig';
 import { AnnotationState } from './DashboardContextValue';
@@ -5393,6 +5394,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // dispatches to the freshest closure — no stale-closure hazard even for
   // actions whose useCallback deps churn.
   const liveActions: DashboardActions = {
+    addWidget,
     updateWidget,
     updateWidgets,
     removeWidget,
@@ -5414,6 +5416,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Empty deps is the point: identity fixed for the provider's lifetime.
   const stableActions = useMemo<DashboardActions>(
     () => ({
+      addWidget: (type, overrides) =>
+        liveActionsRef.current.addWidget(type, overrides),
       updateWidget: (id, updates, opts) =>
         liveActionsRef.current.updateWidget(id, updates, opts),
       updateWidgets: (updates) => liveActionsRef.current.updateWidgets(updates),
@@ -5491,8 +5495,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       dashboards,
       activeDashboard,
       toasts,
-      visibleTools,
-      dockItems,
       loading,
       isSaving,
       gradeFilter,
@@ -5512,7 +5514,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pinBoard,
       unpinBoard,
       setActiveCollectionId,
-      resetDockToDefaults,
       addWidget,
       addWidgets,
       removeWidget,
@@ -5529,8 +5530,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       updateDashboardSettings,
       updateDashboard,
       setGlobalStyle,
-      toggleToolVisibility,
-      setAllToolsVisibility,
       selectedWidgetId,
       setSelectedWidgetId,
       groupWidgets,
@@ -5540,10 +5539,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setSelectedWidgetIds,
       groupBuildMode,
       setGroupBuildMode,
-      reorderTools,
-      reorderLibrary,
-      reorderDockItems,
-      libraryOrder,
       clearAllStickers,
       clearAllWidgets,
       rosters,
@@ -5553,14 +5548,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       deleteRoster,
       setActiveRoster,
       setAbsentStudents,
-      addFolder,
-      createFolderWithItems,
-      renameFolder,
-      deleteFolder,
-      addItemToFolder,
-      removeItemFromFolder,
-      moveItemOutOfFolder,
-      reorderFolderItems,
       shareDashboard: handleShareDashboard,
       shareSubstituteDashboard: handleShareSubstituteDashboard,
       loadSharedDashboard: handleLoadSharedDashboard,
@@ -5617,8 +5604,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       dashboards,
       activeDashboard,
       toasts,
-      visibleTools,
-      dockItems,
       loading,
       isSaving,
       gradeFilter,
@@ -5638,7 +5623,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pinBoard,
       unpinBoard,
       setActiveCollectionId,
-      resetDockToDefaults,
       addWidget,
       addWidgets,
       removeWidget,
@@ -5655,8 +5639,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       updateDashboardSettings,
       updateDashboard,
       setGlobalStyle,
-      toggleToolVisibility,
-      setAllToolsVisibility,
       selectedWidgetId,
       setSelectedWidgetId,
       groupWidgets,
@@ -5666,10 +5648,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setSelectedWidgetIds,
       groupBuildMode,
       setGroupBuildMode,
-      reorderTools,
-      reorderLibrary,
-      reorderDockItems,
-      libraryOrder,
       clearAllStickers,
       clearAllWidgets,
       rosters,
@@ -5679,14 +5657,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       deleteRoster,
       setActiveRoster,
       setAbsentStudents,
-      addFolder,
-      createFolderWithItems,
-      renameFolder,
-      deleteFolder,
-      addItemToFolder,
-      removeItemFromFolder,
-      moveItemOutOfFolder,
-      reorderFolderItems,
       handleShareDashboard,
       handleShareSubstituteDashboard,
       handleLoadSharedDashboard,
@@ -5738,13 +5708,63 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     ]
   );
 
+  // F9 — tool-visibility slice. Split out of `contextValue` so a tool toggle
+  // (or dock/library reorder) recreates ONLY this object, re-rendering its few
+  // consumers (Dock / NewUserSetup / WidgetLibrary / SidebarWidgets) instead of
+  // every `useDashboard()` consumer. State + persistence effects stay in this
+  // provider; this memo just exposes the same 17 callbacks/values from a
+  // narrower context. Deps mirror exactly the tool-vis fields the deleted
+  // entries used to contribute to `contextValue`'s dep array.
+  const toolVisibilityValue = useMemo(
+    () => ({
+      visibleTools,
+      dockItems,
+      libraryOrder,
+      toggleToolVisibility,
+      setAllToolsVisibility,
+      reorderTools,
+      reorderLibrary,
+      reorderDockItems,
+      resetDockToDefaults,
+      addFolder,
+      createFolderWithItems,
+      renameFolder,
+      deleteFolder,
+      addItemToFolder,
+      removeItemFromFolder,
+      moveItemOutOfFolder,
+      reorderFolderItems,
+    }),
+    [
+      visibleTools,
+      dockItems,
+      libraryOrder,
+      toggleToolVisibility,
+      setAllToolsVisibility,
+      reorderTools,
+      reorderLibrary,
+      reorderDockItems,
+      resetDockToDefaults,
+      addFolder,
+      createFolderWithItems,
+      renameFolder,
+      deleteFolder,
+      addItemToFolder,
+      removeItemFromFolder,
+      moveItemOutOfFolder,
+      reorderFolderItems,
+    ]
+  );
+
   return (
     <DashboardContext.Provider value={contextValue}>
-      <DashboardActionsContext.Provider value={stableActions}>
-        <DashboardCanvasStoreContext.Provider value={canvasStore}>
-          {children}
-        </DashboardCanvasStoreContext.Provider>
-      </DashboardActionsContext.Provider>
+      <ToolVisibilityContext.Provider value={toolVisibilityValue}>
+        <DashboardActionsContext.Provider value={stableActions}>
+          <DashboardCanvasStoreContext.Provider value={canvasStore}>
+            {children}
+          </DashboardCanvasStoreContext.Provider>
+        </DashboardActionsContext.Provider>
+      </ToolVisibilityContext.Provider>
     </DashboardContext.Provider>
   );
 };

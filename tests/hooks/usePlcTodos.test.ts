@@ -11,6 +11,9 @@ import {
 } from 'firebase/firestore';
 import { usePlcTodos } from '@/hooks/usePlcTodos';
 
+// Sentinel so the create test can assert serverTimestamp() (Decision 1.3).
+const SERVER_TS = { __serverTimestamp: true };
+
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteDoc: vi.fn(),
@@ -20,6 +23,7 @@ vi.mock('firebase/firestore', () => ({
     __orderBy: { field, dir },
   })),
   query: vi.fn((_ref, ...constraints) => ({ __query: constraints })),
+  serverTimestamp: vi.fn(() => SERVER_TS),
   setDoc: vi.fn(),
   updateDoc: vi.fn(),
 }));
@@ -113,6 +117,34 @@ describe('usePlcTodos — sort: incomplete first then complete', () => {
     // order (createdAt asc) is preserved.
     expect(ids).toEqual(['b', 'c', 'a']);
   });
+
+  it('tolerates a Timestamp createdAt (serverTimestamp on read) via tsToMillis', () => {
+    let cb: (snap: unknown) => void = () => undefined;
+    mockOnSnapshot.mockImplementation((_q, onNext) => {
+      cb = onNext;
+      return () => undefined;
+    });
+    const { result } = renderHook(() => usePlcTodos(PLC_ID));
+
+    act(() => {
+      cb({
+        forEach: (fn: (d: { id: string; data: () => unknown }) => void) => {
+          fn({
+            id: 'ts',
+            data: () => ({
+              text: 'Stamped',
+              done: false,
+              createdBy: 'u',
+              createdAt: { toMillis: () => 1700000000000 },
+            }),
+          });
+        },
+      });
+    });
+
+    expect(result.current.todos).toHaveLength(1);
+    expect(result.current.todos[0]?.createdAt).toBe(1700000000000);
+  });
 });
 
 describe('usePlcTodos — createTodo', () => {
@@ -140,6 +172,8 @@ describe('usePlcTodos — createTodo', () => {
     expect(written.text).toBe('meet on Tuesday');
     expect(written.done).toBe(false);
     expect(written.createdBy).toBe(USER_UID);
+    // createdAt is a serverTimestamp() sentinel (Decision 1.3), not a number.
+    expect(written.createdAt).toBe(SERVER_TS);
   });
 });
 

@@ -7,6 +7,7 @@ import {
 } from '@/hooks/usePlcResources';
 import { useDashboard } from '@/context/useDashboard';
 import { PlcTargetPicker, PlcTargetPickerValue } from './PlcTargetPicker';
+import { PlcRecoveryPanel } from './PlcRecoveryPanel';
 import { PlcResourceKind } from '@/types';
 
 const KIND_LABELS: Record<PlcResourceKind, string> = {
@@ -425,6 +426,12 @@ export const PlcResourcesManager: React.FC = () => {
             ))}
           </ul>
         )}
+      </div>
+
+      {/* Admin recovery (Decision 3.4): reassign lead / dissolve an abandoned
+          PLC. The panel self-hides for non-admins / cross-org admins. */}
+      <div className="border-t border-slate-200 pt-6">
+        <PlcRecoveryPanel />
       </div>
     </div>
   );

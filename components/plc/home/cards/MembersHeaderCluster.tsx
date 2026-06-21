@@ -3,14 +3,16 @@
  * a "Members (n)" label over a row of overlapping avatar initials. The whole
  * cluster is a button that navigates to the Members section.
  *
- * Data comes directly from the Plc prop (no additional hook needed —
- * memberUids + memberEmails are already present on the Plc document).
+ * Data comes from the Plc prop via the shared `getPlcMembers` helper, which
+ * reads the canonical `members` map (falling back to the legacy
+ * `memberUids` / `memberEmails` / `leadUid` arrays for un-migrated PLCs).
  */
 
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Crown } from 'lucide-react';
 import type { Plc } from '@/types';
+import { getPlcMembers } from '@/utils/plc';
 import type { PlcSectionId } from '@/components/plc/sections';
 
 interface MembersHeaderClusterProps {
@@ -40,10 +42,10 @@ export const MembersHeaderCluster: React.FC<MembersHeaderClusterProps> = ({
 
   const members = useMemo(
     () =>
-      plc.memberUids.map((uid) => ({
-        uid,
-        email: plc.memberEmails[uid] ?? '',
-        isLead: uid === plc.leadUid,
+      getPlcMembers(plc).map((m) => ({
+        uid: m.uid,
+        email: m.email,
+        isLead: m.role === 'lead',
       })),
     [plc]
   );

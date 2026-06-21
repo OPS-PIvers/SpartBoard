@@ -186,6 +186,90 @@ export function shouldSnapshotHistory(
   return now - lastSnapshotAt >= throttleMs;
 }
 
+/**
+ * Clock-skew tolerance applied to the history-removal window. History
+ * `snapshotAt` is a Firestore server timestamp while the response doc's
+ * `joinedAt` is a client `Date.now()` from a (possibly skewed) Chromebook,
+ * so the two clocks can disagree by a few seconds. We pad the window by this
+ * amount on both ends so the current occupant's own early/late snapshots are
+ * never accidentally left behind — without widening it so far that a colliding
+ * classmate's neighbouring entries get swept in. A prior occupant of a
+ * `pin-{period}-{pin}` key joined and answered an entire session earlier (far
+ * more than this pad), so they remain safely outside the window.
+ */
+export const HISTORY_REMOVAL_WINDOW_SKEW_MS = 60_000;
+
+/**
+ * Coerce a history doc's `snapshotAt` (Firestore Timestamp), or any
+ * Timestamp/number/null shape, to epoch milliseconds. Returns `null` when the
+ * value can't be interpreted as a time — callers treat that as "owner
+ * unknown" and conservatively keep the doc rather than risk clobbering a
+ * PIN-mate's entry.
+ */
+export function snapshotAtToMillis(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (value && typeof value === 'object') {
+    const maybe = value as {
+      toMillis?: () => number;
+      seconds?: number;
+    };
+    if (typeof maybe.toMillis === 'function') {
+      const ms = maybe.toMillis();
+      return Number.isFinite(ms) ? ms : null;
+    }
+    if (typeof maybe.seconds === 'number' && Number.isFinite(maybe.seconds)) {
+      return maybe.seconds * 1000;
+    }
+  }
+  return null;
+}
+
+/**
+ * Decide whether a single history doc belongs to the removed student's own
+ * occupancy of the (possibly shared) response key, and may therefore be
+ * deleted.
+ *
+ * Anonymous PIN joiners share a deterministic `pin-{period}-{pin}` response
+ * doc (and its `/history` subcollection) with any roster-mate on the same
+ * normalized period+PIN. Deleting the *entire* subcollection on
+ * `removeStudent` would clobber a still-present classmate's recovery history.
+ * We bound the delete to `[joinedAt - skew, removalTime + skew]` — the window
+ * during which the removed student occupied the doc. `joinedAt` is immutable
+ * once set and is stamped only when the response doc is (re)created, i.e. after
+ * any prior occupant's doc was deleted and the key freed. So a prior occupant's
+ * orphaned snapshots were all written before this occupant's `joinedAt`, fall
+ * outside the window, and survive.
+ *
+ * Callers only invoke this when a `joinedAt` lower bound is actually known
+ * (the removed student's response doc was resolved). Without that anchor there
+ * is no basis to define the occupant's window, so the caller falls back to the
+ * legacy whole-subcollection delete instead of calling this.
+ *
+ * Robustness:
+ *  - `snapshotAtMs === null` (legacy/unreadable timestamp): KEEP the doc. The
+ *    `create` rule has always stamped `snapshotAt == request.time`, so a
+ *    genuinely missing server timestamp means a malformed/legacy doc whose
+ *    owner we can't prove on a shared key — leave it rather than risk deleting
+ *    a classmate's entry. Worst case is a small orphan tail (teacher/admin can
+ *    sweep), never cross-student data loss.
+ *  - The `skewMs` pad absorbs client/server clock disagreement (server
+ *    `snapshotAt` vs. client `joinedAt`) so the current occupant's own
+ *    boundary entries aren't stranded.
+ */
+export function isHistoryDocInRemovalWindow(
+  snapshotAtMs: number | null,
+  joinedAtMs: number,
+  removalTimeMs: number,
+  skewMs: number = HISTORY_REMOVAL_WINDOW_SKEW_MS
+): boolean {
+  // Unknown ownership → conservatively keep (never clobber a PIN-mate whose
+  // snapshot we can't time-bound).
+  if (snapshotAtMs === null) return false;
+  const lower = joinedAtMs - skewMs;
+  const upper = removalTimeMs + skewMs;
+  return snapshotAtMs >= lower && snapshotAtMs <= upper;
+}
+
 /** Unbiased Fisher-Yates in-place shuffle (returns new array) */
 function fisherYatesShuffle<T>(arr: T[]): T[] {
   const result = [...arr];
@@ -881,11 +965,46 @@ export const useQuizSessionTeacher = (
       // and the history read rule (`request.auth.uid == parentStudentUid`)
       // would let them read their own prior-attempt drafts. The teacher's
       // archive preserves the final answers; the intermediate-draft
-      // history is intentionally discarded on removal. Chunked at 450 to
-      // stay under the 500-op Firestore batch limit; these are independent
-      // of the atomic archive+delete batch below, so a partial failure
-      // just leaves a smaller orphan tail that a retry sweeps.
-      const historyDocs = (
+      // history is intentionally discarded on removal.
+      //
+      // F7: anonymous PIN joiners share a `pin-{period}-{pin}` response doc
+      // (and its `/history`) with any roster-mate on the same normalized
+      // period+PIN. Nuking the whole subcollection would clobber a
+      // still-present classmate's recovery history. So we scope the delete
+      // to the removed student's own occupancy window —
+      // `[joinedAt - skew, removalTime + skew]` — using each history doc's
+      // server-stamped `snapshotAt`. `joinedAt` is immutable and stamped only
+      // when the response doc is (re)created after the key was freed, so a
+      // prior occupant's orphaned snapshots predate this occupant's `joinedAt`
+      // and fall outside the window, surviving. The history `create` rule pins
+      // the doc shape to
+      // exactly `[questionId, answer, answeredAt, status, snapshotAt]`, so we
+      // can't add an explicit owner marker without a rules change — the
+      // server timestamp is the cheapest robust discriminator available.
+      //
+      // For single-occupant (non-colliding) keys every snapshot was written
+      // during the one occupancy, so all of it falls inside the window and
+      // the behavior is identical to the prior whole-subcollection delete.
+      //
+      // Chunked at 450 to stay under the 500-op Firestore batch limit; these
+      // are independent of the atomic archive+delete batch below, so a partial
+      // failure just leaves a smaller orphan tail that a retry sweeps.
+      const removalTime = Date.now();
+      const windowJoinedAt =
+        typeof target?.joinedAt === 'number' && Number.isFinite(target.joinedAt)
+          ? target.joinedAt
+          : null;
+      // Owner-scope the delete ONLY when (a) the key is a `pin-{period}-{pin}`
+      // key that two roster-mates can share, AND (b) we resolved the removed
+      // student's `joinedAt` to anchor their occupancy window. SSO `auth.uid`
+      // keys have one lifetime owner, and a missing `joinedAt` leaves us no
+      // window to honour — both fall back to the legacy whole-subcollection
+      // delete so single-occupant behavior is byte-for-byte unchanged. Mirrors
+      // the `responseKey.startsWith('pin-')` discriminator used for the ledger
+      // probe below.
+      const scopeToWindow =
+        responseKey.startsWith('pin-') && windowJoinedAt !== null;
+      const allHistoryDocs = (
         await getDocs(
           collection(
             db,
@@ -897,6 +1016,19 @@ export const useQuizSessionTeacher = (
           )
         )
       ).docs;
+      const historyDocs = scopeToWindow
+        ? allHistoryDocs.filter((d) =>
+            isHistoryDocInRemovalWindow(
+              snapshotAtToMillis(
+                typeof d.data === 'function'
+                  ? (d.data() as { snapshotAt?: unknown }).snapshotAt
+                  : undefined
+              ),
+              windowJoinedAt,
+              removalTime
+            )
+          )
+        : allHistoryDocs;
       const HISTORY_DELETE_CHUNK = 450;
       for (let i = 0; i < historyDocs.length; i += HISTORY_DELETE_CHUNK) {
         const historyBatch = writeBatch(db);

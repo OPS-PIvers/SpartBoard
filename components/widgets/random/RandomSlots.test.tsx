@@ -1,18 +1,14 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RandomSlots } from './RandomSlots';
-import { useDashboard } from '@/context/useDashboard';
+import { useGlobalStyle } from '@/context/dashboardCanvasStore';
 import { DEFAULT_GLOBAL_STYLE } from '@/types';
 
-vi.mock('@/context/useDashboard', () => ({
-  useDashboard: vi.fn(),
-}));
+vi.mock('@/context/dashboardCanvasStore');
 
 describe('RandomSlots Component', () => {
   beforeEach(() => {
-    (useDashboard as Mock).mockReturnValue({
-      activeDashboard: { globalStyle: DEFAULT_GLOBAL_STYLE },
-    });
+    vi.mocked(useGlobalStyle).mockReturnValue(DEFAULT_GLOBAL_STYLE);
   });
 
   it('renders correctly with default props', () => {

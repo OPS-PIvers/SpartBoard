@@ -183,8 +183,6 @@ describe('Global Escape Interaction', () => {
     removeToast: vi.fn(),
     loading: false,
     isSaving: false,
-    visibleTools: [],
-    dockItems: [],
     gradeFilter: 'all',
     zoom: 1,
     setZoom: vi.fn(),

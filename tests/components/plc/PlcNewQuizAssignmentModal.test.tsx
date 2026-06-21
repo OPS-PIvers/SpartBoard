@@ -175,6 +175,7 @@ const fakePlc: Plc = {
   id: 'plc-42',
   name: 'Grade 6 Science',
   leadUid: 'uid-a',
+  members: {},
   memberUids: ['uid-a', 'uid-b'],
   memberEmails: {
     'uid-a': 'alice@school.edu',

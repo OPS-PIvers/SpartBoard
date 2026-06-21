@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { NumberLineWidget } from './Widget';
 import { WidgetData } from '@/types';
-import * as DashboardContext from '@/context/useDashboard';
+import * as DashboardCanvasStore from '@/context/dashboardCanvasStore';
 
 // Mock ResizeObserver
 class ResizeObserverMock {
@@ -32,25 +32,15 @@ const baseWidget: WidgetData = {
   },
 };
 
+// NumberLineWidget only consumes updateWidget from useDashboardActions(); the
+// mock mirrors exactly that to make the dependency explicit.
 const defaultDashboardMock = {
-  activeDashboard: { id: 'dash-1', widgets: [] },
-  dashboards: [],
   updateWidget: vi.fn(),
-  addWidget: vi.fn(),
-  removeWidget: vi.fn(),
-  setDashboards: vi.fn(),
-  setActiveDashboardId: vi.fn(),
-  updateDashboardSettings: vi.fn(),
-  hasWriteAccess: true,
-  syncStatus: 'synced' as const,
-  duplicateDashboard: vi.fn(),
-  globalPermissions: [],
-  lastLocalUpdateRef: { current: 0 },
-} as unknown as ReturnType<typeof DashboardContext.useDashboard>;
+} as unknown as ReturnType<typeof DashboardCanvasStore.useDashboardActions>;
 
 describe('NumberLineWidget', () => {
   it('renders correctly without crashing', () => {
-    vi.spyOn(DashboardContext, 'useDashboard').mockReturnValue(
+    vi.spyOn(DashboardCanvasStore, 'useDashboardActions').mockReturnValue(
       defaultDashboardMock
     );
     render(<NumberLineWidget widget={baseWidget} />);
@@ -60,7 +50,7 @@ describe('NumberLineWidget', () => {
   });
 
   it('renders endpoints correctly even if step does not perfectly align', () => {
-    vi.spyOn(DashboardContext, 'useDashboard').mockReturnValue(
+    vi.spyOn(DashboardCanvasStore, 'useDashboardActions').mockReturnValue(
       defaultDashboardMock
     );
 
@@ -87,7 +77,7 @@ describe('NumberLineWidget', () => {
   });
 
   it('formats fractions correctly including negative numbers', () => {
-    vi.spyOn(DashboardContext, 'useDashboard').mockReturnValue(
+    vi.spyOn(DashboardCanvasStore, 'useDashboardActions').mockReturnValue(
       defaultDashboardMock
     );
 
@@ -125,7 +115,7 @@ describe('NumberLineWidget', () => {
     // strict equality — the affected ticks fall back to decimal labels ("0.3", "0.6",
     // "0.7") instead of fractional ones ("3/10", "6/10", "7/10"). The fix must use
     // an epsilon check so every tenth is consistently formatted as a fraction.
-    vi.spyOn(DashboardContext, 'useDashboard').mockReturnValue(
+    vi.spyOn(DashboardCanvasStore, 'useDashboardActions').mockReturnValue(
       defaultDashboardMock
     );
 
@@ -164,7 +154,7 @@ describe('NumberLineWidget', () => {
     // val.toString() label path renders the raw FP artifact for the
     // 'integers' display mode — the same bug that was already fixed for
     // 'fractions' mode. This test confirms the fix covers all display modes.
-    vi.spyOn(DashboardContext, 'useDashboard').mockReturnValue(
+    vi.spyOn(DashboardCanvasStore, 'useDashboardActions').mockReturnValue(
       defaultDashboardMock
     );
 
@@ -198,7 +188,7 @@ describe('NumberLineWidget', () => {
   });
 
   it('caps number of ticks if range is too large compared to step', () => {
-    vi.spyOn(DashboardContext, 'useDashboard').mockReturnValue(
+    vi.spyOn(DashboardCanvasStore, 'useDashboardActions').mockReturnValue(
       defaultDashboardMock
     );
 
@@ -235,7 +225,7 @@ describe('NumberLineWidget', () => {
     //   parseFloat(val.toFixed(10))
     // This is separate from the tick-label fix (which already uses toFixed(4) for display).
     const updateWidgetMock = vi.fn();
-    vi.spyOn(DashboardContext, 'useDashboard').mockReturnValue({
+    vi.spyOn(DashboardCanvasStore, 'useDashboardActions').mockReturnValue({
       ...defaultDashboardMock,
       updateWidget: updateWidgetMock,
     });

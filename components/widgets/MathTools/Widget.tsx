@@ -6,7 +6,7 @@ import {
   GradeLevel,
   MathToolsGlobalConfig,
 } from '@/types';
-import { useDashboard } from '@/context/useDashboard';
+import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
 import {
   MATH_TOOL_META,
@@ -21,7 +21,7 @@ import { GRADE_LABELS, PALETTE_SECTIONS } from './constants';
 export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { addWidget } = useDashboard();
+  const { addWidget } = useDashboardActions();
   const { featurePermissions } = useAuth();
   const config = widget.config as MathToolsConfig;
   const ppi = config.dpiCalibration ?? CSS_PPI;

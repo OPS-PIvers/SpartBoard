@@ -13,6 +13,7 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { canonicalizeBuildingIds } from '@/config/buildings';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
+import { useToolVisibility } from '@/context/useToolVisibility';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { TOOLS } from '@/config/tools';
 import {
@@ -111,7 +112,8 @@ const STEPS = [
 
 export const NewUserSetup: React.FC = () => {
   const { user, setSelectedBuildings, completeSetup } = useAuth();
-  const { setGlobalStyle, reorderDockItems } = useDashboard();
+  const { setGlobalStyle } = useDashboard();
+  const { reorderDockItems } = useToolVisibility();
 
   const [step, setStep] = useState(0);
   const [selectedBuildings, setLocalBuildings] = useState<string[]>([]);

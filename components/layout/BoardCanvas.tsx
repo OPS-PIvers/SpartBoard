@@ -1,4 +1,4 @@
-import { type FC, memo } from 'react';
+import { type FC, memo, useMemo } from 'react';
 import type {
   Dashboard,
   LiveSession,
@@ -58,19 +58,27 @@ const GroupBoundingBoxLayer: FC<{ dashboard: Dashboard }> = ({ dashboard }) => {
   );
   const zoom = useDashboardCanvasSelector((s) => s.zoom);
 
-  const selectedGroupId = selectedWidgetId
-    ? dashboard.widgets.find((w) => w.id === selectedWidgetId)?.groupId
-    : undefined;
+  const selectedGroupId = useMemo(
+    () =>
+      selectedWidgetId
+        ? dashboard.widgets.find((w) => w.id === selectedWidgetId)?.groupId
+        : undefined,
+    [dashboard.widgets, selectedWidgetId]
+  );
 
-  const groupMembers = selectedGroupId
-    ? dashboard.widgets.filter(
-        (w) =>
-          w.groupId === selectedGroupId &&
-          !w.minimized &&
-          !w.isLocked &&
-          !w.isPinned
-      )
-    : [];
+  const groupMembers = useMemo(
+    () =>
+      selectedGroupId
+        ? dashboard.widgets.filter(
+            (w) =>
+              w.groupId === selectedGroupId &&
+              !w.minimized &&
+              !w.isLocked &&
+              !w.isPinned
+          )
+        : [],
+    [dashboard.widgets, selectedGroupId]
+  );
 
   if (!selectedGroupId || groupMembers.length === 0) return null;
   return <GroupBoundingBox groupWidgets={groupMembers} zoom={zoom} />;

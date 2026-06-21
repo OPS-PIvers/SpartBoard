@@ -40,6 +40,12 @@ interface PlcDocPickerProps {
   onAddError?: (err: unknown) => void;
   /** Surface rename failures to the parent (e.g. for a toast). */
   onUpdateError?: (err: unknown) => void;
+  /**
+   * When false (viewer role — Decision 3.2), the add form, rename, and remove
+   * affordances are hidden; the list stays selectable so viewers can read docs.
+   * Defaults to true.
+   */
+  canEdit?: boolean;
 }
 
 export const PlcDocPicker = forwardRef<PlcDocPickerHandle, PlcDocPickerProps>(
@@ -53,6 +59,7 @@ export const PlcDocPicker = forwardRef<PlcDocPickerHandle, PlcDocPickerProps>(
       onDeleteDoc,
       onAddError,
       onUpdateError,
+      canEdit = true,
     },
     ref
   ) {
@@ -189,31 +196,36 @@ export const PlcDocPicker = forwardRef<PlcDocPickerHandle, PlcDocPickerProps>(
                     <span className="flex-1 min-w-0 truncate text-sm font-medium">
                       {doc.title}
                     </span>
-                    {/* Action buttons — visible on hover or when selected */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStartRename(doc);
-                      }}
-                      className="shrink-0 p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                      aria-label={t('plcDashboard.docs.rename', {
-                        defaultValue: 'Rename doc',
-                      })}
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void handleDelete(doc.id);
-                      }}
-                      className="shrink-0 p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                      aria-label={t('plcDashboard.docs.remove', {
-                        defaultValue: 'Remove doc',
-                      })}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {/* Action buttons — visible on hover or when selected.
+                        Hidden for viewers (Decision 3.2). */}
+                    {canEdit && (
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartRename(doc);
+                          }}
+                          className="shrink-0 p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                          aria-label={t('plcDashboard.docs.rename', {
+                            defaultValue: 'Rename doc',
+                          })}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleDelete(doc.id);
+                          }}
+                          className="shrink-0 p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                          aria-label={t('plcDashboard.docs.remove', {
+                            defaultValue: 'Remove doc',
+                          })}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -221,47 +233,49 @@ export const PlcDocPicker = forwardRef<PlcDocPickerHandle, PlcDocPickerProps>(
           })}
         </div>
 
-        {/* Add doc form */}
-        <div className="shrink-0 border-t border-slate-200 pt-3 mt-2 flex flex-col gap-2">
-          <input
-            ref={addTitleRef}
-            type="text"
-            value={addTitle}
-            onChange={(e) => setAddTitle(e.target.value)}
-            placeholder={t('plcDashboard.docs.titlePlaceholder', {
-              defaultValue: 'Doc title',
-            })}
-            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-blue-primary/50 focus:border-brand-blue-primary/50"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void handleAdd();
-            }}
-            disabled={adding}
-          />
-          <input
-            type="url"
-            value={addUrl}
-            onChange={(e) => setAddUrl(e.target.value)}
-            placeholder={t('plcDashboard.docs.urlPlaceholder', {
-              defaultValue: 'Paste Google Doc URL',
-            })}
-            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-blue-primary/50 focus:border-brand-blue-primary/50"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void handleAdd();
-            }}
-            disabled={adding}
-          />
-          <button
-            onClick={handleAdd}
-            disabled={adding || !addTitle.trim() || !addUrl.trim()}
-            className="flex items-center justify-center gap-1.5 bg-brand-blue-primary text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-brand-blue-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            aria-label={t('plcDashboard.docs.addDoc', {
-              defaultValue: 'Add',
-            })}
-          >
-            <Plus className="w-4 h-4" />
-            {t('plcDashboard.docs.addDoc', { defaultValue: 'Add' })}
-          </button>
-        </div>
+        {/* Add doc form — hidden for viewers (Decision 3.2). */}
+        {canEdit && (
+          <div className="shrink-0 border-t border-slate-200 pt-3 mt-2 flex flex-col gap-2">
+            <input
+              ref={addTitleRef}
+              type="text"
+              value={addTitle}
+              onChange={(e) => setAddTitle(e.target.value)}
+              placeholder={t('plcDashboard.docs.titlePlaceholder', {
+                defaultValue: 'Doc title',
+              })}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-blue-primary/50 focus:border-brand-blue-primary/50"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void handleAdd();
+              }}
+              disabled={adding}
+            />
+            <input
+              type="url"
+              value={addUrl}
+              onChange={(e) => setAddUrl(e.target.value)}
+              placeholder={t('plcDashboard.docs.urlPlaceholder', {
+                defaultValue: 'Paste Google Doc URL',
+              })}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-blue-primary/50 focus:border-brand-blue-primary/50"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void handleAdd();
+              }}
+              disabled={adding}
+            />
+            <button
+              onClick={handleAdd}
+              disabled={adding || !addTitle.trim() || !addUrl.trim()}
+              className="flex items-center justify-center gap-1.5 bg-brand-blue-primary text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-brand-blue-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label={t('plcDashboard.docs.addDoc', {
+                defaultValue: 'Add',
+              })}
+            >
+              <Plus className="w-4 h-4" />
+              {t('plcDashboard.docs.addDoc', { defaultValue: 'Add' })}
+            </button>
+          </div>
+        )}
       </div>
     );
   }

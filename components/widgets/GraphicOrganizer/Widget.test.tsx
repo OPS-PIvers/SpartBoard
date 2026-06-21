@@ -1,14 +1,21 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { GraphicOrganizerWidget } from './Widget';
-import { useDashboard } from '@/context/useDashboard';
+import {
+  useDashboardActions,
+  useGlobalStyle,
+  useIsActiveBoardReadOnly,
+  type DashboardActions,
+} from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
-import { WidgetData, GraphicOrganizerConfig } from '@/types';
+import {
+  WidgetData,
+  GraphicOrganizerConfig,
+  DEFAULT_GLOBAL_STYLE,
+} from '@/types';
 
-// Mock the Dashboard context
-vi.mock('@/context/useDashboard', () => ({
-  useDashboard: vi.fn(),
-}));
+// Mock the canvas store surfaces the widget now consumes
+vi.mock('@/context/dashboardCanvasStore');
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(),
@@ -25,10 +32,11 @@ describe('GraphicOrganizerWidget', () => {
   const mockUpdateWidget = vi.fn();
 
   beforeEach(() => {
-    vi.mocked(useDashboard).mockReturnValue({
+    vi.mocked(useDashboardActions).mockReturnValue({
       updateWidget: mockUpdateWidget,
-      activeDashboard: { globalStyle: { fontFamily: 'sans' } },
-    } as unknown as ReturnType<typeof useDashboard>);
+    } as unknown as DashboardActions);
+    vi.mocked(useGlobalStyle).mockReturnValue(DEFAULT_GLOBAL_STYLE);
+    vi.mocked(useIsActiveBoardReadOnly).mockReturnValue(false);
     vi.mocked(useAuth).mockReturnValue({
       user: { buildingId: 'test-building' } as unknown,
       selectedBuildings: ['test-building'],

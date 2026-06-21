@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-06-17T04:11:22.622Z",
+  "generatedAt": "2026-06-21T02:19:04.036Z",
   "runCommand": "pnpm exec vitest run tests/perf/dashboardPerf.test.tsx",
-  "note": "Profiler commit counts and per-shell render counts are the deterministic primary metrics and must be identical across runs. totalShellRenders sums DraggableWindow render invocations across all widgets per scenario; shellRendersByWidget shows which shells rendered (widgets added mid-test are keyed \"added-widget\"). actualDurationMs is machine-dependent and indicative only — compare medians of 3 runs.",
+  "note": "Profiler commit counts and per-shell render counts are the deterministic primary metrics and must be identical across runs. totalShellRenders sums DraggableWindow render invocations across all widgets per scenario; shellRendersByWidget shows which shells rendered (widgets added mid-test are keyed \"added-widget\"). bystanderRenders/bystanderRendersById count how many of the 5 legacy-DashboardContext consumer probes re-rendered per scenario — this is the F9 context-split ruler: post-split the toggleToolVisibility scenario reads 0 (tool visibility lives on its own ToolVisibilityContext, so a toggle no longer churns the DashboardContext value the probes subscribe to), while addWidget still churns the probes (sanity that the instrument is live). actionsProbeRenders/actionsProbeRendersById count how many of the 5 ActionsProbe consumers (which read the mount-stable useDashboardActions() surface, modeling a MIGRATED content component) re-rendered per scenario — the migration contrast-proof: on bringToFront5 and drag.release the actions probes read 0 while the legacy bystander probes read 25 and 5 respectively, showing the useDashboard()→useDashboardActions() swap isolates content consumers from the per-op DashboardContext fan-out. globalStyleProbeRenders/globalStyleProbeRendersById count how many of the 5 GlobalStyleProbe consumers (which read the active board globalStyle via the mount-stable useGlobalStyle() selector) re-rendered per scenario — the selector-isolation proof: on bringToFront5 and drag.release they read 0 (those ops never touch the nested globalStyle object, so the selector Object.is cache bails), while the setGlobalStyle scenario reads 5 (a real style change allocates a new style identity) with the actions probes still at 0. selectionProbeRenders/selectionProbeRendersById count how many of the 5 SelectionProbe consumers (each reading useIsWidgetSelected(\"w-8\"), a PER-INSTANCE selector projecting selectedWidgetId === id) re-rendered per scenario — the per-instance isolation proof: on selectOther (a DIFFERENT widget is selected), bringToFront5, and drag.release they read 0 (the w-8 boolean stays false, so the selector Object.is cache bails), while selectSelf (w-8 itself is selected) reads 5. readOnlyProbeRenders/readOnlyProbeRendersById count how many of the 5 ReadOnlyProbe consumers (each reading useIsActiveBoardReadOnly(), a selector over the active board read-only boolean) re-rendered per scenario — the read-only isolation proof: on bringToFront5 and drag.release they read 0 (those ops never touch the linkedShareRole the flag is derived from), while loadReadOnlyBoard (a viewer-role board is pushed and activated) reads 5 with the actions probes still at 0. actualDurationMs is machine-dependent and indicative only — compare medians of 3 runs.",
   "skipped": "Snap-overlay edge snapping and the snap-layout menu need real viewport geometry, so they are not exercised in jsdom; the drag path deliberately stays away from screen edges.",
   "scenarios": [
     {
       "scenario": "mount15",
-      "commits": 4,
-      "actualDurationMs": 328.554,
+      "commits": 3,
+      "actualDurationMs": 232.255,
       "totalShellRenders": 15,
       "shellRendersByWidget": {
         "w-1": 1,
@@ -25,60 +25,178 @@
         "w-7": 1,
         "w-8": 1,
         "w-9": 1
+      },
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
+      },
+      "actionsProbeRenders": 5,
+      "actionsProbeRendersById": {
+        "actions-1": 1,
+        "actions-2": 1,
+        "actions-3": 1,
+        "actions-4": 1,
+        "actions-5": 1
+      },
+      "globalStyleProbeRenders": 5,
+      "globalStyleProbeRendersById": {
+        "gs-1": 1,
+        "gs-2": 1,
+        "gs-3": 1,
+        "gs-4": 1,
+        "gs-5": 1
+      },
+      "selectionProbeRenders": 5,
+      "selectionProbeRendersById": {
+        "sel-1": 1,
+        "sel-2": 1,
+        "sel-3": 1,
+        "sel-4": 1,
+        "sel-5": 1
+      },
+      "readOnlyProbeRenders": 5,
+      "readOnlyProbeRendersById": {
+        "ro-1": 1,
+        "ro-2": 1,
+        "ro-3": 1,
+        "ro-4": 1,
+        "ro-5": 1
       }
     },
     {
       "scenario": "drag.press",
       "commits": 2,
-      "actualDurationMs": 2.932,
+      "actualDurationMs": 3.397,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-5": 1
-      }
+      },
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
+      },
+      "actionsProbeRenders": 0,
+      "actionsProbeRendersById": {},
+      "globalStyleProbeRenders": 0,
+      "globalStyleProbeRendersById": {},
+      "selectionProbeRenders": 0,
+      "selectionProbeRendersById": {},
+      "readOnlyProbeRenders": 0,
+      "readOnlyProbeRendersById": {}
     },
     {
       "scenario": "drag.move30",
       "commits": 0,
       "actualDurationMs": 0,
       "totalShellRenders": 0,
-      "shellRendersByWidget": {}
+      "shellRendersByWidget": {},
+      "bystanderRenders": 0,
+      "bystanderRendersById": {},
+      "actionsProbeRenders": 0,
+      "actionsProbeRendersById": {},
+      "globalStyleProbeRenders": 0,
+      "globalStyleProbeRendersById": {},
+      "selectionProbeRenders": 0,
+      "selectionProbeRendersById": {},
+      "readOnlyProbeRenders": 0,
+      "readOnlyProbeRendersById": {}
     },
     {
       "scenario": "drag.release",
-      "commits": 2,
-      "actualDurationMs": 4.582,
+      "commits": 3,
+      "actualDurationMs": 4.789,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-5": 1
-      }
+      },
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
+      },
+      "actionsProbeRenders": 0,
+      "actionsProbeRendersById": {},
+      "globalStyleProbeRenders": 0,
+      "globalStyleProbeRendersById": {},
+      "selectionProbeRenders": 0,
+      "selectionProbeRendersById": {},
+      "readOnlyProbeRenders": 0,
+      "readOnlyProbeRendersById": {}
     },
     {
       "scenario": "resize.press",
       "commits": 1,
-      "actualDurationMs": 1.375,
+      "actualDurationMs": 1.346,
       "totalShellRenders": 0,
-      "shellRendersByWidget": {}
+      "shellRendersByWidget": {},
+      "bystanderRenders": 0,
+      "bystanderRendersById": {},
+      "actionsProbeRenders": 0,
+      "actionsProbeRendersById": {},
+      "globalStyleProbeRenders": 0,
+      "globalStyleProbeRendersById": {},
+      "selectionProbeRenders": 0,
+      "selectionProbeRendersById": {},
+      "readOnlyProbeRenders": 0,
+      "readOnlyProbeRendersById": {}
     },
     {
       "scenario": "resize.move30",
       "commits": 0,
       "actualDurationMs": 0,
       "totalShellRenders": 0,
-      "shellRendersByWidget": {}
+      "shellRendersByWidget": {},
+      "bystanderRenders": 0,
+      "bystanderRendersById": {},
+      "actionsProbeRenders": 0,
+      "actionsProbeRendersById": {},
+      "globalStyleProbeRenders": 0,
+      "globalStyleProbeRendersById": {},
+      "selectionProbeRenders": 0,
+      "selectionProbeRendersById": {},
+      "readOnlyProbeRenders": 0,
+      "readOnlyProbeRendersById": {}
     },
     {
       "scenario": "resize.release",
-      "commits": 2,
-      "actualDurationMs": 5.211,
+      "commits": 3,
+      "actualDurationMs": 4.66,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-7": 1
-      }
+      },
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
+      },
+      "actionsProbeRenders": 0,
+      "actionsProbeRendersById": {},
+      "globalStyleProbeRenders": 0,
+      "globalStyleProbeRendersById": {},
+      "selectionProbeRenders": 0,
+      "selectionProbeRendersById": {},
+      "readOnlyProbeRenders": 0,
+      "readOnlyProbeRendersById": {}
     },
     {
       "scenario": "bringToFront5",
       "commits": 10,
-      "actualDurationMs": 13.611,
+      "actualDurationMs": 15.682,
       "totalShellRenders": 5,
       "shellRendersByWidget": {
         "w-1": 1,
@@ -86,40 +204,285 @@
         "w-3": 1,
         "w-4": 1,
         "w-6": 1
-      }
+      },
+      "bystanderRenders": 25,
+      "bystanderRendersById": {
+        "bystander-1": 5,
+        "bystander-2": 5,
+        "bystander-3": 5,
+        "bystander-4": 5,
+        "bystander-5": 5
+      },
+      "actionsProbeRenders": 0,
+      "actionsProbeRendersById": {},
+      "globalStyleProbeRenders": 0,
+      "globalStyleProbeRendersById": {},
+      "selectionProbeRenders": 0,
+      "selectionProbeRendersById": {},
+      "readOnlyProbeRenders": 0,
+      "readOnlyProbeRendersById": {}
     },
     {
       "scenario": "addWidget",
-      "commits": 2,
-      "actualDurationMs": 10.128,
+      "commits": 3,
+      "actualDurationMs": 10.378,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "added-widget": 1
-      }
+      },
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
+      },
+      "actionsProbeRenders": 0,
+      "actionsProbeRendersById": {},
+      "globalStyleProbeRenders": 0,
+      "globalStyleProbeRendersById": {},
+      "selectionProbeRenders": 0,
+      "selectionProbeRendersById": {},
+      "readOnlyProbeRenders": 0,
+      "readOnlyProbeRendersById": {}
     },
     {
       "scenario": "removeWidget",
       "commits": 2,
-      "actualDurationMs": 1.154,
+      "actualDurationMs": 1.477,
       "totalShellRenders": 0,
-      "shellRendersByWidget": {}
+      "shellRendersByWidget": {},
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
+      },
+      "actionsProbeRenders": 0,
+      "actionsProbeRendersById": {},
+      "globalStyleProbeRenders": 0,
+      "globalStyleProbeRendersById": {},
+      "selectionProbeRenders": 0,
+      "selectionProbeRendersById": {},
+      "readOnlyProbeRenders": 0,
+      "readOnlyProbeRendersById": {}
     },
     {
       "scenario": "minimize",
       "commits": 2,
-      "actualDurationMs": 2.922,
+      "actualDurationMs": 3,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-3": 1
-      }
+      },
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
+      },
+      "actionsProbeRenders": 0,
+      "actionsProbeRendersById": {},
+      "globalStyleProbeRenders": 0,
+      "globalStyleProbeRendersById": {},
+      "selectionProbeRenders": 0,
+      "selectionProbeRendersById": {},
+      "readOnlyProbeRenders": 0,
+      "readOnlyProbeRendersById": {}
     },
     {
       "scenario": "restore",
       "commits": 2,
-      "actualDurationMs": 2.442,
+      "actualDurationMs": 3.193,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-3": 1
+      },
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
+      },
+      "actionsProbeRenders": 0,
+      "actionsProbeRendersById": {},
+      "globalStyleProbeRenders": 0,
+      "globalStyleProbeRendersById": {},
+      "selectionProbeRenders": 0,
+      "selectionProbeRendersById": {},
+      "readOnlyProbeRenders": 0,
+      "readOnlyProbeRendersById": {}
+    },
+    {
+      "scenario": "toggleToolVisibility",
+      "commits": 1,
+      "actualDurationMs": 1.03,
+      "totalShellRenders": 0,
+      "shellRendersByWidget": {},
+      "bystanderRenders": 0,
+      "bystanderRendersById": {},
+      "actionsProbeRenders": 0,
+      "actionsProbeRendersById": {},
+      "globalStyleProbeRenders": 0,
+      "globalStyleProbeRendersById": {},
+      "selectionProbeRenders": 0,
+      "selectionProbeRendersById": {},
+      "readOnlyProbeRenders": 0,
+      "readOnlyProbeRendersById": {}
+    },
+    {
+      "scenario": "setGlobalStyle",
+      "commits": 2,
+      "actualDurationMs": 24.524,
+      "totalShellRenders": 15,
+      "shellRendersByWidget": {
+        "w-1": 1,
+        "w-10": 1,
+        "w-11": 1,
+        "w-12": 1,
+        "w-13": 1,
+        "w-14": 1,
+        "w-15": 1,
+        "w-2": 1,
+        "w-3": 1,
+        "w-4": 1,
+        "w-5": 1,
+        "w-6": 1,
+        "w-7": 1,
+        "w-8": 1,
+        "w-9": 1
+      },
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
+      },
+      "actionsProbeRenders": 0,
+      "actionsProbeRendersById": {},
+      "globalStyleProbeRenders": 5,
+      "globalStyleProbeRendersById": {
+        "gs-1": 1,
+        "gs-2": 1,
+        "gs-3": 1,
+        "gs-4": 1,
+        "gs-5": 1
+      },
+      "selectionProbeRenders": 0,
+      "selectionProbeRendersById": {},
+      "readOnlyProbeRenders": 0,
+      "readOnlyProbeRendersById": {}
+    },
+    {
+      "scenario": "selectOther",
+      "commits": 3,
+      "actualDurationMs": 25.912,
+      "totalShellRenders": 0,
+      "shellRendersByWidget": {},
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
+      },
+      "actionsProbeRenders": 0,
+      "actionsProbeRendersById": {},
+      "globalStyleProbeRenders": 0,
+      "globalStyleProbeRendersById": {},
+      "selectionProbeRenders": 0,
+      "selectionProbeRendersById": {},
+      "readOnlyProbeRenders": 0,
+      "readOnlyProbeRendersById": {}
+    },
+    {
+      "scenario": "selectSelf",
+      "commits": 3,
+      "actualDurationMs": 20.017,
+      "totalShellRenders": 0,
+      "shellRendersByWidget": {},
+      "bystanderRenders": 5,
+      "bystanderRendersById": {
+        "bystander-1": 1,
+        "bystander-2": 1,
+        "bystander-3": 1,
+        "bystander-4": 1,
+        "bystander-5": 1
+      },
+      "actionsProbeRenders": 0,
+      "actionsProbeRendersById": {},
+      "globalStyleProbeRenders": 0,
+      "globalStyleProbeRendersById": {},
+      "selectionProbeRenders": 5,
+      "selectionProbeRendersById": {
+        "sel-1": 1,
+        "sel-2": 1,
+        "sel-3": 1,
+        "sel-4": 1,
+        "sel-5": 1
+      },
+      "readOnlyProbeRenders": 0,
+      "readOnlyProbeRendersById": {}
+    },
+    {
+      "scenario": "loadReadOnlyBoard",
+      "commits": 5,
+      "actualDurationMs": 44.819,
+      "totalShellRenders": 30,
+      "shellRendersByWidget": {
+        "w-1": 2,
+        "w-10": 2,
+        "w-11": 2,
+        "w-12": 2,
+        "w-13": 2,
+        "w-14": 2,
+        "w-15": 2,
+        "w-2": 2,
+        "w-3": 2,
+        "w-4": 2,
+        "w-5": 2,
+        "w-6": 2,
+        "w-7": 2,
+        "w-8": 2,
+        "w-9": 2
+      },
+      "bystanderRenders": 15,
+      "bystanderRendersById": {
+        "bystander-1": 3,
+        "bystander-2": 3,
+        "bystander-3": 3,
+        "bystander-4": 3,
+        "bystander-5": 3
+      },
+      "actionsProbeRenders": 0,
+      "actionsProbeRendersById": {},
+      "globalStyleProbeRenders": 5,
+      "globalStyleProbeRendersById": {
+        "gs-1": 1,
+        "gs-2": 1,
+        "gs-3": 1,
+        "gs-4": 1,
+        "gs-5": 1
+      },
+      "selectionProbeRenders": 0,
+      "selectionProbeRendersById": {},
+      "readOnlyProbeRenders": 5,
+      "readOnlyProbeRendersById": {
+        "ro-1": 1,
+        "ro-2": 1,
+        "ro-3": 1,
+        "ro-4": 1,
+        "ro-5": 1
       }
     }
   ]

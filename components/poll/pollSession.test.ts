@@ -85,6 +85,42 @@ describe('startPollSession', () => {
       'teacher-1_prev-1'
     );
   });
+
+  it('fresh: clears lastPollSessionId so stale resume popover cannot appear', async () => {
+    // Bug: before the fix, a fresh start left lastPollSessionId pointing at
+    // the old session. The UI (Settings + RemotePollControl) gates the
+    // "Resume?" popover on config.lastPollSessionId being non-null, so after
+    // stopping the just-started session the popover would offer to resume the
+    // *abandoned* previous session rather than the newly-minted one.
+    const configWithStaleResume: typeof baseConfig & {
+      lastPollSessionId: string;
+    } = {
+      ...baseConfig,
+      lastPollSessionId: 'old-session-id',
+    };
+    const next = await startPollSession(
+      configWithStaleResume,
+      'teacher-1',
+      'fresh'
+    );
+    expect(next.lastPollSessionId).toBeNull();
+    // And the new active id is a freshly-minted UUID (not the old one).
+    expect(next.activePollSessionId).not.toBe('old-session-id');
+    expect(typeof next.activePollSessionId).toBe('string');
+    expect(next.activePollSessionId).toBeTruthy();
+  });
+
+  it('resume: preserves lastPollSessionId when it matches the resumed id', async () => {
+    const next = await startPollSession(
+      { ...baseConfig, lastPollSessionId: 'prev-2' },
+      'teacher-1',
+      'resume'
+    );
+    // On resume, lastPollSessionId was already the active id — it should be
+    // left intact (the fix must not wipe it on resume mode).
+    expect(next.lastPollSessionId).toBe('prev-2');
+    expect(next.activePollSessionId).toBe('prev-2');
+  });
 });
 
 describe('stopPollSession', () => {

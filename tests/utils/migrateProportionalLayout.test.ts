@@ -351,6 +351,82 @@ describe('migrateWidgetToProportional', () => {
     expect(hydrated.h).toBe(pixelH);
   });
 
+  // Backlog-requested arithmetic test: the specific coordinate set cited in
+  // the PR #1976 backlog note. These exercise the division formula with a
+  // different aspect ratio (2:1) and non-trivial pixel coordinates so that
+  // a swap of safeW/safeH, or using raw vpW/vpH in place of the safe
+  // dimensions, would produce a wrong — and therefore failing — assertion.
+  it('converts (x=300, y=150, w=280, h=140) on 1920×1080 to exact proportional values', () => {
+    const vpW = 1920;
+    const vpH = 1080;
+    // safeW = vpW - PADDING*2, safeH = vpH - PADDING*2
+    const { safeW, safeH } = getSafeViewport(vpW, vpH);
+    const w = baseWidget({ x: 300, y: 150, w: 280, h: 140 });
+    const out = migrateWidgetToProportional(w, vpW, vpH);
+
+    // Position: pixel origin is offset by PADDING from the safe-board origin.
+    const expectedXProp = (300 - PADDING) / safeW;
+    const expectedYProp = (150 - PADDING) / safeH;
+    // Size: proportioned against the full safe dimension (no padding offset).
+    const expectedWProp = 280 / safeW;
+    const expectedHProp = 140 / safeH;
+    const expectedAspect = 280 / 140; // 2.0
+
+    expect(out.xProp).toBeCloseTo(expectedXProp, 6);
+    expect(out.yProp).toBeCloseTo(expectedYProp, 6);
+    expect(out.wProp).toBeCloseTo(expectedWProp, 6);
+    expect(out.hProp).toBeCloseTo(expectedHProp, 6);
+    expect(out.aspectRatio).toBeCloseTo(expectedAspect, 6);
+
+    // Sanity-check the derived numeric values to nail the arithmetic to
+    // the specific numbers the backlog item describes. With PADDING=16:
+    //   safeW = 1920 - 32 = 1888, safeH = 1080 - 32 = 1048
+    //   xProp = (300 - 16) / 1888 = 284 / 1888
+    //   yProp = (150 - 16) / 1048 = 134 / 1048
+    //   wProp = 280 / 1888
+    //   hProp = 140 / 1048
+    expect(out.xProp).toBeCloseTo(284 / 1888, 6);
+    expect(out.yProp).toBeCloseTo(134 / 1048, 6);
+    expect(out.wProp).toBeCloseTo(280 / 1888, 6);
+    expect(out.hProp).toBeCloseTo(140 / 1048, 6);
+  });
+
+  it('converts (x=300, y=150, w=280, h=140) on 1366×768 to exact proportional values', () => {
+    // Second viewport to ensure the formula is not accidentally hardcoded
+    // for 1920×1080. Any implementation that uses vpW/vpH literally instead
+    // of the safe dimensions, or swaps W and H, will fail here too.
+    const vpW = 1366;
+    const vpH = 768;
+    const { safeW, safeH } = getSafeViewport(vpW, vpH);
+    const w = baseWidget({ x: 300, y: 150, w: 280, h: 140 });
+    const out = migrateWidgetToProportional(w, vpW, vpH);
+
+    expect(out.xProp).toBeCloseTo((300 - PADDING) / safeW, 6);
+    expect(out.yProp).toBeCloseTo((150 - PADDING) / safeH, 6);
+    expect(out.wProp).toBeCloseTo(280 / safeW, 6);
+    expect(out.hProp).toBeCloseTo(140 / safeH, 6);
+    expect(out.aspectRatio).toBeCloseTo(2, 6);
+    // Proportions on a smaller viewport are larger than on 1920×1080,
+    // so wProp here must be strictly greater than wProp on 1920×1080.
+    const { safeW: refSafeW } = getSafeViewport(1920, 1080);
+    expect(280 / safeW).toBeGreaterThan(280 / refSafeW);
+  });
+
+  it('round-trips (x=300, y=150, w=280, h=140) on 1920×1080 through hydration', () => {
+    // End-to-end: migrate pixel→proportional then hydrate proportional→pixel.
+    // The recovered coordinates must equal the originals (within ±1px from
+    // Math.round).
+    const vpW = 1920;
+    const vpH = 1080;
+    const w = baseWidget({ x: 300, y: 150, w: 280, h: 140 });
+    const migrated = migrateWidgetToProportional(w, vpW, vpH);
+    const hydrated = hydrateWidgetPixels(migrated, vpW, vpH, 'fill');
+    expect(hydrated.x).toBe(300);
+    expect(hydrated.y).toBe(150);
+    expect(hydrated.w).toBe(280);
+    expect(hydrated.h).toBe(140);
+  });
+
   // Regression test for the proportionsValid early-return bug:
   // When xProp/yProp contain pixel values (e.g. from a partial migration)
   // and wProp/hProp are valid proportions, widgetNeedsProportionalMigration

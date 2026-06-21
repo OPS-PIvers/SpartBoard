@@ -1,42 +1,56 @@
 /**
- * PlcSharedDataFilters — controlled filter bar for the Shared Data view.
+ * PlcSharedDataFilters — controlled filter bar for the (aggregate-driven) Shared
+ * Data view (Wave 3). Filters now operate over the anonymized
+ * `PlcAssessmentAggregate` rollups + their designated `PlcCommonAssessment`
+ * metadata, NOT raw contributions — so there are no student names anywhere in
+ * this bar.
  *
  * Props:
  *   filters    — current filter state (controlled)
  *   onChange   — callback when any filter changes
- *   teachers   — list of teachers who have contributed, for the teacher dropdown
- *   entries    — list of assignment index entries, for the assignment dropdown
- *   classPeriods — list of class periods seen in contributions, for the period dropdown
+ *   teachers   — teachers seen across aggregates' perTeacher rows (teacher dropdown)
+ *   unitLabels — unit labels from designated assessments (unit dropdown)
+ *   hasDesignated — whether any designated assessment exists (gates the status filter)
  */
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { PlcAssignmentIndexEntry } from '@/types';
-import type { SharedDataFilters } from './sharedDataSelectors';
+import { Search } from 'lucide-react';
+import type {
+  AssessmentStatusFilter,
+  SharedDataAggregateFilters,
+} from './sharedDataSelectors';
 
 export interface PlcSharedDataFiltersProps {
-  filters: SharedDataFilters & { classPeriod: string };
-  onChange: (next: SharedDataFilters & { classPeriod: string }) => void;
-  /** Unique teachers derived from contributions. */
+  filters: SharedDataAggregateFilters;
+  onChange: (next: SharedDataAggregateFilters) => void;
+  /** Unique teachers derived from aggregates' perTeacher rows. */
   teachers: { uid: string; name: string }[];
-  /** All assignment index entries for the assignment filter. */
-  entries: PlcAssignmentIndexEntry[];
-  /** Distinct class periods seen across contribution responses. */
-  classPeriods: string[];
+  /** Distinct unit labels from designated assessments. */
+  unitLabels: string[];
+  /** Whether the team has designated any common assessment (gates status filter). */
+  hasDesignated: boolean;
 }
+
+const STATUS_OPTIONS: AssessmentStatusFilter[] = [
+  'planning',
+  'active',
+  'reviewing',
+  'closed',
+];
 
 export const PlcSharedDataFilters: React.FC<PlcSharedDataFiltersProps> = ({
   filters,
   onChange,
   teachers,
-  entries,
-  classPeriods,
+  unitLabels,
+  hasDesignated,
 }) => {
   const { t } = useTranslation();
 
-  function set<K extends keyof typeof filters>(
+  function set<K extends keyof SharedDataAggregateFilters>(
     key: K,
-    value: (typeof filters)[K]
+    value: SharedDataAggregateFilters[K]
   ) {
     onChange({ ...filters, [key]: value });
   }
@@ -49,6 +63,29 @@ export const PlcSharedDataFilters: React.FC<PlcSharedDataFiltersProps> = ({
       })}
       className="flex flex-wrap items-center gap-3 bg-white border border-slate-200 rounded-2xl px-4 py-3"
     >
+      {/* Search */}
+      <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+        <Search className="w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
+        <span className="sr-only" id="sd-filter-search-label">
+          {t('plcDashboard.sharedData.filters.search', {
+            defaultValue: 'Search assessments',
+          })}
+        </span>
+        <input
+          type="search"
+          aria-labelledby="sd-filter-search-label"
+          aria-label={t('plcDashboard.sharedData.filters.search', {
+            defaultValue: 'Search assessments',
+          })}
+          value={filters.search}
+          onChange={(e) => set('search', e.target.value)}
+          placeholder={t('plcDashboard.sharedData.filters.searchPlaceholder', {
+            defaultValue: 'Search…',
+          })}
+          className="w-36 text-xs bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30"
+        />
+      </label>
+
       {/* Type filter */}
       <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
         <span id="sd-filter-type-label">
@@ -107,71 +144,75 @@ export const PlcSharedDataFilters: React.FC<PlcSharedDataFiltersProps> = ({
                 defaultValue: 'All teachers',
               })}
             </option>
-            {teachers.map((t) => (
-              <option key={t.uid} value={t.uid}>
-                {t.name}
+            {teachers.map((teacher) => (
+              <option key={teacher.uid} value={teacher.uid}>
+                {teacher.name}
               </option>
             ))}
           </select>
         </label>
       )}
 
-      {/* Assignment filter */}
-      {entries.length > 0 && (
+      {/* Unit filter */}
+      {unitLabels.length > 0 && (
         <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-          <span id="sd-filter-assignment-label">
-            {t('plcDashboard.sharedData.filters.assignment', {
-              defaultValue: 'Assignment',
+          <span id="sd-filter-unit-label">
+            {t('plcDashboard.sharedData.filters.unit', {
+              defaultValue: 'Unit',
             })}
           </span>
           <select
-            aria-labelledby="sd-filter-assignment-label"
-            aria-label={t('plcDashboard.sharedData.filters.assignment', {
-              defaultValue: 'Assignment',
+            aria-labelledby="sd-filter-unit-label"
+            aria-label={t('plcDashboard.sharedData.filters.unit', {
+              defaultValue: 'Unit',
             })}
-            value={filters.assignmentId}
-            onChange={(e) => set('assignmentId', e.target.value)}
-            className="max-w-[180px] text-xs bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30"
+            value={filters.unitLabel}
+            onChange={(e) => set('unitLabel', e.target.value)}
+            className="max-w-[160px] text-xs bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30"
           >
             <option value="all">
-              {t('plcDashboard.sharedData.filters.assignmentAll', {
-                defaultValue: 'All assignments',
+              {t('plcDashboard.sharedData.filters.unitAll', {
+                defaultValue: 'All units',
               })}
             </option>
-            {entries.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.title}
+            {unitLabels.map((unit) => (
+              <option key={unit} value={unit}>
+                {unit}
               </option>
             ))}
           </select>
         </label>
       )}
 
-      {/* Class-period filter */}
-      {classPeriods.length > 0 && (
+      {/* Status filter — only meaningful once a common assessment is designated */}
+      {hasDesignated && (
         <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-          <span id="sd-filter-period-label">
-            {t('plcDashboard.sharedData.filters.classPeriod', {
-              defaultValue: 'Class Period',
+          <span id="sd-filter-status-label">
+            {t('plcDashboard.sharedData.filters.status', {
+              defaultValue: 'Status',
             })}
           </span>
           <select
-            aria-labelledby="sd-filter-period-label"
-            aria-label={t('plcDashboard.sharedData.filters.classPeriod', {
-              defaultValue: 'Class Period',
+            aria-labelledby="sd-filter-status-label"
+            aria-label={t('plcDashboard.sharedData.filters.status', {
+              defaultValue: 'Status',
             })}
-            value={filters.classPeriod}
-            onChange={(e) => set('classPeriod', e.target.value)}
+            value={filters.status}
+            onChange={(e) =>
+              set('status', e.target.value as AssessmentStatusFilter)
+            }
             className="text-xs bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30"
           >
             <option value="all">
-              {t('plcDashboard.sharedData.filters.classPeriodAll', {
-                defaultValue: 'All periods',
+              {t('plcDashboard.sharedData.filters.statusAll', {
+                defaultValue: 'All statuses',
               })}
             </option>
-            {classPeriods.map((p) => (
-              <option key={p} value={p}>
-                {p}
+            {STATUS_OPTIONS.map((status) => (
+              <option key={status} value={status}>
+                {t(`plcDashboard.sharedData.status.${status}`, {
+                  defaultValue: status,
+                })}
               </option>
             ))}
           </select>

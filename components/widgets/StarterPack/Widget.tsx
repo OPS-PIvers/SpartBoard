@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/context/useAuth';
-import { useDashboard } from '@/context/useDashboard';
+import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { useStarterPacks } from '@/hooks/useStarterPacks';
 import { WidgetComponentProps, StarterPack } from '@/types';
 import * as LucideIcons from 'lucide-react';
@@ -10,7 +10,7 @@ import { playCleanUp, getAudioCtx } from './audioUtils';
 
 export const StarterPackWidget = ({ isStudentView }: WidgetComponentProps) => {
   const { user } = useAuth();
-  const { addWidget, deleteAllWidgets } = useDashboard();
+  const { addWidget, deleteAllWidgets } = useDashboardActions();
   const { publicPacks, userPacks, loading, executePack } = useStarterPacks(
     user?.uid
   );

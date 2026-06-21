@@ -44,6 +44,7 @@ import {
   Cloud,
   Download,
   ExternalLink,
+  History,
   Loader2,
   Pencil,
   Plus,
@@ -62,18 +63,26 @@ import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { usePlcAssignments } from '@/hooks/usePlcAssignments';
 import { usePlcQuizzes, writePlcQuizEntry } from '@/hooks/usePlcQuizzes';
+import { usePlcSoftDelete } from '@/hooks/usePlcTrash';
 import { SyncedQuizVersionConflictError, useQuiz } from '@/hooks/useQuiz';
 import {
+  callDetachPlcSyncLinkage,
   callJoinPlcAssignmentSyncGroup,
   callJoinPlcQuizSyncGroup,
   callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
   pullSyncedQuizContent,
+  useSyncedQuizGroupsByIds,
 } from '@/hooks/useSyncedQuizGroups';
+import { usePlcAutoPullSync } from '@/hooks/usePlcAutoPullSync';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
 import { logError } from '@/utils/logError';
+import { canEditPlcContent, getPlcMemberEmail } from '@/utils/plc';
 import { getQuizBehavior } from '@/utils/quizBehavior';
+import { PlcVersionHistoryPanel } from '../versions/PlcVersionHistoryPanel';
+import { PlcViewerReadOnlyBadge } from '../viewer/PlcViewerReadOnlyBadge';
+import { PlcSyncConflictPrompt } from '../sync/PlcSyncConflictPrompt';
 import { PlcAssignmentImportModal } from '../PlcAssignmentImportModal';
 import { PlcQuizImportModal } from '../PlcQuizImportModal';
 import {
@@ -141,7 +150,9 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
     quizzes: plcQuizzes,
     loading,
     unshareQuizFromPlc,
+    restoreQuizInPlc,
   } = usePlcQuizzes(plc.id);
+  const { softDelete } = usePlcSoftDelete(plc.id);
   // Read-time union with legacy assignment templates so template-only rows
   // (authored before the libraries collapsed) stay visible and assignable
   // during the transition. Deduped by syncGroupId — a PlcQuizEntry wins.
@@ -166,6 +177,12 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
 
   const [importTarget, setImportTarget] = useState<ImportTarget | null>(null);
   const [assignTarget, setAssignTarget] = useState<AssignTarget | null>(null);
+  // Open "Version history" panel target (synced quiz rows only — template rows
+  // have no synced-group versions). Hidden for viewers (see `canEdit`).
+  const [versionTarget, setVersionTarget] = useState<{
+    syncGroupId: string;
+    title: string;
+  } | null>(null);
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
   const [editing, setEditing] = useState<{
     quiz: QuizData;
@@ -193,6 +210,14 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
   const { assignments, createAssignment, setAssignmentRosters } =
     useQuizAssignments(assignTarget || pendingSetup ? user?.uid : undefined);
 
+  // Viewers can read the library but not edit/restore content (Decision 3.2 +
+  // §4 rules `plcCanEditContent`). Gate the "Version history" affordance on it
+  // client-side too (defense-in-depth; the rules hard-deny a viewer restore).
+  const canEdit = useMemo(
+    () => (user ? canEditPlcContent(plc, user.uid) : false),
+    [plc, user]
+  );
+
   // The unified, deduped, assignable row list.
   const assignableRows = useMemo(
     () => unifyAssignableQuizzes(plcQuizzes, templates),
@@ -214,6 +239,97 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
     () => new Set(plcQuizzes.map((q) => q.syncGroupId)),
     [plcQuizzes]
   );
+
+  // §5.2 auto-pull-when-safe (Decision 5.2). The synced personal replicas that
+  // belong to THIS PLC's shared library — we only auto-reconcile copies the
+  // teacher imported from this PLC, not unrelated synced quizzes from elsewhere.
+  const syncedReplicas = useMemo(
+    () =>
+      personalQuizzes.filter(
+        (q) => q.sync?.groupId && plcSyncGroupIds.has(q.sync.groupId)
+      ),
+    [personalQuizzes, plcSyncGroupIds]
+  );
+  const syncedReplicaGroupIds = useMemo(
+    () =>
+      syncedReplicas
+        .map((q) => q.sync?.groupId)
+        .filter((id): id is string => !!id),
+    [syncedReplicas]
+  );
+  // Live canonical-version stream for those replicas' groups (drives the
+  // auto-pull / conflict decision against each replica's lastSyncedVersion).
+  const { groups: canonicalGroups } = useSyncedQuizGroupsByIds(
+    syncedReplicaGroupIds
+  );
+  // A replica is "dirty" while its collaborative editor is open with unsaved
+  // edits — an auto-pull then would clobber those in-flight changes, so we
+  // route to a conflict prompt instead. Saving publishes immediately (LWW),
+  // clearing the dirty state.
+  const dirtyReplicaId = editing?.meta.id ?? null;
+  const { conflicts, resolveConflict } = usePlcAutoPullSync<QuizMetadata>({
+    replicas: syncedReplicas,
+    canonicalGroups,
+    dirtyReplicaId,
+    enabled: canEdit && isDriveConnected,
+    pull: pullSyncedQuiz,
+    acknowledgeVersion: (replica, canonicalVersion) => {
+      // `syncedReplicas` is filtered to carry `sync`, so this is always set;
+      // the guard keeps TS/lint happy without a non-null assertion.
+      if (!replica.sync) return Promise.resolve();
+      return attachSyncLinkage(replica.id, {
+        groupId: replica.sync.groupId,
+        lastSyncedVersion: canonicalVersion,
+      });
+    },
+    onAutoPulled: (replica) =>
+      addToast(
+        t('plcDashboard.sync.autoPulled', {
+          title: replica.title,
+          defaultValue:
+            '"{{title}}" updated to your teammate’s latest version.',
+        }),
+        'info'
+      ),
+    onAutoPullError: (replica) =>
+      addToast(
+        t('plcDashboard.sync.autoPullFailed', {
+          title: replica.title,
+          defaultValue:
+            'Couldn’t pull the latest version of "{{title}}". We’ll retry on the next update.',
+        }),
+        'error'
+      ),
+    onConflictPulled: (replica) =>
+      addToast(
+        t('plcDashboard.sync.pulledTheirs', {
+          title: replica.title,
+          defaultValue:
+            'Pulled your teammate’s version of "{{title}}". Your unsaved edits were discarded.',
+        }),
+        'info'
+      ),
+    onConflictKept: (replica) =>
+      addToast(
+        t('plcDashboard.sync.keptMine', {
+          title: replica.title,
+          defaultValue:
+            'Kept your edits to "{{title}}". You can publish them to share with your team.',
+        }),
+        'info'
+      ),
+    onError: (replica, err) =>
+      addToast(
+        err instanceof Error
+          ? err.message
+          : t('plcDashboard.sync.resolveFailed', {
+              title: replica.title,
+              defaultValue:
+                'Couldn’t resolve the sync conflict for "{{title}}". Try again.',
+            }),
+        'error'
+      ),
+  });
 
   const sharePickerItems = useMemo<PlcSharePickerItem[]>(
     () =>
@@ -778,7 +894,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
         }
 
         const ownerEmailLower =
-          plc.memberEmails?.[user.uid] ??
+          getPlcMemberEmail(plc, user.uid) ??
           (user.email ? user.email.toLowerCase() : '');
         // Capture the quiz's behavior at share time so the shared quiz carries
         // default run-settings a teammate can pick up when assigning.
@@ -835,8 +951,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
       attachSyncLinkage,
       loadQuizData,
       personalQuizzes,
-      plc.id,
-      plc.memberEmails,
+      plc,
       plcSyncGroupIds,
       t,
       user,
@@ -864,14 +979,51 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
       if (!confirmed) return;
       setBusyRowId(plcQuizId);
       try {
-        await unshareQuizFromPlc(plcQuizId);
-        addToast(
-          t('plcDashboard.quizLibrary.unshared', {
-            title,
-            defaultValue: '"{{title}}" removed from this PLC.',
-          }),
-          'success'
-        );
+        // Soft-delete with undo (Decision 3.1): tombstone the PLC quiz entry,
+        // log `item_deleted`, and pop an Undo toast that restores it.
+        //
+        // Clean-detach (Decision 5.3): on unshare we ALSO remove the caller
+        // from the canonical synced group's `participants` map via the
+        // `detachPlcSyncLinkage` Cloud Function — a real server op, since
+        // Firestore rules forbid a client from writing `participants`. This
+        // closes the long-standing "orphanedGroup" gap where the header was
+        // tombstoned but the teacher lingered as a phantom participant.
+        // It's symmetric with undo: restore re-joins via the idempotent
+        // `joinPlcQuizSyncGroup` so the caller's sync linkage is reinstated.
+        await softDelete({
+          type: 'quiz',
+          id: plcQuizId,
+          title,
+          runDelete: async () => {
+            await unshareQuizFromPlc(plcQuizId);
+            // Best-effort: a detach failure must not block the unshare (the
+            // header tombstone is the user-visible action). gcPlcOrphans is
+            // the backstop for any participant the detach couldn't reach.
+            try {
+              await callDetachPlcSyncLinkage(plc.id, 'quiz', plcQuizId);
+            } catch (detachErr) {
+              logError('PlcQuizLibraryBody.unshare.detach', detachErr, {
+                plcId: plc.id,
+                plcQuizId,
+              });
+            }
+          },
+          runRestore: async () => {
+            await restoreQuizInPlc(plcQuizId);
+            // Re-attach the caller to the canonical group so the restored
+            // header is live-synced again. Idempotent on the server; a
+            // failure here is non-fatal (the header is back; the teacher can
+            // re-sync from the library row).
+            try {
+              await callJoinPlcQuizSyncGroup(plc.id, plcQuizId);
+            } catch (rejoinErr) {
+              logError('PlcQuizLibraryBody.unshare.rejoin', rejoinErr, {
+                plcId: plc.id,
+                plcQuizId,
+              });
+            }
+          },
+        });
       } catch (err) {
         logError('PlcQuizLibraryBody.unshare', err, {
           plcId: plc.id,
@@ -889,7 +1041,15 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
         setBusyRowId(null);
       }
     },
-    [addToast, plc.id, showConfirm, t, unshareQuizFromPlc]
+    [
+      addToast,
+      plc.id,
+      showConfirm,
+      t,
+      softDelete,
+      unshareQuizFromPlc,
+      restoreQuizInPlc,
+    ]
   );
 
   /**
@@ -961,7 +1121,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
     );
   }
 
-  const shareCta = (
+  const shareCta = !canEdit ? null : (
     <button
       type="button"
       onClick={() => setSharePickerOpen(true)}
@@ -1007,7 +1167,16 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
                 'Open the Quiz widget in your dashboard, click the kebab on any quiz, and choose "Share with PLC" to add it here.',
             })}
           </p>
-          {shareCta}
+          {canEdit ? (
+            shareCta
+          ) : (
+            <PlcViewerReadOnlyBadge
+              note={t('plcDashboard.viewer.assessmentsNote', {
+                defaultValue:
+                  'Viewers can browse shared assessments but can’t share, edit, or assign them.',
+              })}
+            />
+          )}
         </div>
         {sharePickerOpen && (
           <PlcSharePickerModal
@@ -1187,65 +1356,91 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
                             })}
                       </span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void handleEdit({
-                          plcQuizId: row.quiz.id,
-                          syncGroupId: row.syncGroupId,
-                          title: row.title,
-                          sharedByName: row.sharedByName,
-                        })
-                      }
-                      disabled={isBusy || !isDriveConnected}
-                      aria-label={t('plcDashboard.quizLibrary.editAction', {
-                        defaultValue: 'Edit',
-                      })}
-                      title={
-                        inLibrary
-                          ? t('plcDashboard.quizLibrary.editTooltip', {
-                              defaultValue:
-                                'Edit collaboratively (changes sync to teammates)',
-                            })
-                          : t(
-                              'plcDashboard.quizLibrary.editTooltipAutoImport',
-                              {
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void handleEdit({
+                            plcQuizId: row.quiz.id,
+                            syncGroupId: row.syncGroupId,
+                            title: row.title,
+                            sharedByName: row.sharedByName,
+                          })
+                        }
+                        disabled={isBusy || !isDriveConnected}
+                        aria-label={t('plcDashboard.quizLibrary.editAction', {
+                          defaultValue: 'Edit',
+                        })}
+                        title={
+                          inLibrary
+                            ? t('plcDashboard.quizLibrary.editTooltip', {
                                 defaultValue:
-                                  'Edit collaboratively — adds to your library on first edit',
-                              }
-                            )
-                      }
-                      className="p-1.5 rounded-lg text-slate-400 hover:bg-brand-blue-lighter hover:text-brand-blue-primary transition-colors disabled:opacity-40"
-                    >
-                      <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-                    </button>
+                                  'Edit collaboratively (changes sync to teammates)',
+                              })
+                            : t(
+                                'plcDashboard.quizLibrary.editTooltipAutoImport',
+                                {
+                                  defaultValue:
+                                    'Edit collaboratively — adds to your library on first edit',
+                                }
+                              )
+                        }
+                        className="p-1.5 rounded-lg text-slate-400 hover:bg-brand-blue-lighter hover:text-brand-blue-primary transition-colors disabled:opacity-40"
+                      >
+                        <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                      </button>
+                    )}
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setVersionTarget({
+                            syncGroupId: row.syncGroupId,
+                            title: row.title,
+                          })
+                        }
+                        disabled={isBusy}
+                        aria-label={t('plcDashboard.versions.openAriaLabel', {
+                          title: row.title,
+                          defaultValue: 'Version history for {{title}}',
+                        })}
+                        title={t('plcDashboard.versions.open', {
+                          defaultValue: 'Version history',
+                        })}
+                        className="p-1.5 rounded-lg text-slate-400 hover:bg-brand-blue-lighter hover:text-brand-blue-primary transition-colors disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                      >
+                        <History className="w-3.5 h-3.5" aria-hidden="true" />
+                      </button>
+                    )}
                   </>
                 )}
-                <button
-                  type="button"
-                  onClick={() =>
-                    row.source === 'quiz'
-                      ? void handleUnshare(row.quiz.id, row.title)
-                      : void handleUnshareTemplate(row.template.id, row.title)
-                  }
-                  disabled={anyImportBusy}
-                  aria-label={t('plcDashboard.quizLibrary.unshareAction', {
-                    defaultValue: 'Unshare',
-                  })}
-                  title={
-                    isMine
-                      ? t('plcDashboard.quizLibrary.unshareYours', {
-                          defaultValue: 'Unshare from PLC',
-                        })
-                      : t('plcDashboard.quizLibrary.unshareTeammate', {
-                          defaultValue:
-                            'Unshare from PLC (any member can remove)',
-                        })
-                  }
-                  className="p-1.5 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40"
-                >
-                  <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      row.source === 'quiz'
+                        ? void handleUnshare(row.quiz.id, row.title)
+                        : void handleUnshareTemplate(row.template.id, row.title)
+                    }
+                    disabled={anyImportBusy}
+                    aria-label={t('plcDashboard.quizLibrary.unshareAction', {
+                      defaultValue: 'Unshare',
+                    })}
+                    title={
+                      isMine
+                        ? t('plcDashboard.quizLibrary.unshareYours', {
+                            defaultValue: 'Unshare from PLC',
+                          })
+                        : t('plcDashboard.quizLibrary.unshareTeammate', {
+                            defaultValue:
+                              'Unshare from PLC (any member can remove)',
+                          })
+                    }
+                    className="p-1.5 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -1337,6 +1532,21 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
         onClose={() => setEditing(null)}
         onSave={handleSaveEdit}
       />
+      {versionTarget && canEdit && (
+        <PlcVersionHistoryPanel
+          plc={plc}
+          groupId={versionTarget.syncGroupId}
+          kind="quiz"
+          title={versionTarget.title}
+          onClose={() => setVersionTarget(null)}
+        />
+      )}
+      {conflicts.length > 0 && (
+        <PlcSyncConflictPrompt
+          conflict={conflicts[0]}
+          onResolve={resolveConflict}
+        />
+      )}
       {sharePickerOpen && (
         <PlcSharePickerModal
           title={t('plcDashboard.quizLibrary.sharePicker.title', {

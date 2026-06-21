@@ -2,7 +2,17 @@
 // `/plcs/{plcId}/contributions/{contribId}` match block — the
 // Firestore-native replacement for the Google-Sheet-based PLC aggregate.
 // The rules carry a few load-bearing invariants:
-//   - membership-gated reads (everyone in the PLC sees every contribution)
+//   - OWNER-ONLY reads (the FERPA boundary, tightened in Wave 3 per PRD
+//     §3.6 step 2 / §9 PII risk row): a contribution's raw `responses[]`
+//     embed `studentDisplayName`, so only the owning teacher may read her
+//     own contribution. A co-member is DENIED — cross-teacher rollups go
+//     through the anonymized `/aggregates` sibling instead. The `read`
+//     describe block pins this: owner reads own, co-member denied,
+//     non-member denied (owner-only is strictly narrower than the prior
+//     member-only gate, never wider). Deeper PII-specific coverage —
+//     proving the denied co-member never sees another teacher's student
+//     names while still reading aggregates — lives in
+//     `plcContributionsPii.test.ts`.
 //   - author-only writes (a member can only write her own teacherUid)
 //   - doc id pinned to `{quizId}_{teacherUid}` so a teammate can't write
 //     into someone else's slot
@@ -102,23 +112,75 @@ beforeEach(async () => {
   });
 });
 
-describe('plcs/{plcId}/contributions — read', () => {
+// A contribution `responses[]` entry carrying student PII. The
+// `studentDisplayName` field is the raw FERPA-protected datum that the
+// Wave 3 read-tightening (member-read -> owner-only, PRD §3.6 step 2 /
+// §5 risk row) exists to wall off from other teachers. We seed it here so
+// the Wave 0 characterization asserts behavior over the *actual* PII, not
+// an empty `responses` array.
+const piiResponse = (studentDisplayName: string): Record<string, unknown> => ({
+  studentDisplayName,
+  pin: '0001',
+  classPeriod: '',
+  status: 'completed',
+  scorePercent: 100,
+  pointsEarned: 1,
+  maxPoints: 1,
+  tabSwitchWarnings: 0,
+  submittedAt: 2000,
+  pointsByQuestionId: { q1: 1 },
+});
+
+describe('plcs/{plcId}/contributions — read (owner-only)', () => {
+  // Seed BOTH members' contribution docs, each holding a distinct
+  // student name. This pins the single most security-critical rule in
+  // the PRD: post-Wave-3 the read is OWNER-ONLY — a co-member is denied
+  // another teacher's raw student names, while the owner still reads her
+  // own. Cross-teacher data flows through the anonymized /aggregates.
   beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
         doc(ctx.firestore(), `plcs/${PLC_ID}/contributions/${CONTRIB_ID_A}`),
-        validContribution()
+        validContribution({
+          responses: [piiResponse('Alice Owner-A')],
+        })
+      );
+      await setDoc(
+        doc(ctx.firestore(), `plcs/${PLC_ID}/contributions/${CONTRIB_ID_B}`),
+        validContribution({
+          id: CONTRIB_ID_B,
+          teacherUid: MEMBER_B_UID,
+          teacherName: 'Member B',
+          responses: [piiResponse('Bob Owner-B')],
+        })
       );
     });
   });
 
-  it('any PLC member can read every contribution (cross-teacher aggregate)', async () => {
+  it('the owning member can read her own contribution (incl. raw responses[])', async () => {
+    // Owner-read is the post-Wave-3 floor and must stay TRUE across the
+    // tightening — pinned here so the flip can't accidentally lock the
+    // owner out of her own data.
     await assertSucceeds(
+      getDoc(doc(asMemberA(), `plcs/${PLC_ID}/contributions/${CONTRIB_ID_A}`))
+    );
+  });
+
+  // FERPA boundary (Wave 3, PRD §3.6 step 2 / §9 PII risk row). A
+  // non-owning PLC member must NOT read another teacher's raw
+  // contribution, whose `responses[]` embed `studentDisplayName`. The
+  // read rule is owner-only (`resource.data.teacherUid == auth.uid`), so
+  // member B is denied member A's doc.
+  it('a non-owning PLC member CANNOT read another teacher’s raw contribution (owner-only — FERPA)', async () => {
+    await assertFails(
       getDoc(doc(asMemberB(), `plcs/${PLC_ID}/contributions/${CONTRIB_ID_A}`))
     );
   });
 
-  it('a non-member cannot read contributions', async () => {
+  // Pins the membership gate so the owner-only change can't accidentally
+  // widen reads back to "any authenticated user". A non-member is denied
+  // — owner-only is strictly narrower than member-only, never wider.
+  it('a non-member cannot read contributions (owner-only is strictly narrower than the old member gate)', async () => {
     await assertFails(
       getDoc(doc(asNonMember(), `plcs/${PLC_ID}/contributions/${CONTRIB_ID_A}`))
     );

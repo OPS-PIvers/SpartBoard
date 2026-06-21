@@ -52,7 +52,7 @@ import { SidebarClasses } from './SidebarClasses';
 import { SidebarPlcs } from './SidebarPlcs';
 import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
-import { PlcDashboard } from '@/components/plc/PlcDashboard';
+import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
 import { BoardsModal } from '@/components/boardsModal/BoardsModal';
 
 declare const __APP_VERSION__: string;
@@ -120,19 +120,10 @@ export const Sidebar: React.FC = () => {
   // Firestore `onSnapshot` subscriptions (1 from usePlcs, 2 from
   // usePlcInvitations) for data that's semantically a singleton per session.
   //
-  // `enabled: isOpen || dashboardOpen` keeps the subscriptions paused while
-  // both the drawer AND the PLC dashboard overlay are closed — the
-  // dashboard render keys off the live `plcs` array so the subscription
-  // must remain active while it's mounted (e.g. so a feature toggle from
-  // another member is reflected immediately). `Sidebar` itself is always
-  // mounted by `DashboardView`, so we can't rely on unmounting alone to
-  // release the listeners.
-  const [openPlcDashboardId, setOpenPlcDashboardId] = useState<string | null>(
-    null
-  );
-  const plcsHook = usePlcs({
-    enabled: isOpen || openPlcDashboardId !== null,
-  });
+  // The PLC dashboard is now a first-class route (`/plc/:id/:section`, Decision
+  // 0.3) rendered by `PlcRouteHost`, which mounts its OWN `usePlcs` listener —
+  // so the sidebar only needs the list while the drawer itself is open.
+  const plcsHook = usePlcs({ enabled: isOpen });
   const plcInvitationsHook = usePlcInvitations({ enabled: isOpen });
 
   const { isConnected: isDriveConnected } = useGoogleDrive();
@@ -216,23 +207,6 @@ export const Sidebar: React.FC = () => {
       window.removeEventListener('storage', onStorage);
     };
   }, []);
-
-  // The currently-open PLC dashboard tracks against the live `plcs` array so
-  // a feature toggle by another member shows up immediately. If the PLC
-  // disappears from the user's list (e.g. removed by the lead, or they left
-  // elsewhere), close the dashboard. Adjusting state during render avoids
-  // the extra round-trip an effect would cost.
-  const openPlcDashboardPlc =
-    openPlcDashboardId !== null
-      ? (plcsHook.plcs.find((p) => p.id === openPlcDashboardId) ?? null)
-      : null;
-  if (
-    openPlcDashboardId !== null &&
-    !openPlcDashboardPlc &&
-    !plcsHook.loading
-  ) {
-    setOpenPlcDashboardId(null);
-  }
 
   return (
     <>
@@ -366,13 +340,6 @@ export const Sidebar: React.FC = () => {
           currentVersion={__APP_VERSION__}
           updateAvailable={updateAvailable}
           onUpdate={reloadApp}
-        />
-      )}
-
-      {openPlcDashboardPlc && (
-        <PlcDashboard
-          plc={openPlcDashboardPlc}
-          onClose={() => setOpenPlcDashboardId(null)}
         />
       )}
 
@@ -670,9 +637,12 @@ export const Sidebar: React.FC = () => {
                 deletePlc={plcsHook.deletePlc}
                 pendingInvites={plcInvitationsHook.pendingInvites}
                 onOpenDashboard={(plcId) => {
-                  setOpenPlcDashboardId(plcId);
+                  // Navigate to the first-class PLC route (Decision 0.3) instead
+                  // of opening an overlay. Close the drawer + reset the section
+                  // so returning to the board lands on the main menu.
                   setIsOpen(false);
                   setActiveSection('main');
+                  spaNavigate(buildPlcPath(plcId));
                 }}
               />
 

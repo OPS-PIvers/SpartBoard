@@ -50,6 +50,35 @@ const REQUIRED_ADMIN_STICKER_KEYS = [
   'stickerAdded',
 ] as const;
 
+/**
+ * Keys within admin.plc.recovery that the PLC recovery panel (W4-T11,
+ * Decision 3.4) renders. The panel passes `defaultValue` on every t() call, but
+ * DE/ES/FR must still carry real translations (no raw-key leak for non-English
+ * admins) — enforced below.
+ */
+const REQUIRED_ADMIN_PLC_RECOVERY_KEYS = [
+  'title',
+  'subtitle',
+  'explainer',
+  'empty',
+  'leadLabel',
+  'membersLabel_one',
+  'membersLabel_other',
+  'reassignLead',
+  'reassignTitle',
+  'reassignDescription',
+  'newLeadLabel',
+  'noEligibleMembers',
+  'confirmReassign',
+  'reassignSuccess',
+  'dissolve',
+  'confirmDissolve',
+  'dissolveSuccess',
+  'actionFailed',
+  'cancel',
+  'confirm',
+] as const;
+
 // ─── EN baseline ─────────────────────────────────────────────────────────────
 
 describe('EN locale — admin namespace baseline', () => {
@@ -67,6 +96,19 @@ describe('EN locale — admin namespace baseline', () => {
         en.admin.stickers,
         `en.admin.stickers.${key} is missing from EN`
       ).toHaveProperty(key);
+    }
+  });
+
+  it('has an admin.plc.recovery section', () => {
+    expect(en).toHaveProperty(['admin', 'plc', 'recovery']);
+  });
+
+  it('has all required admin.plc.recovery keys', () => {
+    for (const key of REQUIRED_ADMIN_PLC_RECOVERY_KEYS) {
+      expect(
+        en,
+        `en.admin.plc.recovery.${key} is missing from EN`
+      ).toHaveProperty(['admin', 'plc', 'recovery', key]);
     }
   });
 });
@@ -99,6 +141,22 @@ describe.each([
       expect(locale, `${code}.admin.stickers.${key} is missing`).toHaveProperty(
         ['admin', 'stickers', key]
       );
+    }
+  });
+
+  it(`${code}: has an admin.plc.recovery section`, () => {
+    expect(
+      locale,
+      `${code}.admin.plc.recovery section is missing`
+    ).toHaveProperty(['admin', 'plc', 'recovery']);
+  });
+
+  it(`${code}: has all required admin.plc.recovery keys`, () => {
+    for (const key of REQUIRED_ADMIN_PLC_RECOVERY_KEYS) {
+      expect(
+        locale,
+        `${code}.admin.plc.recovery.${key} is missing`
+      ).toHaveProperty(['admin', 'plc', 'recovery', key]);
     }
   });
 });

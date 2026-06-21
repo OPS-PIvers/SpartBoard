@@ -229,7 +229,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
               <div className="text-2xl font-bold text-white">
                 {responses.length}
               </div>
-              <div className="text-slate-400 text-xs mt-0.5 flex items-center justify-center gap-1">
+              <div className="text-slate-300 text-xs mt-0.5 flex items-center justify-center gap-1">
                 <Users className="w-3 h-3" /> Total
               </div>
             </div>
@@ -237,7 +237,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
               <div className="text-2xl font-bold text-emerald-400">
                 {completedResponsesCount}
               </div>
-              <div className="text-slate-400 text-xs mt-0.5 flex items-center justify-center gap-1">
+              <div className="text-slate-300 text-xs mt-0.5 flex items-center justify-center gap-1">
                 <CheckCircle2 className="w-3 h-3" /> Done
               </div>
             </div>
@@ -245,7 +245,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
               <div className="text-2xl font-bold text-indigo-400">
                 {avgScore !== null ? `${avgScore}%` : '—'}
               </div>
-              <div className="text-slate-400 text-xs mt-0.5">Avg Score</div>
+              <div className="text-slate-300 text-xs mt-0.5">Avg Score</div>
             </div>
           </div>
 
@@ -265,7 +265,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
                       <span
                         className={`shrink-0 text-xs font-bold ${
                           pct === null
-                            ? 'text-slate-500'
+                            ? 'text-slate-300'
                             : pct >= 70
                               ? 'text-emerald-400'
                               : 'text-amber-400'
@@ -282,7 +282,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
                         />
                       </div>
                     )}
-                    <p className="text-slate-500 text-xs mt-1">
+                    <p className="text-slate-300 text-xs mt-1">
                       {correct} / {total} correct
                     </p>
                   </div>
@@ -313,7 +313,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
                         <span className="text-white text-xs font-medium">
                           {label}
                         </span>
-                        <span className="text-slate-500 text-xs ml-2">
+                        <span className="text-slate-300 text-xs ml-2">
                           {r.completedAt ? 'Completed' : 'In progress'}
                         </span>
                       </div>
@@ -330,7 +330,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
           )}
 
           {responses.length === 0 && (
-            <div className="text-center text-slate-500 text-sm py-8">
+            <div className="text-center text-slate-300 text-sm py-8">
               No responses yet. Share the assignment link with students.
             </div>
           )}

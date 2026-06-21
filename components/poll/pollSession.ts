@@ -61,7 +61,16 @@ export const startPollSession = async (
     },
     { merge: true }
   );
-  return { ...config, activePollSessionId: pollSessionId };
+  return {
+    ...config,
+    activePollSessionId: pollSessionId,
+    // On a fresh start the old lastPollSessionId belongs to an abandoned
+    // session. Clear it so the UI doesn't offer to "Resume" the stale session
+    // once the teacher stops and then clicks Start again. On 'resume' mode the
+    // id matches lastPollSessionId already, so this is always a no-op there.
+    lastPollSessionId:
+      mode === 'fresh' ? null : (config.lastPollSessionId ?? null),
+  };
 };
 
 /**

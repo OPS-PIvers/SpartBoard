@@ -7,14 +7,12 @@ import {
   increment,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { useDashboard } from '@/context/useDashboard';
-import { useAuth } from '@/context/useAuth';
 import {
-  WidgetData,
-  PollConfig,
-  PollVoteDoc,
-  DEFAULT_GLOBAL_STYLE,
-} from '@/types';
+  useGlobalStyle,
+  useDashboardActions,
+} from '@/context/dashboardCanvasStore';
+import { useAuth } from '@/context/useAuth';
+import { WidgetData, PollConfig, PollVoteDoc } from '@/types';
 import { RotateCcw, Radio } from 'lucide-react';
 
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
@@ -26,9 +24,9 @@ import {
 } from '@/components/poll/pollSession';
 
 export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const { updateWidget, activeDashboard } = useDashboard();
+  const { updateWidget } = useDashboardActions();
   const { showConfirm } = useDialog();
-  const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
+  const globalStyle = useGlobalStyle();
   const config = widget.config as PollConfig & { _announcementId?: string };
   const { question = 'Vote Now!', _announcementId } = config;
   const options = useMemo(

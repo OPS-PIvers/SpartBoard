@@ -367,6 +367,16 @@ const InlineTitle: React.FC<{
   const [isEditing, setIsEditing] = useState(autoFocusOnMount);
   const [draft, setDraft] = useState(value);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  // Guards against the stale-onBlur race: pressing Escape calls cancel(),
+  // which calls setIsEditing(false). React batches the update, so the browser
+  // fires a synchronous blur event on the still-mounted input before the new
+  // state commits. The blur's commit() closure sees the pre-cancel draft.
+  // Setting this ref synchronously in cancel() lets commit() short-circuit.
+  const isCancellingRef = useRef(false);
+  // Intentional render-body ref sync (CLAUDE.md pattern): reset when a new
+  // edit session opens so a prior cancel flag doesn't leak across sessions.
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync (CLAUDE.md pattern)
+  if (isEditing) isCancellingRef.current = false;
 
   // Sync local draft when the parent's `value` changes while we're NOT
   // editing (external rename, page switch). Uses the "adjusting state while
@@ -392,11 +402,16 @@ const InlineTitle: React.FC<{
   }, [isEditing]);
 
   const commit = () => {
+    if (isCancellingRef.current) {
+      isCancellingRef.current = false;
+      return;
+    }
     onCommit(draft);
     setIsEditing(false);
   };
 
   const cancel = () => {
+    isCancellingRef.current = true;
     setDraft(value);
     setIsEditing(false);
     onCancel?.();

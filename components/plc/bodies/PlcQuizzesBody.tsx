@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 import { BookOpen, History, Play, Plus, type LucideIcon } from 'lucide-react';
 import { Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
+import { useCanEditPlcContent } from '@/context/usePlcContext';
 import { useQuiz } from '@/hooks/useQuiz';
 import { PlcQuizLibraryBody } from './PlcQuizLibraryBody';
 import { PlcAssignmentsInProgressSubTab } from '@/components/plc/tabs/PlcAssignmentsInProgressSubTab';
@@ -76,6 +77,9 @@ export const PlcQuizzesBody: React.FC<PlcQuizzesBodyProps> = ({
 }) => {
   const { t } = useTranslation();
   const { user, getAssignmentMode } = useAuth();
+  // Viewers can browse the library + assignment history but can't assign new
+  // quizzes (Decision 3.2). Rules hard-deny viewer assignment writes.
+  const canEdit = useCanEditPlcContent();
   const [activeSubTab, setActiveSubTab] = useState<SubTabId>('library');
   // Wizard modal state for the top-level "+ Assign Quiz" CTA. Ported from
   // the former standalone Assignments page, which was collapsed into this
@@ -157,7 +161,7 @@ export const PlcQuizzesBody: React.FC<PlcQuizzesBodyProps> = ({
             );
           })}
         </div>
-        {activeSubTab === 'library' && (
+        {activeSubTab === 'library' && canEdit && (
           <div className="flex items-center gap-2">
             <button
               type="button"

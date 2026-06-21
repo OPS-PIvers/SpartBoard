@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader2, Users2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { Plc } from '@/types';
+import { getPlcMembers } from '@/utils/plc';
 
 interface PlcShareTargetModalProps {
   /** PLCs the user is a current member of. Caller filters; modal renders as-is. */
@@ -130,7 +131,7 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
                 </div>
                 <div className="text-xxs text-slate-500">
                   {t('plcDashboard.shareTargetModal.memberCount', {
-                    count: plc.memberUids.length,
+                    count: getPlcMembers(plc).length,
                     defaultValue: '{{count}} member',
                     defaultValue_other: '{{count}} members',
                   })}

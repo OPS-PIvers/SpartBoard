@@ -24,6 +24,31 @@ Committed on `claude/codebase-improvement-areas-on8n5r` (see the
 | F17 | build       | Align `functions/` devDeps (typescript 5.9.3, vitest 4.1.8) with root            |
 | F19 | build       | Add conservative vitest coverage thresholds (regression floor)                   |
 
+## Shipped (wave 2)
+
+Committed on `claude/docs-folder-optimizations-hvbpkt` (PR #1994):
+
+| ID  | Area        | Summary                                                                                  |
+| --- | ----------- | ---------------------------------------------------------------------------------------- |
+| F1  | ux-a11y     | Raise muted-text contrast to WCAG AA on dark surfaces (`ScaledEmptyState`, GL results)   |
+| F22 | perf        | Memoize `BoardCanvas` `selectedGroupId`/`groupMembers` derivations                       |
+| F10 | data        | Read PLC `sharedSheetUrl` from the live snapshot instead of a per-call `getDoc`          |
+| F21 | data        | Drop admin `orderBy('name')` from the `/plcs` listener (client sort; no custom index)    |
+| F6  | correctness | Canonicalize building IDs in the building-admin `firestore.rules` check                  |
+| F24 | correctness | Bound `plc_invitations` invitee email length (`<= 255`)                                  |
+| F7  | correctness | Scope quiz `deleteHistory` to the removed student's session window on PIN-collision keys |
+| F12 | build       | Split the ~4337-line `functions/src/index.ts` into leaf modules + barrel (exports kept)  |
+| F18 | build       | Single-source `ClassLinkClass`/`ClassLinkUser`/email-filter in `classlinkShared.ts`      |
+| F11 | build       | Split type-aware ESLint into per-tsconfig passes; lower CI heap cap 6144 → 5120          |
+
+## Still deferred
+
+- **F2 — dual-query listener consolidation: BLOCKED.** Still gated on a Firestore
+  backfill that writes `classIds` onto legacy `classId`-only session docs; collapsing
+  the queries before that backfill silently drops assignments. See `02-firestore-cost.md`.
+- **F9, F23, F8** — large whole-tree refactors (context-churn slice, `utils/` regroup,
+  `noUnusedLocals`). Tracked for a dedicated follow-up; see `05-…` / `06-…`.
+
 ## Resolved without code change
 
 - **F5 — per-building dock-defaults "bypass": false positive (won't-fix).** The

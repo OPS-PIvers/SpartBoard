@@ -306,6 +306,14 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "lastWriteAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "plcIndex",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "orgId", "order": "ASCENDING" },
+        { "fieldPath": "buildingId", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
-import { PlcInvitation } from '@/types';
+import { Plc, PlcInvitation } from '@/types';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { getPlcMemberEmails } from '@/utils/plc';
 
@@ -37,6 +37,15 @@ interface SendInviteArgs {
   plcId: string;
   plcName: string;
   inviteeEmail: string;
+  /**
+   * Same-org invite default (PRD §1.1, Decision 1.1). When the inviting PLC's
+   * root doc carries an `orgId`, the caller passes it here so the invite record
+   * is stamped with the same tenancy — making the invite discoverable/scoped to
+   * the org without an extra read of the PLC root. Omit / pass `null` for a
+   * legacy PLC that has no `orgId` yet (the field is then simply absent on the
+   * invite doc).
+   */
+  orgId?: string | null;
 }
 
 interface UsePlcInvitationsResult {
@@ -90,6 +99,9 @@ function parseInvite(
   };
   if (typeof data.respondedAt === 'number') {
     invite.respondedAt = data.respondedAt;
+  }
+  if (typeof data.orgId === 'string' && data.orgId !== '') {
+    invite.orgId = data.orgId;
   }
   return invite;
 }
@@ -195,7 +207,7 @@ export const usePlcInvitations = (
   }, [user, enabled]);
 
   const sendInvite = useCallback(
-    async ({ plcId, plcName, inviteeEmail }: SendInviteArgs) => {
+    async ({ plcId, plcName, inviteeEmail, orgId }: SendInviteArgs) => {
       if (!user) throw new Error('Not signed in');
       const emailLower = inviteeEmail.trim().toLowerCase();
       if (!emailLower || !emailLower.includes('@')) {
@@ -210,6 +222,12 @@ export const usePlcInvitations = (
           ? trimmedDisplayName
           : (user.email ?? 'A teacher');
       const inviteId = plcInvitationDocId(plcId, emailLower);
+      // Same-org invite default: record the inviting PLC's orgId on the invite
+      // when present (only ever write a non-empty string — never `null`/`''`,
+      // so a legacy PLC without tenancy leaves the field absent rather than
+      // stamping a meaningless null). The create rule imposes no
+      // `keys().hasOnly()` lock, so this optional field is permitted.
+      const hasOrg = typeof orgId === 'string' && orgId !== '';
       await setDoc(doc(db, INVITATIONS_COLLECTION, inviteId), {
         plcId,
         plcName,
@@ -218,6 +236,7 @@ export const usePlcInvitations = (
         invitedByName,
         invitedAt: Date.now(),
         status: 'pending',
+        ...(hasOrg ? { orgId } : {}),
       });
     },
     [user, myEmailLower]
@@ -343,6 +362,7 @@ export const usePlcInvitations = (
             sharedSheetUrl?: unknown;
             memberEmails?: Record<string, unknown>;
             memberUids?: unknown;
+            members?: unknown;
             leadUid?: unknown;
             name?: unknown;
             createdAt?: unknown;
@@ -363,6 +383,12 @@ export const usePlcInvitations = (
             const emails = getPlcMemberEmails({
               id: invite.plcId,
               name: typeof data.name === 'string' ? data.name : '',
+              // Pass the canonical members map when present so the helper reads
+              // it; legacy PLCs without it fall back to the arrays below.
+              members:
+                data.members && typeof data.members === 'object'
+                  ? (data.members as Plc['members'])
+                  : {},
               leadUid: typeof data.leadUid === 'string' ? data.leadUid : '',
               memberUids: Array.isArray(data.memberUids)
                 ? data.memberUids.filter(

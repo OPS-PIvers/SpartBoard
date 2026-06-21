@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useDashboard } from '@/context/useDashboard';
-import { WidgetData, ClockConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
+import { useGlobalStyle } from '@/context/dashboardCanvasStore';
+import { WidgetData, ClockConfig } from '@/types';
 import { STANDARD_COLORS } from '@/config/colors';
 
 import { WidgetLayout } from '../WidgetLayout';
 
 export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { i18n } = useTranslation();
-  const { activeDashboard } = useDashboard();
-  const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
+  const globalStyle = useGlobalStyle();
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -59,15 +58,16 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       padding="p-0"
       content={
         <div
-          className={`flex flex-col items-center justify-center h-full w-full gap-[0.5cqh] transition-all duration-500 ${
+          className={`flex flex-col items-center justify-center h-full w-full transition-all duration-500 ${
             clockStyle === 'lcd' ? 'bg-black/5' : ''
           }`}
+          style={{ gap: '1cqmin' }}
         >
           <div
             data-testid="clock-time-container"
             className={`flex items-baseline leading-none transition-all ${getFontClass()} ${getStyleClasses()}`}
             style={{
-              fontSize: showSeconds ? 'min(82cqh, 20cqw)' : 'min(82cqh, 25cqw)',
+              fontSize: showSeconds ? '40cqmin' : '50cqmin',
               color: themeColor,
               textShadow: glow
                 ? `0 0 0.1em ${themeColor}, 0 0 0.25em ${themeColor}66`
@@ -121,8 +121,9 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           </div>
 
           <div
+            data-testid="clock-date"
             className={`opacity-80 uppercase tracking-[0.2em] text-slate-900 ${getFontClass()}`}
-            style={{ fontSize: 'min(12cqh, 80cqw)', fontWeight: 900 }}
+            style={{ fontSize: '12cqmin', fontWeight: 900 }}
           >
             {time.toLocaleDateString(i18n.language, {
               weekday: 'long',

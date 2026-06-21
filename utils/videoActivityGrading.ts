@@ -167,11 +167,26 @@ export function computeVideoActivityScorePct(
  * different denominator and post the wrong fraction. Sharing one helper makes
  * that drift impossible (it previously lived as an inline `reduce(...) || 100`
  * copied across the picker and the Results view).
+ *
+ * Deduplicates by question id — Drive-sync or arrayUnion races can write the
+ * same question id twice. Without the guard the denominator is inflated
+ * (e.g. 4 instead of 2) while `computeVideoActivityScorePct` (which already
+ * deduplicates via a Set<string>) stays correct, producing a fraction > 1 that
+ * rounds to a wrong LMS grade. Mirrors the dedup fence in
+ * `computeVideoActivityScorePct` so the numerator and denominator stay on the
+ * same counting basis.
  */
 export function videoActivityMaxPoints(
   questions: VideoActivityQuestion[]
 ): number {
-  return questions.reduce((sum, q) => sum + (q.points ?? 1), 0) || 100;
+  const seen = new Set<string>();
+  let total = 0;
+  for (const q of questions) {
+    if (seen.has(q.id)) continue;
+    seen.add(q.id);
+    total += q.points ?? 1;
+  }
+  return total || 100;
 }
 
 /**
