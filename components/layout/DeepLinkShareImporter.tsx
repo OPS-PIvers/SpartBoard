@@ -486,8 +486,12 @@ export const DeepLinkShareImporter: React.FC = () => {
         const { shareId } = importModePrompt;
         setImportModePrompt(null);
         addToast('Import canceled.', 'info', {
+          // Route through the ref (like the catch-path Retry) so a Retry
+          // clicked long after cancel runs against the freshest dispatcher —
+          // i.e. the latest `plcs` membership snapshot, not the one captured
+          // when this toast was created.
           label: 'Retry',
-          onClick: () => peekAndDispatchImport(shareId),
+          onClick: () => peekAndDispatchImportRef.current(shareId),
         });
       }}
     />
