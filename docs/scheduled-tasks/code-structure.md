@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-06-13_
+_Last audited: 2026-06-19_
 _Last action: 2026-06-12 — MEDIUM cardOpacity range-check extracted into shared `isCardOpacity` guard in adminBuildingConfig.ts_
 
 ---
@@ -15,6 +15,10 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-19 (action): Resolved the MEDIUM userProfile concurrent-write item. Audit confirmed all `setDoc` writes to `/users/{uid}/userProfile/profile` in both contexts already use `{ merge: true }` (no active bug); documented the field-ownership contract on the `UserProfile` interface in types.ts plus reference comments at both contexts' primary write sites. Moved to Completed. HIGH/MEDIUM large-file extraction items remain BLOCKED (require supervised runtime verification)._
+
+_2026-06-19: Weekly audit pass (Friday). New commits since 2026-06-13: fix(Modal), fix(i18n), fix(widgets) stale onBlur guards (DrawingWidget + SmartNotebook), fix(lti), fix(quizMaxPoints), pr-review batch. DashboardContext.tsx now **5,747 lines** (+25 from 5,722) — minimal growth; BLOCKED extraction status unchanged. Cloud Functions all confirmed v2. No data-fetching duplication in new code. No new deep relative imports. All existing open items re-confirmed valid. 0 new open items._
 
 _2026-06-13: Weekly audit pass (Saturday). Rebase onto dev-paul: pr-review batch 12 PRs, refactor(admin-config) isCardOpacity guard, [AI] wide-distro phases 1-3 (tiering, landing page, rollout form, rollout_requests rules, user tier model, minTier permission gating, google-classroom feature gate), [AI] legal pages, [AI] OAuth scope drops. DashboardContext.tsx now **5,722 lines** (+126 from 5,596 on 2026-06-12) — continued steady growth. Single-use utils list extended: `adminBuildingConfig.ts` (only importer: DashboardContext), `collectionsMigration.ts` (only importer: DashboardContext), `ai_security.ts` (only importer: DashboardContext), `pickInitialBoard.ts` (only importer: DashboardContext), `mapWithConcurrency.ts` (only importer: single util), `pexelsService.ts` (single importer), `googleSession.ts` (single importer), `previewMode.ts` (single importer), `userTier.ts` (single importer) — added to existing LOW single-use-utils item. Cloud Functions confirmed v2. No data-fetching duplication in new contexts (tiering/permission gate added to AuthContext reads featurePermissions already owned there). All existing open items re-confirmed valid. 0 new open items._
 
@@ -60,6 +64,7 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
 ### HIGH `DashboardContext.tsx` grew 1262 lines since May 13 extraction — now 5596 lines
 
 - **Detected:** 2026-05-22
+- **Updated:** 2026-06-19 — file is now **5,747 lines** (+25 from 5,722 on 2026-06-13). New commits: fix(Modal), fix(i18n), fix(widgets) onBlur guards, fix(lti), fix(quizMaxPoints), pr-review batch. Minimal DashboardContext growth this cycle (+25 lines). BLOCKED status unchanged.
 - **Updated:** 2026-06-13 — file is now **5,722 lines** (+126 from 5,596 on 2026-06-12). [AI] wide-distro phases added tiering, minTier permission gating, google-classroom feature gate (+~130 lines). BLOCKED status unchanged.
 - **Updated:** 2026-06-05 — file is now **5,596 lines** (+321 from 5,275 on 2026-05-27). Continued growth despite no new extractions. BLOCKED status unchanged — collections/Drive extraction still requires supervised runtime-verified session.
 - **File:** context/DashboardContext.tsx
@@ -70,13 +75,6 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
   - **`useDashboardDriveSync`** — Drive logic is not one isolated block: the background-export effect (2255–2302) is intertwined with `saveDashboardFirestore` + `scrubDashboardPII`, the PII-restore effect (2319+) mutates widget config, and Drive calls are also embedded in save/share/restore paths (1171–1460). The auth-error handler (615–632) and `useDriveReconnected` latch (2315) are separable but small.
   - **Pure-function seams** — already harvested: `getAdminBuildingConfig` (utils/adminBuildingConfig.ts, May 13), `pickInitialBoard` (utils/pickInitialBoard.ts), migration (utils/migration.ts, migrateProportionalLayout.ts, collectionsMigration.ts). No clean unit-testable pure block remains inline.
   - **Verification gap:** there is no unit-test coverage for the navigation or Drive-sync effects, and no Firebase/Drive runtime in the scheduled-task environment, so `type-check`/`lint`/`vitest` would not catch a navigation, sync-timing, or PII-restore regression on the app's most critical state file. Recommend a dedicated supervised session that can exercise board switching, collection switching, and Drive sync against a live/emulated Firebase project before landing this extraction.
-
-### MEDIUM Concurrent reads and writes to `userProfile` document between `AuthContext` and `DashboardContext`
-
-- **Detected:** 2026-06-10
-- **File:** context/AuthContext.tsx (line 266 approx), context/DashboardContext.tsx (lines 997–998, 1117–1122, 4029–4039)
-- **Detail:** The `/users/{uid}/userProfile/profile` document is read by both contexts on mount and written by both at runtime. `AuthContext` owns `setupCompleted`, `selectedBuildings`, `language`, `savedWidgetConfigs`, `lastBoardIdByCollection`, and related fields. `DashboardContext` reads `dockItems` from the same doc (via `getDoc` at lines 997–998) and writes both `dockItems` and `lastBoardIdByCollection` (lines 1117–1122 and 4029–4039, both using `setDoc({ merge: true })`). The `lastBoardIdByCollection` field is written by DashboardContext (line 4029) and read by AuthContext (line 266) with no coordination. While `{ merge: true }` prevents whole-document overwrites, a race where DashboardContext writes a stale full-document snapshot (if it ever uses `setDoc` without merge) could silently clobber fields owned by AuthContext.
-- **Fix:** Designate a single owning context for the userProfile document. Option A: make `AuthContext` the sole writer (DashboardContext calls an `AuthContext`-provided `updateDockItems` action instead of writing directly). Option B: document the field ownership contract with comments in both files so future developers cannot accidentally add a non-merge write. Short-term: audit every `setDoc` call targeting this path to confirm all use `{ merge: true }` — add a lint comment or assertion if not.
 
 ### LOW Stale v1 `logger` import in `finalizeIdleQuizAttempts.ts`
 
@@ -153,6 +151,14 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
 ---
 
 ## Completed
+
+### MEDIUM Concurrent reads and writes to `userProfile` document between `AuthContext` and `DashboardContext`
+
+- **Detected:** 2026-06-10
+- **Completed:** 2026-06-19
+- **File:** types.ts (UserProfile interface), context/AuthContext.tsx, context/DashboardContext.tsx
+- **Detail:** The `/users/{uid}/userProfile/profile` document is read and written by both contexts. The risk was a future non-merge `setDoc` silently clobbering fields owned by the other context. `AuthContext` owns the account/identity fields (`selectedBuildings`, `language`, `savedWidgetConfigs`, `setupCompleted`, `dockPosition`, `favoriteBackgrounds`, `recentBackgrounds`, etc.); `DashboardContext` owns the board/dock fields (`dockItems`, `libraryOrder`, `dockInitialized`, `lastActiveCollectionId`, `lastBoardIdByCollection`).
+- **Resolution:** Audited every `setDoc` targeting this path in both contexts — **all already use `{ merge: true }`**, so no active clobber bug exists. Implemented the journal's recommended short-term fix (Option B): documented the field-ownership contract as JSDoc on the shared `UserProfile` interface in `types.ts` (the single import point both contexts share), enumerating which context owns which fields and stating the invariant that every write MUST be merge-based. Added concise reference comments at each context's primary write site (DashboardContext dock-persist write; AuthContext account-preferences write) pointing to the contract. Documentation-only change — zero behavioral risk. `pnpm type-check`, `eslint --max-warnings 0`, and `prettier --check` all clean. Option A (single-owner refactor routing dock writes through an Auth-provided action) deliberately not pursued — it would move the dock-persist write path and carries runtime-sync risk not verifiable in this environment; the contract makes the convention enforceable by review instead.
 
 ### MEDIUM `adminBuildingConfig.ts` — `cardOpacity` range-check block copy-pasted 4 times
 

@@ -4,7 +4,9 @@ import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { BuildingSelector } from './BuildingSelector';
 import { NoteGlobalConfig, BuildingNoteDefaults } from '@/types';
 import { STICKY_NOTE_COLORS } from '@/config/colors';
+import { FONTS } from '@/config/fonts';
 import { Card } from '@/components/common/Card';
+import { HexColorField } from './HexColorField';
 
 interface NoteConfigurationPanelProps {
   config: NoteGlobalConfig;
@@ -21,6 +23,12 @@ const FONT_SIZE_OPTIONS = [
   { value: 24, label: 'Large' },
   { value: 32, label: 'X-Large' },
 ];
+
+const VERTICAL_ALIGN_OPTIONS = [
+  { value: 'top', label: 'Top' },
+  { value: 'center', label: 'Center' },
+  { value: 'bottom', label: 'Bottom' },
+] as const;
 
 export const NoteConfigurationPanel: React.FC<NoteConfigurationPanelProps> = ({
   config,
@@ -53,6 +61,7 @@ export const NoteConfigurationPanel: React.FC<NoteConfigurationPanelProps> = ({
   const activeColor =
     currentBuildingConfig.bgColor ?? STICKY_NOTE_COLORS.yellow;
   const activeFontSize = currentBuildingConfig.fontSize ?? 18;
+  const activeVerticalAlign = currentBuildingConfig.verticalAlign ?? 'center';
 
   return (
     <div className="space-y-6">
@@ -117,6 +126,69 @@ export const NoteConfigurationPanel: React.FC<NoteConfigurationPanelProps> = ({
               >
                 {label}
                 <span className="block text-xxs opacity-70">{value}px</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Default Font Family */}
+        <div>
+          <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
+            Default Font Family
+          </label>
+          <select
+            value={currentBuildingConfig.fontFamily ?? 'global'}
+            onChange={(e) => {
+              const selected = e.target.value;
+              handleUpdateBuilding({
+                // 'global' is the "inherit the dashboard font" sentinel —
+                // persist it as undefined so saved configs only ever hold a
+                // concrete FONTS id (mirrors TypographySettings behaviour).
+                fontFamily: selected === 'global' ? undefined : selected,
+              });
+            }}
+            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+          >
+            {FONTS.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.id === 'global'
+                  ? 'Global (Dashboard default)'
+                  : `${f.label} (${f.icon})`}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Default Text Color */}
+        <div>
+          <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
+            Default Text Color
+          </label>
+          <HexColorField
+            value={currentBuildingConfig.fontColor}
+            onChange={(fontColor) => handleUpdateBuilding({ fontColor })}
+            fallback="#334155"
+            ariaLabel="Pick default note text color"
+          />
+        </div>
+
+        {/* Default Vertical Alignment */}
+        <div>
+          <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
+            Default Vertical Alignment
+          </label>
+          <div className="flex gap-1.5">
+            {VERTICAL_ALIGN_OPTIONS.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => handleUpdateBuilding({ verticalAlign: value })}
+                className={`flex-1 py-1.5 text-xxs font-bold rounded-lg border transition-colors ${
+                  activeVerticalAlign === value
+                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {label}
               </button>
             ))}
           </div>
