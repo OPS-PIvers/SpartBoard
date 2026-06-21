@@ -64,10 +64,21 @@ const extractToken = (): string => {
  * `createOrganizationInvites` carry the orgId so the claim targets the right
  * org without a domain lookup — which matters for a newly-onboarded org whose
  * domain isn't verified yet. Empty string for legacy links that predate it.
+ *
+ * The value is stripped to Firestore-doc-id-safe slug chars: org ids are slugs
+ * (e.g. `orono`), so this is lossless for real values, while a crafted value
+ * containing `/` (which would build a malformed Firestore path inside
+ * `claimOrganizationInvite` and surface as a thrown error) degrades to a clean
+ * "invite not found" instead.
  */
 const extractOrgId = (): string => {
   if (typeof window === 'undefined') return '';
-  return new URLSearchParams(window.location.search).get('org')?.trim() ?? '';
+  return (
+    new URLSearchParams(window.location.search)
+      .get('org')
+      ?.trim()
+      .replace(/[^a-zA-Z0-9_-]/g, '') ?? ''
+  );
 };
 
 type ClaimStatus =
