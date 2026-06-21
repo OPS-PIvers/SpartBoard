@@ -11,9 +11,33 @@ import { APP_NAME } from '@/config/constants';
 import { functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 
-// Phase 4 hardcodes the org id to match AuthContext's DEFAULT_ORG_ID.
-// Multi-org support is an open question tracked in the implementation plan.
-const DEFAULT_ORG_ID = 'orono';
+// Resilience fallback only. The org a user is claiming an invite for is
+// resolved dynamically from their verified email domain via `resolveOrgForUser`
+// (see `resolveInviteOrgId`); this operator-org id is used solely if that
+// resolution is unavailable, so existing internal invites keep working.
+const OPERATOR_ORG_ID = 'orono';
+
+/**
+ * Resolves which org the signed-in invitee belongs to, from their verified
+ * email domain. Returns the operator org as a resilience fallback if the
+ * resolver call fails (mid-deploy / transient outage) so internal invites
+ * never break. A cross-domain invite (invitee's domain maps to a different
+ * org, or none) is the one case this can't cover — those resolve via the
+ * email domain, matching how membership is resolved everywhere else.
+ */
+const resolveInviteOrgId = async (): Promise<string> => {
+  try {
+    const callable = httpsCallable<unknown, { orgId: string | null }>(
+      functions,
+      'resolveOrgForUser'
+    );
+    const { data } = await callable({});
+    return data?.orgId ?? OPERATOR_ORG_ID;
+  } catch (error) {
+    console.error('Invite org resolution failed; using operator org:', error);
+    return OPERATOR_ORG_ID;
+  }
+};
 
 /**
  * Extract the invite token from the current URL.
@@ -241,11 +265,12 @@ export const InviteAcceptance: React.FC = () => {
 
     const run = async () => {
       try {
+        const orgId = await resolveInviteOrgId();
         const claim = httpsCallable<
           { token: string; orgId: string },
           { ok: true }
         >(functions, 'claimOrganizationInvite');
-        await claim({ token, orgId: DEFAULT_ORG_ID });
+        await claim({ token, orgId });
         setStatus({ kind: 'success' });
         // Brief success state before dropping the user into the app.
         window.setTimeout(() => {

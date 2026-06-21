@@ -100,26 +100,61 @@ const DOCK_COLOR_OPTIONS: { label: string; value: string }[] = [
   { label: 'Red', value: '#7a1718' },
 ];
 
-// ─── Step indicator ───────────────────────────────────────────────────────────
+// ─── Step model ───────────────────────────────────────────────────────────────
 
-const STEPS = [
-  { label: 'Your School', icon: Building2 },
-  { label: 'Your Style', icon: Palette },
-  { label: 'Your Dock', icon: LayoutGrid },
-];
+type StepKind = 'buildings' | 'style' | 'dock';
+
+const STEP_DEFS: Record<
+  StepKind,
+  { label: string; icon: typeof Building2; heading: string; subtitle: string }
+> = {
+  buildings: {
+    label: 'Your School',
+    icon: Building2,
+    heading: 'Welcome!',
+    subtitle: 'Which school(s) do you teach at?',
+  },
+  style: {
+    label: 'Your Style',
+    icon: Palette,
+    heading: 'Make it yours',
+    subtitle: 'Customize fonts and window style.',
+  },
+  dock: {
+    label: 'Your Dock',
+    icon: LayoutGrid,
+    heading: 'Your go-to tools',
+    subtitle: 'Pick the widgets you reach for most.',
+  },
+};
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export const NewUserSetup: React.FC = () => {
-  const { user, setSelectedBuildings, completeSetup } = useAuth();
+  const { user, setSelectedBuildings, completeSetup, orgId } = useAuth();
   const { setGlobalStyle } = useDashboard();
   const { reorderDockItems } = useToolVisibility();
+
+  // Buildings are an organization concept: the picker only lists buildings
+  // configured for the user's org. A user with no org (an external/free user
+  // whose domain isn't registered to a district) has no buildings to choose
+  // from, so we skip that step entirely rather than forcing them to pick from
+  // a fallback seed list that belongs to a different district.
+  const includeBuildingStep = orgId !== null;
+  const stepKinds = useMemo<StepKind[]>(
+    () =>
+      includeBuildingStep ? ['buildings', 'style', 'dock'] : ['style', 'dock'],
+    [includeBuildingStep]
+  );
 
   const [step, setStep] = useState(0);
   const [selectedBuildings, setLocalBuildings] = useState<string[]>([]);
   const [style, setStyle] = useState<GlobalStyle>({ ...DEFAULT_GLOBAL_STYLE });
   const [dockTypes, setDockTypes] = useState<WidgetType[]>(DEFAULT_DOCK_TYPES);
   const [finishing, setFinishing] = useState(false);
+
+  const currentKind = stepKinds[step];
+  const isLastStep = step === stepKinds.length - 1;
 
   // ── Step 0 helpers ──────────────────────────────────────────────────────────
   const toggleBuilding = (id: string) => {
@@ -189,7 +224,10 @@ export const NewUserSetup: React.FC = () => {
     }
   };
 
-  const canAdvance = step === 0 ? selectedBuildings.length > 0 : true;
+  // Building selection is required only on the buildings step; every other
+  // step can always advance.
+  const canAdvance =
+    currentKind === 'buildings' ? selectedBuildings.length > 0 : true;
 
   const firstName = user?.displayName?.split(' ')[0] ?? 'there';
 
@@ -206,26 +244,24 @@ export const NewUserSetup: React.FC = () => {
             </span>
           </div>
           <h1 className="text-3xl font-bold text-white font-sans">
-            {step === 0 && `Welcome, ${firstName}!`}
-            {step === 1 && 'Make it yours'}
-            {step === 2 && 'Your go-to tools'}
+            {step === 0
+              ? `Welcome, ${firstName}!`
+              : STEP_DEFS[currentKind].heading}
           </h1>
           <p className="text-white/70 mt-1 text-sm">
-            {step === 0 && 'Which school(s) do you teach at?'}
-            {step === 1 && 'Customize fonts and window style.'}
-            {step === 2 && 'Pick the widgets you reach for most.'}
+            {STEP_DEFS[currentKind].subtitle}
           </p>
         </div>
 
         {/* Step indicator */}
         <div className="flex border-b border-slate-700">
-          {STEPS.map((s, i) => {
-            const Icon = s.icon;
+          {stepKinds.map((kind, i) => {
+            const Icon = STEP_DEFS[kind].icon;
             const isComplete = i < step;
             const isActive = i === step;
             return (
               <div
-                key={s.label}
+                key={kind}
                 className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-medium transition-colors ${
                   isActive
                     ? 'text-blue-400 border-b-2 border-blue-400'
@@ -239,7 +275,7 @@ export const NewUserSetup: React.FC = () => {
                 ) : (
                   <Icon className="w-4 h-4" />
                 )}
-                {s.label}
+                {STEP_DEFS[kind].label}
               </div>
             );
           })}
@@ -247,14 +283,16 @@ export const NewUserSetup: React.FC = () => {
 
         {/* Step content */}
         <div className="flex-1 overflow-y-auto p-8 min-h-[320px]">
-          {step === 0 && (
+          {currentKind === 'buildings' && (
             <StepBuildings
               selected={selectedBuildings}
               onToggle={toggleBuilding}
             />
           )}
-          {step === 1 && <StepAppearance style={style} onChange={setStyle} />}
-          {step === 2 && (
+          {currentKind === 'style' && (
+            <StepAppearance style={style} onChange={setStyle} />
+          )}
+          {currentKind === 'dock' && (
             <StepDock
               dockTypes={dockTypes}
               onToggle={toggleDockType}
@@ -275,9 +313,9 @@ export const NewUserSetup: React.FC = () => {
           </button>
 
           <div className="flex gap-1.5">
-            {STEPS.map((_, i) => (
+            {stepKinds.map((kind, i) => (
               <div
-                key={i}
+                key={kind}
                 className={`rounded-full transition-all ${
                   i === step
                     ? 'w-5 h-2 bg-blue-400'
@@ -289,7 +327,7 @@ export const NewUserSetup: React.FC = () => {
             ))}
           </div>
 
-          {step < STEPS.length - 1 ? (
+          {!isLastStep ? (
             <button
               onClick={() => setStep((s) => s + 1)}
               disabled={!canAdvance}
