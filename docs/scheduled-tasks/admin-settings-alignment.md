@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-06-14_
+_Last audited: 2026-06-21_
 _Last action: 2026-06-14_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-21 audit notes (Sunday): Full 17-widget cross-check covering Checklist, Scoreboard, Countdown, LunchCount, ExpectationsWidget, SpecialistSchedule, SeatingChart, DrawingWidget, TextWidget, RevealGrid, ConceptWeb, Weather, UrlWidget, PollWidget, ClockWidget, Stations, TimeTool. Key new findings: (1) TextWidget — Settings.tsx exposes content/bgColor/fontSize/fontFamily/fontColor/textSizePreset/verticalAlign (7 fields), but only bgColor+fontSize in getAdminBuildingConfig and NO admin ConfigurationPanel exists. MEDIUM new item logged. (2) TimeTool — Settings exposes 15 configurable fields (mode, visualType, duration, selectedSound, timerEnd\* chain, themeColor, glow, fontFamily) but only 3 are in getAdminBuildingConfig (duration, elapsedTime, timerEndTrafficColor). MEDIUM new item logged. (3) LunchCount, ExpectationsWidget, SpecialistSchedule, Weather — none have a case in getAdminBuildingConfig; admin panels for these widgets are global-only (API config or option overrides), not building-level instance defaults. LOW items logged. (4) Countdown: eventColor field in types.ts never implemented anywhere (no UI, no admin wiring). LOW item logged. (5) SeatingChart: only rosterMode covered in getAdminBuildingConfig out of 7 config fields. LOW item logged. (6) Clock: showSeconds user-configurable but absent from admin building defaults. LOW item logged. (7) Checklist: completedNames in types.ts config but no UI and no admin coverage (dead field). LOW item logged. All pre-existing open items (SmartNotebook dead appearance controls, Checklist rosterMode, Drawing shapeFill, Scoreboard layout, guided-learning stub) remain unresolved._
 
 _2026-06-14 audit notes (Sunday): Full cross-check of commits since 2026-06-07 (Remote v2 series, wide-distro anonymous-join + user-tier gating, GL media pipeline overhaul, per-slide playback-range trim, GL PR review fixes, TimeTool i18n, bug fixes). Key findings: (1) GL media pipeline (013c58d3) added `GuidedLearning/Settings.tsx` (new file) — panel is stub-only ("Use the main widget panel…"; "Go to Library" button only), no new building-config fields needed. GuidedLearningConfig has no new per-building-defaultable fields in this commit. The existing LOW open item for the GL stub admin panel remains. (2) GL per-slide playback-range trim (d964872d) added `videoTrims` to `GuidedLearningSet` — this is a Firestore document field (per-set, not per-widget), not a widget config field; no building-config impact. (3) TimeTool i18n (bcfde20a) replaced 4 hardcoded strings with t() keys in `TimeTool/Settings.tsx` — string extraction only, no new config fields. (4) Wide-distro user tier (20a5dc17) added `utils/userTier.ts` + `userTier` field to `AuthContextValue` — this is auth state, not widget config. (5) Wide-distro anonymous join (885ea0b6) changed ActivityWall/Widget.tsx (adding join-link UI), types.ts (GlobalFeaturePermission minTier/userTiers fields) — no new widget-config building-default impact. (6) Checklist `rosterMode` status re-verified: `case 'checklist'` in adminBuildingConfig.ts handles items/scaleMultiplier/fontFamily/cardColor/cardOpacity/fontColor — no rosterMode. `BuildingChecklistDefaults` interface confirmed: buildingId/items/scaleMultiplier/fontFamily/fontColor/cardColor/cardOpacity (no rosterMode). The LOW open item remains valid. All other existing open items (MEDIUM: need-do-put-then stub; LOWs: SmartNotebook dead controls, Drawing shapeFill, Scoreboard layout) also remain unresolved. No new items found._
 
@@ -29,6 +31,76 @@ _2026-06-04 action notes: Selected the MEDIUM appearance-settings group (highest
 _2026-05-31 audit notes: Reviewed all changes since 2026-05-24. (1) Scoreboard gained `layout?: 'cards' | 'rows'` in `ScoreboardConfig` (commit 4f5d2bb6) — added as a user-configurable toggle in Settings.tsx. `BuildingScoreboardDefaults` does not include `layout`; `ScoreboardConfigurationPanel.tsx` exposes only team defaults; `case 'scoreboard':` in `adminBuildingConfig.ts` passes through only `teams`. New LOW gap added. (2) Classroom-addon commits (VA grade push, grade passback, assignment settings, PLC parity) added `ClassroomAddonContext`, `ClassroomCourseWork`, and session types to types.ts — none are widget-config fields; no building defaults impact. (3) Notebook fix (#1759) and Spotify fix (#1758) are logic-only; no config changes. (4) NumberLine ConfigurationPanel fix already captured in Completed. No new HIGH or MEDIUM items._
 
 _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget gained `source` (curated/personal/curated-spotify), `layout`, and `personalSpotify*` fields in MusicConfig — these are user-level preferences; personal-spotify access is gated via `canAccessFeature('personal-spotify')` (GlobalFeaturePermission + `buildings?:string[]`), not through building defaults. No building-defaults admin config needed for music. (2) QuizBehaviorSettings added new behavior fields to QuizConfig and VideoActivityConfig — quiz behavior is set per-quiz in the quiz editor, not per-building. No building defaults needed. (3) `refactor(admin)` commit (31e46ad3) removed magic/record/remote panels — already captured in Completed item. (4) SmartNotebook continues to accumulate features but its existing open item (appearance fields gap) covers the new work. No new MEDIUM or HIGH items. One new LOW item added (guided-learning stub panel)._
+
+### MEDIUM TextWidget has no admin ConfigurationPanel and only partial getAdminBuildingConfig coverage
+
+- **Detected:** 2026-06-21
+- **File:** components/widgets/TextWidget/ (no ConfigurationPanel), utils/adminBuildingConfig.ts (case 'text'), types.ts (TextConfig)
+- **Detail:** `TextWidget/Settings.tsx` exposes 7 configurable fields: `content`, `bgColor`, `fontSize`, `fontFamily`, `fontColor`, `textSizePreset`, `verticalAlign`. Only `bgColor` and `fontSize` are handled in the `case 'text':` block in `getAdminBuildingConfig()`. No `TextConfigurationPanel.tsx` exists in `components/admin/`, so the admin panel falls through to the standard "No global settings available" placeholder. Admins cannot pre-configure font, text color, text size preset, or vertical alignment per building — three of the four shared appearance primitives are unaddressed.
+- **Fix:** Option (a) — create `TextConfigurationPanel.tsx` following the pattern of `StationsConfigurationPanel.tsx` (building selector + font family / text size preset / text colour / surface opacity). Wire the appearance fields into `getAdminBuildingConfig()` case `'text'` with standard validation (`isGlobalFontFamily`, `isHexColor`, `isCardOpacity`, preset enum membership). Add a `BuildingTextDefaults` interface to types.ts extending the existing `Pick<TextConfig, 'bgColor' | 'fontSize'>` to also cover the appearance fields. Register the panel in `BUILDING_CONFIG_PANELS` in `FeatureConfigurationPanel.tsx`.
+
+### MEDIUM TimeTool has only 20% admin building config coverage (3 of 15 user-configurable fields)
+
+- **Detected:** 2026-06-21
+- **File:** utils/adminBuildingConfig.ts (case 'time-tool'), components/admin/TimeToolConfigurationPanel.tsx, types.ts (TimeToolConfig / BuildingTimeToolDefaults)
+- **Detail:** `TimeTool/Settings.tsx` exposes 15+ configurable fields: `mode`, `visualType`, `duration`, `elapsedTime`, `isRunning`, `startTime`, `selectedSound`, `timerEndVoiceLevel`, `timerEndTrafficColor`, `timerEndTriggerRandom`, `timerEndTriggerNextUp`, `timerEndTriggerStationsRotate`, `themeColor`, `glow`, `fontFamily`. Only 3 of these are covered in `getAdminBuildingConfig()` case `'time-tool'`: `duration`, `elapsedTime`, `timerEndTrafficColor`. `TimeToolConfigurationPanel.tsx` exists in `components/admin/` but does not expose any of the omitted fields. The most useful building-level defaults (mode, visualType, selectedSound, themeColor, glow, fontFamily) are not pre-configurable.
+- **Fix:** Extend `BuildingTimeToolDefaults` in types.ts to include at minimum: `mode` (`'timer' | 'stopwatch' | 'clock'`), `visualType`, `selectedSound`, `themeColor`, `glow`, `fontFamily`. Add extraction + validation for each in the `case 'time-tool':` handler in `adminBuildingConfig.ts`. Expand `TimeToolConfigurationPanel.tsx` with controls for these fields (mode selector pill, sound selector, colour picker, glow toggle, font family selector) following the existing panel's visual style.
+
+### LOW LunchCount not in getAdminBuildingConfig — no per-building instance defaults possible
+
+- **Detected:** 2026-06-21
+- **File:** utils/adminBuildingConfig.ts (no case 'lunchCount'), components/admin/LunchCountConfigurationPanel.tsx, types.ts (LunchCountConfig)
+- **Detail:** `LunchCountConfigurationPanel.tsx` exists and handles global API configuration (schoolSite, isManualMode, manualHotLunch, manualBentoBox defaults), but it writes to global feature permissions config — not to per-building building defaults. There is no `case 'lunchCount':` in `getAdminBuildingConfig()`. Widget user Settings expose `schoolSite`, `isManualMode`, `rosterMode`, `gradeLevel`, `lunchTimeHour`, `lunchTimeMinute` plus appearance fields — none can be pre-configured per building. LunchCount is a highly building-specific widget (school sites, lunch times, grade levels vary per building).
+- **Fix:** Add a `BuildingLunchCountDefaults` interface to types.ts covering at minimum: `lunchTimeHour`, `lunchTimeMinute`, `gradeLevel`, and appearance fields. Add a `case 'lunchCount':` handler to `getAdminBuildingConfig()`. Extend `LunchCountConfigurationPanel.tsx` with a building-selector section for per-building defaults (distinct from the existing global API config section).
+
+### LOW ExpectationsWidget not in getAdminBuildingConfig — admin panel only handles option overrides, not instance defaults
+
+- **Detected:** 2026-06-21
+- **File:** utils/adminBuildingConfig.ts (no case 'expectations'), components/admin/ExpectationsConfigurationPanel.tsx, types.ts (ExpectationsConfig)
+- **Detail:** `ExpectationsConfigurationPanel.tsx` handles option-level overrides (volumeOverrides, groupOverrides — which categories are visible/labelled per building). However, there is no `case 'expectations':` in `getAdminBuildingConfig()`, so new widget instances cannot be pre-seeded with building defaults. `ExpectationsConfig` fields like `syncSoundWidget` and the active routine configuration cannot be pre-configured. Teachers add the widget and get generic defaults regardless of building.
+- **Fix:** Add `case 'expectations':` to `getAdminBuildingConfig()` covering at minimum `syncSoundWidget` (boolean). Consider whether any of the `voiceLevel`/`workMode`/`interactionMode` defaults should also be seedable (vs. controlled exclusively through the option-override system).
+
+### LOW SpecialistSchedule not in getAdminBuildingConfig — appearance defaults cannot be pre-configured
+
+- **Detected:** 2026-06-21
+- **File:** utils/adminBuildingConfig.ts (no case 'specialist-schedule'), types.ts (SpecialistScheduleConfig)
+- **Detail:** `SpecialistSchedule/Settings.tsx` exposes `fontFamily`, `fontColor`, `textSizePreset`, `cardColor`, `cardOpacity` as user-configurable appearance fields. There is no `case 'specialist-schedule':` in `getAdminBuildingConfig()` and no `BuildingSpecialistScheduleDefaults` interface. `SpecialistScheduleConfigurationModal.tsx` in components/admin/ appears to handle schedule setup only — not building-level appearance defaults. Teachers cannot get pre-styled specialist-schedule widgets.
+- **Fix:** Add `BuildingSpecialistScheduleDefaults` to types.ts covering the five appearance fields. Add `case 'specialist-schedule':` to `getAdminBuildingConfig()` with standard validation. Extend the admin panel or create a dedicated appearance section following the Stations/NeedDoPutThen pattern.
+
+### LOW Weather not in getAdminBuildingConfig — no building-level appearance or location defaults
+
+- **Detected:** 2026-06-21
+- **File:** utils/adminBuildingConfig.ts (no case 'weather'), components/admin/AdminWeatherFetcher.tsx, types.ts (WeatherConfig)
+- **Detail:** `AdminWeatherFetcher.tsx` handles global weather API configuration only (not building-level). There is no `case 'weather':` in `getAdminBuildingConfig()`. `WeatherConfig` exposes appearance fields (`fontFamily`, `fontColor`, `cardColor`, `cardOpacity`) plus display preferences (`showFeelsLike`, `hideClothing`, `syncBackground`) that could usefully be pre-set per building — for example, all teachers at a given school could default to the same weather source and display format.
+- **Fix:** Add `BuildingWeatherDefaults` to types.ts covering appearance fields and display preferences. Add `case 'weather':` to `getAdminBuildingConfig()`. Create a `WeatherConfigurationPanel.tsx` for building-level appearance/display defaults (distinct from the global API-key panel).
+
+### LOW SeatingChart: only rosterMode covered in getAdminBuildingConfig (1 of 7 config fields)
+
+- **Detected:** 2026-06-21
+- **File:** utils/adminBuildingConfig.ts (case 'seating-chart'), types.ts (SeatingChartConfig / BuildingSeatingChartDefaults)
+- **Detail:** `SeatingChartConfig` has fields: `furniture`, `assignments`, `gridSize`, `rosterMode`, `names`, `template`, `templateColumns`. Only `rosterMode` is handled in `getAdminBuildingConfig()` case `'seating-chart'`. The `template` and `templateColumns` fields (which control the default layout grid) and `gridSize` are not pre-configurable per building. A school district might want to default all classrooms to a specific seating template. `SeatingChartConfigurationPanel.tsx` exists in components/admin/ but also only exposes rosterMode.
+- **Fix:** Extend `BuildingSeatingChartDefaults` in types.ts to include `template` and `templateColumns` (or `gridSize`). Add extraction/validation in the `case 'seating-chart':` handler. Add template/layout controls to `SeatingChartConfigurationPanel.tsx`.
+
+### LOW Countdown: `eventColor` defined in types.ts but never implemented anywhere (dead field)
+
+- **Detected:** 2026-06-21
+- **File:** types.ts (CountdownConfig.eventColor), components/widgets/Countdown/Settings.tsx, components/widgets/Countdown/Widget.tsx
+- **Detail:** `CountdownConfig` includes an `eventColor` field in types.ts. Neither `Countdown/Settings.tsx` nor `Countdown/Widget.tsx` reference this field — it is not exposed as a user control and never read during rendering. It is also absent from `BuildingCountdownDefaults` and from the `case 'countdown':` handler in `adminBuildingConfig.ts`. The field is a dead declaration that clutters the type and may confuse developers.
+- **Fix:** Option (a) — implement it: add a color picker for "Event Color" in Settings.tsx and consume it in Widget.tsx (e.g., to color the event-name text or the "days remaining" number). Also add it to `BuildingCountdownDefaults` and `getAdminBuildingConfig()`. Option (b) — remove it: delete `eventColor` from `CountdownConfig` in types.ts if there is no planned use.
+
+### LOW Clock: `showSeconds` user-configurable but absent from admin building defaults
+
+- **Detected:** 2026-06-21
+- **File:** types.ts (ClockConfig / BuildingClockDefaults), utils/adminBuildingConfig.ts (case 'clock'), components/admin/ClockConfigurationPanel.tsx
+- **Detail:** `ClockConfig.showSeconds` (boolean) is exposed as a toggle in `ClockSettings.tsx` and consumed by `ClockWidget.tsx`. However, `BuildingClockDefaults` does not include `showSeconds`, and the `case 'clock':` handler in `adminBuildingConfig.ts` does not extract it. `ClockConfigurationPanel.tsx` has no "Show Seconds" toggle. The existing covered fields are `format24`, `fontFamily`, `themeColor`, `clockStyle`, `glow` — all five were wired in the MEDIUM fix (2026-05-24). `showSeconds` was missed.
+- **Fix:** Add `showSeconds?: boolean` to `BuildingClockDefaults` in types.ts. Add `showSeconds` extraction (`typeof === 'boolean'` check) to the `case 'clock':` handler in `adminBuildingConfig.ts`. Add a "Show Seconds" toggle to `ClockConfigurationPanel.tsx` following the existing "24-Hour Format" toggle pattern.
+
+### LOW Checklist: `completedNames` defined in types.ts but has no UI and no admin coverage (dead field)
+
+- **Detected:** 2026-06-21
+- **File:** types.ts (ChecklistConfig.completedNames), components/widgets/Checklist/Settings.tsx, components/widgets/Checklist/Widget.tsx
+- **Detail:** `ChecklistConfig` in types.ts includes a `completedNames` field. Neither `Checklist/Settings.tsx` nor `Checklist/Widget.tsx` expose or consume this field — it is not a user-visible control and appears to be a dead declaration. It is also absent from `BuildingChecklistDefaults` and the `case 'checklist':` handler in `adminBuildingConfig.ts`.
+- **Fix:** Option (a) — implement it: if `completedNames` is intended to track which names have been checked off (for roster-mode persistence), wire it up as a runtime state field updated via `updateWidget()` when items are toggled. Option (b) — remove it: if this was a planning stub that was never developed, delete `completedNames` from `ChecklistConfig` in types.ts to keep the interface clean.
 
 ### LOW SmartNotebook appearance controls (cardColor/cardOpacity/fontFamily/fontColor) are dead — not consumed by the widget
 

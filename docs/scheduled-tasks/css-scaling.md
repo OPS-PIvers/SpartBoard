@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-20_
+_Last audited: 2026-06-21_
 _Last action: 2026-06-18_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-21: Full scan of all Widget.tsx files. New commits since 2026-06-20: fix(widgets/expectations) use shared Toggle in Settings panel (settings panel back-face only, CQ scaling rules do not apply). No widget front-face content changes. Re-verified all four pre-existing open items (EmbedWidget portaled toolbar, QuizResults period-filter, RevealGrid spacing, multi-widget group, MiniApp dialog). All confirmed present and unresolved. Zero new anti-patterns detected._
 
 _2026-06-20: Full scan of all Widget.tsx files. New commits since 2026-06-19: docs(userProfile) field-ownership contract (docs only). No widget front-face content changes. Re-verified three previously-documented WON'T FIX items: (1) ActivityWall/Widget.tsx modal max-h-[75vh] — viewport-scoped modal outside CQ context, correct; (2) MusicWidget max-w-[85%] — structural truncation guard on flex-child label, acceptable; (3) RecessGear max-w-[70%] — identical pattern, acceptable. All three documented in prior journal entries. No new anti-patterns detected. All pre-existing open items remain valid. Zero new items._
 

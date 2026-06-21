@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-20_
+_Last audited: 2026-06-21_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-21: Full audit. New commits since 2026-06-20: fix(widgets/expectations) use shared Toggle in Settings panel (UI-only, no registry impact), audit(saturday) journal updates (docs only). No changes to types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations. All sampled lazyNamed() export names verified correct. pnpm type-check (exit 0) and pnpm lint (exit 0) both clean. Zero new gaps._
 
 _2026-06-20: Full audit. New commits since 2026-06-19: docs(userProfile) field-ownership contract between Auth/Dashboard contexts (docs only). No changes to types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations. reveal-grid exports generic 'Widget' via index.ts barrel re-export — confirmed intentional. pnpm type-check and pnpm lint both clean. Zero new gaps._
 

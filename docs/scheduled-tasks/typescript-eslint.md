@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-20_
+_Last audited: 2026-06-21_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-21. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). New commits since 2026-06-20: fix(widgets/expectations) use shared Toggle in Settings panel. The change replaces an inline toggle implementation in ExpectationsWidget/Settings.tsx with the shared `Toggle` component from components/common/ — no new type errors or lint violations introduced. Codebase remains fully type-safe and lint-clean._
 
 _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-20. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). New commits since 2026-06-19: docs(userProfile) field-ownership contract (docs only). No source code changes to validate. Codebase remains fully type-safe and lint-clean._
 
