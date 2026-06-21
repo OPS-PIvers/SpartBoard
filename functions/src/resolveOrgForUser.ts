@@ -33,24 +33,33 @@ export interface ResolveOrgForUserResponse {
 }
 
 /**
- * Picks the domain (`@example.com`, lowercased) to resolve against, preferring
- * the Workspace-issued `hd` claim and falling back to the email suffix — the
- * exact precedence `studentLoginV1` uses. Returns null when neither yields a
- * usable domain. Pure so the precedence is unit-testable without the Admin SDK.
+ * Builds the ordered list of domains (`@example.com`, lowercased) to try, in
+ * precedence order: the Workspace-issued `hd` claim first, then the email
+ * suffix. This mirrors `studentLoginV1`, which resolves the `hd` domain and
+ * FALLS BACK to the email domain when `hd` isn't registered (the `hd` claim is
+ * not guaranteed on every Workspace configuration, and a user's primary email
+ * domain can differ from `hd`). Duplicates are dropped so a typical user
+ * (where `hd` == email domain) costs a single lookup. Pure so the precedence
+ * is unit-testable without the Admin SDK.
  */
-export function resolveDomainFromClaims(
+export function resolveDomainCandidates(
   hd: string | undefined,
   email: string | undefined
-): string | null {
+): string[] {
+  const candidates: string[] = [];
   const hdDomain =
     typeof hd === 'string' && hd.trim().length > 0
       ? '@' + hd.trim().toLowerCase()
       : null;
-  if (hdDomain) return hdDomain;
-  if (typeof email === 'string' && email.length > 0) {
-    return normalizeEmailDomain(email);
+  if (hdDomain) candidates.push(hdDomain);
+  const emailDomain =
+    typeof email === 'string' && email.length > 0
+      ? normalizeEmailDomain(email)
+      : null;
+  if (emailDomain && !candidates.includes(emailDomain)) {
+    candidates.push(emailDomain);
   }
-  return null;
+  return candidates;
 }
 
 export const resolveOrgForUser = onCall(
@@ -69,15 +78,20 @@ export const resolveOrgForUser = onCall(
     // Read the domain from the verified token ONLY — never from request.data —
     // so the resolution is always scoped to the caller's own identity.
     const token = request.auth.token as { email?: string; hd?: string };
-    const domain = resolveDomainFromClaims(token.hd, token.email);
-    if (!domain) {
+    const candidates = resolveDomainCandidates(token.hd, token.email);
+    if (candidates.length === 0) {
       // No usable domain (e.g. anonymous/SSO-student token with no email
       // claim). No org to resolve — free tier.
       return { orgId: null };
     }
 
     const db = admin.firestore();
-    const orgId = await resolveOrgIdForDomain(db, domain);
-    return { orgId };
+    // Try `hd` first, then the email domain — first registered match wins.
+    // At most two sequential lookups (usually one after dedup).
+    for (const domain of candidates) {
+      const orgId = await resolveOrgIdForDomain(db, domain);
+      if (orgId) return { orgId };
+    }
+    return { orgId: null };
   }
 );

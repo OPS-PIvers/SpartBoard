@@ -37,32 +37,38 @@ vi.mock('./classlinkShared', () => ({
 }));
 
 import {
-  resolveDomainFromClaims,
+  resolveDomainCandidates,
   resolveOrgForUser,
 } from './resolveOrgForUser';
 
 type Handler = (request: unknown) => Promise<{ orgId: string | null }>;
 
-describe('resolveDomainFromClaims', () => {
-  it('prefers the Workspace hd claim, lowercased with a leading @', () => {
+describe('resolveDomainCandidates', () => {
+  it('orders the hd claim first, then the email domain (both lowercased)', () => {
     expect(
-      resolveDomainFromClaims('Orono.K12.MN.US', 'teacher@elsewhere.com')
-    ).toBe('@orono.k12.mn.us');
+      resolveDomainCandidates('HD-Domain.com', 'teacher@Example.ORG')
+    ).toEqual(['@hd-domain.com', '@example.org']);
   });
 
-  it('falls back to the email suffix when hd is absent', () => {
-    expect(resolveDomainFromClaims(undefined, 'Teacher@Example.ORG')).toBe(
-      '@example.org'
-    );
+  it('falls back to only the email suffix when hd is absent', () => {
+    expect(resolveDomainCandidates(undefined, 'Teacher@Example.ORG')).toEqual([
+      '@example.org',
+    ]);
   });
 
   it('ignores a blank/whitespace hd claim and uses the email', () => {
-    expect(resolveDomainFromClaims('   ', 'a@b.com')).toBe('@b.com');
+    expect(resolveDomainCandidates('   ', 'a@b.com')).toEqual(['@b.com']);
   });
 
-  it('returns null when neither hd nor a usable email is present', () => {
-    expect(resolveDomainFromClaims(undefined, undefined)).toBeNull();
-    expect(resolveDomainFromClaims(undefined, 'no-at-sign')).toBeNull();
+  it('dedupes when hd equals the email domain (single lookup)', () => {
+    expect(
+      resolveDomainCandidates('orono.k12.mn.us', 'teacher@orono.k12.mn.us')
+    ).toEqual(['@orono.k12.mn.us']);
+  });
+
+  it('returns an empty list when neither hd nor a usable email is present', () => {
+    expect(resolveDomainCandidates(undefined, undefined)).toEqual([]);
+    expect(resolveDomainCandidates(undefined, 'no-at-sign')).toEqual([]);
   });
 });
 
@@ -99,6 +105,42 @@ describe('resolveOrgForUser callable', () => {
       data: {},
     });
     expect(res).toEqual({ orgId: null });
+  });
+
+  it('falls back to the email domain when the hd domain is unregistered', async () => {
+    // hd domain resolves to nothing; email domain resolves to an org.
+    resolveOrgIdForDomainMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce('orono');
+    const res = await handler({
+      auth: {
+        token: { hd: 'alias-domain.com', email: 'teacher@orono.k12.mn.us' },
+      },
+      data: {},
+    });
+    expect(res).toEqual({ orgId: 'orono' });
+    expect(resolveOrgIdForDomainMock).toHaveBeenNthCalledWith(
+      1,
+      expect.anything(),
+      '@alias-domain.com'
+    );
+    expect(resolveOrgIdForDomainMock).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      '@orono.k12.mn.us'
+    );
+  });
+
+  it('stops at the first registered domain (no second lookup)', async () => {
+    resolveOrgIdForDomainMock.mockResolvedValueOnce('orono');
+    const res = await handler({
+      auth: {
+        token: { hd: 'orono.k12.mn.us', email: 'teacher@alias-domain.com' },
+      },
+      data: {},
+    });
+    expect(res).toEqual({ orgId: 'orono' });
+    expect(resolveOrgIdForDomainMock).toHaveBeenCalledTimes(1);
   });
 
   it('returns orgId: null without a lookup when the token has no domain', async () => {

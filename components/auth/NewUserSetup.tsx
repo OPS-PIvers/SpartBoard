@@ -168,8 +168,12 @@ export const NewUserSetup: React.FC = () => {
   const [dockTypes, setDockTypes] = useState<WidgetType[]>(DEFAULT_DOCK_TYPES);
   const [finishing, setFinishing] = useState(false);
 
-  const currentKind = stepKinds[step];
-  const isLastStep = step === stepKinds.length - 1;
+  // Clamp the index when reading the step model. `step` state isn't reset if
+  // `stepKinds` ever shrinks (e.g. org membership is revoked mid-wizard, so the
+  // buildings step drops out), and an out-of-range read would make
+  // `STEP_DEFS[currentKind]` throw. Clamping keeps the wizard rendering.
+  const currentKind = stepKinds[Math.min(step, stepKinds.length - 1)];
+  const isLastStep = step >= stepKinds.length - 1;
 
   // ── Step 0 helpers ──────────────────────────────────────────────────────────
   const toggleBuilding = (id: string) => {
@@ -393,7 +397,7 @@ const StepBuildings: React.FC<{
   // Still fetching the org's building list.
   if (!orgBuildingsLoaded) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+      <div className="flex flex-col items-center justify-center py-12 text-slate-300">
         <Loader2 className="w-8 h-8 animate-spin mb-3" />
         <p className="text-sm">Loading your schools…</p>
       </div>
@@ -411,7 +415,7 @@ const StepBuildings: React.FC<{
         <p className="font-semibold text-slate-200 text-sm">
           No schools set up yet
         </p>
-        <p className="text-slate-400 text-xs mt-1 max-w-xs">
+        <p className="text-slate-300 text-xs mt-1 max-w-xs">
           Your organization hasn&rsquo;t added any schools. You can set this
           later once an admin configures them.
         </p>
