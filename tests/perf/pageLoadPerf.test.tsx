@@ -134,11 +134,18 @@ vi.mock('firebase/firestore', async (importOriginal) => {
     orderBy: vi.fn(() => ({})),
     limit: vi.fn(() => ({})),
     // onSnapshot fires once with an empty snapshot, then returns a no-op
-    // unsubscribe. Supports both the doc and query overloads (callback is the
-    // 2nd arg) — extra error/options args are ignored.
-    onSnapshot: vi.fn((_ref: unknown, cb: unknown) => {
-      if (typeof cb === 'function') {
-        (cb as (snap: unknown) => void)(emptyDocSnap);
+    // unsubscribe. Firestore has several overloads — the onNext callback can be
+    // the 2nd, 3rd, or 4th argument depending on whether a reference/query,
+    // options object, and/or error callback are passed. Find the first function
+    // argument (the onNext callback) rather than assuming a fixed position, so
+    // every overload resolves and no component is left in a perpetual loading
+    // state.
+    onSnapshot: vi.fn((...args: unknown[]) => {
+      const cb = args.find(
+        (arg): arg is (snap: unknown) => void => typeof arg === 'function'
+      );
+      if (cb) {
+        cb(emptyDocSnap);
       }
       return () => undefined;
     }),
@@ -879,22 +886,27 @@ async function measureRoute(spec: RouteSpec): Promise<void> {
       };
 
       let unmount: () => void = () => undefined;
-      act(() => {
-        const result = render(
-          <Profiler id={component} onRender={onRender}>
-            <Component />
-          </Profiler>
-        );
-        unmount = result.unmount;
-      });
-      await settle();
+      // Guarantee unmount even if render/settle throws, so a failure in one
+      // iteration can't leave a component mounted in jsdom and pollute later
+      // iterations (or other tests in the file).
+      try {
+        act(() => {
+          const result = render(
+            <Profiler id={component} onRender={onRender}>
+              <Component />
+            </Profiler>
+          );
+          unmount = result.unmount;
+        });
+        await settle();
+      } finally {
+        act(() => {
+          unmount();
+        });
+      }
 
       runsMs.push(Number(duration.toFixed(3)));
       lastCommits = commits;
-
-      act(() => {
-        unmount();
-      });
     }
 
     // Discard iteration 1 (warm-up); median over the rest.
