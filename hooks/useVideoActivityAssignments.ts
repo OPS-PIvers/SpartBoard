@@ -930,6 +930,11 @@ export const useVideoActivityAssignments = (
       });
       batch.update(sessionRef, {
         scoreVisibility: deleteField(),
+        // Mirror `scorePublishedAt` removal on the session so the student's
+        // `parsePublicationFields` (which requires BOTH fields) doesn't
+        // see a stale timestamp lingering after unpublish. Mirrors the
+        // identical wipe in useGuidedLearningAssignments.unpublishAssignmentScores.
+        scorePublishedAt: deleteField(),
         revealedAnswers: deleteField(),
       });
       await batch.commit();
@@ -1055,6 +1060,15 @@ export const useVideoActivityAssignments = (
       });
       const sessionPatch: Record<string, unknown> = {
         scoreVisibility: visibility,
+        // Mirror `scorePublishedAt` onto the session so the student's
+        // `/my-assignments` row can flip from "Not graded" to
+        // "View results". `parsePublicationFields` requires BOTH fields,
+        // and the student listener only subscribes to the session doc —
+        // writing it only on the teacher-owned assignment doc (the prior
+        // behavior) silently left every VA student stuck on "Not graded".
+        // Mirrors the identical write in useQuizAssignments and
+        // useGuidedLearningAssignments.
+        scorePublishedAt: now,
       };
       if (visibility === 'score-responses-and-answers') {
         const revealedAnswers: Record<string, string> = {};

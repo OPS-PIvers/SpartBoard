@@ -210,7 +210,7 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
       return 'Video activity';
     },
     hrefFrom: (sessionId) => `/activity/${encodeURIComponent(sessionId)}`,
-    gradingStateFrom: () => 'not-graded',
+    gradingStateFrom: (data) => parsePublicationFields('video-activity', data),
   },
   'guided-learning': {
     collectionName: 'guided_learning_sessions',
