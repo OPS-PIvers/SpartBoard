@@ -799,6 +799,7 @@ import { InviteAcceptance } from '@/components/auth/InviteAcceptance';
 import { PlcInviteAcceptance } from '@/components/auth/PlcInviteAcceptance';
 import { SubsApp } from '@/components/subs/SubsApp';
 import { DashboardView } from '@/components/layout/DashboardView';
+import { MobileRemoteView } from '@/components/remote/MobileRemoteView';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import type { DashboardContextValue } from '@/context/DashboardContextValue';
 
@@ -1074,6 +1075,17 @@ const ROUTES: RouteSpec[] = [
     Component: SignedInTeacherHome,
     url: '/',
   },
+  {
+    // Signed-in /remote (App.tsx → AuthenticatedApp isRemote → MobileRemoteView).
+    // Reads the same mocked useDashboard/useAuth as the teacher home; with an
+    // empty board it renders the remote shell and no RemoteWidgetCard rows.
+    // useRemoteConnection is self-contained (browser online/offline only, no
+    // network), so it runs unmocked.
+    route: '/remote (signed-in)',
+    component: 'MobileRemoteView',
+    Component: MobileRemoteView as ComponentType<Record<string, never>>,
+    url: '/remote',
+  },
 ];
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -1086,16 +1098,15 @@ describe('page-load performance baseline', () => {
         (x) => x.route === spec.route && x.component === spec.component
       );
       expect(m).toBeDefined();
-      // Either the route produced metrics, or it recorded an error fallback.
-      if (m?.error) {
-        // An error fallback is acceptable as a last resort; the run still
-        // passes so one intractable route never blocks the whole suite.
-        expect(typeof m.error).toBe('string');
-      } else {
-        expect(m?.commits).toBeGreaterThan(0);
-        expect(m?.runsMs).toHaveLength(ITERATIONS);
-        expect(m?.medianMountMs).toBeGreaterThanOrEqual(0);
-      }
+      // Fail the test if a component couldn't mount. The catch in measureRoute
+      // still records the message into the JSON (afterAll writes it even when a
+      // test fails) so you can see WHICH route broke and why — but a harness
+      // that hides render errors behind a green run is useless as a regression
+      // guard, so the assertion must fail loudly when error is set.
+      expect(m?.error).toBeUndefined();
+      expect(m?.commits).toBeGreaterThan(0);
+      expect(m?.runsMs).toHaveLength(ITERATIONS);
+      expect(m?.medianMountMs).toBeGreaterThanOrEqual(0);
     }, 30000);
   }
 });
