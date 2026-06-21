@@ -4,6 +4,27 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-20
+
+- PRs reviewed: 3 (all base `dev-paul`; no head is `main`/`dev-*`, so all pushable)
+  - #2029 — fix(widgets/expectations): use shared Toggle in Settings panel (head `scheduled/expectations-toggle`)
+  - #2026 — docs(unifier): run 21 staleness scan (head `nightly/unifier-log-2026-06-20`)
+  - #2016 — fix(poll): cap progress-bar height + proportional-migration guards (head `scheduled-tasks`)
+- Comments processed: 1 actionable thread across all 3 PRs — 1 fixed, 0 explained (other threads were already `is_resolved:true`/`is_outdated:true`)
+  - #2029: gemini thread (MEDIUM) — redundant inline type import + missing optional chaining on sibling `w.config`. The inline-import part was already cleaned up at HEAD (uses top-level `ExpectationsConfig`); applied the optional-chaining part → `(w.config as ExpectationsConfig)?.syncSoundWidget`. Replied clarifying which part was applicable.
+  - #2026: 1 gemini thread ("4" vs "5" VISUAL-RISK count) — already `is_resolved`/`is_outdated`, no action.
+  - #2016: 2 gemini threads on `migrateProportionalLayout.ts` — both already resolved/outdated (author addressed in `2b5005a5`). No action.
+- Fixes pushed: 1
+  - #2029 / `scheduled/expectations-toggle` (fe75159) — optional-chaining guard on sibling Expectations widget config in `handleSyncToggle`; type-check ✓ lint ✓ prettier ✓ tests 8/8 ✓.
+- Reviews posted: 3 (one structured review per PR)
+  - #2029: Ready — clean UI-unification refactor (hand-rolled toggle → shared `Toggle`), accessibility win, no behavior change; flagged the pre-existing missing Settings-panel test for the sibling-sync cascade.
+  - #2026: Ready — doc/baseline-only; `commits` metric unchanged in every perf scenario; noted an earlier-revision "2–5× slower" flag is now resolved (timings back to ~baseline).
+  - #2016: Needs changes (maintainer decision) — the two authored fixes (PollWidget clamp cap, strict-positive prop guards) are sound, but the `scheduled-tasks` head carries ~36 files of accumulated divergence vs `dev-paul`; scope decision (absorb whole body vs retarget narrow branch) left to the maintainer per the author's own thread.
+- Notes:
+  - Branch-safety: no PR targets `main`; all head branches pushable. Only #2029 needed a fix push.
+  - This log committed to the designated working branch `claude/compassionate-shannon-dzln7f` (not `scheduled-tasks`, which is itself the head of the open, scope-flagged #2016).
+  - Verification ran on Node 22 locally (project wants Node 24); type-check/lint/prettier/tests green for the touched file. CI on Node 24 remains the authoritative gate.
+
 ## 2026-06-19
 
 - PRs reviewed: 9 (all base `dev-paul`; no head is `main`/`dev-*`, so all pushable)
