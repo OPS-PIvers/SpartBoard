@@ -730,6 +730,40 @@ const WAVE3_KEY_GROUPS: ReadonlyArray<{
   },
 ];
 
+// ─── Verbatim-EN guard ──────────────────────────────────────────────────────
+//
+// A key can be PRESENT in a locale file but still silently render in English
+// when its value is an exact copy of the EN string.  i18next only surfaces a
+// missing-key warning when the key is ABSENT; verbatim-EN values slip through
+// undetected at runtime.  This block catches exactly that class of bug.
+//
+// Each assertion below documents a concrete instance that was found by an
+// automated verbatim-EN audit and fixed in the same commit that added the
+// assertion.
+
+describe('DE locale — no verbatim-EN values in plcDashboard.search', () => {
+  it('de.plcDashboard.search.groupBoards is translated (not verbatim "Boards")', () => {
+    // Regression for: de.plcDashboard.search.groupBoards was "Boards" (English)
+    // instead of "Tafeln" (German).  The group-label rendered in English on the
+    // per-PLC search results panel for German-locale users.  ES and FR were
+    // already correct ("Tableros" / "Tableaux"); only DE was affected.
+    //
+    // Correct value cross-referenced from de.boardsModal.boards = "Tafeln" and
+    // de.boardsModal.allBoards = "Tafeln", which use the same concept.
+    expect(de).toHaveProperty('plcDashboard.search.groupBoards');
+    const deGroupBoards = (
+      (de as unknown as Record<string, unknown>).plcDashboard as Record<
+        string,
+        unknown
+      >
+    ).search as Record<string, unknown>;
+    expect(deGroupBoards.groupBoards).not.toBe(
+      en.plcDashboard.search.groupBoards
+    );
+    expect(deGroupBoards.groupBoards).toBe('Tafeln');
+  });
+});
+
 // ─── EN baseline ────────────────────────────────────────────────────────────
 
 describe('EN locale — plcDashboard baseline', () => {
