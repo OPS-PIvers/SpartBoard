@@ -94,6 +94,44 @@ consent screen → no annual CASA assessment).
   (Drive save/export, Sheets results, Calendar widget, Classroom assign /
   grade push). UI should hide these cleanly, not error.
 
+#### Status — dynamic org resolution (shipped)
+
+The single-org hardcode (`DEFAULT_ORG_ID = 'orono'`) that blocked any
+non-Orono org member is **removed**. Every signed-in user's org is now
+resolved dynamically from their verified email domain:
+
+- **New callable `resolveOrgForUser`** (`functions/src/resolveOrgForUser.ts`)
+  runs the same verified-domain lookup `studentLoginV1` uses
+  (`resolveOrgIdForDomain` → collectionGroup on `/organizations/*/domains`,
+  `status == 'verified'`) against the caller's OWN token (`hd` claim, then
+  email suffix) and returns `{ orgId | null }`. It reads the domain from the
+  verified token only — never from `request.data` — so a caller cannot probe
+  for an org they don't belong to. No new Firestore collection or rules
+  surface was needed: the existing `members/{email}` self-read rule already
+  lets a user read their own membership in any org.
+- **`AuthContext`** resolves the orgId via that callable (cached per-email in
+  `sessionStorage` for positive hits), then subscribes to
+  `/organizations/{resolvedOrgId}/members/{email}`. No org for the domain →
+  free/no-org tier. Resolver outage → falls back to the operator org
+  (`OPERATOR_ORG_ID = 'orono'`) so internal members are never locked out.
+- **`InviteAcceptance`** resolves the invitee's org from their domain instead
+  of hardcoding it (operator-org fallback on resolver failure).
+- **`NewUserSetup`** skips the building step entirely for org-less users
+  (buildings are an org concept) instead of forcing them to pick from another
+  district's seed list.
+
+Still **operator-scoped by design** (not bugs — left intentionally): the
+`/subs` substitute portal + substitute shares (Orono-internal feature, gated
+client-side and in `firestore.rules`), and the `internal` tier mapped to
+`orono.k12.mn.us` in `utils/userTier.ts` (the operator's own domain; the
+TODO to make it admin-configurable still stands). De-hardcoding those is a
+separate follow-up.
+
+> **NOTE:** Code is necessary but **not sufficient** to admit external
+> sign-ins. The actual gate remains the GCP OAuth consent screen being set
+> to **Internal** (see Background). That is Phase 4 below — a Google Console
+> action, not code.
+
 ### Phase 4 — Flip the consent screen to External (the launch switch)
 
 Prereqs, in order:
