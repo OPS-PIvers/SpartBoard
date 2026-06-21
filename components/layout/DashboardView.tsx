@@ -1895,10 +1895,20 @@ export const DashboardView: React.FC = () => {
         </button>
       )}
 
-      <CheatSheetModal
-        isOpen={isCheatSheetOpen}
-        onClose={() => setIsCheatSheetOpen(false)}
-      />
+      {/* Only mount the cheat sheet when open. CheatSheetModal builds its full
+          body (≈30 translation calls + the entire shortcut/gesture tree) on
+          every render, and Modal then returns null while closed — so rendering
+          it unconditionally cost ~2ms on every dashboard load for a panel
+          that's hidden. Gating here removes that from the mount path with no
+          behavior change: the open-effect fires on mount (isOpen=true) exactly
+          as it did on the false→true transition, and the entrance animation
+          still plays. */}
+      {isCheatSheetOpen && (
+        <CheatSheetModal
+          isOpen={isCheatSheetOpen}
+          onClose={() => setIsCheatSheetOpen(false)}
+        />
+      )}
     </div>
   );
 };
