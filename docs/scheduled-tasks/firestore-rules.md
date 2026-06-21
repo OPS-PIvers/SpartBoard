@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-06-10_
+_Last audited: 2026-06-17_
 _Last action: 2026-05-18 (admin_audit_log immutability hardening)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-17: Full collection audit. Scanned components/, context/, hooks/, utils/, and functions/src/ for all Firestore collection references — including `db.doc(string)` patterns not caught by the 2026-06-10 audit. Found one new collection reference missed by the prior audit: `classroom_grade_links` in `functions/src/classroomAddonAuth.ts` (uses `db.doc('classroom_grade_links/${uid}/submissions/${submissionId}').set(...)` rather than the `collection(db, '...')` pattern, which is why it evaded the 2026-06-10 grep-based scan). This collection has no explicit match block in firestore.rules — it relies solely on the catch-all default-deny. Since `classroomAddonAuth.ts` runs exclusively as a Cloud Function using the Admin SDK (which bypasses security rules), client access is blocked by the catch-all; there is no live security gap. Adding as LOW item for defense-in-depth hardening, consistent with the existing `ai_usage` LOW item. All other pre-existing open items unchanged._
 
 _2026-06-10: Full collection audit. All collection() and collectionGroup() calls in components/, context/, hooks/, utils/, and functions/src/ cross-referenced against firestore.rules match blocks. Default-deny catch-all (`match /{document=**} { allow read, write: if false; }`) confirmed present — no silently unprotected collections. Three new rule-quality issues found and added to Open (pollVotes unrestricted write, admin_settings/user_roles redundant rule, ai_usage implicit write denial). Two existing open items unchanged._
 
@@ -44,6 +46,13 @@ _2026-05-27: Audited all collection() and collectionGroup() calls in components/
 - **File:** firestore.rules (approx. lines 599 and 616)
 - **Detail:** A specific `match /admin_settings/user_roles` block at line 616 is identical in content to what the `match /admin_settings/{document=**}` wildcard at line 599 already covers. Firestore applies both, but the specific rule is effectively dead. This creates a maintenance hazard: a developer updating admin_settings permissions might update only the wildcard or only the specific block, producing inconsistent rules without realizing it.
 - **Fix:** Remove the redundant specific `match /admin_settings/user_roles` block. If user_roles requires different permissions from the rest of admin_settings in the future, re-add it at that time with a comment explaining the distinction.
+
+### LOW `classroom_grade_links` collection has no explicit Firestore rule — relies solely on catch-all
+
+- **Detected:** 2026-06-17
+- **File:** firestore.rules (no match block exists), functions/src/classroomAddonAuth.ts (`GRADE_SYNC_COLLECTION = 'classroom_grade_links'`)
+- **Detail:** `classroomAddonAuth.ts` writes to `classroom_grade_links/{pseudonymUid}/submissions/{submissionId}` via the Admin SDK from a Cloud Function (`storeGradeSyncKey`, `lookupGradeSyncSubmission`). The collection has no explicit match block in `firestore.rules`; client access is blocked only by the catch-all default-deny rule at the end of the file. Data stored includes `courseId`, `itemId`, `attachmentId`, `submissionId`, and `googleUserId` — grade-sync keys for Google Classroom passback. This collection was added in the 2026-06-03 merge (`classroomAddonAuth.ts`) and was missed by the 2026-06-10 audit because the code uses `db.doc('classroom_grade_links/...')` string patterns rather than the `collection(db, '...')` pattern that the prior scan targeted.
+- **Fix:** Add an explicit match block in `firestore.rules` adjacent to `classroom_course_links` (which is documented as SERVER-ONLY in similar fashion): `match /classroom_grade_links/{pseudonymUid}/submissions/{submissionId} { allow read, write: if false; // Admin SDK only via classroomAddonAuth Cloud Functions }`. This provides defense-in-depth and makes the intent self-documenting. Requires `firebase deploy --only firestore:rules`.
 
 ### LOW `ai_usage` collection has no explicit write denial — relies solely on catch-all
 

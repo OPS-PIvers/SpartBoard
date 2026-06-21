@@ -469,6 +469,47 @@ describe('getAdminBuildingConfig', () => {
     });
   });
 
+  describe('text', () => {
+    it('passes through bgColor, fontSize, prefixed font family, fontColor, and vertical align', () => {
+      const perm = makePerm('text', {
+        high: {
+          bgColor: '#fef9c3',
+          fontSize: 24,
+          fontFamily: 'font-serif',
+          fontColor: '#1e293b',
+          verticalAlign: 'top',
+        },
+      });
+      expect(getAdminBuildingConfig('text', [perm], ['high'])).toEqual({
+        bgColor: '#fef9c3',
+        fontSize: 24,
+        fontFamily: 'font-serif',
+        fontColor: '#1e293b',
+        verticalAlign: 'top',
+      });
+    });
+
+    it('rejects bare GlobalFontFamily ids — text uses the prefixed FONTS space', () => {
+      // 'sans' is a valid GlobalFontFamily value but NOT a FONTS id; the
+      // TextWidget reads fontFamily via getFontClass and expects 'font-sans'.
+      const perm = makePerm('text', { high: { fontFamily: 'sans' } });
+      expect(getAdminBuildingConfig('text', [perm], ['high'])).toEqual({});
+    });
+
+    it('rejects malformed bgColor/fontColor, non-finite fontSize, and unknown vertical align', () => {
+      const perm = makePerm('text', {
+        high: {
+          bgColor: 'banana',
+          fontSize: Number.NaN,
+          fontFamily: 'not-a-font',
+          fontColor: 'rgb(0,0,0)',
+          verticalAlign: 'middle',
+        },
+      });
+      expect(getAdminBuildingConfig('text', [perm], ['high'])).toEqual({});
+    });
+  });
+
   it('returns empty for unknown widget types', () => {
     const perm = makePerm('clock', { high: { format24: true } });
     // Pass a type that has no case in the switch.

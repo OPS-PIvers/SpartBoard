@@ -4,58 +4,6 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
-## 2026-06-20
-
-- PRs reviewed: 3 (all base `dev-paul`; no head is `main`/`dev-*`, so all pushable)
-  - #2029 — fix(widgets/expectations): use shared Toggle in Settings panel (head `scheduled/expectations-toggle`)
-  - #2026 — docs(unifier): run 21 staleness scan (head `nightly/unifier-log-2026-06-20`)
-  - #2016 — fix(poll): cap progress-bar height + proportional-migration guards (head `scheduled-tasks`)
-- Comments processed: 1 actionable thread across all 3 PRs — 1 fixed, 0 explained (other threads were already `is_resolved:true`/`is_outdated:true`)
-  - #2029: gemini thread (MEDIUM) — redundant inline type import + missing optional chaining on sibling `w.config`. The inline-import part was already cleaned up at HEAD (uses top-level `ExpectationsConfig`); applied the optional-chaining part → `(w.config as ExpectationsConfig)?.syncSoundWidget`. Replied clarifying which part was applicable.
-  - #2026: 1 gemini thread ("4" vs "5" VISUAL-RISK count) — already `is_resolved`/`is_outdated`, no action.
-  - #2016: 2 gemini threads on `migrateProportionalLayout.ts` — both already resolved/outdated (author addressed in `2b5005a5`). No action.
-- Fixes pushed: 1
-  - #2029 / `scheduled/expectations-toggle` (fe75159) — optional-chaining guard on sibling Expectations widget config in `handleSyncToggle`; type-check ✓ lint ✓ prettier ✓ tests 8/8 ✓.
-- Reviews posted: 3 (one structured review per PR)
-  - #2029: Ready — clean UI-unification refactor (hand-rolled toggle → shared `Toggle`), accessibility win, no behavior change; flagged the pre-existing missing Settings-panel test for the sibling-sync cascade.
-  - #2026: Ready — doc/baseline-only; `commits` metric unchanged in every perf scenario; noted an earlier-revision "2–5× slower" flag is now resolved (timings back to ~baseline).
-  - #2016: Needs changes (maintainer decision) — the two authored fixes (PollWidget clamp cap, strict-positive prop guards) are sound, but the `scheduled-tasks` head carries ~36 files of accumulated divergence vs `dev-paul`; scope decision (absorb whole body vs retarget narrow branch) left to the maintainer per the author's own thread.
-- Notes:
-  - Branch-safety: no PR targets `main`; all head branches pushable. Only #2029 needed a fix push.
-  - This log committed to the designated working branch `claude/compassionate-shannon-dzln7f` (not `scheduled-tasks`, which is itself the head of the open, scope-flagged #2016).
-  - Verification ran on Node 22 locally (project wants Node 24); type-check/lint/prettier/tests green for the touched file. CI on Node 24 remains the authoritative gate.
-
-## 2026-06-19
-
-- PRs reviewed: 9 (all base `dev-paul`; no head is `main`/`dev-*`, so all pushable)
-  - #2023 — docs(routines): nightly debugger run #21 log (head `nightly/debugger-log-2026-06-19`)
-  - #2022 — fix(widgets): remove stale-ref useEffect in PageEditor and RandomSettings (head `nightly/widgets-2026-06-19`)
-  - #2021 — fix(functions): enforce accessLevel in generateVideoActivity (head `nightly/build-tooling-2026-06-19`)
-  - #2020 — fix(hooks): dedupe steps in buildGLResponsesCSV (head `nightly/state-data-2026-06-19`)
-  - #2019 — fix(plc): guard TodosBody inline-edit onBlur (head `nightly/dashboard-layout-2026-06-19`)
-  - #2018 — fix(i18n): es backgrounds.presets verbatim-EN fix (head `nightly/admin-config-2026-06-19`)
-  - #2017 — docs(unifier): run 20 staleness scan (head `nightly/unifier-log-2026-06-19`)
-  - #2016 — fix(poll): cap progress-bar height (head `scheduled-tasks`)
-  - #2013 — docs(routines): Run 21 debugger log (head `nightly/debugger-log-2026-06-18`)
-- Comments processed: 5 actionable threads across 4 PRs — 1 fixed, 4 explained (remaining open threads were `is_outdated:true` style/doc nits, left per the be-frugal guideline)
-  - #2020: gemini `buildGLResponsesCSV` thread (not outdated) → FIXED. Map answer lookup (O(N+M)) + `typeof … === 'number'` guards so a 0-epoch timestamp renders an ISO date. The two claude threads (missing `sessionId`, react-hooks/refs comment) were already addressed at HEAD → replied.
-  - #2019: gemini render-body-reset thread → already implemented at HEAD (replied). claude "drop the eslint-disable" thread → EXPLAINED no-change: verified empirically that removing the directive errors `Cannot update ref during render react-hooks/refs` under `--max-warnings 0`; the rule is real here and the suppression is required.
-  - #2021: all 3 claude threads (rename, `.exists` guard, reuse `accessPerm?.config`) already addressed at HEAD → replied to the not-outdated one.
-  - #2023: open gemini doc-accuracy note (`checkAccess` helper doesn't exist; checks are inline) → surfaced in the posted review; not pushed (docs log, outdated thread).
-- Fixes pushed: 1
-  - #2020 / `nightly/state-data-2026-06-19` — `buildGLResponsesCSV` stepId→answer Map + 0-epoch timestamp guards; type-check ✓ lint ✓ prettier ✓ tests 12/12 ✓.
-- Reviews posted: 9 (one structured review per PR)
-  - #2022: Ready — documented anti-pattern removal + strong regression tests; nit: undocumented accentText fix.
-  - #2021: Ready — real accessLevel bypass fix; noted pre-existing `.exists` gap in `transcribeVideoWithGemini` as follow-up.
-  - #2020: Ready — dedup fix + my timestamp/perf follow-up.
-  - #2019: Ready with minor notes — pattern-consistent onBlur guard; confirm the regression test landed (not seen in diff).
-  - #2018: Ready — trivial locale fix, consolidated into the backgrounds locale sweep test.
-  - #2016: Needs changes — poll cap is correct, but the `scheduled-tasks` head carries 36 files vs the 5-line described fix; scope/description mismatch flagged.
-  - #2023, #2017, #2013: Ready (docs logs); flagged #2013↔#2023 run-21 overlap and the #2023 `checkAccess` wording.
-- Notes:
-  - Branch-safety: no PR targets `main`; all head branches pushable. Only #2020 needed a fix push.
-  - This log committed to the designated working branch `claude/compassionate-shannon-e8i4ou` (not `scheduled-tasks`, which is itself the head of the open, scope-flagged #2016).
-
 ## 2026-06-15
 
 - PRs reviewed: 10 (all open PRs)
@@ -1334,3 +1282,112 @@ _Automated nightly review by claude-opus-4-6_
 - Notes:
   - Branch-safety: all 8 head branches are non-`main` / non-`dev-*` → pushable. Only #1911 required a fix push.
   - #1916 head is `scheduled-tasks` (this log's branch). The deps bump + audit journals it carries are scheduled-task artifacts in the same family as this log, so appending today's entry here is in-scope; pushed to `scheduled-tasks` per the POST-TASK workflow.
+
+## 2026-06-16
+
+- PRs reviewed: 8
+  - #1991 — fix(deps): override qs to ^6.15.2 in functions, clears GHSA-q8mj-m7cp-5q26 (head `claude/compassionate-noether-qb9lws`, base `dev-paul`)
+  - #1989 — audit(scheduled-tasks): Tuesday daily clean + dependency-version notes (head `scheduled-tasks`, base `dev-paul`)
+  - #1987 — docs(nightly): debugger run 19 log (head `nightly/debugger-log-2026-06-16`, base `dev-paul`)
+  - #1986 — fix(a11y): SegmentedTabs WAI-ARIA tablist keyboard navigation (head `nightly/widgets-2026-06-16`, base `dev-paul`)
+  - #1985 — fix(poll): clear lastPollSessionId when starting a fresh session (head `nightly/state-data-2026-06-16`, base `dev-paul`)
+  - #1984 — fix(layout): align GroupBoundingBox commit scale + NaN clamp (head `nightly/dashboard-layout-2026-06-16`, base `dev-paul`)
+  - #1983 — fix(i18n): translate sidebar.boards.rootBoards in DE/ES/FR (head `nightly/admin-config-2026-06-16`, base `dev-paul`)
+  - #1982 — docs(unifier): run 17 staleness scan (head `nightly/unifier-log-2026-06-16`, base `dev-paul`)
+- Comments processed: 11 total — 0 fixed, 11 already-addressed (10 threads resolved, 1 left open as informational discussion)
+  - #1991: 2 threads — (a) `claude` caret suggestion `^6.15.2` already applied at HEAD (`functions/package.json` shows `"qs": "^6.15.2"`); (b) `gemini` comment targets `utils/migrateProportionalLayout.ts:102`, a file NOT in this PR's 2-file diff (outdated/misattributed). Both resolved as not-applicable.
+  - #1986: 6 threads, ALL addressed at HEAD — `nodes.length===0` guard now precedes `preventDefault`; modifier-key bailout present; roving `tabIndex={selected?0:-1}`; handler calls `onChange(tabs[nextIdx].key)` (select-follows-focus, closes the tabIndex/onChange mismatch); test now covers Home/End + modifier no-op + roving-tabindex assertion. All 6 resolved.
+  - #1984: 2 threads — (a) `gemini` HIGH NaN clamp `Math.max(0, …)` already applied at both `onMove` (~156) and `onUp` (~234), resolved; (b) `claude` informational note about the onMove behavior change left OPEN for author awareness (discussion, not a change request).
+  - #1983: 1 thread — `claude` over-long test comment already trimmed to a single line at HEAD; resolved.
+  - #1989, #1987, #1985, #1982: no review comments.
+- Fixes pushed: 0 — every actionable review comment was already addressed in the current branch HEAD (branches were updated after the reviews were left). No code change needed.
+- Reviews posted: 8 (one structured review per PR)
+  - #1991: Ready — qs override clears a DoS advisory; caret convention matches siblings; security-positive, low risk.
+  - #1986: Ready — full WAI-ARIA §3.23 tablist keyboard model; all six review threads addressed; comprehensive tests.
+  - #1985: Ready — `mode==='fresh'` clears stale `lastPollSessionId`; correct root-cause fix; 3 regression tests.
+  - #1984: Ready with minor notes — geometric-mean alignment + NaN clamp at both call sites; suggested a small test for the defensive clamp branch.
+  - #1983: Ready — DE/ES/FR rootBoards translations; correct root-cause (not a `defaultValue` band-aid); 11 regression tests.
+  - #1982: Ready — doc-only unifier run 17 journal; RandomGroups empty-state correctly deferred to designer sign-off.
+  - #1987: Ready — doc-only debugger run 19 journal; entries match the four fix PRs.
+  - #1989: Ready — standing nightly-audit branch; only non-doc change is a sound test-file rebase resolution; standing dependency vulns are tracked, not introduced here.
+- Notes:
+  - Branch-safety: all 8 head branches are non-`main` / non-`dev-*` → pushable; Phase 1 produced zero fixes so no PR-branch pushes were needed.
+  - Local verification of `pnpm` checks was not run this cycle (no code changes pushed); CI on Node 24 remains the authoritative gate for each PR.
+  - This log appended to `scheduled-tasks` per the POST-TASK workflow (continuous log; prior entry was 2026-06-09).
+
+## 2026-06-17
+
+- PRs reviewed: 10
+  - #2004 — perf(widgets): migrate 9 content widgets to stable `useDashboardActions()` (head `perf-content-actions-migration`, base `f9-toolvis-context-split`)
+  - #2003 — fix(ci): run functions tests in both deploy workflows (head `nightly/build-2026-06-17`, base `dev-paul`)
+  - #2002 — docs(routines): Run 20 debugger log (head `nightly/debugger-log-2026-06-17`, base `dev-paul`)
+  - #2001 — fix(DraggableWindow): add stopPropagation to Alt+P (head `nightly/dashboard-2026-06-17`, base `dev-paul`)
+  - #2000 — fix(videoActivityGrading): dedup question IDs in videoActivityMaxPoints (head `nightly/state-2026-06-17`, base `dev-paul`)
+  - #1999 — fix(i18n): translate verbatim-English values in DE/ES/FR (head `nightly/admin-2026-06-17`, base `dev-paul`)
+  - #1998 — fix(ClockWidget): cqh/cqw → cqmin font scaling (head `nightly/widgets-2026-06-17`, base `dev-paul`)
+  - #1997 — docs(unifier): run 18 staleness scan (head `nightly/unifier-log-2026-06-17`, base `dev-paul`)
+  - #1996 — perf(dashboard): split tool visibility into its own context (F9) (head `f9-toolvis-context-split`, base `dev-paul`)
+  - #1984 — fix(layout): align GroupBoundingBox commit scale with drag-frame formula (head `nightly/dashboard-layout-2026-06-16`, base `dev-paul`)
+- Comments processed: 13 total — 1 fixed, 12 explained
+  - #2004: 1 gemini thread (use `vi.mocked`) → FIXED. Applied `vi.mocked(useDashboardActions)` but kept `as unknown as DashboardActions` on the value since `mockDashboardActions` is an intentional partial of the 16-member surface (verbatim suggestion would not type-check). Verified type-check ✓ lint ✓ tests ✓; pushed.
+  - #2003: 1 gemini thread (robust `includesFunctionsTests`) → EXPLAINED (already addressed): the function already splits by line and skips `#`-commented lines.
+  - #2002: 2 gemini threads (React 17+ stopPropagation accuracy, both outdated) → EXPLAINED (already addressed): lines 142 and 233 already carry the corrected statement.
+  - #2001: 1 claude thread (condense comment block, outdated) → EXPLAINED (already addressed): already condensed to the two-line note.
+  - #1999: 4 threads → 2 EXPLAINED as already addressed (`typeStill` = "Bilder"; FR `typeVideo` dedicated assertion exists), 2 EXPLAINED as declined cosmetic Vitest-style nits (`?.` removal — presence checks already use `toHaveProperty`).
+  - #1998: 1 gemini thread (`gap-[1cqmin]` → inline style) → EXPLAINED (already addressed): gap is already in the `style` prop.
+  - #1984: 2 open claude threads (use `data-testid` selectors) → EXPLAINED (already addressed): all three tests already select via `[data-testid="group-resize-handle-se"]`.
+  - #2000, #1997, #1996: no actionable unresolved threads (#1996 all six resolved).
+- Fixes pushed: 1
+  - #2004 / `perf-content-actions-migration` — `fix(pr-2004): use vi.mocked for useDashboardActions mock typing`.
+- Reviews posted: 10 (one structured review per PR)
+  - #2004: Ready with minor notes — clean mount-stable migration; merge base #1996 first.
+  - #2003: Ready — CI deploy-gate fix + hermetic YAML test.
+  - #2002: Ready with minor notes — accurate log; pre-existing contradiction at line 107 (#1939 row) flagged for a future pass.
+  - #2001: Ready — minimal, correct, tested stopPropagation fix.
+  - #2000: Ready — denominator dedup mirrors numerator; strong coverage.
+  - #1999: Ready — i18n parity fix; declined cosmetic test nits.
+  - #1998: Ready — cqmin aspect-ratio fix per container-query standard.
+  - #1997: Ready — doc-only unifier run-18 log.
+  - #1996: Ready — measured, host-safe context split; base for #2004.
+  - #1984: Ready — geometric-mean alignment + NaN guard + non-vacuous tests.
+- Notes:
+  - Branch-safety: all 10 head branches are non-`main` / non-`dev-*` → pushable. Only #2004 required a fix push.
+  - Local verification for the #2004 fix ran on Node 22 (env wants 24): targeted `tsc --noEmit` (0 errors), `eslint --max-warnings 0` (clean), and the TrafficLight test (6/6) all passed; full CI on Node 24 remains the authoritative gate.
+  - Most nightly PRs had already incorporated reviewer suggestions in later commits before this run, so most threads were explanatory rather than fixes.
+
+## 2026-06-18
+
+- PRs reviewed: 9 (all open PRs)
+  - #2016 — fix(poll): cap progress-bar height at large widget sizes (head `scheduled-tasks`, base `dev-paul`)
+  - #2014 — fix(Modal): prevent scroll-lock flicker on new onClose reference (head `nightly/layout-2026-06-18`, base `dev-paul`)
+  - #2013 — docs(routines): Run 21 debugger log (head `nightly/debugger-log-2026-06-18`, base `dev-paul`)
+  - #2012 — fix(i18n): DE widgets.timeTool.timer → "Countdown" (head `nightly/admin-2026-06-18`, base `dev-paul`)
+  - #2011 — fix(widgets): Escape-cancel guards — DrawingWidget InlineTitle + SmartNotebook PageEditor (head `nightly/widgets-2026-06-18`, base `dev-paul`)
+  - #2010 — fix(lti): preserve stored contextTitle in linkLtiCourseV1 (head `nightly/build-2026-06-18`, base `dev-paul`)
+  - #2009 — fix(quizMaxPoints): dedup Set guard against scoreMaximum inflation (head `nightly/state-2026-06-18`, base `dev-paul`)
+  - #2007 — chore(perf): update baseline timing snapshots (head `nightly/perf-baseline-2026-06-18`, base `dev-paul`)
+  - #2006 — docs(unifier): run 19 staleness scan (head `nightly/unifier-log-2026-06-18`, base `dev-paul`)
+- Comments processed: 17 total — 2 fixed, 9 explained, 6 skipped (already answered by author / outdated nitpicks)
+  - #2016: 2 gemini threads (migrateProportionalLayout `Math.abs` on wProp/hProp) → EXPLAINED (already addressed): current code uses strict `wProp <= 0 || wProp > 1.5` (lines 42-45) and `wProp > 0 && wProp <= 1.5` (lines 109-112).
+  - #2014: 2 gemini threads (body.style.overflow restore) → FIXED: replaced dummy getter/setter restore with `delete` of the shadowed instance property in both `afterEach` and the in-test restore.
+  - #2011: 2 gemini ref-reset threads → EXPLAINED (already addressed): render-body resets `if (isEditing) isCancellingRef.current = false;` / `if (editing) cancellingRef.current = false;` already present. 4 further threads (eslint-disable back-and-forth answered by author; 2 outdated claude test-quality nitpicks) → SKIPPED.
+  - #2010: 1 gemini TS-narrowing thread → EXPLAINED (already addressed): code already uses `priorData && typeof priorData.contextTitle === 'string'`.
+  - #2009: 2 gemini threads (defensive null/Array guards + tests) → EXPLAINED (declined): out of scope for the dedup fence; `if (!q || !q.id) continue` would change semantics for id-less questions.
+  - #2007: 3 threads (gl.switchSlide10/addStep commit-count drop) → EXPLAINED (resolved in follow-up): counts restored to 10 / 3, the 10→1 / 3→1 was a full-suite isolation artifact.
+  - #2013, #2012, #2006: no unresolved threads.
+- Fixes pushed: 1
+  - #2014 / `nightly/layout-2026-06-18` — `fix(pr-2014): restore native body.style.overflow via delete in Modal test cleanup`.
+- Reviews posted: 9 (one structured review per PR)
+  - #2016: Ready with minor notes — clean PollWidget `clamp()` cap; net diff vs dev-paul is 29 files / +2560 (scheduled-tasks divergence) — confirm intended scope.
+  - #2014: Ready — Modal onClose-ref flicker fix + regression test; follow-up test-hygiene fix pushed.
+  - #2013: Ready — doc-only debugger run-21 log.
+  - #2012: Ready — i18n DE Countdown fix, well-justified and tested.
+  - #2011: Ready — pattern-consistent Escape-cancel guards with regression tests.
+  - #2010: Ready — LTI contextTitle null-clobber fix; transaction-safe, tested.
+  - #2009: Ready — quizMaxPoints dedup fence mirrors push-path seenIds; tested.
+  - #2007: Ready — deterministic commit counts intact; only indicative timings moved.
+  - #2006: Ready — doc-only unifier run-19 log.
+- Notes:
+  - Branch-safety: all 9 head branches are non-`main` / non-`dev-*` → pushable. Only #2014 required a fix push.
+  - Local verification for the #2014 fix ran on Node 22 (env wants 24): `tsc --noEmit` (0 errors), `eslint --max-warnings 0` (clean), and `vitest` Modal suite (16/16) all passed; full CI on Node 24 remains the authoritative gate.
+  - #2016 scope: the `scheduled-tasks` head has diverged ~29 files from `dev-paul`, so its PR diff far exceeds the stated one-line PollWidget change — flagged in the review for human confirmation.

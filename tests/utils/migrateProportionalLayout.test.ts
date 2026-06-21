@@ -97,6 +97,59 @@ describe('widgetNeedsProportionalMigration', () => {
     expect(widgetNeedsProportionalMigration(negativeStale)).toBe(true);
   });
 
+  it('flags widgets with negative pixel-valued wProp/hProp (corrupt-dimension case)', () => {
+    // Negative widget dimensions can only come from corrupt Firestore data,
+    // never normal use. A plain `> 1.5` check would miss them (since
+    // -400 > 1.5 is false), so the widget would be treated as already-migrated
+    // and stranded with an invalid negative size. The strict-positive lower
+    // bound (wProp/hProp must be > 0) catches both pixel-sized negatives here
+    // and small non-positive proportions below.
+    const negativeDimension = baseWidget({
+      x: 100,
+      y: 100,
+      w: 200,
+      h: 200,
+      xProp: 0.05,
+      yProp: 0.09,
+      wProp: -400, // corrupt negative pixel value masquerading as a proportion
+      hProp: -300, // corrupt negative pixel value masquerading as a proportion
+      aspectRatio: 1,
+    });
+    expect(widgetNeedsProportionalMigration(negativeDimension)).toBe(true);
+  });
+
+  it('flags widgets with non-positive proportion-sized wProp/hProp (0 or small negative)', () => {
+    // A width/height proportion must be strictly positive. Values like 0 or
+    // -0.5 are within `Math.abs(v) <= 1.5` and would previously have been
+    // treated as already-migrated, leaving the widget with a zero/negative
+    // size. The strict-positive lower bound flags them for re-derivation.
+    const zeroWidth = baseWidget({
+      x: 100,
+      y: 100,
+      w: 200,
+      h: 200,
+      xProp: 0.05,
+      yProp: 0.09,
+      wProp: 0, // zero width can never be a valid proportion
+      hProp: 0.18,
+      aspectRatio: 1,
+    });
+    expect(widgetNeedsProportionalMigration(zeroWidth)).toBe(true);
+
+    const smallNegativeHeight = baseWidget({
+      x: 100,
+      y: 100,
+      w: 200,
+      h: 200,
+      xProp: 0.05,
+      yProp: 0.09,
+      wProp: 0.15,
+      hProp: -0.5, // small negative slips past Math.abs(v) <= 1.5
+      aspectRatio: 1,
+    });
+    expect(widgetNeedsProportionalMigration(smallNegativeHeight)).toBe(true);
+  });
+
   it('flags widgets with non-finite proportional fields (NaN / Infinity)', () => {
     // NaN and Infinity are `typeof === 'number'`, so the typeof guards above
     // would not catch them. They must be re-migrated rather than propagating
@@ -440,6 +493,38 @@ describe('migrateWidgetToProportional', () => {
 
     expect((out.wProp as number) <= 1.5).toBe(true);
     expect((out.hProp as number) <= 1.5).toBe(true);
+    expect(out.wProp).toBeCloseTo(400 / safeW, 6);
+    expect(out.hProp).toBeCloseTo(300 / safeH, 6);
+    expect(widgetNeedsProportionalMigration(out)).toBe(false);
+  });
+
+  // Regression for the proportionsValid Math.abs gap: a corrupt negative
+  // pixel-valued wProp/hProp (e.g. -400) satisfied the old `wProp <= 1.5`
+  // comparison, so proportionsValid was true and the early-return path
+  // left the widget stranded with an invalid negative dimension.
+  it('repairs corrupt negative wProp/hProp instead of early-returning on them', () => {
+    const vpW = 1920;
+    const vpH = 1080;
+    const { safeW, safeH } = getSafeViewport(vpW, vpH);
+    const w = baseWidget({
+      x: 100,
+      y: 100,
+      w: 400,
+      h: 300,
+      xProp: 0.05, // valid proportion
+      yProp: 0.09, // valid proportion
+      wProp: -400, // corrupt negative pixel value
+      hProp: -300, // corrupt negative pixel value
+      // aspectRatio absent to force the full re-derivation path
+    });
+    expect(widgetNeedsProportionalMigration(w)).toBe(true);
+
+    const out = migrateWidgetToProportional(w, vpW, vpH);
+
+    // The corrupt negative dimensions must be re-derived from pixel w/h into
+    // valid positive proportions, not left untouched by an early return.
+    expect((out.wProp as number) > 0).toBe(true);
+    expect((out.hProp as number) > 0).toBe(true);
     expect(out.wProp).toBeCloseTo(400 / safeW, 6);
     expect(out.hProp).toBeCloseTo(300 / safeH, 6);
     expect(widgetNeedsProportionalMigration(out)).toBe(false);

@@ -1128,6 +1128,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     dockPersistTimerRef.current = setTimeout(() => {
       dockPersistTimerRef.current = null;
       const profileRef = doc(db, 'users', uid, 'userProfile', 'profile');
+      // `merge: true` is mandatory: AuthContext also writes this doc (see the
+      // UserProfile ownership contract in types.ts). A non-merge write here
+      // would clobber Auth-owned fields like `selectedBuildings`/`language`.
       void setDoc(
         profileRef,
         {

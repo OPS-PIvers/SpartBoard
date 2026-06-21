@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-06-12_
+_Last audited: 2026-06-19_
 _Last action: never_
 
 ---
@@ -57,6 +57,13 @@ _Nothing currently in progress._
 - **Detail:** The `transcribeVideoWithGemini` function selects a model with `perm.config?.model ?? 'gemini-3.1-flash-lite-preview'`. This duplicates the literal string defined by the `DEFAULT_STANDARD_MODEL` constant at line 124. If the default model is updated, this line will not automatically follow.
 - **Fix:** Replace the hardcoded string with `DEFAULT_STANDARD_MODEL`: `perm.config?.model ?? DEFAULT_STANDARD_MODEL`.
 
+### LOW Most AI generation types use plain JSON mode — only `quiz` uses Gemini structured output (`responseSchema`)
+
+- **Detected:** 2026-06-19
+- **File:** functions/src/index.ts (generateWithAI function, lines 1130–1200 approx)
+- **Detail:** The Gemini API supports `responseSchema` (structured output / JSON mode with schema enforcement) which causes the model to produce JSON that strictly conforms to a provided schema, greatly reducing hallucination of missing fields, wrong types, or unexpected keys. Currently only the `quiz` generation type passes a `responseSchema` to the Gemini call (verified at line 1139 approx). All other structured-output types — `poll`, `dashboard-layout`, `instructional-routine`, `blooms-ai`, `guided-learning`, and `mini-app` — use plain JSON mode (`responseMimeType: 'application/json'` without a schema). Plain JSON mode instructs the model to output JSON syntax but does not enforce structure, so the model can omit required fields, use wrong types, or add unexpected keys; the current `parseGeminiJson` + per-type validation handles some of this but is applied inconsistently. Types most at risk: `poll` (simple schema, easy to add), `dashboard-layout` (structured widget placement), `instructional-routine` (nested step array).
+- **Fix:** For each structured-output generation type, define a `responseSchema` object matching the expected output interface and pass it to the Gemini API call alongside `responseMimeType: 'application/json'`. Prioritize: (1) `poll` — simple schema, high call volume; (2) `dashboard-layout` — layout accuracy matters for user trust; (3) `instructional-routine` — nested structure prone to field omission. For `mini-app` (code generation), structured output is not applicable since the output is a free-form HTML/JS string. Use the `quiz` implementation as the reference pattern.
+
 ### LOW RevealGrid "Sparkles" button uses AI icon for a paste-import feature
 
 - **Detected:** 2026-04-17
@@ -78,6 +85,8 @@ The following widgets have structured config schemas well-suited for AI content 
 ---
 
 ## Completed
+
+_2026-06-19: Full weekly audit pass (Friday). New commits since 2026-06-12: fix(Modal), fix(i18n), fix(widgets), fix(lti), fix(quizMaxPoints), pr-review batch — none add new AI generation types or modify AI pipeline. All 13 generation types re-verified: rate limits, loading/error states, feature permission gates all present. Hardcoded model string LOW item at line 2513 (transcribeVideoWithGemini) — still unresolved. New finding: only `quiz` generation type uses Gemini structured output (`responseSchema`) — all other types use plain JSON mode, leaving them susceptible to schema-divergent responses from the model. Added as new LOW item. AI opportunities for RevealGrid/ConceptWeb/GraphicOrganizer/Checklist remain unimplemented (documented in Opportunities section). 1 new LOW open item added._
 
 _2026-06-12: AI integration audit after rebase onto dev-paul (docs/unifier run 13, D4 @/ alias in tests/, perf baseline, fix DraggableWindow, debugger run 14). No new AI generation types or function additions in these commits. All 13 generation types verified complete: rate limits, loading/error states, and feature permission gates all present. Gemini models confirmed consistent: DEFAULT_ADVANCED_MODEL = 'gemini-3-flash-preview', DEFAULT_STANDARD_MODEL = 'gemini-3.1-flash-lite-preview' — modern and admin-overridable. JSON mode used correctly server-side for all structured outputs. Hardcoded model string LOW item at line 2513 (transcribeVideoWithGemini) unchanged — still unresolved. AI opportunities for RevealGrid/ConceptWeb/GraphicOrganizer/Checklist remain documented in the Opportunities section but unimplemented. Zero new open items._
 
