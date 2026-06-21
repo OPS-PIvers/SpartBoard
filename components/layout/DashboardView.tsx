@@ -30,8 +30,17 @@ import {
 } from '@/utils/plcWriteNotifications';
 import { usePlcs } from '@/hooks/usePlcs';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
-import { Sidebar } from './sidebar/Sidebar';
-import { Dock } from './Dock';
+// Sidebar and Dock are code-split out of the synchronous teacher mount so the
+// board canvas paints first; they stream in (behind the Suspense boundary
+// below) on the next microtask. Both are position:fixed overlays, so deferring
+// them by a tick can't shift the board's layout — the only visible cost is the
+// dock's brief skeleton (ShellPlaceholder) while its chunk resolves.
+const Sidebar = React.lazy(() =>
+  import('./sidebar/Sidebar').then((m) => ({ default: m.Sidebar }))
+);
+const Dock = React.lazy(() =>
+  import('./Dock').then((m) => ({ default: m.Dock }))
+);
 import { AnnotationOverlay } from './AnnotationOverlay';
 import { BoardNavFab } from './BoardNavFab';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
@@ -172,6 +181,29 @@ const ToastContainer: React.FC = () => {
         );
       })}
     </div>
+  );
+};
+
+// Skeleton shown in the dock's footprint while the code-split Dock chunk
+// resolves (one microtask after first paint). Mirrors the real dock's
+// position so its arrival doesn't visually jump. aria-hidden — it's a
+// transient visual placeholder with no semantics.
+const ShellPlaceholder: React.FC = () => {
+  const { dockPosition } = useAuth();
+  const isVertical = dockPosition === 'left' || dockPosition === 'right';
+  const positionClasses =
+    dockPosition === 'left'
+      ? 'left-6 top-1/2 -translate-y-1/2'
+      : dockPosition === 'right'
+        ? 'right-6 top-1/2 -translate-y-1/2'
+        : 'bottom-6 left-1/2 -translate-x-1/2';
+  return (
+    <div
+      aria-hidden="true"
+      className={`fixed ${positionClasses} z-dock rounded-full bg-white/5 backdrop-blur-sm border border-white/10 pointer-events-none ${
+        isVertical ? 'w-16 h-64' : 'h-16 w-80'
+      }`}
+    />
   );
 };
 
@@ -1797,9 +1829,22 @@ export const DashboardView: React.FC = () => {
           document.body
         )}
 
-      {/* FIXED UI: Outside the zoom container */}
-      <Sidebar />
-      {!annotationActive && !isActiveBoardReadOnly && <Dock />}
+      {/* FIXED UI: Outside the zoom container. Sidebar + Dock are code-split
+          (see the React.lazy imports at the top of this file) so the board
+          canvas paints before their chunks load; they stream in on the next
+          microtask behind this Suspense boundary. The fallback reserves the
+          dock footprint only when the dock will actually render, so an
+          annotation/read-only board (no dock) shows no skeleton. */}
+      <React.Suspense
+        fallback={
+          !annotationActive && !isActiveBoardReadOnly ? (
+            <ShellPlaceholder />
+          ) : null
+        }
+      >
+        <Sidebar />
+        {!annotationActive && !isActiveBoardReadOnly && <Dock />}
+      </React.Suspense>
       <AnnotationOverlay />
       <ToastContainer />
       <AnnouncementOverlay />

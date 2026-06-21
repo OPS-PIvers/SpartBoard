@@ -822,6 +822,14 @@ interface PageMetric {
   commits?: number;
   medianMountMs?: number;
   runsMs?: number[];
+  // First-commit (time-to-first-paint) duration. medianMountMs SUMS every
+  // commit in the mount + settle window, so deferring work (React.lazy /
+  // Suspense) does NOT lower it — the deferred commit still lands inside the
+  // window. firstCommitMedianMs isolates the FIRST synchronous commit (what
+  // the user sees painted first), which a lazy-split DOES lower. Recorded as
+  // the median first-commit duration across iterations 2..7.
+  firstCommitMedianMs?: number;
+  firstCommitsMs?: number[];
   error?: string;
 }
 
@@ -872,16 +880,20 @@ async function measureRoute(spec: RouteSpec): Promise<void> {
     }
 
     const runsMs: number[] = [];
+    const firstCommitsMs: number[] = [];
     let lastCommits = 0;
 
     for (let i = 0; i < ITERATIONS; i++) {
       let commits = 0;
       let duration = 0;
+      let firstCommitDuration = 0;
       const onRender: ProfilerOnRenderCallback = (
         _id,
         _phase,
         actualDuration
       ) => {
+        // Capture only the FIRST commit's duration (time-to-first-paint).
+        if (commits === 0) firstCommitDuration = actualDuration;
         commits += 1;
         duration += actualDuration;
       };
@@ -907,17 +919,21 @@ async function measureRoute(spec: RouteSpec): Promise<void> {
       }
 
       runsMs.push(Number(duration.toFixed(3)));
+      firstCommitsMs.push(Number(firstCommitDuration.toFixed(3)));
       lastCommits = commits;
     }
 
     // Discard iteration 1 (warm-up); median over the rest.
     const measured = runsMs.slice(1);
+    const measuredFirst = firstCommitsMs.slice(1);
     metrics.push({
       route,
       component,
       commits: lastCommits,
       medianMountMs: Number(median(measured).toFixed(3)),
       runsMs,
+      firstCommitMedianMs: Number(median(measuredFirst).toFixed(3)),
+      firstCommitsMs,
     });
   } catch (err) {
     metrics.push({
@@ -1107,6 +1123,8 @@ describe('page-load performance baseline', () => {
       expect(m?.commits).toBeGreaterThan(0);
       expect(m?.runsMs).toHaveLength(ITERATIONS);
       expect(m?.medianMountMs).toBeGreaterThanOrEqual(0);
+      expect(m?.firstCommitsMs).toHaveLength(ITERATIONS);
+      expect(m?.firstCommitMedianMs).toBeGreaterThanOrEqual(0);
     }, 30000);
   }
 });
@@ -1137,6 +1155,11 @@ afterAll(() => {
           '(unmounting between each); iteration 1 is discarded as warm-up and ' +
           'medianMountMs is the median summed actualDuration of iterations ' +
           '2..7. runsMs lists all 7 raw per-iteration durations. ' +
+          'firstCommitMedianMs isolates the FIRST commit (time-to-first-' +
+          'paint): unlike medianMountMs (which SUMS the whole settle window, ' +
+          'so deferring work via React.lazy/Suspense does not lower it), the ' +
+          'first-commit duration drops when synchronous mount work is split ' +
+          'out behind Suspense. firstCommitsMs lists all 7 raw values. ' +
           'actualDurationMs is machine-dependent and indicative only — ' +
           'compare medians of 3 runs. All Firebase/session dependencies are ' +
           'mocked so each route renders its real (loaded/empty) UI tree ' +
