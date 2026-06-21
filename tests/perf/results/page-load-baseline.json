@@ -1,0 +1,382 @@
+{
+  "generatedAt": "2026-06-21T19:56:06.850Z",
+  "runCommand": "pnpm exec vitest run tests/perf/pageLoadPerf.test.tsx",
+  "note": "Profiler commit counts are the deterministic primary metric and must be identical across runs. Each page is mounted 7 times (unmounting between each); iteration 1 is discarded as warm-up and medianMountMs is the median summed actualDuration of iterations 2..7. runsMs lists all 7 raw per-iteration durations. actualDurationMs is machine-dependent and indicative only — compare medians of 3 runs. All Firebase/session dependencies are mocked so each route renders its real (loaded/empty) UI tree synchronously, with no network and no perpetual loaders. The \"/ (signed-in teacher)\" page mounts the REAL DashboardView shell (Sidebar + Dock + empty BoardCanvas) with an EMPTY board (0 widgets), so it measures the teacher page-load skeleton, not loaded board content. It is mounted inside the legacy DashboardContext.Provider with a stubbed useDashboard() value so the canvas hot-slice hooks resolve via their use(DashboardContext) fallback; no DashboardProvider/Firestore subscriptions are booted.",
+  "pages": [
+    {
+      "route": "/r/:code",
+      "component": "ShortLinkRedirect",
+      "commits": 2,
+      "medianMountMs": 1.758,
+      "runsMs": [
+        12.105,
+        2.744,
+        1.979,
+        1.768,
+        1.747,
+        1.58,
+        1.494
+      ]
+    },
+    {
+      "route": "/spotify-callback",
+      "component": "SpotifyCallback",
+      "commits": 1,
+      "medianMountMs": 0.489,
+      "runsMs": [
+        1.271,
+        0.686,
+        0.525,
+        0.437,
+        0.494,
+        0.484,
+        0.444
+      ]
+    },
+    {
+      "route": "/convert",
+      "component": "ConverterPage",
+      "commits": 1,
+      "medianMountMs": 2.288,
+      "runsMs": [
+        5.392,
+        2.521,
+        2.65,
+        2.157,
+        2.403,
+        2.109,
+        2.172
+      ]
+    },
+    {
+      "route": "/privacy",
+      "component": "PrivacyPolicyPage",
+      "commits": 1,
+      "medianMountMs": 4.739,
+      "runsMs": [
+        6.599,
+        4.835,
+        6.181,
+        4.432,
+        4.643,
+        4.175,
+        6.698
+      ]
+    },
+    {
+      "route": "/terms",
+      "component": "TermsOfServicePage",
+      "commits": 1,
+      "medianMountMs": 3.262,
+      "runsMs": [
+        3.811,
+        3.936,
+        3.264,
+        3.26,
+        3.243,
+        3.735,
+        3.056
+      ]
+    },
+    {
+      "route": "/support",
+      "component": "SupportPage",
+      "commits": 1,
+      "medianMountMs": 2.657,
+      "runsMs": [
+        2.899,
+        2.76,
+        2.604,
+        2.545,
+        2.993,
+        2.509,
+        2.709
+      ]
+    },
+    {
+      "route": "/request",
+      "component": "RequestRolloutPage",
+      "commits": 1,
+      "medianMountMs": 2.29,
+      "runsMs": [
+        3.783,
+        2.369,
+        2.308,
+        2.235,
+        2.272,
+        2.077,
+        2.569
+      ]
+    },
+    {
+      "route": "/",
+      "component": "LandingPage",
+      "commits": 1,
+      "medianMountMs": 7.115,
+      "runsMs": [
+        8.293,
+        8.899,
+        8.006,
+        7.509,
+        6.644,
+        6.721,
+        6.404
+      ]
+    },
+    {
+      "route": "/ (signed-out remote)",
+      "component": "LoginScreen",
+      "commits": 1,
+      "medianMountMs": 1.792,
+      "runsMs": [
+        4.774,
+        1.771,
+        1.942,
+        1.812,
+        1.893,
+        1.537,
+        1.488
+      ]
+    },
+    {
+      "route": "/join",
+      "component": "StudentApp",
+      "commits": 1,
+      "medianMountMs": 1.61,
+      "runsMs": [
+        2.42,
+        1.974,
+        1.535,
+        1.69,
+        1.621,
+        1.598,
+        1.414
+      ]
+    },
+    {
+      "route": "/quiz",
+      "component": "QuizStudentApp",
+      "commits": 1,
+      "medianMountMs": 2.143,
+      "runsMs": [
+        2.915,
+        2.774,
+        2.292,
+        2.129,
+        2.014,
+        2.158,
+        2.061
+      ]
+    },
+    {
+      "route": "/nextup",
+      "component": "NextUpStudentApp",
+      "commits": 3,
+      "medianMountMs": 1.716,
+      "runsMs": [
+        2.198,
+        1.602,
+        1.553,
+        2.069,
+        1.648,
+        1.942,
+        1.783
+      ]
+    },
+    {
+      "route": "/activity",
+      "component": "VideoActivityStudentApp",
+      "commits": 1,
+      "medianMountMs": 1.716,
+      "runsMs": [
+        2.058,
+        1.79,
+        1.496,
+        1.724,
+        1.709,
+        1.683,
+        1.905
+      ]
+    },
+    {
+      "route": "/activity-wall",
+      "component": "ActivityWallStudentApp",
+      "commits": 1,
+      "medianMountMs": 0.228,
+      "runsMs": [
+        0.984,
+        0.358,
+        0.26,
+        0.258,
+        0.198,
+        0.193,
+        0.183
+      ]
+    },
+    {
+      "route": "/activity-wall/gallery/:shareId",
+      "component": "ActivityWallGalleryView",
+      "commits": 2,
+      "medianMountMs": 0.628,
+      "runsMs": [
+        1.416,
+        0.718,
+        0.547,
+        0.477,
+        0.709,
+        0.779,
+        0.505
+      ]
+    },
+    {
+      "route": "/poll",
+      "component": "PollVoteApp",
+      "commits": 1,
+      "medianMountMs": 0.208,
+      "runsMs": [
+        0.66,
+        0.21,
+        0.219,
+        0.24,
+        0.207,
+        0.173,
+        0.182
+      ]
+    },
+    {
+      "route": "/miniapp/:id",
+      "component": "MiniAppStudentApp",
+      "commits": 3,
+      "medianMountMs": 1.537,
+      "runsMs": [
+        2.741,
+        1.466,
+        1.807,
+        1.6,
+        2.224,
+        1.474,
+        1.45
+      ]
+    },
+    {
+      "route": "/guided-learning/:id",
+      "component": "GuidedLearningStudentApp",
+      "commits": 3,
+      "medianMountMs": 1.443,
+      "runsMs": [
+        2.252,
+        1.396,
+        1.49,
+        1.353,
+        1.494,
+        1.521,
+        1.343
+      ]
+    },
+    {
+      "route": "/student/login",
+      "component": "StudentLoginPage",
+      "commits": 1,
+      "medianMountMs": 1.398,
+      "runsMs": [
+        2.087,
+        1.33,
+        1.404,
+        1.392,
+        1.46,
+        1.621,
+        1.343
+      ]
+    },
+    {
+      "route": "/my-assignments",
+      "component": "MyAssignmentsPage",
+      "commits": 1,
+      "medianMountMs": 2.131,
+      "runsMs": [
+        7.618,
+        2.368,
+        2.205,
+        2.012,
+        2.053,
+        2.056,
+        2.257
+      ]
+    },
+    {
+      "route": "/invite/:token",
+      "component": "InviteAcceptance",
+      "commits": 1,
+      "medianMountMs": 1.115,
+      "runsMs": [
+        1.705,
+        1.183,
+        1.238,
+        1.12,
+        1.059,
+        1.109,
+        1.087
+      ]
+    },
+    {
+      "route": "/plc-invite/:id",
+      "component": "PlcInviteAcceptance",
+      "commits": 1,
+      "medianMountMs": 1.139,
+      "runsMs": [
+        1.907,
+        1.208,
+        1.114,
+        1.079,
+        1.163,
+        1.044,
+        1.573
+      ]
+    },
+    {
+      "route": "/subs",
+      "component": "SubsApp",
+      "commits": 1,
+      "medianMountMs": 1.147,
+      "runsMs": [
+        1.946,
+        1.127,
+        1.101,
+        1.172,
+        1.166,
+        1.188,
+        1.107
+      ]
+    },
+    {
+      "route": "/ (signed-in teacher)",
+      "component": "DashboardView",
+      "commits": 1,
+      "medianMountMs": 13.364,
+      "runsMs": [
+        103.518,
+        15.209,
+        13.636,
+        13.092,
+        12.689,
+        12.653,
+        13.743
+      ]
+    },
+    {
+      "route": "/remote (signed-in)",
+      "component": "MobileRemoteView",
+      "commits": 2,
+      "medianMountMs": 1.691,
+      "runsMs": [
+        2.993,
+        1.713,
+        1.738,
+        1.668,
+        1.546,
+        1.782,
+        1.474
+      ]
+    }
+  ]
+}
