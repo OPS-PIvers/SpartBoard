@@ -145,23 +145,16 @@ export const NewUserSetup: React.FC = () => {
   const { setGlobalStyle } = useDashboard();
   const { reorderDockItems } = useToolVisibility();
 
-  // Buildings are an organization concept: the picker only lists buildings
-  // configured for the user's org. We include the step only when the user's
-  // org actually has buildings to choose from. We deliberately gate on the
-  // RAW `orgBuildings` (not `useAdminBuildings()`, which substitutes a seed
-  // fallback list that belongs to a different district) so we can tell a
-  // genuinely empty org apart from one with buildings. Skipped when:
-  //   - the user has no org (external/free user), or
-  //   - the org has zero buildings configured — otherwise the required
-  //     "pick at least one school" gate would soft-lock them with no valid
-  //     option (raised in review).
-  const includeBuildingStep = orgId !== null && orgBuildings.length > 0;
-
-  // While the org's building list is still loading we don't yet know whether
-  // the step applies. Render a loader rather than the wizard so the step count
-  // is decided once — never shifting under the user mid-flow. Org-less users
-  // resolve `orgBuildingsLoaded` immediately, so they never see this.
-  const buildingsResolving = orgId !== null && !orgBuildingsLoaded;
+  // Buildings are an organization concept. The step is included whenever the
+  // user has an org and excluded for org-less (external/free) users. We gate
+  // ONLY on `orgId`, which is fully settled by the time this wizard mounts
+  // (App.tsx holds on `roleResolved`, which includes membership resolution),
+  // so the step count is fixed for the lifetime of the flow — never shifting
+  // under the user. The async building LIST (loading vs. loaded-empty vs.
+  // populated) is handled inside the step itself, so we don't make the
+  // step-count decision depend on building-load timing (which would otherwise
+  // open a one-frame race between `orgId` and `orgBuildingsLoaded`).
+  const includeBuildingStep = orgId !== null;
 
   const stepKinds = useMemo<StepKind[]>(
     () =>
@@ -246,23 +239,23 @@ export const NewUserSetup: React.FC = () => {
     }
   };
 
-  // Building selection is required only on the buildings step; every other
-  // step can always advance.
+  // Advancing past the buildings step:
+  //   - while the org's building list is still loading → blocked (so a user
+  //     can't skip past a picker that hasn't appeared yet);
+  //   - once loaded and the org has buildings → require at least one pick;
+  //   - once loaded and the org has NO buildings → allow advancing (nothing
+  //     to pick; avoids a soft-lock for a freshly-created org).
+  // Every non-buildings step can always advance.
   const canAdvance =
-    currentKind === 'buildings' ? selectedBuildings.length > 0 : true;
+    currentKind !== 'buildings'
+      ? true
+      : !orgBuildingsLoaded
+        ? false
+        : orgBuildings.length === 0
+          ? true
+          : selectedBuildings.length > 0;
 
   const firstName = user?.displayName?.split(' ')[0] ?? 'there';
-
-  // Hold on a loader until the org's building list resolves so the step model
-  // is computed from a settled list. Kept after all hooks above to preserve
-  // hook order.
-  if (buildingsResolving) {
-    return (
-      <div className="fixed inset-0 z-critical bg-slate-900 flex items-center justify-center p-4">
-        <Loader2 className="w-10 h-10 text-blue-400 animate-spin" />
-      </div>
-    );
-  }
 
   return (
     <div className="fixed inset-0 z-critical bg-slate-900 flex flex-col items-center justify-center p-4">
@@ -391,7 +384,41 @@ const StepBuildings: React.FC<{
   selected: string[];
   onToggle: (id: string) => void;
 }> = ({ selected, onToggle }) => {
+  const { orgBuildings, orgBuildingsLoaded } = useAuth();
+  // `useAdminBuildings()` maps the org's Firestore buildings. We only read it
+  // once we know the org HAS buildings (below), so its seed fallback — which
+  // belongs to a different district — is never shown to an external org.
   const BUILDINGS = useAdminBuildings();
+
+  // Still fetching the org's building list.
+  if (!orgBuildingsLoaded) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+        <Loader2 className="w-8 h-8 animate-spin mb-3" />
+        <p className="text-sm">Loading your schools…</p>
+      </div>
+    );
+  }
+
+  // Org exists but no buildings configured yet (e.g. a freshly created org).
+  // Nothing to pick — let the user continue and set this up later.
+  if (orgBuildings.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-slate-700/60 flex items-center justify-center mb-4">
+          <Building2 className="w-7 h-7 text-slate-400" />
+        </div>
+        <p className="font-semibold text-slate-200 text-sm">
+          No schools set up yet
+        </p>
+        <p className="text-slate-400 text-xs mt-1 max-w-xs">
+          Your organization hasn&rsquo;t added any schools. You can set this
+          later once an admin configures them.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {BUILDINGS.map((b) => {
