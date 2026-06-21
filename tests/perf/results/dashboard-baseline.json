@@ -7,7 +7,7 @@
     {
       "scenario": "mount15",
       "commits": 3,
-      "actualDurationMs": 629.072,
+      "actualDurationMs": 232.255,
       "totalShellRenders": 15,
       "shellRendersByWidget": {
         "w-1": 1,
@@ -70,7 +70,7 @@
     {
       "scenario": "drag.press",
       "commits": 2,
-      "actualDurationMs": 7.228,
+      "actualDurationMs": 3.397,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-5": 1
@@ -112,7 +112,7 @@
     {
       "scenario": "drag.release",
       "commits": 3,
-      "actualDurationMs": 13.245,
+      "actualDurationMs": 4.789,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-5": 1
@@ -137,7 +137,7 @@
     {
       "scenario": "resize.press",
       "commits": 1,
-      "actualDurationMs": 1.641,
+      "actualDurationMs": 1.346,
       "totalShellRenders": 0,
       "shellRendersByWidget": {},
       "bystanderRenders": 0,
@@ -171,7 +171,7 @@
     {
       "scenario": "resize.release",
       "commits": 3,
-      "actualDurationMs": 8.403,
+      "actualDurationMs": 4.66,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-7": 1
@@ -196,7 +196,7 @@
     {
       "scenario": "bringToFront5",
       "commits": 10,
-      "actualDurationMs": 39.326,
+      "actualDurationMs": 15.682,
       "totalShellRenders": 5,
       "shellRendersByWidget": {
         "w-1": 1,
@@ -225,7 +225,7 @@
     {
       "scenario": "addWidget",
       "commits": 3,
-      "actualDurationMs": 22.124,
+      "actualDurationMs": 10.378,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "added-widget": 1
@@ -250,7 +250,7 @@
     {
       "scenario": "removeWidget",
       "commits": 2,
-      "actualDurationMs": 9.429,
+      "actualDurationMs": 1.477,
       "totalShellRenders": 0,
       "shellRendersByWidget": {},
       "bystanderRenders": 5,
@@ -273,7 +273,7 @@
     {
       "scenario": "minimize",
       "commits": 2,
-      "actualDurationMs": 2.699,
+      "actualDurationMs": 3,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-3": 1
@@ -298,7 +298,7 @@
     {
       "scenario": "restore",
       "commits": 2,
-      "actualDurationMs": 6.836,
+      "actualDurationMs": 3.193,
       "totalShellRenders": 1,
       "shellRendersByWidget": {
         "w-3": 1
@@ -323,7 +323,7 @@
     {
       "scenario": "toggleToolVisibility",
       "commits": 1,
-      "actualDurationMs": 1.02,
+      "actualDurationMs": 1.03,
       "totalShellRenders": 0,
       "shellRendersByWidget": {},
       "bystanderRenders": 0,
@@ -340,7 +340,7 @@
     {
       "scenario": "setGlobalStyle",
       "commits": 2,
-      "actualDurationMs": 68.359,
+      "actualDurationMs": 24.524,
       "totalShellRenders": 15,
       "shellRendersByWidget": {
         "w-1": 1,
@@ -385,7 +385,7 @@
     {
       "scenario": "selectOther",
       "commits": 3,
-      "actualDurationMs": 76.26,
+      "actualDurationMs": 25.912,
       "totalShellRenders": 0,
       "shellRendersByWidget": {},
       "bystanderRenders": 5,
@@ -408,7 +408,7 @@
     {
       "scenario": "selectSelf",
       "commits": 3,
-      "actualDurationMs": 56.117,
+      "actualDurationMs": 20.017,
       "totalShellRenders": 0,
       "shellRendersByWidget": {},
       "bystanderRenders": 5,
@@ -437,7 +437,7 @@
     {
       "scenario": "loadReadOnlyBoard",
       "commits": 5,
-      "actualDurationMs": 190.788,
+      "actualDurationMs": 44.819,
       "totalShellRenders": 30,
       "shellRendersByWidget": {
         "w-1": 2,

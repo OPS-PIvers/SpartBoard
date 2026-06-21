@@ -6,62 +6,62 @@
     {
       "scenario": "quiz.mount",
       "commits": 3,
-      "actualDurationMs": 252.759
+      "actualDurationMs": 135.184
     },
     {
       "scenario": "quiz.type25",
       "commits": 25,
-      "actualDurationMs": 527.328
+      "actualDurationMs": 172.741
     },
     {
       "scenario": "quiz.switchSelection10",
       "commits": 18,
-      "actualDurationMs": 245.476
+      "actualDurationMs": 110.328
     },
     {
       "scenario": "quiz.addQuestion",
       "commits": 2,
-      "actualDurationMs": 22.911
+      "actualDurationMs": 11.435
     },
     {
       "scenario": "va.mount",
       "commits": 4,
-      "actualDurationMs": 157.016
+      "actualDurationMs": 64.252
     },
     {
       "scenario": "va.type25",
       "commits": 25,
-      "actualDurationMs": 539.195
+      "actualDurationMs": 156.167
     },
     {
       "scenario": "va.switchSelection10",
       "commits": 10,
-      "actualDurationMs": 132.691
+      "actualDurationMs": 63.781
     },
     {
       "scenario": "va.addTask",
       "commits": 2,
-      "actualDurationMs": 51.53
+      "actualDurationMs": 17.451
     },
     {
       "scenario": "gl.mount",
       "commits": 3,
-      "actualDurationMs": 179.453
+      "actualDurationMs": 38.31
     },
     {
       "scenario": "gl.type25",
       "commits": 25,
-      "actualDurationMs": 718.358
+      "actualDurationMs": 225.018
     },
     {
       "scenario": "gl.switchSlide10",
       "commits": 10,
-      "actualDurationMs": 241.072
+      "actualDurationMs": 95.099
     },
     {
       "scenario": "gl.addStep",
       "commits": 3,
-      "actualDurationMs": 18.312
+      "actualDurationMs": 25.656
     }
   ]
 }
