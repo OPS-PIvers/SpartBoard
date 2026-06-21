@@ -11,9 +11,35 @@ import { APP_NAME } from '@/config/constants';
 import { functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 
-// Phase 4 hardcodes the org id to match AuthContext's DEFAULT_ORG_ID.
-// Multi-org support is an open question tracked in the implementation plan.
-const DEFAULT_ORG_ID = 'orono';
+// Resilience fallback only. The org a user is claiming an invite for normally
+// comes from the invite URL's `?org=` param (see `extractOrgId`); failing that,
+// it's resolved from their verified email domain via `resolveOrgForUser`. This
+// operator-org id is the last resort if both are unavailable, so existing
+// internal invites keep working.
+const OPERATOR_ORG_ID = 'orono';
+
+/**
+ * Resolves which org the signed-in invitee belongs to, from their verified
+ * email domain. Used only for legacy invite links that don't carry the org in
+ * their URL. Returns the operator org as a resilience fallback if the resolver
+ * call fails (mid-deploy / transient outage) so internal invites never break.
+ * A cross-domain invite on a legacy link (invitee's domain maps to a different
+ * org, or none) is the one case this can't cover — newer links avoid it
+ * entirely by carrying `?org=`.
+ */
+const resolveInviteOrgId = async (): Promise<string> => {
+  try {
+    const callable = httpsCallable<unknown, { orgId: string | null }>(
+      functions,
+      'resolveOrgForUser'
+    );
+    const { data } = await callable({});
+    return data?.orgId ?? OPERATOR_ORG_ID;
+  } catch (error) {
+    console.error('Invite org resolution failed; using operator org:', error);
+    return OPERATOR_ORG_ID;
+  }
+};
 
 /**
  * Extract the invite token from the current URL.
@@ -31,6 +57,28 @@ const extractToken = (): string => {
   const stopAt = rest.search(/[/?#]/);
   const token = stopAt === -1 ? rest : rest.slice(0, stopAt);
   return token.trim();
+};
+
+/**
+ * Reads the `?org=` query param from the invite URL. Invite links minted by
+ * `createOrganizationInvites` carry the orgId so the claim targets the right
+ * org without a domain lookup — which matters for a newly-onboarded org whose
+ * domain isn't verified yet. Empty string for legacy links that predate it.
+ *
+ * The value is stripped to Firestore-doc-id-safe slug chars: org ids are slugs
+ * (e.g. `orono`), so this is lossless for real values, while a crafted value
+ * containing `/` (which would build a malformed Firestore path inside
+ * `claimOrganizationInvite` and surface as a thrown error) degrades to a clean
+ * "invite not found" instead.
+ */
+const extractOrgId = (): string => {
+  if (typeof window === 'undefined') return '';
+  return (
+    new URLSearchParams(window.location.search)
+      .get('org')
+      ?.trim()
+      .replace(/[^a-zA-Z0-9_-]/g, '') ?? ''
+  );
 };
 
 type ClaimStatus =
@@ -222,9 +270,10 @@ const getErrorCodeFromUnknown = (error: unknown): string => {
 };
 
 export const InviteAcceptance: React.FC = () => {
-  // Capture the token once on mount — even if the URL changes during the auth
-  // flip, we keep the same token through the whole flow.
+  // Capture the token + org once on mount — even if the URL changes during the
+  // auth flip, we keep the same values through the whole flow.
   const [token] = React.useState(() => extractToken());
+  const [orgFromUrl] = React.useState(() => extractOrgId());
   const { user, loading, signOut } = useAuth();
   const [status, setStatus] = React.useState<ClaimStatus>({ kind: 'idle' });
   const claimRanRef = React.useRef(false);
@@ -241,11 +290,14 @@ export const InviteAcceptance: React.FC = () => {
 
     const run = async () => {
       try {
+        // Prefer the org carried in the invite URL; fall back to domain
+        // resolution for legacy links that don't include it.
+        const orgId = orgFromUrl || (await resolveInviteOrgId());
         const claim = httpsCallable<
           { token: string; orgId: string },
           { ok: true }
         >(functions, 'claimOrganizationInvite');
-        await claim({ token, orgId: DEFAULT_ORG_ID });
+        await claim({ token, orgId });
         setStatus({ kind: 'success' });
         // Brief success state before dropping the user into the app.
         window.setTimeout(() => {
@@ -261,7 +313,7 @@ export const InviteAcceptance: React.FC = () => {
     };
 
     void run();
-  }, [token, loading, user, status.kind]);
+  }, [token, orgFromUrl, loading, user, status.kind]);
 
   if (!token) {
     return <MissingTokenView />;

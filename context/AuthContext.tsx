@@ -23,10 +23,12 @@ import {
   limit,
   query,
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import {
   auth,
   googleProvider,
   db,
+  functions,
   isAuthBypass,
   GOOGLE_OAUTH_SCOPES,
 } from '@/config/firebase';
@@ -71,10 +73,61 @@ import {
 } from '@/utils/lastActiveThrottle';
 import { deriveUserTier, meetsMinTier } from '@/utils/userTier';
 
-// Phase 2 ships with the single seeded `orono` org. Phase 3+ resolves this
-// dynamically once `admin_settings/user_roles` (or an org-index collection)
-// tracks which org a given uid belongs to.
-const DEFAULT_ORG_ID = 'orono';
+// The operator's own organization. Two narrow uses remain after dynamic
+// org resolution shipped:
+//   1. Auth-bypass / mock mode seeds this so local dev has a working org.
+//   2. Resilience fallback: if the `resolveOrgForUser` callable is
+//      unavailable (e.g. mid-deploy, transient outage), we fall back to
+//      looking up membership in the operator org so existing internal users
+//      are never locked out. External users simply won't have a member doc
+//      there and resolve to the free tier — the correct degraded behavior.
+// Every signed-in user's actual org is resolved dynamically from their email
+// domain via `resolveOrgForUser` (see the membership effect below).
+const OPERATOR_ORG_ID = 'orono';
+
+/** Session cache of a POSITIVE org resolution keyed by lowercased email, so
+ * repeat loads within a session skip the `resolveOrgForUser` round-trip.
+ * Deliberately only caches a resolved orgId — a "no org" result is never
+ * cached so a user who gets invited mid-session picks up their org on the
+ * next load without needing a new browser session. */
+const RESOLVED_ORG_CACHE_PREFIX = 'spart_resolved_org:';
+
+/**
+ * Resolves which organization a signed-in user belongs to from their verified
+ * email domain, via the `resolveOrgForUser` callable. Returns the orgId, or
+ * null when the domain isn't registered to any org (free/no-org tier).
+ *
+ * Caches positive resolutions per-email in sessionStorage so we only pay the
+ * callable round-trip once per session for org members. Throws on transport
+ * failure so callers can apply their own resilience fallback (the operator-org
+ * lookup).
+ */
+async function resolveOrgIdForUser(emailLower: string): Promise<string | null> {
+  try {
+    const cached = sessionStorage.getItem(
+      RESOLVED_ORG_CACHE_PREFIX + emailLower
+    );
+    if (cached) return cached;
+  } catch {
+    // sessionStorage unavailable (private mode / SSR) — fall through to the call.
+  }
+
+  const callable = httpsCallable<unknown, { orgId: string | null }>(
+    functions,
+    'resolveOrgForUser'
+  );
+  const { data } = await callable({});
+  const orgId = data?.orgId ?? null;
+
+  if (orgId) {
+    try {
+      sessionStorage.setItem(RESOLVED_ORG_CACHE_PREFIX + emailLower, orgId);
+    } catch {
+      // Best-effort cache only.
+    }
+  }
+  return orgId;
+}
 
 /**
  * IMPORTANT: Authentication bypass / mock user mode
@@ -269,7 +322,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     Record<string, string> | undefined
   >(undefined);
   const [orgId, setOrgId] = useState<string | null>(
-    isAuthBypass ? DEFAULT_ORG_ID : null
+    isAuthBypass ? OPERATOR_ORG_ID : null
   );
   const [roleId, setRoleId] = useState<string | null>(
     isAuthBypass ? 'super_admin' : null
@@ -897,11 +950,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [user]);
 
-  // Subscribe to organization membership. Phase 2 hard-codes the single seeded
-  // `orono` org; Phase 3+ will resolve orgId dynamically from a user→org
-  // index. Rules allow a signed-in user to read their own member doc
-  // (`request.auth.token.email.lower() == resource.id`), so this listener
-  // works for non-admins too.
+  // Subscribe to organization membership. The user's org is resolved
+  // dynamically from their verified email domain via the `resolveOrgForUser`
+  // callable (any registered district works, not just the operator org), then
+  // we subscribe to that org's member doc. Rules allow a signed-in user to
+  // read their own member doc (`request.auth.token.email.lower() ==
+  // resource.id`) in ANY org, so this listener works for non-admins too.
   useEffect(() => {
     if (isAuthBypass) return;
     if (!user?.email) {
@@ -923,35 +977,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // -callback ordering is cheap and explicit.
     const startUid = user.uid;
     const emailLower = user.email.toLowerCase();
-    const unsub = onSnapshot(
-      doc(db, 'organizations', DEFAULT_ORG_ID, 'members', emailLower),
-      (snap) => {
-        if (auth.currentUser?.uid !== startUid) return;
-        if (snap.exists()) {
-          const member = snap.data() as MemberRecord;
-          setOrgId(member.orgId ?? DEFAULT_ORG_ID);
-          setRoleId(member.roleId ?? null);
-          setBuildingIds(member.buildingIds ?? []);
-        } else {
+    let cancelled = false;
+    let unsub: (() => void) | null = null;
+
+    const subscribeToMembership = (candidateOrgId: string) => {
+      if (cancelled || auth.currentUser?.uid !== startUid) return;
+      unsub = onSnapshot(
+        doc(db, 'organizations', candidateOrgId, 'members', emailLower),
+        (snap) => {
+          if (auth.currentUser?.uid !== startUid) return;
+          if (snap.exists()) {
+            const member = snap.data() as MemberRecord;
+            setOrgId(member.orgId ?? candidateOrgId);
+            setRoleId(member.roleId ?? null);
+            setBuildingIds(member.buildingIds ?? []);
+          } else {
+            // Domain resolved to an org but no member doc exists yet (e.g.
+            // a registered-domain user who was never invited): no org access,
+            // free tier. Also the no-org / unregistered-domain case.
+            setOrgId(null);
+            setRoleId(null);
+            setBuildingIds([]);
+          }
+          setMembershipResolved(true);
+        },
+        (error) => {
+          if (auth.currentUser?.uid !== startUid) return;
+          console.error('[AuthContext] Error loading org membership:', error);
           setOrgId(null);
           setRoleId(null);
           setBuildingIds([]);
+          // Even an error counts as "resolved" — we know there's no usable
+          // member data, and consumers shouldn't stall indefinitely.
+          setMembershipResolved(true);
         }
-        setMembershipResolved(true);
-      },
-      (error) => {
-        if (auth.currentUser?.uid !== startUid) return;
-        console.error('[AuthContext] Error loading org membership:', error);
-        setOrgId(null);
-        setRoleId(null);
-        setBuildingIds([]);
-        // Even an error counts as "resolved" — we know there's no usable
-        // member data, and consumers shouldn't stall indefinitely.
-        setMembershipResolved(true);
-      }
-    );
+      );
+    };
 
-    return unsub;
+    resolveOrgIdForUser(emailLower)
+      .then((resolvedOrgId) => {
+        if (cancelled || auth.currentUser?.uid !== startUid) return;
+        if (resolvedOrgId) {
+          subscribeToMembership(resolvedOrgId);
+        } else {
+          // Domain isn't registered to any org — free/no-org tier. Nothing to
+          // subscribe to; resolve membership immediately so the app doesn't
+          // stall on a snapshot that will never fire.
+          setOrgId(null);
+          setRoleId(null);
+          setBuildingIds([]);
+          setMembershipResolved(true);
+        }
+      })
+      .catch((error) => {
+        if (cancelled || auth.currentUser?.uid !== startUid) return;
+        // Resolver unavailable (mid-deploy / transient outage). Fall back to
+        // the operator org so existing internal members keep working; external
+        // users simply find no member doc there and resolve to the free tier.
+        console.error(
+          '[AuthContext] resolveOrgForUser failed; falling back to operator org:',
+          error
+        );
+        subscribeToMembership(OPERATOR_ORG_ID);
+      });
+
+    return () => {
+      cancelled = true;
+      if (unsub) unsub();
+    };
   }, [user]);
 
   // Listen to feature permissions (only when authenticated)
@@ -1628,6 +1721,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       const myToken = ++writeTokenRef.current;
       try {
+        // `merge: true` is mandatory: DashboardContext also writes this doc
+        // (see the UserProfile ownership contract in types.ts). A non-merge
+        // write here would clobber Dashboard-owned fields like `dockItems`.
         await setDoc(
           doc(db, 'users', user.uid, 'userProfile', 'profile'),
           sanitizedUpdates,

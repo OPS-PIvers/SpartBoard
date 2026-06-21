@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-20T02:27:59.795Z",
+  "generatedAt": "2026-06-21T02:17:36.542Z",
   "runCommand": "pnpm exec vitest run tests/perf/editorPerf.test.tsx",
   "note": "Profiler commit counts are the deterministic primary metric and must be identical across runs. actualDurationMs is machine-dependent and indicative only — compare medians of 3 runs.",
   "scenarios": [

@@ -2185,6 +2185,14 @@ export interface BuildingNoteDefaults {
   buildingId: string;
   fontSize?: number;
   bgColor?: string;
+  /**
+   * Prefixed `FONTS`-id value (e.g. `'font-sans'`), matching the value space
+   * the TextWidget toolbar / `getFontClass()` consume. `'global'` (inherit) is
+   * persisted as absence, same as the Stations/NeedDoPutThen panels.
+   */
+  fontFamily?: string;
+  fontColor?: string;
+  verticalAlign?: 'top' | 'center' | 'bottom';
 }
 
 export interface NoteGlobalConfig {
@@ -5968,6 +5976,20 @@ export interface UserRolesConfig {
 /**
  * Per-user profile data stored in Firestore at /users/{userId}/userProfile/profile.
  * This is separate from dashboard settings and persists across dashboards.
+ *
+ * OWNERSHIP CONTRACT — this single document is written by two contexts:
+ *  - `AuthContext` owns the account-level/identity fields: `selectedBuildings`,
+ *    `language`, `savedWidgetConfigs`, `setupCompleted`, `disableCloseConfirmation`,
+ *    `remoteControlEnabled`, `dockPosition`, `quizMonitorColorsEnabled`,
+ *    `quizMonitorScoreDisplay`, `favoriteBackgrounds`, `recentBackgrounds`.
+ *  - `DashboardContext` owns the board/dock state fields: `dockItems`,
+ *    `libraryOrder`, `dockInitialized`, `lastActiveCollectionId`,
+ *    `lastBoardIdByCollection`.
+ *
+ * INVARIANT: because both contexts write the same doc, every write MUST use
+ * `setDoc(ref, partial, { merge: true })` (or `updateDoc`) so it only touches
+ * its own fields. A non-merge `setDoc` would silently clobber the fields owned
+ * by the other context. Do not introduce a non-merge write to this path.
  */
 export interface UserProfile {
   /** IDs of the buildings the user works in (matches Building.id in config/buildings.ts) */
