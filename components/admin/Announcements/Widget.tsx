@@ -643,7 +643,7 @@ const PollResponsesPanel: React.FC<{
 };
 
 export const AnnouncementsManager: React.FC = () => {
-  const { user } = useAuth();
+  const { user, orgId } = useAuth();
   const { addToast } = useDashboard();
   const BUILDINGS = useAdminBuildings();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -863,6 +863,17 @@ export const AnnouncementsManager: React.FC = () => {
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
         createdBy: user?.email ?? 'admin',
+        // Multi-tenant isolation: stamp the creating admin's org on new docs
+        // (Orono admins resolve to 'orono'). On edit, self-heal toward tenancy:
+        // preserve an existing orgId, else fall back to the editing admin's
+        // current org so a pre-isolation legacy doc gets stamped on its first
+        // edit by a resolved-org admin (rather than staying globally readable
+        // until the backfill runs). `orgId` may be null (no-org admin, or org
+        // not yet resolved) — written as undefined (omitted) so the
+        // legacy/global visibility path still applies, never an explicit null.
+        orgId: existing
+          ? (existing.orgId ?? orgId ?? undefined)
+          : (orgId ?? undefined),
       };
 
       if (editingId) {

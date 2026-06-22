@@ -21,10 +21,19 @@ const makeWidget = (overrides: Partial<WidgetData> = {}): WidgetData =>
 
 const mockUpdateWidget = vi.fn();
 
-/** Minimal AuthContext value with only the fields the toggle reads. */
+/**
+ * Minimal AuthContext value with only the fields the toggle reads.
+ *
+ * `orgId` is set to a non-null org so `useAdminBuildings` returns the seed
+ * BUILDINGS list (the org-set-but-buildings-not-yet-loaded window). External
+ * (no-org) users get an empty building list now — see useAdminBuildings — so
+ * this fixture must represent an org member for the grade-label labels under
+ * test to resolve.
+ */
 const makeAuth = (selectedBuildings: string[]): AuthContextType =>
   ({
     selectedBuildings,
+    orgId: 'orono',
   }) as unknown as AuthContextType;
 
 const renderToggle = (

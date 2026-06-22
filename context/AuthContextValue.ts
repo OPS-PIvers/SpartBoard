@@ -46,6 +46,24 @@ export interface AuthContextType {
    */
   userTier: UserTier;
   /**
+   * True when the user belongs to an organization (`orgId !== null`). This is
+   * `false` both for genuine no-org users AND during the membership-loading
+   * window, so prefer `isExternalUser` (which adds the resolution + student
+   * guards) when deciding whether to HIDE org-only surfaces — using `!hasOrg`
+   * alone would flicker org surfaces off for org members while membership
+   * resolves.
+   */
+  hasOrg: boolean;
+  /**
+   * True ONLY for a fully-resolved, no-org, non-student (free/external-tier)
+   * user (docs/wide-distro-plan.md Phase 3). Gates org-only surfaces (My
+   * PLCs / My Building(s) / My Classes + ClassLink / announcements) away from
+   * external users. NEVER true while org membership is still resolving, so
+   * org/internal members (incl. Orono) never see their org surfaces flicker
+   * off during load. Auth-bypass and SSO students are never external.
+   */
+  isExternalUser: boolean;
+  /**
    * The org-wide assignment mode for a student-facing widget. Reads from the
    * `assignment-modes` GlobalFeaturePermission doc; defaults to `'submissions'`
    * when no record exists or the widget key is missing from `config`.

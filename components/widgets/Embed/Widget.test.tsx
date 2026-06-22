@@ -409,6 +409,8 @@ describe('EmbedWidget', () => {
         canAccessWidget: vi.fn(() => true),
         canAccessFeature: vi.fn(() => false),
         userTier: 'free' as const,
+        hasOrg: false,
+        isExternalUser: false,
         getAssignmentMode: vi.fn(() => 'submissions' as const),
         canSeeShareTracking: vi.fn(() => false),
         signInWithGoogle: vi.fn(),

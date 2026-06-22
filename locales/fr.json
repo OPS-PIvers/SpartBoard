@@ -282,7 +282,8 @@
       "targetNotActiveMember": "Vous ne pouvez transférer la direction qu'à un membre actif.",
       "cannotDemoteLead": "Utilisez « Transférer la direction » pour changer le responsable de la CAP.",
       "invalidRole": "Ce n'est pas un rôle de CAP valide.",
-      "alreadyLead": "Ce membre est déjà le responsable de cette CAP."
+      "alreadyLead": "Ce membre est déjà le responsable de cette CAP.",
+      "orgRequired": "Les CAP sont réservées aux membres d'une organisation."
     }
   },
   "plcDashboard": {

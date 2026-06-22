@@ -64,7 +64,10 @@ import {
   revokeBackendRefreshToken,
 } from '@/utils/googleOAuthRefresh';
 import { logError } from '@/utils/logError';
-import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
+import {
+  FEATURE_DEFAULTS,
+  WIDGET_DEFAULT_MIN_TIER,
+} from '@/config/featureDefaults';
 import { stripTransientKeys } from '@/utils/widgetConfigPersistence';
 import { parseAssignmentModesConfig } from '@/utils/assignmentModesConfig';
 import {
@@ -1995,6 +1998,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [user, orgId]
   );
 
+  // Does this user belong to an org? `orgId` is null until the membership
+  // snapshot resolves AND for genuine no-org (free-tier) users, so a bare
+  // `orgId !== null` is NOT a safe "external" signal on its own (it's false
+  // during the loading window for Orono members too). `hasOrg` is the simple
+  // positive form; `isExternalUser` below adds the resolution + student guards.
+  const hasOrg = orgId !== null;
+
+  // True ONLY for a fully-resolved, no-org, FREE-tier, non-student user — i.e.
+  // the free/external tier that the wide-distribution rollout gates org surfaces
+  // away from (docs/wide-distro-plan.md Phase 3). Four conditions, all required,
+  // so org/internal members (and the in-flight loading window) never flicker
+  // their org surfaces away:
+  //   1. `membershipResolved` — the org-membership effect has settled. While
+  //      it's still resolving this is false, so an Orono member's "My PLCs" /
+  //      "My Building(s)" never blink off during load. Bypass mode seeds
+  //      `membershipResolved = true` with a non-null `orgId`, so bypass is
+  //      never external either.
+  //   2. `orgId === null` — no org membership doc resolved for this user.
+  //   3. `userTier === 'free'` — the decisive guard. `userTier` derives from
+  //      the email DOMAIN (orono.k12.mn.us → 'internal') INDEPENDENT of orgId,
+  //      so a brand-new / not-yet-backfilled Orono teacher who has no
+  //      `members/{email}` doc yet (orgId === null) is still 'internal' and is
+  //      NEVER classified external. Only genuine non-org, non-internal users
+  //      derive 'free'. This is what makes the gate zero-change for Orono even
+  //      before org member docs exist.
+  //   4. `!isStudentRole` — SSO students have no email/member doc and could
+  //      otherwise derive 'free' with orgId null; they are not "external
+  //      teachers" and must not be treated as such by the org-surface gates.
+  const isExternalUser =
+    membershipResolved &&
+    orgId === null &&
+    userTier === 'free' &&
+    !isStudentRole;
+
   // Check if user can access a specific widget
   // Wrapped in useCallback to prevent unnecessary re-renders since this function
   // is passed through context and used in component dependencies
@@ -2011,8 +2048,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Default behavior: If no permission record exists, allow public access
       // This means new widgets are accessible to all authenticated users until
-      // an admin explicitly configures permissions
-      if (!permission) return true;
+      // an admin explicitly configures permissions.
+      //
+      // Exception: an in-code default tier floor for Google-API-backed widgets
+      // (docs/wide-distro-plan.md Phase 3). `WIDGET_DEFAULT_MIN_TIER[calendar]
+      // = 'org'` denies external/free-tier users the Calendar (Events) widget
+      // while org + internal pass — without an admin needing to author a
+      // permission doc. Admins bypass the floor (consistent with the
+      // accessLevel bypass below). Widgets with no entry have no floor, so the
+      // historical public-by-default behavior is unchanged. `meetsMinTier`
+      // treats an undefined floor as "allow".
+      if (!permission) {
+        if (isAdmin) return true;
+        return meetsMinTier(userTier, WIDGET_DEFAULT_MIN_TIER[widgetType]);
+      }
 
       // If the feature is disabled, no one can access it (including admins)
       if (!permission.enabled) return false;
@@ -2141,11 +2190,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // depend on external config (OAuth, API keys) the code can't
       // verify on its own.
       if (!permission) {
-        return FEATURE_DEFAULTS[featureId].missingDocPublic;
+        const def = FEATURE_DEFAULTS[featureId];
+        if (!def.missingDocPublic) return false;
+        // Admins bypass the tier floor (same as the accessLevel bypass in
+        // resolvePermissionAccess). For everyone else, apply the in-code
+        // default tier floor (docs/wide-distro-plan.md Phase 3): a
+        // Google-API-backed feature with `defaultMinTier: 'org'` denies
+        // external/free-tier users while org + internal pass. An undefined
+        // `defaultMinTier` imposes no floor, so pre-tier features are
+        // unchanged. `meetsMinTier` treats an undefined floor as "allow".
+        if (isAdmin) return true;
+        return meetsMinTier(userTier, def.defaultMinTier);
       }
       return resolvePermissionAccess(permission, user.email);
     },
-    [user, globalPermissions, resolvePermissionAccess]
+    [user, globalPermissions, resolvePermissionAccess, isAdmin, userTier]
   );
 
   const getAssignmentMode = useCallback(
@@ -2268,6 +2327,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         canAccessWidget,
         canAccessFeature,
         userTier,
+        hasOrg,
+        isExternalUser,
         getAssignmentMode,
         canSeeShareTracking,
         signInWithGoogle,

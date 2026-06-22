@@ -8,6 +8,15 @@
 export interface GlobalPermConfig {
   dailyLimit?: number;
   dailyLimitEnabled?: boolean;
+  /**
+   * Separate, lower daily AI cap for no-org / external (free-tier) callers.
+   * Org/internal users always read `dailyLimit`; this field only ever gates
+   * a caller whose verified email domain resolves to NO organization. When
+   * unset, `DEFAULT_EXTERNAL_DAILY_LIMIT` (aiGeneration.ts) applies. The
+   * existing `dailyLimitEnabled` flag governs both caps — if daily limiting
+   * is turned off, neither org nor external callers are capped.
+   */
+  externalDailyLimit?: number;
 }
 
 export interface GlobalPermission {

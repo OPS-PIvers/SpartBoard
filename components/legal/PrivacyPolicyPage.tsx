@@ -9,21 +9,76 @@
  *   - the exact Google Workspace for Education / DPA references
  *   - the effective date (set to publish date below)
  * Google's OAuth consent + Marketplace listing require this URL to be public.
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ * DRAFT — EXTERNAL ELIGIBILITY (work item W10, wide-distro plan Phase 4 §1)
+ * ───────────────────────────────────────────────────────────────────────────
+ * The eligibility / availability language below has been DRAFTED to reflect
+ * open, self-serve external availability (any educator with a Google account
+ * may create a free-tier account) ahead of flipping the GCP OAuth consent
+ * screen to External. It is NOT finalized.
+ *
+ * OPEN QUESTION (district counsel must resolve before publish): the OPERATOR
+ * MODEL — who legally operates SpartBoard for non-Orono users, and the
+ * corresponding DPA / FERPA "school official" framing per consuming district.
+ * Do NOT assert a final legal position on the operator model here until counsel
+ * signs off. See docs/external-availability-legal-review.md and
+ * docs/wide-distro-plan.md (Open Questions → "Operator model").
+ *
+ * The Google API Services User Data Policy / Limited Use disclosure (in the
+ * "Google services and third parties" section) is INTENTIONALLY left intact and
+ * must remain — it is required for OAuth verification regardless of audience.
+ *
+ * Search for `DRAFT_EXTERNAL_ELIGIBILITY` to find every spot touched by W10.
+ * ───────────────────────────────────────────────────────────────────────────
  */
 import React from 'react';
 import { LegalPageLayout, LegalH2, LegalP, LegalList } from './LegalPageLayout';
 
 const PRIVACY_CONTACT = 'spartboard@orono.k12.mn.us';
 
+/**
+ * DRAFT_EXTERNAL_ELIGIBILITY — pending district counsel sign-off on operator model.
+ *
+ * Visible, unmissable in-page banner so any reviewer (or accidental publish)
+ * sees that the eligibility language is not final. REMOVE this banner — and the
+ * inline DRAFT note in the intro — once counsel has signed off on the operator
+ * model and the copy is finalized.
+ */
+const DraftEligibilityBanner: React.FC = () => (
+  <div
+    role="note"
+    className="mb-8 rounded-md border-2 border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+  >
+    <strong className="font-semibold">
+      DRAFT — pending district counsel sign-off on operator model.
+    </strong>{' '}
+    The eligibility and availability language on this page has been drafted for
+    open external availability but is not yet final. The legal operator model
+    for non-Orono users is under review.
+  </div>
+);
+
 export const PrivacyPolicyPage: React.FC = () => (
   <LegalPageLayout title="Privacy Policy" lastUpdated="May 29, 2026">
+    {/* DRAFT_EXTERNAL_ELIGIBILITY — remove banner once operator model is finalized (W10). */}
+    <DraftEligibilityBanner />
+
+    {/*
+      DRAFT_EXTERNAL_ELIGIBILITY (W10): intro rewritten from "provided only to
+      members of the District's domain" to open self-serve external availability.
+      The operator framing ("operated by Orono Public Schools") is the OPEN
+      operator-model question — counsel must confirm or revise before publish.
+    */}
     <LegalP>
-      SpartBoard is a classroom-management tool operated by Orono Public Schools
-      (&ldquo;the District,&rdquo; &ldquo;we,&rdquo; &ldquo;us&rdquo;) for use
-      by the District&rsquo;s staff and students. This policy explains what
-      information SpartBoard collects, how it is used, and the choices available
-      to you. SpartBoard is provided only to members of the District&rsquo;s
-      Google Workspace for Education domain.
+      SpartBoard is a classroom-management tool that any educator with a Google
+      account may use to create a free account. SpartBoard is operated by Orono
+      Public Schools (&ldquo;the District,&rdquo; &ldquo;we,&rdquo;
+      &ldquo;us&rdquo;), which also makes it available to its own staff and
+      students. This policy explains what information SpartBoard collects, how
+      it is used, and the choices available to you. The data practices described
+      below apply to all users; some sections note where additional protections
+      apply specifically to Orono Public Schools staff and students.
     </LegalP>
 
     <LegalH2>Information we collect</LegalH2>
@@ -110,15 +165,25 @@ export const PrivacyPolicyPage: React.FC = () => (
     </LegalP>
 
     <LegalH2>Student data, FERPA, and children&rsquo;s privacy</LegalH2>
+    {/*
+      DRAFT_EXTERNAL_ELIGIBILITY (W10): this section is currently written ONLY
+      for Orono Public Schools students and is left substantively unchanged
+      because it is accurate for the District. How FERPA "education records",
+      the "school official" framing, and COPPA consent apply to students of an
+      EXTERNAL educator's classroom depends entirely on the unresolved operator
+      model. Do NOT broaden this language to external students until district
+      counsel resolves the operator model. See
+      docs/external-availability-legal-review.md.
+    */}
     <LegalP>
-      Student information in SpartBoard constitutes &ldquo;education
-      records&rdquo; under the Family Educational Rights and Privacy Act (FERPA)
-      and remains under the control of Orono Public Schools. The District
-      operates SpartBoard as part of its educational program. For students under
-      13, the school provides consent for the use of this educational tool
-      consistent with the Children&rsquo;s Online Privacy Protection Act
-      (COPPA). Student data is used only for educational purposes within the
-      District and is never sold or used for advertising.
+      For students of Orono Public Schools, student information in SpartBoard
+      constitutes &ldquo;education records&rdquo; under the Family Educational
+      Rights and Privacy Act (FERPA) and remains under the control of Orono
+      Public Schools. The District operates SpartBoard as part of its
+      educational program. For students under 13, the school provides consent
+      for the use of this educational tool consistent with the Children&rsquo;s
+      Online Privacy Protection Act (COPPA). Student data is used only for
+      educational purposes and is never sold or used for advertising.
     </LegalP>
 
     <LegalH2>Data retention and security</LegalH2>
