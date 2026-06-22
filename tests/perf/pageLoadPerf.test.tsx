@@ -844,9 +844,18 @@ const metrics: PageMetric[] = [];
  * the fake YouTube onReady, promise chains) so commit attribution is identical
  * run-to-run. Real timers are in effect, so a short delay drains them.
  */
+/**
+ * Per-iteration settle window (ms). Defaults to 50ms — enough slack for async
+ * mount work (auth bootstraps, snapshot deliveries, promise chains) to drain
+ * before the next iteration, so the deterministic Profiler commit count can't
+ * vary if work bleeds across iterations on a loaded machine. Override via the
+ * SETTLE_MS env var (e.g. `SETTLE_MS=100`) on a slower runner.
+ */
+const SETTLE_MS = Number(process.env.SETTLE_MS) || 50;
+
 async function settle(): Promise<void> {
   await act(async () => {
-    await new Promise((r) => setTimeout(r, 30));
+    await new Promise((r) => setTimeout(r, SETTLE_MS));
   });
 }
 
