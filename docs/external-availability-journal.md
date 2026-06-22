@@ -121,8 +121,8 @@ Code is done and safe-to-land, but the **actual external launch** (flipping the 
 3. **`CLASSROOM_ASSIGN_ENABLED` decision** — it is currently `true` in `config/constants.ts`. Set it **false** (and deploy) for launch unless the restricted `classroom.coursework.students` scope is confirmed Marketplace-declared + the OAuth client Trusted under External (an undeclared restricted scope reproduces an **org-wide** Account-Restricted outage that hits Orono too).
 4. **Announcements backfill sequence (do all three together, before admitting any external user):**
    1. Re-run `scripts/backfill-org-members.js` so **every** Orono user has a `members/{email}` doc (otherwise a member-doc-less Orono user's announcement listener is rejected once docs are org-stamped — see review Finding 1b).
-   2. Scope the `AnnouncementOverlay` listener query with `where('orgId','==', orgId)` (see the `MULTI-TENANT TODO` comment in the file) — required before a **second** org has active announcements, and a prerequisite for the backfill.
-   3. Run `node scripts/migrateAnnouncements.js --dry-run`, then for real, to stamp legacy docs `orgId='orono'`.
+   2. Run `node scripts/migrateAnnouncements.js --dry-run`, then for real, to stamp legacy docs `orgId='orono'` — **must run before** scoping the query below, otherwise legacy (no-`orgId`) Orono announcements vanish from the listener the instant the `where('orgId','==', orgId)` filter goes live.
+   3. Scope the `AnnouncementOverlay` listener query with `where('orgId','==', orgId)` (see the `MULTI-TENANT TODO` comment in the file) — required before a **second** org has active announcements, and safe only **after** the backfill in step 2 has stamped every legacy doc.
 5. **Promote `dev-paul → main`** per the merge flow ([[spartboard-merge-flow]]: **regular merge commit, never squash**) when ready to ship the frontend to prod hosting.
 
 ## Open Questions / Risks
