@@ -178,6 +178,7 @@
 | Admin & Config | `importSharedCollection` verbatim-EN keys: this namespace was included in the 2026-06-14 run (#1964 — 5 keys fixed), but the `shareCollection` namespace required a second pass tonight (#1977 — 10 more keys). Other namespaces fixed across multiple nights may also have residual verbatim-EN values introduced in feature branches after the initial fix. Periodic audit: compare every key in DE/ES/FR against its EN value for namespaces modified in the last 30 days. | 2026-06-15 | open |
 | Widgets | `NumberLine/Settings.tsx`: settings `<input>` uses `defaultValue` (uncontrolled) with `onBlur` save but has no Escape cancel handler. Pressing Escape blurs the field and saves the edited (intended-to-cancel) value — a related UX issue to the stale-onBlur pattern family. | 2026-06-22 | open |
 | Widgets | `PollWidget/OptionInput.tsx`: has `onBlur` save callback but no Escape key handler at all. Users cannot cancel a rename in progress — the cancel affordance expected from the widget family is missing. | 2026-06-22 | open |
+| Build & Tooling | CI guard for crash-at-import test suites: a `functions/` test file that crashes during module initialisation (`ERR_MODULE_NOT_FOUND`, missing `vi.mock()` stubs) shows zero failures — all cases are silently omitted from the count. A per-suite minimum-test-count check (e.g. Vitest `minThreads` or a post-run assertion on reported test counts) would surface these. Spotted via #2047 review. | 2026-06-22 | open |
 
 ## Notes & Gotchas
 
