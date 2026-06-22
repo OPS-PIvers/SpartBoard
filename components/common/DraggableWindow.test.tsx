@@ -1213,9 +1213,11 @@ describe('DraggableWindow', () => {
   //   3. The browser fires a blur on the unmounting element
   //   4. The stale onBlur fires saveTitle() a second time → duplicate Firestore write
   //
-  // Fix: wrap onBlur in an inline handler that checks e.currentTarget.isConnected
-  // and returns early when the input is already detached from the DOM, mirroring
-  // the guard added to FolderTree and RandomGroups in PR #1981.
+  // Fix: hasCommittedTitleRef is set to true on the first saveTitle() call
+  // (Enter keyDown handler), so the stale onBlur that fires during unmount hits
+  // the early-return guard and skips the duplicate Firestore write.
+  // (isConnected doesn't work here — blur fires before React commits the unmount,
+  // so the node is still connected at the time of the second saveTitle() call.)
   it('calls updateWidget exactly once when Enter commits the widget title edit', async () => {
     // Render with the widget selected so the floating toolbar and title show
     renderComponent({}, <div>Content</div>, <div>Settings</div>, 'test-widget');
