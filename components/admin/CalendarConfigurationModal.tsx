@@ -46,7 +46,11 @@ export const CalendarConfigurationModal: React.FC<
   // interactively (a user gesture) and seed the token for the background
   // AdminCalendarFetcher.
   const { ensureGoogleScope } = useAuth();
-  const [isCalendarConnected, setIsCalendarConnected] = useState(false);
+  // null = probe not yet resolved (hide the reconnect CTA to avoid a one-frame
+  // flash on open for already-connected admins); true/false once it resolves.
+  const [isCalendarConnected, setIsCalendarConnected] = useState<
+    boolean | null
+  >(null);
   const [config, setConfig] = useState<CalendarGlobalConfig>({
     blockedDates: [],
     buildingDefaults: {},
@@ -95,8 +99,8 @@ export const CalendarConfigurationModal: React.FC<
   useEffect(() => {
     if (!isOpen) {
       // Reset on close so a reopen never shows a stale "connected" status
-      // before the probe re-resolves.
-      setIsCalendarConnected(false);
+      // before the probe re-resolves (null = hidden until the probe resolves).
+      setIsCalendarConnected(null);
       return;
     }
     let cancelled = false;
@@ -266,7 +270,7 @@ export const CalendarConfigurationModal: React.FC<
         </div>
       </div>
       <div className="flex items-center gap-2">
-        {!isCalendarConnected && (
+        {isCalendarConnected === false && (
           <button
             onClick={() =>
               void ensureGoogleScope('calendar.readonly', {

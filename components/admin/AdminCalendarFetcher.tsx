@@ -43,9 +43,14 @@ export const AdminCalendarFetcher: React.FC = () => {
     // Only run for admins who have a SILENTLY-available calendar token.
     if (!isAdmin || !calendarToken || !config) return;
 
-    const calendarService = new GoogleCalendarService(calendarToken);
-
     const fetchAll = async () => {
+      // Re-acquire the token each sync cycle so an expired GIS token (~1h TTL —
+      // exactly this effect's interval) never reaches the Calendar API. Silent
+      // only (background effect, no gesture); null → not connected, stay idle.
+      const freshToken = await ensureGoogleScope('calendar.readonly');
+      if (!freshToken) return;
+      const calendarService = new GoogleCalendarService(freshToken);
+
       console.warn('[AdminCalendarFetcher] Starting background sync...');
       try {
         const now = new Date();
@@ -125,7 +130,7 @@ export const AdminCalendarFetcher: React.FC = () => {
     );
 
     return () => clearInterval(intervalId);
-  }, [isAdmin, calendarToken, config, BUILDINGS]);
+  }, [isAdmin, calendarToken, config, BUILDINGS, ensureGoogleScope]);
 
   return null; // Headless
 };
