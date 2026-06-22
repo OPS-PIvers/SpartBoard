@@ -1238,11 +1238,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         (error) => {
           if (auth.currentUser?.uid !== startUid) return;
           console.error('[AuthContext] Error loading org membership:', error);
-          setOrgId(null);
-          setRoleId(null);
-          setBuildingIds([]);
-          // Even an error counts as "resolved" — we know there's no usable
-          // member data, and consumers shouldn't stall indefinitely.
+          // PRESERVE the last-known orgId/roleId/buildingIds on a transient
+          // snapshot error (network blip, a permission race during a rules
+          // deploy). Zeroing them would briefly demote a non-Orono ORG user to
+          // the free/external tier and hide their org surfaces. Orono is
+          // protected regardless (tier derives 'internal' from the email
+          // domain), but a paying second/third org shouldn't lose membership to
+          // a blip — the listener restores correct state when it recovers, and
+          // Firestore rules enforce real access server-side either way. Still
+          // mark resolved so consumers don't stall indefinitely.
           setMembershipResolved(true);
         }
       );

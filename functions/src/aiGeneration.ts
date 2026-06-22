@@ -490,7 +490,15 @@ export const generateWithAI = onCall(
               const specPerm = specPermDoc.data() as GlobalPermission;
               const specLimitEnabled =
                 specPerm.config?.dailyLimitEnabled !== false;
-              const specificLimit = specPerm.config?.dailyLimit ?? 20;
+              // External callers get the external per-feature cap too (same
+              // pickOverallLimit logic as the overall cap), so a per-feature
+              // `externalDailyLimit` is honored rather than silently ignored;
+              // org callers keep `dailyLimit`. The overall cap remains the
+              // primary external throttle.
+              const specificLimit = pickOverallLimit(
+                specPerm.config,
+                isExternal
+              );
 
               if (specLimitEnabled && currentSpecificUsage >= specificLimit) {
                 throw new HttpsError(

@@ -3835,7 +3835,13 @@ service cloud.firestore {
     match /announcements/{announcementId} {
       allow read: if request.auth != null
         && (
+          // No orgId field — OR an explicit `orgId: null` (which has the field
+          // present) — is legacy/global, readable by any authed user. Allowing
+          // the explicit-null case too prevents a doc written with orgId:null
+          // from falling through to isOrgMember(null) and becoming invisible to
+          // everyone except admins.
           !('orgId' in resource.data)
+          || resource.data.orgId == null
           || isOrgMember(resource.data.orgId)
           || isAdmin()
         );
