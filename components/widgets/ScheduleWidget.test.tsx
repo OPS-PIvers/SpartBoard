@@ -21,6 +21,22 @@ vi.mock('../../context/useDashboard');
 vi.mock('../../context/useAuth');
 vi.mock('../../hooks/useFeaturePermissions');
 
+// Controllable getTodayStr for the UTC/local-date split regression test.
+// vi.hoisted ensures the mock fn is available when the vi.mock factory below
+// runs (which is hoisted to the top of the compiled output).
+const { mockGetTodayStr } = vi.hoisted(() => ({
+  mockGetTodayStr: vi.fn<() => string>(),
+}));
+
+vi.mock('@/components/widgets/Schedule/utils', async (importOriginal) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const actual = await importOriginal<Record<string, any>>();
+  return {
+    ...actual,
+    getTodayStr: mockGetTodayStr,
+  };
+});
+
 // jsdom does not implement HTMLElement.prototype.scrollTo.
 // Define it once as a vi.fn() stub so that the widget's useLayoutEffect does
 // not throw and vi.spyOn can wrap it in individual tests.
@@ -92,6 +108,11 @@ describe('ScheduleWidget', () => {
     });
     mockUpdateWidget.mockClear();
     mockAddWidget.mockClear();
+    // Default: getTodayStr returns the real local date so existing tests are unaffected.
+    mockGetTodayStr.mockImplementation(() => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    });
   });
 
   afterEach(() => {
@@ -256,6 +277,88 @@ describe('ScheduleWidget', () => {
     render(<ScheduleWidget widget={widget} />);
 
     expect(mockAddWidget).not.toHaveBeenCalled();
+  });
+
+  // ─── Regression: auto-launch uses UTC date instead of local date ────────────
+  //
+  // BEFORE the fix (ScheduleWidget.tsx `checkAutoLaunch`):
+  //   `const today = now.toISOString().slice(0, 10)` uses UTC date.
+  //
+  // For UTC+ users after local midnight but before UTC midnight (e.g. local
+  // 01:00 in UTC+2 = UTC 23:00 previous day), `toISOString()` still returns
+  // the OLD UTC date while getTodayStr() correctly returns the NEW local date.
+  //
+  // The symptom:
+  //   1. Day D: item launches → key `item-id-D` stored in launchedItemsRef.
+  //   2. After local midnight (new local day D+1, but UTC still D):
+  //      `toISOString()` = D, `getTodayStr()` = D+1.
+  //   3. BUG: pruning uses `today = D` → key `item-id-D` does NOT end with a
+  //      different date → NOT pruned → item appears "already launched today"
+  //      and fails to re-launch even on the NEW local day.
+  //   4. Items silently fail to re-launch for the entire UTC–local gap (up to
+  //      2 hours for UTC+2 users).
+  //
+  // Test mechanism:
+  //   - getTodayStr is mocked so we can advance "local date" independently of
+  //     what toISOString() returns.
+  //   - System time is set so the item window is active.
+  //   - Day 1: both dates agree → item launches, key stored.
+  //   - Tick with new "local" date (still same UTC date):
+  //       BUG  → today = UTC date = same as stored key → key NOT pruned
+  //               → item does NOT re-launch (fails the assertion below).
+  //       FIX  → today = getTodayStr() = new local date → key IS pruned
+  //               → item CAN re-launch → re-launches (passes assertion).
+  it('REGRESSION: re-launches linked widgets when getTodayStr advances even if UTC date is unchanged', () => {
+    // --- Day 1: 08:05 UTC. Both local and UTC agree on '2024-01-15'. ---
+    vi.setSystemTime(new Date('2024-01-15T08:05:00Z'));
+    mockGetTodayStr.mockReturnValue('2024-01-15');
+
+    const widget = createWidget({
+      items: [
+        {
+          id: 'link-item',
+          task: 'Morning Event',
+          done: false,
+          startTime: '08:00', // window: 08:00–09:00 UTC (active at 08:05)
+          endTime: '09:00',
+          linkedWidgets: ['clock'],
+        },
+      ],
+    });
+    render(<ScheduleWidget widget={widget} />);
+
+    // Launched once on mount — both dates agree.
+    expect(mockAddWidget).toHaveBeenCalledTimes(1);
+    mockAddWidget.mockClear();
+
+    // --- Simulate UTC+ scenario: local date advances to '2024-01-16' while
+    //     UTC time is still on '2024-01-15' (08:15 UTC = 10:15 local in UTC+2
+    //     the next morning — a realistic scenario where the teacher's machine
+    //     shows Jan 16 but toISOString() would give Jan 15 if still early UTC).
+    //
+    //     For the test, we keep UTC at 2024-01-15T08:15:00Z (window still open)
+    //     so that the time-window check passes, and only advance the local date
+    //     via the getTodayStr mock. ---
+    vi.setSystemTime(new Date('2024-01-15T08:15:00Z'));
+    mockGetTodayStr.mockReturnValue('2024-01-16'); // local date has advanced
+
+    act(() => {
+      vi.advanceTimersByTime(10000); // trigger one interval tick
+    });
+
+    // EXPECTED (FIX): getTodayStr() returns '2024-01-16', so:
+    //   - Pruning: key 'link-item-2024-01-15' does NOT end with '2024-01-16'
+    //     → pruned from launchedItemsRef.
+    //   - New key: 'link-item-2024-01-16', not in set.
+    //   - Window still active (08:15 UTC is within 08:00–09:00).
+    //   - addWidget called once more.
+    //
+    // BUG: toISOString().slice(0,10) returns '2024-01-15', so:
+    //   - Pruning: key 'link-item-2024-01-15' DOES end with '2024-01-15'
+    //     → NOT pruned, still in launchedItemsRef.
+    //   - Item appears "already launched today" → addWidget NOT called.
+    expect(mockAddWidget).toHaveBeenCalledTimes(1);
+    expect(mockAddWidget).toHaveBeenCalledWith('clock', expect.any(Object));
   });
 
   it('toggles item status on click', () => {
