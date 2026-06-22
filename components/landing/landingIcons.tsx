@@ -15,6 +15,17 @@ import React from 'react';
  * `node_modules/lucide-react/dist/esm/icons/<name>.js`.
  */
 
+/**
+ * The exact `lucide-react` version these glyph paths were copied from. Bumping
+ * the installed package without re-vetting the inlined node arrays above risks
+ * silent visual drift (lucide occasionally re-draws icons between releases).
+ *
+ * A guard test (`landingIcons.test.tsx`) asserts this matches the installed
+ * package version, so a `pnpm update lucide-react` fails CI until someone
+ * re-copies the paths and bumps this pin in the same change.
+ */
+export const LANDING_ICONS_LUCIDE_VERSION = '0.563.0';
+
 type IconNode = ReadonlyArray<
   readonly [string, Record<string, string | number>]
 >;
@@ -26,26 +37,37 @@ type IconNode = ReadonlyArray<
 type IconProps = React.SVGProps<SVGSVGElement>;
 
 const makeIcon = (name: string, node: IconNode): React.FC<IconProps> => {
-  const Icon: React.FC<IconProps> = ({ className, ...props }) => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={24}
-      height={24}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-      {...props}
-    >
-      {node.map(([tag, attrs], i) =>
-        React.createElement(tag, { ...attrs, key: i })
-      )}
-    </svg>
-  );
+  const Icon: React.FC<IconProps> = ({ className, ...props }) => {
+    // Decorative by default (aria-hidden), matching lucide's behavior for
+    // unlabeled icons. But if a caller supplies an accessible name
+    // (aria-label / aria-labelledby) the icon is meaningful — expose it to
+    // assistive tech with role="img" instead of hiding it, otherwise the
+    // label is silently dropped. Both defaults sit before `{...props}` so a
+    // caller can still override either explicitly.
+    const labeled =
+      props['aria-label'] != null || props['aria-labelledby'] != null;
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width={24}
+        height={24}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={className}
+        aria-hidden={labeled ? undefined : true}
+        role={labeled ? 'img' : undefined}
+        {...props}
+      >
+        {node.map(([tag, attrs], i) =>
+          React.createElement(tag, { ...attrs, key: i })
+        )}
+      </svg>
+    );
+  };
   Icon.displayName = name;
   return Icon;
 };

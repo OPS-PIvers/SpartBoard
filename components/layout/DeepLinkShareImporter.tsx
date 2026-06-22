@@ -441,14 +441,16 @@ export const DeepLinkShareImporter: React.FC = () => {
     ]
   );
 
-  // Keep the self-reference refs current. Updated in an effect (not during
-  // render) so this compiler-analyzed component obeys react-hooks/refs; the
-  // refs are only dereferenced from deferred Retry onClicks, which always run
-  // after this effect has committed.
-  useEffect(() => {
-    peekAndDispatchImportRef.current = peekAndDispatchImport;
-    runVideoActivityImportRef.current = runVideoActivityImport;
-  }, [peekAndDispatchImport, runVideoActivityImport]);
+  // Keep the self-reference refs current by assigning directly in the render
+  // body — the repo convention (CLAUDE.md: "assign refs directly in render
+  // body — no effect needed"). The refs are only dereferenced from deferred
+  // Retry onClicks, which always run well after this render commits, so they
+  // never observe a stale value. (react-hooks/refs v7 false-positives on
+  // render-body ref writes; disabled per the repo-wide convention.)
+  // eslint-disable-next-line react-hooks/refs
+  peekAndDispatchImportRef.current = peekAndDispatchImport;
+  // eslint-disable-next-line react-hooks/refs
+  runVideoActivityImportRef.current = runVideoActivityImport;
 
   // PR3c — pending video-activity-assignment share import. Mirrors the
   // quiz-assignment effect above: clears the pending id synchronously

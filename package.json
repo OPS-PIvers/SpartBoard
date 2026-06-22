@@ -31,6 +31,7 @@
     "test:all": "pnpm test && pnpm -C functions test",
     "test:e2e": "playwright test",
     "test:rules": "firebase emulators:exec --only firestore \"vitest run --config vitest.rules.config.ts\"",
+    "test:perf": "vitest run --config vitest.perf.config.ts",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "prepare": "husky"

@@ -13,12 +13,16 @@
  *                      (iteration 1 is discarded as warm-up)
  *   - runsMs         — the raw per-iteration durations (all 7)
  *
- * Results are written to tests/perf/results/page-load-baseline.json. The test
+ * Results are written to tests/perf/results/page-load-baseline.json — but only
+ * when WRITE_PERF_BASELINE is set, so a normal run doesn't dirty git status
+ * with the committed reference snapshot (see the afterAll guard). The test
  * asserts only that metrics were produced — NO duration thresholds, so this
- * can never be flaky on slow CI machines. (Read the JSON to evaluate the
- * <50ms-per-page goal.)
+ * can never be flaky on slow CI machines. (Read the committed JSON to evaluate
+ * the <50ms-per-page goal.)
  *
- * Run: pnpm exec vitest run tests/perf/pageLoadPerf.test.tsx
+ * Excluded from the default `pnpm test` suite (vitest.config.ts); run on demand
+ * via `pnpm test:perf`, or `WRITE_PERF_BASELINE=1 pnpm test:perf` to also
+ * regenerate the committed baseline.
  *
  * Mocking strategy (mirrors editorPerf.test.tsx / dashboardPerf.test.tsx and
  * the neighboring component tests, e.g. tests/components/quiz/
@@ -1132,6 +1136,12 @@ describe('page-load performance baseline', () => {
 // ─── Results file ────────────────────────────────────────────────────────────
 
 afterAll(() => {
+  // The baseline JSON is a committed reference snapshot. Rewriting it on every
+  // run dirties git status with a fresh `generatedAt` + machine-dependent ms
+  // values, so the write is opt-in: a plain `pnpm test:perf` only asserts the
+  // metrics, and you regenerate the committed reference deliberately with
+  // `WRITE_PERF_BASELINE=1 pnpm test:perf`.
+  if (!process.env.WRITE_PERF_BASELINE) return;
   // Vitest serves test modules over a non-file URL, so import.meta.url can't be
   // used for paths — resolve from the repo root (vitest's cwd) instead.
   const resultsDir = resolve(process.cwd(), 'tests/perf/results');
@@ -1148,7 +1158,7 @@ afterAll(() => {
     JSON.stringify(
       {
         generatedAt: new Date().toISOString(),
-        runCommand: 'pnpm exec vitest run tests/perf/pageLoadPerf.test.tsx',
+        runCommand: 'WRITE_PERF_BASELINE=1 pnpm test:perf',
         note:
           'Profiler commit counts are the deterministic primary metric and ' +
           'must be identical across runs. Each page is mounted 7 times ' +
