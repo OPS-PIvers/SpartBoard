@@ -1,5 +1,9 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
+> **⚠️ MERGE CONFLICT NOTE:** This file lives only on `dev-paul`. If you are resolving a
+> `main → dev-paul` merge conflict on this file, **always keep dev-paul's version** — main
+> will always have an older copy and the dev-paul copy contains the full run history.
+
 _Run count: 23_
 _Last run: 2026-06-22_
 _Base branch: dev-paul_
