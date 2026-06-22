@@ -324,7 +324,12 @@ describe('AuthContext — ensureGoogleScope', () => {
     // ensureGoogleScope itself does silent('none') then interactive('').
     const ensureScopePrompts = calls
       .filter((c) =>
-        c.scope.includes('https://www.googleapis.com/auth/spreadsheets')
+        // Exact scope membership in the space-separated scope list (not a URL
+        // substring match — keeps CodeQL's URL-sanitization rule happy and is
+        // strictly more correct).
+        c.scope
+          .split(' ')
+          .includes('https://www.googleapis.com/auth/spreadsheets')
       )
       .map((c) => c.prompt);
     expect(ensureScopePrompts).toEqual(['none', '']);
