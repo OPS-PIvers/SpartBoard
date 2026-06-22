@@ -20,32 +20,12 @@ import {
   type PlcWriteFailureDetail,
 } from '@/utils/plcWriteNotifications';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
-// Deep-link share-import machinery (5 Firestore-listener hooks + their import
-// callbacks/effects/modal) is code-split into DeepLinkShareImporter and mounted
-// lazily — only when a pending share id is actually present (see the latch in
-// DashboardView below). On the common teacher load no share import is in
-// flight, so none of those listeners are opened.
-const DeepLinkShareImporter = React.lazy(() =>
-  import('./DeepLinkShareImporter').then((m) => ({
-    default: m.DeepLinkShareImporter,
-  }))
-);
-// Sidebar and Dock are code-split out of the synchronous teacher mount so the
-// board canvas paints first; they stream in (behind the Suspense boundary
-// below) on the next microtask. Both are position:fixed overlays, so deferring
-// them by a tick can't shift the board's layout — the only visible cost is the
-// dock's brief skeleton (ShellPlaceholder) while its chunk resolves.
-const Sidebar = React.lazy(() =>
-  import('./sidebar/Sidebar').then((m) => ({ default: m.Sidebar }))
-);
-const Dock = React.lazy(() =>
-  import('./Dock').then((m) => ({ default: m.Dock }))
-);
 import { AnnotationOverlay } from './AnnotationOverlay';
 import { BoardNavFab } from './BoardNavFab';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
 import { MountedBoardsLayer } from './MountedBoardsLayer';
 import { CheatSheetModal } from '@/components/common/CheatSheetModal';
+import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
 import { BoardActionsFab } from './BoardActionsFab';
 import { clampZoom, ZOOM_DEFAULT } from '@/utils/zoomMapping';
 import {
@@ -70,6 +50,32 @@ import {
 } from '@/types';
 import type { LiveSession } from '@/types';
 import { extractYouTubeId } from '@/utils/youtube';
+
+// ── Code-split lazies ────────────────────────────────────────────────────────
+// Declared after all static imports. ESM hoists `import` statements regardless,
+// but keeping every static dependency in one block above is the readable
+// convention; these `React.lazy()` consts are runtime values, not imports.
+//
+// Deep-link share-import machinery (5 Firestore-listener hooks + their import
+// callbacks/effects/modal) is mounted lazily — only when a pending share id is
+// actually present (see the latch in DashboardView below). On the common
+// teacher load no share import is in flight, so none of those listeners open.
+const DeepLinkShareImporter = React.lazy(() =>
+  import('./DeepLinkShareImporter').then((m) => ({
+    default: m.DeepLinkShareImporter,
+  }))
+);
+// Sidebar and Dock are code-split out of the synchronous teacher mount so the
+// board canvas paints first; they stream in (behind the Suspense boundary
+// below) on the next microtask. Both are position:fixed overlays, so deferring
+// them by a tick can't shift the board's layout — the only visible cost is the
+// dock's brief skeleton (ShellPlaceholder) while its chunk resolves.
+const Sidebar = React.lazy(() =>
+  import('./sidebar/Sidebar').then((m) => ({ default: m.Sidebar }))
+);
+const Dock = React.lazy(() =>
+  import('./Dock').then((m) => ({ default: m.Dock }))
+);
 
 const EMPTY_STUDENTS: LiveStudent[] = [];
 
@@ -1462,21 +1468,27 @@ export const DashboardView: React.FC = () => {
         )}
 
       {/* FIXED UI: Outside the zoom container. Sidebar + Dock are code-split
-          (see the React.lazy imports at the top of this file) so the board
-          canvas paints before their chunks load; they stream in on the next
-          microtask behind this Suspense boundary. The fallback reserves the
-          dock footprint only when the dock will actually render, so an
-          annotation/read-only board (no dock) shows no skeleton. */}
-      <React.Suspense
-        fallback={
-          !annotationActive && !isActiveBoardReadOnly ? (
-            <ShellPlaceholder />
-          ) : null
-        }
-      >
-        <Sidebar />
-        {!annotationActive && !isActiveBoardReadOnly && <Dock />}
-      </React.Suspense>
+          (see the React.lazy declarations near the top of this file) so the
+          board canvas paints before their chunks load; they stream in on the
+          next microtask behind this Suspense boundary. The fallback reserves
+          the dock footprint only when the dock will actually render, so an
+          annotation/read-only board (no dock) shows no skeleton.
+          The LazyChunkErrorBoundary turns a failed chunk load (e.g. a stale
+          hash after a redeploy while the teacher had the tab open) into a
+          one-shot auto-reload instead of a white-screened, dock-less
+          dashboard. */}
+      <LazyChunkErrorBoundary>
+        <React.Suspense
+          fallback={
+            !annotationActive && !isActiveBoardReadOnly ? (
+              <ShellPlaceholder />
+            ) : null
+          }
+        >
+          <Sidebar />
+          {!annotationActive && !isActiveBoardReadOnly && <Dock />}
+        </React.Suspense>
+      </LazyChunkErrorBoundary>
       <AnnotationOverlay />
       <ToastContainer />
       <AnnouncementOverlay />
@@ -1503,9 +1515,11 @@ export const DashboardView: React.FC = () => {
           synchronously); it renders the import mode-picker modal when needed
           and null otherwise. */}
       {mountShareImporter && (
-        <React.Suspense fallback={null}>
-          <DeepLinkShareImporter />
-        </React.Suspense>
+        <LazyChunkErrorBoundary>
+          <React.Suspense fallback={null}>
+            <DeepLinkShareImporter />
+          </React.Suspense>
+        </LazyChunkErrorBoundary>
       )}
 
       {/* Spotlight Dimming Overlay */}
