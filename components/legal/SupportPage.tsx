@@ -7,10 +7,11 @@ import { LegalPageLayout, LegalH2, LegalP, LegalList } from './LegalPageLayout';
 const SUPPORT_EMAIL = 'spartboard@orono.k12.mn.us';
 
 export const SupportPage: React.FC = () => (
-  <LegalPageLayout title="Support" lastUpdated="May 29, 2026">
+  <LegalPageLayout title="Support" lastUpdated="June 22, 2026">
     <LegalP>
-      Need help with SpartBoard? We&rsquo;re here for Orono Public Schools staff
-      and students.
+      Need help with SpartBoard? We&rsquo;re here for everyone who uses it —
+      Orono Public Schools staff and students, as well as educators using a
+      free, self-serve account.
     </LegalP>
 
     <LegalH2>Contact us</LegalH2>
@@ -38,9 +39,12 @@ export const SupportPage: React.FC = () => (
 
     <LegalH2>Account and access</LegalH2>
     <LegalP>
-      SpartBoard accounts are tied to your Orono Public Schools Google account.
-      For password resets, account access, or device questions, contact your
-      school&rsquo;s technology support. For data-privacy requests, see our{' '}
+      SpartBoard accounts are tied to a Google account. For Orono Public Schools
+      staff and students, your account is your District Google account; for
+      password resets, account access, or device questions, contact your
+      school&rsquo;s technology support. If you use a free, self-serve account,
+      sign in with your own Google account, and manage password and access
+      questions through Google directly. For data-privacy requests, see our{' '}
       <a
         className="text-blue-700 underline hover:text-blue-900"
         href="/privacy"

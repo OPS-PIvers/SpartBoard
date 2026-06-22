@@ -76,7 +76,10 @@ vi.mock('@/context/useAuth', () => ({
       displayName: 'Test Teacher',
       email: 'test@school.edu',
     },
-    googleAccessToken: null, // Drive sheet creation skipped (googleAccessToken null)
+    googleAccessToken: null, // Drive sheet creation skipped (no Sheets token)
+    // Path B: sheet auto-create now gates on ensureGoogleScope. Resolve null to
+    // preserve the "skip sheet creation" behavior these tests assert.
+    ensureGoogleScope: vi.fn().mockResolvedValue(null),
     getAssignmentMode: () => 'submissions',
   })),
 }));

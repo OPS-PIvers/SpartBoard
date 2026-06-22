@@ -46,6 +46,24 @@ export interface AuthContextType {
    */
   userTier: UserTier;
   /**
+   * True when the user belongs to an organization (`orgId !== null`). This is
+   * `false` both for genuine no-org users AND during the membership-loading
+   * window, so prefer `isExternalUser` (which adds the resolution + student
+   * guards) when deciding whether to HIDE org-only surfaces — using `!hasOrg`
+   * alone would flicker org surfaces off for org members while membership
+   * resolves.
+   */
+  hasOrg: boolean;
+  /**
+   * True ONLY for a fully-resolved, no-org, non-student (free/external-tier)
+   * user (docs/wide-distro-plan.md Phase 3). Gates org-only surfaces (My
+   * PLCs / My Building(s) / My Classes + ClassLink / announcements) away from
+   * external users. NEVER true while org membership is still resolving, so
+   * org/internal members (incl. Orono) never see their org surfaces flicker
+   * off during load. Auth-bypass and SSO students are never external.
+   */
+  isExternalUser: boolean;
+  /**
    * The org-wide assignment mode for a student-facing widget. Reads from the
    * `assignment-modes` GlobalFeaturePermission doc; defaults to `'submissions'`
    * when no record exists or the widget key is missing from `config`.
@@ -91,6 +109,31 @@ export interface AuthContextType {
    * Safe to call from user-triggered UI (e.g. the disconnect banner).
    */
   connectGoogleDrive: () => Promise<void>;
+  /**
+   * Ensure the shared Google access token carries an on-demand sensitive
+   * scope (`spreadsheets`, `calendar.readonly`) that is NOT requested at login
+   * under Path B (docs/wide-distro-plan.md).
+   *
+   * Behavior:
+   *   - Tries a SILENT GIS re-mint first (`prompt:'none'`). For any user who
+   *     already granted the scope — every existing Orono user — this returns a
+   *     token that includes the scope with NO popup, and persists it into the
+   *     same `googleAccessToken` state + localStorage the rest of the app reads.
+   *   - If the silent path fails (scope never granted) AND `opts.interactive`
+   *     is true (caller is in a user gesture), retries with a consent popup
+   *     (`prompt:''`).
+   *   - Returns the access token on success, or `null` on silent-miss without
+   *     `interactive`, user decline, or any error. NEVER throws — callers
+   *     degrade to their existing "Google access required" branch.
+   *
+   * Because OAuth tokens minted from one grant carry ALL granted scopes,
+   * persisting the returned token means every existing Sheets/Calendar consumer
+   * (and the 1-hour refresh loop) transparently uses it afterward.
+   */
+  ensureGoogleScope: (
+    scope: string,
+    opts?: { interactive?: boolean }
+  ) => Promise<string | null>;
   /**
    * Disconnect Google Drive without signing the user out of the app.
    * Awaits the server-side revoke; throws on backend failure so callers

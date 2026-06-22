@@ -141,9 +141,21 @@ function readRefreshErrorDetails(err: unknown): RefreshErrorDetails | null {
  */
 export const requestAndExchangeAuthCode = async (
   clientId: string,
-  hintEmail: string | undefined
+  hintEmail: string | undefined,
+  // On-demand scopes (fully-qualified URLs) acquired this session via
+  // `ensureGoogleScope`. The code flow is what captures a fresh refresh_token,
+  // so the captured grant must include these or the backend refresh would only
+  // ever reissue a `drive.file`-only token — re-stripping Sheets/Calendar after
+  // every backend refresh. Unioned with `GOOGLE_OAUTH_SCOPES` and de-duped
+  // below. Existing Orono users already consented, so `prompt:'consent'` here
+  // still succeeds; the union just keeps the grant from shrinking.
+  extraScopes: readonly string[] = []
 ): Promise<AuthCodeOutcome> => {
   if (isAuthBypass) return { kind: 'cancelled' };
+
+  const requestedScope = Array.from(
+    new Set([...GOOGLE_OAUTH_SCOPES, ...extraScopes])
+  ).join(' ');
 
   let gis: typeof google;
   try {
@@ -171,7 +183,7 @@ export const requestAndExchangeAuthCode = async (
     try {
       const codeClient = gis.accounts?.oauth2?.initCodeClient({
         client_id: clientId,
-        scope: GOOGLE_OAUTH_SCOPES.join(' '),
+        scope: requestedScope,
         ux_mode: 'popup',
         hint: hintEmail,
         // `access_type: 'offline'` is what makes Google issue a refresh_token.

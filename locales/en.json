@@ -282,7 +282,8 @@
       "targetNotActiveMember": "You can only transfer leadership to an active member.",
       "cannotDemoteLead": "Use \"Transfer leadership\" to change who leads the PLC.",
       "invalidRole": "That is not a valid PLC role.",
-      "alreadyLead": "That member is already the lead of this PLC."
+      "alreadyLead": "That member is already the lead of this PLC.",
+      "orgRequired": "PLCs are only available to members of an organization."
     }
   },
   "plcDashboard": {

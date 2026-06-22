@@ -353,7 +353,7 @@ const AnnouncementWindow: React.FC<{
  * as floating windows above the dashboard.
  */
 export const AnnouncementOverlay: React.FC = () => {
-  const { user, selectedBuildings } = useAuth();
+  const { user, selectedBuildings, userTier, orgId } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(() => {
     // Pre-populate from localStorage on mount
@@ -365,13 +365,37 @@ export const AnnouncementOverlay: React.FC = () => {
   // date-window transitions (start/end across midnight) trigger correctly.
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
 
-  // Subscribe to the announcements collection (only active announcements)
+  // Subscribe to the announcements collection (only active announcements).
+  //
+  // Multi-tenant leak-closer: announcements are a single global collection
+  // with no per-tenant query scope, so a no-org ("free") teacher would
+  // otherwise stream every operator-org announcement. We therefore NEVER open
+  // the listener for free-tier users. `userTier` is the already-exposed
+  // distribution tier ('internal' | 'org' | 'free'); Orono and every other
+  // org/internal user resolve to a non-free tier and are unaffected. The
+  // loading/unresolved state is treated as NOT subscribed (the gate only opens
+  // once the tier is positively known to be non-free), which fails closed.
   useEffect(() => {
     // We only subscribe if we have a user object.
     // isAuthBypass allows the UI to render, but Firestore still needs an auth token
     // unless the rules are set to allow public read (which they are not).
     if (!user) return;
+    // Free-tier (no-org) users must NEVER open the global announcements
+    // listener. We simply don't subscribe — a free user's effect never streams
+    // anything, so `announcements` stays empty. (We do NOT call
+    // setAnnouncements([]) here: a synchronous setState in an effect trips
+    // react-hooks/set-state-in-effect, and the render-time guard below already
+    // renders nothing for free users even if their tier flips mid-session.)
+    if (userTier === 'free') return;
 
+    // MULTI-TENANT TODO (before onboarding a SECOND org with active
+    // announcements): this query is org-unscoped. The tightened /announcements
+    // read rule denies foreign-org docs per-doc, and Firestore rejects an
+    // entire listener query if any matched doc is unreadable. Before a 2nd org
+    // goes live: (1) run scripts/migrateAnnouncements.js to stamp legacy docs
+    // orgId='orono', then (2) scope this query with where('orgId','==', orgId)
+    // (mirroring hooks/usePlcBuildingDirectory.ts). Safe today: only
+    // Orono/legacy docs exist.
     const unsub = onSnapshot(
       query(collection(db, 'announcements'), where('isActive', '==', true)),
       (snap) => {
@@ -386,7 +410,7 @@ export const AnnouncementOverlay: React.FC = () => {
       }
     );
     return unsub;
-  }, [user]);
+  }, [user, userTier]);
 
   // Periodic clock update for scheduled activation/dismissal checks
   useEffect(() => {
@@ -413,6 +437,18 @@ export const AnnouncementOverlay: React.FC = () => {
   const visible = useMemo(
     () =>
       announcements.filter((a) => {
+        // Tenant isolation (defense-in-depth alongside the listener gate and the
+        // Firestore read rule): hide an announcement that belongs to a DIFFERENT
+        // resolved org. Legacy/global docs (no orgId) are always visible. We only
+        // apply the exclusion once this user's `orgId` has positively resolved to
+        // a non-null value — while it's still null (membership snapshot not yet
+        // delivered), an internal/org user (e.g. Orono, who derives a non-free
+        // tier from their email domain BEFORE orgId resolves) must NOT have their
+        // own org's announcements hidden. Hiding during that window would flicker
+        // Orono's announcements off then on post-backfill — a regression vs.
+        // today. Once orgId resolves, any foreign-org doc is filtered out.
+        if (orgId != null && a.orgId != null && a.orgId !== orgId) return false;
+
         // Must pass scheduled/manual activation check + auto-deactivate window
         if (!isWithinActiveWindow(a, nowMs)) return false;
 
@@ -450,8 +486,14 @@ export const AnnouncementOverlay: React.FC = () => {
 
         return true;
       }),
-    [announcements, dismissed, selectedBuildings, nowMs, user?.email]
+    [announcements, dismissed, selectedBuildings, nowMs, user?.email, orgId]
   );
+
+  // Render-time tenant gate (double-guards the listener gate above): a free-tier
+  // (no-org) user must never see any announcement, even if their tier flipped to
+  // 'free' mid-session after a prior non-free subscription had already streamed
+  // docs. This makes the in-effect setState([]) unnecessary.
+  if (userTier === 'free') return null;
 
   if (visible.length === 0) return null;
 

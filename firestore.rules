@@ -3821,9 +3821,30 @@ service cloud.firestore {
       );
     }
 
-    // Announcements - all authenticated users can read, only admins can create/update/delete
+    // Announcements - admins write; reads are tenant-scoped.
+    //
+    // Multi-tenant isolation (defense-in-depth with the client listener gate):
+    //   - Legacy docs (no `orgId`) stay readable by ANY authenticated user.
+    //     This preserves the pre-isolation behavior so existing Orono
+    //     announcements (which predate the field, until the backfill stamps
+    //     'orono') keep showing for everyone, exactly as today.
+    //   - A doc WITH an `orgId` is readable only by a member of that org
+    //     (via `isOrgMember`) — or any admin, since the admin manager UI
+    //     subscribes to the full collection to manage every announcement.
+    // The write rule is unchanged: only admins create/update/delete.
     match /announcements/{announcementId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null
+        && (
+          // No orgId field — OR an explicit `orgId: null` (which has the field
+          // present) — is legacy/global, readable by any authed user. Allowing
+          // the explicit-null case too prevents a doc written with orgId:null
+          // from falling through to isOrgMember(null) and becoming invisible to
+          // everyone except admins.
+          !('orgId' in resource.data)
+          || resource.data.orgId == null
+          || isOrgMember(resource.data.orgId)
+          || isAdmin()
+        );
       allow write: if isAdmin();
 
       // Poll votes subcollection — authenticated users can read live tallies and cast votes

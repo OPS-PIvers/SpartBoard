@@ -92,7 +92,8 @@ export const Results: React.FC<ResultsProps> = ({
   onBack,
   plc: _plc,
 }) => {
-  const { googleAccessToken, user, orgId, canAccessFeature } = useAuth();
+  const { ensureGoogleScope, user, orgId, canAccessFeature, isExternalUser } =
+    useAuth();
   const { showConfirm } = useDialog();
   const { addToast } = useDashboard();
   // Use the multi-class variant — `session.classId` is a transitional
@@ -217,7 +218,12 @@ export const Results: React.FC<ResultsProps> = ({
   };
 
   const handleExport = async () => {
-    if (!googleAccessToken) {
+    // Acquire the Sheets scope on demand (Path B): silent for already-granted
+    // users, one-time consent for never-granted (this is a user gesture).
+    const token = await ensureGoogleScope('spreadsheets', {
+      interactive: true,
+    });
+    if (!token) {
       setExportError(
         'Google Drive access is required to export. Please sign out and sign in again.'
       );
@@ -228,7 +234,7 @@ export const Results: React.FC<ResultsProps> = ({
     setExportError(null);
 
     try {
-      const drive = new QuizDriveService(googleAccessToken);
+      const drive = new QuizDriveService(token);
 
       // Map VideoActivityResponses to QuizResponse shape for reuse
       const quizResponses = responses.map((r) => ({
@@ -440,7 +446,12 @@ export const Results: React.FC<ResultsProps> = ({
   //   • Open Sheet — shown when `exportUrl` is truthy; opens the sheet in a
   //                  new tab (was an outlined <a target="_blank"> link).
   const overflowItems: OverflowMenuItem[] = [];
-  if (!exportUrl) {
+  // Google Sheets export is a Google-API feature excluded from the free tier
+  // (docs/wide-distro-plan.md Phase 3). External (no-org/free-tier) users have
+  // no Drive token (the Drive connect entry is hidden for them), so the export
+  // would only error — hide it cleanly. `isExternalUser` is false while
+  // membership resolves, so org/internal members keep the button.
+  if (!exportUrl && !isExternalUser) {
     overflowItems.push({
       label: 'Export',
       icon: Download,

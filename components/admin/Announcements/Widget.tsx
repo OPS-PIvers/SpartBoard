@@ -643,7 +643,7 @@ const PollResponsesPanel: React.FC<{
 };
 
 export const AnnouncementsManager: React.FC = () => {
-  const { user } = useAuth();
+  const { user, orgId } = useAuth();
   const { addToast } = useDashboard();
   const BUILDINGS = useAdminBuildings();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -863,6 +863,17 @@ export const AnnouncementsManager: React.FC = () => {
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
         createdBy: user?.email ?? 'admin',
+        // Multi-tenant isolation: stamp the creating admin's org on new docs
+        // only (Orono admins resolve to 'orono'). On EDIT we PRESERVE the doc's
+        // existing orgId verbatim and never fall back to the editing admin's
+        // org: stamping a LEGACY (no-orgId, globally-visible) doc with the
+        // admin's org would silently hide a formerly-global announcement from
+        // every non-org user (the rules read gates an org-stamped doc behind
+        // isOrgMember(orgId)). A null/absent orgId is written as undefined
+        // (omitted) so the legacy/global visibility path still applies, never
+        // an explicit null. Backfilling legacy docs is a deliberate ops task,
+        // not a side effect of an unrelated edit.
+        orgId: existing ? (existing.orgId ?? undefined) : (orgId ?? undefined),
       };
 
       if (editingId) {

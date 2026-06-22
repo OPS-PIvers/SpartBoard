@@ -46,20 +46,45 @@ let functions: Functions;
 let googleProvider: GoogleAuthProvider;
 
 /**
- * All Google OAuth scopes the app requests at sign-in and when refreshing
- * tokens.
+ * Google OAuth scopes the app requests at sign-in and when SILENTLY refreshing
+ * the shared access token.
+ *
+ * Path B (docs/wide-distro-plan.md): the login request asks ONLY for the
+ * unrestricted `drive.file` scope — which needs no Google verification — so the
+ * app can ship to external/unverified users without a consent-screen warning.
+ *
+ * The two "sensitive" scopes formerly listed here (`spreadsheets`,
+ * `calendar.readonly`) are now acquired ON DEMAND the first time a user touches
+ * Sheets/Calendar, via `AuthContext.ensureGoogleScope` (GIS token client). For
+ * every existing user who already granted them, the on-demand acquisition is a
+ * SILENT re-mint (no popup) and their experience is unchanged; for a
+ * never-granted user it surfaces a one-time consent on first use.
+ *
+ * IMPORTANT: dropping a scope from this REQUEST does NOT drop it from an
+ * existing GRANT. A user who previously consented to Sheets/Calendar keeps that
+ * grant; the narrowed login simply stops asking new users for it up front.
  *
  * Deliberately excludes restricted scopes (e.g. drive.readonly): the Google
  * Picker grants per-file access under drive.file via PickerBuilder.setAppId,
- * so broad Drive read access is never needed. Keeping this list free of
- * restricted scopes is what keeps the app exempt from Google's CASA security
- * assessment if the OAuth consent screen ever moves to External.
+ * so broad Drive read access is never needed.
+ *
+ * NOTE: a token minted from a single grant carries ALL scopes that grant
+ * authorized, regardless of which subset is named in any one request. So a
+ * silent re-mint here returns a token that already includes Sheets/Calendar for
+ * users who granted them — see `ensureGoogleScope`.
  */
 export const GOOGLE_OAUTH_SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
-  'https://www.googleapis.com/auth/spreadsheets',
-  'https://www.googleapis.com/auth/calendar.readonly',
 ];
+
+/**
+ * Sensitive scopes acquired on demand (NOT at login). Centralized so the
+ * on-demand acquisition call sites and any future audit reference one source.
+ */
+export const GOOGLE_SHEETS_SCOPE =
+  'https://www.googleapis.com/auth/spreadsheets';
+export const GOOGLE_CALENDAR_READONLY_SCOPE =
+  'https://www.googleapis.com/auth/calendar.readonly';
 
 if (isConfigured) {
   const firebaseConfig = {

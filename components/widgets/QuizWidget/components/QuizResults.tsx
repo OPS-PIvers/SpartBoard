@@ -259,7 +259,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
 }) => {
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
-  const { googleAccessToken, user, orgId, canAccessFeature } = useAuth();
+  const { ensureGoogleScope, user, orgId, canAccessFeature, isExternalUser } =
+    useAuth();
   const { showConfirm } = useDialog();
   const { plcs, clearPlcSharedSheetUrl, setPlcSharedSheetUrl } = usePlcs();
   const [exporting, setExporting] = useState(false);
@@ -681,12 +682,17 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     exportOpts: Parameters<QuizDriveService['exportResultsToSheet']>[3],
     retryExport: (
       newOpts: Parameters<QuizDriveService['exportResultsToSheet']>[3]
-    ) => Promise<string>
+    ) => Promise<string>,
+    // The fresh Sheets token from the calling handler's ensureGoogleScope.
+    // Passed explicitly rather than read from the `googleAccessToken` closure:
+    // after a never-granted user consents in the same handler tick, the closure
+    // is still stale-null (state updates next render), so the closure guard
+    // would wrongly bail before recovery.
+    token: string
   ): Promise<{ url: string; canonical: string }> => {
     if (
       !(exportErr instanceof PlcSheetMissingError) ||
       !user ||
-      !googleAccessToken ||
       !exportOpts?.plcSheetUrl
     ) {
       throw exportErr;
@@ -712,7 +718,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     if (!owningPlc) {
       throw exportErr;
     }
-    const svc = new QuizDriveService(googleAccessToken);
+    const svc = new QuizDriveService(token);
     await clearPlcSharedSheetUrl(owningPlc.id);
     const created = await svc.createPlcSheetAndShare({
       plcName: owningPlc.name,
@@ -739,7 +745,14 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   };
 
   const handleExport = async () => {
-    if (!googleAccessToken) {
+    // Acquire the Sheets scope on demand (Path B). Silent for users who
+    // already granted it (all current Orono users); a one-time consent popup
+    // for never-granted users (this is a user gesture, so interactive). Null
+    // → reuse the existing "Google access required" branch.
+    const token = await ensureGoogleScope('spreadsheets', {
+      interactive: true,
+    });
+    if (!token) {
       setExportError({
         kind: 'generic',
         message: 'Google access token not available. Please sign in again.',
@@ -754,7 +767,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     setExporting(true);
     setExportError(null);
     try {
-      const svc = new QuizDriveService(googleAccessToken);
+      const svc = new QuizDriveService(token);
       const exportOpts = {
         pinToName: exportPinToName,
         byStudentUid,
@@ -787,7 +800,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               responses,
               quiz.questions,
               newOpts
-            )
+            ),
+          token
         );
         url = recovered.url;
       }
@@ -876,7 +890,10 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
    * rehydrate from the throwaway sheet, masking the underlying PLC mismatch.
    */
   const handleSchemaMismatchRecovery = async () => {
-    if (!googleAccessToken) {
+    const token = await ensureGoogleScope('spreadsheets', {
+      interactive: true,
+    });
+    if (!token) {
       addToast(
         'Google access token not available. Please sign in again.',
         'error'
@@ -885,7 +902,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     }
     setExporting(true);
     try {
-      const svc = new QuizDriveService(googleAccessToken);
+      const svc = new QuizDriveService(token);
       const url = await svc.exportResultsToSheet(
         quiz.title,
         responses,
@@ -943,7 +960,10 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
 
   const handleUpdateSheet = async () => {
     if (!exportUrl) return;
-    if (!googleAccessToken) {
+    const token = await ensureGoogleScope('spreadsheets', {
+      interactive: true,
+    });
+    if (!token) {
       setExportError({
         kind: 'generic',
         message: 'Google access token not available. Please sign in again.',
@@ -953,7 +973,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     setUpdatingSheet(true);
     setExportError(null);
     try {
-      const svc = new QuizDriveService(googleAccessToken);
+      const svc = new QuizDriveService(token);
       // Smart re-export: when there's an append-delta, append. When there
       // isn't, do a clear-and-rewrite ("regenerate") on the same sheet so
       // the teacher has a way to force a clean rebuild without abandoning
@@ -1006,7 +1026,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               responses,
               quiz.questions,
               newOpts
-            )
+            ),
+          token
         );
         regeneratedSheet = true;
         // Sync local "OPEN SHEET" link to the new sheet so the teacher
@@ -1257,7 +1278,13 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   // when attached, else Schoology — and the overflow never carries a push
   // that's already visible.
   const overflowItems: OverflowMenuItem[] = [];
-  if (!exportUrl) {
+  // Google Sheets export is a Google-API feature excluded from the free tier
+  // (docs/wide-distro-plan.md Phase 3). External (no-org/free-tier) users can't
+  // connect Drive (the Drive entry is hidden for them), so they have no token
+  // and the export would only surface a "sign in again" error — hide the
+  // affordance cleanly instead. `isExternalUser` is false while membership
+  // resolves, so org/internal members keep the button.
+  if (!exportUrl && !isExternalUser) {
     overflowItems.push({
       label: 'Export to Sheets',
       icon: Download,
