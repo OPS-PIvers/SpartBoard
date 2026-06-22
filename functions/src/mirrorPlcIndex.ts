@@ -68,6 +68,20 @@ export function buildPlcIndexMirror(
   };
 }
 
+/**
+ * The orgId that may appear in the PUBLIC discovery mirror. A PLC is only
+ * discoverable by an org's members if its LEAD actually belongs to that org —
+ * otherwise a forged `orgId` is dropped to null so the PLC never surfaces in
+ * another org's "PLCs in my building" directory. Pure, so the decision is
+ * unit-tested directly; the membership lookup happens in the handler.
+ */
+export function discoveryOrgId(
+  claimedOrgId: string | null,
+  leadIsClaimedOrgMember: boolean
+): string | null {
+  return claimedOrgId !== null && leadIsClaimedOrgMember ? claimedOrgId : null;
+}
+
 export const mirrorPlcIndex = onDocumentWritten(
   {
     document: 'plcs/{plcId}',
@@ -88,20 +102,55 @@ export const mirrorPlcIndex = onDocumentWritten(
     const indexRef = db.collection('plcIndex').doc(plcId);
 
     // Root deleted, or unusable (no name) → drop any stale mirror.
-    const mirror = change.after.exists
-      ? buildPlcIndexMirror(change.after.data() ?? {})
-      : null;
-    if (!mirror) {
+    const rootData = change.after.exists ? (change.after.data() ?? {}) : null;
+    const mirror = rootData ? buildPlcIndexMirror(rootData) : null;
+    if (!mirror || !rootData) {
       await indexRef.delete().catch(() => {
         /* already absent — nothing to remove */
       });
       return;
     }
 
+    // Forgery guard (single chokepoint): only carry `orgId` into the discovery
+    // mirror if the PLC's LEAD is actually a member of that org. A raw
+    // create/update could set `orgId:'other-org'` to inject the PLC into another
+    // org's "PLCs in my building" directory (the /plcIndex read is gated on
+    // isOrgMember(orgId)). This server-side check denies that regardless of how
+    // the root doc's orgId was set. It lives here, not in firestore.rules,
+    // because the extra exists() on the PLC update rule blows Firestore's
+    // per-evaluation expression budget; /plcIndex has exactly one writer (this
+    // function), so this is the right place to enforce it.
+    let leadIsOrgMember = false;
+    if (mirror.orgId) {
+      const leadUid =
+        typeof rootData.leadUid === 'string' ? rootData.leadUid : null;
+      const memberEmails = (rootData.memberEmails ?? {}) as Record<
+        string,
+        unknown
+      >;
+      const rawLeadEmail = leadUid ? memberEmails[leadUid] : null;
+      const leadEmail =
+        typeof rawLeadEmail === 'string' ? rawLeadEmail.toLowerCase() : null;
+      if (leadEmail) {
+        const memberSnap = await db
+          .doc(`organizations/${mirror.orgId}/members/${leadEmail}`)
+          .get();
+        leadIsOrgMember = memberSnap.exists;
+      }
+      if (!leadIsOrgMember) {
+        logger.warn(
+          'mirrorPlcIndex: PLC lead is not a member of the claimed orgId; omitting orgId from the discovery mirror',
+          { plcId, orgId: mirror.orgId }
+        );
+      }
+    }
+
     // Full overwrite (not merge): the mirror is wholly derived from the root,
-    // so a replace keeps it from accumulating stale fields.
+    // so a replace keeps it from accumulating stale fields. `orgId` is the
+    // guarded value — null unless the lead is a verified member of that org.
     await indexRef.set({
       ...mirror,
+      orgId: discoveryOrgId(mirror.orgId, leadIsOrgMember),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   }

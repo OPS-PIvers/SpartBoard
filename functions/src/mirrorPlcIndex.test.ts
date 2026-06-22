@@ -45,7 +45,7 @@ vi.mock('firebase-functions/logger', () => ({
   debug: vi.fn(),
 }));
 
-import { buildPlcIndexMirror } from './mirrorPlcIndex';
+import { buildPlcIndexMirror, discoveryOrgId } from './mirrorPlcIndex';
 
 describe('buildPlcIndexMirror — slim, PII-free discovery mirror', () => {
   it('projects name / orgId / buildingId / memberUids + count (NO member PII)', () => {
@@ -115,5 +115,22 @@ describe('buildPlcIndexMirror — slim, PII-free discovery mirror', () => {
     });
     expect(mirror?.memberUids).toEqual(['u1', 'u2']);
     expect(mirror?.memberCount).toBe(2);
+  });
+});
+
+describe('discoveryOrgId — anti-forgery gate on the discovery mirror', () => {
+  it('carries the orgId when the lead is a verified member of that org', () => {
+    expect(discoveryOrgId('orono', true)).toBe('orono');
+  });
+
+  it('drops a forged orgId to null when the lead is NOT a member of that org', () => {
+    // A raw write set orgId:'orono' but the lead has no orono membership doc —
+    // the PLC must not surface in orono's discovery directory.
+    expect(discoveryOrgId('orono', false)).toBeNull();
+  });
+
+  it('returns null for an un-tenanted PLC (no claimed orgId)', () => {
+    expect(discoveryOrgId(null, false)).toBeNull();
+    expect(discoveryOrgId(null, true)).toBeNull();
   });
 });
