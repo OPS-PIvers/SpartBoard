@@ -526,8 +526,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   // saveTitle() directly, which commits and calls setIsEditingTitle(false).
   // React then unmounts the input and the browser fires a synchronous blur,
   // calling saveTitle() a second time via the onBlur handler. The ref blocks
-  // the duplicate write. Reset to false when the edit session starts (onClick).
+  // the duplicate write. Reset to false while the edit session is active
+  // (render body), per the CLAUDE.md synchronous-ref-flag rule.
   const hasCommittedTitleRef = useRef(false);
+  if (isEditingTitle) {
+    // eslint-disable-next-line react-hooks/refs -- intentional render-body ref reset for stale-flag prevention (CLAUDE.md pattern); false positive from react-hooks/refs v7
+    hasCommittedTitleRef.current = false;
+  }
 
   const saveTitle = useCallback(() => {
     // Guard: if the user pressed Escape the Escape handler set this flag before
@@ -541,7 +546,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     // Guard: prevent a second write if Enter already committed this edit. Enter
     // calls saveTitle() directly, then the input unmounts (or blur fires), which
     // would call saveTitle() again via onBlur — this ref ensures only the first
-    // call persists. The ref is reset when a new edit session starts (onClick).
+    // call persists. The ref is reset in the render body while editing is active.
     if (hasCommittedTitleRef.current) {
       return;
     }
@@ -2885,10 +2890,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     className="flex items-center gap-2 group/title cursor-text px-2"
                     onClick={() => {
                       setTempTitle(widget.customTitle ?? title);
-                      // Reset the double-commit guard so each new edit session
-                      // starts fresh (the ref persists across edit sessions on
-                      // the same DraggableWindow mount).
-                      hasCommittedTitleRef.current = false;
                       setIsEditingTitle(true);
                     }}
                   >
