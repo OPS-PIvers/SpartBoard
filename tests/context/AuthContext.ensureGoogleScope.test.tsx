@@ -273,12 +273,14 @@ describe('AuthContext — ensureGoogleScope', () => {
     expect(capturedPrompts).toEqual(['none']);
   });
 
-  it('silent-miss + interactive: escalates to the popup (prompt:"") and persists', async () => {
-    const capturedPrompts: string[] = [];
+  it('interactive grant: opens the popup (prompt:"") directly — no silent pre-flight — and persists', async () => {
+    // `silentMode: 'denied'` proves the interactive path does NOT depend on a
+    // prior silent('none') success: it goes straight to interactive('').
+    const calls: { prompt: string; scope: string }[] = [];
     stubGis({
       silentMode: 'denied',
       interactiveMode: 'token',
-      capturedPrompts,
+      calls,
     });
     await mountSignedIn('newuser@example.com');
 
@@ -291,19 +293,30 @@ describe('AuthContext — ensureGoogleScope', () => {
 
     expect(token).toBe('scoped-token');
     expect(localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY)).toBe('scoped-token');
-    // Silent first, then the interactive popup.
-    expect(capturedPrompts).toEqual(['none', '']);
+    // GESTURE PRESERVATION: the ensureGoogleScope-origin call goes straight to
+    // the interactive popup (['']) — NO silent('none') first (isolated by the
+    // unique on-demand scope so a background refresh's 'none' can't pollute it).
+    const ensureScopePrompts = calls
+      .filter((c) =>
+        c.scope
+          .split(' ')
+          .some((s) => s === 'https://www.googleapis.com/auth/spreadsheets')
+      )
+      .map((c) => c.prompt);
+    expect(ensureScopePrompts).toEqual(['']);
+    // Specifically: the interactive call issued NO silent 'none' GIS request.
+    expect(ensureScopePrompts).not.toContain('none');
   });
 
   it('decline: interactive popup dismissed → null, no throw, nothing persisted', async () => {
     // DETERMINISM: capture (prompt, scope) per GIS call and assert ONLY the
     // calls originating from ensureGoogleScope. AuthContext's startup
     // silent-refresh poll can fire its own `refreshGoogleToken(true)` → an extra
-    // `prompt:'none'` that, on CI timing, interleaves into a flat prompt list
-    // (the original flake: ['none','','none']). The on-demand `spreadsheets`
-    // scope is UNIQUE to ensureGoogleScope here — a background drive.file-only
-    // refresh never carries it — so `ensureScopePrompts` isolates this call's
-    // prompt sequence regardless of whether/when a background refresh fires.
+    // `prompt:'none'` that, on CI timing, interleaves into a flat prompt list.
+    // The on-demand `spreadsheets` scope is UNIQUE to ensureGoogleScope here — a
+    // background drive.file-only refresh never carries it — so
+    // `ensureScopePrompts` isolates this call's prompt sequence regardless of
+    // whether/when a background refresh fires.
     const calls: { prompt: string; scope: string }[] = [];
     stubGis({
       silentMode: 'denied',
@@ -321,18 +334,23 @@ describe('AuthContext — ensureGoogleScope', () => {
 
     expect(token).toBeNull();
     expect(localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY)).toBeNull();
-    // ensureGoogleScope itself does silent('none') then interactive('').
+    // GESTURE PRESERVATION: an interactive ensureGoogleScope goes STRAIGHT to
+    // the popup-capable interactive('') with NO silent('none') pre-flight — the
+    // intervening `await` would lose the user gesture and get the popup blocked
+    // on Safari/iOS. So the ensureGoogleScope-origin prompt sequence is [''].
     const ensureScopePrompts = calls
       .filter((c) =>
-        // Exact scope membership in the space-separated scope list (not a URL
-        // substring match — keeps CodeQL's URL-sanitization rule happy and is
-        // strictly more correct).
+        // Exact scope membership in the space-separated scope list. Uses
+        // `.some((s) => s === url)` rather than `.includes(url)`: CodeQL's
+        // "Incomplete URL substring sanitization" rule flags `.includes` with a
+        // URL literal even on arrays, and exact-equality is strictly more
+        // correct anyway (no substring false-positives).
         c.scope
           .split(' ')
-          .includes('https://www.googleapis.com/auth/spreadsheets')
+          .some((s) => s === 'https://www.googleapis.com/auth/spreadsheets')
       )
       .map((c) => c.prompt);
-    expect(ensureScopePrompts).toEqual(['none', '']);
+    expect(ensureScopePrompts).toEqual(['']);
   });
 
   it('no-strip across refresh: after a successful ensureGoogleScope, a later refreshGoogleToken re-mints the UNION (drive.file + spreadsheets)', async () => {
@@ -406,6 +424,49 @@ describe('AuthContext — ensureGoogleScope', () => {
         'https://www.googleapis.com/auth/spreadsheets'
       );
     }
+  });
+
+  it('early return: an already-granted-this-session scope returns the live token with NO GIS call', async () => {
+    // PRE-CONDITION: a first silent ensureGoogleScope grants `spreadsheets`,
+    // adding it to onDemandScopesRef AND minting/persisting googleAccessToken.
+    const calls: { prompt: string; scope: string }[] = [];
+    stubGis({ silentMode: 'token', calls });
+    await mountSignedIn('teacher@orono.k12.mn.us');
+
+    await act(async () => {
+      await getCtx().ensureGoogleScope('spreadsheets');
+    });
+    // The live token now carries the scope.
+    await waitFor(() => {
+      expect(getCtx().googleAccessToken).toBe('scoped-token');
+    });
+
+    // Snapshot the GIS calls carrying the on-demand scope so far.
+    const ensureCallsBefore = calls.filter((c) =>
+      c.scope
+        .split(' ')
+        .some((s) => s === 'https://www.googleapis.com/auth/spreadsheets')
+    ).length;
+
+    // SECOND call — scope already in the ref + a live token exists. Must EARLY
+    // RETURN the live token without any new GIS request (no roundtrip, no popup
+    // — even on an interactive call).
+    let token: string | null = 'sentinel';
+    await act(async () => {
+      token = await getCtx().ensureGoogleScope('spreadsheets', {
+        interactive: true,
+      });
+    });
+
+    expect(token).toBe('scoped-token');
+    // No NEW GIS request was issued for the on-demand scope on the early-return
+    // path — the captured count is unchanged.
+    const ensureCallsAfter = calls.filter((c) =>
+      c.scope
+        .split(' ')
+        .some((s) => s === 'https://www.googleapis.com/auth/spreadsheets')
+    ).length;
+    expect(ensureCallsAfter).toBe(ensureCallsBefore);
   });
 
   it('returns null cleanly when GIS is unavailable (no popup, no throw)', async () => {

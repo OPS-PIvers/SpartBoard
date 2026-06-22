@@ -84,3 +84,7 @@ Data/
 .tmp.driveupload/
 # Local in-app quiz exports (".quiz.json" downloads) — quiz content, not repo source
 Quizzes/
+
+# Ops-script reports (e.g. scripts/migrateAnnouncements.js) — derived from prod
+# Firestore docs (IDs + titles); never commit
+scripts/output/

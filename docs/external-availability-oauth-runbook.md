@@ -6,10 +6,27 @@ GCP/Firebase config was changed, no `gcloud`/`firebase` mutating command was
 run, and the consent screen was **not** flipped. This is the ordered,
 copy-pasteable plan for you to run by hand when you give the go.
 
-**Chosen path:** **Path A — "Go External + PREP VERIFICATION."** Keep the
-sensitive login scopes (`spreadsheets`, `calendar.readonly`) on the login
-consent flow and complete Google's one-time, free sensitive-scope
-verification. Do **not** minimize scopes (Path B is explicitly not taken).
+**Chosen path:** **Path B — sensitive scopes moved OFF login to on-demand.**
+
+> **Update (supersedes the original Path A framing in this file).** After this
+> runbook was first drafted, the plan changed (see the journal): to keep Orono
+> sign-in completely clean during Google's review, `spreadsheets` +
+> `calendar.readonly` were moved OFF the login request and are now acquired
+> **on-demand via GIS** only when a teacher uses Sheets/Calendar (shipped in PR
+> [#2053](https://github.com/OPS-PIvers/SpartBoard/pull/2053)). **Login now
+> requests only `drive.file` (unrestricted) + basic profile**, which needs no
+> verification and shows no unverified-app warning.
+>
+> What this changes for this runbook:
+>
+> - Flipping the consent screen to **External** no longer gates Orono sign-in on
+>   any sensitive-scope verification — **login is clean immediately**.
+> - Sensitive-scope verification (`spreadsheets`, `calendar.readonly`) is still
+>   worth completing so external users get an unflagged consent when they first
+>   use Sheets/Calendar, but it is **decoupled from sign-in** and only affects
+>   those on-demand feature consents.
+> - The branding / Search Console / Make-External / verification steps below all
+>   still apply; the scope-justification section now covers the on-demand scopes.
 
 **Why this exists:** The prod project `spartboard` (project number
 **759666600376**) sits directly under the `orono.k12.mn.us` Workspace

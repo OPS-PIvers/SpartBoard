@@ -1726,6 +1726,19 @@ service cloud.firestore {
       return old == null || knew == old;
     }
 
+    // A backfill of `orgId` (null/absent → non-null) must target an org the
+    // caller actually belongs to. Otherwise the sitting lead of an org-LESS PLC
+    // (which a raw write could create, bypassing the client guard) could
+    // re-home it into ANOTHER org's discovery index via mirrorPlcIndex →
+    // /plcIndex, whose read is gated on isOrgMember(orgId) — a cross-org
+    // forgery. Idempotent re-write (value → same), clearing, or leaving orgId
+    // untouched are unaffected (immutability is enforced separately above).
+    function plcOrgIdBackfillToMemberOrg() {
+      let old = resource.data.get('orgId', null);
+      let knew = request.resource.data.get('orgId', null);
+      return old != null || knew == null || isOrgMember(knew);
+    }
+
     // True iff the pending update is any current member setting (or
     // clearing) `sharedSheetUrl` and nothing else. `sharedSheetUrl` is
     // populated by the first PLC member who creates a Share-with-PLC
@@ -2083,9 +2096,15 @@ service cloud.firestore {
         && request.resource.data.members[request.auth.uid].status == 'active'
         && request.resource.data.members[request.auth.uid].uid == request.auth.uid
         && (
+             // A non-null orgId must be one the creator actually belongs to —
+             // otherwise a direct SDK/REST write could forge orgId:'orono' and,
+             // via mirrorPlcIndex → /plcIndex, inject a PLC into another org's
+             // discovery index (read-gated on isOrgMember(orgId)). The client
+             // createPlc guard does not protect against a raw write.
              !('orgId' in request.resource.data)
              || request.resource.data.orgId == null
-             || request.resource.data.orgId is string
+             || (request.resource.data.orgId is string
+                 && isOrgMember(request.resource.data.orgId))
            )
         && (
              !('buildingId' in request.resource.data)
@@ -2138,6 +2157,7 @@ service cloud.firestore {
           && resource.data.leadUid in request.resource.data.memberUids
           && plcUpdatedAtOk()
           && plcTenancyImmutableAfterSet('orgId')
+          && plcOrgIdBackfillToMemberOrg()
           && plcTenancyImmutableAfterSet('buildingId')
           // Block minting a second lead on the only path that can rewrite
           // arbitrary `members` entries (exactly-one-lead invariant, Dec 1.2):

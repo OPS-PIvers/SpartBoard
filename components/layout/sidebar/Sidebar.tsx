@@ -698,9 +698,11 @@ export const Sidebar: React.FC = () => {
                   SettingsModal (opened from the "Settings" entry above). */}
 
               {/* GOOGLE DRIVE SECTION */}
-              <SidebarGoogleDrive
-                isVisible={activeSection === 'google-drive'}
-              />
+              {!isExternalUser && (
+                <SidebarGoogleDrive
+                  isVisible={activeSection === 'google-drive'}
+                />
+              )}
             </div>
 
             {/* Footer */}

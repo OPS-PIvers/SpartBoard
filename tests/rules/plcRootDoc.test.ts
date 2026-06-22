@@ -106,6 +106,16 @@ beforeEach(async () => {
       createdAt: 1,
       updatedAt: 1,
     });
+    // member-a belongs to org-1, so the orgId-bearing create/backfill paths
+    // (which now require isOrgMember(orgId)) can be exercised on the happy
+    // path. The orgId-forgery negatives use a non-member / a foreign org.
+    await setDoc(
+      doc(
+        ctx.firestore(),
+        `organizations/org-1/members/${MEMBER_A_EMAIL.toLowerCase()}`
+      ),
+      { role: 'member' }
+    );
   });
 });
 
@@ -541,6 +551,45 @@ describe('plcs/{plcId} — members map + orgId/buildingId fields', () => {
         buildingId: 'bldg-1',
         createdAt: 1,
         updatedAt: 1,
+      })
+    );
+  });
+
+  it('a NON-member cannot create a PLC forging an orgId they do not belong to', async () => {
+    // Direct-SDK forgery guard: the client createPlc throws on no-org, but a
+    // raw write must also be denied. The non-member is not in
+    // organizations/org-1, so the create rule's isOrgMember(orgId) gate denies.
+    await assertFails(
+      setDoc(doc(asNonMember(), `plcs/plc-forged-create`), {
+        name: 'Forged',
+        leadUid: NON_MEMBER_UID,
+        memberUids: [NON_MEMBER_UID],
+        memberEmails: { [NON_MEMBER_UID]: NON_MEMBER_EMAIL },
+        members: {
+          [NON_MEMBER_UID]: {
+            uid: NON_MEMBER_UID,
+            email: NON_MEMBER_EMAIL,
+            displayName: 'Intruder',
+            role: 'lead',
+            joinedAt: 1,
+            status: 'active',
+          },
+        },
+        orgId: 'org-1',
+        createdAt: 1,
+        updatedAt: 1,
+      })
+    );
+  });
+
+  it('the lead cannot backfill orgId to an org they do not belong to', async () => {
+    // null → 'org-2' is a tenancy backfill the immutability guard permits, but
+    // member-a is not an org-2 member, so the membership gate must deny it
+    // (prevents re-homing a PLC into a foreign org's discovery index).
+    await assertFails(
+      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}`), {
+        orgId: 'org-2',
+        updatedAt: 2,
       })
     );
   });

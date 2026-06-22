@@ -751,9 +751,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
    * (`spreadsheets`, `calendar.readonly`) that Path B no longer requests at
    * login. See the JSDoc on `AuthContextType.ensureGoogleScope` for the full
    * contract; the short version:
-   *   1. Silent re-mint (`prompt:'none'`) — zero-touch for already-granted
-   *      users (all current Orono users).
-   *   2. If silent fails AND `interactive` (user gesture) — popup (`prompt:''`).
+   *   0. If the scope is already granted THIS session (`onDemandScopesRef`) and
+   *      a live `googleAccessToken` exists, return it immediately — no GIS
+   *      roundtrip, no popup. The live token already carries the scope.
+   *   1. INTERACTIVE (user gesture) — go straight to `prompt:''` with NO silent
+   *      pre-flight, so the user-gesture context is preserved for the consent
+   *      popup (an intervening `await` gets the popup blocked on Safari/iOS).
+   *      `prompt:''` returns granted-scope tokens WITHOUT forced consent, so
+   *      already-granted users still see zero UI.
+   *   2. NON-INTERACTIVE (background) — silent re-mint (`prompt:'none'`) only;
+   *      never a popup. Zero-touch for already-granted users.
    *   3. On success, PERSIST into the same localStorage keys + `googleAccessToken`
    *      state the rest of the app reads, so every Sheets/Calendar consumer
    *      transparently picks up the (multi-scope) token.
@@ -793,6 +800,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const resolvedScope = scope.startsWith('https://')
         ? scope
         : (SCOPE_ALIASES[scope] ?? scope);
+
+      // EARLY RETURN — already granted THIS session. Once a scope is in
+      // `onDemandScopesRef`, every re-mint path (`buildPersistScope`) keeps it
+      // in the union, so the live `googleAccessToken` already carries it. Skip
+      // the GIS roundtrip entirely: avoids a redundant silent re-mint AND, on
+      // interactive calls, avoids re-opening a popup that some browsers block.
+      // The ref only holds a scope AFTER a confirmed grant, so this never
+      // returns a token missing the scope.
+      if (onDemandScopesRef.current.has(resolvedScope) && googleAccessToken) {
+        return googleAccessToken;
+      }
 
       // ADD-ON-SUCCESS-ONLY. We do NOT add `resolvedScope` to
       // `onDemandScopesRef` before minting. The ref is the single source of
@@ -892,29 +910,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // unchanged — it never transiently holds a never-granted scope.
       const markGranted = () => onDemandScopesRef.current.add(resolvedScope);
 
-      // 1. Silent first — zero-touch for already-granted users.
-      const silent = await runGis('none');
-      if (silent) {
-        markGranted();
-        return silent;
-      }
-
-      // 2. Interactive retry only when a user gesture backs the call.
+      // INTERACTIVE — go STRAIGHT to the popup-capable `prompt:''`, with NO
+      // silent `prompt:'none'` first. Rationale: an `await` before opening the
+      // consent popup loses the synchronous user-gesture context (Safari/iOS
+      // pop-up blockers reject a popup not opened in the same task as the
+      // click). GIS `prompt:''` does NOT force the consent screen for
+      // already-granted scopes — it silently returns the token — so this branch
+      // still issues zero extra UI for granted users, while preserving the
+      // gesture for the never-granted case where the consent popup must appear.
       if (opts?.interactive) {
         const interactive = await runGis('');
         if (interactive) {
           markGranted();
           return interactive;
         }
-        // Interactive declined/blocked — scope never granted; ref untouched.
+        // Declined/blocked — scope never granted; ref untouched.
         return null;
       }
 
-      // Silent miss with no interactive escalation: degrade cleanly. The ref was
-      // never mutated, so subsequent drive.file-only refreshes stay clean.
+      // NON-INTERACTIVE (background effect) — silent only, NEVER a popup. A
+      // missed silent re-mint degrades cleanly to null; the ref is left
+      // unmutated so subsequent drive.file-only refreshes stay clean.
+      const silent = await runGis('none');
+      if (silent) {
+        markGranted();
+        return silent;
+      }
       return null;
     },
-    [user?.email]
+    [user?.email, googleAccessToken]
   );
 
   // On startup: if the user has a Firebase session but the Drive token is
@@ -2513,6 +2537,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
       await firebaseSignOut(auth);
       setGoogleAccessToken(null);
+      // Clear on-demand scope grants so a shared device doesn't carry the prior
+      // user's Sheets/Calendar scopes into the NEXT user's union refresh — GIS
+      // rejects a silent ('none') refresh that requests a scope the new user
+      // never granted, which would silently break their token refresh.
+      onDemandScopesRef.current.clear();
     } catch (error) {
       console.error('Sign out error:', error);
       throw error;
