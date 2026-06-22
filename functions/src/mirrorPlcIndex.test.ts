@@ -1,4 +1,50 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+// mirrorPlcIndex.ts has four module-level side effects that must be mocked
+// before the import so Vitest's transform can resolve them:
+//
+//   1. `import { onDocumentWritten } from 'firebase-functions/v2/firestore'`
+//      — not installed in the test node_modules; must be intercepted.
+//   2. `import * as logger from 'firebase-functions/logger'`
+//      — likewise absent; replace with no-op stubs.
+//   3. `import * as admin from 'firebase-admin'`
+//      — guard `admin.apps.length` so the initializeApp() in functionsInit
+//        no-ops instead of attempting a real connection.
+//   4. `import './functionsInit'`
+//      — functionsInit calls `setGlobalOptions` (firebase-functions/v2) and
+//        `admin.initializeApp()`. Both are mocked via (1) and (3) above, but
+//        the `setGlobalOptions` import also needs a firebase-functions/v2 stub.
+//
+// This mirrors the approach used by `aggregatePlcAssessment.test.ts` and
+// `detachPlcSyncLinkage.test.ts`, which test sibling modules with the same
+// module-level bootstrap pattern.
+
+vi.mock('firebase-admin', () => ({
+  apps: [{ name: '[DEFAULT]' }],
+  initializeApp: vi.fn(),
+  firestore: Object.assign(vi.fn(), {
+    FieldValue: { serverTimestamp: () => ({ __serverTimestamp: true }) },
+  }),
+}));
+
+// `functionsInit` calls `setGlobalOptions` at import time.
+vi.mock('firebase-functions/v2', () => ({
+  setGlobalOptions: vi.fn(),
+}));
+
+// The trigger factory — returns the handler directly so the module can be
+// imported without registering a real Firestore trigger.
+vi.mock('firebase-functions/v2/firestore', () => ({
+  onDocumentWritten: vi.fn((_opts: unknown, handler: unknown) => handler),
+}));
+
+vi.mock('firebase-functions/logger', () => ({
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+}));
+
 import { buildPlcIndexMirror } from './mirrorPlcIndex';
 
 describe('buildPlcIndexMirror — slim, PII-free discovery mirror', () => {
