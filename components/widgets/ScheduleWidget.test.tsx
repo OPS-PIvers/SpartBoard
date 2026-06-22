@@ -24,13 +24,20 @@ vi.mock('../../hooks/useFeaturePermissions');
 // Controllable getTodayStr for the UTC/local-date split regression test.
 // vi.hoisted ensures the mock fn is available when the vi.mock factory below
 // runs (which is hoisted to the top of the compiled output).
-const { mockGetTodayStr } = vi.hoisted(() => ({
+const { mockGetTodayStr, defaultGetTodayStr } = vi.hoisted(() => ({
   mockGetTodayStr: vi.fn<() => string>(),
+  defaultGetTodayStr: { current: (() => '') as () => string },
 }));
 
 vi.mock('@/components/widgets/Schedule/utils', async (importOriginal) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const actual = await importOriginal<Record<string, any>>();
+  const actual =
+    await importOriginal<
+      typeof import('@/components/widgets/Schedule/utils')
+    >();
+  // Capture the real getTodayStr so tests can restore it without duplicating
+  // the date-formatting logic (keeps the mock resilient to future changes).
+  defaultGetTodayStr.current = actual.getTodayStr;
+  mockGetTodayStr.mockImplementation(actual.getTodayStr);
   return {
     ...actual,
     getTodayStr: mockGetTodayStr,
@@ -109,10 +116,8 @@ describe('ScheduleWidget', () => {
     mockUpdateWidget.mockClear();
     mockAddWidget.mockClear();
     // Default: getTodayStr returns the real local date so existing tests are unaffected.
-    mockGetTodayStr.mockImplementation(() => {
-      const d = new Date();
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    });
+    mockGetTodayStr.mockReset();
+    mockGetTodayStr.mockImplementation(defaultGetTodayStr.current);
   });
 
   afterEach(() => {
