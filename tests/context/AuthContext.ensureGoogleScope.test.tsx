@@ -61,6 +61,21 @@ vi.mock('firebase/firestore', () => ({
 const GOOGLE_ACCESS_TOKEN_KEY = 'spart_google_access_token';
 const GOOGLE_TOKEN_EXPIRY_KEY = 'spart_google_token_expiry';
 
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
+const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
+
+// Indices of the GIS requests that carry a given on-demand scope — i.e.
+// ensureGoogleScope's own requests (its union request always includes the
+// on-demand scope; a background drive.file-only startup/proactive refresh never
+// does). Filtering by it isolates the call under test from the startup
+// silent-refresh poll, which interleaves nondeterministically on CI timing.
+const callsForScope = (scopes: string[], scope: string): number[] =>
+  scopes.reduce<number[]>((acc, s, i) => {
+    if (s.split(' ').some((p) => p === scope)) acc.push(i);
+    return acc;
+  }, []);
+
 const ctxHolder: { current: AuthContextType | null } = { current: null };
 
 const Probe: React.FC = () => {
@@ -221,20 +236,22 @@ describe('AuthContext — ensureGoogleScope', () => {
     await waitFor(() => {
       expect(getCtx().googleAccessToken).toBe('scoped-token');
     });
+    // Isolate ensureGoogleScope's own GIS request (the one carrying the
+    // spreadsheets scope) from any background startup-refresh poll.
+    const sheetsCalls = callsForScope(capturedScopes, SHEETS_SCOPE);
+    expect(sheetsCalls).toHaveLength(1);
+    const i = sheetsCalls[0];
     // Only the silent prompt was used — NO popup.
-    expect(capturedPrompts).toEqual(['none']);
-    // CRITICAL (zero-prompt guarantee): the bare 'spreadsheets' key must be
+    expect(capturedPrompts[i]).toBe('none');
+    // CRITICAL (zero-prompt guarantee): the bare 'spreadsheets' key is
     // normalized to the FULLY-QUALIFIED scope URL before reaching GIS, or the
-    // silent re-mint would never match an existing grant.
-    //
-    // CRITICAL (no-strip guarantee): the request must be the UNION of the login
-    // scope (drive.file) AND the on-demand scope (spreadsheets), NOT spreadsheets
-    // alone. A spreadsheets-only token would NOT carry drive.file; persisting it
-    // as the shared token would strip drive.file and break the Picker/Drive.
-    expect(capturedScopes).toHaveLength(1);
-    const requested = capturedScopes[0].split(' ');
-    expect(requested).toContain('https://www.googleapis.com/auth/drive.file');
-    expect(requested).toContain('https://www.googleapis.com/auth/spreadsheets');
+    // silent re-mint would never match an existing grant. CRITICAL (no-strip):
+    // the request is the UNION of drive.file + spreadsheets, NOT spreadsheets
+    // alone — a spreadsheets-only token would strip drive.file and break the
+    // Picker/Drive when persisted as the shared token.
+    const requested = capturedScopes[i].split(' ');
+    expect(requested).toContain(DRIVE_SCOPE);
+    expect(requested).toContain(SHEETS_SCOPE);
   });
 
   it('normalizes the calendar.readonly key to its full scope URL for GIS', async () => {
@@ -248,17 +265,18 @@ describe('AuthContext — ensureGoogleScope', () => {
     });
 
     // Union: drive.file + calendar.readonly (normalized from the bare key).
-    expect(capturedScopes).toHaveLength(1);
-    const requested = capturedScopes[0].split(' ');
-    expect(requested).toContain('https://www.googleapis.com/auth/drive.file');
-    expect(requested).toContain(
-      'https://www.googleapis.com/auth/calendar.readonly'
-    );
+    // Isolate ensureGoogleScope's request from any background startup refresh.
+    const calendarCalls = callsForScope(capturedScopes, CALENDAR_SCOPE);
+    expect(calendarCalls).toHaveLength(1);
+    const requested = capturedScopes[calendarCalls[0]].split(' ');
+    expect(requested).toContain(DRIVE_SCOPE);
+    expect(requested).toContain(CALENDAR_SCOPE);
   });
 
   it('silent-miss WITHOUT interactive: returns null and never opens a popup', async () => {
     const capturedPrompts: string[] = [];
-    stubGis({ silentMode: 'denied', capturedPrompts });
+    const capturedScopes: string[] = [];
+    stubGis({ silentMode: 'denied', capturedPrompts, capturedScopes });
     await mountSignedIn('newuser@example.com');
 
     let token: string | null = 'sentinel';
@@ -269,8 +287,11 @@ describe('AuthContext — ensureGoogleScope', () => {
     expect(token).toBeNull();
     // Token must NOT be persisted on a silent miss.
     expect(localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY)).toBeNull();
-    // Only the silent prompt was attempted; no interactive popup.
-    expect(capturedPrompts).toEqual(['none']);
+    // Only the silent prompt was attempted for the on-demand scope; no popup
+    // (isolated from any background startup-refresh poll).
+    const sheetsCalls = callsForScope(capturedScopes, SHEETS_SCOPE);
+    expect(sheetsCalls).toHaveLength(1);
+    expect(capturedPrompts[sheetsCalls[0]]).toBe('none');
   });
 
   it('interactive grant: opens the popup (prompt:"") directly — no silent pre-flight — and persists', async () => {
@@ -368,16 +389,26 @@ describe('AuthContext — ensureGoogleScope', () => {
 
     // 2. A proactive/startup refresh must MAINTAIN the on-demand scope rather
     //    than stripping it back to drive.file-only.
+    const scopesBeforeRefresh = capturedScopes.length;
     let refreshed: string | null = null;
     await act(async () => {
       refreshed = await getCtx().refreshGoogleToken(true);
     });
     expect(refreshed).toBe('scoped-token');
 
-    // The LAST GIS request (the refresh) must still include BOTH scopes.
-    const lastScope = capturedScopes[capturedScopes.length - 1].split(' ');
-    expect(lastScope).toContain('https://www.googleapis.com/auth/drive.file');
-    expect(lastScope).toContain('https://www.googleapis.com/auth/spreadsheets');
+    // Every GIS request made FROM the refresh onward must still carry BOTH
+    // scopes. Asserting over the post-grant slice (not just the LAST captured
+    // entry) is robust to the startup silent-refresh poll interleaving on CI
+    // timing — once the scope is granted the ref holds it, so EVERY subsequent
+    // refresh (explicit or background) re-mints the union, never a stripped
+    // drive.file-only token.
+    const refreshScopes = capturedScopes.slice(scopesBeforeRefresh);
+    expect(refreshScopes.length).toBeGreaterThan(0);
+    for (const scope of refreshScopes) {
+      const parts = scope.split(' ');
+      expect(parts).toContain('https://www.googleapis.com/auth/drive.file');
+      expect(parts).toContain('https://www.googleapis.com/auth/spreadsheets');
+    }
     // Every GIS request stayed silent — no popup churn.
     expect(capturedPrompts.every((p) => p === 'none')).toBe(true);
   });
