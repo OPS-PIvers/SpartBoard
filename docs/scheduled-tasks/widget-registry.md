@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-21_
+_Last audited: 2026-06-22_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-22: Full audit. Merged dev-paul into scheduled-tasks (new commits since 2026-06-21: pending merge context). VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations: 62 non-sticker in WIDGET_COMPONENTS (sticker intentional WidgetRenderer special-case per JSDoc), 63/63 in widgetDefaults.ts and widgetGradeLevels.ts, 59 user-selectable in tools.ts (7 intentionally excluded sub-types: blooms-detail, catalyst-instruction, catalyst-visual, custom-widget, mathTool, onboarding, sticker), 3 InternalToolType entries (magic, record, remote) correctly in tools.ts and widgetGradeLevels.ts but not WidgetType union (documented). All 10 sampled lazyNamed() export names verified correct. pnpm type-check (exit 0), pnpm lint (exit 0), pnpm test (516 files / 5697 tests, exit 0). Zero new gaps. WIDGET_APPEARANCE_COMPONENTS omissions for 33 widget types remain as noted in prior audits — all intentional (sub-widgets, system widgets, or widgets without configurable appearance)._
 
 _2026-06-21: Full audit. New commits since 2026-06-20: fix(widgets/expectations) use shared Toggle in Settings panel (UI-only, no registry impact), audit(saturday) journal updates (docs only). No changes to types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations. All sampled lazyNamed() export names verified correct. pnpm type-check (exit 0) and pnpm lint (exit 0) both clean. Zero new gaps._
 

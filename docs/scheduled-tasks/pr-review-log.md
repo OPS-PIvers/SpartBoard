@@ -4,6 +4,37 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-22
+
+- PRs reviewed: 7
+  - #2049 — audit(monday): daily=0 weekly=2 new issues (head `scheduled-tasks`, base `dev-paul`)
+  - #2048 — docs(nightly): debugger run 19 log update (head `nightly/debugger-log-2026-06-22`, base `dev-paul`)
+  - #2047 — fix(test): add missing vi.mock() stubs in mirrorPlcIndex.test.ts (head `nightly/build-tooling-2026-06-22`, base `dev-paul`)
+  - #2046 — fix(schedule): use getTodayStr() in checkAutoLaunch (head `nightly/widgets-2026-06-22`, base `dev-paul`)
+  - #2045 — fix(DraggableWindow): prevent Enter double-commit on title rename (head `nightly/dashboard-layout-2026-06-22`, base `dev-paul`)
+  - #2044 — fix(i18n): translate plcDashboard.search.groupBoards to "Tafeln" in DE (head `nightly/admin-config-2026-06-22`, base `dev-paul`)
+  - #2043 — docs(unifier): run 23 staleness scan + doc regression recovery (head `nightly/unifier-log-2026-06-22`, base `dev-paul`)
+- Comments processed: 8 total — 4 fixed, 4 explained
+  - #2045: 3 gemini/claude threads → 2 FIXED (moved `hasCommittedTitleRef` reset into the render body per CLAUDE.md synchronous-ref-flag rule; removed the `onClick` reset), 1 EXPLAINED (outdated — the landed test comment already matched the suggestion).
+  - #2046: 2 gemini threads → 2 FIXED (mock factory now captures the real `getTodayStr` via `importOriginal` into a hoisted `defaultGetTodayStr.current` ref; `beforeEach` restores it — removes duplicated date logic).
+  - #2048: 2 gemini threads → 2 EXPLAINED (already addressed): commit `16b8b57` had already rewritten lines 135/225 to the render-body reset wording.
+  - #2049: 1 claude thread → no action (self-verification note confirming the RevealGrid finding, not a change request).
+  - #2043, #2044, #2047: no unresolved threads.
+- Fixes pushed: 2
+  - #2045 / `nightly/dashboard-layout-2026-06-22` — `fix(pr-2045): reset hasCommittedTitleRef in render body per CLAUDE.md ref pattern`.
+  - #2046 / `nightly/widgets-2026-06-22` — `fix(pr-2046): capture real getTodayStr in mock factory to avoid duplicating date logic`.
+- Reviews posted: 7 (one structured review per PR)
+  - #2049: Ready — Monday audit docs + thorough `useTemplateStore` test; flagged RevealGrid no-`onClick` button as the most actionable follow-up.
+  - #2048: Ready — doc-only debugger run-19 log; gemini wording suggestions already incorporated.
+  - #2047: Ready — recovers 5 silently-dropped tests via the established mock-hoisting pattern.
+  - #2046: Ready — local-date fix matching the widget's convention; test-DRY review note addressed.
+  - #2045: Ready — surgical double-write fix; ref-reset now aligned with repo convention.
+  - #2044: Ready — minimal, well-tested DE locale fix.
+  - #2043: Ready — doc recovery; flagged the recurring `main → dev-paul` clobber of `unifier.md` for a permanent merge-strategy fix.
+- Notes:
+  - Branch-safety: all 7 head branches are non-`main` / non-`dev-*` → pushable. Two required fix pushes (#2045, #2046).
+  - Local verification for both fix pushes ran on Node 22 (env wants 24): `tsc --noEmit` (0 errors), `eslint --max-warnings 0` (clean), and the affected vitest suites (DraggableWindow 55/55, ScheduleWidget 29/29) all passed; full CI on Node 24 remains the authoritative gate.
+
 ## 2026-06-21
 
 - PRs reviewed: 4 (all open PRs; all base `dev-paul`, none `main`/`dev-*`)

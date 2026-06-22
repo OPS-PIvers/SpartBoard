@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-21_
+_Last audited: 2026-06-22_
 _Last action: 2026-06-18_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-22: Full scan of all Widget.tsx files. New commits since 2026-06-21 (merged dev-paul). Automated scan flagged 12 potential items; all reviewed against journal guidance and existing tracked items: (1) Weather compact-branch `min(65cqh,30cqw)` and similar — WON'T FIX per journal guidance (hideClothing sub-mode portrait fill-better formula, exempt per 2026-06-05 analysis); (2) MusicWidget `min(32px,35cqh,12cqw)` title — WON'T FIX (cqh fill-better formula, same exemption as ClockWidget); (3) Countdown `min(42cqh,55cqw)` — WON'T FIX (documented in Completed section); (4) LunchCount cqh/cqw mix — WON'T FIX (same as Countdown, confirmed 2026-06-17); (5) SyntaxFramer complex calc with cqh/cqw — WON'T FIX per 2026-06-06 analysis (character-count-proportional, fill-better formula); (6) TalkingTool `min(140px,35cqw)` sidebar — already in group open item (TalkingTool/Widget.tsx entries); (7) MathTools grid `minmax(min(100px,30cqw),1fr)` — already Completed; (8) InstructionalRoutines `width:'1px'` separator — decorative layout element, no scaling context impact; (9) Checklist ChecklistCard.tsx `WebkitLineClamp:3` — text truncation pattern in content cards, acceptable (line count scales per user preference not widget size); (10) CustomWidget `overflow:'hidden'` on grid cells — structural layout guard with `flex-1 min-h-0 min-w-0` already present on parent, acceptable; (11) SyntaxFramer token `overflow:'hidden'` on inline span — WON'T FIX per same analysis as (5); (12) SmartNotebook Viewer `max-w-[240px]` — already documented as acceptable structural constraint (2026-05-22). All pre-existing open items (EmbedWidget portaled toolbar, QuizResults period-filter, RevealGrid spacing, multi-widget group, MiniApp dialog) re-confirmed valid. Zero new anti-patterns._
 
 _2026-06-21: Full scan of all Widget.tsx files. New commits since 2026-06-20: fix(widgets/expectations) use shared Toggle in Settings panel (settings panel back-face only, CQ scaling rules do not apply). No widget front-face content changes. Re-verified all four pre-existing open items (EmbedWidget portaled toolbar, QuizResults period-filter, RevealGrid spacing, multi-widget group, MiniApp dialog). All confirmed present and unresolved. Zero new anti-patterns detected._
 
