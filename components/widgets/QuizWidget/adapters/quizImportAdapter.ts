@@ -23,11 +23,38 @@ import { QuizDriveService } from '@/utils/quizDriveService';
 export interface QuizImportAdapterDeps {
   /** Uploads the supplied data to Drive + mirrors metadata into Firestore. */
   saveQuiz: (data: QuizData) => Promise<void>;
-  importFromSheet: (sheetUrl: string, title: string) => Promise<QuizData>;
+  /**
+   * Parses a Google Sheet. `token` (when supplied) is the fresh Sheets-capable
+   * union token from `ensureSheetsScope()` — threaded explicitly so the Sheets
+   * API call uses it rather than `useQuiz`'s stale render-time closure token,
+   * which would 403 on the first import for an already-granted user.
+   */
+  importFromSheet: (
+    sheetUrl: string,
+    title: string,
+    token?: string | null
+  ) => Promise<QuizData>;
   importFromCSV: (csvContent: string, title: string) => Promise<QuizData>;
-  /** Creates a new Quiz template Sheet in the user's Drive. */
-  createQuizTemplate: () => Promise<string>;
+  /**
+   * Creates a new Quiz template Sheet in the user's Drive. `token` carries the
+   * same Sheets-capable-token semantics as `importFromSheet`.
+   */
+  createQuizTemplate: (token?: string | null) => Promise<string>;
+  /**
+   * Path B on-demand Sheets-scope gate. Called from the user gesture that
+   * triggers a Sheets-API operation (parsing a Google Sheet URL or creating
+   * the template Sheet). Must resolve to a usable access token; resolving to
+   * `null` means the user declined consent or has no Google access — the
+   * adapter then throws a clear error the wizard surfaces. Silent (no popup)
+   * for users who already granted the scope.
+   *
+   * CSV import does NOT call this (no Sheets API involved).
+   */
+  ensureSheetsScope: () => Promise<string | null>;
 }
+
+const SHEETS_ACCESS_ERROR =
+  'Google Sheets access is required. Please grant access and try again.';
 
 /* ─── Template instructions (rendered in the wizard's "Format help" block) ─ */
 
@@ -229,7 +256,14 @@ export function createQuizImportAdapter(
     supportedSources: ['sheet', 'csv'],
     templateHelper: {
       createTemplate: async () => {
-        const url = await deps.createQuizTemplate();
+        // Creating the template writes a new Google Sheet → needs the Sheets
+        // scope. Acquire it on demand (Path B) before the Drive call, then
+        // thread the fresh union token into the Sheets call so it uses the
+        // Sheets-capable token rather than useQuiz's stale closure token (which
+        // would 403 on the first attempt for an already-granted user).
+        const token = await deps.ensureSheetsScope();
+        if (!token) throw new Error(SHEETS_ACCESS_ERROR);
+        const url = await deps.createQuizTemplate(token);
         return { url };
       },
       instructions: TEMPLATE_INSTRUCTIONS,
@@ -257,7 +291,18 @@ export function createQuizImportAdapter(
       // front, so use a placeholder that the wizard will overwrite on save.
       const PLACEHOLDER_TITLE = '__quiz_import__';
       if (source.kind === 'sheet') {
-        const data = await deps.importFromSheet(source.url, PLACEHOLDER_TITLE);
+        // Reading a Google Sheet needs the Sheets scope. Acquire on demand
+        // (Path B) before the import — silent for already-granted users. Thread
+        // the fresh union token into the Sheets call so it uses the
+        // Sheets-capable token rather than useQuiz's stale closure token (which
+        // would 403 on the first attempt for an already-granted user).
+        const token = await deps.ensureSheetsScope();
+        if (!token) throw new Error(SHEETS_ACCESS_ERROR);
+        const data = await deps.importFromSheet(
+          source.url,
+          PLACEHOLDER_TITLE,
+          token
+        );
         return { data, warnings: [] };
       }
       if (source.kind === 'csv') {

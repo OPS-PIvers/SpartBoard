@@ -210,7 +210,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
  * applies (matching the doc-wins precedence of the feature path).
  *
  *   - `calendar` (label "Events") renders Google Calendar events via
- *     `useGoogleCalendar` — a Google-API surface, so org-and-up only.
+ *     `GoogleCalendarService` — a Google-API surface, so org-and-up only.
  */
 export const WIDGET_DEFAULT_MIN_TIER: Partial<Record<WidgetType, UserTier>> = {
   calendar: 'org',

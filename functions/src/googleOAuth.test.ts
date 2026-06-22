@@ -305,14 +305,39 @@ describe('exchangeGoogleAuthCode', () => {
     expect(err.message).toMatch(/Google did not return an access_token/);
   });
 
-  it('rejects scope downgrades with needs-consent / partial-consent', async () => {
-    // Drop one of the required scopes from Google's response.
+  it('accepts a drive.file-only grant (Path B: spreadsheets no longer required offline)', async () => {
+    // Under Path B the offline grant only needs `drive.file`. A grant that
+    // omits `spreadsheets` (now acquired on demand via GIS) must NOT be
+    // rejected — it is a valid offline grant.
     setAxiosHandler(async () => ({
       data: {
         access_token: 'access-1',
         expires_in: 3600,
         refresh_token: 'refresh-1',
-        scope: 'https://www.googleapis.com/auth/drive.file', // missing spreadsheets
+        scope: 'https://www.googleapis.com/auth/drive.file', // no spreadsheets
+        token_type: 'Bearer',
+      },
+    }));
+
+    const result = (await callAuthed(exchangeGoogleAuthCode, {
+      code: 'c',
+      redirectUri: 'postmessage',
+    })) as { accessToken: string; hasRefreshToken: boolean };
+
+    expect(result.accessToken).toBe('access-1');
+    expect(result.hasRefreshToken).toBe(true);
+    // The drive.file-only grant is persisted (no partial-consent rejection).
+    expect(firestoreDocs.get(PRIVATE_DOC_PATH_FOR(TEST_UID))).toBeDefined();
+  });
+
+  it('rejects scope downgrades with needs-consent / partial-consent', async () => {
+    // Drop the only REQUIRED scope (`drive.file`) from Google's response.
+    setAxiosHandler(async () => ({
+      data: {
+        access_token: 'access-1',
+        expires_in: 3600,
+        refresh_token: 'refresh-1',
+        scope: 'https://www.googleapis.com/auth/spreadsheets', // missing drive.file
         token_type: 'Bearer',
       },
     }));

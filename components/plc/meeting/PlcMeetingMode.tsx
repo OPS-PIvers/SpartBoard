@@ -811,7 +811,7 @@ export const MeetingExportButtons: React.FC<{
   meetingId: string;
 }> = ({ plc, meetingId }) => {
   const { t } = useTranslation();
-  const { user, googleAccessToken } = useAuth();
+  const { user, ensureGoogleScope } = useAuth();
   const { addToast } = useDashboard();
   const members = usePlcMembers();
   const { data: assessments } = usePlcAssessmentsData();
@@ -846,7 +846,14 @@ export const MeetingExportButtons: React.FC<{
         );
         return;
       }
-      if (!googleAccessToken) {
+      // Acquire the Sheets scope on demand (Path B). The PDF path also routes
+      // through the Sheets API (creates a sheet, then exports it as PDF), so
+      // both formats need the spreadsheets scope. Silent for already-granted
+      // users; one-time consent popup for never-granted (user gesture).
+      const token = await ensureGoogleScope('spreadsheets', {
+        interactive: true,
+      });
+      if (!token) {
         addToast(
           t('plcDashboard.meeting.export.noGoogle', {
             defaultValue:
@@ -859,7 +866,7 @@ export const MeetingExportButtons: React.FC<{
       setBusy(format);
       try {
         const result = await exportPlcMeeting(
-          googleAccessToken,
+          token,
           meeting,
           exportContext,
           format
@@ -914,7 +921,7 @@ export const MeetingExportButtons: React.FC<{
     [
       meetingsById,
       meetingId,
-      googleAccessToken,
+      ensureGoogleScope,
       exportContext,
       addToast,
       plc.id,

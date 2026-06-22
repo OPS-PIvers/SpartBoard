@@ -22,13 +22,10 @@ vi.mock('@/hooks/useFeaturePermissions', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     selectedBuildings: [],
-  }),
-}));
-
-vi.mock('@/hooks/useGoogleCalendar', () => ({
-  useGoogleCalendar: () => ({
-    calendarService: null,
-    isConnected: false,
+    // Path B: the widget acquires the calendar.readonly scope on demand. With
+    // no personal calendars configured in these tests it's never called, but
+    // provide a null-resolving stub so the surface matches the real hook.
+    ensureGoogleScope: vi.fn().mockResolvedValue(null),
   }),
 }));
 

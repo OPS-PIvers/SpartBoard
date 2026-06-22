@@ -21,6 +21,9 @@ vi.mock('@/context/useDashboard', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     googleAccessToken: 'token-1',
+    // Path B: export handlers acquire the Sheets scope on demand. Resolve to a
+    // token so the gated path proceeds exactly as before.
+    ensureGoogleScope: vi.fn().mockResolvedValue('token-1'),
     user: { uid: 'user-1' },
     orgId: null,
     // Non-external user so the Export-to-Sheets affordance under test renders.

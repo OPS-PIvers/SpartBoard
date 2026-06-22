@@ -279,7 +279,8 @@ const LtiDeepLinkFlow: React.FC = () => {
     >
   >(new Map());
 
-  const { user, signInWithGoogle, googleAccessToken } = useAuth();
+  const { user, signInWithGoogle, googleAccessToken, ensureGoogleScope } =
+    useAuth();
   // First-party Google session required (uid + Drive token) — NOT just any
   // Firebase session. A leftover studentRole custom-token session restored in
   // the partitioned iframe has a uid but no google.com provider/Drive token;
@@ -441,11 +442,17 @@ const LtiDeepLinkFlow: React.FC = () => {
         );
         return undefined;
       }
+      // Path B: acquire the Sheets scope on demand before the builder may
+      // create a sheet (silent for already-granted users, one-time consent
+      // for never-granted — user gesture). Null → skip creation as before.
+      const sheetsToken = await ensureGoogleScope('spreadsheets', {
+        interactive: true,
+      });
       const { linkage, error: plcSheetError } = await buildPlcLinkage({
         plc: selectedPlc,
         quizTitle: sheetTitle,
         selfUid: user.uid,
-        googleAccessToken,
+        googleAccessToken: sheetsToken,
       });
       if (plcSheetError) {
         setErrorMsg(
@@ -455,7 +462,7 @@ const LtiDeepLinkFlow: React.FC = () => {
       }
       return linkage;
     },
-    [plcShareEnabled, selectedPlcId, plcs, user, googleAccessToken]
+    [plcShareEnabled, selectedPlcId, plcs, user, ensureGoogleScope]
   );
 
   // Sign the deep-link response for an already-created assignment/session and

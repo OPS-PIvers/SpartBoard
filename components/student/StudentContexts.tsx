@@ -56,6 +56,7 @@ const mockAuth: AuthContextType = {
   connectGoogleDrive: async () => {
     // No-op in student view
   },
+  ensureGoogleScope: () => Promise.resolve(null),
   savedWidgetConfigs: {},
   saveWidgetConfig: () => {
     // No-op

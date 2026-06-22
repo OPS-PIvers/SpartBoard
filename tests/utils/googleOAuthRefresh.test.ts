@@ -40,10 +40,9 @@ vi.mock('@/config/firebase', () => {
     get isAuthBypass() {
       return state.isAuthBypass;
     },
-    GOOGLE_OAUTH_SCOPES: [
-      'https://www.googleapis.com/auth/drive.file',
-      'https://www.googleapis.com/auth/spreadsheets',
-    ],
+    // Path B: login/code-flow scopes are drive.file only; spreadsheets +
+    // calendar.readonly are acquired on demand via ensureGoogleScope.
+    GOOGLE_OAUTH_SCOPES: ['https://www.googleapis.com/auth/drive.file'],
   };
 });
 
@@ -113,6 +112,7 @@ import {
 type CodeClientCallback = (response: { code?: string; error?: string }) => void;
 type ErrorCallback = (err: unknown) => void;
 interface FakeCodeClientConfig {
+  scope?: string;
   callback: CodeClientCallback;
   error_callback?: ErrorCallback;
 }
@@ -227,6 +227,38 @@ describe('requestAndExchangeAuthCode', () => {
     if (outcome.kind === 'success') {
       expect(outcome.result.accessToken).toBe('access-1');
     }
+  });
+
+  it('requests ONLY GOOGLE_OAUTH_SCOPES when no extra (on-demand) scopes are passed', async () => {
+    const promise = requestAndExchangeAuthCode('client-id', 'a@b.c');
+    await new Promise((r) => setTimeout(r, 0));
+    const requested = (lastCodeClientConfig!.scope ?? '').split(' ');
+    expect(requested).toContain('https://www.googleapis.com/auth/drive.file');
+    expect(requested).not.toContain(
+      'https://www.googleapis.com/auth/spreadsheets'
+    );
+    // Resolve the dangling promise so it doesn't leak across tests.
+    lastCodeClientConfig!.callback({});
+    await promise;
+  });
+
+  it('unions on-demand extraScopes with GOOGLE_OAUTH_SCOPES so the captured refresh_token grant keeps Sheets/Calendar', async () => {
+    const promise = requestAndExchangeAuthCode('client-id', 'a@b.c', [
+      'https://www.googleapis.com/auth/spreadsheets',
+    ]);
+    await new Promise((r) => setTimeout(r, 0));
+    const requested = (lastCodeClientConfig!.scope ?? '').split(' ');
+    // UNION: login scope (drive.file) + on-demand scope (spreadsheets).
+    expect(requested).toContain('https://www.googleapis.com/auth/drive.file');
+    expect(requested).toContain('https://www.googleapis.com/auth/spreadsheets');
+    // De-duped: drive.file appears exactly once.
+    expect(
+      requested.filter(
+        (s) => s === 'https://www.googleapis.com/auth/drive.file'
+      )
+    ).toHaveLength(1);
+    lastCodeClientConfig!.callback({});
+    await promise;
   });
 
   it('returns { kind: "cancelled" } when GIS callback fires with no code and no error', async () => {

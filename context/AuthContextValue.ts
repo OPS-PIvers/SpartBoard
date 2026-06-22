@@ -110,6 +110,31 @@ export interface AuthContextType {
    */
   connectGoogleDrive: () => Promise<void>;
   /**
+   * Ensure the shared Google access token carries an on-demand sensitive
+   * scope (`spreadsheets`, `calendar.readonly`) that is NOT requested at login
+   * under Path B (docs/wide-distro-plan.md).
+   *
+   * Behavior:
+   *   - Tries a SILENT GIS re-mint first (`prompt:'none'`). For any user who
+   *     already granted the scope — every existing Orono user — this returns a
+   *     token that includes the scope with NO popup, and persists it into the
+   *     same `googleAccessToken` state + localStorage the rest of the app reads.
+   *   - If the silent path fails (scope never granted) AND `opts.interactive`
+   *     is true (caller is in a user gesture), retries with a consent popup
+   *     (`prompt:''`).
+   *   - Returns the access token on success, or `null` on silent-miss without
+   *     `interactive`, user decline, or any error. NEVER throws — callers
+   *     degrade to their existing "Google access required" branch.
+   *
+   * Because OAuth tokens minted from one grant carry ALL granted scopes,
+   * persisting the returned token means every existing Sheets/Calendar consumer
+   * (and the 1-hour refresh loop) transparently uses it afterward.
+   */
+  ensureGoogleScope: (
+    scope: string,
+    opts?: { interactive?: boolean }
+  ) => Promise<string | null>;
+  /**
    * Disconnect Google Drive without signing the user out of the app.
    * Awaits the server-side revoke; throws on backend failure so callers
    * can surface a toast directing the user to revoke at

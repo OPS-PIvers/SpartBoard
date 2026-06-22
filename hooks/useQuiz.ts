@@ -83,12 +83,29 @@ export interface UseQuizResult {
    * surface the new title in a toast).
    */
   duplicateQuiz: (sourceMeta: QuizMetadata) => Promise<QuizMetadata>;
-  /** Parse a Google Sheet URL and return quiz questions */
-  importFromSheet: (sheetUrl: string, title: string) => Promise<QuizData>;
+  /**
+   * Parse a Google Sheet URL and return quiz questions.
+   *
+   * `token` (optional) is a Sheets-capable access token to use for the Sheets
+   * API call — passed by the import wizard's Path B flow after an on-demand
+   * `ensureGoogleScope('spreadsheets')` grant, so the FIRST import succeeds even
+   * before the render-time `googleAccessToken` closure refreshes. Omitting it
+   * falls back to the closure token (unchanged behavior for other callers).
+   */
+  importFromSheet: (
+    sheetUrl: string,
+    title: string,
+    token?: string | null
+  ) => Promise<QuizData>;
   /** Parse a CSV string and return quiz questions */
   importFromCSV: (csvContent: string, title: string) => Promise<QuizData>;
-  /** Create a template Google Sheet for quiz imports in the user's Drive */
-  createQuizTemplate: () => Promise<string>;
+  /**
+   * Create a template Google Sheet for quiz imports in the user's Drive.
+   *
+   * `token` (optional) — same Path B Sheets-capable token semantics as
+   * `importFromSheet`.
+   */
+  createQuizTemplate: (token?: string | null) => Promise<string>;
   /** Share a quiz publicly and return the share URL */
   shareQuiz: (quizMeta: QuizMetadata) => Promise<string>;
   /** Import a shared quiz into the current user's library */
@@ -179,18 +196,28 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     return unsub;
   }, [userId]);
 
-  const getDriveService = useCallback((): QuizDriveLike => {
-    if (isAuthBypass) {
-      if (!userId) throw new Error('Not authenticated');
-      return new MockQuizDriveService(userId);
-    }
-    if (!googleAccessToken) {
-      throw new Error(
-        'Not connected to Google Drive. Please sign in again to grant access.'
-      );
-    }
-    return new QuizDriveService(googleAccessToken);
-  }, [googleAccessToken, userId]);
+  const getDriveService = useCallback(
+    (token?: string | null): QuizDriveLike => {
+      if (isAuthBypass) {
+        if (!userId) throw new Error('Not authenticated');
+        return new MockQuizDriveService(userId);
+      }
+      // Prefer an explicitly-threaded token (e.g. the fresh union token minted
+      // by `ensureGoogleScope('spreadsheets')` in the import wizard's Path B
+      // flow) over the render-time `googleAccessToken` closure. After a user
+      // grants the Sheets scope in the same gesture, the closure is still
+      // stale (state updates next render), so a Sheets call built from it would
+      // 403 on the first attempt. The threaded token carries the union scope.
+      const accessToken = token ?? googleAccessToken;
+      if (!accessToken) {
+        throw new Error(
+          'Not connected to Google Drive. Please sign in again to grant access.'
+        );
+      }
+      return new QuizDriveService(accessToken);
+    },
+    [googleAccessToken, userId]
+  );
 
   const saveQuiz = useCallback(
     async (
@@ -441,14 +468,21 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
   );
 
   const importFromSheet = useCallback(
-    async (sheetUrl: string, title: string): Promise<QuizData> => {
+    async (
+      sheetUrl: string,
+      title: string,
+      token?: string | null
+    ): Promise<QuizData> => {
       const sheetId = QuizDriveService.extractSheetId(sheetUrl);
       if (!sheetId) {
         throw new Error(
           'Invalid Google Sheet URL. Copy the URL directly from your browser.'
         );
       }
-      const drive = getDriveService();
+      // `token` (when supplied) is the fresh Sheets-capable union token from
+      // the import wizard's on-demand scope grant; falls back to the closure
+      // token for non-wizard callers.
+      const drive = getDriveService(token);
       const questions = await drive.importFromGoogleSheet(sheetId);
       const now = Date.now();
       return {
@@ -477,10 +511,16 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     []
   );
 
-  const createQuizTemplate = useCallback(async (): Promise<string> => {
-    const drive = getDriveService();
-    return drive.createQuizTemplate();
-  }, [getDriveService]);
+  const createQuizTemplate = useCallback(
+    async (token?: string | null): Promise<string> => {
+      // `token` (when supplied) is the fresh Sheets-capable union token from
+      // the import wizard's on-demand scope grant; falls back to the closure
+      // token for non-wizard callers.
+      const drive = getDriveService(token);
+      return drive.createQuizTemplate();
+    },
+    [getDriveService]
+  );
 
   /**
    * Duplicate a quiz. Loads canonical content from the source's Drive

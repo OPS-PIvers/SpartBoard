@@ -59,7 +59,15 @@ vi.mock('@/config/firebase', () => {
     auth,
     storage,
     functions,
-    GOOGLE_OAUTH_SCOPES: [] as string[],
+    // Mirror the real Path B login scope (drive.file only) so AuthContext's
+    // union-scope logic (GOOGLE_OAUTH_SCOPES + on-demand scopes acquired via
+    // ensureGoogleScope) is exercised faithfully. An empty array would let a
+    // Sheets/Calendar acquisition mint a token that silently drops drive.file.
+    GOOGLE_OAUTH_SCOPES: ['https://www.googleapis.com/auth/drive.file'],
+    // Path B: on-demand sensitive scopes (acquired via ensureGoogleScope).
+    GOOGLE_SHEETS_SCOPE: 'https://www.googleapis.com/auth/spreadsheets',
+    GOOGLE_CALENDAR_READONLY_SCOPE:
+      'https://www.googleapis.com/auth/calendar.readonly',
     googleProvider: {},
   };
 });

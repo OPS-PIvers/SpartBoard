@@ -122,6 +122,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     user,
     isAdmin,
     googleAccessToken,
+    ensureGoogleScope,
     orgId,
     canAccessFeature,
     getAssignmentMode,
@@ -827,10 +828,18 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       },
       importFromSheet,
       importFromCSV,
-      createQuizTemplate: async () => {
-        const url = await createQuizTemplate();
+      createQuizTemplate: async (token) => {
+        // Forward the fresh Sheets-capable token from the wizard's Path B grant
+        // so the template-create Sheets call uses it rather than useQuiz's
+        // stale render-time closure token (which 403s on the first attempt).
+        const url = await createQuizTemplate(token);
         return url;
       },
+      // Path B: gate Sheets-API operations (sheet import / template create) on
+      // an on-demand Sheets-scope acquisition. Interactive — these run from a
+      // user gesture inside the wizard. Silent for already-granted users.
+      ensureSheetsScope: () =>
+        ensureGoogleScope('spreadsheets', { interactive: true }),
     });
     return (
       <ImportWizard
@@ -1138,11 +1147,20 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               : undefined;
           let plcLinkage: PlcLinkage | undefined;
           if (plcOptions.plcMode && plcOptions.plcId && user) {
+            // Path B: the builder may auto-create a Google Sheet, so acquire
+            // the Sheets scope on demand (silent for already-granted users,
+            // one-time consent for never-granted — this is a user gesture).
+            // A null token means no Sheets access; pass it through so the
+            // builder skips creation and falls back to non-PLC linkage,
+            // exactly as the old no-token path did.
+            const sheetsToken = await ensureGoogleScope('spreadsheets', {
+              interactive: true,
+            });
             const { linkage, error: plcSheetError } = await buildPlcLinkage({
               plc: selectedPlc,
               quizTitle: meta.title,
               selfUid: user.uid,
-              googleAccessToken,
+              googleAccessToken: sheetsToken,
               manualSheetUrl: plcOptions.plcSheetUrl,
             });
             plcLinkage = linkage;
