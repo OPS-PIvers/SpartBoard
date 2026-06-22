@@ -21,6 +21,14 @@ export default mergeConfig(
         // them as a dedicated job — see `.github/workflows/pr-validation.yml`
         // (the `rules` job).
         'tests/rules/**',
+        // Performance harnesses (pageLoadPerf / editorPerf / dashboardPerf)
+        // mount many routes under React.Profiler with per-iteration settle
+        // waits — seconds of pure overhead per run — and assert NO duration
+        // thresholds (machine-dependent, deliberately non-flaky). They're
+        // profiling instruments, not regression gates, so they're excluded
+        // from the default `pnpm test` / CI suite and run on demand via
+        // `pnpm test:perf`.
+        'tests/perf/**',
         'functions/**',
         '.claude/worktrees/**',
         '.pnpm-store/**',
