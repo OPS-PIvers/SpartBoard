@@ -49,14 +49,18 @@ const GOOGLE_REVOKE_ENDPOINT = 'https://oauth2.googleapis.com/revoke';
 // `failed-precondition` error to the client instead of a cryptic timeout.
 const GOOGLE_API_TIMEOUT_MS = 10_000;
 
-// Scopes the Drive integration depends on. If Google returns a grant that
-// omits any of these (user de-selected during consent), the exchange is
+// Scopes the offline Drive integration depends on. If Google returns a grant
+// that omits any of these (user de-selected during consent), the exchange is
 // rejected with `partial-consent` rather than silently persisting a grant
 // that will fail deep in Drive API calls with `insufficient_scope`.
-const REQUIRED_DRIVE_SCOPES = [
-  'https://www.googleapis.com/auth/drive.file',
-  'https://www.googleapis.com/auth/spreadsheets',
-];
+//
+// Path B (docs/wide-distro-plan.md): the login / code-flow request now asks
+// only for the unrestricted `drive.file` scope, so that is the only scope this
+// offline grant is REQUIRED to carry. `spreadsheets` / `calendar.readonly` are
+// acquired on demand client-side via GIS (`ensureGoogleScope`) and are NOT part
+// of the offline refresh-token grant — so requiring them here would wrongly
+// reject every new offline grant with `partial-consent`.
+const REQUIRED_DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
 
 const PRIVATE_DOC_PATH = (uid: string) =>
   `users/${uid}/private/googleAuth` as const;

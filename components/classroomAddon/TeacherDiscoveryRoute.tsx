@@ -144,7 +144,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // already-created attachment (no addOnToken in that iframe).
   const existingAttachmentId = params.get('attachmentId') ?? '';
 
-  const { user, signInWithGoogle, googleAccessToken } = useAuth();
+  const { user, signInWithGoogle, googleAccessToken, ensureGoogleScope } =
+    useAuth();
   const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
   const { createAssignment } = useQuizAssignments(user?.uid);
   const {
@@ -371,11 +372,17 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       }
       if (plcShareEnabled && selectedPlcId && selectedPlc && user) {
         append('Setting up the shared PLC results sheet…');
+        // Path B: acquire the Sheets scope on demand before the builder may
+        // create a sheet (silent for already-granted users, one-time consent
+        // for never-granted — user gesture). Null → skip creation as before.
+        const sheetsToken = await ensureGoogleScope('spreadsheets', {
+          interactive: true,
+        });
         const { linkage, error: plcSheetError } = await buildPlcLinkage({
           plc: selectedPlc,
           quizTitle: sheetTitle,
           selfUid: user.uid,
-          googleAccessToken,
+          googleAccessToken: sheetsToken,
         });
         plcLinkage = linkage;
         if (plcSheetError) {
@@ -389,7 +396,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       }
       return plcLinkage;
     },
-    [plcShareEnabled, selectedPlcId, plcs, user, googleAccessToken, append]
+    [plcShareEnabled, selectedPlcId, plcs, user, ensureGoogleScope, append]
   );
 
   const attachQuiz = useCallback(async () => {

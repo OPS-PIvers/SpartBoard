@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   useGlobalStyle,
   useDashboardActions,
@@ -14,7 +14,8 @@ import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WidgetLayout } from '../WidgetLayout';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
-import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
+import { useAuth } from '@/context/useAuth';
+import { GoogleCalendarService } from '@/utils/googleCalendarService';
 import { GAP_STYLE } from './constants';
 import { hexToRgba } from '@/utils/styles';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
@@ -43,7 +44,14 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   const { addWidget } = useDashboardActions();
   const buildingId = useWidgetBuildingId(widget);
   const { subscribeToPermission } = useFeaturePermissions();
-  const { calendarService, isConnected } = useGoogleCalendar();
+  // Path B: the personal-calendar fetch needs the `calendar.readonly` scope,
+  // which is NOT requested at login. We acquire it ON DEMAND here — SILENTLY
+  // in the effect (never a popup from a non-gesture context). For users who
+  // already granted it (all current Orono users) the silent acquisition returns
+  // a token and the fetch proceeds exactly as before; for never-granted users
+  // it returns null and we render a "Connect Google Calendar" CTA whose click
+  // (a user gesture) re-requests the scope interactively.
+  const { ensureGoogleScope } = useAuth();
   const globalStyle = useGlobalStyle();
   const config = widget.config as CalendarConfig;
   const localEvents = useMemo(() => config.events ?? [], [config.events]);
@@ -65,6 +73,20 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     null
   );
   const [personalEvents, setPersonalEvents] = useState<CalendarEvent[]>([]);
+  // The on-demand `calendar.readonly` access token, or null until/unless one is
+  // available. Drives whether the personal section is "connected".
+  const [calendarToken, setCalendarToken] = useState<string | null>(null);
+  // True once the SILENT acquisition has resolved to "no token" — i.e. the user
+  // hasn't granted Calendar. Gates the connect CTA so it only shows after we've
+  // confirmed silent acquisition failed (not during the in-flight window).
+  const [calendarNeedsConnect, setCalendarNeedsConnect] = useState(false);
+
+  const isCalendarConnected = calendarToken !== null;
+
+  const calendarService = useMemo(
+    () => (calendarToken ? new GoogleCalendarService(calendarToken) : null),
+    [calendarToken]
+  );
 
   // Midnight refresh: update every 60 s so the event filter and blocked-date
   // check re-evaluate when the calendar day rolls over without any other dep
@@ -93,9 +115,32 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     });
   }, [subscribeToPermission]);
 
-  // 2. Fetch Personal Events (Direct Client-Side)
+  // 2a. Silently acquire the calendar.readonly token (Path B). Runs only when
+  // there are personal calendars to fetch and no token yet. NON-interactive —
+  // an effect has no user gesture, so we must never open a popup here. Already-
+  // granted users get a token silently; never-granted users resolve to null and
+  // we flip `calendarNeedsConnect` to surface the connect CTA.
   useEffect(() => {
-    if (!isConnected || !calendarService || personalIds.length === 0) {
+    if (personalIds.length === 0 || calendarToken !== null) return;
+    let cancelled = false;
+    void (async () => {
+      const token = await ensureGoogleScope('calendar.readonly');
+      if (cancelled) return;
+      if (token) {
+        setCalendarToken(token);
+        setCalendarNeedsConnect(false);
+      } else {
+        setCalendarNeedsConnect(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [personalIds.length, calendarToken, ensureGoogleScope]);
+
+  // 2b. Fetch Personal Events once we have a calendar service + IDs.
+  useEffect(() => {
+    if (!calendarService || personalIds.length === 0) {
       return;
     }
 
@@ -124,7 +169,19 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     };
 
     void fetchPersonal();
-  }, [isConnected, calendarService, personalIds]);
+  }, [calendarService, personalIds]);
+
+  // Connect CTA handler — INTERACTIVE (driven by a user click), so a popup is
+  // allowed. On success we store the token, which triggers the fetch effect.
+  const handleConnectCalendar = useCallback(async () => {
+    const token = await ensureGoogleScope('calendar.readonly', {
+      interactive: true,
+    });
+    if (token) {
+      setCalendarToken(token);
+      setCalendarNeedsConnect(false);
+    }
+  }, [ensureGoogleScope]);
 
   // Combined events for display (Local + Building Synced + Personal)
   const displayEvents = useMemo(() => {
@@ -141,7 +198,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
       : [];
 
     const validatedPersonalEvents =
-      isConnected && calendarService && personalIds.length > 0
+      isCalendarConnected && calendarService && personalIds.length > 0
         ? personalEvents
         : [];
 
@@ -186,7 +243,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     buildingId,
     config.daysVisible,
     personalEvents,
-    isConnected,
+    isCalendarConnected,
     calendarService,
     personalIds,
     todayMidnightMs,
@@ -276,6 +333,14 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   // Card height: small enough that 4 always fit without clipping (short widgets),
   // but capped so taller widgets naturally show more than 4 events.
   const rowHeight = `min(calc((100% - min(30px, 6cqmin)) / 4), min(120px, 22cqmin))`;
+
+  // Show the connect affordance only when the teacher has configured personal
+  // calendars, we've confirmed the silent calendar.readonly acquisition failed
+  // (`calendarNeedsConnect`), and we don't have a token yet. Never shows for
+  // already-granted users (the silent path returns a token) or when no personal
+  // calendars are configured.
+  const showConnectCalendar =
+    personalIds.length > 0 && calendarNeedsConnect && !isCalendarConnected;
 
   return (
     <WidgetLayout
@@ -379,7 +444,46 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
               );
             })}
 
-            {displayEvents.length === 0 && (
+            {/* Connect CTA (Path B): the teacher configured personal
+                calendars but hasn't granted the calendar.readonly scope.
+                Silent acquisition resolved to null, so prompt for a one-time
+                consent on click (a user gesture). Takes priority over the
+                generic empty state so the actionable affordance is visible. */}
+            {showConnectCalendar && (
+              <div className="h-full flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={() => void handleConnectCalendar()}
+                  className="flex flex-col items-center justify-center rounded-xl transition-colors hover:bg-white/5"
+                  style={{
+                    gap: 'min(8px, 2cqmin)',
+                    padding: 'min(16px, 4cqmin)',
+                  }}
+                >
+                  <CalendarIcon
+                    className="text-indigo-400"
+                    style={{
+                      width: 'min(40px, 14cqmin)',
+                      height: 'min(40px, 14cqmin)',
+                    }}
+                  />
+                  <span
+                    className="font-black text-slate-200"
+                    style={{ fontSize: 'min(15px, 6cqmin)' }}
+                  >
+                    Connect Google Calendar
+                  </span>
+                  <span
+                    className="text-slate-300 text-center"
+                    style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+                  >
+                    Grant access to sync your personal calendars.
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {!showConnectCalendar && displayEvents.length === 0 && (
               <div className="h-full flex items-center justify-center">
                 <ScaledEmptyState
                   icon={CalendarIcon}

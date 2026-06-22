@@ -92,7 +92,7 @@ export const Results: React.FC<ResultsProps> = ({
   onBack,
   plc: _plc,
 }) => {
-  const { googleAccessToken, user, orgId, canAccessFeature, isExternalUser } =
+  const { ensureGoogleScope, user, orgId, canAccessFeature, isExternalUser } =
     useAuth();
   const { showConfirm } = useDialog();
   const { addToast } = useDashboard();
@@ -218,7 +218,12 @@ export const Results: React.FC<ResultsProps> = ({
   };
 
   const handleExport = async () => {
-    if (!googleAccessToken) {
+    // Acquire the Sheets scope on demand (Path B): silent for already-granted
+    // users, one-time consent for never-granted (this is a user gesture).
+    const token = await ensureGoogleScope('spreadsheets', {
+      interactive: true,
+    });
+    if (!token) {
       setExportError(
         'Google Drive access is required to export. Please sign out and sign in again.'
       );
@@ -229,7 +234,7 @@ export const Results: React.FC<ResultsProps> = ({
     setExportError(null);
 
     try {
-      const drive = new QuizDriveService(googleAccessToken);
+      const drive = new QuizDriveService(token);
 
       // Map VideoActivityResponses to QuizResponse shape for reuse
       const quizResponses = responses.map((r) => ({

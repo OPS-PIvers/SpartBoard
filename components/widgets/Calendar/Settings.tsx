@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, CalendarConfig, CalendarGlobalConfig } from '@/types';
 import {
@@ -13,7 +13,6 @@ import {
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useAuth } from '@/context/useAuth';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
-import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import { Toggle } from '@/components/common/Toggle';
 import { extractCalendarId } from './constants';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
@@ -25,10 +24,35 @@ export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget } = useDashboard();
-  const { signInWithGoogle } = useAuth();
+  // Path B: Calendar connection is the `calendar.readonly` scope, acquired on
+  // demand (not at login). Probe SILENTLY on mount to reflect already-granted
+  // users as connected; the connect button requests consent interactively.
+  const { ensureGoogleScope } = useAuth();
   const buildingId = useWidgetBuildingId(widget);
-  const { isConnected } = useGoogleCalendar();
+  const [isConnected, setIsConnected] = useState(false);
   const { subscribeToPermission } = useFeaturePermissions();
+
+  // Silent calendar-scope probe on mount. NON-interactive (no gesture here):
+  // already-granted users flip to connected with no popup; never-granted users
+  // stay disconnected and see the "Sign in" button.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const token = await ensureGoogleScope('calendar.readonly');
+      if (!cancelled && token) setIsConnected(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ensureGoogleScope]);
+
+  // Connect button — INTERACTIVE (user click), so a consent popup is allowed.
+  const handleConnectCalendar = useCallback(async () => {
+    const token = await ensureGoogleScope('calendar.readonly', {
+      interactive: true,
+    });
+    if (token) setIsConnected(true);
+  }, [ensureGoogleScope]);
   const config = widget.config as CalendarConfig;
   const events = config.events ?? [];
   const personalIds = config.personalCalendarIds ?? [];
@@ -210,7 +234,7 @@ export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
 
         {!isConnected ? (
           <button
-            onClick={() => void signInWithGoogle()}
+            onClick={() => void handleConnectCalendar()}
             className="w-full py-2.5 bg-white border-2 border-dashed border-slate-200 rounded-xl text-xs font-black text-slate-500 flex items-center justify-center gap-2 hover:border-blue-400 hover:text-blue-500 transition-all"
           >
             <div className="w-4 h-4 bg-white shadow-sm border border-slate-100 rounded-full flex items-center justify-center overflow-hidden">

@@ -31,6 +31,8 @@ import {
   functions,
   isAuthBypass,
   GOOGLE_OAUTH_SCOPES,
+  GOOGLE_SHEETS_SCOPE,
+  GOOGLE_CALENDAR_READONLY_SCOPE,
 } from '@/config/firebase';
 import {
   FeaturePermission,
@@ -421,6 +423,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // suppressed by a background refresh that bailed early.
   const inFlightSilentRefreshRef = useRef<Promise<string | null> | null>(null);
 
+  // Sensitive scopes acquired on demand THIS SESSION via `ensureGoogleScope`
+  // (Path B), stored as fully-qualified scope URLs. GIS access tokens are
+  // scoped to the REQUEST, not the full grant — a token minted for ONLY
+  // `spreadsheets` does NOT carry `drive.file`. Since every mint here persists
+  // into the single shared `googleAccessToken`, EVERY re-mint path (this ref's
+  // consumers below) must request the UNION of `GOOGLE_OAUTH_SCOPES` + these,
+  // or a Sheets/Calendar acquisition would silently STRIP `drive.file` from the
+  // active token (breaking the Picker/Drive) and the ~10-min proactive refresh
+  // loop would then strip the on-demand scope right back off. In-memory only:
+  // empty after reload is fine, because the first feature use re-calls
+  // `ensureGoogleScope`, which re-adds the scope and re-mints the union BEFORE
+  // the feature reads the token. Already-granted users (all current Orono
+  // users) re-mint the union silently with NO popup.
+  const onDemandScopesRef = useRef<Set<string>>(new Set());
+
+  // Build the scope string for any token mint that persists into the shared
+  // `googleAccessToken`: the login scope(s) plus every on-demand scope acquired
+  // this session, de-duplicated. Using this everywhere keeps the single shared
+  // token a strict SUPERSET so no refresh path ever strips a previously-acquired
+  // scope.
+  const buildPersistScope = useCallback(
+    (): string =>
+      Array.from(
+        new Set([...GOOGLE_OAUTH_SCOPES, ...onDemandScopesRef.current])
+      ).join(' '),
+    []
+  );
+
   // Distinguish the two failure modes the GIS token client surfaces, both of
   // which previously collapsed to a bare `null` in the refresh chain:
   //   - `denied`     — GIS fired `error_callback` (re-consent genuinely
@@ -493,7 +523,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               const tokenClient =
                 window.google?.accounts?.oauth2?.initTokenClient({
                   client_id: clientId,
-                  scope: GOOGLE_OAUTH_SCOPES.join(' '),
+                  // Request the UNION (login + on-demand scopes acquired this
+                  // session) so this re-mint MAINTAINS any Sheets/Calendar scope
+                  // instead of stripping it back off the shared token.
+                  scope: buildPersistScope(),
                   hint: email,
                   callback: (
                     response: google.accounts.oauth2.TokenResponse
@@ -615,7 +648,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           if (clientId) {
             const exchanged = await requestAndExchangeAuthCode(
               clientId,
-              email ?? undefined
+              email ?? undefined,
+              // Capture the refresh_token with the UNION so backend refreshes
+              // keep reissuing Sheets/Calendar instead of a drive.file-only token.
+              Array.from(onDemandScopesRef.current)
             );
             if (exchanged.kind === 'success') {
               const result = exchanged.result;
@@ -687,7 +723,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       return runRefreshChain();
     },
-    [user?.email]
+    [user?.email, buildPersistScope]
   );
 
   /**
@@ -709,6 +745,164 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       await refreshGoogleToken(false);
     }
   }, [refreshGoogleToken]);
+
+  /**
+   * Ensure the shared Google access token carries an on-demand sensitive scope
+   * (`spreadsheets`, `calendar.readonly`) that Path B no longer requests at
+   * login. See the JSDoc on `AuthContextType.ensureGoogleScope` for the full
+   * contract; the short version:
+   *   1. Silent re-mint (`prompt:'none'`) — zero-touch for already-granted
+   *      users (all current Orono users).
+   *   2. If silent fails AND `interactive` (user gesture) — popup (`prompt:''`).
+   *   3. On success, PERSIST into the same localStorage keys + `googleAccessToken`
+   *      state the rest of the app reads, so every Sheets/Calendar consumer
+   *      transparently picks up the (multi-scope) token.
+   *   4. Return the token, or null on silent-miss/decline/error. Never throws.
+   *
+   * Deliberately reuses the GIS token-client + persistence machinery from
+   * `refreshGoogleToken` rather than rewiring call sites: a single shared
+   * multi-scope token means persisting here is sufficient.
+   */
+  const ensureGoogleScope = useCallback(
+    async (
+      scope: string,
+      opts?: { interactive?: boolean }
+    ): Promise<string | null> => {
+      if (isAuthBypass) return MOCK_ACCESS_TOKEN;
+
+      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
+        | string
+        | undefined;
+      const email = user?.email;
+      if (!clientId || !email || typeof window.google === 'undefined') {
+        // No GIS client/identity available — cannot acquire on demand. The
+        // caller degrades to its existing "Google access required" branch.
+        return null;
+      }
+
+      // GIS requires fully-qualified scope URLs. Call sites pass short keys
+      // (`spreadsheets`, `calendar.readonly`) for readability; map them to the
+      // canonical `https://www.googleapis.com/auth/...` URL here so the SILENT
+      // re-mint actually MATCHES an existing grant (a bare key would never
+      // match, breaking the zero-prompt path for already-granted users). An
+      // already-fully-qualified scope is passed through unchanged.
+      const SCOPE_ALIASES: Record<string, string> = {
+        spreadsheets: GOOGLE_SHEETS_SCOPE,
+        'calendar.readonly': GOOGLE_CALENDAR_READONLY_SCOPE,
+      };
+      const resolvedScope = scope.startsWith('https://')
+        ? scope
+        : (SCOPE_ALIASES[scope] ?? scope);
+
+      // Add the scope to the session set BEFORE minting so BOTH the silent and
+      // interactive GIS requests below (and every later re-mint via
+      // `buildPersistScope`) ask for the UNION — `drive.file` + this scope +
+      // any other on-demand scope. Requesting only `resolvedScope` would mint a
+      // token MISSING `drive.file` and, once persisted as the shared token,
+      // break the Picker/Drive. Track whether THIS call introduced the scope so
+      // a total failure can remove it again (see the failure paths below) and
+      // not poison future `drive.file`-only silent refreshes with a scope the
+      // user never actually granted.
+      const scopeWasAlreadyTracked =
+        onDemandScopesRef.current.has(resolvedScope);
+      onDemandScopesRef.current.add(resolvedScope);
+      // Drop the scope from the set only if this call added it — a prior
+      // successful acquisition of the same scope must survive a later miss.
+      const releaseScopeIfWeAddedIt = () => {
+        if (!scopeWasAlreadyTracked) {
+          onDemandScopesRef.current.delete(resolvedScope);
+        }
+      };
+
+      // Untrusted `expires_in` guard, mirroring refreshGoogleToken.
+      const computeExpiryMs = (raw: unknown): number => {
+        const seconds =
+          typeof raw === 'number' && Number.isFinite(raw) && raw > 0
+            ? raw
+            : 3600;
+        return Date.now() + seconds * 1000;
+      };
+
+      const persist = (token: string, expiresInRaw: string | undefined) => {
+        const expiryMs = computeExpiryMs(parseInt(expiresInRaw ?? '3600', 10));
+        // Write token before expiry so a fast reload never finds an expiry key
+        // without its token (same ordering rationale as refreshGoogleToken).
+        localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, token);
+        localStorage.setItem(GOOGLE_TOKEN_EXPIRY_KEY, expiryMs.toString());
+        setGoogleAccessToken(token);
+      };
+
+      // Run one GIS token request at the given prompt mode. Resolves with the
+      // token on success or null on any failure (declined, popup blocked,
+      // GIS unavailable, malformed response, thrown handler) — never rejects,
+      // so the caller's null-degradation path is the only failure surface.
+      const runGis = (prompt: '' | 'none'): Promise<string | null> =>
+        new Promise<string | null>((resolve) => {
+          try {
+            const tokenClient =
+              window.google?.accounts?.oauth2?.initTokenClient({
+                client_id: clientId,
+                // Request the UNION (drive.file + every on-demand scope acquired
+                // this session, including the one just added above), NOT just
+                // `resolvedScope`. Persisting a `resolvedScope`-only token would
+                // strip `drive.file` from the shared token and break the Picker.
+                scope: buildPersistScope(),
+                hint: email,
+                callback: (response: google.accounts.oauth2.TokenResponse) => {
+                  try {
+                    if (response.access_token) {
+                      persist(response.access_token, response.expires_in);
+                      resolve(response.access_token);
+                    } else {
+                      resolve(null);
+                    }
+                  } catch (err) {
+                    console.error(
+                      'Failed to handle GIS ensureGoogleScope response',
+                      err
+                    );
+                    resolve(null);
+                  }
+                },
+                // Silent: re-consent needed → no popup, error_callback fires.
+                // Interactive: user dismissed/blocked the popup.
+                error_callback: () => resolve(null),
+              });
+            if (!tokenClient) {
+              resolve(null);
+              return;
+            }
+            tokenClient.requestAccessToken({ prompt });
+          } catch {
+            resolve(null);
+          }
+        });
+
+      // 1. Silent first — zero-touch for already-granted users. On success the
+      //    scope stays in the session set so future re-mints keep requesting it.
+      const silent = await runGis('none');
+      if (silent) return silent;
+
+      // 2. Interactive retry only when a user gesture backs the call.
+      if (opts?.interactive) {
+        const interactive = await runGis('');
+        if (interactive) return interactive;
+        // Interactive declined/blocked — the scope was never granted, so don't
+        // leave it poisoning the union for subsequent drive.file-only silent
+        // refreshes.
+        releaseScopeIfWeAddedIt();
+        return null;
+      }
+
+      // Silent miss with no interactive escalation: degrade cleanly. Release the
+      // not-yet-granted scope so the next background refresh doesn't request a
+      // scope the user hasn't consented to (which would otherwise silently fail
+      // the union re-mint and could strip drive.file on stricter GIS responses).
+      releaseScopeIfWeAddedIt();
+      return null;
+    },
+    [user?.email, buildPersistScope]
+  );
 
   // On startup: if the user has a Firebase session but the Drive token is
   // missing or expired, attempt a silent GIS refresh automatically.
@@ -2340,6 +2534,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setLanguage,
         refreshGoogleToken,
         connectGoogleDrive,
+        ensureGoogleScope,
         disconnectGoogleDrive,
         savedWidgetConfigs,
         saveWidgetConfig,

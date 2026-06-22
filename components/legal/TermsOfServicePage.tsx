@@ -1,68 +1,22 @@
 /**
  * Terms of Service — public page at /terms.
  *
- * ⚠️ LEGAL REVIEW REQUIRED before relying on this in production. Honest DRAFT
- * for Orono Public Schools as the operator. District counsel must confirm:
- *   - governing law / venue (drafted as Minnesota)
- *   - the liability / disclaimer posture for a public-school-operated tool
- *   - the effective date (set to publish date below)
- *
- * ───────────────────────────────────────────────────────────────────────────
- * DRAFT — EXTERNAL ELIGIBILITY (work item W10, wide-distro plan Phase 4 §1)
- * ───────────────────────────────────────────────────────────────────────────
- * The eligibility / availability language below has been DRAFTED to reflect
- * open, self-serve external availability (any educator with a Google account
- * may create a free-tier account) ahead of flipping the GCP OAuth consent
- * screen to External. It is NOT finalized.
- *
- * OPEN QUESTION (district counsel must resolve before publish): the OPERATOR
- * MODEL — who legally operates SpartBoard for non-Orono users, and the
- * corresponding DPA / FERPA "school official" framing per consuming district.
- * Do NOT assert a final legal position on the operator model here until counsel
- * signs off. See docs/external-availability-legal-review.md and
- * docs/wide-distro-plan.md (Open Questions → "Operator model").
- *
- * Search for `DRAFT_EXTERNAL_ELIGIBILITY` to find every spot touched by W10.
- * ───────────────────────────────────────────────────────────────────────────
+ * ⚠️ A final attorney pass remains advisable before relying on this in
+ * production, but the copy below reflects the operator model DECIDED by the
+ * owner on 2026-06-22 (see docs/external-availability-legal-review.md):
+ * Orono Public Schools operates SpartBoard; external (non-Orono) free-tier
+ * users are self-serve and act as their own data controller, responsible for
+ * their own use and for not entering student PII without their own legal basis.
+ * Orono does not act as a data processor or "school official" for external
+ * users and offers no DPA at the free tier.
  */
 import React from 'react';
 import { LegalPageLayout, LegalH2, LegalP, LegalList } from './LegalPageLayout';
 
 const TERMS_CONTACT = 'spartboard@orono.k12.mn.us';
 
-/**
- * DRAFT_EXTERNAL_ELIGIBILITY — pending district counsel sign-off on operator model.
- *
- * Visible, unmissable in-page banner so any reviewer (or accidental publish)
- * sees that the eligibility language is not final. REMOVE this banner — and the
- * inline DRAFT notes in the intro + "Eligibility and accounts" section — once
- * counsel has signed off on the operator model and the copy is finalized.
- */
-const DraftEligibilityBanner: React.FC = () => (
-  <div
-    role="note"
-    className="mb-8 rounded-md border-2 border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-900"
-  >
-    <strong className="font-semibold">
-      DRAFT — pending district counsel sign-off on operator model.
-    </strong>{' '}
-    The eligibility and availability language on this page has been drafted for
-    open external availability but is not yet final. The legal operator model
-    for non-Orono users is under review.
-  </div>
-);
-
 export const TermsOfServicePage: React.FC = () => (
-  <LegalPageLayout title="Terms of Service" lastUpdated="May 29, 2026">
-    {/* DRAFT_EXTERNAL_ELIGIBILITY — remove banner once operator model is finalized (W10). */}
-    <DraftEligibilityBanner />
-
-    {/*
-      DRAFT_EXTERNAL_ELIGIBILITY (W10): intro broadened to cover any user, not
-      only the District. The operator framing ("operated by Orono Public
-      Schools") is the OPEN operator-model question — counsel must confirm or
-      revise before publish.
-    */}
+  <LegalPageLayout title="Terms of Service" lastUpdated="June 22, 2026">
     <LegalP>
       These Terms of Service (&ldquo;Terms&rdquo;) govern your use of
       SpartBoard, a classroom-management tool operated by Orono Public Schools
@@ -71,17 +25,11 @@ export const TermsOfServicePage: React.FC = () => (
     </LegalP>
 
     <LegalH2>Eligibility and accounts</LegalH2>
-    {/*
-      DRAFT_EXTERNAL_ELIGIBILITY (W10): rewritten from "provided to staff and
-      students of Orono Public Schools who sign in with a District-issued Google
-      account" to open self-serve external availability. Pending counsel sign-off
-      on the operator model.
-    */}
     <LegalP>
       SpartBoard is available to educators who sign in with a Google account.
       Any educator with a Google account may create a free account to use the
-      features available to that account type; additional features are available
-      to Orono Public Schools staff and students and to organizations that have
+      features available at the free tier; additional features are available to
+      Orono Public Schools staff and students and to organizations that have
       arranged broader access with the District. You are responsible for
       activity that occurs under your account and for keeping your credentials
       secure. If you use SpartBoard through a school or district, your use is
@@ -90,10 +38,25 @@ export const TermsOfServicePage: React.FC = () => (
       District&rsquo;s policies.
     </LegalP>
 
+    <LegalH2>Free-tier and external users</LegalH2>
+    <LegalP>
+      If you are not a member of Orono Public Schools, your use of the free tier
+      is self-serve, and you act as the data controller for the information you
+      put into the service. Orono Public Schools operates the platform but does
+      not act as your data processor or as a &ldquo;school official&rdquo; for
+      your institution, and it does not enter into a data-processing agreement
+      with you or your school at the free tier. You are solely responsible for
+      your use of SpartBoard, including obtaining any consent your own laws and
+      policies require and not entering student personal information unless you
+      have your own legal basis to do so. Some features, including those that
+      connect a Google account (such as Drive, Sheets, Calendar, and Classroom),
+      are not available at the free tier.
+    </LegalP>
+
     <LegalH2>Acceptable use</LegalH2>
     <LegalList
       items={[
-        'Use SpartBoard only for legitimate educational purposes within the District.',
+        'Use SpartBoard only for legitimate educational purposes.',
         'Do not upload unlawful, harmful, or infringing content, or content that violates the privacy or rights of others.',
         'Do not attempt to disrupt, reverse-engineer, gain unauthorized access to, or misuse the service or its data.',
         'Do not use SpartBoard to collect or share personal information beyond what a classroom activity requires.',
@@ -103,10 +66,11 @@ export const TermsOfServicePage: React.FC = () => (
     <LegalH2>Content and ownership</LegalH2>
     <LegalP>
       Content created by teachers and students through SpartBoard belongs to its
-      authors and the District as applicable, and remains subject to District
-      policy and applicable law. The SpartBoard software, name, and branding
-      remain the property of the District and its licensors. You may use the
-      service only as permitted by these Terms.
+      authors and the District as applicable, and remains subject to applicable
+      law and, for Orono Public Schools users, to District policy. The
+      SpartBoard software, name, and branding remain the property of the
+      District and its licensors. You may use the service only as permitted by
+      these Terms.
     </LegalP>
 
     <LegalH2>Third-party services</LegalH2>
@@ -135,9 +99,10 @@ export const TermsOfServicePage: React.FC = () => (
 
     <LegalH2>Termination</LegalH2>
     <LegalP>
-      Access to SpartBoard may be suspended or terminated if these Terms or
-      District policy are violated, or when a user is no longer affiliated with
-      the District.
+      Access to SpartBoard may be suspended or terminated if these Terms are
+      violated. For Orono Public Schools users, access may also be suspended or
+      terminated if District policy is violated or when a user is no longer
+      affiliated with the District.
     </LegalP>
 
     <LegalH2>Governing law</LegalH2>

@@ -1,24 +1,49 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { CalendarGlobalConfig } from '@/types';
-import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
+import { GoogleCalendarService } from '@/utils/googleCalendarService';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 
 export const AdminCalendarFetcher: React.FC = () => {
-  const { isAdmin, featurePermissions } = useAuth();
-  const { calendarService, isConnected } = useGoogleCalendar();
+  const { isAdmin, featurePermissions, ensureGoogleScope } = useAuth();
   const BUILDINGS = useAdminBuildings();
+  // Path B: the central background sync needs the `calendar.readonly` scope,
+  // which is NOT requested at login. We acquire it SILENTLY here (this is a
+  // background effect with no user gesture — a popup would be blocked and is
+  // never appropriate). Admins who already granted it (e.g. via "Sync All Now")
+  // sync exactly as before; admins who haven't granted it resolve to null and
+  // the background sync simply stays idle until they seed consent from the
+  // gesture-driven "Sync All Now" button in CalendarConfigurationModal.
+  const [calendarToken, setCalendarToken] = useState<string | null>(null);
 
   const calendarPermission = featurePermissions.find(
     (p) => p.widgetType === 'calendar'
   );
   const config = calendarPermission?.config as CalendarGlobalConfig | undefined;
 
+  // Silently probe for a calendar token whenever an admin with calendar config
+  // is present. Non-interactive: never opens a popup from this headless effect.
+  // All setState happens asynchronously (inside the awaited IIFE / null-reset
+  // branch is also async), never synchronously in the effect body.
   useEffect(() => {
-    // Only run for admins who are connected to Google
-    if (!isAdmin || !calendarService || !isConnected || !config) return;
+    let cancelled = false;
+    void (async () => {
+      const token =
+        isAdmin && config ? await ensureGoogleScope('calendar.readonly') : null;
+      if (!cancelled) setCalendarToken(token);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, config, ensureGoogleScope]);
+
+  useEffect(() => {
+    // Only run for admins who have a SILENTLY-available calendar token.
+    if (!isAdmin || !calendarToken || !config) return;
+
+    const calendarService = new GoogleCalendarService(calendarToken);
 
     const fetchAll = async () => {
       console.warn('[AdminCalendarFetcher] Starting background sync...');
@@ -100,7 +125,7 @@ export const AdminCalendarFetcher: React.FC = () => {
     );
 
     return () => clearInterval(intervalId);
-  }, [isAdmin, calendarService, isConnected, config, BUILDINGS]);
+  }, [isAdmin, calendarToken, config, BUILDINGS]);
 
   return null; // Headless
 };
