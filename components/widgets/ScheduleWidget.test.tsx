@@ -336,14 +336,12 @@ describe('ScheduleWidget', () => {
     expect(mockAddWidget).toHaveBeenCalledTimes(1);
     mockAddWidget.mockClear();
 
-    // --- Simulate UTC+ scenario: local date advances to '2024-01-16' while
-    //     UTC time is still on '2024-01-15' (08:15 UTC = 10:15 local in UTC+2
-    //     the next morning — a realistic scenario where the teacher's machine
-    //     shows Jan 16 but toISOString() would give Jan 15 if still early UTC).
-    //
-    //     For the test, we keep UTC at 2024-01-15T08:15:00Z (window still open)
-    //     so that the time-window check passes, and only advance the local date
-    //     via the getTodayStr mock. ---
+    // --- Simulate UTC+ scenario: local date has advanced to '2024-01-16' while
+    //     UTC is still on '2024-01-15'. In a real UTC+2 case this happens
+    //     between 22:00–24:00 UTC (local midnight = UTC 22:00). For the test we
+    //     use 08:15 UTC (well within the item's 08:00–09:00 window) purely to
+    //     keep the time-window check passing, and advance the local date via the
+    //     getTodayStr mock to isolate the launch-key pruning behaviour. ---
     vi.setSystemTime(new Date('2024-01-15T08:15:00Z'));
     mockGetTodayStr.mockReturnValue('2024-01-16'); // local date has advanced
 
