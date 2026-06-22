@@ -143,6 +143,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     if (!calendarService || personalIds.length === 0) {
       return;
     }
+    let cancelled = false;
 
     const fetchPersonal = async () => {
       try {
@@ -162,13 +163,27 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
           calendarService.getEvents(id, timeMin, timeMax)
         );
         const results = await Promise.all(allPromises);
-        setPersonalEvents(results.flat());
+        if (!cancelled) setPersonalEvents(results.flat());
       } catch (err) {
+        // A 401/403 means the on-demand calendar token expired (GIS tokens
+        // have a ~1h TTL and this snapshot isn't on AuthContext's refresh
+        // loop). Clear it so the silent probe (effect 2a) re-mints a fresh
+        // token and auto-recovers without a reload — mirrors
+        // AdminCalendarFetcher's per-cycle re-acquire. A genuinely revoked
+        // scope makes the re-probe resolve to null (connect CTA), not a loop.
+        const status = (err as { status?: number } | null)?.status;
+        if ((status === 401 || status === 403) && !cancelled) {
+          setCalendarToken(null);
+          return;
+        }
         console.error('Failed to sync personal calendars:', err);
       }
     };
 
     void fetchPersonal();
+    return () => {
+      cancelled = true;
+    };
   }, [calendarService, personalIds]);
 
   // Connect CTA handler — INTERACTIVE (driven by a user click), so a popup is

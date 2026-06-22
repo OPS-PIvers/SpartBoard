@@ -118,9 +118,18 @@ function buildFakeUser(email: string): User {
 function stubGis(opts: {
   silentMode: 'token' | 'denied';
   interactiveMode?: 'token' | 'denied';
-  capturedPrompts: string[];
+  capturedPrompts?: string[];
   /** Captures the `scope` string GIS actually receives, for URL assertions. */
   capturedScopes?: string[];
+  /**
+   * Captures the (prompt, scope) PAIR for every GIS request. Tests that must
+   * isolate a specific call's prompt/scope sequence from interleaved background
+   * refreshes (the startup silent-refresh poll) filter this by `scope`, since
+   * each GIS request's scope string uniquely identifies its origin (only
+   * ensureGoogleScope carries the on-demand `spreadsheets`/`calendar` scope; a
+   * background refresh carries drive.file-only).
+   */
+  calls?: { prompt: string; scope: string }[];
 }): void {
   const initTokenClient = vi.fn(
     (config: {
@@ -129,9 +138,10 @@ function stubGis(opts: {
       error_callback: () => void;
     }) => ({
       requestAccessToken: (overrides?: { prompt?: string }) => {
-        opts.capturedScopes?.push(config.scope);
         const prompt = overrides?.prompt ?? '';
-        opts.capturedPrompts.push(prompt);
+        opts.capturedScopes?.push(config.scope);
+        opts.capturedPrompts?.push(prompt);
+        opts.calls?.push({ prompt, scope: config.scope });
         const mode = prompt === 'none' ? opts.silentMode : opts.interactiveMode;
         if (mode === 'token') {
           config.callback({ access_token: 'scoped-token', expires_in: '3600' });
@@ -286,11 +296,19 @@ describe('AuthContext — ensureGoogleScope', () => {
   });
 
   it('decline: interactive popup dismissed → null, no throw, nothing persisted', async () => {
-    const capturedPrompts: string[] = [];
+    // DETERMINISM: capture (prompt, scope) per GIS call and assert ONLY the
+    // calls originating from ensureGoogleScope. AuthContext's startup
+    // silent-refresh poll can fire its own `refreshGoogleToken(true)` → an extra
+    // `prompt:'none'` that, on CI timing, interleaves into a flat prompt list
+    // (the original flake: ['none','','none']). The on-demand `spreadsheets`
+    // scope is UNIQUE to ensureGoogleScope here — a background drive.file-only
+    // refresh never carries it — so `ensureScopePrompts` isolates this call's
+    // prompt sequence regardless of whether/when a background refresh fires.
+    const calls: { prompt: string; scope: string }[] = [];
     stubGis({
       silentMode: 'denied',
       interactiveMode: 'denied',
-      capturedPrompts,
+      calls,
     });
     await mountSignedIn('newuser@example.com');
 
@@ -303,7 +321,13 @@ describe('AuthContext — ensureGoogleScope', () => {
 
     expect(token).toBeNull();
     expect(localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY)).toBeNull();
-    expect(capturedPrompts).toEqual(['none', '']);
+    // ensureGoogleScope itself does silent('none') then interactive('').
+    const ensureScopePrompts = calls
+      .filter((c) =>
+        c.scope.includes('https://www.googleapis.com/auth/spreadsheets')
+      )
+      .map((c) => c.prompt);
+    expect(ensureScopePrompts).toEqual(['none', '']);
   });
 
   it('no-strip across refresh: after a successful ensureGoogleScope, a later refreshGoogleToken re-mints the UNION (drive.file + spreadsheets)', async () => {
@@ -336,11 +360,20 @@ describe('AuthContext — ensureGoogleScope', () => {
   });
 
   it('no poison on silent-miss: a never-granted scope is NOT carried into subsequent drive.file-only refreshes', async () => {
-    // The on-demand scope is never granted (silent denied, no interactive), so
-    // it must be released from the session set and not pollute the next refresh.
-    const capturedPrompts: string[] = [];
-    const capturedScopes: string[] = [];
-    stubGis({ silentMode: 'denied', capturedPrompts, capturedScopes });
+    // The on-demand scope is never granted (silent denied, no interactive). With
+    // ADD-ON-SUCCESS-ONLY the scope is never added to onDemandScopesRef on a
+    // miss, so NO refresh path — neither the explicit one below nor any
+    // background startup/proactive refresh — can ever request it.
+    //
+    // DETERMINISM: this is the load-bearing property. We assert the invariant
+    // over EVERY captured refresh scope (the explicit `refreshGoogleToken(true)`
+    // PLUS any background poll-driven refresh that happens to fire): none may
+    // contain `spreadsheets`, all must contain `drive.file`. Because the source
+    // fix makes a missed scope literally unreachable by any refresh, the
+    // assertion holds no matter how the background refresh interleaves on CI —
+    // there is no timing window in which a poisoned scope could appear.
+    const calls: { prompt: string; scope: string }[] = [];
+    stubGis({ silentMode: 'denied', calls });
     await mountSignedIn('newuser@example.com');
 
     let token: string | null = 'sentinel';
@@ -349,7 +382,7 @@ describe('AuthContext — ensureGoogleScope', () => {
     });
     expect(token).toBeNull();
 
-    const callsAfterEnsure = capturedScopes.length;
+    const callsAfterEnsure = calls.length;
 
     // A later background refresh must request ONLY drive.file — the un-granted
     // spreadsheets scope must NOT be in the request, or the union silent re-mint
@@ -358,7 +391,8 @@ describe('AuthContext — ensureGoogleScope', () => {
       await getCtx().refreshGoogleToken(true);
     });
 
-    const refreshScopes = capturedScopes.slice(callsAfterEnsure);
+    // Every refresh-phase GIS request (explicit + any background) is clean.
+    const refreshScopes = calls.slice(callsAfterEnsure).map((c) => c.scope);
     expect(refreshScopes.length).toBeGreaterThan(0);
     for (const s of refreshScopes) {
       const parts = s.split(' ');

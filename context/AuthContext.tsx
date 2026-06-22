@@ -794,25 +794,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         ? scope
         : (SCOPE_ALIASES[scope] ?? scope);
 
-      // Add the scope to the session set BEFORE minting so BOTH the silent and
-      // interactive GIS requests below (and every later re-mint via
-      // `buildPersistScope`) ask for the UNION — `drive.file` + this scope +
-      // any other on-demand scope. Requesting only `resolvedScope` would mint a
-      // token MISSING `drive.file` and, once persisted as the shared token,
-      // break the Picker/Drive. Track whether THIS call introduced the scope so
-      // a total failure can remove it again (see the failure paths below) and
-      // not poison future `drive.file`-only silent refreshes with a scope the
-      // user never actually granted.
-      const scopeWasAlreadyTracked =
-        onDemandScopesRef.current.has(resolvedScope);
-      onDemandScopesRef.current.add(resolvedScope);
-      // Drop the scope from the set only if this call added it — a prior
-      // successful acquisition of the same scope must survive a later miss.
-      const releaseScopeIfWeAddedIt = () => {
-        if (!scopeWasAlreadyTracked) {
-          onDemandScopesRef.current.delete(resolvedScope);
-        }
-      };
+      // ADD-ON-SUCCESS-ONLY. We do NOT add `resolvedScope` to
+      // `onDemandScopesRef` before minting. The ref is the single source of
+      // truth for every OTHER re-mint path (the startup silent refresh, the
+      // ~10-min proactive refresh, `refreshGoogleToken`'s GIS path, the
+      // code-flow) via `buildPersistScope()`. Adding a not-yet-granted scope
+      // there before we know it can be granted creates a race: a concurrent
+      // background refresh (`prompt:'none'`) could read the ref mid-flight and
+      // request a scope the user never consented to — which GIS REJECTS for
+      // silent requests, transiently failing the refresh and, on stricter
+      // responses, stripping `drive.file` from the shared token. So instead:
+      //   - For THIS mint only, request the UNION ad-hoc (login scopes + every
+      //     already-granted on-demand scope + `resolvedScope`) so the mint still
+      //     actually asks for the new scope WITH `drive.file` (a scope-only
+      //     token would strip `drive.file` once persisted as the shared token).
+      //   - Only AFTER a SUCCESSFUL mint do we add `resolvedScope` to the ref so
+      //     future refreshes maintain it.
+      //   - On any failure the ref is left UNCHANGED — it never transiently
+      //     holds a never-granted scope, so concurrent background refreshes stay
+      //     safe and the "no poison" property is deterministic.
+      const requestScope = Array.from(
+        new Set([
+          ...GOOGLE_OAUTH_SCOPES,
+          ...onDemandScopesRef.current,
+          resolvedScope,
+        ])
+      ).join(' ');
 
       // Untrusted `expires_in` guard, mirroring refreshGoogleToken.
       const computeExpiryMs = (raw: unknown): number => {
@@ -842,11 +849,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             const tokenClient =
               window.google?.accounts?.oauth2?.initTokenClient({
                 client_id: clientId,
-                // Request the UNION (drive.file + every on-demand scope acquired
-                // this session, including the one just added above), NOT just
-                // `resolvedScope`. Persisting a `resolvedScope`-only token would
-                // strip `drive.file` from the shared token and break the Picker.
-                scope: buildPersistScope(),
+                // Request the ad-hoc UNION for THIS mint: login scopes + every
+                // already-granted on-demand scope + `resolvedScope`. NOT just
+                // `resolvedScope` (a scope-only token would strip `drive.file`
+                // from the shared token and break the Picker), and NOT
+                // `buildPersistScope()` (which excludes `resolvedScope` until we
+                // succeed — see ADD-ON-SUCCESS-ONLY above).
+                scope: requestScope,
                 hint: email,
                 callback: (response: google.accounts.oauth2.TokenResponse) => {
                   try {
@@ -878,30 +887,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         });
 
-      // 1. Silent first — zero-touch for already-granted users. On success the
-      //    scope stays in the session set so future re-mints keep requesting it.
+      // Add to the session set ONLY after a confirmed grant, so future re-mints
+      // (`buildPersistScope`) maintain the scope. Failure leaves the ref
+      // unchanged — it never transiently holds a never-granted scope.
+      const markGranted = () => onDemandScopesRef.current.add(resolvedScope);
+
+      // 1. Silent first — zero-touch for already-granted users.
       const silent = await runGis('none');
-      if (silent) return silent;
+      if (silent) {
+        markGranted();
+        return silent;
+      }
 
       // 2. Interactive retry only when a user gesture backs the call.
       if (opts?.interactive) {
         const interactive = await runGis('');
-        if (interactive) return interactive;
-        // Interactive declined/blocked — the scope was never granted, so don't
-        // leave it poisoning the union for subsequent drive.file-only silent
-        // refreshes.
-        releaseScopeIfWeAddedIt();
+        if (interactive) {
+          markGranted();
+          return interactive;
+        }
+        // Interactive declined/blocked — scope never granted; ref untouched.
         return null;
       }
 
-      // Silent miss with no interactive escalation: degrade cleanly. Release the
-      // not-yet-granted scope so the next background refresh doesn't request a
-      // scope the user hasn't consented to (which would otherwise silently fail
-      // the union re-mint and could strip drive.file on stricter GIS responses).
-      releaseScopeIfWeAddedIt();
+      // Silent miss with no interactive escalation: degrade cleanly. The ref was
+      // never mutated, so subsequent drive.file-only refreshes stay clean.
       return null;
     },
-    [user?.email, buildPersistScope]
+    [user?.email]
   );
 
   // On startup: if the user has a Firebase session but the Drive token is
