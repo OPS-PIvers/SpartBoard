@@ -1202,4 +1202,64 @@ describe('DraggableWindow', () => {
       expect.objectContaining({ customTitle: 'Cancelled Title' })
     );
   });
+
+  // Regression: pressing Enter to commit a widget title rename should call
+  // updateWidget exactly ONCE, not twice.
+  //
+  // Root cause: the title <input> has both onKeyDown (Enter → saveTitle()) and
+  // onBlur={saveTitle}. When Enter is pressed:
+  //   1. saveTitle() runs and calls setIsEditingTitle(false)
+  //   2. React batches the update and commits — unmounting the input
+  //   3. The browser fires a blur on the unmounting element
+  //   4. The stale onBlur fires saveTitle() a second time → duplicate Firestore write
+  //
+  // Fix: hasCommittedTitleRef is set to true on the first saveTitle() call
+  // (Enter keyDown handler), so the stale onBlur that fires during unmount hits
+  // the early-return guard and skips the duplicate Firestore write.
+  // (isConnected doesn't work here — blur fires before React commits the unmount,
+  // so the node is still connected at the time of the second saveTitle() call.)
+  it('calls updateWidget exactly once when Enter commits the widget title edit', async () => {
+    // Render with the widget selected so the floating toolbar and title show
+    renderComponent({}, <div>Content</div>, <div>Settings</div>, 'test-widget');
+
+    // Click the title span to enter edit mode
+    const titleEl = screen.getByText('Test Widget');
+    fireEvent.click(titleEl);
+
+    // Verify the input appeared
+    const input = screen.getByDisplayValue('Test Widget');
+    expect(input).toBeInTheDocument();
+
+    // Type a new name
+    fireEvent.change(input, { target: { value: 'My New Title' } });
+    expect(screen.getByDisplayValue('My New Title')).toBeInTheDocument();
+
+    // Simulate the browser's Enter-then-blur sequence inside a single act() —
+    // the same way browsers fire blur synchronously on an unmounting input:
+    //   1. keyDown fires → saveTitle() called → setIsEditingTitle(false) queued
+    //   2. blur fires while the input is still in the DOM (React has not yet
+    //      committed the unmount) — this is the spurious second call
+    act(() => {
+      fireEvent.keyDown(input, { key: 'Enter', bubbles: true });
+      // Fire blur while still inside the same act() — replicates the
+      // synchronous blur the browser fires before React commits the unmount.
+      fireEvent.blur(input);
+    });
+
+    // The input should be gone (edit committed and exited)
+    await waitFor(() => {
+      expect(
+        screen.queryByDisplayValue('My New Title')
+      ).not.toBeInTheDocument();
+    });
+
+    // CRITICAL: updateWidget must have been called EXACTLY ONCE.
+    // Before the fix the stale onBlur fired a second call after the Enter
+    // handler already committed, resulting in two duplicate Firestore writes.
+    expect(mockUpdateWidget).toHaveBeenCalledTimes(1);
+    expect(mockUpdateWidget).toHaveBeenCalledWith(
+      'test-widget',
+      expect.objectContaining({ customTitle: 'My New Title' })
+    );
+  });
 });
