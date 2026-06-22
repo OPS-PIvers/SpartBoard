@@ -456,16 +456,19 @@ export const DeepLinkShareImporter: React.FC = () => {
   // quiz-assignment effect above: clears the pending id synchronously
   // before dispatching to avoid the triple-import race; the dispatcher's
   // failure toast carries Retry as the recovery path.
+  //
+  // No plcsLoading gate here (unlike the quiz-assignment effect): VA shares
+  // always import as 'copy' and runVideoActivityImport never reads `plcs`, so
+  // waiting for the PLC listener to hydrate would only add a one-snapshot
+  // round-trip to the deep-link path with no membership to evaluate.
   useEffect(() => {
     if (!pendingVideoActivityShareId || !user) return;
-    if (plcsLoading) return;
     const shareId = pendingVideoActivityShareId;
     clearPendingVideoActivityShare();
     runVideoActivityImport(shareId);
   }, [
     pendingVideoActivityShareId,
     user,
-    plcsLoading,
     clearPendingVideoActivityShare,
     runVideoActivityImport,
   ]);
