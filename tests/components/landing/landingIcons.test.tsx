@@ -1,20 +1,26 @@
 /**
  * Guards for the hand-inlined LandingPage SVG icons.
  *
- * 1. Drift detector — `landingIcons.tsx` copies glyph paths byte-for-byte from
- *    a pinned `lucide-react` release. There is no build-time link back to the
- *    package, so a `pnpm update lucide-react` would silently ship stale paths.
- *    This asserts the pin (`LANDING_ICONS_LUCIDE_VERSION`) matches the
- *    installed package version, failing CI until someone re-vets the paths and
- *    bumps the pin together.
+ * 1. Glyph parity — the real protection: every inlined icon is rendered and
+ *    its glyph children (paths/circles/rects + their geometry attrs) are
+ *    compared against the SAME icon imported from `lucide-react`. This catches
+ *    BOTH a silent `pnpm update lucide-react` drift AND a one-off transcription
+ *    error in the initial hand-copy — neither of which a version-pin alone
+ *    would surface.
  *
- * 2. Accessibility contract — icons are decorative (`aria-hidden`) by default,
+ * 2. Version pin — a fast, explicit signal: asserts `LANDING_ICONS_LUCIDE_VERSION`
+ *    matches the installed package, so a bump is a conscious, documented act.
+ *
+ * 3. Accessibility contract — icons are decorative (`aria-hidden`) by default,
  *    but a caller that supplies an accessible name must get a perceivable icon
  *    (`role="img"`, not `aria-hidden`).
  */
+import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import { createRequire } from 'node:module';
+import * as lucide from 'lucide-react';
+import * as landingIcons from '@/components/landing/landingIcons';
 import {
   LANDING_ICONS_LUCIDE_VERSION,
   Users,
@@ -25,6 +31,62 @@ const require = createRequire(import.meta.url);
 const installedLucideVersion = (
   require('lucide-react/package.json') as { version: string }
 ).version;
+
+// Every icon hand-inlined in landingIcons.tsx, by its exported name. Keep in
+// sync with the file — a name here that isn't exported (or vice versa) is a bug.
+const INLINED_ICON_NAMES = [
+  'LogIn',
+  'Loader2',
+  'LayoutDashboard',
+  'Timer',
+  'ListChecks',
+  'Users',
+  'ShieldCheck',
+  'School',
+  'Sparkles',
+  'ArrowRight',
+] as const;
+
+type SvgComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>;
+
+// Serialize only the glyph children (tag + sorted geometry attrs), ignoring the
+// wrapper <svg>'s own attributes — lucide adds its own class/size/aria that we
+// deliberately diverge on; what must match byte-for-byte is the path geometry.
+function glyphSignature(svg: Element): string {
+  return Array.from(svg.children)
+    .map((child) => {
+      const attrs = Array.from(child.attributes)
+        .map((a) => `${a.name}=${a.value}`)
+        .sort()
+        .join(' ');
+      return `${child.tagName.toLowerCase()}[${attrs}]`;
+    })
+    .join('|');
+}
+
+function renderGlyph(Component: SvgComponent): string {
+  const svg = render(<Component />).container.querySelector('svg');
+  if (!svg) throw new Error('component rendered no <svg>');
+  return glyphSignature(svg);
+}
+
+describe('landingIcons — glyph parity with lucide-react', () => {
+  it.each(INLINED_ICON_NAMES)(
+    '%s renders the exact lucide-react glyph paths',
+    (name) => {
+      // landingIcons exports plain FCs; lucide exports forwardRef components
+      // (typeof 'object') — both are renderable, so just assert they exist and
+      // let the rendered-glyph comparison do the real work.
+      const Mine = landingIcons[name] as SvgComponent | undefined;
+      const Theirs = lucide[name] as unknown as SvgComponent | undefined;
+      expect(Mine).toBeTruthy();
+      expect(Theirs).toBeTruthy();
+      expect(renderGlyph(Mine as SvgComponent)).toBe(
+        renderGlyph(Theirs as SvgComponent)
+      );
+    }
+  );
+});
 
 describe('landingIcons — lucide drift detector', () => {
   it('pins the lucide-react version the inlined paths were copied from', () => {
