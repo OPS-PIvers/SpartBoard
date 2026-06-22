@@ -7,6 +7,7 @@ import {
   Building2,
   Palette,
   LayoutGrid,
+  Loader2,
 } from 'lucide-react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
@@ -100,26 +101,79 @@ const DOCK_COLOR_OPTIONS: { label: string; value: string }[] = [
   { label: 'Red', value: '#7a1718' },
 ];
 
-// ─── Step indicator ───────────────────────────────────────────────────────────
+// ─── Step model ───────────────────────────────────────────────────────────────
 
-const STEPS = [
-  { label: 'Your School', icon: Building2 },
-  { label: 'Your Style', icon: Palette },
-  { label: 'Your Dock', icon: LayoutGrid },
-];
+type StepKind = 'buildings' | 'style' | 'dock';
+
+const STEP_DEFS: Record<
+  StepKind,
+  { label: string; icon: typeof Building2; heading?: string; subtitle: string }
+> = {
+  // `buildings` is always the first step when present, and the first step
+  // renders a personalised `Welcome, {firstName}!` heading — so a `heading`
+  // here would never show. Intentionally omitted to avoid dead config.
+  buildings: {
+    label: 'Your School',
+    icon: Building2,
+    subtitle: 'Which school(s) do you teach at?',
+  },
+  style: {
+    label: 'Your Style',
+    icon: Palette,
+    heading: 'Make it yours',
+    subtitle: 'Customize fonts and window style.',
+  },
+  dock: {
+    label: 'Your Dock',
+    icon: LayoutGrid,
+    heading: 'Your go-to tools',
+    subtitle: 'Pick the widgets you reach for most.',
+  },
+};
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export const NewUserSetup: React.FC = () => {
-  const { user, setSelectedBuildings, completeSetup } = useAuth();
+  const {
+    user,
+    setSelectedBuildings,
+    completeSetup,
+    orgId,
+    orgBuildings,
+    orgBuildingsLoaded,
+  } = useAuth();
   const { setGlobalStyle } = useDashboard();
   const { reorderDockItems } = useToolVisibility();
+
+  // Buildings are an organization concept. The step is included whenever the
+  // user has an org and excluded for org-less (external/free) users. We gate
+  // ONLY on `orgId`, which is fully settled by the time this wizard mounts
+  // (App.tsx holds on `roleResolved`, which includes membership resolution),
+  // so the step count is fixed for the lifetime of the flow — never shifting
+  // under the user. The async building LIST (loading vs. loaded-empty vs.
+  // populated) is handled inside the step itself, so we don't make the
+  // step-count decision depend on building-load timing (which would otherwise
+  // open a one-frame race between `orgId` and `orgBuildingsLoaded`).
+  const includeBuildingStep = orgId !== null;
+
+  const stepKinds = useMemo<StepKind[]>(
+    () =>
+      includeBuildingStep ? ['buildings', 'style', 'dock'] : ['style', 'dock'],
+    [includeBuildingStep]
+  );
 
   const [step, setStep] = useState(0);
   const [selectedBuildings, setLocalBuildings] = useState<string[]>([]);
   const [style, setStyle] = useState<GlobalStyle>({ ...DEFAULT_GLOBAL_STYLE });
   const [dockTypes, setDockTypes] = useState<WidgetType[]>(DEFAULT_DOCK_TYPES);
   const [finishing, setFinishing] = useState(false);
+
+  // Clamp the index when reading the step model. `step` state isn't reset if
+  // `stepKinds` ever shrinks (e.g. org membership is revoked mid-wizard, so the
+  // buildings step drops out), and an out-of-range read would make
+  // `STEP_DEFS[currentKind]` throw. Clamping keeps the wizard rendering.
+  const currentKind = stepKinds[Math.min(step, stepKinds.length - 1)];
+  const isLastStep = step >= stepKinds.length - 1;
 
   // ── Step 0 helpers ──────────────────────────────────────────────────────────
   const toggleBuilding = (id: string) => {
@@ -189,7 +243,21 @@ export const NewUserSetup: React.FC = () => {
     }
   };
 
-  const canAdvance = step === 0 ? selectedBuildings.length > 0 : true;
+  // Advancing past the buildings step:
+  //   - while the org's building list is still loading → blocked (so a user
+  //     can't skip past a picker that hasn't appeared yet);
+  //   - once loaded and the org has buildings → require at least one pick;
+  //   - once loaded and the org has NO buildings → allow advancing (nothing
+  //     to pick; avoids a soft-lock for a freshly-created org).
+  // Every non-buildings step can always advance.
+  const canAdvance =
+    currentKind !== 'buildings'
+      ? true
+      : !orgBuildingsLoaded
+        ? false
+        : orgBuildings.length === 0
+          ? true
+          : selectedBuildings.length > 0;
 
   const firstName = user?.displayName?.split(' ')[0] ?? 'there';
 
@@ -206,26 +274,24 @@ export const NewUserSetup: React.FC = () => {
             </span>
           </div>
           <h1 className="text-3xl font-bold text-white font-sans">
-            {step === 0 && `Welcome, ${firstName}!`}
-            {step === 1 && 'Make it yours'}
-            {step === 2 && 'Your go-to tools'}
+            {step === 0
+              ? `Welcome, ${firstName}!`
+              : STEP_DEFS[currentKind].heading}
           </h1>
           <p className="text-white/70 mt-1 text-sm">
-            {step === 0 && 'Which school(s) do you teach at?'}
-            {step === 1 && 'Customize fonts and window style.'}
-            {step === 2 && 'Pick the widgets you reach for most.'}
+            {STEP_DEFS[currentKind].subtitle}
           </p>
         </div>
 
         {/* Step indicator */}
         <div className="flex border-b border-slate-700">
-          {STEPS.map((s, i) => {
-            const Icon = s.icon;
+          {stepKinds.map((kind, i) => {
+            const Icon = STEP_DEFS[kind].icon;
             const isComplete = i < step;
             const isActive = i === step;
             return (
               <div
-                key={s.label}
+                key={kind}
                 className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-medium transition-colors ${
                   isActive
                     ? 'text-blue-400 border-b-2 border-blue-400'
@@ -239,7 +305,7 @@ export const NewUserSetup: React.FC = () => {
                 ) : (
                   <Icon className="w-4 h-4" />
                 )}
-                {s.label}
+                {STEP_DEFS[kind].label}
               </div>
             );
           })}
@@ -247,14 +313,16 @@ export const NewUserSetup: React.FC = () => {
 
         {/* Step content */}
         <div className="flex-1 overflow-y-auto p-8 min-h-[320px]">
-          {step === 0 && (
+          {currentKind === 'buildings' && (
             <StepBuildings
               selected={selectedBuildings}
               onToggle={toggleBuilding}
             />
           )}
-          {step === 1 && <StepAppearance style={style} onChange={setStyle} />}
-          {step === 2 && (
+          {currentKind === 'style' && (
+            <StepAppearance style={style} onChange={setStyle} />
+          )}
+          {currentKind === 'dock' && (
             <StepDock
               dockTypes={dockTypes}
               onToggle={toggleDockType}
@@ -275,9 +343,9 @@ export const NewUserSetup: React.FC = () => {
           </button>
 
           <div className="flex gap-1.5">
-            {STEPS.map((_, i) => (
+            {stepKinds.map((kind, i) => (
               <div
-                key={i}
+                key={kind}
                 className={`rounded-full transition-all ${
                   i === step
                     ? 'w-5 h-2 bg-blue-400'
@@ -289,7 +357,7 @@ export const NewUserSetup: React.FC = () => {
             ))}
           </div>
 
-          {step < STEPS.length - 1 ? (
+          {!isLastStep ? (
             <button
               onClick={() => setStep((s) => s + 1)}
               disabled={!canAdvance}
@@ -320,7 +388,41 @@ const StepBuildings: React.FC<{
   selected: string[];
   onToggle: (id: string) => void;
 }> = ({ selected, onToggle }) => {
+  const { orgBuildings, orgBuildingsLoaded } = useAuth();
+  // `useAdminBuildings()` maps the org's Firestore buildings. We only read it
+  // once we know the org HAS buildings (below), so its seed fallback — which
+  // belongs to a different district — is never shown to an external org.
   const BUILDINGS = useAdminBuildings();
+
+  // Still fetching the org's building list.
+  if (!orgBuildingsLoaded) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-slate-300">
+        <Loader2 className="w-8 h-8 animate-spin mb-3" />
+        <p className="text-sm">Loading your schools…</p>
+      </div>
+    );
+  }
+
+  // Org exists but no buildings configured yet (e.g. a freshly created org).
+  // Nothing to pick — let the user continue and set this up later.
+  if (orgBuildings.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-slate-700/60 flex items-center justify-center mb-4">
+          <Building2 className="w-7 h-7 text-slate-400" />
+        </div>
+        <p className="font-semibold text-slate-200 text-sm">
+          No schools set up yet
+        </p>
+        <p className="text-slate-300 text-xs mt-1 max-w-xs">
+          Your organization hasn&rsquo;t added any schools. You can set this
+          later once an admin configures them.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {BUILDINGS.map((b) => {

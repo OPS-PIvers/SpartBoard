@@ -315,9 +315,16 @@ export function generateToken(): string {
   return crypto.randomBytes(24).toString('base64url');
 }
 
-/** Builds the user-facing claim URL for a given token. */
-export function buildClaimUrl(token: string): string {
-  return `${CLAIM_URL_ORIGIN}/invite/${token}`;
+/**
+ * Builds the user-facing claim URL for a given token. The `org` query param
+ * lets the client claim the invite against the correct organization without a
+ * domain lookup — essential for a newly-onboarded org whose domain isn't
+ * verified yet (domain resolution would otherwise return null). It is safe to
+ * carry the orgId in the URL: `claimOrganizationInvite` still validates the
+ * token + invited email server-side, so a tampered org just yields "not found".
+ */
+export function buildClaimUrl(token: string, orgId: string): string {
+  return `${CLAIM_URL_ORIGIN}/invite/${token}?org=${encodeURIComponent(orgId)}`;
 }
 
 /**
@@ -919,7 +926,7 @@ async function writeInvitation(
         const body = buildInvitationEmail({
           orgName,
           roleId: invite.roleId,
-          claimUrl: buildClaimUrl(token),
+          claimUrl: buildClaimUrl(token, orgId),
           expiresAt,
           personalMessage,
         });
@@ -947,7 +954,7 @@ async function writeInvitation(
   return {
     email: invite.email,
     token,
-    claimUrl: buildClaimUrl(token),
+    claimUrl: buildClaimUrl(token, orgId),
     status: 'created',
   };
 }

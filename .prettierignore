@@ -15,3 +15,4 @@ playwright-report/
 .gemini
 .claude/workflows
 .Jules/admin-widget-config_implementation.md
+tests/perf/results/

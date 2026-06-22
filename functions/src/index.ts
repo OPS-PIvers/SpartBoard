@@ -58,6 +58,7 @@ export {
   createOrganizationInvites,
   claimOrganizationInvite,
 } from './organizationInvites';
+export { resolveOrgForUser } from './resolveOrgForUser';
 export { organizationMembersSync } from './organizationMembersSync';
 export { organizationMemberCounters } from './organizationMemberCounters';
 export { organizationBuildingCounters } from './organizationBuildingCounters';

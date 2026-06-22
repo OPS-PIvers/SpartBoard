@@ -2858,6 +2858,7 @@ describe('index barrel — deployed export set', () => {
     // Organizations
     'createOrganizationInvites',
     'claimOrganizationInvite',
+    'resolveOrgForUser',
     'organizationMembersSync',
     'organizationMemberCounters',
     'organizationBuildingCounters',

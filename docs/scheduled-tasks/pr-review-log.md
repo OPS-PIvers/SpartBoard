@@ -4,6 +4,58 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-21
+
+- PRs reviewed: 4 (all open PRs; all base `dev-paul`, none `main`/`dev-*`)
+  - #2035 — audit(scheduled-tasks): Sunday 2026-06-21 — admin-config audit + TextWidget MEDIUM fix (head `scheduled-tasks`)
+  - #2034 — docs(unifier): run 22 — staleness scan (head `nightly/unifier-log-2026-06-21`)
+  - #2030 — pr-review: nightly PR review log — 2026-06-20 (head `claude/compassionate-shannon-dzln7f`)
+  - #2029 — fix(widgets/expectations): use shared Toggle in Settings panel (head `scheduled/expectations-toggle`)
+- Comments processed: 1 actionable thread — 0 fixed, 1 explained (all other threads empty/resolved)
+  - #2034: 1 unresolved-but-outdated thread (claude) requesting revert of inflated `actualDurationMs` baselines → EXPLAINED, no fix: the current diff already addresses it — only `generatedAt` changed in `baseline.json`/`dashboard-baseline.json`; timing medians are unchanged. Replied marking resolved.
+  - #2029: 1 thread (gemini optional-chaining) already `is_resolved:true` from the 2026-06-20 run → no action.
+  - #2035, #2030: no review comments.
+- Fixes pushed: 0 (no comment required a code change)
+- Reviews posted: 3
+  - #2035: Ready with minor notes — TextWidget admin building defaults (`fontFamily`/`fontColor`/`verticalAlign`) are correct and well-tested (`isHexColor`/`Number.isFinite`/`isWidgetFontFamily`/enum validation; 3 new test cases; panel mirrors Stations). Flagged scope: `scheduled-tasks` head carries 42 changed files, ~38 unrelated to the described change (accumulated-divergence pattern, same as #2016) — human should confirm the bundle is intended for the nightly→`dev-paul` release flow.
+  - #2034: Ready — doc-only unifier run 22; the inline baseline concern is resolved.
+  - #2030: Ready — doc-only nightly review-log entry.
+  - #2029: skipped (not re-reviewed) — already carries a full automated Claude review from 2026-06-20 and has no new commits since; re-reviewing would be noise.
+- Notes:
+  - Branch-safety: all 4 head branches are non-`main` / non-`dev-*` → pushable. Phase 1 produced no fixes, so no pushes to any PR branch.
+  - This log is committed to `claude/compassionate-shannon-l4ziui` (this session's development branch) rather than `scheduled-tasks`, because `scheduled-tasks` is the head of open PR #2035 — committing there would pollute that PR's diff. Consistent with prior runs (#2030 used `claude/compassionate-shannon-dzln7f`).
+
+## 2026-06-19
+
+- PRs reviewed: 9 (all base `dev-paul`; no head is `main`/`dev-*`, so all pushable)
+  - #2023 — docs(routines): nightly debugger run #21 log (head `nightly/debugger-log-2026-06-19`)
+  - #2022 — fix(widgets): remove stale-ref useEffect in PageEditor and RandomSettings (head `nightly/widgets-2026-06-19`)
+  - #2021 — fix(functions): enforce accessLevel in generateVideoActivity (head `nightly/build-tooling-2026-06-19`)
+  - #2020 — fix(hooks): dedupe steps in buildGLResponsesCSV (head `nightly/state-data-2026-06-19`)
+  - #2019 — fix(plc): guard TodosBody inline-edit onBlur (head `nightly/dashboard-layout-2026-06-19`)
+  - #2018 — fix(i18n): es backgrounds.presets verbatim-EN fix (head `nightly/admin-config-2026-06-19`)
+  - #2017 — docs(unifier): run 20 staleness scan (head `nightly/unifier-log-2026-06-19`)
+  - #2016 — fix(poll): cap progress-bar height (head `scheduled-tasks`)
+  - #2013 — docs(routines): Run 21 debugger log (head `nightly/debugger-log-2026-06-18`)
+- Comments processed: 5 actionable threads across 4 PRs — 1 fixed, 4 explained (remaining open threads were `is_outdated:true` style/doc nits, left per the be-frugal guideline)
+  - #2020: gemini `buildGLResponsesCSV` thread (not outdated) → FIXED. Map answer lookup (O(N+M)) + `typeof … === 'number'` guards so a 0-epoch timestamp renders an ISO date. The two claude threads (missing `sessionId`, react-hooks/refs comment) were already addressed at HEAD → replied.
+  - #2019: gemini render-body-reset thread → already implemented at HEAD (replied). claude "drop the eslint-disable" thread → EXPLAINED no-change: verified empirically that removing the directive errors `Cannot update ref during render react-hooks/refs` under `--max-warnings 0`; the rule is real here and the suppression is required.
+  - #2021: all 3 claude threads (rename, `.exists` guard, reuse `accessPerm?.config`) already addressed at HEAD → replied to the not-outdated one.
+  - #2023: open gemini doc-accuracy note (`checkAccess` helper doesn't exist; checks are inline) → surfaced in the posted review; not pushed (docs log, outdated thread).
+- Fixes pushed: 1
+  - #2020 / `nightly/state-data-2026-06-19` — `buildGLResponsesCSV` stepId→answer Map + 0-epoch timestamp guards; type-check ✓ lint ✓ prettier ✓ tests 12/12 ✓.
+- Reviews posted: 9 (one structured review per PR)
+  - #2022: Ready — documented anti-pattern removal + strong regression tests; nit: undocumented accentText fix.
+  - #2021: Ready — real accessLevel bypass fix; noted pre-existing `.exists` gap in `transcribeVideoWithGemini` as follow-up.
+  - #2020: Ready — dedup fix + my timestamp/perf follow-up.
+  - #2019: Ready with minor notes — pattern-consistent onBlur guard; confirm the regression test landed (not seen in diff).
+  - #2018: Ready — trivial locale fix, consolidated into the backgrounds locale sweep test.
+  - #2016: Needs changes — poll cap is correct, but the `scheduled-tasks` head carries 36 files vs the 5-line described fix; scope/description mismatch flagged.
+  - #2023, #2017, #2013: Ready (docs logs); flagged #2013↔#2023 run-21 overlap and the #2023 `checkAccess` wording.
+- Notes:
+  - Branch-safety: no PR targets `main`; all head branches pushable. Only #2020 needed a fix push.
+  - This log committed to the designated working branch `claude/compassionate-shannon-e8i4ou` (not `scheduled-tasks`, which is itself the head of the open, scope-flagged #2016).
+
 ## 2026-06-15
 
 - PRs reviewed: 10 (all open PRs)

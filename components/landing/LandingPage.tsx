@@ -13,6 +13,8 @@
  */
 import { APP_NAME } from '@/config/constants';
 import React from 'react';
+// Local inline-SVG icons (lucide paths, no per-icon forwardRef/merge overhead)
+// — see landingIcons.tsx. Pixel-identical to the former lucide-react imports.
 import {
   LogIn,
   Loader2,
@@ -24,7 +26,7 @@ import {
   School,
   Sparkles,
   ArrowRight,
-} from 'lucide-react';
+} from './landingIcons';
 import { useAuth } from '@/context/useAuth';
 
 const FEATURES = [

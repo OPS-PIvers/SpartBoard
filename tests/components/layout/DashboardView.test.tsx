@@ -236,10 +236,13 @@ describe('DashboardView Gestures & Navigation', () => {
     });
   });
 
-  it('renders correctly', () => {
+  it('renders correctly', async () => {
     renderView();
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
-    expect(screen.getByTestId('dock')).toBeInTheDocument();
+    // Sidebar and Dock are code-split (React.lazy) out of DashboardView's
+    // synchronous mount, so they stream in behind a Suspense boundary on the
+    // next microtask — findByTestId waits for that resolution.
+    expect(await screen.findByTestId('sidebar')).toBeInTheDocument();
+    expect(await screen.findByTestId('dock')).toBeInTheDocument();
   });
 
   it('does NOT toggle minimize on Alt + M (now handled by widgets)', () => {
