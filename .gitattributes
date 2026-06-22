@@ -1,0 +1,4 @@
+# Keep dev-paul's copy of unifier.md when merging from main.
+# main never has this file; without this rule, git picks main's
+# (empty / stale) copy and silently clobbers the full run history.
+docs/routines/unifier.md merge=ours
