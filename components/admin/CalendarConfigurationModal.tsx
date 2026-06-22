@@ -93,11 +93,19 @@ export const CalendarConfigurationModal: React.FC<
   // popup from this effect. Already-granted admins flip to connected; others
   // stay disconnected and use the gesture-driven sync/reconnect buttons.
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      // Reset on close so a reopen never shows a stale "connected" status
+      // before the probe re-resolves.
+      setIsCalendarConnected(false);
+      return;
+    }
     let cancelled = false;
     void (async () => {
       const token = await ensureGoogleScope('calendar.readonly');
-      if (!cancelled && token) setIsCalendarConnected(true);
+      // Reflect the actual probe result (false on a silent miss / revoked
+      // token), not just successes — otherwise a failed probe leaves a stale
+      // connected state.
+      if (!cancelled) setIsCalendarConnected(!!token);
     })();
     return () => {
       cancelled = true;
