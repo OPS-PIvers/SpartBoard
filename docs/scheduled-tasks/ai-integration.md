@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-06-19_
+_Last audited: 2026-06-22_
 _Last action: never_
 
 ---
@@ -64,12 +64,20 @@ _Nothing currently in progress._
 - **Detail:** The Gemini API supports `responseSchema` (structured output / JSON mode with schema enforcement) which causes the model to produce JSON that strictly conforms to a provided schema, greatly reducing hallucination of missing fields, wrong types, or unexpected keys. Currently only the `quiz` generation type passes a `responseSchema` to the Gemini call (verified at line 1139 approx). All other structured-output types — `poll`, `dashboard-layout`, `instructional-routine`, `blooms-ai`, `guided-learning`, and `mini-app` — use plain JSON mode (`responseMimeType: 'application/json'` without a schema). Plain JSON mode instructs the model to output JSON syntax but does not enforce structure, so the model can omit required fields, use wrong types, or add unexpected keys; the current `parseGeminiJson` + per-type validation handles some of this but is applied inconsistently. Types most at risk: `poll` (simple schema, easy to add), `dashboard-layout` (structured widget placement), `instructional-routine` (nested step array).
 - **Fix:** For each structured-output generation type, define a `responseSchema` object matching the expected output interface and pass it to the Gemini API call alongside `responseMimeType: 'application/json'`. Prioritize: (1) `poll` — simple schema, high call volume; (2) `dashboard-layout` — layout accuracy matters for user trust; (3) `instructional-routine` — nested structure prone to field omission. For `mini-app` (code generation), structured output is not applicable since the output is a free-form HTML/JS string. Use the `quiz` implementation as the reference pattern.
 
-### LOW RevealGrid "Sparkles" button uses AI icon for a paste-import feature
+### MEDIUM RevealGrid "Generate" button has Sparkles icon and AI label but no onClick handler
+
+- **Detected:** 2026-06-22
+- **File:** components/widgets/RevealGrid/Settings.tsx:473–478 (approx)
+- **Detail:** The "Reveal Grid Set Generator" button in RevealGrid/Settings.tsx renders with the `Sparkles` icon (AI visual signal) and appears in the Settings panel as a primary action button, but has **no onClick handler**. Clicking it does nothing. This is a broken affordance — the button looks like a working AI generation feature to both users and developers but produces no action. This is distinct from the prior LOW item (which noted the icon was misleading for a paste-import function); the paste-import path may have been replaced or the button wired to a different handler that was never implemented. The current state is a broken button with no behavior.
+- **Fix:** Either (a) implement the AI generation path: wire an `onClick` to `generateWithAI` with a `reveal-grid` type, accepting a topic prompt and returning `RevealCard[]` matching the existing `RevealGridConfig.cards` interface — this is the preferred fix since the Sparkles icon correctly signals AI intent; or (b) remove the button if AI generation is not planned, to eliminate the dead affordance.
+
+### LOW RevealGrid "Sparkles" icon mismatch with paste-import behavior — superseded by MEDIUM 2026-06-22
 
 - **Detected:** 2026-04-17
-- **File:** components/widgets/RevealGrid/Settings.tsx:457, :477
-- **Detail:** The "Reveal Grid Set Generator" button displays the `Sparkles` icon (from lucide-react) which visually signals AI assistance, but clicking it only toggles `isPasting` — a text-area paste-import UI for pasting two-column term/definition data. No AI call is made. The icon creates a false expectation and may confuse users or future developers who see `Sparkles` and assume an AI endpoint is being used.
-- **Fix:** Option A (correct the icon): Replace `Sparkles` with `ClipboardPaste` or `TableProperties` to accurately represent the paste-import function. Option B (add real AI): Implement an AI generation path using `generateWithAI` with a new `reveal-grid` type that accepts a topic and returns `RevealCard[]`. Option B is preferred as it adds genuine value; in that case the Sparkles icon is correct.
+- **Superseded:** 2026-06-22 — current audit found the button has no onClick handler at all (not just the wrong icon). See MEDIUM item above.
+- **File:** components/widgets/RevealGrid/Settings.tsx:457, :477 (original detection)
+- **Detail (original):** The "Reveal Grid Set Generator" button displayed the `Sparkles` icon but only toggled a paste-import UI. The MEDIUM item detected 2026-06-22 supersedes this with a more critical finding: the button now has no onClick handler at all.
+- **Fix:** See MEDIUM item above.
 
 ---
 
@@ -85,6 +93,8 @@ The following widgets have structured config schemas well-suited for AI content 
 ---
 
 ## Completed
+
+_2026-06-22: Full audit pass (Audit E2 — Monday/Wednesday/Friday). New commits since 2026-06-19: fix(Modal), fix(i18n), fix(widgets/expectations), pr-review batch — none add new AI generation types or modify AI pipeline. All 13 generation types re-verified: rate limits, loading/error states, feature permission gates all present and consistent. Model strings: DEFAULT_ADVANCED_MODEL ('gemini-3-flash-preview') and DEFAULT_STANDARD_MODEL ('gemini-3.1-flash-lite-preview') used consistently; no new hardcoded strings introduced. JSON mode: all generation types use parseGeminiJson server-side safely — no manual JSON.parse on AI text found in any Settings.tsx AI handlers. NEW MEDIUM FINDING: RevealGrid "Generate" button has no onClick handler — looks implemented but does nothing (added as MEDIUM open item; supersedes the prior LOW item). Hardcoded model string LOW at line 2513 unchanged. instructional-routine client gate LOW unchanged. guided-learning rate limit MEDIUM unchanged. responseSchema LOW unchanged. AI opportunities (ConceptWeb, SyntaxFramer, GraphicOrganizer, Checklist) still unimplemented. 1 new MEDIUM item added._
 
 _2026-06-19: Full weekly audit pass (Friday). New commits since 2026-06-12: fix(Modal), fix(i18n), fix(widgets), fix(lti), fix(quizMaxPoints), pr-review batch — none add new AI generation types or modify AI pipeline. All 13 generation types re-verified: rate limits, loading/error states, feature permission gates all present. Hardcoded model string LOW item at line 2513 (transcribeVideoWithGemini) — still unresolved. New finding: only `quiz` generation type uses Gemini structured output (`responseSchema`) — all other types use plain JSON mode, leaving them susceptible to schema-divergent responses from the model. Added as new LOW item. AI opportunities for RevealGrid/ConceptWeb/GraphicOrganizer/Checklist remain unimplemented (documented in Opportunities section). 1 new LOW open item added._
 

@@ -521,6 +521,19 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   // flush, so it is always up-to-date regardless of closure staleness.
   const isCancellingTitleRef = useRef(false);
 
+  // Set to true by saveTitle the first time it commits (from Enter or blur).
+  // Prevents the Enter-unmount double-commit race: pressing Enter calls
+  // saveTitle() directly, which commits and calls setIsEditingTitle(false).
+  // React then unmounts the input and the browser fires a synchronous blur,
+  // calling saveTitle() a second time via the onBlur handler. The ref blocks
+  // the duplicate write. Reset to false while the edit session is active
+  // (render body), per the CLAUDE.md synchronous-ref-flag rule.
+  const hasCommittedTitleRef = useRef(false);
+  if (isEditingTitle) {
+    // eslint-disable-next-line react-hooks/refs -- intentional render-body ref reset for stale-flag prevention (CLAUDE.md pattern); false positive from react-hooks/refs v7
+    hasCommittedTitleRef.current = false;
+  }
+
   const saveTitle = useCallback(() => {
     // Guard: if the user pressed Escape the Escape handler set this flag before
     // triggering the unmount that fires this blur. Skip the Firestore write.
@@ -530,6 +543,14 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       isCancellingTitleRef.current = false;
       return;
     }
+    // Guard: prevent a second write if Enter already committed this edit. Enter
+    // calls saveTitle() directly, then the input unmounts (or blur fires), which
+    // would call saveTitle() again via onBlur — this ref ensures only the first
+    // call persists. The ref is reset in the render body while editing is active.
+    if (hasCommittedTitleRef.current) {
+      return;
+    }
+    hasCommittedTitleRef.current = true;
     if (tempTitle.trim()) {
       updateWidget(widget.id, { customTitle: tempTitle.trim() });
     } else {

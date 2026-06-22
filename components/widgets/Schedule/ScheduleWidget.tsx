@@ -377,7 +377,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
       const now = new Date();
       const nowSec =
         now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-      const today = now.toISOString().slice(0, 10);
+      const today = getTodayStr();
       const currentItems = itemsRef.current;
       const currentEffective = effectiveTimesRef.current;
       const w = widgetRef.current;

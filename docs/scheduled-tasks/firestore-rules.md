@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-06-17_
+_Last audited: 2026-06-22_
 _Last action: 2026-05-18 (admin_audit_log immutability hardening)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-22: Full collection audit. Scanned components/, context/, hooks/, utils/, and functions/src/ for all Firestore collection() and collectionGroup() calls (including db.doc(string) patterns). Cross-referenced 61 match block paths in firestore.rules (4539 lines). Default-deny catch-all confirmed present. Result: 100% collection coverage — every collection accessed in code has explicit rules. No new unprotected collections found. The firestore.rules security posture is EXCELLENT: multi-tier access control (admin/domain/building/user/member/role), complete schema validation on all write paths, immutable audit log, PLC role-gating invariants, substitute share expiry enforcement, and LTI integration server-only protections. Two existing open items (pollVotes unrestricted write, sessions list broad read) remain valid and unchanged. No new items._
 
 _2026-06-17: Full collection audit. Scanned components/, context/, hooks/, utils/, and functions/src/ for all Firestore collection references — including `db.doc(string)` patterns not caught by the 2026-06-10 audit. Found one new collection reference missed by the prior audit: `classroom_grade_links` in `functions/src/classroomAddonAuth.ts` (uses `db.doc('classroom_grade_links/${uid}/submissions/${submissionId}').set(...)` rather than the `collection(db, '...')` pattern, which is why it evaded the 2026-06-10 grep-based scan). This collection has no explicit match block in firestore.rules — it relies solely on the catch-all default-deny. Since `classroomAddonAuth.ts` runs exclusively as a Cloud Function using the Admin SDK (which bypasses security rules), client access is blocked by the catch-all; there is no live security gap. Adding as LOW item for defense-in-depth hardening, consistent with the existing `ai_usage` LOW item. All other pre-existing open items unchanged._
 

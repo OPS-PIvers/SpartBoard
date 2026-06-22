@@ -3,10 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-06-19_
+_Last audited: 2026-06-22_
 _Last action: 2026-05-01_
 
 ---
+
+## Audit Log
+
+_2026-06-22: Full audit (Audit E1 — Monday/Wednesday/Friday). (1) Object.assign merges: `mergeWidgetConfig()` in `utils/widgetConfigPersistence.ts` is the single canonical merge point called from DashboardContext — well-extracted, no simplification needed. (2) Type assertions: 62 instances total — ~80% safe or test-related. 8 instances in `hooks/useVideoActivity.ts` (:221, :288, :332) and `hooks/useStarterPacks.ts` (:118) use `as unknown as` workaround casts for missing generic type parameters — these match the existing LOW item for `useVideoActivity` in Completed. (3) Hooks with high state count: `useQuizSession.ts` (22 useState/useRef), `useVideoActivitySession.ts` (18) — these are domain-appropriate state machines; no new items. (4) Prop drilling: minimal — components use context correctly; `UsersView.tsx` (13 props) is an intentional view-layer facade. (5) Nested ternaries: none found — codebase uses nullish coalescing and short-circuit patterns consistently. All five existing open items remain valid. Zero new items._
 
 ## In Progress
 
