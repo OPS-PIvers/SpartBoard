@@ -392,7 +392,14 @@ export const CalendarConfigurationModal: React.FC<
                     </div>
                     <button
                       onClick={handleSyncAll}
-                      disabled={syncing}
+                      // Disabled until the silent probe resolves to a REAL
+                      // connection (true). While the probe is pending (null) or
+                      // the admin hasn't granted the scope (false), clicking
+                      // would fire an interactive ensureGoogleScope and pop an
+                      // unexpected OAuth dialog. Disconnected admins use the
+                      // "Reconnect Google" button (gated on === false) to grant
+                      // consent first; that flips this to enabled.
+                      disabled={syncing || isCalendarConnected !== true}
                       className="flex items-center gap-2 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xs font-black hover:bg-brand-blue-dark transition-all shadow-md disabled:opacity-50"
                     >
                       {syncing ? (

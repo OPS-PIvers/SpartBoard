@@ -341,6 +341,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     useState<boolean>(isAuthBypass);
   const [membershipResolved, setMembershipResolved] =
     useState<boolean>(isAuthBypass);
+  // Tracks whether the membership listener has EVER resolved a non-null orgId
+  // for the current session. Used by the onSnapshot error handler to decide
+  // whether there is any "last-known" org state worth preserving across a
+  // transient error: on first load (never resolved) there is nothing real to
+  // keep, so a transient error clears rather than preserving stale state.
+  const everResolvedOrgIdRef = useRef<boolean>(false);
   const [resolvedForUser, setResolvedForUser] = useState<User | null>(null);
   const [buildingIds, setBuildingIds] = useState<string[]>([]);
   const [orgBuildings, setOrgBuildings] = useState<BuildingRecord[]>([]);
@@ -769,6 +775,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
    * Deliberately reuses the GIS token-client + persistence machinery from
    * `refreshGoogleToken` rather than rewiring call sites: a single shared
    * multi-scope token means persisting here is sufficient.
+   *
+   * KNOWN MINOR FOLLOW-UP: this lacks in-flight dedup — concurrent silent
+   * probes (e.g. CalendarWidget + AdminCalendarFetcher firing at once) issue
+   * two parallel GIS requests. Non-catastrophic: add-on-success is idempotent
+   * and the last persisted token wins; a shared in-flight promise would just
+   * save one redundant request.
    */
   const ensureGoogleScope = useCallback(
     async (
@@ -1192,6 +1204,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // resource.id`) in ANY org, so this listener works for non-admins too.
   useEffect(() => {
     if (isAuthBypass) return;
+    // New subscription (user changed / first mount): no org has resolved yet
+    // for this run, so a transient error before the first snapshot clears
+    // rather than preserving stale state from a previous session.
+    everResolvedOrgIdRef.current = false;
     if (!user?.email) {
       setOrgId(null);
       setRoleId(null);
@@ -1222,9 +1238,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           if (auth.currentUser?.uid !== startUid) return;
           if (snap.exists()) {
             const member = snap.data() as MemberRecord;
-            setOrgId(member.orgId ?? candidateOrgId);
+            const resolvedOrgId = member.orgId ?? candidateOrgId;
+            setOrgId(resolvedOrgId);
             setRoleId(member.roleId ?? null);
             setBuildingIds(member.buildingIds ?? []);
+            // Record that this session has resolved a real org at least once,
+            // so a later transient snapshot error can safely preserve the
+            // last-known state (vs. clearing on a never-resolved first load).
+            if (resolvedOrgId) everResolvedOrgIdRef.current = true;
           } else {
             // Domain resolved to an org but no member doc exists yet (e.g.
             // a registered-domain user who was never invited): no org access,
@@ -1238,15 +1259,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         (error) => {
           if (auth.currentUser?.uid !== startUid) return;
           console.error('[AuthContext] Error loading org membership:', error);
-          // PRESERVE the last-known orgId/roleId/buildingIds on a transient
-          // snapshot error (network blip, a permission race during a rules
-          // deploy). Zeroing them would briefly demote a non-Orono ORG user to
-          // the free/external tier and hide their org surfaces. Orono is
-          // protected regardless (tier derives 'internal' from the email
-          // domain), but a paying second/third org shouldn't lose membership to
-          // a blip — the listener restores correct state when it recovers, and
-          // Firestore rules enforce real access server-side either way. Still
-          // mark resolved so consumers don't stall indefinitely.
+          // Error-type-aware recovery. Orono is unaffected either way (tier
+          // derives 'internal' from the email domain regardless of orgId);
+          // this protects paying second/third orgs.
+          const code = (error as { code?: string }).code;
+          if (code === 'permission-denied') {
+            // The member doc read was DENIED — membership was revoked (the user
+            // was removed from the org) or rules now forbid the read. Do NOT
+            // preserve access for a removed user: clear org/role/building so the
+            // session drops to the free/external tier immediately.
+            setOrgId(null);
+            setRoleId(null);
+            setBuildingIds([]);
+          } else if (everResolvedOrgIdRef.current) {
+            // Transient error (network blip, a permission race mid rules-deploy)
+            // AFTER we've already resolved a real org this session: PRESERVE the
+            // last-known orgId/roleId/buildingIds so a paying org user isn't
+            // briefly demoted by a blip. The listener restores correct state on
+            // recovery, and Firestore rules enforce real access server-side.
+          } else {
+            // Transient error on FIRST load, before any org ever resolved: there
+            // is no real last-known state to keep, so clear rather than leave
+            // whatever defaults were in place. Avoids presenting stale/empty org
+            // state as if it were authoritative.
+            setOrgId(null);
+            setRoleId(null);
+            setBuildingIds([]);
+          }
+          // Always mark resolved so consumers don't stall indefinitely.
           setMembershipResolved(true);
         }
       );

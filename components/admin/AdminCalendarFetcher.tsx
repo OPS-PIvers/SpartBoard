@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
@@ -18,6 +18,19 @@ export const AdminCalendarFetcher: React.FC = () => {
   // gesture-driven "Sync All Now" button in CalendarConfigurationModal.
   const [calendarToken, setCalendarToken] = useState<string | null>(null);
 
+  // `ensureGoogleScope` is a useCallback whose identity changes on EVERY token
+  // refresh (its deps include `googleAccessToken`, which the proactive ~50-min
+  // refresh loop rewrites). If the hourly interval effect below listed it as a
+  // dependency, that identity churn would tear down + recreate the effect
+  // (clearInterval) and reset the 1-hour timer before it ever fired — so the
+  // central calendar sync would NEVER run. Hold the latest callback in a ref
+  // and read it inside `fetchAll` so the interval can be set up exactly once
+  // and stay stable across token refreshes. The ref always sees the freshest
+  // `ensureGoogleScope` (and thus the freshest token) at call time.
+  const ensureGoogleScopeRef = useRef(ensureGoogleScope);
+  // eslint-disable-next-line react-hooks/refs
+  ensureGoogleScopeRef.current = ensureGoogleScope;
+
   const calendarPermission = featurePermissions.find(
     (p) => p.widgetType === 'calendar'
   );
@@ -32,7 +45,15 @@ export const AdminCalendarFetcher: React.FC = () => {
     void (async () => {
       const token =
         isAdmin && config ? await ensureGoogleScope('calendar.readonly') : null;
-      if (!cancelled) setCalendarToken(token);
+      if (!cancelled) {
+        // Flip only on a null<->non-null change. A same-presence token-VALUE
+        // refresh (the proactive ~50-min loop re-mints the token) keeps the same
+        // calendarToken, so the hourly sync interval below (which deps on
+        // calendarToken) isn't torn down and reset before it can fire. fetchAll
+        // re-acquires a fresh token per cycle via ensureGoogleScopeRef, so a
+        // stale value here is harmless — calendarToken is only a "connected" gate.
+        setCalendarToken((prev) => (!!prev === !!token ? prev : token));
+      }
     })();
     return () => {
       cancelled = true;
@@ -47,7 +68,11 @@ export const AdminCalendarFetcher: React.FC = () => {
       // Re-acquire the token each sync cycle so an expired GIS token (~1h TTL —
       // exactly this effect's interval) never reaches the Calendar API. Silent
       // only (background effect, no gesture); null → not connected, stay idle.
-      const freshToken = await ensureGoogleScope('calendar.readonly');
+      // Read through the ref so the interval effect stays stable across token
+      // refreshes (see the ref declaration above) yet still calls the freshest
+      // `ensureGoogleScope`.
+      const freshToken =
+        await ensureGoogleScopeRef.current('calendar.readonly');
       if (!freshToken) return;
       const calendarService = new GoogleCalendarService(freshToken);
 
@@ -130,7 +155,11 @@ export const AdminCalendarFetcher: React.FC = () => {
     );
 
     return () => clearInterval(intervalId);
-  }, [isAdmin, calendarToken, config, BUILDINGS, ensureGoogleScope]);
+    // `ensureGoogleScope` is intentionally NOT a dependency: it's read through
+    // `ensureGoogleScopeRef` inside `fetchAll`, so the interval is created once
+    // and survives token refreshes (listing it here would reset the 1-hour
+    // timer on every refresh and the sync would never fire).
+  }, [isAdmin, calendarToken, config, BUILDINGS]);
 
   return null; // Headless
 };
