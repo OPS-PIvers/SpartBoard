@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-06-17_
+_Last audited: 2026-06-22_
 _Last action: 2026-06-17_
 
 ---
@@ -15,6 +15,15 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-22: Full audit. Test suite: 516 files / 5697 tests, all passing (up from 473/4937 on 2026-06-17 — 43 new test files, 760 new tests). No failing tests. New untested utils confirmed: `spotifyAuth.ts` (Spotify PKCE OAuth flow — security-critical), `imageProcessing.ts` (web worker image trimming), `plcActivity.ts` (fire-and-forget PLC activity log writer), `quizAudio.ts` (Web Audio API sound effects), `guidedLearningDriveService.ts` (Google Drive GL content), `shortLinksApi.ts` (short link routing), `pexelsService.ts` (Pexels image search), `previewMode.ts` (teacher preview toggle), `lastActiveThrottle.ts` (activity write throttle), `classroomCourses.ts` (Google Classroom course fetching). Top untested hooks: `useQuiz.ts` (Drive+Firestore quiz sync — complex), `useGuidedLearning.ts` (personal vs building set logic), `useStudentAssignments.ts` (real-time assignment filtering). Top untested Cloud Functions: `expireSubShares` (scheduled deletion), `ltiLogin/ltiLaunch/ltiExchange` (LTI 1.3 OAuth endpoints), `finalizeIdleQuizAttempts` (scheduled cleanup). Added new MEDIUM open item for utils coverage gaps. Existing open items (Cloud Function execution paths, hooks session coverage) remain valid and unchanged._
+
+### MEDIUM utils/ files with complex logic have no test coverage
+
+- **Detected:** 2026-06-22
+- **File:** utils/spotifyAuth.ts, utils/imageProcessing.ts, utils/plcActivity.ts, utils/quizAudio.ts, utils/guidedLearningDriveService.ts, utils/shortLinksApi.ts, utils/pexelsService.ts, utils/previewMode.ts, utils/lastActiveThrottle.ts, utils/classroomCourses.ts
+- **Detail:** 30 of 152 utils/ files (19.7%) have no test coverage. The highest-risk untested files: `spotifyAuth.ts` — PKCE challenge generation, popup window management, in-memory token caching (security-critical OAuth flow); `imageProcessing.ts` — web worker lifecycle, canvas trim algorithm, error handling; `plcActivity.ts` — fire-and-forget Firestore writer with error suppression, isForeignMentionEvent classification; `quizAudio.ts` — AudioContext singleton management, Safari fallback, oscillator synthesis; `guidedLearningDriveService.ts` — Google Drive JSON read/write, permission/404 error paths; `lastActiveThrottle.ts` — throttle window calculation, write suppression on rapid events; `classroomCourses.ts` — Google Classroom course pagination and metadata normalization.
+- **Fix:** Priority 1 — `spotifyAuth.ts` (PKCE generation, token cache, popup messaging protocol). Priority 2 — `quizAudio.ts` (AudioContext creation with webkitAudioContext fallback, null context graceful degradation). Priority 3 — `plcActivity.ts` (isForeignMentionEvent logic, Firestore error suppression). Use `vi.mock('firebase/firestore')` and `vi.stubGlobal('AudioContext', ...)` patterns from existing test files as reference.
 
 ### MEDIUM functions/src/ Cloud Function execution paths lack test coverage
 
