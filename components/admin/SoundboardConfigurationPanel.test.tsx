@@ -9,6 +9,15 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn().mockReturnValue({ googleAccessToken: 'test-token' }),
 }));
 
+// The panel reads its building list from `useAdminBuildings()`, which returns
+// `[]` for a no-org/provider-less render. An admin always has an org in real
+// usage, so mock the hook to return the real seed buildings — the second test
+// iterates `BUILDINGS` directly and expects each one toggled on.
+vi.mock('@/hooks/useAdminBuildings', async () => {
+  const { BUILDINGS } = await import('@/config/buildings');
+  return { useAdminBuildings: () => BUILDINGS };
+});
+
 vi.mock('@/utils/soundboardAudioUrl', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('@/utils/soundboardAudioUrl')>();

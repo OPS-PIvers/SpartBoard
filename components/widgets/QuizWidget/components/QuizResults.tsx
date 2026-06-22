@@ -259,7 +259,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
 }) => {
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
-  const { googleAccessToken, user, orgId, canAccessFeature } = useAuth();
+  const { googleAccessToken, user, orgId, canAccessFeature, isExternalUser } =
+    useAuth();
   const { showConfirm } = useDialog();
   const { plcs, clearPlcSharedSheetUrl, setPlcSharedSheetUrl } = usePlcs();
   const [exporting, setExporting] = useState(false);
@@ -1257,7 +1258,13 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   // when attached, else Schoology — and the overflow never carries a push
   // that's already visible.
   const overflowItems: OverflowMenuItem[] = [];
-  if (!exportUrl) {
+  // Google Sheets export is a Google-API feature excluded from the free tier
+  // (docs/wide-distro-plan.md Phase 3). External (no-org/free-tier) users can't
+  // connect Drive (the Drive entry is hidden for them), so they have no token
+  // and the export would only surface a "sign in again" error — hide the
+  // affordance cleanly instead. `isExternalUser` is false while membership
+  // resolves, so org/internal members keep the button.
+  if (!exportUrl && !isExternalUser) {
     overflowItems.push({
       label: 'Export to Sheets',
       icon: Download,

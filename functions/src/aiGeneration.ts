@@ -5,9 +5,14 @@ import { GoogleGenAI, Content, Type, Schema } from '@google/genai';
 import { sanitizePrompt } from './sanitize';
 import { parseGeminiJson } from './parseGeminiJson';
 import { BoundedLruMap } from './utils/boundedLruMap';
-import { ALLOWED_ORIGINS } from './classlinkShared';
+import { ALLOWED_ORIGINS, resolveOrgIdForDomain } from './classlinkShared';
+import { resolveDomainCandidates } from './resolveOrgForUser';
 import { GEMINI_API_KEY } from './secrets';
-import { GlobalPermission, normalizeModelName } from './shared';
+import {
+  GlobalPermission,
+  GlobalPermConfig,
+  normalizeModelName,
+} from './shared';
 
 interface AIData {
   type:
@@ -81,6 +86,153 @@ const ADMIN_STATUS_CACHE_MAX = 500;
 const cachedAdminStatus = new BoundedLruMap<string, AdminStatusCacheEntry>(
   ADMIN_STATUS_CACHE_MAX
 );
+
+// --- External (no-org / free-tier) daily AI cap -----------------------------
+//
+// W7: external availability rollout. Callers whose VERIFIED email domain does
+// not resolve to any organization (e.g. personal gmail.com accounts using the
+// public/free tier) get a separate, LOWER daily cap than org/internal users.
+// Org/internal users continue to read `config.dailyLimit ?? DEFAULT_DAILY_LIMIT`
+// exactly as before — see `isExternalCaller` + `pickOverallLimit`.
+
+/**
+ * Default overall daily cap applied to ORG/INTERNAL callers when an admin has
+ * not configured `dailyLimit`. This is the pre-existing inlined `?? 20`
+ * fallback, lifted to a named constant so the external-vs-org split is legible.
+ * Its VALUE is unchanged (20), so org users see identical behavior.
+ */
+const DEFAULT_DAILY_LIMIT = 20;
+
+/**
+ * Default overall daily cap applied to EXTERNAL (no-org / free-tier) callers
+ * when an admin has not configured `externalDailyLimit`. Deliberately well
+ * below {@link DEFAULT_DAILY_LIMIT} to bound free-tier AI spend.
+ */
+const DEFAULT_EXTERNAL_DAILY_LIMIT = 5;
+
+// Module-level domain→orgId resolution cache. The collectionGroup query in
+// `resolveOrgIdForDomain` is identical for every caller on a given domain and
+// rarely changes, so caching it per warm Cloud Functions instance keeps the
+// external/internal classification off the hot path (no extra Firestore read
+// per AI call once warm). Keyed by the lowercased '@domain' string. Bounded so
+// a long-lived instance that sees many unique domains can't grow unboundedly.
+// 5-minute TTL bounds how long a newly-verified domain (org promotion) lags.
+const ORG_RESOLUTION_CACHE_MAX = 500;
+const ORG_RESOLUTION_TTL_MS = READ_CACHE_TTL_MS;
+
+interface OrgResolutionCacheEntry {
+  orgId: string | null;
+  cachedAt: number;
+}
+const cachedOrgResolution = new BoundedLruMap<string, OrgResolutionCacheEntry>(
+  ORG_RESOLUTION_CACHE_MAX
+);
+
+/**
+ * Resolves the caller's org from their VERIFIED token (the `hd` hosted-domain
+ * claim first, else the email-domain suffix — same precedence as
+ * `resolveOrgForUser`), returning the orgId or `null` when no verified domain
+ * is registered to any org. Results are cached per-domain (module-level Map).
+ *
+ * Pure-ish: the only side effect is the cached Firestore collectionGroup read.
+ * `token` is the verified `request.auth.token`; never trust client-supplied
+ * data here.
+ */
+async function resolveOrgIdForToken(
+  db: admin.firestore.Firestore,
+  token: { email?: string; hd?: string }
+): Promise<string | null> {
+  const candidates = resolveDomainCandidates(token.hd, token.email);
+  if (candidates.length === 0) return null;
+  const now = Date.now();
+  for (const domain of candidates) {
+    const cached = cachedOrgResolution.get(domain);
+    if (cached && now - cached.cachedAt < ORG_RESOLUTION_TTL_MS) {
+      if (cached.orgId) return cached.orgId;
+      continue; // cached miss for this domain — try the next candidate
+    }
+    const orgId = await resolveOrgIdForDomain(db, domain);
+    cachedOrgResolution.set(domain, { orgId, cachedAt: now });
+    if (orgId) return orgId;
+  }
+  return null;
+}
+
+/**
+ * Classifies a caller as EXTERNAL (no org) or INTERNAL (org) from their
+ * VERIFIED token, for the purpose of picking the overall daily AI cap. Run
+ * this OUTSIDE any Firestore transaction — `resolveOrgIdForToken` issues a
+ * collectionGroup read that must not be entangled with a transaction's
+ * read/write set (and must not re-run on transaction retries).
+ *
+ * FAIL-SAFE TOWARD THE ORG PATH: returns `true` (external → lower cap) ONLY
+ * when we can affirmatively determine the caller has no org. A missing
+ * email/domain, or a lookup that throws, returns `false` (treat as org →
+ * normal cap). Misclassifying an org user as external (throttling them to the
+ * free-tier cap) is the worse failure, so undefined/error states err toward
+ * the normal limit. The trade-off — a transient lookup error lets a genuine
+ * external user briefly keep the org cap — is acceptable.
+ *
+ * Admins never reach this — the admin-exempt branch at each call site short-
+ * circuits before any limit is computed, exactly as before.
+ */
+async function isExternalCaller(
+  db: admin.firestore.Firestore,
+  token: { email?: string; hd?: string } | undefined
+): Promise<boolean> {
+  // No usable token/email → cannot prove "external"; treat as org.
+  if (!token || !token.email) return false;
+  try {
+    const orgId = await resolveOrgIdForToken(db, token);
+    return orgId === null; // null org = affirmatively external
+  } catch (error) {
+    console.warn(
+      'Org resolution failed during AI quota check; treating caller as org.',
+      error
+    );
+    return false;
+  }
+}
+
+/**
+ * Picks the effective OVERALL daily AI cap from the global config given a
+ * caller's external/internal classification (from {@link isExternalCaller}):
+ *
+ *  - INTERNAL (`isExternal === false`) → `config.dailyLimit ?? DEFAULT_DAILY_LIMIT`
+ *    — the UNCHANGED legacy path. Org/internal users see identical behavior.
+ *  - EXTERNAL (`isExternal === true`)  →
+ *    `config.externalDailyLimit ?? DEFAULT_EXTERNAL_DAILY_LIMIT`.
+ *
+ * Pure + synchronous so it is safe to call inside a Firestore transaction body
+ * (no foreign reads). The `dailyLimitEnabled` flag is checked separately by the
+ * caller and governs BOTH caps (when disabled, neither caps anyone).
+ */
+function pickOverallLimit(
+  config: GlobalPermConfig | undefined,
+  isExternal: boolean
+): number {
+  if (isExternal) {
+    return config?.externalDailyLimit ?? DEFAULT_EXTERNAL_DAILY_LIMIT;
+  }
+  return config?.dailyLimit ?? DEFAULT_DAILY_LIMIT;
+}
+
+/**
+ * Test-only: reset the module-scope org-resolution cache so tests can observe
+ * a cold-start classification sequence.
+ */
+export function __resetOrgResolutionCache(): void {
+  cachedOrgResolution.clear();
+}
+
+// Test-only re-exports of the W7 quota helpers.
+export {
+  isExternalCaller as __isExternalCaller,
+  pickOverallLimit as __pickOverallLimit,
+  resolveOrgIdForToken as __resolveOrgIdForToken,
+  DEFAULT_EXTERNAL_DAILY_LIMIT as __DEFAULT_EXTERNAL_DAILY_LIMIT,
+  DEFAULT_DAILY_LIMIT as __DEFAULT_DAILY_LIMIT,
+};
 
 /**
  * Test-only: reset the module-scope read caches so tests can observe a
@@ -221,6 +373,14 @@ export const generateWithAI = onCall(
     // Check if user is an admin (cached for 5 minutes per warm instance).
     const isAdmin = await getCachedAdminStatus(db, email.toLowerCase());
 
+    // W7: classify the caller as external (no org) for the daily-cap branch.
+    // Resolved BEFORE the transaction (collectionGroup read must not be inside
+    // it) and only for non-admins (admins are exempt, so the lookup is wasted
+    // for them). Cached per-domain; fail-safe toward "org" — see helper docs.
+    const isExternal = isAdmin
+      ? false
+      : await isExternalCaller(db, request.auth.token);
+
     // 1. Determine specific feature ID if applicable.
     //
     // Only include genTypes that are ALSO keys in the promptMap below.
@@ -310,7 +470,9 @@ export const generateWithAI = onCall(
 
           const overallLimitEnabled =
             globalPerm?.config?.dailyLimitEnabled !== false;
-          const overallLimit = globalPerm?.config?.dailyLimit ?? 20;
+          // W7: external (no-org) callers get the lower external cap; org/
+          // internal callers keep `config.dailyLimit ?? 20` (unchanged).
+          const overallLimit = pickOverallLimit(globalPerm?.config, isExternal);
 
           if (overallLimitEnabled && currentOverallUsage >= overallLimit) {
             throw new HttpsError(
@@ -1425,11 +1587,17 @@ export const generateVideoActivity = onCall(
       const today = new Date().toISOString().split('T')[0];
       const overallUsageRef = db.collection('ai_usage').doc(`${uid}_${today}`);
 
+      // W7: classify external (no-org) vs org caller BEFORE the transaction
+      // (collectionGroup read must not run inside it). Fail-safe toward org.
+      const isExternal = await isExternalCaller(db, request.auth.token);
+
       try {
         await db.runTransaction(async (transaction) => {
           const overallLimitEnabled =
             accessPerm?.config?.dailyLimitEnabled !== false;
-          const overallLimit = accessPerm?.config?.dailyLimit ?? 20;
+          // W7: external callers get the lower external cap; org/internal
+          // callers keep `config.dailyLimit ?? 20` (unchanged).
+          const overallLimit = pickOverallLimit(accessPerm?.config, isExternal);
 
           const overallUsageDoc = await transaction.get(overallUsageRef);
           const currentOverallUsage =
@@ -1666,6 +1834,10 @@ export const transcribeVideoWithGemini = onCall(
         .collection('ai_usage')
         .doc(`${uid}_video-activity-audio-transcription_${today}`);
 
+      // W7: classify external (no-org) vs org caller BEFORE the transaction
+      // (collectionGroup read must not run inside it). Fail-safe toward org.
+      const isExternal = await isExternalCaller(db, request.auth.token);
+
       try {
         await db.runTransaction(async (transaction) => {
           // 1. Check Overall Limit
@@ -1677,7 +1849,10 @@ export const transcribeVideoWithGemini = onCall(
             | undefined;
           const overallLimitEnabled =
             globalPerm?.config?.dailyLimitEnabled !== false;
-          const overallLimit = globalPerm?.config?.dailyLimit ?? 20;
+          // W7: external callers get the lower external cap; org/internal
+          // callers keep `config.dailyLimit ?? 20` (unchanged). The per-feature
+          // transcription cap below is separate and stays untouched.
+          const overallLimit = pickOverallLimit(globalPerm?.config, isExternal);
 
           const overallUsageDoc = await transaction.get(overallUsageRef);
           const currentOverallUsage =

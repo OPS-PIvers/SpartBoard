@@ -85,6 +85,8 @@ const mockAuthContext = (
   buildingIds: [],
   orgBuildings: [],
   orgBuildingsLoaded: true,
+  hasOrg: false,
+  isExternalUser: false,
   favoriteBackgrounds: [],
   recentBackgrounds: [],
   toggleFavoriteBackground: async () => {

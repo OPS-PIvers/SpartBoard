@@ -23,6 +23,8 @@ vi.mock('@/context/useAuth', () => ({
     googleAccessToken: 'token-1',
     user: { uid: 'user-1' },
     orgId: null,
+    // Non-external user so the Export-to-Sheets affordance under test renders.
+    isExternalUser: false,
   }),
 }));
 const clearPlcSharedSheetUrl = vi.fn().mockResolvedValue(undefined);

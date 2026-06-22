@@ -6543,6 +6543,17 @@ export interface Announcement {
   updatedAt: number;
   /** Email of the admin who created/last modified this announcement */
   createdBy: string;
+  /**
+   * The organization this announcement belongs to (multi-tenant isolation).
+   * Stamped to the creating admin's `orgId` at create time (Orono = 'orono').
+   * OMITTED for legacy docs created before org-isolation shipped — an absent
+   * value is treated as operator-org/global and stays visible to all
+   * authenticated users (the overlay's client filter and the Firestore read
+   * rule both keep legacy docs readable, preserving existing behavior).
+   * A backfill script (scripts/migrateAnnouncements.js) stamps 'orono' onto
+   * every legacy doc before the External launch.
+   */
+  orgId?: string;
 }
 
 export const DEFAULT_GLOBAL_STYLE: GlobalStyle = {

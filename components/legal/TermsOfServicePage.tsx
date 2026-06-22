@@ -6,14 +6,63 @@
  *   - governing law / venue (drafted as Minnesota)
  *   - the liability / disclaimer posture for a public-school-operated tool
  *   - the effective date (set to publish date below)
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ * DRAFT — EXTERNAL ELIGIBILITY (work item W10, wide-distro plan Phase 4 §1)
+ * ───────────────────────────────────────────────────────────────────────────
+ * The eligibility / availability language below has been DRAFTED to reflect
+ * open, self-serve external availability (any educator with a Google account
+ * may create a free-tier account) ahead of flipping the GCP OAuth consent
+ * screen to External. It is NOT finalized.
+ *
+ * OPEN QUESTION (district counsel must resolve before publish): the OPERATOR
+ * MODEL — who legally operates SpartBoard for non-Orono users, and the
+ * corresponding DPA / FERPA "school official" framing per consuming district.
+ * Do NOT assert a final legal position on the operator model here until counsel
+ * signs off. See docs/external-availability-legal-review.md and
+ * docs/wide-distro-plan.md (Open Questions → "Operator model").
+ *
+ * Search for `DRAFT_EXTERNAL_ELIGIBILITY` to find every spot touched by W10.
+ * ───────────────────────────────────────────────────────────────────────────
  */
 import React from 'react';
 import { LegalPageLayout, LegalH2, LegalP, LegalList } from './LegalPageLayout';
 
 const TERMS_CONTACT = 'spartboard@orono.k12.mn.us';
 
+/**
+ * DRAFT_EXTERNAL_ELIGIBILITY — pending district counsel sign-off on operator model.
+ *
+ * Visible, unmissable in-page banner so any reviewer (or accidental publish)
+ * sees that the eligibility language is not final. REMOVE this banner — and the
+ * inline DRAFT notes in the intro + "Eligibility and accounts" section — once
+ * counsel has signed off on the operator model and the copy is finalized.
+ */
+const DraftEligibilityBanner: React.FC = () => (
+  <div
+    role="note"
+    className="mb-8 rounded-md border-2 border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+  >
+    <strong className="font-semibold">
+      DRAFT — pending district counsel sign-off on operator model.
+    </strong>{' '}
+    The eligibility and availability language on this page has been drafted for
+    open external availability but is not yet final. The legal operator model
+    for non-Orono users is under review.
+  </div>
+);
+
 export const TermsOfServicePage: React.FC = () => (
   <LegalPageLayout title="Terms of Service" lastUpdated="May 29, 2026">
+    {/* DRAFT_EXTERNAL_ELIGIBILITY — remove banner once operator model is finalized (W10). */}
+    <DraftEligibilityBanner />
+
+    {/*
+      DRAFT_EXTERNAL_ELIGIBILITY (W10): intro broadened to cover any user, not
+      only the District. The operator framing ("operated by Orono Public
+      Schools") is the OPEN operator-model question — counsel must confirm or
+      revise before publish.
+    */}
     <LegalP>
       These Terms of Service (&ldquo;Terms&rdquo;) govern your use of
       SpartBoard, a classroom-management tool operated by Orono Public Schools
@@ -22,12 +71,23 @@ export const TermsOfServicePage: React.FC = () => (
     </LegalP>
 
     <LegalH2>Eligibility and accounts</LegalH2>
+    {/*
+      DRAFT_EXTERNAL_ELIGIBILITY (W10): rewritten from "provided to staff and
+      students of Orono Public Schools who sign in with a District-issued Google
+      account" to open self-serve external availability. Pending counsel sign-off
+      on the operator model.
+    */}
     <LegalP>
-      SpartBoard is provided to staff and students of Orono Public Schools who
-      sign in with a District-issued Google account. You are responsible for
+      SpartBoard is available to educators who sign in with a Google account.
+      Any educator with a Google account may create a free account to use the
+      features available to that account type; additional features are available
+      to Orono Public Schools staff and students and to organizations that have
+      arranged broader access with the District. You are responsible for
       activity that occurs under your account and for keeping your credentials
-      secure. Use of SpartBoard is also subject to the District&rsquo;s
-      acceptable-use and technology policies.
+      secure. If you use SpartBoard through a school or district, your use is
+      also subject to that institution&rsquo;s acceptable-use and technology
+      policies; Orono Public Schools staff and students remain subject to the
+      District&rsquo;s policies.
     </LegalP>
 
     <LegalH2>Acceptable use</LegalH2>

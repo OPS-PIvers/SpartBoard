@@ -100,7 +100,7 @@ export const Sidebar: React.FC = () => {
   const [activeSection, setActiveSection] = useState<MenuSection>('main');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const { user, signOut, isAdmin, appSettings } = useAuth();
+  const { user, signOut, isAdmin, appSettings, isExternalUser } = useAuth();
   const {
     dashboards,
     activeDashboard,
@@ -123,8 +123,16 @@ export const Sidebar: React.FC = () => {
   // The PLC dashboard is now a first-class route (`/plc/:id/:section`, Decision
   // 0.3) rendered by `PlcRouteHost`, which mounts its OWN `usePlcs` listener —
   // so the sidebar only needs the list while the drawer itself is open.
-  const plcsHook = usePlcs({ enabled: isOpen });
-  const plcInvitationsHook = usePlcInvitations({ enabled: isOpen });
+  //
+  // Skip the PLC listeners entirely for external (no-org/free-tier) users: PLCs
+  // are an org-only surface that's hidden for them below, so attaching the
+  // three Firestore `onSnapshot` subscriptions (1 from usePlcs, 2 from
+  // usePlcInvitations) would be pure waste. Gating on `!isExternalUser` (which
+  // is false while membership resolves) means org members keep their listeners
+  // unchanged.
+  const plcsEnabled = isOpen && !isExternalUser;
+  const plcsHook = usePlcs({ enabled: plcsEnabled });
+  const plcInvitationsHook = usePlcInvitations({ enabled: plcsEnabled });
 
   const { isConnected: isDriveConnected } = useGoogleDrive();
 
@@ -468,44 +476,54 @@ export const Sidebar: React.FC = () => {
                     </span>
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
-                  <button
-                    onClick={() => setActiveSection('classes')}
-                    className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
-                      <Users className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
-                    </div>
-                    <span className="flex-grow text-[13px]">
-                      {t('sidebar.nav.classes', {
-                        defaultValue: 'My Classes',
-                      })}
-                    </span>
-                    <span className="text-xxs bg-brand-blue-lighter text-brand-blue-primary px-2 py-0.5 rounded-full font-bold">
-                      {rosters.length}
-                    </span>
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
-                  </button>
-                  <PlcsMenuButton
-                    onClick={() => setActiveSection('plcs')}
-                    plcCount={plcsHook.plcs.length}
-                    pendingInviteCount={
-                      plcInvitationsHook.pendingInvites.length
-                    }
-                  />
-                  <button
-                    onClick={() => setActiveSection('buildings')}
-                    className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-teal-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
-                      <Building2 className="w-4 h-4 text-teal-400 group-hover:text-brand-blue-primary transition-colors" />
-                    </div>
-                    <span className="flex-grow text-[13px]">
-                      {t('sidebar.nav.buildings', {
-                        defaultValue: 'My Building(s)',
-                      })}
-                    </span>
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
-                  </button>
+                  {/* Org-only surfaces: My Classes (incl. ClassLink import),
+                      My PLCs, and My Building(s). Hidden for external (no-org/
+                      free-tier) users — buildings/PLCs/ClassLink are all org
+                      concepts. `isExternalUser` is false while membership
+                      resolves, so org/internal members never see these flicker
+                      off during load. */}
+                  {!isExternalUser && (
+                    <>
+                      <button
+                        onClick={() => setActiveSection('classes')}
+                        className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                          <Users className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
+                        </div>
+                        <span className="flex-grow text-[13px]">
+                          {t('sidebar.nav.classes', {
+                            defaultValue: 'My Classes',
+                          })}
+                        </span>
+                        <span className="text-xxs bg-brand-blue-lighter text-brand-blue-primary px-2 py-0.5 rounded-full font-bold">
+                          {rosters.length}
+                        </span>
+                        <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
+                      </button>
+                      <PlcsMenuButton
+                        onClick={() => setActiveSection('plcs')}
+                        plcCount={plcsHook.plcs.length}
+                        pendingInviteCount={
+                          plcInvitationsHook.pendingInvites.length
+                        }
+                      />
+                      <button
+                        onClick={() => setActiveSection('buildings')}
+                        className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-teal-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                          <Building2 className="w-4 h-4 text-teal-400 group-hover:text-brand-blue-primary transition-colors" />
+                        </div>
+                        <span className="flex-grow text-[13px]">
+                          {t('sidebar.nav.buildings', {
+                            defaultValue: 'My Building(s)',
+                          })}
+                        </span>
+                        <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 <div className="mx-5 my-2.5 border-t border-slate-100" />
@@ -567,84 +585,114 @@ export const Sidebar: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex flex-col px-2.5">
-                  <button
-                    onClick={() => setActiveSection('google-drive')}
-                    className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
-                      <GoogleDriveIcon className="w-4 h-4" />
-                    </div>
-                    <span className="flex-grow text-[13px]">
-                      {t('sidebar.nav.googleDrive', {
-                        defaultValue: 'Google Drive',
-                      })}
-                    </span>
-                    <div
-                      className={`w-2 h-2 rounded-full flex-shrink-0 ${isDriveConnected ? 'bg-emerald-500' : 'bg-amber-400'}`}
-                    />
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
-                  </button>
-                  <button
-                    onClick={() => setShowWhatsNew(true)}
-                    className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
-                  >
-                    <div className="relative w-8 h-8 rounded-lg bg-emerald-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
-                      <Sparkles className="w-4 h-4 text-emerald-500 group-hover:text-brand-blue-primary transition-colors" />
+                  {/* Google Drive backup/sync is a Google-API feature excluded
+                      from the free tier (docs/wide-distro-plan.md Phase 3:
+                      "excludes all Google-API features"). Hide the entry for
+                      external (no-org/free-tier) users so they never connect
+                      Drive — keeping their boards Firestore-only and the Sheets
+                      export inert. `isExternalUser` is false while membership
+                      resolves, so org/internal members are unaffected. */}
+                  {!isExternalUser && (
+                    <button
+                      onClick={() => setActiveSection('google-drive')}
+                      className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                        <GoogleDriveIcon className="w-4 h-4" />
+                      </div>
+                      <span className="flex-grow text-[13px]">
+                        {t('sidebar.nav.googleDrive', {
+                          defaultValue: 'Google Drive',
+                        })}
+                      </span>
+                      <div
+                        className={`w-2 h-2 rounded-full flex-shrink-0 ${isDriveConnected ? 'bg-emerald-500' : 'bg-amber-400'}`}
+                      />
+                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
+                    </button>
+                  )}
+                  {/* "What's New" / announcements: org-only surface, hidden for
+                      external (no-org/free-tier) users along with the other org
+                      menu items. `isExternalUser` is false during the
+                      membership-loading window, so org members never see it
+                      flicker off. */}
+                  {!isExternalUser && (
+                    <button
+                      onClick={() => setShowWhatsNew(true)}
+                      className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
+                    >
+                      <div className="relative w-8 h-8 rounded-lg bg-emerald-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                        <Sparkles className="w-4 h-4 text-emerald-500 group-hover:text-brand-blue-primary transition-colors" />
+                        {hasUnreadWhatsNew && (
+                          <span
+                            className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-brand-red-primary border-2 border-white"
+                            aria-hidden="true"
+                          />
+                        )}
+                      </div>
+                      <span className="flex-grow text-[13px]">
+                        {t('sidebar.nav.whatsNew', {
+                          defaultValue: "What's New",
+                        })}
+                      </span>
                       {hasUnreadWhatsNew && (
-                        <span
-                          className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-brand-red-primary border-2 border-white"
-                          aria-hidden="true"
-                        />
+                        <>
+                          <span className="sr-only">
+                            {t('sidebar.nav.whatsNewSrAnnouncement', {
+                              defaultValue: 'New release notes available',
+                            })}
+                          </span>
+                          <span
+                            className="text-xxs font-bold text-brand-red-primary group-hover:text-brand-red-dark uppercase tracking-wide transition-colors"
+                            aria-hidden="true"
+                          >
+                            {t('sidebar.nav.whatsNewBadge', {
+                              defaultValue: 'New',
+                            })}
+                          </span>
+                        </>
                       )}
-                    </div>
-                    <span className="flex-grow text-[13px]">
-                      {t('sidebar.nav.whatsNew', {
-                        defaultValue: "What's New",
-                      })}
-                    </span>
-                    {hasUnreadWhatsNew && (
-                      <>
-                        <span className="sr-only">
-                          {t('sidebar.nav.whatsNewSrAnnouncement', {
-                            defaultValue: 'New release notes available',
-                          })}
-                        </span>
-                        <span
-                          className="text-xxs font-bold text-brand-red-primary group-hover:text-brand-red-dark uppercase tracking-wide transition-colors"
-                          aria-hidden="true"
-                        >
-                          {t('sidebar.nav.whatsNewBadge', {
-                            defaultValue: 'New',
-                          })}
-                        </span>
-                      </>
-                    )}
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
-                  </button>
+                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
+                    </button>
+                  )}
                 </div>
               </nav>
 
-              {/* CLASSES SECTION */}
-              <SidebarClasses isVisible={activeSection === 'classes'} />
+              {/* Org-only section panels (Classes / PLCs / Buildings). Not
+                  rendered for external (no-org/free-tier) users — their menu
+                  buttons are hidden above, so the panels are unreachable, but
+                  skipping them entirely is defense-in-depth (and avoids passing
+                  the disabled PLC hook's empty data into SidebarPlcs).
+                  `isExternalUser` is false while membership resolves. */}
+              {!isExternalUser && (
+                <>
+                  {/* CLASSES SECTION */}
+                  <SidebarClasses isVisible={activeSection === 'classes'} />
 
-              {/* PLCS SECTION */}
-              <SidebarPlcs
-                isVisible={activeSection === 'plcs'}
-                plcs={plcsHook.plcs}
-                plcsLoading={plcsHook.loading}
-                createPlc={plcsHook.createPlc}
-                leavePlc={plcsHook.leavePlc}
-                deletePlc={plcsHook.deletePlc}
-                pendingInvites={plcInvitationsHook.pendingInvites}
-                onOpenDashboard={(plcId) => {
-                  // Navigate to the first-class PLC route (Decision 0.3) instead
-                  // of opening an overlay. Close the drawer + reset the section
-                  // so returning to the board lands on the main menu.
-                  setIsOpen(false);
-                  setActiveSection('main');
-                  spaNavigate(buildPlcPath(plcId));
-                }}
-              />
+                  {/* PLCS SECTION */}
+                  <SidebarPlcs
+                    isVisible={activeSection === 'plcs'}
+                    plcs={plcsHook.plcs}
+                    plcsLoading={plcsHook.loading}
+                    createPlc={plcsHook.createPlc}
+                    leavePlc={plcsHook.leavePlc}
+                    deletePlc={plcsHook.deletePlc}
+                    pendingInvites={plcInvitationsHook.pendingInvites}
+                    onOpenDashboard={(plcId) => {
+                      // Navigate to the first-class PLC route (Decision 0.3)
+                      // instead of opening an overlay. Close the drawer + reset
+                      // the section so returning to the board lands on the main
+                      // menu.
+                      setIsOpen(false);
+                      setActiveSection('main');
+                      spaNavigate(buildPlcPath(plcId));
+                    }}
+                  />
+
+                  {/* MY BUILDING(S) SECTION */}
+                  <SidebarBuildings isVisible={activeSection === 'buildings'} />
+                </>
+              )}
 
               {/* STYLE / LANGUAGE / PREFERENCES — now consolidated into the
                   SettingsModal (opened from the "Settings" entry above). */}
@@ -653,9 +701,6 @@ export const Sidebar: React.FC = () => {
               <SidebarGoogleDrive
                 isVisible={activeSection === 'google-drive'}
               />
-
-              {/* MY BUILDING(S) SECTION */}
-              <SidebarBuildings isVisible={activeSection === 'buildings'} />
             </div>
 
             {/* Footer */}

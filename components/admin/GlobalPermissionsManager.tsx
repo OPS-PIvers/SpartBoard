@@ -544,6 +544,14 @@ export const GlobalPermissionsManager: React.FC = () => {
         betaUsers: [],
         enabled: defaults.defaultEnabled,
         buildings: [],
+        // Seed the synthetic permission's `minTier` from the in-code default so
+        // the admin editor shows the effective tier floor that `canAccessFeature`
+        // already enforces on the missing-doc path (e.g. google-classroom /
+        // ai-file-context default to 'org'). Omit the field when there's no
+        // default so the "Any tier" option stays selected for pre-tier features.
+        ...(defaults.defaultMinTier
+          ? { minTier: defaults.defaultMinTier }
+          : {}),
         config: GEMINI_FEATURES.includes(featureId)
           ? { dailyLimit: defaultLimit, dailyLimitEnabled: true }
           : {},

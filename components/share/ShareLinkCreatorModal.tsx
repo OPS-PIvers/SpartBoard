@@ -137,7 +137,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
     activeRosterId,
     addToast,
   } = useDashboard();
-  const { canAccessFeature, selectedBuildings } = useAuth();
+  const { canAccessFeature, selectedBuildings, hasOrg } = useAuth();
   const { plcs } = usePlcs();
   const adminBuildings = useAdminBuildings();
   const [mode, setMode] = useState<ShareMode>('synced');
@@ -152,9 +152,17 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
 
   // Substitute-mode config state (Phase A — UI only).
   const teacherBuildings = useMemo(() => {
-    const list = adminBuildings.length > 0 ? adminBuildings : BUILDINGS;
+    // Fall back to the hardcoded BUILDINGS seed ONLY for org members during the
+    // org-set-but-loading window. For external (no-org/free-tier) users
+    // `useAdminBuildings()` deliberately returns [] (it no longer leaks the
+    // Orono seed), so we must NOT re-introduce the seed here — `hasOrg` keeps
+    // the substitute-mode building picker from listing another district's real
+    // school names. Org members (incl. Orono) keep the seed placeholder while
+    // their Firestore buildings hydrate, so their behavior is unchanged.
+    const list =
+      adminBuildings.length > 0 ? adminBuildings : hasOrg ? BUILDINGS : [];
     return list.map((b) => ({ id: canonicalBuildingId(b.id), name: b.name }));
-  }, [adminBuildings]);
+  }, [adminBuildings, hasOrg]);
   const defaultBuildingId = useMemo(() => {
     const first = selectedBuildings?.[0];
     if (
