@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-06-16_
+_Last audited: 2026-06-23_
 _Last action: 2026-05-26_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-23: Skill files accessible at `/mnt/skills/user/` in this environment. Both skill files read and verified against codebase after merging dev-paul (80 files changed). Codebase-side verifications: (1) `SpecialistSchedule/` confirmed: contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts`, `utils.ts` — still no `Widget.tsx`; MEDIUM `SpecialistScheduleSettings.tsx` item remains valid. (2) `FeaturePermissionsManager.tsx` exclusion array still contains the same 13 hardcoded types (lines 968–980) — LOW item #1 remains valid. (3) `FeatureConfigurationPanel.tsx` `BUILDING_CONFIG_PANELS` still growing — LOW item #2 about undocumented secondary exclusion gate remains valid. (4) `lazyNamed()` convention confirmed correct. (5) `config/tools.ts`, `config/widgetDefaults.ts`, `config/widgetGradeLevels.ts`, `components/widgets/WidgetRegistry.ts` all match skill checklist steps — patterns stable. (6) Admin config path matches actual hierarchy. (7) No stale paths or non-existent file references found in either skill beyond the already-tracked items. New commits since 2026-06-16 (external-availability, OAuth scopes, PLC meeting board, import-path unification) do not affect any skill-relevant patterns. All 3 open items remain valid._
 
 _2026-06-16: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — same as all prior runs). Codebase-side verifications performed: (1) `SpecialistSchedule/` still contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts`, `utils.ts` — `Widget.tsx` still absent and `SpecialistScheduleSettings.tsx` still absent; MEDIUM item about non-existent references remains valid. (2) `FeaturePermissionsManager.tsx` exclusion array (lines 968–980) still contains the same 13 hardcoded types as 2026-06-09: blooms-taxonomy, calendar, catalyst, graphic-organizer, instructionalRoutines, miniApp, music, pdf, specialist-schedule, starter-pack, stickers, video-activity, work-symbols — LOW item #1 remains valid. (3) `FeatureConfigurationPanel.tsx` `BUILDING_CONFIG_PANELS` confirmed still present and growing — LOW item #2 about undocumented secondary exclusion gate remains valid. (4) `lazyNamed()` convention confirmed correct across WidgetRegistry.ts. New commits since 2026-06-09 do not affect any of these (only touched random/library rename guard, migration, i18n, LTI). All 3 open items remain valid._
 
@@ -32,12 +34,7 @@ _2026-05-12: Skill files not accessible at `/mnt/skills/user/` in this audit env
 
 _2026-05-05: Skill files not accessible at `/mnt/skills/user/` in this audit environment. Codebase-side verifications performed: `SpecialistSchedule/SpecialistScheduleWidget.tsx` still exists (Widget.tsx does not); `FeaturePermissionsManager.tsx` exclusion list still omits the 7 types noted in the LOW item below; `FeatureConfigurationPanel.tsx` secondary exclusion gate still undocumented in skill. `blending-board` was added to `BUILDING_CONFIG_PANELS` in `FeatureConfigurationPanel.tsx` this week — the exclusion-list LOW item is now more stale. All four open items remain valid._
 
-### MEDIUM `spart-widget-admin-config` references non-existent `SpecialistScheduleSettings.tsx`
-
-- **Detected:** 2026-04-14
-- **File:** `.claude/skills/admin-widget-config/SKILL.md` — "How Configs Reach the Widget" section
-- **Detail:** The skill references `SpecialistScheduleSettings.tsx` as a working example of how to read `featurePermissions` in a widget settings component. No file named `SpecialistScheduleSettings.tsx` exists anywhere in the codebase. The correct path is `components/widgets/SpecialistSchedule/Settings.tsx`. The pattern itself is valid and the code works, but a developer following the skill literally cannot find the referenced file.
-- **Fix:** Update the skill to reference `components/widgets/SpecialistSchedule/Settings.tsx` (not `SpecialistScheduleSettings.tsx`).
+_2026-06-23 action: Fixed MEDIUM `admin-widget-config` reference to non-existent `SpecialistScheduleSettings.tsx`. Both skill copies (`.claude/skills/admin-widget-config/SKILL.md:222` and `.agents/skills/admin-widget-config/SKILL.md:185`) updated to reference the correct path `components/widgets/SpecialistSchedule/Settings.tsx`. Verified the target file exists and reads `featurePermissions` (Settings.tsx:48). File-recency check passed: skill files last touched at 19b6ae40 — outside the last 5 branch commits. Documentation-only change; PR opened against dev-paul. Item moved to Completed. 2 LOW open items remain._
 
 ### LOW `spart-widget-admin-config` exclusion array example is missing 7 widget types
 
@@ -60,6 +57,14 @@ _2026-05-05: Skill files not accessible at `/mnt/skills/user/` in this audit env
 ---
 
 ## Completed
+
+### MEDIUM `spart-widget-admin-config` references non-existent `SpecialistScheduleSettings.tsx`
+
+- **Detected:** 2026-04-14
+- **Completed:** 2026-06-23
+- **File:** `.claude/skills/admin-widget-config/SKILL.md` + `.agents/skills/admin-widget-config/SKILL.md` — "How Configs Reach the Widget" section
+- **Detail:** The skill referenced `SpecialistScheduleSettings.tsx` as a working example of how to read `featurePermissions` in a widget settings component. No file named `SpecialistScheduleSettings.tsx` exists anywhere in the codebase. The correct path is `components/widgets/SpecialistSchedule/Settings.tsx`. The pattern itself is valid and the code works, but a developer following the skill literally could not find the referenced file.
+- **Resolution:** Updated both skill copies (`.claude/skills/admin-widget-config/SKILL.md` and the mirrored `.agents/skills/admin-widget-config/SKILL.md`) to reference the correct path `components/widgets/SpecialistSchedule/Settings.tsx`. Confirmed the target exists and reads `featurePermissions` at `Settings.tsx:48`. Documentation-only change.
 
 ### MEDIUM `spart-new-widget` references non-existent `SpecialistSchedule/Widget.tsx`
 
