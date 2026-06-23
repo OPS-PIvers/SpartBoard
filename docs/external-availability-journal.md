@@ -112,7 +112,32 @@ All ten work items implemented on `feat/external-availability-rollout` via paral
 
 ---
 
+### 2026-06-22 (evening) — Phase 4: PROD MERGE + EXTERNAL FLIP **LIVE**
+
+Paul re-engaged and directed me to finish the Google-console side via the Claude-in-Chrome extension. Completed, in order:
+
+**1. Promoted `dev-paul → main` (Launch Gate #5 ✅).** PR [#2054](https://github.com/OPS-PIvers/SpartBoard/pull/2054) merged with a **regular merge commit** (`8b29267e`, never squash per [[spartboard-merge-flow]]; `dev-paul` preserved). CI fully green on the merged commit (lint, test 5,775+697, type-check, CodeQL, dev-deploy). The **prod deploy on `main` succeeded** (`firebase-deploy.yml`, conclusion success) — the external-availability frontend is now on prod hosting. It was **dormant** until the flip below (Internal consent screen still rejected non-Orono accounts).
+
+**2. OAuth branding saved (Console → Branding).** Home `https://spartboard.web.app/`, Privacy `…/privacy`, Terms `…/terms`, developer-contact `paul.ivers@orono.k12.mn.us`. Authorized domains **already** included `spartboard.web.app` + `spartboard.firebaseapp.com` (plus dev-preview channels) — no change needed. _Logo still NOT uploaded_ — the desktop file-upload sandbox only accepts files shared with the session, not an arbitrary repo path; `marketplace-assets/icon-128.png` needs a manual Browse-upload (or drag into chat). Not on the critical path (logo + verification are one bundle, and verification needs the manual demo video regardless).
+
+**3. Consent-screen scope audit (Console → Data Access).** The declared scope set is **broader than the runbook assumed**, but the extras are **dead declarations**:
+
+- **`drive.readonly` (restricted)** and **`bigquery` (sensitive)** are declared but **never requested** by app code (`config/firebase.ts:67` deliberately excludes `drive.readonly`; nothing calls bigquery). Paperwork-only; ideally pruned from the declared list later to simplify verification.
+- **Live on-demand scopes** (requested per-feature, not at login): `spreadsheets`, `calendar.readonly`, `classroom.courses.readonly`, `classroom.coursework.students` (restricted, **admin-only** via `CLASSROOM_ASSIGN_ENABLED`), `classroom.addons.*`.
+- **Login set stays non-sensitive:** `drive.file` + `openid`/`email`/`profile` (Path B holds).
+
+**4. Flipped Audience → External + In production (Launch Gate #2 partial ✅).** Paul chose **"flip now, accept reversible risk."** Console → Audience → Make external → **In production** → Confirm. Page now reads **User type: External**, **Publishing status: In production**, with **"Make internal"** present (fully reversible per runbook §7). Screenshot captured.
+
+- **Open self-serve is live for the core app.** The OAuth **user cap (0 / 100)** applies _only_ to users granting **unapproved sensitive/restricted scopes** — it does **not** apply to non-sensitive scopes. Because Path B keeps login at `drive.file`, **unlimited external users can now sign in and use the core app**; the 100-lifetime-cap only bites for on-demand Calendar/Sheets/Classroom consents until verification clears.
+- **"Your app requires verification"** banner is now showing (expected) — clearing it (and the 100-cap on sensitive features) needs the verification submission, which is blocked on the **manual demo video**.
+
+**Residual Orono risk Paul explicitly accepted:** I could **not** confirm the prod OAuth web client (`…-hdc7`) is explicitly **"Trusted" in Admin → API Controls** — the Admin console is behind ClassLink SSO and I won't authenticate. Sign-in is safe regardless (drive.file is non-sensitive → never blocked). The unverifiable bit is whether Orono's **on-demand** restricted/sensitive features (Classroom-assign, Sheets, Calendar) keep working under External; evidence strongly suggests Trusted (the Classroom-assign feature already works), and if anything degrades it's **instantly reversible** via "Make internal."
+
+---
+
 ## 🔑 Launch gates — Paul's go/no-go before flipping to External
+
+> **Status @ 2026-06-22 evening:** Gate #5 (merge→main) **DONE**; Gate #2 (flip to External + Production) **DONE** (verification submission still pending the demo video). Gates **#1 (legal sign-off)**, **#3 (`CLASSROOM_ASSIGN_ENABLED` / confirm client Trusted)**, **#4 (announcements backfill sequence)** remain **open** and are now the post-flip follow-ups (see "Remaining for Paul" below). The flip is reversible (`Make internal`) if any of these surface a problem.
 
 Code is done and safe-to-land, but the **actual external launch** (flipping the OAuth consent screen) is intentionally left to you and is gated on these, in order:
 
@@ -131,3 +156,18 @@ Code is done and safe-to-land, but the **actual external launch** (flipping the 
 - **AI free-tier daily cap value** — defaulted external/free to **5/day** (`DEFAULT_EXTERNAL_DAILY_LIMIT`), vs the org default of 20; tune via the `externalDailyLimit` config key in `global_permissions`.
 - **`SupportPage.tsx`** still carries Orono-only framing (out of W10's `/privacy`+`/terms` scope) — broaden it before the flip.
 - **Deferred isolation follow-ups** (not blocking launch): `feature_permissions` exposes `betaUsers` emails + district config world-readable; `/announcements/{id}/pollVotes` subcollection is still `auth != null` (kept open for anonymous public-poll voting); global catalogs show Orono-authored content to externals (shared-by-design).
+
+---
+
+## ✅ Remaining for Paul (post-flip, 2026-06-22)
+
+The app is **External + In production** — external users can sign in and use the core app now. These items polish/complete the launch and close the accepted residual risk. None block external sign-in; they're ordered by Orono-safety priority.
+
+1. **Confirm the prod OAuth web client is "Trusted"** in Admin Console → Security → Access & data control → **API controls → App access control** (look up client `…-hdc7` / SpartBoard). If Trusted → the accepted residual risk is fully closed (Orono on-demand Classroom/Sheets/Calendar keep working under External). If **not** Trusted → either mark it Trusted, or set `CLASSROOM_ASSIGN_ENABLED=false` + redeploy, or `Make internal` to roll back. _(I couldn't check — Admin console is behind ClassLink SSO.)_
+2. **Upload the consent-screen logo** — Console → Branding → Browse → `marketplace-assets/icon-128.png` (square PNG ≤1 MB). Triggers brand verification, which is part of the same submission as #3.
+3. **Submit OAuth verification** (clears the "unverified app" banner + the 100-user sensitive-scope cap) — needs the **manual demo video** (unlisted YouTube showing the consent screen + each sensitive scope's feature). Scope justifications are ready-to-paste in [external-availability-oauth-runbook.md](external-availability-oauth-runbook.md) §3.2. Consider **pruning the dead `drive.readonly` + `bigquery` declarations** (Console → Data Access) first to simplify the review.
+4. **`CLASSROOM_ASSIGN_ENABLED` decision** (Launch Gate #3) — resolve alongside #1.
+5. **Announcements backfill sequence** (Launch Gate #4) — the three-step `backfill-org-members` → `migrateAnnouncements` → scope-the-listener sequence, before a **second** org has active announcements.
+6. **Legal / operator-model sign-off** (Launch Gate #1) — finalize `/privacy` + `/terms` external-eligibility copy after district counsel; broaden `SupportPage.tsx`.
+
+**Rollback at any point:** Console → Audience → **Make internal** (instantly re-rejects non-Orono accounts; Orono unaffected — same client, same scopes, grants intact).
