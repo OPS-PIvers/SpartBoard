@@ -3,11 +3,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DrawingConfigurationPanel } from './DrawingConfigurationPanel';
 import { DrawingGlobalConfig } from '@/types';
 
-// Mock BUILDINGS
-vi.mock('@/config/buildings', () => ({
-  BUILDINGS: [
-    { id: 'b1', name: 'Building 1' },
-    { id: 'b2', name: 'Building 2' },
+// The panel reads its building list from `useAdminBuildings()`, which returns
+// `[]` for a no-org/provider-less render. An admin always has an org in real
+// usage, so mock the hook to supply the building list the panel renders.
+vi.mock('@/hooks/useAdminBuildings', () => ({
+  useAdminBuildings: () => [
+    { id: 'b1', name: 'Building 1', gradeLevels: [], gradeLabel: '' },
+    { id: 'b2', name: 'Building 2', gradeLevels: [], gradeLabel: '' },
   ],
 }));
 

@@ -16,7 +16,8 @@ import { TOOL_PUBLIC_JWKS } from './toolJwks';
  * https://spartboard.web.app/.well-known/jwks.json via a hosting rewrite.
  */
 export const ltiJwks = onRequest(
-  { region: 'us-central1', cors: true, memory: '128MiB' },
+  // 256MiB: a 128MiB instance OOMs on the bundled nodejs24 cold-start (~140MiB).
+  { region: 'us-central1', cors: true, memory: '256MiB' },
   (_req, res) => {
     res.set('Cache-Control', 'public, max-age=3600');
     res.status(200).json(TOOL_PUBLIC_JWKS);

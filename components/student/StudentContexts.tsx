@@ -23,6 +23,10 @@ const mockAuth: AuthContextType = {
   canAccessWidget: () => true, // Allow everything in student view
   canAccessFeature: () => true,
   userTier: 'free',
+  // Students are never org members and never external (the real isExternalUser
+  // predicate excludes student roles outright).
+  hasOrg: false,
+  isExternalUser: false,
   // Student view doesn't render assignment-creation UI; the default keeps
   // any consumers that read this returning the safe pre-feature default.
   getAssignmentMode: () => 'submissions',
@@ -52,6 +56,7 @@ const mockAuth: AuthContextType = {
   connectGoogleDrive: async () => {
     // No-op in student view
   },
+  ensureGoogleScope: () => Promise.resolve(null),
   savedWidgetConfigs: {},
   saveWidgetConfig: () => {
     // No-op

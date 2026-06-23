@@ -282,7 +282,8 @@
       "targetNotActiveMember": "Solo puedes transferir el liderazgo a un miembro activo.",
       "cannotDemoteLead": "Usa «Transferir liderazgo» para cambiar quién lidera la PLC.",
       "invalidRole": "Ese no es un rol válido de la PLC.",
-      "alreadyLead": "Ese miembro ya es el líder de esta PLC."
+      "alreadyLead": "Ese miembro ya es el líder de esta PLC.",
+      "orgRequired": "Las PLC solo están disponibles para los miembros de una organización."
     }
   },
   "plcDashboard": {

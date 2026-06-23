@@ -100,6 +100,9 @@ vi.mock('@/context/useAuth', () => ({
       email: 'smith@school.edu',
     },
     googleAccessToken: null,
+    // Path B: sheet auto-create now gates on ensureGoogleScope. Resolve null to
+    // preserve the "no token → skip sheet creation" behavior these tests assert.
+    ensureGoogleScope: vi.fn().mockResolvedValue(null),
   })),
 }));
 

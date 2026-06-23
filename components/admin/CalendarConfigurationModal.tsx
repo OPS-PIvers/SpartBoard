@@ -26,7 +26,8 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { Toast } from '@/components/common/Toast';
 import { Modal } from '@/components/common/Modal';
-import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
+import { useAuth } from '@/context/useAuth';
+import { GoogleCalendarService } from '@/utils/googleCalendarService';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 
@@ -39,8 +40,17 @@ export const CalendarConfigurationModal: React.FC<
   CalendarConfigurationModalProps
 > = ({ isOpen, onClose }) => {
   const BUILDINGS = useAdminBuildings();
-  const { calendarService, isConnected, refreshGoogleToken } =
-    useGoogleCalendar();
+  // Path B: calendar sync needs the `calendar.readonly` scope, acquired on
+  // demand (not at login). Probe SILENTLY on open to reflect already-granted
+  // admins as connected; "Sync All Now" / "Reconnect" request consent
+  // interactively (a user gesture) and seed the token for the background
+  // AdminCalendarFetcher.
+  const { ensureGoogleScope } = useAuth();
+  // null = probe not yet resolved (hide the reconnect CTA to avoid a one-frame
+  // flash on open for already-connected admins); true/false once it resolves.
+  const [isCalendarConnected, setIsCalendarConnected] = useState<
+    boolean | null
+  >(null);
   const [config, setConfig] = useState<CalendarGlobalConfig>({
     blockedDates: [],
     buildingDefaults: {},
@@ -83,6 +93,29 @@ export const CalendarConfigurationModal: React.FC<
     }
   }, [isOpen, fetchConfig]);
 
+  // Silent calendar-scope probe while the modal is open. NON-interactive — no
+  // popup from this effect. Already-granted admins flip to connected; others
+  // stay disconnected and use the gesture-driven sync/reconnect buttons.
+  useEffect(() => {
+    if (!isOpen) {
+      // Reset on close so a reopen never shows a stale "connected" status
+      // before the probe re-resolves (null = hidden until the probe resolves).
+      setIsCalendarConnected(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const token = await ensureGoogleScope('calendar.readonly');
+      // Reflect the actual probe result (false on a silent miss / revoked
+      // token), not just successes — otherwise a failed probe leaves a stale
+      // connected state.
+      if (!cancelled) setIsCalendarConnected(!!token);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, ensureGoogleScope]);
+
   const handleSave = async (updatedConfig?: CalendarGlobalConfig) => {
     if (isAuthBypass) return;
     setSaving(true);
@@ -112,13 +145,23 @@ export const CalendarConfigurationModal: React.FC<
   };
 
   const handleSyncAll = async () => {
-    if (!calendarService || !isConnected) {
+    // Acquire the calendar.readonly scope on demand (Path B). This is the
+    // gesture that SEEDS consent for never-granted admins — interactive, so a
+    // consent popup is allowed; silent (no popup) for already-granted admins.
+    // Once granted, the persisted token also unblocks the background
+    // AdminCalendarFetcher. Null → user declined / no access.
+    const token = await ensureGoogleScope('calendar.readonly', {
+      interactive: true,
+    });
+    if (!token) {
       setMessage({
         text: 'Please sign in with Google to sync calendars.',
         type: 'error',
       });
       return;
     }
+    setIsCalendarConnected(true);
+    const calendarService = new GoogleCalendarService(token);
 
     setSyncing(true);
     try {
@@ -227,9 +270,15 @@ export const CalendarConfigurationModal: React.FC<
         </div>
       </div>
       <div className="flex items-center gap-2">
-        {!isConnected && (
+        {isCalendarConnected === false && (
           <button
-            onClick={() => void refreshGoogleToken()}
+            onClick={() =>
+              void ensureGoogleScope('calendar.readonly', {
+                interactive: true,
+              }).then((token) => {
+                if (token) setIsCalendarConnected(true);
+              })
+            }
             className="text-xxs font-black text-rose-500 hover:text-rose-600 uppercase tracking-widest px-3 py-1 bg-rose-50 rounded-lg transition-colors border border-rose-100 mr-2"
           >
             Reconnect Google
@@ -343,7 +392,14 @@ export const CalendarConfigurationModal: React.FC<
                     </div>
                     <button
                       onClick={handleSyncAll}
-                      disabled={syncing || !isConnected}
+                      // Disabled until the silent probe resolves to a REAL
+                      // connection (true). While the probe is pending (null) or
+                      // the admin hasn't granted the scope (false), clicking
+                      // would fire an interactive ensureGoogleScope and pop an
+                      // unexpected OAuth dialog. Disconnected admins use the
+                      // "Reconnect Google" button (gated on === false) to grant
+                      // consent first; that flips this to enabled.
+                      disabled={syncing || isCalendarConnected !== true}
                       className="flex items-center gap-2 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xs font-black hover:bg-brand-blue-dark transition-all shadow-md disabled:opacity-50"
                     >
                       {syncing ? (

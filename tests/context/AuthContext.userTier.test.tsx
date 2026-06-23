@@ -22,6 +22,17 @@ vi.mock('firebase/auth', async () => {
   };
 });
 
+// `resolveOrgIdForUser` calls the `resolveOrgForUser` callable. By default we
+// make it reject so the membership effect takes its operator-org fallback (the
+// path every existing org-member test relies on). Individual tests can override
+// `httpsCallableImpl` — e.g. the "membership still resolving" case below returns
+// a never-settling promise so `membershipResolved` stays false.
+let httpsCallableImpl: () => Promise<{ data: { orgId: string | null } }> = () =>
+  Promise.reject(new Error('callable unavailable in test'));
+vi.mock('firebase/functions', () => ({
+  httpsCallable: () => () => httpsCallableImpl(),
+}));
+
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((_db: unknown, ...segments: string[]) => ({
     __path: segments.join('/'),
@@ -54,7 +65,10 @@ function getCtx(): AuthContextType {
   return ctxHolder.current;
 }
 
-function buildFakeUser(email: string): User {
+function buildFakeUser(
+  email: string,
+  claims: Record<string, unknown> = {}
+): User {
   return {
     uid: 'test-uid',
     email,
@@ -70,7 +84,7 @@ function buildFakeUser(email: string): User {
     delete: vi.fn(),
     getIdToken: vi.fn().mockResolvedValue('mock-id-token'),
     getIdTokenResult: vi.fn().mockResolvedValue({
-      claims: {},
+      claims,
       authTime: '',
       issuedAtTime: '',
       expirationTime: '',
@@ -157,6 +171,8 @@ async function mountAs(opts: {
   isOrgMember?: boolean;
   globalPerms?: GlobalFeaturePermission[];
   featurePerms?: FeaturePermission[];
+  /** Custom claims to stamp on the fake user's ID token (e.g. studentRole). */
+  claims?: Record<string, unknown>;
 }): Promise<void> {
   ctxHolder.current = null;
   setupGetDoc({ adminEmail: opts.isAdmin ? opts.email : null });
@@ -179,7 +195,7 @@ async function mountAs(opts: {
   const lastCall = onAuthMock.mock.calls[onAuthMock.mock.calls.length - 1];
   if (!lastCall) throw new Error('onAuthStateChanged was never called');
   const listener = lastCall[1] as (u: User | null) => void;
-  const user = buildFakeUser(opts.email);
+  const user = buildFakeUser(opts.email, opts.claims);
   Object.defineProperty(auth, 'currentUser', {
     configurable: true,
     writable: true,
@@ -199,6 +215,10 @@ async function mountAs(opts: {
 beforeEach(() => {
   vi.clearAllMocks();
   ctxHolder.current = null;
+  // Default: the org-resolver callable rejects, so the membership effect falls
+  // back to the operator org and `deliverSnapshots` drives `membershipResolved`.
+  httpsCallableImpl = () =>
+    Promise.reject(new Error('callable unavailable in test'));
 });
 
 const INTERNAL_EMAIL = 'teacher@orono.k12.mn.us';
@@ -232,12 +252,40 @@ describe('AuthContext — minTier on canAccessFeature', () => {
     ...(minTier ? { minTier } : {}),
   });
 
-  it('defaults to available when no doc exists', async () => {
+  it('defaults to default-public for a pre-tier feature with no doc', async () => {
+    // `live-session` has no `defaultMinTier`, so the missing-doc path is the
+    // historical public-by-default behavior even for a free-tier external.
     await mountAs({ email: EXTERNAL_EMAIL });
+    expect(getCtx().canAccessFeature('live-session')).toBe(true);
+  });
+
+  it('default-denies google-classroom for a free user when no doc exists', async () => {
+    // W5 / wide-distro Phase 3: Google-API-backed features carry an in-code
+    // `defaultMinTier: 'org'`, so the missing-doc path now denies free-tier
+    // users without an admin authoring a doc.
+    await mountAs({ email: EXTERNAL_EMAIL });
+    expect(getCtx().canAccessFeature('google-classroom')).toBe(false);
+  });
+
+  it('default-allows google-classroom for an org member when no doc exists', async () => {
+    await mountAs({ email: EXTERNAL_EMAIL, isOrgMember: true });
+    expect(getCtx().canAccessFeature('google-classroom')).toBe(true);
+  });
+
+  it('default-allows google-classroom for an internal user when no doc exists', async () => {
+    await mountAs({ email: INTERNAL_EMAIL });
+    expect(getCtx().canAccessFeature('google-classroom')).toBe(true);
+  });
+
+  it('admin bypasses the default google-classroom tier floor (no doc)', async () => {
+    await mountAs({ email: EXTERNAL_EMAIL, isAdmin: true });
     expect(getCtx().canAccessFeature('google-classroom')).toBe(true);
   });
 
   it('undefined minTier keeps existing docs unrestricted (back-compat)', async () => {
+    // An admin-persisted doc with no `minTier` is authoritative and imposes no
+    // floor — the in-code `defaultMinTier` applies ONLY to the missing-doc
+    // path, so a real doc without minTier stays unrestricted even for free.
     await mountAs({ email: EXTERNAL_EMAIL, globalPerms: [gated(undefined)] });
     expect(getCtx().canAccessFeature('google-classroom')).toBe(true);
   });
@@ -334,5 +382,104 @@ describe('AuthContext — minTier on canAccessWidget', () => {
       featurePerms: [widgetPerm('internal')],
     });
     expect(getCtx().canAccessWidget('clock')).toBe(true);
+  });
+
+  it('default-denies the calendar (Events) widget for a free user (no doc)', async () => {
+    // W5 / wide-distro Phase 3: `WIDGET_DEFAULT_MIN_TIER.calendar = 'org'`, so
+    // the Google-Calendar-backed widget is denied to free-tier users on the
+    // missing-doc path without an admin authoring a permission doc.
+    await mountAs({ email: EXTERNAL_EMAIL });
+    expect(getCtx().canAccessWidget('calendar')).toBe(false);
+  });
+
+  it('default-allows the calendar widget for an org member (no doc)', async () => {
+    await mountAs({ email: EXTERNAL_EMAIL, isOrgMember: true });
+    expect(getCtx().canAccessWidget('calendar')).toBe(true);
+  });
+
+  it('default-allows the calendar widget for an internal user (no doc)', async () => {
+    await mountAs({ email: INTERNAL_EMAIL });
+    expect(getCtx().canAccessWidget('calendar')).toBe(true);
+  });
+
+  it('admin bypasses the default calendar tier floor (no doc)', async () => {
+    await mountAs({ email: EXTERNAL_EMAIL, isAdmin: true });
+    expect(getCtx().canAccessWidget('calendar')).toBe(true);
+  });
+
+  it('leaves a pre-tier widget (clock) public by default for free (no doc)', async () => {
+    // `clock` has no WIDGET_DEFAULT_MIN_TIER entry, so the historical
+    // public-by-default behavior is unchanged for free-tier users.
+    await mountAs({ email: EXTERNAL_EMAIL });
+    expect(getCtx().canAccessWidget('clock')).toBe(true);
+  });
+});
+
+describe('AuthContext — isExternalUser / hasOrg', () => {
+  it('is external for a fully-resolved free user with no org', async () => {
+    await mountAs({ email: EXTERNAL_EMAIL });
+    expect(getCtx().isExternalUser).toBe(true);
+    expect(getCtx().hasOrg).toBe(false);
+  });
+
+  it('is NOT external for an org member', async () => {
+    await mountAs({ email: EXTERNAL_EMAIL, isOrgMember: true });
+    expect(getCtx().isExternalUser).toBe(false);
+    expect(getCtx().hasOrg).toBe(true);
+  });
+
+  it('is NOT external for an internal (Orono) user', async () => {
+    // Orono resolves an org member doc, so hasOrg is true and isExternalUser
+    // is false — internal users must notice zero change.
+    await mountAs({ email: INTERNAL_EMAIL, isOrgMember: true });
+    expect(getCtx().isExternalUser).toBe(false);
+    expect(getCtx().hasOrg).toBe(true);
+  });
+
+  it('is NOT external while org membership is still resolving (no-flicker guard)', async () => {
+    // The org-resolver callable never settles, so `subscribeToMembership` is
+    // never reached and `membershipResolved` stays false — the in-flight
+    // loading window. An Orono member sits here briefly on every load, and
+    // `isExternalUser` must stay false the whole time so their org surfaces
+    // (My PLCs / My Building(s)) never blink off. `hasOrg` is also false here
+    // because `orgId` hasn't resolved yet — which is exactly why callers must
+    // prefer `isExternalUser` over `!hasOrg` to gate org-only UI.
+    // A promise that never settles — keeps the membership effect mid-resolve.
+    httpsCallableImpl = () =>
+      new Promise(() => {
+        /* never resolves or rejects */
+      });
+    await mountAs({ email: EXTERNAL_EMAIL });
+    expect(getCtx().isExternalUser).toBe(false);
+    expect(getCtx().hasOrg).toBe(false);
+  });
+
+  it('is NOT external for an SSO student even with a resolved no-org membership', async () => {
+    // A `studentRole: true` token claim marks an SSO student. Their membership
+    // resolves to orgId=null (no member doc), which would satisfy the first two
+    // conditions — but the `!isStudentRole` guard keeps them out of the
+    // external bucket so student sessions never hit the external-user gates.
+    await mountAs({ email: EXTERNAL_EMAIL, claims: { studentRole: true } });
+    await waitFor(() => {
+      expect(getCtx().isStudentRole).toBe(true);
+    });
+    expect(getCtx().hasOrg).toBe(false);
+    expect(getCtx().isExternalUser).toBe(false);
+  });
+
+  it('is NOT external for a member-doc-less Orono user (internal tier, orgId null)', async () => {
+    // The decisive zero-change guard. A brand-new / not-yet-backfilled Orono
+    // teacher has no `members/{email}` doc yet, so membership resolves with
+    // orgId=null — but their email DOMAIN still derives userTier='internal'.
+    // The `userTier === 'free'` condition keeps them OUT of the external bucket,
+    // so their org surfaces are never hidden even before a member doc exists.
+    // Without that guard, orgId===null alone would wrongly classify them
+    // external and hide My PLCs / My Building(s) / etc. — a real regression.
+    await mountAs({ email: INTERNAL_EMAIL });
+    await waitFor(() => {
+      expect(getCtx().userTier).toBe('internal');
+    });
+    expect(getCtx().hasOrg).toBe(false);
+    expect(getCtx().isExternalUser).toBe(false);
   });
 });

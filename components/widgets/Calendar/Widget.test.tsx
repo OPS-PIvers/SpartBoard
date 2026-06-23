@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 import React from 'react';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CalendarWidget } from './Widget';
 import { DEFAULT_GLOBAL_STYLE } from '@/types';
@@ -29,11 +29,22 @@ vi.mock('@/hooks/useWidgetBuildingId', () => ({
   useWidgetBuildingId: () => null,
 }));
 
-vi.mock('@/hooks/useGoogleCalendar', () => ({
-  useGoogleCalendar: () => ({
-    calendarService: null,
-    isConnected: false,
+// Path B: the widget acquires the calendar.readonly scope on demand via
+// useAuth().ensureGoogleScope. Tests override this per-scenario.
+const ensureGoogleScopeMock = vi.fn();
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({
+    ensureGoogleScope: ensureGoogleScopeMock,
   }),
+}));
+
+// The widget builds GoogleCalendarService(token) from the on-demand token.
+// Stub getEvents so the "already-granted" scenario yields a deterministic event.
+const getEventsMock = vi.fn();
+vi.mock('@/utils/googleCalendarService', () => ({
+  GoogleCalendarService: class {
+    getEvents = getEventsMock;
+  },
 }));
 
 const buildWidget = (config: Partial<CalendarConfig>): WidgetData =>
@@ -64,6 +75,12 @@ describe('CalendarWidget', () => {
       addWidget: vi.fn(),
       updateWidget: vi.fn(),
     } as unknown as DashboardActions);
+    ensureGoogleScopeMock.mockReset();
+    // Default: never-granted (silent acquisition returns null). Scenarios that
+    // need an already-granted user override this.
+    ensureGoogleScopeMock.mockResolvedValue(null);
+    getEventsMock.mockReset();
+    getEventsMock.mockResolvedValue([]);
     vi.useFakeTimers();
   });
 
@@ -133,5 +150,68 @@ describe('CalendarWidget', () => {
     // Before fix: stale today = June 13 → event (June 14) still shown. FAIL.
     // After fix: today = June 20 → event outside window. PASS.
     expect(screen.queryByText('Morning Assembly')).not.toBeInTheDocument();
+  });
+
+  describe('Path B — on-demand calendar.readonly acquisition', () => {
+    it('never-granted: silent acquisition fails → NO auto-popup, shows Connect CTA', async () => {
+      vi.useRealTimers();
+      // Silent acquisition (no interactive opts) resolves null.
+      ensureGoogleScopeMock.mockResolvedValue(null);
+
+      const widget = buildWidget({
+        events: [],
+        personalCalendarIds: ['teacher@example.com'],
+      });
+
+      render(<CalendarWidget widget={widget} />);
+
+      // The connect affordance appears once the silent miss resolves.
+      await waitFor(() => {
+        expect(screen.getByText('Connect Google Calendar')).toBeInTheDocument();
+      });
+
+      // CRITICAL: the effect must call ensureGoogleScope SILENTLY (no
+      // interactive flag) — never auto-popup from the non-gesture effect.
+      expect(ensureGoogleScopeMock).toHaveBeenCalledWith('calendar.readonly');
+      const calls = ensureGoogleScopeMock.mock.calls as Array<
+        [string, { interactive?: boolean }?]
+      >;
+      const interactiveCalls = calls.filter((c) => c[1]?.interactive === true);
+      expect(interactiveCalls).toHaveLength(0);
+
+      // No personal events fetched (no token).
+      expect(getEventsMock).not.toHaveBeenCalled();
+    });
+
+    it('already-granted: silent acquisition returns a token → fetches, no CTA', async () => {
+      vi.useRealTimers();
+      // Silent acquisition succeeds (already-granted user).
+      ensureGoogleScopeMock.mockResolvedValue('calendar-token');
+      // Use today's local date so the event falls inside the daysVisible window.
+      const d = new Date();
+      const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      getEventsMock.mockResolvedValue([
+        { date: todayStr, title: 'Personal Sync Event' },
+      ]);
+
+      const widget = buildWidget({
+        events: [],
+        personalCalendarIds: ['teacher@example.com'],
+      });
+
+      render(<CalendarWidget widget={widget} />);
+
+      // The personal event from the calendar service is rendered.
+      await waitFor(() => {
+        expect(screen.getByText('Personal Sync Event')).toBeInTheDocument();
+      });
+
+      // No connect CTA for an already-granted user.
+      expect(
+        screen.queryByText('Connect Google Calendar')
+      ).not.toBeInTheDocument();
+      // Fetch ran with the personal calendar id.
+      expect(getEventsMock).toHaveBeenCalled();
+    });
   });
 });

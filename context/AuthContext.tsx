@@ -31,6 +31,8 @@ import {
   functions,
   isAuthBypass,
   GOOGLE_OAUTH_SCOPES,
+  GOOGLE_SHEETS_SCOPE,
+  GOOGLE_CALENDAR_READONLY_SCOPE,
 } from '@/config/firebase';
 import {
   FeaturePermission,
@@ -64,7 +66,10 @@ import {
   revokeBackendRefreshToken,
 } from '@/utils/googleOAuthRefresh';
 import { logError } from '@/utils/logError';
-import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
+import {
+  FEATURE_DEFAULTS,
+  WIDGET_DEFAULT_MIN_TIER,
+} from '@/config/featureDefaults';
 import { stripTransientKeys } from '@/utils/widgetConfigPersistence';
 import { parseAssignmentModesConfig } from '@/utils/assignmentModesConfig';
 import {
@@ -336,6 +341,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     useState<boolean>(isAuthBypass);
   const [membershipResolved, setMembershipResolved] =
     useState<boolean>(isAuthBypass);
+  // Tracks whether the membership listener has EVER resolved a non-null orgId
+  // for the current session. Used by the onSnapshot error handler to decide
+  // whether there is any "last-known" org state worth preserving across a
+  // transient error: on first load (never resolved) there is nothing real to
+  // keep, so a transient error clears rather than preserving stale state.
+  const everResolvedOrgIdRef = useRef<boolean>(false);
   const [resolvedForUser, setResolvedForUser] = useState<User | null>(null);
   const [buildingIds, setBuildingIds] = useState<string[]>([]);
   const [orgBuildings, setOrgBuildings] = useState<BuildingRecord[]>([]);
@@ -418,6 +429,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // suppressed by a background refresh that bailed early.
   const inFlightSilentRefreshRef = useRef<Promise<string | null> | null>(null);
 
+  // Sensitive scopes acquired on demand THIS SESSION via `ensureGoogleScope`
+  // (Path B), stored as fully-qualified scope URLs. GIS access tokens are
+  // scoped to the REQUEST, not the full grant — a token minted for ONLY
+  // `spreadsheets` does NOT carry `drive.file`. Since every mint here persists
+  // into the single shared `googleAccessToken`, EVERY re-mint path (this ref's
+  // consumers below) must request the UNION of `GOOGLE_OAUTH_SCOPES` + these,
+  // or a Sheets/Calendar acquisition would silently STRIP `drive.file` from the
+  // active token (breaking the Picker/Drive) and the ~10-min proactive refresh
+  // loop would then strip the on-demand scope right back off. In-memory only:
+  // empty after reload is fine, because the first feature use re-calls
+  // `ensureGoogleScope`, which re-adds the scope and re-mints the union BEFORE
+  // the feature reads the token. Already-granted users (all current Orono
+  // users) re-mint the union silently with NO popup.
+  const onDemandScopesRef = useRef<Set<string>>(new Set());
+
+  // Build the scope string for any token mint that persists into the shared
+  // `googleAccessToken`: the login scope(s) plus every on-demand scope acquired
+  // this session, de-duplicated. Using this everywhere keeps the single shared
+  // token a strict SUPERSET so no refresh path ever strips a previously-acquired
+  // scope.
+  const buildPersistScope = useCallback(
+    (): string =>
+      Array.from(
+        new Set([...GOOGLE_OAUTH_SCOPES, ...onDemandScopesRef.current])
+      ).join(' '),
+    []
+  );
+
   // Distinguish the two failure modes the GIS token client surfaces, both of
   // which previously collapsed to a bare `null` in the refresh chain:
   //   - `denied`     — GIS fired `error_callback` (re-consent genuinely
@@ -490,7 +529,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               const tokenClient =
                 window.google?.accounts?.oauth2?.initTokenClient({
                   client_id: clientId,
-                  scope: GOOGLE_OAUTH_SCOPES.join(' '),
+                  // Request the UNION (login + on-demand scopes acquired this
+                  // session) so this re-mint MAINTAINS any Sheets/Calendar scope
+                  // instead of stripping it back off the shared token.
+                  scope: buildPersistScope(),
                   hint: email,
                   callback: (
                     response: google.accounts.oauth2.TokenResponse
@@ -612,7 +654,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           if (clientId) {
             const exchanged = await requestAndExchangeAuthCode(
               clientId,
-              email ?? undefined
+              email ?? undefined,
+              // Capture the refresh_token with the UNION so backend refreshes
+              // keep reissuing Sheets/Calendar instead of a drive.file-only token.
+              Array.from(onDemandScopesRef.current)
             );
             if (exchanged.kind === 'success') {
               const result = exchanged.result;
@@ -684,7 +729,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       return runRefreshChain();
     },
-    [user?.email]
+    [user?.email, buildPersistScope]
   );
 
   /**
@@ -706,6 +751,207 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       await refreshGoogleToken(false);
     }
   }, [refreshGoogleToken]);
+
+  /**
+   * Ensure the shared Google access token carries an on-demand sensitive scope
+   * (`spreadsheets`, `calendar.readonly`) that Path B no longer requests at
+   * login. See the JSDoc on `AuthContextType.ensureGoogleScope` for the full
+   * contract; the short version:
+   *   0. If the scope is already granted THIS session (`onDemandScopesRef`) and
+   *      a live `googleAccessToken` exists, return it immediately — no GIS
+   *      roundtrip, no popup. The live token already carries the scope.
+   *   1. INTERACTIVE (user gesture) — go straight to `prompt:''` with NO silent
+   *      pre-flight, so the user-gesture context is preserved for the consent
+   *      popup (an intervening `await` gets the popup blocked on Safari/iOS).
+   *      `prompt:''` returns granted-scope tokens WITHOUT forced consent, so
+   *      already-granted users still see zero UI.
+   *   2. NON-INTERACTIVE (background) — silent re-mint (`prompt:'none'`) only;
+   *      never a popup. Zero-touch for already-granted users.
+   *   3. On success, PERSIST into the same localStorage keys + `googleAccessToken`
+   *      state the rest of the app reads, so every Sheets/Calendar consumer
+   *      transparently picks up the (multi-scope) token.
+   *   4. Return the token, or null on silent-miss/decline/error. Never throws.
+   *
+   * Deliberately reuses the GIS token-client + persistence machinery from
+   * `refreshGoogleToken` rather than rewiring call sites: a single shared
+   * multi-scope token means persisting here is sufficient.
+   *
+   * KNOWN MINOR FOLLOW-UP: this lacks in-flight dedup — concurrent silent
+   * probes (e.g. CalendarWidget + AdminCalendarFetcher firing at once) issue
+   * two parallel GIS requests. Non-catastrophic: add-on-success is idempotent
+   * and the last persisted token wins; a shared in-flight promise would just
+   * save one redundant request.
+   */
+  const ensureGoogleScope = useCallback(
+    async (
+      scope: string,
+      opts?: { interactive?: boolean }
+    ): Promise<string | null> => {
+      if (isAuthBypass) return MOCK_ACCESS_TOKEN;
+
+      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
+        | string
+        | undefined;
+      const email = user?.email;
+      if (!clientId || !email || typeof window.google === 'undefined') {
+        // No GIS client/identity available — cannot acquire on demand. The
+        // caller degrades to its existing "Google access required" branch.
+        return null;
+      }
+
+      // GIS requires fully-qualified scope URLs. Call sites pass short keys
+      // (`spreadsheets`, `calendar.readonly`) for readability; map them to the
+      // canonical `https://www.googleapis.com/auth/...` URL here so the SILENT
+      // re-mint actually MATCHES an existing grant (a bare key would never
+      // match, breaking the zero-prompt path for already-granted users). An
+      // already-fully-qualified scope is passed through unchanged.
+      const SCOPE_ALIASES: Record<string, string> = {
+        spreadsheets: GOOGLE_SHEETS_SCOPE,
+        'calendar.readonly': GOOGLE_CALENDAR_READONLY_SCOPE,
+      };
+      const resolvedScope = scope.startsWith('https://')
+        ? scope
+        : (SCOPE_ALIASES[scope] ?? scope);
+
+      // EARLY RETURN — already granted THIS session. Once a scope is in
+      // `onDemandScopesRef`, every re-mint path (`buildPersistScope`) keeps it
+      // in the union, so the live `googleAccessToken` already carries it. Skip
+      // the GIS roundtrip entirely: avoids a redundant silent re-mint AND, on
+      // interactive calls, avoids re-opening a popup that some browsers block.
+      // The ref only holds a scope AFTER a confirmed grant, so this never
+      // returns a token missing the scope.
+      if (onDemandScopesRef.current.has(resolvedScope) && googleAccessToken) {
+        return googleAccessToken;
+      }
+
+      // ADD-ON-SUCCESS-ONLY. We do NOT add `resolvedScope` to
+      // `onDemandScopesRef` before minting. The ref is the single source of
+      // truth for every OTHER re-mint path (the startup silent refresh, the
+      // ~10-min proactive refresh, `refreshGoogleToken`'s GIS path, the
+      // code-flow) via `buildPersistScope()`. Adding a not-yet-granted scope
+      // there before we know it can be granted creates a race: a concurrent
+      // background refresh (`prompt:'none'`) could read the ref mid-flight and
+      // request a scope the user never consented to — which GIS REJECTS for
+      // silent requests, transiently failing the refresh and, on stricter
+      // responses, stripping `drive.file` from the shared token. So instead:
+      //   - For THIS mint only, request the UNION ad-hoc (login scopes + every
+      //     already-granted on-demand scope + `resolvedScope`) so the mint still
+      //     actually asks for the new scope WITH `drive.file` (a scope-only
+      //     token would strip `drive.file` once persisted as the shared token).
+      //   - Only AFTER a SUCCESSFUL mint do we add `resolvedScope` to the ref so
+      //     future refreshes maintain it.
+      //   - On any failure the ref is left UNCHANGED — it never transiently
+      //     holds a never-granted scope, so concurrent background refreshes stay
+      //     safe and the "no poison" property is deterministic.
+      const requestScope = Array.from(
+        new Set([
+          ...GOOGLE_OAUTH_SCOPES,
+          ...onDemandScopesRef.current,
+          resolvedScope,
+        ])
+      ).join(' ');
+
+      // Untrusted `expires_in` guard, mirroring refreshGoogleToken.
+      const computeExpiryMs = (raw: unknown): number => {
+        const seconds =
+          typeof raw === 'number' && Number.isFinite(raw) && raw > 0
+            ? raw
+            : 3600;
+        return Date.now() + seconds * 1000;
+      };
+
+      const persist = (token: string, expiresInRaw: string | undefined) => {
+        const expiryMs = computeExpiryMs(parseInt(expiresInRaw ?? '3600', 10));
+        // Write token before expiry so a fast reload never finds an expiry key
+        // without its token (same ordering rationale as refreshGoogleToken).
+        localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, token);
+        localStorage.setItem(GOOGLE_TOKEN_EXPIRY_KEY, expiryMs.toString());
+        setGoogleAccessToken(token);
+      };
+
+      // Run one GIS token request at the given prompt mode. Resolves with the
+      // token on success or null on any failure (declined, popup blocked,
+      // GIS unavailable, malformed response, thrown handler) — never rejects,
+      // so the caller's null-degradation path is the only failure surface.
+      const runGis = (prompt: '' | 'none'): Promise<string | null> =>
+        new Promise<string | null>((resolve) => {
+          try {
+            const tokenClient =
+              window.google?.accounts?.oauth2?.initTokenClient({
+                client_id: clientId,
+                // Request the ad-hoc UNION for THIS mint: login scopes + every
+                // already-granted on-demand scope + `resolvedScope`. NOT just
+                // `resolvedScope` (a scope-only token would strip `drive.file`
+                // from the shared token and break the Picker), and NOT
+                // `buildPersistScope()` (which excludes `resolvedScope` until we
+                // succeed — see ADD-ON-SUCCESS-ONLY above).
+                scope: requestScope,
+                hint: email,
+                callback: (response: google.accounts.oauth2.TokenResponse) => {
+                  try {
+                    if (response.access_token) {
+                      persist(response.access_token, response.expires_in);
+                      resolve(response.access_token);
+                    } else {
+                      resolve(null);
+                    }
+                  } catch (err) {
+                    console.error(
+                      'Failed to handle GIS ensureGoogleScope response',
+                      err
+                    );
+                    resolve(null);
+                  }
+                },
+                // Silent: re-consent needed → no popup, error_callback fires.
+                // Interactive: user dismissed/blocked the popup.
+                error_callback: () => resolve(null),
+              });
+            if (!tokenClient) {
+              resolve(null);
+              return;
+            }
+            tokenClient.requestAccessToken({ prompt });
+          } catch {
+            resolve(null);
+          }
+        });
+
+      // Add to the session set ONLY after a confirmed grant, so future re-mints
+      // (`buildPersistScope`) maintain the scope. Failure leaves the ref
+      // unchanged — it never transiently holds a never-granted scope.
+      const markGranted = () => onDemandScopesRef.current.add(resolvedScope);
+
+      // INTERACTIVE — go STRAIGHT to the popup-capable `prompt:''`, with NO
+      // silent `prompt:'none'` first. Rationale: an `await` before opening the
+      // consent popup loses the synchronous user-gesture context (Safari/iOS
+      // pop-up blockers reject a popup not opened in the same task as the
+      // click). GIS `prompt:''` does NOT force the consent screen for
+      // already-granted scopes — it silently returns the token — so this branch
+      // still issues zero extra UI for granted users, while preserving the
+      // gesture for the never-granted case where the consent popup must appear.
+      if (opts?.interactive) {
+        const interactive = await runGis('');
+        if (interactive) {
+          markGranted();
+          return interactive;
+        }
+        // Declined/blocked — scope never granted; ref untouched.
+        return null;
+      }
+
+      // NON-INTERACTIVE (background effect) — silent only, NEVER a popup. A
+      // missed silent re-mint degrades cleanly to null; the ref is left
+      // unmutated so subsequent drive.file-only refreshes stay clean.
+      const silent = await runGis('none');
+      if (silent) {
+        markGranted();
+        return silent;
+      }
+      return null;
+    },
+    [user?.email, googleAccessToken]
+  );
 
   // On startup: if the user has a Firebase session but the Drive token is
   // missing or expired, attempt a silent GIS refresh automatically.
@@ -958,6 +1204,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // resource.id`) in ANY org, so this listener works for non-admins too.
   useEffect(() => {
     if (isAuthBypass) return;
+    // New subscription (user changed / first mount): no org has resolved yet
+    // for this run, so a transient error before the first snapshot clears
+    // rather than preserving stale state from a previous session.
+    everResolvedOrgIdRef.current = false;
     if (!user?.email) {
       setOrgId(null);
       setRoleId(null);
@@ -988,9 +1238,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           if (auth.currentUser?.uid !== startUid) return;
           if (snap.exists()) {
             const member = snap.data() as MemberRecord;
-            setOrgId(member.orgId ?? candidateOrgId);
+            const resolvedOrgId = member.orgId ?? candidateOrgId;
+            setOrgId(resolvedOrgId);
             setRoleId(member.roleId ?? null);
             setBuildingIds(member.buildingIds ?? []);
+            // Record that this session has resolved a real org at least once,
+            // so a later transient snapshot error can safely preserve the
+            // last-known state (vs. clearing on a never-resolved first load).
+            if (resolvedOrgId) everResolvedOrgIdRef.current = true;
           } else {
             // Domain resolved to an org but no member doc exists yet (e.g.
             // a registered-domain user who was never invited): no org access,
@@ -1004,11 +1259,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         (error) => {
           if (auth.currentUser?.uid !== startUid) return;
           console.error('[AuthContext] Error loading org membership:', error);
-          setOrgId(null);
-          setRoleId(null);
-          setBuildingIds([]);
-          // Even an error counts as "resolved" — we know there's no usable
-          // member data, and consumers shouldn't stall indefinitely.
+          // Error-type-aware recovery. Orono is unaffected either way (tier
+          // derives 'internal' from the email domain regardless of orgId);
+          // this protects paying second/third orgs.
+          const code = (error as { code?: string }).code;
+          if (code === 'permission-denied') {
+            // The member doc read was DENIED — membership was revoked (the user
+            // was removed from the org) or rules now forbid the read. Do NOT
+            // preserve access for a removed user: clear org/role/building so the
+            // session drops to the free/external tier immediately.
+            setOrgId(null);
+            setRoleId(null);
+            setBuildingIds([]);
+          } else if (everResolvedOrgIdRef.current) {
+            // Transient error (network blip, a permission race mid rules-deploy)
+            // AFTER we've already resolved a real org this session: PRESERVE the
+            // last-known orgId/roleId/buildingIds so a paying org user isn't
+            // briefly demoted by a blip. The listener restores correct state on
+            // recovery, and Firestore rules enforce real access server-side.
+          } else {
+            // Transient error on FIRST load, before any org ever resolved: there
+            // is no real last-known state to keep, so clear rather than leave
+            // whatever defaults were in place. Avoids presenting stale/empty org
+            // state as if it were authoritative.
+            setOrgId(null);
+            setRoleId(null);
+            setBuildingIds([]);
+          }
+          // Always mark resolved so consumers don't stall indefinitely.
           setMembershipResolved(true);
         }
       );
@@ -1995,6 +2273,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [user, orgId]
   );
 
+  // Does this user belong to an org? `orgId` is null until the membership
+  // snapshot resolves AND for genuine no-org (free-tier) users, so a bare
+  // `orgId !== null` is NOT a safe "external" signal on its own (it's false
+  // during the loading window for Orono members too). `hasOrg` is the simple
+  // positive form; `isExternalUser` below adds the resolution + student guards.
+  const hasOrg = orgId !== null;
+
+  // True ONLY for a fully-resolved, no-org, FREE-tier, non-student user — i.e.
+  // the free/external tier that the wide-distribution rollout gates org surfaces
+  // away from (docs/wide-distro-plan.md Phase 3). Four conditions, all required,
+  // so org/internal members (and the in-flight loading window) never flicker
+  // their org surfaces away:
+  //   1. `membershipResolved` — the org-membership effect has settled. While
+  //      it's still resolving this is false, so an Orono member's "My PLCs" /
+  //      "My Building(s)" never blink off during load. Bypass mode seeds
+  //      `membershipResolved = true` with a non-null `orgId`, so bypass is
+  //      never external either.
+  //   2. `orgId === null` — no org membership doc resolved for this user.
+  //   3. `userTier === 'free'` — the decisive guard. `userTier` derives from
+  //      the email DOMAIN (orono.k12.mn.us → 'internal') INDEPENDENT of orgId,
+  //      so a brand-new / not-yet-backfilled Orono teacher who has no
+  //      `members/{email}` doc yet (orgId === null) is still 'internal' and is
+  //      NEVER classified external. Only genuine non-org, non-internal users
+  //      derive 'free'. This is what makes the gate zero-change for Orono even
+  //      before org member docs exist.
+  //   4. `!isStudentRole` — SSO students have no email/member doc and could
+  //      otherwise derive 'free' with orgId null; they are not "external
+  //      teachers" and must not be treated as such by the org-surface gates.
+  const isExternalUser =
+    membershipResolved &&
+    orgId === null &&
+    userTier === 'free' &&
+    !isStudentRole;
+
   // Check if user can access a specific widget
   // Wrapped in useCallback to prevent unnecessary re-renders since this function
   // is passed through context and used in component dependencies
@@ -2011,8 +2323,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Default behavior: If no permission record exists, allow public access
       // This means new widgets are accessible to all authenticated users until
-      // an admin explicitly configures permissions
-      if (!permission) return true;
+      // an admin explicitly configures permissions.
+      //
+      // Exception: an in-code default tier floor for Google-API-backed widgets
+      // (docs/wide-distro-plan.md Phase 3). `WIDGET_DEFAULT_MIN_TIER[calendar]
+      // = 'org'` denies external/free-tier users the Calendar (Events) widget
+      // while org + internal pass — without an admin needing to author a
+      // permission doc. Admins bypass the floor (consistent with the
+      // accessLevel bypass below). Widgets with no entry have no floor, so the
+      // historical public-by-default behavior is unchanged. `meetsMinTier`
+      // treats an undefined floor as "allow".
+      if (!permission) {
+        if (isAdmin) return true;
+        return meetsMinTier(userTier, WIDGET_DEFAULT_MIN_TIER[widgetType]);
+      }
 
       // If the feature is disabled, no one can access it (including admins)
       if (!permission.enabled) return false;
@@ -2141,11 +2465,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // depend on external config (OAuth, API keys) the code can't
       // verify on its own.
       if (!permission) {
-        return FEATURE_DEFAULTS[featureId].missingDocPublic;
+        const def = FEATURE_DEFAULTS[featureId];
+        if (!def.missingDocPublic) return false;
+        // Admins bypass the tier floor (same as the accessLevel bypass in
+        // resolvePermissionAccess). For everyone else, apply the in-code
+        // default tier floor (docs/wide-distro-plan.md Phase 3): a
+        // Google-API-backed feature with `defaultMinTier: 'org'` denies
+        // external/free-tier users while org + internal pass. An undefined
+        // `defaultMinTier` imposes no floor, so pre-tier features are
+        // unchanged. `meetsMinTier` treats an undefined floor as "allow".
+        if (isAdmin) return true;
+        return meetsMinTier(userTier, def.defaultMinTier);
       }
       return resolvePermissionAccess(permission, user.email);
     },
-    [user, globalPermissions, resolvePermissionAccess]
+    [user, globalPermissions, resolvePermissionAccess, isAdmin, userTier]
   );
 
   const getAssignmentMode = useCallback(
@@ -2247,6 +2581,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
       await firebaseSignOut(auth);
       setGoogleAccessToken(null);
+      // Clear on-demand scope grants so a shared device doesn't carry the prior
+      // user's Sheets/Calendar scopes into the NEXT user's union refresh — GIS
+      // rejects a silent ('none') refresh that requests a scope the new user
+      // never granted, which would silently break their token refresh.
+      onDemandScopesRef.current.clear();
     } catch (error) {
       console.error('Sign out error:', error);
       throw error;
@@ -2268,6 +2607,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         canAccessWidget,
         canAccessFeature,
         userTier,
+        hasOrg,
+        isExternalUser,
         getAssignmentMode,
         canSeeShareTracking,
         signInWithGoogle,
@@ -2279,6 +2620,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setLanguage,
         refreshGoogleToken,
         connectGoogleDrive,
+        ensureGoogleScope,
         disconnectGoogleDrive,
         savedWidgetConfigs,
         saveWidgetConfig,

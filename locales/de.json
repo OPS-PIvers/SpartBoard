@@ -282,7 +282,8 @@
       "targetNotActiveMember": "Du kannst die Leitung nur an ein aktives Mitglied übertragen.",
       "cannotDemoteLead": "Verwende „Leitung übertragen“, um zu ändern, wer die PLC leitet.",
       "invalidRole": "Das ist keine gültige PLC-Rolle.",
-      "alreadyLead": "Dieses Mitglied leitet diese PLC bereits."
+      "alreadyLead": "Dieses Mitglied leitet diese PLC bereits.",
+      "orgRequired": "PLCs stehen nur Mitgliedern einer Organisation zur Verfügung."
     }
   },
   "plcDashboard": {

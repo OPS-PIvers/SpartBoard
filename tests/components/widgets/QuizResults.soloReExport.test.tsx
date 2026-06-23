@@ -21,8 +21,14 @@ vi.mock('@/context/useDashboard', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     googleAccessToken: 'token-1',
+    // Path B: export handlers acquire the Sheets scope on demand.
+    ensureGoogleScope: vi.fn().mockResolvedValue('token-1'),
     user: { uid: 'teacher-self' },
     orgId: null,
+    // Export-to-Sheets is hidden for external (free-tier) users; this suite
+    // exercises the export path, so the user is a non-external (org/internal)
+    // teacher who has the feature.
+    isExternalUser: false,
   }),
 }));
 vi.mock('@/hooks/usePlcs', () => ({

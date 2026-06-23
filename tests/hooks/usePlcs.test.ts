@@ -432,8 +432,12 @@ function render() {
 
 describe('usePlcs - createPlc writes the members map + indexes', () => {
   it('writes members map, denormalized indexes, and serverTimestamps', async () => {
+    // An org member (orgId set) — createPlc requires a non-null orgId (W2).
+    // Building resolution is exercised separately below; here neither a UI
+    // selection nor an org-assigned building is present, so buildingId is null.
     useAuthMock.mockReturnValue({
       user: { uid: LEAD_UID, email: 'Lead@X.com', displayName: 'Lead' },
+      orgId: 'orono',
     } as ReturnType<typeof useAuthMock>);
     mockCollection.mockReturnValue('plcs');
     mockDoc.mockReturnValue('plcs/new-id');
@@ -458,8 +462,33 @@ describe('usePlcs - createPlc writes the members map + indexes', () => {
     // All timestamps are serverTimestamp(), not Date.now() numbers.
     expect(payload.createdAt).toBe(SERVER_TS);
     expect(payload.updatedAt).toBe(SERVER_TS);
-    expect(payload.orgId).toBeNull();
+    expect(payload.orgId).toBe('orono');
+    // No UI-selected or org-assigned building ⇒ untenanted building.
     expect(payload.buildingId).toBeNull();
+  });
+
+  it('refuses to create an untenanted PLC for a no-org caller (W2)', async () => {
+    // A fully-resolved no-org caller: createPlc is defense-in-depth and must
+    // reject rather than write an org-less PLC. The hook destructures
+    // `orgId = null`, so omitting orgId from the mock reproduces the real
+    // no-org case. The sync throw inside the async callback rejects its promise.
+    useAuthMock.mockReturnValue({
+      user: { uid: LEAD_UID, email: 'Lead@X.com', displayName: 'Lead' },
+    } as ReturnType<typeof useAuthMock>);
+    mockCollection.mockReturnValue('plcs');
+    mockDoc.mockReturnValue('plcs/new-id');
+    mockSetDoc.mockResolvedValue(undefined);
+
+    const { result } = render();
+
+    await expect(
+      act(async () => {
+        await result.current.createPlc('My PLC');
+      })
+    ).rejects.toThrow('plc.errors.orgRequired');
+
+    // No Firestore write happened — the guard fired before setDoc.
+    expect(mockSetDoc).not.toHaveBeenCalled();
   });
 
   it('inherits the creator org + building so the PLC is discoverable', async () => {

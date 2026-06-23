@@ -49,12 +49,34 @@ export function ensureGis(): Promise<void> {
 }
 
 /**
- * Run the OAuth token popup for the given scope string, resolving with an
+ * Options for {@link requestAccessToken}.
+ */
+export interface RequestAccessTokenOptions {
+  /**
+   * GIS `prompt` mode passed to `requestAccessToken`:
+   *   - `''`     — default; GIS may surface the consent/account popup.
+   *   - `'none'` — SILENT: GIS reissues a token from an existing grant with no
+   *                popup, and fails via `error_callback` (rejecting this
+   *                Promise) when re-consent would be required. Safe to call from
+   *                a non-gesture context because it never opens a popup.
+   *
+   * Omitting this preserves the historical behavior (equivalent to `''`).
+   */
+  prompt?: '' | 'none';
+}
+
+/**
+ * Run the OAuth token client for the given scope string, resolving with an
  * access token (or rejecting). `loginHint` pre-selects the launching account.
+ *
+ * Pass `{ prompt: 'none' }` for a silent re-mint (no popup) — see
+ * {@link RequestAccessTokenOptions}. Mirrors the silent/interactive split in
+ * `AuthContext.refreshGoogleToken`.
  */
 export function requestAccessToken(
   scope: string,
-  loginHint: string | undefined
+  loginHint: string | undefined,
+  options: RequestAccessTokenOptions = {}
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!CLIENT_ID) {
@@ -70,7 +92,7 @@ export function requestAccessToken(
       hint?: string;
       callback: (resp: { access_token?: string; error?: string }) => void;
       error_callback?: (err: { type?: string; message?: string }) => void;
-    }) => { requestAccessToken: () => void };
+    }) => { requestAccessToken: (overrides?: { prompt?: string }) => void };
 
     const client = init({
       client_id: CLIENT_ID,
@@ -95,7 +117,12 @@ export function requestAccessToken(
         );
       },
     });
-    client.requestAccessToken();
+    // Pass `prompt` through to the per-request override so callers can choose
+    // silent (`'none'`) vs interactive (`''`). When unset, omit the override
+    // entirely to preserve GIS's default behavior for existing callers.
+    client.requestAccessToken(
+      options.prompt !== undefined ? { prompt: options.prompt } : undefined
+    );
   });
 }
 

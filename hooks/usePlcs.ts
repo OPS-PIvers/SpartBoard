@@ -509,6 +509,17 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       if (!email) {
         throw new Error(i18n.t('plc.errors.accountEmailRequired'));
       }
+      // Refuse to create an untenanted PLC for a no-org (external/free-tier)
+      // caller. PLCs are an org-only collaboration surface; the Sidebar (W1)
+      // already hides the entry point for external users, so this is
+      // defense-in-depth against any other caller. Orono / org members always
+      // resolve a non-null `orgId`, so they are unaffected. `createPlc` is
+      // invoked from a user gesture (the "Create PLC" form) where membership
+      // has long since resolved, so a null `orgId` here is a genuine "no org"
+      // — not the transient loading window.
+      if (orgId === null) {
+        throw new Error(i18n.t('plc.errors.orgRequired'));
+      }
       const displayName = user.displayName ?? '';
       // Inherit the creator's tenancy so the new PLC surfaces in the
       // org/building directory right away (Decision 1.1). Building resolution

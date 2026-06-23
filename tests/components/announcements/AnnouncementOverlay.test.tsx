@@ -55,12 +55,18 @@ import { useAuth } from '@/context/useAuth';
 
 const MOCK_USER = { uid: 'user-1', email: 'test@example.com' };
 
-function mockAuth(selectedBuildings: string[] = []) {
+function mockAuth(
+  selectedBuildings: string[] = [],
+  opts: { userTier?: 'internal' | 'org' | 'free'; orgId?: string | null } = {}
+) {
   vi.mocked(useAuth).mockReturnValue({
     user: MOCK_USER,
     selectedBuildings,
     isAdmin: false,
     loading: false,
+    // Default to 'internal' so existing behavior-tests subscribe (Orono path).
+    userTier: opts.userTier ?? 'internal',
+    orgId: opts.orgId ?? null,
   } as ReturnType<typeof useAuth>);
 }
 
@@ -550,5 +556,81 @@ describe('AnnouncementOverlay', () => {
     render(<AnnouncementOverlay />);
     emitAnnouncements([{ ...BASE_ANNOUNCEMENT, dismissalType: 'admin' }]);
     expect(screen.getByText(/Admin only/i)).toBeInTheDocument();
+  });
+
+  // -------------------------------------------------------------------------
+  // Multi-tenant org isolation (work item W6 — the CRITICAL leak)
+  // -------------------------------------------------------------------------
+
+  describe('org isolation', () => {
+    it('never subscribes to the announcements collection for free-tier users', () => {
+      // A no-org ("free") teacher must NOT open the global listener at all.
+      // firestoreCallback stays null because the onSnapshot effect early-returns.
+      mockAuth([], { userTier: 'free', orgId: null });
+      const { container } = render(<AnnouncementOverlay />);
+      expect(firestoreCallback).toBeNull();
+      expect(container.firstChild).toBeNull();
+    });
+
+    it('subscribes for org/internal users (Orono path unchanged)', () => {
+      mockAuth([], { userTier: 'internal', orgId: 'orono' });
+      render(<AnnouncementOverlay />);
+      // The listener opened — callback captured — and legacy (no orgId) docs render.
+      emitAnnouncements([BASE_ANNOUNCEMENT]);
+      expect(screen.getByText('Test Announcement')).toBeInTheDocument();
+    });
+
+    it('shows a legacy (no orgId) announcement to an org user — Orono zero-change', () => {
+      mockAuth([], { userTier: 'internal', orgId: 'orono' });
+      render(<AnnouncementOverlay />);
+      // BASE_ANNOUNCEMENT has no orgId field (legacy / pre-isolation).
+      emitAnnouncements([BASE_ANNOUNCEMENT]);
+      expect(screen.getByText('Test Announcement')).toBeInTheDocument();
+    });
+
+    it('shows an announcement whose orgId matches the user org', () => {
+      mockAuth([], { userTier: 'internal', orgId: 'orono' });
+      render(<AnnouncementOverlay />);
+      emitAnnouncements([{ ...BASE_ANNOUNCEMENT, orgId: 'orono' }]);
+      expect(screen.getByText('Test Announcement')).toBeInTheDocument();
+    });
+
+    it('does NOT hide an org-stamped announcement while orgId is still resolving (Orono no-flicker)', () => {
+      // userTier resolves to 'internal' from the email domain immediately, so
+      // the listener is open and streams Orono's orgId:'orono' docs — but the
+      // membership snapshot hasn't landed yet, so useAuth().orgId is still null.
+      // The client filter must NOT hide the doc during this window, otherwise
+      // post-backfill an Orono user sees their announcement flicker off then on.
+      mockAuth([], { userTier: 'internal', orgId: null });
+      render(<AnnouncementOverlay />);
+      emitAnnouncements([{ ...BASE_ANNOUNCEMENT, orgId: 'orono' }]);
+      expect(screen.getByText('Test Announcement')).toBeInTheDocument();
+    });
+
+    it('hides an announcement whose orgId belongs to a different org', () => {
+      mockAuth([], { userTier: 'org', orgId: 'orono' });
+      render(<AnnouncementOverlay />);
+      emitAnnouncements([{ ...BASE_ANNOUNCEMENT, orgId: 'other-district' }]);
+      expect(screen.queryByText('Test Announcement')).not.toBeInTheDocument();
+    });
+
+    it('shows legacy docs but hides foreign-org docs in the same snapshot', () => {
+      mockAuth([], { userTier: 'internal', orgId: 'orono' });
+      render(<AnnouncementOverlay />);
+      const legacy: Announcement = {
+        ...BASE_ANNOUNCEMENT,
+        id: 'ann-legacy',
+        name: 'Legacy Broadcast',
+      };
+      const foreign: Announcement = {
+        ...BASE_ANNOUNCEMENT,
+        id: 'ann-foreign',
+        name: 'Foreign Org',
+        orgId: 'other-district',
+      };
+      emitAnnouncements([legacy, foreign]);
+      expect(screen.getByText('Legacy Broadcast')).toBeInTheDocument();
+      expect(screen.queryByText('Foreign Org')).not.toBeInTheDocument();
+    });
   });
 });
