@@ -971,7 +971,9 @@ export interface ClaimOrganizationInviteResponse {
 
 export const claimOrganizationInvite = onCall(
   {
-    memory: '128MiB',
+    // 256MiB: a 128MiB instance OOMs on the nodejs24 + firebase-admin cold-start
+    // (~140MiB) and fails the readiness check, so the callable returns `internal`.
+    memory: '256MiB',
     timeoutSeconds: 30,
   },
   async (request): Promise<ClaimOrganizationInviteResponse> => {

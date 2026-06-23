@@ -64,7 +64,11 @@ export function resolveDomainCandidates(
 
 export const resolveOrgForUser = onCall(
   {
-    memory: '128MiB',
+    // 256MiB: the nodejs24 + firebase-admin cold-start footprint is ~135-144MiB,
+    // which OOMs a 128MiB instance during the startup readiness check (the
+    // instance never starts → every call returns `internal`). 256MiB is the
+    // codebase standard and leaves comfortable headroom.
+    memory: '256MiB',
     timeoutSeconds: 15,
   },
   async (request): Promise<ResolveOrgForUserResponse> => {
