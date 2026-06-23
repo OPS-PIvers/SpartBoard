@@ -156,7 +156,10 @@ export const useGooglePicker = () => {
                   : SUPPORTED_MIME_TYPES;
 
             const docsView = new google.picker.DocsView(viewId)
-              .setIncludeFolders(mode === 'docs')
+              // Enable folder navigation for docs AND sheets so teachers can
+              // browse into Drive subfolders (the app itself files quizzes under
+              // `SpartBoard/Quizzes/`); only the image picker stays flat.
+              .setIncludeFolders(mode !== 'images')
               .setMimeTypes(mimeTypes)
               .setMode(google.picker.DocsViewMode.LIST);
 
