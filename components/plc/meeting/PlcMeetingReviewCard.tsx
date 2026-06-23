@@ -33,7 +33,7 @@ import {
   Video,
 } from 'lucide-react';
 import { PlcCommentsThread } from '@/components/plc/comments/PlcCommentsThread';
-import type { AssessmentDataCard } from '../sharedData/sharedDataSelectors';
+import type { AssessmentDataCard } from '@/components/plc/sharedData/sharedDataSelectors';
 
 /** Calm, glanceable score tone — shared with the Shared Data palette. */
 function scoreToneClass(percent: number): string {
