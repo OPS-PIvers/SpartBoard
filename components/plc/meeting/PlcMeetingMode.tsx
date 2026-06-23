@@ -69,13 +69,13 @@ import {
   latestContributionByAggregateId,
   type AssessmentDataCard,
   type SharedDataTeamMember,
-} from '../sharedData/sharedDataSelectors';
+} from '@/components/plc/sharedData/sharedDataSelectors';
 import {
   exportPlcMeeting,
   type PlcMeetingExportContext,
   type PlcMeetingExportFormat,
 } from '@/utils/plcMeetingExport';
-import type { PlcSectionId } from '../sections';
+import type { PlcSectionId } from '@/components/plc/sections';
 import { PlcMeetingReviewCard } from './PlcMeetingReviewCard';
 import {
   MeetingStepRail,
