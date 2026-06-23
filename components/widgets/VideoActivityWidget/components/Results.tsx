@@ -218,9 +218,11 @@ export const Results: React.FC<ResultsProps> = ({
   };
 
   const handleExport = async () => {
-    // Acquire the Sheets scope on demand (Path B): silent for already-granted
-    // users, one-time consent for never-granted (this is a user gesture).
-    const token = await ensureGoogleScope('spreadsheets', {
+    // VA results export always CREATES a new sheet (solo branch — no plcMode
+    // passed below), so the non-sensitive `drive.file` login scope suffices —
+    // no `spreadsheets`. Silent for all signed-in users (drive.file is the
+    // login scope); this is a user gesture so it stays interactive.
+    const token = await ensureGoogleScope('drive.file', {
       interactive: true,
     });
     if (!token) {

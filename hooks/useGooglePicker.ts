@@ -24,7 +24,15 @@ const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'].join(',');
 
 /** Options for `openPicker`. Default mode is `'docs'`. */
 export interface OpenPickerOptions {
-  mode?: 'docs' | 'images';
+  mode?: 'docs' | 'images' | 'sheets';
+  /**
+   * Optional OAuth token override. When supplied, the Picker authenticates with
+   * this instead of the hook's render-time `googleAccessToken`. Lets a caller
+   * pass a token it just minted via `ensureGoogleScope('drive.file')` so the
+   * Picker doesn't depend on the hook state having re-rendered first. Picking a
+   * file grants this token per-file `drive.file` access — no broader scope.
+   */
+  token?: string;
 }
 
 /** Max time (ms) to wait for the gapi script to become available. */
@@ -114,7 +122,8 @@ export const useGooglePicker = () => {
 
   const openPicker = useCallback(
     (options?: OpenPickerOptions): Promise<PickedFile | null> => {
-      if (!googleAccessToken) {
+      const oauthToken = options?.token ?? googleAccessToken;
+      if (!oauthToken) {
         return Promise.reject(
           new Error('Google Drive is not connected. Please sign in again.')
         );
@@ -135,10 +144,16 @@ export const useGooglePicker = () => {
             const viewId =
               mode === 'images'
                 ? google.picker.ViewId.DOCS_IMAGES
-                : google.picker.ViewId.DOCS;
+                : mode === 'sheets'
+                  ? google.picker.ViewId.SPREADSHEETS
+                  : google.picker.ViewId.DOCS;
 
             const mimeTypes =
-              mode === 'images' ? IMAGE_MIME_TYPES : SUPPORTED_MIME_TYPES;
+              mode === 'images'
+                ? IMAGE_MIME_TYPES
+                : mode === 'sheets'
+                  ? 'application/vnd.google-apps.spreadsheet'
+                  : SUPPORTED_MIME_TYPES;
 
             const docsView = new google.picker.DocsView(viewId)
               .setIncludeFolders(mode === 'docs')
@@ -157,11 +172,13 @@ export const useGooglePicker = () => {
             const title =
               mode === 'images'
                 ? 'Select an image from Drive'
-                : 'Select a file for AI context';
+                : mode === 'sheets'
+                  ? 'Select a Google Sheet'
+                  : 'Select a file for AI context';
 
             const builder = new google.picker.PickerBuilder()
               .addView(docsView)
-              .setOAuthToken(googleAccessToken)
+              .setOAuthToken(oauthToken)
               .setMaxItems(1)
               .setTitle(title)
               .setCallback((response: google.picker.ResponseObject) => {

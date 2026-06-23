@@ -63,6 +63,7 @@ vi.mock('@/config/firebase', () => {
     // union-scope logic (GOOGLE_OAUTH_SCOPES + on-demand scopes acquired via
     // ensureGoogleScope) is exercised faithfully. An empty array would let a
     // Sheets/Calendar acquisition mint a token that silently drops drive.file.
+    GOOGLE_DRIVE_FILE_SCOPE: 'https://www.googleapis.com/auth/drive.file',
     GOOGLE_OAUTH_SCOPES: ['https://www.googleapis.com/auth/drive.file'],
     // Path B: on-demand sensitive scopes (acquired via ensureGoogleScope).
     GOOGLE_SHEETS_SCOPE: 'https://www.googleapis.com/auth/spreadsheets',

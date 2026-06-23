@@ -31,6 +31,7 @@ import {
   functions,
   isAuthBypass,
   GOOGLE_OAUTH_SCOPES,
+  GOOGLE_DRIVE_FILE_SCOPE,
   GOOGLE_SHEETS_SCOPE,
   GOOGLE_CALENDAR_READONLY_SCOPE,
 } from '@/config/firebase';
@@ -806,6 +807,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // match, breaking the zero-prompt path for already-granted users). An
       // already-fully-qualified scope is passed through unchanged.
       const SCOPE_ALIASES: Record<string, string> = {
+        'drive.file': GOOGLE_DRIVE_FILE_SCOPE,
         spreadsheets: GOOGLE_SHEETS_SCOPE,
         'calendar.readonly': GOOGLE_CALENDAR_READONLY_SCOPE,
       };
@@ -813,14 +815,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         ? scope
         : (SCOPE_ALIASES[scope] ?? scope);
 
-      // EARLY RETURN — already granted THIS session. Once a scope is in
-      // `onDemandScopesRef`, every re-mint path (`buildPersistScope`) keeps it
-      // in the union, so the live `googleAccessToken` already carries it. Skip
-      // the GIS roundtrip entirely: avoids a redundant silent re-mint AND, on
-      // interactive calls, avoids re-opening a popup that some browsers block.
-      // The ref only holds a scope AFTER a confirmed grant, so this never
-      // returns a token missing the scope.
-      if (onDemandScopesRef.current.has(resolvedScope) && googleAccessToken) {
+      // EARLY RETURN — the live `googleAccessToken` already carries
+      // `resolvedScope`, so skip the GIS roundtrip entirely (avoids a redundant
+      // silent re-mint AND, on interactive calls, re-opening a popup some
+      // browsers block). True in two cases:
+      //   - The scope was granted on demand THIS session — once in
+      //     `onDemandScopesRef`, every re-mint path (`buildPersistScope`) keeps
+      //     it in the union, so the live token carries it. The ref only holds a
+      //     scope AFTER a confirmed grant, so this never returns a stale-scope
+      //     token.
+      //   - The scope is a LOGIN scope (`GOOGLE_OAUTH_SCOPES`, i.e.
+      //     `drive.file`) that every minted token already includes. This is the
+      //     fast path for the create-new Sheets/Picker flows, which request
+      //     `drive.file` and must NOT trigger a fresh consent.
+      if (
+        (onDemandScopesRef.current.has(resolvedScope) ||
+          GOOGLE_OAUTH_SCOPES.includes(resolvedScope)) &&
+        googleAccessToken
+      ) {
         return googleAccessToken;
       }
 

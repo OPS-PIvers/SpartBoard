@@ -745,13 +745,17 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   };
 
   const handleExport = async () => {
-    // Acquire the Sheets scope on demand (Path B). Silent for users who
-    // already granted it (all current Orono users); a one-time consent popup
-    // for never-granted users (this is a user gesture, so interactive). Null
-    // → reuse the existing "Google access required" branch.
-    const token = await ensureGoogleScope('spreadsheets', {
-      interactive: true,
-    });
+    // Scope depends on mode. SOLO export CREATES a brand-new sheet the user
+    // owns → the non-sensitive `drive.file` login scope suffices (silent, no
+    // consent — it's always in the login grant). PLC export APPENDS to a shared
+    // sheet a teammate may own → that genuinely needs the broad `spreadsheets`
+    // scope (acquired on demand, Path B: silent for already-granted users, a
+    // one-time consent popup otherwise — this is a user gesture, so
+    // interactive). Null → reuse the existing "Google access required" branch.
+    const token = await ensureGoogleScope(
+      config.plcMode ? 'spreadsheets' : 'drive.file',
+      { interactive: true }
+    );
     if (!token) {
       setExportError({
         kind: 'generic',
@@ -890,7 +894,9 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
    * rehydrate from the throwaway sheet, masking the underlying PLC mismatch.
    */
   const handleSchemaMismatchRecovery = async () => {
-    const token = await ensureGoogleScope('spreadsheets', {
+    // Always creates a fresh PERSONAL sheet (plcMode:false below) → the
+    // non-sensitive `drive.file` login scope is sufficient; no `spreadsheets`.
+    const token = await ensureGoogleScope('drive.file', {
       interactive: true,
     });
     if (!token) {
@@ -960,6 +966,10 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
 
   const handleUpdateSheet = async () => {
     if (!exportUrl) return;
+    // PLC-only (gated by `canShowUpdateSheet = !!config.plcMode && …`): appends
+    // to / regenerates the shared sheet a teammate may own → keeps the broad
+    // `spreadsheets` scope. This is an org-only surface, so external users never
+    // reach it. (Solo paths above use the non-sensitive `drive.file` scope.)
     const token = await ensureGoogleScope('spreadsheets', {
       interactive: true,
     });

@@ -152,10 +152,31 @@ verification; keep it consistent throughout).
    - Click **Verify** in Search Console.
 4. Record the verified property. The same verified account must be used in §3.
 
-> Long-term cleaner answer (optional, not required for launch): verify a custom
-> domain such as `spartboard.orono.k12.mn.us` (a real Domain property with DNS
-> TXT you control) and use it as the authorized domain. Out of scope for this
-> launch; `spartboard.web.app` via URL-prefix is sufficient.
+> ⚠️ **CORRECTION (2026-06-23): `spartboard.web.app` is NOT sufficient — a custom
+> domain is REQUIRED for OAuth verification.** Search Console URL-prefix
+> verification of `https://spartboard.web.app/` succeeded ("Ownership verified"),
+> but the OAuth **branding** verification still rejects the home page URL with
+> "The website of your home page URL 'https://spartboard.web.app/' is not
+> registered to you" — and it kept failing 2 full days after Search Console
+> ownership was confirmed, so this is a **structural block, not a propagation
+> delay.** Google's Third-Party Data Safety team has stated that managed
+> third-party hosting subdomains (`*.web.app`, `*.firebaseapp.com`, `github.io`,
+> etc.) **cannot** be used to satisfy the home-page ownership requirement,
+> because you don't own the registrable parent zone — Search Console
+> verification of such a subdomain does not count. Ref:
+> https://discuss.google.dev/t/oauth-verification-stuck-on-homepage-requirements-firebase-web-app-domain-not-recognized/333105
+>
+> **Required fix:** put the consent-screen home/privacy/terms URLs on a custom
+> domain you actually own (register one, e.g. `spartboard.app` — confirmed
+> UNREGISTERED/available as of 2026-06-23 — or use a subdomain of a domain you
+> control such as `spartboard.orono.k12.mn.us`). Steps: register/choose the
+> domain → add it as a **custom domain in Firebase Hosting** → verify it in
+> Search Console as a real **Domain property (DNS TXT)** → update the consent
+> screen Application home page / Privacy / Terms / Authorized domains to that
+> domain → re-run branding verification, then the §3 sensitive-scope review.
+> **Impact:** this only gates lifting the 100-user cap on the on-demand sensitive
+> features (Sheets/Calendar). Core external self-serve via `drive.file` already
+> works uncapped without any verification, so this fix can be deferred.
 
 ---
 

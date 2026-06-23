@@ -18,11 +18,17 @@ vi.mock('@/context/useDashboard', () => ({
     rosters: [],
   }),
 }));
+// Hoisted so the test body can assert WHICH scope export asks for: solo export
+// creates a brand-new sheet, so it must request the non-sensitive `drive.file`
+// scope — never `spreadsheets`.
+const { ensureGoogleScopeMock } = vi.hoisted(() => ({
+  ensureGoogleScopeMock: vi.fn().mockResolvedValue('token-1'),
+}));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     googleAccessToken: 'token-1',
-    // Path B: export handlers acquire the Sheets scope on demand.
-    ensureGoogleScope: vi.fn().mockResolvedValue('token-1'),
+    // Path B: export handlers acquire the Drive scope on demand.
+    ensureGoogleScope: ensureGoogleScopeMock,
     user: { uid: 'teacher-self' },
     orgId: null,
     // Export-to-Sheets is hidden for external (free-tier) users; this suite
@@ -114,6 +120,7 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
   beforeEach(() => {
     addToast.mockClear();
     mockExportResultsToSheet.mockClear();
+    ensureGoogleScopeMock.mockClear();
   });
 
   afterEach(() => {
@@ -238,6 +245,12 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
     // re-export, otherwise the call routes through the PLC append path and
     // throws when no plcSheetUrl is provided.
     expect(callArgs[3]).toMatchObject({ plcMode: false });
+    // Solo export creates a NEW sheet → it must request the non-sensitive
+    // `drive.file` scope, NOT `spreadsheets`. This keeps the export off the
+    // sensitive-scope verification/100-user-cap path.
+    expect(ensureGoogleScopeMock).toHaveBeenCalledWith('drive.file', {
+      interactive: true,
+    });
 
     await waitFor(() => {
       expect(addToast).toHaveBeenCalledWith(

@@ -173,3 +173,24 @@ The app is **External + In production** — external users can sign in and use t
 6. **Legal / operator-model sign-off** (Launch Gate #1) — finalize `/privacy` + `/terms` external-eligibility copy after district counsel; broaden `SupportPage.tsx`.
 
 **Rollback at any point:** Console → Audience → **Make internal** (instantly re-rejects non-Orono accounts; Orono unaffected — same client, same scopes, grants intact).
+
+---
+
+## 🔁 2026-06-23 — OAuth verification is BLOCKED by `web.app`; pivoted to eliminating sensitive scopes for external users
+
+**The `web.app` domain cannot complete OAuth verification — confirmed structural, not a delay.** Search Console URL-prefix verification of `https://spartboard.web.app/` succeeded ("Ownership verified"), but the OAuth **branding** verification kept rejecting the home page URL ("…is not registered to you") for **2 full days** after Search Console ownership was confirmed. Google's Third-Party Data Safety team has stated managed third-party hosting subdomains (`*.web.app`, `*.firebaseapp.com`, `github.io`) **cannot** satisfy the home-page ownership check — Search Console verification of such a subdomain does not count ([forum ref](https://discuss.google.dev/t/oauth-verification-stuck-on-homepage-requirements-firebase-web-app-domain-not-recognized/333105)). The runbook's old "`web.app` via URL-prefix is sufficient" assumption was **wrong** — corrected in [external-availability-oauth-runbook.md](external-availability-oauth-runbook.md) §2. **Real fix = a custom domain** (register `spartboard.app` — confirmed UNREGISTERED — or use `spartboard.orono.k12.mn.us`; the consent-screen home/privacy/terms + the OAuth client's JS origins/redirect URIs must all live on an owned, DNS-verifiable domain, since a redirecting "kicker" is explicitly disallowed and the OAuth flow itself runs on `web.app`).
+
+**Pivot (Paul's call): take OAuth verification OFF the critical path for external users by eliminating the sensitive scopes from every externally-reachable surface.** Verification only ever mattered to lift the 100-user cap on the _on-demand sensitive_ features (Sheets / Calendar); core external self-serve via `drive.file` was already uncapped. So instead of waiting on a custom domain + Google review, we removed the sensitive-scope triggers external users can reach.
+
+**Refactor shipped (branch `dev-paul`, all gates green):**
+
+- **Quiz "Import from Sheets" → Google Picker** (`hooks/useGooglePicker.ts` gained a sheets-only mode + token override). Picking a sheet grants per-file `drive.file` access, so the import reads it with **no `spreadsheets` scope**. The paste-URL field (which needed the broad scope) is replaced by a "Choose Google Sheet from Drive" button; CSV import stays as the no-Google fallback. (`ImportWizard.tsx` gained an optional `ImportAdapter.pickSheet`; `quizImportAdapter.ts` + `QuizWidget/Widget.tsx` wire it.)
+- **Quiz + Video Activity results export & templates → `drive.file`** (they create new sheets, which `drive.file` permits). Quiz solo export is now conditional: `config.plcMode ? 'spreadsheets' : 'drive.file'`.
+- **Scope plumbing:** added `GOOGLE_DRIVE_FILE_SCOPE` + a `'drive.file'` alias and a login-scope early-return to `ensureGoogleScope` (`config/firebase.ts`, `context/AuthContext.tsx`), so requesting `drive.file` returns the existing login token instantly — **no consent popup**.
+- **`spreadsheets` is KEPT only on org-only PLC paths** (peer append/regenerate of a sheet a teammate created — `drive.file` can't do cross-user): `QuizResults.handleUpdateSheet`, the PLC assignment modals, `PlcMeetingMode`, and the Classroom/LTI PLC-linkage flows. None externally reachable. `calendar.readonly` untouched (Calendar widget is org-gated via `WIDGET_DEFAULT_MIN_TIER.calendar='org'`).
+
+**Net effect:** an external (non-org) user can sign in, build/import quizzes (via the Picker), and use the core app **without ever triggering a sensitive-scope consent, the unverified-app warning, or the 100-user cap.** Orono + PLC behavior unchanged.
+
+**Verification:** `type-check` + `lint` + `format:check` clean; **full unit suite 5777/5777 pass**; new regression tests lock the two guarantees (`ensureGoogleScope('drive.file')` returns the live token with no GIS popup; solo export requests `drive.file` not `spreadsheets`); an adversarial review (6 attack vectors — scope leak, PLC regression, dropped `drive.file`, Picker correctness, early-return staleness, VA) came back **CONFIRMED-SAFE on all six**.
+
+**Impact on the launch gates above:** OAuth verification (Gate #2 / "Remaining for Paul" #2–3) is **no longer needed for external availability** — it's now only relevant to lift the cap on the _org-only_ PLC/Calendar sensitive features, and that remains blocked on a custom domain. The logo + the 60s demo video are saved and reusable if/when a custom domain is set up to pursue full verification.
