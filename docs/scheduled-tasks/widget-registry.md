@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-22_
+_Last audited: 2026-06-23_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-23: Full audit after merging dev-paul into scheduled-tasks (80 files changed — external-availability rollout, Google OAuth scope management, PLC meeting board sync, import-path unification, AI quota external limits, admin calendar fetcher). No changes to types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations. All lazyNamed() export names verified correct (146 calls, 0 mismatches confirmed by deep agent scan). pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
 _2026-06-22: Full audit. Merged dev-paul into scheduled-tasks (new commits since 2026-06-21: pending merge context). VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations: 62 non-sticker in WIDGET_COMPONENTS (sticker intentional WidgetRenderer special-case per JSDoc), 63/63 in widgetDefaults.ts and widgetGradeLevels.ts, 59 user-selectable in tools.ts (7 intentionally excluded sub-types: blooms-detail, catalyst-instruction, catalyst-visual, custom-widget, mathTool, onboarding, sticker), 3 InternalToolType entries (magic, record, remote) correctly in tools.ts and widgetGradeLevels.ts but not WidgetType union (documented). All 10 sampled lazyNamed() export names verified correct. pnpm type-check (exit 0), pnpm lint (exit 0), pnpm test (516 files / 5697 tests, exit 0). Zero new gaps. WIDGET_APPEARANCE_COMPONENTS omissions for 33 widget types remain as noted in prior audits — all intentional (sub-widgets, system widgets, or widgets without configurable appearance)._
 

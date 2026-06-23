@@ -40,7 +40,7 @@ import {
 } from '@/context/usePlcContext';
 import { usePlcMeetings } from '@/hooks/usePlcMeetings';
 import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
-import { weakestQuestions } from '../sharedData/sharedDataSelectors';
+import { weakestQuestions } from '@/components/plc/sharedData/sharedDataSelectors';
 import { MeetingExportButtons } from './PlcMeetingMode';
 
 function scoreToneClass(percent: number): string {

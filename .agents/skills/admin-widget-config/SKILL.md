@@ -182,7 +182,7 @@ When a widget is added to a dashboard, its initial `config` is typically populat
 1. The user's `selectedBuildings[0]` from `useAuth()`
 2. The `featurePermissions` array from `useAuth()` → find the permission for the widget type → read `.config.buildingDefaults[buildingId]`
 
-Make sure the widget's initialization code in `DashboardContext.tsx` or the widget component itself reads from `featurePermissions`. Reference how `SpecialistScheduleSettings.tsx` reads `featurePermissions` for a working example:
+Make sure the widget's initialization code in `DashboardContext.tsx` or the widget component itself reads from `featurePermissions`. Reference how `components/widgets/SpecialistSchedule/Settings.tsx` reads `featurePermissions` for a working example:
 ```tsx
 const globalConfig = useMemo(() => {
   const perm = featurePermissions.find(p => p.widgetType === 'your-widget-type');

@@ -7,11 +7,15 @@
  * `useQuiz()` callbacks (`importFromSheet`, `importFromCSV`, `saveQuiz`,
  * `createQuizTemplate`).
  *
- * Behavior is preserved 1:1 from the old `QuizImporter`:
- *   - Google Sheet URL → `importFromSheet`
+ * Behavior:
+ *   - Google Sheet (chosen via the Drive Picker, `drive.file`) → `importFromSheet`
  *   - CSV upload → `importFromCSV`
  *   - AI-assist → `generateQuiz` (plus optional file context)
- *   - Template helper → `createQuizTemplate` (Drive) + TSV instructions
+ *   - Template helper → `createQuizTemplate` (Drive, `drive.file`) + TSV instructions
+ *
+ * Sheets operations use the non-sensitive `drive.file` scope (picking a sheet
+ * grants per-file access; the template is a new app-owned file), so the import
+ * never needs the sensitive `spreadsheets` scope.
  */
 
 import React from 'react';
@@ -41,20 +45,27 @@ export interface QuizImportAdapterDeps {
    */
   createQuizTemplate: (token?: string | null) => Promise<string>;
   /**
-   * Path B on-demand Sheets-scope gate. Called from the user gesture that
-   * triggers a Sheets-API operation (parsing a Google Sheet URL or creating
-   * the template Sheet). Must resolve to a usable access token; resolving to
-   * `null` means the user declined consent or has no Google access — the
-   * adapter then throws a clear error the wizard surfaces. Silent (no popup)
-   * for users who already granted the scope.
+   * Acquires a usable `drive.file` access token for the adapter's Sheets-API
+   * operations: reading a Picker-selected sheet (the picked file is
+   * drive.file-readable) and creating the template sheet (a new app-owned
+   * file). `drive.file` is the login scope, so this is silent (no popup) for
+   * every signed-in user — and needs NO sensitive `spreadsheets` scope.
+   * Resolving to `null` means the user has no Google access; the adapter then
+   * throws a clear error the wizard surfaces.
    *
-   * CSV import does NOT call this (no Sheets API involved).
+   * CSV import does NOT call this (no Drive/Sheets API involved).
    */
-  ensureSheetsScope: () => Promise<string | null>;
+  ensureDriveScope: () => Promise<string | null>;
+  /**
+   * Opens the Google Picker to choose a Sheet from Drive. Wired straight to the
+   * adapter's `pickSheet` (see `ImportAdapter.pickSheet`). Picking grants the
+   * app per-file `drive.file` access to the chosen sheet.
+   */
+  pickSheet: () => Promise<{ url: string } | null>;
 }
 
-const SHEETS_ACCESS_ERROR =
-  'Google Sheets access is required. Please grant access and try again.';
+const DRIVE_ACCESS_ERROR =
+  'Google Drive access is required. Please sign in again and try again.';
 
 /* ─── Template instructions (rendered in the wizard's "Format help" block) ─ */
 
@@ -254,15 +265,15 @@ export function createQuizImportAdapter(
   return {
     widgetLabel: 'Quiz',
     supportedSources: ['sheet', 'csv'],
+    pickSheet: deps.pickSheet,
     templateHelper: {
       createTemplate: async () => {
-        // Creating the template writes a new Google Sheet → needs the Sheets
-        // scope. Acquire it on demand (Path B) before the Drive call, then
-        // thread the fresh union token into the Sheets call so it uses the
-        // Sheets-capable token rather than useQuiz's stale closure token (which
-        // would 403 on the first attempt for an already-granted user).
-        const token = await deps.ensureSheetsScope();
-        if (!token) throw new Error(SHEETS_ACCESS_ERROR);
+        // The template is a NEW app-owned Sheet → the non-sensitive `drive.file`
+        // login scope suffices (no `spreadsheets`). Acquire a fresh token and
+        // thread it into the create call so it isn't useQuiz's stale
+        // render-time closure token (which would 403 on the first attempt).
+        const token = await deps.ensureDriveScope();
+        if (!token) throw new Error(DRIVE_ACCESS_ERROR);
         const url = await deps.createQuizTemplate(token);
         return { url };
       },
@@ -291,13 +302,12 @@ export function createQuizImportAdapter(
       // front, so use a placeholder that the wizard will overwrite on save.
       const PLACEHOLDER_TITLE = '__quiz_import__';
       if (source.kind === 'sheet') {
-        // Reading a Google Sheet needs the Sheets scope. Acquire on demand
-        // (Path B) before the import — silent for already-granted users. Thread
-        // the fresh union token into the Sheets call so it uses the
-        // Sheets-capable token rather than useQuiz's stale closure token (which
-        // would 403 on the first attempt for an already-granted user).
-        const token = await deps.ensureSheetsScope();
-        if (!token) throw new Error(SHEETS_ACCESS_ERROR);
+        // The sheet was just chosen via the Google Picker, which granted this
+        // app per-file `drive.file` access to it — so reading it needs only the
+        // non-sensitive `drive.file` token (no `spreadsheets`). Acquire a fresh
+        // token and thread it in so it isn't useQuiz's stale closure token.
+        const token = await deps.ensureDriveScope();
+        if (!token) throw new Error(DRIVE_ACCESS_ERROR);
         const data = await deps.importFromSheet(
           source.url,
           PLACEHOLDER_TITLE,

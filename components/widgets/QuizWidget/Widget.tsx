@@ -24,6 +24,7 @@ import {
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { useFolders } from '@/hooks/useFolders';
+import { useGooglePicker } from '@/hooks/useGooglePicker';
 import {
   callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
@@ -131,7 +132,25 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   } = useAuth();
   const quizAssignmentMode = getAssignmentMode('quiz');
   const { showConfirm } = useDialog();
+  const { openPicker } = useGooglePicker();
   const config = widget.config as QuizConfig;
+
+  // Opens the Google Picker so the teacher selects a Sheet to import. Picking
+  // grants per-file `drive.file` access to that one sheet, so the import reads
+  // it WITHOUT the sensitive `spreadsheets` scope. Returns the sheet URL (the
+  // import path extracts the id) or null if the user cancels.
+  const pickSheet = useCallback(async (): Promise<{ url: string } | null> => {
+    // Ensure a drive.file token first (login scope → silent), then hand it to
+    // the Picker explicitly so it doesn't depend on the hook's render-time
+    // token being fresh right after the ensure.
+    const token = await ensureGoogleScope('drive.file', { interactive: true });
+    if (!token) {
+      throw new Error('Google Drive access is required. Please sign in again.');
+    }
+    const picked = await openPicker({ mode: 'sheets', token });
+    if (!picked) return null;
+    return { url: `https://docs.google.com/spreadsheets/d/${picked.id}/edit` };
+  }, [ensureGoogleScope, openPicker]);
 
   const {
     quizzes,
@@ -829,17 +848,19 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       importFromSheet,
       importFromCSV,
       createQuizTemplate: async (token) => {
-        // Forward the fresh Sheets-capable token from the wizard's Path B grant
-        // so the template-create Sheets call uses it rather than useQuiz's
-        // stale render-time closure token (which 403s on the first attempt).
+        // Forward the fresh `drive.file` token from the wizard so the
+        // template-create call uses it rather than useQuiz's stale render-time
+        // closure token (which would 403 on the first attempt).
         const url = await createQuizTemplate(token);
         return url;
       },
-      // Path B: gate Sheets-API operations (sheet import / template create) on
-      // an on-demand Sheets-scope acquisition. Interactive — these run from a
-      // user gesture inside the wizard. Silent for already-granted users.
-      ensureSheetsScope: () =>
-        ensureGoogleScope('spreadsheets', { interactive: true }),
+      // Sheets-API ops here (Picker-selected sheet read + template create) need
+      // only the non-sensitive `drive.file` login scope — silent for every
+      // signed-in user, NO `spreadsheets`. Interactive preserves the gesture
+      // for the rare never-granted-Drive case.
+      ensureDriveScope: () =>
+        ensureGoogleScope('drive.file', { interactive: true }),
+      pickSheet,
     });
     return (
       <ImportWizard

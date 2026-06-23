@@ -73,13 +73,27 @@ let googleProvider: GoogleAuthProvider;
  * silent re-mint here returns a token that already includes Sheets/Calendar for
  * users who granted them — see `ensureGoogleScope`.
  */
-export const GOOGLE_OAUTH_SCOPES = [
-  'https://www.googleapis.com/auth/drive.file',
-];
+/**
+ * The non-sensitive per-file Drive scope. It is the sole login scope
+ * (`GOOGLE_OAUTH_SCOPES`) AND is requested on demand by every create-new Sheets
+ * operation (results export, templates) and by the Google Picker import path,
+ * so those surfaces never need the sensitive `spreadsheets` scope. Named so the
+ * on-demand call sites and `ensureGoogleScope`'s alias map reference one source.
+ */
+export const GOOGLE_DRIVE_FILE_SCOPE =
+  'https://www.googleapis.com/auth/drive.file';
+
+export const GOOGLE_OAUTH_SCOPES = [GOOGLE_DRIVE_FILE_SCOPE];
 
 /**
  * Sensitive scopes acquired on demand (NOT at login). Centralized so the
  * on-demand acquisition call sites and any future audit reference one source.
+ *
+ * After the drive.file refactor, `spreadsheets` backs ONLY the org-only PLC
+ * shared-sheet flows (a peer appends to a sheet another teacher created — broad
+ * access drive.file can't grant); `calendar.readonly` backs the org-gated
+ * Calendar widget (reading a user's private calendar). No externally-reachable
+ * surface requests either, so external users never trigger a sensitive consent.
  */
 export const GOOGLE_SHEETS_SCOPE =
   'https://www.googleapis.com/auth/spreadsheets';

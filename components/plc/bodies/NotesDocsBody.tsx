@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { FileText, StickyNote } from 'lucide-react';
 import type { Plc } from '@/types';
 import { NotesBody } from './NotesBody';
-import { PlcDocsBody } from '../docs/PlcDocsBody';
+import { PlcDocsBody } from '@/components/plc/docs/PlcDocsBody';
 
 interface NotesDocsBodyProps {
   plc: Plc;

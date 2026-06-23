@@ -87,7 +87,11 @@ function setupPickerMock(
       Action: { PICKED: 'picked', CANCEL: 'cancel' },
       Response: { ACTION: 'action', DOCUMENTS: 'docs' },
       Document: { ID: 'id', NAME: 'name', MIME_TYPE: 'mimeType' },
-      ViewId: { DOCS: 'docs', DOCS_IMAGES: 'docs-images' },
+      ViewId: {
+        DOCS: 'docs',
+        DOCS_IMAGES: 'docs-images',
+        SPREADSHEETS: 'spreadsheets',
+      },
       DocsViewMode: { LIST: 'list' },
       // Must use function() — not arrow — so `new` works
       DocsView: function DocsView(viewId: string) {
@@ -222,6 +226,25 @@ describe('useGooglePicker', () => {
     await result.current.openPicker();
 
     expect(lastDocsViewArg).toBe('docs');
+    expect(lastDocsViewInstance?.setIncludeFolders).toHaveBeenCalledWith(true);
+  });
+
+  it('configures the picker for sheets mode with spreadsheet MIME and folder navigation', async () => {
+    setupGapiMock();
+    setupPickerMock('cancel');
+    const { useGooglePicker } = await import('@/hooks/useGooglePicker');
+    const { result } = renderHook(() => useGooglePicker());
+
+    await vi.advanceTimersByTimeAsync(300);
+    await result.current.openPicker({ mode: 'sheets' });
+
+    expect(lastDocsViewArg).toBe('spreadsheets');
+    expect(lastDocsViewInstance?.setMimeTypes).toHaveBeenCalledWith(
+      'application/vnd.google-apps.spreadsheet'
+    );
+    // Folder navigation must be ENABLED so teachers can browse into Drive
+    // subfolders (the app files quizzes under SpartBoard/Quizzes/) — the fix
+    // for the review comment that flagged the flat sheets-mode list.
     expect(lastDocsViewInstance?.setIncludeFolders).toHaveBeenCalledWith(true);
   });
 

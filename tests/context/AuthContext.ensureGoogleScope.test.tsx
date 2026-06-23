@@ -273,6 +273,42 @@ describe('AuthContext — ensureGoogleScope', () => {
     expect(requested).toContain(CALENDAR_SCOPE);
   });
 
+  it('drive.file (a login scope): early-returns the live token with NO GIS request / popup', async () => {
+    // The create-new Sheets paths (results export, templates) and the Picker
+    // import request `drive.file` — which every minted token already carries —
+    // so they must NEVER trigger a consent popup. Prove it: seed an existing,
+    // unexpired token and stub GIS to DENY every request. The ONLY way
+    // ensureGoogleScope can then return non-null is the login-scope early-return
+    // (any GIS roundtrip would be denied → null).
+    localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, 'existing-drive-token');
+    localStorage.setItem(
+      GOOGLE_TOKEN_EXPIRY_KEY,
+      String(Date.now() + 3600_000)
+    );
+    const calls: { prompt: string; scope: string }[] = [];
+    stubGis({ silentMode: 'denied', interactiveMode: 'denied', calls });
+    await mountSignedIn('teacher@orono.k12.mn.us');
+
+    // Precondition: the seeded token hydrated onto the context.
+    await waitFor(() => {
+      expect(getCtx().googleAccessToken).toBe('existing-drive-token');
+    });
+
+    let token: string | null = 'sentinel';
+    await act(async () => {
+      token = await getCtx().ensureGoogleScope('drive.file', {
+        interactive: true,
+      });
+    });
+
+    // Returned the live token despite deny-all GIS → the early-return fired and
+    // no popup was shown. The seeded token is untouched.
+    expect(token).toBe('existing-drive-token');
+    expect(localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY)).toBe(
+      'existing-drive-token'
+    );
+  });
+
   it('silent-miss WITHOUT interactive: returns null and never opens a popup', async () => {
     const capturedPrompts: string[] = [];
     const capturedScopes: string[] = [];
