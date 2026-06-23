@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-22_
+_Last audited: 2026-06-23_
 _Last action: 2026-06-18_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-23: Full scan of all Widget.tsx files. New commits since 2026-06-22 (merged dev-paul): external-availability rollout (ActivityWall/Widget.tsx touched for external join gating, already verified CQ-safe in prior audits), PLC meeting board sync (no widget front-face content), import-path unification, admin calendar fetcher (admin components only), AI quota limits (utils/functions only). Agent scan flagged 11 candidates; cross-checked all against journal guidance: (1) PollWidget progress bar — COMPLETED 2026-06-18, no longer present; (2) CountdownWidget `min(42cqh,55cqw)` — WON'T FIX per journal guidance (fill-better formula); (3) ClockWidget `40cqmin`/`50cqmin` — WON'T FIX per journal (cqh/cqw mix, fill-better); (4) WeatherWidget `35cqmin` no floor — WON'T FIX per journal (hideClothing sub-mode fill-better); (5) TextWidget `min(Xpx, Ycqmin)` formula — FALSE POSITIVE; `min(px, cqmin)` correctly CAPS at px maximum (smaller value wins — correct pattern per CLAUDE.md); (6) DiceWidget `min(20px, 5cqmin)` button — FALSE POSITIVE; `min()` correctly caps at 20px on large widgets; existing group open item covers the `py-4 px-6 gap-3` Tailwind spacing; (7) CalendarWidget complex rowHeight — already verified clean 2026-06-14; (8) RandomWidget `clamp(4px, 1.5cqmin, 12px)` — acceptable micro-clamp for padding; not flagged per journal guidance (clamp() with reasonable ranges OK); (9) SyntaxFramer cqh/cqw calc — WON'T FIX per 2026-06-06 analysis; (10) BloomsTaxonomy Pyramid container — no `flex-1 min-h-0` guard; added as new LOW item below; (11) First5 overlay button — COMPLETED 2026-05-30. All pre-existing open items (EmbedWidget portaled toolbar, QuizResults period-filter, RevealGrid spacing, multi-widget group, MiniApp dialog) re-confirmed valid. One new LOW item added._
 
 _2026-06-22: Full scan of all Widget.tsx files. New commits since 2026-06-21 (merged dev-paul). Automated scan flagged 12 potential items; all reviewed against journal guidance and existing tracked items: (1) Weather compact-branch `min(65cqh,30cqw)` and similar — WON'T FIX per journal guidance (hideClothing sub-mode portrait fill-better formula, exempt per 2026-06-05 analysis); (2) MusicWidget `min(32px,35cqh,12cqw)` title — WON'T FIX (cqh fill-better formula, same exemption as ClockWidget); (3) Countdown `min(42cqh,55cqw)` — WON'T FIX (documented in Completed section); (4) LunchCount cqh/cqw mix — WON'T FIX (same as Countdown, confirmed 2026-06-17); (5) SyntaxFramer complex calc with cqh/cqw — WON'T FIX per 2026-06-06 analysis (character-count-proportional, fill-better formula); (6) TalkingTool `min(140px,35cqw)` sidebar — already in group open item (TalkingTool/Widget.tsx entries); (7) MathTools grid `minmax(min(100px,30cqw),1fr)` — already Completed; (8) InstructionalRoutines `width:'1px'` separator — decorative layout element, no scaling context impact; (9) Checklist ChecklistCard.tsx `WebkitLineClamp:3` — text truncation pattern in content cards, acceptable (line count scales per user preference not widget size); (10) CustomWidget `overflow:'hidden'` on grid cells — structural layout guard with `flex-1 min-h-0 min-w-0` already present on parent, acceptable; (11) SyntaxFramer token `overflow:'hidden'` on inline span — WON'T FIX per same analysis as (5); (12) SmartNotebook Viewer `max-w-[240px]` — already documented as acceptable structural constraint (2026-05-22). All pre-existing open items (EmbedWidget portaled toolbar, QuizResults period-filter, RevealGrid spacing, multi-widget group, MiniApp dialog) re-confirmed valid. Zero new anti-patterns._
 
@@ -103,6 +105,13 @@ _2026-05-13: Scanned all 50 Widget.tsx files for hardcoded text-size classes, fi
 _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size classes and Tailwind pixel-cap violations. No new issues since 2026-05-06. `CatalystInstructionWidget.tsx:48` (`text-xs`) confirmed to be in the Settings component (back-face), not the front-face widget content — not a violation. All existing open items remain valid._
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
+
+### LOW BloomsTaxonomy Pyramid container missing `flex-1 min-h-0` overflow guard
+
+- **Detected:** 2026-06-23
+- **File:** components/widgets/BloomsTaxonomy/Widget.tsx (~line 202)
+- **Detail:** The `<Pyramid>` child component container inside BloomsTaxonomyWidget has no defensive `flex-1 min-h-0` wrapper. Widget has `skipScaling: true`. If the Pyramid component renders at an intrinsic height larger than the available container, there is no flex constraint to prevent overflow. The missing guard is a latent issue — if the Pyramid's internal sizing grows (e.g., via a feature change adding rows or padding), it can escape the widget bounds rather than contracting.
+- **Fix:** Wrap the Pyramid in `<div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>` (or add `flex-1 min-h-0 overflow-hidden` className) so the Pyramid is bounded by the widget's available height. Verify visually at multiple widget sizes and aspect ratios to confirm no content is clipped.
 
 ### LOW EmbedWidget zoom toolbar uses hardcoded sizes — portaled outside container query context
 

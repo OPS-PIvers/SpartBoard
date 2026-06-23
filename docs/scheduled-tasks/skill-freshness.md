@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-06-16_
+_Last audited: 2026-06-23_
 _Last action: 2026-05-26_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-23: Skill files accessible at `/mnt/skills/user/` in this environment. Both skill files read and verified against codebase after merging dev-paul (80 files changed). Codebase-side verifications: (1) `SpecialistSchedule/` confirmed: contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts`, `utils.ts` — still no `Widget.tsx`; MEDIUM `SpecialistScheduleSettings.tsx` item remains valid. (2) `FeaturePermissionsManager.tsx` exclusion array still contains the same 13 hardcoded types (lines 968–980) — LOW item #1 remains valid. (3) `FeatureConfigurationPanel.tsx` `BUILDING_CONFIG_PANELS` still growing — LOW item #2 about undocumented secondary exclusion gate remains valid. (4) `lazyNamed()` convention confirmed correct. (5) `config/tools.ts`, `config/widgetDefaults.ts`, `config/widgetGradeLevels.ts`, `components/widgets/WidgetRegistry.ts` all match skill checklist steps — patterns stable. (6) Admin config path matches actual hierarchy. (7) No stale paths or non-existent file references found in either skill beyond the already-tracked items. New commits since 2026-06-16 (external-availability, OAuth scopes, PLC meeting board, import-path unification) do not affect any skill-relevant patterns. All 3 open items remain valid._
 
 _2026-06-16: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — same as all prior runs). Codebase-side verifications performed: (1) `SpecialistSchedule/` still contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts`, `utils.ts` — `Widget.tsx` still absent and `SpecialistScheduleSettings.tsx` still absent; MEDIUM item about non-existent references remains valid. (2) `FeaturePermissionsManager.tsx` exclusion array (lines 968–980) still contains the same 13 hardcoded types as 2026-06-09: blooms-taxonomy, calendar, catalyst, graphic-organizer, instructionalRoutines, miniApp, music, pdf, specialist-schedule, starter-pack, stickers, video-activity, work-symbols — LOW item #1 remains valid. (3) `FeatureConfigurationPanel.tsx` `BUILDING_CONFIG_PANELS` confirmed still present and growing — LOW item #2 about undocumented secondary exclusion gate remains valid. (4) `lazyNamed()` convention confirmed correct across WidgetRegistry.ts. New commits since 2026-06-09 do not affect any of these (only touched random/library rename guard, migration, i18n, LTI). All 3 open items remain valid._
 

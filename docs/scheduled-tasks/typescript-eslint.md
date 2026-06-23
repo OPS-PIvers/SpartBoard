@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-22_
+_Last audited: 2026-06-23_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-23. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Merged dev-paul into scheduled-tasks (80 files changed — external-availability rollout, Google OAuth scope management, PLC meeting board sync, import-path unification, AI quota external limits, admin calendar fetcher). All new and modified code type-safe and lint-clean._
 
 _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-22. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Test suite: 516 files / 5697 tests, all passing. Merged dev-paul into scheduled-tasks (conflict in docs/scheduled-tasks/pr-review-log.md resolved by keeping scheduled-tasks version). All merged code type-safe and lint-clean._
 
