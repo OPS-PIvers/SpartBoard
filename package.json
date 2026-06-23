@@ -33,7 +33,7 @@
     "test:rules": "firebase emulators:exec --only firestore \"vitest run --config vitest.rules.config.ts\"",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepare": "husky"
+    "prepare": "husky && node scripts/setup-git-merge-drivers.js"
   },
   "pnpm": {
     "overrides": {

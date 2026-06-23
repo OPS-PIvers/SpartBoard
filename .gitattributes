@@ -1,4 +1,10 @@
 # Keep dev-paul's copy of unifier.md when merging from main.
 # main never has this file; without this rule, git picks main's
 # (empty / stale) copy and silently clobbers the full run history.
+#
+# `merge=ours` is NOT a git built-in driver — it requires a registered
+# `merge.ours.driver`. `scripts/setup-git-merge-drivers.js` (run from the
+# `prepare` lifecycle script on every install) configures it automatically:
+#   git config merge.ours.driver true
+# Run that command manually if you merge before installing dependencies.
 docs/routines/unifier.md merge=ours

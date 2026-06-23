@@ -3,6 +3,11 @@
 > **⚠️ MERGE CONFLICT NOTE:** This file lives only on `dev-paul`. If you are resolving a
 > `main → dev-paul` merge conflict on this file, **always keep dev-paul's version** — main
 > will always have an older copy and the dev-paul copy contains the full run history.
+>
+> A `.gitattributes` `merge=ours` rule keeps dev-paul's copy automatically, but it only
+> works once the `ours` merge driver is registered. `pnpm install` does this for you via
+> `scripts/setup-git-merge-drivers.js`; if you merge without having installed deps, run
+> `git config merge.ours.driver true` first.
 
 _Run count: 23_
 _Last run: 2026-06-22_
