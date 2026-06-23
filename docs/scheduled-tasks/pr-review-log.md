@@ -4,6 +4,30 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-23
+
+- PRs reviewed: 5
+  - #2058 — docs(skill): fix admin-widget-config SpecialistSchedule Settings path (head `scheduled/skill-freshness-specialist-settings-path`, base `dev-paul`)
+  - #2057 — audit(tuesday): daily+weekly journal updates (head `scheduled-tasks`, base `dev-paul`)
+  - #2056 — docs(unifier): run 17 log — D4 plc/meeting import fix (head `nightly/unifier-log-2026-06-23`, base `dev-paul`)
+  - #2055 — fix(D4): @/ alias for cross-subdir imports in plc/meeting + plc/bodies (head `nightly/unify-import-paths-plc-meeting-2026-06-23`, base `dev-paul`)
+  - #2043 — docs(unifier): run 23 staleness scan + doc regression recovery (head `nightly/unifier-log-2026-06-22`, base `dev-paul`)
+- Comments processed: 2 total — 0 fixed, 2 explained (both already satisfied in current revision)
+  - #2056: 2 gemini threads on `docs/routines/unifier.md` (fully-qualify meeting paths; move `#2055` to the dedicated PR column) → EXPLAINED + RESOLVED: both marked outdated; current revision (lines 270 and 289) already matches the suggestions. Replied and resolved both threads.
+  - #2058, #2057, #2055, #2043: no unresolved actionable threads (Gemini reviews carried no inline comments; #2057's single Blooms-Taxonomy thread was already resolved and Gemini itself advised against mechanical edits to historical audit logs).
+- Fixes pushed: 0 (no actionable code-fix comments — the only two were already addressed)
+- Reviews posted: 5 (one structured review per PR)
+  - #2058: Ready with minor notes — skill path fix verified (`SpecialistSchedule/Settings.tsx:48` reads `featurePermissions`); flagged a `2026-06-24` future-date typo in the journal entry and journal-file overlap with #2057.
+  - #2057: Ready — journal-only; flagged two newly-logged advisories (production `dompurify` GHSA-cmwh-pvxp-8882 worth a remediation PR; test-only `ts-deepmerge`).
+  - #2056: Ready — doc-only unifier run-17 log; both Gemini nitpicks already satisfied.
+  - #2055: Ready — clean mechanical `@/` import-path refactor (6 imports, 5 files); same-dir `./` imports correctly preserved.
+  - #2043: Ready — doc recovery + `.gitattributes merge=ours` (built-in driver, correct fix) + timestamp-only perf-baseline bumps.
+- Notes:
+  - Branch-safety: all 5 head branches are non-`main` / non-`dev-*` → pushable. No fix pushes were required this run.
+  - Merge-order coordination flagged on #2058/#2057: both carry the same five `docs/scheduled-tasks/*` journal updates (the skill-fix branch was cut from `scheduled-tasks`), so the second to merge will conflict on those files.
+
+---
+
 ## 2026-06-22
 
 - PRs reviewed: 7
