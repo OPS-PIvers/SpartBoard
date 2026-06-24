@@ -497,6 +497,58 @@ describe('QuizDriveService.exportResultsToSheet — column shape', () => {
     expect(dataRows[1][3]).toBe('Zeta, Alex');
   });
 
+  it('emits exactly one Question Analysis row per unique question id when questions contains duplicates', async () => {
+    // Regression: Drive-sync duplication and arrayUnion races can write the same
+    // question id twice into `quiz.questions`. Before the fix, the solo-mode
+    // stats section iterated the raw (un-deduped) array and emitted a duplicate
+    // row for every repeated id, producing a malformed "Question Analysis" table.
+    // The grade-data section (buildResultsSheetDataShared) was already correct
+    // because it deduplicates internally; only the stats block was missing the
+    // guard.
+    const fetchSpy = queueFetchResponses([
+      {
+        json: () =>
+          Promise.resolve({
+            spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/abc',
+          }),
+      },
+    ]);
+
+    const dup = makeQuestion('q1'); // same id as the unique one below
+    await service.exportResultsToSheet(
+      'Dup Test',
+      [makeResponse({ pin: '01', answers: [{ questionId: 'q1', answer: 'A', answeredAt: 0 }] })],
+      // Two entries with the same id 'q1' — simulates a Drive-sync duplicate.
+      [makeQuestion('q1'), dup],
+    );
+
+    const calls = (fetchSpy as unknown as { mock: { calls: unknown[][] } }).mock
+      .calls as Array<[string, RequestInit]>;
+    const body = parseBody(calls[0][1]);
+    const sheets = body.sheets as Array<{
+      data: Array<{
+        rowData: Array<{
+          values: Array<{ userEnteredValue: { stringValue: string } }>;
+        }>;
+      }>;
+    }>;
+    const allRows = sheets[0].data[0].rowData.map((row) =>
+      row.values.map((v) => v.userEnteredValue.stringValue)
+    );
+
+    // The Question Analysis block starts with a blank row, then 'Question Analysis',
+    // then a header row, then one data row per UNIQUE question. With a single unique
+    // question 'q1', there should be exactly 1 data row — not 2.
+    const analysisHeaderIdx = allRows.findIndex((r) => r[0] === 'Question Analysis');
+    expect(analysisHeaderIdx).toBeGreaterThan(-1);
+    // Skip: 'Question Analysis' label, column headers. Data rows follow.
+    const analysisDataRows = allRows.slice(analysisHeaderIdx + 2);
+    // Only 1 unique question — must produce exactly 1 stats data row.
+    expect(analysisDataRows).toHaveLength(1);
+    // Verify the single row describes 'q1'.
+    expect(analysisDataRows[0][0]).toBe('Question q1'); // q.text
+  });
+
   it('throws PlcSheetSchemaMismatchError when appending to an old-schema PLC sheet', async () => {
     queueFetchResponses([
       // Tab metadata
