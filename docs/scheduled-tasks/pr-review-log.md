@@ -4,6 +4,38 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-24
+
+- PRs reviewed: 10
+  - #2070 — refactor(ui): unify ClockWidget/TimeTool font pickers via shared TypographySettings (head `scheduled-tasks`, base `dev-paul`)
+  - #2069 — docs(routine): nightly debugger run 20 memory doc (head `nightly/debugger-log-2026-06-24`, base `dev-paul`)
+  - #2068 — fix: remove .animate-spin from reduced-motion suppression in index.css (head `nightly/dashboard-layout-2026-06-24`, base `dev-paul`)
+  - #2067 — fix(analytics): remove phantom 'guided-learning' from GEMINI_SPECIFIC_FEATURES (head `nightly/build-tooling-2026-06-24`, base `dev-paul`)
+  - #2066 — fix(i18n): correct verbatim-EN clock font/style labels in DE and FR (head `nightly/admin-config-2026-06-24`, base `dev-paul`)
+  - #2065 — fix(quizDriveService): dedup questions before solo-mode stats section (head `nightly/state-data-2026-06-24`, base `dev-paul`)
+  - #2064 — fix(poll): cancel OptionInput rename on Escape without saving (head `nightly/widgets-2026-06-24`, base `dev-paul`)
+  - #2063 — docs(unifier): run 18 log — D4 PLC Wave 5 (head `nightly/unifier-log-2026-06-24`, base `dev-paul`)
+  - #2062 — fix(imports): PLC Wave 5 cross-subdir relative imports → @/ alias (head `nightly/unify-import-paths-plc-wave5-2026-06-24`, base `dev-paul`)
+  - #2043 — docs(unifier): run 23 staleness scan + doc regression recovery (head `nightly/unifier-log-2026-06-22`, base `dev-paul`)
+- Comments processed: 4 unresolved threads actioned (others were outdated/already-addressed) — 0 fixed, 4 explained
+  - #2065: gemini thread on `utils/quizDriveService.ts:716` (also dedup `r.answers` per-response in stats loop) → EXPLAINED: valid but separate grading-semantics concern, out of this PR's row-dedup scope; recommended as a follow-up mirroring `buildResultsSheetData`'s first-occurrence answer filter.
+  - #2064: gemini thread suggesting a `userEvent` rewrite of the Escape/Enter tests → EXPLAINED: stylistic, not a correctness issue; the deliberate `fireEvent`+`act()` is required to replicate a browser blur without focusing the element.
+  - #2064: claude thread on the Enter test double-blur (line 94) → EXPLAINED: already addressed in current HEAD (`toHaveBeenCalledTimes(1)` present).
+  - #2067: claude thread requesting a `totalCalls` assertion (line 1205) → EXPLAINED: already present in current HEAD with a clarifying comment.
+- Fixes pushed: 0 (no actionable code-fix comments — open threads were out-of-scope, stylistic, or already satisfied in current HEAD; all code PRs verify clean per their own descriptions)
+- Reviews posted: 10 (one structured review per PR)
+  - #2070: Ready — clean shared-settings de-duplication; `showColorPicker={false}` correctly avoids a dead `fontColor` control (Clock/TimeTool use `themeColor`).
+  - #2069: Ready with minor notes — docs-only; two gemini prose-accuracy nits on the debugger memory log.
+  - #2068: Ready — correct root-cause WCAG 2.3.3 fix; gemini's strip-comments test suggestion already in HEAD.
+  - #2067: Ready — phantom analytics bucket removed + matching frontend label cleanup; thorough regression tests.
+  - #2066: Ready — three verbatim-EN locale values corrected with a regression guard.
+  - #2065: Ready with minor notes — question-row dedup correct; flagged the separate answers-dedup follow-up.
+  - #2064: Ready — real Escape-cancel bug fixed with the `cancelledRef` pattern; reset-on-blur present so normal saves still work.
+  - #2063: Ready with minor notes — docs-only; gemini count nits are correct (bodies→viewer is 4 not 5; NeedDoPutThen panel has 6 labels not 5); 12-total figure is right.
+  - #2062: Ready — purely mechanical `@/` alias unification across 7 PLC files.
+  - #2043: Ready — docs-only recovery + run-23 scan; flagged overlap with newer #2063 to confirm before merge.
+- Notes: No code fixes were pushed this run. None of the open review threads met the clearly-needed + in-scope + unambiguous + safe bar for an automated push to these draft PRs; the substantive ones were either out-of-scope follow-ups (answers-dedup), stylistic preferences, or already satisfied in current HEAD. Per this session's branch policy, this log entry is committed to `claude/compassionate-shannon-ta0tmu` rather than `scheduled-tasks` (the latter is the head of open PR #2070; appending here avoids polluting that PR's diff).
+
 ## 2026-06-23
 
 - PRs reviewed: 5
