@@ -14,7 +14,7 @@
 
 **Legend:** **S** <½ day · **M** ½–2 days · **L** multi-day / wide-blast-radius. 🔒 security/data-isolation · 👤 Paul-owned ops · ⛔ blocked.
 
-**Totals (verified):** ~22 genuinely-open items below · **9 found already-shipped** (removed) · **7 narrowed** · 24 completed docs previously deleted · 2 flagged.
+**Totals (verified):** ~22 genuinely-open items below · **9 found already-shipped** (removed) · **7 narrowed** · **35 completed docs deleted** (24 first pass + 11 verified-complete plans).
 
 ---
 
@@ -99,13 +99,13 @@ Re-checked against code + git on 2026-06-23 and found **complete** — removed f
 | LO7 | CF cost items 3/4/5                                                | `generateWithAI` caching, `archiveActivityWallPhoto` size guard, ClassLink batching — `0da67704`. (Item 2 is a Firebase-Console volume check, no code.)                                                                                                                                                                                                                                    |
 | H3  | PLC Workspace Waves 2–4 — **BUILT**                                | All components/hooks/CFs exist on `dev-paul` (PlcPresenceStrip, PlcMeetingMode, PlcVersionHistoryPanel, usePlcPresence/Comments/Trash, aggregate/digest CFs). **Caveat:** my two passes disagreed on whether this is on `main` yet, and memory notes emulator/app/migration gates were pending — **confirm release/verification status before relying on it.** Not "remaining build work." |
 
-**Deletion candidates (now verified complete):** the source plan/spec docs for the items above are now safe to delete on the same basis as Appendix A — `collections-core-and-modal.md`, `collections-fab-and-mounted-set.md`, `collections-sharing.md`, `quiz-results-screenshot-protection.md`, `formatting-toolbar-redesign.md` (plan+spec), `unified-editor-modal-plan.md`, `classroom-itemD-unify-class-course-design.md`, `inner-edge-drag-zones-design.md`. (Not deleted yet — pending your OK, since I'd rather confirm after getting the first pass wrong.)
+**Deleted 2026-06-23 (verified complete):** the source plan/spec docs for the §5 items were removed — the 4 collections plans (`core-and-modal`, `fab-and-mounted-set`, `sharing`, `templates`), `quiz-results-screenshot-protection.md`, `formatting-toolbar-redesign.md` (plan + spec), `unified-editor-modal-plan.md`, `classroom-itemD-unify-class-course-design.md`, `inner-edge-drag-zones-design.md`, and `2026-05-20-plc-collaborative-redesign.md`. All recoverable via git.
 
 ---
 
 ## Appendix A — Docs deleted (completed)
 
-24 planning/spec/handoff/spike artifacts whose work is fully shipped (git-verified). All recoverable via git.
+35 planning/spec/handoff/spike artifacts whose work is fully shipped (git-verified): the 24 first-pass deletions tabled below, plus the 11 plan/spec docs cleared after the 2026-06-23 code-verification (listed in §5). All recoverable via git.
 
 | Doc                                                                    | Why deleted (evidence)                                                                                               |
 | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
@@ -125,12 +125,9 @@ Re-checked against code + git on 2026-06-23 and found **complete** — removed f
 | `classroom-assign-phase2-handoff.md`                                   | Items A–D shipped — `593859a1` (#1882).                                                                              |
 | `schoology-lti-spike1-runbook.md`                                      | One-time spike procedure; executed.                                                                                  |
 
-## Appendix B — Flagged for your call (completed, but kept)
+## Appendix B — (resolved) previously-flagged docs
 
-| Doc                                                          | Status                                                  | Why kept                                                                                                                         |
-| ------------------------------------------------------------ | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `superpowers/plans/2026-05-20-plc-collaborative-redesign.md` | DONE (`651cedb9` #2025 → `1a82a164` #2027)              | Name-collides with `plc-workspace-prd.md`; kept to avoid confusing the active redesign.                                          |
-| `superpowers/plans/2026-05-16-collections-templates.md`      | DONE (`CollectionTemplate` + `CreateFromTemplateModal`) | "Plan 4 of 4" of the collections arc; the rest of the arc is now also done (see §5) — collections plans can be cleared together. |
+Both docs flagged for your confirmation were **deleted 2026-06-23** after code-verification: `2026-05-20-plc-collaborative-redesign.md` (shipped #2025 → #2027) and `2026-05-16-collections-templates.md` (Plan 4 of the now-complete collections arc). See Appendix A / §5.
 
 ## Appendix C — Code markers verified NOT actionable
 
