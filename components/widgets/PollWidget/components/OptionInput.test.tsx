@@ -80,12 +80,14 @@ describe('OptionInput', () => {
 
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: 'New Value' } });
-    // fireEvent.focus makes this element active in jsdom, so e.currentTarget.blur()
-    // inside the Enter handler fires a real blur — onSave is called once from that
-    // programmatic blur. No manual fireEvent.blur needed (and adding one would
-    // call onSave a second time, invisible to a toHaveBeenCalledWith assertion).
+    // In jsdom, e.currentTarget.blur() inside the Enter handler is a no-op —
+    // the programmatic blur does not dispatch a real blur event, so onBlur never
+    // fires from it. fireEvent.blur() below is the only call that reaches onBlur,
+    // meaning onSave is called exactly once. toHaveBeenCalledTimes(1) verifies
+    // no double-save (same reasoning as the Escape test comment above).
     act(() => {
       fireEvent.keyDown(input, { key: 'Enter' });
+      fireEvent.blur(input);
     });
 
     expect(handleSave).toHaveBeenCalledTimes(1);
