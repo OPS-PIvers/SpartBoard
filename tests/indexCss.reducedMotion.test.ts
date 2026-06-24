@@ -22,10 +22,10 @@
  */
 
 import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
+import { resolve } from 'path';
 import { describe, it, expect } from 'vitest';
 
-const CSS_PATH = fileURLToPath(new URL('../index.css', import.meta.url));
+const CSS_PATH = resolve(__dirname, '../index.css');
 
 /**
  * Extract the body of every `@media (prefers-reduced-motion: reduce)` block
