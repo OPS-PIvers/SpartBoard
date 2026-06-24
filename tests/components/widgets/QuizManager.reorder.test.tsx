@@ -15,7 +15,10 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 
-import { QuizManager } from '@/components/widgets/QuizWidget/components/QuizManager';
+import {
+  QuizManager,
+  SORT_COMPARATORS,
+} from '@/components/widgets/QuizWidget/components/QuizManager';
 import type { QuizConfig, QuizMetadata } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -132,13 +135,13 @@ describe('QuizManager reorder — backward-compat (no order fields)', () => {
 // ---------------------------------------------------------------------------
 
 describe('QuizManager reorder — manual comparator', () => {
-  it('orders quizzes by order field ascending when manual sort is applied', () => {
-    // Import the comparator directly from the module's exported constant.
-    // The comparator is module-level so we exercise it in isolation.
-    // Simulate the comparator behaviour: manual: (a, b) => (a.order ?? 0) - (b.order ?? 0)
-    const manualComparator = (a: QuizMetadata, b: QuizMetadata): number =>
-      (a.order ?? 0) - (b.order ?? 0);
+  // Exercise the ACTUAL production comparator (exported from QuizManager) so a
+  // regression in `SORT_COMPARATORS.manual` is caught here rather than slipping
+  // past a locally-redefined lambda.
+  const manualComparator = (a: QuizMetadata, b: QuizMetadata): number =>
+    SORT_COMPARATORS.manual(a, b, 'asc');
 
+  it('orders quizzes by order field ascending when manual sort is applied', () => {
     const quizzes: QuizMetadata[] = [
       makeQuizMeta({ id: 'q3', order: 2 }),
       makeQuizMeta({ id: 'q1', order: 0 }),
@@ -150,9 +153,6 @@ describe('QuizManager reorder — manual comparator', () => {
   });
 
   it('treats missing order as 0 (stable for quizzes never reordered)', () => {
-    const manualComparator = (a: QuizMetadata, b: QuizMetadata): number =>
-      (a.order ?? 0) - (b.order ?? 0);
-
     const quizzes: QuizMetadata[] = [
       makeQuizMeta({ id: 'qa' }), // order undefined → treated as 0
       makeQuizMeta({ id: 'qb', order: 1 }),

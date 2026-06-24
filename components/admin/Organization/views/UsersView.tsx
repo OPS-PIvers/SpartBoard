@@ -379,12 +379,9 @@ export const UsersView: React.FC<Props> = ({
           {canManageUsers && (
             <>
               {(() => {
-                const invitedSelected = Array.from(selected)
-                  .map((id) => users.find((u) => u.id === id))
-                  .filter(
-                    (u): u is UserRecord =>
-                      u !== undefined && u.status === 'invited'
-                  );
+                const invitedSelected = users.filter(
+                  (u) => selected.has(u.id) && u.status === 'invited'
+                );
                 return (
                   <button
                     type="button"
