@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
 _Last audited: 2026-06-19_
-_Last action: 2026-06-20 — MEDIUM `ExpectationsWidget/Settings.tsx` custom button-pair toggle replaced with shared `Toggle` component_
+_Last action: 2026-06-24 — MEDIUM `ClockWidget`/`TimeTool` inline font-family pickers replaced with shared `TypographySettings` (new `showColorPicker` opt-out so no dead `fontColor` control is surfaced)_
 
 ---
 
@@ -59,13 +59,6 @@ _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widget
 - **Detail:** `TextConfig` declares `fontFamily?: string`, `fontColor?: string`, and `textSizePreset?: TextSizePreset`. `TextWidget/Widget.tsx` reads all three at lines 37-47 and applies them: `fontFamily` sets the container-level CSS font class, `fontColor` sets the default text color, `textSizePreset` adjusts the base font size multiplier. However, `text` is absent from `WIDGET_APPEARANCE_COMPONENTS` and `TextSettings` only shows template shortcuts — no UI exists to configure these three fields. They can only be set via admin building config. Teachers have no way to change the widget-level font family or base text color from the dashboard. The FormattingToolbar allows per-selection inline font changes in the content HTML, but `config.fontFamily`/`config.fontColor` control the container defaults that show for unformatted text.
 - **Fix:** Create a `TextAppearanceSettings` component in `components/widgets/TextWidget/Settings.tsx` that renders `TypographySettings` (fontFamily + fontColor) and `TextSizePresetSettings` (textSizePreset). Register in `WIDGET_APPEARANCE_COMPONENTS` as `'text': lazyNamed(() => import('./TextWidget/Settings'), 'TextAppearanceSettings')`. This exposes three config fields that are already consumed by the widget but unreachable by end users.
 
-### MEDIUM `ClockWidget/Settings.tsx` and `TimeTool/Settings.tsx` implement identical inline font family selector instead of `TypographySettings`
-
-- **Detected:** 2026-06-05 (ClockWidget), 2026-06-10 (TimeTool confirmed identical)
-- **File:** components/widgets/ClockWidget/Settings.tsx (lines 50–92), components/widgets/TimeTool/Settings.tsx (`TimeToolAppearanceSettings`, lines 456–503)
-- **Detail:** Both settings panels implement the same custom font-family picker: four inline `<button>` elements toggling between `global`, `font-mono`, `font-sans`, and `font-handwritten`, with identical Tailwind classes (`border-blue-500 bg-blue-50` for selected state) and identical icon characters (`'G'`, `'01'`, `'Aa'`, `'✏️'`). The shared `TypographySettings` component from `components/common/` already handles this exact picker and is used in ~15 other widget settings panels. Both inline implementations will drift from `TypographySettings` as the shared component evolves.
-- **Fix:** Replace the inline font-family button group in BOTH `ClockWidget/Settings.tsx` (lines 50–92) and `TimeTool/Settings.tsx` (lines 456–503) with `<TypographySettings widget={widget} update={update} />`. Verify `ClockConfig` and `TimeToolConfig` both declare `fontFamily` (they do). Remove the local button-group markup and associated state/style logic from both files.
-
 ### MEDIUM Segmented-control pill selector pattern duplicated 12× across settings panels with no shared component
 
 - **Detected:** 2026-06-10
@@ -111,6 +104,14 @@ _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widget
 ---
 
 ## Completed
+
+### MEDIUM `ClockWidget/Settings.tsx` and `TimeTool/Settings.tsx` implement identical inline font family selector instead of `TypographySettings`
+
+- **Detected:** 2026-06-05 (ClockWidget), 2026-06-10 (TimeTool confirmed identical)
+- **Completed:** 2026-06-24
+- **File:** components/common/TypographySettings.tsx, components/widgets/ClockWidget/Settings.tsx (`ClockAppearanceSettings`), components/widgets/TimeTool/Settings.tsx (`TimeToolAppearanceSettings`), components/widgets/ClockWidget/Settings.test.tsx
+- **Detail:** Both appearance panels hand-rolled the same four-button font-family picker (`global`/`font-mono`/`font-sans`/`font-handwritten` with `border-blue-500 bg-blue-50` selected state and `'G'`/`'01'`/`'Aa'`/`'✏️'` icons), duplicating `TypographySettings`. Two correctness gaps in the inline versions: (a) they wrote the literal `fontFamily: 'global'` sentinel into saved config, whereas the shared component writes `undefined` to clear the override (both read back as "inherit" via the widgets' `fontFamily = 'global'` destructuring default, so no migration needed); (b) they only offered 4 of the project's 12 font families.
+- **Resolution:** The journal's original prescribed fix (`<TypographySettings widget=… update=… />`) was inaccurate on two counts and was NOT followed verbatim: the actual API is `config`/`updateConfig`, and `TypographySettings` **also renders a `fontColor` text-color picker** — but neither `ClockConfig` nor `TimeToolConfig` declares or consumes `fontColor` (both use their own `themeColor` palette + glow). A naive drop-in would have added a dead text-color control, violating the appearance-standard "no dead controls" rule. Instead: (1) added a backward-compatible `showColorPicker?: boolean` (default `true`) prop to `components/common/TypographySettings.tsx`, wrapping the Text Color block — all 23 existing call sites are unaffected (default preserves current behavior). (2) Replaced the inline font button-group in both `ClockAppearanceSettings` and `TimeToolAppearanceSettings` with `<TypographySettings config={config} updateConfig={(u) => updateWidget(widget.id, { config: { ...config, ...u } })} showColorPicker={false} />`; each widget keeps its own `themeColor`/glow section unchanged. Removed the now-unused `fonts` arrays, the `Type` lucide import, and (TimeTool) the unused `fontFamily` destructure. (3) Updated the one affected assertion in `ClockWidget/Settings.test.tsx` (`getByText('widgets.clock.fonts.modern')` → `getByText('Modern')`; `font-sans` result unchanged) since fonts now render with `config/fonts` labels rather than i18n keys — consistent with the 23 other shared-picker panels. The `widgets.clock.fonts.*` locale keys remain in the JSON (still asserted by the locale parity test). `pnpm run type-check`, `pnpm exec eslint` (4 changed files, `--max-warnings 0`), and `pnpm exec prettier --check` all clean; ClockWidget + TimeTool suites (70 tests) and a sample of TypographySettings consumers + the i18n locale test (315 tests) all pass.
 
 ### MEDIUM `ExpectationsWidget/Settings.tsx` implements custom toggle instead of shared `Toggle` component
 
