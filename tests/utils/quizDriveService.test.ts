@@ -517,9 +517,14 @@ describe('QuizDriveService.exportResultsToSheet — column shape', () => {
     const dup = makeQuestion('q1'); // same id as the unique one below
     await service.exportResultsToSheet(
       'Dup Test',
-      [makeResponse({ pin: '01', answers: [{ questionId: 'q1', answer: 'A', answeredAt: 0 }] })],
+      [
+        makeResponse({
+          pin: '01',
+          answers: [{ questionId: 'q1', answer: 'A', answeredAt: 0 }],
+        }),
+      ],
       // Two entries with the same id 'q1' — simulates a Drive-sync duplicate.
-      [makeQuestion('q1'), dup],
+      [makeQuestion('q1'), dup]
     );
 
     const calls = (fetchSpy as unknown as { mock: { calls: unknown[][] } }).mock
@@ -539,7 +544,9 @@ describe('QuizDriveService.exportResultsToSheet — column shape', () => {
     // The Question Analysis block starts with a blank row, then 'Question Analysis',
     // then a header row, then one data row per UNIQUE question. With a single unique
     // question 'q1', there should be exactly 1 data row — not 2.
-    const analysisHeaderIdx = allRows.findIndex((r) => r[0] === 'Question Analysis');
+    const analysisHeaderIdx = allRows.findIndex(
+      (r) => r[0] === 'Question Analysis'
+    );
     expect(analysisHeaderIdx).toBeGreaterThan(-1);
     // Skip: 'Question Analysis' label, column headers. Data rows follow.
     const analysisDataRows = allRows.slice(analysisHeaderIdx + 2);
