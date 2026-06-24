@@ -864,7 +864,6 @@ const AI_FEATURE_LABELS: Record<string, string> = {
   'video-activity-audio-transcription': 'Video Activity',
   quiz: 'Quiz Generation',
   ocr: 'OCR',
-  'guided-learning': 'Guided Learning',
 };
 
 const AiPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
