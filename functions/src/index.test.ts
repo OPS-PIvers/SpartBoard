@@ -1203,6 +1203,10 @@ describe('adminAnalytics', () => {
     // in byFeature. After the fix the entry is gone, isSpecificFeature is false,
     // and the doc's uid doesn't match any member, so nothing is written to byFeature.
     expect(result.api.byFeature['guided-learning']).toBeUndefined();
+    // Also verify the overall total is not polluted. Pre-fix: isSpecificFeature=true
+    // → count excluded from totalAiCalls (undercount). Post-fix: doc dropped (uid
+    // mismatch) → totalAiCalls reflects only the real overall doc (count: 5).
+    expect(result.api.totalCalls).toBe(5);
   });
 
   it('returns topUsers with resolved email and unknown fallback', async () => {
