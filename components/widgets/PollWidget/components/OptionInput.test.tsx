@@ -44,20 +44,15 @@ describe('OptionInput', () => {
   });
 
   it('does NOT call onSave when Escape is pressed during an edit', () => {
-    // Root-cause: OptionInput had onBlur={() => onSave(index, val)} but NO
-    // onKeyDown handler. Pressing Escape triggers blur in browsers/jsdom, which
-    // fired onSave with the edited (intended-to-cancel) value instead of the
-    // original label.
+    // In the browser, pressing Escape while an input is focused triggers
+    // onKeyDown synchronously, which sets cancelledRef.current = true and
+    // calls input.blur() — firing onBlur while the ref is still true.
+    // onBlur reads the ref and returns early, so onSave is never called.
     //
-    // Fix: intercept Escape in onKeyDown — reset val to the original label and
-    // call input.blur() from within the handler so blur fires AFTER the state
-    // reset. onBlur must then guard against saving when the value equals the
-    // original label, OR the cancel path must set a flag that onBlur checks.
-    //
-    // Test pattern (from repo backlog notes): wrap BOTH the keyDown and the
-    // subsequent blur inside a single act() call — jsdom does NOT fire blur
-    // automatically when a DOM node's value changes, so the single act() defers
-    // React's state flush until after both events have fired.
+    // In jsdom, fireEvent.change() does NOT focus the element, so
+    // e.currentTarget.blur() inside the handler is a no-op. We fire
+    // fireEvent.blur() explicitly to replicate the browser-generated blur.
+    // The single act() ensures setVal(label) flushes before the assertions.
     const handleSave = vi.fn();
     render(<OptionInput label="Original" index={0} onSave={handleSave} />);
 
@@ -76,5 +71,20 @@ describe('OptionInput', () => {
 
     // The displayed value should revert to the original label.
     expect(input).toHaveValue('Original');
+  });
+
+  it('calls onSave when Enter is pressed during an edit', () => {
+    const handleSave = vi.fn();
+    render(<OptionInput label="Original" index={0} onSave={handleSave} />);
+    const input = screen.getByRole('textbox');
+
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'New Value' } });
+    act(() => {
+      fireEvent.keyDown(input, { key: 'Enter' });
+      fireEvent.blur(input);
+    });
+
+    expect(handleSave).toHaveBeenCalledWith(0, 'New Value');
   });
 });
