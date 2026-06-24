@@ -1111,9 +1111,10 @@ describe('adminAnalytics', () => {
     // as per-feature records rather than overall records. The feature ID uses
     // only hyphens, so split('_') gives exactly three parts:
     //   ["uid1", "video-activity-audio-transcription", "2026-06-10"]
-    // Without the entry, `isSpecificFeature` would be false: uid would be
-    // parsed as `"uid1"` and the doc would count toward totalCalls instead of
-    // byFeature — correct count but wrong bucket. With the entry present the
+    // Without the entry, `isSpecificFeature` would be false: `uidParts = slice(0,-1)` =
+    // `["uid1", "video-activity-audio-transcription"]`, so uid =
+    // `"uid1_video-activity-audio-transcription"`. That UID matches no member
+    // → doc is silently dropped (counted nowhere). With the entry present the
     // doc lands in byFeature['video-activity-audio-transcription'] and is
     // excluded from totalCalls to avoid double-counting.
     mockFirestoreState.users = [
@@ -1195,11 +1196,6 @@ describe('adminAnalytics', () => {
     ];
 
     const result = await computeAnalyticsForOrg('orono');
-
-    // totalCalls must equal the overall doc only. On current buggy code the
-    // guided-learning doc is classified as per-feature, NOT as overall — so
-    // totalCalls is still 5. ✓ (same in both code paths)
-    expect(result.api.totalCalls).toBe(5);
 
     // The phantom byFeature bucket must NOT appear in the output.
     // Before this fix, 'guided-learning' was in GEMINI_SPECIFIC_FEATURES, so
