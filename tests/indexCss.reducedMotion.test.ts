@@ -56,7 +56,7 @@ function extractReducedMotionBlocks(css: string): string {
 }
 
 describe('index.css — reduced-motion safety', () => {
-  const css = readFileSync(CSS_PATH, 'utf-8');
+  const css = readFileSync(CSS_PATH, 'utf-8').replace(/\/\*[\s\S]*?\*\//g, '');
   const reducedMotionCSS = extractReducedMotionBlocks(css);
 
   it('does NOT suppress .animate-spin inside prefers-reduced-motion blocks', () => {
