@@ -7,7 +7,7 @@ import { useCanEditPlcContent } from '@/context/usePlcContext';
 import { usePlcTodos } from '@/hooks/usePlcTodos';
 import { usePlcSoftDelete } from '@/hooks/usePlcTrash';
 import { logError } from '@/utils/logError';
-import { PlcViewerReadOnlyBadge } from '../viewer/PlcViewerReadOnlyBadge';
+import { PlcViewerReadOnlyBadge } from '@/components/plc/viewer/PlcViewerReadOnlyBadge';
 
 interface TodosBodyProps {
   plc: Plc;
