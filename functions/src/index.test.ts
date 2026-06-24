@@ -1108,15 +1108,14 @@ describe('adminAnalytics', () => {
     // Regression for: video-activity-audio-transcription must remain in
     // GEMINI_SPECIFIC_FEATURES so that docs written by `transcribeVideoWithGemini`
     // (shape: `{uid}_video-activity-audio-transcription_{date}`) are classified
-    // as per-feature records rather than overall records. Without the entry,
-    // `secondToLast` would be `"transcription"` — wait, no: the feature id uses
-    // hyphens so split('_') gives exactly three parts:
+    // as per-feature records rather than overall records. The feature ID uses
+    // only hyphens, so split('_') gives exactly three parts:
     //   ["uid1", "video-activity-audio-transcription", "2026-06-10"]
-    // If the entry were absent, `isSpecificFeature` would be false, uid would be
-    // parsed as `"uid1"` (correct) and the doc would count toward totalCalls
-    // instead of byFeature — correct count but wrong bucket. With the entry
-    // present the doc lands in byFeature['video-activity-audio-transcription']
-    // and is excluded from totalCalls to avoid double-counting.
+    // Without the entry, `isSpecificFeature` would be false: uid would be
+    // parsed as `"uid1"` and the doc would count toward totalCalls instead of
+    // byFeature — correct count but wrong bucket. With the entry present the
+    // doc lands in byFeature['video-activity-audio-transcription'] and is
+    // excluded from totalCalls to avoid double-counting.
     mockFirestoreState.users = [
       {
         id: 'uid1',
@@ -1203,11 +1202,10 @@ describe('adminAnalytics', () => {
     expect(result.api.totalCalls).toBe(5);
 
     // The phantom byFeature bucket must NOT appear in the output.
-    // This assertion FAILS on current code because 'guided-learning' IS in
-    // GEMINI_SPECIFIC_FEATURES, so the count of 4 lands in
-    // aiCallsByFeature['guided-learning'] and surfaces in byFeature.
-    // After the fix the entry is gone, isSpecificFeature is false, and the
-    // doc's uid doesn't match any member, so nothing is written to byFeature.
+    // Before this fix, 'guided-learning' was in GEMINI_SPECIFIC_FEATURES, so
+    // the count of 4 landed in aiCallsByFeature['guided-learning'] and surfaced
+    // in byFeature. After the fix the entry is gone, isSpecificFeature is false,
+    // and the doc's uid doesn't match any member, so nothing is written to byFeature.
     expect(result.api.byFeature['guided-learning']).toBeUndefined();
   });
 
