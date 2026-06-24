@@ -31,7 +31,7 @@ import type { PlcMeeting } from '@/types';
 import type {
   AssessmentDataCard,
   SharedDataTeamMember,
-} from '../sharedData/sharedDataSelectors';
+} from '@/components/plc/sharedData/sharedDataSelectors';
 
 // ---------------------------------------------------------------------------
 // Step model + rail

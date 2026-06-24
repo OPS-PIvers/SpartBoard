@@ -541,6 +541,17 @@ export interface ImportAdapter<TData> {
   /** e.g. "Quiz", used for wizard copy. */
   widgetLabel: string;
   supportedSources: ImportSourceKind[];
+  /**
+   * Optional Google Picker entry point for the `'sheet'` source. When present
+   * (and `'sheet'` is supported), the wizard renders a "Choose Google Sheet
+   * from Drive" button INSTEAD of a paste-URL field: this resolves with the
+   * picked sheet's URL, or `null` if the user cancels. Picking grants the app
+   * per-file `drive.file` access to that sheet, so the follow-up
+   * `parse({ kind: 'sheet' })` reads it WITHOUT the sensitive `spreadsheets`
+   * scope. Adapters that omit this fall back to the paste-URL field (which
+   * requires the broad scope).
+   */
+  pickSheet?: () => Promise<{ url: string } | null>;
   /** Optional helper for Google Sheets template creation. */
   templateHelper?: {
     createTemplate: () => Promise<{ url: string }>;

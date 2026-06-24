@@ -62,14 +62,12 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
   // eslint-disable-next-line react-hooks/refs
   configRef.current = config;
 
-  const updateWidgetRef = React.useRef(updateWidget);
-  // eslint-disable-next-line react-hooks/refs
-  updateWidgetRef.current = updateWidget;
-
   const itemsRef = React.useRef(safeItems);
   // eslint-disable-next-line react-hooks/refs
   itemsRef.current = safeItems;
 
+  // updateWidget from DashboardContext is a stable identity (stableActions,
+  // empty-dep useMemo + liveActionsRef forwarding) — no ref-mirror needed.
   const handleBulkChange = (text: string) => {
     setLocalText(text);
 
@@ -100,7 +98,7 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
         });
 
       setSkipNextSync(true);
-      updateWidgetRef.current(widget.id, {
+      updateWidget(widget.id, {
         config: { ...configRef.current, items: newItems },
       });
     }, 500);

@@ -84,13 +84,15 @@ export interface UseQuizResult {
    */
   duplicateQuiz: (sourceMeta: QuizMetadata) => Promise<QuizMetadata>;
   /**
-   * Parse a Google Sheet URL and return quiz questions.
+   * Parse a Google Sheet (chosen via the Drive Picker) and return quiz
+   * questions.
    *
-   * `token` (optional) is a Sheets-capable access token to use for the Sheets
-   * API call — passed by the import wizard's Path B flow after an on-demand
-   * `ensureGoogleScope('spreadsheets')` grant, so the FIRST import succeeds even
-   * before the render-time `googleAccessToken` closure refreshes. Omitting it
-   * falls back to the closure token (unchanged behavior for other callers).
+   * `token` (optional) is a fresh `drive.file` access token to use for the
+   * Sheets API call — the import wizard threads it after the user picks the
+   * sheet (the Picker grants per-file `drive.file` access, so NO sensitive
+   * `spreadsheets` scope is needed), so the FIRST read succeeds even before the
+   * render-time `googleAccessToken` closure refreshes. Omitting it falls back to
+   * the closure token (unchanged behavior for other callers).
    */
   importFromSheet: (
     sheetUrl: string,
@@ -202,12 +204,12 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         if (!userId) throw new Error('Not authenticated');
         return new MockQuizDriveService(userId);
       }
-      // Prefer an explicitly-threaded token (e.g. the fresh union token minted
-      // by `ensureGoogleScope('spreadsheets')` in the import wizard's Path B
-      // flow) over the render-time `googleAccessToken` closure. After a user
-      // grants the Sheets scope in the same gesture, the closure is still
-      // stale (state updates next render), so a Sheets call built from it would
-      // 403 on the first attempt. The threaded token carries the union scope.
+      // Prefer an explicitly-threaded token (e.g. the fresh `drive.file` token
+      // minted by `ensureGoogleScope('drive.file')` in the import wizard's flow)
+      // over the render-time `googleAccessToken` closure. The closure can be
+      // stale right after an on-demand mint (state updates next render), so a
+      // Sheets/Drive call built from it could 403 on the first attempt; the
+      // threaded token is current.
       const accessToken = token ?? googleAccessToken;
       if (!accessToken) {
         throw new Error(

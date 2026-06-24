@@ -97,6 +97,8 @@ export function ImportWizard<TData>({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  // True while the Google Picker dialog is open (sheet import via pickSheet).
+  const [picking, setPicking] = useState(false);
 
   // AI-assist overlay state.
   const [aiOpen, setAiOpen] = useState(false);
@@ -125,6 +127,7 @@ export function ImportWizard<TData>({
       setSaveError(null);
       setLoading(false);
       setSaving(false);
+      setPicking(false);
       setAiOpen(false);
       setAiPrompt('');
       setAiGenerating(false);
@@ -174,6 +177,28 @@ export function ImportWizard<TData>({
       return;
     }
     void runParse({ kind: 'sheet', url: sheetUrl.trim() });
+  };
+
+  const handlePickSheet = async (): Promise<void> => {
+    if (!adapter.pickSheet) return;
+    setParseError(null);
+    setPicking(true);
+    try {
+      const picked = await adapter.pickSheet();
+      // Null = the user dismissed the Picker — stay on the source step with no
+      // error. Otherwise parse the picked sheet (it's now drive.file-readable).
+      if (picked) {
+        await runParse({ kind: 'sheet', url: picked.url });
+      }
+    } catch (err) {
+      setParseError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to open the Google Drive picker.'
+      );
+    } finally {
+      setPicking(false);
+    }
   };
 
   const handleFilePicked = async (
@@ -413,45 +438,71 @@ export function ImportWizard<TData>({
         </button>
       )}
 
-      {supportsSheet && (
-        <div className="space-y-2">
-          <label
-            htmlFor="import-wizard-sheet-url"
-            className="block text-xs font-black uppercase tracking-widest text-slate-500"
+      {supportsSheet &&
+        (adapter.pickSheet ? (
+          // Picker path: select a Sheet from Drive → per-file drive.file access,
+          // no sensitive `spreadsheets` scope. Preferred for all consumers that
+          // provide `pickSheet`.
+          <button
+            type="button"
+            onClick={() => void handlePickSheet()}
+            disabled={picking || loading}
+            className="w-full py-4 bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/60 disabled:opacity-40 border-2 border-dashed border-brand-blue-primary/30 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group active:scale-95"
+            aria-label="Choose a Google Sheet from Google Drive"
           >
-            Google Sheet URL
-          </label>
-          <div className="flex gap-2">
-            <input
-              id="import-wizard-sheet-url"
-              type="url"
-              value={sheetUrl}
-              onChange={(e) => setSheetUrl(e.target.value)}
-              placeholder="https://docs.google.com/spreadsheets/…"
-              className="flex-1 px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium placeholder-slate-400 focus:outline-none focus:border-brand-blue-primary transition-colors"
-            />
-            <button
-              type="button"
-              onClick={handleSheetSubmit}
-              disabled={loading || !sheetUrl.trim()}
-              className="px-4 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-300 text-white font-bold rounded-xl transition-colors shadow-sm active:scale-95 flex items-center justify-center"
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <FileSpreadsheet className="w-4 h-4" />
-              )}
-            </button>
-          </div>
-          {sheetUrl.trim() !== '' &&
-            !GOOGLE_SHEET_URL_PATTERN.test(sheetUrl) && (
-              <p className="text-[11px] text-amber-600 font-bold">
-                Hint: this doesn&apos;t look like a Google Sheets URL. Make sure
-                it&apos;s shared for viewing.
-              </p>
+            {picking ? (
+              <Loader2 className="w-6 h-6 text-brand-blue-primary animate-spin" />
+            ) : (
+              <FileSpreadsheet className="w-6 h-6 text-brand-blue-primary group-hover:scale-110 transition-transform" />
             )}
-        </div>
-      )}
+            <span className="font-bold text-brand-blue-primary text-sm">
+              Choose Google Sheet from Drive
+            </span>
+            <p className="text-[11px] text-brand-blue-primary/60 font-bold">
+              Pick a Sheet — we&apos;ll read it directly.
+            </p>
+          </button>
+        ) : (
+          // Fallback paste-URL path (requires the broad `spreadsheets` scope) —
+          // only rendered for adapters that support 'sheet' without a Picker.
+          <div className="space-y-2">
+            <label
+              htmlFor="import-wizard-sheet-url"
+              className="block text-xs font-black uppercase tracking-widest text-slate-500"
+            >
+              Google Sheet URL
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="import-wizard-sheet-url"
+                type="url"
+                value={sheetUrl}
+                onChange={(e) => setSheetUrl(e.target.value)}
+                placeholder="https://docs.google.com/spreadsheets/…"
+                className="flex-1 px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium placeholder-slate-400 focus:outline-none focus:border-brand-blue-primary transition-colors"
+              />
+              <button
+                type="button"
+                onClick={handleSheetSubmit}
+                disabled={loading || !sheetUrl.trim()}
+                className="px-4 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-300 text-white font-bold rounded-xl transition-colors shadow-sm active:scale-95 flex items-center justify-center"
+              >
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+            {sheetUrl.trim() !== '' &&
+              !GOOGLE_SHEET_URL_PATTERN.test(sheetUrl) && (
+                <p className="text-[11px] text-amber-600 font-bold">
+                  Hint: this doesn&apos;t look like a Google Sheets URL. Make
+                  sure it&apos;s shared for viewing.
+                </p>
+              )}
+          </div>
+        ))}
 
       {supportsAnyUpload && (
         <div>

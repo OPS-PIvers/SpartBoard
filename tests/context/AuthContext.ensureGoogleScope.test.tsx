@@ -41,6 +41,22 @@ vi.mock('firebase/auth', async () => {
   };
 });
 
+// DETERMINISM: stub the Drive service so AuthContext's mount-time
+// "returning-user" probe (`new GoogleDriveService(...).hasExistingAppFolder()`,
+// AuthContext.tsx) is inert. The real probe does a `fetch` to the Drive API that
+// fails in the test env, which trips `fetchWithRetry`'s `onTokenExpire` →
+// `refreshGoogleToken(true)` → an extra silent UNION-scope (`prompt:'none'`) GIS
+// request. Once a test has granted `spreadsheets`, that stray background request
+// carries `spreadsheets` too and defeats this suite's scope-based call isolation
+// (the SECOND flake source, alongside the faked startup interval poll). Resolving
+// the probe to `false` with no network keeps every GIS call in these tests
+// attributable to the call under test.
+vi.mock('@/utils/googleDriveService', () => ({
+  GoogleDriveService: class {
+    hasExistingAppFolder = vi.fn().mockResolvedValue(false);
+  },
+}));
+
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((_db: unknown, ...segments: string[]) => ({
     __path: segments.join('/'),
@@ -201,6 +217,20 @@ async function mountSignedIn(email: string): Promise<void> {
 }
 
 beforeEach(() => {
+  // DETERMINISM: freeze ONLY `setInterval` so AuthContext's startup GIS-ready
+  // poll (`setInterval(…, 200)` → fire-and-forget `refreshGoogleToken(true)`)
+  // and the ~60s proactive-refresh interval CANNOT fire during a test. On slow
+  // CI those real intervals fired mid-assertion and injected an extra silent
+  // (`prompt:'none'`) GIS request for the UNION scope; once a test had granted
+  // `spreadsheets`, that background request carried `spreadsheets` too and
+  // defeated this suite's scope-based call isolation (flaky `expected 2 to be 1`
+  // / `['none','']` vs `['']`). `setTimeout`/`Date`/microtasks stay REAL so
+  // React 19's passive-effect flushing, `await act()`, `Date.now()`-based expiry
+  // seeding, and `waitFor`'s synchronous first check all behave exactly as
+  // before — every awaited condition here is already satisfied after its
+  // preceding `act`, so `waitFor` resolves without needing the (faked) interval.
+  // No test relies on an interval actually firing (the GIS stub is synchronous).
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
   vi.clearAllMocks();
   ctxHolder.current = null;
   localStorage.clear();
@@ -211,6 +241,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.clearAllTimers();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   localStorage.clear();
@@ -271,6 +303,42 @@ describe('AuthContext — ensureGoogleScope', () => {
     const requested = capturedScopes[calendarCalls[0]].split(' ');
     expect(requested).toContain(DRIVE_SCOPE);
     expect(requested).toContain(CALENDAR_SCOPE);
+  });
+
+  it('drive.file (a login scope): early-returns the live token with NO GIS request / popup', async () => {
+    // The create-new Sheets paths (results export, templates) and the Picker
+    // import request `drive.file` — which every minted token already carries —
+    // so they must NEVER trigger a consent popup. Prove it: seed an existing,
+    // unexpired token and stub GIS to DENY every request. The ONLY way
+    // ensureGoogleScope can then return non-null is the login-scope early-return
+    // (any GIS roundtrip would be denied → null).
+    localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, 'existing-drive-token');
+    localStorage.setItem(
+      GOOGLE_TOKEN_EXPIRY_KEY,
+      String(Date.now() + 3600_000)
+    );
+    const calls: { prompt: string; scope: string }[] = [];
+    stubGis({ silentMode: 'denied', interactiveMode: 'denied', calls });
+    await mountSignedIn('teacher@orono.k12.mn.us');
+
+    // Precondition: the seeded token hydrated onto the context.
+    await waitFor(() => {
+      expect(getCtx().googleAccessToken).toBe('existing-drive-token');
+    });
+
+    let token: string | null = 'sentinel';
+    await act(async () => {
+      token = await getCtx().ensureGoogleScope('drive.file', {
+        interactive: true,
+      });
+    });
+
+    // Returned the live token despite deny-all GIS → the early-return fired and
+    // no popup was shown. The seeded token is untouched.
+    expect(token).toBe('existing-drive-token');
+    expect(localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY)).toBe(
+      'existing-drive-token'
+    );
   });
 
   it('silent-miss WITHOUT interactive: returns null and never opens a popup', async () => {
