@@ -8,6 +8,13 @@ import { WidgetConfig } from '@/types';
 interface TypographySettingsProps<T extends WidgetConfig> {
   config: T;
   updateConfig: (updates: Partial<T>) => void;
+  /**
+   * Whether to render the text-color picker. Defaults to `true`.
+   * Set to `false` for widgets that manage their own color system
+   * (e.g. ClockWidget / TimeTool use `themeColor`, not `fontColor`) so the
+   * shared font-family picker can be reused without surfacing a dead control.
+   */
+  showColorPicker?: boolean;
 }
 
 export const TypographySettings = <
@@ -15,6 +22,7 @@ export const TypographySettings = <
 >({
   config,
   updateConfig,
+  showColorPicker = true,
 }: TypographySettingsProps<T>) => {
   const { fontFamily = 'global', fontColor = '#334155' } = config;
 
@@ -52,36 +60,38 @@ export const TypographySettings = <
         </div>
       </div>
 
-      <div>
-        <SettingsLabel icon={Palette}>Text Color</SettingsLabel>
-        <div className="flex flex-wrap gap-2 px-1 mb-2">
-          {TEXT_COLOR_PRESETS.map((color) => (
-            <button
-              key={color}
-              onClick={() => updateConfig({ fontColor: color } as Partial<T>)}
-              className={`w-6 h-6 rounded-full border-2 transition hover:scale-110 ${
-                fontColor === color
-                  ? 'border-slate-800 scale-110 shadow-sm'
-                  : color === '#ffffff'
-                    ? 'border-slate-300'
-                    : 'border-transparent'
-              }`}
-              style={{ backgroundColor: color }}
-              title={color}
-              aria-label={`Select text color ${color}`}
-            />
-          ))}
+      {showColorPicker && (
+        <div>
+          <SettingsLabel icon={Palette}>Text Color</SettingsLabel>
+          <div className="flex flex-wrap gap-2 px-1 mb-2">
+            {TEXT_COLOR_PRESETS.map((color) => (
+              <button
+                key={color}
+                onClick={() => updateConfig({ fontColor: color } as Partial<T>)}
+                className={`w-6 h-6 rounded-full border-2 transition hover:scale-110 ${
+                  fontColor === color
+                    ? 'border-slate-800 scale-110 shadow-sm'
+                    : color === '#ffffff'
+                      ? 'border-slate-300'
+                      : 'border-transparent'
+                }`}
+                style={{ backgroundColor: color }}
+                title={color}
+                aria-label={`Select text color ${color}`}
+              />
+            ))}
+          </div>
+          <input
+            type="color"
+            value={fontColor}
+            onChange={(e) =>
+              updateConfig({ fontColor: e.target.value } as Partial<T>)
+            }
+            className="h-8 w-full rounded-md border border-slate-200 bg-white"
+            aria-label="Custom text color"
+          />
         </div>
-        <input
-          type="color"
-          value={fontColor}
-          onChange={(e) =>
-            updateConfig({ fontColor: e.target.value } as Partial<T>)
-          }
-          className="h-8 w-full rounded-md border border-slate-200 bg-white"
-          aria-label="Custom text color"
-        />
-      </div>
+      )}
     </>
   );
 };

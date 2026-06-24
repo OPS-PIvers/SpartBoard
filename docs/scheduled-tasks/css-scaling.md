@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-23_
+_Last audited: 2026-06-24_
 _Last action: 2026-06-18_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-24: Full scan of all Widget.tsx files. New commits since 2026-06-23: test(effects) regression coverage for useEffect fixes (test-only), feat(oauth) drive.file/Picker for external Sheets paths, fix(picker) folder navigation in sheets-mode Drive Picker, fix(functions) cloud-function memory bump, chore/docs commits. None of these touch widget front-face content. All pre-existing open items (EmbedWidget portaled toolbar, QuizResults period-filter, RevealGrid spacing, multi-widget group, MiniApp dialog) re-confirmed valid. Zero new anti-patterns._
 
 _2026-06-23 (corrected): Full scan of all Widget.tsx files. Agent scan flagged 11 candidates; all reviewed: (1) PollWidget — COMPLETED 2026-06-18; (2) CountdownWidget — WON'T FIX (fill-better formula); (3) ClockWidget — WON'T FIX (cqh/cqw mix by design); (4) WeatherWidget — WON'T FIX (fill-better); (5) TextWidget `min(Xpx, Ycqmin)` — FALSE POSITIVE; `min()` correctly caps at px maximum; (6) DiceWidget `min(20px, 5cqmin)` — FALSE POSITIVE; caps correctly at 20px; existing group item covers the Tailwind spacing; (7) CalendarWidget — already verified clean 2026-06-14; (8) RandomWidget `clamp(4px, 1.5cqmin, 12px)` — acceptable micro-clamp; (9) SyntaxFramer — WON'T FIX per 2026-06-06; (10) BloomsTaxonomy Pyramid — initially filed as new LOW item, then RETRACTED as FALSE POSITIVE: `Widget.tsx:202` already has `<div className="flex-1 min-h-0">` wrapping `<Pyramid>` (verified by direct grep and confirmed by Gemini code review on PR #2057); (11) First5 — COMPLETED 2026-05-30. All pre-existing open items (EmbedWidget portaled toolbar, QuizResults period-filter, RevealGrid spacing, multi-widget group, MiniApp dialog) re-confirmed valid. Zero new anti-patterns._
 

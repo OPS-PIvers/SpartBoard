@@ -5,12 +5,12 @@ import { useDashboard } from '@/context/useDashboard';
 import { WIDGET_PALETTE, STANDARD_COLORS } from '@/config/colors';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { Toggle } from '@/components/common/Toggle';
+import { TypographySettings } from '@/components/common/TypographySettings';
 import {
   Bell,
   Sun,
   Timer as TimerIcon,
   Clock as ClockIcon,
-  Type,
   Palette,
   Sparkles,
   PlusSquare,
@@ -446,22 +446,7 @@ export const TimeToolAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
   const { t } = useTranslation();
   const { updateWidget } = useDashboard();
   const config = widget.config as TimeToolConfig;
-  const {
-    fontFamily = 'global',
-    clockStyle = 'modern',
-    themeColor = STANDARD_COLORS.slate,
-  } = config;
-
-  const fonts = [
-    { id: 'global', label: t('widgets.clock.fonts.inherit'), icon: 'G' },
-    { id: 'font-mono', label: t('widgets.clock.fonts.digital'), icon: '01' },
-    { id: 'font-sans', label: t('widgets.clock.fonts.modern'), icon: 'Aa' },
-    {
-      id: 'font-handwritten',
-      label: t('widgets.clock.fonts.school'),
-      icon: '\u270F\uFE0F',
-    },
-  ];
+  const { clockStyle = 'modern', themeColor = STANDARD_COLORS.slate } = config;
 
   const styles = [
     { id: 'modern', label: t('widgets.clock.styles.default') },
@@ -473,34 +458,14 @@ export const TimeToolAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
 
   return (
     <div className="space-y-6 p-1">
-      {/* Font Family */}
-      <div>
-        <SettingsLabel icon={Type}>
-          {t('widgets.clock.typography')}
-        </SettingsLabel>
-        <div className="grid grid-cols-4 gap-2">
-          {fonts.map((f) => (
-            <button
-              key={f.id}
-              onClick={() =>
-                updateWidget(widget.id, {
-                  config: { ...config, fontFamily: f.id },
-                })
-              }
-              className={`p-2 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${fontFamily === f.id ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-100 hover:border-slate-200'}`}
-            >
-              <span
-                className={`text-sm ${f.id === 'global' ? 'font-sans' : f.id} text-slate-900`}
-              >
-                {f.icon}
-              </span>
-              <span className="text-xxxs font-black uppercase text-slate-500 tracking-tighter">
-                {f.label}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Font Family — shared picker (TimeTool manages color via themeColor below) */}
+      <TypographySettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, { config: { ...config, ...updates } })
+        }
+        showColorPicker={false}
+      />
 
       {/* Clock Style */}
       <div>

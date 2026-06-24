@@ -2,9 +2,10 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, ClockConfig } from '@/types';
-import { Type, Palette, Sun, Sparkles } from 'lucide-react';
+import { Palette, Sun, Sparkles } from 'lucide-react';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { TypographySettings } from '@/components/common/TypographySettings';
 
 export const ClockSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { t } = useTranslation();
@@ -47,17 +48,6 @@ export const ClockAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
   const { updateWidget } = useDashboard();
   const config = widget.config as ClockConfig;
 
-  const fonts = [
-    { id: 'global', label: t('widgets.clock.fonts.inherit'), icon: 'G' },
-    { id: 'font-mono', label: t('widgets.clock.fonts.digital'), icon: '01' },
-    { id: 'font-sans', label: t('widgets.clock.fonts.modern'), icon: 'Aa' },
-    {
-      id: 'font-handwritten',
-      label: t('widgets.clock.fonts.school'),
-      icon: '✏️',
-    },
-  ];
-
   const colors = WIDGET_PALETTE;
 
   const styles = [
@@ -68,30 +58,14 @@ export const ClockAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
 
   return (
     <div className="space-y-6">
-      {/* Font Family */}
-      <div>
-        <SettingsLabel icon={Type}>
-          {t('widgets.clock.typography')}
-        </SettingsLabel>
-        <div className="grid grid-cols-4 gap-2">
-          {fonts.map((f) => (
-            <button
-              key={f.id}
-              onClick={() =>
-                updateWidget(widget.id, {
-                  config: { ...config, fontFamily: f.id },
-                })
-              }
-              className={`p-2 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${config.fontFamily === f.id ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-100 hover:border-slate-200'}`}
-            >
-              <span className={`text-sm ${f.id} text-slate-900`}>{f.icon}</span>
-              <span className="text-xxxs font-black uppercase text-slate-500 tracking-tighter">
-                {f.label}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Font Family — shared picker (Clock manages color via themeColor below) */}
+      <TypographySettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, { config: { ...config, ...updates } })
+        }
+        showColorPicker={false}
+      />
 
       {/* Clock Style */}
       <div>

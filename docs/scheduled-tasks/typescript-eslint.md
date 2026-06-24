@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-23_
+_Last audited: 2026-06-24_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-24. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). New commits since 2026-06-23: test(effects) regression coverage for useEffect fixes, feat(oauth) drive.file/Picker for external Sheets paths, fix(picker) folder navigation in sheets-mode Drive Picker (review), fix(functions) bump 128MiB→256MiB on resolveOrgForUser/claimOrganizationInvite/ltiJwks (cold-start OOM), chore(verification) Search Console domain token, docs commits. All new and modified code type-safe and lint-clean._
 
 _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-23. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Merged dev-paul into scheduled-tasks (80 files changed — external-availability rollout, Google OAuth scope management, PLC meeting board sync, import-path unification, AI quota external limits, admin calendar fetcher). All new and modified code type-safe and lint-clean._
 

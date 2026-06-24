@@ -93,7 +93,9 @@ describe('ClockAppearanceSettings', () => {
     const widget = createWidget({ fontFamily: 'global' });
     render(<ClockAppearanceSettings widget={widget} />);
 
-    const modernFontButton = screen.getByText('widgets.clock.fonts.modern');
+    // Font family is now rendered by the shared TypographySettings component,
+    // which uses labels from config/fonts (e.g. 'Modern' → 'font-sans').
+    const modernFontButton = screen.getByText('Modern');
     fireEvent.click(modernFontButton);
 
     expect(mockUpdateWidget).toHaveBeenCalledWith('clock-1', {
