@@ -531,6 +531,16 @@ describe('ChecklistSettings Nexus Connection', () => {
     });
 
     render(<ChecklistSettings widget={mockWidget} />);
+
+    const importButton = within(
+      screen.getByText('Import Routine').closest('.bg-indigo-50') as HTMLElement
+    ).getByRole('button', { name: /Sync/i });
+    fireEvent.click(importButton);
+
+    expect(mockAddToast).toHaveBeenCalledWith(
+      'Active routine has no steps to import.',
+      'info'
+    );
     expect(mockUpdateWidget).not.toHaveBeenCalled();
   });
 });

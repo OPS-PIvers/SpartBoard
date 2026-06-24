@@ -785,10 +785,14 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         await batch.commit();
       } catch (err) {
         console.error('[QuizWidget] Failed to persist reorder:', err);
+        // A concurrently-deleted quiz makes batch.update() throw NOT_FOUND.
+        // useSortableReorder catches the re-throw and reverts the visual order;
+        // surface a toast so the teacher knows why their drag snapped back.
+        addToast('Could not save the new order. Please try again.', 'error');
         throw err;
       }
     },
-    [user?.uid]
+    [user?.uid, addToast]
   );
 
   // ─── Guard: not signed in ──────────────────────────────────────────────────

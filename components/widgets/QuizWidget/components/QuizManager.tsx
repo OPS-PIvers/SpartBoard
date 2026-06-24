@@ -428,7 +428,10 @@ const LIBRARY_INITIAL_SORT = { key: 'updated', dir: 'desc' as const };
 
 const QUIZ_GET_ID = (q: QuizMetadata): string => q.id;
 
-const SORT_COMPARATORS: Record<
+// Exported so tests exercise the real comparator rather than a re-declared
+// lambda. Constant export on a component file is intentional here.
+// eslint-disable-next-line react-refresh/only-export-components
+export const SORT_COMPARATORS: Record<
   string,
   (a: QuizMetadata, b: QuizMetadata, dir: 'asc' | 'desc') => number
 > = {
@@ -738,7 +741,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const onReorderCommit = useCallback(
     async (orderedIds: string[]) => {
       if (onReorderQuizzes) {
-        await Promise.resolve(onReorderQuizzes(orderedIds));
+        await onReorderQuizzes(orderedIds);
       }
     },
     [onReorderQuizzes]
@@ -1337,7 +1340,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     async (nextOrderedIds: string[]): Promise<void> => {
       if (!onReorderQuizzes) return;
       if (libraryView.reorderLocked) return;
-      await Promise.resolve(onReorderQuizzes(nextOrderedIds));
+      await onReorderQuizzes(nextOrderedIds);
     },
     [libraryView.reorderLocked, onReorderQuizzes]
   );
