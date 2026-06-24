@@ -1338,14 +1338,14 @@
       "glow": "Lueur",
       "fonts": {
         "inherit": "Hériter",
-        "digital": "Digital",
+        "digital": "Numérique",
         "modern": "Moderne",
         "school": "École"
       },
       "styles": {
         "default": "Par défaut",
         "lcd": "Panneau LCD",
-        "minimal": "Minimal"
+        "minimal": "Minimaliste"
       }
     },
     "seatingChart": {
