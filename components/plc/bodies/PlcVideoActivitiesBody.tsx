@@ -81,9 +81,9 @@ import { usePlcAutoPullSync } from '@/hooks/usePlcAutoPullSync';
 import { logError } from '@/utils/logError';
 import { canEditPlcContent, getPlcMemberEmail } from '@/utils/plc';
 import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
-import { PlcVersionHistoryPanel } from '../versions/PlcVersionHistoryPanel';
-import { PlcViewerReadOnlyBadge } from '../viewer/PlcViewerReadOnlyBadge';
-import { PlcSyncConflictPrompt } from '../sync/PlcSyncConflictPrompt';
+import { PlcVersionHistoryPanel } from '@/components/plc/versions/PlcVersionHistoryPanel';
+import { PlcViewerReadOnlyBadge } from '@/components/plc/viewer/PlcViewerReadOnlyBadge';
+import { PlcSyncConflictPrompt } from '@/components/plc/sync/PlcSyncConflictPrompt';
 import { PlcVideoActivityImportModal } from '../PlcVideoActivityImportModal';
 import {
   PlcSharePickerModal,

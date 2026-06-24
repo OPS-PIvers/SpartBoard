@@ -18,7 +18,7 @@ import {
 } from '@/types';
 import { usePlcs } from '@/hooks/usePlcs';
 import { useDashboard } from '@/context/useDashboard';
-import { PlcTrashBody } from '../settings/PlcTrashBody';
+import { PlcTrashBody } from '@/components/plc/settings/PlcTrashBody';
 
 interface PlcSettingsTabProps {
   plc: Plc;
