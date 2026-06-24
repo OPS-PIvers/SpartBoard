@@ -1203,9 +1203,10 @@ describe('adminAnalytics', () => {
     // in byFeature. After the fix the entry is gone, isSpecificFeature is false,
     // and the doc's uid doesn't match any member, so nothing is written to byFeature.
     expect(result.api.byFeature['guided-learning']).toBeUndefined();
-    // Also verify the overall total is not polluted. Pre-fix: isSpecificFeature=true
-    // → count excluded from totalAiCalls (undercount). Post-fix: doc dropped (uid
-    // mismatch) → totalAiCalls reflects only the real overall doc (count: 5).
+    // Correctness check: totalCalls should equal the overall doc's count (5).
+    // Note: this assertion passes in both pre-fix and post-fix states — in both
+    // cases the guided-learning doc's count does not reach totalAiCalls. The
+    // discriminating assertion is byFeature['guided-learning'] === undefined above.
     expect(result.api.totalCalls).toBe(5);
   });
 
