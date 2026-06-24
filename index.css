@@ -186,9 +186,12 @@ body.is-dragging-widget video {
 
 /* Respect reduced motion preferences (WCAG 2.1 SC 2.3.3).
    Only suppress decorative/looping animations — preserve functional
-   transitions (color, opacity, position) and entrance animations. */
+   transitions (color, opacity, position) and entrance animations.
+   NOTE: .animate-spin is intentionally OMITTED here. Loading spinners
+   (Loader2 etc.) are essential status indicators — freezing them makes
+   async operations appear stalled. The tailwind.config.js
+   reducedMotionPlugin also excludes it for the same reason. */
 @media (prefers-reduced-motion: reduce) {
-  .animate-spin,
   .animate-spin-slow,
   .animate-pulse,
   .animate-jiggle,
