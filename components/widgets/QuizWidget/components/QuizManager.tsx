@@ -89,6 +89,7 @@ import {
   buildDuplicateAction,
   type LibraryMenuAction,
   type LibrarySortOption,
+  type LibrarySortDir,
   type AssignmentStatusBadge,
   type LibraryBadgeTone,
   type LibrarySelectionApi,
@@ -374,6 +375,12 @@ interface QuizManagerProps {
    * other assignments are not subscribed to.
    */
   activeAssignmentLockedCount?: number;
+  /**
+   * Optional persistence hook for manual drag-reorder of the library. Drag
+   * reordering is only enabled when this callback is provided; otherwise the
+   * library order remains fixed for the current session.
+   */
+  onReorderQuizzes?: (orderedIds: string[]) => Promise<void> | void;
 }
 
 /* ─── Status resolver for archive cards ───────────────────────────────────── */
@@ -403,6 +410,7 @@ function resolveStatus(
 /* ─── Helpers for library sort ────────────────────────────────────────────── */
 
 const SORT_OPTIONS: LibrarySortOption[] = [
+  { key: 'manual', label: 'Manual', defaultDir: 'asc' as LibrarySortDir },
   { key: 'updated', label: 'Last updated', defaultDir: 'desc' },
   { key: 'created', label: 'Date created', defaultDir: 'desc' },
   { key: 'title', label: 'Title', defaultDir: 'asc' },
@@ -420,14 +428,11 @@ const LIBRARY_INITIAL_SORT = { key: 'updated', dir: 'desc' as const };
 
 const QUIZ_GET_ID = (q: QuizMetadata): string => q.id;
 
-const REORDER_NOOP = (): void => {
-  /* reorder persistence not implemented for Quiz */
-};
-
 const SORT_COMPARATORS: Record<
   string,
   (a: QuizMetadata, b: QuizMetadata, dir: 'asc' | 'desc') => number
 > = {
+  manual: (a, b) => (a.order ?? 0) - (b.order ?? 0),
   updated: (a, b, dir) => {
     const av = a.updatedAt || a.createdAt;
     const bv = b.updatedAt || b.createdAt;
@@ -510,6 +515,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   assignmentMode = 'submissions',
   onCreateViewOnlyShare,
   activeAssignmentLockedCount = 0,
+  onReorderQuizzes,
 }) => {
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
@@ -729,13 +735,19 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     onViewModeChange: onLibraryViewModeChange,
   });
 
-  // useSortableReorder is used in no-op mode: Quiz metadata has no persisted
-  // `order` field today, so we disable drag at the grid level. The hook still
-  // mirrors items + commits nothing, preserving the primitive API.
+  const onReorderCommit = useCallback(
+    async (orderedIds: string[]) => {
+      if (onReorderQuizzes) {
+        await Promise.resolve(onReorderQuizzes(orderedIds));
+      }
+    },
+    [onReorderQuizzes]
+  );
+
   const reorder = useSortableReorder<QuizMetadata>({
     items: libraryView.visibleItems,
     getId: QUIZ_GET_ID,
-    onCommit: REORDER_NOOP,
+    onCommit: onReorderCommit,
   });
 
   // ─── Derived counts for tab badges ────────────────────────────────────────
@@ -1320,6 +1332,16 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     [userId, moveItem]
   );
 
+  // ─── Card-to-card reorder drop handler ───────────────────────────────────
+  const handleReorderDrop = useCallback(
+    async (nextOrderedIds: string[]): Promise<void> => {
+      if (!onReorderQuizzes) return;
+      if (libraryView.reorderLocked) return;
+      await Promise.resolve(onReorderQuizzes(nextOrderedIds));
+    },
+    [libraryView.reorderLocked, onReorderQuizzes]
+  );
+
   // ─── Bulk handlers (Step 8) ───────────────────────────────────────────────
   const handleBulkMove = useCallback(
     async (folderId: string | null): Promise<void> => {
@@ -1616,6 +1638,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       {userId && managerTab === 'library' ? (
         <LibraryDndContext
           itemIds={orderedIds}
+          onReorder={onReorderQuizzes ? handleReorderDrop : undefined}
           onDropOnFolder={handleDropOnFolder}
           renderOverlay={renderDragOverlay}
         >
@@ -1850,9 +1873,11 @@ const LibraryTabContent: React.FC<{
           items={orderedItems}
           getId={(q) => q.id}
           dragDisabled={!enableCardDrag}
-          // Quiz has no manual reorder, so reorderLocked is noise; only surface
-          // it when drag is fully disabled so the existing lock tooltip still
-          // works on grids without folder drag.
+          // Mirror VideoActivityManager: when the external DnD context is active
+          // (signed in, not in selection mode) suppress the reorder-lock visual.
+          // handleReorderDrop still blocks an actual reorder while locked, and
+          // folder-drag stays available — surfacing the lock here would be
+          // misleading. Only show it when card drag is fully disabled.
           reorderLocked={enableCardDrag ? false : reorderLocked}
           reorderLockedReason={enableCardDrag ? undefined : reorderLockedReason}
           layout={viewMode}

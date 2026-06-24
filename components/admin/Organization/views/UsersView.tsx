@@ -378,15 +378,27 @@ export const UsersView: React.FC<Props> = ({
           <span className="h-4 w-px bg-white/20" />
           {canManageUsers && (
             <>
-              <button
-                type="button"
-                disabled
-                aria-disabled="true"
-                title="Coming soon"
-                className="text-xs font-semibold text-white/50 cursor-not-allowed"
-              >
-                Resend invite
-              </button>
+              {(() => {
+                const invitedSelected = Array.from(selected)
+                  .map((id) => users.find((u) => u.id === id))
+                  .filter(
+                    (u): u is UserRecord =>
+                      u !== undefined && u.status === 'invited'
+                  );
+                return (
+                  <button
+                    type="button"
+                    disabled={invitedSelected.length === 0}
+                    onClick={() => {
+                      invitedSelected.forEach((u) => onResendInvite(u));
+                      setSelected(new Set());
+                    }}
+                    className={`text-xs font-semibold ${invitedSelected.length === 0 ? 'text-white/50 cursor-not-allowed' : 'hover:text-white/80'}`}
+                  >
+                    Resend invite
+                  </button>
+                );
+              })()}
               <button
                 type="button"
                 disabled

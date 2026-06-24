@@ -44,7 +44,8 @@ import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignment
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
-import { functions } from '@/config/firebase';
+import { doc, writeBatch } from 'firebase/firestore';
+import { functions, db } from '@/config/firebase';
 import {
   CLASSROOM_ASSIGN_ENABLED,
   CLASSROOM_ASSIGN_ADMIN_ONLY,
@@ -106,6 +107,8 @@ const VIEW_ONLY_SESSION_OPTIONS: Required<QuizSessionOptions> = {
   shuffleQuestions: false,
   shuffleAnswerOptions: false,
 };
+
+const QUIZZES_COLLECTION = 'quizzes';
 
 export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const {
@@ -765,6 +768,29 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     liveSession,
   ]);
 
+  // Persist a new ordering of quizzes. We write `order` onto each metadata
+  // doc in a single batch — the Drive blob is untouched. Declared before the
+  // early returns below so the hook runs on every render (rules-of-hooks).
+  const handleReorderQuizzes = useCallback(
+    async (orderedIds: string[]) => {
+      if (!user?.uid) return;
+      const batch = writeBatch(db);
+      orderedIds.forEach((id, index) => {
+        batch.update(doc(db, 'users', user.uid, QUIZZES_COLLECTION, id), {
+          order: index,
+          updatedAt: Date.now(),
+        });
+      });
+      try {
+        await batch.commit();
+      } catch (err) {
+        console.error('[QuizWidget] Failed to persist reorder:', err);
+        throw err;
+      }
+    },
+    [user?.uid]
+  );
+
   // ─── Guard: not signed in ──────────────────────────────────────────────────
   if (!user) {
     return (
@@ -1105,6 +1131,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         quizzes={quizzes}
         loading={quizzesLoading}
         error={quizzesError ?? dataError}
+        onReorderQuizzes={user?.uid ? handleReorderQuizzes : undefined}
         onNew={() => {
           const now = Date.now();
           setEditingQuiz({

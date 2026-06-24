@@ -3069,6 +3069,11 @@ export interface QuizMetadata {
   sync?: QuizMetadataSyncLinkage;
   /** Behavior settings authored in the editor; synced to PLC members. */
   behavior?: QuizBehaviorSettings;
+  /**
+   * Optional manual ordering index for drag-reorder in the Library view.
+   * Omitted for quizzes never manually reordered.
+   */
+  order?: number;
 }
 
 export type QuizSessionStatus = 'waiting' | 'active' | 'paused' | 'ended';
