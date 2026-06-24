@@ -679,6 +679,20 @@ export class QuizDriveService {
 
     // Solo mode: create a new spreadsheet with full results + stats
 
+    // Deduplicate by question id before all stats math. Drive-sync duplication
+    // and arrayUnion races can write the same question id twice into `questions`.
+    // Without this guard the Question Analysis section emits a duplicate row per
+    // dup id — the same bug `buildResultsSheetDataShared` already guards against
+    // in the grade-data section (where it rebinds the local `questions` variable).
+    // The stats block runs against the original caller-supplied array, so it needs
+    // its own fence. Mirrors the identical dedup in `buildResultsSheetDataShared`.
+    const seenStatsIds = new Set<string>();
+    const dedupedQuestions = questions.filter((q) => {
+      if (seenStatsIds.has(q.id)) return false;
+      seenStatsIds.add(q.id);
+      return true;
+    });
+
     // Question-level stats
     const statsRows: string[][] = [];
     statsRows.push([]);
@@ -693,12 +707,12 @@ export class QuizDriveService {
       '% Correct',
     ]);
     const statsMap = new Map<string, { answered: number; correct: number }>();
-    for (const q of questions) {
+    for (const q of dedupedQuestions) {
       statsMap.set(q.id, { answered: 0, correct: 0 });
     }
 
     const questionMap = new Map<string, QuizQuestion>(
-      questions.map((q) => [q.id, q])
+      dedupedQuestions.map((q) => [q.id, q])
     );
 
     for (const r of responses) {
@@ -725,7 +739,7 @@ export class QuizDriveService {
       }
     }
 
-    for (const q of questions) {
+    for (const q of dedupedQuestions) {
       const stats = statsMap.get(q.id) ?? { answered: 0, correct: 0 };
       const pct =
         stats.answered > 0
