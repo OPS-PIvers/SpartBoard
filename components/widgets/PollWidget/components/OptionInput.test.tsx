@@ -80,11 +80,15 @@ describe('OptionInput', () => {
 
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: 'New Value' } });
+    // fireEvent.focus makes this element active in jsdom, so e.currentTarget.blur()
+    // inside the Enter handler fires a real blur — onSave is called once from that
+    // programmatic blur. No manual fireEvent.blur needed (and adding one would
+    // call onSave a second time, invisible to a toHaveBeenCalledWith assertion).
     act(() => {
       fireEvent.keyDown(input, { key: 'Enter' });
-      fireEvent.blur(input);
     });
 
+    expect(handleSave).toHaveBeenCalledTimes(1);
     expect(handleSave).toHaveBeenCalledWith(0, 'New Value');
   });
 });
