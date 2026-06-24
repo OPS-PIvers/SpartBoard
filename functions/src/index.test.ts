@@ -1104,6 +1104,113 @@ describe('adminAnalytics', () => {
     expect(result.api.byFeature['widget-explainer']).toBe(2);
   });
 
+  it('counts video-activity-audio-transcription usage docs toward byFeature without corrupting uid parsing', async () => {
+    // Regression for: video-activity-audio-transcription must remain in
+    // GEMINI_SPECIFIC_FEATURES so that docs written by `transcribeVideoWithGemini`
+    // (shape: `{uid}_video-activity-audio-transcription_{date}`) are classified
+    // as per-feature records rather than overall records. Without the entry,
+    // `secondToLast` would be `"transcription"` — wait, no: the feature id uses
+    // hyphens so split('_') gives exactly three parts:
+    //   ["uid1", "video-activity-audio-transcription", "2026-06-10"]
+    // If the entry were absent, `isSpecificFeature` would be false, uid would be
+    // parsed as `"uid1"` (correct) and the doc would count toward totalCalls
+    // instead of byFeature — correct count but wrong bucket. With the entry
+    // present the doc lands in byFeature['video-activity-audio-transcription']
+    // and is excluded from totalCalls to avoid double-counting.
+    mockFirestoreState.users = [
+      {
+        id: 'uid1',
+        data: {
+          email: 'teacher@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [
+      // Overall usage doc — should count toward totalCalls
+      { id: 'uid1_2026-06-10', data: { count: 2 } },
+      // Per-feature transcription doc — should count toward
+      // byFeature['video-activity-audio-transcription'] but NOT toward totalCalls
+      {
+        id: 'uid1_video-activity-audio-transcription_2026-06-10',
+        data: { count: 1 },
+      },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    // totalCalls must only count the overall doc, not the per-feature doc
+    expect(result.api.totalCalls).toBe(2);
+    // byFeature must accumulate the per-feature doc
+    expect(result.api.byFeature['video-activity-audio-transcription']).toBe(1);
+  });
+
+  it('does not populate a phantom byFeature bucket for guided-learning (stale GEMINI_SPECIFIC_FEATURES entry)', async () => {
+    // Root cause: `guided-learning` was listed in GEMINI_SPECIFIC_FEATURES even
+    // though no Cloud Function ever writes a `{uid}_guided-learning_{date}` doc
+    // to ai_usage. `generateGuidedLearning` is admin-only and skips all usage
+    // counters entirely.
+    //
+    // With the phantom entry PRESENT, the analytics parser sets isSpecificFeature=true
+    // for any doc whose second-to-last underscore-segment is 'guided-learning'. The
+    // uid is correctly extracted (slice(0,-2)), the doc matches a member, and the
+    // count lands in aiCallsByFeature['guided-learning'] — a phantom bucket that will
+    // always be empty in production but would appear in the byFeature output if any
+    // doc with that shape existed. More critically, the count is excluded from
+    // totalAiCalls (the per-feature branch skips the totalAiCalls increment), so
+    // the analytics underreports overall usage.
+    //
+    // Fix: remove 'guided-learning' from GEMINI_SPECIFIC_FEATURES. After the fix,
+    // any doc of the form `uid_guided-learning_date` is parsed as an overall doc
+    // with uid = `uid_guided-learning` — a UID that matches no member, so the doc
+    // is silently dropped. This is the correct behavior: since generateGuidedLearning
+    // writes no usage counters at all, no such docs exist in production, and there
+    // is nothing to count.
+    //
+    // The test exposes the phantom entry: on current code a doc matching the
+    // guided-learning pattern (with a known member uid1) populates
+    // byFeature['guided-learning'], which must NOT happen.
+    mockFirestoreState.users = [
+      {
+        id: 'uid1',
+        data: {
+          email: 'teacher@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [
+      // Overall usage doc to anchor totalCalls.
+      { id: 'uid1_2026-06-10', data: { count: 5 } },
+      // Hypothetical doc whose second-to-last underscore-segment is 'guided-learning'.
+      // With the phantom GEMINI_SPECIFIC_FEATURES entry PRESENT, isSpecificFeature=true:
+      //   uid = 'uid1' (matches member), count goes to byFeature['guided-learning']
+      //   and is excluded from totalAiCalls.
+      // After the fix (entry removed), isSpecificFeature=false:
+      //   uid = 'uid1_guided-learning' (no member match) → doc dropped silently.
+      { id: 'uid1_guided-learning_2026-06-10', data: { count: 4 } },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    // totalCalls must equal the overall doc only. On current buggy code the
+    // guided-learning doc is classified as per-feature, NOT as overall — so
+    // totalCalls is still 5. ✓ (same in both code paths)
+    expect(result.api.totalCalls).toBe(5);
+
+    // The phantom byFeature bucket must NOT appear in the output.
+    // This assertion FAILS on current code because 'guided-learning' IS in
+    // GEMINI_SPECIFIC_FEATURES, so the count of 4 lands in
+    // aiCallsByFeature['guided-learning'] and surfaces in byFeature.
+    // After the fix the entry is gone, isSpecificFeature is false, and the
+    // doc's uid doesn't match any member, so nothing is written to byFeature.
+    expect(result.api.byFeature['guided-learning']).toBeUndefined();
+  });
+
   it('returns topUsers with resolved email and unknown fallback', async () => {
     mockFirestoreState.users = [
       {
