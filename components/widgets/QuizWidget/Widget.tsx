@@ -2024,7 +2024,32 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           onClose={() => setEditingAssignment(null)}
           onSave={async (patch) => {
             try {
-              await updateAssignmentSettings(editingAssignment.id, patch);
+              // Class targeting must be dual-written to BOTH the assignment
+              // doc AND the live session doc (rosterIds/classIds/classId/
+              // classPeriodByClassId) so SSO + PIN join keep working after an
+              // edit — `updateAssignmentSettings` only mirrors periodNames to
+              // the session doc, which would leave `sessionData.rosterIds`
+              // stale and break `pinLoginV1`. Route targeting through
+              // `setAssignmentRosters` (the same dual-write the create flow
+              // uses), and send the remaining settings through
+              // `updateAssignmentSettings`.
+              const { rosterIds } = patch;
+              const settingsPatch = { ...patch };
+              delete settingsPatch.rosterIds;
+              delete settingsPatch.periodName;
+              delete settingsPatch.periodNames;
+              if (rosterIds !== undefined) {
+                const targets = deriveSessionTargetsFromRosters(
+                  rosters.filter((r) => rosterIds.includes(r.id))
+                );
+                await setAssignmentRosters(editingAssignment.id, targets);
+              }
+              if (Object.keys(settingsPatch).length > 0) {
+                await updateAssignmentSettings(
+                  editingAssignment.id,
+                  settingsPatch
+                );
+              }
               addToast('Assignment settings saved.', 'success');
               setEditingAssignment(null);
             } catch (err) {
