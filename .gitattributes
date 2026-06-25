@@ -1,0 +1,7 @@
+# Firestore rules are size-capped (256 KiB compiled) and deployed verbatim from
+# the working tree. On Windows with core.autocrlf=true, CRLF line endings inflate
+# the byte count (~+1 byte/line, ~+4.6 KiB for this file) — enough to push a
+# local `firebase deploy --only firestore:rules` over the cap even though the
+# committed blob (LF) and CI (Linux/LF) deploys are comfortably under it. Force
+# LF so every environment measures the same bytes.
+*.rules text eol=lf
