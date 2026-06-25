@@ -333,6 +333,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [roleId, setRoleId] = useState<string | null>(
     isAuthBypass ? 'super_admin' : null
   );
+  // Sticky, session-scoped "this account has been deactivated" flag (M1 full
+  // sign-in lockout). Set true the moment the org-member snapshot reports
+  // `status === 'inactive'`; once true it STAYS true for the rest of the JS
+  // session even after we sign the user out. That stickiness is deliberate:
+  // signOut() nulls `user`, which would otherwise drop the app back to the
+  // LoginScreen and lose the "your access was deactivated" message. The
+  // consumer (AuthenticatedApp) renders a dedicated DeactivatedScreen on this
+  // flag REGARDLESS of `user`, so the deactivated teacher gets a clear reason
+  // rather than a silent bounce. A fresh sign-in attempt clears it (see
+  // signInWithGoogle).
+  const [accessDeactivated, setAccessDeactivated] = useState<boolean>(false);
   const [isStudentRole, setIsStudentRole] = useState<boolean>(false);
   // Two-part "have we figured out who this user is" gate. Both flags must be
   // true for `roleResolved` to flip true. They're reset synchronously when
@@ -1254,6 +1265,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setOrgId(resolvedOrgId);
             setRoleId(member.roleId ?? null);
             setBuildingIds(member.buildingIds ?? []);
+            // M1 full sign-in lockout: a member explicitly marked 'inactive'
+            // is locked out of the app entirely (not just stripped of admin).
+            // Latch the sticky flag — AuthenticatedApp signs them out and
+            // shows the DeactivatedScreen. We never UN-set it here: if an
+            // admin reactivates the member mid-session the next snapshot would
+            // clear it, but by then we've already signed the user out and the
+            // listener is torn down, so reactivation simply takes effect on
+            // their next sign-in. Setting (not clearing) here keeps the lockout
+            // strictly one-way within a session, which is the safe direction.
+            if (member.status === 'inactive') {
+              setAccessDeactivated(true);
+            }
             // Record that this session has resolved a real org at least once,
             // so a later transient snapshot error can safely preserve the
             // last-known state (vs. clearing on a never-resolved first load).
@@ -2267,11 +2290,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         betaUsers.some((e) => e.toLowerCase() === lowerEmail) ||
         (userRoles?.betaTeachers?.some((e) => e.toLowerCase() === lowerEmail) ??
           false) ||
+        // LO2 harmonization: super admins get beta access from EITHER source —
+        // the legacy admin_settings/user_roles.superAdmins[] list OR a member
+        // doc with roleId 'super_admin'. The legacy list is KEPT as an
+        // additional accepted source (a Paul-gated migration retires it later);
+        // this mirrors OrganizationPanel.resolveActorRole, which reads both.
         (userRoles?.superAdmins?.some((e) => e.toLowerCase() === lowerEmail) ??
-          false)
+          false) ||
+        roleId === 'super_admin'
       );
     },
-    [userRoles]
+    [userRoles, roleId]
   );
 
   // Distribution tier (docs/wide-distro-plan.md Phase 3). Org membership
@@ -2527,6 +2556,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [user, globalPermissions, isAdmin, resolvePermissionAccess]);
 
   const signInWithGoogle = async () => {
+    // A fresh sign-in attempt clears any sticky deactivation from a prior
+    // session on this device (e.g. a different, deactivated account signed in
+    // earlier, or the same account that has since been reactivated). The
+    // membership snapshot re-evaluates status after sign-in and re-latches the
+    // flag if they're still inactive.
+    setAccessDeactivated(false);
     if (isAuthBypass) {
       console.warn('Bypassing Google Sign In');
       try {
@@ -2650,6 +2685,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         orgId,
         roleId,
         isStudentRole,
+        accessDeactivated,
         roleResolved,
         buildingIds,
         orgBuildings,

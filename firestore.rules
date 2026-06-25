@@ -98,16 +98,32 @@ service cloud.firestore {
 
     // ---- Organization helpers (see docs/organization_wiring_implementation.md) ----
 
-    // Super admins are listed on the legacy admin_settings/user_roles doc.
-    // Phase 1 also upserts them as /organizations/{orgId}/members with roleId
-    // 'super_admin', but because super-admin checks run globally (not scoped
-    // to a single org) the rules keep reading the legacy list here.
+    // Super admins are recognized from EITHER source (LO2 harmonization):
+    //   1. The legacy admin_settings/user_roles.superAdmins[] list, AND
+    //   2. An operator-org member doc with roleId == 'super_admin'.
+    // This mirrors OrganizationPanel.resolveActorRole, which already accepts
+    // both sources on the client. The legacy list is KEPT as an additional
+    // accepted source (NOT retired) — a Paul-gated migration removes it later.
+    //
+    // Super-admin checks run globally (not scoped to a single org), so the
+    // roleId source is read from the operator org (`orono`) by fixed path —
+    // the same constraint that forces operatorMemberStatus() / notDeactivated()
+    // to use a hardcoded org (CEL cannot resolve the caller's org dynamically).
     function isSuperAdmin() {
       return request.auth != null &&
              request.auth.token.email != null &&
-             exists(/databases/$(database)/documents/admin_settings/user_roles) &&
+             (isLegacySuperAdmin() || isMemberSuperAdmin());
+    }
+
+    function isLegacySuperAdmin() {
+      return exists(/databases/$(database)/documents/admin_settings/user_roles) &&
              request.auth.token.email.lower() in
                get(/databases/$(database)/documents/admin_settings/user_roles).data.get('superAdmins', []);
+    }
+
+    function isMemberSuperAdmin() {
+      return exists(/databases/$(database)/documents/organizations/orono/members/$(request.auth.token.email.lower())) &&
+             get(/databases/$(database)/documents/organizations/orono/members/$(request.auth.token.email.lower())).data.get('roleId', '') == 'super_admin';
     }
 
     // Returns the caller's /organizations/{orgId}/members/{email} doc data.
@@ -204,6 +220,37 @@ service cloud.firestore {
     function isOrgMember(orgId) {
       return request.auth != null && request.auth.token.email != null &&
              exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.token.email.lower()));
+    }
+
+    // ---- M1 full sign-in lockout (deny-by-status) ----
+    //
+    // The operator org id. Rules cannot resolve a user's org dynamically from
+    // their email domain (that lives in the `resolveOrgForUser` Cloud Function,
+    // not in CEL), and CEL cannot enumerate orgs. The operator org is the one
+    // org we can check by a fixed path, and it is where the active user base
+    // lives, so the deactivation gate is enforced against it. Mirrors the
+    // OPERATOR_ORG_ID fallback in context/AuthContext.tsx.
+    //
+    // NOTE (multi-org follow-up): a member deactivated in a *second/third* org
+    // is blocked at sign-in by AuthContext (which resolves their real org) but
+    // is not yet denied by these rules, because the rule can't know their org
+    // from the /users/{uid} path. A per-uid org-index doc (readable by path)
+    // would let this gate cover every org; tracked as an M1 rules follow-up.
+    function operatorMemberStatus() {
+      return get(/databases/$(database)/documents/organizations/orono/members/$(request.auth.token.email.lower())).data.get('status', 'active');
+    }
+
+    // True UNLESS the caller is an operator-org member explicitly marked
+    // 'inactive'. Defaults to ALLOW (true) for everyone without an operator-org
+    // member doc — anonymous/PIN students (no email), SSO students, no-org /
+    // other-org teachers — so this gate only ever subtracts access from a
+    // member an admin deliberately deactivated. The email-presence guard avoids
+    // a CEL throw on tokens with no `email` claim (anonymous PIN students).
+    function notDeactivated() {
+      return !(request.auth != null &&
+               request.auth.token.get('email', '') != '' &&
+               isOrgMember('orono') &&
+               operatorMemberStatus() == 'inactive');
     }
 
     // ---- Organizations collection (Phase 3: scoped writes enabled) ----
@@ -495,7 +542,8 @@ service cloud.firestore {
     match /users/{userId}/dashboards/{dashboardId} {
       allow read, write: if request.auth != null
                          && request.auth.uid == userId
-                         && !isStudentRoleUser();
+                         && !isStudentRoleUser()
+                         && notDeactivated();
 
       // Phase 2 PR 2.6: DrawingWidget object content moves off the dashboard
       // document into a page-nested subcollection so a single Firestore write
@@ -509,19 +557,22 @@ service cloud.firestore {
       match /drawings/{widgetId}/pages/{pageId} {
         allow read, write: if request.auth != null
                            && request.auth.uid == userId
-                           && !isStudentRoleUser();
+                           && !isStudentRoleUser()
+                           && notDeactivated();
 
         match /objects/{objectId} {
           allow read, write: if request.auth != null
                              && request.auth.uid == userId
-                             && !isStudentRoleUser();
+                             && !isStudentRoleUser()
+                             && notDeactivated();
         }
       }
     }
 
     // Rosters - users can only access their own rosters in their subcollection
     match /users/{userId}/rosters/{rosterId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId
+                         && notDeactivated();
 
       // Phase 3 — non-PII PIN index sidecar. Bridges PIN-joining
       // students into the SSO uid space via `pinLoginV1`. The cloud
@@ -582,7 +633,8 @@ service cloud.firestore {
 
     // Mini Apps - users can only access their own mini apps in their subcollection
     match /users/{userId}/miniapps/{appId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId
+                         && notDeactivated();
     }
 
     // Saved Widgets - per-user "Save as widget" shortcuts (frozen widget configs
@@ -593,17 +645,20 @@ service cloud.firestore {
 
     // Notebooks - users can only access their own notebooks in their subcollection
     match /users/{userId}/notebooks/{notebookId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId
+                         && notDeactivated();
     }
 
     // PDFs - users can only access their own PDFs in their subcollection
     match /users/{userId}/pdfs/{pdfId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId
+                         && notDeactivated();
     }
 
     // Quiz metadata - users can only access their own quiz metadata
     match /users/{userId}/quizzes/{quizId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId
+                         && notDeactivated();
     }
 
     // Activity Wall library - per-user reusable activity definitions.
