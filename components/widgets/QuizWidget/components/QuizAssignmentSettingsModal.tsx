@@ -21,7 +21,14 @@ import type {
 } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
 import { AssignModal, ToggleRow } from '@/components/common/library';
+import { AssignClassPicker } from '@/components/common/AssignClassPicker';
+import {
+  makeEmptyPickerValue,
+  resolveSelectedRosters,
+  type AssignClassPickerValue,
+} from '@/components/common/AssignClassPicker.helpers';
 import { formatBehaviorSummary } from '@/utils/quizBehavior';
+import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import {
   DEFAULT_DUE_TIME,
   dueInputsToEpoch,
@@ -48,7 +55,8 @@ interface SettingsOptions {
   className: string;
   plcMode: boolean;
   teacherName: string;
-  selectedPeriodNames: string[];
+  /** Unified roster picker state (rosterIds[]). */
+  picker: AssignClassPickerValue;
   plcSheetUrl: string;
   /** 'YYYY-MM-DD' local, or '' for no due date */
   dueDate: string;
@@ -56,8 +64,43 @@ interface SettingsOptions {
   dueTime: string;
 }
 
+/**
+ * Hydrate the unified picker value from a (possibly legacy) assignment.
+ *
+ * Precedence:
+ *   1. `a.rosterIds` — new post-unification assignments store these directly.
+ *   2. legacy fallback — derive rosterIds from the stored `periodNames`
+ *      (match against `roster.name`) so an existing assignment opens with the
+ *      right classes preselected. Quiz assignments never carried `classIds`
+ *      on the assignment doc (legacy ClassLink targeting lived on the session
+ *      doc), so there's nothing to recover via `mapLegacyClassIdsToRosterIds`
+ *      here — name-matching is the only legacy path.
+ *
+ * Unknown roster IDs / names simply drop out — the picker only shows rosters
+ * the teacher still has, mirroring `resolveAssignmentTargets`.
+ */
+function hydratePickerValue(
+  a: QuizAssignment,
+  rosters: ClassRoster[]
+): AssignClassPickerValue {
+  if (a.rosterIds && a.rosterIds.length > 0) {
+    const existing = new Set(rosters.map((r) => r.id));
+    const matched = a.rosterIds.filter((id) => existing.has(id));
+    return matched.length > 0 ? { rosterIds: matched } : makeEmptyPickerValue();
+  }
+
+  const legacyNames = a.periodNames ?? (a.periodName ? [a.periodName] : []);
+  const byName = new Set(legacyNames);
+  const fromNames = rosters.filter((r) => byName.has(r.name)).map((r) => r.id);
+
+  return fromNames.length > 0
+    ? { rosterIds: fromNames }
+    : makeEmptyPickerValue();
+}
+
 function initialOptionsFor(
   a: QuizAssignment,
+  rosters: ClassRoster[],
   defaultTeacherName?: string
 ): SettingsOptions {
   const due = splitDueAtToInputs(a.dueAt ?? null, a.dueAtHasTime);
@@ -65,7 +108,7 @@ function initialOptionsFor(
     className: a.className ?? '',
     plcMode: !!a.plc,
     teacherName: a.teacherName ?? defaultTeacherName ?? '',
-    selectedPeriodNames: a.periodNames ?? (a.periodName ? [a.periodName] : []),
+    picker: hydratePickerValue(a, rosters),
     plcSheetUrl: a.plc?.sheetUrl ?? '',
     dueDate: due.date,
     dueTime: due.time,
@@ -76,7 +119,7 @@ export const QuizAssignmentSettingsModal: React.FC<
   QuizAssignmentSettingsModalProps
 > = ({ assignment, rosters, onClose, onSave, defaultTeacherName }) => {
   const [options, setOptions] = useState<SettingsOptions>(() =>
-    initialOptionsFor(assignment, defaultTeacherName)
+    initialOptionsFor(assignment, rosters, defaultTeacherName)
   );
 
   // "Auto-Generated PLC Sheet" toggle — defaults ON when:
@@ -137,6 +180,16 @@ export const QuizAssignmentSettingsModal: React.FC<
           : { ...assignment.plc, sheetUrl: trimmedSheetUrl }
         : undefined;
 
+    // Unified targeting: derive both `rosterIds` (new source of truth) and
+    // `periodNames` (back-compat read path) from the selected rosters. Writing
+    // BOTH keeps existing readers (period-name fallback) working while moving
+    // the assignment into roster-ID space — `deriveSessionTargetsFromRosters`
+    // is the same derivation the create flow uses, so the two paths stay in
+    // lock-step on dedup. Unknown picked IDs (roster deleted after selection)
+    // drop out via the lookup.
+    const selectedRosters = resolveSelectedRosters(options.picker, rosters);
+    const targets = deriveSessionTargetsFromRosters(selectedRosters);
+
     // Freeze-live: behavior fields (sessionMode, sessionOptions, attemptLimit)
     // are intentionally OMITTED from the patch. They were frozen at create
     // time and must only change by editing the source quiz (affects future
@@ -145,8 +198,9 @@ export const QuizAssignmentSettingsModal: React.FC<
       className: options.className.trim(),
       plc: plcPatch,
       teacherName: options.teacherName.trim(),
-      periodName: options.selectedPeriodNames[0] ?? '',
-      periodNames: options.selectedPeriodNames,
+      rosterIds: targets.rosterIds,
+      periodName: targets.periodNames[0] ?? '',
+      periodNames: targets.periodNames,
       dueAt: dueInputsToEpoch(options.dueDate, options.dueTime),
       // The time picker always yields an explicit local time, so mark the value
       // as time-bearing (when a date is set) — distinguishes it from legacy
@@ -178,56 +232,11 @@ export const QuizAssignmentSettingsModal: React.FC<
       extraSlot={
         <>
           <div>
-            <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1">
-              Class Periods
-            </label>
-            {rosters.length > 0 ? (
-              <div className="space-y-1.5 max-h-36 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">
-                {rosters.map((r) => {
-                  const checked = options.selectedPeriodNames.includes(r.name);
-                  return (
-                    <label
-                      key={r.id}
-                      className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 rounded px-1.5 py-1"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() =>
-                          setOptions((p) => ({
-                            ...p,
-                            selectedPeriodNames: checked
-                              ? p.selectedPeriodNames.filter(
-                                  (n) => n !== r.name
-                                )
-                              : [...p.selectedPeriodNames, r.name],
-                          }))
-                        }
-                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <span className="text-sm text-slate-800">{r.name}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            ) : (
-              <input
-                type="text"
-                value={options.selectedPeriodNames.join(', ')}
-                onChange={(e) => {
-                  const names = e.target.value
-                    .split(',')
-                    .map((n) => n.trim())
-                    .filter(Boolean);
-                  setOptions((p) => ({
-                    ...p,
-                    selectedPeriodNames: [...new Set(names)],
-                  }));
-                }}
-                placeholder="e.g. Period 1, Period 2"
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            )}
+            <AssignClassPicker
+              rosters={rosters}
+              value={options.picker}
+              onChange={(picker) => setOptions((prev) => ({ ...prev, picker }))}
+            />
             <p className="text-xxs text-slate-400 mt-0.5">
               Select class periods for this assignment. Students will choose
               their class when joining.

@@ -3947,6 +3947,14 @@ export interface QuizAssignmentSettings {
   /** Selected class period roster names. Replaces singular periodName. */
   periodNames?: string[];
   /**
+   * Unified roster targeting (new post-unification assignments). Written
+   * additively alongside `periodNames` for back-compat: the edit modal
+   * derives both fields from the selected rosters on save. Legacy
+   * assignments without `rosterIds` continue to read via `periodNames`
+   * (and session `classIds`). No backfill of existing assignments.
+   */
+  rosterIds?: string[];
+  /**
    * Max completed submissions allowed per student. `null`/`undefined` means
    * unlimited (legacy). `1` (default for new assignments) means one-and-done.
    * Enforced at `joinQuizSession` time by checking the student's own existing
@@ -3983,9 +3991,6 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   status: QuizAssignmentStatus;
   createdAt: number;
   updatedAt: number;
-  /** Unified roster targeting (new post-unification assignments). Legacy
-   *  assignments read via `periodNames` / session `classIds` only. */
-  rosterIds?: string[];
   /**
    * URL of the Google Sheet produced by the teacher's last Results → Export.
    * Persisted so re-entering the Results view after navigating away keeps the
