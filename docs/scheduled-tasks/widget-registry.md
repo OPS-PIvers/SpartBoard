@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-24_
+_Last audited: 2026-06-25_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-25: Full audit. New commits since 2026-06-24: fix(pr-review) address unresolved review comments on #2072, feat(announcements) scope listener query by orgId for tenant isolation. Neither touches types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations. All sampled lazyNamed() export names verified correct — full export-name verification pass confirms no mismatches across all 146 lazyNamed() calls. pnpm type-check (exit 0), pnpm lint (exit 0). ONE NEW GAP: `first-5` WidgetType has no corresponding config interface in the WidgetConfig union type in types.ts — see new open item below._
 
 _2026-06-24: Full audit. New commits since 2026-06-23: test(effects) regression coverage for useEffect fixes, feat(oauth) drive.file/Picker for external Sheets paths, fix(picker) folder navigation in sheets-mode Drive Picker, fix(functions) bump 128MiB→256MiB on resolveOrgForUser/claimOrganizationInvite/ltiJwks, chore(verification) Search Console domain token, docs commits. None touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations. All key lazyNamed() export names spot-checked — RevealGrid barrel re-exports confirmed correct ('Widget'/'Settings' aliases in index.ts), SyntaxFramer and HotspotImage direct named exports confirmed correct, FallbackSettings DefaultSettings/MiniAppSettings confirmed. pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
@@ -98,7 +100,12 @@ _2026-05-06: All WidgetType values verified against WIDGET_COMPONENTS, WIDGET_SE
 
 _2026-05-05: `blending-board` (added in dev-paul merge) verified fully registered in all locations; export names match source files. No new registry gaps from the merge._
 
-_No open items as of 2026-05-15 action._
+### MEDIUM `first-5` WidgetType has no config interface in the WidgetConfig union
+
+- **Detected:** 2026-06-25
+- **File:** types.ts
+- **Detail:** `'first-5'` is a valid `WidgetType` (present in types.ts union, WidgetRegistry.ts WIDGET_COMPONENTS, widgetDefaults.ts, tools.ts, and widgetGradeLevels.ts), but has no corresponding config interface (`First5Config` does not exist) and no entry in the `WidgetConfig` conditional type union. The `ConfigForWidget<'first-5'>` type therefore resolves to `never`. At runtime the widget uses `config: {}` (empty object) and this is not currently caught because no production code calls `ConfigForWidget<'first-5'>` directly. However, any future code attempting to type-check the config (e.g. in `updateWidget`, `getAdminBuildingConfig`, or a settings panel) would silently get `never` as the type, causing hard-to-diagnose TypeScript errors.
+- **Fix:** Add a `First5Config` interface to types.ts (can be an empty interface `export interface First5Config {}` or with whatever fields First5/Widget.tsx actually reads from `widget.config`), then add `| (T extends 'first-5' ? First5Config : never)` to the `ConfigForWidget<T>` conditional type chain. Also add `first-5: First5Config` to the `WidgetConfig` union mapping. Read `components/widgets/First5/Widget.tsx` first to discover any config fields actually consumed before defining the interface.
 
 ---
 
