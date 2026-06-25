@@ -216,7 +216,9 @@ Teacher copies rostered URL
     ↓
 StudentLoginPage mounts (App.tsx:768)
     → readNextTarget() validates ?next= against allowlist
-    → GIS One-Tap / button flow
+    → GIS One-Tap / button flow (launch the popup synchronously from the user
+      gesture — do NOT await a silent pre-flight check first, or strict browsers
+      like Safari / iOS Chrome lose the gesture context and block the popup)
     → studentLoginV1 Cloud Function: verifies Google ID token, resolves org,
       looks up ClassLink classes, mints custom token
     → signInWithCustomToken(auth, customToken)

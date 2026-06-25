@@ -236,7 +236,7 @@ IA changes only; all handler logic unchanged:
 3. Reorder tabs: By Question | Summary | By Student | PLC
 4. Replace `QuestionsTab` internal rendering: use `ResultsQuestionCard` — sort questions by accuracy ascending (hardest first), render the first one as `variant="dominant"`, rest as `variant="standard"`
 5. The period filter `<select>` element replaces with a pill-chip row matching the monitor's `PeriodChipFilter` component (same visual language)
-6. The `OverviewTab` 2-col StatTile grid changes to a 3-col grid: Class Average | Finished | Median Score (add median computation inline)
+6. The `OverviewTab` 2-col StatTile grid changes to a 3-col grid: Class Average | Finished | Median Score (add median computation inline; both average and median should return `null` or a placeholder — e.g. "—" — instead of `0` when there are no responses/submissions, so an empty class doesn't render a misleading 0% score)
 
 **`components/widgets/VideoActivityWidget/components/Results.tsx`**
 
@@ -267,28 +267,31 @@ No new Firestore reads, no new collection writes, no auth changes. The one write
 
 ### Phase 1 — Width Detection Utility (Independent, Required by Phase 2)
 
-**Task**: Add a `useContainerWidth` hook to `hooks/useContainerWidth.ts` that accepts a `React.RefObject<HTMLElement>` and returns the current width via `ResizeObserver`. This replaces the need for Tailwind container-query classes (which are not in the current plugin set) and follows the codebase pattern of explicit measurement.
+**Task**: Add a `useContainerWidth` hook to `hooks/useContainerWidth.ts` that returns `[width, setRef]` — the current width via `ResizeObserver` plus a **callback ref** to attach to the measured element. Use a callback ref (state-backed) rather than a `useRef` object: mutating `ref.current` doesn't re-run the effect, so a `useRef`-based version can fail to attach the observer when the element is conditionally rendered or mounts after the first render. This replaces the need for Tailwind container-query classes (which are not in the current plugin set) and follows the codebase pattern of explicit measurement.
 
 ```typescript
 // hooks/useContainerWidth.ts
 import { useState, useEffect } from 'react';
 
-export function useContainerWidth(
-  ref: React.RefObject<HTMLElement | null>
-): number {
+export function useContainerWidth(): [
+  number,
+  (node: HTMLElement | null) => void,
+] {
   const [width, setWidth] = useState(0);
+  const [element, setRef] = useState<HTMLElement | null>(null);
+
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
+    if (!element) return;
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) setWidth(entry.contentRect.width);
     });
-    ro.observe(el);
-    setWidth(el.getBoundingClientRect().width);
+    ro.observe(element);
+    setWidth(element.getBoundingClientRect().width);
     return () => ro.disconnect();
-  }, [ref]);
-  return width;
+  }, [element]);
+
+  return [width, setRef];
 }
 ```
 
