@@ -4439,13 +4439,23 @@ service cloud.firestore {
         function awSessionClassId() {
           return get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data.get('classId', '');
         }
+        // Phase-5A multi-class targeting field. Mirrors the quiz/VA/GL/miniapp
+        // session shape so the create gate below can use the compat helper.
+        function awSessionClassIds() {
+          return get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data.get('classIds', []);
+        }
 
         // Any authenticated user (including anonymous) can create a submission.
         // Photo submissions may include Firebase storage metadata for later Drive archiving.
-        // studentRole (GIS) users must be enrolled in the session's class.
+        // studentRole (GIS) users must be enrolled in the session's class. Uses
+        // the Phase-5A compat gate (classIds list ?? legacy classId) so a
+        // session migrated to multi-class targeting still gates correctly —
+        // matching every other session type (quiz/VA/GL/miniapp). The legacy
+        // single-classId path is preserved for pre-5A sessions that only carry
+        // `classId`.
         allow create: if request.auth != null &&
           exists(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)) &&
-          passesStudentClassGate(awSessionClassId()) &&
+          passesStudentClassGateCompat(awSessionClassIds(), awSessionClassId()) &&
           request.resource.data.id is string &&
           request.resource.data.content is string &&
           request.resource.data.content.size() > 0 &&

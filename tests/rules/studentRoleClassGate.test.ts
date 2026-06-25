@@ -881,6 +881,79 @@ describe('activity_wall_sessions/submissions — student-role gate', () => {
 });
 
 // ---------------------------------------------------------------------------
+// activity_wall_sessions/submissions — Phase-5A compat gate (LO10)
+// ---------------------------------------------------------------------------
+// Mirrors the quiz/VA/GL/miniapp compat-gate coverage: activity_wall_sessions
+// now uses passesStudentClassGateCompat(classIds, classId), so a session
+// migrated to the multi-value `classIds` list gates on the list while pre-5A
+// sessions carrying only `classId` keep working (see the legacy-shape block
+// above, which seeds `classId` and still passes unchanged).
+describe('activity_wall_sessions/submissions — Phase-5A compat (classIds list)', () => {
+  const col = 'activity_wall_sessions';
+  const validSub = () => ({
+    id: 'sub-1',
+    content: 'Hello world',
+    submittedAt: 1000,
+    status: 'pending' as const,
+  });
+
+  beforeEach(async () => {
+    await testEnv.clearFirestore();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, `admins/${ADMIN_EMAIL}`), { email: ADMIN_EMAIL });
+      // Phase-5A shape: multi-value classIds list, no single classId field.
+      await setDoc(doc(db, `${col}/${SESSION_A}`), {
+        teacherUid: TEACHER_UID,
+        classIds: [CLASS_A],
+        status: 'active',
+      });
+      await setDoc(doc(db, `${col}/${SESSION_B}`), {
+        teacherUid: TEACHER_UID,
+        classIds: [CLASS_B],
+        status: 'active',
+      });
+    });
+  });
+
+  it('student in class-A can submit to a classIds-list session-A', async () => {
+    await assertSucceeds(
+      addDoc(
+        collection(asStudentA(), `${col}/${SESSION_A}/submissions`),
+        validSub()
+      )
+    );
+  });
+
+  it('student in class-A cannot submit to a classIds-list session-B (wrong class)', async () => {
+    await assertFails(
+      addDoc(
+        collection(asStudentA(), `${col}/${SESSION_B}/submissions`),
+        validSub()
+      )
+    );
+  });
+
+  it('student with empty classIds cannot submit to a classIds-list session', async () => {
+    await assertFails(
+      addDoc(
+        collection(asStudentEmpty(), `${col}/${SESSION_A}/submissions`),
+        validSub()
+      )
+    );
+  });
+
+  it('anonymous PIN student can still submit to a classIds-list session', async () => {
+    await assertSucceeds(
+      addDoc(
+        collection(asAnonStudent(), `${col}/${SESSION_A}/submissions`),
+        validSub()
+      )
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
 // mini_app_sessions/submissions — create/update gate + payload validation
 // ---------------------------------------------------------------------------
 
