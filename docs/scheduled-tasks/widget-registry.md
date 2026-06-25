@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-06-25_
-_Last action: 2026-05-15_
+_Last action: 2026-06-25_
 
 ---
 
@@ -100,16 +100,19 @@ _2026-05-06: All WidgetType values verified against WIDGET_COMPONENTS, WIDGET_SE
 
 _2026-05-05: `blending-board` (added in dev-paul merge) verified fully registered in all locations; export names match source files. No new registry gaps from the merge._
 
-### MEDIUM `first-5` WidgetType has no config interface in the WidgetConfig union
-
-- **Detected:** 2026-06-25
-- **File:** types.ts
-- **Detail:** `'first-5'` is a valid `WidgetType` (present in types.ts union, WidgetRegistry.ts WIDGET_COMPONENTS, widgetDefaults.ts, tools.ts, and widgetGradeLevels.ts), but has no corresponding config interface (`First5Config` does not exist) and no entry in the `WidgetConfig` conditional type union. The `ConfigForWidget<'first-5'>` type therefore resolves to `never`. At runtime the widget uses `config: {}` (empty object) and this is not currently caught because no production code calls `ConfigForWidget<'first-5'>` directly. However, any future code attempting to type-check the config (e.g. in `updateWidget`, `getAdminBuildingConfig`, or a settings panel) would silently get `never` as the type, causing hard-to-diagnose TypeScript errors.
-- **Fix:** Add a `First5Config` interface to types.ts (can be an empty interface `export interface First5Config {}` or with whatever fields First5/Widget.tsx actually reads from `widget.config`), then add `| (T extends 'first-5' ? First5Config : never)` to the `ConfigForWidget<T>` conditional type chain. Also add `first-5: First5Config` to the `WidgetConfig` union mapping. Read `components/widgets/First5/Widget.tsx` first to discover any config fields actually consumed before defining the interface.
+_No open items._
 
 ---
 
 ## Completed
+
+### MEDIUM `first-5` WidgetType has no config interface in the WidgetConfig union
+
+- **Detected:** 2026-06-25
+- **Completed:** 2026-06-25
+- **File:** types.ts
+- **Detail:** `'first-5'` is a valid `WidgetType` (present in types.ts union, WidgetRegistry.ts WIDGET_COMPONENTS, widgetDefaults.ts, tools.ts, and widgetGradeLevels.ts), but had no corresponding config interface (`First5Config` did not exist) and no entry in the `WidgetConfig` union or `ConfigForWidget` conditional type. The `ConfigForWidget<'first-5'>` type therefore resolved to `never`. At runtime the widget uses `config: {}` (empty object); all real configuration lives in the admin-managed `First5GlobalConfig` (fetched from Firestore via `useFirst5Url`), so an individual `first-5` widget instance carries no per-instance settings. The gap was not caught because no production code called `ConfigForWidget<'first-5'>` directly, but any future code type-checking the config (e.g. `updateWidget`, `getAdminBuildingConfig`, or a settings panel) would have silently gotten `never`, causing hard-to-diagnose TypeScript errors.
+- **Resolution:** Verified `components/widgets/First5/` reads nothing from `widget.config` (grep across Widget.tsx/Settings.tsx/index.ts/hooks found no `widget.config` access; `Widget.test.tsx` uses `config: {}`). Added an empty `export interface First5Config {}` to types.ts immediately after `First5GlobalConfig`, mirroring the existing `StarterPackConfig` pattern (same `@typescript-eslint/no-empty-object-type` eslint-disable rationale — `Record<string, never>` breaks WidgetConfig union spreads in DashboardContext), with a JSDoc note explaining the widget's config lives in `First5GlobalConfig`. Added `| First5Config` to the `WidgetConfig` union and a `T extends 'first-5' ? First5Config` branch to the `ConfigForWidget<T>` conditional chain (before the `stations` branch). `ConfigForWidget<'first-5'>` now resolves to `First5Config` instead of `never`. `pnpm run type-check` (exit 0), `pnpm exec eslint types.ts --max-warnings 0` (clean), `pnpm exec prettier --check types.ts` (clean).
 
 ### LOW `stickers` and `blooms-detail` missing from `WIDGET_SETTINGS_COMPONENTS`
 
