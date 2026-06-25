@@ -154,6 +154,25 @@ service cloud.firestore {
            : [buildingId];
     }
 
+    // Alias-aware overlap between two building-id lists. CEL has no `.map()`,
+    // so the two stored lists can't be canonicalized element-wise. Instead we
+    // bridge across each known alias group: lists overlap if (a) they share a
+    // raw id, or (b) for any alias group, BOTH lists contain at least one form
+    // from that group (e.g. one stores 'high', the other 'orono-high-school').
+    // Unknown/unaliased ids only match via the raw-overlap branch, which is
+    // correct (no canonical form to bridge). Symmetric in a and b.
+    function buildingListsOverlap(a, b) {
+      return a.hasAny(b) ||
+        (a.hasAny(['high', 'orono-high-school']) &&
+         b.hasAny(['high', 'orono-high-school'])) ||
+        (a.hasAny(['middle', 'orono-middle-school']) &&
+         b.hasAny(['middle', 'orono-middle-school'])) ||
+        (a.hasAny(['intermediate', 'orono-intermediate-school']) &&
+         b.hasAny(['intermediate', 'orono-intermediate-school'])) ||
+        (a.hasAny(['schumann', 'schumann-elementary']) &&
+         b.hasAny(['schumann', 'schumann-elementary']));
+    }
+
     // The caller's roleId within an org, or empty string when not a member.
     function memberRole(orgId, emailLower) {
       return exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(emailLower))
@@ -380,22 +399,18 @@ service cloud.firestore {
              'roleId', 'buildingIds', 'status', 'name', 'invitedAt', 'lastActive'
            ])) ||
           // Building admin can flip `status` on a member whose buildingIds
-          // overlap their own. `hasAny([])` returns false, so a newly
-          // invited member with `buildingIds: []` is *not* editable by a
-          // building admin — the domain admin must assign a building first.
-          // This is intentional: building admins shouldn't be able to act on
-          // members who haven't been scoped into their building yet.
-          //
-          // KNOWN GAP (follow-up): this list-vs-list overlap is NOT alias-aware
-          // like the building-doc rule's `manages()` helper, so if the target
-          // member and the acting admin store buildingIds in mismatched
-          // canonical/legacy formats the overlap can falsely fail (false DENIAL
-          // only — never a false grant). Canonicalizing two lists in CEL has no
-          // clean form (no `.map()`), unlike the single-id `buildingIdAliasGroup`
-          // case. Low incidence since member buildingIds are canonicalized on
-          // write; tracked for a dedicated rules pass. See config/buildings.ts.
+          // overlap their own. The overlap is alias-aware via
+          // buildingListsOverlap(), so a target member and acting admin storing
+          // buildingIds in mismatched canonical/legacy formats (e.g. 'high' vs
+          // 'orono-high-school') still match — closing the prior false-DENIAL
+          // gap without needing `.map()`. An empty list on either side yields no
+          // overlap, so a newly invited member with `buildingIds: []` is *not*
+          // editable by a building admin — the domain admin must assign a
+          // building first. This is intentional: building admins shouldn't act
+          // on members who haven't been scoped into their building yet.
+          // See config/buildings.ts for the canonical alias table.
           (isBuildingAdmin(orgId) &&
-           resource.data.buildingIds.hasAny(orgMember(orgId).buildingIds) &&
+           buildingListsOverlap(resource.data.buildingIds, orgMember(orgId).buildingIds) &&
            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
           // Self-write: the signed-in user may stamp their own `lastActive`
           // on their own member doc. Bound strictly — email/orgId must match

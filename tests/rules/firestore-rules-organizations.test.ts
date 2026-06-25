@@ -1153,6 +1153,68 @@ describe('organizations/members — writes', () => {
     );
   });
 
+  // M2 / F6 follow-up — the building-admin member status overlap is now
+  // alias-aware via buildingListsOverlap(). The acting building admin stores
+  // buildingIds: ['high']; these tests cover a target member stored in the
+  // LEGACY alias format and an unrelated member.
+  it('building admin can update status for a member stored in a legacy building-id alias (alias-aware overlap)', async () => {
+    const ALIAS_MEMBER_EMAIL = 'alias.member@orono.k12.mn.us';
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(
+          ctx.firestore(),
+          `organizations/${ORG_ID}/members/${ALIAS_MEMBER_EMAIL}`
+        ),
+        {
+          email: ALIAS_MEMBER_EMAIL,
+          orgId: ORG_ID,
+          roleId: 'teacher',
+          status: 'active',
+          // Legacy alias of 'high' — building admin manages canonical 'high'.
+          buildingIds: ['orono-high-school'],
+        }
+      );
+    });
+    await assertSucceeds(
+      updateDoc(
+        doc(
+          asBuildingAdmin(),
+          `organizations/${ORG_ID}/members/${ALIAS_MEMBER_EMAIL}`
+        ),
+        { status: 'inactive' }
+      )
+    );
+  });
+
+  it('building admin is still denied on a member in an unrelated building (alias-aware denial)', async () => {
+    const UNRELATED_MEMBER_EMAIL = 'unrelated.member@orono.k12.mn.us';
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(
+          ctx.firestore(),
+          `organizations/${ORG_ID}/members/${UNRELATED_MEMBER_EMAIL}`
+        ),
+        {
+          email: UNRELATED_MEMBER_EMAIL,
+          orgId: ORG_ID,
+          roleId: 'teacher',
+          status: 'active',
+          // No alias bridges to 'high'; building admin must stay denied.
+          buildingIds: ['schumann', 'orono-middle-school'],
+        }
+      );
+    });
+    await assertFails(
+      updateDoc(
+        doc(
+          asBuildingAdmin(),
+          `organizations/${ORG_ID}/members/${UNRELATED_MEMBER_EMAIL}`
+        ),
+        { status: 'inactive' }
+      )
+    );
+  });
+
   it('building admin cannot change roleId even within scope', async () => {
     await assertFails(
       updateDoc(
