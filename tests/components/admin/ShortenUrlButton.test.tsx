@@ -18,6 +18,9 @@ const createShortLinkMock =
     (input: { destination: string; label?: string }) => Promise<CreateResult>
   >();
 vi.mock('@/hooks/useShortLinks', () => ({
+  // The button now uses the subscription-free `useCreateShortLink`; keep
+  // `useShortLinks` mocked too in case the shared module is imported elsewhere.
+  useCreateShortLink: () => ({ createShortLink: createShortLinkMock }),
   useShortLinks: () => ({ createShortLink: createShortLinkMock }),
 }));
 

@@ -251,7 +251,11 @@ export const EmbedConfigEditor: React.FC<{
               placeholder="YouTube, Google Drive, Docs, Slides, Forms…"
             />
             <ShortenUrlButton
-              url={rawUrl}
+              // Shorten the embeddable form (same as applyUrl/onBlur), not the
+              // raw input — otherwise clicking before blurring would capture a
+              // YouTube watch URL (which YouTube blocks from embedding) and the
+              // /r/code redirect would render a blank iframe.
+              url={embedUrl || rawUrl.trim()}
               label={label}
               onShortened={applyShortUrl}
               className="shrink-0"

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Link2,
   MousePointerClick,
@@ -8,7 +8,7 @@ import {
   Loader2,
 } from 'lucide-react';
 
-import { useShortLinks } from '@/hooks/useShortLinks';
+import { useShortLinks, ADMIN_LIST_LIMIT } from '@/hooks/useShortLinks';
 import { buildShortUrl } from '@/utils/shortLinkValidation';
 import { ShortLink } from '@/types';
 
@@ -34,9 +34,12 @@ const formatDate = (epoch: number | null | undefined): string => {
   });
 };
 
-const formatRelative = (epoch: number | null | undefined): string => {
+const formatRelative = (
+  epoch: number | null | undefined,
+  now: number
+): string => {
   if (!epoch) return 'Never';
-  const diff = Date.now() - epoch;
+  const diff = now - epoch;
   const minute = 60 * 1000;
   const hour = 60 * minute;
   const day = 24 * hour;
@@ -146,8 +149,16 @@ const LinkCell: React.FC<{ link: ShortLink }> = ({ link }) => (
 
 export const LinksPanel: React.FC = () => {
   const { links, loading, error } = useShortLinks();
+  // Stable per-mount "now" so relative timestamps and the 7-day KPI cutoff
+  // don't re-evaluate Date.now() on every render (React purity).
+  const [now] = useState(() => Date.now());
 
-  const kpis = useMemo(() => computeLinksKpis(links), [links]);
+  const kpis = useMemo(() => computeLinksKpis(links, now), [links, now]);
+
+  // The admin listing is capped at ADMIN_LIST_LIMIT, so once a district has
+  // more links than that, "Total Links" / "Total Clicks" reflect only the most
+  // recent page. Surface that so the numbers aren't read as district totals.
+  const isTruncated = links.length >= ADMIN_LIST_LIMIT;
 
   const topLinks = useMemo(
     () =>
@@ -206,6 +217,9 @@ export const LinksPanel: React.FC = () => {
         <KpiCard
           title="Total Links"
           value={formatNumber(kpis.totalLinks)}
+          subtitle={
+            isTruncated ? `Showing most recent ${ADMIN_LIST_LIMIT}` : undefined
+          }
           accentColor="#2d3f89"
           accentBg="#e0e7ff"
           icon={<Link2 className="w-5 h-5 text-brand-blue-primary" />}
@@ -213,6 +227,7 @@ export const LinksPanel: React.FC = () => {
         <KpiCard
           title="Total Clicks"
           value={formatNumber(kpis.totalClicks)}
+          subtitle={isTruncated ? 'Across most recent links' : undefined}
           accentColor="#10b981"
           accentBg="#d1fae5"
           icon={<MousePointerClick className="w-5 h-5 text-emerald-600" />}
@@ -272,7 +287,7 @@ export const LinksPanel: React.FC = () => {
                     {formatNumber(link.clicks ?? 0)}
                   </td>
                   <td className="px-4 py-3 align-top text-slate-500">
-                    {formatRelative(link.lastClickedAt)}
+                    {formatRelative(link.lastClickedAt, now)}
                   </td>
                 </tr>
               ))}
@@ -323,7 +338,7 @@ export const LinksPanel: React.FC = () => {
                       </a>
                     </td>
                     <td className="px-4 py-3 align-top text-slate-500">
-                      {formatRelative(link.lastClickedAt)}
+                      {formatRelative(link.lastClickedAt, now)}
                     </td>
                     <td className="px-4 py-3 align-top text-right font-semibold text-slate-800">
                       {formatNumber(link.clicks ?? 0)}

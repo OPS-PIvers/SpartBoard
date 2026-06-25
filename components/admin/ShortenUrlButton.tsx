@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link2, Loader2, Check } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
-import { useShortLinks } from '@/hooks/useShortLinks';
+import { useCreateShortLink } from '@/hooks/useShortLinks';
 import { buildShortUrl } from '@/utils/shortLinkValidation';
 
 interface ShortenUrlButtonProps {
@@ -35,9 +35,20 @@ export const ShortenUrlButton: React.FC<ShortenUrlButtonProps> = ({
   className,
 }) => {
   const { isAdmin } = useAuth();
-  const { createShortLink } = useShortLinks();
+  const { createShortLink } = useCreateShortLink();
   const [state, setState] = useState<'idle' | 'working' | 'done'>('idle');
   const [error, setError] = useState<string | null>(null);
+  // Track the "done → idle" reset timer so it can be cancelled if the editor
+  // unmounts within the 1.5s window (avoids a setState on an unmounted node).
+  const resetTimerRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (resetTimerRef.current !== null) {
+        window.clearTimeout(resetTimerRef.current);
+      }
+    },
+    []
+  );
 
   // Non-admins never see the button. Firestore rules also reject the write,
   // but hiding it keeps the teacher-facing surface clean.
@@ -62,7 +73,10 @@ export const ShortenUrlButton: React.FC<ShortenUrlButtonProps> = ({
       }
       onShortened(buildShortUrl(result.link.code));
       setState('done');
-      window.setTimeout(() => setState('idle'), 1500);
+      if (resetTimerRef.current !== null) {
+        window.clearTimeout(resetTimerRef.current);
+      }
+      resetTimerRef.current = window.setTimeout(() => setState('idle'), 1500);
     } catch {
       setError('Failed to shorten URL.');
       setState('idle');

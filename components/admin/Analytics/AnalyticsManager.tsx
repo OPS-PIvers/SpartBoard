@@ -1820,6 +1820,7 @@ export const AnalyticsManager: React.FC = () => {
   if (loading) {
     return (
       <div className="space-y-4">
+        {tabBar}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
@@ -1842,23 +1843,29 @@ export const AnalyticsManager: React.FC = () => {
       // copy ("ready at 5:00 AM Central daily"); render it in a calm slate
       // surface, not red.
       return (
-        <div className="bg-slate-50 border border-slate-200 text-slate-700 p-6 rounded-2xl flex items-start gap-3">
-          <Info className="w-6 h-6 shrink-0 mt-0.5 text-slate-400" />
-          <div>
-            <h3 className="font-bold mb-1 text-slate-900">
-              Analytics not ready yet
-            </h3>
-            <p className="text-sm">{error.message}</p>
+        <div className="space-y-4">
+          {tabBar}
+          <div className="bg-slate-50 border border-slate-200 text-slate-700 p-6 rounded-2xl flex items-start gap-3">
+            <Info className="w-6 h-6 shrink-0 mt-0.5 text-slate-400" />
+            <div>
+              <h3 className="font-bold mb-1 text-slate-900">
+                Analytics not ready yet
+              </h3>
+              <p className="text-sm">{error.message}</p>
+            </div>
           </div>
         </div>
       );
     }
     return (
-      <div className="bg-red-50 border border-red-200 text-red-800 p-6 rounded-2xl flex items-start gap-3">
-        <AlertCircle className="w-6 h-6 shrink-0 mt-0.5" />
-        <div>
-          <h3 className="font-bold mb-1">Failed to Load Analytics</h3>
-          <p className="text-sm">{error.message}</p>
+      <div className="space-y-4">
+        {tabBar}
+        <div className="bg-red-50 border border-red-200 text-red-800 p-6 rounded-2xl flex items-start gap-3">
+          <AlertCircle className="w-6 h-6 shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-bold mb-1">Failed to Load Analytics</h3>
+            <p className="text-sm">{error.message}</p>
+          </div>
         </div>
       </div>
     );

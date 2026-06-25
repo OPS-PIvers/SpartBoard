@@ -41,8 +41,9 @@ const COLLECTION = SHORT_LINKS_COLLECTION;
 const MAX_CODE_GENERATION_RETRIES = 5;
 // Cap admin listings — keeps the read quota predictable and the table
 // responsive once a district has hundreds of links. Pagination/search UI
-// for larger sets is a phase 2 concern.
-const ADMIN_LIST_LIMIT = 100;
+// for larger sets is a phase 2 concern. Exported so analytics surfaces can
+// flag when a listing is truncated at this cap.
+export const ADMIN_LIST_LIMIT = 100;
 
 /**
  * Thrown inside the create transaction when the target slug already
@@ -116,74 +117,16 @@ const createShortLinkAtomic = async (
 };
 
 /**
- * Admin-side hook. Subscribes to all short links (small collection,
- * admin-only audience) and exposes create/update/delete helpers.
+ * Subscription-free create helper. Carved out of `useShortLinks` so callers
+ * that only ever create a link (e.g. the inline `ShortenUrlButton`) don't pay
+ * for the `onSnapshot` listener over up to `ADMIN_LIST_LIMIT` docs — and don't
+ * trigger a 100-doc re-delivery to a listener that discards it every time they
+ * write. `useShortLinks` reuses this so the create logic lives in one place.
  */
-export const useShortLinks = (): UseShortLinksResult => {
+export const useCreateShortLink = (): {
+  createShortLink: (input: CreateShortLinkInput) => Promise<CreateResult>;
+} => {
   const { user, isAdmin } = useAuth();
-  const [links, setLinks] = useState<ShortLink[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!isAdmin) {
-      setLinks([]);
-      setLoading(false);
-      // Clear any stale admin-only error so it doesn't linger after a
-      // sign-out / role drop.
-      setError(null);
-      return;
-    }
-
-    setLoading(true);
-    const q = query(
-      collection(db, COLLECTION),
-      orderBy('createdAt', 'desc'),
-      limit(ADMIN_LIST_LIMIT)
-    );
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const next: ShortLink[] = [];
-        snapshot.forEach((docSnap) => {
-          next.push(docSnap.data() as ShortLink);
-        });
-        setLinks(next);
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        logError('useShortLinks.snapshot', err);
-        setError('Failed to load short links.');
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [isAdmin]);
-
-  const refresh = useCallback(async () => {
-    if (!isAdmin) return;
-    try {
-      setLoading(true);
-      const snapshot = await getDocs(
-        query(
-          collection(db, COLLECTION),
-          orderBy('createdAt', 'desc'),
-          limit(ADMIN_LIST_LIMIT)
-        )
-      );
-      const next: ShortLink[] = [];
-      snapshot.forEach((docSnap) => next.push(docSnap.data() as ShortLink));
-      setLinks(next);
-      setError(null);
-    } catch (err) {
-      logError('useShortLinks.refresh', err);
-      setError('Failed to load short links.');
-    } finally {
-      setLoading(false);
-    }
-  }, [isAdmin]);
 
   const createShortLink = useCallback(
     async (input: CreateShortLinkInput): Promise<CreateResult> => {
@@ -273,6 +216,80 @@ export const useShortLinks = (): UseShortLinksResult => {
     },
     [user, isAdmin]
   );
+
+  return { createShortLink };
+};
+
+/**
+ * Admin-side hook. Subscribes to all short links (small collection,
+ * admin-only audience) and exposes create/update/delete helpers.
+ */
+export const useShortLinks = (): UseShortLinksResult => {
+  const { isAdmin } = useAuth();
+  const { createShortLink } = useCreateShortLink();
+  const [links, setLinks] = useState<ShortLink[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      setLinks([]);
+      setLoading(false);
+      // Clear any stale admin-only error so it doesn't linger after a
+      // sign-out / role drop.
+      setError(null);
+      return;
+    }
+
+    setLoading(true);
+    const q = query(
+      collection(db, COLLECTION),
+      orderBy('createdAt', 'desc'),
+      limit(ADMIN_LIST_LIMIT)
+    );
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const next: ShortLink[] = [];
+        snapshot.forEach((docSnap) => {
+          next.push(docSnap.data() as ShortLink);
+        });
+        setLinks(next);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        logError('useShortLinks.snapshot', err);
+        setError('Failed to load short links.');
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [isAdmin]);
+
+  const refresh = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      setLoading(true);
+      const snapshot = await getDocs(
+        query(
+          collection(db, COLLECTION),
+          orderBy('createdAt', 'desc'),
+          limit(ADMIN_LIST_LIMIT)
+        )
+      );
+      const next: ShortLink[] = [];
+      snapshot.forEach((docSnap) => next.push(docSnap.data() as ShortLink));
+      setLinks(next);
+      setError(null);
+    } catch (err) {
+      logError('useShortLinks.refresh', err);
+      setError('Failed to load short links.');
+    } finally {
+      setLoading(false);
+    }
+  }, [isAdmin]);
 
   const updateShortLink = useCallback(
     async (

@@ -22,6 +22,7 @@ const hookValue: {
 
 vi.mock('@/hooks/useShortLinks', () => ({
   useShortLinks: () => hookValue,
+  ADMIN_LIST_LIMIT: 100,
 }));
 
 const makeLink = (overrides: Partial<ShortLink>): ShortLink => ({
