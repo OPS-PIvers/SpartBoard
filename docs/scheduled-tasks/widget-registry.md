@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-24_
-_Last action: 2026-05-15_
+_Last audited: 2026-06-25_
+_Last action: 2026-06-25_
 
 ---
 
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-25: Full audit. New commits since 2026-06-24: fix(pr-review) address unresolved review comments on #2072, feat(announcements) scope listener query by orgId for tenant isolation. Neither touches types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations. All sampled lazyNamed() export names verified correct — full export-name verification pass confirms no mismatches across all 146 lazyNamed() calls. pnpm type-check (exit 0), pnpm lint (exit 0). ONE NEW GAP: `first-5` WidgetType has no corresponding config interface in the WidgetConfig union type in types.ts — see new open item below._
 
 _2026-06-24: Full audit. New commits since 2026-06-23: test(effects) regression coverage for useEffect fixes, feat(oauth) drive.file/Picker for external Sheets paths, fix(picker) folder navigation in sheets-mode Drive Picker, fix(functions) bump 128MiB→256MiB on resolveOrgForUser/claimOrganizationInvite/ltiJwks, chore(verification) Search Console domain token, docs commits. None touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations. All key lazyNamed() export names spot-checked — RevealGrid barrel re-exports confirmed correct ('Widget'/'Settings' aliases in index.ts), SyntaxFramer and HotspotImage direct named exports confirmed correct, FallbackSettings DefaultSettings/MiniAppSettings confirmed. pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
@@ -98,11 +100,19 @@ _2026-05-06: All WidgetType values verified against WIDGET_COMPONENTS, WIDGET_SE
 
 _2026-05-05: `blending-board` (added in dev-paul merge) verified fully registered in all locations; export names match source files. No new registry gaps from the merge._
 
-_No open items as of 2026-05-15 action._
+_No open items._
 
 ---
 
 ## Completed
+
+### MEDIUM `first-5` WidgetType has no config interface in the WidgetConfig union
+
+- **Detected:** 2026-06-25
+- **Completed:** 2026-06-25
+- **File:** types.ts
+- **Detail:** `'first-5'` is a valid `WidgetType` (present in types.ts union, WidgetRegistry.ts WIDGET_COMPONENTS, widgetDefaults.ts, tools.ts, and widgetGradeLevels.ts), but had no corresponding config interface (`First5Config` did not exist) and no entry in the `WidgetConfig` union or `ConfigForWidget` conditional type. The `ConfigForWidget<'first-5'>` type therefore resolved to `never`. At runtime the widget uses `config: {}` (empty object); all real configuration lives in the admin-managed `First5GlobalConfig` (fetched from Firestore via `useFirst5Url`), so an individual `first-5` widget instance carries no per-instance settings. The gap was not caught because no production code called `ConfigForWidget<'first-5'>` directly, but any future code type-checking the config (e.g. `updateWidget`, `getAdminBuildingConfig`, or a settings panel) would have silently gotten `never`, causing hard-to-diagnose TypeScript errors.
+- **Resolution:** Verified `components/widgets/First5/` reads nothing from `widget.config` (grep across Widget.tsx/Settings.tsx/index.ts/hooks found no `widget.config` access; `Widget.test.tsx` uses `config: {}`). Added an empty `export interface First5Config {}` to types.ts immediately after `First5GlobalConfig`, mirroring the existing `StarterPackConfig` pattern (same `@typescript-eslint/no-empty-object-type` eslint-disable rationale — `Record<string, never>` breaks WidgetConfig union spreads in DashboardContext), with a JSDoc note explaining the widget's config lives in `First5GlobalConfig`. Added `| First5Config` to the `WidgetConfig` union and a `T extends 'first-5' ? First5Config` branch to the `ConfigForWidget<T>` conditional chain (before the `stations` branch). `ConfigForWidget<'first-5'>` now resolves to `First5Config` instead of `never`. `pnpm run type-check` (exit 0), `pnpm exec eslint types.ts --max-warnings 0` (clean), `pnpm exec prettier --check types.ts` (clean).
 
 ### LOW `stickers` and `blooms-detail` missing from `WIDGET_SETTINGS_COMPONENTS`
 

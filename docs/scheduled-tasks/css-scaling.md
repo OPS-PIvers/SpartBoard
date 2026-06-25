@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-24_
+_Last audited: 2026-06-25_
 _Last action: 2026-06-18_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-25: Full scan of all Widget.tsx files. New commits since 2026-06-24: fix(pr-review) address unresolved review comments on #2072, feat(announcements) scope listener query by orgId. Neither touches widget front-face content. Full agent scan flagged 20 candidates; reviewed against journal guidance and existing tracked items. WON'T FIX (fill-better formula): MusicWidget cqh-only sizing (all three layout branches — same exemption as ClockWidget/Countdown/Checklist per journal guidance), TimeTool hero display min(60cqh, 22cqw)/min(60cqh, 30cqw) (fill-better portrait formula), Countdown cqh/cqw separately (documented WON'T FIX in Completed section), SyntaxFramer cqh/cqw in character-count proportional formula (fill-better, per 2026-06-06 analysis), TimeTool keypad cqh/cqw (fill-better), TimeTool redundant cqh arm in min(4cqh, 4cqmin) (always superseded by cqmin, benign). Already tracked: RevealGrid header Tailwind text classes (existing RevealGrid open item), RevealGrid gap-4 (existing RevealGrid open item), GuidedLearning w-8 h-8 Loader2 (group open item — line shifted from :231 to :618), MiniApp assign modal hardcoded text sizes (existing MiniApp dialog open item), SoundWidget fixed padding (group open item), SpecialistSchedule mb-2/pb-2 header row (group open item), Webcam extracted-text overlay gap/padding (group open item). ClockWidget bare cqmin with no cap (40cqmin/50cqmin for hero digits): this replaces the prior cqh/cqw mix — the WON'T FIX entry in Completed was for the cqh/cqw mix which has since been changed; bare uncapped cqmin is a separate LOW issue logged as new item. THREE NEW items detected: (1) SpecialistSchedule border-[min()] style convention (LOW — Tailwind v3.4 JIT correctly handles balanced parens so the border renders; downgraded from initial MEDIUM after verification), (2) ActivityWall empty-state paragraph no fontSize (LOW), (3) TalkingTool font-size pixel cap below 10px recommended minimum (LOW)._
 
 _2026-06-24: Full scan of all Widget.tsx files. New commits since 2026-06-23: test(effects) regression coverage for useEffect fixes (test-only), feat(oauth) drive.file/Picker for external Sheets paths, fix(picker) folder navigation in sheets-mode Drive Picker, fix(functions) cloud-function memory bump, chore/docs commits. None of these touch widget front-face content. All pre-existing open items (EmbedWidget portaled toolbar, QuizResults period-filter, RevealGrid spacing, multi-widget group, MiniApp dialog) re-confirmed valid. Zero new anti-patterns._
 
@@ -107,6 +109,34 @@ _2026-05-13: Scanned all 50 Widget.tsx files for hardcoded text-size classes, fi
 _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size classes and Tailwind pixel-cap violations. No new issues since 2026-05-06. `CatalystInstructionWidget.tsx:48` (`text-xs`) confirmed to be in the Settings component (back-face), not the front-face widget content — not a violation. All existing open items remain valid._
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
+
+### LOW SpecialistScheduleWidget uses `border-[min()]` Tailwind arbitrary value — inline style is the project convention for `cqmin` values
+
+- **Detected:** 2026-06-25
+- **File:** components/widgets/SpecialistSchedule/SpecialistScheduleWidget.tsx:395
+- **Detail:** The widget uses `className="... border-[min(6px,1.5cqmin)] ..."` (Tailwind JIT arbitrary value syntax). Tailwind v3.4 JIT correctly handles balanced parentheses inside `[...]`, so `min(6px,1.5cqmin)` is parsed as a single value and generates valid `border-width: min(6px, 1.5cqmin)` CSS — the border renders correctly. The concern is stylistic: all other `cqmin`-based sizing in widget front-face content uses inline `style` props rather than Tailwind arbitrary values, making intent explicit and avoiding reliance on Tailwind's balanced-paren parsing behaviour. Widget has `skipScaling: true`. (Note: a prior version of this entry incorrectly described this as a rendering bug — it is not; only a style consistency issue.)
+- **Fix:** Move the border-width from `className` to a `style` prop to match the project convention: `style={{ borderWidth: 'min(6px, 1.5cqmin)' }}`. Keep border-style/color Tailwind classes on `className`.
+
+### LOW ActivityWall empty-state paragraph has no `fontSize` style — unscaled at all widget sizes
+
+- **Detected:** 2026-06-25
+- **File:** components/widgets/ActivityWall/Widget.tsx:1554
+- **Detail:** The "No activities yet" empty-state paragraph uses `<p className="font-black text-slate-800 mt-2">` with no `fontSize` style. Widget has `skipScaling: true`, so the paragraph falls back to the browser default 16px regardless of widget size. At small widget sizes the text can overflow; at large sizes it appears undersized relative to the container. This empty state is shown whenever the activity wall has no content, which is the first thing a teacher sees after adding the widget.
+- **Fix:** Either replace the hand-rolled empty state with the shared `ScaledEmptyState` component (`import { ScaledEmptyState } from '@/components/common/ScaledEmptyState'`), or add an inline fontSize: `style={{ fontSize: 'min(14px, 5.5cqmin)', marginTop: 'min(8px, 2cqmin)' }}` and remove `mt-2` from `className`.
+
+### LOW TalkingTool font-size pixel cap (`9px`) is below the recommended 10px minimum
+
+- **Detected:** 2026-06-25
+- **File:** components/widgets/TalkingTool/Widget.tsx:56–59 (approx.)
+- **Detail:** A font-size style uses `min(9px, 2.2cqmin)`. The CLAUDE.md scaling guidelines specify 10px as the minimum pixel cap for readable text (3.5cqmin tier). At 9px the text will be illegible on most displays even at large widget sizes, and falls below WCAG AA legibility requirements for body text on projected screens. Widget has `skipScaling: true`.
+- **Fix:** Raise the pixel cap to at least 10px: `style={{ fontSize: 'min(10px, 2.2cqmin)' }}`. If this is tertiary/metadata text (footnotes, labels), 10px is the floor; for any content teachers need to read at a glance, raise to `min(11px, 4cqmin)`.
+
+### LOW ClockWidget hero text uses bare `cqmin` with no upper pixel cap
+
+- **Detected:** 2026-06-25
+- **File:** components/widgets/ClockWidget/Widget.tsx:70–71
+- **Detail:** The primary time display uses `fontSize: showSeconds ? '40cqmin' : '50cqmin'` — bare `cqmin` with no `clamp()` or `min(Xpx, ...)` cap. At large widget sizes (e.g. fullscreen or 1000+ px) the digits could reach 400–500px+, causing rendering artifacts and overflow. The prior WON'T FIX entry in Completed covers the `cqh`/`cqw` mix that was intentionally retained; the current code appears to use bare `cqmin` instead (a separate issue). CLAUDE.md recommends `clamp(Xpx, Ycqmin, Zpx)` for hero text to bound maximum size.
+- **Fix:** Add an upper bound: `fontSize: showSeconds ? 'clamp(24px, 40cqmin, 240px)' : 'clamp(24px, 50cqmin, 300px)'`. Adjust the pixel caps to match the desired maximum legible size on the projected screen. Verify visually that the clock still fills adequately at the widget's default size before committing.
 
 ### LOW EmbedWidget zoom toolbar uses hardcoded sizes — portaled outside container query context
 

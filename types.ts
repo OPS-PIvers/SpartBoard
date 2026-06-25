@@ -5700,6 +5700,7 @@ export type WidgetConfig =
   | BloomsTaxonomyConfig
   | BloomsDetailConfig
   | NeedDoPutThenConfig
+  | First5Config
   | StationsConfig;
 
 // Helper type to get config type for a specific widget
@@ -5825,9 +5826,11 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                         ? BloomsDetailConfig
                                                                                                                         : T extends 'need-do-put-then'
                                                                                                                           ? NeedDoPutThenConfig
-                                                                                                                          : T extends 'stations'
-                                                                                                                            ? StationsConfig
-                                                                                                                            : never;
+                                                                                                                          : T extends 'first-5'
+                                                                                                                            ? First5Config
+                                                                                                                            : T extends 'stations'
+                                                                                                                              ? StationsConfig
+                                                                                                                              : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
@@ -6394,6 +6397,18 @@ export interface First5GlobalConfig {
   /** Per-building dock visibility overrides */
   dockDefaults?: Record<string, boolean>;
 }
+
+/**
+ * Per-instance config for the `first-5` widget. The widget reads all of its
+ * runtime configuration from the admin-managed {@link First5GlobalConfig}
+ * (fetched from Firestore via `useFirst5Url`), so an individual `first-5`
+ * widget instance carries no per-instance settings — its `widget.config` is
+ * an empty object. This interface exists so `first-5` is represented in the
+ * `WidgetConfig` union and `ConfigForWidget<'first-5'>` (which would otherwise
+ * resolve to `never`).
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- Required: Record<string, never> breaks WidgetConfig union spreads in DashboardContext
+export interface First5Config {}
 
 export interface LunchCountGlobalConfig {
   /** Google Sheet ID for Schumann Elementary submissions */
