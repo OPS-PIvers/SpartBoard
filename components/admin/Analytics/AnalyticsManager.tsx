@@ -29,6 +29,7 @@ import {
   Clock,
   Info,
   LayoutGrid,
+  Link2,
   School,
   Search,
   Users,
@@ -45,6 +46,7 @@ import {
   type Building,
 } from '@/config/buildings';
 import { TOOLS } from '@/config/tools';
+import { LinksPanel } from './LinksPanel';
 
 interface EngagementCounts {
   total: number;
@@ -132,7 +134,7 @@ type AnalyticsErrorState =
   | { kind: 'cold-start'; message: string }
   | { kind: 'fatal'; message: string };
 
-type AnalyticsTab = 'overview' | 'widgets' | 'ai' | 'users';
+type AnalyticsTab = 'overview' | 'widgets' | 'ai' | 'users' | 'links';
 
 const WIDGET_LABELS: Record<string, string> = TOOLS.reduce(
   (acc, tool) => {
@@ -1760,6 +1762,7 @@ export const AnalyticsManager: React.FC = () => {
     },
     { id: 'ai', label: 'AI Usage', icon: <WandSparkles className="w-4 h-4" /> },
     { id: 'users', label: 'Users', icon: <School className="w-4 h-4" /> },
+    { id: 'links', label: 'Links', icon: <Link2 className="w-4 h-4" /> },
   ];
 
   if (loading) {
@@ -1931,6 +1934,11 @@ export const AnalyticsManager: React.FC = () => {
       {selectedTab === 'users' && (
         <div role="tabpanel" id="panel-users" aria-labelledby="tab-users">
           <UsersPanel data={data} />
+        </div>
+      )}
+      {selectedTab === 'links' && (
+        <div role="tabpanel" id="panel-links" aria-labelledby="tab-links">
+          <LinksPanel />
         </div>
       )}
 
