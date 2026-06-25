@@ -4,6 +4,29 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-25
+
+- PRs reviewed: 3 (all open PRs)
+  - #2075 — audit(thursday): daily audits 2026-06-25 (head `scheduled-tasks`, base `dev-paul`)
+  - #2074 — docs(unifier): run 19 log (head `nightly/unifier-log-2026-06-25`, base `dev-paul`)
+  - #2072 — Audit updates and fixes for admin settings and widget configurations (head `dev-paul`, base `main`)
+- Comments processed: 11 total — 0 fixed, 2 explained (replies), 9 skipped (already addressed by author in `6573248` / outdated / informational)
+  - #2075: 1 gemini inline thread (`@/` alias in `ScaledEmptyState` import snippet) → EXPLAINED: already fixed in commit `9992a19`, thread now outdated. 2 claude review summaries → no action (approvals/notes).
+  - #2074: gemini "unsupported file types" note → no action (informational, doc-only PR).
+  - #2072: 7 inline threads already resolved by author in `6573248` (stale-closure ref restore, NOT_FOUND toast, 2× redundant `Promise.resolve`, 2× test-correctness gaps, O(N·M)→O(M) resend) → SKIPPED (functionally addressed). 1 open thread (`users.filter` vs `filtered.filter`, UsersView:382) → EXPLAINED (replied): UX judgment, not a bug — `users.filter` keeps bulk Resend consistent with bulk Deactivate/Delete which act on all `selected`; declined automated change.
+- Fixes pushed: 0
+  - Investigated 3 newer review-level items on #2072 and concluded none warranted an automated fix:
+    1. **Deactivate ungated by `canManageUsers` (UsersView:422)** — FALSE POSITIVE. Deactivation is governed by `canEditStatus = inScope` (line 574), deliberately separate from `canManage`; `building_admin`s are intended to deactivate in-scope users and `selected` is already scope-restricted. Guarding it would remove a legitimate capability.
+    2. **UTC-midnight due-date parse (QuizManager:2300)** — NOT A BUG. Current parse is symmetric with the `toISOString()` display (line 2292) and matches the documented date-only convention in `utils/localDate.ts` (`splitDueAtToInputs(hasTime=false)`). The suggested local-midnight change would break symmetry for UTC+ timezones; a correct change requires moving both parse and display to local components together.
+    3. **`users` vs `filtered` (UsersView:382)** — UX decision, declined (see replied thread above).
+- Reviews posted: 3 (one structured review per PR)
+  - #2075: Ready — doc journal updates + correct additive `First5Config` type fix (closes `ConfigForWidget<'first-5'> = never`).
+  - #2074: Ready — doc-only unifier run-19 log, no executable surface.
+  - #2072: Ready with minor notes — earlier feedback resolved in `6573248`; Deactivate-guard and UTC-date "bugs" are consistent-by-design; remaining notes (announcement half-window auto-expire, `AnnouncementOverlay` `isActive` index growth, `OptionInput` key-sync contract) are low-severity follow-ups.
+- Notes:
+  - Branch-safety: #2072 head is `dev-paul` (dev-_); per the standing rule, pushable only for review-comment fixes on a dev-paul→main PR. No fixes were warranted this run, so nothing was pushed to `dev-paul`. #2075/#2074 heads are non-`main`/non-`dev-_`.
+  - No code changes pushed this run — the author had already landed all clear fixes (`6573248`), and the three remaining flagged items resolved to false-positives / convention-conflicts / UX judgments on investigation.
+
 ## 2026-06-24
 
 - PRs reviewed: 10
