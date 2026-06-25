@@ -32,17 +32,26 @@ export const SubCollectionsList: FC<SubCollectionsListProps> = ({
     const canonical = canonicalBuildingId(buildingId);
     void (async () => {
       try {
+        // expiresAt is filtered client-side (after the snapshot) rather than
+        // as a `where('expiresAt','>',Date.now())` query constraint: the read
+        // rule gates expiry per-document (it does NOT require the query to
+        // carry an expiresAt constraint — same as the shared_boards read), and
+        // a server-side `>` filter on a client clock can trip a clock-skew
+        // permission-denied. Mirrors useSubstituteShares.ts.
         const q = query(
           collection(db, 'shared_collections'),
           where('intendedMode', '==', 'substitute'),
-          where('buildingId', '==', canonical),
-          where('expiresAt', '>', Date.now())
+          where('buildingId', '==', canonical)
         );
         const snap = await getDocs(q);
         if (cancelled) return;
+        const now = Date.now();
         const docs: SharedCollection[] = [];
         snap.docs.forEach((d) => {
           const data = d.data() as SharedCollection;
+          const expiresAt =
+            typeof data.expiresAt === 'number' ? data.expiresAt : 0;
+          if (expiresAt <= now) return;
           docs.push({ ...data, shareId: d.id });
         });
         setCollections(docs);
