@@ -286,6 +286,31 @@ describe('QuizAssignmentSettingsModal — unified class picker (rosterIds)', () 
     expect(checkboxes[1]).toBeChecked(); // Period 2 (matched by name)
   });
 
+  it('an explicit empty rosterIds short-circuits the legacy periodNames fallback', () => {
+    // rosterIds: [] means "no classes selected" and must NOT fall through to
+    // name-matching periodNames — even when periodNames is non-empty (e.g. a
+    // legacy field left on a doc whose targeting was later cleared).
+    const rosters = [
+      makeRoster({ id: 'r1', name: 'Period 1' }),
+      makeRoster({ id: 'r2', name: 'Period 2' }),
+    ];
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({
+          rosterIds: [],
+          periodNames: ['Period 1', 'Period 2'],
+        })}
+        rosters={rosters}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    const checkboxes = screen.getAllByRole('checkbox');
+    // Nothing preselected despite the non-empty legacy periodNames.
+    expect(checkboxes[0]).not.toBeChecked();
+    expect(checkboxes[1]).not.toBeChecked();
+  });
+
   it('writes BOTH rosterIds AND periodNames (derived from selected rosters) on save', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const rosters = [

@@ -83,7 +83,11 @@ function hydratePickerValue(
   a: QuizAssignment,
   rosters: ClassRoster[]
 ): AssignClassPickerValue {
-  if (a.rosterIds && a.rosterIds.length > 0) {
+  // An explicit `rosterIds` (including `[]`) is authoritative and must
+  // short-circuit before the legacy periodNames path: `[]` means "no rosters
+  // selected", not "fall back to name-matching". Only an absent field
+  // (undefined) consults the legacy periodNames below.
+  if (a.rosterIds !== undefined) {
     const existing = new Set(rosters.map((r) => r.id));
     const matched = a.rosterIds.filter((id) => existing.has(id));
     return matched.length > 0 ? { rosterIds: matched } : makeEmptyPickerValue();

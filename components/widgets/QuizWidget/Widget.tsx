@@ -2038,17 +2038,29 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               delete settingsPatch.rosterIds;
               delete settingsPatch.periodName;
               delete settingsPatch.periodNames;
-              if (rosterIds !== undefined) {
-                const targets = deriveSessionTargetsFromRosters(
-                  rosters.filter((r) => rosterIds.includes(r.id))
-                );
-                await setAssignmentRosters(editingAssignment.id, targets);
-              }
+              // These are two separate writeBatch.commit()s, not one
+              // transaction. To keep the non-atomic window benign, apply the
+              // secondary settings FIRST and the class targeting LAST. Targeting
+              // (rosterIds/classIds on the session doc, which pinLoginV1 + SSO
+              // join read) moves as a single all-or-nothing batch inside
+              // setAssignmentRosters, so if its commit fails the assignment
+              // keeps its prior targeting intact — students still join with the
+              // old classes — and the modal stays open for retry. The only
+              // residual inconsistency is updated settings against old
+              // targeting, which is harmless. Folding both into one batch
+              // (a combined hook method) is a tracked follow-up.
               if (Object.keys(settingsPatch).length > 0) {
                 await updateAssignmentSettings(
                   editingAssignment.id,
                   settingsPatch
                 );
+              }
+              if (rosterIds !== undefined) {
+                const selectedRosterIds = new Set(rosterIds);
+                const targets = deriveSessionTargetsFromRosters(
+                  rosters.filter((r) => selectedRosterIds.has(r.id))
+                );
+                await setAssignmentRosters(editingAssignment.id, targets);
               }
               addToast('Assignment settings saved.', 'success');
               setEditingAssignment(null);
