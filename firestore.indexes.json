@@ -292,6 +292,14 @@
       ]
     },
     {
+      "collectionGroup": "shared_collections",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "intendedMode", "order": "ASCENDING" },
+        { "fieldPath": "expiresAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "responses",
       "queryScope": "COLLECTION_GROUP",
       "fields": [

@@ -1106,6 +1106,13 @@ service cloud.firestore {
       // substitute create rule. boardIds must be a non-empty list of
       // at most 500 entries; collection.name must be a non-empty string;
       // intendedMode must be in the legal set.
+      //
+      // Optional substitute fields `subEmails` and `driveGrants` (Drive
+      // roster grants, mirroring /shared_boards) are permitted at create
+      // time and PINNED thereafter by the UPDATE rule below (substitute
+      // Collection shares are fully immutable post-create), so a host can
+      // never silently retarget or rewrite them after a sub has opened a
+      // board — the same guarantee the per-field pins give on /shared_boards.
       allow create: if request.auth != null
         && request.resource.data.hostUid == request.auth.uid
         && request.resource.data.boardIds is list
@@ -1126,8 +1133,11 @@ service cloud.firestore {
         );
 
       // UPDATE: host-only, and ONLY allowed on copy shares (substitute
-      // shares are immutable post-creation). Admins bypass for emergency
-      // corrections.
+      // shares are immutable post-creation — this fully pins every
+      // substitute field, including `expiresAt`, `buildingId`, `subEmails`
+      // and `driveGrants`, matching the per-field pins on /shared_boards
+      // but more strictly: no substitute update is permitted at all).
+      // Admins bypass for emergency corrections.
       allow update: if request.auth != null
         && (resource.data.get('hostUid', null) == request.auth.uid || isAdmin())
         && resource.data.get('intendedMode', null) == 'copy';

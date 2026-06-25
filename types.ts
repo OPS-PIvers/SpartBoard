@@ -7364,6 +7364,16 @@ export interface SharedCollection {
   expiresAt?: number;
   /** Substitute-only: building id (config/buildings.ts) for /subs scoping. */
   buildingId?: string;
+  /** Substitute-only: @orono.k12.mn.us emails granted Drive roster access. */
+  subEmails?: string[];
+  /**
+   * Substitute-only: per-email/file Drive permission ids for revocation.
+   * Mirrors `SubstituteShareFields.driveGrants` on single-board shares — the
+   * grants are share-level (granted once per (roster file, sub email)), so
+   * they live on the Collection parent doc rather than on each board sub-doc.
+   * Swept by `useReconcileExpiredSubShares` / `expireSubShares` on expiry.
+   */
+  driveGrants?: SubstituteShareDriveGrant[];
 }
 
 /**

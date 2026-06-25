@@ -1,7 +1,11 @@
 /**
- * Hourly sweep that deletes expired substitute-mode `/shared_boards`
- * docs so the substitute portal stays uncluttered and stale snapshots
- * don't sit in Firestore indefinitely.
+ * Hourly sweep that deletes expired substitute-mode `/shared_boards` AND
+ * `/shared_collections` docs so the substitute portal stays uncluttered and
+ * stale snapshots don't sit in Firestore indefinitely.
+ *
+ * Collection shares additionally carry a `boards/` subcollection of frozen
+ * Board snapshots; when a Collection parent is deleted, its board sub-docs are
+ * deleted first so nothing is orphaned.
  *
  * Two-stage delete (grace period):
  * --------------------------------------------------------------------
@@ -49,6 +53,123 @@ interface SubstituteShareData {
   }>;
 }
 
+type ExpiredDocSnap =
+  FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>;
+
+interface SweepResult {
+  deleted: number;
+  inGrace: number;
+  orphanedGrants: number;
+}
+
+/**
+ * Sweep one substitute-share collection. `hostField` is the doc field holding
+ * the host uid (`originalAuthor` on /shared_boards, `hostUid` on
+ * /shared_collections) — only used for logging. When `deleteBoardsSubcollection`
+ * is set, each doc's `boards/` subcollection is reaped before the parent.
+ */
+async function sweepCollection(
+  db: FirebaseFirestore.Firestore,
+  collectionName: string,
+  now: number,
+  hostField: 'originalAuthor' | 'hostUid',
+  deleteBoardsSubcollection: boolean
+): Promise<SweepResult> {
+  // Equality on intendedMode + range on expiresAt — requires a composite
+  // index on (intendedMode ASC, expiresAt ASC); declared in
+  // firestore.indexes.json for both collections.
+  const snap = await db
+    .collection(collectionName)
+    .where('intendedMode', '==', 'substitute')
+    .where('expiresAt', '<=', now)
+    .limit(MAX_DELETES_PER_RUN)
+    .get();
+
+  if (snap.empty) {
+    console.log(`[expireSubShares] no expired substitute ${collectionName}`);
+    return { deleted: 0, inGrace: 0, orphanedGrants: 0 };
+  }
+
+  // Bucket each expired doc into "ready to delete" vs "give the client
+  // revoker more time". A doc is ready when it has no grants OR it's
+  // been expired longer than the orphan-grace window.
+  const readyToDelete: ExpiredDocSnap[] = [];
+  let stillInGrace = 0;
+  let orphanedGrantCount = 0;
+
+  for (const doc of snap.docs) {
+    const data = doc.data() as SubstituteShareData & { hostUid?: string };
+    const grants = Array.isArray(data.driveGrants) ? data.driveGrants : [];
+    const expiredAt = typeof data.expiresAt === 'number' ? data.expiresAt : 0;
+    const inGrace = grants.length > 0 && expiredAt > now - ORPHAN_GRACE_MS;
+
+    if (inGrace) {
+      stillInGrace += 1;
+      continue;
+    }
+
+    // If we're deleting a doc that still has grants (i.e. grace expired),
+    // log the orphans so a Workspace admin can clean up by hand.
+    if (grants.length > 0) {
+      orphanedGrantCount += grants.length;
+      const host = data[hostField] ?? data.originalAuthor ?? data.hostUid;
+      console.warn(
+        `[expireSubShares] DELETING ${collectionName} share ${doc.id} (host ${host}) ` +
+          `with ${grants.length} unrevoked Drive permissions — host never ` +
+          `returned to clean up. Manual revocation needed for: ` +
+          grants
+            .map((g) => `${g.email}@${g.fileId}:${g.permissionId}`)
+            .join(', ')
+      );
+    }
+    readyToDelete.push(doc);
+  }
+
+  if (readyToDelete.length === 0) {
+    console.log(
+      `[expireSubShares] ${stillInGrace} expired ${collectionName} in grace window — waiting for host to clean up`
+    );
+    return { deleted: 0, inGrace: stillInGrace, orphanedGrants: 0 };
+  }
+
+  // Collection parents carry a `boards/` subcollection — reap those sub-docs
+  // first so the parent delete doesn't orphan them. Done before the batched
+  // parent delete because subcollections aren't cascaded by Firestore.
+  if (deleteBoardsSubcollection) {
+    for (const doc of readyToDelete) {
+      const boardsSnap = await doc.ref.collection('boards').get();
+      if (boardsSnap.empty) continue;
+      const boardBatchSize = 250;
+      for (let i = 0; i < boardsSnap.docs.length; i += boardBatchSize) {
+        const batch = db.batch();
+        for (const b of boardsSnap.docs.slice(i, i + boardBatchSize)) {
+          batch.delete(b.ref);
+        }
+        await batch.commit();
+      }
+    }
+  }
+
+  // Batched delete of parents. Firestore caps each batch at 500 ops which
+  // lines up with MAX_DELETES_PER_RUN; we still chunk defensively.
+  const batchSize = 250;
+  let deleted = 0;
+  for (let i = 0; i < readyToDelete.length; i += batchSize) {
+    const batch = db.batch();
+    const chunk = readyToDelete.slice(i, i + batchSize);
+    for (const doc of chunk) batch.delete(doc.ref);
+    await batch.commit();
+    deleted += chunk.length;
+  }
+
+  console.log(
+    `[expireSubShares] deleted ${deleted} expired substitute ${collectionName} ` +
+      `(${stillInGrace} still in ${ORPHAN_GRACE_DAYS}-day grace window; ` +
+      `${orphanedGrantCount} Drive permissions logged as needing manual revocation)`
+  );
+  return { deleted, inGrace: stillInGrace, orphanedGrants: orphanedGrantCount };
+}
+
 export const expireSubShares = onSchedule(
   {
     schedule: 'every 60 minutes',
@@ -60,78 +181,7 @@ export const expireSubShares = onSchedule(
     const db = admin.firestore();
     const now = Date.now();
 
-    // Equality on intendedMode + range on expiresAt — requires a composite
-    // index on (intendedMode ASC, expiresAt ASC); declared in
-    // firestore.indexes.json.
-    const snap = await db
-      .collection('shared_boards')
-      .where('intendedMode', '==', 'substitute')
-      .where('expiresAt', '<=', now)
-      .limit(MAX_DELETES_PER_RUN)
-      .get();
-
-    if (snap.empty) {
-      console.log('[expireSubShares] no expired substitute shares');
-      return;
-    }
-
-    // Bucket each expired doc into "ready to delete" vs "give the client
-    // revoker more time". A doc is ready when it has no grants OR it's
-    // been expired longer than the orphan-grace window.
-    const readyToDelete: typeof snap.docs = [];
-    const stillInGrace: typeof snap.docs = [];
-    let orphanedGrantCount = 0;
-
-    for (const doc of snap.docs) {
-      const data = doc.data() as SubstituteShareData;
-      const grants = Array.isArray(data.driveGrants) ? data.driveGrants : [];
-      const expiredAt = typeof data.expiresAt === 'number' ? data.expiresAt : 0;
-      const inGrace = grants.length > 0 && expiredAt > now - ORPHAN_GRACE_MS;
-
-      if (inGrace) {
-        stillInGrace.push(doc);
-        continue;
-      }
-
-      // If we're deleting a doc that still has grants (i.e. grace expired),
-      // log the orphans so a Workspace admin can clean up by hand.
-      if (grants.length > 0) {
-        orphanedGrantCount += grants.length;
-        console.warn(
-          `[expireSubShares] DELETING share ${doc.id} (host ${data.originalAuthor}) ` +
-            `with ${grants.length} unrevoked Drive permissions — host never ` +
-            `returned to clean up. Manual revocation needed for: ` +
-            grants
-              .map((g) => `${g.email}@${g.fileId}:${g.permissionId}`)
-              .join(', ')
-        );
-      }
-      readyToDelete.push(doc);
-    }
-
-    if (readyToDelete.length === 0) {
-      console.log(
-        `[expireSubShares] ${stillInGrace.length} expired shares in grace window — waiting for host to clean up`
-      );
-      return;
-    }
-
-    // Batched delete. Firestore caps each batch at 500 ops which lines up
-    // with MAX_DELETES_PER_RUN; we still chunk defensively.
-    const batchSize = 250;
-    let deleted = 0;
-    for (let i = 0; i < readyToDelete.length; i += batchSize) {
-      const batch = db.batch();
-      const chunk = readyToDelete.slice(i, i + batchSize);
-      for (const doc of chunk) batch.delete(doc.ref);
-      await batch.commit();
-      deleted += chunk.length;
-    }
-
-    console.log(
-      `[expireSubShares] deleted ${deleted} expired substitute shares ` +
-        `(${stillInGrace.length} still in ${ORPHAN_GRACE_DAYS}-day grace window; ` +
-        `${orphanedGrantCount} Drive permissions logged as needing manual revocation)`
-    );
+    await sweepCollection(db, 'shared_boards', now, 'originalAuthor', false);
+    await sweepCollection(db, 'shared_collections', now, 'hostUid', true);
   }
 );
