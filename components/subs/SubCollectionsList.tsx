@@ -9,10 +9,18 @@ import type { SharedCollection } from '@/types';
 
 interface SubCollectionsListProps {
   buildingId: string;
+  /**
+   * Open a Board that lives inside a shared Collection. Called with the
+   * Collection's shareId and the Board's id; the parent (SubsApp) navigates
+   * into the `collection-board` view, which loads the frozen snapshot via
+   * `useSubstituteCollectionBoard`.
+   */
+  onPickBoard: (shareId: string, boardId: string) => void;
 }
 
 export const SubCollectionsList: FC<SubCollectionsListProps> = ({
   buildingId,
+  onPickBoard,
 }) => {
   const { t } = useTranslation();
   const [collections, setCollections] = useState<SharedCollection[]>([]);
@@ -110,23 +118,16 @@ export const SubCollectionsList: FC<SubCollectionsListProps> = ({
               <button
                 key={boardId}
                 type="button"
-                disabled
-                title={t('subCollections.comingSoon', {
-                  defaultValue:
-                    'Board view in /subs coming soon — open in the teacher app for now',
+                onClick={() => onPickBoard(c.shareId, boardId)}
+                title={t('subCollections.openBoard', {
+                  defaultValue: 'Open this board',
                 })}
-                className="text-left px-2 py-1.5 text-xs rounded-md bg-slate-50 border border-slate-200 opacity-60 cursor-not-allowed flex flex-col gap-0.5"
-                aria-disabled="true"
+                className="text-left px-2 py-1.5 text-xs rounded-md bg-white/10 hover:bg-white/20 border border-white/15 hover:border-white/30 text-white transition-colors cursor-pointer flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-white/40"
               >
-                <span>
+                <span className="truncate">
                   {t('subCollections.boardPlaceholder', {
                     id: boardId.slice(-4),
                     defaultValue: 'Board …{{id}}',
-                  })}
-                </span>
-                <span className="text-[10px] text-slate-400 italic">
-                  {t('subCollections.comingSoonLabel', {
-                    defaultValue: 'Coming soon',
                   })}
                 </span>
               </button>
