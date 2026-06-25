@@ -540,10 +540,8 @@ service cloud.firestore {
     // it, a studentRole user calling Firestore directly could still create a
     // dashboard doc under their own uid.
     match /users/{userId}/dashboards/{dashboardId} {
-      allow read, write: if request.auth != null
-                         && request.auth.uid == userId
-                         && !isStudentRoleUser()
-                         && notDeactivated();
+      allow read, write: if request.auth != null && request.auth.uid == userId
+                         && !isStudentRoleUser() && notDeactivated();
 
       // Phase 2 PR 2.6: DrawingWidget object content moves off the dashboard
       // document into a page-nested subcollection so a single Firestore write
@@ -555,24 +553,19 @@ service cloud.firestore {
       // subcollection inherits dashboard semantics without a separate
       // top-level match.
       match /drawings/{widgetId}/pages/{pageId} {
-        allow read, write: if request.auth != null
-                           && request.auth.uid == userId
-                           && !isStudentRoleUser()
-                           && notDeactivated();
+        allow read, write: if request.auth != null && request.auth.uid == userId
+                           && !isStudentRoleUser() && notDeactivated();
 
         match /objects/{objectId} {
-          allow read, write: if request.auth != null
-                             && request.auth.uid == userId
-                             && !isStudentRoleUser()
-                             && notDeactivated();
+          allow read, write: if request.auth != null && request.auth.uid == userId
+                             && !isStudentRoleUser() && notDeactivated();
         }
       }
     }
 
     // Rosters - users can only access their own rosters in their subcollection
     match /users/{userId}/rosters/{rosterId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId
-                         && notDeactivated();
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
 
       // Phase 3 — non-PII PIN index sidecar. Bridges PIN-joining
       // students into the SSO uid space via `pinLoginV1`. The cloud
@@ -604,9 +597,11 @@ service cloud.firestore {
     // cap below prevents a single doc from being weaponized as unbounded
     // storage.
     match /users/{userId}/plc_layouts/{plcId} {
-      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow read, delete: if request.auth != null && request.auth.uid == userId
+                          && notDeactivated();
       allow write: if request.auth != null
                    && request.auth.uid == userId
+                   && notDeactivated()
                    && request.resource.data.keys().hasOnly(['tiles', 'updatedAt'])
                    && request.resource.data.tiles is list
                    && request.resource.data.tiles.size() <= 50
@@ -621,9 +616,11 @@ service cloud.firestore {
     // field, which dual-accepts `int || timestamp` during the serverTimestamp
     // rollout (§3.2).
     match /users/{userId}/plc_state/{plcId} {
-      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow read, delete: if request.auth != null && request.auth.uid == userId
+                          && notDeactivated();
       allow create, update: if request.auth != null
                    && request.auth.uid == userId
+                   && notDeactivated()
                    && request.resource.data.keys().hasOnly(['lastSeenAt'])
                    && (
                         request.resource.data.lastSeenAt is int
@@ -633,32 +630,28 @@ service cloud.firestore {
 
     // Mini Apps - users can only access their own mini apps in their subcollection
     match /users/{userId}/miniapps/{appId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId
-                         && notDeactivated();
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // Saved Widgets - per-user "Save as widget" shortcuts (frozen widget configs
     // surfaced as dock/library entries). Owner-only.
     match /users/{userId}/saved_widgets/{savedWidgetId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // Notebooks - users can only access their own notebooks in their subcollection
     match /users/{userId}/notebooks/{notebookId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId
-                         && notDeactivated();
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // PDFs - users can only access their own PDFs in their subcollection
     match /users/{userId}/pdfs/{pdfId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId
-                         && notDeactivated();
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // Quiz metadata - users can only access their own quiz metadata
     match /users/{userId}/quizzes/{quizId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId
-                         && notDeactivated();
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // Activity Wall library - per-user reusable activity definitions.
@@ -666,7 +659,7 @@ service cloud.firestore {
     // moving them here lets teachers reuse the same activity across widgets
     // and survive widget removal. Owner-only.
     match /users/{userId}/activity_wall_activities/{activityId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // Quiz assignments - archive of past/current assignments of a quiz. Per-user.
@@ -674,13 +667,16 @@ service cloud.firestore {
     // those are relied on by ownership checks elsewhere (session rules, shared
     // assignment author checks). Keep teacherUid and id immutable after create.
     match /users/{userId}/quiz_assignments/{assignmentId} {
-      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow read, delete: if request.auth != null && request.auth.uid == userId
+                          && notDeactivated();
       allow create: if request.auth != null
                     && request.auth.uid == userId
+                    && notDeactivated()
                     && request.resource.data.teacherUid == userId
                     && request.resource.data.id == assignmentId;
       allow update: if request.auth != null
                     && request.auth.uid == userId
+                    && notDeactivated()
                     && request.resource.data.teacherUid == resource.data.teacherUid
                     && request.resource.data.id == resource.data.id;
     }
@@ -934,7 +930,7 @@ service cloud.firestore {
 
     // Guided Learning
     match /users/{userId}/guided_learning/{setId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     match /building_guided_learning/{setId} {
@@ -4228,7 +4224,7 @@ service cloud.firestore {
 
     // Video Activity metadata — stored per teacher user
     match /users/{userId}/video_activities/{activityId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // MiniApp Assignment Sessions — Teacher creates, anonymous students can read
@@ -4604,20 +4600,20 @@ service cloud.firestore {
     // === Video Activity assignments (Wave 2-VA) ===
     // Per-teacher archive of video activity assignments — mirrors quiz_assignments.
     match /users/{userId}/video_activity_assignments/{id} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // === Wave 2 library assignment archives (appended) ===
     // MiniApp assignment archive (Wave 2-MA).
     match /users/{userId}/miniapp_assignments/{id} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
     // === /Wave 2 library assignment archives ===
 
     // === Guided Learning assignments (Wave 2-GL) ===
     // Per-teacher archive of guided learning assignments. Owner-only read/write.
     match /users/{userId}/guided_learning_assignments/{id} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // === Library folders (Wave 3) ===
@@ -4627,19 +4623,19 @@ service cloud.firestore {
     // the *_assignments pattern above. Wave 3-A ships the rules + schema;
     // Wave 3-B wires the UI.
     match /users/{userId}/collections/{collectionId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
     match /users/{userId}/quiz_folders/{folderId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
     match /users/{userId}/video_activity_folders/{folderId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
     match /users/{userId}/guided_learning_folders/{folderId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
     match /users/{userId}/miniapp_folders/{folderId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // Default deny all other collections

@@ -81,6 +81,22 @@ const dashboardFields = () => ({
   createdAt: 1000,
 });
 
+const guidedLearningPath = (uid: string) => `users/${uid}/guided_learning/gl-1`;
+
+const guidedLearningFields = () => ({
+  id: 'gl-1',
+  name: 'My GL Set',
+  createdAt: 1000,
+});
+
+const videoActivityPath = (uid: string) => `users/${uid}/video_activities/va-1`;
+
+const videoActivityFields = () => ({
+  id: 'va-1',
+  name: 'My Video Activity',
+  createdAt: 1000,
+});
+
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
     projectId: PROJECT_ID,
@@ -122,6 +138,21 @@ beforeEach(async () => {
     await setDoc(doc(db, dashboardPath(ACTIVE_UID)), dashboardFields());
     await setDoc(doc(db, dashboardPath(INACTIVE_UID)), dashboardFields());
     await setDoc(doc(db, dashboardPath(NOORG_UID)), dashboardFields());
+    // Seed guided_learning + video_activities under the active/inactive uids so
+    // the corresponding read cases have a doc to find.
+    await setDoc(
+      doc(db, guidedLearningPath(ACTIVE_UID)),
+      guidedLearningFields()
+    );
+    await setDoc(
+      doc(db, guidedLearningPath(INACTIVE_UID)),
+      guidedLearningFields()
+    );
+    await setDoc(doc(db, videoActivityPath(ACTIVE_UID)), videoActivityFields());
+    await setDoc(
+      doc(db, videoActivityPath(INACTIVE_UID)),
+      videoActivityFields()
+    );
   });
 });
 
@@ -155,6 +186,66 @@ describe('M1 full sign-in lockout — notDeactivated() gate', () => {
   it('inactive member is DENIED reading their own rosters', async () => {
     await assertFails(
       getDoc(doc(asInactive(), `users/${INACTIVE_UID}/rosters/r1`))
+    );
+  });
+
+  it('active member can read their own guided_learning set', async () => {
+    await assertSucceeds(
+      getDoc(doc(asActive(), guidedLearningPath(ACTIVE_UID)))
+    );
+  });
+
+  it('active member can write their own guided_learning set', async () => {
+    await assertSucceeds(
+      setDoc(doc(asActive(), guidedLearningPath(ACTIVE_UID)), {
+        ...guidedLearningFields(),
+        name: 'Renamed',
+      })
+    );
+  });
+
+  it('inactive member is DENIED reading their own guided_learning set', async () => {
+    await assertFails(
+      getDoc(doc(asInactive(), guidedLearningPath(INACTIVE_UID)))
+    );
+  });
+
+  it('inactive member is DENIED writing their own guided_learning set', async () => {
+    await assertFails(
+      setDoc(doc(asInactive(), guidedLearningPath(INACTIVE_UID)), {
+        ...guidedLearningFields(),
+        name: 'Smuggled',
+      })
+    );
+  });
+
+  it('active member can read their own video_activities', async () => {
+    await assertSucceeds(
+      getDoc(doc(asActive(), videoActivityPath(ACTIVE_UID)))
+    );
+  });
+
+  it('active member can write their own video_activities', async () => {
+    await assertSucceeds(
+      setDoc(doc(asActive(), videoActivityPath(ACTIVE_UID)), {
+        ...videoActivityFields(),
+        name: 'Renamed',
+      })
+    );
+  });
+
+  it('inactive member is DENIED reading their own video_activities', async () => {
+    await assertFails(
+      getDoc(doc(asInactive(), videoActivityPath(INACTIVE_UID)))
+    );
+  });
+
+  it('inactive member is DENIED writing their own video_activities', async () => {
+    await assertFails(
+      setDoc(doc(asInactive(), videoActivityPath(INACTIVE_UID)), {
+        ...videoActivityFields(),
+        name: 'Smuggled',
+      })
     );
   });
 
