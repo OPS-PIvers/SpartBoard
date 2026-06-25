@@ -1090,6 +1090,43 @@ describe('organizations/members — writes', () => {
     );
   });
 
+  it('domain admin CANNOT escalate a member to super_admin (anti-escalation guard)', async () => {
+    // roleId == 'super_admin' is a live isSuperAdmin() grant via
+    // isMemberSuperAdmin(). The member-update whitelist permits writing
+    // `roleId`, so without the value guard a domain admin could mint a super
+    // admin — including onto their own doc. This must be denied.
+    await assertFails(
+      updateDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
+        ),
+        { roleId: 'super_admin' }
+      )
+    );
+  });
+
+  it('domain admin CANNOT self-escalate to super_admin on their own member doc', async () => {
+    await assertFails(
+      updateDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/members/${DOMAIN_ADMIN_EMAIL}`
+        ),
+        { roleId: 'super_admin' }
+      )
+    );
+  });
+
+  it('super admin CAN grant super_admin (only super admins may mint super admins)', async () => {
+    await assertSucceeds(
+      updateDoc(
+        doc(asSuper(), `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`),
+        { roleId: 'super_admin' }
+      )
+    );
+  });
+
   it('domain admin cannot spoof member identity (email, orgId, uid)', async () => {
     await assertFails(
       updateDoc(

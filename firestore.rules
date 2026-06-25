@@ -107,7 +107,7 @@ service cloud.firestore {
     //
     // Super-admin checks run globally (not scoped to a single org), so the
     // roleId source is read from the operator org (`orono`) by fixed path —
-    // the same constraint that forces operatorMemberStatus() / notDeactivated()
+    // the same constraint that forces operatorMember() / notDeactivated()
     // to use a hardcoded org (CEL cannot resolve the caller's org dynamically).
     function isSuperAdmin() {
       return request.auth != null &&
@@ -236,8 +236,14 @@ service cloud.firestore {
     // is not yet denied by these rules, because the rule can't know their org
     // from the /users/{uid} path. A per-uid org-index doc (readable by path)
     // would let this gate cover every org; tracked as an M1 rules follow-up.
-    function operatorMemberStatus() {
-      return get(/databases/$(database)/documents/organizations/orono/members/$(request.auth.token.email.lower())).data.get('status', 'active');
+    // The caller's operator-org member doc, or null when it does not exist.
+    // A single get() (Firestore caches repeated get()s to the same path within
+    // one rule evaluation, and get() returns null for a missing doc) replaces
+    // the prior exists()+get() pair: it both tests membership (via != null) and
+    // reads status in one document access, halving the baseline read cost on the
+    // ~15 owner collections gated by notDeactivated().
+    function operatorMember() {
+      return get(/databases/$(database)/documents/organizations/orono/members/$(request.auth.token.email.lower()));
     }
 
     // True UNLESS the caller is an operator-org member explicitly marked
@@ -249,8 +255,8 @@ service cloud.firestore {
     function notDeactivated() {
       return !(request.auth != null &&
                request.auth.token.get('email', '') != '' &&
-               isOrgMember('orono') &&
-               operatorMemberStatus() == 'inactive');
+               operatorMember() != null &&
+               operatorMember().data.get('status', 'active') == 'inactive');
     }
 
     // ---- Organizations collection (Phase 3: scoped writes enabled) ----
@@ -444,7 +450,16 @@ service cloud.firestore {
            request.resource.data.orgId == resource.data.orgId &&
            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
              'roleId', 'buildingIds', 'status', 'name', 'invitedAt', 'lastActive'
-           ])) ||
+           ]) &&
+           // Anti-escalation: a domain admin must NOT be able to mint a super
+           // admin. roleId == 'super_admin' is a live isSuperAdmin() grant via
+           // isMemberSuperAdmin(), and this branch otherwise lets a domain admin
+           // write any roleId — including onto their own member doc — which would
+           // be a self-escalation path. Block writing 'super_admin' unless the
+           // doc already had it (so edits to an existing super-admin's other
+           // fields still pass). Only a super admin (first disjunct) can grant it.
+           (request.resource.data.get('roleId', '') != 'super_admin' ||
+            resource.data.get('roleId', '') == 'super_admin')) ||
           // Building admin can flip `status` on a member whose buildingIds
           // overlap their own. The overlap is alias-aware via
           // buildingListsOverlap(), so a target member and acting admin storing
@@ -457,7 +472,7 @@ service cloud.firestore {
           // on members who haven't been scoped into their building yet.
           // See config/buildings.ts for the canonical alias table.
           (isBuildingAdmin(orgId) &&
-           buildingListsOverlap(resource.data.buildingIds, orgMember(orgId).buildingIds) &&
+           buildingListsOverlap(resource.data.get('buildingIds', []), orgMember(orgId).get('buildingIds', [])) &&
            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
           // Self-write: the signed-in user may stamp their own `lastActive`
           // on their own member doc. Bound strictly — email/orgId must match
