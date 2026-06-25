@@ -24,7 +24,7 @@ import { usePlcSoftDelete } from '@/hooks/usePlcTrash';
 import { logError } from '@/utils/logError';
 import { NotesMarkdown } from './notesMarkdown';
 import { buildMeetingNoteTemplate } from './notesTemplate';
-import { PlcViewerReadOnlyBadge } from '../viewer/PlcViewerReadOnlyBadge';
+import { PlcViewerReadOnlyBadge } from '@/components/plc/viewer/PlcViewerReadOnlyBadge';
 
 interface NotesBodyProps {
   plc: Plc;

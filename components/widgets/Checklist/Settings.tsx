@@ -62,13 +62,19 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
   // eslint-disable-next-line react-hooks/refs
   configRef.current = config;
 
-  const updateWidgetRef = React.useRef(updateWidget);
-  // eslint-disable-next-line react-hooks/refs
-  updateWidgetRef.current = updateWidget;
-
   const itemsRef = React.useRef(safeItems);
   // eslint-disable-next-line react-hooks/refs
   itemsRef.current = safeItems;
+
+  // `useDashboard().updateWidget` is NOT the genuinely-stable action: it's a
+  // useCallback with a `[saveWidgetConfig]` dep (which itself depends on the
+  // auth `user`), so its identity can change (e.g. on token refresh). The
+  // truly stable variant lives in `useDashboardActions()`. To keep the
+  // debounced save closure below pointing at the freshest callback, mirror it
+  // into a ref in the render body (same pattern as configRef/itemsRef above).
+  const updateWidgetRef = React.useRef(updateWidget);
+  // eslint-disable-next-line react-hooks/refs
+  updateWidgetRef.current = updateWidget;
 
   const handleBulkChange = (text: string) => {
     setLocalText(text);

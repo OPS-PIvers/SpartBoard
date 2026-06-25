@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { render, screen, fireEvent, within } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
+import { render, screen, fireEvent, within, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { ChecklistWidget } from './Widget';
 import { ChecklistSettings } from './Settings';
 import { useDashboard } from '@/context/useDashboard';
@@ -266,6 +266,93 @@ describe('ChecklistWidget', () => {
   });
 });
 
+describe('ChecklistSettings debounced save', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    (useDashboard as unknown as Mock).mockReturnValue(defaultContext);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('persists typed text via updateWidget after the 500 ms debounce', () => {
+    render(<ChecklistSettings widget={mockWidget} />);
+    const textarea = screen.getByPlaceholderText('Enter tasks here...');
+
+    fireEvent.change(textarea, { target: { value: 'Buy milk\nWrite tests' } });
+
+    // Not yet called — still within debounce window
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(mockUpdateWidget).toHaveBeenCalledOnce();
+    expect(mockUpdateWidget).toHaveBeenCalledWith(
+      'checklist-1',
+      expect.objectContaining({
+        config: expect.objectContaining({
+          items: expect.arrayContaining([
+            expect.objectContaining({ text: 'Buy milk', completed: false }),
+            expect.objectContaining({ text: 'Write tests', completed: false }),
+          ]),
+        }),
+      })
+    );
+  });
+
+  it('debounces rapid keystrokes — only one save fires after the delay', () => {
+    render(<ChecklistSettings widget={mockWidget} />);
+    const textarea = screen.getByPlaceholderText('Enter tasks here...');
+
+    fireEvent.change(textarea, { target: { value: 'A' } });
+    vi.advanceTimersByTime(100);
+    fireEvent.change(textarea, { target: { value: 'AB' } });
+    vi.advanceTimersByTime(100);
+    fireEvent.change(textarea, { target: { value: 'ABC' } });
+
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(mockUpdateWidget).toHaveBeenCalledOnce();
+    expect(mockUpdateWidget).toHaveBeenCalledWith(
+      'checklist-1',
+      expect.objectContaining({
+        config: expect.objectContaining({
+          items: [expect.objectContaining({ text: 'ABC' })],
+        }),
+      })
+    );
+  });
+
+  it('skips the save when typed text matches existing items (no-op)', () => {
+    const widgetWithItems = {
+      ...mockWidget,
+      config: {
+        ...mockWidget.config,
+        items: [{ id: 'x', text: 'Existing', completed: false }],
+      } as ChecklistConfig,
+    };
+    render(<ChecklistSettings widget={widgetWithItems} />);
+    const textarea = screen.getByPlaceholderText('Enter tasks here...');
+
+    // Type the exact same text that's already persisted
+    fireEvent.change(textarea, { target: { value: 'Existing' } });
+
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+});
+
 describe('ChecklistSettings Nexus Connection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -444,6 +531,16 @@ describe('ChecklistSettings Nexus Connection', () => {
     });
 
     render(<ChecklistSettings widget={mockWidget} />);
+
+    const importButton = within(
+      screen.getByText('Import Routine').closest('.bg-indigo-50') as HTMLElement
+    ).getByRole('button', { name: /Sync/i });
+    fireEvent.click(importButton);
+
+    expect(mockAddToast).toHaveBeenCalledWith(
+      'Active routine has no steps to import.',
+      'info'
+    );
     expect(mockUpdateWidget).not.toHaveBeenCalled();
   });
 });

@@ -12,6 +12,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
 import { Announcement } from '@/types';
+import { where } from 'firebase/firestore';
 
 // ---------------------------------------------------------------------------
 // Module mocks
@@ -631,6 +632,115 @@ describe('AnnouncementOverlay', () => {
       emitAnnouncements([legacy, foreign]);
       expect(screen.getByText('Legacy Broadcast')).toBeInTheDocument();
       expect(screen.queryByText('Foreign Org')).not.toBeInTheDocument();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Server-side org query scoping (W6 — PATH A / PATH B query branch)
+  // -------------------------------------------------------------------------
+
+  describe('server-side org query scoping', () => {
+    beforeEach(() => {
+      vi.mocked(where).mockClear();
+    });
+
+    it('PATH A: builds where("orgId","==",orgId) when orgId is set', () => {
+      // When orgId is a resolved non-null string the listener must be scoped
+      // to the user's org using a single-field equality filter — no composite
+      // index required.
+      mockAuth([], { userTier: 'internal', orgId: 'orono' });
+      render(<AnnouncementOverlay />);
+      expect(vi.mocked(where)).toHaveBeenCalledWith('orgId', '==', 'orono');
+    });
+
+    it('PATH A: does NOT use where("isActive",...) as a server constraint when orgId is set', () => {
+      // isActive is checked client-side on PATH A to avoid needing a composite
+      // index (orgId + isActive would require one).
+      mockAuth([], { userTier: 'internal', orgId: 'orono' });
+      render(<AnnouncementOverlay />);
+      const isActiveCalls = vi
+        .mocked(where)
+        .mock.calls.filter((args) => args[0] === 'isActive');
+      expect(isActiveCalls).toHaveLength(0);
+    });
+
+    it('PATH A: filters out inactive docs client-side when orgId is set', () => {
+      // The server query returns all of the org's docs regardless of isActive.
+      // The useMemo / isWithinActiveWindow check must still suppress inactive ones.
+      mockAuth([], { userTier: 'internal', orgId: 'orono' });
+      render(<AnnouncementOverlay />);
+      emitAnnouncements([
+        { ...BASE_ANNOUNCEMENT, orgId: 'orono', isActive: true },
+        {
+          ...BASE_ANNOUNCEMENT,
+          id: 'ann-inactive',
+          name: 'Inactive',
+          orgId: 'orono',
+          isActive: false,
+        },
+      ]);
+      expect(screen.getByText('Test Announcement')).toBeInTheDocument();
+      expect(screen.queryByText('Inactive')).not.toBeInTheDocument();
+    });
+
+    it('PATH B: builds where("isActive","==",true) when orgId is null', () => {
+      // Legacy / org-loading path: no org scoping, isActive still filtered
+      // server-side exactly as before.
+      mockAuth([], { userTier: 'internal', orgId: null });
+      render(<AnnouncementOverlay />);
+      expect(vi.mocked(where)).toHaveBeenCalledWith('isActive', '==', true);
+    });
+
+    it('PATH B: does NOT use where("orgId",...) when orgId is null', () => {
+      mockAuth([], { userTier: 'internal', orgId: null });
+      render(<AnnouncementOverlay />);
+      const orgIdCalls = vi
+        .mocked(where)
+        .mock.calls.filter((args) => args[0] === 'orgId');
+      expect(orgIdCalls).toHaveLength(0);
+    });
+
+    it('re-subscribes with org-scoped query when orgId resolves from null to a string', () => {
+      // Simulates the membership snapshot landing: orgId starts null (PATH B),
+      // then resolves to 'orono' (PATH A). The effect must clean up the old
+      // listener and open a new org-scoped one.
+      const { rerender } = render(<AnnouncementOverlay />);
+
+      // Initial render: orgId null → PATH B
+      mockAuth([], { userTier: 'internal', orgId: null });
+      rerender(<AnnouncementOverlay />);
+      // orgId-equality calls should still be zero
+      expect(
+        vi.mocked(where).mock.calls.filter((args) => args[0] === 'orgId')
+      ).toHaveLength(0);
+
+      vi.mocked(where).mockClear();
+
+      // orgId resolves → PATH A
+      mockAuth([], { userTier: 'internal', orgId: 'orono' });
+      rerender(<AnnouncementOverlay />);
+      expect(vi.mocked(where)).toHaveBeenCalledWith('orgId', '==', 'orono');
+    });
+
+    it("PATH A: an org user cannot see another org's announcement (cross-org isolation)", () => {
+      // Even if somehow a foreign-org doc arrived in the snapshot (e.g., during
+      // the PATH B→PATH A transition window), the client-side org filter must
+      // suppress it. Defense-in-depth on top of the server query scoping.
+      mockAuth([], { userTier: 'org', orgId: 'orono' });
+      render(<AnnouncementOverlay />);
+      emitAnnouncements([
+        { ...BASE_ANNOUNCEMENT, orgId: 'orono' },
+        {
+          ...BASE_ANNOUNCEMENT,
+          id: 'ann-other',
+          name: 'Other Org Announcement',
+          orgId: 'rival-district',
+        },
+      ]);
+      expect(screen.getByText('Test Announcement')).toBeInTheDocument();
+      expect(
+        screen.queryByText('Other Org Announcement')
+      ).not.toBeInTheDocument();
     });
   });
 });

@@ -30,8 +30,8 @@ import { RecentDocsCard } from './cards/RecentDocsCard';
 import { MembersHeaderCluster } from './cards/MembersHeaderCluster';
 import { SinceYouWereHereCard } from './cards/SinceYouWereHereCard';
 import { YourActionItemsCard } from './cards/YourActionItemsCard';
-import { PlcPresenceStrip } from '../presence/PlcPresenceStrip';
-import { PlcActivityFeed } from '../activity/PlcActivityFeed';
+import { PlcPresenceStrip } from '@/components/plc/presence/PlcPresenceStrip';
+import { PlcActivityFeed } from '@/components/plc/activity/PlcActivityFeed';
 
 interface PlcHomeProps {
   plc: Plc;

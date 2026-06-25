@@ -26,7 +26,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useCanEditPlcContent } from '@/context/usePlcContext';
 import { convertToEmbedUrl, ensureProtocol } from '@/utils/urlHelpers';
 import { PlcDocPicker, type PlcDocPickerHandle } from './PlcDocPicker';
-import { PlcViewerReadOnlyBadge } from '../viewer/PlcViewerReadOnlyBadge';
+import { PlcViewerReadOnlyBadge } from '@/components/plc/viewer/PlcViewerReadOnlyBadge';
 
 interface PlcDocsBodyProps {
   plc: Plc;

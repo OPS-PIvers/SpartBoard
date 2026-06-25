@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-23_
+_Last audited: 2026-06-24_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-24: Full audit. New commits since 2026-06-23: test(effects) regression coverage for useEffect fixes, feat(oauth) drive.file/Picker for external Sheets paths, fix(picker) folder navigation in sheets-mode Drive Picker, fix(functions) bump 128MiB→256MiB on resolveOrgForUser/claimOrganizationInvite/ltiJwks, chore(verification) Search Console domain token, docs commits. None touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations. All key lazyNamed() export names spot-checked — RevealGrid barrel re-exports confirmed correct ('Widget'/'Settings' aliases in index.ts), SyntaxFramer and HotspotImage direct named exports confirmed correct, FallbackSettings DefaultSettings/MiniAppSettings confirmed. pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
 _2026-06-23: Full audit after merging dev-paul into scheduled-tasks (80 files changed — external-availability rollout, Google OAuth scope management, PLC meeting board sync, import-path unification, AI quota external limits, admin calendar fetcher). No changes to types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations. All lazyNamed() export names verified correct (146 calls, 0 mismatches confirmed by deep agent scan). pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 

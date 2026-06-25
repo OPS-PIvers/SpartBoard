@@ -365,39 +365,57 @@ export const AnnouncementOverlay: React.FC = () => {
   // date-window transitions (start/end across midnight) trigger correctly.
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
 
-  // Subscribe to the announcements collection (only active announcements).
+  // Subscribe to the announcements collection.
   //
-  // Multi-tenant leak-closer: announcements are a single global collection
-  // with no per-tenant query scope, so a no-org ("free") teacher would
-  // otherwise stream every operator-org announcement. We therefore NEVER open
-  // the listener for free-tier users. `userTier` is the already-exposed
-  // distribution tier ('internal' | 'org' | 'free'); Orono and every other
-  // org/internal user resolve to a non-free tier and are unaffected. The
-  // loading/unresolved state is treated as NOT subscribed (the gate only opens
-  // once the tier is positively known to be non-free), which fails closed.
+  // Multi-tenant isolation: the query is scoped to the user's org whenever
+  // `orgId` is a resolved non-null string. Two paths:
+  //
+  // PATH A — orgId is a non-null string (user is in a known org):
+  //   Query: where('orgId', '==', orgId)
+  //   Rationale: a single equality filter on 'orgId' uses Firestore's automatic
+  //   single-field index — no composite index and no deploy gate needed.
+  //   Announcement volume is low so client-side `isActive` filtering (in the
+  //   useMemo below) is negligible. Every returned doc has orgId === orgId, so
+  //   the firestore.rules announcements read rule (isOrgMember(resource.data.orgId))
+  //   is satisfied and the listener cannot be rejected by a foreign-org doc.
+  //   Legacy docs without an orgId field won't appear on this path — those are
+  //   backfilled separately via scripts/migrateAnnouncements.js (see report).
+  //
+  // PATH B — orgId is null/undefined (user not yet in an org, or still loading):
+  //   Query: where('isActive', '==', true)  ← legacy behavior, unchanged.
+  //   This preserves behavior for org-less or loading users: legacy/no-orgId
+  //   docs remain visible, and the client-side org filter in useMemo provides
+  //   defense-in-depth.
+  //
+  // The effect re-subscribes whenever orgId changes so the scoped listener
+  // opens as soon as the membership snapshot lands (orgId: null → 'orono').
+  //
+  // Free-tier gate: a no-org ("free") teacher must NEVER open the global
+  // announcements listener — `userTier` is the already-exposed distribution
+  // tier ('internal' | 'org' | 'free'). The loading/unresolved state is treated
+  // as NOT subscribed (the gate only opens once the tier is positively known to
+  // be non-free), which fails closed. (We do NOT call setAnnouncements([]) here:
+  // a synchronous setState in an effect trips react-hooks/set-state-in-effect,
+  // and the render-time guard below already renders nothing for free users even
+  // if their tier flips mid-session.)
   useEffect(() => {
     // We only subscribe if we have a user object.
-    // isAuthBypass allows the UI to render, but Firestore still needs an auth token
-    // unless the rules are set to allow public read (which they are not).
+    // isAuthBypass allows the UI to render, but Firestore still needs an auth
+    // token unless the rules are set to allow public read (which they are not).
     if (!user) return;
-    // Free-tier (no-org) users must NEVER open the global announcements
-    // listener. We simply don't subscribe — a free user's effect never streams
-    // anything, so `announcements` stays empty. (We do NOT call
-    // setAnnouncements([]) here: a synchronous setState in an effect trips
-    // react-hooks/set-state-in-effect, and the render-time guard below already
-    // renders nothing for free users even if their tier flips mid-session.)
     if (userTier === 'free') return;
 
-    // MULTI-TENANT TODO (before onboarding a SECOND org with active
-    // announcements): this query is org-unscoped. The tightened /announcements
-    // read rule denies foreign-org docs per-doc, and Firestore rejects an
-    // entire listener query if any matched doc is unreadable. Before a 2nd org
-    // goes live: (1) run scripts/migrateAnnouncements.js to stamp legacy docs
-    // orgId='orono', then (2) scope this query with where('orgId','==', orgId)
-    // (mirroring hooks/usePlcBuildingDirectory.ts). Safe today: only
-    // Orono/legacy docs exist.
+    const announcementsRef = collection(db, 'announcements');
+
+    const q =
+      orgId != null
+        ? // PATH A: org-scoped — single-field index, no composite index required.
+          query(announcementsRef, where('orgId', '==', orgId))
+        : // PATH B: legacy unscoped — isActive filter applied server-side.
+          query(announcementsRef, where('isActive', '==', true));
+
     const unsub = onSnapshot(
-      query(collection(db, 'announcements'), where('isActive', '==', true)),
+      q,
       (snap) => {
         const items: Announcement[] = [];
         snap.forEach((d) =>
@@ -410,7 +428,9 @@ export const AnnouncementOverlay: React.FC = () => {
       }
     );
     return unsub;
-  }, [user, userTier]);
+    // orgId is intentionally included: when the membership snapshot delivers
+    // orgId (null → 'orono'), the effect re-runs to open the org-scoped listener.
+  }, [user, userTier, orgId]);
 
   // Periodic clock update for scheduled activation/dismissal checks
   useEffect(() => {

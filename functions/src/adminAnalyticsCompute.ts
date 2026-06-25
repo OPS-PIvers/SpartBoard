@@ -436,13 +436,38 @@ export async function computeAnalyticsForOrg(
   const dailyCallCounts: Record<string, number> = {};
   const aiCallsByFeature: Record<string, number> = {};
 
+  // Feature IDs that have dedicated per-feature ai_usage counters written by
+  // specific Cloud Functions. Each entry corresponds to a `specificFeatureId`
+  // that a function actually writes to ai_usage as `{uid}_{featureId}_{date}`.
+  //
+  // SYNC REQUIREMENT: this list must contain EXACTLY the set of feature IDs
+  // that production Cloud Functions write as per-feature ai_usage docs. Adding
+  // a genType mapping (specificFeatureId) in aiGeneration.ts or a new per-feature
+  // counter in any other function REQUIRES a matching entry here. Removing a
+  // function that wrote per-feature docs REQUIRES removing the entry here.
+  //
+  // DO NOT add entries for functions that skip the per-feature counter (e.g.
+  // admin-only functions that bypass usage counting entirely). A phantom entry
+  // causes any matching doc to be excluded from totalAiCalls and silently
+  // classified into a bucket that will never have real data in production.
+  //
+  // Current writers (by function → featureId):
+  //   generateWithAI (aiGeneration.ts): mini-app→embed-mini-app, poll→smart-poll,
+  //     quiz→quiz, ocr→ocr, blooms-ai→blooms-ai,
+  //     video-activity-recommend→video-activity-recommend,
+  //     dashboard-layout→dashboard-layout, instructional-routine→instructional-routine,
+  //     widget-builder→widget-builder, widget-explainer→widget-explainer
+  //   transcribeVideoWithGemini (aiGeneration.ts): video-activity-audio-transcription
+  //
+  // NOT included (by design):
+  //   generateGuidedLearning — admin-only, writes no ai_usage counter at all
+  //   generateVideoActivity  — writes only the overall {uid}_{date} counter
   const GEMINI_SPECIFIC_FEATURES = [
     'smart-poll',
     'embed-mini-app',
     'video-activity-audio-transcription',
     'quiz',
     'ocr',
-    'guided-learning',
     'blooms-ai',
     'video-activity-recommend',
     'dashboard-layout',
