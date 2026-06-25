@@ -1137,7 +1137,11 @@ service cloud.firestore {
       // substitute field, including `expiresAt`, `buildingId`, `subEmails`
       // and `driveGrants`, matching the per-field pins on /shared_boards
       // but more strictly: no substitute update is permitted at all).
-      // Admins bypass for emergency corrections.
+      // NOTE: admins are ALSO blocked from updating substitute shares — the
+      // `intendedMode == 'copy'` guard applies regardless of isAdmin(), so a
+      // substitute Collection share is fully immutable post-create for
+      // everyone. Emergency corrections must be made via the Firebase console
+      // / Admin SDK (which bypass security rules), not through this rule.
       allow update: if request.auth != null
         && (resource.data.get('hostUid', null) == request.auth.uid || isAdmin())
         && resource.data.get('intendedMode', null) == 'copy';
