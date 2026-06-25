@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 import { useShortLinks } from '@/hooks/useShortLinks';
-import { SHORT_LINK_PREFIX } from '@/utils/shortLinkValidation';
+import { buildShortUrl } from '@/utils/shortLinkValidation';
 import { ShortLink } from '@/types';
 
 // LinksPanel surfaces the click data the link shortener (phase 1) already
@@ -24,11 +24,6 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 const NUMBER_FORMATTER = new Intl.NumberFormat();
 const formatNumber = (value: number) => NUMBER_FORMATTER.format(value);
-
-const buildShortUrl = (code: string): string => {
-  if (typeof window === 'undefined') return SHORT_LINK_PREFIX + code;
-  return `${window.location.origin}${SHORT_LINK_PREFIX}${code}`;
-};
 
 const formatDate = (epoch: number | null | undefined): string => {
   if (!epoch) return '—';
@@ -172,8 +167,8 @@ export const LinksPanel: React.FC = () => {
   if (loading) {
     return (
       <div className="px-5 py-12 flex items-center justify-center text-slate-500">
-        <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading link
-        analytics…
+        <Loader2 className="w-5 h-5 animate-spin mr-2" aria-hidden="true" />{' '}
+        Loading link analytics…
       </div>
     );
   }
@@ -181,7 +176,7 @@ export const LinksPanel: React.FC = () => {
   if (error) {
     return (
       <div className="bg-red-50 border border-red-200 text-red-800 p-6 rounded-2xl flex items-start gap-3">
-        <AlertCircle className="w-6 h-6 shrink-0 mt-0.5" />
+        <AlertCircle className="w-6 h-6 shrink-0 mt-0.5" aria-hidden="true" />
         <div>
           <h3 className="font-bold mb-1">Failed to Load Link Analytics</h3>
           <p className="text-sm">{error}</p>

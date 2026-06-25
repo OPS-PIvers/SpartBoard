@@ -1765,6 +1765,58 @@ export const AnalyticsManager: React.FC = () => {
     { id: 'links', label: 'Links', icon: <Link2 className="w-4 h-4" /> },
   ];
 
+  // The tab bar is rendered both inside the data-backed view and in the
+  // links-only early return below, so it lives here as a single source of
+  // truth. It depends only on `tabs`/`selectedTab`/`setSelectedTab` — never on
+  // the analytics snapshot.
+  const tabBar = (
+    <div
+      className="sticky top-0 z-10 bg-slate-100 rounded-xl border border-slate-200 p-1.5"
+      role="tablist"
+    >
+      <div className="flex gap-1">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            role="tab"
+            type="button"
+            aria-label={tab.label}
+            aria-selected={selectedTab === tab.id}
+            id={`tab-${tab.id}`}
+            aria-controls={`panel-${tab.id}`}
+            tabIndex={selectedTab === tab.id ? 0 : -1}
+            onClick={() => setSelectedTab(tab.id)}
+            className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold border transition-colors ${
+              selectedTab === tab.id
+                ? 'bg-white border-slate-300 text-slate-900 shadow-sm'
+                : 'bg-transparent border-transparent text-slate-500 hover:text-slate-700 hover:bg-white/60'
+            }`}
+          >
+            {tab.icon}
+            <span className="sr-only sm:not-sr-only sm:inline">
+              {tab.label}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  // The Links tab reads Firestore independently via `useShortLinks` (inside
+  // LinksPanel) and does NOT depend on the analytics HTTP snapshot. Render it
+  // regardless of the analytics loading/error/cold-start state below, so it is
+  // always reachable. All other tabs remain gated on a loaded snapshot.
+  if (selectedTab === 'links') {
+    return (
+      <div className="space-y-5 pb-12">
+        {tabBar}
+        <div role="tabpanel" id="panel-links" aria-labelledby="tab-links">
+          <LinksPanel />
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -1873,36 +1925,7 @@ export const AnalyticsManager: React.FC = () => {
         <SnapshotFreshnessBadge meta={data?.meta} />
       </div>
 
-      <div
-        className="sticky top-0 z-10 bg-slate-100 rounded-xl border border-slate-200 p-1.5"
-        role="tablist"
-      >
-        <div className="flex gap-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              role="tab"
-              type="button"
-              aria-label={tab.label}
-              aria-selected={selectedTab === tab.id}
-              id={`tab-${tab.id}`}
-              aria-controls={`panel-${tab.id}`}
-              tabIndex={selectedTab === tab.id ? 0 : -1}
-              onClick={() => setSelectedTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold border transition-colors ${
-                selectedTab === tab.id
-                  ? 'bg-white border-slate-300 text-slate-900 shadow-sm'
-                  : 'bg-transparent border-transparent text-slate-500 hover:text-slate-700 hover:bg-white/60'
-              }`}
-            >
-              {tab.icon}
-              <span className="sr-only sm:not-sr-only sm:inline">
-                {tab.label}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
+      {tabBar}
 
       {selectedTab === 'overview' && (
         <div role="tabpanel" id="panel-overview" aria-labelledby="tab-overview">
@@ -1934,11 +1957,6 @@ export const AnalyticsManager: React.FC = () => {
       {selectedTab === 'users' && (
         <div role="tabpanel" id="panel-users" aria-labelledby="tab-users">
           <UsersPanel data={data} />
-        </div>
-      )}
-      {selectedTab === 'links' && (
-        <div role="tabpanel" id="panel-links" aria-labelledby="tab-links">
-          <LinksPanel />
         </div>
       )}
 

@@ -3,12 +3,7 @@ import { Link2, Loader2, Check } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
 import { useShortLinks } from '@/hooks/useShortLinks';
-import { SHORT_LINK_PREFIX } from '@/utils/shortLinkValidation';
-
-const buildShortUrl = (code: string): string => {
-  if (typeof window === 'undefined') return SHORT_LINK_PREFIX + code;
-  return `${window.location.origin}${SHORT_LINK_PREFIX}${code}`;
-};
+import { buildShortUrl } from '@/utils/shortLinkValidation';
 
 interface ShortenUrlButtonProps {
   /** The long URL to shorten. Button is disabled when blank. */
@@ -84,11 +79,11 @@ export const ShortenUrlButton: React.FC<ShortenUrlButtonProps> = ({
         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {state === 'working' ? (
-          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
         ) : state === 'done' ? (
-          <Check className="w-3.5 h-3.5 text-emerald-600" />
+          <Check className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
         ) : (
-          <Link2 className="w-3.5 h-3.5" />
+          <Link2 className="w-3.5 h-3.5" aria-hidden="true" />
         )}
         {state === 'done' ? 'Shortened' : 'Shorten URL'}
       </button>
