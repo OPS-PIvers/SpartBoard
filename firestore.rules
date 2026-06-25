@@ -3369,26 +3369,37 @@ service cloud.firestore {
         // Teacher ownership is looked up from the parent session doc because
         // the sessionId is no longer the teacher's uid. This adds one get()
         // per response write (~50ms, $0 at class scale).
+        //
+        // Read-count optimization (LO4): all of the session field helpers
+        // below derive from the SAME parent session doc. Instead of each
+        // helper issuing its own get() on quiz_sessions/$(sessionId), they all
+        // read off a single sessionData() snapshot. This mirrors the
+        // orgMember() precedent above (one get().data, fields via .get()).
+        // Authorization behavior is unchanged — only the document-read count
+        // per request is reduced.
+        function sessionData() {
+          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data;
+        }
         function sessionTeacherUid() {
-          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.teacherUid;
+          return sessionData().teacherUid;
         }
         function sessionClassId() {
-          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.get('classId', '');
+          return sessionData().get('classId', '');
         }
         function sessionClassIds() {
-          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.get('classIds', []);
+          return sessionData().get('classIds', []);
         }
         // Defense in depth — block response writes on view-only sessions.
         // Pre-feature sessions without a `mode` field default to 'submissions'.
         function sessionMode() {
-          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.get('mode', 'submissions');
+          return sessionData().get('mode', 'submissions');
         }
         // Server-side attempt cap. The client also enforces this in the
         // join + submit transactions; the rule is the last line of defense
         // against a race, a buggy client, or a hostile caller. Returns
         // null when the session has no cap (legacy or explicitly unlimited).
         function sessionAttemptLimit() {
-          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.get('attemptLimit', null);
+          return sessionData().get('attemptLimit', null);
         }
 
         // Student branch allows `resource == null` so the student-app join
