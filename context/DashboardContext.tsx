@@ -3417,7 +3417,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Surface partial Drive-grant failures so the host can retry / hand-share
       // rather than a sub silently lacking roster access (mirrors the
-      // single-board substitute-share toast).
+      // single-board substitute-share toast). The share doc is already written
+      // and substitute shares are immutable post-create, so the remedy is to
+      // create a NEW share or hand-share — not "retry" against this one.
       if (failedPairs.length > 0) {
         const missedEmails = Array.from(
           new Set(failedPairs.map((p) => p.email))
@@ -3425,8 +3427,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         addToast(
           `Share created, but roster access could not be granted to: ${missedEmails.join(
             ', '
-          )}. Reconnect Google Drive and retry, or share the roster file manually.`,
+          )}. Reconnect Google Drive and create a new share, or share the roster file manually.`,
           'error'
+        );
+      } else if (subEmails.length > 0 && fileIds.length === 0) {
+        // Sub emails were entered but the active roster has no linked Drive
+        // file (e.g. ClassLink-imported, not Drive-synced), so no grant was
+        // even attempted. Without this the share is created with subEmails
+        // persisted but zero Drive access and no feedback to the host.
+        addToast(
+          'Share created, but your active roster has no linked Drive file — sub(s) will not get roster access. Share the roster file manually if they need it.',
+          'warning'
         );
       }
 

@@ -136,17 +136,29 @@ async function sweepCollection(
   // first so the parent delete doesn't orphan them. Done before the batched
   // parent delete because subcollections aren't cascaded by Firestore.
   if (deleteBoardsSubcollection) {
-    for (const doc of readyToDelete) {
-      const boardsSnap = await doc.ref.collection('boards').get();
-      if (boardsSnap.empty) continue;
-      const boardBatchSize = 250;
-      for (let i = 0; i < boardsSnap.docs.length; i += boardBatchSize) {
-        const batch = db.batch();
-        for (const b of boardsSnap.docs.slice(i, i + boardBatchSize)) {
-          batch.delete(b.ref);
-        }
-        await batch.commit();
-      }
+    // Reap each parent's boards/ subcollection. Parallelize across parents
+    // (with bounded concurrency) so a sweep that catches many expired
+    // Collection shares — each with its own get() + batch-commit chain —
+    // doesn't serialize toward the function timeout. The cap keeps us well
+    // under Firestore's per-client connection limits rather than fanning out
+    // all (up to MAX_DELETES_PER_RUN) parents at once.
+    const BOARD_CLEANUP_CONCURRENCY = 10;
+    const boardBatchSize = 250;
+    for (let i = 0; i < readyToDelete.length; i += BOARD_CLEANUP_CONCURRENCY) {
+      const group = readyToDelete.slice(i, i + BOARD_CLEANUP_CONCURRENCY);
+      await Promise.all(
+        group.map(async (doc) => {
+          const boardsSnap = await doc.ref.collection('boards').get();
+          if (boardsSnap.empty) return;
+          for (let j = 0; j < boardsSnap.docs.length; j += boardBatchSize) {
+            const batch = db.batch();
+            for (const b of boardsSnap.docs.slice(j, j + boardBatchSize)) {
+              batch.delete(b.ref);
+            }
+            await batch.commit();
+          }
+        })
+      );
     }
   }
 
@@ -181,7 +193,24 @@ export const expireSubShares = onSchedule(
     const db = admin.firestore();
     const now = Date.now();
 
-    await sweepCollection(db, 'shared_boards', now, 'originalAuthor', false);
-    await sweepCollection(db, 'shared_collections', now, 'hostUid', true);
+    // Run both sweeps independently: a failure in one (Firestore quota, a
+    // batch-commit error, a missing index) must not abort the other and leave
+    // its expired shares un-reaped for the hour.
+    const [boardsResult, collectionsResult] = await Promise.allSettled([
+      sweepCollection(db, 'shared_boards', now, 'originalAuthor', false),
+      sweepCollection(db, 'shared_collections', now, 'hostUid', true),
+    ]);
+    if (boardsResult.status === 'rejected') {
+      console.error(
+        '[expireSubShares] shared_boards sweep failed:',
+        boardsResult.reason
+      );
+    }
+    if (collectionsResult.status === 'rejected') {
+      console.error(
+        '[expireSubShares] shared_collections sweep failed:',
+        collectionsResult.reason
+      );
+    }
   }
 );
