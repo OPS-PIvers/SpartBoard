@@ -122,7 +122,7 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 - **Detected:** 2026-06-25
 - **File:** components/widgets/ActivityWall/Widget.tsx:1554
 - **Detail:** The "No activities yet" empty-state paragraph uses `<p className="font-black text-slate-800 mt-2">` with no `fontSize` style. Widget has `skipScaling: true`, so the paragraph falls back to the browser default 16px regardless of widget size. At small widget sizes the text can overflow; at large sizes it appears undersized relative to the container. This empty state is shown whenever the activity wall has no content, which is the first thing a teacher sees after adding the widget.
-- **Fix:** Either replace the hand-rolled empty state with the shared `ScaledEmptyState` component (`import { ScaledEmptyState } from '../../common/ScaledEmptyState'`), or add an inline fontSize: `style={{ fontSize: 'min(14px, 5.5cqmin)', marginTop: 'min(8px, 2cqmin)' }}` and remove `mt-2` from `className`.
+- **Fix:** Either replace the hand-rolled empty state with the shared `ScaledEmptyState` component (`import { ScaledEmptyState } from '@/components/common/ScaledEmptyState'`), or add an inline fontSize: `style={{ fontSize: 'min(14px, 5.5cqmin)', marginTop: 'min(8px, 2cqmin)' }}` and remove `mt-2` from `className`.
 
 ### LOW TalkingTool font-size pixel cap (`9px`) is below the recommended 10px minimum
 
