@@ -1,7 +1,10 @@
 /**
  * useReconcileExpiredSubShares — once-per-session sweep that revokes Drive
  * permissions and deletes share docs for the signed-in teacher's expired
- * substitute shares.
+ * substitute shares. Covers BOTH single-board substitute shares
+ * (/shared_boards) and substitute Collection shares (/shared_collections,
+ * whose Drive grants live on the parent doc and whose `boards/` subcollection
+ * is reaped before the parent on cleanup).
  *
  * Why client-side: revoking permissions on a teacher's own Drive files
  * requires either their OAuth refresh token (we don't store one) or
@@ -35,7 +38,13 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { collection, deleteDoc, query, where } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  getDocs,
+  query,
+  where,
+} from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import type { GoogleDriveService } from '@/utils/googleDriveService';
@@ -126,17 +135,33 @@ async function reconcileExpiredSubShares(
 ): Promise<void> {
   // Pull ALL of the host's substitute shares — both expired (candidates
   // for cleanup) and active (so we know which permissionIds are still
-  // referenced and must NOT be revoked).
-  const allQuery = query(
+  // referenced and must NOT be revoked). Drive grants live on TWO surfaces:
+  //   - single-board substitute shares: /shared_boards (keyed on
+  //     `originalAuthor`), and
+  //   - substitute Collection shares: /shared_collections (keyed on
+  //     `hostUid`), with grants on the parent doc.
+  // A roster file granted via both surfaces shares ONE Drive permissionId
+  // (permissions.create is idempotent), so we must refcount across BOTH
+  // before revoking anything.
+  const boardsQuery = query(
     collection(db, 'shared_boards'),
     where('originalAuthor', '==', uid),
+    where('intendedMode', '==', 'substitute')
+  );
+  const collectionsQuery = query(
+    collection(db, 'shared_collections'),
+    where('hostUid', '==', uid),
     where('intendedMode', '==', 'substitute')
   );
   // Read in bounded pages so a teacher with a large share history can't pull
   // the whole filtered result set into memory in a single unbounded read.
   // We iterate every doc below (to decide expired vs. still-referenced), so a
   // full paged read — not a capped limit() — is the right bound here.
-  const allDocs = await readAllDocsPaged(allQuery);
+  const [boardDocs, collectionDocs] = await Promise.all([
+    readAllDocsPaged(boardsQuery),
+    readAllDocsPaged(collectionsQuery),
+  ]);
+  const allDocs = [...boardDocs, ...collectionDocs];
   if (allDocs.length === 0) return;
 
   const now = Date.now();
@@ -196,6 +221,18 @@ async function reconcileExpiredSubShares(
       // Safe to clean up the share doc — every grant is either revoked
       // already or owned by another active share.
       try {
+        // Collection shares carry a `boards/` subcollection of frozen Board
+        // snapshots. Deleting only the parent would orphan those sub-docs
+        // (they're read-gated by the parent's expiresAt, but never reaped).
+        // Delete them first so the parent delete leaves nothing behind. The
+        // parent collection id distinguishes a Collection doc (path
+        // `shared_collections/{id}`) from a single-board share.
+        if (ref.parent?.id === 'shared_collections') {
+          const boardsSnap = await getDocs(collection(ref, 'boards'));
+          for (const boardDoc of boardsSnap.docs) {
+            await deleteDoc(boardDoc.ref);
+          }
+        }
         await deleteDoc(ref);
       } catch (err) {
         console.error('[reconcileExpiredSubShares] doc delete failed:', err);

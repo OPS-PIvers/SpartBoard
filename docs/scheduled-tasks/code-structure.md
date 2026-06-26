@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-06-19_
+_Last audited: 2026-06-26_
 _Last action: 2026-06-12 — MEDIUM cardOpacity range-check extracted into shared `isCardOpacity` guard in adminBuildingConfig.ts_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-26: Weekly audit pass (Friday). New dev-paul commits since 2026-06-19 (rebased): docs(audit) close-outs only — no source changes. DashboardContext.tsx now **5,770 lines** (+23 from 5,747 on 2026-06-19) — minimal growth; BLOCKED extraction status unchanged. Comprehensive large-file scan surfaced 6 additional files exceeding 500 lines not previously tracked: AuthContext.tsx (2,666 lines), DraggableWindow.tsx (3,302 lines), useQuizSession.ts (2,673 lines), useQuizAssignments.ts (2,200 lines), QuizLiveMonitor.tsx (2,978 lines), QuizManager.tsx (2,544 lines) — added to MEDIUM large-files item. adminBuildingConfig.ts 30-case switch confirmed: 6 near-identical 4-field font/color cases already tracked in LOW "simple switch cases" item. Cloud Functions: all v2, well-configured, no new issues. Cross-context data fetching: no duplication. Deep relative imports: 1 test-file instance only (acceptable). Single-consumer utils: no change to list. 0 new open items._
 
 _2026-06-19 (action): Resolved the MEDIUM userProfile concurrent-write item. Audit confirmed all `setDoc` writes to `/users/{uid}/userProfile/profile` in both contexts already use `{ merge: true }` (no active bug); documented the field-ownership contract on the `UserProfile` interface in types.ts plus reference comments at both contexts' primary write sites. Moved to Completed. HIGH/MEDIUM large-file extraction items remain BLOCKED (require supervised runtime verification)._
 
@@ -28,11 +30,11 @@ _2026-06-10: Weekly audit pass. DashboardContext.tsx confirmed at 5,596 lines (s
 
 _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 5,275 on 2026-05-27). BLOCKED extraction status unchanged. functions/src/index.ts now 4,305 lines — domain split organically in progress (spotifyOAuth.ts, syncedQuizGroups.ts etc.). All Cloud Functions confirmed on v2; no v1 imports found. New LOW finding: feature_permissions and global_permissions read coordination between AuthContext and DashboardContext could benefit from documentation. adminBuildingConfig.ts: font-validation constants duplicated across reveal-grid/numberLine/concept-web cases (related to existing LOW simple-switch-cases item). Test imports with 3+ ../../ levels are all in .test.tsx files using vi.mock() — acceptable. No new large-file violations beyond what's already tracked. 1 new LOW open item added._
 
-### MEDIUM Large component files not tracked by DashboardContext or functions/src items — 5 files exceed 1000 lines
+### MEDIUM Large component files not tracked by DashboardContext or functions/src items — 11 files exceed 1000 lines
 
 - **Detected:** 2026-06-12
-- **Files:** components/student/QuizStudentApp.tsx (3762 lines), components/layout/DashboardView.tsx (1908 lines), components/layout/Dock.tsx (1597 lines), components/admin/GlobalPermissionsManager.tsx (1497 lines), components/admin/StarterPackConfigurationModal.tsx (1251 lines), components/student/VideoActivityStudentApp.tsx (990 lines)
-- **Detail:** Six source component files exceed 500 lines and were not previously tracked in this journal. The most critical: `QuizStudentApp.tsx` (3762 lines) bundles auth, lobby, question rendering, timer state, PIN entry, and score tracking; `DashboardView.tsx` (1908 lines) contains the main app shell, widget placement, toolbar, and menu logic; `Dock.tsx` (1597 lines) bundles dock header, folder panel, tool list rendering, and animation logic; `GlobalPermissionsManager.tsx` (1497 lines) contains all admin feature/access/quota UI in one component; `StarterPackConfigurationModal.tsx` (1251 lines) is a long form modal with no section decomposition; `VideoActivityStudentApp.tsx` (990 lines) mirrors the QuizStudentApp pattern.
+- **Files:** components/widgets/QuizWidget/components/QuizLiveMonitor.tsx (2978 lines, added 2026-06-26), components/widgets/QuizWidget/components/QuizManager.tsx (2544 lines, added 2026-06-26), context/AuthContext.tsx (2666 lines, added 2026-06-26), components/common/DraggableWindow.tsx (3302 lines, added 2026-06-26), hooks/useQuizSession.ts (2673 lines, added 2026-06-26), hooks/useQuizAssignments.ts (2200 lines, added 2026-06-26), components/student/QuizStudentApp.tsx (3762 lines), components/layout/DashboardView.tsx (1908 lines), components/layout/Dock.tsx (1597 lines), components/admin/GlobalPermissionsManager.tsx (1497 lines), components/admin/StarterPackConfigurationModal.tsx (1251 lines), components/student/VideoActivityStudentApp.tsx (990 lines)
+- **Detail:** Twelve source component files exceed 500 lines and were not previously tracked in this journal. The most critical: `QuizStudentApp.tsx` (3762 lines) bundles auth, lobby, question rendering, timer state, PIN entry, and score tracking; `DashboardView.tsx` (1908 lines) contains the main app shell, widget placement, toolbar, and menu logic; `Dock.tsx` (1597 lines) bundles dock header, folder panel, tool list rendering, and animation logic; `GlobalPermissionsManager.tsx` (1497 lines) contains all admin feature/access/quota UI in one component; `StarterPackConfigurationModal.tsx` (1251 lines) is a long form modal with no section decomposition; `VideoActivityStudentApp.tsx` (990 lines) mirrors the QuizStudentApp pattern.
 - **Fix:** For QuizStudentApp and VideoActivityStudentApp: extract `TimerController`, `PinEntryForm`, `SessionLobby`, and `QuestionRenderer` into sibling components under their respective directories. For DashboardView: extract the toolbar/menu as `DashboardToolbar`. For Dock: extract `FolderPanel` and `ToolItem` into sub-components. For GlobalPermissionsManager: split into `WidgetAccessPanel`, `QuotaEditor`, and `BetaListManager`. These are view-layer extractions (no shared state changes) — lower risk than the DashboardContext extraction. Prioritize QuizStudentApp first given its size.
 - **Deferred 2026-06-24 (action agent):** Not taken this pass. Although described as "lower risk," these are still multi-component extractions out of large, behaviorally-critical files (the top candidate `QuizStudentApp.tsx` at 3762 lines owns live-session auth, PIN entry, timer state, and scoring) with no unit-test coverage of those flows and no Firebase/student-session runtime in this environment — so `type-check`/`lint`/`vitest` would not catch a hook-ordering, timer, or session-state regression. Same verification-gap rationale that BLOCKED the `DashboardContext.tsx` (HIGH) and `functions/src/index.ts` (MEDIUM) refactors. Recommend a supervised, runtime-verified session. Took the highest-priority _safe_ Open item instead this pass (see ui-unification.md — ClockWidget/TimeTool font-picker unification).
 
@@ -65,6 +67,7 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
 ### HIGH `DashboardContext.tsx` grew 1262 lines since May 13 extraction — now 5596 lines
 
 - **Detected:** 2026-05-22
+- **Updated:** 2026-06-26 — file is now **5,770 lines** (+23 from 5,747 on 2026-06-19). New dev-paul commits: docs(audit) close-outs — no DashboardContext changes. BLOCKED status unchanged.
 - **Updated:** 2026-06-19 — file is now **5,747 lines** (+25 from 5,722 on 2026-06-13). New commits: fix(Modal), fix(i18n), fix(widgets) onBlur guards, fix(lti), fix(quizMaxPoints), pr-review batch. Minimal DashboardContext growth this cycle (+25 lines). BLOCKED status unchanged.
 - **Updated:** 2026-06-13 — file is now **5,722 lines** (+126 from 5,596 on 2026-06-12). [AI] wide-distro phases added tiering, minTier permission gating, google-classroom feature gate (+~130 lines). BLOCKED status unchanged.
 - **Updated:** 2026-06-05 — file is now **5,596 lines** (+321 from 5,275 on 2026-05-27). Continued growth despite no new extractions. BLOCKED status unchanged — collections/Drive extraction still requires supervised runtime-verified session.

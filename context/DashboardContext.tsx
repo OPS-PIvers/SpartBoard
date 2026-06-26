@@ -3347,13 +3347,103 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     ): Promise<string> => {
       if (!user) throw new Error('Not authenticated');
-      return sharedCollectionApi.shareSubstituteCollection({
+
+      // Resolve Drive grants BEFORE the share write so they persist atomically
+      // on the parent doc — identical strategy to `handleShareSubstituteDashboard`.
+      // Drive's `permissions.create` is idempotent (same (file,email) returns
+      // the SAME permissionId), so we pre-list each file's permissions and
+      // reuse an existing grant when present. This lets the reconcile sweep's
+      // refcounting skip a revoke that another active share still depends on.
+      const driveGrants: SubstituteShareDriveGrant[] = [];
+      const subEmails = input.subEmails ?? [];
+      const fileIds = input.rosterDriveFileIds ?? [];
+      const driveSharingRequested = subEmails.length > 0 && fileIds.length > 0;
+      const failedPairs: Array<{ email: string; fileId: string }> = [];
+
+      if (driveSharingRequested && driveService) {
+        for (const fileId of fileIds) {
+          let existingPerms: Awaited<
+            ReturnType<typeof driveService.listFilePermissions>
+          > = [];
+          try {
+            existingPerms = await driveService.listFilePermissions(fileId);
+          } catch (err) {
+            console.error(
+              `[shareSubstituteCollection] listFilePermissions(${fileId}) failed; will fall back to grant calls:`,
+              err
+            );
+          }
+          for (const email of subEmails) {
+            const lower = email.toLowerCase();
+            const existing = existingPerms.find(
+              (p) =>
+                p.type === 'user' &&
+                p.emailAddress?.toLowerCase() === lower &&
+                typeof p.id === 'string'
+            );
+            if (existing) {
+              driveGrants.push({ email, fileId, permissionId: existing.id });
+              continue;
+            }
+            try {
+              const permissionId = await driveService.grantUserReaderPermission(
+                fileId,
+                email
+              );
+              driveGrants.push({ email, fileId, permissionId });
+            } catch (err) {
+              console.error(
+                `[shareSubstituteCollection] Drive grant failed for ${email} on ${fileId}:`,
+                err
+              );
+              failedPairs.push({ email, fileId });
+            }
+          }
+        }
+      } else if (driveSharingRequested && !driveService) {
+        for (const fileId of fileIds) {
+          for (const email of subEmails) {
+            failedPairs.push({ email, fileId });
+          }
+        }
+      }
+
+      const shareId = await sharedCollectionApi.shareSubstituteCollection({
         ...input,
         hostUid: user.uid,
         hostDisplayName: user.displayName,
+        driveGrants: driveGrants.length > 0 ? driveGrants : undefined,
       });
+
+      // Surface partial Drive-grant failures so the host can retry / hand-share
+      // rather than a sub silently lacking roster access (mirrors the
+      // single-board substitute-share toast). The share doc is already written
+      // and substitute shares are immutable post-create, so the remedy is to
+      // create a NEW share or hand-share — not "retry" against this one.
+      if (failedPairs.length > 0) {
+        const missedEmails = Array.from(
+          new Set(failedPairs.map((p) => p.email))
+        );
+        addToast(
+          `Share created, but roster access could not be granted to: ${missedEmails.join(
+            ', '
+          )}. Reconnect Google Drive and create a new share, or share the roster file manually.`,
+          'error'
+        );
+      } else if (subEmails.length > 0 && fileIds.length === 0) {
+        // Sub emails were entered but the active roster has no linked Drive
+        // file (e.g. ClassLink-imported, not Drive-synced), so no grant was
+        // even attempted. Without this the share is created with subEmails
+        // persisted but zero Drive access and no feedback to the host.
+        addToast(
+          'Share created, but your active roster has no linked Drive file — sub(s) will not get roster access. Share the roster file manually if they need it.',
+          'warning'
+        );
+      }
+
+      return shareId;
     },
-    [user, sharedCollectionApi]
+    [user, sharedCollectionApi, driveService, addToast]
   );
 
   const importSharedCollection = useCallback(

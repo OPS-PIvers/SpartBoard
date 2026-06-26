@@ -92,7 +92,7 @@ const IMPORT_SHARED_COLLECTION_KEYS = [
 ] as const;
 
 /** subCollections keys that were untranslated */
-const SUB_COLLECTIONS_KEYS = ['loading', 'loadError', 'comingSoon'] as const;
+const SUB_COLLECTIONS_KEYS = ['loading', 'loadError', 'openBoard'] as const;
 
 /** collectionMenu keys that were untranslated */
 const COLLECTION_MENU_KEYS = ['saveAsTemplate'] as const;

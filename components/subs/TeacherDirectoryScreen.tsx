@@ -21,12 +21,15 @@ import { SubCollectionsList } from './SubCollectionsList';
 interface TeacherDirectoryScreenProps {
   buildingId: string;
   onPickBoard: (shareId: string) => void;
+  /** Open a Board nested inside a shared Collection (shareId + boardId). */
+  onPickCollectionBoard: (shareId: string, boardId: string) => void;
   onChangeBuilding: () => void;
 }
 
 export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
   buildingId,
   onPickBoard,
+  onPickCollectionBoard,
   onChangeBuilding,
 }) => {
   const adminBuildings = useAdminBuildings();
@@ -186,7 +189,10 @@ export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
 
           {/* Collections shared with subs — shown below individual boards. */}
           <div className="mt-10">
-            <SubCollectionsList buildingId={buildingId} />
+            <SubCollectionsList
+              buildingId={buildingId}
+              onPickBoard={onPickCollectionBoard}
+            />
           </div>
         </div>
       </main>

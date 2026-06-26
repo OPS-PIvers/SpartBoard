@@ -3947,6 +3947,14 @@ export interface QuizAssignmentSettings {
   /** Selected class period roster names. Replaces singular periodName. */
   periodNames?: string[];
   /**
+   * Unified roster targeting (new post-unification assignments). Written
+   * additively alongside `periodNames` for back-compat: the edit modal
+   * derives both fields from the selected rosters on save. Legacy
+   * assignments without `rosterIds` continue to read via `periodNames`
+   * (and session `classIds`). No backfill of existing assignments.
+   */
+  rosterIds?: string[];
+  /**
    * Max completed submissions allowed per student. `null`/`undefined` means
    * unlimited (legacy). `1` (default for new assignments) means one-and-done.
    * Enforced at `joinQuizSession` time by checking the student's own existing
@@ -3983,9 +3991,6 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   status: QuizAssignmentStatus;
   createdAt: number;
   updatedAt: number;
-  /** Unified roster targeting (new post-unification assignments). Legacy
-   *  assignments read via `periodNames` / session `classIds` only. */
-  rosterIds?: string[];
   /**
    * URL of the Google Sheet produced by the teacher's last Results → Export.
    * Persisted so re-entering the Results view after navigating away keeps the
@@ -5700,6 +5705,7 @@ export type WidgetConfig =
   | BloomsTaxonomyConfig
   | BloomsDetailConfig
   | NeedDoPutThenConfig
+  | First5Config
   | StationsConfig;
 
 // Helper type to get config type for a specific widget
@@ -5825,9 +5831,11 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                         ? BloomsDetailConfig
                                                                                                                         : T extends 'need-do-put-then'
                                                                                                                           ? NeedDoPutThenConfig
-                                                                                                                          : T extends 'stations'
-                                                                                                                            ? StationsConfig
-                                                                                                                            : never;
+                                                                                                                          : T extends 'first-5'
+                                                                                                                            ? First5Config
+                                                                                                                            : T extends 'stations'
+                                                                                                                              ? StationsConfig
+                                                                                                                              : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
@@ -6393,6 +6401,31 @@ export interface First5GlobalConfig {
   referenceDate?: string;
   /** Per-building dock visibility overrides */
   dockDefaults?: Record<string, boolean>;
+}
+
+/**
+ * Per-instance config for the `first-5` widget. The widget reads all of its
+ * runtime configuration from the admin-managed {@link First5GlobalConfig}
+ * (fetched from Firestore via `useFirst5Url`), so an individual `first-5`
+ * widget instance carries no per-instance settings — its `widget.config` is
+ * an empty object. This interface exists so `first-5` is represented in the
+ * `WidgetConfig` union and `ConfigForWidget<'first-5'>` (which would otherwise
+ * resolve to `never`).
+ *
+ * It carries a single optional brand field rather than being a truly empty
+ * interface: an empty `{}` interface trips `no-empty-object-type`, while
+ * `Record<string, never>` adds an index signature that breaks the
+ * `WidgetConfig` union spreads in DashboardContext. An optional brand keeps an
+ * empty `{}` assignable (the runtime config is always empty) without either
+ * problem — so no lint suppression is needed.
+ */
+export interface First5Config {
+  /**
+   * Discriminant only — never written at runtime. Present so the interface is
+   * non-empty (and has no index signature); `first-5` has no per-instance
+   * settings.
+   */
+  readonly __brand?: 'first-5';
 }
 
 export interface LunchCountGlobalConfig {
@@ -7349,6 +7382,16 @@ export interface SharedCollection {
   expiresAt?: number;
   /** Substitute-only: building id (config/buildings.ts) for /subs scoping. */
   buildingId?: string;
+  /** Substitute-only: @orono.k12.mn.us emails granted Drive roster access. */
+  subEmails?: string[];
+  /**
+   * Substitute-only: per-email/file Drive permission ids for revocation.
+   * Mirrors `SubstituteShareFields.driveGrants` on single-board shares — the
+   * grants are share-level (granted once per (roster file, sub email)), so
+   * they live on the Collection parent doc rather than on each board sub-doc.
+   * Swept by `useReconcileExpiredSubShares` / `expireSubShares` on expiry.
+   */
+  driveGrants?: SubstituteShareDriveGrant[];
 }
 
 /**

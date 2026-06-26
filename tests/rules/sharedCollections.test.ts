@@ -360,6 +360,50 @@ describe('shared_collections — create, substitute field constraints', () => {
 });
 
 // ---------------------------------------------------------------------------
+// 12b. CREATE — substitute Drive-grant fields (subEmails / driveGrants)
+// ---------------------------------------------------------------------------
+// Drive roster grants live on the substitute Collection parent doc (M5),
+// mirroring /shared_boards. Create must accept them; the existing
+// substitute-immutability rule (case 14) then pins them — a host cannot
+// rewrite driveGrants after a sub has opened a board.
+
+describe('shared_collections — create, substitute Drive-grant fields', () => {
+  const driveGrants = [
+    { email: 'sub@orono.k12.mn.us', fileId: 'file-1', permissionId: 'perm-1' },
+  ];
+
+  it('substitute create accepted with subEmails + driveGrants', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asHost(), sharePath),
+        subShareDoc({
+          subEmails: ['sub@orono.k12.mn.us'],
+          driveGrants,
+        })
+      )
+    );
+  });
+
+  it('driveGrants are pinned post-create (host cannot rewrite them)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), sharePath),
+        subShareDoc({ subEmails: ['sub@orono.k12.mn.us'], driveGrants })
+      );
+    });
+    // Substitute shares are fully immutable — any update (incl. driveGrants)
+    // is rejected even for the host.
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        driveGrants: [
+          { email: 'evil@orono.k12.mn.us', fileId: 'f', permissionId: 'p' },
+        ],
+      })
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
 // 13. CREATE — hostUid must match request.auth.uid
 // ---------------------------------------------------------------------------
 

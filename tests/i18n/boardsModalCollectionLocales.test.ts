@@ -39,7 +39,7 @@
  *     t('quickAccess.title'), t('quickAccess.emptyResults'), etc.
  *
  *   components/subs/SubCollectionsList.tsx
- *     t('subCollections.loading'), t('subCollections.comingSoon'), etc.
+ *     t('subCollections.loading'), t('subCollections.openBoard'), etc.
  *
  *   components/boardsModal/CreateFromTemplateModal.tsx
  *     t('templatePicker.title'), t('templatePicker.loading'), etc.
@@ -162,7 +162,7 @@ const COLLECTION_MENU_TRANSLATED_KEYS: [string[], string][] = [
 const SUB_COLLECTIONS_TRANSLATED_KEYS: [string[], string][] = [
   [['subCollections', 'loading'], en.subCollections.loading],
   [['subCollections', 'loadError'], en.subCollections.loadError],
-  [['subCollections', 'comingSoon'], en.subCollections.comingSoon],
+  [['subCollections', 'openBoard'], en.subCollections.openBoard],
 ];
 
 /** templatePicker keys */

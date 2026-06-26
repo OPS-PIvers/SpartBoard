@@ -34,6 +34,18 @@ function makePlcAssignment(
   } as unknown as QuizAssignment;
 }
 
+function makeRoster(overrides: Partial<ClassRoster> = {}): ClassRoster {
+  return {
+    id: 'r1',
+    name: 'Period 1',
+    driveFileId: null,
+    studentCount: 0,
+    createdAt: 1,
+    students: [],
+    ...overrides,
+  } as ClassRoster;
+}
+
 describe('QuizAssignmentSettingsModal — behavior is read-only (freeze-live)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -218,6 +230,140 @@ describe('QuizAssignmentSettingsModal — behavior is read-only (freeze-live)', 
     const summary = screen.getByTestId('assignment-behavior-summary');
     expect(summary.textContent).toContain('Auto-progress');
     expect(summary.textContent).toContain('unlimited attempts');
+  });
+});
+
+describe('QuizAssignmentSettingsModal — unified class picker (rosterIds)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('hydrates the picker from assignment.rosterIds (new path)', () => {
+    const rosters = [
+      makeRoster({ id: 'r1', name: 'Period 1' }),
+      makeRoster({ id: 'r2', name: 'Period 2' }),
+      makeRoster({ id: 'r3', name: 'Period 3' }),
+    ];
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({
+          // periodNames intentionally stale/empty to prove rosterIds wins.
+          rosterIds: ['r1', 'r3'],
+          periodNames: [],
+        })}
+        rosters={rosters}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    const checkboxes = screen.getAllByRole('checkbox');
+    // Three rosters → three checkboxes; r1 and r3 preselected, r2 not.
+    expect(checkboxes).toHaveLength(3);
+    expect(checkboxes[0]).toBeChecked(); // r1
+    expect(checkboxes[1]).not.toBeChecked(); // r2
+    expect(checkboxes[2]).toBeChecked(); // r3
+  });
+
+  it('hydrates the picker from legacy periodNames by matching roster.name', () => {
+    const rosters = [
+      makeRoster({ id: 'r1', name: 'Period 1' }),
+      makeRoster({ id: 'r2', name: 'Period 2' }),
+    ];
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({
+          // Legacy assignment: no rosterIds, only stored period names.
+          rosterIds: undefined,
+          periodNames: ['Period 2'],
+        })}
+        rosters={rosters}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    const checkboxes = screen.getAllByRole('checkbox');
+    expect(checkboxes[0]).not.toBeChecked(); // Period 1
+    expect(checkboxes[1]).toBeChecked(); // Period 2 (matched by name)
+  });
+
+  it('an explicit empty rosterIds short-circuits the legacy periodNames fallback', () => {
+    // rosterIds: [] means "no classes selected" and must NOT fall through to
+    // name-matching periodNames — even when periodNames is non-empty (e.g. a
+    // legacy field left on a doc whose targeting was later cleared).
+    const rosters = [
+      makeRoster({ id: 'r1', name: 'Period 1' }),
+      makeRoster({ id: 'r2', name: 'Period 2' }),
+    ];
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({
+          rosterIds: [],
+          periodNames: ['Period 1', 'Period 2'],
+        })}
+        rosters={rosters}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    const checkboxes = screen.getAllByRole('checkbox');
+    // Nothing preselected despite the non-empty legacy periodNames.
+    expect(checkboxes[0]).not.toBeChecked();
+    expect(checkboxes[1]).not.toBeChecked();
+  });
+
+  it('writes BOTH rosterIds AND periodNames (derived from selected rosters) on save', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const rosters = [
+      makeRoster({ id: 'r1', name: 'Period 1' }),
+      makeRoster({ id: 'r2', name: 'Period 2' }),
+    ];
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({
+          rosterIds: ['r1'],
+          periodNames: ['Period 1'],
+        })}
+        rosters={rosters}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
+    );
+    // Add Period 2 to the selection.
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[1]);
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
+    // rosterIds: both selected rosters, derived via deriveSessionTargetsFromRosters.
+    expect(patch.rosterIds).toEqual(['r1', 'r2']);
+    // periodNames: derived from the selected rosters' names (back-compat).
+    expect(patch.periodNames).toEqual(['Period 1', 'Period 2']);
+    // periodName mirrors periodNames[0].
+    expect(patch.periodName).toBe('Period 1');
+  });
+
+  it('writes empty rosterIds + periodNames when all classes are deselected', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const rosters = [makeRoster({ id: 'r1', name: 'Period 1' })];
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({
+          rosterIds: ['r1'],
+          periodNames: ['Period 1'],
+        })}
+        rosters={rosters}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
+    );
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[0]); // deselect
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
+    expect(patch.rosterIds).toEqual([]);
+    expect(patch.periodNames).toEqual([]);
+    expect(patch.periodName).toBe('');
   });
 });
 

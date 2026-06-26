@@ -101,12 +101,18 @@ jobs:
 
       - name: Deploy to Firebase Preview Channel
         id: deploy
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
         run: |
-          export GOOGLE_APPLICATION_CREDENTIALS=./service-account.json
-          OUTPUT=$(pnpm exec firebase hosting:channel:deploy ${{ steps.extract_branch.outputs.branch }} --expires 30d --project spartboard --json)
-          echo "$OUTPUT"
-          URL=$(echo "$OUTPUT" | grep -o '"url": *"[^"]*"' | head -n 1 | cut -d '"' -f 4)
+          # --json removed: firebase-tools 15.22.3 fails hosting:channel:deploy
+          # under --json in CI (the human-readable deploy succeeds). `tee` keeps
+          # the deploy output in the log, and the GH default shell's pipefail
+          # still fails this step if the deploy errors. The Channel URL is parsed
+          # from the normal output for the summary comment.
+          pnpm exec firebase hosting:channel:deploy ${{ steps.extract_branch.outputs.branch }} --expires 30d --project spartboard 2>&1 | tee channel-deploy.log
+          URL=$(grep -i 'Channel URL' channel-deploy.log | grep -oE 'https://[^ ]+\.web\.app' | head -n 1)
           echo "details_url=$URL" >> $GITHUB_OUTPUT
+          rm -f channel-deploy.log
 
       - name: Cleanup Service Account File
         if: always()

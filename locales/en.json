@@ -1521,8 +1521,7 @@
     "heading": "Collections",
     "boardCount": "{{count}} board(s)",
     "boardPlaceholder": "Board …{{id}}",
-    "comingSoon": "Board view in /subs coming soon — open in the teacher app for now",
-    "comingSoonLabel": "Coming soon"
+    "openBoard": "Open this board"
   },
   "collectionMenu": {
     "share": "Share Collection…",
