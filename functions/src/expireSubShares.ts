@@ -200,16 +200,29 @@ export const expireSubShares = onSchedule(
       sweepCollection(db, 'shared_boards', now, 'originalAuthor', false),
       sweepCollection(db, 'shared_collections', now, 'hostUid', true),
     ]);
+    const failures: unknown[] = [];
     if (boardsResult.status === 'rejected') {
       console.error(
         '[expireSubShares] shared_boards sweep failed:',
         boardsResult.reason
       );
+      failures.push(boardsResult.reason);
     }
     if (collectionsResult.status === 'rejected') {
       console.error(
         '[expireSubShares] shared_collections sweep failed:',
         collectionsResult.reason
+      );
+      failures.push(collectionsResult.reason);
+    }
+    // Both sweeps have already completed (allSettled above guarantees neither
+    // aborted the other), so re-throwing here is safe and surfaces a persistent
+    // failure as a failed invocation — an error metric that can drive a Cloud
+    // Monitoring alert — instead of a silent success that lets expired shares
+    // accumulate until someone notices the logs.
+    if (failures.length > 0) {
+      throw new Error(
+        `[expireSubShares] ${failures.length} sweep(s) failed; see logged reasons above.`
       );
     }
   }
