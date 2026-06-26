@@ -251,14 +251,25 @@ async function reconcileExpiredSubShares(
     // warning about the orphaned permissionIds.
   }
 
-  if (failed > 0 || deleteFailed > 0) {
+  if (failed > 0) {
     console.warn(
       `[reconcileExpiredSubShares] revoked ${revoked} Drive permissions across ${expiredDocs.length} expired shares, ${failed} revoke failures, ${deleteFailed} delete failures (will retry next session)`
     );
-    // Throw so the caller's .then() doesn't set the throttle — partial
-    // success should still allow a retry next session.
+    // Throw so the caller's .then() doesn't set the throttle (retry next
+    // session) AND its .catch() surfaces the reconnect-Drive nudge — correct
+    // guidance only when a Drive REVOKE failed.
     throw new Error(
       `Substitute-share reconciliation partial failure: ${failed} revoke failure(s), ${deleteFailed} delete failure(s)`
+    );
+  } else if (deleteFailed > 0) {
+    // All Drive revokes succeeded; only the Firestore deleteDoc failed. Do NOT
+    // throw: onPartialFailure's toast tells the teacher to reconnect Drive,
+    // which is wrong here (Drive is fine, grants ARE revoked) and would send
+    // them down a spurious reconnect loop. The grant-free orphaned doc is
+    // reaped by the expireSubShares cloud-function fallback, so letting the
+    // throttle set is safe.
+    console.warn(
+      `[reconcileExpiredSubShares] revoked ${revoked} Drive permissions; ${deleteFailed} expired share doc delete(s) failed (grants already revoked — cloud function will reap the orphaned doc(s))`
     );
   }
 }
