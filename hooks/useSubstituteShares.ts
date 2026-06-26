@@ -282,7 +282,10 @@ export function useSubstituteCollectionBoard(
           });
           return;
         }
-        if (parent.expiresAt && parent.expiresAt <= Date.now()) {
+        // Substitute shares always carry `expiresAt` (enforced by the create
+        // rule), so a missing value means a malformed/out-of-band doc — treat
+        // it as expired rather than letting it load indefinitely.
+        if (!parent.expiresAt || parent.expiresAt <= Date.now()) {
           setSnapshot({
             key: requestKey,
             share: null,
