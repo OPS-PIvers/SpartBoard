@@ -105,6 +105,7 @@ interface LinksKpis {
  * Pure KPI math, exported so unit tests can exercise it directly without
  * mounting the component or the Firestore-backed hook.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export const computeLinksKpis = (
   links: ShortLink[],
   now: number = Date.now()
