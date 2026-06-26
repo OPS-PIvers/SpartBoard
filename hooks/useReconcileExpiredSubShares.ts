@@ -239,7 +239,9 @@ async function reconcileExpiredSubShares(
         // Don't abort the whole sweep — a single delete failure here would
         // otherwise skip Drive-grant revocation for every remaining expired
         // share. Count it, leave the doc for the next-session / cloud-function
-        // retry, and continue. `deleteFailed` keeps the throttle unset below.
+        // retry, and continue. When only deleteFailed > 0 (no revoke failures),
+        // the function returns normally and lets the throttle set — Drive is
+        // fine, grants are revoked; the cloud function reaps the orphaned doc.
         console.error('[reconcileExpiredSubShares] doc delete failed:', err);
         deleteFailed += 1;
       }
