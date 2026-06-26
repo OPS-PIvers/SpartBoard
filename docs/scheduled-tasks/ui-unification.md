@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-06-19_
+_Last audited: 2026-06-26_
 _Last action: 2026-06-24 — MEDIUM `ClockWidget`/`TimeTool` inline font-family pickers replaced with shared `TypographySettings` (new `showColorPicker` opt-out so no dead `fontColor` control is surfaced)_
 
 ---
@@ -16,6 +16,8 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-06-26: Weekly audit pass (Friday). New dev-paul commits since 2026-06-19 (rebased): docs(audit) close-outs — no widget Settings.tsx or admin panel changes. Full scan of Settings.tsx files and admin panels. TWO NEW items detected: (1) `components/admin/Organization/components/primitives.tsx` (870 lines) re-implements `Toggle`, `Card`, `OrgToast`, and `Btn` without importing from `components/common/` — confirmed zero imports from `@/components/common` (grep clean); this is a standalone parallel design system for the Organization admin panel. (2) Four widget Settings panels use native `<input type="checkbox">` instead of the shared `Toggle` or a common checkbox primitive: `BloomsTaxonomy/Settings.tsx`, `CustomWidget/Settings.tsx`, `DrawingWidget/Settings.tsx`, `NeedDoPutThen/Settings.tsx`. Both added as new open items below. All pre-existing open items re-confirmed valid._
+
 _2026-06-19: Weekly audit pass (Friday). New commits since 2026-06-13: fix(Modal), fix(i18n), fix(widgets) stale onBlur guards, fix(lti), fix(quizMaxPoints), pr-review batch. None introduce new widget Settings.tsx or admin panel files. Scanned full Settings.tsx set — confirmed all existing MEDIUM/LOW items still open and valid. New finding: 4 additional widget settings panels (ClockWidget, TimeTool, MaterialsWidget, NextUp) implement custom button-pair binary toggles instead of the shared Toggle component — these are distinct from the font-family inline selector tracked under the ClockWidget/TimeTool MEDIUM item. Added as new LOW item below (extending the ExpectationsWidget MEDIUM pattern). 1 new LOW open item added._
 
 _2026-06-13: Weekly audit pass (Saturday). Rebase onto dev-paul: pr-review batch, isCardOpacity refactor, [AI] wide-distro phases 1-3 (new pages/tiering/rollout form), [AI] legal pages, [AI] OAuth scope drops. New pages (landing, /privacy, /terms, /support, /request) are static/auth routes — not widget settings panels. [AI] tiering changes (userTier.ts, per-feature AI gates) touch AuthContext and admin permission checks, not widget settings. Scanned all new Settings.tsx and admin panel files — none introduced. All existing open items re-confirmed valid. 0 new open items._
@@ -23,6 +25,20 @@ _2026-06-13: Weekly audit pass (Saturday). Rebase onto dev-paul: pr-review batch
 _2026-06-12: Weekly audit pass. Scanned Settings.tsx files and admin ConfigurationPanel files after rebase onto dev-paul (docs/unifier run 13, D4 @/ alias in tests/, perf baseline, fix DraggableWindow, debugger run 14). None of these commits touch widget Settings.tsx or admin config panels. All existing open items re-confirmed valid. New finding: ClockWidget/Settings.tsx custom color palette button group (lines 120-139) is distinct from the font-family picker issue already tracked under the ClockWidget/TimeTool MEDIUM item — the color palette should use SurfaceColorSettings or a shared color-picker. 1 new LOW open item added._
 
 _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widgets/ and all \*ConfigurationPanel.tsx under components/admin/. New findings: (1) TimeTool/Settings.tsx duplicates the identical custom 4-button font picker as ClockWidget — added as extension of the existing ClockWidget open item. (2) Segmented-control pill selector pattern (`flex bg-slate-100 p-1 rounded-xl`) duplicated 12× across settings panels with no shared component. (3) Font-options arrays (`{ value: 'global', label: 'Inherit' }` pattern) duplicated in 5+ admin panels. (4) 27 hardcoded hex instances across additional files not yet tracked. Existing open items (ClockWidget font picker, MusicWidget color picker, nextUp/video-activity/guided-learning missing appearance panels, ExpectationsWidget custom toggle, two hardcoded-hex LOW items, InstructionalRoutines, TextConfig) all re-confirmed valid. 4 new open items added._
+
+### MEDIUM `Organization/components/primitives.tsx` re-implements `Toggle`, `Card`, `OrgToast`, and `Btn` from scratch — parallel design system
+
+- **Detected:** 2026-06-26
+- **File:** components/admin/Organization/components/primitives.tsx (870 lines)
+- **Detail:** The Organization admin panel has its own standalone component library (870 lines) that duplicates four components that already exist in `components/common/`: `Toggle` (lines 283–306 — custom pill toggle with `w-10 h-6` / `w-4 h-4` track/knob pattern, different from `Toggle.tsx`), `Card` (lines 183–208 — custom `rounded-2xl` card with padding variants), `OrgToast` (lines 705–727 — separate toast with its own positioning and `OrgToastType` union), and `Btn` (lines 156–179 — custom button with variant system). No imports from `@/components/common` exist in this file. As `components/common/Toggle`, `Card`, and related components evolve (aria improvements, dark-mode, motion-reduce), the Organization panel diverges silently. The Organization admin panel is not a student-facing or anonymous route — it runs inside the same `AdminSettings` tree as every other admin panel, so there is no technical reason it cannot use the shared component library.
+- **Fix:** Replace `Toggle` → import from `@/components/common/Toggle`; replace `Card` → import from `@/components/common/Card` (or the closest equivalent); replace `OrgToast` → import from `@/components/common/Toast`; replace `Btn` → align with `@/components/common/Button` if one exists, or the standard Tailwind button pattern used elsewhere. This is a mechanical replacement that should not change user-visible behavior. Start with `Toggle` (highest drift risk) and `OrgToast` (duplicate toast lifecycle). After replacement, delete the corresponding sections from `primitives.tsx` and verify no other file in `Organization/` imports the local versions.
+
+### LOW `BloomsTaxonomy`, `CustomWidget`, `DrawingWidget`, and `NeedDoPutThen` Settings panels use native `<input type="checkbox">` instead of shared Toggle
+
+- **Detected:** 2026-06-26
+- **File:** components/widgets/BloomsTaxonomy/Settings.tsx, components/widgets/CustomWidget/Settings.tsx, components/widgets/DrawingWidget/Settings.tsx, components/widgets/NeedDoPutThen/Settings.tsx
+- **Detail:** Four widget settings panels use bare `<input type="checkbox">` elements (with or without wrapper divs) for boolean configuration toggles. The shared `Toggle` component from `components/common/Toggle.tsx` is used in ~20+ other settings panels and provides accessible `role="switch"` + `aria-checked` semantics, standardized pill-toggle visuals, and consistent active/inactive state colors. The native checkbox renders browser-default OS chrome which clashes with the glassmorphism settings panel aesthetic and does not match the rest of the settings UI. This is a visual inconsistency, not a functional regression.
+- **Fix:** For each panel, replace `<input type="checkbox" checked={…} onChange={…} />` (and any wrapper label pattern) with `<Toggle checked={…} onChange={…} />` from `@/components/common/Toggle`. Follow the `ExpectationsWidget/Settings.tsx` resolution as the pattern reference (see Completed section). Settings panels are back-face panels — no container-query scaling considerations apply.
 
 ### LOW Custom binary toggle button-pairs in 4 additional widget Settings panels beyond ExpectationsWidget
 

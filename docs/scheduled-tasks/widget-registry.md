@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-25_
+_Last audited: 2026-06-26_
 _Last action: 2026-06-25_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-26: Full audit. New dev-paul commits since 2026-06-25: docs(audit) close out L2 — announcements backfill not needed, docs(audit) mark Q1+Q3 done — org-admin-writes flag already graduated. Both are docs-only commits; neither touches types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations: 62 non-sticker in WIDGET_COMPONENTS (sticker intentional WidgetRenderer special-case per JSDoc), 63/63 in widgetDefaults.ts and widgetGradeLevels.ts, 59 user-selectable in tools.ts (7 intentionally excluded sub-types: blooms-detail, catalyst-instruction, catalyst-visual, custom-widget, mathTool, onboarding, sticker), 3 InternalToolType entries (magic, record, remote) correctly in tools.ts and widgetGradeLevels.ts. All sampled lazyNamed() export names verified correct. pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
 _2026-06-25: Full audit. New commits since 2026-06-24: fix(pr-review) address unresolved review comments on #2072, feat(announcements) scope listener query by orgId for tenant isolation. Neither touches types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations. All sampled lazyNamed() export names verified correct — full export-name verification pass confirms no mismatches across all 146 lazyNamed() calls. pnpm type-check (exit 0), pnpm lint (exit 0). ONE NEW GAP: `first-5` WidgetType has no corresponding config interface in the WidgetConfig union type in types.ts — see new open item below._
 
