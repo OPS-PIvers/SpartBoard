@@ -94,9 +94,25 @@ jobs:
         # the same root cause that broke the 15.8.0 backend deploy. The build
         # already ran above; `firebase deploy --only hosting` re-runs the
         # build:all predeploy hook and releases to the live channel.
+        # Idempotent: when the built bundle is byte-identical to the current
+        # live version, firebase rejects the re-release with 400 "is the current
+        # active version". That's a no-op success (backend/workflow/docs-only
+        # deploys don't change dist), so treat it as such; any other error still
+        # fails the deploy.
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
-        run: pnpm exec firebase deploy --only hosting --project spartboard
+        run: |
+          set +e
+          OUT=$(pnpm exec firebase deploy --only hosting --project spartboard 2>&1)
+          CODE=$?
+          echo "$OUT"
+          if [ "$CODE" -ne 0 ]; then
+            if echo "$OUT" | grep -q "is the current active version"; then
+              echo "::notice::Hosting bundle unchanged — already live; nothing to release."
+              exit 0
+            fi
+            exit "$CODE"
+          fi
 
       - name: Cleanup Service Account File
         if: always()
