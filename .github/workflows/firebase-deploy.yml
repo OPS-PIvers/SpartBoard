@@ -87,17 +87,16 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ./service-account.json
 
       - name: Deploy to Firebase Hosting (Live)
-        # Pinned to the latest immutable release instead of the moving @v0 tag.
-        # NOTE: v0.10.0 still declares Node 20. Upstream's Node 24 runtime bump
-        # (PR #450) is merged but unreleased (tracking: issue #457). GitHub
-        # auto-runs Node 20 actions on Node 24 from 2026-06-16, so this is
-        # forward-safe; re-pin to a clean Node 24 release once upstream cuts one.
-        uses: FirebaseExtended/action-hosting-deploy@v0.10.0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: spartboard
-          channelId: live
+        # CLI deploy via the repo's firebase-tools (15.22.3) instead of
+        # FirebaseExtended/action-hosting-deploy@v0.10.0, whose OWN bundled
+        # (older) firebase-tools hits "premature close" on googleapis
+        # token/cloudfunctions calls under the current GitHub runner image —
+        # the same root cause that broke the 15.8.0 backend deploy. The build
+        # already ran above; `firebase deploy --only hosting` re-runs the
+        # build:all predeploy hook and releases to the live channel.
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
+        run: pnpm exec firebase deploy --only hosting --project spartboard
 
       - name: Cleanup Service Account File
         if: always()
