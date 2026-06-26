@@ -151,6 +151,27 @@ const LinkCell: React.FC<{ link: ShortLink }> = ({ link }) => (
   </td>
 );
 
+// Renders a destination as a real link only when it passes validation.
+// A malformed/non-http(s) destination (e.g. an Admin-SDK write) renders as
+// plain text instead of an inert <a> — an hrefless anchor still looks like a
+// link and is announced as one by screen readers, which is misleading.
+const DestinationLink: React.FC<{ destination: string }> = ({ destination }) =>
+  validateDestination(destination).ok ? (
+    <a
+      href={destination}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block truncate text-slate-700 hover:text-brand-blue-primary"
+      title={destination}
+    >
+      {destination}
+    </a>
+  ) : (
+    <span className="block truncate text-slate-500" title={destination}>
+      {destination}
+    </span>
+  );
+
 export const LinksPanel: React.FC = () => {
   const { links, loading, error } = useShortLinks();
   // Stable per-mount "now" so relative timestamps and the 7-day KPI cutoff
@@ -277,19 +298,7 @@ export const LinksPanel: React.FC = () => {
                 >
                   <LinkCell link={link} />
                   <td className="px-4 py-3 align-top max-w-md">
-                    <a
-                      href={
-                        validateDestination(link.destination).ok
-                          ? link.destination
-                          : undefined
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block truncate text-slate-700 hover:text-brand-blue-primary"
-                      title={link.destination}
-                    >
-                      {link.destination}
-                    </a>
+                    <DestinationLink destination={link.destination} />
                   </td>
                   <td className="px-4 py-3 align-top text-right font-semibold text-slate-800">
                     {formatNumber(link.clicks ?? 0)}
@@ -335,19 +344,7 @@ export const LinksPanel: React.FC = () => {
                   >
                     <LinkCell link={link} />
                     <td className="px-4 py-3 align-top max-w-md">
-                      <a
-                        href={
-                          validateDestination(link.destination).ok
-                            ? link.destination
-                            : undefined
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block truncate text-slate-700 hover:text-brand-blue-primary"
-                        title={link.destination}
-                      >
-                        {link.destination}
-                      </a>
+                      <DestinationLink destination={link.destination} />
                     </td>
                     <td className="px-4 py-3 align-top text-slate-500">
                       {formatRelative(link.lastClickedAt, now)}

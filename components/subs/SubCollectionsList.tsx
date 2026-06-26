@@ -41,8 +41,8 @@ export const SubCollectionsList: FC<SubCollectionsListProps> = ({
         // constraint keeps expired docs out of the result set entirely
         // (composite index already provisioned in firestore.indexes.json).
         // The client-side filter below stays as belt-and-suspenders for the
-        // narrow clock-skew window, and a skew-induced permission-denied is
-        // surfaced via the existing catch (refresh retries). Mirrors the
+        // narrow clock-skew window; a skew-induced permission-denied surfaces
+        // as an error pane (manual browser refresh required). Mirrors the
         // single-doc expiry guard in useSubstituteShares.ts.
         const q = query(
           collection(db, 'shared_collections'),

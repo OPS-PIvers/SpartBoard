@@ -525,20 +525,28 @@ export const LinkShortenerManager: React.FC = () => {
                       )}
                     </td>
                     <td className="px-4 py-3 align-top max-w-md">
-                      <a
-                        href={
-                          validateDestination(link.destination).ok
-                            ? link.destination
-                            : undefined
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-slate-700 hover:text-brand-blue-primary truncate max-w-full"
-                        title={link.destination}
-                      >
-                        <span className="truncate">{link.destination}</span>
-                        <ExternalLink className="w-3 h-3 shrink-0" />
-                      </a>
+                      {validateDestination(link.destination).ok ? (
+                        <a
+                          href={link.destination}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-slate-700 hover:text-brand-blue-primary truncate max-w-full"
+                          title={link.destination}
+                        >
+                          <span className="truncate">{link.destination}</span>
+                          <ExternalLink className="w-3 h-3 shrink-0" />
+                        </a>
+                      ) : (
+                        // Invalid/non-http(s) destination: render plain text, not
+                        // an inert <a> (which screen readers still announce as a
+                        // link). XSS is already closed by the href guard.
+                        <span
+                          className="inline-flex items-center text-slate-500 truncate max-w-full"
+                          title={link.destination}
+                        >
+                          <span className="truncate">{link.destination}</span>
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 align-top">
                       <div className="font-semibold text-slate-800">
