@@ -4,6 +4,48 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-26
+
+- PRs reviewed: 9 (all open PRs)
+  - #2084 — audit(friday) nightly audit log (head `scheduled-tasks`, base `dev-paul`)
+  - #2083 — docs(unifier) run 20 log (head `nightly/unifier-log-2026-06-26`, base `dev-paul`)
+  - #2082 — refactor(types) brand `First5Config` + registry-audit wording (head `claude/serene-meitner-j84chw`, base `dev-paul`)
+  - #2081 — Rules/auth hardening: M1/M2/LO2/LO4/LO10/M4 (head `audit/rules-auth-hardening`, base `dev-paul`)
+  - #2080 — feat(subs) finish Collections in /subs — board view + Drive grants (head `audit/subs-collections`, base `dev-paul`)
+  - #2079 — feat(link-shortener) Phase 2 Links analytics + Shorten button (head `audit/link-shortener-p2`, base `dev-paul`)
+  - #2078 — feat(quiz) unify edit-modal class picker on rosterIds (head `audit/quiz-rosterids`, base `dev-paul`)
+  - #2077 — docs(specs) Cluster-3 design-first specs (head `audit/c3-design-specs`, base `dev-paul`)
+  - #2076 — Fix WidgetConfig union + audit docs (head `dev-paul`, base `main` — READ-ONLY)
+- Comments processed: 13 unaddressed threads — 5 fixed, 8 explained/flagged. (Many other threads already carried author "Fixed in …" replies and were skipped.)
+  - **Fixed (5):**
+    - #2078 Widget.tsx:2040 — destructure targeting fields out of patch (type-narrows `settingsPatch`) instead of spread+`delete`.
+    - #2080 useSubstituteShares.ts:285 — invert expiry guard so a missing `expiresAt` is treated as expired.
+    - #2080 expireSubShares.ts:199 — re-throw after `Promise.allSettled` so sweep failures surface as a failed invocation.
+    - #2081 AuthContext.tsx:2564 — clear `accessDeactivated` only after sign-in succeeds (popup-cancel no longer drops the DeactivatedScreen).
+    - #2081 UsersView/primitives — bulk role picker `role="group"` + opt-in `aria-pressed` (without breaking shared `PopoverOption` menu usages).
+  - **Explained, no change (3):**
+    - #2078 Widget.tsx:2058 (dead guard) — coupling is intentional/documented; guard kept as defensive boundary.
+    - #2079 LinksPanel.tsx:154 (useState→useMemo) — `useMemo(()=>Date.now())` fails the repo's `react-hooks/purity` lint rule; `useState` lazy init is the compliant pattern.
+    - #2079 AnalyticsManager.tsx:1809 (tabBar focus) — promotion-to-component doesn't fix position-based reconciliation; needs a shared-parent restructure (architectural).
+  - **Flagged for manual review (3):**
+    - #2080 firestore.rules:1116 — `subEmails` not validated server-side (pre-existing on boards path; needs a CF domain-validation wrapper).
+    - #2081 firestore.rules:462 — domain admin can still deactivate/downgrade an existing `super_admin` (security residual; needs policy decision + guard + CI-validated rules test).
+    - #2081 UsersView.tsx:542 — role picker lists `super_admin` for `domain_admin`; client companion to the rules decision above.
+  - **Outdated/already-fixed (2):**
+    - #2083 unifier.md — `DEFAULT_GLOBAL_STYLE` reference already correct as committed (verified vs `types.ts:6579`).
+    - #2084 code-structure.md — large-file count inconsistency already fixed on-branch in `472bbba`.
+- Fixes pushed: 4 commits across 3 branches
+  - #2078 `audit/quiz-rosterids` `7c16b45` — destructure targeting fields from patch.
+  - #2080 `audit/subs-collections` `5604cdb` — treat missing `expiresAt` as expired.
+  - #2080 `audit/subs-collections` `c55b1d8` — re-throw after `allSettled`.
+  - #2081 `audit/rules-auth-hardening` `0300295` — deactivation flag on popup-cancel + bulk role picker a11y.
+  - All verified locally before push: `pnpm type-check` ✓, scoped `eslint --max-warnings 0` ✓, prettier ✓, and the relevant vitest suites (`useSubstituteShares` 20/20, `AuthContext.deactivation` 3/3, `UsersView.bulkRoleBuilding` 3/3) ✓. Functions change passed `tsc --noEmit` + functions eslint.
+- Reviews posted: 9 (one structured review per PR)
+  - #2078 Ready with minor notes · #2079 Ready with minor notes · #2080 Ready with minor notes (deploy new index) · #2081 **Needs changes** (super-admin deactivate/downgrade protection + CI rules green) · #2082 Ready · #2077 Ready (docs) · #2083 Ready (docs) · #2084 Ready (docs) · #2076 Ready with notes (land #2082 into dev-paul first; confirm CI before dev-paul→main).
+- Notes:
+  - Branch-safety: #2076 head is `dev-paul` (dev-_) → READ-ONLY; reviewed/commented only, no push. All fixes went to non-`main`/non-`dev-_` feature branches.
+  - Could not locally verify any `firestore.rules` change (no Firestore emulator in this env) and the file is at ~98.5% of the 256 KiB cap — so the two rules-level security items on #2081/#2080 were flagged for human + CI rather than auto-patched.
+
 ## 2026-06-25
 
 - PRs reviewed: 3 (all open PRs)
