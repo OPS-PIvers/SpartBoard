@@ -193,6 +193,7 @@ async function reconcileExpiredSubShares(
 
   let revoked = 0;
   let failed = 0;
+  let deleteFailed = 0;
 
   for (const { ref, grants } of expiredDocs) {
     let allRevokesOk = true;
@@ -235,8 +236,12 @@ async function reconcileExpiredSubShares(
         }
         await deleteDoc(ref);
       } catch (err) {
+        // Don't abort the whole sweep — a single delete failure here would
+        // otherwise skip Drive-grant revocation for every remaining expired
+        // share. Count it, leave the doc for the next-session / cloud-function
+        // retry, and continue. `deleteFailed` keeps the throttle unset below.
         console.error('[reconcileExpiredSubShares] doc delete failed:', err);
-        throw err;
+        deleteFailed += 1;
       }
     }
     // If any revoke failed, leave the doc behind. The throttle won't fire
@@ -246,14 +251,14 @@ async function reconcileExpiredSubShares(
     // warning about the orphaned permissionIds.
   }
 
-  if (failed > 0) {
+  if (failed > 0 || deleteFailed > 0) {
     console.warn(
-      `[reconcileExpiredSubShares] revoked ${revoked} Drive permissions across ${expiredDocs.length} expired shares, ${failed} failures (will retry next session)`
+      `[reconcileExpiredSubShares] revoked ${revoked} Drive permissions across ${expiredDocs.length} expired shares, ${failed} revoke failures, ${deleteFailed} delete failures (will retry next session)`
     );
     // Throw so the caller's .then() doesn't set the throttle — partial
     // success should still allow a retry next session.
     throw new Error(
-      `Substitute-share reconciliation partial failure: ${failed} of ${revoked + failed} revokes failed`
+      `Substitute-share reconciliation partial failure: ${failed} revoke failure(s), ${deleteFailed} delete failure(s)`
     );
   }
 }

@@ -32,16 +32,23 @@ export const SubCollectionsList: FC<SubCollectionsListProps> = ({
     const canonical = canonicalBuildingId(buildingId);
     void (async () => {
       try {
-        // expiresAt is filtered client-side (after the snapshot) rather than
-        // as a `where('expiresAt','>',Date.now())` query constraint: the read
-        // rule gates expiry per-document (it does NOT require the query to
-        // carry an expiresAt constraint — same as the shared_boards read), and
-        // a server-side `>` filter on a client clock can trip a clock-skew
-        // permission-denied. Mirrors useSubstituteShares.ts.
+        // The `shared_collections` read rule gates @orono callers on
+        // `expiresAt > request.time` (UNLIKE `shared_boards`, which has no
+        // expiry check on read). Firestore evaluates a list query's rule
+        // against every matched doc and fails the WHOLE getDocs if any one is
+        // denied — so a single expired substitute share in this building would
+        // break the directory for all subs. The `where('expiresAt','>')`
+        // constraint keeps expired docs out of the result set entirely
+        // (composite index already provisioned in firestore.indexes.json).
+        // The client-side filter below stays as belt-and-suspenders for the
+        // narrow clock-skew window, and a skew-induced permission-denied is
+        // surfaced via the existing catch (refresh retries). Mirrors the
+        // single-doc expiry guard in useSubstituteShares.ts.
         const q = query(
           collection(db, 'shared_collections'),
           where('intendedMode', '==', 'substitute'),
-          where('buildingId', '==', canonical)
+          where('buildingId', '==', canonical),
+          where('expiresAt', '>', Date.now())
         );
         const snap = await getDocs(q);
         if (cancelled) return;

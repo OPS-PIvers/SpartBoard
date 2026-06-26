@@ -17,7 +17,10 @@ import { useShortLinks } from '@/hooks/useShortLinks';
 import { useDialog } from '@/context/useDialog';
 import { Toast } from '@/components/common/Toast';
 import { logError } from '@/utils/logError';
-import { buildShortUrl } from '@/utils/shortLinkValidation';
+import {
+  buildShortUrl,
+  validateDestination,
+} from '@/utils/shortLinkValidation';
 import { ShortLink } from '@/types';
 
 const formatDate = (epoch: number | null | undefined): string => {
@@ -523,7 +526,11 @@ export const LinkShortenerManager: React.FC = () => {
                     </td>
                     <td className="px-4 py-3 align-top max-w-md">
                       <a
-                        href={link.destination}
+                        href={
+                          validateDestination(link.destination).ok
+                            ? link.destination
+                            : undefined
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-slate-700 hover:text-brand-blue-primary truncate max-w-full"

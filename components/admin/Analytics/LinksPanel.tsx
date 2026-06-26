@@ -9,7 +9,10 @@ import {
 } from 'lucide-react';
 
 import { useShortLinks, ADMIN_LIST_LIMIT } from '@/hooks/useShortLinks';
-import { buildShortUrl } from '@/utils/shortLinkValidation';
+import {
+  buildShortUrl,
+  validateDestination,
+} from '@/utils/shortLinkValidation';
 import { ShortLink } from '@/types';
 
 // LinksPanel surfaces the click data the link shortener (phase 1) already
@@ -275,7 +278,11 @@ export const LinksPanel: React.FC = () => {
                   <LinkCell link={link} />
                   <td className="px-4 py-3 align-top max-w-md">
                     <a
-                      href={link.destination}
+                      href={
+                        validateDestination(link.destination).ok
+                          ? link.destination
+                          : undefined
+                      }
                       target="_blank"
                       rel="noopener noreferrer"
                       className="block truncate text-slate-700 hover:text-brand-blue-primary"
@@ -329,7 +336,11 @@ export const LinksPanel: React.FC = () => {
                     <LinkCell link={link} />
                     <td className="px-4 py-3 align-top max-w-md">
                       <a
-                        href={link.destination}
+                        href={
+                          validateDestination(link.destination).ok
+                            ? link.destination
+                            : undefined
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block truncate text-slate-700 hover:text-brand-blue-primary"

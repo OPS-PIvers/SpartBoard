@@ -247,7 +247,8 @@ interface CollectionBoardSnapshot {
  */
 export function useSubstituteCollectionBoard(
   shareId: string | null,
-  boardId: string | null
+  boardId: string | null,
+  expectedBuildingId: string | null
 ): UseSubstituteCollectionBoardState {
   const [snapshot, setSnapshot] = useState<CollectionBoardSnapshot | null>(
     null
@@ -298,6 +299,24 @@ export function useSubstituteCollectionBoard(
             key: requestKey,
             share: null,
             error: 'This board is not part of the shared Collection.',
+          });
+          return;
+        }
+        // Defense-in-depth: the shared_collections read rule has no building
+        // constraint, so any @orono user can fetch any unexpired substitute
+        // doc by id. A sub with a stale URL or hand-built navigation state
+        // could otherwise load a share from a different building. Reject when
+        // the doc's building doesn't match the directory the sub is viewing.
+        if (
+          expectedBuildingId &&
+          parent.buildingId &&
+          canonicalBuildingId(parent.buildingId) !==
+            canonicalBuildingId(expectedBuildingId)
+        ) {
+          setSnapshot({
+            key: requestKey,
+            share: null,
+            error: 'This share is not available in your building.',
           });
           return;
         }
@@ -363,7 +382,7 @@ export function useSubstituteCollectionBoard(
     return () => {
       cancelled = true;
     };
-  }, [shareId, boardId]);
+  }, [shareId, boardId, expectedBuildingId]);
 
   if (!shareId || !boardId) {
     return { share: null, loading: false, error: null };

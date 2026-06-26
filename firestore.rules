@@ -1129,6 +1129,13 @@ service cloud.firestore {
             && request.resource.data.expiresAt is number
             && request.resource.data.expiresAt > request.time.toMillis()
             && request.resource.data.expiresAt <= request.time.toMillis() + 1209600000
+            // Cap subEmails so a hostile client can't queue thousands of Drive
+            // roster grants (DashboardContext iterates this list with no bound),
+            // exhausting the host's Drive API quota per share. Optional field —
+            // absence is allowed; when present it must be a list of <= 20.
+            && (!('subEmails' in request.resource.data)
+                || (request.resource.data.subEmails is list
+                    && request.resource.data.subEmails.size() <= 20))
           )
         );
 
