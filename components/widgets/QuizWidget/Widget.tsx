@@ -2033,11 +2033,16 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               // `setAssignmentRosters` (the same dual-write the create flow
               // uses), and send the remaining settings through
               // `updateAssignmentSettings`.
-              const { rosterIds } = patch;
-              const settingsPatch = { ...patch };
-              delete settingsPatch.rosterIds;
-              delete settingsPatch.periodName;
-              delete settingsPatch.periodNames;
+              // Destructure (rather than delete) so `settingsPatch` is
+              // type-narrowed to exclude the targeting fields — a future
+              // targeting field added to the patch can't silently leak into
+              // `updateAssignmentSettings`.
+              const {
+                rosterIds,
+                periodName: _periodName,
+                periodNames: _periodNames,
+                ...settingsPatch
+              } = patch;
               // These are two separate writeBatch.commit()s, not one
               // transaction. To keep the non-atomic window benign, apply the
               // secondary settings FIRST and the class targeting LAST. Targeting
