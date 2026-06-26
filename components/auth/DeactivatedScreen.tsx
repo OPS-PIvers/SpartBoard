@@ -41,7 +41,11 @@ export const DeactivatedScreen: React.FC = () => {
 
         <button
           onClick={() => {
-            void signInWithGoogle();
+            // signInWithGoogle() re-throws (incl. popup-closed-by-user). Swallow
+            // the rejection here so a cancelled popup doesn't surface as an
+            // unhandledrejection. Staying on DeactivatedScreen is the intended
+            // outcome when sign-in doesn't complete.
+            void signInWithGoogle().catch(() => undefined);
           }}
           className="w-full bg-white text-slate-700 py-3.5 rounded-2xl font-bold border border-slate-200 hover:bg-slate-50 transition-colors active:scale-[0.98]"
         >

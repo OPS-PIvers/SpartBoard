@@ -116,13 +116,13 @@ service cloud.firestore {
     }
 
     function isLegacySuperAdmin() {
-      return exists(/databases/$(database)/documents/admin_settings/user_roles) &&
+      return get(/databases/$(database)/documents/admin_settings/user_roles) != null &&
              request.auth.token.email.lower() in
                get(/databases/$(database)/documents/admin_settings/user_roles).data.get('superAdmins', []);
     }
 
     function isMemberSuperAdmin() {
-      return exists(/databases/$(database)/documents/organizations/orono/members/$(request.auth.token.email.lower())) &&
+      return get(/databases/$(database)/documents/organizations/orono/members/$(request.auth.token.email.lower())) != null &&
              get(/databases/$(database)/documents/organizations/orono/members/$(request.auth.token.email.lower())).data.get('roleId', '') == 'super_admin';
     }
 
