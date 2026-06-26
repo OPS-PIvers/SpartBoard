@@ -7,17 +7,19 @@ import {
   afterEach,
   type Mock,
 } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { collection, doc, onSnapshot, where } from 'firebase/firestore';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { collection, doc, getDoc, onSnapshot, where } from 'firebase/firestore';
 import { logError } from '@/utils/logError';
 import {
   useSubstituteShares,
   useSubstituteShare,
+  useSubstituteCollectionBoard,
 } from '@/hooks/useSubstituteShares';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   doc: vi.fn(),
+  getDoc: vi.fn(),
   onSnapshot: vi.fn(),
   query: vi.fn((_ref: unknown, ...constraints: unknown[]) => ({
     __query: constraints,
@@ -35,6 +37,7 @@ vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
 
 const mockCollection = collection as Mock;
 const mockDoc = doc as Mock;
+const mockGetDoc = getDoc as Mock;
 const mockOnSnapshot = onSnapshot as Mock;
 const mockWhere = where as Mock;
 const mockLogError = logError as Mock;
@@ -448,5 +451,50 @@ describe('useSubstituteShare — single-doc subscription', () => {
     const unsub = listeners[0].unsub;
     unmount();
     expect(unsub).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// useSubstituteCollectionBoard(shareId, boardId, expectedBuildingId)
+// ---------------------------------------------------------------------------
+
+describe('useSubstituteCollectionBoard — cross-building gate', () => {
+  it('rejects a parent doc from a different building', async () => {
+    mockGetDoc.mockResolvedValueOnce(
+      fakeDocSnap('share1', {
+        intendedMode: 'substitute',
+        buildingId: 'middle',
+        expiresAt: Date.now() + 60_000,
+        boardIds: ['b1'],
+      })
+    );
+    const { result } = renderHook(() =>
+      useSubstituteCollectionBoard('share1', 'b1', 'high')
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.share).toBeNull();
+    expect(result.current.error).toBe(
+      'This share is not available in your building.'
+    );
+  });
+
+  it('rejects a parent doc with no buildingId (fail closed)', async () => {
+    mockGetDoc.mockResolvedValueOnce(
+      fakeDocSnap('share1', {
+        intendedMode: 'substitute',
+        expiresAt: Date.now() + 60_000,
+        boardIds: ['b1'],
+      })
+    );
+    const { result } = renderHook(() =>
+      useSubstituteCollectionBoard('share1', 'b1', 'high')
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.share).toBeNull();
+    expect(result.current.error).toBe(
+      'This share is not available in your building.'
+    );
   });
 });
