@@ -311,10 +311,9 @@ export function useSubstituteCollectionBoard(
         // could otherwise load a share from a different building. Reject when
         // the doc's building doesn't match the directory the sub is viewing.
         if (
-          expectedBuildingId &&
-          (!parent.buildingId ||
-            canonicalBuildingId(parent.buildingId) !==
-              canonicalBuildingId(expectedBuildingId))
+          !parent.buildingId ||
+          canonicalBuildingId(parent.buildingId) !==
+            canonicalBuildingId(expectedBuildingId)
         ) {
           setSnapshot({
             key: requestKey,
