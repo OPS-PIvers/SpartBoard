@@ -2561,7 +2561,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // earlier, or the same account that has since been reactivated). The
     // membership snapshot re-evaluates status after sign-in and re-latches the
     // flag if they're still inactive.
-    setAccessDeactivated(false);
+    //
+    // Clear the flag only AFTER a sign-in actually succeeds — clearing it up
+    // front would drop the deactivation context if the user cancels the popup
+    // (signInWithPopup throws), leaving a deactivated user on the login screen
+    // instead of the DeactivatedScreen.
     if (isAuthBypass) {
       console.warn('Bypassing Google Sign In');
       try {
@@ -2577,10 +2581,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         (Date.now() + GOOGLE_TOKEN_TTL_MS).toString()
       );
       setIsAdmin(true); // Restore admin status on sign in
+      setAccessDeactivated(false);
       return;
     }
     try {
       const result = await signInWithPopup(auth, googleProvider);
+      // Sign-in succeeded — safe to clear the sticky deactivation flag now.
+      setAccessDeactivated(false);
       const credential = GoogleAuthProvider.credentialFromResult(result);
       if (credential) {
         const token = credential.accessToken ?? null;

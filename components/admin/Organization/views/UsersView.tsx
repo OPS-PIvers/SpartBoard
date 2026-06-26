@@ -614,7 +614,7 @@ const BulkRoleModal: React.FC<{
           {count === 1 ? '' : 's'}.
         </p>
         <div
-          role="radiogroup"
+          role="group"
           aria-label="Role"
           className="rounded-lg border border-slate-200 divide-y divide-slate-100"
         >
@@ -623,6 +623,7 @@ const BulkRoleModal: React.FC<{
               key={r.id}
               onClick={() => setRole(r.id)}
               selected={role === r.id}
+              ariaPressed={role === r.id}
               label={r.name}
               description={r.blurb}
               icon={

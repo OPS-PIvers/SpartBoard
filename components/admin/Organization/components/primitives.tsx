@@ -673,10 +673,18 @@ export const PopoverOption: React.FC<{
   icon?: React.ReactNode;
   label: string;
   description?: string;
-}> = ({ onClick, selected, icon, label, description }) => (
+  /**
+   * Opt-in single-select semantics for screen readers. Set this when the
+   * option lives inside a `role="group"` single-select list (e.g. the bulk
+   * "Change role" picker) so AT announces the selected state. Left undefined
+   * for menu-context usages, which keep plain button semantics.
+   */
+  ariaPressed?: boolean;
+}> = ({ onClick, selected, icon, label, description, ariaPressed }) => (
   <button
     type="button"
     onClick={onClick}
+    aria-pressed={ariaPressed}
     className="w-full text-left px-3 py-2 flex items-start gap-2.5 rounded-lg hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
   >
     {icon && <span className="mt-0.5">{icon}</span>}
