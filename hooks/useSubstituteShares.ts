@@ -248,7 +248,10 @@ interface CollectionBoardSnapshot {
 export function useSubstituteCollectionBoard(
   shareId: string | null,
   boardId: string | null,
-  expectedBuildingId: string | null
+  // Non-nullable: the building gate is a security control, so the type forces
+  // every caller to supply a building rather than silently failing open on
+  // null. (shareId/boardId stay nullable — the hook early-returns on those.)
+  expectedBuildingId: string
 ): UseSubstituteCollectionBoardState {
   const [snapshot, setSnapshot] = useState<CollectionBoardSnapshot | null>(
     null
