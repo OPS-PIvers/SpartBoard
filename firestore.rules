@@ -1033,7 +1033,16 @@ service cloud.firestore {
           || request.auth.uid in get(
                /databases/$(database)/documents/plcs/$(request.resource.data.plcId)
              ).data.memberUids
-        );
+        ) &&
+        // Cap subEmails on EVERY owner update (not just substitute, which pins
+        // it above): a copy/PLC share otherwise lets an owner write an
+        // unbounded subEmails list via update, bloating the doc and arming any
+        // future server-side reader. Matches the create-time cap. Substitute
+        // shares already pin subEmails to its create value, so this is a no-op
+        // for them.
+        (!('subEmails' in request.resource.data)
+          || (request.resource.data.subEmails is list
+              && request.resource.data.subEmails.size() <= 20));
 
       // Collaborator (Synced participant): may update content but must not
       // change participants map, originalAuthor, originalAuthorName,
