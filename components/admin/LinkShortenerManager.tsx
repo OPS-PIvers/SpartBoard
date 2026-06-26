@@ -17,13 +17,8 @@ import { useShortLinks } from '@/hooks/useShortLinks';
 import { useDialog } from '@/context/useDialog';
 import { Toast } from '@/components/common/Toast';
 import { logError } from '@/utils/logError';
-import { SHORT_LINK_PREFIX } from '@/utils/shortLinkValidation';
+import { buildShortUrl } from '@/utils/shortLinkValidation';
 import { ShortLink } from '@/types';
-
-const buildShortUrl = (code: string): string => {
-  if (typeof window === 'undefined') return SHORT_LINK_PREFIX + code;
-  return `${window.location.origin}${SHORT_LINK_PREFIX}${code}`;
-};
 
 const formatDate = (epoch: number | null | undefined): string => {
   if (!epoch) return '—';
