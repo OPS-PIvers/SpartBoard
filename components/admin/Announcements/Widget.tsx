@@ -344,6 +344,7 @@ function renderConfigEditor(
       return (
         <EmbedConfigEditor
           config={form.widgetConfig}
+          label={form.name}
           onChange={(config) =>
             handleConfigChange(config as Record<string, unknown>)
           }

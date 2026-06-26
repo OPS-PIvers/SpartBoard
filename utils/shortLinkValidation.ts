@@ -7,6 +7,17 @@
 import { slugify } from './slug';
 
 export const SHORT_LINK_PREFIX = '/r/';
+
+/**
+ * Build the user-facing short URL for a given code. In the browser this is an
+ * absolute URL on the current origin; in non-browser contexts (SSR/tests) it
+ * falls back to the bare `/r/{code}` path.
+ */
+export const buildShortUrl = (code: string): string => {
+  if (typeof window === 'undefined') return SHORT_LINK_PREFIX + code;
+  return `${window.location.origin}${SHORT_LINK_PREFIX}${code}`;
+};
+
 export const MIN_SLUG_LENGTH = 2;
 export const MAX_SLUG_LENGTH = 32;
 export const MAX_DESTINATION_LENGTH = 2048;

@@ -2024,7 +2024,49 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           onClose={() => setEditingAssignment(null)}
           onSave={async (patch) => {
             try {
-              await updateAssignmentSettings(editingAssignment.id, patch);
+              // Class targeting must be dual-written to BOTH the assignment
+              // doc AND the live session doc (rosterIds/classIds/classId/
+              // classPeriodByClassId) so SSO + PIN join keep working after an
+              // edit — `updateAssignmentSettings` only mirrors periodNames to
+              // the session doc, which would leave `sessionData.rosterIds`
+              // stale and break `pinLoginV1`. Route targeting through
+              // `setAssignmentRosters` (the same dual-write the create flow
+              // uses), and send the remaining settings through
+              // `updateAssignmentSettings`.
+              // Destructure (rather than delete) so `settingsPatch` is
+              // type-narrowed to exclude the targeting fields — a future
+              // targeting field added to the patch can't silently leak into
+              // `updateAssignmentSettings`.
+              const {
+                rosterIds,
+                periodName: _periodName,
+                periodNames: _periodNames,
+                ...settingsPatch
+              } = patch;
+              // These are two separate writeBatch.commit()s, not one
+              // transaction. To keep the non-atomic window benign, apply the
+              // secondary settings FIRST and the class targeting LAST. Targeting
+              // (rosterIds/classIds on the session doc, which pinLoginV1 + SSO
+              // join read) moves as a single all-or-nothing batch inside
+              // setAssignmentRosters, so if its commit fails the assignment
+              // keeps its prior targeting intact — students still join with the
+              // old classes — and the modal stays open for retry. The only
+              // residual inconsistency is updated settings against old
+              // targeting, which is harmless. Folding both into one batch
+              // (a combined hook method) is a tracked follow-up.
+              if (Object.keys(settingsPatch).length > 0) {
+                await updateAssignmentSettings(
+                  editingAssignment.id,
+                  settingsPatch
+                );
+              }
+              if (rosterIds !== undefined) {
+                const selectedRosterIds = new Set(rosterIds);
+                const targets = deriveSessionTargetsFromRosters(
+                  rosters.filter((r) => selectedRosterIds.has(r.id))
+                );
+                await setAssignmentRosters(editingAssignment.id, targets);
+              }
               addToast('Assignment settings saved.', 'success');
               setEditingAssignment(null);
             } catch (err) {

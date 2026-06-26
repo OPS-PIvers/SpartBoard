@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { SubCollectionsList } from '@/components/subs/SubCollectionsList';
 import type { SharedCollection } from '@/types';
+
+const noop = () => undefined;
 
 const getDocsMock = vi.fn();
 
@@ -49,14 +52,16 @@ beforeEach(() => {
 describe('SubCollectionsList', () => {
   it('renders the loading state initially', () => {
     getDocsMock.mockReturnValueOnce(new Promise(() => undefined)); // never resolves
-    render(<SubCollectionsList buildingId="middle-school" />);
+    render(
+      <SubCollectionsList buildingId="middle-school" onPickBoard={noop} />
+    );
     expect(screen.getByText(/loading shared collections/i)).toBeInTheDocument();
   });
 
   it('renders nothing when no Collections are returned', async () => {
     getDocsMock.mockResolvedValueOnce(docsResponse());
     const { container } = render(
-      <SubCollectionsList buildingId="middle-school" />
+      <SubCollectionsList buildingId="middle-school" onPickBoard={noop} />
     );
     await waitFor(() => {
       expect(
@@ -75,7 +80,9 @@ describe('SubCollectionsList', () => {
         fakeCollection('s2', 'Reading', ['b3'])
       )
     );
-    render(<SubCollectionsList buildingId="middle-school" />);
+    render(
+      <SubCollectionsList buildingId="middle-school" onPickBoard={noop} />
+    );
     await waitFor(() => {
       expect(screen.getByText('Math')).toBeInTheDocument();
     });
@@ -85,18 +92,20 @@ describe('SubCollectionsList', () => {
     expect(screen.getByText('1 board(s)')).toBeInTheDocument();
   });
 
-  it('renders per-board buttons as disabled (full board-view in /subs deferred)', async () => {
+  it('renders per-board buttons as enabled and calls onPickBoard with (shareId, boardId)', async () => {
+    const onPickBoard = vi.fn();
     getDocsMock.mockResolvedValueOnce(
       docsResponse(fakeCollection('s1', 'Math', ['boardA-1234']))
     );
-    render(<SubCollectionsList buildingId="middle-school" />);
-    // The button now has two children: the board label and the "Coming soon" sub-label.
-    // findByRole searches accessible name which includes all text content.
-    const btn = await screen.findByRole('button', { name: /Board …1234/i });
-    expect(btn).toBeDisabled();
-    // Visible "Coming soon" sub-label should also be present inside the button.
-    expect(btn.querySelector('span:last-child')?.textContent).toMatch(
-      /coming soon/i
+    render(
+      <SubCollectionsList
+        buildingId="middle-school"
+        onPickBoard={onPickBoard}
+      />
     );
+    const btn = await screen.findByRole('button', { name: /Board …1234/i });
+    expect(btn).toBeEnabled();
+    await userEvent.click(btn);
+    expect(onPickBoard).toHaveBeenCalledWith('s1', 'boardA-1234');
   });
 });

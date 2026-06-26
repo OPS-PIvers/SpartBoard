@@ -20,11 +20,14 @@ import { EmbedTab } from './types';
 
 import { EmbedConfig } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
+import { ShortenUrlButton } from '@/components/admin/ShortenUrlButton';
 
 export const EmbedConfigEditor: React.FC<{
   config: Partial<EmbedConfig>;
   onChange: (config: Partial<EmbedConfig>) => void;
-}> = ({ config, onChange }) => {
+  /** Surrounding context (e.g. announcement title) used as the short-link label. */
+  label?: string;
+}> = ({ config, onChange, label }) => {
   const [activeTab, setActiveTab] = useState<EmbedTab>(() => {
     const mode = config.mode as EmbedTab | undefined;
     return mode === 'url' || mode === 'code' ? mode : 'url';
@@ -99,6 +102,16 @@ export const EmbedConfigEditor: React.FC<{
       }
       onChange(next);
     }
+  };
+
+  // Replace the field with a freshly-created short URL. A `/r/:code` link is
+  // never a YouTube watch URL, so drop any start-at offset to stay consistent
+  // with `applyUrl`.
+  const applyShortUrl = (shortUrl: string) => {
+    setRawUrl(shortUrl);
+    const next: Partial<EmbedConfig> = { ...config, url: shortUrl };
+    delete next.startAtSeconds;
+    onChange(next);
   };
 
   const copyToClipboard = (text: string) => {
@@ -228,14 +241,26 @@ export const EmbedConfigEditor: React.FC<{
           <label className="block text-xs font-semibold text-slate-700">
             URL to Embed
           </label>
-          <input
-            type="url"
-            value={rawUrl}
-            onChange={(e) => setRawUrl(e.target.value)}
-            onBlur={applyUrl}
-            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
-            placeholder="YouTube, Google Drive, Docs, Slides, Forms…"
-          />
+          <div className="flex items-start gap-2">
+            <input
+              type="url"
+              value={rawUrl}
+              onChange={(e) => setRawUrl(e.target.value)}
+              onBlur={applyUrl}
+              className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+              placeholder="YouTube, Google Drive, Docs, Slides, Forms…"
+            />
+            <ShortenUrlButton
+              // Shorten the embeddable form (same as applyUrl/onBlur), not the
+              // raw input — otherwise clicking before blurring would capture a
+              // YouTube watch URL (which YouTube blocks from embedding) and the
+              // /r/code redirect would render a blank iframe.
+              url={embedUrl || rawUrl.trim()}
+              label={label}
+              onShortened={applyShortUrl}
+              className="shrink-0"
+            />
+          </div>
           {wasConverted && (
             <div className="flex items-start gap-2 p-2 bg-emerald-50 border border-emerald-200 rounded-lg">
               <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />

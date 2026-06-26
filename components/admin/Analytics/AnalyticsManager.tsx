@@ -29,6 +29,7 @@ import {
   Clock,
   Info,
   LayoutGrid,
+  Link2,
   School,
   Search,
   Users,
@@ -45,6 +46,7 @@ import {
   type Building,
 } from '@/config/buildings';
 import { TOOLS } from '@/config/tools';
+import { LinksPanel } from './LinksPanel';
 
 interface EngagementCounts {
   total: number;
@@ -132,7 +134,7 @@ type AnalyticsErrorState =
   | { kind: 'cold-start'; message: string }
   | { kind: 'fatal'; message: string };
 
-type AnalyticsTab = 'overview' | 'widgets' | 'ai' | 'users';
+type AnalyticsTab = 'overview' | 'widgets' | 'ai' | 'users' | 'links';
 
 const WIDGET_LABELS: Record<string, string> = TOOLS.reduce(
   (acc, tool) => {
@@ -1760,11 +1762,65 @@ export const AnalyticsManager: React.FC = () => {
     },
     { id: 'ai', label: 'AI Usage', icon: <WandSparkles className="w-4 h-4" /> },
     { id: 'users', label: 'Users', icon: <School className="w-4 h-4" /> },
+    { id: 'links', label: 'Links', icon: <Link2 className="w-4 h-4" /> },
   ];
+
+  // The tab bar is rendered both inside the data-backed view and in the
+  // links-only early return below, so it lives here as a single source of
+  // truth. It depends only on `tabs`/`selectedTab`/`setSelectedTab` — never on
+  // the analytics snapshot.
+  const tabBar = (
+    <div
+      className="sticky top-0 z-10 bg-slate-100 rounded-xl border border-slate-200 p-1.5"
+      role="tablist"
+    >
+      <div className="flex gap-1">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            role="tab"
+            type="button"
+            aria-label={tab.label}
+            aria-selected={selectedTab === tab.id}
+            id={`tab-${tab.id}`}
+            aria-controls={`panel-${tab.id}`}
+            tabIndex={selectedTab === tab.id ? 0 : -1}
+            onClick={() => setSelectedTab(tab.id)}
+            className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold border transition-colors ${
+              selectedTab === tab.id
+                ? 'bg-white border-slate-300 text-slate-900 shadow-sm'
+                : 'bg-transparent border-transparent text-slate-500 hover:text-slate-700 hover:bg-white/60'
+            }`}
+          >
+            {tab.icon}
+            <span className="sr-only sm:not-sr-only sm:inline">
+              {tab.label}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  // The Links tab reads Firestore independently via `useShortLinks` (inside
+  // LinksPanel) and does NOT depend on the analytics HTTP snapshot. Render it
+  // regardless of the analytics loading/error/cold-start state below, so it is
+  // always reachable. All other tabs remain gated on a loaded snapshot.
+  if (selectedTab === 'links') {
+    return (
+      <div className="space-y-5 pb-12">
+        {tabBar}
+        <div role="tabpanel" id="panel-links" aria-labelledby="tab-links">
+          <LinksPanel />
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
       <div className="space-y-4">
+        {tabBar}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
@@ -1787,23 +1843,29 @@ export const AnalyticsManager: React.FC = () => {
       // copy ("ready at 5:00 AM Central daily"); render it in a calm slate
       // surface, not red.
       return (
-        <div className="bg-slate-50 border border-slate-200 text-slate-700 p-6 rounded-2xl flex items-start gap-3">
-          <Info className="w-6 h-6 shrink-0 mt-0.5 text-slate-400" />
-          <div>
-            <h3 className="font-bold mb-1 text-slate-900">
-              Analytics not ready yet
-            </h3>
-            <p className="text-sm">{error.message}</p>
+        <div className="space-y-4">
+          {tabBar}
+          <div className="bg-slate-50 border border-slate-200 text-slate-700 p-6 rounded-2xl flex items-start gap-3">
+            <Info className="w-6 h-6 shrink-0 mt-0.5 text-slate-400" />
+            <div>
+              <h3 className="font-bold mb-1 text-slate-900">
+                Analytics not ready yet
+              </h3>
+              <p className="text-sm">{error.message}</p>
+            </div>
           </div>
         </div>
       );
     }
     return (
-      <div className="bg-red-50 border border-red-200 text-red-800 p-6 rounded-2xl flex items-start gap-3">
-        <AlertCircle className="w-6 h-6 shrink-0 mt-0.5" />
-        <div>
-          <h3 className="font-bold mb-1">Failed to Load Analytics</h3>
-          <p className="text-sm">{error.message}</p>
+      <div className="space-y-4">
+        {tabBar}
+        <div className="bg-red-50 border border-red-200 text-red-800 p-6 rounded-2xl flex items-start gap-3">
+          <AlertCircle className="w-6 h-6 shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-bold mb-1">Failed to Load Analytics</h3>
+            <p className="text-sm">{error.message}</p>
+          </div>
         </div>
       </div>
     );
@@ -1870,36 +1932,7 @@ export const AnalyticsManager: React.FC = () => {
         <SnapshotFreshnessBadge meta={data?.meta} />
       </div>
 
-      <div
-        className="sticky top-0 z-10 bg-slate-100 rounded-xl border border-slate-200 p-1.5"
-        role="tablist"
-      >
-        <div className="flex gap-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              role="tab"
-              type="button"
-              aria-label={tab.label}
-              aria-selected={selectedTab === tab.id}
-              id={`tab-${tab.id}`}
-              aria-controls={`panel-${tab.id}`}
-              tabIndex={selectedTab === tab.id ? 0 : -1}
-              onClick={() => setSelectedTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold border transition-colors ${
-                selectedTab === tab.id
-                  ? 'bg-white border-slate-300 text-slate-900 shadow-sm'
-                  : 'bg-transparent border-transparent text-slate-500 hover:text-slate-700 hover:bg-white/60'
-              }`}
-            >
-              {tab.icon}
-              <span className="sr-only sm:not-sr-only sm:inline">
-                {tab.label}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
+      {tabBar}
 
       {selectedTab === 'overview' && (
         <div role="tabpanel" id="panel-overview" aria-labelledby="tab-overview">
