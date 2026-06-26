@@ -64,7 +64,7 @@ export const ShortenUrlButton: React.FC<ShortenUrlButtonProps> = ({
     try {
       const result = await createShortLink({
         destination: trimmed,
-        label: label?.trim() || undefined,
+        label: label?.trim() ? label.trim() : undefined,
       });
       if (!result.ok) {
         setError(result.reason);

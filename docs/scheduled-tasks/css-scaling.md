@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-25_
+_Last audited: 2026-06-26_
 _Last action: 2026-06-18_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-26: Full scan of all Widget.tsx files. New dev-paul commits since 2026-06-25: docs(audit) close-outs — no widget front-face content changes. Automated agent scan re-flagged 27 candidates across ActivityWall/MiniApp/Embed/RevealGrid/DrawingWidget; all reviewed: ActivityWall `text-sm` instances are inside fullscreen modal overlays (max-h-[75vh] context confirmed in prior journal entries) or already tracked as the 2026-06-25 empty-state paragraph item (:1554); MiniApp `text-sm`/`text-xs` already tracked as the open "MiniApp internal dialog overlays" item; Embed `text-xs` already tracked as the open "EmbedWidget zoom toolbar" item; RevealGrid header text classes already tracked as the open "RevealGridWidget hardcoded spacing" item; DrawingWidget has `skipScaling:false` — CSS transform scaling, not container queries, so Tailwind text classes are not CQ violations there. All pre-existing open items re-confirmed valid. Zero new anti-patterns._
 
 _2026-06-25: Full scan of all Widget.tsx files. New commits since 2026-06-24: fix(pr-review) address unresolved review comments on #2072, feat(announcements) scope listener query by orgId. Neither touches widget front-face content. Full agent scan flagged 20 candidates; reviewed against journal guidance and existing tracked items. WON'T FIX (fill-better formula): MusicWidget cqh-only sizing (all three layout branches — same exemption as ClockWidget/Countdown/Checklist per journal guidance), TimeTool hero display min(60cqh, 22cqw)/min(60cqh, 30cqw) (fill-better portrait formula), Countdown cqh/cqw separately (documented WON'T FIX in Completed section), SyntaxFramer cqh/cqw in character-count proportional formula (fill-better, per 2026-06-06 analysis), TimeTool keypad cqh/cqw (fill-better), TimeTool redundant cqh arm in min(4cqh, 4cqmin) (always superseded by cqmin, benign). Already tracked: RevealGrid header Tailwind text classes (existing RevealGrid open item), RevealGrid gap-4 (existing RevealGrid open item), GuidedLearning w-8 h-8 Loader2 (group open item — line shifted from :231 to :618), MiniApp assign modal hardcoded text sizes (existing MiniApp dialog open item), SoundWidget fixed padding (group open item), SpecialistSchedule mb-2/pb-2 header row (group open item), Webcam extracted-text overlay gap/padding (group open item). ClockWidget bare cqmin with no cap (40cqmin/50cqmin for hero digits): this replaces the prior cqh/cqw mix — the WON'T FIX entry in Completed was for the cqh/cqw mix which has since been changed; bare uncapped cqmin is a separate LOW issue logged as new item. THREE NEW items detected: (1) SpecialistSchedule border-[min()] style convention (LOW — Tailwind v3.4 JIT correctly handles balanced parens so the border renders; downgraded from initial MEDIUM after verification), (2) ActivityWall empty-state paragraph no fontSize (LOW), (3) TalkingTool font-size pixel cap below 10px recommended minimum (LOW)._
 

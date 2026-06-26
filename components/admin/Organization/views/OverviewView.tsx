@@ -5,12 +5,12 @@ import {
   Card,
   Field,
   Input,
-  Toggle,
   ViewHeader,
   Btn,
   Badge,
   Confirm,
 } from '../components/primitives';
+import { Toggle } from '@/components/common/Toggle';
 
 const PLAN_META: Record<
   Plan,
@@ -147,7 +147,8 @@ export const OverviewView: React.FC<Props> = ({
               checked={org.aiEnabled}
               onChange={(v) => onUpdate({ aiEnabled: v })}
               disabled={!isSuperAdmin || aiGated}
-              ariaLabel="Enable AI features"
+              label="Enable AI features"
+              showLabels={false}
             />
           </div>
           {!isSuperAdmin && (
