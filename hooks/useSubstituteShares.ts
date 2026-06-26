@@ -11,13 +11,22 @@
  */
 
 import { useEffect, useState } from 'react';
-import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  query,
+  where,
+} from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { canonicalBuildingId } from '@/config/buildings';
 import { logError } from '@/utils/logError';
 import type {
   Dashboard,
   SharedBoardIntendedMode,
+  SharedCollection,
+  SharedCollectionBoardDoc,
   SubstituteShareFields,
   SubstituteShareDriveGrant,
 } from '@/types';
@@ -197,6 +206,169 @@ export function useSubstituteShare(
     return { share: null, loading: false, error: null };
   }
   if (!snapshot || snapshot.shareId !== shareId) {
+    return { share: null, loading: true, error: null };
+  }
+  return {
+    share: snapshot.share,
+    loading: false,
+    error: snapshot.error,
+  };
+}
+
+interface UseSubstituteCollectionBoardState {
+  share: SubstituteShareDoc | null;
+  loading: boolean;
+  error: string | null;
+}
+
+interface CollectionBoardSnapshot {
+  key: string;
+  share: SubstituteShareDoc | null;
+  error: string | null;
+}
+
+/**
+ * One-shot loader for a single Board inside a substitute-mode
+ * `/shared_collections/{shareId}` doc, shaped as a {@link SubstituteShareDoc}
+ * so it can be fed straight into `SubsDashboardProvider` / `SubBoardCanvas` —
+ * the exact same render pipeline a single-board substitute share uses.
+ *
+ * Unlike `useSubstituteShare`, this does NOT subscribe. Collection shares are
+ * frozen one-shot snapshots (see `useSharedCollection` — no onSnapshot), so a
+ * single `getDoc` pair (parent meta + the one board sub-doc) is the right read.
+ *
+ * The parent doc carries the share-level metadata (intendedMode, expiresAt,
+ * buildingId, hostDisplayName); the board sub-doc carries the frozen
+ * `Dashboard`. We splice them into the `SubstituteShareDoc` contract:
+ *   - widgets / background / settings / etc. come from the board's Dashboard
+ *   - expiresAt / buildingId / originalAuthor(+Name) come from the parent
+ *   - `initialState` is seeded from the board's widgets so the sub's
+ *     "Reset board" deep-clones from the same baseline.
+ */
+export function useSubstituteCollectionBoard(
+  shareId: string | null,
+  boardId: string | null
+): UseSubstituteCollectionBoardState {
+  const [snapshot, setSnapshot] = useState<CollectionBoardSnapshot | null>(
+    null
+  );
+
+  const key = shareId && boardId ? `${shareId}::${boardId}` : '';
+
+  useEffect(() => {
+    if (!shareId || !boardId) return;
+    let cancelled = false;
+    const requestKey = `${shareId}::${boardId}`;
+
+    void (async () => {
+      try {
+        const parentRef = doc(db, 'shared_collections', shareId);
+        const parentSnap = await getDoc(parentRef);
+        if (cancelled) return;
+        if (!parentSnap.exists()) {
+          setSnapshot({
+            key: requestKey,
+            share: null,
+            error: 'This Collection could not be found.',
+          });
+          return;
+        }
+        const parent = parentSnap.data() as SharedCollection;
+        if (parent.intendedMode !== 'substitute') {
+          setSnapshot({
+            key: requestKey,
+            share: null,
+            error: 'Not a substitute Collection share.',
+          });
+          return;
+        }
+        // Substitute shares always carry `expiresAt` (enforced by the create
+        // rule), so a missing value means a malformed/out-of-band doc — treat
+        // it as expired rather than letting it load indefinitely.
+        if (!parent.expiresAt || parent.expiresAt <= Date.now()) {
+          setSnapshot({
+            key: requestKey,
+            share: null,
+            error: 'This share has expired.',
+          });
+          return;
+        }
+        if (!parent.boardIds.includes(boardId)) {
+          setSnapshot({
+            key: requestKey,
+            share: null,
+            error: 'This board is not part of the shared Collection.',
+          });
+          return;
+        }
+
+        const boardRef = doc(
+          db,
+          'shared_collections',
+          shareId,
+          'boards',
+          boardId
+        );
+        const boardSnap = await getDoc(boardRef);
+        if (cancelled) return;
+        if (!boardSnap.exists()) {
+          setSnapshot({
+            key: requestKey,
+            share: null,
+            error: 'This board could not be found in the Collection.',
+          });
+          return;
+        }
+        const boardData = boardSnap.data() as SharedCollectionBoardDoc;
+        const board = boardData.dashboard;
+        const widgets = Array.isArray(board.widgets) ? board.widgets : [];
+
+        // Splice parent metadata + frozen board into the SubstituteShareDoc
+        // shape SubsDashboardProvider already understands. `id` is omitted by
+        // the Omit<Dashboard,'id'> base; shareId stands in for it.
+        const { id: _boardDocId, ...boardWithoutId } = board;
+        const share: SubstituteShareDoc = {
+          ...boardWithoutId,
+          widgets,
+          shareId: parent.shareId,
+          intendedMode: 'substitute',
+          buildingId: parent.buildingId,
+          expiresAt: parent.expiresAt,
+          initialState: widgets,
+          originalAuthor: parent.hostUid,
+          ...(parent.hostDisplayName
+            ? { originalAuthorName: parent.hostDisplayName }
+            : {}),
+          name: board.name ?? parent.collection.name,
+        };
+
+        setSnapshot({ key: requestKey, share, error: null });
+      } catch (err) {
+        logError('useSubstituteCollectionBoard.load', err, {
+          shareId,
+          boardId,
+        });
+        if (!cancelled) {
+          setSnapshot({
+            key: requestKey,
+            share: null,
+            error: friendlySubShareError(
+              err as { code?: string; message?: string }
+            ),
+          });
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [shareId, boardId]);
+
+  if (!shareId || !boardId) {
+    return { share: null, loading: false, error: null };
+  }
+  if (!snapshot || snapshot.key !== key) {
     return { share: null, loading: true, error: null };
   }
   return {

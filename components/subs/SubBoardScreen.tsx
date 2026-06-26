@@ -98,7 +98,13 @@ interface SubBoardScreenContentProps {
   onChangeBuilding: () => void;
 }
 
-const SubBoardScreenContent: React.FC<SubBoardScreenContentProps> = ({
+/**
+ * Shared inner chrome for any substitute board view (single-board shares AND
+ * Collection boards). Takes a fully-resolved `SubstituteShareDoc` and mounts
+ * the toolbar + scaled canvas. Exported so `SubCollectionBoardScreen` can
+ * reuse it without duplicating the toolbar / reset wiring.
+ */
+export const SubBoardScreenContent: React.FC<SubBoardScreenContentProps> = ({
   share,
   onBackToDirectory,
   onChangeBuilding,
@@ -147,7 +153,7 @@ const SubBoardScreenContent: React.FC<SubBoardScreenContentProps> = ({
   );
 };
 
-const ExpiredOrErrorPanel: React.FC<{
+export const ExpiredOrErrorPanel: React.FC<{
   message: string;
   onBack: () => void;
 }> = ({ message, onBack }) => (

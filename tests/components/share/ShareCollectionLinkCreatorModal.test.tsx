@@ -12,6 +12,12 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => useDashboardMock() as ReturnType<typeof UseDashboardFn>,
 }));
 
+// usePresetSubEmails hits Firestore; stub it so the modal's optional sub-email
+// preset chips render without a live backend.
+vi.mock('@/hooks/usePresetSubEmails', () => ({
+  usePresetSubEmails: () => ({ emails: [] as string[] }),
+}));
+
 const collection = (): Collection => ({
   id: 'c1',
   name: 'Math',
@@ -34,6 +40,8 @@ const baseMockReturn = {
   shareCollection: vi.fn(),
   shareSubstituteCollection: vi.fn(),
   addToast: vi.fn(),
+  rosters: [],
+  activeRosterId: null,
 };
 
 beforeEach(() => {

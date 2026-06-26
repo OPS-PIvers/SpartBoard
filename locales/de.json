@@ -1521,8 +1521,7 @@
     "heading": "Sammlungen",
     "boardCount": "{{count}} Tafel(n)",
     "boardPlaceholder": "Tafel …{{id}}",
-    "comingSoon": "Tafelansicht in /subs kommt bald – öffne sie vorerst in der Lehrkraft-App",
-    "comingSoonLabel": "Demnächst verfügbar"
+    "openBoard": "Dieses Board öffnen"
   },
   "collectionMenu": {
     "share": "Sammlung teilen…",

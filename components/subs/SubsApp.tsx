@@ -25,14 +25,16 @@ import { SubsAuthGate } from './SubsAuthGate';
 import { BuildingPickerScreen } from './BuildingPickerScreen';
 import { TeacherDirectoryScreen } from './TeacherDirectoryScreen';
 import { SubBoardScreen } from './SubBoardScreen';
+import { SubCollectionBoardScreen } from './SubCollectionBoardScreen';
 import { useAuth } from '@/context/useAuth';
 
 type SubsView =
   | { kind: 'building-picker' }
   | { kind: 'directory'; buildingId: string }
   | { kind: 'board'; buildingId: string; shareId: string }
-  // TODO(collections-plan-3): wire full Collection board view once
-  // SubsDashboardProvider supports loadSharedCollectionBoards.
+  // A single Board opened from inside a shared Collection. `shareId` is the
+  // Collection's `/shared_collections/{shareId}` id; `boardId` is the Board
+  // sub-doc id. SubCollectionBoardScreen loads + renders it.
   | {
       kind: 'collection-board';
       buildingId: string;
@@ -105,6 +107,14 @@ const SubsContent: React.FC = () => {
           onPickBoard={(shareId) =>
             setView({ kind: 'board', buildingId: view.buildingId, shareId })
           }
+          onPickCollectionBoard={(shareId, boardId) =>
+            setView({
+              kind: 'collection-board',
+              buildingId: view.buildingId,
+              shareId,
+              boardId,
+            })
+          }
           onChangeBuilding={() => setView({ kind: 'building-picker' })}
         />
       )}
@@ -119,11 +129,10 @@ const SubsContent: React.FC = () => {
         />
       )}
 
-      {/* TODO(collections-plan-3): replace stub with real Collection board view
-          once SubsDashboardProvider wires loadSharedCollectionBoards. */}
       {view.kind === 'collection-board' && (
-        <SubBoardScreen
+        <SubCollectionBoardScreen
           shareId={view.shareId}
+          boardId={view.boardId}
           onBackToDirectory={() =>
             setView({ kind: 'directory', buildingId: view.buildingId })
           }

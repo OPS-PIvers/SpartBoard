@@ -1521,8 +1521,7 @@
     "heading": "Colecciones",
     "boardCount": "{{count}} tablero(s)",
     "boardPlaceholder": "Tablero …{{id}}",
-    "comingSoon": "La vista de Tablero en /subs llegará pronto — por ahora ábrela en la app del profesor",
-    "comingSoonLabel": "Próximamente"
+    "openBoard": "Abrir este tablero"
   },
   "collectionMenu": {
     "share": "Compartir Colección…",

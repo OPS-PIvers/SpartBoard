@@ -55,7 +55,7 @@ describe('useReconcileExpiredSubShares', () => {
     ).mockResolvedValue(undefined);
   });
 
-  it('reads shares via readAllDocsPaged (bounded), never an unbounded getDocs', async () => {
+  it('reads shares via readAllDocsPaged (bounded) for BOTH share surfaces, never an unbounded getDocs', async () => {
     (
       paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>
     ).mockResolvedValue([]);
@@ -67,10 +67,13 @@ describe('useReconcileExpiredSubShares', () => {
       })
     );
 
+    // One paged read per surface: /shared_boards + /shared_collections.
     await waitFor(() =>
-      expect(paging.readAllDocsPaged).toHaveBeenCalledTimes(1)
+      expect(paging.readAllDocsPaged).toHaveBeenCalledTimes(2)
     );
-    // The unbounded path must not be used by this hook anymore.
+    // The unbounded path must not be used for the share LISTING — getDocs is
+    // only used to reap a Collection's `boards/` subcollection on delete,
+    // which doesn't happen when there are no expired docs.
     expect(firestore.getDocs).not.toHaveBeenCalled();
   });
 
@@ -86,9 +89,9 @@ describe('useReconcileExpiredSubShares', () => {
       expiresAt: now + 60_000,
       driveGrants: [{ email: 's@x', fileId: 'file-2', permissionId: 'perm-2' }],
     });
-    (
-      paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>
-    ).mockResolvedValue([expired, active]);
+    (paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([expired, active]) // /shared_boards
+      .mockResolvedValueOnce([]); // /shared_collections
     const driveService = makeDriveService();
 
     renderHook(() =>
@@ -128,9 +131,9 @@ describe('useReconcileExpiredSubShares', () => {
         { email: 's@x', fileId: 'file-1', permissionId: 'perm-shared' },
       ],
     });
-    (
-      paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>
-    ).mockResolvedValue([expired, active]);
+    (paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([expired, active]) // /shared_boards
+      .mockResolvedValueOnce([]); // /shared_collections
     const driveService = makeDriveService();
 
     renderHook(() =>
@@ -141,6 +144,65 @@ describe('useReconcileExpiredSubShares', () => {
     // permission must be skipped because an active share still references it.
     await waitFor(() => expect(firestore.deleteDoc).toHaveBeenCalledTimes(1));
     expect(driveService.deletePermission).not.toHaveBeenCalled();
+  });
+
+  it('reaps a Collection share boards/ subcollection before deleting the parent, and refcounts grants across both surfaces', async () => {
+    const now = Date.now();
+    // Active board share references perm-shared — the expired Collection share
+    // references the SAME permissionId, so it must NOT be revoked.
+    const activeBoard = makeShareSnap({
+      id: 'active-board',
+      expiresAt: now + 60_000,
+      driveGrants: [
+        { email: 's@x', fileId: 'file-1', permissionId: 'perm-shared' },
+      ],
+    });
+    // Expired collection parent with a `boards/` subcollection. Its ref carries
+    // a `parent.id === 'shared_collections'` marker + a `collection('boards')`
+    // accessor so the production code can reap board sub-docs.
+    const boardDocRefs = [
+      { __board: 'b1' } as unknown as firestore.DocumentReference,
+      { __board: 'b2' } as unknown as firestore.DocumentReference,
+    ];
+    const collectionRef = {
+      id: 'expired-coll',
+      parent: { id: 'shared_collections' },
+      collection: vi.fn(() => ({ __boardsCol: true })),
+    } as unknown as firestore.DocumentReference;
+    const expiredCollection = {
+      id: 'expired-coll',
+      ref: collectionRef,
+      data: () => ({
+        expiresAt: now - 1000,
+        driveGrants: [
+          { email: 's@x', fileId: 'file-1', permissionId: 'perm-shared' },
+        ],
+      }),
+    };
+
+    (paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([activeBoard]) // /shared_boards
+      .mockResolvedValueOnce([expiredCollection]); // /shared_collections
+
+    // getDocs is used to enumerate the boards/ subcollection on delete.
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValue({ docs: boardDocRefs.map((ref) => ({ ref })) });
+
+    const driveService = makeDriveService();
+    renderHook(() =>
+      useReconcileExpiredSubShares({ uid: 'teacher-1', driveService })
+    );
+
+    // The parent doc is deleted once the (shared) grant is correctly skipped.
+    await waitFor(() =>
+      expect(firestore.deleteDoc).toHaveBeenCalledWith(collectionRef)
+    );
+    // Shared permission must NOT be revoked — an active board share still holds it.
+    expect(driveService.deletePermission).not.toHaveBeenCalled();
+    // Both board sub-docs were deleted before the parent.
+    expect(firestore.deleteDoc).toHaveBeenCalledWith(boardDocRefs[0]);
+    expect(firestore.deleteDoc).toHaveBeenCalledWith(boardDocRefs[1]);
   });
 
   it('honours the once-per-session guard for a given uid', async () => {

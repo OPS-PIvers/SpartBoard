@@ -29,6 +29,7 @@ import type {
   SharedCollectionBoardDoc,
   Collection as CollectionType,
   CollectionSubstituteShareInput,
+  SubstituteShareDriveGrant,
 } from '@/types';
 
 const SHARED_COLLECTIONS_SUBPATH = 'shared_collections';
@@ -123,7 +124,16 @@ interface ShareCollectionInput {
 }
 
 type SubstituteShareInput = ShareCollectionInput &
-  CollectionSubstituteShareInput;
+  CollectionSubstituteShareInput & {
+    /**
+     * Resolved Drive permission grants. The caller (DashboardContext's
+     * `shareSubstituteCollection`) performs the actual Drive `permissions.create`
+     * calls BEFORE invoking this write, so the share doc lands with the grants
+     * atomically — mirroring `shareSubstituteDashboard`. May be omitted when
+     * no rosters are shared.
+     */
+    driveGrants?: SubstituteShareDriveGrant[];
+  };
 
 /**
  * Commit every Board snapshot under `/shared_collections/{shareId}/boards/`
@@ -270,9 +280,14 @@ export const useSharedCollection = () => {
   /**
    * Host action: substitute variant. Same parent-first write strategy as
    * shareCollection. Adds `expiresAt` + `buildingId` and sets
-   * `intendedMode: 'substitute'` on the parent payload. Drive grants are
-   * NOT implemented for Collection shares — see plan's "Known
-   * limitations" for rationale.
+   * `intendedMode: 'substitute'` on the parent payload.
+   *
+   * Drive grants: the caller resolves them (Drive `permissions.create`) BEFORE
+   * calling this and passes them in as `input.driveGrants`; they're persisted
+   * on the parent doc (share-level — a roster file is granted once per
+   * (file, email), not per board). The expiry sweeps
+   * (`useReconcileExpiredSubShares` + `expireSubShares`) revoke them. This
+   * mirrors the single-board `shareSubstituteDashboard` flow.
    *
    * See shareCollection for the write-order rationale (parent first, then
    * board sub-docs — the subcollection rule reads parent.hostUid).
@@ -300,6 +315,12 @@ export const useSharedCollection = () => {
         createdAt: now,
         expiresAt: input.expiresAt,
         buildingId: input.buildingId,
+        ...(input.subEmails && input.subEmails.length > 0
+          ? { subEmails: input.subEmails }
+          : {}),
+        ...(input.driveGrants && input.driveGrants.length > 0
+          ? { driveGrants: input.driveGrants }
+          : {}),
       };
 
       if (isAuthBypass) {

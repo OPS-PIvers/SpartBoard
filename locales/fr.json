@@ -1521,8 +1521,7 @@
     "heading": "Collections",
     "boardCount": "{{count}} tableau(x)",
     "boardPlaceholder": "Tableau …{{id}}",
-    "comingSoon": "La vue Tableau dans /subs arrive bientôt — ouvrez-la dans l'app enseignant pour l'instant",
-    "comingSoonLabel": "Bientôt disponible"
+    "openBoard": "Ouvrir ce tableau"
   },
   "collectionMenu": {
     "share": "Partager la Collection…",
