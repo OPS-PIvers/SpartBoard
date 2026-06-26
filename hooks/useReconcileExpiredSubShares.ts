@@ -228,13 +228,34 @@ async function reconcileExpiredSubShares(
         // Delete them first so the parent delete leaves nothing behind. The
         // parent collection id distinguishes a Collection doc (path
         // `shared_collections/{id}`) from a single-board share.
+        let parentDeletable = true;
         if (ref.parent?.id === 'shared_collections') {
           const boardsSnap = await getDocs(collection(ref, 'boards'));
+          // Wrap each subdoc delete independently so one failure doesn't skip
+          // the remaining boards (a single throw here used to abort the whole
+          // block, leaving the parent behind too).
           for (const boardDoc of boardsSnap.docs) {
-            await deleteDoc(boardDoc.ref);
+            try {
+              await deleteDoc(boardDoc.ref);
+            } catch (subErr) {
+              console.error(
+                '[reconcileExpiredSubShares] board subdoc delete failed:',
+                subErr
+              );
+              parentDeletable = false;
+            }
           }
         }
-        await deleteDoc(ref);
+        if (parentDeletable) {
+          await deleteDoc(ref);
+        } else {
+          // Keep the parent when a board subdoc delete failed — deleting it
+          // would orphan the surviving boards (the parent's expiresAt
+          // read-gates them, and nothing reaps subdocs of a deleted parent).
+          // Leave the whole share for next-session retry; the expireSubShares
+          // cloud function is the 7-day backstop.
+          deleteFailed += 1;
+        }
       } catch (err) {
         // Don't abort the whole sweep — a single delete failure here would
         // otherwise skip Drive-grant revocation for every remaining expired
