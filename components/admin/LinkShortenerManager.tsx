@@ -36,6 +36,12 @@ const formatDate = (epoch: number | null | undefined): string => {
 // normalized URL (.url) for the href. An invalid/non-http(s) destination
 // renders as plain text rather than an inert <a> (which screen readers still
 // announce as a link). XSS is already closed by the protocol check.
+//
+// Sibling of `DestinationLink` in components/admin/Analytics/LinksPanel.tsx.
+// The security decision is single-source in `validateDestination`; only this
+// render shell is duplicated (this variant adds the inline-flex layout + an
+// ExternalLink icon, which is why the two aren't merged behind one component).
+// If you change the validate→link/span/rel pattern, update BOTH to keep sync.
 const DestinationCell: React.FC<{ destination: string }> = ({
   destination,
 }) => {

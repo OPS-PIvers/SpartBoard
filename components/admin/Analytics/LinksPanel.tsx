@@ -155,6 +155,14 @@ const LinkCell: React.FC<{ link: ShortLink }> = ({ link }) => (
 // A malformed/non-http(s) destination (e.g. an Admin-SDK write) renders as
 // plain text instead of an inert <a> — an hrefless anchor still looks like a
 // link and is announced as one by screen readers, which is misleading.
+//
+// The security decision (protocol allowlist) lives in `validateDestination`,
+// so it is single-source. The render shell here is intentionally NOT shared
+// with `DestinationCell` in LinkShortenerManager.tsx: that one uses a
+// different truncation/layout structure (inline-flex + inner truncate span +
+// icon) that doesn't collapse behind one component without restructuring this
+// table's truncation DOM. If you change the validate→link/span/rel pattern,
+// update BOTH this and DestinationCell to keep them in sync.
 const DestinationLink: React.FC<{ destination: string }> = ({
   destination,
 }) => {
