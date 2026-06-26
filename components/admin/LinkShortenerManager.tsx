@@ -32,6 +32,35 @@ const formatDate = (epoch: number | null | undefined): string => {
   });
 };
 
+// Renders a destination as a real link only when it validates, using the
+// normalized URL (.url) for the href. An invalid/non-http(s) destination
+// renders as plain text rather than an inert <a> (which screen readers still
+// announce as a link). XSS is already closed by the protocol check.
+const DestinationCell: React.FC<{ destination: string }> = ({
+  destination,
+}) => {
+  const result = validateDestination(destination);
+  return result.ok ? (
+    <a
+      href={result.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 text-slate-700 hover:text-brand-blue-primary truncate max-w-full"
+      title={destination}
+    >
+      <span className="truncate">{destination}</span>
+      <ExternalLink className="w-3 h-3 shrink-0" />
+    </a>
+  ) : (
+    <span
+      className="inline-flex items-center text-slate-500 truncate max-w-full"
+      title={destination}
+    >
+      <span className="truncate">{destination}</span>
+    </span>
+  );
+};
+
 const formatRelative = (epoch: number | null | undefined): string => {
   if (!epoch) return 'Never';
   const diff = Date.now() - epoch;
@@ -525,28 +554,7 @@ export const LinkShortenerManager: React.FC = () => {
                       )}
                     </td>
                     <td className="px-4 py-3 align-top max-w-md">
-                      {validateDestination(link.destination).ok ? (
-                        <a
-                          href={link.destination}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-slate-700 hover:text-brand-blue-primary truncate max-w-full"
-                          title={link.destination}
-                        >
-                          <span className="truncate">{link.destination}</span>
-                          <ExternalLink className="w-3 h-3 shrink-0" />
-                        </a>
-                      ) : (
-                        // Invalid/non-http(s) destination: render plain text, not
-                        // an inert <a> (which screen readers still announce as a
-                        // link). XSS is already closed by the href guard.
-                        <span
-                          className="inline-flex items-center text-slate-500 truncate max-w-full"
-                          title={link.destination}
-                        >
-                          <span className="truncate">{link.destination}</span>
-                        </span>
-                      )}
+                      <DestinationCell destination={link.destination} />
                     </td>
                     <td className="px-4 py-3 align-top">
                       <div className="font-semibold text-slate-800">

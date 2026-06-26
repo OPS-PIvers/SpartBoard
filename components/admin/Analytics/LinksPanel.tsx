@@ -155,10 +155,16 @@ const LinkCell: React.FC<{ link: ShortLink }> = ({ link }) => (
 // A malformed/non-http(s) destination (e.g. an Admin-SDK write) renders as
 // plain text instead of an inert <a> — an hrefless anchor still looks like a
 // link and is announced as one by screen readers, which is misleading.
-const DestinationLink: React.FC<{ destination: string }> = ({ destination }) =>
-  validateDestination(destination).ok ? (
+const DestinationLink: React.FC<{ destination: string }> = ({
+  destination,
+}) => {
+  // Use the normalized URL validateDestination already computed (.url) for the
+  // href, not the raw prop, so the link target matches exactly what passed
+  // validation. The visible text/title still shows the stored value.
+  const result = validateDestination(destination);
+  return result.ok ? (
     <a
-      href={destination}
+      href={result.url}
       target="_blank"
       rel="noopener noreferrer"
       className="block truncate text-slate-700 hover:text-brand-blue-primary"
@@ -171,6 +177,7 @@ const DestinationLink: React.FC<{ destination: string }> = ({ destination }) =>
       {destination}
     </span>
   );
+};
 
 export const LinksPanel: React.FC = () => {
   const { links, loading, error } = useShortLinks();
