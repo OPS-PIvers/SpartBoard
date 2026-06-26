@@ -122,6 +122,7 @@ const SubsContent: React.FC = () => {
       {view.kind === 'board' && (
         <SubBoardScreen
           shareId={view.shareId}
+          buildingId={view.buildingId}
           onBackToDirectory={() =>
             setView({ kind: 'directory', buildingId: view.buildingId })
           }

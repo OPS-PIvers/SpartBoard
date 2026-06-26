@@ -158,7 +158,12 @@ interface SingleSnapshot {
 
 /** Live single-doc subscription for the sub-board view. */
 export function useSubstituteShare(
-  shareId: string | null
+  shareId: string | null,
+  // Non-nullable: the building gate is a security control (see
+  // useSubstituteCollectionBoard). The shared_boards read rule has no building
+  // constraint, so any @orono user can fetch any unexpired substitute share by
+  // id — reject docs whose building doesn't match the directory the sub is in.
+  expectedBuildingId: string
 ): UseSubstituteShareState {
   const [snapshot, setSnapshot] = useState<SingleSnapshot | null>(null);
 
@@ -181,6 +186,23 @@ export function useSubstituteShare(
           });
           return;
         }
+        // Defense-in-depth cross-building gate (mirrors
+        // useSubstituteCollectionBoard). Fail closed: a missing/blank or
+        // mismatched buildingId yields the error state rather than loading.
+        const docBuildingId =
+          typeof data.buildingId === 'string' ? data.buildingId : '';
+        if (
+          !docBuildingId ||
+          canonicalBuildingId(docBuildingId) !==
+            canonicalBuildingId(expectedBuildingId)
+        ) {
+          setSnapshot({
+            shareId,
+            share: null,
+            error: 'This share is not available in your building.',
+          });
+          return;
+        }
         setSnapshot({
           shareId,
           share: {
@@ -200,7 +222,7 @@ export function useSubstituteShare(
       }
     );
     return unsub;
-  }, [shareId]);
+  }, [shareId, expectedBuildingId]);
 
   if (!shareId) {
     return { share: null, loading: false, error: null };

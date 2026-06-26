@@ -295,7 +295,7 @@ describe('useSubstituteShares — building change & cleanup', () => {
 
 describe('useSubstituteShare — single-doc subscription', () => {
   it('does not subscribe and reports not-loading when shareId is null', () => {
-    const { result } = renderHook(() => useSubstituteShare(null));
+    const { result } = renderHook(() => useSubstituteShare(null, 'high'));
 
     expect(result.current).toEqual({
       share: null,
@@ -306,7 +306,7 @@ describe('useSubstituteShare — single-doc subscription', () => {
   });
 
   it('targets shared_boards/{shareId} and is loading until the first snapshot', () => {
-    const { result } = renderHook(() => useSubstituteShare('s1'));
+    const { result } = renderHook(() => useSubstituteShare('s1', 'high'));
 
     expect(result.current).toEqual({ share: null, loading: true, error: null });
     expect(mockDoc).toHaveBeenCalledWith(
@@ -318,7 +318,7 @@ describe('useSubstituteShare — single-doc subscription', () => {
   });
 
   it('reports a "Share not found" error when the doc does not exist', () => {
-    const { result } = renderHook(() => useSubstituteShare('s1'));
+    const { result } = renderHook(() => useSubstituteShare('s1', 'high'));
     act(() => {
       lastListener().next(fakeDocSnap('s1', null));
     });
@@ -331,7 +331,7 @@ describe('useSubstituteShare — single-doc subscription', () => {
   });
 
   it('rejects a doc whose intendedMode is not "substitute"', () => {
-    const { result } = renderHook(() => useSubstituteShare('s1'));
+    const { result } = renderHook(() => useSubstituteShare('s1', 'high'));
     act(() => {
       lastListener().next(
         fakeDocSnap('s1', { intendedMode: 'copy', name: 'Board' })
@@ -343,12 +343,13 @@ describe('useSubstituteShare — single-doc subscription', () => {
   });
 
   it('maps a valid substitute doc and carries shareId from snap.id', () => {
-    const { result } = renderHook(() => useSubstituteShare('s1'));
+    const { result } = renderHook(() => useSubstituteShare('s1', 'high'));
     act(() => {
       lastListener().next(
         fakeDocSnap('s1', {
           intendedMode: 'substitute',
           name: 'Sub Board',
+          buildingId: 'high',
           widgets: [],
         })
       );
@@ -363,8 +364,45 @@ describe('useSubstituteShare — single-doc subscription', () => {
     });
   });
 
+  it('rejects a substitute doc from a different building (cross-building gate)', () => {
+    const { result } = renderHook(() => useSubstituteShare('s1', 'high'));
+    act(() => {
+      lastListener().next(
+        fakeDocSnap('s1', {
+          intendedMode: 'substitute',
+          name: 'Other Building Board',
+          buildingId: 'middle',
+          widgets: [],
+        })
+      );
+    });
+
+    expect(result.current.share).toBeNull();
+    expect(result.current.error).toBe(
+      'This share is not available in your building.'
+    );
+  });
+
+  it('rejects a substitute doc with no buildingId (fail closed)', () => {
+    const { result } = renderHook(() => useSubstituteShare('s1', 'high'));
+    act(() => {
+      lastListener().next(
+        fakeDocSnap('s1', {
+          intendedMode: 'substitute',
+          name: 'No Building Board',
+          widgets: [],
+        })
+      );
+    });
+
+    expect(result.current.share).toBeNull();
+    expect(result.current.error).toBe(
+      'This share is not available in your building.'
+    );
+  });
+
   it('maps a listener error to a friendly message and logs it', () => {
-    const { result } = renderHook(() => useSubstituteShare('s1'));
+    const { result } = renderHook(() => useSubstituteShare('s1', 'high'));
     act(() => {
       lastListener().error({ code: 'unavailable' });
     });
@@ -383,12 +421,16 @@ describe('useSubstituteShare — single-doc subscription', () => {
 
   it('tears down the prior listener and re-enters loading when shareId changes', () => {
     const { result, rerender } = renderHook(
-      ({ id }: { id: string }) => useSubstituteShare(id),
+      ({ id }: { id: string }) => useSubstituteShare(id, 'high'),
       { initialProps: { id: 's1' } }
     );
     act(() => {
       lastListener().next(
-        fakeDocSnap('s1', { intendedMode: 'substitute', name: 'A' })
+        fakeDocSnap('s1', {
+          intendedMode: 'substitute',
+          name: 'A',
+          buildingId: 'high',
+        })
       );
     });
     expect(result.current.loading).toBe(false);
@@ -402,7 +444,7 @@ describe('useSubstituteShare — single-doc subscription', () => {
   });
 
   it('unsubscribes on unmount', () => {
-    const { unmount } = renderHook(() => useSubstituteShare('s1'));
+    const { unmount } = renderHook(() => useSubstituteShare('s1', 'high'));
     const unsub = listeners[0].unsub;
     unmount();
     expect(unsub).toHaveBeenCalledTimes(1);
