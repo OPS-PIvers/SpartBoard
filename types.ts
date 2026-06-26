@@ -6411,9 +6411,22 @@ export interface First5GlobalConfig {
  * an empty object. This interface exists so `first-5` is represented in the
  * `WidgetConfig` union and `ConfigForWidget<'first-5'>` (which would otherwise
  * resolve to `never`).
+ *
+ * It carries a single optional brand field rather than being a truly empty
+ * interface: an empty `{}` interface trips `no-empty-object-type`, while
+ * `Record<string, never>` adds an index signature that breaks the
+ * `WidgetConfig` union spreads in DashboardContext. An optional brand keeps an
+ * empty `{}` assignable (the runtime config is always empty) without either
+ * problem — so no lint suppression is needed.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- Required: Record<string, never> breaks WidgetConfig union spreads in DashboardContext
-export interface First5Config {}
+export interface First5Config {
+  /**
+   * Discriminant only — never written at runtime. Present so the interface is
+   * non-empty (and has no index signature); `first-5` has no per-instance
+   * settings.
+   */
+  readonly __brand?: 'first-5';
+}
 
 export interface LunchCountGlobalConfig {
   /** Google Sheet ID for Schumann Elementary submissions */
