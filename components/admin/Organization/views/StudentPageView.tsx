@@ -1,13 +1,8 @@
 import React from 'react';
 import { GraduationCap, Bell, UserRound, Utensils } from 'lucide-react';
 import type { StudentPageConfig } from '../types';
-import {
-  Card,
-  Field,
-  Input,
-  Toggle,
-  ViewHeader,
-} from '../components/primitives';
+import { Card, Field, Input, ViewHeader } from '../components/primitives';
+import { Toggle } from '@/components/common/Toggle';
 
 interface Props {
   config: StudentPageConfig;
@@ -208,6 +203,11 @@ const SettingRow: React.FC<{
       <div className="text-sm font-semibold text-slate-800">{label}</div>
       <div className="text-xs text-slate-500 mt-0.5">{description}</div>
     </div>
-    <Toggle checked={checked} onChange={onChange} ariaLabel={label} />
+    <Toggle
+      checked={checked}
+      onChange={onChange}
+      label={label}
+      showLabels={false}
+    />
   </div>
 );

@@ -278,32 +278,10 @@ export const Select: React.FC<
   </select>
 );
 
-// Toggle ------------------------------------------------------------
-
-export const Toggle: React.FC<{
-  checked: boolean;
-  onChange: (next: boolean) => void;
-  disabled?: boolean;
-  ariaLabel?: string;
-}> = ({ checked, onChange, disabled, ariaLabel }) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={checked}
-    aria-label={ariaLabel}
-    disabled={disabled}
-    onClick={() => onChange(!checked)}
-    className={`relative inline-flex h-6 w-10 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30 ${
-      checked ? 'bg-brand-blue-primary' : 'bg-slate-300'
-    } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-  >
-    <span
-      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-        checked ? 'translate-x-[18px]' : 'translate-x-0.5'
-      } mt-0.5`}
-    />
-  </button>
-);
+// Toggle: use the shared `@/components/common/Toggle` directly at call sites.
+// The previous local re-implementation was removed to converge on the shared
+// component (avoids silent drift as the common Toggle gains aria/dark-mode/
+// motion-reduce improvements).
 
 // Checkbox ----------------------------------------------------------
 
