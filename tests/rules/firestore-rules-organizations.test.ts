@@ -1090,6 +1090,43 @@ describe('organizations/members — writes', () => {
     );
   });
 
+  it('domain admin CANNOT escalate a member to super_admin (anti-escalation guard)', async () => {
+    // roleId == 'super_admin' is a live isSuperAdmin() grant via
+    // isMemberSuperAdmin(). The member-update whitelist permits writing
+    // `roleId`, so without the value guard a domain admin could mint a super
+    // admin — including onto their own doc. This must be denied.
+    await assertFails(
+      updateDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
+        ),
+        { roleId: 'super_admin' }
+      )
+    );
+  });
+
+  it('domain admin CANNOT self-escalate to super_admin on their own member doc', async () => {
+    await assertFails(
+      updateDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/members/${DOMAIN_ADMIN_EMAIL}`
+        ),
+        { roleId: 'super_admin' }
+      )
+    );
+  });
+
+  it('super admin CAN grant super_admin (only super admins may mint super admins)', async () => {
+    await assertSucceeds(
+      updateDoc(
+        doc(asSuper(), `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`),
+        { roleId: 'super_admin' }
+      )
+    );
+  });
+
   it('domain admin cannot spoof member identity (email, orgId, uid)', async () => {
     await assertFails(
       updateDoc(
@@ -1147,6 +1184,68 @@ describe('organizations/members — writes', () => {
         doc(
           asBuildingAdmin(),
           `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
+        ),
+        { status: 'inactive' }
+      )
+    );
+  });
+
+  // M2 / F6 follow-up — the building-admin member status overlap is now
+  // alias-aware via buildingListsOverlap(). The acting building admin stores
+  // buildingIds: ['high']; these tests cover a target member stored in the
+  // LEGACY alias format and an unrelated member.
+  it('building admin can update status for a member stored in a legacy building-id alias (alias-aware overlap)', async () => {
+    const ALIAS_MEMBER_EMAIL = 'alias.member@orono.k12.mn.us';
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(
+          ctx.firestore(),
+          `organizations/${ORG_ID}/members/${ALIAS_MEMBER_EMAIL}`
+        ),
+        {
+          email: ALIAS_MEMBER_EMAIL,
+          orgId: ORG_ID,
+          roleId: 'teacher',
+          status: 'active',
+          // Legacy alias of 'high' — building admin manages canonical 'high'.
+          buildingIds: ['orono-high-school'],
+        }
+      );
+    });
+    await assertSucceeds(
+      updateDoc(
+        doc(
+          asBuildingAdmin(),
+          `organizations/${ORG_ID}/members/${ALIAS_MEMBER_EMAIL}`
+        ),
+        { status: 'inactive' }
+      )
+    );
+  });
+
+  it('building admin is still denied on a member in an unrelated building (alias-aware denial)', async () => {
+    const UNRELATED_MEMBER_EMAIL = 'unrelated.member@orono.k12.mn.us';
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(
+          ctx.firestore(),
+          `organizations/${ORG_ID}/members/${UNRELATED_MEMBER_EMAIL}`
+        ),
+        {
+          email: UNRELATED_MEMBER_EMAIL,
+          orgId: ORG_ID,
+          roleId: 'teacher',
+          status: 'active',
+          // No alias bridges to 'high'; building admin must stay denied.
+          buildingIds: ['schumann', 'orono-middle-school'],
+        }
+      );
+    });
+    await assertFails(
+      updateDoc(
+        doc(
+          asBuildingAdmin(),
+          `organizations/${ORG_ID}/members/${UNRELATED_MEMBER_EMAIL}`
         ),
         { status: 'inactive' }
       )
