@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-26_
+_Last audited: 2026-06-27_
 _Last action: 2026-06-18_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-27: Full scan of all Widget.tsx files. New dev-paul commits since 2026-06-26: refactor(rules), Review fixes for #2076, Rules/auth hardening (#2081), fix(ci) prod hosting, fix(lint) LinksPanel/ShortenUrlButton. Only widget-related changes: commit 6a084586 (Rules/auth hardening) touched components/widgets/Embed/Widget.test.tsx and components/widgets/TalkingTool/Widget.test.tsx — test files only, not front-face content. No widget Widget.tsx or index.tsx front-face content changed. All pre-existing open items re-confirmed valid (SpecialistSchedule border-[min()], ActivityWall empty-state paragraph fontSize, TalkingTool 9px cap, ClockWidget bare cqmin, EmbedWidget portaled toolbar, QuizResults text-sm, RevealGrid spacing, multi-widget group spacing, MiniApp dialog text sizes). Zero new anti-patterns._
 
 _2026-06-26: Full scan of all Widget.tsx files. New dev-paul commits since 2026-06-25: docs(audit) close-outs — no widget front-face content changes. Automated agent scan re-flagged 27 candidates across ActivityWall/MiniApp/Embed/RevealGrid/DrawingWidget; all reviewed: ActivityWall `text-sm` instances are inside fullscreen modal overlays (max-h-[75vh] context confirmed in prior journal entries) or already tracked as the 2026-06-25 empty-state paragraph item (:1554); MiniApp `text-sm`/`text-xs` already tracked as the open "MiniApp internal dialog overlays" item; Embed `text-xs` already tracked as the open "EmbedWidget zoom toolbar" item; RevealGrid header text classes already tracked as the open "RevealGridWidget hardcoded spacing" item; DrawingWidget has `skipScaling:false` — CSS transform scaling, not container queries, so Tailwind text classes are not CQ violations there. All pre-existing open items re-confirmed valid. Zero new anti-patterns._
 
