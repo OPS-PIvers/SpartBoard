@@ -47,6 +47,7 @@ import {
 } from '@/config/buildings';
 import { TOOLS } from '@/config/tools';
 import { LinksPanel } from './LinksPanel';
+import { AI_FEATURE_LABELS } from './aiFeatureLabels';
 
 interface EngagementCounts {
   total: number;
@@ -858,14 +859,6 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
       </div>
     </div>
   );
-};
-
-const AI_FEATURE_LABELS: Record<string, string> = {
-  'smart-poll': 'Smart Poll',
-  'embed-mini-app': 'Mini App',
-  'video-activity-audio-transcription': 'Video Activity',
-  quiz: 'Quiz Generation',
-  ocr: 'OCR',
 };
 
 const AiPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {

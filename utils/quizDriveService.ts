@@ -719,7 +719,18 @@ export class QuizDriveService {
       const answeredSet = new Set<string>();
       const correctSet = new Set<string>();
 
-      for (const a of r.answers) {
+      // First-occurrence dedup mirrors buildResultsSheetDataShared — correctSet must agree with the grader's first-occurrence semantics.
+      const firstOccurrenceAnswers = new Map<
+        string,
+        (typeof r.answers)[number]
+      >();
+      for (const a of r.answers ?? []) {
+        if (!firstOccurrenceAnswers.has(a.questionId)) {
+          firstOccurrenceAnswers.set(a.questionId, a);
+        }
+      }
+
+      for (const a of firstOccurrenceAnswers.values()) {
         const q = questionMap.get(a.questionId);
         if (!q) continue;
 
