@@ -16,7 +16,7 @@ import { AI_FEATURE_LABELS } from '@/components/admin/Analytics/aiFeatureLabels'
 /**
  * Mirror of GEMINI_SPECIFIC_FEATURES in functions/src/adminAnalyticsCompute.ts.
  * Keep this list in sync when features are added or removed there.
- * Notably, 'guided-learning' was removed in PR #2067.
+ * ('guided-learning' is intentionally absent — it writes no ai_usage counter.)
  */
 const GEMINI_SPECIFIC_FEATURES = [
   'smart-poll',
