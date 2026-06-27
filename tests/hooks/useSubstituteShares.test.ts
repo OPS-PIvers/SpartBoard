@@ -7,17 +7,19 @@ import {
   afterEach,
   type Mock,
 } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { collection, doc, onSnapshot, where } from 'firebase/firestore';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { collection, doc, getDoc, onSnapshot, where } from 'firebase/firestore';
 import { logError } from '@/utils/logError';
 import {
   useSubstituteShares,
   useSubstituteShare,
+  useSubstituteCollectionBoard,
 } from '@/hooks/useSubstituteShares';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   doc: vi.fn(),
+  getDoc: vi.fn(),
   onSnapshot: vi.fn(),
   query: vi.fn((_ref: unknown, ...constraints: unknown[]) => ({
     __query: constraints,
@@ -35,6 +37,7 @@ vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
 
 const mockCollection = collection as Mock;
 const mockDoc = doc as Mock;
+const mockGetDoc = getDoc as Mock;
 const mockOnSnapshot = onSnapshot as Mock;
 const mockWhere = where as Mock;
 const mockLogError = logError as Mock;
@@ -295,7 +298,7 @@ describe('useSubstituteShares — building change & cleanup', () => {
 
 describe('useSubstituteShare — single-doc subscription', () => {
   it('does not subscribe and reports not-loading when shareId is null', () => {
-    const { result } = renderHook(() => useSubstituteShare(null));
+    const { result } = renderHook(() => useSubstituteShare(null, 'high'));
 
     expect(result.current).toEqual({
       share: null,
@@ -306,7 +309,7 @@ describe('useSubstituteShare — single-doc subscription', () => {
   });
 
   it('targets shared_boards/{shareId} and is loading until the first snapshot', () => {
-    const { result } = renderHook(() => useSubstituteShare('s1'));
+    const { result } = renderHook(() => useSubstituteShare('s1', 'high'));
 
     expect(result.current).toEqual({ share: null, loading: true, error: null });
     expect(mockDoc).toHaveBeenCalledWith(
@@ -318,7 +321,7 @@ describe('useSubstituteShare — single-doc subscription', () => {
   });
 
   it('reports a "Share not found" error when the doc does not exist', () => {
-    const { result } = renderHook(() => useSubstituteShare('s1'));
+    const { result } = renderHook(() => useSubstituteShare('s1', 'high'));
     act(() => {
       lastListener().next(fakeDocSnap('s1', null));
     });
@@ -331,7 +334,7 @@ describe('useSubstituteShare — single-doc subscription', () => {
   });
 
   it('rejects a doc whose intendedMode is not "substitute"', () => {
-    const { result } = renderHook(() => useSubstituteShare('s1'));
+    const { result } = renderHook(() => useSubstituteShare('s1', 'high'));
     act(() => {
       lastListener().next(
         fakeDocSnap('s1', { intendedMode: 'copy', name: 'Board' })
@@ -343,12 +346,13 @@ describe('useSubstituteShare — single-doc subscription', () => {
   });
 
   it('maps a valid substitute doc and carries shareId from snap.id', () => {
-    const { result } = renderHook(() => useSubstituteShare('s1'));
+    const { result } = renderHook(() => useSubstituteShare('s1', 'high'));
     act(() => {
       lastListener().next(
         fakeDocSnap('s1', {
           intendedMode: 'substitute',
           name: 'Sub Board',
+          buildingId: 'high',
           widgets: [],
         })
       );
@@ -363,8 +367,45 @@ describe('useSubstituteShare — single-doc subscription', () => {
     });
   });
 
+  it('rejects a substitute doc from a different building (cross-building gate)', () => {
+    const { result } = renderHook(() => useSubstituteShare('s1', 'high'));
+    act(() => {
+      lastListener().next(
+        fakeDocSnap('s1', {
+          intendedMode: 'substitute',
+          name: 'Other Building Board',
+          buildingId: 'middle',
+          widgets: [],
+        })
+      );
+    });
+
+    expect(result.current.share).toBeNull();
+    expect(result.current.error).toBe(
+      'This share is not available in your building.'
+    );
+  });
+
+  it('rejects a substitute doc with no buildingId (fail closed)', () => {
+    const { result } = renderHook(() => useSubstituteShare('s1', 'high'));
+    act(() => {
+      lastListener().next(
+        fakeDocSnap('s1', {
+          intendedMode: 'substitute',
+          name: 'No Building Board',
+          widgets: [],
+        })
+      );
+    });
+
+    expect(result.current.share).toBeNull();
+    expect(result.current.error).toBe(
+      'This share is not available in your building.'
+    );
+  });
+
   it('maps a listener error to a friendly message and logs it', () => {
-    const { result } = renderHook(() => useSubstituteShare('s1'));
+    const { result } = renderHook(() => useSubstituteShare('s1', 'high'));
     act(() => {
       lastListener().error({ code: 'unavailable' });
     });
@@ -383,12 +424,16 @@ describe('useSubstituteShare — single-doc subscription', () => {
 
   it('tears down the prior listener and re-enters loading when shareId changes', () => {
     const { result, rerender } = renderHook(
-      ({ id }: { id: string }) => useSubstituteShare(id),
+      ({ id }: { id: string }) => useSubstituteShare(id, 'high'),
       { initialProps: { id: 's1' } }
     );
     act(() => {
       lastListener().next(
-        fakeDocSnap('s1', { intendedMode: 'substitute', name: 'A' })
+        fakeDocSnap('s1', {
+          intendedMode: 'substitute',
+          name: 'A',
+          buildingId: 'high',
+        })
       );
     });
     expect(result.current.loading).toBe(false);
@@ -402,9 +447,54 @@ describe('useSubstituteShare — single-doc subscription', () => {
   });
 
   it('unsubscribes on unmount', () => {
-    const { unmount } = renderHook(() => useSubstituteShare('s1'));
+    const { unmount } = renderHook(() => useSubstituteShare('s1', 'high'));
     const unsub = listeners[0].unsub;
     unmount();
     expect(unsub).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// useSubstituteCollectionBoard(shareId, boardId, expectedBuildingId)
+// ---------------------------------------------------------------------------
+
+describe('useSubstituteCollectionBoard — cross-building gate', () => {
+  it('rejects a parent doc from a different building', async () => {
+    mockGetDoc.mockResolvedValueOnce(
+      fakeDocSnap('share1', {
+        intendedMode: 'substitute',
+        buildingId: 'middle',
+        expiresAt: Date.now() + 60_000,
+        boardIds: ['b1'],
+      })
+    );
+    const { result } = renderHook(() =>
+      useSubstituteCollectionBoard('share1', 'b1', 'high')
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.share).toBeNull();
+    expect(result.current.error).toBe(
+      'This share is not available in your building.'
+    );
+  });
+
+  it('rejects a parent doc with no buildingId (fail closed)', async () => {
+    mockGetDoc.mockResolvedValueOnce(
+      fakeDocSnap('share1', {
+        intendedMode: 'substitute',
+        expiresAt: Date.now() + 60_000,
+        boardIds: ['b1'],
+      })
+    );
+    const { result } = renderHook(() =>
+      useSubstituteCollectionBoard('share1', 'b1', 'high')
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.share).toBeNull();
+    expect(result.current.error).toBe(
+      'This share is not available in your building.'
+    );
   });
 });

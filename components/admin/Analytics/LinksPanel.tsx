@@ -9,7 +9,10 @@ import {
 } from 'lucide-react';
 
 import { useShortLinks, ADMIN_LIST_LIMIT } from '@/hooks/useShortLinks';
-import { buildShortUrl } from '@/utils/shortLinkValidation';
+import {
+  buildShortUrl,
+  validateDestination,
+} from '@/utils/shortLinkValidation';
 import { ShortLink } from '@/types';
 
 // LinksPanel surfaces the click data the link shortener (phase 1) already
@@ -148,6 +151,42 @@ const LinkCell: React.FC<{ link: ShortLink }> = ({ link }) => (
   </td>
 );
 
+// Renders a destination as a real link only when it passes validation.
+// A malformed/non-http(s) destination (e.g. an Admin-SDK write) renders as
+// plain text instead of an inert <a> — an hrefless anchor still looks like a
+// link and is announced as one by screen readers, which is misleading.
+//
+// The security decision (protocol allowlist) lives in `validateDestination`,
+// so it is single-source. The render shell here is intentionally NOT shared
+// with `DestinationCell` in LinkShortenerManager.tsx: that one uses a
+// different truncation/layout structure (inline-flex + inner truncate span +
+// icon) that doesn't collapse behind one component without restructuring this
+// table's truncation DOM. If you change the validate→link/span/rel pattern,
+// update BOTH this and DestinationCell to keep them in sync.
+const DestinationLink: React.FC<{ destination: string }> = ({
+  destination,
+}) => {
+  // Use the normalized URL validateDestination already computed (.url) for the
+  // href, not the raw prop, so the link target matches exactly what passed
+  // validation. The visible text/title still shows the stored value.
+  const result = validateDestination(destination);
+  return result.ok ? (
+    <a
+      href={result.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block truncate text-slate-700 hover:text-brand-blue-primary"
+      title={destination}
+    >
+      {destination}
+    </a>
+  ) : (
+    <span className="block truncate text-slate-500" title={destination}>
+      {destination}
+    </span>
+  );
+};
+
 export const LinksPanel: React.FC = () => {
   const { links, loading, error } = useShortLinks();
   // Stable per-mount "now" so relative timestamps and the 7-day KPI cutoff
@@ -274,15 +313,7 @@ export const LinksPanel: React.FC = () => {
                 >
                   <LinkCell link={link} />
                   <td className="px-4 py-3 align-top max-w-md">
-                    <a
-                      href={link.destination}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block truncate text-slate-700 hover:text-brand-blue-primary"
-                      title={link.destination}
-                    >
-                      {link.destination}
-                    </a>
+                    <DestinationLink destination={link.destination} />
                   </td>
                   <td className="px-4 py-3 align-top text-right font-semibold text-slate-800">
                     {formatNumber(link.clicks ?? 0)}
@@ -328,15 +359,7 @@ export const LinksPanel: React.FC = () => {
                   >
                     <LinkCell link={link} />
                     <td className="px-4 py-3 align-top max-w-md">
-                      <a
-                        href={link.destination}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block truncate text-slate-700 hover:text-brand-blue-primary"
-                        title={link.destination}
-                      >
-                        {link.destination}
-                      </a>
+                      <DestinationLink destination={link.destination} />
                     </td>
                     <td className="px-4 py-3 align-top text-slate-500">
                       {formatRelative(link.lastClickedAt, now)}

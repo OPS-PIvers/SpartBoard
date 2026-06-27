@@ -142,6 +142,11 @@ const LoginScreen = lazy(() =>
     default: module.LoginScreen,
   }))
 );
+const DeactivatedScreen = lazy(() =>
+  import('./components/auth/DeactivatedScreen').then((module) => ({
+    default: module.DeactivatedScreen,
+  }))
+);
 const InviteAcceptance = lazy(() =>
   import('./components/auth/InviteAcceptance').then((module) => ({
     default: module.InviteAcceptance,
@@ -257,7 +262,33 @@ function usePathname(): string {
 const AuthenticatedApp: React.FC<{ isRemote?: boolean }> = ({
   isRemote = false,
 }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, accessDeactivated, signOut } = useAuth();
+
+  // M1 full sign-in lockout: the membership snapshot latched `accessDeactivated`
+  // because this user's org member doc is `status: 'inactive'`. Sign them out
+  // (idempotent — signOut no-ops once `user` is already null) and show the
+  // DeactivatedScreen. The screen is rendered on the sticky flag below
+  // REGARDLESS of `user`, so signing out doesn't bounce them to the login page
+  // and lose the deactivation message. Effect is the right tool here: signOut
+  // is an external-system (Firebase Auth) side-effect, not derived state.
+  useEffect(() => {
+    if (accessDeactivated && user) {
+      void signOut().catch((err) => {
+        console.error(
+          '[AuthenticatedApp] sign-out on deactivation failed',
+          err
+        );
+      });
+    }
+  }, [accessDeactivated, user, signOut]);
+
+  if (accessDeactivated) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <DeactivatedScreen />
+      </Suspense>
+    );
+  }
 
   if (!user) {
     // While the persisted session resolves, show a plain loader so returning

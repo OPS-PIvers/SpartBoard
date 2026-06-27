@@ -21,16 +21,18 @@ import { SubBoardScreenContent, ExpiredOrErrorPanel } from './SubBoardScreen';
 interface SubCollectionBoardScreenProps {
   shareId: string;
   boardId: string;
+  buildingId: string;
   onBackToDirectory: () => void;
   onChangeBuilding: () => void;
 }
 
 export const SubCollectionBoardScreen: React.FC<
   SubCollectionBoardScreenProps
-> = ({ shareId, boardId, onBackToDirectory, onChangeBuilding }) => {
+> = ({ shareId, boardId, buildingId, onBackToDirectory, onChangeBuilding }) => {
   const { share, loading, error } = useSubstituteCollectionBoard(
     shareId,
-    boardId
+    boardId,
+    buildingId
   );
   const [expired, setExpired] = useState(false);
 

@@ -327,7 +327,16 @@ export const ShareCollectionLinkCreatorModal: FC<
                           type="button"
                           disabled={added}
                           onClick={() =>
-                            setSubEmails((prev) => [...prev, email])
+                            // Mirror the typed-input path: validate against the
+                            // Orono domain and de-dupe before adding. `disabled`
+                            // already blocks re-adds in normal use, but keeping
+                            // the guard here means the list stays clean even if
+                            // a preset ever comes from a non-hardcoded source.
+                            setSubEmails((prev) =>
+                              !isValidOronoEmail(email) || prev.includes(email)
+                                ? prev
+                                : [...prev, email]
+                            )
                           }
                           className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition-colors ${
                             added

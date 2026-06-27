@@ -98,16 +98,32 @@ service cloud.firestore {
 
     // ---- Organization helpers (see docs/organization_wiring_implementation.md) ----
 
-    // Super admins are listed on the legacy admin_settings/user_roles doc.
-    // Phase 1 also upserts them as /organizations/{orgId}/members with roleId
-    // 'super_admin', but because super-admin checks run globally (not scoped
-    // to a single org) the rules keep reading the legacy list here.
+    // Super admins are recognized from EITHER source (LO2 harmonization):
+    //   1. The legacy admin_settings/user_roles.superAdmins[] list, AND
+    //   2. An operator-org member doc with roleId == 'super_admin'.
+    // This mirrors OrganizationPanel.resolveActorRole, which already accepts
+    // both sources on the client. The legacy list is KEPT as an additional
+    // accepted source (NOT retired) — a Paul-gated migration removes it later.
+    //
+    // Super-admin checks run globally (not scoped to a single org), so the
+    // roleId source is read from the operator org (`orono`) by fixed path —
+    // the same constraint that forces operatorMember() / notDeactivated()
+    // to use a hardcoded org (CEL cannot resolve the caller's org dynamically).
     function isSuperAdmin() {
       return request.auth != null &&
              request.auth.token.email != null &&
-             exists(/databases/$(database)/documents/admin_settings/user_roles) &&
+             (isLegacySuperAdmin() || isMemberSuperAdmin());
+    }
+
+    function isLegacySuperAdmin() {
+      return get(/databases/$(database)/documents/admin_settings/user_roles) != null &&
              request.auth.token.email.lower() in
                get(/databases/$(database)/documents/admin_settings/user_roles).data.get('superAdmins', []);
+    }
+
+    function isMemberSuperAdmin() {
+      return get(/databases/$(database)/documents/organizations/orono/members/$(request.auth.token.email.lower())) != null &&
+             get(/databases/$(database)/documents/organizations/orono/members/$(request.auth.token.email.lower())).data.get('roleId', '') == 'super_admin';
     }
 
     // Returns the caller's /organizations/{orgId}/members/{email} doc data.
@@ -154,6 +170,25 @@ service cloud.firestore {
            : [buildingId];
     }
 
+    // Alias-aware overlap between two building-id lists. CEL has no `.map()`,
+    // so the two stored lists can't be canonicalized element-wise. Instead we
+    // bridge across each known alias group: lists overlap if (a) they share a
+    // raw id, or (b) for any alias group, BOTH lists contain at least one form
+    // from that group (e.g. one stores 'high', the other 'orono-high-school').
+    // Unknown/unaliased ids only match via the raw-overlap branch, which is
+    // correct (no canonical form to bridge). Symmetric in a and b.
+    function buildingListsOverlap(a, b) {
+      return a.hasAny(b) ||
+        (a.hasAny(['high', 'orono-high-school']) &&
+         b.hasAny(['high', 'orono-high-school'])) ||
+        (a.hasAny(['middle', 'orono-middle-school']) &&
+         b.hasAny(['middle', 'orono-middle-school'])) ||
+        (a.hasAny(['intermediate', 'orono-intermediate-school']) &&
+         b.hasAny(['intermediate', 'orono-intermediate-school'])) ||
+        (a.hasAny(['schumann', 'schumann-elementary']) &&
+         b.hasAny(['schumann', 'schumann-elementary']));
+    }
+
     // The caller's roleId within an org, or empty string when not a member.
     function memberRole(orgId, emailLower) {
       return exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(emailLower))
@@ -185,6 +220,43 @@ service cloud.firestore {
     function isOrgMember(orgId) {
       return request.auth != null && request.auth.token.email != null &&
              exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.token.email.lower()));
+    }
+
+    // ---- M1 full sign-in lockout (deny-by-status) ----
+    //
+    // The operator org id. Rules cannot resolve a user's org dynamically from
+    // their email domain (that lives in the `resolveOrgForUser` Cloud Function,
+    // not in CEL), and CEL cannot enumerate orgs. The operator org is the one
+    // org we can check by a fixed path, and it is where the active user base
+    // lives, so the deactivation gate is enforced against it. Mirrors the
+    // OPERATOR_ORG_ID fallback in context/AuthContext.tsx.
+    //
+    // NOTE (multi-org follow-up): a member deactivated in a *second/third* org
+    // is blocked at sign-in by AuthContext (which resolves their real org) but
+    // is not yet denied by these rules, because the rule can't know their org
+    // from the /users/{uid} path. A per-uid org-index doc (readable by path)
+    // would let this gate cover every org; tracked as an M1 rules follow-up.
+    // The caller's operator-org member doc, or null when it does not exist.
+    // A single get() (Firestore caches repeated get()s to the same path within
+    // one rule evaluation, and get() returns null for a missing doc) replaces
+    // the prior exists()+get() pair: it both tests membership (via != null) and
+    // reads status in one document access, halving the baseline read cost on the
+    // ~15 owner collections gated by notDeactivated().
+    function operatorMember() {
+      return get(/databases/$(database)/documents/organizations/orono/members/$(request.auth.token.email.lower()));
+    }
+
+    // True UNLESS the caller is an operator-org member explicitly marked
+    // 'inactive'. Defaults to ALLOW (true) for everyone without an operator-org
+    // member doc — anonymous/PIN students (no email), SSO students, no-org /
+    // other-org teachers — so this gate only ever subtracts access from a
+    // member an admin deliberately deactivated. The email-presence guard avoids
+    // a CEL throw on tokens with no `email` claim (anonymous PIN students).
+    function notDeactivated() {
+      return !(request.auth != null &&
+               request.auth.token.get('email', '') != '' &&
+               operatorMember() != null &&
+               operatorMember().data.get('status', 'active') == 'inactive');
     }
 
     // ---- Organizations collection (Phase 3: scoped writes enabled) ----
@@ -378,24 +450,29 @@ service cloud.firestore {
            request.resource.data.orgId == resource.data.orgId &&
            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
              'roleId', 'buildingIds', 'status', 'name', 'invitedAt', 'lastActive'
-           ])) ||
+           ]) &&
+           // Anti-escalation: a domain admin must NOT be able to mint a super
+           // admin. roleId == 'super_admin' is a live isSuperAdmin() grant via
+           // isMemberSuperAdmin(), and this branch otherwise lets a domain admin
+           // write any roleId — including onto their own member doc — which would
+           // be a self-escalation path. Block writing 'super_admin' unless the
+           // doc already had it (so edits to an existing super-admin's other
+           // fields still pass). Only a super admin (first disjunct) can grant it.
+           (request.resource.data.get('roleId', '') != 'super_admin' ||
+            resource.data.get('roleId', '') == 'super_admin')) ||
           // Building admin can flip `status` on a member whose buildingIds
-          // overlap their own. `hasAny([])` returns false, so a newly
-          // invited member with `buildingIds: []` is *not* editable by a
-          // building admin — the domain admin must assign a building first.
-          // This is intentional: building admins shouldn't be able to act on
-          // members who haven't been scoped into their building yet.
-          //
-          // KNOWN GAP (follow-up): this list-vs-list overlap is NOT alias-aware
-          // like the building-doc rule's `manages()` helper, so if the target
-          // member and the acting admin store buildingIds in mismatched
-          // canonical/legacy formats the overlap can falsely fail (false DENIAL
-          // only — never a false grant). Canonicalizing two lists in CEL has no
-          // clean form (no `.map()`), unlike the single-id `buildingIdAliasGroup`
-          // case. Low incidence since member buildingIds are canonicalized on
-          // write; tracked for a dedicated rules pass. See config/buildings.ts.
+          // overlap their own. The overlap is alias-aware via
+          // buildingListsOverlap(), so a target member and acting admin storing
+          // buildingIds in mismatched canonical/legacy formats (e.g. 'high' vs
+          // 'orono-high-school') still match — closing the prior false-DENIAL
+          // gap without needing `.map()`. An empty list on either side yields no
+          // overlap, so a newly invited member with `buildingIds: []` is *not*
+          // editable by a building admin — the domain admin must assign a
+          // building first. This is intentional: building admins shouldn't act
+          // on members who haven't been scoped into their building yet.
+          // See config/buildings.ts for the canonical alias table.
           (isBuildingAdmin(orgId) &&
-           resource.data.buildingIds.hasAny(orgMember(orgId).buildingIds) &&
+           buildingListsOverlap(resource.data.get('buildingIds', []), orgMember(orgId).get('buildingIds', [])) &&
            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
           // Self-write: the signed-in user may stamp their own `lastActive`
           // on their own member doc. Bound strictly — email/orgId must match
@@ -478,9 +555,8 @@ service cloud.firestore {
     // it, a studentRole user calling Firestore directly could still create a
     // dashboard doc under their own uid.
     match /users/{userId}/dashboards/{dashboardId} {
-      allow read, write: if request.auth != null
-                         && request.auth.uid == userId
-                         && !isStudentRoleUser();
+      allow read, write: if request.auth != null && request.auth.uid == userId
+                         && !isStudentRoleUser() && notDeactivated();
 
       // Phase 2 PR 2.6: DrawingWidget object content moves off the dashboard
       // document into a page-nested subcollection so a single Firestore write
@@ -492,21 +568,19 @@ service cloud.firestore {
       // subcollection inherits dashboard semantics without a separate
       // top-level match.
       match /drawings/{widgetId}/pages/{pageId} {
-        allow read, write: if request.auth != null
-                           && request.auth.uid == userId
-                           && !isStudentRoleUser();
+        allow read, write: if request.auth != null && request.auth.uid == userId
+                           && !isStudentRoleUser() && notDeactivated();
 
         match /objects/{objectId} {
-          allow read, write: if request.auth != null
-                             && request.auth.uid == userId
-                             && !isStudentRoleUser();
+          allow read, write: if request.auth != null && request.auth.uid == userId
+                             && !isStudentRoleUser() && notDeactivated();
         }
       }
     }
 
     // Rosters - users can only access their own rosters in their subcollection
     match /users/{userId}/rosters/{rosterId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
 
       // Phase 3 — non-PII PIN index sidecar. Bridges PIN-joining
       // students into the SSO uid space via `pinLoginV1`. The cloud
@@ -538,9 +612,11 @@ service cloud.firestore {
     // cap below prevents a single doc from being weaponized as unbounded
     // storage.
     match /users/{userId}/plc_layouts/{plcId} {
-      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow read, delete: if request.auth != null && request.auth.uid == userId
+                          && notDeactivated();
       allow write: if request.auth != null
                    && request.auth.uid == userId
+                   && notDeactivated()
                    && request.resource.data.keys().hasOnly(['tiles', 'updatedAt'])
                    && request.resource.data.tiles is list
                    && request.resource.data.tiles.size() <= 50
@@ -555,9 +631,11 @@ service cloud.firestore {
     // field, which dual-accepts `int || timestamp` during the serverTimestamp
     // rollout (§3.2).
     match /users/{userId}/plc_state/{plcId} {
-      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow read, delete: if request.auth != null && request.auth.uid == userId
+                          && notDeactivated();
       allow create, update: if request.auth != null
                    && request.auth.uid == userId
+                   && notDeactivated()
                    && request.resource.data.keys().hasOnly(['lastSeenAt'])
                    && (
                         request.resource.data.lastSeenAt is int
@@ -567,28 +645,28 @@ service cloud.firestore {
 
     // Mini Apps - users can only access their own mini apps in their subcollection
     match /users/{userId}/miniapps/{appId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // Saved Widgets - per-user "Save as widget" shortcuts (frozen widget configs
     // surfaced as dock/library entries). Owner-only.
     match /users/{userId}/saved_widgets/{savedWidgetId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // Notebooks - users can only access their own notebooks in their subcollection
     match /users/{userId}/notebooks/{notebookId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // PDFs - users can only access their own PDFs in their subcollection
     match /users/{userId}/pdfs/{pdfId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // Quiz metadata - users can only access their own quiz metadata
     match /users/{userId}/quizzes/{quizId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // Activity Wall library - per-user reusable activity definitions.
@@ -596,7 +674,7 @@ service cloud.firestore {
     // moving them here lets teachers reuse the same activity across widgets
     // and survive widget removal. Owner-only.
     match /users/{userId}/activity_wall_activities/{activityId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // Quiz assignments - archive of past/current assignments of a quiz. Per-user.
@@ -604,13 +682,16 @@ service cloud.firestore {
     // those are relied on by ownership checks elsewhere (session rules, shared
     // assignment author checks). Keep teacherUid and id immutable after create.
     match /users/{userId}/quiz_assignments/{assignmentId} {
-      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow read, delete: if request.auth != null && request.auth.uid == userId
+                          && notDeactivated();
       allow create: if request.auth != null
                     && request.auth.uid == userId
+                    && notDeactivated()
                     && request.resource.data.teacherUid == userId
                     && request.resource.data.id == assignmentId;
       allow update: if request.auth != null
                     && request.auth.uid == userId
+                    && notDeactivated()
                     && request.resource.data.teacherUid == resource.data.teacherUid
                     && request.resource.data.id == resource.data.id;
     }
@@ -864,7 +945,7 @@ service cloud.firestore {
 
     // Guided Learning
     match /users/{userId}/guided_learning/{setId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     match /building_guided_learning/{setId} {
@@ -974,6 +1055,13 @@ service cloud.firestore {
             && request.resource.data.expiresAt > request.time.toMillis()
             && request.resource.data.expiresAt <= request.time.toMillis() + 1209600000
             && request.resource.data.initialState is list
+            // Cap subEmails (same DoS guard as shared_collections create):
+            // DashboardContext iterates this list to issue Drive roster grants
+            // with no bound, so an unbounded list could exhaust the host's
+            // Drive API quota. Optional field — absence allowed; <= 20 when set.
+            && (!('subEmails' in request.resource.data)
+                || (request.resource.data.subEmails is list
+                    && request.resource.data.subEmails.size() <= 20))
           )
         ) &&
         (
@@ -1026,7 +1114,16 @@ service cloud.firestore {
           || request.auth.uid in get(
                /databases/$(database)/documents/plcs/$(request.resource.data.plcId)
              ).data.memberUids
-        );
+        ) &&
+        // Cap subEmails on EVERY owner update (not just substitute, which pins
+        // it above): a copy/PLC share otherwise lets an owner write an
+        // unbounded subEmails list via update, bloating the doc and arming any
+        // future server-side reader. Matches the create-time cap. Substitute
+        // shares already pin subEmails to its create value, so this is a no-op
+        // for them.
+        (!('subEmails' in request.resource.data)
+          || (request.resource.data.subEmails is list
+              && request.resource.data.subEmails.size() <= 20));
 
       // Collaborator (Synced participant): may update content but must not
       // change participants map, originalAuthor, originalAuthorName,
@@ -1129,6 +1226,13 @@ service cloud.firestore {
             && request.resource.data.expiresAt is number
             && request.resource.data.expiresAt > request.time.toMillis()
             && request.resource.data.expiresAt <= request.time.toMillis() + 1209600000
+            // Cap subEmails so a hostile client can't queue thousands of Drive
+            // roster grants (DashboardContext iterates this list with no bound),
+            // exhausting the host's Drive API quota per share. Optional field —
+            // absence is allowed; when present it must be a list of <= 20.
+            && (!('subEmails' in request.resource.data)
+                || (request.resource.data.subEmails is list
+                    && request.resource.data.subEmails.size() <= 20))
           )
         );
 
@@ -3368,26 +3472,37 @@ service cloud.firestore {
         // Teacher ownership is looked up from the parent session doc because
         // the sessionId is no longer the teacher's uid. This adds one get()
         // per response write (~50ms, $0 at class scale).
+        //
+        // Read-count optimization (LO4): all of the session field helpers
+        // below derive from the SAME parent session doc. Instead of each
+        // helper issuing its own get() on quiz_sessions/$(sessionId), they all
+        // read off a single sessionData() snapshot. This mirrors the
+        // orgMember() precedent above (one get().data, fields via .get()).
+        // Authorization behavior is unchanged — only the document-read count
+        // per request is reduced.
+        function sessionData() {
+          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data;
+        }
         function sessionTeacherUid() {
-          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.teacherUid;
+          return sessionData().teacherUid;
         }
         function sessionClassId() {
-          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.get('classId', '');
+          return sessionData().get('classId', '');
         }
         function sessionClassIds() {
-          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.get('classIds', []);
+          return sessionData().get('classIds', []);
         }
         // Defense in depth — block response writes on view-only sessions.
         // Pre-feature sessions without a `mode` field default to 'submissions'.
         function sessionMode() {
-          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.get('mode', 'submissions');
+          return sessionData().get('mode', 'submissions');
         }
         // Server-side attempt cap. The client also enforces this in the
         // join + submit transactions; the rule is the last line of defense
         // against a race, a buggy client, or a hostile caller. Returns
         // null when the session has no cap (legacy or explicitly unlimited).
         function sessionAttemptLimit() {
-          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.get('attemptLimit', null);
+          return sessionData().get('attemptLimit', null);
         }
 
         // Student branch allows `resource == null` so the student-app join
@@ -4161,7 +4276,7 @@ service cloud.firestore {
 
     // Video Activity metadata — stored per teacher user
     match /users/{userId}/video_activities/{activityId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // MiniApp Assignment Sessions — Teacher creates, anonymous students can read
@@ -4427,13 +4542,23 @@ service cloud.firestore {
         function awSessionClassId() {
           return get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data.get('classId', '');
         }
+        // Phase-5A multi-class targeting field. Mirrors the quiz/VA/GL/miniapp
+        // session shape so the create gate below can use the compat helper.
+        function awSessionClassIds() {
+          return get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data.get('classIds', []);
+        }
 
         // Any authenticated user (including anonymous) can create a submission.
         // Photo submissions may include Firebase storage metadata for later Drive archiving.
-        // studentRole (GIS) users must be enrolled in the session's class.
+        // studentRole (GIS) users must be enrolled in the session's class. Uses
+        // the Phase-5A compat gate (classIds list ?? legacy classId) so a
+        // session migrated to multi-class targeting still gates correctly —
+        // matching every other session type (quiz/VA/GL/miniapp). The legacy
+        // single-classId path is preserved for pre-5A sessions that only carry
+        // `classId`.
         allow create: if request.auth != null &&
           exists(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)) &&
-          passesStudentClassGate(awSessionClassId()) &&
+          passesStudentClassGateCompat(awSessionClassIds(), awSessionClassId()) &&
           request.resource.data.id is string &&
           request.resource.data.content is string &&
           request.resource.data.content.size() > 0 &&
@@ -4527,20 +4652,20 @@ service cloud.firestore {
     // === Video Activity assignments (Wave 2-VA) ===
     // Per-teacher archive of video activity assignments — mirrors quiz_assignments.
     match /users/{userId}/video_activity_assignments/{id} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // === Wave 2 library assignment archives (appended) ===
     // MiniApp assignment archive (Wave 2-MA).
     match /users/{userId}/miniapp_assignments/{id} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
     // === /Wave 2 library assignment archives ===
 
     // === Guided Learning assignments (Wave 2-GL) ===
     // Per-teacher archive of guided learning assignments. Owner-only read/write.
     match /users/{userId}/guided_learning_assignments/{id} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // === Library folders (Wave 3) ===
@@ -4550,19 +4675,19 @@ service cloud.firestore {
     // the *_assignments pattern above. Wave 3-A ships the rules + schema;
     // Wave 3-B wires the UI.
     match /users/{userId}/collections/{collectionId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
     match /users/{userId}/quiz_folders/{folderId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
     match /users/{userId}/video_activity_folders/{folderId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
     match /users/{userId}/guided_learning_folders/{folderId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
     match /users/{userId}/miniapp_folders/{folderId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
     // Default deny all other collections

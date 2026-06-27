@@ -441,6 +441,7 @@ describe('EmbedWidget', () => {
         orgId: null,
         roleId: null,
         isStudentRole: false,
+        accessDeactivated: false,
         roleResolved: true,
         buildingIds: [],
         orgBuildings: [],

@@ -13,6 +13,8 @@ import {
   Check,
   X,
   AlertTriangle,
+  UserCog,
+  Building2,
 } from 'lucide-react';
 import type {
   BuildingRecord,
@@ -36,6 +38,7 @@ import {
   ViewHeader,
   LocalModal,
   Textarea,
+  Confirm,
 } from '../components/primitives';
 import { parseInvitesCsv, type InviteIntent } from '@/utils/csvImport';
 
@@ -91,15 +94,14 @@ const STATUS_META: Record<UserStatus, { label: string; description: string }> =
       description: 'Invitation sent; awaiting first sign-in.',
     },
     inactive: {
-      // Phase 4: 'inactive' removes admin powers via the
-      // organizationMembersSync CF (the /admins/{email} doc is deleted) but
-      // does NOT block the user from signing in — Firestore rules and
-      // AuthContext don't gate on member.status yet. Full sign-in lockout is
-      // on the Phase 4.1 backlog. Copy here deliberately says "admin access"
-      // rather than "account" so admins don't expect a power they don't have.
+      // M1 full sign-in lockout: 'inactive' both removes admin powers (via the
+      // organizationMembersSync CF deleting /admins/{email}) AND blocks the
+      // user from using the app — AuthContext signs an inactive member out and
+      // Firestore rules deny their teacher-data reads/writes (firestore.rules
+      // notDeactivated gate). Reactivation restores access on their next
+      // sign-in.
       label: 'Inactive',
-      description:
-        'Revokes admin access. User can still sign in (full lockout coming in a future release).',
+      description: 'Blocks sign-in and revokes all access.',
     },
   };
 
@@ -145,6 +147,9 @@ export const UsersView: React.FC<Props> = ({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showInvite, setShowInvite] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  // M4 bulk actions: pickers for "Change role" / "Move to building".
+  const [showBulkRole, setShowBulkRole] = useState(false);
+  const [showBulkBuilding, setShowBulkBuilding] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const editingUser = useMemo(
     () => users.find((u) => u.id === editingUserId) ?? null,
@@ -398,19 +403,15 @@ export const UsersView: React.FC<Props> = ({
               })()}
               <button
                 type="button"
-                disabled
-                aria-disabled="true"
-                title="Coming soon"
-                className="text-xs font-semibold text-white/50 cursor-not-allowed"
+                onClick={() => setShowBulkRole(true)}
+                className="text-xs font-semibold hover:text-white/80"
               >
                 Change role
               </button>
               <button
                 type="button"
-                disabled
-                aria-disabled="true"
-                title="Coming soon"
-                className="text-xs font-semibold text-white/50 cursor-not-allowed"
+                onClick={() => setShowBulkBuilding(true)}
+                className="text-xs font-semibold hover:text-white/80"
               >
                 Move to building
               </button>
@@ -534,7 +535,230 @@ export const UsersView: React.FC<Props> = ({
           setShowImport(false);
         }}
       />
+
+      <BulkRoleModal
+        isOpen={showBulkRole}
+        count={selected.size}
+        roles={roles}
+        onClose={() => setShowBulkRole(false)}
+        onApply={(role) => {
+          onBulkUpdate(Array.from(selected), { role });
+          setSelected(new Set());
+          setShowBulkRole(false);
+        }}
+      />
+
+      <BulkBuildingModal
+        isOpen={showBulkBuilding}
+        count={selected.size}
+        buildings={visibleBuildings}
+        onClose={() => setShowBulkBuilding(false)}
+        onApply={(buildingIds) => {
+          onBulkUpdate(Array.from(selected), { buildingIds });
+          setSelected(new Set());
+          setShowBulkBuilding(false);
+        }}
+      />
     </div>
+  );
+};
+
+// ---------- Bulk "Change role" modal (M4) ----------
+
+/**
+ * Single-select role picker for the bulk "Change role" action. Reuses the
+ * roles list + PopoverOption-style rows inside a LocalModal. Applies the picked
+ * role to every selected user via `onBulkUpdate(ids, { role })` in the parent.
+ */
+const BulkRoleModal: React.FC<{
+  isOpen: boolean;
+  count: number;
+  roles: RoleRecord[];
+  onClose: () => void;
+  onApply: (role: string) => void;
+}> = ({ isOpen, count, roles, onClose, onApply }) => {
+  const [role, setRole] = useState<string>('');
+
+  // Reset the picked role each time the modal opens. Per CLAUDE.md, adjust
+  // state during render rather than reaching for useEffect.
+  const [wasOpen, setWasOpen] = useState(false);
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    if (isOpen) setRole('');
+  }
+
+  return (
+    <LocalModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Change role"
+      icon={<UserCog size={18} />}
+      footer={
+        <>
+          <Btn variant="ghost" onClick={onClose}>
+            Cancel
+          </Btn>
+          <Btn
+            variant="primary"
+            disabled={!role}
+            onClick={() => role && onApply(role)}
+          >
+            Apply to {count} user{count === 1 ? '' : 's'}
+          </Btn>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <p className="text-sm text-slate-600">
+          Pick a role to assign to the {count} selected user
+          {count === 1 ? '' : 's'}.
+        </p>
+        <div
+          role="group"
+          aria-label="Role"
+          className="rounded-lg border border-slate-200 divide-y divide-slate-100"
+        >
+          {roles.map((r) => (
+            <PopoverOption
+              key={r.id}
+              onClick={() => setRole(r.id)}
+              selected={role === r.id}
+              ariaPressed={role === r.id}
+              label={r.name}
+              description={r.blurb}
+              icon={
+                <span
+                  className={`h-5 w-5 rounded flex items-center justify-center text-[10px] font-bold ${(() => {
+                    const c = ROLE_COLOR[r.id];
+                    return c
+                      ? ROLE_ICON_CLASSES[c]
+                      : 'bg-slate-100 text-slate-700';
+                  })()}`}
+                >
+                  {r.name[0]}
+                </span>
+              }
+            />
+          ))}
+        </div>
+      </div>
+    </LocalModal>
+  );
+};
+
+// ---------- Bulk "Move to building" modal (M4) ----------
+
+/**
+ * Building picker for the bulk "Move to building" action. DECIDED semantics =
+ * REPLACE: the picked buildings overwrite each selected user's current building
+ * assignments (not merge). A confirm step spells out the replacement impact
+ * before the write fires. Reuses the Checkbox primitive + Confirm dialog.
+ */
+const BulkBuildingModal: React.FC<{
+  isOpen: boolean;
+  count: number;
+  buildings: BuildingRecord[];
+  onClose: () => void;
+  onApply: (buildingIds: string[]) => void;
+}> = ({ isOpen, count, buildings, onClose, onApply }) => {
+  const [picked, setPicked] = useState<string[]>([]);
+  const [confirming, setConfirming] = useState(false);
+
+  // Reset picks/confirm state each time the modal opens (adjust-in-render).
+  const [wasOpen, setWasOpen] = useState(false);
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    if (isOpen) {
+      setPicked([]);
+      setConfirming(false);
+    }
+  }
+
+  const pickedNames = buildings
+    .filter((b) => picked.includes(b.id))
+    .map((b) => b.name);
+
+  return (
+    <>
+      <LocalModal
+        isOpen={isOpen && !confirming}
+        onClose={onClose}
+        title="Move to building"
+        icon={<Building2 size={18} />}
+        footer={
+          <>
+            <Btn variant="ghost" onClick={onClose}>
+              Cancel
+            </Btn>
+            <Btn
+              variant="primary"
+              disabled={picked.length === 0}
+              onClick={() => setConfirming(true)}
+            >
+              Continue
+            </Btn>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600">
+            Pick the building(s) to assign. This <strong>replaces</strong> each
+            selected user&apos;s current building assignments.
+          </p>
+          <div
+            role="group"
+            aria-label="Buildings"
+            className="max-h-56 overflow-y-auto rounded-lg border border-slate-300 bg-white divide-y divide-slate-100"
+          >
+            {buildings.length === 0 && (
+              <div className="px-3 py-4 text-sm text-slate-500">
+                No buildings available.
+              </div>
+            )}
+            {buildings.map((b) => {
+              const checked = picked.includes(b.id);
+              const inputId = `bulk-building-${b.id}`;
+              return (
+                <label
+                  key={b.id}
+                  htmlFor={inputId}
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  <Checkbox
+                    id={inputId}
+                    checked={checked}
+                    onChange={(e) =>
+                      setPicked((prev) =>
+                        e.target.checked
+                          ? [...prev, b.id]
+                          : prev.filter((id) => id !== b.id)
+                      )
+                    }
+                  />
+                  <span className="flex-1 truncate">{b.name}</span>
+                  <Badge color="slate">{b.grades}</Badge>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      </LocalModal>
+
+      <Confirm
+        isOpen={isOpen && confirming}
+        title="Replace building assignments?"
+        message={
+          <>
+            Move {count} user{count === 1 ? '' : 's'} to{' '}
+            <strong>{pickedNames.join(', ')}</strong>, replacing their current
+            building assignments. This can&apos;t be undone in bulk.
+          </>
+        }
+        confirmLabel="Move users"
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => onApply(picked)}
+      />
+    </>
   );
 };
 

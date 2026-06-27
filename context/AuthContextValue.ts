@@ -205,6 +205,16 @@ export interface AuthContextType {
    */
   isStudentRole: boolean;
   /**
+   * True when the signed-in user's organization member doc reports
+   * `status === 'inactive'` (M1 full sign-in lockout). Sticky for the JS
+   * session: once latched it stays true even after `signOut()` clears `user`,
+   * so the app can render a "your access has been deactivated" screen rather
+   * than silently bouncing the user back to the login page. Cleared by a fresh
+   * `signInWithGoogle()` attempt. Always false in auth-bypass mode and for
+   * users with no org member doc.
+   */
+  accessDeactivated: boolean;
+  /**
    * True once both `isStudentRole` (from the token claim) AND `roleId` (from
    * the org-members snapshot, or short-circuited when the user has no email)
    * have settled to their final values for the current user. Consumers that
