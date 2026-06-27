@@ -47,6 +47,7 @@ import {
 } from '@/config/buildings';
 import { TOOLS } from '@/config/tools';
 import { LinksPanel } from './LinksPanel';
+import { AI_FEATURE_LABELS } from './aiFeatureLabels';
 
 interface EngagementCounts {
   total: number;
@@ -859,8 +860,6 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
     </div>
   );
 };
-
-import { AI_FEATURE_LABELS } from './aiFeatureLabels';
 
 const AiPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
   const featureRows = useMemo(
