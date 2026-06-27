@@ -730,7 +730,7 @@ export class QuizDriveService {
         string,
         (typeof r.answers)[number]
       >();
-      for (const a of r.answers) {
+      for (const a of r.answers ?? []) {
         if (!firstOccurrenceAnswers.has(a.questionId)) {
           firstOccurrenceAnswers.set(a.questionId, a);
         }
