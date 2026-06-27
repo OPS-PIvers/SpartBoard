@@ -1055,6 +1055,13 @@ service cloud.firestore {
             && request.resource.data.expiresAt > request.time.toMillis()
             && request.resource.data.expiresAt <= request.time.toMillis() + 1209600000
             && request.resource.data.initialState is list
+            // Cap subEmails (same DoS guard as shared_collections create):
+            // DashboardContext iterates this list to issue Drive roster grants
+            // with no bound, so an unbounded list could exhaust the host's
+            // Drive API quota. Optional field — absence allowed; <= 20 when set.
+            && (!('subEmails' in request.resource.data)
+                || (request.resource.data.subEmails is list
+                    && request.resource.data.subEmails.size() <= 20))
           )
         ) &&
         (
@@ -1107,7 +1114,16 @@ service cloud.firestore {
           || request.auth.uid in get(
                /databases/$(database)/documents/plcs/$(request.resource.data.plcId)
              ).data.memberUids
-        );
+        ) &&
+        // Cap subEmails on EVERY owner update (not just substitute, which pins
+        // it above): a copy/PLC share otherwise lets an owner write an
+        // unbounded subEmails list via update, bloating the doc and arming any
+        // future server-side reader. Matches the create-time cap. Substitute
+        // shares already pin subEmails to its create value, so this is a no-op
+        // for them.
+        (!('subEmails' in request.resource.data)
+          || (request.resource.data.subEmails is list
+              && request.resource.data.subEmails.size() <= 20));
 
       // Collaborator (Synced participant): may update content but must not
       // change participants map, originalAuthor, originalAuthorName,
@@ -1210,6 +1226,13 @@ service cloud.firestore {
             && request.resource.data.expiresAt is number
             && request.resource.data.expiresAt > request.time.toMillis()
             && request.resource.data.expiresAt <= request.time.toMillis() + 1209600000
+            // Cap subEmails so a hostile client can't queue thousands of Drive
+            // roster grants (DashboardContext iterates this list with no bound),
+            // exhausting the host's Drive API quota per share. Optional field —
+            // absence is allowed; when present it must be a list of <= 20.
+            && (!('subEmails' in request.resource.data)
+                || (request.resource.data.subEmails is list
+                    && request.resource.data.subEmails.size() <= 20))
           )
         );
 

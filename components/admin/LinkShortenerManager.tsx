@@ -17,7 +17,10 @@ import { useShortLinks } from '@/hooks/useShortLinks';
 import { useDialog } from '@/context/useDialog';
 import { Toast } from '@/components/common/Toast';
 import { logError } from '@/utils/logError';
-import { buildShortUrl } from '@/utils/shortLinkValidation';
+import {
+  buildShortUrl,
+  validateDestination,
+} from '@/utils/shortLinkValidation';
 import { ShortLink } from '@/types';
 
 const formatDate = (epoch: number | null | undefined): string => {
@@ -27,6 +30,41 @@ const formatDate = (epoch: number | null | undefined): string => {
     day: 'numeric',
     year: 'numeric',
   });
+};
+
+// Renders a destination as a real link only when it validates, using the
+// normalized URL (.url) for the href. An invalid/non-http(s) destination
+// renders as plain text rather than an inert <a> (which screen readers still
+// announce as a link). XSS is already closed by the protocol check.
+//
+// Sibling of `DestinationLink` in components/admin/Analytics/LinksPanel.tsx.
+// The security decision is single-source in `validateDestination`; only this
+// render shell is duplicated (this variant adds the inline-flex layout + an
+// ExternalLink icon, which is why the two aren't merged behind one component).
+// If you change the validate→link/span/rel pattern, update BOTH to keep sync.
+const DestinationCell: React.FC<{ destination: string }> = ({
+  destination,
+}) => {
+  const result = validateDestination(destination);
+  return result.ok ? (
+    <a
+      href={result.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 text-slate-700 hover:text-brand-blue-primary truncate max-w-full"
+      title={destination}
+    >
+      <span className="truncate">{destination}</span>
+      <ExternalLink className="w-3 h-3 shrink-0" />
+    </a>
+  ) : (
+    <span
+      className="inline-flex items-center text-slate-500 truncate max-w-full"
+      title={destination}
+    >
+      <span className="truncate">{destination}</span>
+    </span>
+  );
 };
 
 const formatRelative = (epoch: number | null | undefined): string => {
@@ -522,16 +560,7 @@ export const LinkShortenerManager: React.FC = () => {
                       )}
                     </td>
                     <td className="px-4 py-3 align-top max-w-md">
-                      <a
-                        href={link.destination}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-slate-700 hover:text-brand-blue-primary truncate max-w-full"
-                        title={link.destination}
-                      >
-                        <span className="truncate">{link.destination}</span>
-                        <ExternalLink className="w-3 h-3 shrink-0" />
-                      </a>
+                      <DestinationCell destination={link.destination} />
                     </td>
                     <td className="px-4 py-3 align-top">
                       <div className="font-semibold text-slate-800">

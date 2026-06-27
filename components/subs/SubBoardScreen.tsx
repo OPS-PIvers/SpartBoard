@@ -28,16 +28,18 @@ import type { SubstituteShareDoc } from '@/hooks/useSubstituteShares';
 
 interface SubBoardScreenProps {
   shareId: string;
+  buildingId: string;
   onBackToDirectory: () => void;
   onChangeBuilding: () => void;
 }
 
 export const SubBoardScreen: React.FC<SubBoardScreenProps> = ({
   shareId,
+  buildingId,
   onBackToDirectory,
   onChangeBuilding,
 }) => {
-  const { share, loading, error } = useSubstituteShare(shareId);
+  const { share, loading, error } = useSubstituteShare(shareId, buildingId);
   const [expired, setExpired] = useState(false);
 
   // Imperatively check expiration on a 60-second tick so an idle sub
