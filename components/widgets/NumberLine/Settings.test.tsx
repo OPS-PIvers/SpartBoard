@@ -1,24 +1,4 @@
-/**
- * Regression tests for the Escape-cancel bug in NumberLineSettings.
- *
- * Root cause: The min, max, and step inputs used `defaultValue` (uncontrolled)
- * with `onBlur` to save. There was no Escape handler, so pressing Escape in the
- * browser triggered a native blur, which fired `onBlur` and saved the
- * typed-but-intended-to-cancel value. This is the same stale-onBlur pattern
- * fixed in DraggableWindow (#1965), RandomGroups (#1974), FolderTree (#1975),
- * and PollWidget (#2064).
- *
- * Fix: Each input now has an Escape branch in `onKeyDown` that sets a per-field
- * `cancelledRef` to `true` and resets the DOM value before calling
- * `e.currentTarget.blur()`. The `onBlur` handler checks the ref and returns
- * early (skipping `updateConfig`) when it's set, then resets the ref so
- * subsequent normal saves work.
- *
- * jsdom note: `e.currentTarget.blur()` inside a keyDown handler is a no-op in
- * jsdom — it does NOT dispatch a blur event. Tests therefore fire
- * `fireEvent.blur()` manually inside the same `act()` to replicate the
- * synchronous browser sequence (keyDown → blur).
- */
+// jsdom: e.currentTarget.blur() in keyDown is a no-op — tests fire fireEvent.blur() manually to replicate the synchronous browser keyDown→blur sequence.
 import React from 'react';
 import { act, render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
