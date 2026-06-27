@@ -94,7 +94,6 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
               id={`nl-min-${widget.id}`}
               type="number"
               defaultValue={min}
-              aria-label="Min Value"
               onBlur={(e) => {
                 if (minCancelledRef.current) {
                   minCancelledRef.current = false;
@@ -133,7 +132,6 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
               id={`nl-max-${widget.id}`}
               type="number"
               defaultValue={max}
-              aria-label="Max Value"
               onBlur={(e) => {
                 if (maxCancelledRef.current) {
                   maxCancelledRef.current = false;
@@ -174,7 +172,6 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
               min="0.01"
               step="any"
               defaultValue={step}
-              aria-label="Step (Interval)"
               onBlur={(e) => {
                 if (stepCancelledRef.current) {
                   stepCancelledRef.current = false;
