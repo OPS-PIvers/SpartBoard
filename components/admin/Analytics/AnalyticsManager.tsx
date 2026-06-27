@@ -860,13 +860,10 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
   );
 };
 
-const AI_FEATURE_LABELS: Record<string, string> = {
-  'smart-poll': 'Smart Poll',
-  'embed-mini-app': 'Mini App',
-  'video-activity-audio-transcription': 'Video Activity',
-  quiz: 'Quiz Generation',
-  ocr: 'OCR',
-};
+// Re-exported from a separate module to keep this file component-only and
+// satisfy the react-refresh/only-export-components lint rule.
+export { AI_FEATURE_LABELS } from './aiFeatureLabels';
+import { AI_FEATURE_LABELS } from './aiFeatureLabels';
 
 const AiPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
   const featureRows = useMemo(
