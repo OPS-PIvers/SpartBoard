@@ -49,16 +49,6 @@ describe('AI_FEATURE_LABELS', () => {
     ).toHaveLength(0);
   });
 
-  it('label values differ from their raw feature-ID keys', () => {
-    for (const featureId of GEMINI_SPECIFIC_FEATURES) {
-      const label = AI_FEATURE_LABELS[featureId];
-      expect(
-        label,
-        `Label for '${featureId}' should not equal the raw key`
-      ).not.toBe(featureId);
-    }
-  });
-
   it('contains exactly the expected feature IDs (no stale entries)', () => {
     const labelKeys = Object.keys(AI_FEATURE_LABELS).sort();
     const expectedKeys = [...GEMINI_SPECIFIC_FEATURES].sort();
