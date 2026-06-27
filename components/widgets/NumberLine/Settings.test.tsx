@@ -104,6 +104,7 @@ describe('NumberLineSettings — Escape-cancel regression', () => {
   it('resets the Min Value input to the original value after Escape', () => {
     render(<NumberLineSettings widget={baseWidget} />);
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     const input = screen.getByLabelText('Min Value') as HTMLInputElement;
 
     fireEvent.change(input, { target: { value: '99' } });
@@ -165,6 +166,7 @@ describe('NumberLineSettings — Escape-cancel regression', () => {
   it('resets the Max Value input to the original value after Escape', () => {
     render(<NumberLineSettings widget={baseWidget} />);
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     const input = screen.getByLabelText('Max Value') as HTMLInputElement;
 
     fireEvent.change(input, { target: { value: '999' } });
@@ -225,6 +227,7 @@ describe('NumberLineSettings — Escape-cancel regression', () => {
   it('resets the Step input to the original value after Escape', () => {
     render(<NumberLineSettings widget={baseWidget} />);
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     const input = screen.getByLabelText('Step (Interval)') as HTMLInputElement;
 
     fireEvent.change(input, { target: { value: '5' } });
