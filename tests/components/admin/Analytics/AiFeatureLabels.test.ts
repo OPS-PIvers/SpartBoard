@@ -1,23 +1,8 @@
-/**
- * Regression test for AI_FEATURE_LABELS coverage.
- *
- * GEMINI_SPECIFIC_FEATURES in functions/src/adminAnalyticsCompute.ts defines
- * which feature IDs are tracked in the ai_usage collection. Each feature must
- * have a human-readable label in AI_FEATURE_LABELS so admins see friendly
- * names in the AI Feature Breakdown chart instead of raw programmer-ID strings.
- *
- * This test locks in the full expected set. If a new feature is added to
- * GEMINI_SPECIFIC_FEATURES without a corresponding label here the test will
- * fail, prompting the developer to add a label.
- */
 import { describe, it, expect } from 'vitest';
 import { AI_FEATURE_LABELS } from '@/components/admin/Analytics/aiFeatureLabels';
 
-/**
- * Mirror of GEMINI_SPECIFIC_FEATURES in functions/src/adminAnalyticsCompute.ts.
- * Keep this list in sync when features are added or removed there.
- * ('guided-learning' is intentionally absent — it writes no ai_usage counter.)
- */
+// Mirror of GEMINI_SPECIFIC_FEATURES in functions/src/adminAnalyticsCompute.ts — keep in sync.
+// ('guided-learning' is intentionally absent — it writes no ai_usage counter.)
 const GEMINI_SPECIFIC_FEATURES = [
   'smart-poll',
   'embed-mini-app',
