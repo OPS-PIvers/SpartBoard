@@ -15,7 +15,7 @@
  * guard in `buildResultsSheetDataShared`.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { QuizQuestion, QuizResponse } from '@/types';
 import type { GradeResult } from '@/types';
 
@@ -186,6 +186,10 @@ describe('exportResultsToSheet – Question Analysis deduplication', () => {
     });
 
     vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('REGRESSION: duplicate answer for same questionId uses first occurrence for correctSet — wrong then correct stays wrong', async () => {
