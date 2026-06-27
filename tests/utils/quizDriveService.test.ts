@@ -389,6 +389,30 @@ function makeResponse(overrides: Partial<QuizResponse>): QuizResponse {
   };
 }
 
+function extractAllRows(fetchSpy: FetchSpy): string[][] {
+  const calls = (fetchSpy as unknown as { mock: { calls: unknown[][] } }).mock
+    .calls as Array<[string, RequestInit]>;
+  const body = parseBody(calls[0][1]);
+  const sheets = body.sheets as Array<{
+    data: Array<{
+      rowData: Array<{
+        values: Array<{ userEnteredValue: { stringValue: string } }>;
+      }>;
+    }>;
+  }>;
+  return sheets[0].data[0].rowData.map((row) =>
+    row.values.map((v) => v.userEnteredValue.stringValue)
+  );
+}
+
+function findAnalysisRow(rows: string[][], questionId: string): string[] {
+  const row = rows.find(
+    (r) => r.length >= 7 && r[0].startsWith(`Question ${questionId}`)
+  );
+  if (!row) throw new Error(`Analysis row for ${questionId} not found`);
+  return row;
+}
+
 describe('QuizDriveService.exportResultsToSheet — column shape', () => {
   let service: QuizDriveService;
   beforeEach(() => {
@@ -554,6 +578,159 @@ describe('QuizDriveService.exportResultsToSheet — column shape', () => {
     expect(analysisDataRows).toHaveLength(1);
     // Verify the single row describes 'q1'.
     expect(analysisDataRows[0][0]).toBe('Question q1'); // q.text
+  });
+
+  it('REGRESSION: duplicate answer, first=wrong, dup=correct — correctSet not inflated', async () => {
+    // makeQuestion has correctAnswer:'A'. Student answered 'B' first (wrong),
+    // then 'A' (correct) as a duplicate. First-occurrence → wrong.
+    const fetchSpy = queueFetchResponses([
+      {
+        json: () =>
+          Promise.resolve({
+            spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/abc',
+          }),
+      },
+    ]);
+
+    await service.exportResultsToSheet(
+      'Dedup Test',
+      [
+        makeResponse({
+          pin: '01',
+          answers: [
+            { questionId: 'q1', answer: 'B', answeredAt: 0 }, // first — wrong
+            { questionId: 'q1', answer: 'A', answeredAt: 1 }, // dup — ignored
+          ],
+        }),
+      ],
+      [makeQuestion('q1')]
+    );
+
+    // [questionText, type, points, correctAnswer, #Correct, #Answered, %Correct]
+    const analysisRow = findAnalysisRow(extractAllRows(fetchSpy), 'q1');
+    expect(analysisRow[4]).toBe('0'); // # Correct — first was wrong
+    expect(analysisRow[5]).toBe('1'); // # Answered
+    expect(analysisRow[6]).toBe('0%');
+  });
+
+  it('duplicate answer, first=correct — question stays in correctSet', async () => {
+    const fetchSpy = queueFetchResponses([
+      {
+        json: () =>
+          Promise.resolve({
+            spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/abc',
+          }),
+      },
+    ]);
+
+    await service.exportResultsToSheet(
+      'Dedup Test',
+      [
+        makeResponse({
+          pin: '01',
+          answers: [
+            { questionId: 'q1', answer: 'A', answeredAt: 0 }, // first — correct
+            { questionId: 'q1', answer: 'B', answeredAt: 1 }, // dup — ignored
+          ],
+        }),
+      ],
+      [makeQuestion('q1')]
+    );
+
+    const analysisRow = findAnalysisRow(extractAllRows(fetchSpy), 'q1');
+    expect(analysisRow[4]).toBe('1'); // # Correct
+    expect(analysisRow[5]).toBe('1'); // # Answered
+    expect(analysisRow[6]).toBe('100%');
+  });
+
+  it('single non-duplicate correct answer counts normally', async () => {
+    const fetchSpy = queueFetchResponses([
+      {
+        json: () =>
+          Promise.resolve({
+            spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/abc',
+          }),
+      },
+    ]);
+
+    await service.exportResultsToSheet(
+      'Dedup Test',
+      [
+        makeResponse({
+          pin: '01',
+          answers: [{ questionId: 'q1', answer: 'A', answeredAt: 0 }],
+        }),
+      ],
+      [makeQuestion('q1')]
+    );
+
+    const analysisRow = findAnalysisRow(extractAllRows(fetchSpy), 'q1');
+    expect(analysisRow[4]).toBe('1');
+    expect(analysisRow[5]).toBe('1');
+    expect(analysisRow[6]).toBe('100%');
+  });
+
+  it('single non-duplicate wrong answer counts as 0 correct', async () => {
+    const fetchSpy = queueFetchResponses([
+      {
+        json: () =>
+          Promise.resolve({
+            spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/abc',
+          }),
+      },
+    ]);
+
+    await service.exportResultsToSheet(
+      'Dedup Test',
+      [
+        makeResponse({
+          pin: '01',
+          answers: [{ questionId: 'q1', answer: 'B', answeredAt: 0 }],
+        }),
+      ],
+      [makeQuestion('q1')]
+    );
+
+    const analysisRow = findAnalysisRow(extractAllRows(fetchSpy), 'q1');
+    expect(analysisRow[4]).toBe('0');
+    expect(analysisRow[5]).toBe('1');
+    expect(analysisRow[6]).toBe('0%');
+  });
+
+  it('multiple students: each deduplicated independently — 1/2 correct = 50%', async () => {
+    // Student A: first=wrong, dup=correct → 0 correct.
+    // Student B: correct, no dup → 1 correct.
+    const fetchSpy = queueFetchResponses([
+      {
+        json: () =>
+          Promise.resolve({
+            spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/abc',
+          }),
+      },
+    ]);
+
+    await service.exportResultsToSheet(
+      'Dedup Test',
+      [
+        makeResponse({
+          pin: 'A01',
+          answers: [
+            { questionId: 'q1', answer: 'B', answeredAt: 0 },
+            { questionId: 'q1', answer: 'A', answeredAt: 1 }, // dup — ignored
+          ],
+        }),
+        makeResponse({
+          pin: 'B01',
+          answers: [{ questionId: 'q1', answer: 'A', answeredAt: 0 }],
+        }),
+      ],
+      [makeQuestion('q1')]
+    );
+
+    const analysisRow = findAnalysisRow(extractAllRows(fetchSpy), 'q1');
+    expect(analysisRow[4]).toBe('1'); // # Correct (only B)
+    expect(analysisRow[5]).toBe('2'); // # Answered (both)
+    expect(analysisRow[6]).toBe('50%');
   });
 
   it('throws PlcSheetSchemaMismatchError when appending to an old-schema PLC sheet', async () => {

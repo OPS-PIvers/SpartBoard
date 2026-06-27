@@ -719,18 +719,12 @@ export class QuizDriveService {
       const answeredSet = new Set<string>();
       const correctSet = new Set<string>();
 
-      // Deduplicate by questionId, keeping only the FIRST occurrence in the
-      // array. This mirrors how `buildResultsSheetDataShared` filters answers
-      // and how `getEarnedPoints` grades them (first-occurrence wins). Without
-      // this guard, a response with [wrong, correct] for the same questionId
-      // would add the question to `correctSet` — inflating "# Correct" in the
-      // Question Analysis section — even though the student's actual scored
-      // answer (first occurrence) was wrong.
+      // First-occurrence dedup mirrors buildResultsSheetDataShared — correctSet must agree with the grader's first-occurrence semantics.
       const firstOccurrenceAnswers = new Map<
         string,
         (typeof r.answers)[number]
       >();
-      for (const a of r.answers ?? []) {
+      for (const a of r.answers) {
         if (!firstOccurrenceAnswers.has(a.questionId)) {
           firstOccurrenceAnswers.set(a.questionId, a);
         }
