@@ -200,10 +200,14 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">
+            <label
+              htmlFor={`nl-display-${widget.id}`}
+              className="block text-xs font-semibold text-slate-500 mb-1"
+            >
               Display Mode
             </label>
             <select
+              id={`nl-display-${widget.id}`}
               value={displayMode}
               onChange={(e) =>
                 updateConfig({
