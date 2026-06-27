@@ -11,7 +11,7 @@
  * fail, prompting the developer to add a label.
  */
 import { describe, it, expect } from 'vitest';
-import { AI_FEATURE_LABELS } from '@/components/admin/Analytics/AnalyticsManager';
+import { AI_FEATURE_LABELS } from '@/components/admin/Analytics/aiFeatureLabels';
 
 /**
  * Mirror of GEMINI_SPECIFIC_FEATURES in functions/src/adminAnalyticsCompute.ts.

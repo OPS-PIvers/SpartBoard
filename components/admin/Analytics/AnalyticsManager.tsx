@@ -860,9 +860,6 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
   );
 };
 
-// Re-exported from a separate module to keep this file component-only and
-// satisfy the react-refresh/only-export-components lint rule.
-export { AI_FEATURE_LABELS } from './aiFeatureLabels';
 import { AI_FEATURE_LABELS } from './aiFeatureLabels';
 
 const AiPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
