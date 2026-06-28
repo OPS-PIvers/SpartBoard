@@ -13,7 +13,7 @@ import { WIDGET_LABELS } from '@/components/admin/Analytics/widgetLabels';
  * Mirror of WidgetType union from types.ts — keep in sync when adding new
  * widget types.
  */
-const ALL_WIDGET_TYPES: WidgetType[] = [
+const ALL_WIDGET_TYPES = [
   'clock',
   'traffic',
   'text',
@@ -77,7 +77,14 @@ const ALL_WIDGET_TYPES: WidgetType[] = [
   'blooms-detail',
   'need-do-put-then',
   'stations',
-];
+] as const;
+
+// Compile-time completeness assertion: if a new WidgetType is added to
+// types.ts without updating ALL_WIDGET_TYPES, this line fails to compile
+// (Type 'never' is not assignable to type 'true').
+const _exhaustiveCheck: [WidgetType] extends [(typeof ALL_WIDGET_TYPES)[number]]
+  ? true
+  : never = true;
 
 describe('WIDGET_LABELS', () => {
   it('has a human-readable label for every WidgetType (not a raw type-ID fallback)', () => {
