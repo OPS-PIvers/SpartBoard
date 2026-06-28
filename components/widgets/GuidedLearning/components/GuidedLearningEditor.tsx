@@ -324,6 +324,7 @@ const WelcomeChip: React.FC<WelcomeChipProps> = ({
             role="dialog"
             aria-label="Welcome screen settings"
             data-click-outside-ignore="true"
+            data-widget-portal=""
             className="rounded-xl border border-slate-200 bg-white p-3 shadow-lg"
             style={{
               position: 'fixed',
