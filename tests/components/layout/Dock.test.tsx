@@ -514,28 +514,16 @@ describe('Dock smart-paste – processAndUploadImage is not a spurious dep', () 
 // ── Regression: unstable onError inline arrow causes startRecording churn ────
 //
 // Bug: `onError` was defined as an inline arrow function inside the
-// `useScreenRecord(...)` call in Dock.tsx:
+// `useScreenRecord(...)` call in Dock.tsx, giving it a new identity every
+// render. useScreenRecord now owns stability via render-body refs so
+// startRecording is unconditionally stable regardless of onError identity, but
+// Dock.tsx still wraps handleRecordingError in useCallback([addToast]) as good
+// practice — the test below guards that.
 //
-//   useScreenRecord({
-//     onSuccess: handleRecordingComplete,
-//     onError: (err) => { addToast(err.message, 'error'); },   // ← new ref every render
-//   });
-//
-// `useScreenRecord` computes `startRecording` via:
-//
-//   useCallback(async () => { ... }, [options, stopRecording])
-//
-// Because `options` was a new object every render (the inline arrow gave it a
-// new `onError` identity), `startRecording` also got a new identity every
-// render. The `spart-screen-record-toggle` / `spart-screen-record-query`
-// listener `useEffect` has `[isRecording, startRecording, stopRecording]` as
-// deps, so it was torn down and re-registered on every Dock re-render — even
-// for totally unrelated state changes. This creates a brief window during any
-// Dock re-render where a dispatched custom event could be missed.
-//
-// Fix: extract `handleRecordingError` as a stable `useCallback([addToast])`.
-// This stabilises `options`, which stabilises `startRecording`, which means
-// the listener effect only re-runs when recording state actually changes.
+// The listener-stability test verifies the correct useEffect behavior: when
+// startRecording / stopRecording / isRecording are all stable across a
+// re-render, the spart-screen-record-toggle/-query listeners are not torn down
+// and re-registered.
 
 describe('Dock screen-record – startRecording identity is stable across unrelated re-renders', () => {
   beforeEach(() => {
@@ -626,6 +614,36 @@ describe('Dock screen-record – startRecording identity is stable across unrela
     expect(removeQueryAfterRerender).toBe(0);
     expect(addToggleAfterRerender).toBe(0);
     expect(addQueryAfterRerender).toBe(0);
+  });
+
+  it('passes a stable onError reference to useScreenRecord across unrelated re-renders', () => {
+    setupMocks();
+
+    // Capture the options object passed to useScreenRecord on each call so we
+    // can assert onError identity is stable (i.e. handleRecordingError is a
+    // stable useCallback, not a new inline arrow per render).
+    const capturedOnError: Array<unknown> = [];
+    vi.mocked(useScreenRecord).mockImplementation((opts = {}) => {
+      capturedOnError.push(opts.onError);
+      return {
+        isRecording: false,
+        duration: 0,
+        startRecording: vi.fn(),
+        stopRecording: vi.fn(),
+        error: null,
+      } as unknown as ReturnType<typeof useScreenRecord>;
+    });
+
+    const { rerender } = render(<Dock />);
+    rerender(<Dock />);
+
+    // handleRecordingError is defined via useCallback([addToast]) in Dock.tsx.
+    // Its reference must be stable — an inline arrow would be a new ref every
+    // render. With the old hook implementation, an unstable onError caused
+    // startRecording to churn; with the current render-body-ref implementation
+    // it no longer does, but stability here is still good practice.
+    expect(capturedOnError.length).toBeGreaterThanOrEqual(2);
+    expect(capturedOnError[0]).toBe(capturedOnError[1]);
   });
 });
 

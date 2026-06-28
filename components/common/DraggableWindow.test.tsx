@@ -1328,7 +1328,6 @@ describe('DraggableWindow', () => {
     // stopImmediatePropagation would NOT be called, and the native event would
     // reach DashboardView's window.addEventListener('keydown', ...) handler
     // which would then dispatch widget-keyboard-action and minimise the widget.
-    expect(capturedStopImmediatePropagation).not.toBeNull();
     expect(capturedStopImmediatePropagation).toHaveBeenCalledTimes(1);
 
     // The widget must NOT be minimised regardless.
