@@ -14,7 +14,7 @@ import { useAuth } from '@/context/useAuth';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { getFontClass, hexToRgba } from '@/utils/styles';
 
-const EditableNode: React.FC<{
+export const EditableNode: React.FC<{
   id: string;
   initialText: string;
   onUpdate: (id: string, text: string) => void;
@@ -29,9 +29,8 @@ const EditableNode: React.FC<{
   // see the teacher's diagram but cannot retype or delete cell text.
   const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
 
-  useEffect(() => {
-    onUpdateRef.current = onUpdate;
-  }, [onUpdate]);
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync (CLAUDE.md pattern)
+  onUpdateRef.current = onUpdate;
 
   useEffect(() => {
     if (

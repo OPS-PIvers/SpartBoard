@@ -1,6 +1,8 @@
+import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { flushSync } from 'react-dom';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { GraphicOrganizerWidget } from './Widget';
+import { GraphicOrganizerWidget, EditableNode } from './Widget';
 import {
   useDashboardActions,
   useGlobalStyle,
@@ -246,5 +248,104 @@ describe('GraphicOrganizerWidget', () => {
 
     const editableNodes = document.querySelectorAll('[contenteditable="true"]');
     expect(editableNodes).toHaveLength(5); // Frayer has 5 nodes
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Regression: EditableNode — render-body ref sync
+// ---------------------------------------------------------------------------
+//
+// Bug (pre-fix): onUpdateRef was synced inside a useEffect:
+//
+//   useEffect(() => { onUpdateRef.current = onUpdate; }, [onUpdate]);
+//
+// useEffect is a passive effect — it runs AFTER the browser paints.
+// When the parent re-renders (new onUpdate prop) via flushSync, the passive
+// effect is scheduled but NOT yet flushed. The debounced triggerUpdate fires
+// and calls onUpdateRef.current — which still points to the OLD closure,
+// silently discarding any captured state (e.g. prior node edits) that the new
+// closure would have included.
+//
+// Fix: Assign the ref directly in the render body:
+//
+//   onUpdateRef.current = onUpdate;  // no useEffect wrapper
+//
+// This mirrors the pattern in TimeTool/useHoldAccelerate.ts and
+// Scoreboard/Widget.tsx (both carry the // eslint-disable-next-line
+// react-hooks/refs comment per the CLAUDE.md invariant).
+//
+// Test technique:
+//   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }) fakes ONLY
+//   the debounce timer used by EditableNode.handleInput — but NOT setImmediate,
+//   which React's passive-effect scheduler relies on. After a flushSync
+//   re-render the pending useEffect is still enqueued in real setImmediate.
+//   Calling vi.advanceTimersByTime(500) fires only the faked setTimeout
+//   (triggerUpdate), leaving passive effects unflushed. This exposes the
+//   stale-ref window that would otherwise be invisible when act() flushes
+//   all pending work.
+// ---------------------------------------------------------------------------
+describe('EditableNode — render-body ref sync regression', () => {
+  beforeEach(() => {
+    vi.mocked(useIsActiveBoardReadOnly).mockReturnValue(false);
+    // Fake ONLY setTimeout/clearTimeout (the debounce in handleInput).
+    // setImmediate is NOT faked so React's passive-effect scheduler keeps
+    // its real scheduling — vi.advanceTimersByTime won't drain effects.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it('calls the LATEST onUpdate (not the stale one) after a synchronous re-render via flushSync', () => {
+    // Track which version of onUpdate was invoked by triggerUpdate.
+    const callLog: string[] = [];
+    const onUpdateA = vi.fn((_id: string, _text: string) => {
+      callLog.push('A');
+    });
+    const onUpdateB = vi.fn((_id: string, _text: string) => {
+      callLog.push('B');
+    });
+
+    // Render with onUpdateA.
+    const { rerender } = render(
+      <EditableNode id="node-1" initialText="" onUpdate={onUpdateA} />
+    );
+    const node = document.querySelector(
+      '[contenteditable="true"]'
+    ) as HTMLElement;
+
+    // Give initial passive effects a chance to flush (real setImmediate runs).
+    act(() => {});
+
+    // Simulate typing — schedules setTimeout(triggerUpdate, 500) via fake timer.
+    fireEvent.input(node, { target: { innerText: 'hello' } });
+
+    // Swap to onUpdateB via flushSync: commits the React tree (layout effects
+    // run) but does NOT flush passive effects — the pending useEffect is still
+    // queued in real setImmediate and has not yet run.
+    //
+    // With the render-body fix: onUpdateRef.current = onUpdateB during render.
+    // With the bug: onUpdateRef.current is still onUpdateA (effect pending).
+    flushSync(() => {
+      rerender(
+        <EditableNode id="node-1" initialText="" onUpdate={onUpdateB} />
+      );
+    });
+
+    // Advance ONLY the faked setTimeout (the 500ms debounce).
+    // setImmediate is real, so React's pending useEffect does NOT flush here.
+    // triggerUpdate fires and reads onUpdateRef.current.
+    //
+    // Old code (useEffect ref sync): passive effect hasn't run
+    //   → onUpdateRef.current = onUpdateA → callLog = ['A'] → FAILS.
+    // New code (render-body ref sync): ref updated during flushSync render
+    //   → onUpdateRef.current = onUpdateB → callLog = ['B'] → PASSES.
+    vi.advanceTimersByTime(500);
+
+    expect(callLog).toContain('B');
+    expect(callLog).not.toContain('A');
   });
 });
