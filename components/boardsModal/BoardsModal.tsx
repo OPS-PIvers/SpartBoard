@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
 import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
@@ -134,16 +135,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      const target = e.target;
-      if (
-        target instanceof Element &&
-        !!target.closest('[data-draggable-window]') &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
-          (target as HTMLElement).isContentEditable)
-      )
-        return;
+      if (isEscapeFromWidgetInput(e)) return;
       if (multi.isSelectMode) multi.clearSelection();
       else onClose();
     };

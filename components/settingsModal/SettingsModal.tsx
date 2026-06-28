@@ -30,6 +30,7 @@ import { AppearanceSection } from './sections/AppearanceSection';
 import { DockSection } from './sections/DockSection';
 import { BehaviorSection } from './sections/BehaviorSection';
 import { LanguageSection } from './sections/LanguageSection';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -105,16 +106,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   React.useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      const target = event.target;
-      if (
-        target instanceof Element &&
-        !!target.closest('[data-draggable-window]') &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
-          (target as HTMLElement).isContentEditable)
-      )
-        return;
+      if (isEscapeFromWidgetInput(event)) return;
       onClose();
     };
     document.addEventListener('keydown', handleEscape);

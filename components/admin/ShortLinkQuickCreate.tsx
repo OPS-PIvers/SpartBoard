@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Link2 } from 'lucide-react';
 
 import { ShortLinkCreateForm } from './LinkShortenerManager';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 interface ShortLinkQuickCreateProps {
   onClose: () => void;
@@ -18,16 +19,7 @@ export const ShortLinkQuickCreate: React.FC<ShortLinkQuickCreateProps> = ({
   React.useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      const t = event.target;
-      if (
-        t instanceof Element &&
-        !!t.closest('[data-draggable-window]') &&
-        (t.tagName === 'INPUT' ||
-          t.tagName === 'TEXTAREA' ||
-          t.tagName === 'SELECT' ||
-          (t as HTMLElement).isContentEditable)
-      )
-        return;
+      if (isEscapeFromWidgetInput(event)) return;
       onClose();
     };
     document.addEventListener('keydown', handleEscape);

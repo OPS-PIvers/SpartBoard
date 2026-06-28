@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -56,16 +57,7 @@ const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      const t = event.target;
-      if (
-        t instanceof Element &&
-        !!t.closest('[data-draggable-window]') &&
-        (t.tagName === 'INPUT' ||
-          t.tagName === 'TEXTAREA' ||
-          t.tagName === 'SELECT' ||
-          (t as HTMLElement).isContentEditable)
-      )
-        return;
+      if (isEscapeFromWidgetInput(event)) return;
       onClose();
     };
 

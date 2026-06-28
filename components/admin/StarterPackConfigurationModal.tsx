@@ -36,6 +36,7 @@ import { TOOLS } from '@/config/tools';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { useDashboard } from '@/context/useDashboard';
 import { createBoardSnapshot } from '@/utils/widgetHelpers';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { Toast } from '@/components/common/Toast';
 import { Modal } from '@/components/common/Modal';
 import { useDialog } from '@/context/useDialog';
@@ -341,10 +342,10 @@ export const StarterPackConfigurationModal: React.FC<
 
   useEffect(() => {
     const onEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopImmediatePropagation();
-        void handleBack();
-      }
+      if (e.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(e)) return;
+      e.stopImmediatePropagation();
+      void handleBack();
     };
     // Use capture phase so Escape is intercepted before other global handlers
     window.addEventListener('keydown', onEscape, { capture: true });

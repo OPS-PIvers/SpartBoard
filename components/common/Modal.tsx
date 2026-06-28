@@ -6,6 +6,7 @@ import {
   getOpenModalCount,
   incrementOpenModalCount,
 } from './modalStore';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 interface ModalProps {
   variant?: 'default' | 'bare';
@@ -60,12 +61,12 @@ export const Modal: React.FC<ModalProps> = ({
     if (!isOpen) return undefined;
 
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (captureEscape) e.stopImmediatePropagation();
-        // Read from ref so we always call the current onClose even though
-        // onClose is not in the effect deps array.
-        onCloseRef.current();
-      }
+      if (e.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(e)) return;
+      if (captureEscape) e.stopImmediatePropagation();
+      // Read from ref so we always call the current onClose even though
+      // onClose is not in the effect deps array.
+      onCloseRef.current();
     };
 
     if (getOpenModalCount() === 0) {

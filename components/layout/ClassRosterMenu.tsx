@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
 import { Star, Plus } from 'lucide-react';
@@ -46,16 +47,7 @@ const ClassRosterMenu: React.FC<Props> = ({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      const t = event.target;
-      if (
-        t instanceof Element &&
-        !!t.closest('[data-draggable-window]') &&
-        (t.tagName === 'INPUT' ||
-          t.tagName === 'TEXTAREA' ||
-          t.tagName === 'SELECT' ||
-          (t as HTMLElement).isContentEditable)
-      )
-        return;
+      if (isEscapeFromWidgetInput(event)) return;
       onClose();
     };
 
