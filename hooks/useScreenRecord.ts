@@ -14,6 +14,16 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
   const timerRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // Render-body ref sync: callbacks are stored in refs so startRecording's
+  // useCallback dep array can omit `options` entirely, making startRecording
+  // unconditionally stable regardless of callback identity changes.
+  const onSuccessRef = useRef(options.onSuccess);
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync (CLAUDE.md pattern)
+  onSuccessRef.current = options.onSuccess;
+  const onErrorRef = useRef(options.onError);
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync (CLAUDE.md pattern)
+  onErrorRef.current = options.onError;
+
   const stopRecording = useCallback(() => {
     if (
       mediaRecorderRef.current &&
@@ -62,7 +72,7 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
 
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: mimeType });
-        options.onSuccess?.(blob);
+        onSuccessRef.current?.(blob);
         chunksRef.current = [];
         setIsRecording(false);
         setDuration(0);
@@ -85,10 +95,10 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
       const error =
         err instanceof Error ? err : new Error('Failed to start recording');
       setError(error);
-      options.onError?.(error);
+      onErrorRef.current?.(error);
       console.error('Screen recording failed:', error);
     }
-  }, [options, stopRecording]);
+  }, [stopRecording]);
 
   // Cleanup on unmount
   useEffect(() => {

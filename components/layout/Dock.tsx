@@ -279,29 +279,18 @@ export const Dock: React.FC = () => {
     [driveService, addToast, t]
   );
 
-  // Stable error handler — if defined inline the options object would get a new
-  // identity on every render, which causes startRecording's useCallback
-  // (deps: [options, stopRecording]) to also get a new identity every render,
-  // which in turn re-registers the spart-screen-record-toggle/query window
-  // listeners on every render rather than only when recording state changes.
   const handleRecordingError = useCallback(
     (err: Error) => {
       addToast(err.message, 'error');
     },
     [addToast]
   );
-  // Memoize the options object so its identity only changes when the callbacks
-  // change — stabilises startRecording's useCallback dep array.
-  const screenRecordOptions = useMemo(
-    () => ({
-      onSuccess: handleRecordingComplete,
-      onError: handleRecordingError,
-    }),
-    [handleRecordingComplete, handleRecordingError]
-  );
 
   const { isRecording, duration, startRecording, stopRecording } =
-    useScreenRecord(screenRecordOptions);
+    useScreenRecord({
+      onSuccess: handleRecordingComplete,
+      onError: handleRecordingError,
+    });
 
   // Remote control of the one screen recorder (and its Drive-upload pipeline)
   // for callers outside the Dock — e.g. a maximized widget's FAB menu, where
