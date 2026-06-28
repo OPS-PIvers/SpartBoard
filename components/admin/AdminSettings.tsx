@@ -177,12 +177,22 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
   // The desktop rail is always visible, so this flag is inert there.
   const [showMobileMenu, setShowMobileMenu] = useState(true);
 
-  // Close modal on Escape key press
+  // Close modal on Escape key press — guard against typing fields so
+  // DraggableWindow's stopImmediatePropagation doesn't prevent us from firing
+  // (it silences window/document listeners when focus is inside a widget input).
   React.useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
+      if (event.key !== 'Escape') return;
+      const t = event.target as HTMLElement | null;
+      if (
+        t &&
+        (t.tagName === 'INPUT' ||
+          t.tagName === 'TEXTAREA' ||
+          t.tagName === 'SELECT' ||
+          t.isContentEditable)
+      )
+        return;
+      onClose();
     };
 
     document.addEventListener('keydown', handleEscape);

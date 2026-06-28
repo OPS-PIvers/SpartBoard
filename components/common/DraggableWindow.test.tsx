@@ -1310,15 +1310,23 @@ describe('DraggableWindow', () => {
     // on the input and attach a spy before React's handler can see it.
     let capturedStopImmediatePropagation: ReturnType<typeof vi.fn> | null =
       null;
+    const callOrder: string[] = [];
 
     const originalDispatchEvent = input.dispatchEvent.bind(input);
     vi.spyOn(input, 'dispatchEvent').mockImplementation((event: Event) => {
-      // Attach spy to stopImmediatePropagation before the event propagates
-      capturedStopImmediatePropagation = vi.spyOn(
-        event,
-        'stopImmediatePropagation'
-      );
+      // Attach spy to stopImmediatePropagation before the event propagates,
+      // recording when it fires relative to blur().
+      capturedStopImmediatePropagation = vi
+        .spyOn(event, 'stopImmediatePropagation')
+        .mockImplementation(() => {
+          callOrder.push('stopImmediatePropagation');
+        });
       return originalDispatchEvent(event);
+    });
+    const originalBlur = input.blur.bind(input);
+    vi.spyOn(input, 'blur').mockImplementation(() => {
+      callOrder.push('blur');
+      originalBlur();
     });
 
     fireEvent.keyDown(input, { key: 'Escape', bubbles: true });
@@ -1329,6 +1337,10 @@ describe('DraggableWindow', () => {
     // reach DashboardView's window.addEventListener('keydown', ...) handler
     // which would then dispatch widget-keyboard-action and minimise the widget.
     expect(capturedStopImmediatePropagation).toHaveBeenCalledTimes(1);
+    // Ordering invariant: stopImmediatePropagation must fire BEFORE blur().
+    // Swapping the order reintroduces the bug: blur() moves focus synchronously,
+    // so the event reaches window after isTypingFieldActive() returns false.
+    expect(callOrder).toEqual(['stopImmediatePropagation', 'blur']);
 
     // The widget must NOT be minimised regardless.
     expect(mockUpdateWidget).not.toHaveBeenCalledWith(
