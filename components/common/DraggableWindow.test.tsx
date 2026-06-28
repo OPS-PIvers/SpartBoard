@@ -1262,4 +1262,83 @@ describe('DraggableWindow', () => {
       expect.objectContaining({ customTitle: 'My New Title' })
     );
   });
+
+  // Regression: pressing Escape inside a content-area input must call
+  // e.nativeEvent.stopImmediatePropagation() to prevent the native DOM event
+  // from reaching window-level listeners (e.g. DashboardView's global keydown
+  // handler).
+  //
+  // Without the fix the flow was:
+  //   1. User presses Escape in a widget input field
+  //   2. DraggableWindow.handleKeyDown fires (isInput branch), calls target.blur()
+  //      which synchronously moves focus away from the input
+  //   3. e.stopPropagation() blocks the React synthetic event tree — but the
+  //      underlying native DOM event keeps propagating to window
+  //   4. DashboardView's window.addEventListener('keydown', ...) fires
+  //   5. isTypingFieldActive() returns false (focus already moved by step 2)
+  //   6. DashboardView dispatches 'widget-keyboard-action' with key='Escape'
+  //   7. DraggableWindow's window listener for 'widget-keyboard-action' fires
+  //      and minimises the widget — even though the user only pressed Escape
+  //      to cancel an in-progress edit.
+  //
+  // Root cause: e.stopPropagation() only stops the React synthetic event tree;
+  // it does NOT block the native DOM event from reaching window.addEventListener
+  // handlers that were registered outside React.
+  //
+  // Fix: call e.nativeEvent.stopImmediatePropagation() BEFORE target.blur() in
+  // DraggableWindow.handleKeyDown's isInput+Escape branch. This stops the native
+  // DOM event immediately so it never reaches any further window listeners.
+  //
+  // Test approach: intercept the KeyboardEvent constructed by fireEvent so we
+  // can spy on its stopImmediatePropagation method and verify DraggableWindow
+  // calls it when Escape is pressed inside a content-area input.
+  it('calls nativeEvent.stopImmediatePropagation when Escape is pressed inside a content-area input', () => {
+    const ContentWithInput = () => (
+      <input data-testid="content-input" defaultValue="hello" />
+    );
+    renderComponent(
+      {},
+      <ContentWithInput />,
+      <div>Settings</div>,
+      'test-widget'
+    );
+
+    const input = screen.getByTestId('content-input');
+
+    // Spy on the stopImmediatePropagation method of the real native event by
+    // intercepting KeyboardEvent construction. We capture the event dispatched
+    // on the input and attach a spy before React's handler can see it.
+    let capturedStopImmediatePropagation: ReturnType<typeof vi.fn> | null =
+      null;
+
+    const originalDispatchEvent = input.dispatchEvent.bind(input);
+    const dispatchSpy = vi
+      .spyOn(input, 'dispatchEvent')
+      .mockImplementation((event: Event) => {
+        // Attach spy to stopImmediatePropagation before the event propagates
+        capturedStopImmediatePropagation = vi.spyOn(
+          event,
+          'stopImmediatePropagation'
+        );
+        return originalDispatchEvent(event);
+      });
+
+    fireEvent.keyDown(input, { key: 'Escape', bubbles: true });
+
+    dispatchSpy.mockRestore();
+
+    // The fix must have called stopImmediatePropagation on the native event.
+    // Without the fix, only stopPropagation (React synthetic) was called —
+    // stopImmediatePropagation would NOT be called, and the native event would
+    // reach DashboardView's window.addEventListener('keydown', ...) handler
+    // which would then dispatch widget-keyboard-action and minimise the widget.
+    expect(capturedStopImmediatePropagation).not.toBeNull();
+    expect(capturedStopImmediatePropagation).toHaveBeenCalledTimes(1);
+
+    // The widget must NOT be minimised regardless.
+    expect(mockUpdateWidget).not.toHaveBeenCalledWith(
+      'test-widget',
+      expect.objectContaining({ minimized: true })
+    );
+  });
 });

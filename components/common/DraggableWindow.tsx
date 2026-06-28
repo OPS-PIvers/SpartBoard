@@ -874,6 +874,14 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     if (isInput) {
       if (e.key === 'Escape') {
+        // Stop the native event from reaching the window-level keydown handler
+        // in DashboardView BEFORE calling target.blur(). blur() moves focus
+        // synchronously, so by the time the native event reaches window,
+        // isTypingFieldActive() would return false and the widget would be
+        // minimized. e.stopPropagation() only stops the React synthetic event
+        // tree — it does not prevent the native DOM event from reaching
+        // window.addEventListener listeners.
+        e.nativeEvent.stopImmediatePropagation();
         target.blur();
         e.stopPropagation();
       }
