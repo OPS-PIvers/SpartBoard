@@ -36,6 +36,7 @@ export const PromptDialog: React.FC<PromptDialogProps> = ({
 
   return createPortal(
     <div
+      data-widget-portal=""
       className="fixed inset-0 z-critical flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
       role="dialog"
       aria-labelledby="prompt-dialog-title"
@@ -69,11 +70,6 @@ export const PromptDialog: React.FC<PromptDialogProps> = ({
               handleSubmit();
             }
             if (e.key === 'Escape') {
-              // Portaled to document.body — closest() can't find
-              // [data-draggable-window], so kill the native event here
-              // to prevent capture-phase handlers (e.g. StarterPackModal)
-              // from also firing when the user cancels this dialog.
-              e.nativeEvent.stopImmediatePropagation();
               onCancel();
             }
           }}

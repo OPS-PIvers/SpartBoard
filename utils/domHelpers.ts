@@ -10,11 +10,16 @@
  * the normal path, but need this guard for the edge case where a widget's own
  * React onKeyDown stops synthetic propagation before DraggableWindow fires.
  *
- * Limitation: inputs rendered via createPortal() to document.body are outside
- * the [data-draggable-window] DOM subtree, so closest() returns null and this
- * guard returns false for them. Those inputs must call
- * e.nativeEvent.stopImmediatePropagation() directly in their own Escape
- * handlers (see DraggableWindow title-edit input and PromptDialog.tsx).
+ * Portaled widget dialogs (inputs rendered via createPortal to document.body)
+ * are outside the [data-draggable-window] DOM subtree, so they must add
+ * data-widget-portal="" to their portal root element to be covered by this
+ * guard. This avoids a native-capture ordering problem: capture-phase handlers
+ * (e.g. StarterPackConfigurationModal) fire before React's synthetic onKeyDown,
+ * so adding e.nativeEvent.stopImmediatePropagation() in a React handler is too
+ * late. Instead, those dialogs add data-widget-portal so this guard returns
+ * true, causing capture-phase callers to return before stopImmediatePropagation.
+ * (DraggableWindow's own title-edit input, portaled but DraggableWindow-owned,
+ * still uses e.nativeEvent.stopImmediatePropagation() at the source.)
  */
 export function isEscapeFromWidgetInput(e: KeyboardEvent): boolean {
   const t = e.target;
@@ -24,6 +29,7 @@ export function isEscapeFromWidgetInput(e: KeyboardEvent): boolean {
       t.tagName === 'TEXTAREA' ||
       t.tagName === 'SELECT' ||
       (t as HTMLElement).isContentEditable) &&
-    !!t.closest('[data-draggable-window]')
+    (!!t.closest('[data-draggable-window]') ||
+      !!t.closest('[data-widget-portal]'))
   );
 }
