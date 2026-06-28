@@ -1312,20 +1312,16 @@ describe('DraggableWindow', () => {
       null;
 
     const originalDispatchEvent = input.dispatchEvent.bind(input);
-    const dispatchSpy = vi
-      .spyOn(input, 'dispatchEvent')
-      .mockImplementation((event: Event) => {
-        // Attach spy to stopImmediatePropagation before the event propagates
-        capturedStopImmediatePropagation = vi.spyOn(
-          event,
-          'stopImmediatePropagation'
-        );
-        return originalDispatchEvent(event);
-      });
+    vi.spyOn(input, 'dispatchEvent').mockImplementation((event: Event) => {
+      // Attach spy to stopImmediatePropagation before the event propagates
+      capturedStopImmediatePropagation = vi.spyOn(
+        event,
+        'stopImmediatePropagation'
+      );
+      return originalDispatchEvent(event);
+    });
 
     fireEvent.keyDown(input, { key: 'Escape', bubbles: true });
-
-    dispatchSpy.mockRestore();
 
     // The fix must have called stopImmediatePropagation on the native event.
     // Without the fix, only stopPropagation (React synthetic) was called —
