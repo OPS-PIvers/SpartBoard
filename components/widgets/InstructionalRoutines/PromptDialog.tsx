@@ -70,6 +70,7 @@ export const PromptDialog: React.FC<PromptDialogProps> = ({
               handleSubmit();
             }
             if (e.key === 'Escape') {
+              e.stopPropagation();
               onCancel();
             }
           }}
