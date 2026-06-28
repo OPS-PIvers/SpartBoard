@@ -55,9 +55,18 @@ const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
+      if (event.key !== 'Escape') return;
+      const t = event.target;
+      if (
+        t instanceof Element &&
+        !!t.closest('[data-draggable-window]') &&
+        (t.tagName === 'INPUT' ||
+          t.tagName === 'TEXTAREA' ||
+          t.tagName === 'SELECT' ||
+          (t as HTMLElement).isContentEditable)
+      )
+        return;
+      onClose();
     };
 
     document.addEventListener('mousedown', handleClickOutside);
