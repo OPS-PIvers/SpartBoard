@@ -2449,7 +2449,7 @@ export interface TimeToolConfig {
   themeColor?: string;
   glow?: boolean;
   fontFamily?: string;
-  clockStyle?: string;
+  clockStyle?: 'modern' | 'lcd' | 'minimal';
   adjustStepSeconds?: number; // step size (in seconds) for the on-face +/- buttons; default 60
 }
 

@@ -85,7 +85,10 @@ export const migrateWidget = (widget: WidgetData): WidgetData => {
         themeColor: '#2d3f89', // brand-blue-primary
         glow: false,
         fontFamily: 'sans',
-        clockStyle: 'standard',
+        // Legacy 'standard' rendered via the widget's default style branch
+        // (no extra classes) — identical to 'modern', which is now the
+        // canonical value in the narrowed TimeToolConfig.clockStyle union.
+        clockStyle: 'modern',
       } as TimeToolConfig,
     };
   }
