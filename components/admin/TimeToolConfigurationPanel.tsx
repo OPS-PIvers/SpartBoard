@@ -264,6 +264,14 @@ export const TimeToolConfigurationPanel: React.FC<
                 />
               ))}
             </div>
+            {currentBuildingConfig.themeColor && (
+              <button
+                onClick={() => handleUpdateBuilding({ themeColor: undefined })}
+                className="mt-1.5 text-xxs text-slate-400 hover:text-red-500 font-bold transition-colors"
+              >
+                Clear accent color
+              </button>
+            )}
           </div>
           <button
             onClick={() =>
