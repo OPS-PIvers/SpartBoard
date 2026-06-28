@@ -318,6 +318,7 @@ describe('EditableNode — render-body ref sync regression', () => {
     ) as HTMLElement;
 
     // Give initial passive effects a chance to flush (real setImmediate runs).
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     act(() => {});
 
     // Simulate typing — schedules setTimeout(triggerUpdate, 500) via fake timer.
