@@ -61,15 +61,20 @@ export const EditableNode: React.FC<{
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
-    timeoutRef.current = setTimeout(triggerUpdate, 500);
+    timeoutRef.current = setTimeout(() => {
+      timeoutRef.current = null;
+      triggerUpdate();
+    }, 500);
   };
 
   const handleBlur = () => {
     if (timeoutRef.current) {
+      // Pending debounce — cancel it and flush immediately.
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
+      triggerUpdate();
     }
-    triggerUpdate();
+    // If no pending timeout the debounce already fired; nothing more to do.
   };
 
   return (
