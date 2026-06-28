@@ -79,10 +79,17 @@ const ALL_WIDGET_TYPES = [
   'stations',
 ] as const;
 
-// Compile-time completeness assertion: if a new WidgetType is added to
-// types.ts without updating ALL_WIDGET_TYPES, this line fails to compile
-// (Type 'true' is not assignable to type 'never').
+// Compile-time set-equality guard: both directions must hold.
+// Forward: WidgetType ⊆ ALL_WIDGET_TYPES — new type in types.ts without
+// updating the array fails to compile ('true' is not assignable to 'never').
 const _exhaustiveCheck: [WidgetType] extends [(typeof ALL_WIDGET_TYPES)[number]]
+  ? true
+  : never = true;
+// Reverse: ALL_WIDGET_TYPES ⊆ WidgetType — stale entry in the array after a
+// type is removed from types.ts also fails to compile.
+const _reverseExhaustiveCheck: [(typeof ALL_WIDGET_TYPES)[number]] extends [
+  WidgetType,
+]
   ? true
   : never = true;
 
