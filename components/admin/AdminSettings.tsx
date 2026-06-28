@@ -177,20 +177,22 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
   // The desktop rail is always visible, so this flag is inert there.
   const [showMobileMenu, setShowMobileMenu] = useState(true);
 
-  // Close modal on Escape key press — guard against typing fields so
-  // DraggableWindow's stopImmediatePropagation doesn't prevent us from firing
-  // (it silences window/document listeners when focus is inside a widget input).
+  // Close modal on Escape key press. Guard: if Escape originates from an input
+  // inside a DraggableWindow and reaches this listener (e.g. the widget's own
+  // handler stopped React propagation before DraggableWindow could call
+  // stopImmediatePropagation), don't close — the user was cancelling an inline
+  // edit, not dismissing this panel.
   React.useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      const t = event.target as HTMLElement | null;
+      const t = event.target;
       if (
-        t &&
+        t instanceof Element &&
         !!t.closest('[data-draggable-window]') &&
         (t.tagName === 'INPUT' ||
           t.tagName === 'TEXTAREA' ||
           t.tagName === 'SELECT' ||
-          t.isContentEditable)
+          (t as HTMLElement).isContentEditable)
       )
         return;
       onClose();

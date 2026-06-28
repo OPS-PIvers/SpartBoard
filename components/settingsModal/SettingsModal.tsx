@@ -105,14 +105,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   React.useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      const t = event.target as HTMLElement | null;
+      const t = event.target;
       if (
-        t &&
+        t instanceof Element &&
         !!t.closest('[data-draggable-window]') &&
         (t.tagName === 'INPUT' ||
           t.tagName === 'TEXTAREA' ||
           t.tagName === 'SELECT' ||
-          t.isContentEditable)
+          (t as HTMLElement).isContentEditable)
       )
         return;
       onClose();
