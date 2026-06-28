@@ -68,6 +68,14 @@ export const PromptDialog: React.FC<PromptDialogProps> = ({
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
               handleSubmit();
             }
+            if (e.key === 'Escape') {
+              // Portaled to document.body — closest() can't find
+              // [data-draggable-window], so kill the native event here
+              // to prevent capture-phase handlers (e.g. StarterPackModal)
+              // from also firing when the user cancels this dialog.
+              e.nativeEvent.stopImmediatePropagation();
+              onCancel();
+            }
           }}
           aria-label={message}
         />
