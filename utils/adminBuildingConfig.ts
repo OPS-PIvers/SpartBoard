@@ -241,14 +241,67 @@ export const getAdminBuildingConfig = (
         out.color = raw.color;
       break;
     }
-    case 'time-tool':
-      if (typeof raw.duration === 'number') {
-        out.duration = raw.duration;
-        out.elapsedTime = raw.duration;
+    case 'time-tool': {
+      const validModes = ['timer', 'stopwatch'] as const;
+      const validVisualTypes = ['digital', 'visual'] as const;
+      const validSounds = ['Chime', 'Blip', 'Gong', 'Alert'] as const;
+      const validTimeToolClockStyles = ['modern', 'lcd', 'minimal'] as const;
+      const validTrafficColors = ['red', 'yellow', 'green'] as const;
+      let mode: 'timer' | 'stopwatch' | undefined;
+      if (
+        typeof raw.mode === 'string' &&
+        (validModes as readonly string[]).includes(raw.mode)
+      ) {
+        mode = raw.mode as 'timer' | 'stopwatch';
+        out.mode = mode;
       }
-      if (raw.timerEndTrafficColor !== undefined)
+      if (typeof raw.duration === 'number' && Number.isFinite(raw.duration)) {
+        const clampedDuration = Math.max(0, Math.round(raw.duration));
+        out.duration = clampedDuration;
+        // A timer counts down from `duration`, so seed elapsedTime to the full
+        // value; a stopwatch counts up from zero. The base widget default seeds
+        // elapsedTime=600 for timer mode, so reset it when defaulting to a
+        // stopwatch (otherwise a new stopwatch would start at 600s).
+        out.elapsedTime = mode === 'stopwatch' ? 0 : clampedDuration;
+      } else if (mode === 'stopwatch') {
+        out.elapsedTime = 0;
+      }
+      if (
+        typeof raw.visualType === 'string' &&
+        (validVisualTypes as readonly string[]).includes(raw.visualType)
+      )
+        out.visualType = raw.visualType;
+      if (
+        typeof raw.selectedSound === 'string' &&
+        (validSounds as readonly string[]).includes(raw.selectedSound)
+      )
+        out.selectedSound = raw.selectedSound;
+      if (isHexColor(raw.themeColor)) out.themeColor = raw.themeColor;
+      if (typeof raw.glow === 'boolean') out.glow = raw.glow;
+      // TimeTool's appearance panel uses the shared TypographySettings primitive,
+      // so `fontFamily` lives in the prefixed `FONTS`-id space (like `stations`).
+      if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
+      if (
+        typeof raw.clockStyle === 'string' &&
+        (validTimeToolClockStyles as readonly string[]).includes(raw.clockStyle)
+      )
+        out.clockStyle = raw.clockStyle;
+      if (
+        raw.timerEndTrafficColor === null ||
+        (typeof raw.timerEndTrafficColor === 'string' &&
+          (validTrafficColors as readonly string[]).includes(
+            raw.timerEndTrafficColor
+          ))
+      )
         out.timerEndTrafficColor = raw.timerEndTrafficColor;
+      if (typeof raw.timerEndTriggerRandom === 'boolean')
+        out.timerEndTriggerRandom = raw.timerEndTriggerRandom;
+      if (typeof raw.timerEndTriggerNextUp === 'boolean')
+        out.timerEndTriggerNextUp = raw.timerEndTriggerNextUp;
+      if (typeof raw.timerEndTriggerStationsRotate === 'boolean')
+        out.timerEndTriggerStationsRotate = raw.timerEndTriggerStationsRotate;
       break;
+    }
     case 'checklist':
       if (Array.isArray(raw.items) && raw.items.length > 0) {
         out.items = (raw.items as Array<{ id: string; text: string }>).map(

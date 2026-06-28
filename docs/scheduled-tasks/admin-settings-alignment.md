@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
 _Last audited: 2026-06-28_
-_Last action: 2026-06-14_
+_Last action: 2026-06-28 — MEDIUM TimeTool admin building config coverage expanded from 3 to 11 fields_
 
 ---
 
@@ -56,13 +56,6 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 - **File:** utils/adminBuildingConfig.ts (no case 'graphic-organizer'), components/admin/ (no GraphicOrganizerConfigurationPanel.tsx), types.ts (GraphicOrganizerConfig)
 - **Detail:** `GraphicOrganizer/Settings.tsx` exposes `templateType` (organizer layout: Frayer/T-chart/Venn/KWL/Cause-Effect) and appearance fields (`fontFamily`, `fontColor`, `cardColor`, `cardOpacity`). There is no `case 'graphic-organizer':` in `getAdminBuildingConfig()` and no ConfigurationPanel. Admins cannot pre-set the default organizer template type or appearance per building — teachers always start with whatever the widget default is regardless of building context.
 - **Fix:** Add a `BuildingGraphicOrganizerDefaults` interface to types.ts covering `templateType` and the four appearance fields. Add a `case 'graphic-organizer':` handler to `getAdminBuildingConfig()` with enum-membership validation on `templateType` and standard hex/opacity/fontFamily validation for appearance. Create `GraphicOrganizerConfigurationPanel.tsx` with a template type selector and appearance defaults section, following the ConceptWeb panel pattern.
-
-### MEDIUM TimeTool has only 20% admin building config coverage (3 of 15 user-configurable fields)
-
-- **Detected:** 2026-06-21
-- **File:** utils/adminBuildingConfig.ts (case 'time-tool'), components/admin/TimeToolConfigurationPanel.tsx, types.ts (TimeToolConfig / BuildingTimeToolDefaults)
-- **Detail:** `TimeTool/Settings.tsx` exposes 15+ configurable fields: `mode`, `visualType`, `duration`, `elapsedTime`, `isRunning`, `startTime`, `selectedSound`, `timerEndVoiceLevel`, `timerEndTrafficColor`, `timerEndTriggerRandom`, `timerEndTriggerNextUp`, `timerEndTriggerStationsRotate`, `themeColor`, `glow`, `fontFamily`. Only 3 of these are covered in `getAdminBuildingConfig()` case `'time-tool'`: `duration`, `elapsedTime`, `timerEndTrafficColor`. `TimeToolConfigurationPanel.tsx` exists in `components/admin/` but does not expose any of the omitted fields. The most useful building-level defaults (mode, visualType, selectedSound, themeColor, glow, fontFamily) are not pre-configurable.
-- **Fix:** Extend `BuildingTimeToolDefaults` in types.ts to include at minimum: `mode` (`'timer' | 'stopwatch' | 'clock'`), `visualType`, `selectedSound`, `themeColor`, `glow`, `fontFamily`. Add extraction + validation for each in the `case 'time-tool':` handler in `adminBuildingConfig.ts`. Expand `TimeToolConfigurationPanel.tsx` with controls for these fields (mode selector pill, sound selector, colour picker, glow toggle, font family selector) following the existing panel's visual style.
 
 ### LOW LunchCount not in getAdminBuildingConfig — no per-building instance defaults possible
 
@@ -158,6 +151,15 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 ---
 
 ## Completed
+
+### MEDIUM TimeTool has only 20% admin building config coverage (3 of 15 user-configurable fields)
+
+- **Detected:** 2026-06-21
+- **Completed:** 2026-06-28
+- **File:** types.ts (`BuildingTimeToolDefaults`), utils/adminBuildingConfig.ts (`case 'time-tool'`), components/admin/TimeToolConfigurationPanel.tsx, tests/utils/adminBuildingConfig.test.ts
+- **Detail:** The `time-tool` admin building defaults (`getAdminBuildingConfig()` `case 'time-tool'` + `TimeToolConfigurationPanel`, already wired into `BUILDING_CONFIG_PANELS`) covered only `duration`/`elapsedTime` and `timerEndTrafficColor`. The panel additionally exposed `timerEndTriggerRandom`/`timerEndTriggerNextUp` toggles, but those two fields were **not extracted** by `case 'time-tool'` — so they were dead controls (saved to Firestore, never applied to new widget instances). The most useful building-level defaults (mode, visualType, selectedSound, themeColor, glow, fontFamily, clockStyle) were not pre-configurable at all.
+- **Resolution:** Extended the existing Path-B panel rather than adding a dedicated modal. (1) Added `mode`, `visualType`, `selectedSound`, `themeColor`, `glow`, `fontFamily`, `clockStyle`, and `timerEndTriggerStationsRotate` to `BuildingTimeToolDefaults` in types.ts (with JSDoc noting `fontFamily` is the prefixed `FONTS`-id space and `themeColor` is a `WIDGET_PALETTE` hex). (2) Rewrote the `case 'time-tool':` handler with per-field validation: enum-membership checks for `mode`/`visualType`/`selectedSound`/`clockStyle`, `isHexColor` for `themeColor`, `isWidgetFontFamily` for the prefixed `fontFamily` (matching `stations`/`text`), `typeof === 'boolean'` for `glow` and all three trigger toggles, and an allow-listed `timerEndTrafficColor` (now accepts `null`/`red`/`yellow`/`green` and rejects garbage, where it previously passed any non-`undefined` value through). `elapsedTime` is seeded from `duration` for a timer but reset to `0` when the building default is a stopwatch (the base widget default seeds `elapsedTime=600`, so a stopwatch default would otherwise start at 600s). (3) Added controls to `TimeToolConfigurationPanel.tsx` for mode, display style, number style, alert sound, accent colour (`WIDGET_PALETTE` swatches), glow toggle, font family (`FONTS` select, `'global'` persisted as absence), and an Auto-Rotate Stations toggle, mirroring the existing panel's visual style. **Note:** the journal's "15 fields" tally included transient runtime state (`elapsedTime`, `isRunning`, `startTime`) and `timerEndVoiceLevel` (which depends on a co-present Expectations widget and is situational, not a sensible building default) — those were deliberately left out. The journal also listed a `'clock'` mode that does not exist in `TimeToolConfig` (`mode` is only `'timer' | 'stopwatch'`).
+- **Verification:** 6 new unit tests in `tests/utils/adminBuildingConfig.test.ts` (full pass-through; timer elapsedTime seeding; stopwatch elapsedTime reset with and without a duration; `null` traffic colour accepted / invalid colour rejected; all-invalid-enums/colours/fonts rejected) — `vitest run tests/utils/adminBuildingConfig.test.ts` → 43 passed. `pnpm type-check`, `eslint --max-warnings 0`, and `prettier --check` all clean on the four changed files.
 
 ### MEDIUM TextWidget (Note) admin building config only covered 2 of its appearance fields
 

@@ -5,6 +5,8 @@ import { BuildingSelector } from './BuildingSelector';
 import { TimeToolGlobalConfig, BuildingTimeToolDefaults } from '@/types';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { Card } from '@/components/common/Card';
+import { WIDGET_PALETTE } from '@/config/colors';
+import { FONTS } from '@/config/fonts';
 
 interface TimeToolConfigurationPanelProps {
   config: TimeToolGlobalConfig;
@@ -23,6 +25,35 @@ const COLOR_CLASSES: Record<string, string> = {
   yellow: 'bg-yellow-400 text-white border-yellow-400',
   red: 'bg-red-500 text-white border-red-500',
 };
+
+const MODES = [
+  { value: 'timer', label: 'Timer' },
+  { value: 'stopwatch', label: 'Stopwatch' },
+] as const;
+
+const VISUAL_TYPES = [
+  { value: 'digital', label: 'Digital' },
+  { value: 'visual', label: 'Visual Ring' },
+] as const;
+
+const SOUNDS = ['Chime', 'Blip', 'Gong', 'Alert'] as const;
+
+const CLOCK_STYLES = [
+  { value: 'modern', label: 'Modern' },
+  { value: 'lcd', label: 'LCD' },
+  { value: 'minimal', label: 'Minimal' },
+] as const;
+
+// Mirror the user-level appearance picker: 'global' (inherit) plus the prefixed
+// FONTS-id values the widget's getFontClass() consumes.
+const FONT_OPTIONS = FONTS.map((f) => ({ id: f.id, label: f.label }));
+
+const pillClasses = (active: boolean) =>
+  `flex-1 py-1.5 text-xxs font-bold rounded-lg border transition-colors ${
+    active
+      ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+      : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+  }`;
 
 export const TimeToolConfigurationPanel: React.FC<
   TimeToolConfigurationPanelProps
@@ -123,6 +154,133 @@ export const TimeToolConfigurationPanel: React.FC<
           </div>
         </div>
 
+        {/* Default Mode */}
+        <div>
+          <SettingsLabel className="mb-1">Default Mode</SettingsLabel>
+          <div className="flex gap-1.5">
+            {MODES.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => handleUpdateBuilding({ mode: value })}
+                className={pillClasses(
+                  (currentBuildingConfig.mode ?? 'timer') === value
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Display Style */}
+        <div>
+          <SettingsLabel className="mb-1">Display Style</SettingsLabel>
+          <div className="flex gap-1.5">
+            {VISUAL_TYPES.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => handleUpdateBuilding({ visualType: value })}
+                className={pillClasses(
+                  (currentBuildingConfig.visualType ?? 'digital') === value
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Number Style */}
+        <div>
+          <SettingsLabel className="mb-1">Number Style</SettingsLabel>
+          <div className="flex gap-1.5">
+            {CLOCK_STYLES.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => handleUpdateBuilding({ clockStyle: value })}
+                className={pillClasses(
+                  (currentBuildingConfig.clockStyle ?? 'modern') === value
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Alert Sound */}
+        <div>
+          <SettingsLabel className="mb-1">Default Alert Sound</SettingsLabel>
+          <div className="flex gap-1.5">
+            {SOUNDS.map((sound) => (
+              <button
+                key={sound}
+                onClick={() => handleUpdateBuilding({ selectedSound: sound })}
+                className={pillClasses(
+                  (currentBuildingConfig.selectedSound ?? 'Gong') === sound
+                )}
+              >
+                {sound}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Theme Color & Glow */}
+        <div className="flex items-end justify-between gap-4">
+          <div className="flex-1">
+            <SettingsLabel className="mb-1">Accent Color</SettingsLabel>
+            <div className="flex gap-1.5">
+              {WIDGET_PALETTE.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => handleUpdateBuilding({ themeColor: color })}
+                  aria-label={`Accent color ${color}`}
+                  className={`w-6 h-6 rounded-full border-2 transition-all ${
+                    currentBuildingConfig.themeColor === color
+                      ? 'border-slate-800 scale-110 shadow-md'
+                      : 'border-transparent hover:scale-105'
+                  }`}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={() =>
+              handleUpdateBuilding({ glow: !currentBuildingConfig.glow })
+            }
+            className={`px-3 py-1.5 text-xxs font-bold rounded-lg border transition-colors ${
+              currentBuildingConfig.glow
+                ? 'bg-amber-100 border-amber-300 text-amber-700'
+                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            Glow
+          </button>
+        </div>
+
+        {/* Font Family */}
+        <div>
+          <SettingsLabel className="mb-1">Default Font</SettingsLabel>
+          <select
+            value={currentBuildingConfig.fontFamily ?? 'global'}
+            onChange={(e) =>
+              handleUpdateBuilding({
+                fontFamily:
+                  e.target.value === 'global' ? undefined : e.target.value,
+              })
+            }
+            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+          >
+            {FONT_OPTIONS.map(({ id, label }) => (
+              <option key={id} value={id}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Timer End Traffic Light Color */}
         <div>
           <SettingsLabel className="mb-1">
@@ -172,7 +330,7 @@ export const TimeToolConfigurationPanel: React.FC<
         </div>
       </div>
 
-      <div className="flex items-center justify-between pb-2">
+      <div className="flex items-center justify-between border-b pb-4">
         <div>
           <p className="font-medium text-slate-800">
             Auto-Advance Next Up Queue
@@ -187,6 +345,28 @@ export const TimeToolConfigurationPanel: React.FC<
             checked={currentBuildingConfig.timerEndTriggerNextUp ?? false}
             onChange={(e) =>
               handleUpdateBuilding({ timerEndTriggerNextUp: e.target.checked })
+            }
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between pb-2">
+        <div>
+          <p className="font-medium text-slate-800">Auto-Rotate Stations</p>
+          <p className="text-sm text-slate-500">
+            Rotate the first Stations widget when the timer ends.
+          </p>
+        </div>
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            checked={
+              currentBuildingConfig.timerEndTriggerStationsRotate ?? false
+            }
+            onChange={(e) =>
+              handleUpdateBuilding({
+                timerEndTriggerStationsRotate: e.target.checked,
+              })
             }
           />
         </div>

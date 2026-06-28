@@ -2120,10 +2120,26 @@ export interface ClockGlobalConfig {
 // --- TimeTool (Timer/Stopwatch) Global Config ---
 export interface BuildingTimeToolDefaults {
   buildingId: string;
+  /** 'timer' counts down from `duration`; 'stopwatch' counts up from zero. */
+  mode?: 'timer' | 'stopwatch';
+  /** Digital readout vs the visual countdown ring. */
+  visualType?: 'digital' | 'visual';
   duration?: number; // in seconds
+  /** Alert sound played when a timer reaches zero. */
+  selectedSound?: 'Chime' | 'Blip' | 'Gong' | 'Alert';
+  /** Hex accent colour (a `WIDGET_PALETTE` value). */
+  themeColor?: string;
+  /** Whether the digits render with a neon glow. */
+  glow?: boolean;
+  /** Prefixed `FONTS`-id (e.g. `'font-mono'`); absence/`'global'` = inherit. */
+  fontFamily?: string;
+  /** Number-face style for the digital readout. */
+  clockStyle?: 'modern' | 'lcd' | 'minimal';
   timerEndTrafficColor?: 'red' | 'yellow' | 'green' | null;
   timerEndTriggerRandom?: boolean;
   timerEndTriggerNextUp?: boolean;
+  /** Rotate the first Stations widget when the timer ends. */
+  timerEndTriggerStationsRotate?: boolean;
 }
 
 export interface TimeToolGlobalConfig {
