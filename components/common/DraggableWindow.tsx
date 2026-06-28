@@ -2887,6 +2887,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                       // The flag is read synchronously in saveTitle to skip the write.
                       isCancellingTitleRef.current = true;
                       setIsEditingTitle(false);
+                      // This input is portaled to document.body, so closest()
+                      // can't find [data-draggable-window]. Kill the native event
+                      // at div#root so document Escape handlers never see it.
+                      e.nativeEvent.stopImmediatePropagation();
                     }
                     e.stopPropagation();
                   }}
