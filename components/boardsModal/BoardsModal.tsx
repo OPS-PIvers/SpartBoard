@@ -133,10 +133,19 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (multi.isSelectMode) multi.clearSelection();
-        else onClose();
-      }
+      if (e.key !== 'Escape') return;
+      const t = e.target as HTMLElement | null;
+      if (
+        t &&
+        !!t.closest('[data-draggable-window]') &&
+        (t.tagName === 'INPUT' ||
+          t.tagName === 'TEXTAREA' ||
+          t.tagName === 'SELECT' ||
+          t.isContentEditable)
+      )
+        return;
+      if (multi.isSelectMode) multi.clearSelection();
+      else onClose();
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);

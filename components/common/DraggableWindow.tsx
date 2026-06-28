@@ -2075,6 +2075,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       ref={windowRef}
       tabIndex={0}
       data-widget-id={widget.id}
+      data-draggable-window=""
       onPointerDown={handlePointerDown}
       onClick={handleWidgetClick}
       onKeyDown={handleKeyDown}
