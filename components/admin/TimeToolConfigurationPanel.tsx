@@ -44,10 +44,6 @@ const CLOCK_STYLES = [
   { value: 'minimal', label: 'Minimal' },
 ] as const;
 
-// Mirror the user-level appearance picker: 'global' (inherit) plus the prefixed
-// FONTS-id values the widget's getFontClass() consumes.
-const FONT_OPTIONS = FONTS.map((f) => ({ id: f.id, label: f.label }));
-
 const pillClasses = (active: boolean) =>
   `flex-1 py-1.5 text-xxs font-bold rounded-lg border transition-colors ${
     active
@@ -273,9 +269,11 @@ export const TimeToolConfigurationPanel: React.FC<
             }
             className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
           >
-            {FONT_OPTIONS.map(({ id, label }) => (
-              <option key={id} value={id}>
-                {label}
+            {FONTS.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.id === 'global'
+                  ? 'Global (Dashboard default)'
+                  : `${f.label} (${f.icon})`}
               </option>
             ))}
           </select>

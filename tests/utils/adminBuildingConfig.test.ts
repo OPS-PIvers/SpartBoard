@@ -218,6 +218,14 @@ describe('getAdminBuildingConfig', () => {
       });
     });
 
+    it('clamps duration and elapsedTime to the maximum of 59999 seconds', () => {
+      const perm = makePerm('time-tool', { high: { duration: 99999 } });
+      expect(getAdminBuildingConfig('time-tool', [perm], ['high'])).toEqual({
+        duration: 59999,
+        elapsedTime: 59999,
+      });
+    });
+
     it('resets elapsedTime to zero for a stopwatch default', () => {
       const perm = makePerm('time-tool', {
         high: { mode: 'stopwatch', duration: 120 },

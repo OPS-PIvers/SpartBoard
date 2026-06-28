@@ -256,7 +256,12 @@ export const getAdminBuildingConfig = (
         out.mode = mode;
       }
       if (typeof raw.duration === 'number' && Number.isFinite(raw.duration)) {
-        const clampedDuration = Math.max(0, Math.round(raw.duration));
+        // Clamp to the panel's input ceiling (999 min + 59 s = 59999 s) so a
+        // malformed/oversized value can't overflow the timer readout layout.
+        const clampedDuration = Math.max(
+          0,
+          Math.min(59999, Math.round(raw.duration))
+        );
         out.duration = clampedDuration;
         // A timer counts down from `duration`, so seed elapsedTime to the full
         // value; a stopwatch counts up from zero. The base widget default seeds
