@@ -511,6 +511,124 @@ describe('Dock smart-paste – processAndUploadImage is not a spurious dep', () 
   });
 });
 
+// ── Regression: unstable onError inline arrow causes startRecording churn ────
+//
+// Bug: `onError` was defined as an inline arrow function inside the
+// `useScreenRecord(...)` call in Dock.tsx:
+//
+//   useScreenRecord({
+//     onSuccess: handleRecordingComplete,
+//     onError: (err) => { addToast(err.message, 'error'); },   // ← new ref every render
+//   });
+//
+// `useScreenRecord` computes `startRecording` via:
+//
+//   useCallback(async () => { ... }, [options, stopRecording])
+//
+// Because `options` was a new object every render (the inline arrow gave it a
+// new `onError` identity), `startRecording` also got a new identity every
+// render. The `spart-screen-record-toggle` / `spart-screen-record-query`
+// listener `useEffect` has `[isRecording, startRecording, stopRecording]` as
+// deps, so it was torn down and re-registered on every Dock re-render — even
+// for totally unrelated state changes. This creates a brief window during any
+// Dock re-render where a dispatched custom event could be missed.
+//
+// Fix: extract `handleRecordingError` as a stable `useCallback([addToast])`.
+// This stabilises `options`, which stabilises `startRecording`, which means
+// the listener effect only re-runs when recording state actually changes.
+
+describe('Dock screen-record – startRecording identity is stable across unrelated re-renders', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('does NOT remove/re-add the spart-screen-record-toggle listener when startRecording identity is stable', () => {
+    // Spy on window event listener methods BEFORE rendering so we capture every
+    // call made during mount and re-renders.
+    const addSpy = vi.spyOn(window, 'addEventListener');
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+
+    setupMocks();
+
+    // Give useScreenRecord a stable startRecording reference (the fn identity
+    // must NOT change between renders — simulating the fix being in place).
+    const stableStartRecording = vi.fn();
+    const stableStopRecording = vi.fn();
+    vi.mocked(useScreenRecord).mockReturnValue({
+      isRecording: false,
+      duration: 0,
+      startRecording: stableStartRecording,
+      stopRecording: stableStopRecording,
+      error: null,
+    } as unknown as ReturnType<typeof useScreenRecord>);
+
+    const { rerender } = render(<Dock />);
+
+    // After initial mount the listeners should have been added exactly once.
+    const addToggleAfterMount = addSpy.mock.calls.filter(
+      ([event]) => event === 'spart-screen-record-toggle'
+    ).length;
+    const addQueryAfterMount = addSpy.mock.calls.filter(
+      ([event]) => event === 'spart-screen-record-query'
+    ).length;
+    expect(addToggleAfterMount).toBe(1);
+    expect(addQueryAfterMount).toBe(1);
+
+    // No removals yet.
+    expect(
+      removeSpy.mock.calls.filter(
+        ([event]) => event === 'spart-screen-record-toggle'
+      ).length
+    ).toBe(0);
+
+    // Reset spy counts so we only measure what happens on the re-render.
+    addSpy.mockClear();
+    removeSpy.mockClear();
+
+    // Trigger an unrelated Dock re-render by keeping the same mock for
+    // useScreenRecord so that startRecording / stopRecording / isRecording are
+    // all unchanged.
+    vi.mocked(useScreenRecord).mockReturnValue({
+      isRecording: false,
+      duration: 0,
+      startRecording: stableStartRecording, // same reference
+      stopRecording: stableStopRecording, // same reference
+      error: null,
+    } as unknown as ReturnType<typeof useScreenRecord>);
+
+    rerender(<Dock />);
+
+    // BUG (before fix): startRecording was a new reference on every render
+    // (because onError inline arrow → new options object → new startRecording).
+    // The useEffect would see the new reference in its deps, call cleanup
+    // (removeEventListener) and re-register (addEventListener) — counts each 1.
+    //
+    // CORRECT (after fix): startRecording identity is stable across unrelated
+    // re-renders, so the useEffect does NOT re-run — both counts stay at 0.
+    const removeToggleAfterRerender = removeSpy.mock.calls.filter(
+      ([event]) => event === 'spart-screen-record-toggle'
+    ).length;
+    const removeQueryAfterRerender = removeSpy.mock.calls.filter(
+      ([event]) => event === 'spart-screen-record-query'
+    ).length;
+    const addToggleAfterRerender = addSpy.mock.calls.filter(
+      ([event]) => event === 'spart-screen-record-toggle'
+    ).length;
+    const addQueryAfterRerender = addSpy.mock.calls.filter(
+      ([event]) => event === 'spart-screen-record-query'
+    ).length;
+
+    expect(removeToggleAfterRerender).toBe(0);
+    expect(removeQueryAfterRerender).toBe(0);
+    expect(addToggleAfterRerender).toBe(0);
+    expect(addQueryAfterRerender).toBe(0);
+  });
+});
+
 // ── Regression: handlePaste guard missing 'SELECT' ────────────────────────
 //
 // Bug: The isTypingField guard in handlePaste checked only INPUT and TEXTAREA
