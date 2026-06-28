@@ -7,6 +7,15 @@ import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { Card } from '@/components/common/Card';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { FONTS } from '@/config/fonts';
+import {
+  TIME_TOOL_MODES,
+  TIME_TOOL_VISUAL_TYPES,
+  TIME_TOOL_SOUNDS,
+  TIME_TOOL_CLOCK_STYLES,
+  type TimeToolMode,
+  type TimeToolVisualType,
+  type TimeToolClockStyle,
+} from '@/config/timeTool';
 
 interface TimeToolConfigurationPanelProps {
   config: TimeToolGlobalConfig;
@@ -26,23 +35,37 @@ const COLOR_CLASSES: Record<string, string> = {
   red: 'bg-red-500 text-white border-red-500',
 };
 
-const MODES = [
-  { value: 'timer', label: 'Timer' },
-  { value: 'stopwatch', label: 'Stopwatch' },
-] as const;
+// Labelled option lists derived from the shared canonical value sets so a new
+// mode/style added in config/timeTool.ts surfaces here automatically.
+const MODE_LABELS: Record<TimeToolMode, string> = {
+  timer: 'Timer',
+  stopwatch: 'Stopwatch',
+};
+const MODES = TIME_TOOL_MODES.map((value) => ({
+  value,
+  label: MODE_LABELS[value],
+}));
 
-const VISUAL_TYPES = [
-  { value: 'digital', label: 'Digital' },
-  { value: 'visual', label: 'Visual Ring' },
-] as const;
+const VISUAL_TYPE_LABELS: Record<TimeToolVisualType, string> = {
+  digital: 'Digital',
+  visual: 'Visual Ring',
+};
+const VISUAL_TYPES = TIME_TOOL_VISUAL_TYPES.map((value) => ({
+  value,
+  label: VISUAL_TYPE_LABELS[value],
+}));
 
-const SOUNDS = ['Chime', 'Blip', 'Gong', 'Alert'] as const;
+const SOUNDS = TIME_TOOL_SOUNDS;
 
-const CLOCK_STYLES = [
-  { value: 'modern', label: 'Modern' },
-  { value: 'lcd', label: 'LCD' },
-  { value: 'minimal', label: 'Minimal' },
-] as const;
+const CLOCK_STYLE_LABELS: Record<TimeToolClockStyle, string> = {
+  modern: 'Modern',
+  lcd: 'LCD',
+  minimal: 'Minimal',
+};
+const CLOCK_STYLES = TIME_TOOL_CLOCK_STYLES.map((value) => ({
+  value,
+  label: CLOCK_STYLE_LABELS[value],
+}));
 
 const pillClasses = (active: boolean) =>
   `flex-1 py-1.5 text-xxs font-bold rounded-lg border transition-colors ${

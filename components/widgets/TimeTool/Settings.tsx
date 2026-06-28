@@ -16,6 +16,12 @@ import {
   PlusSquare,
 } from 'lucide-react';
 
+import {
+  TIME_TOOL_MODES,
+  TIME_TOOL_VISUAL_TYPES,
+  TIME_TOOL_SOUNDS,
+} from '@/config/timeTool';
+
 const ADJUST_STEP_MIN = 5;
 const ADJUST_STEP_MAX = 60;
 const ADJUST_STEP_DEFAULT = 60;
@@ -23,7 +29,7 @@ const ADJUST_STEP_DEFAULT = 60;
 const clampAdjustStep = (n: number) =>
   Math.max(ADJUST_STEP_MIN, Math.min(ADJUST_STEP_MAX, n));
 
-const SOUNDS = ['Chime', 'Blip', 'Gong', 'Alert'] as const;
+const SOUNDS = TIME_TOOL_SOUNDS;
 
 export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -65,7 +71,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
           {t('widgets.timeTool.mode')}
         </SettingsLabel>
         <div className="grid grid-cols-2 gap-2">
-          {(['timer', 'stopwatch'] as const).map((m) => (
+          {TIME_TOOL_MODES.map((m) => (
             <button
               key={m}
               onClick={() => {
@@ -117,7 +123,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
           {t('widgets.clock.displayStyle')}
         </SettingsLabel>
         <div className="grid grid-cols-2 gap-2">
-          {(['digital', 'visual'] as const).map((v) => (
+          {TIME_TOOL_VISUAL_TYPES.map((v) => (
             <button
               key={v}
               onClick={() =>

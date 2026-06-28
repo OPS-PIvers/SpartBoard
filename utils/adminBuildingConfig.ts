@@ -6,6 +6,12 @@ import {
 } from '@/types';
 import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
 import { FONTS } from '@/config/fonts';
+import {
+  TIME_TOOL_MODES,
+  TIME_TOOL_VISUAL_TYPES,
+  TIME_TOOL_SOUNDS,
+  TIME_TOOL_CLOCK_STYLES,
+} from '@/config/timeTool';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { getMaterialsCatalog } from '@/components/widgets/MaterialsWidget/constants';
 
@@ -242,15 +248,11 @@ export const getAdminBuildingConfig = (
       break;
     }
     case 'time-tool': {
-      const validModes = ['timer', 'stopwatch'] as const;
-      const validVisualTypes = ['digital', 'visual'] as const;
-      const validSounds = ['Chime', 'Blip', 'Gong', 'Alert'] as const;
-      const validTimeToolClockStyles = ['modern', 'lcd', 'minimal'] as const;
       const validTrafficColors = ['red', 'yellow', 'green'] as const;
       let mode: 'timer' | 'stopwatch' | undefined;
       if (
         typeof raw.mode === 'string' &&
-        (validModes as readonly string[]).includes(raw.mode)
+        (TIME_TOOL_MODES as readonly string[]).includes(raw.mode)
       ) {
         mode = raw.mode as 'timer' | 'stopwatch';
         out.mode = mode;
@@ -273,12 +275,12 @@ export const getAdminBuildingConfig = (
       }
       if (
         typeof raw.visualType === 'string' &&
-        (validVisualTypes as readonly string[]).includes(raw.visualType)
+        (TIME_TOOL_VISUAL_TYPES as readonly string[]).includes(raw.visualType)
       )
         out.visualType = raw.visualType;
       if (
         typeof raw.selectedSound === 'string' &&
-        (validSounds as readonly string[]).includes(raw.selectedSound)
+        (TIME_TOOL_SOUNDS as readonly string[]).includes(raw.selectedSound)
       )
         out.selectedSound = raw.selectedSound;
       if (isHexColor(raw.themeColor)) out.themeColor = raw.themeColor;
@@ -288,7 +290,7 @@ export const getAdminBuildingConfig = (
       if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
       if (
         typeof raw.clockStyle === 'string' &&
-        (validTimeToolClockStyles as readonly string[]).includes(raw.clockStyle)
+        (TIME_TOOL_CLOCK_STYLES as readonly string[]).includes(raw.clockStyle)
       )
         out.clockStyle = raw.clockStyle;
       if (
