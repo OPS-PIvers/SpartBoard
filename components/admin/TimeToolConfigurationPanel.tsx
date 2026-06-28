@@ -47,7 +47,7 @@ const CLOCK_STYLES = [
 const pillClasses = (active: boolean) =>
   `flex-1 py-1.5 text-xxs font-bold rounded-lg border transition-colors ${
     active
-      ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+      ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
       : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
   }`;
 
