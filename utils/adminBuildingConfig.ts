@@ -80,6 +80,14 @@ const isCardOpacity = (value: unknown): value is number =>
   value <= 1;
 
 /**
+ * The non-null `timerEndTrafficColor` values a TimeTool building default may
+ * carry (the panel also allows `null` = "None"). Hoisted to module scope for
+ * consistency with the other module-level validators rather than re-allocating
+ * inside the `time-tool` case on every call.
+ */
+const VALID_TRAFFIC_COLORS = ['red', 'yellow', 'green'] as const;
+
+/**
  * Extracts building-level config overrides for a widget type from the admin's
  * feature_permissions config. These are applied between widget defaults and
  * explicit overrides so that per-building admin settings pre-configure new
@@ -248,7 +256,6 @@ export const getAdminBuildingConfig = (
       break;
     }
     case 'time-tool': {
-      const validTrafficColors = ['red', 'yellow', 'green'] as const;
       let mode: 'timer' | 'stopwatch' | undefined;
       if (
         typeof raw.mode === 'string' &&
@@ -296,7 +303,7 @@ export const getAdminBuildingConfig = (
       if (
         raw.timerEndTrafficColor === null ||
         (typeof raw.timerEndTrafficColor === 'string' &&
-          (validTrafficColors as readonly string[]).includes(
+          (VALID_TRAFFIC_COLORS as readonly string[]).includes(
             raw.timerEndTrafficColor
           ))
       )
