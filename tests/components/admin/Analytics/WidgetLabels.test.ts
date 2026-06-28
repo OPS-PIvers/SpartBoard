@@ -102,13 +102,4 @@ describe('WIDGET_LABELS', () => {
       `Missing friendly labels for: ${missing.join(', ')}`
     ).toHaveLength(0);
   });
-
-  it('covers all widget types listed in the WidgetType mirror', () => {
-    for (const widgetType of ALL_WIDGET_TYPES) {
-      expect(
-        Object.prototype.hasOwnProperty.call(WIDGET_LABELS, widgetType),
-        `WIDGET_LABELS is missing an entry for '${widgetType}'`
-      ).toBe(true);
-    }
-  });
 });

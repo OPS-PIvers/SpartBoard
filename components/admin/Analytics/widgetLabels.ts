@@ -1,3 +1,4 @@
+import type { WidgetType } from '@/types';
 import { TOOLS } from '@/config/tools';
 
 /**
@@ -24,8 +25,16 @@ const baseLabels: Record<string, string> = TOOLS.reduce(
 /**
  * Labels for WidgetType members that are NOT in the TOOLS dock catalogue.
  * These widgets are spawned programmatically and are never user-selectable.
+ *
+ * NOTE: `components/remote/RemoteWidgetCard.tsx` maintains a parallel label
+ * map with intentionally shorter names for the remote-control view (e.g.
+ * 'Catalyst Step' vs 'Catalyst Instruction' here). Keep both in sync when
+ * adding new programmatic widget types.
+ *
+ * Typed as `Partial<Record<WidgetType, string>>` so a key typo (e.g.
+ * `'blooms_detail'` instead of `'blooms-detail'`) is a compile error.
  */
-const PROGRAMMATIC_WIDGET_LABELS: Record<string, string> = {
+const PROGRAMMATIC_WIDGET_LABELS: Partial<Record<WidgetType, string>> = {
   // Decorative overlay spawned by the Stickers widget
   sticker: 'Sticker (overlay)',
   // Sub-widgets spawned by the Catalyst widget
