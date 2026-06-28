@@ -1,19 +1,6 @@
 import type { WidgetType } from '@/types';
 import { TOOLS } from '@/config/tools';
 
-/**
- * Human-readable labels for every WidgetType, used in the admin Analytics
- * widget-breakdown table.
- *
- * The base set is derived from the TOOLS array (the public dock catalogue).
- * Several WidgetType members are intentionally absent from TOOLS because they
- * are spawned programmatically rather than user-selectable from the dock;
- * those are listed explicitly below so they never fall back to raw type-ID
- * strings in the admin UI.
- *
- * Keep the explicit overrides section in sync with the WidgetType union in
- * types.ts whenever a new programmatic widget type is added.
- */
 const baseLabels: Record<string, string> = TOOLS.reduce(
   (acc, tool) => {
     acc[tool.type] = tool.label;
@@ -22,18 +9,8 @@ const baseLabels: Record<string, string> = TOOLS.reduce(
   {} as Record<string, string>
 );
 
-/**
- * Labels for WidgetType members that are NOT in the TOOLS dock catalogue.
- * These widgets are spawned programmatically and are never user-selectable.
- *
- * NOTE: `components/remote/RemoteWidgetCard.tsx` maintains a parallel label
- * map with intentionally shorter names for the remote-control view (e.g.
- * 'Catalyst Step' vs 'Catalyst Instruction' here). Keep both in sync when
- * adding new programmatic widget types.
- *
- * Typed as `Partial<Record<WidgetType, string>>` so a key typo (e.g.
- * `'blooms_detail'` instead of `'blooms-detail'`) is a compile error.
- */
+// Partial<Record<WidgetType, string>>: key typos are compile errors (vs Record<string, string>).
+// NOTE: RemoteWidgetCard.tsx has a parallel label map with shorter remote-friendly names — keep in sync.
 const PROGRAMMATIC_WIDGET_LABELS: Partial<Record<WidgetType, string>> = {
   // Decorative overlay spawned by the Stickers widget
   sticker: 'Sticker (overlay)',
@@ -50,11 +27,7 @@ const PROGRAMMATIC_WIDGET_LABELS: Partial<Record<WidgetType, string>> = {
   'blooms-detail': "Bloom's Detail",
 };
 
-/**
- * Typed as `Record<string, string>` (not `Record<WidgetType, string>`) because
- * the analytics table receives raw type strings from Firestore which may
- * include unknown or future widget types not yet in the union.
- */
+// Record<string, string> not Record<WidgetType, string>: Firestore may include unknown future types.
 export const WIDGET_LABELS: Record<string, string> = {
   ...baseLabels,
   ...PROGRAMMATIC_WIDGET_LABELS,

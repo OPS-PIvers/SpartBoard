@@ -81,7 +81,7 @@ const ALL_WIDGET_TYPES = [
 
 // Compile-time completeness assertion: if a new WidgetType is added to
 // types.ts without updating ALL_WIDGET_TYPES, this line fails to compile
-// (Type 'never' is not assignable to type 'true').
+// (Type 'true' is not assignable to type 'never').
 const _exhaustiveCheck: [WidgetType] extends [(typeof ALL_WIDGET_TYPES)[number]]
   ? true
   : never = true;
