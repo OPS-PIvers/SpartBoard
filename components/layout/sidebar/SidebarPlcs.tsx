@@ -17,6 +17,7 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { usePlcUnread } from '@/hooks/usePlcUnread';
 import { Plc, PlcInvitation } from '@/types';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { PlcEditModal } from './PlcEditModal';
 import { PlcInvitesModal } from './PlcInvitesModal';
 
@@ -86,11 +87,11 @@ const PlcRow: React.FC<PlcRowProps> = ({
   useEffect(() => {
     if (!menuOpen) return;
     const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.stopPropagation();
-        setMenuOpen(false);
-        kebabRef.current?.focus();
-      }
+      if (event.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(event)) return;
+      event.stopPropagation();
+      setMenuOpen(false);
+      kebabRef.current?.focus();
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
