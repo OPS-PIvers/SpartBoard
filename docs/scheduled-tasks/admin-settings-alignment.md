@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-06-21_
+_Last audited: 2026-06-28_
 _Last action: 2026-06-14_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-28 audit notes (Sunday): Full 16-widget cross-check covering SpecialistSchedule, LunchCount, Checklist, TimeTool, Countdown, Schedule, Scoreboard, Music, Weather, Poll, Expectations, NextUp, InstructionalRoutines, GraphicOrganizer, ConceptWeb, SyntaxFramer. All pre-existing open items (TimeTool coverage, LunchCount/Expectations/SpecialistSchedule/Weather/SeatingChart/Clock/Checklist/Scoreboard/Drawing/SmartNotebook/guided-learning gaps) re-confirmed valid. THREE NEW LOW items detected: (1) Music: no `case 'music':` in getAdminBuildingConfig and no MusicConfigurationPanel.tsx — admins cannot pre-configure source or layout per building; (2) InstructionalRoutines: no switch case and no panel — admins cannot pre-load routine templates or set defaults per building; (3) GraphicOrganizer: no switch case and no panel — admins cannot set default template type or appearance per building. New commits since 2026-06-21 (fix(activity-wall) empty-state scale, upstream: rules/auth hardening, CI/lint fixes) do not touch adminBuildingConfig.ts or any ConfigurationPanel._
 
 _2026-06-21 action notes (Sunday): Selected the MEDIUM `TextWidget` item — highest-severity Open across today's reading list (dailies widget-registry/css-scaling/typescript-eslint had no item ≥ MEDIUM; the other Sunday weekly journal, legacy-cleanup, had only LOW). Of the two MEDIUMs in this journal, TextWidget is first in document order. File-recency check: `components/widgets/TextWidget/`, `utils/adminBuildingConfig.ts`, and `components/admin/` (panel) are all outside the last 5 branch commits; `types.ts` was last touched at d5ce83e9 (within last 5) but that was a docs-only JSDoc comment on the unrelated `UserProfile` interface (line ~5489) from a settled prior-night run — zero collision risk with the `BuildingNoteDefaults` edit (line ~1767). **Correction to the audit note:** the item said "no ConfigurationPanel exists and the panel falls through to placeholder" — in fact `text` is already wired to `NoteConfigurationPanel` in `BUILDING_CONFIG_PANELS`, which covered `bgColor` + `fontSize`. So resolved by **extending the existing NoteConfigurationPanel** (not creating a duplicate `TextConfigurationPanel`). Added the three genuinely-missing, actively-consumed appearance primitives — `fontFamily`, `fontColor`, `verticalAlign`. Deliberately did **not** add a separate `textSizePreset` control: the panel's existing "Default Font Size" already provides building-level sizing, and `fontSize` (not `textSizePreset`) is the field the TextWidget toolbar actually writes — a second preset-multiplier size control would be redundant/confusing UX. Moved the item to Completed._
 
@@ -33,6 +35,27 @@ _2026-06-04 action notes: Selected the MEDIUM appearance-settings group (highest
 _2026-05-31 audit notes: Reviewed all changes since 2026-05-24. (1) Scoreboard gained `layout?: 'cards' | 'rows'` in `ScoreboardConfig` (commit 4f5d2bb6) — added as a user-configurable toggle in Settings.tsx. `BuildingScoreboardDefaults` does not include `layout`; `ScoreboardConfigurationPanel.tsx` exposes only team defaults; `case 'scoreboard':` in `adminBuildingConfig.ts` passes through only `teams`. New LOW gap added. (2) Classroom-addon commits (VA grade push, grade passback, assignment settings, PLC parity) added `ClassroomAddonContext`, `ClassroomCourseWork`, and session types to types.ts — none are widget-config fields; no building defaults impact. (3) Notebook fix (#1759) and Spotify fix (#1758) are logic-only; no config changes. (4) NumberLine ConfigurationPanel fix already captured in Completed. No new HIGH or MEDIUM items._
 
 _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget gained `source` (curated/personal/curated-spotify), `layout`, and `personalSpotify*` fields in MusicConfig — these are user-level preferences; personal-spotify access is gated via `canAccessFeature('personal-spotify')` (GlobalFeaturePermission + `buildings?:string[]`), not through building defaults. No building-defaults admin config needed for music. (2) QuizBehaviorSettings added new behavior fields to QuizConfig and VideoActivityConfig — quiz behavior is set per-quiz in the quiz editor, not per-building. No building defaults needed. (3) `refactor(admin)` commit (31e46ad3) removed magic/record/remote panels — already captured in Completed item. (4) SmartNotebook continues to accumulate features but its existing open item (appearance fields gap) covers the new work. No new MEDIUM or HIGH items. One new LOW item added (guided-learning stub panel)._
+
+### LOW Music widget: no admin building config or ConfigurationPanel
+
+- **Detected:** 2026-06-28
+- **File:** utils/adminBuildingConfig.ts (no case 'music'), components/admin/ (no MusicConfigurationPanel.tsx), types.ts (MusicConfig)
+- **Detail:** `MusicWidget/Settings.tsx` exposes ~15+ fields including `layout` ('default' | 'minimal' | 'small'), `musicSource` ('spotify' | 'youtube' | 'stations'), background customization, and source-specific configs. There is no `case 'music':` in `getAdminBuildingConfig()` and no `MusicConfigurationPanel.tsx` in components/admin/. Music is a highly building-specific widget — admins cannot pre-configure the default source, layout, or background per building. Personal Spotify access is already gated via `canAccessFeature('personal-spotify')` (GlobalFeaturePermission), but the instance-level defaults (which source to show, which layout) cannot be pre-set.
+- **Fix:** Add a `BuildingMusicDefaults` interface to types.ts covering at minimum `layout` and `musicSource`. Add a `case 'music':` handler to `getAdminBuildingConfig()` with enum-membership validation on both fields. Create `MusicConfigurationPanel.tsx` with a layout selector (pill group) and source selector, following the existing NeedDoPutThen/Stations panel pattern.
+
+### LOW InstructionalRoutines widget: no admin building config or ConfigurationPanel
+
+- **Detected:** 2026-06-28
+- **File:** utils/adminBuildingConfig.ts (no case 'instructionalRoutines'), components/admin/ (no InstructionalRoutinesConfigurationPanel.tsx), types.ts (InstructionalRoutinesConfig)
+- **Detail:** `InstructionalRoutines/Settings.tsx` exposes `scaleMultiplier`, `structure`, and `audience` as configurable fields. There is no `case 'instructionalRoutines':` in `getAdminBuildingConfig()` and no dedicated ConfigurationPanel. Admins cannot pre-set the default routine structure type (e.g., morning meeting) or audience (elementary/secondary) per building. An existing global instructional routines library is managed via Firestore (`/instructional_routines/` collection), but per-building widget-instance defaults cannot be pre-configured.
+- **Fix:** Add a `BuildingInstructionalRoutinesDefaults` interface to types.ts covering at minimum `scaleMultiplier` (validated 0.5–2.5) and `audience` ('elementary' | 'secondary'). Add a `case 'instructionalRoutines':` handler to `getAdminBuildingConfig()`. Create `InstructionalRoutinesConfigurationPanel.tsx` with an audience selector and scale control, following the existing pattern.
+
+### LOW GraphicOrganizer widget: no admin building config or ConfigurationPanel
+
+- **Detected:** 2026-06-28
+- **File:** utils/adminBuildingConfig.ts (no case 'graphic-organizer'), components/admin/ (no GraphicOrganizerConfigurationPanel.tsx), types.ts (GraphicOrganizerConfig)
+- **Detail:** `GraphicOrganizer/Settings.tsx` exposes `templateType` (organizer layout: Frayer/T-chart/Venn/KWL/Cause-Effect) and appearance fields (`fontFamily`, `fontColor`, `cardColor`, `cardOpacity`). There is no `case 'graphic-organizer':` in `getAdminBuildingConfig()` and no ConfigurationPanel. Admins cannot pre-set the default organizer template type or appearance per building — teachers always start with whatever the widget default is regardless of building context.
+- **Fix:** Add a `BuildingGraphicOrganizerDefaults` interface to types.ts covering `templateType` and the four appearance fields. Add a `case 'graphic-organizer':` handler to `getAdminBuildingConfig()` with enum-membership validation on `templateType` and standard hex/opacity/fontFamily validation for appearance. Create `GraphicOrganizerConfigurationPanel.tsx` with a template type selector and appearance defaults section, following the ConceptWeb panel pattern.
 
 ### MEDIUM TimeTool has only 20% admin building config coverage (3 of 15 user-configurable fields)
 

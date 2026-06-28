@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-06-21_
+_Last audited: 2026-06-28_
 _Last action: never_
 
 ---
@@ -40,6 +40,18 @@ _Nothing currently in progress._
 ---
 
 ## Clean (no issues found)
+
+Migration code + dead exports + console.log audit (2026-06-28, re-verified):
+
+- Old type strings 'timer', 'stopwatch': Only in `utils/migration.ts:71-80` — correct.
+- Old type string 'workSymbols': Only in `utils/migration.ts:93` — correct.
+- `migrateLocalStorageToFirestore()`: Still actively called in `context/DashboardContext.tsx`. Still needed.
+- New commits since 2026-06-21: fix(activity-wall) empty-state heading scale, audit(saturday) journal updates, upstream: refactor(rules), review fixes #2076, rules/auth hardening #2081, fix(ci), fix(lint). All are rules/CI/docs/UI-only; no new utility files introduced.
+- Commented-out code: None found. New commits contain no commented-out blocks.
+- console.log(): Zero in components/, context/, hooks/, utils/.
+- `useScaledFont.ts`: Still dead — `ScheduleWidget.test.tsx` mocks it but no production component imports it. Existing LOW open item still valid.
+- `videoActivityDriveService.ts`: Still no production imports. Existing LOW open item still valid.
+- `scripts/tools/`: Still present with 9 Python/Playwright scripts. Existing LOW open item still valid.
 
 Migration code + dead exports + console.log audit (2026-06-21, re-verified):
 
