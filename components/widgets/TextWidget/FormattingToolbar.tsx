@@ -151,6 +151,7 @@ const MenuButton: React.FC<{
           <div
             className="p-1 bg-white border border-slate-200 rounded-lg shadow-xl z-dropdown min-w-[120px] animate-in fade-in zoom-in-95 duration-100"
             data-click-outside-ignore="true"
+            data-widget-portal=""
             style={menuStyle}
             onMouseDown={(e) => e.preventDefault()}
             onClick={(e) => e.stopPropagation()}

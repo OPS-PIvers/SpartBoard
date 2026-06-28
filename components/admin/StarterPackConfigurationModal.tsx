@@ -341,6 +341,7 @@ export const StarterPackConfigurationModal: React.FC<
   ]);
 
   useEffect(() => {
+    if (!isOpen) return undefined;
     const onEscape = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (isEscapeFromWidgetInput(e)) return;
@@ -351,7 +352,7 @@ export const StarterPackConfigurationModal: React.FC<
     window.addEventListener('keydown', onEscape, { capture: true });
     return () =>
       window.removeEventListener('keydown', onEscape, { capture: true });
-  }, [handleBack]);
+  }, [handleBack, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;

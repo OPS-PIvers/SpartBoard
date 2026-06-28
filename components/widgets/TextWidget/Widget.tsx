@@ -311,6 +311,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               <div
                 ref={toolbarPortalRef}
                 data-click-outside-ignore="true"
+                data-widget-portal=""
                 // The toolbar lives in a portal but React events still bubble
                 // through the component tree to the DraggableWindow ancestor,
                 // whose `handlePointerDown` calls `.focus()` on the widget
