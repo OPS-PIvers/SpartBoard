@@ -62,6 +62,9 @@ export const Modal: React.FC<ModalProps> = ({
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      // NOTE: returns without stopImmediatePropagation even when captureEscape=true.
+      // No production caller currently passes captureEscape; if one does in future,
+      // revisit whether widget-input Escape should still propagate past that modal.
       if (isEscapeFromWidgetInput(e)) return;
       if (captureEscape) e.stopImmediatePropagation();
       // Read from ref so we always call the current onClose even though

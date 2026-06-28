@@ -878,7 +878,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         // reach window after isTypingFieldActive() returns false → widget minimized.
         // stopImmediatePropagation kills the native event at div#root so it never
         // reaches document/window listeners. New modal Escape handlers that register on
-        // document should guard the widget-input case with t.closest('[data-draggable-window]')
+        // document should guard the widget-input case with isEscapeFromWidgetInput(e)
         // for the path where a widget stops React propagation before we fire here.
         e.nativeEvent.stopImmediatePropagation();
         e.stopPropagation(); // guards React synthetic tree against future ancestor onKeyDown
