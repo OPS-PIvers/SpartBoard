@@ -878,6 +878,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         // reach window after isTypingFieldActive() returns false → widget minimized.
         // NOTE: silences ALL subsequent window keydown listeners; new Escape handlers should guard with isTypingFieldActive().
         e.nativeEvent.stopImmediatePropagation();
+        e.stopPropagation(); // guards React synthetic tree against future ancestor onKeyDown
         target.blur();
       }
       return;
