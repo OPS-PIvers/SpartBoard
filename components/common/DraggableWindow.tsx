@@ -932,13 +932,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     if (e.altKey) {
       switch (e.key.toLowerCase()) {
         case 's': // Settings
-          if (isActiveBoardReadOnly) break;
+          if (isLocked) break;
           e.preventDefault();
           updateWidget(widget.id, { flipped: !widget.flipped });
           handleCloseTools();
           break;
         case 'd': // Draw tool
-          if (isActiveBoardReadOnly) break;
+          if (isLocked) break;
           e.preventDefault();
           setIsAnnotating((prev) => !prev);
           handleCloseTools();
