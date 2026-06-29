@@ -679,5 +679,43 @@ describe('DraggableWindow (Tests folder)', () => {
 
       expect(mockContext.updateWidget).not.toHaveBeenCalled();
     });
+
+    it('does not call updateWidget to unflip when Escape fires on a read-only board with a flipped widget', () => {
+      // Exercises the !isLocked && widget.flipped branch with isActiveBoardReadOnly:true,
+      // widget.isLocked: false, widget.flipped: true — the mirror of test 3 for the
+      // minimize branch. Catches a regression that drops || isActiveBoardReadOnly from
+      // the isLocked derivation specifically when the widget is flipped.
+      const widget = { ...mockWidget, isLocked: false, flipped: true };
+      render(
+        <DashboardContext.Provider
+          value={
+            {
+              ...mockContext,
+              selectedWidgetId: widget.id,
+              isActiveBoardReadOnly: true,
+            } as unknown as DashboardContextValue
+          }
+        >
+          <DraggableWindow
+            widget={widget}
+            settings={<div>Settings</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('widget-keyboard-action', {
+            detail: { widgetId: 'test-widget', key: 'Escape', shiftKey: false },
+          })
+        );
+      });
+
+      expect(mockContext.updateWidget).not.toHaveBeenCalled();
+    });
   });
 });
