@@ -158,6 +158,7 @@ const MenuButton: React.FC<{
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
+                e.nativeEvent.stopImmediatePropagation();
                 e.stopPropagation();
                 onClose();
               }
