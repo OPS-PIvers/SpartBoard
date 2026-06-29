@@ -3013,7 +3013,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   }
                 />
                 <IconButton
-                  onClick={() => duplicateWidget(widget.id)}
+                  onClick={() => {
+                    if (isLocked) return;
+                    duplicateWidget(widget.id);
+                  }}
                   icon={<Copy className="w-3.5 h-3.5" />}
                   label={t('widgetWindow.duplicate')}
                   size="sm"
@@ -3245,12 +3248,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   disabled={isLocked || (isPinned && !isMaximized)}
                 />
                 <IconButton
-                  onClick={() =>
+                  onClick={() => {
+                    if (isLocked) return;
                     updateWidget(widget.id, {
                       minimized: true,
                       flipped: false,
-                    })
-                  }
+                    });
+                  }}
                   icon={<Minus className="w-3.5 h-3.5" />}
                   label={`${t('widgetWindow.minimize')} (Esc)`}
                   size="sm"
