@@ -36,6 +36,20 @@ _2026-05-31 audit notes: Reviewed all changes since 2026-05-24. (1) Scoreboard g
 
 _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget gained `source` (curated/personal/curated-spotify), `layout`, and `personalSpotify*` fields in MusicConfig — these are user-level preferences; personal-spotify access is gated via `canAccessFeature('personal-spotify')` (GlobalFeaturePermission + `buildings?:string[]`), not through building defaults. No building-defaults admin config needed for music. (2) QuizBehaviorSettings added new behavior fields to QuizConfig and VideoActivityConfig — quiz behavior is set per-quiz in the quiz editor, not per-building. No building defaults needed. (3) `refactor(admin)` commit (31e46ad3) removed magic/record/remote panels — already captured in Completed item. (4) SmartNotebook continues to accumulate features but its existing open item (appearance fields gap) covers the new work. No new MEDIUM or HIGH items. One new LOW item added (guided-learning stub panel)._
 
+### LOW Existing `time-tool` widgets carrying legacy `fontFamily: 'sans'` / `clockStyle: 'standard'` are not remediated
+
+- **Detected:** 2026-06-28 (PR #2106 review follow-up)
+- **File:** utils/migration.ts (`migrateWidget` `time-tool` early-exit), types.ts (`TimeToolConfig`)
+- **Detail:** PR #2106 fixed the legacy `timer`/`stopwatch` → `time-tool` migration to seed `fontFamily: 'font-sans'` (was the invalid no-op class `'sans'`) and `clockStyle: 'modern'` (was the now-out-of-union `'standard'`). But widgets that went through migration **before** that PR are already stored as `type: 'time-tool'` and fall through `migrateWidget`'s existing-`time-tool` early-exit unchanged, so they still carry `fontFamily: 'sans'` (→ `getFontClass()` returns the non-existent class `'sans'`, silently inheriting the system font instead of Lexend) and possibly `clockStyle: 'standard'`. No runtime breakage today: `clockStyle` falls through the widget's `default` style branch, and the font merely inherits. With `TimeToolConfig.clockStyle` now narrowed to a union, stored `'standard'` values are also type-invalid at rest (TS does not validate Firestore data, so harmless at runtime).
+- **Fix (deferred — user-visible data change, deserves its own PR):** Add a forward-migration/one-time fixup branch in `migrateWidget` for `type === 'time-tool'` widgets that rewrites `fontFamily: 'sans'` → `'font-sans'` and `clockStyle: 'standard'` → `'modern'`. NOTE: this **visibly changes the font** on existing teacher dashboards (inherited → Lexend), so it should be a deliberate standalone change, not bundled into an admin-config PR. Consider whether to also normalize on read vs. a batch fixup.
+
+### LOW `case 'clock':` building-config passes `fontFamily`/`themeColor` through with only a truthiness check (no `isHexColor`/`isWidgetFontFamily`)
+
+- **Detected:** 2026-06-28 (PR #2106 review, adjacency)
+- **File:** utils/adminBuildingConfig.ts (`case 'clock'`)
+- **Detail:** The `clock` case accepts `raw.fontFamily`/`raw.themeColor` with a bare truthiness check, unlike the `time-tool` case added in #2106 which validates `themeColor` via `isHexColor` and `fontFamily` via `isWidgetFontFamily`. A malformed admin-stored value could round-trip through Firestore into a new clock widget. Pre-existing; surfaced by adjacency to the new `time-tool` case.
+- **Fix:** Mirror the `time-tool` case's validation in `case 'clock':` — `isHexColor(raw.themeColor)` and `isWidgetFontFamily(raw.fontFamily)` (clock's `fontFamily` uses the prefixed `FONTS`-id space via its `ClockConfigurationPanel` FONTS select). Verify `ClockConfig`'s font value space before tightening.
+
 ### LOW Music widget: no admin building config or ConfigurationPanel
 
 - **Detected:** 2026-06-28
