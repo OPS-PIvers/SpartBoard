@@ -62,6 +62,55 @@ describe('useScreenRecord', () => {
     vi.clearAllMocks();
   });
 
+  it('stops the MediaRecorder on cleanup even when no video track was wired (empty getVideoTracks)', async () => {
+    const mockStreamNoVideo = {
+      getVideoTracks: () => [],
+      getAudioTracks: () => [],
+      getTracks: () => [mockTrack],
+    };
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: {
+        getDisplayMedia: vi.fn().mockResolvedValue(mockStreamNoVideo),
+      },
+      writable: true,
+      configurable: true,
+    });
+
+    const stopSpy = vi.spyOn(MockMediaRecorder.prototype, 'stop');
+
+    const { result, unmount } = renderHook(() => useScreenRecord());
+
+    await act(async () => {
+      await result.current.startRecording();
+    });
+
+    stopSpy.mockClear();
+
+    unmount();
+
+    // Cleanup must call stop() so the MediaRecorder doesn't stay active
+    expect(stopSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('nulls videoTrack.onended before stopping tracks so track.stop does not trigger stopRecording during cleanup', async () => {
+    const { result, unmount } = renderHook(() => useScreenRecord());
+
+    await act(async () => {
+      await result.current.startRecording();
+    });
+
+    expect(mockTrack.onended).not.toBeNull();
+
+    let onendedAtStopTime: (() => void) | null = null;
+    mockTrack.stop.mockImplementation(() => {
+      onendedAtStopTime = mockTrack.onended as (() => void) | null;
+    });
+
+    unmount();
+
+    expect(onendedAtStopTime).toBeNull();
+  });
+
   it('nulls out onstop on cleanup so onSuccess is not called after unmount', async () => {
     const onSuccess = vi.fn();
     const { result, unmount } = renderHook(() =>

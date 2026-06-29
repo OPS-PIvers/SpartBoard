@@ -110,12 +110,21 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      // Null out onstop before stopping tracks so the async callback never
-      // fires after unmount and delivers a stale blob to an abandoned consumer.
       if (mediaRecorderRef.current) {
+        // Null onstop before stopping so the async callback never delivers
+        // a stale blob to an abandoned consumer.
         mediaRecorderRef.current.onstop = null;
+        // Stop directly here so the recorder reaches inactive even when no
+        // video track was wired (i.e. onended never fires).
+        if (mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop();
+        }
       }
       if (streamRef.current) {
+        // Null onended before stopping tracks so track.stop() → ended event
+        // doesn't trigger the stopRecording() side-effect chain during cleanup.
+        const videoTrack = streamRef.current.getVideoTracks()[0];
+        if (videoTrack) videoTrack.onended = null;
         streamRef.current.getTracks().forEach((track) => track.stop());
       }
     };

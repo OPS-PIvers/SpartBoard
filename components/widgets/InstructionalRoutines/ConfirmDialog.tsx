@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { GlassCard } from '@/components/common/GlassCard';
 import { GlobalStyle } from '@/types';
@@ -22,8 +22,29 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onCancel,
   globalStyle,
 }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const onCancelRef = useRef(onCancel);
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync (CLAUDE.md pattern)
+  onCancelRef.current = onCancel;
+
+  useEffect(() => {
+    const el = dialogRef.current;
+    if (!el) return undefined;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        onCancelRef.current();
+      }
+    };
+    el.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () =>
+      el.removeEventListener('keydown', handleKeyDown, { capture: true });
+  }, []);
+
   return createPortal(
     <div
+      ref={dialogRef}
       data-widget-portal=""
       className="fixed inset-0 z-critical flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
       role="dialog"
