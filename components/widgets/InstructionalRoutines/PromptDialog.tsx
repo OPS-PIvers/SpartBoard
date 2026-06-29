@@ -48,6 +48,7 @@ export const PromptDialog: React.FC<PromptDialogProps> = ({
     if (!el) return undefined;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.preventDefault();
         e.stopImmediatePropagation();
         onCancelRef.current();
       }

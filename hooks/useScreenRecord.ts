@@ -104,6 +104,11 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      // Null out onstop before stopping tracks so the async callback never
+      // fires after unmount and delivers a stale blob to an abandoned consumer.
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.onstop = null;
+      }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
       }
