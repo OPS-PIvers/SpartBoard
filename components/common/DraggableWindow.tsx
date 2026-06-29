@@ -226,8 +226,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const hasOpenModal = useHasOpenModal();
   // Hide the floating action toolbar entirely on read-only dashboards
   // (substitute view, view-only guest). None of its actions (gear/flip,
-  // close, duplicate, lock, pin, etc.) are valid for a read-only viewer.
-  // The Settings gear also carries disabled={isLocked} for per-widget locks.
+  // close, duplicate, lock, pin, annotate, etc.) are valid for a read-only
+  // viewer. Per-widget-locked actions carry disabled={isLocked} individually.
   const showTools = isSelectedWidget && !hasOpenModal && !isActiveBoardReadOnly;
 
   // Group visual state. Both selectors return booleans, so foreign
@@ -937,7 +937,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           handleCloseTools();
           break;
         case 'd': // Draw tool
-          if (isActiveBoardReadOnly) break;
+          if (isLocked) break;
           e.preventDefault();
           setIsAnnotating((prev) => !prev);
           handleCloseTools();
@@ -2758,6 +2758,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 size="lg"
                 variant="glass"
                 active={isAnnotating}
+                disabled={isLocked}
               />
               <IconButton
                 icon={<Video className="w-4 h-4" />}
@@ -2888,6 +2889,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   <div
                     className="flex items-center gap-2 group/title cursor-text px-2"
                     onClick={() => {
+                      if (isLocked) return;
                       setTempTitle(widget.customTitle ?? title);
                       setIsEditingTitle(true);
                     }}
@@ -3001,6 +3003,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   size="sm"
                   variant="glass"
                   active={isAnnotating}
+                  disabled={isLocked}
                   className={
                     isAnnotating
                       ? '!bg-brand-blue-lighter !text-brand-blue-primary'

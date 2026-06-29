@@ -642,5 +642,42 @@ describe('DraggableWindow (Tests folder)', () => {
 
       expect(mockContext.updateWidget).not.toHaveBeenCalled();
     });
+
+    it('does not call updateWidget when Escape fires on a read-only board (isActiveBoardReadOnly path)', () => {
+      // widget.isLocked is false here — isLocked derives as false || true = true
+      // because isActiveBoardReadOnly is true. A regression dropping
+      // `|| isActiveBoardReadOnly` from the isLocked derivation would fail this.
+      const widget = { ...mockWidget, isLocked: false };
+      render(
+        <DashboardContext.Provider
+          value={
+            {
+              ...mockContext,
+              selectedWidgetId: widget.id,
+              isActiveBoardReadOnly: true,
+            } as unknown as DashboardContextValue
+          }
+        >
+          <DraggableWindow
+            widget={widget}
+            settings={<div>Settings</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('widget-keyboard-action', {
+            detail: { widgetId: 'test-widget', key: 'Escape', shiftKey: false },
+          })
+        );
+      });
+
+      expect(mockContext.updateWidget).not.toHaveBeenCalled();
+    });
   });
 });
