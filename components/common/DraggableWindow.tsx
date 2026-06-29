@@ -2883,7 +2883,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           <div
             ref={menuRef}
             data-settings-exclude
-            data-widget-portal=""
+            data-widget-portal={isEditingTitle ? '' : undefined}
             style={menuStyle}
             className={`flex items-center gap-1.5 p-1.5 bg-white/40 backdrop-blur-xl rounded-full border border-white/50 shadow-2xl font-${globalStyle.fontFamily}`}
             onClick={(e) => e.stopPropagation()}
