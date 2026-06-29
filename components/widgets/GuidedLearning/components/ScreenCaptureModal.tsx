@@ -277,6 +277,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
 
   return createPortal(
     <div
+      data-widget-portal=""
       className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4"
       style={{ zIndex: Z_INDEX.modalNested }}
       role="dialog"
