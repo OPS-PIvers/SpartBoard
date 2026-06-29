@@ -122,7 +122,10 @@ describe('Widget.onAssign composition — getQuizBehavior → createAssignment s
       attemptLimit: 2,
     };
     const meta = makeMeta(customBehavior);
-    const dueAt: number | null = new Date('2026-09-01').getTime();
+    // Use local end-of-day (matching dueInputsToEpoch output) so dueAtHasTime:true
+    // is paired with the correct epoch — a UTC midnight value here would be
+    // the exact combination splitDueAtToInputs misinterprets on read-back.
+    const dueAt: number | null = new Date(2026, 8, 1, 23, 59, 0, 0).getTime();
 
     const {
       sessionMode: mode,
@@ -137,11 +140,14 @@ describe('Widget.onAssign composition — getQuizBehavior → createAssignment s
       sessionOptions,
       attemptLimit,
       dueAt: dueAt ?? undefined,
+      dueAtHasTime: dueAt != null ? true : undefined,
     };
 
     expect(settings.sessionMode).toBe('auto');
     expect(settings.attemptLimit).toBe(2);
-    expect(settings.dueAt).toBe(new Date('2026-09-01').getTime());
+    expect(settings.dueAt).toBe(new Date(2026, 8, 1, 23, 59, 0, 0).getTime());
+    expect(settings.dueAt).not.toBe(new Date('2026-09-01').getTime());
+    expect(settings.dueAtHasTime).toBe(true);
     expect(settings.sessionOptions).toBeDefined();
   });
 

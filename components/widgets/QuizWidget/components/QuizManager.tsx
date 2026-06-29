@@ -108,6 +108,11 @@ import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
+import {
+  splitDueAtToInputs,
+  dueInputsToEpoch,
+  DEFAULT_DUE_TIME,
+} from '@/utils/localDate';
 
 export interface PlcOptions {
   plcMode: boolean;
@@ -2287,17 +2292,15 @@ const AssignBehaviorSummary: React.FC<{
   const behavior = getQuizBehavior(meta);
   const summary = formatBehaviorSummary(behavior);
 
-  // Convert epoch ms → 'YYYY-MM-DD' for the date input, and back.
-  const dateInputValue = dueAt
-    ? new Date(dueAt).toISOString().slice(0, 10)
-    : '';
+  // Use local-time helpers so the picker date matches the school's timezone (not UTC).
+  const dateInputValue = splitDueAtToInputs(dueAt, true).date;
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     if (!val) {
       onDueAtChange(null);
     } else {
-      onDueAtChange(new Date(val).getTime());
+      onDueAtChange(dueInputsToEpoch(val, DEFAULT_DUE_TIME));
     }
   };
 

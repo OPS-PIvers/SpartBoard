@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-26_
-_Last action: 2026-06-18_
+_Last audited: 2026-06-28_
+_Last action: 2026-06-27 — LOW ActivityWall empty-state heading `fontSize` added (`min(14px, 5.5cqmin)` + scaled `marginTop`); was unscaled 16px on a `skipScaling` widget_
 
 ---
 
@@ -21,6 +21,12 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-28: Full scan of all Widget.tsx files. New commits since 2026-06-27: fix(activity-wall) scale empty-state heading (already moved to Completed). Automated scan flagged MusicWidget cqh-only, Countdown cqh/cqw, Weather hideClothing cqh/cqw, LunchCount cqh/cqw, SyntaxFramer cqh/cqw, InstructionalRoutines cqh/cqw, Checklist cqh/cqw, LunchCount maxHeight:45cqh, Stations maxHeight:40cqh, ActivityWall modal max-h-[75vh] — all WON'T FIX per journal guidance (fill-better formula or intentional design cap, documented in prior entries). All pre-existing open items (SpecialistSchedule border-[min()], TalkingTool 9px cap, ClockWidget bare cqmin, EmbedWidget portaled toolbar, QuizResults period-filter, RevealGrid spacing, multi-widget group, MiniApp dialog) re-confirmed present and valid. Zero new anti-patterns._
+
+_2026-06-27 (action): Took the highest-priority **safe** open item this pass — the LOW ActivityWall empty-state `fontSize` fix (moved to Completed). Selection rationale: the HIGH `DashboardContext.tsx` extraction and the three code-structure MEDIUM large-file items are all BLOCKED (need supervised runtime verification); every ui-unification MEDIUM is blocked-for-admin-runtime, false-premise, or requires a data-model migration the widgets don't consume (see ui-unification.md note dated 2026-06-27). With no actionable HIGH/MEDIUM, the highest-priority safe item is this daily-journal LOW. ActivityWall heading now uses `min(14px, 5.5cqmin)` + scaled `marginTop`, matching its already-scaled icon/subtitle siblings. type-check/eslint/prettier clean._
+
+_2026-06-27: Full scan of all Widget.tsx files. New dev-paul commits since 2026-06-26: refactor(rules), Review fixes for #2076, Rules/auth hardening (#2081), fix(ci) prod hosting, fix(lint) LinksPanel/ShortenUrlButton. Only widget-related changes: commit 6a084586 (Rules/auth hardening) touched components/widgets/Embed/Widget.test.tsx and components/widgets/TalkingTool/Widget.test.tsx — test files only, not front-face content. No widget Widget.tsx or index.tsx front-face content changed. All pre-existing open items re-confirmed valid (SpecialistSchedule border-[min()], ActivityWall empty-state paragraph fontSize, TalkingTool 9px cap, ClockWidget bare cqmin, EmbedWidget portaled toolbar, QuizResults text-sm, RevealGrid spacing, multi-widget group spacing, MiniApp dialog text sizes). Zero new anti-patterns._
 
 _2026-06-26: Full scan of all Widget.tsx files. New dev-paul commits since 2026-06-25: docs(audit) close-outs — no widget front-face content changes. Automated agent scan re-flagged 27 candidates across ActivityWall/MiniApp/Embed/RevealGrid/DrawingWidget; all reviewed: ActivityWall `text-sm` instances are inside fullscreen modal overlays (max-h-[75vh] context confirmed in prior journal entries) or already tracked as the 2026-06-25 empty-state paragraph item (:1554); MiniApp `text-sm`/`text-xs` already tracked as the open "MiniApp internal dialog overlays" item; Embed `text-xs` already tracked as the open "EmbedWidget zoom toolbar" item; RevealGrid header text classes already tracked as the open "RevealGridWidget hardcoded spacing" item; DrawingWidget has `skipScaling:false` — CSS transform scaling, not container queries, so Tailwind text classes are not CQ violations there. All pre-existing open items re-confirmed valid. Zero new anti-patterns._
 
@@ -119,13 +125,6 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 - **Detail:** The widget uses `className="... border-[min(6px,1.5cqmin)] ..."` (Tailwind JIT arbitrary value syntax). Tailwind v3.4 JIT correctly handles balanced parentheses inside `[...]`, so `min(6px,1.5cqmin)` is parsed as a single value and generates valid `border-width: min(6px, 1.5cqmin)` CSS — the border renders correctly. The concern is stylistic: all other `cqmin`-based sizing in widget front-face content uses inline `style` props rather than Tailwind arbitrary values, making intent explicit and avoiding reliance on Tailwind's balanced-paren parsing behaviour. Widget has `skipScaling: true`. (Note: a prior version of this entry incorrectly described this as a rendering bug — it is not; only a style consistency issue.)
 - **Fix:** Move the border-width from `className` to a `style` prop to match the project convention: `style={{ borderWidth: 'min(6px, 1.5cqmin)' }}`. Keep border-style/color Tailwind classes on `className`.
 
-### LOW ActivityWall empty-state paragraph has no `fontSize` style — unscaled at all widget sizes
-
-- **Detected:** 2026-06-25
-- **File:** components/widgets/ActivityWall/Widget.tsx:1554
-- **Detail:** The "No activities yet" empty-state paragraph uses `<p className="font-black text-slate-800 mt-2">` with no `fontSize` style. Widget has `skipScaling: true`, so the paragraph falls back to the browser default 16px regardless of widget size. At small widget sizes the text can overflow; at large sizes it appears undersized relative to the container. This empty state is shown whenever the activity wall has no content, which is the first thing a teacher sees after adding the widget.
-- **Fix:** Either replace the hand-rolled empty state with the shared `ScaledEmptyState` component (`import { ScaledEmptyState } from '@/components/common/ScaledEmptyState'`), or add an inline fontSize: `style={{ fontSize: 'min(14px, 5.5cqmin)', marginTop: 'min(8px, 2cqmin)' }}` and remove `mt-2` from `className`.
-
 ### LOW TalkingTool font-size pixel cap (`9px`) is below the recommended 10px minimum
 
 - **Detected:** 2026-06-25
@@ -196,6 +195,14 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 - **File:** components/widgets/PollWidget/Widget.tsx:244 (was :161 at detection; line shifted as the file grew with the live-session QR/tally feature)
 - **Detail:** The poll results progress bar wrapper used `className="h-[min(5cqmin)] min-h-[16px] ..."`. The `h-[min(5cqmin)]` is effectively `height: 5cqmin` and `min-h-[16px]` adds a 16px floor, but there was no upper cap — at large widget sizes the bar grew disproportionately tall. Widget has `skipScaling: true`.
 - **Resolution:** Replaced the two Tailwind height classes with a single inline style using the recommended cap pattern: `style={{ height: 'clamp(16px, 5cqmin, 24px)' }}` (16px floor, scales with `5cqmin`, capped at 24px). Kept the visual classes (`bg-slate-100 rounded-full overflow-hidden relative border border-slate-200/50`) on `className`. `pnpm type-check`, `eslint --max-warnings 0`, and `prettier` on the changed file all clean.
+
+### LOW ActivityWall empty-state paragraph has no `fontSize` style — unscaled at all widget sizes
+
+- **Detected:** 2026-06-25
+- **Completed:** 2026-06-27
+- **File:** components/widgets/ActivityWall/Widget.tsx:1554
+- **Detail:** The "No activities yet" empty-state heading paragraph used `<p className="font-black text-slate-800 mt-2">` with no `fontSize` style. Widget has `skipScaling: true`, so the heading fell back to the browser default 16px regardless of widget size, while its sibling icon (`min(40px, 14cqmin)`) and subtitle (`min(11px, 3.6cqmin)`) already scaled with the container. At small widget sizes the heading could overflow; at large sizes it appeared undersized relative to the surrounding scaled elements. This empty state is the first thing a teacher sees after adding the widget.
+- **Resolution:** Added an inline `fontSize: 'min(14px, 5.5cqmin)'` (medium-text tier per CLAUDE.md, one step above the `min(11px, 3.6cqmin)` subtitle to preserve hierarchy) and converted the `mt-2` Tailwind margin to an inline `marginTop: 'min(8px, 2cqmin)'` so the spacing scales too. Kept `font-black text-slate-800` on `className`. `pnpm type-check` (exit 0), `eslint --max-warnings 0` on the changed file (exit 0), `prettier --check` (clean).
 
 ### LOW ActivityWall inline activity-editor checkbox uses hardcoded `h-4 w-4` icon size
 
