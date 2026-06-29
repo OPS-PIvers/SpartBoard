@@ -295,13 +295,24 @@ export function collectRecipientEmails(plc: {
     : null;
   // Prefer the canonical members map (carries email); fall back to the
   // denormalized memberEmails mirror for legacy PLCs.
+  //
+  // Track UIDs of removed members so the memberEmails pass below can exclude
+  // them even when `memberUids` is absent (legacy PLCs pre-dating the
+  // active-only uid index). Without this, a uid marked `removed` in `members`
+  // leaks back in via the unguarded memberEmails path.
+  const removedUids = new Set<string>();
   const members = plc.members;
   if (members && typeof members === 'object') {
-    for (const member of Object.values(members as Record<string, unknown>)) {
+    for (const [uid, member] of Object.entries(
+      members as Record<string, unknown>
+    )) {
       if (member && typeof member === 'object') {
         // Removed members keep an audit entry in the map (status 'removed')
         // but must NOT receive the digest — only active members are recipients.
-        if ((member as { status?: unknown }).status === 'removed') continue;
+        if ((member as { status?: unknown }).status === 'removed') {
+          removedUids.add(uid);
+          continue;
+        }
         add((member as { email?: unknown }).email);
       }
     }
@@ -314,6 +325,10 @@ export function collectRecipientEmails(plc: {
       // Skip emails whose uid is no longer an active member (defends the
       // legacy/un-migrated path; the members-map path above filters by status).
       if (activeMemberUids && !activeMemberUids.has(uid)) continue;
+      // Also skip UIDs that were explicitly marked 'removed' in the members
+      // map — prevents a removed member whose email lingers in the legacy
+      // memberEmails mirror from receiving the digest when memberUids is absent.
+      if (removedUids.has(uid)) continue;
       add(email);
     }
   }

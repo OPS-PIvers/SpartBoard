@@ -462,6 +462,10 @@ export async function computeAnalyticsForOrg(
   // NOT included (by design):
   //   generateGuidedLearning — admin-only, writes no ai_usage counter at all
   //   generateVideoActivity  — writes only the overall {uid}_{date} counter
+  //
+  // IMPORTANT: Keep in sync with the mirror in
+  // tests/components/admin/Analytics/AiFeatureLabels.test.ts — that test's
+  // exhaustiveness check validates AI_FEATURE_LABELS against this list.
   const GEMINI_SPECIFIC_FEATURES = [
     'smart-poll',
     'embed-mini-app',
