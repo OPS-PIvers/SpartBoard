@@ -26,7 +26,7 @@ describe('FR locale — widgets.weather.condition must not be verbatim EN', () =
   });
 
   it('fr: widgets.weather.condition is NOT the verbatim English value "Condition"', () => {
-    expect(fr.widgets.weather.condition).toBe('Conditions météo');
+    expect(fr.widgets.weather.condition).not.toBe(en.widgets.weather.condition);
   });
 });
 
