@@ -769,4 +769,70 @@ describe('DraggableWindow (Tests folder)', () => {
       expect(mockContext.updateWidget).not.toHaveBeenCalled();
     });
   });
+
+  describe('Toolbar button lock guards', () => {
+    // Regression suite for the toolbar `disabled={isLocked}` + `if (isLocked) return`
+    // defense-in-depth pattern. `disabled` alone doesn't stop programmatic
+    // `.click()` (jsdom's fireEvent.click bypasses the native disabled check),
+    // so the early-return guard in onClick is the actual Firestore write barrier.
+
+    const renderLocked = (widgetOverrides: Partial<WidgetData> = {}) => {
+      const widget = { ...mockWidget, isLocked: true, ...widgetOverrides };
+      return render(
+        <DashboardContext.Provider
+          value={
+            {
+              ...mockContext,
+              selectedWidgetId: widget.id,
+            } as unknown as DashboardContextValue
+          }
+        >
+          <DraggableWindow
+            widget={widget}
+            settings={<div>Settings</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+    };
+
+    it('disables the settings gear button when widget is locked', () => {
+      renderLocked();
+      expect(screen.getByLabelText(/^settings/i)).toBeDisabled();
+    });
+
+    it('disables the annotate button when widget is locked', () => {
+      renderLocked();
+      expect(screen.getByLabelText(/^annotate/i)).toBeDisabled();
+    });
+
+    it('disables the duplicate button when widget is locked', () => {
+      renderLocked();
+      expect(screen.getByLabelText(/^duplicate$/i)).toBeDisabled();
+    });
+
+    it('does not call duplicateWidget when the locked duplicate button is clicked (early-return guard)', () => {
+      // fireEvent.click bypasses the native disabled check — this test confirms
+      // the onClick early-return guard (`if (isLocked) return`) also blocks the call.
+      renderLocked();
+      fireEvent.click(screen.getByLabelText(/^duplicate$/i));
+      expect(mockContext.duplicateWidget).not.toHaveBeenCalled();
+    });
+
+    it('disables the minimize button when widget is locked', () => {
+      renderLocked();
+      expect(screen.getByLabelText(/^minimize/i)).toBeDisabled();
+    });
+
+    it('does not call updateWidget when the locked minimize button is clicked (early-return guard)', () => {
+      // fireEvent.click bypasses the native disabled check — this test confirms
+      // the onClick early-return guard (`if (isLocked) return`) also blocks the call.
+      renderLocked();
+      fireEvent.click(screen.getByLabelText(/^minimize/i));
+      expect(mockContext.updateWidget).not.toHaveBeenCalled();
+    });
+  });
 });

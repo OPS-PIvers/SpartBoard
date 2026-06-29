@@ -1922,6 +1922,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       if (widgetId !== widget.id || shiftKey) return;
 
       if (key === 'Escape') {
+        // Intentional structural divergence from handleKeyDown's Escape block:
+        // handleKeyDown uses an outer `if (isLocked) { ... return }` guard that
+        // groups all locked-widget cases together. Here the same logic is expressed
+        // as inline per-branch guards (`&& !isActiveBoardReadOnly`, `else if (!isLocked)`)
+        // because handleCustomKeyboard has no preventDefault/stopPropagation to call.
+        // If you add a new Escape branch here, mirror it in handleKeyDown and vice-versa.
         if (showConfirm) {
           setShowConfirm(false);
         } else if (widget.flipped && !isActiveBoardReadOnly) {
