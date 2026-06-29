@@ -84,13 +84,16 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
         <SettingsLabel icon={Settings}>Axis Configuration</SettingsLabel>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">
+            <label
+              htmlFor={`nl-min-${widget.id}`}
+              className="block text-xs font-semibold text-slate-500 mb-1"
+            >
               Min Value
             </label>
             <input
+              id={`nl-min-${widget.id}`}
               type="number"
               defaultValue={min}
-              aria-label="Min Value"
               onBlur={(e) => {
                 if (minCancelledRef.current) {
                   minCancelledRef.current = false;
@@ -119,13 +122,16 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">
+            <label
+              htmlFor={`nl-max-${widget.id}`}
+              className="block text-xs font-semibold text-slate-500 mb-1"
+            >
               Max Value
             </label>
             <input
+              id={`nl-max-${widget.id}`}
               type="number"
               defaultValue={max}
-              aria-label="Max Value"
               onBlur={(e) => {
                 if (maxCancelledRef.current) {
                   maxCancelledRef.current = false;
@@ -154,15 +160,18 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">
+            <label
+              htmlFor={`nl-step-${widget.id}`}
+              className="block text-xs font-semibold text-slate-500 mb-1"
+            >
               Step (Interval)
             </label>
             <input
+              id={`nl-step-${widget.id}`}
               type="number"
               min="0.01"
               step="any"
               defaultValue={step}
-              aria-label="Step (Interval)"
               onBlur={(e) => {
                 if (stepCancelledRef.current) {
                   stepCancelledRef.current = false;
@@ -191,10 +200,14 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">
+            <label
+              htmlFor={`nl-display-${widget.id}`}
+              className="block text-xs font-semibold text-slate-500 mb-1"
+            >
               Display Mode
             </label>
             <select
+              id={`nl-display-${widget.id}`}
               value={displayMode}
               onChange={(e) =>
                 updateConfig({
