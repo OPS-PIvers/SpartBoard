@@ -111,6 +111,26 @@ describe('useScreenRecord', () => {
     expect(onendedAtStopTime).toBeNull();
   });
 
+  it('is a no-op when called while already recording (re-entrancy guard)', async () => {
+    const startSpy = vi.spyOn(MockMediaRecorder.prototype, 'start');
+
+    const { result } = renderHook(() => useScreenRecord());
+
+    await act(async () => {
+      await result.current.startRecording();
+    });
+
+    expect(startSpy).toHaveBeenCalledTimes(1);
+
+    // Call again while state is 'recording' — guard should short-circuit
+    await act(async () => {
+      await result.current.startRecording();
+    });
+
+    // start() must not have been called a second time
+    expect(startSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('nulls out onstop on cleanup so onSuccess is not called after unmount', async () => {
     const onSuccess = vi.fn();
     const { result, unmount } = renderHook(() =>

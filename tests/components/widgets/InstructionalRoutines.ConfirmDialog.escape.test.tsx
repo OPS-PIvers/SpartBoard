@@ -5,6 +5,24 @@ import { ConfirmDialog } from '@/components/widgets/InstructionalRoutines/Confir
 
 afterEach(cleanup);
 
+// autoFocus on Cancel ensures focus moves inside the dialog on open so the
+// capture-phase Escape listener (scoped to the dialog element) can fire.
+// Without it, if focus stays outside the portal, the listener never sees Escape.
+describe('InstructionalRoutines ConfirmDialog — autoFocus', () => {
+  it('moves focus to the Cancel button on open so the Escape capture listener fires', () => {
+    render(
+      <ConfirmDialog
+        title="Test"
+        message="Are you sure?"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+    const cancel = screen.getByRole('button', { name: /cancel/i });
+    expect(cancel).toHaveFocus();
+  });
+});
+
 describe('InstructionalRoutines ConfirmDialog — Escape key', () => {
   it('calls preventDefault on Escape so the browser native action (e.g. fullscreen exit) is suppressed', () => {
     const onCancel = vi.fn();

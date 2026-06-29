@@ -38,6 +38,11 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
   }, []);
 
   const startRecording = useCallback(async () => {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== 'inactive'
+    )
+      return;
     try {
       setError(null);
       chunksRef.current = [];
