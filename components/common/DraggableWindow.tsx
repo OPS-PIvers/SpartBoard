@@ -937,7 +937,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           handleCloseTools();
           break;
         case 'd': // Draw tool
-          if (isLocked) break;
+          if (isActiveBoardReadOnly) break;
           e.preventDefault();
           setIsAnnotating((prev) => !prev);
           handleCloseTools();
@@ -2758,7 +2758,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 size="lg"
                 variant="glass"
                 active={isAnnotating}
-                disabled={isLocked}
+                disabled={isActiveBoardReadOnly}
               />
               <IconButton
                 icon={<Video className="w-4 h-4" />}
@@ -3003,7 +3003,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   size="sm"
                   variant="glass"
                   active={isAnnotating}
-                  disabled={isLocked}
+                  disabled={isActiveBoardReadOnly}
                   className={
                     isAnnotating
                       ? '!bg-brand-blue-lighter !text-brand-blue-primary'
