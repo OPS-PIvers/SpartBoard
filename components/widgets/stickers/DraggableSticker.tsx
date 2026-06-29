@@ -172,12 +172,15 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
       return;
     }
 
+    const isLocked = (widget.isLocked ?? false) || isActiveBoardReadOnly;
+
     if (
       (e.key === 'Delete' || e.key === 'Backspace') &&
       !e.shiftKey &&
       !e.altKey &&
       !e.ctrlKey
     ) {
+      if (isLocked) return;
       e.preventDefault();
       e.stopPropagation();
       removeWidget(widget.id);
@@ -186,6 +189,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
 
     // Alt + Delete or Alt + Backspace: Clear all widgets
     if ((e.key === 'Delete' || e.key === 'Backspace') && e.altKey) {
+      if (isLocked) return;
       e.preventDefault();
       e.stopPropagation();
       const confirmed = await showConfirm(t('widgetWindow.clearEntireBoard'), {
