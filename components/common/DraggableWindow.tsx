@@ -882,12 +882,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     // Keyboard Shortcuts for Focused Widget
     if (e.key === 'Escape' && !e.shiftKey && !e.altKey && !e.ctrlKey) {
-      // Read-only boards (substitute view, view-only guest): allow Esc to
+      // Locked widgets (per-widget lock OR read-only board): allow Esc to
       // dismiss transient UI (annotation overlay, confirm dialog) but DO
       // NOT mutate `widget.flipped` or `widget.minimized` — both would
       // write through `updateWidget` and either render incorrectly for
       // the locked viewer or sync back to the host's board.
-      if (isActiveBoardReadOnly) {
+      if (isLocked) {
         if (showConfirm) {
           e.preventDefault();
           e.stopPropagation();
