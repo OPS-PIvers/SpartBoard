@@ -2934,6 +2934,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   <div className="flex items-center gap-1 -mr-1">
                     <IconButton
                       onClick={() => {
+                        if (isLocked) return;
                         updateWidget(widget.id, {
                           flipped: !widget.flipped,
                         });

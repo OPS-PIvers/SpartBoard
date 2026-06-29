@@ -57,6 +57,11 @@ import {
   createSyncedQuizGroup,
 } from '@/hooks/useSyncedQuizGroups';
 import { getPlcMemberEmails, getPlcTeammateEmails } from '@/utils/plc';
+import {
+  splitDueAtToInputs,
+  dueInputsToEpoch,
+  DEFAULT_DUE_TIME,
+} from '@/utils/localDate';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { logError } from '@/utils/logError';
@@ -325,7 +330,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
           periodName: derived.periodNames[0],
           periodNames: derived.periodNames,
           plc: plcLinkage,
-          ...(dueAt != null ? { dueAt } : {}),
+          ...(dueAt != null ? { dueAt, dueAtHasTime: true } : {}),
         },
         {
           initialStatus: 'paused',
@@ -452,13 +457,11 @@ export const PlcNewQuizAssignmentModal: React.FC<
     visibleRosterIds.has(id)
   ).length;
 
-  const dateInputValue = dueAt
-    ? new Date(dueAt).toISOString().slice(0, 10)
-    : '';
+  const dateInputValue = splitDueAtToInputs(dueAt, true).date;
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
-    setDueAt(val ? new Date(val).getTime() : null);
+    setDueAt(val ? dueInputsToEpoch(val, DEFAULT_DUE_TIME) : null);
   };
 
   const modalTitle = t('plcDashboard.newAssignment.quiz.configureTitle', {

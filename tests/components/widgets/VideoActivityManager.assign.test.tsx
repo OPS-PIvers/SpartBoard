@@ -343,7 +343,10 @@ describe('VideoActivityManager onAssign — behavior sourced from activity, dueA
     const dueAt = args[2];
     expect(typeof dueAt).toBe('number');
     expect(dueAt).toBeGreaterThan(0);
-    expect(dueAt).toBe(new Date('2026-06-01').getTime());
+    // Pin the concrete local epoch (June 1 2026 at 23:59 local time) and
+    // explicitly rule out the old UTC-midnight value that caused off-by-one dates.
+    expect(dueAt).toBe(new Date(2026, 5, 1, 23, 59, 0, 0).getTime());
+    expect(dueAt).not.toBe(new Date('2026-06-01').getTime());
   });
 
   it('calls onAssign with the activity meta as the first argument', async () => {

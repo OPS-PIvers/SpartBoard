@@ -29,6 +29,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     bringToFront,
     moveWidgetLayer,
     deleteAllWidgets,
+    isActiveBoardReadOnly,
   } = useDashboard();
   const { showConfirm } = useDialog();
   const [isSelected, setIsSelected] = useState(false);
@@ -73,6 +74,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
         setIsSelected(false);
         setShowMenu(false);
       } else if (key === 'Delete' || key === 'Backspace') {
+        if ((widget.isLocked ?? false) || isActiveBoardReadOnly) return;
         removeWidget(widget.id);
       }
     };
@@ -86,7 +88,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
         handleCustomKeyboard
       );
     };
-  }, [widget.id, removeWidget]);
+  }, [widget.id, widget.isLocked, isActiveBoardReadOnly, removeWidget]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     // If clicking menu or handles, don't drag
@@ -170,12 +172,15 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
       return;
     }
 
+    const isLocked = (widget.isLocked ?? false) || isActiveBoardReadOnly;
+
     if (
       (e.key === 'Delete' || e.key === 'Backspace') &&
       !e.shiftKey &&
       !e.altKey &&
       !e.ctrlKey
     ) {
+      if (isLocked) return;
       e.preventDefault();
       e.stopPropagation();
       removeWidget(widget.id);
@@ -184,6 +189,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
 
     // Alt + Delete or Alt + Backspace: Clear all widgets
     if ((e.key === 'Delete' || e.key === 'Backspace') && e.altKey) {
+      if (isLocked) return;
       e.preventDefault();
       e.stopPropagation();
       const confirmed = await showConfirm(t('widgetWindow.clearEntireBoard'), {
