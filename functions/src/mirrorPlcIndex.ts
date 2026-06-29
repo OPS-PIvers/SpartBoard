@@ -135,7 +135,9 @@ export const mirrorPlcIndex = onDocumentWritten(
       // `members[uid].email` is the on-disk source of truth post-migration.
       const rawLeadEmailFromMap =
         leadUid && rootData.members && typeof rootData.members === 'object'
-          ? (rootData.members as Record<string, Record<string, unknown>>)[leadUid]?.email
+          ? (rootData.members as Record<string, Record<string, unknown>>)[
+              leadUid
+            ]?.email
           : undefined;
       const leadEmail =
         typeof rawLeadEmail === 'string'

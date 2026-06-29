@@ -221,9 +221,11 @@ describe('mirrorPlcIndex handler — lead-email resolution for orgId forgery gua
     queriedPaths = [];
     // Wire the firebase-admin mock so admin.firestore() returns our stub.
     vi.mocked(admin.firestore).mockReturnValue(
-      makeHandlerDb({ leadIsMember: true, captured, queriedPaths }) as unknown as ReturnType<
-        typeof admin.firestore
-      >
+      makeHandlerDb({
+        leadIsMember: true,
+        captured,
+        queriedPaths,
+      }) as unknown as ReturnType<typeof admin.firestore>
     );
   });
 
@@ -243,7 +245,9 @@ describe('mirrorPlcIndex handler — lead-email resolution for orgId forgery gua
     expect(captured).toHaveLength(1);
     expect(captured[0].path).toBe('plcIndex/plc-1');
     expect(captured[0].data.orgId).toBe('orono');
-    expect(queriedPaths).toContain('organizations/orono/members/lead@orono.k12.mn.us');
+    expect(queriedPaths).toContain(
+      'organizations/orono/members/lead@orono.k12.mn.us'
+    );
   });
 
   it(
@@ -279,7 +283,9 @@ describe('mirrorPlcIndex handler — lead-email resolution for orgId forgery gua
       // email came from the members map (the fallback path). Before the fix
       // this would be null, silently hiding the PLC from org peers.
       expect(captured[0].data.orgId).toBe('orono');
-      expect(queriedPaths).toContain('organizations/orono/members/lead@orono.k12.mn.us');
+      expect(queriedPaths).toContain(
+        'organizations/orono/members/lead@orono.k12.mn.us'
+      );
     }
   );
 
@@ -315,6 +321,8 @@ describe('mirrorPlcIndex handler — lead-email resolution for orgId forgery gua
     // The lead's email resolved (from members map), but the org membership
     // check failed → forgery guard must still null out the orgId.
     expect(captured[0].data.orgId).toBeNull();
-    expect(queriedPaths).toContain('organizations/wrong-org/members/lead@myschool.org');
+    expect(queriedPaths).toContain(
+      'organizations/wrong-org/members/lead@myschool.org'
+    );
   });
 });
