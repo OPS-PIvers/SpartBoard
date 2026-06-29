@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { GlassCard } from '@/components/common/GlassCard';
 import { GlobalStyle } from '@/types';
@@ -27,6 +27,7 @@ export const PromptDialog: React.FC<PromptDialogProps> = ({
   globalStyle,
 }) => {
   const [value, setValue] = useState(defaultValue);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const handleSubmit = () => {
     if (value.trim()) {
@@ -34,8 +35,28 @@ export const PromptDialog: React.FC<PromptDialogProps> = ({
     }
   };
 
+  // Dialog-level native capture: handles Escape from ANY focused element
+  // (textarea, Cancel button, Confirm button). Fires after window capture-phase
+  // listeners (so StarterPackConfigurationModal's isEscapeFromWidgetInput guard
+  // can exit early) but before the bubble phase (so window bubble listeners
+  // like DashboardView's minimize handler never fire).
+  useEffect(() => {
+    const el = dialogRef.current;
+    if (!el) return undefined;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopImmediatePropagation();
+        onCancel();
+      }
+    };
+    el.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () =>
+      el.removeEventListener('keydown', handleKeyDown, { capture: true });
+  }, [onCancel]);
+
   return createPortal(
     <div
+      ref={dialogRef}
       data-widget-portal=""
       className="fixed inset-0 z-critical flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
       role="dialog"
@@ -68,11 +89,6 @@ export const PromptDialog: React.FC<PromptDialogProps> = ({
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
               handleSubmit();
-            }
-            if (e.key === 'Escape') {
-              e.nativeEvent.stopImmediatePropagation();
-              e.stopPropagation();
-              onCancel();
             }
           }}
           aria-label={message}
