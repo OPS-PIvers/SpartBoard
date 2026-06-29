@@ -2,17 +2,6 @@ import { describe, it, expect } from 'vitest';
 import type { WidgetType } from '@/types';
 import { WIDGET_LABELS } from '@/components/admin/Analytics/widgetLabels';
 
-/**
- * Every member of WidgetType must resolve to a human-readable label in the
- * admin Analytics widget-breakdown table.  Programmatic widget types that are
- * intentionally absent from the TOOLS dock catalogue (sticker, catalyst-*,
- * mathTool, onboarding, custom-widget, blooms-detail) must be listed
- * explicitly in widgetLabels.ts so they never fall back to raw type-ID
- * strings.
- *
- * Mirror of WidgetType union from types.ts — keep in sync when adding new
- * widget types.
- */
 const ALL_WIDGET_TYPES = [
   'clock',
   'traffic',
@@ -79,14 +68,11 @@ const ALL_WIDGET_TYPES = [
   'stations',
 ] as const;
 
-// Compile-time set-equality guard: both directions must hold.
-// Forward: WidgetType ⊆ ALL_WIDGET_TYPES — new type in types.ts without
-// updating the array fails to compile ('true' is not assignable to 'never').
+// Compile-time guard — adding a WidgetType without updating this array fails to compile.
 const _exhaustiveCheck: [WidgetType] extends [(typeof ALL_WIDGET_TYPES)[number]]
   ? true
   : never = true;
-// Reverse: ALL_WIDGET_TYPES ⊆ WidgetType — stale entry in the array after a
-// type is removed from types.ts also fails to compile.
+// Reverse guard — a stale entry left in this array after a type is removed also fails to compile.
 const _reverseExhaustiveCheck: [(typeof ALL_WIDGET_TYPES)[number]] extends [
   WidgetType,
 ]
