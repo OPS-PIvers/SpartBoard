@@ -98,6 +98,75 @@ describe('splitDueAtToInputs', () => {
   });
 });
 
+/**
+ * Regression test: AssignBehaviorSummary UTC date-parsing bug.
+ *
+ * Before the fix, QuizManager and VideoActivityManager used:
+ *   dateInputValue = new Date(dueAt).toISOString().slice(0, 10)  // UTC date
+ *   onDueAtChange(new Date(val).getTime())                        // UTC midnight
+ *
+ * `new Date('YYYY-MM-DD')` parses the string as UTC midnight.  In a UTC−5
+ * school timezone that epoch is 7 PM on the PRIOR day — so "due July 4"
+ * expired at 7 PM on July 3 for US teachers, and the date input showed July 3
+ * after reload because toISOString() returned the UTC calendar date.
+ *
+ * After the fix the two components use dueInputsToEpoch + splitDueAtToInputs
+ * (hasTime=true) so the stored epoch is LOCAL end-of-day and the displayed
+ * date round-trips through local getters without a timezone shift.
+ */
+describe('AssignBehaviorSummary due-date UTC regression', () => {
+  it('dueInputsToEpoch produces a LOCAL end-of-day epoch, not UTC midnight', () => {
+    // UTC midnight and local end-of-day are always different (by 23:59 min at
+    // most in UTC, or an entire timezone offset in non-UTC zones).
+    const utcMidnight = new Date('2026-07-04').getTime();
+    const localEndOfDay = dueInputsToEpoch('2026-07-04', DEFAULT_DUE_TIME);
+
+    // The local end-of-day epoch must be strictly greater than UTC midnight
+    // (even in UTC the end-of-day is 23 hours 59 minutes later than midnight).
+    expect(localEndOfDay).not.toBeNull();
+    expect(localEndOfDay!).toBeGreaterThan(utcMidnight);
+
+    // Specifically it should equal local July 4 at 23:59.
+    const expectedEndOfDay = new Date(2026, 6, 4, 23, 59, 0, 0).getTime();
+    expect(localEndOfDay).toBe(expectedEndOfDay);
+  });
+
+  it('splitDueAtToInputs(hasTime=true) round-trips the picker value with no timezone shift', () => {
+    // Simulate the full write→display round-trip:
+    //   1. Teacher picks "2026-07-04" in the date input.
+    //   2. handleDateChange stores dueInputsToEpoch('2026-07-04', DEFAULT_DUE_TIME).
+    //   3. On the next render, dateInputValue = splitDueAtToInputs(dueAt, true).date.
+    // The displayed date must equal the date the teacher entered — no off-by-one.
+    const stored = dueInputsToEpoch('2026-07-04', DEFAULT_DUE_TIME);
+    expect(stored).not.toBeNull();
+    const { date: displayed } = splitDueAtToInputs(stored, true);
+    expect(displayed).toBe('2026-07-04');
+  });
+
+  it('the old new Date(string).getTime() path would have stored UTC midnight, not local end-of-day', () => {
+    // Confirm the bug that the fix removes: `new Date('YYYY-MM-DD').getTime()`
+    // always returns UTC midnight, which is different from local end-of-day.
+    // This test documents the pre-fix behavior so reviewers can see exactly
+    // what changed and why the fix is necessary.
+    const buggyEpoch = new Date('2026-07-04').getTime(); // UTC midnight
+    const { date: displayedAfterBuggyRoundTrip } = splitDueAtToInputs(
+      buggyEpoch,
+      true // as the fixed code would read it back — local getters
+    );
+    // In UTC the local date of UTC-midnight July 4 IS July 4 (no shift),
+    // but the epoch value itself was midnight not 23:59 — meaning the
+    // assignment expired 23h59m earlier than the teacher intended.
+    // In UTC− zones this also shifts the displayed date backward one day.
+    // Here in the UTC test environment the date matches but the epoch is wrong:
+    expect(buggyEpoch).not.toBe(
+      dueInputsToEpoch('2026-07-04', DEFAULT_DUE_TIME)
+    );
+    // The display round-trip shows '2026-07-04' in UTC but would show
+    // '2026-07-03' in UTC-5 — demonstrating the timezone sensitivity of the bug.
+    expect(displayedAfterBuggyRoundTrip).toBe('2026-07-04'); // only correct in UTC
+  });
+});
+
 describe('dueInputsToEpoch', () => {
   it('returns null when there is no date (no due date)', () => {
     expect(dueInputsToEpoch('', '12:00')).toBeNull();
