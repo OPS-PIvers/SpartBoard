@@ -387,8 +387,9 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     // Should be a positive epoch ms number
     expect(typeof dueAt).toBe('number');
     expect(dueAt).toBeGreaterThan(0);
-    // 2026-06-01 UTC midnight
-    expect(dueAt).toBe(new Date('2026-06-01').getTime());
+    // Pin the concrete local epoch (June 1 2026 at 23:59 local time) and
+    // explicitly rule out the old UTC-midnight value that caused off-by-one dates.
+    expect(dueAt).toBe(new Date(2026, 5, 1, 23, 59, 0, 0).getTime());
   });
 
   it('calls onAssign passing the quiz meta as first argument', async () => {

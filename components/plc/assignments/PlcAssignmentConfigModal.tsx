@@ -48,6 +48,7 @@ import { QuizDriveService } from '@/utils/quizDriveService';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { getPlcMemberEmails, getPlcTeammateEmails } from '@/utils/plc';
 import { logError } from '@/utils/logError';
+import { dueInputsToEpoch, DEFAULT_DUE_TIME } from '@/utils/localDate';
 import { formatBehaviorSummary } from '@/utils/quizBehavior';
 import { formatVideoActivityBehaviorSummary } from '@/utils/videoActivityBehavior';
 import type {
@@ -187,7 +188,7 @@ export const PlcAssignmentConfigModal: React.FC<
 
   // Derived due-date ms epoch (null = no due date)
   const parsedDueAt: number | null = dueAtInput
-    ? new Date(dueAtInput).getTime() || null
+    ? dueInputsToEpoch(dueAtInput, DEFAULT_DUE_TIME)
     : null;
 
   const handleSubmit = useCallback(async () => {
@@ -292,7 +293,9 @@ export const PlcAssignmentConfigModal: React.FC<
           periodName: derived.periodNames[0],
           periodNames: derived.periodNames,
           plc: plcLinkage,
-          ...(parsedDueAt != null ? { dueAt: parsedDueAt } : {}),
+          ...(parsedDueAt != null
+            ? { dueAt: parsedDueAt, dueAtHasTime: true }
+            : {}),
         };
 
         await createQuizAssignment(quizRef, settings, {
@@ -341,14 +344,18 @@ export const PlcAssignmentConfigModal: React.FC<
           effectiveVaSessionOptions = {
             ...vaBehavior.sessionOptions,
             attemptLimit: vaBehavior.attemptLimit,
-            ...(parsedDueAt != null ? { dueAt: parsedDueAt } : {}),
+            ...(parsedDueAt != null
+              ? { dueAt: parsedDueAt, dueAtHasTime: true }
+              : {}),
           };
         } else {
           // Backward-compat guard: preserve legacy form controls for any
           // caller that opens this modal without providing vaBehavior.
           effectiveVaSessionOptions = {
             ...vaOptions,
-            ...(parsedDueAt != null ? { dueAt: parsedDueAt } : {}),
+            ...(parsedDueAt != null
+              ? { dueAt: parsedDueAt, dueAtHasTime: true }
+              : {}),
           } as VideoActivitySessionOptions;
         }
 

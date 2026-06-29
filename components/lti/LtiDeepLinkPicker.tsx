@@ -583,7 +583,7 @@ const LtiDeepLinkFlow: React.FC = () => {
             // Persist the due date on the SpartBoard assignment too (quiz keeps
             // it directly on settings), so the teacher's single entry drives
             // both SpartBoard and the Schoology line item.
-            ...(dueAt ? { dueAt } : {}),
+            ...(dueAt ? { dueAt, dueAtHasTime: true } : {}),
           },
           {
             classIds: [`schoology:${contextId}`],
@@ -640,7 +640,7 @@ const LtiDeepLinkFlow: React.FC = () => {
           attemptLimit: behavior.attemptLimit,
           // VA carries its due date on sessionOptions (no top-level settings
           // field). Persist it so SpartBoard + the Schoology line item match.
-          ...(dueAt ? { dueAt } : {}),
+          ...(dueAt ? { dueAt, dueAtHasTime: true } : {}),
         };
 
         const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
