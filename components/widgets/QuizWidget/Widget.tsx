@@ -1326,6 +1326,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 sessionOptions,
                 attemptLimit,
                 dueAt: dueAt ?? undefined,
+                dueAtHasTime: dueAt != null ? true : undefined,
                 teacherName: plcOptions.teacherName,
                 periodName:
                   plcOptions.periodNames?.[0] ?? plcOptions.periodName,
@@ -1376,6 +1377,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 code,
                 title: meta.title,
                 dueAt: dueAt ?? null,
+                dueAtHasTime: dueAt != null ? true : undefined,
                 // Auto-target the linked Google course (Item D) — we have the
                 // freshly-derived ClassLink classes right here.
                 classlinkClassIds: derived.classIds,

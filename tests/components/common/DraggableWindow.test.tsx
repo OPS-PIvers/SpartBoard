@@ -804,6 +804,14 @@ describe('DraggableWindow (Tests folder)', () => {
       expect(screen.getByLabelText(/^settings/i)).toBeDisabled();
     });
 
+    it('does not call updateWidget when the locked settings gear button is clicked (early-return guard)', () => {
+      // fireEvent.click bypasses the native disabled check — this test confirms
+      // the onClick early-return guard (`if (isLocked) return`) also blocks the call.
+      renderLocked();
+      fireEvent.click(screen.getByLabelText(/^settings/i));
+      expect(mockContext.updateWidget).not.toHaveBeenCalled();
+    });
+
     it('disables the annotate button when widget is locked', () => {
       renderLocked();
       expect(screen.getByLabelText(/^annotate/i)).toBeDisabled();
