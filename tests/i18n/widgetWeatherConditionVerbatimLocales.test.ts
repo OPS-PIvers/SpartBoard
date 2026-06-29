@@ -1,36 +1,3 @@
-/**
- * Regression test for verbatim-English value stored in FR for
- * widgets.weather.condition.
- *
- * BUG SUMMARY
- * -----------
- *
- * FR widgets.weather.condition = "Condition"  (verbatim EN)
- *
- * Proof of error:
- *   - DE correctly translates this as "Wetterlage" (a weather-specific German
- *     compound term — the translator made an intentional, domain-specific choice).
- *   - ES correctly translates this as "Condición" (with the required Spanish accent).
- *   - FR kept the bare English word "Condition" — no accent, no localization.
- *     The correct French label for the weather condition selector is
- *     "Conditions météo", consistent with how the weather domain is referenced
- *     throughout the FR locale ("météo", "données météo", "station météo", etc.).
- *
- * WHY THIS IS A LOUD BUG (no silent fallback)
- * --------------------------------------------
- * The key is used via t() WITHOUT a defaultValue fallback in:
- *
- *   components/widgets/Weather/Settings.tsx:352
- *     {t('widgets.weather.condition')}
- *
- * i18next renders whatever is stored in the locale file verbatim, so
- * French teachers see "Condition" (English text) as the weather-condition
- * section heading in the Weather widget settings panel.
- *
- * This test loads locale JSON files directly so the assertion fires before
- * the i18next runtime would attempt (and silently skip) any fallback.
- */
-
 import { describe, it, expect } from 'vitest';
 import en from '@/locales/en.json';
 import de from '@/locales/de.json';
@@ -59,14 +26,7 @@ describe('FR locale — widgets.weather.condition must not be verbatim EN', () =
   });
 
   it('fr: widgets.weather.condition is NOT the verbatim English value "Condition"', () => {
-    expect(
-      fr.widgets.weather.condition,
-      'fr.widgets.weather.condition is still the English placeholder — ' +
-        "t('widgets.weather.condition') has no defaultValue in " +
-        'Weather/Settings.tsx:352, so FR teachers see English text as the ' +
-        'weather-condition section heading in the Weather widget settings. ' +
-        'DE correctly uses "Wetterlage"; ES correctly uses "Condición".'
-    ).not.toBe(en.widgets.weather.condition);
+    expect(fr.widgets.weather.condition).toBe('Conditions météo');
   });
 });
 
