@@ -183,10 +183,16 @@ export const TimeToolConfigurationPanel: React.FC<
         {/* Default Mode */}
         <div>
           <SettingsLabel className="mb-1">Default Mode</SettingsLabel>
-          <div className="flex gap-1.5">
+          <div
+            className="flex gap-1.5"
+            role="radiogroup"
+            aria-label="Default Mode"
+          >
             {MODES.map(({ value, label }) => (
               <button
                 key={value}
+                role="radio"
+                aria-checked={(currentBuildingConfig.mode ?? 'timer') === value}
                 onClick={() => handleUpdateBuilding({ mode: value })}
                 className={pillClasses(
                   (currentBuildingConfig.mode ?? 'timer') === value
@@ -201,10 +207,18 @@ export const TimeToolConfigurationPanel: React.FC<
         {/* Display Style */}
         <div>
           <SettingsLabel className="mb-1">Display Style</SettingsLabel>
-          <div className="flex gap-1.5">
+          <div
+            className="flex gap-1.5"
+            role="radiogroup"
+            aria-label="Display Style"
+          >
             {VISUAL_TYPES.map(({ value, label }) => (
               <button
                 key={value}
+                role="radio"
+                aria-checked={
+                  (currentBuildingConfig.visualType ?? 'digital') === value
+                }
                 onClick={() => handleUpdateBuilding({ visualType: value })}
                 className={pillClasses(
                   (currentBuildingConfig.visualType ?? 'digital') === value
@@ -219,10 +233,18 @@ export const TimeToolConfigurationPanel: React.FC<
         {/* Number Style */}
         <div>
           <SettingsLabel className="mb-1">Number Style</SettingsLabel>
-          <div className="flex gap-1.5">
+          <div
+            className="flex gap-1.5"
+            role="radiogroup"
+            aria-label="Number Style"
+          >
             {CLOCK_STYLES.map(({ value, label }) => (
               <button
                 key={value}
+                role="radio"
+                aria-checked={
+                  (currentBuildingConfig.clockStyle ?? 'modern') === value
+                }
                 onClick={() => handleUpdateBuilding({ clockStyle: value })}
                 className={pillClasses(
                   (currentBuildingConfig.clockStyle ?? 'modern') === value
@@ -237,10 +259,18 @@ export const TimeToolConfigurationPanel: React.FC<
         {/* Alert Sound */}
         <div>
           <SettingsLabel className="mb-1">Default Alert Sound</SettingsLabel>
-          <div className="flex gap-1.5">
+          <div
+            className="flex gap-1.5"
+            role="radiogroup"
+            aria-label="Default Alert Sound"
+          >
             {SOUNDS.map((sound) => (
               <button
                 key={sound}
+                role="radio"
+                aria-checked={
+                  (currentBuildingConfig.selectedSound ?? 'Gong') === sound
+                }
                 onClick={() => handleUpdateBuilding({ selectedSound: sound })}
                 className={pillClasses(
                   (currentBuildingConfig.selectedSound ?? 'Gong') === sound
@@ -350,7 +380,12 @@ export const TimeToolConfigurationPanel: React.FC<
 
       <div className="flex items-center justify-between border-b pb-4">
         <div>
-          <p className="font-medium text-slate-800">Auto-Pick Random Student</p>
+          <p
+            id="time-tool-trigger-random-label"
+            className="font-medium text-slate-800"
+          >
+            Auto-Pick Random Student
+          </p>
           <p className="text-sm text-slate-500">
             Pick a random student when the timer ends.
           </p>
@@ -358,6 +393,7 @@ export const TimeToolConfigurationPanel: React.FC<
         <div className="flex items-center">
           <input
             type="checkbox"
+            aria-labelledby="time-tool-trigger-random-label"
             checked={currentBuildingConfig.timerEndTriggerRandom ?? false}
             onChange={(e) =>
               handleUpdateBuilding({ timerEndTriggerRandom: e.target.checked })
@@ -368,7 +404,10 @@ export const TimeToolConfigurationPanel: React.FC<
 
       <div className="flex items-center justify-between border-b pb-4">
         <div>
-          <p className="font-medium text-slate-800">
+          <p
+            id="time-tool-trigger-nextup-label"
+            className="font-medium text-slate-800"
+          >
             Auto-Advance Next Up Queue
           </p>
           <p className="text-sm text-slate-500">
@@ -378,6 +417,7 @@ export const TimeToolConfigurationPanel: React.FC<
         <div className="flex items-center">
           <input
             type="checkbox"
+            aria-labelledby="time-tool-trigger-nextup-label"
             checked={currentBuildingConfig.timerEndTriggerNextUp ?? false}
             onChange={(e) =>
               handleUpdateBuilding({ timerEndTriggerNextUp: e.target.checked })
@@ -388,7 +428,12 @@ export const TimeToolConfigurationPanel: React.FC<
 
       <div className="flex items-center justify-between pb-2">
         <div>
-          <p className="font-medium text-slate-800">Auto-Rotate Stations</p>
+          <p
+            id="time-tool-trigger-stations-label"
+            className="font-medium text-slate-800"
+          >
+            Auto-Rotate Stations
+          </p>
           <p className="text-sm text-slate-500">
             Rotate the first Stations widget when the timer ends.
           </p>
@@ -396,6 +441,7 @@ export const TimeToolConfigurationPanel: React.FC<
         <div className="flex items-center">
           <input
             type="checkbox"
+            aria-labelledby="time-tool-trigger-stations-label"
             checked={
               currentBuildingConfig.timerEndTriggerStationsRotate ?? false
             }
