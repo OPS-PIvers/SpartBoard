@@ -886,6 +886,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       // NOT mutate `widget.flipped` or `widget.minimized` — both would
       // write through `updateWidget` and either render incorrectly for
       // the locked viewer or sync back to the host's board.
+      // Exception: per-widget-locked (widget.isLocked only, not board-read-only)
+      // may close an already-open settings panel — otherwise the UI is stuck
+      // until the lock is removed or the page refreshes.
       if (isLocked) {
         if (showConfirm) {
           e.preventDefault();
@@ -895,6 +898,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           e.preventDefault();
           e.stopPropagation();
           setIsAnnotating(false);
+        } else if (widget.flipped && !isActiveBoardReadOnly) {
+          e.preventDefault();
+          e.stopPropagation();
+          updateWidget(widget.id, { flipped: false });
         }
         return;
       }
@@ -936,7 +943,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           updateWidget(widget.id, { flipped: !widget.flipped });
           handleCloseTools();
           break;
-        case 'd': // Draw tool
+        case 'd': // Draw tool — isLocked (not isActiveBoardReadOnly) because
+          // annotation strokes are persisted to Firestore via onPathsChange
           if (isLocked) break;
           e.preventDefault();
           setIsAnnotating((prev) => !prev);
@@ -1916,7 +1924,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       if (key === 'Escape') {
         if (showConfirm) {
           setShowConfirm(false);
-        } else if (!isLocked && widget.flipped) {
+        } else if (widget.flipped && !isActiveBoardReadOnly) {
+          // Allow closing an already-open settings panel for per-widget-locked
+          // widgets; isActiveBoardReadOnly blocks all writes on shared boards.
           updateWidget(widget.id, { flipped: false });
         } else if (isAnnotating) {
           setIsAnnotating(false);
@@ -1953,6 +1963,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     widget.flipped,
     showConfirm,
     isAnnotating,
+    isActiveBoardReadOnly,
     isLocked,
     isPinned,
     skipCloseConfirmation,

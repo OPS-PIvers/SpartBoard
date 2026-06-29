@@ -629,7 +629,11 @@ describe('DraggableWindow (Tests folder)', () => {
       expect(mockContext.updateWidget).not.toHaveBeenCalled();
     });
 
-    it('does not call updateWidget to unflip when Escape widget-keyboard-action fires on a locked flipped widget', () => {
+    it('calls updateWidget({ flipped: false }) when Escape fires on a per-widget-locked flipped widget (escape-trapped-settings fix)', () => {
+      // Per-widget lock (widget.isLocked: true, isActiveBoardReadOnly: false):
+      // Escape is allowed to close the settings panel to prevent a UI trap where
+      // the settings panel cannot be dismissed after the widget is locked.
+      // Board-level read-only still blocks this write (see test 4 below).
       renderLocked({ flipped: true });
 
       act(() => {
@@ -640,7 +644,9 @@ describe('DraggableWindow (Tests folder)', () => {
         );
       });
 
-      expect(mockContext.updateWidget).not.toHaveBeenCalled();
+      expect(mockContext.updateWidget).toHaveBeenCalledWith('test-widget', {
+        flipped: false,
+      });
     });
 
     it('does not call updateWidget when Escape fires on a read-only board (isActiveBoardReadOnly path)', () => {
