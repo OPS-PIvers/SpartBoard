@@ -29,6 +29,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     bringToFront,
     moveWidgetLayer,
     deleteAllWidgets,
+    isActiveBoardReadOnly,
   } = useDashboard();
   const { showConfirm } = useDialog();
   const [isSelected, setIsSelected] = useState(false);
@@ -73,6 +74,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
         setIsSelected(false);
         setShowMenu(false);
       } else if (key === 'Delete' || key === 'Backspace') {
+        if ((widget.isLocked ?? false) || isActiveBoardReadOnly) return;
         removeWidget(widget.id);
       }
     };
@@ -86,7 +88,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
         handleCustomKeyboard
       );
     };
-  }, [widget.id, removeWidget]);
+  }, [widget.id, widget.isLocked, isActiveBoardReadOnly, removeWidget]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     // If clicking menu or handles, don't drag
