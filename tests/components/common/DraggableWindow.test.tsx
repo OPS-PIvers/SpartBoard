@@ -590,4 +590,57 @@ describe('DraggableWindow (Tests folder)', () => {
       expect(mockShowConfirm).not.toHaveBeenCalled();
     });
   });
+
+  describe('handleCustomKeyboard Escape on locked/read-only board', () => {
+    const renderLocked = (widgetOverrides: Partial<WidgetData> = {}) => {
+      const widget = { ...mockWidget, ...widgetOverrides, isLocked: true };
+      return render(
+        <DashboardContext.Provider
+          value={
+            {
+              ...mockContext,
+              selectedWidgetId: widget.id,
+            } as unknown as DashboardContextValue
+          }
+        >
+          <DraggableWindow
+            widget={widget}
+            settings={<div>Settings</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+    };
+
+    it('does not call updateWidget to minimize when Escape widget-keyboard-action fires on a locked widget', () => {
+      renderLocked();
+
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('widget-keyboard-action', {
+            detail: { widgetId: 'test-widget', key: 'Escape', shiftKey: false },
+          })
+        );
+      });
+
+      expect(mockContext.updateWidget).not.toHaveBeenCalled();
+    });
+
+    it('does not call updateWidget to unflip when Escape widget-keyboard-action fires on a locked flipped widget', () => {
+      renderLocked({ flipped: true });
+
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('widget-keyboard-action', {
+            detail: { widgetId: 'test-widget', key: 'Escape', shiftKey: false },
+          })
+        );
+      });
+
+      expect(mockContext.updateWidget).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -1917,11 +1917,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       if (key === 'Escape') {
         if (showConfirm) {
           setShowConfirm(false);
-        } else if (widget.flipped) {
+        } else if (!isLocked && widget.flipped) {
           updateWidget(widget.id, { flipped: false });
         } else if (isAnnotating) {
           setIsAnnotating(false);
-        } else {
+        } else if (!isLocked) {
           updateWidget(widget.id, { minimized: true, flipped: false });
         }
       } else if (key === 'Pin') {
