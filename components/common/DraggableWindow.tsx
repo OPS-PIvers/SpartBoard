@@ -894,14 +894,14 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           e.preventDefault();
           e.stopPropagation();
           setShowConfirm(false);
-        } else if (isAnnotating) {
-          e.preventDefault();
-          e.stopPropagation();
-          setIsAnnotating(false);
         } else if (widget.flipped && !isActiveBoardReadOnly) {
           e.preventDefault();
           e.stopPropagation();
           updateWidget(widget.id, { flipped: false });
+        } else if (isAnnotating) {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsAnnotating(false);
         }
         return;
       }
