@@ -124,7 +124,7 @@ describe('AssignBehaviorSummary due-date UTC regression', () => {
     // The local end-of-day epoch must be strictly greater than UTC midnight
     // (even in UTC the end-of-day is 23 hours 59 minutes later than midnight).
     expect(localEndOfDay).not.toBeNull();
-    expect(localEndOfDay!).toBeGreaterThan(utcMidnight);
+    expect(localEndOfDay as number).toBeGreaterThan(utcMidnight);
 
     // Specifically it should equal local July 4 at 23:59.
     const expectedEndOfDay = new Date(2026, 6, 4, 23, 59, 0, 0).getTime();
