@@ -50,6 +50,7 @@ import {
 } from '@/types';
 import type { LiveSession } from '@/types';
 import { extractYouTubeId } from '@/utils/youtube';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 // ── Code-split lazies ────────────────────────────────────────────────────────
 // Declared after all static imports. ESM hoists `import` statements regardless,
@@ -892,7 +893,7 @@ export const DashboardView: React.FC = () => {
       // Guard: if focus is inside a typing field, let the second Escape branch
       // handle it (blur the field) — don't exit group-build mode unexpectedly.
       if (e.key === 'Escape' && groupBuildMode) {
-        if (!isTypingFieldActive()) {
+        if (!isEscapeFromWidgetInput(e) && !isTypingFieldActive()) {
           e.preventDefault();
           setGroupBuildMode(false);
           setSelectedWidgetIds([]);
