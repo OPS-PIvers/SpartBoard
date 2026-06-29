@@ -226,9 +226,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const hasOpenModal = useHasOpenModal();
   // Hide the floating action toolbar entirely on read-only dashboards
   // (substitute view, view-only guest). None of its actions (gear/flip,
-  // close, duplicate, lock, pin, etc.) are valid for a read-only viewer,
-  // and the toolbar's "Settings" gear has no per-button isLocked gate of
-  // its own — suppressing showTools at the root is the safest gap-fill.
+  // close, duplicate, lock, pin, etc.) are valid for a read-only viewer.
+  // The Settings gear also carries disabled={isLocked} for per-widget locks.
   const showTools = isSelectedWidget && !hasOpenModal && !isActiveBoardReadOnly;
 
   // Group visual state. Both selectors return booleans, so foreign
@@ -938,7 +937,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           handleCloseTools();
           break;
         case 'd': // Draw tool
-          if (isLocked) break;
+          if (isActiveBoardReadOnly) break;
           e.preventDefault();
           setIsAnnotating((prev) => !prev);
           handleCloseTools();
