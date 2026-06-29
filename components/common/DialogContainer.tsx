@@ -486,7 +486,6 @@ export const DialogContainer: React.FC = () => {
 
   return createPortal(
     <div
-      data-widget-portal=""
       className="fixed inset-0 z-dialog flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150"
       onClick={() => {
         // Clicking the backdrop dismisses alerts, cancels confirms/prompts

@@ -51,11 +51,6 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
 
       streamRef.current = stream;
 
-      // Handle user stopping share via browser UI
-      stream.getVideoTracks()[0].onended = () => {
-        stopRecording();
-      };
-
       const mimeType = MediaRecorder.isTypeSupported(
         'video/webm;codecs=vp9,opus'
       )
@@ -83,6 +78,14 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
       };
 
       mediaRecorderRef.current = recorder;
+
+      // Handle user stopping share via browser UI. Placed after
+      // mediaRecorderRef.current is assigned so the identity check guards
+      // against stale-stream events on rapid unmount/remount.
+      stream.getVideoTracks()[0].onended = () => {
+        if (mediaRecorderRef.current === recorder) stopRecording();
+      };
+
       recorder.start();
       setIsRecording(true);
 
