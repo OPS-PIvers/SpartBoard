@@ -2915,6 +2915,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                       size="sm"
                       variant="glass"
                       active={widget.flipped}
+                      disabled={isLocked}
                       className={
                         widget.flipped
                           ? '!bg-brand-blue-lighter/60 !text-brand-blue-primary'
