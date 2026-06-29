@@ -84,8 +84,14 @@ export const migrateWidget = (widget: WidgetData): WidgetData => {
         selectedSound: 'Gong',
         themeColor: '#2d3f89', // brand-blue-primary
         glow: false,
-        fontFamily: 'sans',
-        clockStyle: 'standard',
+        // Prefixed FONTS id — TimeToolWidget.getFontClass() returns this
+        // verbatim as a Tailwind class, so a bare 'sans' would be an invalid
+        // no-op class; 'font-sans' applies the intended sans font.
+        fontFamily: 'font-sans',
+        // Legacy 'standard' rendered via the widget's default style branch
+        // (no extra classes) — identical to 'modern', which is now the
+        // canonical value in the narrowed TimeToolConfig.clockStyle union.
+        clockStyle: 'modern',
       } as TimeToolConfig,
     };
   }

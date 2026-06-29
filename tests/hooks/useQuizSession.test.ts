@@ -204,6 +204,38 @@ describe('gradeAnswer', () => {
       expect(partial.pointsEarned).toBeCloseTo(1, 5);
     });
 
+    it('Matching: duplicate left-term in answer key does not make question ungradeable', () => {
+      // Regression: if the stored correctAnswer has a duplicate left-term
+      // (e.g. authored as "a:1|a:2|b:3" — last write wins in the correctMap,
+      // leaving a→2, b→3), `total` must reflect the number of *unique* prompts
+      // (2), not the raw pair count (3).  With the old code (total=3) a student
+      // who correctly supplies both unique prompts "a:2|b:3" scores matched=2
+      // but total=3, earning only 2/3 partial credit and never achieving
+      // isCorrect=true — a question that is mathematically impossible to ace.
+      const q: QuizQuestion = {
+        id: 'pm-dup-key',
+        timeLimit: 0,
+        text: 'Match',
+        type: 'Matching',
+        // duplicate left-term 'a': last entry (a:2) wins in correctMap
+        correctAnswer: 'a:1|a:2|b:3',
+        incorrectAnswers: [],
+        points: 2,
+        allowPartialCredit: true,
+      };
+      // Student answers the two *unique* prompts correctly per the map (a→2, b→3)
+      const grade = gradeAnswer(q, 'a:2|b:3');
+      // Should earn full credit for matching all unique prompts
+      expect(grade.isCorrect).toBe(true);
+      expect(grade.pointsEarned).toBe(2);
+
+      // Strict (non-partial) variant
+      const strictQ: QuizQuestion = { ...q, allowPartialCredit: false };
+      const strict = gradeAnswer(strictQ, 'a:2|b:3');
+      expect(strict.isCorrect).toBe(true);
+      expect(strict.pointsEarned).toBe(2);
+    });
+
     it('Matching: full-credit bonus path still produces isCorrect=true with partial enabled', () => {
       const q: QuizQuestion = {
         id: 'pm3',

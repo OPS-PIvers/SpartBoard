@@ -16,6 +16,14 @@ import {
   PlusSquare,
 } from 'lucide-react';
 
+import {
+  TIME_TOOL_MODES,
+  TIME_TOOL_VISUAL_TYPES,
+  TIME_TOOL_SOUNDS,
+  TIME_TOOL_CLOCK_STYLES,
+  type TimeToolClockStyle,
+} from '@/config/timeTool';
+
 const ADJUST_STEP_MIN = 5;
 const ADJUST_STEP_MAX = 60;
 const ADJUST_STEP_DEFAULT = 60;
@@ -23,7 +31,16 @@ const ADJUST_STEP_DEFAULT = 60;
 const clampAdjustStep = (n: number) =>
   Math.max(ADJUST_STEP_MIN, Math.min(ADJUST_STEP_MAX, n));
 
-const SOUNDS = ['Chime', 'Blip', 'Gong', 'Alert'] as const;
+const SOUNDS = TIME_TOOL_SOUNDS;
+
+// Maps each canonical clock style to its existing i18n label key
+// (note `modern` uses the `default` key), so the appearance picker derives
+// its options from TIME_TOOL_CLOCK_STYLES without changing translations.
+const CLOCK_STYLE_LABEL_KEYS: Record<TimeToolClockStyle, string> = {
+  modern: 'default',
+  lcd: 'lcd',
+  minimal: 'minimal',
+};
 
 export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -65,7 +82,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
           {t('widgets.timeTool.mode')}
         </SettingsLabel>
         <div className="grid grid-cols-2 gap-2">
-          {(['timer', 'stopwatch'] as const).map((m) => (
+          {TIME_TOOL_MODES.map((m) => (
             <button
               key={m}
               onClick={() => {
@@ -117,7 +134,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
           {t('widgets.clock.displayStyle')}
         </SettingsLabel>
         <div className="grid grid-cols-2 gap-2">
-          {(['digital', 'visual'] as const).map((v) => (
+          {TIME_TOOL_VISUAL_TYPES.map((v) => (
             <button
               key={v}
               onClick={() =>
@@ -448,11 +465,10 @@ export const TimeToolAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
   const config = widget.config as TimeToolConfig;
   const { clockStyle = 'modern', themeColor = STANDARD_COLORS.slate } = config;
 
-  const styles = [
-    { id: 'modern', label: t('widgets.clock.styles.default') },
-    { id: 'lcd', label: t('widgets.clock.styles.lcd') },
-    { id: 'minimal', label: t('widgets.clock.styles.minimal') },
-  ];
+  const styles = TIME_TOOL_CLOCK_STYLES.map((id) => ({
+    id,
+    label: t(`widgets.clock.styles.${CLOCK_STYLE_LABEL_KEYS[id]}`),
+  }));
 
   const colors = WIDGET_PALETTE;
 
