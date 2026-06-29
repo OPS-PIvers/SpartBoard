@@ -79,6 +79,12 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
       };
 
       recorder.onstop = () => {
+        // Guard against a stale onstop firing after a rapid Stop → Start.
+        // `stop()` sets .state to 'inactive' synchronously so the re-entrancy
+        // guard lets startRecording() proceed before onstop fires async. Without
+        // this check the old onstop would operate on recorder2's shared refs
+        // (clearing chunksRef, calling setIsRecording(false), nulling streamRef).
+        if (mediaRecorderRef.current !== recorder) return;
         const blob = new Blob(chunksRef.current, { type: mimeType });
         onSuccessRef.current?.(blob);
         chunksRef.current = [];

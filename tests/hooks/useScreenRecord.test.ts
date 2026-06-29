@@ -131,6 +131,53 @@ describe('useScreenRecord', () => {
     expect(startSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('stale onstop from a superseded recorder is a no-op (identity guard)', async () => {
+    const onSuccess = vi.fn();
+
+    // Prevent MockMediaRecorder.stop() from firing onstop automatically so we
+    // can control exactly when it fires (simulating the async browser timing).
+    const stopMock = vi
+      .spyOn(MockMediaRecorder.prototype, 'stop')
+      .mockImplementation(function (this: MockMediaRecorder) {
+        this.state = 'inactive';
+        // onstop deliberately NOT fired here — we fire it manually below.
+      });
+
+    const { result } = renderHook(() => useScreenRecord({ onSuccess }));
+
+    // Start first recording — recorder1 stored in mediaRecorderRef.current.
+    await act(async () => {
+      await result.current.startRecording();
+    });
+
+    // Capture recorder1's onstop handler before stopping.
+    const staleOnStop = recorderOnStop;
+    expect(staleOnStop).toBeTruthy();
+
+    // Stop recorder1 (state → inactive; onstop not yet fired).
+    act(() => {
+      result.current.stopRecording();
+    });
+
+    // Restore normal stop() so the second recording can stop normally.
+    stopMock.mockRestore();
+
+    // Start a second recording — recorder2 now owns mediaRecorderRef.current.
+    await act(async () => {
+      await result.current.startRecording();
+    });
+
+    // Simulate recorder1's onstop firing late (after recorder2 is live).
+    act(() => {
+      staleOnStop?.();
+    });
+
+    // onSuccess must NOT be called with recorder1's stale (empty) blob.
+    expect(onSuccess).not.toHaveBeenCalled();
+    // isRecording must remain true — recorder2 is still active.
+    expect(result.current.isRecording).toBe(true);
+  });
+
   it('nulls out onstop on cleanup so onSuccess is not called after unmount', async () => {
     const onSuccess = vi.fn();
     const { result, unmount } = renderHook(() =>
