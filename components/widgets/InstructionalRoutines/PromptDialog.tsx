@@ -38,24 +38,20 @@ export const PromptDialog: React.FC<PromptDialogProps> = ({
     }
   };
 
-  // Dialog-level native capture: handles Escape from ANY focused element
-  // (textarea, Cancel button, Confirm button). Fires after window capture-phase
-  // listeners (so StarterPackConfigurationModal's isEscapeFromWidgetInput guard
-  // can exit early) but before the bubble phase (so window bubble listeners
-  // like DashboardView's minimize handler never fire).
   useEffect(() => {
-    const el = dialogRef.current;
-    if (!el) return undefined;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        onCancelRef.current();
-      }
+      if (e.key !== 'Escape') return;
+      const target = e.target as Element | null;
+      const ownedPortal = target?.closest('[data-widget-portal]');
+      // Bail if Escape originates from a nested portal that is NOT this dialog.
+      if (ownedPortal && ownedPortal !== dialogRef.current) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      onCancelRef.current();
     };
-    el.addEventListener('keydown', handleKeyDown, { capture: true });
+    document.addEventListener('keydown', handleKeyDown, { capture: true });
     return () =>
-      el.removeEventListener('keydown', handleKeyDown, { capture: true });
+      document.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, []);
 
   return createPortal(

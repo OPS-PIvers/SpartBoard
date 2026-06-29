@@ -160,7 +160,7 @@ const AlertDialog: React.FC<{
   const cfg = getVariantConfig(variant);
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isEscapeFromWidgetInput(e)) return;
+      if (isEscapeFromWidgetInput(e)) return;
       if (e.key === 'Enter' || e.key === 'Escape') {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -210,8 +210,8 @@ const ConfirmDialog: React.FC<{
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (isEscapeFromWidgetInput(e)) return;
       if (e.key === 'Escape') {
-        if (isEscapeFromWidgetInput(e)) return;
         e.preventDefault();
         e.stopImmediatePropagation();
         onCancel();
@@ -288,8 +288,8 @@ const PromptDialog: React.FC<{
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (isEscapeFromWidgetInput(e)) return;
       if (e.key === 'Escape') {
-        if (isEscapeFromWidgetInput(e)) return;
         e.preventDefault();
         e.stopImmediatePropagation();
         onCancel();

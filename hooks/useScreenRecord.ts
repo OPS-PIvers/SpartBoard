@@ -5,6 +5,14 @@ interface ScreenRecordOptions {
   onError?: (error: Error) => void;
 }
 
+/**
+ * Manages screen capture recording via the MediaRecorder API.
+ *
+ * Note: `options.onSuccess` is NOT guaranteed to fire if the component
+ * unmounts while recording is active. The cleanup effect nulls `onstop`
+ * before stopping so a stale blob is never delivered to an unmounted
+ * consumer — callers should treat this as a best-effort callback.
+ */
 export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
   const [isRecording, setIsRecording] = useState(false);
   const [duration, setDuration] = useState(0);

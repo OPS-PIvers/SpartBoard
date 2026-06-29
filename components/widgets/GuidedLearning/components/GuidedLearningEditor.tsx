@@ -222,6 +222,12 @@ function SettingChip<T extends string>({
               width: SETTING_CHIP_POPOVER_WIDTH,
               zIndex: Z_INDEX.modalContent,
             }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.nativeEvent.stopImmediatePropagation();
+                setOpen(false);
+              }
+            }}
           >
             {options.map((opt) => {
               const isCurrent = opt.value === value;
@@ -333,6 +339,12 @@ const WelcomeChip: React.FC<WelcomeChipProps> = ({
               left: pos.left,
               width: WELCOME_CHIP_POPOVER_WIDTH,
               zIndex: Z_INDEX.modalContent,
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.nativeEvent.stopImmediatePropagation();
+                setOpen(false);
+              }
             }}
           >
             <label className="flex items-start gap-2 text-sm text-slate-700">
@@ -1038,6 +1050,12 @@ const CaptureMenuButton: React.FC<{
               left: pos.left,
               width: CAPTURE_MENU_WIDTH,
               zIndex: Z_INDEX.modalContent,
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.nativeEvent.stopImmediatePropagation();
+                setOpen(false);
+              }
             }}
           >
             {CAPTURE_OPTIONS.map((opt) => (

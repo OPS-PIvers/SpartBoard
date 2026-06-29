@@ -28,18 +28,20 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onCancelRef.current = onCancel;
 
   useEffect(() => {
-    const el = dialogRef.current;
-    if (!el) return undefined;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        onCancelRef.current();
-      }
+      if (e.key !== 'Escape') return;
+      const target = e.target as Element | null;
+      const ownedPortal = target?.closest('[data-widget-portal]');
+      // Bail if Escape originates from a nested portal that is NOT this dialog
+      // (e.g. a ConfirmDialog stacked inside another ConfirmDialog).
+      if (ownedPortal && ownedPortal !== dialogRef.current) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      onCancelRef.current();
     };
-    el.addEventListener('keydown', handleKeyDown, { capture: true });
+    document.addEventListener('keydown', handleKeyDown, { capture: true });
     return () =>
-      el.removeEventListener('keydown', handleKeyDown, { capture: true });
+      document.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, []);
 
   return createPortal(

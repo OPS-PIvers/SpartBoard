@@ -34,4 +34,27 @@ describe('InstructionalRoutines PromptDialog — Escape key', () => {
     // onCancel must also fire
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
+
+  it('calls onCancel when Escape originates from document.body (backdrop-click focus scenario)', () => {
+    const onCancel = vi.fn();
+
+    render(
+      <PromptDialog
+        title="Test prompt"
+        message="Enter a value"
+        onConfirm={vi.fn()}
+        onCancel={onCancel}
+      />
+    );
+
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true,
+      })
+    );
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
 });
