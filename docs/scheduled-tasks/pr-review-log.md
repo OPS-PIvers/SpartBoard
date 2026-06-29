@@ -4,6 +4,31 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-29
+
+- PRs reviewed: 5 structured reviews posted (the new substantive PRs since the 2026-06-28 run). 17 PRs open total (#2098–#2114); the #2098–#2107 batch was reviewed in the prior run and re-checked here for new unresolved comments (none actionable), and the doc-only log PRs #2108 / #2114 were noted rather than re-reviewed.
+  - #2113 — fix(widgets): local-time due-date helpers in quiz/VA assign modals (head `nightly/widgets-2026-06-29`, base `dev-paul`)
+  - #2112 — fix(functions): mirrorPlcIndex members-map fallback for lead-email (head `nightly/build-tooling-2026-06-29`, base `dev-paul`)
+  - #2111 — fix(quiz): matching denominator uses correctMap.size (head `nightly/state-data-2026-06-29`, base `dev-paul`)
+  - #2110 — fix(layout): DraggableWindow Escape/toolbar guards on isLocked (head `nightly/dashboard-layout-2026-06-29`, base `dev-paul`)
+  - #2109 — fix(i18n): FR widgets.weather.condition verbatim-EN placeholder (head `nightly/admin-config-2026-06-29`, base `dev-paul`)
+- Comments processed: 5 unresolved/non-outdated/no-author-reply threads on the new PRs — 0 fixed, 5 explained (all either already addressed in committed code at branch HEAD or settled design choices). Older-PR threads all already carried author "Fixed in …" replies → skipped. #2110's open reviewer threads are being handled by an actively-iterating author session (commits + replies within the hour) → review-only, no push.
+  - #2113 r3489267545 (`dueAtHasTime` not propagated) → EXPLAINED: verified closed at HEAD `f21c120` — both QuizWidget createAssignment sites + the VA flow now set `dueAtHasTime`; read-back takes the local-time branch.
+  - #2111 r3489247641 (gemini: scoring-semantics / separate PR) → EXPLAINED: denominator-only change; per-prompt matching + deduped `correctMap` unchanged, so no semantics shift.
+  - #2112 r3489248156 (gemini: simplify cast) & r3489257189 (claude: assert write path) → EXPLAINED: both already reflected in committed code at HEAD (`?.email` cast form; tests assert `captured[0].path` + `queriedPaths`).
+  - #2109 r3489185700 (claude: pin exact FR string) → EXPLAINED: `.not.toBe(en…)` is the deliberate, DE/ES-consistent choice to avoid over-pinning a re-translatable phrase.
+- Fixes pushed: 0 — no genuinely unaddressed actionable comment remained on any pushable branch.
+- Reviews posted: 5 (one structured review per new substantive PR)
+  - #2113 Ready — timezone fix, read-back gap closed, tests updated.
+  - #2112 Ready — forgery-guard correctness fix, strong path-asserting tests, guard not weakened.
+  - #2111 Ready — minimal unwinnable-question denominator fix with partial+strict coverage.
+  - #2110 Ready with minor notes — well-iterated isLocked guards; reconcile the two Escape handlers' branch ordering and add a button-level lock-guard test before merge.
+  - #2109 Ready — i18n FR correctness fix.
+- Notes:
+  - Branch-safety: all 5 reviewed heads are `nightly/*` (non-`main`, non-`dev-*`) → pushable, but none needed a push. #2098 (head `dev-paul`) and the `dev-*`/`main` rule respected throughout — review/comment only.
+  - No local `pnpm validate` was required this run since no code was modified; CI on Node 24 remains the authoritative gate for the PRs themselves.
+  - Log committed to working branch `claude/compassionate-shannon-ffzr7o` (not `scheduled-tasks`), because `scheduled-tasks` is the head of open PR #2106 — committing there would pollute that PR's diff. Consistent with prior runs.
+
 ## 2026-06-26
 
 - PRs reviewed: 9 (all open PRs)
