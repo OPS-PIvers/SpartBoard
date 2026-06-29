@@ -143,27 +143,16 @@ describe('AssignBehaviorSummary due-date UTC regression', () => {
     expect(displayed).toBe('2026-07-04');
   });
 
-  it('the old new Date(string).getTime() path would have stored UTC midnight, not local end-of-day', () => {
-    // Confirm the bug that the fix removes: `new Date('YYYY-MM-DD').getTime()`
-    // always returns UTC midnight, which is different from local end-of-day.
-    // This test documents the pre-fix behavior so reviewers can see exactly
-    // what changed and why the fix is necessary.
+  it('new Date(dateString).getTime() produces UTC midnight, not local end-of-day', () => {
+    // `new Date('YYYY-MM-DD').getTime()` always returns UTC midnight — a
+    // different epoch than local end-of-day regardless of timezone. This test
+    // documents the pre-fix behavior: an assignment stored with the buggy path
+    // would expire 23h59m earlier than the teacher intended (and would display
+    // the previous calendar day in UTC− zones).
     const buggyEpoch = new Date('2026-07-04').getTime(); // UTC midnight
-    const { date: displayedAfterBuggyRoundTrip } = splitDueAtToInputs(
-      buggyEpoch,
-      true // as the fixed code would read it back — local getters
-    );
-    // In UTC the local date of UTC-midnight July 4 IS July 4 (no shift),
-    // but the epoch value itself was midnight not 23:59 — meaning the
-    // assignment expired 23h59m earlier than the teacher intended.
-    // In UTC− zones this also shifts the displayed date backward one day.
-    // Here in the UTC test environment the date matches but the epoch is wrong:
     expect(buggyEpoch).not.toBe(
       dueInputsToEpoch('2026-07-04', DEFAULT_DUE_TIME)
     );
-    // The display round-trip shows '2026-07-04' in UTC but would show
-    // '2026-07-03' in UTC-5 — demonstrating the timezone sensitivity of the bug.
-    expect(displayedAfterBuggyRoundTrip).toBe('2026-07-04'); // only correct in UTC
   });
 });
 
