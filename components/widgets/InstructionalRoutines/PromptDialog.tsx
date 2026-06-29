@@ -28,6 +28,9 @@ export const PromptDialog: React.FC<PromptDialogProps> = ({
 }) => {
   const [value, setValue] = useState(defaultValue);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const onCancelRef = useRef(onCancel);
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync (CLAUDE.md pattern)
+  onCancelRef.current = onCancel;
 
   const handleSubmit = () => {
     if (value.trim()) {
@@ -46,13 +49,13 @@ export const PromptDialog: React.FC<PromptDialogProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopImmediatePropagation();
-        onCancel();
+        onCancelRef.current();
       }
     };
     el.addEventListener('keydown', handleKeyDown, { capture: true });
     return () =>
       el.removeEventListener('keydown', handleKeyDown, { capture: true });
-  }, [onCancel]);
+  }, []);
 
   return createPortal(
     <div
