@@ -11,6 +11,7 @@ import {
   TIME_TOOL_VISUAL_TYPES,
   TIME_TOOL_SOUNDS,
   TIME_TOOL_CLOCK_STYLES,
+  TIME_TOOL_MAX_DURATION_SECONDS,
 } from '@/config/timeTool';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { getMaterialsCatalog } from '@/components/widgets/MaterialsWidget/constants';
@@ -265,11 +266,11 @@ export const getAdminBuildingConfig = (
         out.mode = mode;
       }
       if (typeof raw.duration === 'number' && Number.isFinite(raw.duration)) {
-        // Clamp to the panel's input ceiling (999 min + 59 s = 59999 s) so a
-        // malformed/oversized value can't overflow the timer readout layout.
+        // Clamp to the shared panel input ceiling so a malformed/oversized
+        // value can't overflow the timer readout layout.
         const clampedDuration = Math.max(
           0,
-          Math.min(59999, Math.round(raw.duration))
+          Math.min(TIME_TOOL_MAX_DURATION_SECONDS, Math.round(raw.duration))
         );
         out.duration = clampedDuration;
         // A timer counts down from `duration`, so seed elapsedTime to the full

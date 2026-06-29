@@ -12,6 +12,7 @@ import {
   TIME_TOOL_VISUAL_TYPES,
   TIME_TOOL_SOUNDS,
   TIME_TOOL_CLOCK_STYLES,
+  TIME_TOOL_MAX_DURATION_SECONDS,
   type TimeToolMode,
   type TimeToolVisualType,
   type TimeToolClockStyle,
@@ -106,7 +107,13 @@ export const TimeToolConfigurationPanel: React.FC<
   const durationRemainingSeconds = durationSeconds % 60;
 
   const handleDurationChange = (minutes: number, seconds: number) => {
-    const total = Math.max(0, minutes * 60 + seconds);
+    // Clamp to the shared ceiling: the minutes <input> only advises max via
+    // HTML, so keyboard entry above it would otherwise persist a value the
+    // validator later clamps — making the saved field re-display differently.
+    const total = Math.min(
+      TIME_TOOL_MAX_DURATION_SECONDS,
+      Math.max(0, minutes * 60 + seconds)
+    );
     handleUpdateBuilding({ duration: total });
   };
 

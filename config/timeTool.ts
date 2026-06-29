@@ -14,6 +14,14 @@
  * in types.ts; the `*[number]` helper types below derive from these arrays so the
  * two stay aligned.
  */
+/**
+ * Upper bound for a timer duration, in seconds — matches the admin panel's
+ * `999` min + `59` s input ceiling. Shared by the panel (input clamp) and the
+ * validator (extraction clamp) so a value can't be stored that the panel would
+ * then re-display as a different, clamped number.
+ */
+export const TIME_TOOL_MAX_DURATION_SECONDS = 59999;
+
 export const TIME_TOOL_MODES = ['timer', 'stopwatch'] as const;
 export const TIME_TOOL_VISUAL_TYPES = ['digital', 'visual'] as const;
 export const TIME_TOOL_SOUNDS = ['Chime', 'Blip', 'Gong', 'Alert'] as const;
