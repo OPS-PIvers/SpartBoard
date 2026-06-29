@@ -3016,6 +3016,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   label={t('widgetWindow.duplicate')}
                   size="sm"
                   variant="glass"
+                  disabled={isLocked}
                 />
 
                 {/* Group / Ungroup button */}
@@ -3252,6 +3253,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   label={`${t('widgetWindow.minimize')} (Esc)`}
                   size="sm"
                   variant="glass"
+                  disabled={isLocked}
                 />
                 {isLocked ? (
                   <div
