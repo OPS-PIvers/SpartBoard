@@ -212,6 +212,7 @@ function SettingChip<T extends string>({
           <div
             ref={popoverRef}
             role="menu"
+            data-widget-portal=""
             data-click-outside-ignore="true"
             className="overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
             style={{
@@ -1028,6 +1029,7 @@ const CaptureMenuButton: React.FC<{
           <div
             ref={popoverRef}
             role="menu"
+            data-widget-portal=""
             data-click-outside-ignore="true"
             className="overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
             style={{
