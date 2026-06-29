@@ -157,6 +157,32 @@ describe('collectRecipientEmails — de-dupe + lowercase, no fan-out', () => {
     expect(recipients).toEqual(['active@school.org']);
   });
 
+  it('does not leak a removed member via legacy memberEmails when memberUids is absent', () => {
+    // Regression: a legacy PLC may carry BOTH a canonical `members` map (which
+    // gates on status) AND a denormalized `memberEmails` mirror (no per-uid
+    // status).  When `memberUids` is absent, the memberEmails guard
+    // (`if (activeMemberUids && !activeMemberUids.has(uid)) continue`) never
+    // fires, so a uid marked `removed` in `members` still slips through via
+    // memberEmails and receives the digest — a privacy leak.
+    //
+    // Correct behavior: the removed member's email must never appear in the
+    // result, regardless of which source of truth (members map or memberEmails
+    // mirror) it comes from.
+    const recipients = collectRecipientEmails({
+      members: {
+        u1: { email: 'active@school.org', status: 'active' },
+        u2: { email: 'removed@school.org', status: 'removed' },
+      },
+      memberEmails: {
+        u1: 'active@school.org',
+        u2: 'removed@school.org',
+      },
+      // No memberUids — simulates a legacy PLC that pre-dates the active-only
+      // memberUids index.
+    });
+    expect(recipients).toEqual(['active@school.org']);
+  });
+
   it('drops a legacy memberEmails entry whose uid is not in (active-only) memberUids', () => {
     // Un-migrated PLC: no members map; memberEmails still lists a removed
     // teacher. memberUids is the active-only source of truth → filter by it.
