@@ -42,6 +42,7 @@ import type {
   VideoActivitySessionSettings,
 } from '@/types';
 import { DEFAULT_VA_BEHAVIOR } from '@/utils/videoActivityBehavior';
+import { dueInputsToEpoch, DEFAULT_DUE_TIME } from '@/utils/localDate';
 
 // ---------------------------------------------------------------------------
 // Heavy hook stubs
@@ -343,7 +344,7 @@ describe('VideoActivityManager onAssign — behavior sourced from activity, dueA
     const dueAt = args[2];
     expect(typeof dueAt).toBe('number');
     expect(dueAt).toBeGreaterThan(0);
-    expect(dueAt).toBe(new Date('2026-06-01').getTime());
+    expect(dueAt).toBe(dueInputsToEpoch('2026-06-01', DEFAULT_DUE_TIME));
   });
 
   it('calls onAssign with the activity meta as the first argument', async () => {

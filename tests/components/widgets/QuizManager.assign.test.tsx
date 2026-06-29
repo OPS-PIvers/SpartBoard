@@ -46,6 +46,7 @@ import type {
   QuizBehaviorSettings,
 } from '@/types';
 import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
+import { dueInputsToEpoch, DEFAULT_DUE_TIME } from '@/utils/localDate';
 
 // ---------------------------------------------------------------------------
 // Heavy hook stubs
@@ -387,8 +388,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     // Should be a positive epoch ms number
     expect(typeof dueAt).toBe('number');
     expect(dueAt).toBeGreaterThan(0);
-    // 2026-06-01 UTC midnight
-    expect(dueAt).toBe(new Date('2026-06-01').getTime());
+    expect(dueAt).toBe(dueInputsToEpoch('2026-06-01', DEFAULT_DUE_TIME));
   });
 
   it('calls onAssign passing the quiz meta as first argument', async () => {
