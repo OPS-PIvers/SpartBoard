@@ -590,4 +590,249 @@ describe('DraggableWindow (Tests folder)', () => {
       expect(mockShowConfirm).not.toHaveBeenCalled();
     });
   });
+
+  describe('handleCustomKeyboard Escape on locked/read-only board', () => {
+    const renderLocked = (widgetOverrides: Partial<WidgetData> = {}) => {
+      const widget = { ...mockWidget, ...widgetOverrides, isLocked: true };
+      return render(
+        <DashboardContext.Provider
+          value={
+            {
+              ...mockContext,
+              selectedWidgetId: widget.id,
+            } as unknown as DashboardContextValue
+          }
+        >
+          <DraggableWindow
+            widget={widget}
+            settings={<div>Settings</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+    };
+
+    it('does not call updateWidget to minimize when Escape widget-keyboard-action fires on a locked widget', () => {
+      renderLocked();
+
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('widget-keyboard-action', {
+            detail: { widgetId: 'test-widget', key: 'Escape', shiftKey: false },
+          })
+        );
+      });
+
+      expect(mockContext.updateWidget).not.toHaveBeenCalled();
+    });
+
+    it('calls updateWidget({ flipped: false }) when Escape fires on a per-widget-locked flipped widget (escape-trapped-settings fix)', () => {
+      // Per-widget lock (widget.isLocked: true, isActiveBoardReadOnly: false):
+      // Escape is allowed to close the settings panel to prevent a UI trap where
+      // the settings panel cannot be dismissed after the widget is locked.
+      // Board-level read-only still blocks this write (see test 4 below).
+      renderLocked({ flipped: true });
+
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('widget-keyboard-action', {
+            detail: { widgetId: 'test-widget', key: 'Escape', shiftKey: false },
+          })
+        );
+      });
+
+      expect(mockContext.updateWidget).toHaveBeenCalledWith('test-widget', {
+        flipped: false,
+      });
+    });
+
+    it('does not call updateWidget when Escape fires on a read-only board (isActiveBoardReadOnly path)', () => {
+      // widget.isLocked is false here — isLocked derives as false || true = true
+      // because isActiveBoardReadOnly is true. A regression dropping
+      // `|| isActiveBoardReadOnly` from the isLocked derivation would fail this.
+      //
+      // NOTE: `isActiveBoardReadOnly` reaches DraggableWindow via the
+      // `useDashboardCanvasSelector` legacy fallback — the selector reads from
+      // the legacy DashboardContext when no DashboardCanvasStoreContext is mounted
+      // (which is the case here). If a future test helper wraps the render in
+      // DashboardCanvasStoreContext.Provider, this override would be silently
+      // bypassed; the value must then be propagated through the store instead.
+      const widget = { ...mockWidget, isLocked: false };
+      render(
+        <DashboardContext.Provider
+          value={
+            {
+              ...mockContext,
+              selectedWidgetId: widget.id,
+              isActiveBoardReadOnly: true,
+            } as unknown as DashboardContextValue
+          }
+        >
+          <DraggableWindow
+            widget={widget}
+            settings={<div>Settings</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('widget-keyboard-action', {
+            detail: { widgetId: 'test-widget', key: 'Escape', shiftKey: false },
+          })
+        );
+      });
+
+      expect(mockContext.updateWidget).not.toHaveBeenCalled();
+    });
+
+    it('does not call updateWidget to unflip when Escape fires on a read-only board with a flipped widget', () => {
+      // Exercises the !isLocked && widget.flipped branch with isActiveBoardReadOnly:true,
+      // widget.isLocked: false, widget.flipped: true — the mirror of test 3 for the
+      // minimize branch. Catches a regression that drops || isActiveBoardReadOnly from
+      // the isLocked derivation specifically when the widget is flipped.
+      //
+      // NOTE: same legacy-fallback dependency as test 3 — see comment there.
+      const widget = { ...mockWidget, isLocked: false, flipped: true };
+      render(
+        <DashboardContext.Provider
+          value={
+            {
+              ...mockContext,
+              selectedWidgetId: widget.id,
+              isActiveBoardReadOnly: true,
+            } as unknown as DashboardContextValue
+          }
+        >
+          <DraggableWindow
+            widget={widget}
+            settings={<div>Settings</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('widget-keyboard-action', {
+            detail: { widgetId: 'test-widget', key: 'Escape', shiftKey: false },
+          })
+        );
+      });
+
+      expect(mockContext.updateWidget).not.toHaveBeenCalled();
+    });
+
+    it('does not call updateWidget when Escape fires via the React onKeyDown handler on a per-widget-locked widget', () => {
+      // Exercises the handleKeyDown path (React synthetic keydown on the .widget
+      // element — DraggableWindow.tsx line 889) rather than the custom-event path.
+      // The guard at line 889 was changed from isActiveBoardReadOnly to isLocked;
+      // a regression reverting that line would pass all other tests but fail here.
+      //
+      // widget.isLocked: true, isActiveBoardReadOnly: false — only the per-widget
+      // lock is active, so this isolates the new behavior added by this PR.
+      const widget = { ...mockWidget, isLocked: true };
+      render(
+        <DashboardContext.Provider
+          value={
+            {
+              ...mockContext,
+              selectedWidgetId: widget.id,
+            } as unknown as DashboardContextValue
+          }
+        >
+          <DraggableWindow
+            widget={widget}
+            settings={<div>Settings</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+
+      const widgetEl = screen.getByTestId('widget-content').closest('.widget');
+      if (!widgetEl) throw new Error('.widget element not found');
+      fireEvent.keyDown(widgetEl, { key: 'Escape' });
+
+      expect(mockContext.updateWidget).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Toolbar button lock guards', () => {
+    // Regression suite for the toolbar `disabled={isLocked}` + `if (isLocked) return`
+    // defense-in-depth pattern. `disabled` alone doesn't stop programmatic
+    // `.click()` (jsdom's fireEvent.click bypasses the native disabled check),
+    // so the early-return guard in onClick is the actual Firestore write barrier.
+
+    const renderLocked = (widgetOverrides: Partial<WidgetData> = {}) => {
+      const widget = { ...mockWidget, isLocked: true, ...widgetOverrides };
+      return render(
+        <DashboardContext.Provider
+          value={
+            {
+              ...mockContext,
+              selectedWidgetId: widget.id,
+            } as unknown as DashboardContextValue
+          }
+        >
+          <DraggableWindow
+            widget={widget}
+            settings={<div>Settings</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+    };
+
+    it('disables the settings gear button when widget is locked', () => {
+      renderLocked();
+      expect(screen.getByLabelText(/^settings/i)).toBeDisabled();
+    });
+
+    it('disables the annotate button when widget is locked', () => {
+      renderLocked();
+      expect(screen.getByLabelText(/^annotate/i)).toBeDisabled();
+    });
+
+    it('disables the duplicate button when widget is locked', () => {
+      renderLocked();
+      expect(screen.getByLabelText(/^duplicate$/i)).toBeDisabled();
+    });
+
+    it('does not call duplicateWidget when the locked duplicate button is clicked (early-return guard)', () => {
+      // fireEvent.click bypasses the native disabled check — this test confirms
+      // the onClick early-return guard (`if (isLocked) return`) also blocks the call.
+      renderLocked();
+      fireEvent.click(screen.getByLabelText(/^duplicate$/i));
+      expect(mockContext.duplicateWidget).not.toHaveBeenCalled();
+    });
+
+    it('disables the minimize button when widget is locked', () => {
+      renderLocked();
+      expect(screen.getByLabelText(/^minimize/i)).toBeDisabled();
+    });
+
+    it('does not call updateWidget when the locked minimize button is clicked (early-return guard)', () => {
+      // fireEvent.click bypasses the native disabled check — this test confirms
+      // the onClick early-return guard (`if (isLocked) return`) also blocks the call.
+      renderLocked();
+      fireEvent.click(screen.getByLabelText(/^minimize/i));
+      expect(mockContext.updateWidget).not.toHaveBeenCalled();
+    });
+  });
 });

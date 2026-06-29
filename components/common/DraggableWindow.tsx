@@ -226,9 +226,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const hasOpenModal = useHasOpenModal();
   // Hide the floating action toolbar entirely on read-only dashboards
   // (substitute view, view-only guest). None of its actions (gear/flip,
-  // close, duplicate, lock, pin, etc.) are valid for a read-only viewer,
-  // and the toolbar's "Settings" gear has no per-button isLocked gate of
-  // its own — suppressing showTools at the root is the safest gap-fill.
+  // close, duplicate, lock, pin, annotate, etc.) are valid for a read-only
+  // viewer. Per-widget-locked actions carry disabled={isLocked} individually.
   const showTools = isSelectedWidget && !hasOpenModal && !isActiveBoardReadOnly;
 
   // Group visual state. Both selectors return booleans, so foreign
@@ -882,16 +881,23 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     // Keyboard Shortcuts for Focused Widget
     if (e.key === 'Escape' && !e.shiftKey && !e.altKey && !e.ctrlKey) {
-      // Read-only boards (substitute view, view-only guest): allow Esc to
+      // Locked widgets (per-widget lock OR read-only board): allow Esc to
       // dismiss transient UI (annotation overlay, confirm dialog) but DO
       // NOT mutate `widget.flipped` or `widget.minimized` — both would
       // write through `updateWidget` and either render incorrectly for
       // the locked viewer or sync back to the host's board.
-      if (isActiveBoardReadOnly) {
+      // Exception: per-widget-locked (widget.isLocked only, not board-read-only)
+      // may close an already-open settings panel — otherwise the UI is stuck
+      // until the lock is removed or the page refreshes.
+      if (isLocked) {
         if (showConfirm) {
           e.preventDefault();
           e.stopPropagation();
           setShowConfirm(false);
+        } else if (widget.flipped && !isActiveBoardReadOnly) {
+          e.preventDefault();
+          e.stopPropagation();
+          updateWidget(widget.id, { flipped: false });
         } else if (isAnnotating) {
           e.preventDefault();
           e.stopPropagation();
@@ -932,13 +938,14 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     if (e.altKey) {
       switch (e.key.toLowerCase()) {
         case 's': // Settings
-          if (isActiveBoardReadOnly) break;
+          if (isLocked) break;
           e.preventDefault();
           updateWidget(widget.id, { flipped: !widget.flipped });
           handleCloseTools();
           break;
-        case 'd': // Draw tool
-          if (isActiveBoardReadOnly) break;
+        case 'd': // Draw tool — isLocked (not isActiveBoardReadOnly) because
+          // annotation strokes are persisted to Firestore via onPathsChange
+          if (isLocked) break;
           e.preventDefault();
           setIsAnnotating((prev) => !prev);
           handleCloseTools();
@@ -1915,13 +1922,21 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       if (widgetId !== widget.id || shiftKey) return;
 
       if (key === 'Escape') {
+        // Intentional structural divergence from handleKeyDown's Escape block:
+        // handleKeyDown uses an outer `if (isLocked) { ... return }` guard that
+        // groups all locked-widget cases together. Here the same logic is expressed
+        // as inline per-branch guards (`&& !isActiveBoardReadOnly`, `else if (!isLocked)`)
+        // because handleCustomKeyboard has no preventDefault/stopPropagation to call.
+        // If you add a new Escape branch here, mirror it in handleKeyDown and vice-versa.
         if (showConfirm) {
           setShowConfirm(false);
-        } else if (widget.flipped) {
+        } else if (widget.flipped && !isActiveBoardReadOnly) {
+          // Allow closing an already-open settings panel for per-widget-locked
+          // widgets; isActiveBoardReadOnly blocks all writes on shared boards.
           updateWidget(widget.id, { flipped: false });
         } else if (isAnnotating) {
           setIsAnnotating(false);
-        } else {
+        } else if (!isLocked) {
           updateWidget(widget.id, { minimized: true, flipped: false });
         }
       } else if (key === 'Pin') {
@@ -1954,6 +1969,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     widget.flipped,
     showConfirm,
     isAnnotating,
+    isActiveBoardReadOnly,
     isLocked,
     isPinned,
     skipCloseConfirmation,
@@ -2727,12 +2743,14 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 }
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (isLocked) return;
                   updateWidget(widget.id, { flipped: !widget.flipped });
                   setShowMaxMenu(false);
                 }}
                 size="lg"
                 variant="glass"
                 active={widget.flipped}
+                disabled={isLocked}
               />
               {canScreenshot && (
                 <IconButton
@@ -2759,6 +2777,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 size="lg"
                 variant="glass"
                 active={isAnnotating}
+                disabled={isLocked}
               />
               <IconButton
                 icon={<Video className="w-4 h-4" />}
@@ -2889,6 +2908,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   <div
                     className="flex items-center gap-2 group/title cursor-text px-2"
                     onClick={() => {
+                      if (isLocked) return;
                       setTempTitle(widget.customTitle ?? title);
                       setIsEditingTitle(true);
                     }}
@@ -2915,6 +2935,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                       size="sm"
                       variant="glass"
                       active={widget.flipped}
+                      disabled={isLocked}
                       className={
                         widget.flipped
                           ? '!bg-brand-blue-lighter/60 !text-brand-blue-primary'
@@ -3001,6 +3022,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   size="sm"
                   variant="glass"
                   active={isAnnotating}
+                  disabled={isLocked}
                   className={
                     isAnnotating
                       ? '!bg-brand-blue-lighter !text-brand-blue-primary'
@@ -3008,11 +3030,15 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   }
                 />
                 <IconButton
-                  onClick={() => duplicateWidget(widget.id)}
+                  onClick={() => {
+                    if (isLocked) return;
+                    duplicateWidget(widget.id);
+                  }}
                   icon={<Copy className="w-3.5 h-3.5" />}
                   label={t('widgetWindow.duplicate')}
                   size="sm"
                   variant="glass"
+                  disabled={isLocked}
                 />
 
                 {/* Group / Ungroup button */}
@@ -3239,16 +3265,18 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   disabled={isLocked || (isPinned && !isMaximized)}
                 />
                 <IconButton
-                  onClick={() =>
+                  onClick={() => {
+                    if (isLocked) return;
                     updateWidget(widget.id, {
                       minimized: true,
                       flipped: false,
-                    })
-                  }
+                    });
+                  }}
                   icon={<Minus className="w-3.5 h-3.5" />}
                   label={`${t('widgetWindow.minimize')} (Esc)`}
                   size="sm"
                   variant="glass"
+                  disabled={isLocked}
                 />
                 {isLocked ? (
                   <div

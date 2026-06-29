@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-27_
+_Last audited: 2026-06-28_
 _Last action: 2026-06-27 — LOW ActivityWall empty-state heading `fontSize` added (`min(14px, 5.5cqmin)` + scaled `marginTop`); was unscaled 16px on a `skipScaling` widget_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-28: Full scan of all Widget.tsx files. New commits since 2026-06-27: fix(activity-wall) scale empty-state heading (already moved to Completed). Automated scan flagged MusicWidget cqh-only, Countdown cqh/cqw, Weather hideClothing cqh/cqw, LunchCount cqh/cqw, SyntaxFramer cqh/cqw, InstructionalRoutines cqh/cqw, Checklist cqh/cqw, LunchCount maxHeight:45cqh, Stations maxHeight:40cqh, ActivityWall modal max-h-[75vh] — all WON'T FIX per journal guidance (fill-better formula or intentional design cap, documented in prior entries). All pre-existing open items (SpecialistSchedule border-[min()], TalkingTool 9px cap, ClockWidget bare cqmin, EmbedWidget portaled toolbar, QuizResults period-filter, RevealGrid spacing, multi-widget group, MiniApp dialog) re-confirmed present and valid. Zero new anti-patterns._
 
 _2026-06-27 (action): Took the highest-priority **safe** open item this pass — the LOW ActivityWall empty-state `fontSize` fix (moved to Completed). Selection rationale: the HIGH `DashboardContext.tsx` extraction and the three code-structure MEDIUM large-file items are all BLOCKED (need supervised runtime verification); every ui-unification MEDIUM is blocked-for-admin-runtime, false-premise, or requires a data-model migration the widgets don't consume (see ui-unification.md note dated 2026-06-27). With no actionable HIGH/MEDIUM, the highest-priority safe item is this daily-journal LOW. ActivityWall heading now uses `min(14px, 5.5cqmin)` + scaled `marginTop`, matching its already-scaled icon/subtitle siblings. type-check/eslint/prettier clean._
 

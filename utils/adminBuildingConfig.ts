@@ -6,6 +6,13 @@ import {
 } from '@/types';
 import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
 import { FONTS } from '@/config/fonts';
+import {
+  TIME_TOOL_MODES,
+  TIME_TOOL_VISUAL_TYPES,
+  TIME_TOOL_SOUNDS,
+  TIME_TOOL_CLOCK_STYLES,
+  TIME_TOOL_MAX_DURATION_SECONDS,
+} from '@/config/timeTool';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { getMaterialsCatalog } from '@/components/widgets/MaterialsWidget/constants';
 
@@ -72,6 +79,14 @@ const isCardOpacity = (value: unknown): value is number =>
   Number.isFinite(value) &&
   value >= 0 &&
   value <= 1;
+
+/**
+ * The non-null `timerEndTrafficColor` values a TimeTool building default may
+ * carry (the panel also allows `null` = "None"). Hoisted to module scope for
+ * consistency with the other module-level validators rather than re-allocating
+ * inside the `time-tool` case on every call.
+ */
+const VALID_TRAFFIC_COLORS = ['red', 'yellow', 'green'] as const;
 
 /**
  * Extracts building-level config overrides for a widget type from the admin's
@@ -211,13 +226,15 @@ export const getAdminBuildingConfig = (
       }
       break;
     case 'clock': {
-      const validClockStyles = ['modern', 'lcd', 'minimal'] as const;
+      // Clock and TimeTool share one display-style vocabulary — identical
+      // values and the same `widgets.clock.styles.*` i18n keys — so both
+      // reference the single shared constant rather than re-declaring it.
       if (typeof raw.format24 === 'boolean') out.format24 = raw.format24;
       if (raw.fontFamily) out.fontFamily = raw.fontFamily;
       if (raw.themeColor) out.themeColor = raw.themeColor;
       if (
         typeof raw.clockStyle === 'string' &&
-        (validClockStyles as readonly string[]).includes(raw.clockStyle)
+        (TIME_TOOL_CLOCK_STYLES as readonly string[]).includes(raw.clockStyle)
       ) {
         out.clockStyle = raw.clockStyle;
       }
@@ -241,14 +258,67 @@ export const getAdminBuildingConfig = (
         out.color = raw.color;
       break;
     }
-    case 'time-tool':
-      if (typeof raw.duration === 'number') {
-        out.duration = raw.duration;
-        out.elapsedTime = raw.duration;
+    case 'time-tool': {
+      let mode: 'timer' | 'stopwatch' | undefined;
+      if (
+        typeof raw.mode === 'string' &&
+        (TIME_TOOL_MODES as readonly string[]).includes(raw.mode)
+      ) {
+        mode = raw.mode as 'timer' | 'stopwatch';
+        out.mode = mode;
       }
-      if (raw.timerEndTrafficColor !== undefined)
+      if (typeof raw.duration === 'number' && Number.isFinite(raw.duration)) {
+        // Clamp to the shared panel input ceiling so a malformed/oversized
+        // value can't overflow the timer readout layout.
+        const clampedDuration = Math.max(
+          0,
+          Math.min(TIME_TOOL_MAX_DURATION_SECONDS, Math.round(raw.duration))
+        );
+        out.duration = clampedDuration;
+        // A timer counts down from `duration`, so seed elapsedTime to the full
+        // value; a stopwatch counts up from zero. The base widget default seeds
+        // elapsedTime=600 for timer mode, so reset it when defaulting to a
+        // stopwatch (otherwise a new stopwatch would start at 600s).
+        out.elapsedTime = mode === 'stopwatch' ? 0 : clampedDuration;
+      } else if (mode === 'stopwatch') {
+        out.elapsedTime = 0;
+      }
+      if (
+        typeof raw.visualType === 'string' &&
+        (TIME_TOOL_VISUAL_TYPES as readonly string[]).includes(raw.visualType)
+      )
+        out.visualType = raw.visualType;
+      if (
+        typeof raw.selectedSound === 'string' &&
+        (TIME_TOOL_SOUNDS as readonly string[]).includes(raw.selectedSound)
+      )
+        out.selectedSound = raw.selectedSound;
+      if (isHexColor(raw.themeColor)) out.themeColor = raw.themeColor;
+      if (typeof raw.glow === 'boolean') out.glow = raw.glow;
+      // TimeTool's appearance panel uses the shared TypographySettings primitive,
+      // so `fontFamily` lives in the prefixed `FONTS`-id space (like `stations`).
+      if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
+      if (
+        typeof raw.clockStyle === 'string' &&
+        (TIME_TOOL_CLOCK_STYLES as readonly string[]).includes(raw.clockStyle)
+      )
+        out.clockStyle = raw.clockStyle;
+      if (
+        raw.timerEndTrafficColor === null ||
+        (typeof raw.timerEndTrafficColor === 'string' &&
+          (VALID_TRAFFIC_COLORS as readonly string[]).includes(
+            raw.timerEndTrafficColor
+          ))
+      )
         out.timerEndTrafficColor = raw.timerEndTrafficColor;
+      if (typeof raw.timerEndTriggerRandom === 'boolean')
+        out.timerEndTriggerRandom = raw.timerEndTriggerRandom;
+      if (typeof raw.timerEndTriggerNextUp === 'boolean')
+        out.timerEndTriggerNextUp = raw.timerEndTriggerNextUp;
+      if (typeof raw.timerEndTriggerStationsRotate === 'boolean')
+        out.timerEndTriggerStationsRotate = raw.timerEndTriggerStationsRotate;
       break;
+    }
     case 'checklist':
       if (Array.isArray(raw.items) && raw.items.length > 0) {
         out.items = (raw.items as Array<{ id: string; text: string }>).map(
