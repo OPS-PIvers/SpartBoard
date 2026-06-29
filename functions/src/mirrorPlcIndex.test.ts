@@ -159,6 +159,7 @@ describe('discoveryOrgId — anti-forgery gate on the discovery mirror', () => {
 function makeHandlerDb(opts: {
   leadIsMember: boolean;
   captured: { path: string; data: Record<string, unknown> }[];
+  queriedPaths?: string[];
 }) {
   const docRef = (
     path: string
@@ -167,7 +168,10 @@ function makeHandlerDb(opts: {
     set: (data: Record<string, unknown>) => Promise<void>;
     delete: () => Promise<void>;
   } => ({
-    get: () => Promise.resolve({ exists: opts.leadIsMember }),
+    get: () => {
+      opts.queriedPaths?.push(path);
+      return Promise.resolve({ exists: opts.leadIsMember });
+    },
     set: (data) => {
       opts.captured.push({ path, data });
       return Promise.resolve();
@@ -210,12 +214,14 @@ function makeEvent(
 
 describe('mirrorPlcIndex handler — lead-email resolution for orgId forgery guard', () => {
   let captured: { path: string; data: Record<string, unknown> }[];
+  let queriedPaths: string[];
 
   beforeEach(() => {
     captured = [];
+    queriedPaths = [];
     // Wire the firebase-admin mock so admin.firestore() returns our stub.
     vi.mocked(admin.firestore).mockReturnValue(
-      makeHandlerDb({ leadIsMember: true, captured }) as unknown as ReturnType<
+      makeHandlerDb({ leadIsMember: true, captured, queriedPaths }) as unknown as ReturnType<
         typeof admin.firestore
       >
     );
@@ -235,7 +241,9 @@ describe('mirrorPlcIndex handler — lead-email resolution for orgId forgery gua
     await mirrorPlcIndex(event);
 
     expect(captured).toHaveLength(1);
+    expect(captured[0].path).toBe('plcIndex/plc-1');
     expect(captured[0].data.orgId).toBe('orono');
+    expect(queriedPaths).toContain('organizations/orono/members/lead@orono.k12.mn.us');
   });
 
   it(
@@ -266,10 +274,12 @@ describe('mirrorPlcIndex handler — lead-email resolution for orgId forgery gua
       await mirrorPlcIndex(event);
 
       expect(captured).toHaveLength(1);
+      expect(captured[0].path).toBe('plcIndex/plc-2');
       // orgId must be preserved — the lead IS a verified org member and the
       // email came from the members map (the fallback path). Before the fix
       // this would be null, silently hiding the PLC from org peers.
       expect(captured[0].data.orgId).toBe('orono');
+      expect(queriedPaths).toContain('organizations/orono/members/lead@orono.k12.mn.us');
     }
   );
 
@@ -279,6 +289,7 @@ describe('mirrorPlcIndex handler — lead-email resolution for orgId forgery gua
       makeHandlerDb({
         leadIsMember: false,
         captured,
+        queriedPaths,
       }) as unknown as ReturnType<typeof admin.firestore>
     );
 
@@ -300,8 +311,10 @@ describe('mirrorPlcIndex handler — lead-email resolution for orgId forgery gua
     await mirrorPlcIndex(event);
 
     expect(captured).toHaveLength(1);
+    expect(captured[0].path).toBe('plcIndex/plc-3');
     // The lead's email resolved (from members map), but the org membership
     // check failed → forgery guard must still null out the orgId.
     expect(captured[0].data.orgId).toBeNull();
+    expect(queriedPaths).toContain('organizations/wrong-org/members/lead@myschool.org');
   });
 });
