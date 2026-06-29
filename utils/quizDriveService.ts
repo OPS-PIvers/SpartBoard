@@ -722,7 +722,7 @@ export class QuizDriveService {
       // First-occurrence dedup mirrors buildResultsSheetDataShared — correctSet must agree with the grader's first-occurrence semantics.
       const firstOccurrenceAnswers = new Map<
         string,
-        (typeof r.answers)[number]
+        NonNullable<typeof r.answers>[number]
       >();
       for (const a of r.answers ?? []) {
         if (!firstOccurrenceAnswers.has(a.questionId)) {
