@@ -137,11 +137,13 @@ describe('Widget.onAssign composition — getQuizBehavior → createAssignment s
       sessionOptions,
       attemptLimit,
       dueAt: dueAt ?? undefined,
+      dueAtHasTime: dueAt != null ? true : undefined,
     };
 
     expect(settings.sessionMode).toBe('auto');
     expect(settings.attemptLimit).toBe(2);
     expect(settings.dueAt).toBe(new Date('2026-09-01').getTime());
+    expect(settings.dueAtHasTime).toBe(true);
     expect(settings.sessionOptions).toBeDefined();
   });
 
