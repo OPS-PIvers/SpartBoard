@@ -82,9 +82,12 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
       // Handle user stopping share via browser UI. Placed after
       // mediaRecorderRef.current is assigned so the identity check guards
       // against stale-stream events on rapid unmount/remount.
-      stream.getVideoTracks()[0].onended = () => {
-        if (mediaRecorderRef.current === recorder) stopRecording();
-      };
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.onended = () => {
+          if (mediaRecorderRef.current === recorder) stopRecording();
+        };
+      }
 
       recorder.start();
       setIsRecording(true);

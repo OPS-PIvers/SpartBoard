@@ -62,11 +62,10 @@ export const Modal: React.FC<ModalProps> = ({
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      // When captureEscape=true, stop propagation unconditionally so this
-      // modal wins the event race against lower-priority handlers regardless
-      // of where focus is — including inside widget portals.
-      if (captureEscape) e.stopImmediatePropagation();
+      // Guard first: if focus is inside a widget portal, let the portal's
+      // own handler run (don't kill it with stopImmediatePropagation).
       if (isEscapeFromWidgetInput(e)) return;
+      if (captureEscape) e.stopImmediatePropagation();
       // Read from ref so we always call the current onClose even though
       // onClose is not in the effect deps array.
       onCloseRef.current();
