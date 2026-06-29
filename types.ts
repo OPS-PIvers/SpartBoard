@@ -4465,6 +4465,8 @@ export interface VideoActivitySessionOptions extends BaseSessionOptions {
   scoreVisibility?: VideoActivityScoreVisibility;
   /** Optional due date (ms epoch). Absent / null = no due date. */
   dueAt?: number | null;
+  /** Whether `dueAt` encodes a chosen time-of-day vs a legacy date-only epoch. */
+  dueAtHasTime?: boolean;
 }
 
 /** VA counterpart of QuizBehaviorSettings. */
