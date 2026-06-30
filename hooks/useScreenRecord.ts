@@ -59,7 +59,6 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
     isStartingRef.current = true;
     try {
       setError(null);
-      chunksRef.current = [];
 
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
@@ -76,6 +75,11 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
         return;
       }
 
+      // Clear chunks AFTER the getDisplayMedia await so a rapid Stop→Start
+      // gives the previous onstop a full async turn to drain its chunks before
+      // they are wiped. Clearing before the await would race with a pending
+      // onstop microtask and silently discard the first recording.
+      chunksRef.current = [];
       streamRef.current = stream;
 
       const mimeType = MediaRecorder.isTypeSupported(

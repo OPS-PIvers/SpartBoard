@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Target, ChevronDown } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
 import { Z_INDEX } from '@/config/zIndex';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 interface ActiveClassChipProps {
   className?: string;
@@ -53,6 +54,7 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
       closeMenu();
     };
     const handleKey = (event: KeyboardEvent) => {
+      if (isEscapeFromWidgetInput(event)) return;
       if (event.key === 'Escape') closeMenu();
     };
     let animationFrameId = 0;

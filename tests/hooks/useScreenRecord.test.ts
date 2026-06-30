@@ -2,13 +2,22 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useScreenRecord } from '@/hooks/useScreenRecord';
 
-// Intercept onstop assignments through a getter/setter so we can check whether
-// the cleanup nulled it out — without storing a `this` reference (no-this-alias).
+// Intercept onstop/ondataavailable assignments through getter/setters so we can
+// fire them manually in tests — without storing a `this` reference (no-this-alias).
 let recorderOnStop: (() => void) | null | undefined;
+let recorderOnDataAvailable: ((e: { data: Blob }) => void) | null | undefined;
 
 class MockMediaRecorder {
   state: 'inactive' | 'recording' | 'paused' = 'inactive';
-  ondataavailable: ((e: { data: Blob }) => void) | null = null;
+
+  get ondataavailable(): ((e: { data: Blob }) => void) | null | undefined {
+    return recorderOnDataAvailable;
+  }
+  set ondataavailable(
+    handler: ((e: { data: Blob }) => void) | null | undefined
+  ) {
+    recorderOnDataAvailable = handler;
+  }
 
   get onstop(): (() => void) | null | undefined {
     return recorderOnStop;
@@ -43,6 +52,7 @@ describe('useScreenRecord', () => {
 
   beforeEach(() => {
     recorderOnStop = undefined;
+    recorderOnDataAvailable = undefined;
     mockTrack = { stop: vi.fn(), onended: null };
     const mockStream = {
       getVideoTracks: () => [mockTrack],
@@ -316,6 +326,80 @@ describe('useScreenRecord', () => {
     expect(track.stop).toHaveBeenCalledTimes(1);
     // recorder.start() must never have been called — there is no live consumer.
     expect(startSpy).not.toHaveBeenCalled();
+  });
+
+  it('delivers recorder1 chunks to onSuccess even when recorder2 starts before the onstop microtask fires', async () => {
+    // Regression test for the chunksRef timing fix: chunksRef.current = [] must
+    // live AFTER the getDisplayMedia await so a rapid Stop→Start cannot wipe
+    // pending chunk data before recorder1's onstop has a chance to consume it.
+    const onSuccess = vi.fn();
+
+    const track1 = { stop: vi.fn(), onended: null as (() => void) | null };
+    const stream1 = {
+      getVideoTracks: () => [track1],
+      getAudioTracks: () => [],
+      getTracks: () => [track1],
+    };
+    const track2 = { stop: vi.fn(), onended: null as (() => void) | null };
+    const stream2 = {
+      getVideoTracks: () => [track2],
+      getAudioTracks: () => [],
+      getTracks: () => [track2],
+    };
+
+    let resolveStream2!: (value: unknown) => void;
+    const deferredStream2 = new Promise((resolve) => {
+      resolveStream2 = resolve;
+    });
+
+    let gdmCallCount = 0;
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: {
+        getDisplayMedia: vi.fn().mockImplementation(() => {
+          gdmCallCount++;
+          return gdmCallCount === 1
+            ? Promise.resolve(stream1)
+            : deferredStream2;
+        }),
+      },
+      writable: true,
+      configurable: true,
+    });
+
+    const { result } = renderHook(() => useScreenRecord({ onSuccess }));
+
+    // Recorder1 starts and completes setup.
+    await act(async () => {
+      await result.current.startRecording();
+    });
+
+    // Push a non-empty chunk into recorder1's buffer.
+    recorderOnDataAvailable?.({ data: new Blob(['chunk-data']) });
+
+    // Stop recorder1 and immediately begin recorder2 (deferred stream) in the
+    // same act turn. recorder1's onstop is scheduled as a Promise microtask.
+    // With the OLD code, chunksRef.current = [] runs synchronously at the top of
+    // startRecording() — before the await — erasing the pushed chunk before
+    // onstop fires.  With the NEW code the clear is guarded behind the
+    // getDisplayMedia await so the chunk survives.
+    let recorder2Promise!: Promise<void>;
+    await act(async () => {
+      result.current.stopRecording();
+      recorder2Promise = result.current.startRecording();
+      // Flush one microtask turn — recorder1's onstop fires here while
+      // recorder2's getDisplayMedia is still deferred.
+      await Promise.resolve();
+    });
+
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+    const deliveredBlob = onSuccess.mock.calls[0][0] as Blob;
+    expect(deliveredBlob.size).toBeGreaterThan(0);
+
+    // Unblock recorder2 to avoid a dangling promise.
+    resolveStream2(stream2);
+    await act(async () => {
+      await recorder2Promise;
+    });
   });
 
   it('nulls out onstop on cleanup so onSuccess is not called after unmount', async () => {
