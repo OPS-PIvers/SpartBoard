@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-06-23_
+_Last audited: 2026-06-30_
 _Last action: 2026-05-26_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-30: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — same as prior runs). Codebase-side verifications performed: (1) `SpecialistSchedule/` confirmed: contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts`, `utils.ts` — directory structure unchanged. (2) `FeaturePermissionsManager.tsx` exclusion array still contains the same 13 hardcoded types as 2026-06-23 — LOW item #1 remains valid. (3) `FeatureConfigurationPanel.tsx` `BUILDING_CONFIG_PANELS` still present and growing — LOW item #2 about undocumented secondary exclusion gate remains valid. (4) `lazyNamed()` convention confirmed correct across WidgetRegistry.ts. (5) `getAdminBuildingConfig` confirmed present in codebase. `SchemaDrivenConfigurationPanel` does not exist — codebase uses explicit modal pattern (not a skill-freshness tracking item). New commits since 2026-06-23 (fix(analytics), pr-review, docs(unifier), fix(widgets), fix(layout), fix(functions), fix(state)) do not affect any skill-relevant patterns. 2 LOW open items remain valid._
 
 _2026-06-23: Skill files accessible at `/mnt/skills/user/` in this environment. Both skill files read and verified against codebase after merging dev-paul (80 files changed). Codebase-side verifications: (1) `SpecialistSchedule/` confirmed: contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts`, `utils.ts` — still no `Widget.tsx`; MEDIUM `SpecialistScheduleSettings.tsx` item remains valid. (2) `FeaturePermissionsManager.tsx` exclusion array still contains the same 13 hardcoded types (lines 968–980) — LOW item #1 remains valid. (3) `FeatureConfigurationPanel.tsx` `BUILDING_CONFIG_PANELS` still growing — LOW item #2 about undocumented secondary exclusion gate remains valid. (4) `lazyNamed()` convention confirmed correct. (5) `config/tools.ts`, `config/widgetDefaults.ts`, `config/widgetGradeLevels.ts`, `components/widgets/WidgetRegistry.ts` all match skill checklist steps — patterns stable. (6) Admin config path matches actual hierarchy. (7) No stale paths or non-existent file references found in either skill beyond the already-tracked items. New commits since 2026-06-16 (external-availability, OAuth scopes, PLC meeting board, import-path unification) do not affect any skill-relevant patterns. All 3 open items remain valid._
 
