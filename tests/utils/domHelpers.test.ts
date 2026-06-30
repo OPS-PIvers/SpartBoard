@@ -2,17 +2,19 @@ import { describe, it, expect } from 'vitest';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 /** Dispatch a real keydown event and capture it at document level. */
-function fireEscape(target: HTMLElement): boolean {
+function fireKey(target: HTMLElement, key: string): boolean {
   let result = false;
   const capture = (e: KeyboardEvent) => {
     result = isEscapeFromWidgetInput(e);
   };
   document.addEventListener('keydown', capture);
-  target.dispatchEvent(
-    new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
-  );
+  target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
   document.removeEventListener('keydown', capture);
   return result;
+}
+
+function fireEscape(target: HTMLElement): boolean {
+  return fireKey(target, 'Escape');
 }
 
 function inPortal(child: HTMLElement): HTMLElement {
@@ -60,10 +62,17 @@ describe('isEscapeFromWidgetInput', () => {
     portal.remove();
   });
 
-  it('returns true for a button inside data-widget-portal', () => {
+  it('returns true for a button inside data-widget-portal (Escape key)', () => {
     const button = document.createElement('button');
     const portal = inPortal(button);
     expect(fireEscape(button)).toBe(true);
+    portal.remove();
+  });
+
+  it('returns false for a button inside data-widget-portal when key is Enter', () => {
+    const button = document.createElement('button');
+    const portal = inPortal(button);
+    expect(fireKey(button, 'Enter')).toBe(false);
     portal.remove();
   });
 

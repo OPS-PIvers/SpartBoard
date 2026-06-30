@@ -130,6 +130,18 @@ export const ScreenCaptureModal: React.FC<Props> = ({
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || recording) return;
+      // If Escape originates from a text input inside a DraggableWindow, let
+      // DraggableWindow handle it (blur the input) rather than closing the modal.
+      const t = e.target;
+      if (
+        t instanceof Element &&
+        (t.tagName === 'INPUT' ||
+          t.tagName === 'TEXTAREA' ||
+          t.tagName === 'SELECT' ||
+          !!(t as HTMLElement).isContentEditable) &&
+        t.closest('[data-draggable-window]')
+      )
+        return;
       e.stopImmediatePropagation();
       onCloseRef.current();
     };

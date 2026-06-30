@@ -25,12 +25,13 @@ vi.mock('@/context/useDialog', () => ({
 import { DialogContainer } from '@/components/common/DialogContainer';
 
 describe('DialogContainer AlertDialog — Enter key from widget portal', () => {
-  it('does not call resolve when Enter originates from inside a [data-widget-portal] element', () => {
+  it('calls resolve when Enter originates from inside a [data-widget-portal] element', () => {
+    // isEscapeFromWidgetInput only blocks Escape in portals — not Enter.
+    // Enter from a portal element must still confirm the outer dialog so users
+    // are never silently stuck (e.g. during the brief gap before autoFocus fires).
     mockResolve.mockClear();
     render(<DialogContainer />);
 
-    // Simulate a nested portal (e.g. a popover open inside a widget) —
-    // Enter from its elements must not confirm the outer alert dialog.
     const portalRoot = document.createElement('div');
     portalRoot.setAttribute('data-widget-portal', '');
     const inner = document.createElement('button');
@@ -45,7 +46,7 @@ describe('DialogContainer AlertDialog — Enter key from widget portal', () => {
           cancelable: true,
         })
       );
-      expect(mockResolve).not.toHaveBeenCalled();
+      expect(mockResolve).toHaveBeenCalledTimes(1);
     } finally {
       document.body.removeChild(portalRoot);
     }

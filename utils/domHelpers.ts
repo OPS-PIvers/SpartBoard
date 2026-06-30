@@ -7,9 +7,11 @@
  * Two zones are recognised:
  *
  * [data-widget-portal] — portaled widget dialogs (e.g. PromptDialog).
- *   ANY element inside the portal returns true: the portal owns the entire
- *   Escape interaction regardless of which element is focused. A button-focused
- *   Escape should dismiss the dialog, not the outer modal.
+ *   Any element inside the portal returns true for the Escape key: the portal
+ *   owns the Escape interaction regardless of which element is focused. A
+ *   button-focused Escape should dismiss the dialog, not the outer modal.
+ *   Other keys (e.g. Enter) are NOT blocked so system dialogs can still
+ *   receive Enter-to-confirm while a widget portal is open.
  *
  * [data-draggable-window] — non-portaled widget content. Only text-input
  *   elements (INPUT / TEXTAREA / SELECT / contentEditable) return true here.
@@ -29,8 +31,10 @@
 export function isEscapeFromWidgetInput(e: KeyboardEvent): boolean {
   const t = e.target;
   if (!(t instanceof Element)) return false;
-  // Any element inside a portaled widget dialog — Escape belongs to the dialog.
-  if (t.closest('[data-widget-portal]')) return true;
+  // Escape from inside a portaled widget dialog belongs to the dialog.
+  // Enter and other keys are NOT blocked so system dialogs (AlertDialog etc.)
+  // can still receive Enter-to-confirm while a widget portal is open.
+  if (e.key === 'Escape' && t.closest('[data-widget-portal]')) return true;
   // For non-portaled widget elements, only text inputs need protection.
   return (
     (t.tagName === 'INPUT' ||

@@ -47,6 +47,39 @@ describe('ScreenCaptureModal — portal root attribute', () => {
   });
 });
 
+describe('ScreenCaptureModal — capture-phase Escape guard', () => {
+  it('does not call onClose when Escape is pressed from a text input inside data-draggable-window', () => {
+    const onClose = vi.fn();
+    render(
+      <ScreenCaptureModal
+        mode="snap"
+        onAddMedia={vi.fn().mockResolvedValue(undefined)}
+        onClose={onClose}
+      />
+    );
+
+    // Simulate a widget text input that has focus on the dashboard behind the modal.
+    const widgetWindow = document.createElement('div');
+    widgetWindow.setAttribute('data-draggable-window', '');
+    const input = document.createElement('input');
+    widgetWindow.appendChild(input);
+    document.body.appendChild(widgetWindow);
+
+    // The capture-phase handler must yield to DraggableWindow's own Escape
+    // handling (blur the input) and NOT close the modal.
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true,
+      })
+    );
+
+    expect(onClose).not.toHaveBeenCalled();
+    widgetWindow.remove();
+  });
+});
+
 describe('ScreenCaptureModal — unmount cleanup', () => {
   it('nulls onstop before stop() so onAddMedia is never called after unmount', async () => {
     // Track the onstop handler via getter/setter so we can capture it before
