@@ -39,7 +39,7 @@
   "pnpm": {
     "overrides": {
       "hono": "^4.12.14",
-      "dompurify": ">=3.4.11",
+      "dompurify": "^3.4.11",
       "diff": "^8.0.3",
       "tar": "^7.5.4",
       "lodash": "^4.17.23",
