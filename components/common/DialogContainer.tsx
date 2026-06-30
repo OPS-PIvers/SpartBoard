@@ -215,7 +215,7 @@ const ConfirmDialog: React.FC<{
         e.preventDefault();
         e.stopImmediatePropagation();
         onCancel();
-      } else if (!isDestructive) {
+      } else if (e.key === 'Enter' && !isDestructive) {
         e.preventDefault();
         e.stopImmediatePropagation();
         onConfirm();
@@ -294,7 +294,7 @@ const PromptDialog: React.FC<{
         e.preventDefault();
         e.stopImmediatePropagation();
         onCancel();
-      } else if (!multiline) {
+      } else if (e.key === 'Enter' && !multiline) {
         e.preventDefault();
         e.stopImmediatePropagation();
         onConfirm(value);

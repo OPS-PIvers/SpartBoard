@@ -76,6 +76,17 @@ describe('isEscapeFromWidgetInput', () => {
     portal.remove();
   });
 
+  it('returns false for an INPUT inside data-draggable-window when key is Enter', () => {
+    // isEscapeFromWidgetInput must only block Escape — not Enter — even for
+    // text inputs in DraggableWindows. If it returns true for Enter, then
+    // DialogContainer's Enter-to-confirm handler is silently dropped whenever
+    // focus is inside a widget input when the dialog appears.
+    const input = document.createElement('input');
+    const container = inWindow(input);
+    expect(fireKey(input, 'Enter')).toBe(false);
+    container.remove();
+  });
+
   it('returns false for a text input outside both zones', () => {
     const input = document.createElement('input');
     document.body.appendChild(input);

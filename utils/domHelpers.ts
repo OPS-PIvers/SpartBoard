@@ -35,7 +35,8 @@ export function isEscapeFromWidgetInput(e: KeyboardEvent): boolean {
   // Enter and other keys are NOT blocked so system dialogs (AlertDialog etc.)
   // can still receive Enter-to-confirm while a widget portal is open.
   if (e.key === 'Escape' && t.closest('[data-widget-portal]')) return true;
-  // For non-portaled widget elements, only text inputs need protection.
+  // For non-portaled widget elements, only text inputs need Escape protection.
+  if (e.key !== 'Escape') return false;
   return (
     (t.tagName === 'INPUT' ||
       t.tagName === 'TEXTAREA' ||
