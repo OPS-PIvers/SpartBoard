@@ -160,12 +160,11 @@ const AlertDialog: React.FC<{
   const cfg = getVariantConfig(variant);
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' && e.key !== 'Escape') return;
       if (isEscapeFromWidgetInput(e)) return;
-      if (e.key === 'Enter' || e.key === 'Escape') {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        onOk();
-      }
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      onOk();
     };
     window.addEventListener('keydown', handler, { capture: true });
     return () =>
@@ -210,12 +209,13 @@ const ConfirmDialog: React.FC<{
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' && e.key !== 'Enter') return;
       if (isEscapeFromWidgetInput(e)) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopImmediatePropagation();
         onCancel();
-      } else if (e.key === 'Enter' && !isDestructive) {
+      } else if (!isDestructive) {
         e.preventDefault();
         e.stopImmediatePropagation();
         onConfirm();
@@ -288,12 +288,13 @@ const PromptDialog: React.FC<{
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' && e.key !== 'Enter') return;
       if (isEscapeFromWidgetInput(e)) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopImmediatePropagation();
         onCancel();
-      } else if (e.key === 'Enter' && !multiline) {
+      } else if (!multiline) {
         e.preventDefault();
         e.stopImmediatePropagation();
         onConfirm(value);
