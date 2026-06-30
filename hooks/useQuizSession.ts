@@ -447,8 +447,15 @@ export function gradeAnswer(
     }
     // Size = unique prompts; raw length inflates total when correctAnswer has duplicate left-terms.
     const total = correctMap.size;
-    // Strict correctness: every prompt matched AND no extra pairs submitted.
-    const strictCorrect = matched === total && givenPairs.length === total;
+    // Strict correctness: every prompt matched AND no extra *distinct* prompts
+    // submitted. Compare against `seenLefts.size` (unique submitted left-terms),
+    // not the raw `givenPairs.length` — the raw count includes accidental
+    // duplicate pairs (e.g. "a:1|b:2|a:1"), which would otherwise force
+    // strictCorrect=false and award 0 points in non-partial mode even though
+    // every unique prompt was answered correctly. `seenLefts` is the same set
+    // the matching loop deduplicates against, so this stays consistent with how
+    // `matched` is counted while still rejecting genuinely extra prompts.
+    const strictCorrect = matched === total && seenLefts.size === total;
     if (!partial) {
       return {
         isCorrect: strictCorrect,
