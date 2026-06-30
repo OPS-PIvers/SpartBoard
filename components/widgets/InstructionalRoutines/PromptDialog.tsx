@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { GlassCard } from '@/components/common/GlassCard';
 import { GlobalStyle } from '@/types';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 interface PromptDialogProps {
   title: string;
@@ -45,6 +46,9 @@ export const PromptDialog: React.FC<PromptDialogProps> = ({
       const ownedPortal = target?.closest('[data-widget-portal]');
       // Bail if Escape originates from a nested portal that is NOT this dialog.
       if (ownedPortal && ownedPortal !== dialogRef.current) return;
+      // Bail if Escape originates from a DraggableWindow text-input outside any portal
+      // (user is clearing/blurring a widget input, not dismissing this dialog).
+      if (!ownedPortal && isEscapeFromWidgetInput(e)) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       onCancelRef.current();

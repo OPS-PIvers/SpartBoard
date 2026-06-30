@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { GlassCard } from '@/components/common/GlassCard';
 import { GlobalStyle } from '@/types';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 interface ConfirmDialogProps {
   title: string;
@@ -35,6 +36,9 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       // Bail if Escape originates from a nested portal that is NOT this dialog
       // (e.g. a ConfirmDialog stacked inside another ConfirmDialog).
       if (ownedPortal && ownedPortal !== dialogRef.current) return;
+      // Bail if Escape originates from a DraggableWindow text-input outside any portal
+      // (user is clearing/blurring a widget input, not dismissing this dialog).
+      if (!ownedPortal && isEscapeFromWidgetInput(e)) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       onCancelRef.current();

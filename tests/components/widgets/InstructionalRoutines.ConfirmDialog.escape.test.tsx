@@ -76,4 +76,37 @@ describe('InstructionalRoutines ConfirmDialog — Escape key', () => {
 
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
+
+  it('does NOT call onCancel when Escape comes from a text input inside [data-draggable-window]', () => {
+    const onCancel = vi.fn();
+
+    render(
+      <ConfirmDialog
+        title="Test confirm"
+        message="Are you sure?"
+        onConfirm={vi.fn()}
+        onCancel={onCancel}
+      />
+    );
+
+    const draggableWindow = document.createElement('div');
+    draggableWindow.setAttribute('data-draggable-window', '');
+    const input = document.createElement('input');
+    draggableWindow.appendChild(input);
+    document.body.appendChild(draggableWindow);
+
+    try {
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Escape',
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+
+      expect(onCancel).not.toHaveBeenCalled();
+    } finally {
+      document.body.removeChild(draggableWindow);
+    }
+  });
 });
