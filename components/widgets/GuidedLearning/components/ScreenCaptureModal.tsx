@@ -107,6 +107,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
   useEffect(() => {
     return () => {
       if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+        recorderRef.current.onstop = null;
         recorderRef.current.stop();
       }
       streamRef.current?.getTracks().forEach((t) => t.stop());
