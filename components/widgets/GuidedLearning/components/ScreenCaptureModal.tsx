@@ -28,7 +28,6 @@ import {
   X,
 } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
-import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import type { GuidedLearningMediaKind } from '@/utils/guidedLearningMedia';
 
 export type CaptureMode = 'snap' | 'record' | 'video-file';
@@ -130,8 +129,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || recording) return;
-      if (isEscapeFromWidgetInput(e)) return;
-      e.stopPropagation();
+      e.stopImmediatePropagation();
       onCloseRef.current();
     };
     window.addEventListener('keydown', onKeyDown, true);

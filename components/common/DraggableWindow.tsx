@@ -2887,7 +2887,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           <div
             ref={menuRef}
             data-settings-exclude
-            data-widget-portal={isEditingTitle ? '' : undefined}
             style={menuStyle}
             className={`flex items-center gap-1.5 p-1.5 bg-white/40 backdrop-blur-xl rounded-full border border-white/50 shadow-2xl font-${globalStyle.fontFamily}`}
             onClick={(e) => e.stopPropagation()}
@@ -2897,6 +2896,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               {isEditingTitle ? (
                 <input
                   autoFocus
+                  data-widget-portal=""
                   type="text"
                   value={tempTitle}
                   onChange={(e) => setTempTitle(e.target.value)}
@@ -2911,7 +2911,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                       // The flag is read synchronously in saveTitle to skip the write.
                       isCancellingTitleRef.current = true;
                       setIsEditingTitle(false);
-                      // data-widget-portal="" on the menu div is the reliable guard; stopImmediatePropagation is defence-in-depth for non-modal window listeners.
+                      // data-widget-portal="" on the input is the reliable guard; stopImmediatePropagation is defence-in-depth for non-modal window listeners.
                       e.nativeEvent.stopImmediatePropagation();
                     }
                     e.stopPropagation();
