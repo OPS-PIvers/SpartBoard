@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-28_
+_Last audited: 2026-06-30_
 _Last action: 2026-06-25_
 
 ---
@@ -105,6 +105,8 @@ _2026-05-12: Full audit of all 63 WidgetType values against WIDGET_COMPONENTS, W
 _2026-05-06: All WidgetType values verified against WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_SCALING_CONFIG, widgetDefaults.ts, tools.ts, and widgetGradeLevels.ts. No new gaps found. TimeTool ±button additions, URL widget overhaul, and BlendingBoard expansion all correctly registered. `stations`, `need-do-put-then`, `blooms-detail`, `blooms-taxonomy` — all confirmed._
 
 _2026-05-05: `blending-board` (added in dev-paul merge) verified fully registered in all locations; export names match source files. No new registry gaps from the merge._
+
+_2026-06-30: Full audit after rebasing onto dev-paul (new commits: fix(analytics) add missing labels for 7 programmatic widget types (#2103), pr-review 9 PRs, docs(unifier) run 22, fix(widgets) local-time date helpers for due-date, fix(layout) plug isLocked gaps, fix(functions) mirrorPlcIndex fallback, fix(state) gradeAnswer Matching, chore(docs) debugger log). Direct grep of types.ts WidgetType union confirms VERIFIED COUNT: 63 WidgetType members (unchanged — analytics commit added TOOLS array labels for programmatic types that already existed in the union; no new WidgetType members added). Comprehensive agent scan confirmed all 63 properly registered: all in WIDGET_COMPONENTS (sticker intentional WidgetRenderer special-case per JSDoc), all in widgetDefaults.ts and widgetGradeLevels.ts, 49 user-selectable in tools.ts (analytics commit brought programmatic types' label coverage up to parity; intentional exclusions remain for catalyst-instruction, catalyst-visual, blooms-detail, mathTool, custom-widget, onboarding, sticker, starter-pack, and a few others per tools.ts JSDoc), 3 InternalToolType entries (magic, record, remote) correctly in tools.ts and widgetGradeLevels.ts. All 10 spot-checked lazyNamed() export names verified correct. pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
 _No open items._
 
