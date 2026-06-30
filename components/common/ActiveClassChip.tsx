@@ -54,8 +54,9 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
       closeMenu();
     };
     const handleKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
       if (isEscapeFromWidgetInput(event)) return;
-      if (event.key === 'Escape') closeMenu();
+      closeMenu();
     };
     let animationFrameId = 0;
     const handleReposition = () => {

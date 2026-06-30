@@ -148,8 +148,9 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
       onClose();
     };
     const handleKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
       if (isEscapeFromWidgetInput(event)) return;
-      if (event.key === 'Escape') onClose();
+      onClose();
     };
     document.addEventListener('mousedown', handlePointer);
     document.addEventListener('touchstart', handlePointer);
