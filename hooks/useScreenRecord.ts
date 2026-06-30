@@ -19,6 +19,7 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
   const [error, setError] = useState<Error | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const isStartingRef = useRef(false);
+  const mountedRef = useRef(true);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -66,6 +67,14 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
         },
         audio: true,
       });
+
+      // Guard: if the component unmounted while getDisplayMedia was awaiting,
+      // stop the acquired stream immediately — there is no longer an owner to
+      // stop it later, and the OS screen-share indicator would stay active.
+      if (!mountedRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
 
       streamRef.current = stream;
 
@@ -135,6 +144,7 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      mountedRef.current = false;
       if (timerRef.current) clearInterval(timerRef.current);
       if (mediaRecorderRef.current) {
         // Null onstop before stopping so the async callback never delivers

@@ -278,6 +278,46 @@ describe('useScreenRecord', () => {
     expect(result.current.isRecording).toBe(true);
   });
 
+  it('stops acquired stream tracks and does not start recording when the component unmounts during the getDisplayMedia await', async () => {
+    let resolveGetDisplayMedia!: (value: unknown) => void;
+    const deferred = new Promise((resolve) => {
+      resolveGetDisplayMedia = resolve;
+    });
+    const track = { stop: vi.fn(), onended: null as (() => void) | null };
+    const mockStream = {
+      getVideoTracks: () => [track],
+      getAudioTracks: () => [],
+      getTracks: () => [track],
+    };
+    const startSpy = vi.spyOn(MockMediaRecorder.prototype, 'start');
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: { getDisplayMedia: vi.fn().mockReturnValue(deferred) },
+      writable: true,
+      configurable: true,
+    });
+
+    const { result, unmount } = renderHook(() => useScreenRecord());
+
+    // Begin recording — getDisplayMedia is pending (not yet resolved).
+    const recordingPromise = result.current.startRecording();
+
+    // Unmount before getDisplayMedia resolves.
+    unmount();
+
+    // Now let getDisplayMedia return a stream.
+    resolveGetDisplayMedia(mockStream);
+
+    await act(async () => {
+      await recordingPromise;
+    });
+
+    // The acquired stream's tracks must be stopped immediately.
+    expect(track.stop).toHaveBeenCalledTimes(1);
+    // recorder.start() must never have been called — there is no live consumer.
+    expect(startSpy).not.toHaveBeenCalled();
+  });
+
   it('nulls out onstop on cleanup so onSuccess is not called after unmount', async () => {
     const onSuccess = vi.fn();
     const { result, unmount } = renderHook(() =>

@@ -130,6 +130,13 @@ describe('SettingsPanel', () => {
     vi.restoreAllMocks();
   });
 
+  it('has data-widget-portal="" on the portal root so isEscapeFromWidgetInput recognises settings inputs as a protected zone', () => {
+    act(() => {
+      render(<Harness />);
+    });
+    expect(document.querySelector('[data-widget-portal]')).not.toBeNull();
+  });
+
   it('renders settings content inside the panel', () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
       left: 300,
