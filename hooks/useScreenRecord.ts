@@ -18,6 +18,7 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
   const [duration, setDuration] = useState(0);
   const [error, setError] = useState<Error | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const isStartingRef = useRef(false);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -26,10 +27,8 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
   // useCallback dep array can omit `options` entirely, making startRecording
   // unconditionally stable regardless of callback identity changes.
   const onSuccessRef = useRef(options.onSuccess);
-  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync (CLAUDE.md pattern)
   onSuccessRef.current = options.onSuccess;
   const onErrorRef = useRef(options.onError);
-  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync (CLAUDE.md pattern)
   onErrorRef.current = options.onError;
 
   const stopRecording = useCallback(() => {
@@ -46,11 +45,17 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
   }, []);
 
   const startRecording = useCallback(async () => {
+    // isStartingRef guards the async setup window between the function entry
+    // and mediaRecorderRef.current being assigned (after getDisplayMedia
+    // resolves). Without it, two concurrent calls both see null and both
+    // proceed, showing two permission dialogs and sharing chunksRef.
+    if (isStartingRef.current) return;
     if (
       mediaRecorderRef.current &&
       mediaRecorderRef.current.state !== 'inactive'
     )
       return;
+    isStartingRef.current = true;
     try {
       setError(null);
       chunksRef.current = [];
@@ -122,6 +127,8 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
       setError(error);
       onErrorRef.current?.(error);
       console.error('Screen recording failed:', error);
+    } finally {
+      isStartingRef.current = false;
     }
   }, [stopRecording]);
 

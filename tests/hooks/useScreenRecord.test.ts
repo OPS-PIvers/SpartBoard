@@ -131,6 +131,41 @@ describe('useScreenRecord', () => {
     expect(startSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('is a no-op for a concurrent second call during the getDisplayMedia await (isStartingRef gap)', async () => {
+    // Without the isStartingRef guard, two calls that overlap during the
+    // getDisplayMedia await both see mediaRecorderRef.current === null and
+    // both proceed, showing two permission dialogs and corrupting chunksRef.
+    let resolveGetDisplayMedia!: (value: unknown) => void;
+    const deferred = new Promise((resolve) => {
+      resolveGetDisplayMedia = resolve;
+    });
+    const mockStream = {
+      getVideoTracks: () => [mockTrack],
+      getAudioTracks: () => [],
+      getTracks: () => [mockTrack],
+    };
+    const getDisplayMediaSpy = vi.fn().mockReturnValue(deferred);
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: { getDisplayMedia: getDisplayMediaSpy },
+      writable: true,
+      configurable: true,
+    });
+
+    const { result } = renderHook(() => useScreenRecord());
+
+    await act(async () => {
+      // Fire both calls without awaiting the first — both see null ref
+      const p1 = result.current.startRecording();
+      const p2 = result.current.startRecording();
+      resolveGetDisplayMedia(mockStream);
+      await Promise.all([p1, p2]);
+    });
+
+    // getDisplayMedia must only have been called once — the second call was
+    // blocked by isStartingRef before it could show a second permission dialog.
+    expect(getDisplayMediaSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('stale onstop from a superseded recorder is a no-op (identity guard)', async () => {
     const onSuccess = vi.fn();
 
