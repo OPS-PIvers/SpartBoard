@@ -48,6 +48,7 @@ import {
 import { SNAP_LAYOUTS, SnapZone } from '@/config/snapLayouts';
 import { POSITION_AWARE_WIDGETS } from '@/config/widgetDefaults';
 import { calculateSnapBounds, SNAP_LAYOUT_CONSTANTS } from '@/utils/layoutMath';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { clampWidgetToWorld, getWorldBounds } from '@/utils/zoomPanMath';
 import { useScreenshot } from '@/hooks/useScreenshot';
 import { useWindowSize } from '@/hooks/useWindowSize';
@@ -410,6 +411,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        // Let DraggableWindow's React handler blur the widget input first;
+        // the menu will remain open and the user can Escape again to close it.
+        if (isEscapeFromWidgetInput(e)) return;
         e.stopPropagation();
         setShowMaxMenu(false);
       }

@@ -997,6 +997,42 @@ describe('DraggableWindow', () => {
     );
   });
 
+  it('does NOT close the FAB kebab menu when Escape comes from a text input inside [data-draggable-window]', () => {
+    renderComponent({ maximized: true });
+
+    // Verify menu is closed initially — "Annotate" only appears inside the FAB menu
+    expect(screen.queryByLabelText('Annotate')).not.toBeInTheDocument();
+
+    // Open the FAB kebab menu
+    fireEvent.click(screen.getByLabelText('More actions'));
+
+    // FAB menu is now open
+    expect(screen.getByLabelText('Annotate')).toBeInTheDocument();
+
+    // Simulate Escape from a text input inside [data-draggable-window].
+    // Without the isEscapeFromWidgetInput guard, the capture-phase window listener
+    // would call setShowMaxMenu(false) and close the menu.
+    const draggableWindow = document.createElement('div');
+    draggableWindow.setAttribute('data-draggable-window', '');
+    const input = document.createElement('input');
+    draggableWindow.appendChild(input);
+    document.body.appendChild(draggableWindow);
+
+    try {
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Escape',
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+      // The menu must still be open — widget-input Escape should NOT dismiss it
+      expect(screen.getByLabelText('Annotate')).toBeInTheDocument();
+    } finally {
+      document.body.removeChild(draggableWindow);
+    }
+  });
+
   describe('Resize handle priority zone', () => {
     // Widget at x=100, y=100, w=200, h=200 → right=300, bottom=300.
     // RESIZE_PRIORITY_INSET = 16, so the SE priority zone is
