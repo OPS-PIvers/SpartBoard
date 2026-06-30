@@ -178,6 +178,71 @@ describe('useScreenRecord', () => {
     expect(result.current.isRecording).toBe(true);
   });
 
+  it('stops stream1 tracks when stale onstop fires even though identity guard bails (stream leak fix)', async () => {
+    const track1 = { stop: vi.fn(), onended: null as (() => void) | null };
+    const stream1 = {
+      getVideoTracks: () => [track1],
+      getAudioTracks: () => [],
+      getTracks: () => [track1],
+    };
+    const track2 = { stop: vi.fn(), onended: null as (() => void) | null };
+    const stream2 = {
+      getVideoTracks: () => [track2],
+      getAudioTracks: () => [],
+      getTracks: () => [track2],
+    };
+
+    let callCount = 0;
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: {
+        getDisplayMedia: vi.fn().mockImplementation(() => {
+          callCount++;
+          return Promise.resolve(callCount === 1 ? stream1 : stream2);
+        }),
+      },
+      writable: true,
+      configurable: true,
+    });
+
+    // Prevent auto-fire so we control when onstop runs.
+    const stopMock = vi
+      .spyOn(MockMediaRecorder.prototype, 'stop')
+      .mockImplementation(function (this: MockMediaRecorder) {
+        this.state = 'inactive';
+      });
+
+    const { result } = renderHook(() => useScreenRecord());
+
+    // First recording — stream1.
+    await act(async () => {
+      await result.current.startRecording();
+    });
+    const staleOnStop = recorderOnStop;
+    act(() => {
+      result.current.stopRecording();
+    });
+
+    stopMock.mockRestore();
+
+    // Second recording — stream2 now owns mediaRecorderRef.current.
+    await act(async () => {
+      await result.current.startRecording();
+    });
+
+    expect(track1.stop).not.toHaveBeenCalled();
+
+    // Fire recorder1's stale onstop. Identity guard bails on shared-ref
+    // mutations, but stream1's tracks must be stopped unconditionally.
+    act(() => {
+      staleOnStop?.();
+    });
+
+    expect(track1.stop).toHaveBeenCalledTimes(1);
+    // stream2 must be unaffected.
+    expect(track2.stop).not.toHaveBeenCalled();
+    expect(result.current.isRecording).toBe(true);
+  });
+
   it('nulls out onstop on cleanup so onSuccess is not called after unmount', async () => {
     const onSuccess = vi.fn();
     const { result, unmount } = renderHook(() =>

@@ -1237,6 +1237,7 @@ export const DrawingWidget: React.FC<{
                 <div
                   id="drawing-export-popover"
                   data-testid="drawing-export-popover"
+                  data-widget-portal=""
                   className="fixed z-[2147483600] min-w-[200px] bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden"
                   style={{
                     bottom: `${exportMenuAnchor.bottom}px`,
