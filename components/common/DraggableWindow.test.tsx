@@ -997,6 +997,42 @@ describe('DraggableWindow', () => {
     );
   });
 
+  it('does NOT close the FAB kebab menu when Escape comes from a text input inside [data-draggable-window]', () => {
+    renderComponent({ maximized: true });
+
+    // Verify menu is closed initially — "Annotate" only appears inside the FAB menu
+    expect(screen.queryByLabelText('Annotate')).not.toBeInTheDocument();
+
+    // Open the FAB kebab menu
+    fireEvent.click(screen.getByLabelText('More actions'));
+
+    // FAB menu is now open
+    expect(screen.getByLabelText('Annotate')).toBeInTheDocument();
+
+    // Simulate Escape from a text input inside [data-draggable-window].
+    // Without the isEscapeFromWidgetInput guard, the capture-phase window listener
+    // would call setShowMaxMenu(false) and close the menu.
+    const draggableWindow = document.createElement('div');
+    draggableWindow.setAttribute('data-draggable-window', '');
+    const input = document.createElement('input');
+    draggableWindow.appendChild(input);
+    document.body.appendChild(draggableWindow);
+
+    try {
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Escape',
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+      // The menu must still be open — widget-input Escape should NOT dismiss it
+      expect(screen.getByLabelText('Annotate')).toBeInTheDocument();
+    } finally {
+      document.body.removeChild(draggableWindow);
+    }
+  });
+
   describe('Resize handle priority zone', () => {
     // Widget at x=100, y=100, w=200, h=200 → right=300, bottom=300.
     // RESIZE_PRIORITY_INSET = 16, so the SE priority zone is
@@ -1260,6 +1296,92 @@ describe('DraggableWindow', () => {
     expect(mockUpdateWidget).toHaveBeenCalledWith(
       'test-widget',
       expect.objectContaining({ customTitle: 'My New Title' })
+    );
+  });
+
+  // Regression: pressing Escape inside a content-area input must call
+  // e.nativeEvent.stopImmediatePropagation() to prevent the native DOM event
+  // from reaching window-level listeners (e.g. DashboardView's global keydown
+  // handler).
+  //
+  // Without the fix the flow was:
+  //   1. User presses Escape in a widget input field
+  //   2. DraggableWindow.handleKeyDown fires (isInput branch), calls target.blur()
+  //      which synchronously moves focus away from the input
+  //   3. e.stopPropagation() blocks the React synthetic event tree — but the
+  //      underlying native DOM event keeps propagating to window
+  //   4. DashboardView's window.addEventListener('keydown', ...) fires
+  //   5. isTypingFieldActive() returns false (focus already moved by step 2)
+  //   6. DashboardView dispatches 'widget-keyboard-action' with key='Escape'
+  //   7. DraggableWindow's window listener for 'widget-keyboard-action' fires
+  //      and minimises the widget — even though the user only pressed Escape
+  //      to cancel an in-progress edit.
+  //
+  // Root cause: e.stopPropagation() only stops the React synthetic event tree;
+  // it does NOT block the native DOM event from reaching window.addEventListener
+  // handlers that were registered outside React.
+  //
+  // Fix: call e.nativeEvent.stopImmediatePropagation() BEFORE target.blur() in
+  // DraggableWindow.handleKeyDown's isInput+Escape branch. This stops the native
+  // DOM event immediately so it never reaches any further window listeners.
+  //
+  // Test approach: intercept the KeyboardEvent constructed by fireEvent so we
+  // can spy on its stopImmediatePropagation method and verify DraggableWindow
+  // calls it when Escape is pressed inside a content-area input.
+  it('calls nativeEvent.stopImmediatePropagation when Escape is pressed inside a content-area input', () => {
+    const ContentWithInput = () => (
+      <input data-testid="content-input" defaultValue="hello" />
+    );
+    renderComponent(
+      {},
+      <ContentWithInput />,
+      <div>Settings</div>,
+      'test-widget'
+    );
+
+    const input = screen.getByTestId('content-input');
+
+    // Spy on the stopImmediatePropagation method of the real native event by
+    // intercepting KeyboardEvent construction. We capture the event dispatched
+    // on the input and attach a spy before React's handler can see it.
+    let capturedStopImmediatePropagation: ReturnType<typeof vi.fn> | null =
+      null;
+    const callOrder: string[] = [];
+
+    const originalDispatchEvent = input.dispatchEvent.bind(input);
+    vi.spyOn(input, 'dispatchEvent').mockImplementation((event: Event) => {
+      // Attach spy to stopImmediatePropagation before the event propagates,
+      // recording when it fires relative to blur().
+      capturedStopImmediatePropagation = vi
+        .spyOn(event, 'stopImmediatePropagation')
+        .mockImplementation(() => {
+          callOrder.push('stopImmediatePropagation');
+        });
+      return originalDispatchEvent(event);
+    });
+    const originalBlur = input.blur.bind(input);
+    vi.spyOn(input, 'blur').mockImplementation(() => {
+      callOrder.push('blur');
+      originalBlur();
+    });
+
+    fireEvent.keyDown(input, { key: 'Escape', bubbles: true });
+
+    // The fix must have called stopImmediatePropagation on the native event.
+    // Without the fix, only stopPropagation (React synthetic) was called —
+    // stopImmediatePropagation would NOT be called, and the native event would
+    // reach DashboardView's window.addEventListener('keydown', ...) handler
+    // which would then dispatch widget-keyboard-action and minimise the widget.
+    expect(capturedStopImmediatePropagation).toHaveBeenCalledTimes(1);
+    // Ordering invariant: stopImmediatePropagation must fire BEFORE blur().
+    // Swapping the order reintroduces the bug: blur() moves focus synchronously,
+    // so the event reaches window after isTypingFieldActive() returns false.
+    expect(callOrder).toEqual(['stopImmediatePropagation', 'blur']);
+
+    // The widget must NOT be minimised regardless.
+    expect(mockUpdateWidget).not.toHaveBeenCalledWith(
+      'test-widget',
+      expect.objectContaining({ minimized: true })
     );
   });
 });

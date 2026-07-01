@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -55,9 +56,9 @@ const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
+      if (event.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(event)) return;
+      onClose();
     };
 
     document.addEventListener('mousedown', handleClickOutside);

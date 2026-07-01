@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import {
   AlertCircle,
   AlertTriangle,
@@ -159,11 +160,11 @@ const AlertDialog: React.FC<{
   const cfg = getVariantConfig(variant);
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === 'Escape') {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        onOk();
-      }
+      if (e.key !== 'Enter' && e.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(e)) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      onOk();
     };
     window.addEventListener('keydown', handler, { capture: true });
     return () =>
@@ -208,6 +209,8 @@ const ConfirmDialog: React.FC<{
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' && e.key !== 'Enter') return;
+      if (isEscapeFromWidgetInput(e)) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -285,6 +288,8 @@ const PromptDialog: React.FC<{
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' && e.key !== 'Enter') return;
+      if (isEscapeFromWidgetInput(e)) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopImmediatePropagation();

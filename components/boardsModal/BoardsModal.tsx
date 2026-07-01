@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
 import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
@@ -133,10 +134,10 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (multi.isSelectMode) multi.clearSelection();
-        else onClose();
-      }
+      if (e.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(e)) return;
+      if (multi.isSelectMode) multi.clearSelection();
+      else onClose();
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
