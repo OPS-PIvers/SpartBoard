@@ -411,7 +411,8 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                         moveWidgetLayer(widget.id, 'up');
                         setShowMenu(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2"
+                      disabled={isLocked}
+                      className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-700 disabled:cursor-not-allowed"
                     >
                       <ArrowUp size={14} />
                       Bring Forward
@@ -421,7 +422,8 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                         moveWidgetLayer(widget.id, 'down');
                         setShowMenu(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2"
+                      disabled={isLocked}
+                      className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-700 disabled:cursor-not-allowed"
                     >
                       <ArrowDown size={14} />
                       Send Backward

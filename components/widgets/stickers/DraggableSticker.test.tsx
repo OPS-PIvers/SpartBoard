@@ -160,9 +160,13 @@ describe('DraggableSticker', () => {
       sticker.querySelector('.cursor-nwse-resize')
     ).not.toBeInTheDocument();
 
-    // A locked sticker must not be brought to front (an unguarded write) or
-    // repositioned by a pointer-move drag.
+    // A locked sticker must not be brought to front (an unguarded write) on
+    // select — this is the synchronously-observable proof the drag guard ran.
     expect(mockBringToFront).not.toHaveBeenCalled();
+
+    // The drag guard returns before the pointermove listener is registered, so
+    // a dispatched move reaches nothing — assert bringToFront is STILL not
+    // called afterwards, confirming the listener was never wired up.
     act(() => {
       window.dispatchEvent(
         new PointerEvent('pointermove', {
@@ -172,7 +176,35 @@ describe('DraggableSticker', () => {
         })
       );
     });
+    expect(mockBringToFront).not.toHaveBeenCalled();
     expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
+  it('disables the layer buttons when the sticker is locked', () => {
+    render(
+      <DraggableSticker widget={{ ...mockWidget, isLocked: true }}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+    fireEvent.click(screen.getByTitle('Sticker Options'));
+
+    const forward = screen.getByText('Bring Forward').closest('button');
+    const backward = screen.getByText('Send Backward').closest('button');
+    expect(forward).toBeDisabled();
+    expect(backward).toBeDisabled();
+
+    // Clicking a disabled layer button must not write a z-order change.
+    if (forward) fireEvent.click(forward);
+    if (backward) fireEvent.click(backward);
+    expect(mockMoveWidgetLayer).not.toHaveBeenCalled();
   });
 
   it('performs no mutating writes when a sticker is selected on a read-only board', () => {
