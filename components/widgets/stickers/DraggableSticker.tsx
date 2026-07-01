@@ -55,6 +55,10 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
 
   const config = widget.config as StickerConfig;
   const rotation = config.rotation ?? 0;
+  // A sticker is locked (no delete/move) on per-widget-locked or read-only
+  // boards. Used to gate every delete affordance — keyboard shortcuts AND the
+  // floating menu Delete button — so they stay behaviourally consistent.
+  const isLocked = (widget.isLocked ?? false) || isActiveBoardReadOnly;
 
   useEffect(() => {
     const handleEscapePress = (e: Event) => {
@@ -74,7 +78,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
         setIsSelected(false);
         setShowMenu(false);
       } else if (key === 'Delete' || key === 'Backspace') {
-        if ((widget.isLocked ?? false) || isActiveBoardReadOnly) return;
+        if (isLocked) return;
         removeWidget(widget.id);
       }
     };
@@ -88,7 +92,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
         handleCustomKeyboard
       );
     };
-  }, [widget.id, widget.isLocked, isActiveBoardReadOnly, removeWidget]);
+  }, [widget.id, isLocked, removeWidget]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     // If clicking menu or handles, don't drag
@@ -102,11 +106,20 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     // Explicitly focus the sticker so it can receive keyboard events
     const captureTarget = e.currentTarget as HTMLElement;
     captureTarget.focus();
-    captureTarget.setPointerCapture(e.pointerId);
 
     setIsSelected(true);
+
+    // Locked / read-only stickers may be selected (to reveal the menu) but not
+    // dragged — skip bring-to-front, pointer capture, and the move wiring
+    // entirely. `bringToFront` is unguarded in DashboardContext (unlike the
+    // other mutating actions), so calling it on a read-only board would write a
+    // z-index change straight to Firestore.
+    if (isLocked) return;
+
     // Select and bring this sticker to the front on click or drag start.
     bringToFront(widget.id);
+
+    captureTarget.setPointerCapture(e.pointerId);
 
     const startX = e.clientX;
     const startY = e.clientY;
@@ -171,8 +184,6 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
       setShowMenu(false);
       return;
     }
-
-    const isLocked = (widget.isLocked ?? false) || isActiveBoardReadOnly;
 
     if (
       (e.key === 'Delete' || e.key === 'Backspace') &&
@@ -329,7 +340,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
         height: widget.h,
         zIndex: widget.z,
         transform: `rotate(${rotation}deg)`,
-        cursor: 'move',
+        cursor: isLocked ? 'default' : 'move',
         touchAction: 'none',
       }}
       onPointerDown={handlePointerDown}
@@ -345,24 +356,30 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
         {/* Handles & Menu */}
         {isSelected && !isDragging && (
           <>
-            {/* Rotate Handle */}
-            <div
-              className="sticker-control absolute -top-8 left-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing"
-              onPointerDown={handleRotateStart}
-            >
-              <div className="p-1.5 bg-white shadow rounded-full text-blue-600 border border-blue-100">
-                <RotateCw size={14} />
-              </div>
-              <div className="h-4 w-0.5 bg-blue-400 mx-auto" />
-            </div>
+            {/* Rotate + Resize handles are hidden for locked / read-only
+                stickers, matching the disabled drag + Delete behaviour. */}
+            {!isLocked && (
+              <>
+                {/* Rotate Handle */}
+                <div
+                  className="sticker-control absolute -top-8 left-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing"
+                  onPointerDown={handleRotateStart}
+                >
+                  <div className="p-1.5 bg-white shadow rounded-full text-blue-600 border border-blue-100">
+                    <RotateCw size={14} />
+                  </div>
+                  <div className="h-4 w-0.5 bg-blue-400 mx-auto" />
+                </div>
 
-            {/* Resize Handle (Corner) */}
-            <div
-              className="sticker-control absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize flex items-end justify-end p-0.5"
-              onPointerDown={handleResizeStart}
-            >
-              <div className="w-3 h-3 border-r-2 border-b-2 border-blue-500 bg-white rounded-br-[2px]" />
-            </div>
+                {/* Resize Handle (Corner) */}
+                <div
+                  className="sticker-control absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize flex items-end justify-end p-0.5"
+                  onPointerDown={handleResizeStart}
+                >
+                  <div className="w-3 h-3 border-r-2 border-b-2 border-blue-500 bg-white rounded-br-[2px]" />
+                </div>
+              </>
+            )}
 
             {/* Menu Button (Top Right) */}
             <div
@@ -394,7 +411,8 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                         moveWidgetLayer(widget.id, 'up');
                         setShowMenu(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2"
+                      disabled={isLocked}
+                      className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-700 disabled:cursor-not-allowed"
                     >
                       <ArrowUp size={14} />
                       Bring Forward
@@ -404,7 +422,8 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                         moveWidgetLayer(widget.id, 'down');
                         setShowMenu(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2"
+                      disabled={isLocked}
+                      className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-700 disabled:cursor-not-allowed"
                     >
                       <ArrowDown size={14} />
                       Send Backward
@@ -414,7 +433,8 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
 
                     <button
                       onClick={() => removeWidget(widget.id)}
-                      className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                      disabled={isLocked}
+                      className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed"
                     >
                       <Trash2 size={14} />
                       Delete

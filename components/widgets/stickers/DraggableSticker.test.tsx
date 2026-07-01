@@ -9,6 +9,10 @@ const mockUpdateWidget = vi.fn();
 const mockRemoveWidget = vi.fn();
 const mockBringToFront = vi.fn();
 const mockMoveWidgetLayer = vi.fn();
+const mockDeleteAllWidgets = vi.fn();
+// Mutable so individual tests can exercise the read-only board path; reset in
+// beforeEach. `mock`-prefixed so it's usable inside vi.mock's hoisted factory.
+let mockIsActiveBoardReadOnly = false;
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
@@ -16,6 +20,8 @@ vi.mock('@/context/useDashboard', () => ({
     removeWidget: mockRemoveWidget,
     bringToFront: mockBringToFront,
     moveWidgetLayer: mockMoveWidgetLayer,
+    deleteAllWidgets: mockDeleteAllWidgets,
+    isActiveBoardReadOnly: mockIsActiveBoardReadOnly,
   }),
 }));
 
@@ -41,6 +47,7 @@ describe('DraggableSticker', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsActiveBoardReadOnly = false;
   });
 
   it('shows resize and rotate handles immediately when selected', () => {
@@ -102,6 +109,129 @@ describe('DraggableSticker', () => {
     // Test delete action
     fireEvent.click(screen.getByText('Delete'));
     expect(mockRemoveWidget).toHaveBeenCalledWith('sticker-1');
+  });
+
+  it('disables the menu Delete button when the sticker is locked', () => {
+    render(
+      <DraggableSticker widget={{ ...mockWidget, isLocked: true }}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    // Select sticker and open the menu
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+    fireEvent.click(screen.getByTitle('Sticker Options'));
+
+    const deleteButton = screen.getByText('Delete').closest('button');
+    if (!deleteButton) throw new Error('Delete button not found');
+    expect(deleteButton).toBeDisabled();
+
+    // Clicking the disabled/guarded Delete must not remove the widget.
+    fireEvent.click(deleteButton);
+    expect(mockRemoveWidget).not.toHaveBeenCalled();
+  });
+
+  it('hides rotate/resize handles and blocks dragging when locked', () => {
+    render(
+      <DraggableSticker widget={{ ...mockWidget, isLocked: true }}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    // Selecting a locked sticker still reveals the menu button...
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+    expect(screen.getByTitle('Sticker Options')).toBeInTheDocument();
+
+    // ...but the rotate/resize handles are not rendered.
+    expect(sticker.querySelector('.cursor-grab')).not.toBeInTheDocument();
+    expect(
+      sticker.querySelector('.cursor-nwse-resize')
+    ).not.toBeInTheDocument();
+
+    // A locked sticker must not be brought to front (an unguarded write) on
+    // select — this is the synchronously-observable proof the drag guard ran.
+    expect(mockBringToFront).not.toHaveBeenCalled();
+
+    // The drag guard returns before the pointermove listener is registered, so
+    // a dispatched move reaches nothing — assert bringToFront is STILL not
+    // called afterwards, confirming the listener was never wired up.
+    act(() => {
+      window.dispatchEvent(
+        new PointerEvent('pointermove', {
+          bubbles: true,
+          clientX: 500,
+          clientY: 500,
+        })
+      );
+    });
+    expect(mockBringToFront).not.toHaveBeenCalled();
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
+  it('disables the layer buttons when the sticker is locked', () => {
+    render(
+      <DraggableSticker widget={{ ...mockWidget, isLocked: true }}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+    fireEvent.click(screen.getByTitle('Sticker Options'));
+
+    const forward = screen.getByText('Bring Forward').closest('button');
+    const backward = screen.getByText('Send Backward').closest('button');
+    expect(forward).toBeDisabled();
+    expect(backward).toBeDisabled();
+
+    // Clicking a disabled layer button must not write a z-order change.
+    if (forward) fireEvent.click(forward);
+    if (backward) fireEvent.click(backward);
+    expect(mockMoveWidgetLayer).not.toHaveBeenCalled();
+  });
+
+  it('performs no mutating writes when a sticker is selected on a read-only board', () => {
+    mockIsActiveBoardReadOnly = true;
+    render(
+      <DraggableSticker widget={mockWidget}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+
+    // Selectable (menu button visible), handles hidden, and — critically — no
+    // bringToFront/updateWidget write is issued against the read-only board.
+    expect(screen.getByTitle('Sticker Options')).toBeInTheDocument();
+    expect(sticker.querySelector('.cursor-grab')).not.toBeInTheDocument();
+    expect(
+      sticker.querySelector('.cursor-nwse-resize')
+    ).not.toBeInTheDocument();
+    expect(mockBringToFront).not.toHaveBeenCalled();
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
   });
 
   it('deselects sticker on widget-escape-press event', () => {
