@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-06-22_
+_Last audited: 2026-07-01_
 _Last action: 2026-05-01_
 
 ---
 
 ## Audit Log
+
+_2026-07-01: Full audit (Audit E1 — Wednesday). (1) Object.assign merges: mergeWidgetConfig() in utils/widgetConfigPersistence.ts remains the single canonical merge point; addWidget() and addWidgets() in DashboardContext.tsx are the only 2 call sites — well-factored, no extraction needed. (2) Type assertions: Full scan found a NEW MEDIUM finding — hooks/useFirestore.ts:266 uses `as unknown as Dashboard` on a Firestore DocumentData snapshot (masking potential shape mismatch), and :398 uses `{ intendedMode } as unknown as Partial<Dashboard>` (intendedMode is SharedBoardImportMode, not a Dashboard field). Both are class (b) — masking mismatch. New MEDIUM item added. Other existing casts all confirmed valid (ai_security.ts MEDIUM, smartPaste.ts LOW, BlockRenderer.tsx LOW, FeatureConfigurationPanel.tsx LOW, Results.tsx LOW). (3) Heavy hooks: useQuizSession.ts and useVideoActivitySession.ts — existing LOW item covers these. (4) Prop drilling: minimal — consistent with prior audits. (5) Nested ternaries: a few instances in analytics/admin files — no new items. All existing open items confirmed valid. One new MEDIUM item added._
 
 _2026-06-22: Full audit (Audit E1 — Monday/Wednesday/Friday). (1) Object.assign merges: `mergeWidgetConfig()` in `utils/widgetConfigPersistence.ts` is the single canonical merge point called from DashboardContext — well-extracted, no simplification needed. (2) Type assertions: 62 instances total — ~80% safe or test-related. 8 instances in `hooks/useVideoActivity.ts` (:221, :288, :332) and `hooks/useStarterPacks.ts` (:118) use `as unknown as` workaround casts for missing generic type parameters — these match the existing LOW item for `useVideoActivity` in Completed. (3) Hooks with high state count: `useQuizSession.ts` (22 useState/useRef), `useVideoActivitySession.ts` (18) — these are domain-appropriate state machines; no new items. (4) Prop drilling: minimal — components use context correctly; `UsersView.tsx` (13 props) is an intentional view-layer facade. (5) Nested ternaries: none found — codebase uses nullish coalescing and short-circuit patterns consistently. All five existing open items remain valid. Zero new items._
 
@@ -19,6 +21,13 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### MEDIUM `hooks/useFirestore.ts` uses `as unknown as Dashboard` double-cast masking Firestore snapshot shape mismatch
+
+- **Detected:** 2026-07-01
+- **File:** hooks/useFirestore.ts:266, :398
+- **Detail:** Line 266: `record` is typed as `DocumentData` (i.e., `Record<string, unknown>`) from a Firestore snapshot and cast `as unknown as Dashboard`. This assumes the Firestore document shape exactly matches the TypeScript `Dashboard` type — any field rename or migration gap produces a silent runtime mismatch. Line 398: `{ intendedMode } as unknown as Partial<Dashboard>` — `intendedMode` is a `SharedBoardImportMode` field that is not part of the `Dashboard` type; the cast works at runtime only because the receiving object is written to Firestore, but the cast masks a type-model mismatch. Classified as class (b): masking potential mismatch.
+- **Fix:** Line 266: introduce a `parseDashboard(data: DocumentData): Dashboard` function in useFirestore.ts or a shared parsing utility that validates and maps required fields explicitly, replacing the blind cast. Line 398: either (a) type the partial update object directly as `{ intendedMode: SharedBoardImportMode }` without casting to `Partial<Dashboard>`, or (b) add `intendedMode` to the `Dashboard` interface if it belongs there.
 
 ### LOW `utils/dashboardPII.ts` and `utils/smartPaste.ts` use `as WidgetConfig` single-casts that may mask type mismatches
 

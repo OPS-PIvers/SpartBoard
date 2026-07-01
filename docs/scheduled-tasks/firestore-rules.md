@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-06-22_
+_Last audited: 2026-07-01_
 _Last action: 2026-05-18 (admin_audit_log immutability hardening)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-01: Full collection audit. Scanned components/, context/, hooks/, utils/, and functions/src/ for all Firestore collection() and collectionGroup() calls. Cross-referenced against firestore.rules match blocks. Default-deny catch-all confirmed present. Result: 100% collection coverage — all client-facing collections have explicit rules match blocks. classroom_grade_links (Admin SDK only, no client access) confirmed already tracked as LOW open item (detected 2026-06-17). users/{userId}/plc_layouts rule exists in firestore.rules but no production client code accesses it yet — pre-landing feature, informational only. All existing open items (pollVotes unrestricted write, sessions broad read, admin_settings/user_roles redundant rule, classroom_grade_links no explicit rule, ai_usage no explicit write denial) confirmed present and valid. Zero new items._
 
 _2026-06-22: Full collection audit. Scanned components/, context/, hooks/, utils/, and functions/src/ for all Firestore collection() and collectionGroup() calls (including db.doc(string) patterns). Cross-referenced 61 match block paths in firestore.rules (4539 lines). Default-deny catch-all confirmed present. Result: 100% collection coverage — every collection accessed in code has explicit rules. No new unprotected collections found. The firestore.rules security posture is EXCELLENT: multi-tier access control (admin/domain/building/user/member/role), complete schema validation on all write paths, immutable audit log, PLC role-gating invariants, substitute share expiry enforcement, and LTI integration server-only protections. Two existing open items (pollVotes unrestricted write, sessions list broad read) remain valid and unchanged. No new items._
 
