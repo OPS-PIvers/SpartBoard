@@ -108,12 +108,16 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     captureTarget.focus();
 
     setIsSelected(true);
-    // Select and bring this sticker to the front on click or drag start.
-    bringToFront(widget.id);
 
     // Locked / read-only stickers may be selected (to reveal the menu) but not
-    // dragged — skip pointer capture and the move wiring entirely.
+    // dragged — skip bring-to-front, pointer capture, and the move wiring
+    // entirely. `bringToFront` is unguarded in DashboardContext (unlike the
+    // other mutating actions), so calling it on a read-only board would write a
+    // z-index change straight to Firestore.
     if (isLocked) return;
+
+    // Select and bring this sticker to the front on click or drag start.
+    bringToFront(widget.id);
 
     captureTarget.setPointerCapture(e.pointerId);
 

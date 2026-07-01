@@ -9,6 +9,10 @@ const mockUpdateWidget = vi.fn();
 const mockRemoveWidget = vi.fn();
 const mockBringToFront = vi.fn();
 const mockMoveWidgetLayer = vi.fn();
+const mockDeleteAllWidgets = vi.fn();
+// Mutable so individual tests can exercise the read-only board path; reset in
+// beforeEach. `mock`-prefixed so it's usable inside vi.mock's hoisted factory.
+let mockIsActiveBoardReadOnly = false;
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
@@ -16,6 +20,8 @@ vi.mock('@/context/useDashboard', () => ({
     removeWidget: mockRemoveWidget,
     bringToFront: mockBringToFront,
     moveWidgetLayer: mockMoveWidgetLayer,
+    deleteAllWidgets: mockDeleteAllWidgets,
+    isActiveBoardReadOnly: mockIsActiveBoardReadOnly,
   }),
 }));
 
@@ -41,6 +47,7 @@ describe('DraggableSticker', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsActiveBoardReadOnly = false;
   });
 
   it('shows resize and rotate handles immediately when selected', () => {
@@ -153,7 +160,9 @@ describe('DraggableSticker', () => {
       sticker.querySelector('.cursor-nwse-resize')
     ).not.toBeInTheDocument();
 
-    // A pointer-move drag must not reposition a locked sticker.
+    // A locked sticker must not be brought to front (an unguarded write) or
+    // repositioned by a pointer-move drag.
+    expect(mockBringToFront).not.toHaveBeenCalled();
     act(() => {
       window.dispatchEvent(
         new PointerEvent('pointermove', {
@@ -163,6 +172,33 @@ describe('DraggableSticker', () => {
         })
       );
     });
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
+  it('performs no mutating writes when a sticker is selected on a read-only board', () => {
+    mockIsActiveBoardReadOnly = true;
+    render(
+      <DraggableSticker widget={mockWidget}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+
+    // Selectable (menu button visible), handles hidden, and — critically — no
+    // bringToFront/updateWidget write is issued against the read-only board.
+    expect(screen.getByTitle('Sticker Options')).toBeInTheDocument();
+    expect(sticker.querySelector('.cursor-grab')).not.toBeInTheDocument();
+    expect(
+      sticker.querySelector('.cursor-nwse-resize')
+    ).not.toBeInTheDocument();
+    expect(mockBringToFront).not.toHaveBeenCalled();
     expect(mockUpdateWidget).not.toHaveBeenCalled();
   });
 
