@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-06-22_
+_Last audited: 2026-07-01_
 _Last action: 2026-06-29_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-01: Full test run. pnpm test exit 0 — all tests passing. No failing tests. New dev-paul commit since 2026-06-22 (rebased onto scheduled-tasks): style(docs) fix prettier formatting in unifier.md — docs-only, no new test files added or removed. All existing open items remain valid: HIGH hooks/ session hooks gaps (useRosters.ts, useScreenRecord.ts remain untested); MEDIUM utils/ coverage gaps (spotifyAuth.ts, imageProcessing.ts, plcActivity.ts, quizAudio.ts, guidedLearningDriveService.ts, shortLinksApi.ts, pexelsService.ts, previewMode.ts, lastActiveThrottle.ts, classroomCourses.ts); MEDIUM Cloud Function execution path gaps (generateWithAI execution paths, generateVideoActivity, transcribeVideoWithGemini, generateGuidedLearning, student auth functions). No new gaps identified._
 
 _2026-06-22: Full audit. Test suite: 516 files / 5697 tests, all passing (up from 473/4937 on 2026-06-17 — 43 new test files, 760 new tests). No failing tests. New untested utils confirmed: `spotifyAuth.ts` (Spotify PKCE OAuth flow — security-critical), `imageProcessing.ts` (web worker image trimming), `plcActivity.ts` (fire-and-forget PLC activity log writer), `quizAudio.ts` (Web Audio API sound effects), `guidedLearningDriveService.ts` (Google Drive GL content), `shortLinksApi.ts` (short link routing), `pexelsService.ts` (Pexels image search), `previewMode.ts` (teacher preview toggle), `lastActiveThrottle.ts` (activity write throttle), `classroomCourses.ts` (Google Classroom course fetching). Top untested hooks: `useQuiz.ts` (Drive+Firestore quiz sync — complex), `useGuidedLearning.ts` (personal vs building set logic), `useStudentAssignments.ts` (real-time assignment filtering). Top untested Cloud Functions: `expireSubShares` (scheduled deletion), `ltiLogin/ltiLaunch/ltiExchange` (LTI 1.3 OAuth endpoints), `finalizeIdleQuizAttempts` (scheduled cleanup). Added new MEDIUM open item for utils coverage gaps. Existing open items (Cloud Function execution paths, hooks session coverage) remain valid and unchanged._
 
