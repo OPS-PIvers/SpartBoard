@@ -78,6 +78,36 @@ describe('ScreenCaptureModal — capture-phase Escape guard', () => {
     expect(onClose).not.toHaveBeenCalled();
     widgetWindow.remove();
   });
+
+  it('does not call onClose when Escape is pressed from a portaled input with data-widget-portal=""', () => {
+    // DraggableWindow's title-edit input is portaled to document.body and has
+    // data-widget-portal="" directly on the <input> element — it is NOT inside
+    // [data-draggable-window] in the DOM. The guard must recognise it as a
+    // foreign portal and yield, rather than closing the modal.
+    const onClose = vi.fn();
+    render(
+      <ScreenCaptureModal
+        mode="snap"
+        onAddMedia={vi.fn().mockResolvedValue(undefined)}
+        onClose={onClose}
+      />
+    );
+
+    const portaledInput = document.createElement('input');
+    portaledInput.setAttribute('data-widget-portal', '');
+    document.body.appendChild(portaledInput);
+
+    portaledInput.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true,
+      })
+    );
+
+    expect(onClose).not.toHaveBeenCalled();
+    portaledInput.remove();
+  });
 });
 
 describe('ScreenCaptureModal — unmount cleanup', () => {
