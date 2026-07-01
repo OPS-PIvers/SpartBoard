@@ -4,6 +4,34 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-07-01
+
+- PRs reviewed: 7 (all open PRs)
+  - #2124 — docs(unifier): run 23 sixth consecutive all-aligned (head `nightly/unifier-log-2026-07-01`, base `dev-paul`)
+  - #2123 — fix(quiz): strict Matching compares unique prompts, not raw pair count (head `claude/serene-meitner-tofij0`, base `dev-paul`)
+  - #2120 — fix(deps): bump dompurify to 3.4.11 (GHSA-cmwh-pvxp-8882) (head `deps/dompurify-3.4.11`, base `dev-paul`)
+  - #2119 — audit(tuesday): scheduled audit journals 2026-06-30 + new useScreenRecord test (head `scheduled-tasks`, base `dev-paul`)
+  - #2118 — docs(unifier): run 23 (2026-06-30) (head `nightly/unifier-log-2026-06-30`, base `dev-paul`)
+  - #2101 — fix(dashboard): Escape-minimize + screen-record listener stabilisation (head `nightly/dashboard-2026-06-28`, base `dev-paul`)
+  - #2098 — Audit updates, empty-state scaling, analytics labels (head `dev-paul`, base `main`) — dev-paul→main promotion (push to dev-paul only via the sanctioned review-comment-fix path)
+- Comments processed: 2 unresolved threads actioned — 0 fixed, 2 explained. Every other PR's inline threads already carried author replies or were resolved-in-code.
+  - #2119: 2 open `claude` threads on the new `tests/hooks/useScreenRecord.test.ts` → both EXPLAINED, no push. (1) Real hook bug — `useScreenRecord` unmount cleanup (`hooks/useScreenRecord.ts:94-101`) stops the tracks but never calls `recorder.stop()`, so `onstop`→`onSuccess` can fire post-unmount; not auto-fixed (functional hook change, out of scope for an audit-journal PR, and needs a mounted-ref guard rather than a one-line `stop()`). (2) Empty-recording 0-byte-blob behavior is an undefined contract → product decision, not a mechanical fix.
+  - #2098 (5 threads), #2101 (~30 threads), #2123 (2 gemini "separate PR" threads) → all already had author replies / were resolved-in-code; no new action.
+  - #2124, #2120, #2118: no unresolved review threads.
+- Fixes pushed: 0 (no comment required an automated code fix this run)
+- Reviews posted: 7 (one structured review per PR)
+  - #2124: Ready with minor notes — doc-only run-23 log; flagged duplicate "run 23" title shared with #2118.
+  - #2123: Ready — correct `seenLefts.size` grading fix + 3 regression tests; mind land-order vs #2098.
+  - #2120: Ready — dompurify security bump + pnpm override; single resolved `3.4.11`.
+  - #2119: Ready with minor notes — docs + solid new screen-record test; flagged the real hook-cleanup bug for a dedicated follow-up and the scope mix (327-line test in an audit-journal PR).
+  - #2118: Ready with minor notes — doc-only; duplicate "run 23" title shared with #2124.
+  - #2101: Ready with minor notes — two well-diagnosed bug fixes; residual acknowledged gaps (driveService ~hourly churn, a few unguarded window escape listeners).
+  - #2098: Ready with minor notes — dev-paul→main promotion; confirm #2123 lands first, track the deferred read-only-Escape follow-up.
+- Notes:
+  - Branch-safety: #2098 head is `dev-paul` (promotion into `main`) — review-only except the sanctioned dev-paul push path for review-comment fixes; none were needed. All other heads are non-`main`/non-`dev-*` → pushable; no fixes were required this run.
+  - Cross-PR flag: #2124 and #2118 are both titled "run 23" and open simultaneously against `dev-paul` with overlapping `unifier.md` edits — reconcile before merging both.
+  - Env runs Node 22 (repo wants 24); no local fix verification was needed since no fix was pushed. CI on Node 24 remains the authoritative gate.
+
 ## 2026-06-28
 
 - PRs reviewed: 9 (all open PRs)
