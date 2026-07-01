@@ -130,6 +130,42 @@ describe('DraggableSticker', () => {
     expect(mockRemoveWidget).not.toHaveBeenCalled();
   });
 
+  it('hides rotate/resize handles and blocks dragging when locked', () => {
+    render(
+      <DraggableSticker widget={{ ...mockWidget, isLocked: true }}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    // Selecting a locked sticker still reveals the menu button...
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+    expect(screen.getByTitle('Sticker Options')).toBeInTheDocument();
+
+    // ...but the rotate/resize handles are not rendered.
+    expect(sticker.querySelector('.cursor-grab')).not.toBeInTheDocument();
+    expect(
+      sticker.querySelector('.cursor-nwse-resize')
+    ).not.toBeInTheDocument();
+
+    // A pointer-move drag must not reposition a locked sticker.
+    act(() => {
+      window.dispatchEvent(
+        new PointerEvent('pointermove', {
+          bubbles: true,
+          clientX: 500,
+          clientY: 500,
+        })
+      );
+    });
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
   it('deselects sticker on widget-escape-press event', () => {
     render(
       <DraggableSticker widget={mockWidget}>
