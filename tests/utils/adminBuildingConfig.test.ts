@@ -175,6 +175,110 @@ describe('getAdminBuildingConfig', () => {
     });
   });
 
+  describe('time-tool', () => {
+    it('passes through all valid appearance and behavior defaults', () => {
+      const perm = makePerm('time-tool', {
+        high: {
+          mode: 'timer',
+          visualType: 'visual',
+          duration: 300,
+          selectedSound: 'Chime',
+          themeColor: '#3b82f6',
+          glow: true,
+          fontFamily: 'font-mono',
+          clockStyle: 'lcd',
+          timerEndTrafficColor: 'green',
+          timerEndTriggerRandom: true,
+          timerEndTriggerNextUp: true,
+          timerEndTriggerStationsRotate: true,
+        },
+      });
+      expect(getAdminBuildingConfig('time-tool', [perm], ['high'])).toEqual({
+        mode: 'timer',
+        visualType: 'visual',
+        duration: 300,
+        elapsedTime: 300,
+        selectedSound: 'Chime',
+        themeColor: '#3b82f6',
+        glow: true,
+        fontFamily: 'font-mono',
+        clockStyle: 'lcd',
+        timerEndTrafficColor: 'green',
+        timerEndTriggerRandom: true,
+        timerEndTriggerNextUp: true,
+        timerEndTriggerStationsRotate: true,
+      });
+    });
+
+    it('seeds elapsedTime to the duration for a timer', () => {
+      const perm = makePerm('time-tool', { high: { duration: 120 } });
+      expect(getAdminBuildingConfig('time-tool', [perm], ['high'])).toEqual({
+        duration: 120,
+        elapsedTime: 120,
+      });
+    });
+
+    it('clamps duration and elapsedTime to the maximum of 59999 seconds', () => {
+      const perm = makePerm('time-tool', { high: { duration: 99999 } });
+      expect(getAdminBuildingConfig('time-tool', [perm], ['high'])).toEqual({
+        duration: 59999,
+        elapsedTime: 59999,
+      });
+    });
+
+    it('resets elapsedTime to zero for a stopwatch default', () => {
+      const perm = makePerm('time-tool', {
+        high: { mode: 'stopwatch', duration: 120 },
+      });
+      expect(getAdminBuildingConfig('time-tool', [perm], ['high'])).toEqual({
+        mode: 'stopwatch',
+        duration: 120,
+        elapsedTime: 0,
+      });
+    });
+
+    it('resets elapsedTime for a stopwatch even without a duration', () => {
+      const perm = makePerm('time-tool', { high: { mode: 'stopwatch' } });
+      expect(getAdminBuildingConfig('time-tool', [perm], ['high'])).toEqual({
+        mode: 'stopwatch',
+        elapsedTime: 0,
+      });
+    });
+
+    it('accepts a null traffic color (None) but rejects invalid colors', () => {
+      const permNull = makePerm('time-tool', {
+        high: { timerEndTrafficColor: null },
+      });
+      expect(getAdminBuildingConfig('time-tool', [permNull], ['high'])).toEqual(
+        {
+          timerEndTrafficColor: null,
+        }
+      );
+      const permBad = makePerm('time-tool', {
+        high: { timerEndTrafficColor: 'purple' },
+      });
+      expect(getAdminBuildingConfig('time-tool', [permBad], ['high'])).toEqual(
+        {}
+      );
+    });
+
+    it('rejects invalid enum values and malformed colors/fonts', () => {
+      const perm = makePerm('time-tool', {
+        high: {
+          mode: 'countup', // invalid
+          visualType: 'hologram', // invalid
+          selectedSound: 'Buzzer', // invalid
+          themeColor: 'blue', // not a hex
+          glow: 'yes', // not a boolean
+          fontFamily: 'Comic Sans', // not a prefixed FONTS id
+          clockStyle: 'neon', // invalid
+          timerEndTriggerRandom: 'true', // not a boolean
+        },
+      });
+      expect(getAdminBuildingConfig('time-tool', [perm], ['high'])).toEqual({});
+    });
+  });
+
   describe('numberLine', () => {
     it('passes through valid axis fields and appearance fields together', () => {
       const perm = makePerm('numberLine', {

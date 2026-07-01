@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-06-21_
-_Last action: 2026-06-14_
+_Last audited: 2026-06-28_
+_Last action: 2026-06-28 — MEDIUM TimeTool admin building config coverage expanded from 3 to 11 fields_
 
 ---
 
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-28 audit notes (Sunday): Full 16-widget cross-check covering SpecialistSchedule, LunchCount, Checklist, TimeTool, Countdown, Schedule, Scoreboard, Music, Weather, Poll, Expectations, NextUp, InstructionalRoutines, GraphicOrganizer, ConceptWeb, SyntaxFramer. All pre-existing open items (TimeTool coverage, LunchCount/Expectations/SpecialistSchedule/Weather/SeatingChart/Clock/Checklist/Scoreboard/Drawing/SmartNotebook/guided-learning gaps) re-confirmed valid. THREE NEW LOW items detected: (1) Music: no `case 'music':` in getAdminBuildingConfig and no MusicConfigurationPanel.tsx — admins cannot pre-configure source or layout per building; (2) InstructionalRoutines: no switch case and no panel — admins cannot pre-load routine templates or set defaults per building; (3) GraphicOrganizer: no switch case and no panel — admins cannot set default template type or appearance per building. New commits since 2026-06-21 (fix(activity-wall) empty-state scale, upstream: rules/auth hardening, CI/lint fixes) do not touch adminBuildingConfig.ts or any ConfigurationPanel._
 
 _2026-06-21 action notes (Sunday): Selected the MEDIUM `TextWidget` item — highest-severity Open across today's reading list (dailies widget-registry/css-scaling/typescript-eslint had no item ≥ MEDIUM; the other Sunday weekly journal, legacy-cleanup, had only LOW). Of the two MEDIUMs in this journal, TextWidget is first in document order. File-recency check: `components/widgets/TextWidget/`, `utils/adminBuildingConfig.ts`, and `components/admin/` (panel) are all outside the last 5 branch commits; `types.ts` was last touched at d5ce83e9 (within last 5) but that was a docs-only JSDoc comment on the unrelated `UserProfile` interface (line ~5489) from a settled prior-night run — zero collision risk with the `BuildingNoteDefaults` edit (line ~1767). **Correction to the audit note:** the item said "no ConfigurationPanel exists and the panel falls through to placeholder" — in fact `text` is already wired to `NoteConfigurationPanel` in `BUILDING_CONFIG_PANELS`, which covered `bgColor` + `fontSize`. So resolved by **extending the existing NoteConfigurationPanel** (not creating a duplicate `TextConfigurationPanel`). Added the three genuinely-missing, actively-consumed appearance primitives — `fontFamily`, `fontColor`, `verticalAlign`. Deliberately did **not** add a separate `textSizePreset` control: the panel's existing "Default Font Size" already provides building-level sizing, and `fontSize` (not `textSizePreset`) is the field the TextWidget toolbar actually writes — a second preset-multiplier size control would be redundant/confusing UX. Moved the item to Completed._
 
@@ -34,12 +36,40 @@ _2026-05-31 audit notes: Reviewed all changes since 2026-05-24. (1) Scoreboard g
 
 _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget gained `source` (curated/personal/curated-spotify), `layout`, and `personalSpotify*` fields in MusicConfig — these are user-level preferences; personal-spotify access is gated via `canAccessFeature('personal-spotify')` (GlobalFeaturePermission + `buildings?:string[]`), not through building defaults. No building-defaults admin config needed for music. (2) QuizBehaviorSettings added new behavior fields to QuizConfig and VideoActivityConfig — quiz behavior is set per-quiz in the quiz editor, not per-building. No building defaults needed. (3) `refactor(admin)` commit (31e46ad3) removed magic/record/remote panels — already captured in Completed item. (4) SmartNotebook continues to accumulate features but its existing open item (appearance fields gap) covers the new work. No new MEDIUM or HIGH items. One new LOW item added (guided-learning stub panel)._
 
-### MEDIUM TimeTool has only 20% admin building config coverage (3 of 15 user-configurable fields)
+### LOW Existing `time-tool` widgets carrying legacy `fontFamily: 'sans'` / `clockStyle: 'standard'` are not remediated
 
-- **Detected:** 2026-06-21
-- **File:** utils/adminBuildingConfig.ts (case 'time-tool'), components/admin/TimeToolConfigurationPanel.tsx, types.ts (TimeToolConfig / BuildingTimeToolDefaults)
-- **Detail:** `TimeTool/Settings.tsx` exposes 15+ configurable fields: `mode`, `visualType`, `duration`, `elapsedTime`, `isRunning`, `startTime`, `selectedSound`, `timerEndVoiceLevel`, `timerEndTrafficColor`, `timerEndTriggerRandom`, `timerEndTriggerNextUp`, `timerEndTriggerStationsRotate`, `themeColor`, `glow`, `fontFamily`. Only 3 of these are covered in `getAdminBuildingConfig()` case `'time-tool'`: `duration`, `elapsedTime`, `timerEndTrafficColor`. `TimeToolConfigurationPanel.tsx` exists in `components/admin/` but does not expose any of the omitted fields. The most useful building-level defaults (mode, visualType, selectedSound, themeColor, glow, fontFamily) are not pre-configurable.
-- **Fix:** Extend `BuildingTimeToolDefaults` in types.ts to include at minimum: `mode` (`'timer' | 'stopwatch' | 'clock'`), `visualType`, `selectedSound`, `themeColor`, `glow`, `fontFamily`. Add extraction + validation for each in the `case 'time-tool':` handler in `adminBuildingConfig.ts`. Expand `TimeToolConfigurationPanel.tsx` with controls for these fields (mode selector pill, sound selector, colour picker, glow toggle, font family selector) following the existing panel's visual style.
+- **Detected:** 2026-06-28 (PR #2106 review follow-up)
+- **File:** utils/migration.ts (`migrateWidget` `time-tool` early-exit), types.ts (`TimeToolConfig`)
+- **Detail:** PR #2106 fixed the legacy `timer`/`stopwatch` → `time-tool` migration to seed `fontFamily: 'font-sans'` (was the invalid no-op class `'sans'`) and `clockStyle: 'modern'` (was the now-out-of-union `'standard'`). But widgets that went through migration **before** that PR are already stored as `type: 'time-tool'` and fall through `migrateWidget`'s existing-`time-tool` early-exit unchanged, so they still carry `fontFamily: 'sans'` (→ `getFontClass()` returns the non-existent class `'sans'`, silently inheriting the system font instead of Lexend) and possibly `clockStyle: 'standard'`. No runtime breakage today: `clockStyle` falls through the widget's `default` style branch, and the font merely inherits. With `TimeToolConfig.clockStyle` now narrowed to a union, stored `'standard'` values are also type-invalid at rest (TS does not validate Firestore data, so harmless at runtime).
+- **Fix (deferred — user-visible data change, deserves its own PR):** Add a forward-migration/one-time fixup branch in `migrateWidget` for `type === 'time-tool'` widgets that rewrites `fontFamily: 'sans'` → `'font-sans'` and `clockStyle: 'standard'` → `'modern'`. NOTE: this **visibly changes the font** on existing teacher dashboards (inherited → Lexend), so it should be a deliberate standalone change, not bundled into an admin-config PR. Consider whether to also normalize on read vs. a batch fixup.
+
+### LOW `case 'clock':` building-config passes `fontFamily`/`themeColor` through with only a truthiness check (no `isHexColor`/`isWidgetFontFamily`)
+
+- **Detected:** 2026-06-28 (PR #2106 review, adjacency)
+- **File:** utils/adminBuildingConfig.ts (`case 'clock'`)
+- **Detail:** The `clock` case accepts `raw.fontFamily`/`raw.themeColor` with a bare truthiness check, unlike the `time-tool` case added in #2106 which validates `themeColor` via `isHexColor` and `fontFamily` via `isWidgetFontFamily`. A malformed admin-stored value could round-trip through Firestore into a new clock widget. Pre-existing; surfaced by adjacency to the new `time-tool` case.
+- **Fix:** Mirror the `time-tool` case's validation in `case 'clock':` — `isHexColor(raw.themeColor)` and `isWidgetFontFamily(raw.fontFamily)` (clock's `fontFamily` uses the prefixed `FONTS`-id space via its `ClockConfigurationPanel` FONTS select). Verify `ClockConfig`'s font value space before tightening.
+
+### LOW Music widget: no admin building config or ConfigurationPanel
+
+- **Detected:** 2026-06-28
+- **File:** utils/adminBuildingConfig.ts (no case 'music'), components/admin/ (no MusicConfigurationPanel.tsx), types.ts (MusicConfig)
+- **Detail:** `MusicWidget/Settings.tsx` exposes ~15+ fields including `layout` ('default' | 'minimal' | 'small'), `musicSource` ('spotify' | 'youtube' | 'stations'), background customization, and source-specific configs. There is no `case 'music':` in `getAdminBuildingConfig()` and no `MusicConfigurationPanel.tsx` in components/admin/. Music is a highly building-specific widget — admins cannot pre-configure the default source, layout, or background per building. Personal Spotify access is already gated via `canAccessFeature('personal-spotify')` (GlobalFeaturePermission), but the instance-level defaults (which source to show, which layout) cannot be pre-set.
+- **Fix:** Add a `BuildingMusicDefaults` interface to types.ts covering at minimum `layout` and `musicSource`. Add a `case 'music':` handler to `getAdminBuildingConfig()` with enum-membership validation on both fields. Create `MusicConfigurationPanel.tsx` with a layout selector (pill group) and source selector, following the existing NeedDoPutThen/Stations panel pattern.
+
+### LOW InstructionalRoutines widget: no admin building config or ConfigurationPanel
+
+- **Detected:** 2026-06-28
+- **File:** utils/adminBuildingConfig.ts (no case 'instructionalRoutines'), components/admin/ (no InstructionalRoutinesConfigurationPanel.tsx), types.ts (InstructionalRoutinesConfig)
+- **Detail:** `InstructionalRoutines/Settings.tsx` exposes `scaleMultiplier`, `structure`, and `audience` as configurable fields. There is no `case 'instructionalRoutines':` in `getAdminBuildingConfig()` and no dedicated ConfigurationPanel. Admins cannot pre-set the default routine structure type (e.g., morning meeting) or audience (elementary/secondary) per building. An existing global instructional routines library is managed via Firestore (`/instructional_routines/` collection), but per-building widget-instance defaults cannot be pre-configured.
+- **Fix:** Add a `BuildingInstructionalRoutinesDefaults` interface to types.ts covering at minimum `scaleMultiplier` (validated 0.5–2.5) and `audience` ('elementary' | 'secondary'). Add a `case 'instructionalRoutines':` handler to `getAdminBuildingConfig()`. Create `InstructionalRoutinesConfigurationPanel.tsx` with an audience selector and scale control, following the existing pattern.
+
+### LOW GraphicOrganizer widget: no admin building config or ConfigurationPanel
+
+- **Detected:** 2026-06-28
+- **File:** utils/adminBuildingConfig.ts (no case 'graphic-organizer'), components/admin/ (no GraphicOrganizerConfigurationPanel.tsx), types.ts (GraphicOrganizerConfig)
+- **Detail:** `GraphicOrganizer/Settings.tsx` exposes `templateType` (organizer layout: Frayer/T-chart/Venn/KWL/Cause-Effect) and appearance fields (`fontFamily`, `fontColor`, `cardColor`, `cardOpacity`). There is no `case 'graphic-organizer':` in `getAdminBuildingConfig()` and no ConfigurationPanel. Admins cannot pre-set the default organizer template type or appearance per building — teachers always start with whatever the widget default is regardless of building context.
+- **Fix:** Add a `BuildingGraphicOrganizerDefaults` interface to types.ts covering `templateType` and the four appearance fields. Add a `case 'graphic-organizer':` handler to `getAdminBuildingConfig()` with enum-membership validation on `templateType` and standard hex/opacity/fontFamily validation for appearance. Create `GraphicOrganizerConfigurationPanel.tsx` with a template type selector and appearance defaults section, following the ConceptWeb panel pattern.
 
 ### LOW LunchCount not in getAdminBuildingConfig — no per-building instance defaults possible
 
@@ -135,6 +165,15 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 ---
 
 ## Completed
+
+### MEDIUM TimeTool has only 20% admin building config coverage (3 of 15 user-configurable fields)
+
+- **Detected:** 2026-06-21
+- **Completed:** 2026-06-28
+- **File:** types.ts (`BuildingTimeToolDefaults`), utils/adminBuildingConfig.ts (`case 'time-tool'`), components/admin/TimeToolConfigurationPanel.tsx, tests/utils/adminBuildingConfig.test.ts
+- **Detail:** The `time-tool` admin building defaults (`getAdminBuildingConfig()` `case 'time-tool'` + `TimeToolConfigurationPanel`, already wired into `BUILDING_CONFIG_PANELS`) covered only `duration`/`elapsedTime` and `timerEndTrafficColor`. The panel additionally exposed `timerEndTriggerRandom`/`timerEndTriggerNextUp` toggles, but those two fields were **not extracted** by `case 'time-tool'` — so they were dead controls (saved to Firestore, never applied to new widget instances). The most useful building-level defaults (mode, visualType, selectedSound, themeColor, glow, fontFamily, clockStyle) were not pre-configurable at all.
+- **Resolution:** Extended the existing Path-B panel rather than adding a dedicated modal. (1) Added `mode`, `visualType`, `selectedSound`, `themeColor`, `glow`, `fontFamily`, `clockStyle`, and `timerEndTriggerStationsRotate` to `BuildingTimeToolDefaults` in types.ts (with JSDoc noting `fontFamily` is the prefixed `FONTS`-id space and `themeColor` is a `WIDGET_PALETTE` hex). (2) Rewrote the `case 'time-tool':` handler with per-field validation: enum-membership checks for `mode`/`visualType`/`selectedSound`/`clockStyle`, `isHexColor` for `themeColor`, `isWidgetFontFamily` for the prefixed `fontFamily` (matching `stations`/`text`), `typeof === 'boolean'` for `glow` and all three trigger toggles, and an allow-listed `timerEndTrafficColor` (now accepts `null`/`red`/`yellow`/`green` and rejects garbage, where it previously passed any non-`undefined` value through). `elapsedTime` is seeded from `duration` for a timer but reset to `0` when the building default is a stopwatch (the base widget default seeds `elapsedTime=600`, so a stopwatch default would otherwise start at 600s). (3) Added controls to `TimeToolConfigurationPanel.tsx` for mode, display style, number style, alert sound, accent colour (`WIDGET_PALETTE` swatches), glow toggle, font family (`FONTS` select, `'global'` persisted as absence), and an Auto-Rotate Stations toggle, mirroring the existing panel's visual style. **Note:** the journal's "15 fields" tally included transient runtime state (`elapsedTime`, `isRunning`, `startTime`) and `timerEndVoiceLevel` (which depends on a co-present Expectations widget and is situational, not a sensible building default) — those were deliberately left out. The journal also listed a `'clock'` mode that does not exist in `TimeToolConfig` (`mode` is only `'timer' | 'stopwatch'`).
+- **Verification:** 6 new unit tests in `tests/utils/adminBuildingConfig.test.ts` (full pass-through; timer elapsedTime seeding; stopwatch elapsedTime reset with and without a duration; `null` traffic colour accepted / invalid colour rejected; all-invalid-enums/colours/fonts rejected) — `vitest run tests/utils/adminBuildingConfig.test.ts` → 43 passed. `pnpm type-check`, `eslint --max-warnings 0`, and `prettier --check` all clean on the four changed files.
 
 ### MEDIUM TextWidget (Note) admin building config only covered 2 of its appearance fields
 

@@ -45,8 +45,9 @@ import {
   canonicalizeBuildingIds,
   type Building,
 } from '@/config/buildings';
-import { TOOLS } from '@/config/tools';
 import { LinksPanel } from './LinksPanel';
+import { AI_FEATURE_LABELS } from './aiFeatureLabels';
+import { WIDGET_LABELS } from './widgetLabels';
 
 interface EngagementCounts {
   total: number;
@@ -135,14 +136,6 @@ type AnalyticsErrorState =
   | { kind: 'fatal'; message: string };
 
 type AnalyticsTab = 'overview' | 'widgets' | 'ai' | 'users' | 'links';
-
-const WIDGET_LABELS: Record<string, string> = TOOLS.reduce(
-  (acc, tool) => {
-    acc[tool.type] = tool.label;
-    return acc;
-  },
-  {} as Record<string, string>
-);
 
 /**
  * "Updated 4h ago · Next update at 5:00 AM" badge that replaces the previous
@@ -858,14 +851,6 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
       </div>
     </div>
   );
-};
-
-const AI_FEATURE_LABELS: Record<string, string> = {
-  'smart-poll': 'Smart Poll',
-  'embed-mini-app': 'Mini App',
-  'video-activity-audio-transcription': 'Video Activity',
-  quiz: 'Quiz Generation',
-  ocr: 'OCR',
 };
 
 const AiPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {

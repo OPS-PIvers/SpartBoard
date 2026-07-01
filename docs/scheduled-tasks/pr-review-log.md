@@ -4,6 +4,68 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-28
+
+- PRs reviewed: 9 (all open PRs)
+  - #2106 — feat(admin-config): expand TimeTool building-config 3→11 fields (head `scheduled-tasks`, base `dev-paul`)
+  - #2105 — chore(docs): nightly debugger run 22 (head `nightly/debugger-2026-06-28`, base `dev-paul`)
+  - #2104 — fix(plcWeeklyDigest): removed member leaks via legacy memberEmails mirror (head `nightly/build-2026-06-28`, base `dev-paul`)
+  - #2103 — fix(analytics): add missing labels for 7 programmatic widget types (head `nightly/admin-2026-06-28`, base `dev-paul`)
+  - #2102 — fix(GraphicOrganizer): render-body ref assignment prevents stale onUpdate closure (head `nightly/widgets-2026-06-28`, base `dev-paul`)
+  - #2101 — fix(dashboard): Escape-minimize + screen-record listener stabilisation (head `nightly/dashboard-2026-06-28`, base `dev-paul`)
+  - #2100 — docs(unifier): run 22 — fifth consecutive all-aligned run (head `nightly/unifier-log-2026-06-28`, base `dev-paul`)
+  - #2099 — Address PR #2098 review comments (head `claude/serene-meitner-ah9zj6`, base `dev-paul`)
+  - #2098 — Audit updates, fix empty-state scaling, analytics labels (head `dev-paul`, base `main`) — READ-ONLY (`dev-*` head: review/comment only, no push)
+- Comments processed: ~23 unresolved threads across 5 PRs — 0 fixed by this run, all explained/already-addressed. No fix push was needed: every actionable inline comment was already resolved in committed code by the author sessions (verified by reading the files at branch HEAD), or is a design-decision/architectural note being handled in active iteration.
+  - #2106: all 7 review threads already `is_resolved`. Gemini duration-clamp (59999) + test applied (`7d80677`); shared `config/timeTool.ts` extracted (`5e3ce6f`); `SurfaceColorSettings` decline is correct (`themeColor` is a `WIDGET_PALETTE` hex, not `cardColor`). Nothing to do.
+  - #2103: 7 unresolved threads — ALL already addressed in HEAD code: `PROGRAMMATIC_WIDGET_LABELS` is `Partial<Record<WidgetType,string>>`, dual `_exhaustiveCheck`/`_reverseExhaustiveCheck` compile guards present, comments reduced to one-liners, redundant `hasOwnProperty` test removed. Threads simply not marked resolved.
+  - #2102: 1 unresolved gemini thread (timeoutRef mgmt) — already addressed: debounce callback nullifies `timeoutRef.current`, `handleBlur` only flushes when pending, unmount-cleanup effect present. `isConnected` guard intentionally omitted (redundant given the pending-timeout guard).
+  - #2101: 13 threads (2 author-retracted re: `react-hooks/refs` being a real rule in v7.0.1). Core fixes correct. Three genuine live notes surfaced in the posted review rather than pushed (PR was under active iteration, last commit 06:02Z — avoided conflicting commits): (1) `Dock.test.tsx ~L549` may not actually guard the regression (module-level `useScreenRecord` mock ignores the `onError` arg); (2) `stopImmediatePropagation` blast radius across other unguarded window/document Escape handlers; (3) `driveService` hourly identity churn → once-per-hour listener re-register gap.
+  - #2098: 3 threads (NonNullable answers typing, NumberLine `htmlFor`, AI-feature 3-location sync comment) — all addressed via #2099, which routes the fixes into this branch.
+  - #2105: 1 unresolved gemini thread (lowercase repo path in doc URLs) — cosmetic + anchored hunk outdated; non-blocking, noted in review.
+  - No redundant per-thread replies were posted: threads were already addressed in-code or already carried an author resolution reply — adding "already fixed" replies to ~23 threads would be pure noise (frugality).
+- Fixes pushed: 0 (no genuine unaddressed actionable comment remained; #2101's live items were left for the actively-iterating author session and surfaced as review feedback).
+- Reviews posted: 9 (one structured review per PR)
+  - #2106: Ready — 3→11 field expansion with sound per-field validation; all threads resolved.
+  - #2105: Ready — doc-only debugger run-22 log.
+  - #2104: Ready — well-tested privacy fix (removed-member digest leak); `removedUids` second guard.
+  - #2103: Ready — clean label-map extraction; all inline comments addressed in-code.
+  - #2102: Ready — render-body ref sync per CLAUDE.md; timeoutRef concerns addressed.
+  - #2101: Ready with minor notes — core fixes correct; flagged Dock test / blast-radius / driveService notes for human verification before merge.
+  - #2100: Ready — doc-only unifier run-22 log.
+  - #2099: Ready — applies the three #2098 review fixes; merge order (this → dev-paul → main) noted.
+  - #2098: Ready with minor notes — verify #2099 is folded in and CI green before merging to `main`.
+- Notes:
+  - Branch-safety: no pushes to `main` or any `dev-*` branch. #2098 (head `dev-paul`) treated read-only — reviewed/commented only. The other 8 heads are pushable but required no fix push this run.
+  - This log is committed to the designated working branch `claude/compassionate-shannon-4t37a1` rather than `scheduled-tasks`, because `scheduled-tasks` is the head of open PR #2106 — committing there would pollute that PR's diff. Consistent with prior runs (2026-06-27/06-24/06-21/06-19).
+
+## 2026-06-27
+
+- PRs reviewed: 6 (all open PRs; all base `dev-paul`, none `main`/`dev-*` → all pushable)
+  - #2096 — scheduled-tasks 2026-06-27: audit + ActivityWall empty-state scaling fix (head `scheduled-tasks`, base `dev-paul`)
+  - #2095 — chore(docs): nightly debugger run 21 (head `nightly/debugger-log-2026-06-27`, base `dev-paul`)
+  - #2094 — fix(analytics): add missing AI feature labels for 6 Gemini features (head `nightly/admin-2026-06-27`, base `dev-paul`)
+  - #2093 — fix(quiz): use first-occurrence answers in exportResultsToSheet stats block (head `nightly/state-2026-06-27`, base `dev-paul`)
+  - #2092 — fix(NumberLine): Escape cancels min/max/step edits without saving (head `nightly/widgets-2026-06-27`, base `dev-paul`)
+  - #2091 — docs(unifier): run 21 — fourth consecutive all-aligned run (head `nightly/unifier-log-2026-06-27`, base `dev-paul`)
+- Comments processed: 10 unresolved threads across 3 PRs — 1 fixed, 9 explained/acknowledged (every other thread was already satisfied by a later commit on its branch and is marked `is_outdated`)
+  - #2093: gemini `utils/quizDriveService.ts:731` (`r.answers ?? []` defensive guard) → FIXED. 2 claude threads on the test teardown (`vi.unstubAllGlobals`) → EXPLAINED no-op: the surviving test file `tests/utils/quizDriveService.test.ts` uses `vi.spyOn(global,'fetch')` + `afterEach(vi.restoreAllMocks)` (the reviewer's own suggested alternative); the colocated `vi.stubGlobal` file was replaced.
+  - #2094: 2 gemini import-path threads (re-export / test import from `aiFeatureLabels.ts`) + 1 claude drop-PR-number-from-comment + 1 claude redundant-second-test → all already addressed in later commits (EXPLAINED): `AnalyticsManager.tsx` only imports (no re-export), test imports from `@/components/admin/Analytics/aiFeatureLabels`, the comment carries no PR number, and the second test is now a `toEqual` exhaustiveness check. 2 claude architectural threads (export `GEMINI_SPECIFIC_FEATURES` across the functions↔root boundary; acknowledge the inherent cross-package mirror gap) → EXPLAINED no-op (architectural / inherent constraint, not an unattended-fix candidate; flagged for human consideration of a shared constants module).
+  - #2095: gemini `docs/routines/debugger.md` count (`has 10` → `has 11`) → EXPLAINED: already corrected on-branch; both the Run Log entry and backlog item now read `has 11` / `all 11 entries`.
+- Fixes pushed: 1
+  - #2093 / `nightly/state-2026-06-27` (`a295e3d`) — `fix(pr-2093): guard r.answers with ?? [] in exportResultsToSheet dedup loop`. Mirrors the defensive guard in `buildResultsSheetDataShared`. type-check ✓ lint ✓ tests ✓ (24/24).
+- Reviews posted: 6 (one structured review per PR)
+  - #2096: Ready — ActivityWall empty-state heading `fontSize: min(14px, 5.5cqmin)` + scaled `marginTop` (correct medium-text tier; preserves hierarchy vs subtitle); journal's ⚠️ false-premise correction on the appearance-panel MEDIUM is well-evidenced.
+  - #2095: Ready — doc-only debugger run-21 log; count nit already resolved.
+  - #2094: Ready with minor notes — clean label-map extraction; only the documented cross-package mirror gap remains as a non-blocking follow-up.
+  - #2093: Ready — first-occurrence dedup matches grader semantics; `?? []` guard pushed; strong regression suite (24/24).
+  - #2092: Ready — Escape-cancel `cancelledRef` pattern consistent with #1965/#1974/#1975/#2064; 10 tests; `aria-label`s added.
+  - #2091: Ready — doc-only unifier run-21 log.
+- Notes:
+  - Branch-safety: all 6 head branches are non-`main`/non-`dev-*` → pushable; only #2093 required a fix push. No pushes to `main` or `dev-paul`.
+  - This log is committed to the designated working branch `claude/compassionate-shannon-0f10tg` rather than `scheduled-tasks`, because `scheduled-tasks` is the head of open PR #2096 — committing there would pollute that PR's diff. Consistent with prior runs (2026-06-24/06-21/06-19).
+  - Verification ran on Node 22 locally (project requires Node 24); `tsc --noEmit`, scoped `eslint --max-warnings 0`, and the affected vitest suite were green for the touched files. CI on Node 24 remains the authoritative gate.
+
 ## 2026-06-26
 
 - PRs reviewed: 9 (all open PRs)

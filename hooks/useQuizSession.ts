@@ -425,10 +425,7 @@ export function gradeAnswer(
   if (question.type === 'Matching') {
     const correctPairs = correct.split('|').map(normalizeAnswer);
     const givenPairs = given.split('|').map(normalizeAnswer);
-    // Build a left→right map from the answer key. Counting by full pair
-    // membership in a Set lets a student score full credit by repeating one
-    // correct pair (e.g. correct "a:1|b:2", given "a:1|a:1" → 2/2). Keying by
-    // left term ensures each prompt is graded at most once.
+    // Build a left→right map; last entry wins for any duplicate left-term.
     const splitPair = (p: string): [string, string] => {
       const sep = p.indexOf(':');
       return sep < 0 ? [p, ''] : [p.slice(0, sep), p.slice(sep + 1)];
@@ -448,9 +445,17 @@ export function gradeAnswer(
         matched++;
       }
     }
-    const total = correctPairs.length;
-    // Strict correctness: every prompt matched AND no extra pairs submitted.
-    const strictCorrect = matched === total && givenPairs.length === total;
+    // Size = unique prompts; raw length inflates total when correctAnswer has duplicate left-terms.
+    const total = correctMap.size;
+    // Strict correctness: every prompt matched AND no extra *distinct* prompts
+    // submitted. Compare against `seenLefts.size` (unique submitted left-terms),
+    // not the raw `givenPairs.length` — the raw count includes accidental
+    // duplicate pairs (e.g. "a:1|b:2|a:1"), which would otherwise force
+    // strictCorrect=false and award 0 points in non-partial mode even though
+    // every unique prompt was answered correctly. `seenLefts` is the same set
+    // the matching loop deduplicates against, so this stays consistent with how
+    // `matched` is counted while still rejecting genuinely extra prompts.
+    const strictCorrect = matched === total && seenLefts.size === total;
     if (!partial) {
       return {
         isCorrect: strictCorrect,

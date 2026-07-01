@@ -166,3 +166,44 @@ describe('gradeAnswer — Matching partial-credit isCorrect consistency', () => 
     expect(allRight.pointsEarned).toBe(0);
   });
 });
+
+describe('gradeAnswer — Matching non-partial strict correctness vs duplicate pairs', () => {
+  // Regression for the bug where `strictCorrect` compared the answer key size
+  // against the RAW submitted pair count (`givenPairs.length`) instead of the
+  // count of unique submitted prompts (`seenLefts.size`). A duplicate pair
+  // inflated `givenPairs.length` past `total`, forcing strictCorrect=false and
+  // awarding 0 points in non-partial mode even though every unique prompt was
+  // answered correctly.
+  const strictQ = (pts: number): QuizQuestion => ({
+    id: 'sm-regression',
+    timeLimit: 0,
+    text: 'Match',
+    type: 'Matching',
+    correctAnswer: 'dog:bark|cat:meow',
+    incorrectAnswers: [],
+    points: pts,
+    allowPartialCredit: false,
+  });
+
+  it('all unique prompts correct but a duplicate pair submitted: isCorrect=true, full credit', () => {
+    // Previously returned isCorrect:false, pointsEarned:0 because
+    // givenPairs.length (3) !== total (2).
+    const result = gradeAnswer(strictQ(2), 'dog:bark|cat:meow|dog:bark');
+    expect(result.isCorrect).toBe(true);
+    expect(result.pointsEarned).toBe(2);
+    expect(result.pointsMax).toBe(2);
+  });
+
+  it('exact all-correct (no duplicates): isCorrect=true, full credit', () => {
+    const result = gradeAnswer(strictQ(2), 'dog:bark|cat:meow');
+    expect(result.isCorrect).toBe(true);
+    expect(result.pointsEarned).toBe(2);
+  });
+
+  it('extra DISTINCT prompt not in the answer key still rejects strict correctness', () => {
+    // seenLefts.size (3) !== total (2) — extra distinct prompts must still fail.
+    const result = gradeAnswer(strictQ(2), 'dog:bark|cat:meow|cow:moo');
+    expect(result.isCorrect).toBe(false);
+    expect(result.pointsEarned).toBe(0);
+  });
+});

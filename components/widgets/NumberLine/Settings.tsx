@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 import { TypographySettings } from '@/components/common/TypographySettings';
@@ -34,6 +34,11 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
   const updateConfig = (updates: Partial<NumberLineConfig>) => {
     updateWidget(widget.id, { config: { ...config, ...updates } });
   };
+
+  // Escape-cancel refs for uncontrolled number inputs
+  const minCancelledRef = useRef(false);
+  const maxCancelledRef = useRef(false);
+  const stepCancelledRef = useRef(false);
 
   // Add Jump State
   const [newJumpStart, setNewJumpStart] = useState<number>(0);
@@ -79,13 +84,21 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
         <SettingsLabel icon={Settings}>Axis Configuration</SettingsLabel>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">
+            <label
+              htmlFor={`nl-min-${widget.id}`}
+              className="block text-xs font-semibold text-slate-500 mb-1"
+            >
               Min Value
             </label>
             <input
+              id={`nl-min-${widget.id}`}
               type="number"
               defaultValue={min}
               onBlur={(e) => {
+                if (minCancelledRef.current) {
+                  minCancelledRef.current = false;
+                  return;
+                }
                 const parsed = parseFloat(e.target.value);
                 if (!Number.isNaN(parsed)) {
                   const clamped = Math.max(
@@ -99,19 +112,31 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.currentTarget.blur();
+                } else if (e.key === 'Escape') {
+                  minCancelledRef.current = true;
+                  e.currentTarget.value = String(min);
+                  e.currentTarget.blur();
                 }
               }}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg"
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">
+            <label
+              htmlFor={`nl-max-${widget.id}`}
+              className="block text-xs font-semibold text-slate-500 mb-1"
+            >
               Max Value
             </label>
             <input
+              id={`nl-max-${widget.id}`}
               type="number"
               defaultValue={max}
               onBlur={(e) => {
+                if (maxCancelledRef.current) {
+                  maxCancelledRef.current = false;
+                  return;
+                }
                 const parsed = parseFloat(e.target.value);
                 if (!Number.isNaN(parsed)) {
                   const clamped = Math.max(
@@ -125,21 +150,33 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.currentTarget.blur();
+                } else if (e.key === 'Escape') {
+                  maxCancelledRef.current = true;
+                  e.currentTarget.value = String(max);
+                  e.currentTarget.blur();
                 }
               }}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg"
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">
+            <label
+              htmlFor={`nl-step-${widget.id}`}
+              className="block text-xs font-semibold text-slate-500 mb-1"
+            >
               Step (Interval)
             </label>
             <input
+              id={`nl-step-${widget.id}`}
               type="number"
               min="0.01"
               step="any"
               defaultValue={step}
               onBlur={(e) => {
+                if (stepCancelledRef.current) {
+                  stepCancelledRef.current = false;
+                  return;
+                }
                 const parsed = parseFloat(e.target.value);
                 if (!Number.isNaN(parsed)) {
                   const safeBaseStep = Math.max(0.01, parsed);
@@ -153,16 +190,24 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.currentTarget.blur();
+                } else if (e.key === 'Escape') {
+                  stepCancelledRef.current = true;
+                  e.currentTarget.value = String(step);
+                  e.currentTarget.blur();
                 }
               }}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg"
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">
+            <label
+              htmlFor={`nl-display-${widget.id}`}
+              className="block text-xs font-semibold text-slate-500 mb-1"
+            >
               Display Mode
             </label>
             <select
+              id={`nl-display-${widget.id}`}
               value={displayMode}
               onChange={(e) =>
                 updateConfig({

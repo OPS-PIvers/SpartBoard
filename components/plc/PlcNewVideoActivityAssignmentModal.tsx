@@ -51,6 +51,11 @@ import {
   createSyncedVideoActivityGroup,
 } from '@/hooks/useSyncedVideoActivityGroups';
 import { getPlcMemberEmails, getPlcTeammateEmails } from '@/utils/plc';
+import {
+  splitDueAtToInputs,
+  dueInputsToEpoch,
+  DEFAULT_DUE_TIME,
+} from '@/utils/localDate';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { logError } from '@/utils/logError';
@@ -301,7 +306,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
       const resolvedSessionOptions: VideoActivitySessionOptions = {
         ...behavior.sessionOptions,
         attemptLimit: behavior.attemptLimit,
-        ...(dueAt != null ? { dueAt } : {}),
+        ...(dueAt != null ? { dueAt, dueAtHasTime: true } : {}),
       };
 
       // Default player-behavior settings — not authored per-assignment on
@@ -448,10 +453,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
   const behavior = getVideoActivityBehavior(pickedActivity);
   const behaviorSummary = formatVideoActivityBehaviorSummary(behavior);
 
-  // Convert epoch ms → 'YYYY-MM-DD' for the date input, and back.
-  const dueDateInputValue = dueAt
-    ? new Date(dueAt).toISOString().slice(0, 10)
-    : '';
+  const dueDateInputValue = splitDueAtToInputs(dueAt, true).date;
 
   return (
     <AssignModal<VaAssignOptions>
@@ -511,7 +513,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
               value={dueDateInputValue}
               onChange={(e) => {
                 const val = e.target.value;
-                setDueAt(val ? new Date(val).getTime() : null);
+                setDueAt(val ? dueInputsToEpoch(val, DEFAULT_DUE_TIME) : null);
               }}
               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
             />
