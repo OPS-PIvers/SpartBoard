@@ -104,6 +104,32 @@ describe('DraggableSticker', () => {
     expect(mockRemoveWidget).toHaveBeenCalledWith('sticker-1');
   });
 
+  it('disables the menu Delete button when the sticker is locked', () => {
+    render(
+      <DraggableSticker widget={{ ...mockWidget, isLocked: true }}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    // Select sticker and open the menu
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+    fireEvent.click(screen.getByTitle('Sticker Options'));
+
+    const deleteButton = screen.getByText('Delete').closest('button');
+    if (!deleteButton) throw new Error('Delete button not found');
+    expect(deleteButton).toBeDisabled();
+
+    // Clicking the disabled/guarded Delete must not remove the widget.
+    fireEvent.click(deleteButton);
+    expect(mockRemoveWidget).not.toHaveBeenCalled();
+  });
+
   it('deselects sticker on widget-escape-press event', () => {
     render(
       <DraggableSticker widget={mockWidget}>

@@ -55,6 +55,10 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
 
   const config = widget.config as StickerConfig;
   const rotation = config.rotation ?? 0;
+  // A sticker is locked (no delete/move) on per-widget-locked or read-only
+  // boards. Used to gate every delete affordance — keyboard shortcuts AND the
+  // floating menu Delete button — so they stay behaviourally consistent.
+  const isLocked = (widget.isLocked ?? false) || isActiveBoardReadOnly;
 
   useEffect(() => {
     const handleEscapePress = (e: Event) => {
@@ -171,8 +175,6 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
       setShowMenu(false);
       return;
     }
-
-    const isLocked = (widget.isLocked ?? false) || isActiveBoardReadOnly;
 
     if (
       (e.key === 'Delete' || e.key === 'Backspace') &&
@@ -413,8 +415,12 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                     <div className="h-px bg-slate-100 my-1" />
 
                     <button
-                      onClick={() => removeWidget(widget.id)}
-                      className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                      onClick={() => {
+                        if (isLocked) return;
+                        removeWidget(widget.id);
+                      }}
+                      disabled={isLocked}
+                      className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed"
                     >
                       <Trash2 size={14} />
                       Delete
