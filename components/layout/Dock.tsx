@@ -279,13 +279,22 @@ export const Dock: React.FC = () => {
     [driveService, addToast, t]
   );
 
+  const handleRecordingError = useCallback(
+    (err: Error) => {
+      addToast(err.message, 'error');
+    },
+    [addToast]
+  );
+
   const { isRecording, duration, startRecording, stopRecording } =
     useScreenRecord({
       onSuccess: handleRecordingComplete,
-      onError: (err) => {
-        addToast(err.message, 'error');
-      },
+      onError: handleRecordingError,
     });
+
+  const isRecordingRef = useRef(isRecording);
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync (CLAUDE.md pattern)
+  isRecordingRef.current = isRecording;
 
   // Remote control of the one screen recorder (and its Drive-upload pipeline)
   // for callers outside the Dock — e.g. a maximized widget's FAB menu, where
@@ -294,13 +303,13 @@ export const Dock: React.FC = () => {
   // reflect the live recording status.
   useEffect(() => {
     const onToggle = () => {
-      if (isRecording) stopRecording();
+      if (isRecordingRef.current) stopRecording();
       else void startRecording();
     };
     const onQuery = () =>
       window.dispatchEvent(
         new CustomEvent('spart-screen-record-state', {
-          detail: { isRecording },
+          detail: { isRecording: isRecordingRef.current },
         })
       );
     window.addEventListener('spart-screen-record-toggle', onToggle);
@@ -309,7 +318,7 @@ export const Dock: React.FC = () => {
       window.removeEventListener('spart-screen-record-toggle', onToggle);
       window.removeEventListener('spart-screen-record-query', onQuery);
     };
-  }, [isRecording, startRecording, stopRecording]);
+  }, [startRecording, stopRecording]);
 
   useEffect(() => {
     window.dispatchEvent(

@@ -30,6 +30,7 @@ import { AppearanceSection } from './sections/AppearanceSection';
 import { DockSection } from './sections/DockSection';
 import { BehaviorSection } from './sections/BehaviorSection';
 import { LanguageSection } from './sections/LanguageSection';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -104,7 +105,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
   React.useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(event)) return;
+      onClose();
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);

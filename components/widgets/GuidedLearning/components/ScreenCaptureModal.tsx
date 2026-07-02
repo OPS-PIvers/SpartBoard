@@ -107,6 +107,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
   useEffect(() => {
     return () => {
       if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+        recorderRef.current.onstop = null;
         recorderRef.current.stop();
       }
       streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -124,12 +125,37 @@ export const ScreenCaptureModal: React.FC<Props> = ({
   // rather than in an effect, so the keydown handler never reads a stale closure.
   onCloseRef.current = onClose;
 
+  // Ref to our own portal root div so the Escape guard below can distinguish
+  // "Escape from inside our modal" vs "Escape from a different [data-widget-portal]"
+  // (e.g. DraggableWindow title-edit input portaled to document.body).
+  const portalRootRef = useRef<HTMLDivElement | null>(null);
+
   // Escape closes the modal (standard modal affordance). Skipped while a
   // recording is in flight so a stray Escape can't silently discard it.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || recording) return;
-      e.stopPropagation();
+      const t = e.target;
+      if (t instanceof Element) {
+        // If Escape came from a portaled zone that is NOT our own modal root,
+        // yield to that component. The canonical case: DraggableWindow's
+        // title-edit input is portaled to document.body with data-widget-portal=""
+        // on the <input> itself, so t.closest('[data-draggable-window]') returns
+        // null — the draggable-window check below would miss it entirely.
+        const closestPortal = t.closest('[data-widget-portal]');
+        if (closestPortal && closestPortal !== portalRootRef.current) return;
+        // If Escape came from a text input inside a DraggableWindow (in the normal
+        // DOM tree), let DraggableWindow handle it (blur the input).
+        if (
+          (t.tagName === 'INPUT' ||
+            t.tagName === 'TEXTAREA' ||
+            t.tagName === 'SELECT' ||
+            !!(t as HTMLElement).isContentEditable) &&
+          t.closest('[data-draggable-window]')
+        )
+          return;
+      }
+      e.stopImmediatePropagation();
       onCloseRef.current();
     };
     window.addEventListener('keydown', onKeyDown, true);
@@ -275,6 +301,8 @@ export const ScreenCaptureModal: React.FC<Props> = ({
 
   return createPortal(
     <div
+      ref={portalRootRef}
+      data-widget-portal=""
       className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4"
       style={{ zIndex: Z_INDEX.modalNested }}
       role="dialog"

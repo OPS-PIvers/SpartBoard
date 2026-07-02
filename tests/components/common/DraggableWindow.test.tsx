@@ -355,6 +355,28 @@ describe('DraggableWindow (Tests folder)', () => {
 
       expect(mockContext.updateWidget).not.toHaveBeenCalled();
     });
+
+    it('sets data-widget-portal only on the title input, not on surrounding action buttons', () => {
+      renderWithToolbar();
+
+      // Click the title text to enter editing mode.
+      const titleEl = screen.getByText('Test Widget');
+      fireEvent.click(titleEl);
+
+      // The input must carry data-widget-portal so isEscapeFromWidgetInput in
+      // other components' window handlers recognises it as a protected text field.
+      const titleInput = document.querySelector<HTMLInputElement>(
+        'input[data-widget-portal]'
+      );
+      expect(titleInput).not.toBeNull();
+
+      // The Pin button must NOT be inside [data-widget-portal]. The old bug put
+      // data-widget-portal on the entire pill container, which caused Escape in
+      // other window-level handlers (e.g. ActiveClassChip) to bail while the
+      // pill was visible even though focus was not in any text field.
+      const pinButton = screen.getByLabelText(/pin position/i);
+      expect(pinButton.closest('[data-widget-portal]')).toBeNull();
+    });
   });
 
   describe('Pinned visual indicator', () => {

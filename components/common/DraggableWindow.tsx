@@ -48,6 +48,7 @@ import {
 import { SNAP_LAYOUTS, SnapZone } from '@/config/snapLayouts';
 import { POSITION_AWARE_WIDGETS } from '@/config/widgetDefaults';
 import { calculateSnapBounds, SNAP_LAYOUT_CONSTANTS } from '@/utils/layoutMath';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { clampWidgetToWorld, getWorldBounds } from '@/utils/zoomPanMath';
 import { useScreenshot } from '@/hooks/useScreenshot';
 import { useWindowSize } from '@/hooks/useWindowSize';
@@ -410,6 +411,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        // Let DraggableWindow's React handler blur the widget input first;
+        // the menu will remain open and the user can Escape again to close it.
+        if (isEscapeFromWidgetInput(e)) return;
         e.stopPropagation();
         setShowMaxMenu(false);
       }
@@ -873,8 +877,15 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     if (isInput) {
       if (e.key === 'Escape') {
+        // Must be called BEFORE blur(): blur() is synchronous, so the event would otherwise
+        // reach window after isTypingFieldActive() returns false → widget minimized.
+        // stopImmediatePropagation kills the native event at div#root so it never
+        // reaches document/window listeners. New modal Escape handlers that register on
+        // document should guard the widget-input case with isEscapeFromWidgetInput(e)
+        // for the path where a widget stops React propagation before we fire here.
+        e.nativeEvent.stopImmediatePropagation();
+        e.stopPropagation(); // guards React synthetic tree against future ancestor onKeyDown
         target.blur();
-        e.stopPropagation();
       }
       return;
     }
@@ -2087,6 +2098,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       ref={windowRef}
       tabIndex={0}
       data-widget-id={widget.id}
+      data-draggable-window=""
       onPointerDown={handlePointerDown}
       onClick={handleWidgetClick}
       onKeyDown={handleKeyDown}
@@ -2884,6 +2896,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               {isEditingTitle ? (
                 <input
                   autoFocus
+                  data-widget-portal=""
                   type="text"
                   value={tempTitle}
                   onChange={(e) => setTempTitle(e.target.value)}
@@ -2898,6 +2911,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                       // The flag is read synchronously in saveTitle to skip the write.
                       isCancellingTitleRef.current = true;
                       setIsEditingTitle(false);
+                      // data-widget-portal="" on the input is the reliable guard; stopImmediatePropagation is defence-in-depth for non-modal window listeners.
+                      e.nativeEvent.stopImmediatePropagation();
                     }
                     e.stopPropagation();
                   }}

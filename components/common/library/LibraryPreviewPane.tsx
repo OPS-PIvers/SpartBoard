@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import type { LibraryPrimaryAction } from './types';
 
 interface LibraryPreviewPaneProps {
@@ -66,6 +67,7 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (isEscapeFromWidgetInput(e)) return;
         e.stopImmediatePropagation();
         onClose();
       }
