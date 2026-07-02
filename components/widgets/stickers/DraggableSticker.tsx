@@ -406,24 +406,38 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                     <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-50 mb-1">
                       Layers
                     </div>
+                    {/* Locked stickers keep these menu items visible but inert
+                        via an inline `!isLocked` guard + aria-disabled, rather
+                        than the native `disabled` attribute — a `disabled`
+                        button swallows the click, so `setShowMenu(false)` would
+                        never run and the menu would stay open (useClickOutside
+                        can't close it since the panel lives inside nodeRef). */}
                     <button
                       onClick={() => {
-                        moveWidgetLayer(widget.id, 'up');
+                        if (!isLocked) moveWidgetLayer(widget.id, 'up');
                         setShowMenu(false);
                       }}
-                      disabled={isLocked}
-                      className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-700 disabled:cursor-not-allowed"
+                      aria-disabled={isLocked}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
+                        isLocked
+                          ? 'text-slate-400 opacity-40 cursor-not-allowed'
+                          : 'text-slate-700 hover:bg-blue-50 hover:text-blue-600'
+                      }`}
                     >
                       <ArrowUp size={14} />
                       Bring Forward
                     </button>
                     <button
                       onClick={() => {
-                        moveWidgetLayer(widget.id, 'down');
+                        if (!isLocked) moveWidgetLayer(widget.id, 'down');
                         setShowMenu(false);
                       }}
-                      disabled={isLocked}
-                      className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-700 disabled:cursor-not-allowed"
+                      aria-disabled={isLocked}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
+                        isLocked
+                          ? 'text-slate-400 opacity-40 cursor-not-allowed'
+                          : 'text-slate-700 hover:bg-blue-50 hover:text-blue-600'
+                      }`}
                     >
                       <ArrowDown size={14} />
                       Send Backward
@@ -432,9 +446,16 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                     <div className="h-px bg-slate-100 my-1" />
 
                     <button
-                      onClick={() => removeWidget(widget.id)}
-                      disabled={isLocked}
-                      className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                      onClick={() => {
+                        if (!isLocked) removeWidget(widget.id);
+                        setShowMenu(false);
+                      }}
+                      aria-disabled={isLocked}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
+                        isLocked
+                          ? 'text-red-300 opacity-40 cursor-not-allowed'
+                          : 'text-red-600 hover:bg-red-50'
+                      }`}
                     >
                       <Trash2 size={14} />
                       Delete

@@ -130,11 +130,13 @@ describe('DraggableSticker', () => {
 
     const deleteButton = screen.getByText('Delete').closest('button');
     if (!deleteButton) throw new Error('Delete button not found');
-    expect(deleteButton).toBeDisabled();
+    expect(deleteButton).toHaveAttribute('aria-disabled', 'true');
 
-    // Clicking the disabled/guarded Delete must not remove the widget.
+    // Clicking the inert Delete must not remove the widget, but must still
+    // close the menu (the inline guard runs setShowMenu(false) regardless).
     fireEvent.click(deleteButton);
     expect(mockRemoveWidget).not.toHaveBeenCalled();
+    expect(screen.queryByText('Delete')).not.toBeInTheDocument();
   });
 
   it('hides rotate/resize handles and blocks dragging when locked', () => {
@@ -198,13 +200,15 @@ describe('DraggableSticker', () => {
 
     const forward = screen.getByText('Bring Forward').closest('button');
     const backward = screen.getByText('Send Backward').closest('button');
-    expect(forward).toBeDisabled();
-    expect(backward).toBeDisabled();
+    expect(forward).toHaveAttribute('aria-disabled', 'true');
+    expect(backward).toHaveAttribute('aria-disabled', 'true');
 
-    // Clicking a disabled layer button must not write a z-order change.
-    if (forward) fireEvent.click(forward);
-    if (backward) fireEvent.click(backward);
+    // Clicking an inert layer button must not write a z-order change, but must
+    // still close the menu. (Clicking one closes the menu, so assert on one.)
+    if (!forward) throw new Error('Bring Forward not found');
+    fireEvent.click(forward);
     expect(mockMoveWidgetLayer).not.toHaveBeenCalled();
+    expect(screen.queryByText('Bring Forward')).not.toBeInTheDocument();
   });
 
   it('performs no mutating writes when a sticker is selected on a read-only board', () => {
@@ -232,6 +236,24 @@ describe('DraggableSticker', () => {
     ).not.toBeInTheDocument();
     expect(mockBringToFront).not.toHaveBeenCalled();
     expect(mockUpdateWidget).not.toHaveBeenCalled();
+
+    // The context menu must also reflect the read-only state — this exercises
+    // the `isActiveBoardReadOnly` branch of the inline lock guard specifically,
+    // which the `widget.isLocked` tests above don't cover.
+    fireEvent.click(screen.getByTitle('Sticker Options'));
+    const deleteButton = screen.getByText('Delete').closest('button');
+    const forward = screen.getByText('Bring Forward').closest('button');
+    const backward = screen.getByText('Send Backward').closest('button');
+    expect(deleteButton).toHaveAttribute('aria-disabled', 'true');
+    expect(forward).toHaveAttribute('aria-disabled', 'true');
+    expect(backward).toHaveAttribute('aria-disabled', 'true');
+
+    // Clicking Delete closes the menu but issues no write.
+    if (!deleteButton) throw new Error('Delete button not found');
+    fireEvent.click(deleteButton);
+    expect(mockRemoveWidget).not.toHaveBeenCalled();
+    expect(mockMoveWidgetLayer).not.toHaveBeenCalled();
+    expect(screen.queryByText('Delete')).not.toBeInTheDocument();
   });
 
   it('deselects sticker on widget-escape-press event', () => {
