@@ -892,6 +892,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     // Keyboard Shortcuts for Focused Widget
     if (e.key === 'Escape' && !e.shiftKey && !e.altKey && !e.ctrlKey) {
+      // Kill the native event so DashboardView's global window keydown handler
+      // doesn't ALSO fire for this same Escape and dispatch a
+      // widget-keyboard-action, which would run handleCustomKeyboard's mirrored
+      // branch and issue a second, redundant updateWidget write. e.stopPropagation()
+      // below only stops React's synthetic tree; the native event still bubbles to
+      // window without this. (Matches the input-Escape branch above.)
+      e.nativeEvent.stopImmediatePropagation();
       // Locked widgets (per-widget lock OR read-only board): allow Esc to
       // dismiss transient UI (annotation overlay, confirm dialog) but DO
       // NOT mutate `widget.flipped` or `widget.minimized` — both would

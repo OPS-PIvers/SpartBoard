@@ -4963,6 +4963,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const bringToFront = useCallback((id: string) => {
     if (!activeIdRef.current) return;
+    // Read-only guard, consistent with every other mutating action here.
+    // Without it, clicking any widget on a read-only board (DraggableWindow
+    // calls bringToFront on pointer-down) writes a z-index change through
+    // setDashboards and marks lastLocalUpdateAt, triggering a Firestore sync.
+    if (isActiveBoardReadOnlyRef.current) return;
 
     setDashboards((prev) => {
       const active = prev.find((d) => d.id === activeIdRef.current);
