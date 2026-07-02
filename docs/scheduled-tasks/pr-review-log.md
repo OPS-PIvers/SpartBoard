@@ -1685,3 +1685,33 @@ _Automated nightly review by claude-opus-4-6_
   - Branch-safety: all 9 head branches are non-`main` / non-`dev-*` → pushable. Only #2014 required a fix push.
   - Local verification for the #2014 fix ran on Node 22 (env wants 24): `tsc --noEmit` (0 errors), `eslint --max-warnings 0` (clean), and `vitest` Modal suite (16/16) all passed; full CI on Node 24 remains the authoritative gate.
   - #2016 scope: the `scheduled-tasks` head has diverged ~29 files from `dev-paul`, so its PR diff far exceeds the stated one-line PollWidget change — flagged in the review for human confirmation.
+
+## 2026-07-02
+
+- PRs reviewed: 9
+  - #2127 — docs(unifier): run 23 dedupe of `unifier.md` (head `nightly/unifier-log-2026-07-02`, base `dev-paul`)
+  - #2126 — chore(imports): relative → `@/` alias in 14 test files (head `nightly/unify-import-paths-2026-07-02`, base `dev-paul`)
+  - #2125 — fix(stickers): guard floating-menu actions on locked/read-only boards (head `claude/serene-meitner-7luik8`, base `dev-paul`)
+  - #2124 — docs(unifier): run 23 all-aligned log (head `nightly/unifier-log-2026-07-01`, base `dev-paul`)
+  - #2120 — fix(deps): bump dompurify to 3.4.11 / GHSA-cmwh-pvxp-8882 (head `deps/dompurify-3.4.11`, base `dev-paul`)
+  - #2119 — audit(tuesday): scheduled audit journals + useScreenRecord tests (head `scheduled-tasks`, base `dev-paul`)
+  - #2118 — docs(unifier): run 23 log + prettier/dedupe maintenance (head `nightly/unifier-log-2026-06-30`, base `dev-paul`)
+  - #2101 — fix(dashboard): Escape-minimize + screen-record listener churn (head `nightly/dashboard-2026-06-28`, base `dev-paul`)
+  - #2098 — NumberLine Escape-cancel/a11y + AI feature label sync (head `dev-paul`, base `main`)
+- Comments processed: 1 new unresolved — 0 fixed, 1 explained. Every other open review thread across the 9 PRs already carried an author reply (addressed in earlier commits/PRs #2099/#2123/#2125) and needed no new action.
+  - #2119: new gemini/claude thread (discussion_r3510696315) requesting a `startRecording` concurrent-call guard + test → EXPLAINED (no fix). Scope: production hook change belongs in the dedicated `useScreenRecord.ts` follow-up already tracked on this PR (with the unmount-cleanup/`mountedRef` guard), not this audit-journal PR. Also flagged the suggested one-liner `if (isRecording) return;` as unsafe — `startRecording`'s deps are `[options, stopRecording]`, so a ref-based guard (`mediaRecorderRef.current?.state === 'recording'`) is the correct fix.
+- Fixes pushed: 0 (no PR carried an unaddressed comment with an unambiguous, in-scope mechanical fix).
+- Reviews posted: 9 (one structured review per PR)
+  - #2127: Ready — docs-only `unifier.md` dedup (633→491 lines); good double-merge prevention note.
+  - #2126: Ready — pure relative→`@/` test-path sweep; all 20 call-sites verified equivalent, test counts unchanged.
+  - #2125: Ready — sticker lock/read-only guards; closes a real `bringToFront` read-only write path; 9/9 tests.
+  - #2124: Ready — docs-only run-23 log; flagged 3 concurrent "run 23" `unifier.md` PRs risk re-duplication.
+  - #2120: Ready — dompurify security bump; override correctly collapses transitive monaco pin to single 3.4.11.
+  - #2119: Ready — audit journals + useScreenRecord test suite; 3 documented hook gaps deferred to a dedicated follow-up.
+  - #2118: Ready — docs-only run-23 log + prettier/dedupe maintenance; same three-PR overlap caveat.
+  - #2101: Ready — two dashboard bug fixes with root-cause writeups + regression tests.
+  - #2098: Ready with minor notes — dev-paul→main integration PR, 14/14 CI green, all 8 threads addressed; a few stale-closure/read-only items deferred by design.
+- Notes:
+  - Branch-safety: only #2098 is a `dev-*`→`main` PR (read-only for fixes); the rest target `dev-paul` from pushable feature branches. No fix pushes were needed this run, so nothing was pushed to any PR branch.
+  - CI health: #2098 shows all 14 checks green; no failing checks observed on any open PR.
+  - Housekeeping: three separate "run 23" `unifier.md` PRs (#2118, #2124, #2127) are open at once — flagged in each review that they must merge in a deliberate order (ideally consolidated) to avoid re-introducing the exact log duplication #2127 is cleaning up.
