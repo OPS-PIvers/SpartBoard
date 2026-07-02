@@ -6,7 +6,7 @@ import { vi, describe, it, expect } from 'vitest';
 import { WidgetData } from '@/types';
 
 const addWidgetSpy = vi.fn();
-vi.mock('../../../context/useDashboard', () => ({
+vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
     updateWidget: vi.fn(),
     addWidget: addWidgetSpy,
@@ -14,14 +14,14 @@ vi.mock('../../../context/useDashboard', () => ({
   }),
 }));
 
-vi.mock('../../../context/useAuth', () => ({
+vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     isAdmin: false,
     userGradeLevels: [],
   }),
 }));
 
-vi.mock('../../../hooks/useInstructionalRoutines', () => ({
+vi.mock('@/hooks/useInstructionalRoutines', () => ({
   useInstructionalRoutines: () => ({
     routines: [],
     saveRoutine: vi.fn(),

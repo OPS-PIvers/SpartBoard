@@ -63,7 +63,7 @@ vi.mock('./useAuth', () => ({
 type SnapshotCb = (dashboards: Dashboard[], hasPendingWrites: boolean) => void;
 let capturedSnapshotCb: SnapshotCb | null = null;
 
-vi.mock('../hooks/useFirestore', () => ({
+vi.mock('@/hooks/useFirestore', () => ({
   useFirestore: () => ({
     saveDashboard: vi.fn().mockResolvedValue(Date.now()),
     saveDashboards: vi.fn().mockResolvedValue(undefined),
@@ -85,7 +85,7 @@ vi.mock('../hooks/useFirestore', () => ({
   }),
 }));
 
-vi.mock('../hooks/useRosters', () => ({
+vi.mock('@/hooks/useRosters', () => ({
   useRosters: () => ({
     rosters: [],
     activeRosterId: null,
@@ -97,7 +97,7 @@ vi.mock('../hooks/useRosters', () => ({
   }),
 }));
 
-vi.mock('../hooks/useCollections', () => ({
+vi.mock('@/hooks/useCollections', () => ({
   useCollections: () => ({
     collections: [],
     loading: false,
@@ -112,7 +112,7 @@ vi.mock('../hooks/useCollections', () => ({
   }),
 }));
 
-vi.mock('../hooks/useSharedCollection', () => ({
+vi.mock('@/hooks/useSharedCollection', () => ({
   useSharedCollection: () => ({
     shareCollection: vi.fn().mockResolvedValue('mock-collection-share-id'),
     shareSubstituteCollection: vi

@@ -74,7 +74,7 @@ let capturedSnapshotCb: SnapshotCb | null = null;
 // feed its callbacks' deps) even on a pure tool-vis change — which would mask
 // the isolation guarantee under test. Same rationale as the useAuth mock above
 // and tests/perf/dashboardPerf.test.tsx.
-vi.mock('../hooks/useFirestore', () => {
+vi.mock('@/hooks/useFirestore', () => {
   const value = {
     saveDashboard: vi.fn().mockResolvedValue(Date.now()),
     saveDashboards: vi.fn().mockResolvedValue(undefined),
@@ -97,7 +97,7 @@ vi.mock('../hooks/useFirestore', () => {
   return { useFirestore: () => value };
 });
 
-vi.mock('../hooks/useRosters', () => {
+vi.mock('@/hooks/useRosters', () => {
   const value = {
     rosters: [],
     activeRosterId: null,
@@ -110,7 +110,7 @@ vi.mock('../hooks/useRosters', () => {
   return { useRosters: () => value };
 });
 
-vi.mock('../hooks/useCollections', () => {
+vi.mock('@/hooks/useCollections', () => {
   const value = {
     collections: [],
     loading: false,
@@ -126,7 +126,7 @@ vi.mock('../hooks/useCollections', () => {
   return { useCollections: () => value };
 });
 
-vi.mock('../hooks/useSharedCollection', () => {
+vi.mock('@/hooks/useSharedCollection', () => {
   const value = {
     shareCollection: vi.fn().mockResolvedValue('mock-collection-share-id'),
     shareSubstituteCollection: vi

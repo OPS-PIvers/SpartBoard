@@ -25,7 +25,7 @@ import { Dashboard, WidgetData } from '@/types';
 // Mocks
 // ---------------------------------------------------------------------------
 
-vi.mock('../context/useAuth', () => ({
+vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: {
       uid: 'test-user',
@@ -48,7 +48,7 @@ let capturedSnapshotCb: SnapshotCb | null = null;
 
 const mockSaveDashboard = vi.fn().mockResolvedValue(Date.now());
 
-vi.mock('../hooks/useFirestore', () => ({
+vi.mock('@/hooks/useFirestore', () => ({
   useFirestore: () => ({
     saveDashboard: mockSaveDashboard,
     saveDashboards: vi.fn().mockResolvedValue(undefined),
@@ -70,7 +70,7 @@ vi.mock('../hooks/useFirestore', () => ({
   }),
 }));
 
-vi.mock('../hooks/useRosters', () => ({
+vi.mock('@/hooks/useRosters', () => ({
   useRosters: () => ({
     rosters: [],
     activeRosterId: null,
@@ -82,7 +82,7 @@ vi.mock('../hooks/useRosters', () => ({
   }),
 }));
 
-vi.mock('../hooks/useCollections', () => ({
+vi.mock('@/hooks/useCollections', () => ({
   useCollections: () => ({
     collections: [],
     loading: false,
@@ -97,7 +97,7 @@ vi.mock('../hooks/useCollections', () => ({
   }),
 }));
 
-vi.mock('../hooks/useSharedCollection', () => ({
+vi.mock('@/hooks/useSharedCollection', () => ({
   useSharedCollection: () => ({
     shareCollection: vi.fn().mockResolvedValue('mock-collection-share-id'),
     shareSubstituteCollection: vi

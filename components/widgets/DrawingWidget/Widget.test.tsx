@@ -20,10 +20,10 @@ const objectsFromConfig = (cfg: DrawingConfig): DrawableObject[] => {
 };
 
 // Mock hooks
-vi.mock('../../../context/useDashboard', () => ({
+vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
 }));
-vi.mock('../../../context/useAuth', () => ({
+vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(),
 }));
 

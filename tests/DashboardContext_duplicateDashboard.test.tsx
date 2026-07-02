@@ -35,7 +35,7 @@ const mockUser = {
   email: 'owner@example.com',
 };
 
-vi.mock('../context/useAuth', () => ({
+vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: mockUser,
     isAdmin: false,
@@ -61,7 +61,7 @@ const mockSubscribeToDashboards = vi.fn((cb: SubscribeCb) => {
   return () => undefined;
 });
 
-vi.mock('../hooks/useFirestore', () => ({
+vi.mock('@/hooks/useFirestore', () => ({
   useFirestore: () => ({
     saveDashboard: mockSaveDashboard,
     saveDashboards: vi.fn().mockResolvedValue(undefined),
@@ -83,7 +83,7 @@ vi.mock('../hooks/useFirestore', () => ({
   }),
 }));
 
-vi.mock('../hooks/useRosters', () => ({
+vi.mock('@/hooks/useRosters', () => ({
   useRosters: () => ({
     rosters: [],
     activeRosterId: null,
@@ -95,7 +95,7 @@ vi.mock('../hooks/useRosters', () => ({
   }),
 }));
 
-vi.mock('../hooks/useCollections', () => ({
+vi.mock('@/hooks/useCollections', () => ({
   useCollections: () => ({
     collections: [],
     loading: false,
@@ -110,7 +110,7 @@ vi.mock('../hooks/useCollections', () => ({
   }),
 }));
 
-vi.mock('../hooks/useSharedCollection', () => ({
+vi.mock('@/hooks/useSharedCollection', () => ({
   useSharedCollection: () => ({
     shareCollection: vi.fn().mockResolvedValue('mock-share-id'),
     shareSubstituteCollection: vi.fn().mockResolvedValue('mock-sub-share-id'),
@@ -226,7 +226,7 @@ describe('DashboardContext.duplicateDashboard', () => {
   beforeEach(() => {
     // Reset only what we care about — don't `vi.clearAllMocks()`, which
     // in this test surface clears mock.calls on EVERY mocked function
-    // including the `vi.mock('../hooks/...')` factory returns, and the
+    // including the `vi.mock('@/hooks/...')` factory returns, and the
     // provider hits a stripped surface on the second test's render.
     mockSaveDashboard.mockReset();
     mockSaveDashboard.mockResolvedValue(undefined);

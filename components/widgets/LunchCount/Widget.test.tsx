@@ -4,11 +4,11 @@ import { LunchCountWidget } from './Widget';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { WidgetData, LunchCountConfig } from '@/types';
-import { mockPointerEvent } from '../../../tests/testHelpers/mocks';
+import { mockPointerEvent } from '@/tests/testHelpers/mocks';
 
 // Mock dependencies
-vi.mock('../../../context/useDashboard');
-vi.mock('../../../context/useAuth');
+vi.mock('@/context/useDashboard');
+vi.mock('@/context/useAuth');
 
 const mockDashboardContext = {
   updateWidget: vi.fn(),
