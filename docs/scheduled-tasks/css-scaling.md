@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-01_
+_Last audited: 2026-07-02_
 _Last action: 2026-06-27 — LOW ActivityWall empty-state heading `fontSize` added (`min(14px, 5.5cqmin)` + scaled `marginTop`); was unscaled 16px on a `skipScaling` widget_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-02: Full scan of 58 Widget.tsx files (+ MaterialsWidget/index.tsx). New dev-paul commit since 2026-07-01: fix(quiz): strict Matching grade compares unique prompts, not raw pair count (#2123) — changes hooks/useQuizSession.ts and tests/hooks/useQuizSession.gradeAnswer.test.ts only. No widget front-face content changes. All pre-existing open items (SpecialistSchedule border-[min()], TalkingTool 9px cap, ClockWidget bare cqmin uncapped, EmbedWidget portaled toolbar text-xs, QuizResults text-sm period-filter, RevealGrid hardcoded spacing, multi-widget group spacing, MiniApp dialog text sizes, InstructionalRoutines p-8/gap-4) confirmed present and valid. DrawingWidget excluded (skipScaling:false). ActivityWall max-h-[75vh] re-confirmed viewport-modal context, WON'T FIX. Zero new anti-patterns._
 
 _2026-07-01: Full scan of 58 Widget.tsx files. New dev-paul commit since 2026-06-30: style(docs) fix prettier formatting in unifier.md — docs-only, no widget front-face changes. Automated agent scan confirmed: RevealGrid text-xs/text-gray-700, MiniApp overlay text sizes, Embed toolbar text-xs, GuidedLearning w-8 h-8 Loader2 (line shifted to :618), NextUp spacing utilities — all pre-existing items, all confirmed valid. NEW sub-entries added to group open item: InstructionalRoutines/Widget.tsx:186 uses `p-8` in the `isHero` branch and :276 uses `mt-4 gap-4`/`gap-2` in the action row — hardcoded Tailwind padding/gap in a skipScaling:true widget's front-face content. Countdown color classes (text-slate-400/text-slate-700) reviewed — color-only classes, not sizing violations, WON'T FIX. GuidedLearning group item line reference updated from :231 to :618. All other pre-existing open items confirmed valid._
 
