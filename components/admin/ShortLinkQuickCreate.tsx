@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Link2 } from 'lucide-react';
 
 import { ShortLinkCreateForm } from './LinkShortenerManager';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 interface ShortLinkQuickCreateProps {
   onClose: () => void;
@@ -17,7 +18,9 @@ export const ShortLinkQuickCreate: React.FC<ShortLinkQuickCreateProps> = ({
 }) => {
   React.useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(event)) return;
+      onClose();
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);

@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
 import { Star, Plus } from 'lucide-react';
@@ -45,9 +46,9 @@ const ClassRosterMenu: React.FC<Props> = ({
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
+      if (event.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(event)) return;
+      onClose();
     };
 
     document.addEventListener('mousedown', handleClickOutside);
