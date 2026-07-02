@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import tailwindConfig from '../../tailwind.config.js';
+import tailwindConfig from '@/tailwind.config.js';
 
 /**
  * Guards the global `prefers-reduced-motion: reduce` handling (WCAG 2.3.3).

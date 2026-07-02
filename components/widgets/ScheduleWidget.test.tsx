@@ -17,9 +17,9 @@ import { useAuth } from '@/context/useAuth';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { WidgetData, ScheduleConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
 
-vi.mock('../../context/useDashboard');
-vi.mock('../../context/useAuth');
-vi.mock('../../hooks/useFeaturePermissions');
+vi.mock('@/context/useDashboard');
+vi.mock('@/context/useAuth');
+vi.mock('@/hooks/useFeaturePermissions');
 
 // Controllable getTodayStr for the UTC/local-date split regression test.
 // vi.hoisted ensures the mock fn is available when the vi.mock factory below
@@ -54,7 +54,7 @@ Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
 });
 
 // Mock useScaledFont to return a fixed size
-vi.mock('../../hooks/useScaledFont', () => ({
+vi.mock('@/hooks/useScaledFont', () => ({
   useScaledFont: () => 16,
 }));
 
