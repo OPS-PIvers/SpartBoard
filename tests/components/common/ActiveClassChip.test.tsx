@@ -232,4 +232,36 @@ describe('ActiveClassChip', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
   });
+
+  it('does not close the menu when Escape originates from inside a [data-widget-portal] element', () => {
+    const rosters = [
+      makeRoster('r1', 'Period 1'),
+      makeRoster('r2', 'Period 2'),
+    ];
+    mockUseDashboard({ rosters, activeRosterId: 'r1' });
+
+    render(<ActiveClassChip />);
+    fireEvent.click(screen.getByRole('button', { name: /active class/i }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+
+    const portalRoot = document.createElement('div');
+    portalRoot.setAttribute('data-widget-portal', '');
+    const inner = document.createElement('button');
+    portalRoot.appendChild(inner);
+    document.body.appendChild(portalRoot);
+
+    try {
+      inner.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Escape',
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+      // Guard must swallow the Escape — menu stays open.
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+    } finally {
+      document.body.removeChild(portalRoot);
+    }
+  });
 });

@@ -27,12 +27,12 @@ vi.mock('lucide-react', () => {
 });
 
 // Mock instructionalIcons config
-vi.mock('../../../config/instructionalIcons', () => ({
+vi.mock('@/config/instructionalIcons', () => ({
   COMMON_INSTRUCTIONAL_ICONS: ['Zap', 'Lightbulb'],
 }));
 
 // Mock FloatingPanel to just render children (simplifies testing without portal issues)
-vi.mock('../../common/FloatingPanel', () => ({
+vi.mock('@/components/common/FloatingPanel', () => ({
   FloatingPanel: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="floating-panel">{children}</div>
   ),

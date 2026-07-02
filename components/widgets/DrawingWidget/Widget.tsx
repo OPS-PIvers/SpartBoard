@@ -1237,6 +1237,7 @@ export const DrawingWidget: React.FC<{
                 <div
                   id="drawing-export-popover"
                   data-testid="drawing-export-popover"
+                  data-widget-portal=""
                   className="fixed z-[2147483600] min-w-[200px] bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden"
                   style={{
                     bottom: `${exportMenuAnchor.bottom}px`,
@@ -1333,6 +1334,7 @@ export const DrawingWidget: React.FC<{
           <div
             id="drawing-tool-popover"
             data-testid="drawing-tool-popover"
+            data-widget-portal=""
             role="dialog"
             aria-label={`${toolPopover === 'eraser' ? 'Eraser' : 'Tool'} options`}
             className="fixed z-[2147483600] w-[260px] rounded-xl bg-slate-900/95 backdrop-blur-md shadow-xl border border-white/10 p-3"

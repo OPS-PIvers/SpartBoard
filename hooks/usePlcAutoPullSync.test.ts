@@ -6,7 +6,7 @@ import {
   type PlcCanonicalGroupVersion,
 } from './usePlcAutoPullSync';
 
-vi.mock('../utils/logError', () => ({ logError: vi.fn() }));
+vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
 
 interface Meta extends PlcSyncReplica {
   id: string;

@@ -212,6 +212,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   return createPortal(
     <div
       ref={panelRef}
+      data-widget-portal=""
       className={`font-${globalStyle.fontFamily}`}
       style={{
         position: 'fixed',

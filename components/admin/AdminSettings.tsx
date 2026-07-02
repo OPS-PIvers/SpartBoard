@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import {
   Settings,
   Shield,
@@ -177,12 +178,16 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
   // The desktop rail is always visible, so this flag is inert there.
   const [showMobileMenu, setShowMobileMenu] = useState(true);
 
-  // Close modal on Escape key press
+  // Close modal on Escape key press. Guard: if Escape originates from an input
+  // inside a DraggableWindow and reaches this listener (e.g. the widget's own
+  // handler stopped React propagation before DraggableWindow could call
+  // stopImmediatePropagation), don't close — the user was cancelling an inline
+  // edit, not dismissing this panel.
   React.useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
+      if (event.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(event)) return;
+      onClose();
     };
 
     document.addEventListener('keydown', handleEscape);

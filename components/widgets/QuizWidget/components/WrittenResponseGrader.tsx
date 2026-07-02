@@ -28,6 +28,7 @@ import {
   WrittenAnswerGrade,
 } from '@/types';
 import { sanitizeQuizResponse } from '@/utils/security';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { AnnotatedResponseView } from './AnnotatedResponseView';
 import { highlightClass, htmlToPlainText } from '@/utils/writtenAnnotations';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
@@ -205,6 +206,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (isEscapeFromWidgetInput(e)) return;
         e.preventDefault();
         onClose();
         return;

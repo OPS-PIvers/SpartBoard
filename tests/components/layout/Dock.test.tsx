@@ -511,6 +511,142 @@ describe('Dock smart-paste – processAndUploadImage is not a spurious dep', () 
   });
 });
 
+// ── Regression: unstable onError inline arrow causes startRecording churn ────
+//
+// Bug: `onError` was defined as an inline arrow function inside the
+// `useScreenRecord(...)` call in Dock.tsx, giving it a new identity every
+// render. useScreenRecord now owns stability via render-body refs so
+// startRecording is unconditionally stable regardless of onError identity, but
+// Dock.tsx still wraps handleRecordingError in useCallback([addToast]) as good
+// practice — the test below guards that.
+//
+// The listener-stability test verifies the correct useEffect behavior: when
+// startRecording / stopRecording / isRecording are all stable across a
+// re-render, the spart-screen-record-toggle/-query listeners are not torn down
+// and re-registered.
+
+describe('Dock screen-record – startRecording identity is stable across unrelated re-renders', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('does NOT remove/re-add the spart-screen-record-toggle listener when startRecording identity is stable', () => {
+    // Spy on window event listener methods BEFORE rendering so we capture every
+    // call made during mount and re-renders.
+    const addSpy = vi.spyOn(window, 'addEventListener');
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+
+    setupMocks();
+
+    // Give useScreenRecord a stable startRecording reference (the fn identity
+    // must NOT change between renders — simulating the fix being in place).
+    const stableStartRecording = vi.fn();
+    const stableStopRecording = vi.fn();
+    vi.mocked(useScreenRecord).mockReturnValue({
+      isRecording: false,
+      duration: 0,
+      startRecording: stableStartRecording,
+      stopRecording: stableStopRecording,
+      error: null,
+    } as unknown as ReturnType<typeof useScreenRecord>);
+
+    const { rerender } = render(<Dock />);
+
+    // After initial mount the listeners should have been added exactly once.
+    const addToggleAfterMount = addSpy.mock.calls.filter(
+      ([event]) => event === 'spart-screen-record-toggle'
+    ).length;
+    const addQueryAfterMount = addSpy.mock.calls.filter(
+      ([event]) => event === 'spart-screen-record-query'
+    ).length;
+    expect(addToggleAfterMount).toBe(1);
+    expect(addQueryAfterMount).toBe(1);
+
+    // No removals yet.
+    expect(
+      removeSpy.mock.calls.filter(
+        ([event]) => event === 'spart-screen-record-toggle'
+      ).length
+    ).toBe(0);
+
+    // Reset spy counts so we only measure what happens on the re-render.
+    addSpy.mockClear();
+    removeSpy.mockClear();
+
+    // Trigger an unrelated Dock re-render by keeping the same mock for
+    // useScreenRecord so that startRecording / stopRecording / isRecording are
+    // all unchanged.
+    vi.mocked(useScreenRecord).mockReturnValue({
+      isRecording: false,
+      duration: 0,
+      startRecording: stableStartRecording, // same reference
+      stopRecording: stableStopRecording, // same reference
+      error: null,
+    } as unknown as ReturnType<typeof useScreenRecord>);
+
+    rerender(<Dock />);
+
+    // BUG (before fix): startRecording was a new reference on every render
+    // (because onError inline arrow → new options object → new startRecording).
+    // The useEffect would see the new reference in its deps, call cleanup
+    // (removeEventListener) and re-register (addEventListener) — counts each 1.
+    //
+    // CORRECT (after fix): startRecording identity is stable across unrelated
+    // re-renders, so the useEffect does NOT re-run — both counts stay at 0.
+    const removeToggleAfterRerender = removeSpy.mock.calls.filter(
+      ([event]) => event === 'spart-screen-record-toggle'
+    ).length;
+    const removeQueryAfterRerender = removeSpy.mock.calls.filter(
+      ([event]) => event === 'spart-screen-record-query'
+    ).length;
+    const addToggleAfterRerender = addSpy.mock.calls.filter(
+      ([event]) => event === 'spart-screen-record-toggle'
+    ).length;
+    const addQueryAfterRerender = addSpy.mock.calls.filter(
+      ([event]) => event === 'spart-screen-record-query'
+    ).length;
+
+    expect(removeToggleAfterRerender).toBe(0);
+    expect(removeQueryAfterRerender).toBe(0);
+    expect(addToggleAfterRerender).toBe(0);
+    expect(addQueryAfterRerender).toBe(0);
+  });
+
+  it('passes a stable onError reference to useScreenRecord across unrelated re-renders', () => {
+    setupMocks();
+
+    // Capture the options object passed to useScreenRecord on each call so we
+    // can assert onError identity is stable (i.e. handleRecordingError is a
+    // stable useCallback, not a new inline arrow per render).
+    const capturedOnError: Array<unknown> = [];
+    vi.mocked(useScreenRecord).mockImplementation((opts = {}) => {
+      capturedOnError.push(opts.onError);
+      return {
+        isRecording: false,
+        duration: 0,
+        startRecording: vi.fn(),
+        stopRecording: vi.fn(),
+        error: null,
+      } as unknown as ReturnType<typeof useScreenRecord>;
+    });
+
+    const { rerender } = render(<Dock />);
+    rerender(<Dock />);
+
+    // handleRecordingError is defined via useCallback([addToast]) in Dock.tsx.
+    // Its reference must be stable — an inline arrow would be a new ref every
+    // render. With the old hook implementation, an unstable onError caused
+    // startRecording to churn; with the current render-body-ref implementation
+    // it no longer does, but stability here is still good practice.
+    expect(capturedOnError.length).toBeGreaterThanOrEqual(2);
+    expect(capturedOnError[0]).toBe(capturedOnError[1]);
+  });
+});
+
 // ── Regression: handlePaste guard missing 'SELECT' ────────────────────────
 //
 // Bug: The isTypingField guard in handlePaste checked only INPUT and TEXTAREA

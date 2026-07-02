@@ -52,6 +52,7 @@ import { useSelection } from '@/components/widgets/DrawingWidget/useSelection';
 import { hitTestObject } from '@/components/widgets/DrawingWidget/hitTest';
 import { Button } from '@/components/common/Button';
 import { extractTextWithGemini } from '@/utils/ai';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import {
   DrawableObject,
   ImageObject,
@@ -201,7 +202,7 @@ export const AnnotationOverlay: React.FC = () => {
     if (!shouldRender) return undefined;
     if (editingText) return undefined;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeAnnotation();
+      if (e.key === 'Escape' && !isEscapeFromWidgetInput(e)) closeAnnotation();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
