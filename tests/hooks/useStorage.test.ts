@@ -19,11 +19,11 @@ vi.mock('firebase/storage', () => ({
   storage: {},
 }));
 
-vi.mock('../../context/useAuth', () => ({
+vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(),
 }));
 
-vi.mock('../../hooks/useGoogleDrive', () => ({
+vi.mock('@/hooks/useGoogleDrive', () => ({
   useGoogleDrive: vi.fn(),
 }));
 

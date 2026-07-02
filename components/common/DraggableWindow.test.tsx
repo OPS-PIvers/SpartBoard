@@ -35,7 +35,7 @@ const { mockTakeScreenshot } = vi.hoisted(() => ({
   mockTakeScreenshot: vi.fn(),
 }));
 
-vi.mock('../../hooks/useScreenshot', () => ({
+vi.mock('@/hooks/useScreenshot', () => ({
   useScreenshot: () => ({
     takeScreenshot: mockTakeScreenshot,
     isFlashing: false,
@@ -43,7 +43,7 @@ vi.mock('../../hooks/useScreenshot', () => ({
   }),
 }));
 
-vi.mock('../../hooks/useClickOutside', () => ({
+vi.mock('@/hooks/useClickOutside', () => ({
   useClickOutside: vi.fn(),
 }));
 

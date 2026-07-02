@@ -9,7 +9,7 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: vi.fn(),
 }));
 
-vi.mock('../config/firebase', () => ({
+vi.mock('@/config/firebase', () => ({
   db: {},
   isAuthBypass: false,
 }));
