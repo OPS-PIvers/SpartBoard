@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-06-23_
+_Last audited: 2026-06-30_
 _Last action: 2026-06-16_
 
 ---
@@ -16,18 +16,15 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-06-30 (action): Fixed MEDIUM `dompurify` `ALLOWED_ATTR` pollution bypass (GHSA-cmwh-pvxp-8882). Bumped the direct production dependency `^3.4.2` → `^3.4.11` in `package.json` and added `"dompurify": "^3.4.11"` to `pnpm.overrides` (initially `">=3.4.11"`, tightened to `^3.4.11` in a follow-up commit per PR review — caps the transitive monaco bump below a hypothetical 4.x while resolving identically today). The override is required: before the fix, `pnpm why dompurify` showed two resolutions — `dompurify@3.4.2` (direct) and `dompurify@3.2.7` (transitive via `@monaco-editor/react > monaco-editor`, which pins dompurify to exactly `3.2.7`), so a top-level bump alone would not have lifted the transitive path. After `pnpm install`, `pnpm why dompurify` reports a single `dompurify@3.4.11` across both paths and `pnpm audit | grep -i 'dompurify|cmwh-pvxp'` returns 0. File-recency check passed: `package.json` last touched at 0164e761 (position 50 in branch history) — well outside the last 5 branch commits. `pnpm install --frozen-lockfile` passes against the dev-paul base. Verified clean: `prettier --check package.json` (clean), `pnpm type-check` (0 errors), `eslint utils/security.ts utils/notebookSvgEdit.ts` (0 warnings), `vitest run utils/security.test.ts` (15/15) + `vitest run utils/notebookSvgEdit.test.ts` (12/12). No code change required (usage passes config inline to `DOMPurify.sanitize()`, not `setConfig()`; sanitize API unchanged across 3.x). Moved item to Completed. PR opened against dev-paul: #2120 (branch `deps/dompurify-3.4.11`, rebased directly on dev-paul so the diff is exactly `package.json` + `pnpm-lock.yaml` — the code change does NOT carry this journal update; the journal record lives here on scheduled-tasks). Remaining MEDIUM items (ts-deepmerge, flatted, ws, yaml, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash) and the LOW items all still active._
+
+_2026-06-30: pnpm audit (root): 142 vulnerabilities (12 low | 66 moderate | 62 high | 2 critical) — unchanged count from 2026-06-23. pnpm audit (functions): 58 vulnerabilities (4 low | 23 moderate | 30 high | 1 critical) — unchanged. Root critical: (1) basic-ftp path traversal via firebase-tools>proxy-agent>pac-proxy-agent>get-uri>basic-ftp; (2) fast-xml-parser entity encoding bypass via firebase-admin>@google-cloud/storage — same as prior runs. Functions critical: fast-xml-parser entity encoding bypass same path. pnpm outdated version drift vs 2026-06-23 snapshot: `@google/genai` (root+functions) latest moved 2.9.0→2.10.0; `firebase-admin` (functions) latest moved 14.0.0→14.1.0; `eslint` latest moved 10.5.0→10.6.0; `@vitejs/plugin-react` latest moved 6.0.2→6.0.3; `recharts` 3.8.1→3.9.0 (new minor); `@playwright/test` latest moved 1.61.0→1.61.1; `@types/node` (dev) 24.12.2→26.0.1 — now 2 major versions behind installed; `google-auth-library` (functions) 10.5.0→10.9.0; `@google-cloud/functions-framework` (functions) 5.0.0→5.0.2 (minor). New observation: `@types/tesseract.js@2.0.0` is deprecated per pnpm outdated output (shows "Deprecated" in Latest column) — logged as new LOW item. Updated LOW major-versions item with current versions. All existing open items (dompurify, ts-deepmerge, flatted, ws, yaml, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash) still active._
+
 _2026-06-23: pnpm audit (root): 142 vulnerabilities (12 low | 66 moderate | 62 high | 2 critical). pnpm audit (functions): 58 vulnerabilities (4 low | 23 moderate | 30 high | 1 critical). Root count increased by 7 from 2026-06-16 (135 → 142). Functions count decreased by 1 (qs fix from 2026-06-16 still holding at 59 → 58 after merge). Two new items detected: (a) dompurify 3.4.2 → needs >=3.4.11 (GHSA-cmwh-pvxp-8882, MEDIUM, production dependency); (b) ts-deepmerge DoS in functions via firebase-functions-test (GHSA-87mf-gv2c-c62c, MODERATE, test-only). Updated LOW major-versions item with current latest versions from `pnpm outdated`: hono 4.12.15 → 4.12.27, dompurify 3.4.2 → 3.4.11, firebase 12.8.0 → 12.15.0, react/react-dom 19.2.4 → 19.2.7, @google/genai (root+functions) 1.51.0 → 2.9.0, firebase-admin (functions) 13.6.0 → 14.0.0, jose (functions) 4.15.9 → 6.2.3, typescript (functions) 5.9.3 → 6.0.3, @vitejs/plugin-react 5.1.2 → 6.0.2, eslint 9.39.2 → 10.5.0, axios (root) 1.15.0 → 1.18.1. Existing open items (flatted, ws, yaml, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash, major-versions) all still active._
 
 _2026-06-16 (action): Fixed MEDIUM `qs` DoS in functions (GHSA-q8mj-m7cp-5q26). Added `"qs": ">=6.15.2"` to `functions/package.json` `pnpm.overrides` (option (b) — the deterministic fix). Before: `pnpm -C functions why qs` showed two vulnerable resolutions (qs@6.14.2 via `@google-cloud/functions-framework>body-parser>qs` and qs@6.15.0 via `@google-cloud/functions-framework>express>qs`, both in the vulnerable range >=6.11.1 <=6.15.1). After `pnpm -C functions install`: `pnpm -C functions why qs` reports a single `qs@6.15.2`, and `pnpm -C functions audit` no longer reports GHSA-q8mj-m7cp-5q26 (grep count 0). File-recency check passed: `functions/package.json` last touched at 316d3062 (#1973) — outside the last 5 branch commits. Verified clean: `prettier --check functions/package.json` (clean), `pnpm -C functions type-check` (0 errors), `pnpm -C functions build` (tsc succeeds), `pnpm -C functions test` (29 files / 532 tests all pass). Moved item to Completed. PR opened against dev-paul: #1991 (rebased directly on dev-paul so the diff is just the two functions/ files — the code change does NOT carry this journal update; the journal record lives here on scheduled-tasks). The root-side instance of this advisory (via `@google/genai > @modelcontextprotocol/sdk > express > qs`) remains covered by the separate MEDIUM MCP SDK item. Remaining MEDIUM items (flatted, ws, yaml, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash) and the LOW major-versions item all still active._
 
 _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 high | 2 critical). pnpm audit (functions): 59 vulnerabilities (4 low | 24 moderate | 30 high | 1 critical). No new vulnerabilities beyond existing tracked items. Status updates: (a) vitest@4.1.8 — CRITICAL GHSA-5xrq-8626-4rwp NOT reported in audit output (resolved — already in Completed from 2026-06-09); (b) firebase-admin latest jumped to 14.0.0 (major) — MEDIUM firebase-admin item updated; (c) firebase-tools latest is now 15.20.0 (up from 15.19.1); (d) vite latest is 8.0.16 (2 majors); (e) hono still at 4.12.15 (both MEDIUM and HIGH open items remain). @modelcontextprotocol/sdk still at 1.25.2. All open items confirmed still active._
-
-### MEDIUM `dompurify@3.4.2` has `ALLOWED_ATTR` pollution bypass — direct production dependency
-
-- **Detected:** 2026-06-23
-- **File:** package.json (direct production dependency `dompurify@3.4.2`)
-- **Detail:** **GHSA-cmwh-pvxp-8882** (moderate): "DOMPurify: Permanent `ALLOWED_ATTR` pollution via `setConfig()` bypassing the hook clone-guard (incomplete fix of the 3.4.7 hook-pollution patch)." Affects `dompurify` <=3.4.10, patched in >=3.4.11. Current installed version is `dompurify@3.4.2`. `pnpm outdated` confirms latest is `3.4.11`. This is a **production dependency** directly declared in `package.json` (resolved as an incompatible fix to an earlier series of XSS CVEs in 2026-05-19). The vulnerability allows an attacker to permanently pollute `ALLOWED_ATTR` via `setConfig()` — if any code path calls `DOMPurify.setConfig()` followed by `DOMPurify.sanitize()`, the config may be exploitable. Two resolution paths: the direct dependency and the transitive path `.>@monaco-editor/react>monaco-editor>dompurify`.
-- **Fix:** `pnpm up dompurify@^3.4.11` in root. Verify `pnpm why dompurify` confirms both the direct and transitive `@monaco-editor/react` paths resolve to 3.4.11+. Run `pnpm type-check`, `pnpm lint`, `pnpm test` to confirm no regressions. If `@monaco-editor/react` pins an older range, add `"dompurify": ">=3.4.11"` to `pnpm.overrides` as well.
 
 ### MEDIUM `ts-deepmerge` prototype method override DoS — via `firebase-functions-test` in functions
 
@@ -134,33 +131,49 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 - **Detail:** HIGH — lodash >=4.0.0 <=4.17.23 vulnerable to code injection via `_.template`. This comes via `firebase-functions-test > lodash`. Only in test infrastructure, not production runtime.
 - **Fix:** Update `firebase-functions-test` from 3.4.1 to latest — check if newer version depends on a patched lodash. This is a test-only devDependency.
 
+### LOW `@types/tesseract.js@2.0.0` is deprecated — may become a resolution problem
+
+- **Detected:** 2026-06-30
+- **File:** package.json (devDependency `@types/tesseract.js@2.0.0`)
+- **Detail:** `pnpm outdated` reports `@types/tesseract.js@2.0.0` as "Deprecated" in the Latest column. Deprecated DefinitelyTyped packages are removed from the registry or superseded by bundled types. `tesseract.js` itself is installed at 7.0.0 — newer versions of tesseract.js may bundle their own types, making the separate `@types/tesseract.js` package redundant. If the DefinitelyTyped package is removed or falls out of sync, `tsc` may produce errors or use stale types.
+- **Fix:** Check whether `tesseract.js@7.0.0` bundles its own TypeScript types (inspect `node_modules/tesseract.js/package.json` for `"types"` or `"typings"` fields). If it does, remove `@types/tesseract.js` from `devDependencies` entirely and verify `pnpm type-check` still passes. If it doesn't bundle types, keep `@types/tesseract.js@2.0.0` but add a comment explaining why the deprecated package is retained.
+
 ### LOW Major version updates available — require planned migration
 
 - **Detected:** 2026-04-14
-- **Updated:** 2026-05-19
+- **Updated:** 2026-06-30
 - **File:** package.json
 - **Detail:** Several packages have major version releases available that require migration planning (breaking changes):
   - `tailwindcss`: 3.4.19 → **4.3.0** (major — config format changed completely)
-  - `vite`: 6.4.2 → **8.0.13** (2 majors ahead; focus on patching within v6 first)
-  - `eslint`: 9.39.2 → **10.4.0** (major — verify flat config compatibility)
+  - `vite`: 6.4.2 → **8.0.16** (2 majors ahead; focus on patching within v6 first)
+  - `eslint`: 9.39.2 → **10.6.0** (major — verify flat config compatibility)
   - `@eslint/js`: 9.39.2 → **10.0.1** (paired with eslint)
   - `typescript`: 5.9.3 → **6.0.3** (major — strict mode changes)
   - `i18next`: 25.8.13 → **26.2.0** (major — API changes)
   - `react-i18next`: 16.5.4 → **17.0.8** (paired with i18next)
-  - `lucide-react`: 0.563.0 → **1.16.0** (first stable major — icon API changes possible)
-  - `@vitejs/plugin-react`: 5.1.2 → **6.0.2** (major)
-  - `@types/node`: 24.12.2 → **25.9.0** (major — verify Node 24 compat)
+  - `lucide-react`: 0.563.0 → **1.18.0** (first stable major — icon API changes possible)
+  - `@vitejs/plugin-react`: 5.1.2 → **6.0.3** (major)
+  - `@types/node`: 24.12.2 → **26.0.1** (2 major versions behind — verify Node 24 compat; was tracking 25.9.0 previously, latest now at 26.x)
   - `jsdom`: 27.4.0 → **29.1.1** (2 majors ahead — test environment only; also resolves ws CVE)
   - `lint-staged`: 16.2.7 → **17.0.5** (major — check husky integration compatibility)
-  - `@google/genai`: 1.51.0 → **2.8.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade; bumped from 2.7.0 → 2.8.0 as of 2026-06-09)
+  - `@google/genai`: 1.51.0 → **2.10.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade)
   - Functions: `jose` 4.15.9 → **6.2.3** (2 major versions behind; jose is a JWT/JWK library used transitively via `firebase-admin`; no direct import in project code confirmed. Major version gap may involve breaking API changes if ever imported directly.)
-    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → **19.2.7**, `firebase-tools` 15.8.0 → **15.22.1** (updated 2026-06-23), `firebase` 12.8.0 → **12.15.0** (updated 2026-06-23), `firebase-admin` (functions) 13.6.0 → **14.0.0** (major), `@playwright/test` 1.58.0 → **1.61.0**, `@typescript-eslint/*` 8.54.0 → **8.62.0**, `vitest` (root) 4.1.8 → **4.1.9**, `hono` 4.12.15 → **4.12.27** (also has active MEDIUM CVE — see separate item), `dompurify` 3.4.2 → **3.4.11** (also has active MEDIUM CVE — see separate item), `postcss` 8.5.6 → **8.5.15**, `prettier` 3.8.1 → **3.8.4**, `eslint-plugin-prettier` 5.5.5 → **5.5.6**, `eslint-plugin-react-hooks` 7.0.1 → **7.1.1**, `globals` 17.2.0 → **17.7.0**, `@firebase/rules-unit-testing` 5.0.0 → 5.0.1, `google-auth-library` (functions) 10.5.0 → **10.7.0**, `vite` 6.4.2 → **8.0.16** (2 majors ahead), `lucide-react` 0.563.0 → **1.18.0** (major; first stable), `@vitejs/plugin-react` 5.1.2 → **6.0.2** (major), `react-i18next` 16.5.4 → **17.0.8** (major), `@google/genai` (root+functions) 1.51.0 → **2.9.0** (major — all AI generation flows need testing after upgrade), functions `axios` 1.15.0 → **1.18.1**, functions `@google-cloud/functions-framework` 5.0.0 → **5.0.2**, `axios` (root) 1.15.0 → **1.18.1** (also active separate MEDIUM CVE — upgrade resolves). (Updated 2026-06-23)
+  - Functions: `firebase-admin` 13.6.0 → **14.1.0** (major version jump; check migration guide for breaking changes before updating)
+    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → **19.2.7**, `firebase-tools` 15.8.0 → **15.22.1+** (check latest), `firebase` 12.8.0 → **12.15.0**, `@playwright/test` 1.58.0 → **1.61.1**, `@typescript-eslint/*` 8.54.0 → **8.62.1**, `vitest` (root) 4.1.8 → **4.1.9**, `hono` 4.12.15 → **4.12.27** (also has active MEDIUM CVE — see separate item), `dompurify` 3.4.2 → **3.4.11** (also has active MEDIUM CVE — see separate item), `postcss` 8.5.6 → **8.5.16**, `prettier` 3.8.1 → **3.9.4**, `eslint-plugin-prettier` 5.5.5 → **5.5.6**, `eslint-plugin-react-hooks` 7.0.1 → **7.1.1**, `globals` 17.2.0 → **17.7.0**, `@firebase/rules-unit-testing` 5.0.0 → 5.0.1, `google-auth-library` (functions) 10.5.0 → **10.9.0**, `lucide-react` 0.563.0 → **1.18.0** (major; first stable), `react-i18next` 16.5.4 → **17.0.8** (major), `@google/genai` (root+functions) 1.51.0 → **2.10.0** (major — all AI generation flows need testing after upgrade), functions `axios` 1.15.0 → **1.18.1**, functions `@google-cloud/functions-framework` 5.0.0 → **5.0.2**, `axios` (root) 1.15.0 → **1.18.1** (also active separate MEDIUM CVE — upgrade resolves), `recharts` 3.8.1 → **3.9.0**. (Updated 2026-06-30)
     These should not be done in a single commit — each needs its own migration PR with testing.
 - **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 6 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix. `@google/genai` major bump warrants dedicated testing of all AI generation flows (quiz, mini-app, widget builder, OCR, etc.). jsdom update to v29 also resolves the ws CVE tracked separately.
 
 ---
 
 ## Completed
+
+### MEDIUM `dompurify@3.4.2` has `ALLOWED_ATTR` pollution bypass — direct production dependency
+
+- **Detected:** 2026-06-23
+- **Completed:** 2026-06-30
+- **File:** package.json (direct production dependency + `pnpm.overrides`), pnpm-lock.yaml
+- **Detail:** **GHSA-cmwh-pvxp-8882** (moderate): "DOMPurify: Permanent `ALLOWED_ATTR` pollution via `setConfig()` bypassing the hook clone-guard (incomplete fix of the 3.4.7 hook-pollution patch)." Affects `dompurify` <=3.4.10, patched in >=3.4.11. dompurify is a **production dependency** consumed directly by `utils/security.ts` (`sanitizeHtml`/`sanitizeQuizResponse`) and `utils/notebookSvgEdit.ts` (`sanitizePageSvg`). Pre-fix, `pnpm why dompurify` showed two resolutions: `dompurify@3.4.2` (direct) and `dompurify@3.2.7` (transitive via `@monaco-editor/react > monaco-editor`, which pins dompurify to exactly `3.2.7`).
+- **Resolution:** Bumped the direct dependency `^3.4.2` → `^3.4.11` and added `"dompurify": "^3.4.11"` to `pnpm.overrides` (the override is required because monaco-editor's exact `3.2.7` pin would otherwise keep the transitive path on the vulnerable version; the override was tightened from `">=3.4.11"` to `^3.4.11` in a follow-up commit per PR review, resolving identically while capping the transitive bump below a future 4.x). After `pnpm install`, `pnpm why dompurify` reports a single resolved version `3.4.11` across both the direct and `@monaco-editor/react` paths, and `pnpm audit | grep dompurify/cmwh-pvxp` returns 0. `pnpm install --frozen-lockfile` passes against the dev-paul base. Verified clean: `prettier --check package.json` (clean), `pnpm type-check` (0 errors), `eslint utils/security.ts utils/notebookSvgEdit.ts` (0 warnings), `vitest run utils/security.test.ts` (15/15 pass), `vitest run utils/notebookSvgEdit.test.ts` (12/12 pass). No code change needed — all usage passes config inline to `DOMPurify.sanitize()` (not `setConfig()`), and the sanitize API is unchanged across the 3.x series. Shipped as PR #2120 against dev-paul (branch `deps/dompurify-3.4.11` rebased directly on dev-paul tip, so the PR diff is exactly `package.json` + `pnpm-lock.yaml`; this journal record lives on scheduled-tasks).
 
 ### MEDIUM `qs` DoS in functions via `@google-cloud/functions-framework` — patched in >=6.15.2
 

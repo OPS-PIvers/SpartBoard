@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-28_
+_Last audited: 2026-07-02_
 _Last action: 2026-06-25_
 
 ---
@@ -15,6 +15,10 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-02: Full audit. New dev-paul commit since 2026-07-01: fix(quiz): strict Matching grade compares unique prompts, not raw pair count (#2123) — changes hooks/useQuizSession.ts and tests/hooks/useQuizSession.gradeAnswer.test.ts only. No impact on types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations (sticker intentional WidgetRenderer special-case; 7 intentionally excluded from tools.ts; 3 InternalToolType entries documented). All sampled lazyNamed() export names verified correct. pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
+
+_2026-07-01: Full audit. New dev-paul commit since 2026-06-30: style(docs): fix prettier formatting in unifier.md to unblock dev-paul CI (#2122) — docs-only, no impact on types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations (sticker intentional WidgetRenderer special-case; 7 intentionally excluded from tools.ts; 3 InternalToolType entries documented). All sampled lazyNamed() export names verified correct. pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
 _2026-06-28: Full audit. Rebased onto dev-paul (new commits since 2026-06-27: fix(activity-wall) scale empty-state heading on skipScaling widget, audit(saturday) journal updates, plus upstream: refactor(rules) slim firestore.rules comments, Review fixes for #2076 substitute shares, Rules/auth hardening #2081, fix(ci) prod hosting deploy idempotent, fix(lint) LinksPanel/ShortenUrlButton). None touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations. All sampled lazyNamed() export names verified correct. pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
@@ -105,6 +109,8 @@ _2026-05-12: Full audit of all 63 WidgetType values against WIDGET_COMPONENTS, W
 _2026-05-06: All WidgetType values verified against WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_SCALING_CONFIG, widgetDefaults.ts, tools.ts, and widgetGradeLevels.ts. No new gaps found. TimeTool ±button additions, URL widget overhaul, and BlendingBoard expansion all correctly registered. `stations`, `need-do-put-then`, `blooms-detail`, `blooms-taxonomy` — all confirmed._
 
 _2026-05-05: `blending-board` (added in dev-paul merge) verified fully registered in all locations; export names match source files. No new registry gaps from the merge._
+
+_2026-06-30: Full audit after rebasing onto dev-paul (new commits: fix(analytics) add missing labels for 7 programmatic widget types (#2103), pr-review 9 PRs, docs(unifier) run 22, fix(widgets) local-time date helpers for due-date, fix(layout) plug isLocked gaps, fix(functions) mirrorPlcIndex fallback, fix(state) gradeAnswer Matching, chore(docs) debugger log). Direct grep of types.ts WidgetType union confirms VERIFIED COUNT: 63 WidgetType members (unchanged — analytics commit added TOOLS array labels for programmatic types that already existed in the union; no new WidgetType members added). Comprehensive agent scan confirmed all 63 properly registered: all in WIDGET_COMPONENTS (sticker intentional WidgetRenderer special-case per JSDoc), all in widgetDefaults.ts and widgetGradeLevels.ts, 49 user-selectable in tools.ts (analytics commit brought programmatic types' label coverage up to parity; intentional exclusions remain for catalyst-instruction, catalyst-visual, blooms-detail, mathTool, custom-widget, onboarding, sticker, starter-pack, and a few others per tools.ts JSDoc), 3 InternalToolType entries (magic, record, remote) correctly in tools.ts and widgetGradeLevels.ts. All 10 spot-checked lazyNamed() export names verified correct. pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
 _No open items._
 

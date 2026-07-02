@@ -392,13 +392,14 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                   key={item.id}
                   className={`w-full flex items-center rounded-2xl transition-all relative overflow-hidden shrink-0 ${
                     isActive
-                      ? 'border-[min(6px,1.5cqmin)] border-teal-600 shadow-md z-10'
+                      ? 'border-teal-600 shadow-md z-10'
                       : 'border border-slate-200 shadow-sm'
                   }`}
                   style={{
                     backgroundColor: bgColor,
                     padding: 'min(12px, 3cqmin)',
                     gap: 'min(12px, 2.5cqmin)',
+                    ...(isActive ? { borderWidth: 'min(6px, 1.5cqmin)' } : {}),
                   }}
                 >
                   {isActive && (
