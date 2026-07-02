@@ -22,6 +22,8 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-07-02 (action): Resolved the LOW `SpecialistScheduleWidget border-[min()]` item (highest-priority Open across today's reading list — daily journals widget-registry/typescript-eslint had no open items, css-scaling is first among dailies with open items; all remaining items across the two Thursday weeklies are also LOW, so the daily-before-weekly tiebreak applies; this was first in css-scaling document order). File-recency check passed: `SpecialistScheduleWidget.tsx` last touched at 90d63efa (PR #1798, position ~498 in history) — far outside the last 5 branch commits. Moved the `min(6px,1.5cqmin)` border-width from the Tailwind arbitrary-value class into the existing inline `style` prop; rendering is identical. See Completed for details. PR opened to dev-paul._
+
 _2026-07-02: Full scan of 58 Widget.tsx files (+ MaterialsWidget/index.tsx). New dev-paul commit since 2026-07-01: fix(quiz): strict Matching grade compares unique prompts, not raw pair count (#2123) — changes hooks/useQuizSession.ts and tests/hooks/useQuizSession.gradeAnswer.test.ts only. No widget front-face content changes. All pre-existing open items (SpecialistSchedule border-[min()], TalkingTool 9px cap, ClockWidget bare cqmin uncapped, EmbedWidget portaled toolbar text-xs, QuizResults text-sm period-filter, RevealGrid hardcoded spacing, multi-widget group spacing, MiniApp dialog text sizes, InstructionalRoutines p-8/gap-4) confirmed present and valid. DrawingWidget excluded (skipScaling:false). ActivityWall max-h-[75vh] re-confirmed viewport-modal context, WON'T FIX. Zero new anti-patterns._
 
 _2026-07-01: Full scan of 58 Widget.tsx files. New dev-paul commit since 2026-06-30: style(docs) fix prettier formatting in unifier.md — docs-only, no widget front-face changes. Automated agent scan confirmed: RevealGrid text-xs/text-gray-700, MiniApp overlay text sizes, Embed toolbar text-xs, GuidedLearning w-8 h-8 Loader2 (line shifted to :618), NextUp spacing utilities — all pre-existing items, all confirmed valid. NEW sub-entries added to group open item: InstructionalRoutines/Widget.tsx:186 uses `p-8` in the `isHero` branch and :276 uses `mt-4 gap-4`/`gap-2` in the action row — hardcoded Tailwind padding/gap in a skipScaling:true widget's front-face content. Countdown color classes (text-slate-400/text-slate-700) reviewed — color-only classes, not sizing violations, WON'T FIX. GuidedLearning group item line reference updated from :231 to :618. All other pre-existing open items confirmed valid._
@@ -124,13 +126,6 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### LOW SpecialistScheduleWidget uses `border-[min()]` Tailwind arbitrary value — inline style is the project convention for `cqmin` values
-
-- **Detected:** 2026-06-25
-- **File:** components/widgets/SpecialistSchedule/SpecialistScheduleWidget.tsx:395
-- **Detail:** The widget uses `className="... border-[min(6px,1.5cqmin)] ..."` (Tailwind JIT arbitrary value syntax). Tailwind v3.4 JIT correctly handles balanced parentheses inside `[...]`, so `min(6px,1.5cqmin)` is parsed as a single value and generates valid `border-width: min(6px, 1.5cqmin)` CSS — the border renders correctly. The concern is stylistic: all other `cqmin`-based sizing in widget front-face content uses inline `style` props rather than Tailwind arbitrary values, making intent explicit and avoiding reliance on Tailwind's balanced-paren parsing behaviour. Widget has `skipScaling: true`. (Note: a prior version of this entry incorrectly described this as a rendering bug — it is not; only a style consistency issue.)
-- **Fix:** Move the border-width from `className` to a `style` prop to match the project convention: `style={{ borderWidth: 'min(6px, 1.5cqmin)' }}`. Keep border-style/color Tailwind classes on `className`.
-
 ### LOW TalkingTool font-size pixel cap (`9px`) is below the recommended 10px minimum
 
 - **Detected:** 2026-06-25
@@ -194,6 +189,14 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW SpecialistScheduleWidget uses `border-[min()]` Tailwind arbitrary value — inline style is the project convention for `cqmin` values
+
+- **Detected:** 2026-06-25
+- **Completed:** 2026-07-02
+- **File:** components/widgets/SpecialistSchedule/SpecialistScheduleWidget.tsx:395
+- **Detail:** The active-item card used `className="... border-[min(6px,1.5cqmin)] border-teal-600 ..."` (Tailwind JIT arbitrary value syntax). The border rendered correctly (Tailwind v3.4 JIT handles balanced parentheses), so this was purely a style-consistency issue: all other `cqmin`-based sizing in widget front-face content uses inline `style` props. Widget has `skipScaling: true`.
+- **Resolution:** Moved the border-width off `className` into the existing inline `style` prop as `...(isActive ? { borderWidth: 'min(6px, 1.5cqmin)' } : {})`, keeping `border-teal-600 shadow-md z-10` (color/shadow/z only) on `className`. The inactive branch keeps its `border border-slate-200 shadow-sm` classes unchanged. Rendering is identical (border-style `solid` comes from Tailwind preflight in both the old and new form; only the width source moved). `pnpm type-check` (exit 0), `eslint --max-warnings 0` on the changed file (exit 0), `prettier --check` (clean).
 
 ### LOW PollWidget progress bar has no upper size cap — grows excessively at large widget sizes
 
