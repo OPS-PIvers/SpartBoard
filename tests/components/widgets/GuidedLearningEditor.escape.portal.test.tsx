@@ -141,15 +141,11 @@ describe('GuidedLearningEditorContextPane — SettingChip Escape closes popover'
     const menu = document.querySelector('[role="menu"][data-widget-portal]');
     expect(menu).not.toBeNull();
 
-    act(() => {
-      (menu as Element).dispatchEvent(
-        new KeyboardEvent('keydown', {
-          key: 'Escape',
-          bubbles: true,
-          cancelable: true,
-        })
-      );
-    });
+    // fireEvent routes through React's synthetic system, which traverses the
+    // fiber tree across the portal boundary — the path that actually exercises
+    // e.stopPropagation() (a raw dispatchEvent would not reliably reach the
+    // ancestor's React onKeyDown).
+    fireEvent.keyDown(menu as Element, { key: 'Escape' });
 
     // Popover closed, but the ancestor keydown must NOT have fired.
     expect(
