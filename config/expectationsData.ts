@@ -1,4 +1,4 @@
-import { ExpectationsConfig } from '../types';
+import { ExpectationsConfig } from '@/types';
 
 export const VOLUME_OPTIONS = [
   {

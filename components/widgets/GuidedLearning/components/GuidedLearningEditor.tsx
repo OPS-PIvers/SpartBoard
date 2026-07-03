@@ -225,6 +225,11 @@ function SettingChip<T extends string>({
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
                 e.nativeEvent.stopImmediatePropagation();
+                // Also stop React's synthetic bubble: this popover renders in
+                // the widget settings panel wrapped by DraggableWindow's
+                // onKeyDown, whose flipped-close branch would otherwise fire and
+                // close the whole settings panel along with this popover.
+                e.stopPropagation();
                 setOpen(false);
               }
             }}
@@ -343,6 +348,11 @@ const WelcomeChip: React.FC<WelcomeChipProps> = ({
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
                 e.nativeEvent.stopImmediatePropagation();
+                // Also stop React's synthetic bubble: this popover renders in
+                // the widget settings panel wrapped by DraggableWindow's
+                // onKeyDown, whose flipped-close branch would otherwise fire and
+                // close the whole settings panel along with this popover.
+                e.stopPropagation();
                 setOpen(false);
               }
             }}
@@ -1054,6 +1064,11 @@ const CaptureMenuButton: React.FC<{
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
                 e.nativeEvent.stopImmediatePropagation();
+                // Also stop React's synthetic bubble: this popover renders in
+                // the widget settings panel wrapped by DraggableWindow's
+                // onKeyDown, whose flipped-close branch would otherwise fire and
+                // close the whole settings panel along with this popover.
+                e.stopPropagation();
                 setOpen(false);
               }
             }}

@@ -1,4 +1,4 @@
-import { GradeLevel, RoutineStructure, RoutineAudience } from '../types';
+import { GradeLevel, RoutineStructure, RoutineAudience } from '@/types';
 
 export type { RoutineStructure, RoutineAudience };
 

@@ -115,4 +115,42 @@ describe('GuidedLearningEditorContextPane — SettingChip Escape closes popover'
       document.querySelector('[role="menu"][data-widget-portal]')
     ).toBeNull();
   });
+
+  it('does not bubble the popover Escape to an ancestor onKeyDown (would close the settings panel)', () => {
+    // Reproduces the real DraggableWindow nesting: the editor renders inside the
+    // widget settings panel, whose wrapper has an onKeyDown that closes the panel
+    // on Escape. createPortal preserves React-tree bubbling, so without
+    // e.stopPropagation() in the popover handler the Escape reaches this ancestor
+    // and closes the whole panel along with the popover.
+    const ancestorEscape = vi.fn();
+    render(
+      <div
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') ancestorEscape();
+        }}
+      >
+        <GuidedLearningEditorContextPane state={makeState()} />
+      </div>
+    );
+
+    const pulseChip = screen.getByRole('button', { name: /pulse/i });
+    act(() => {
+      fireEvent.click(pulseChip);
+    });
+
+    const menu = document.querySelector('[role="menu"][data-widget-portal]');
+    expect(menu).not.toBeNull();
+
+    // fireEvent routes through React's synthetic system, which traverses the
+    // fiber tree across the portal boundary — the path that actually exercises
+    // e.stopPropagation() (a raw dispatchEvent would not reliably reach the
+    // ancestor's React onKeyDown).
+    fireEvent.keyDown(menu as Element, { key: 'Escape' });
+
+    // Popover closed, but the ancestor keydown must NOT have fired.
+    expect(
+      document.querySelector('[role="menu"][data-widget-portal]')
+    ).toBeNull();
+    expect(ancestorEscape).not.toHaveBeenCalled();
+  });
 });
