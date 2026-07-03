@@ -177,6 +177,13 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     };
 
     const cleanup = () => {
+      // Cancel any queued frame so it can't fire (and call updateWidget with
+      // stale coords) after an unmount-path teardown. On the normal pointerup
+      // path rafId is already null, so this is a no-op there.
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
@@ -272,6 +279,13 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     };
 
     const cleanup = () => {
+      // Cancel any queued frame so it can't fire (and call updateWidget with
+      // stale coords) after an unmount-path teardown. On the normal pointerup
+      // path rafId is already null, so this is a no-op there.
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
@@ -341,6 +355,13 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     };
 
     const cleanup = () => {
+      // Cancel any queued frame so it can't fire (and call updateWidget with
+      // stale coords) after an unmount-path teardown. On the normal pointerup
+      // path rafId is already null, so this is a no-op there.
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
@@ -447,6 +468,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                         setShowMenu(false);
                       }}
                       aria-disabled={isLocked}
+                      tabIndex={isLocked ? -1 : undefined}
                       className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
                         isLocked
                           ? 'text-slate-400 opacity-40 cursor-not-allowed'
@@ -462,6 +484,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                         setShowMenu(false);
                       }}
                       aria-disabled={isLocked}
+                      tabIndex={isLocked ? -1 : undefined}
                       className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
                         isLocked
                           ? 'text-slate-400 opacity-40 cursor-not-allowed'
@@ -480,6 +503,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                         setShowMenu(false);
                       }}
                       aria-disabled={isLocked}
+                      tabIndex={isLocked ? -1 : undefined}
                       className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
                         isLocked
                           ? 'text-red-300 opacity-40 cursor-not-allowed'

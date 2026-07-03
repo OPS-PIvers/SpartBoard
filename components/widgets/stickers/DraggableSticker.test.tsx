@@ -1,5 +1,11 @@
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  act,
+  waitFor,
+} from '@testing-library/react';
 import { DraggableSticker } from './DraggableSticker';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { WidgetData } from '@/types';
@@ -10,6 +16,7 @@ const mockRemoveWidget = vi.fn();
 const mockBringToFront = vi.fn();
 const mockMoveWidgetLayer = vi.fn();
 const mockDeleteAllWidgets = vi.fn();
+const mockShowConfirm = vi.fn();
 // Mutable so individual tests can exercise the read-only board path; reset in
 // beforeEach. `mock`-prefixed so it's usable inside vi.mock's hoisted factory.
 let mockIsActiveBoardReadOnly = false;
@@ -23,6 +30,10 @@ vi.mock('@/context/useDashboard', () => ({
     deleteAllWidgets: mockDeleteAllWidgets,
     isActiveBoardReadOnly: mockIsActiveBoardReadOnly,
   }),
+}));
+
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({ showConfirm: mockShowConfirm }),
 }));
 
 vi.mock('@/hooks/useClickOutside', () => ({
@@ -131,6 +142,8 @@ describe('DraggableSticker', () => {
     const deleteButton = screen.getByText('Delete').closest('button');
     if (!deleteButton) throw new Error('Delete button not found');
     expect(deleteButton).toHaveAttribute('aria-disabled', 'true');
+    // Removed from tab order so keyboard/AT users can't silently activate it.
+    expect(deleteButton).toHaveAttribute('tabindex', '-1');
 
     // Clicking the inert Delete must not remove the widget, but must still
     // close the menu (the inline guard runs setShowMenu(false) regardless).
@@ -442,6 +455,106 @@ describe('DraggableSticker', () => {
     });
 
     expect(mockRemoveWidget).toHaveBeenCalledWith('sticker-1');
+  });
+
+  it('ignores a keyboard Delete event on a read-only board', () => {
+    mockIsActiveBoardReadOnly = true;
+    render(
+      <DraggableSticker widget={mockWidget}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('widget-keyboard-action', {
+          detail: { widgetId: 'sticker-1', key: 'Delete', shiftKey: false },
+        })
+      );
+    });
+
+    // isLocked (via isActiveBoardReadOnly) must suppress the delete.
+    expect(mockRemoveWidget).not.toHaveBeenCalled();
+  });
+
+  it('clears all widgets on Alt+Delete after confirmation', async () => {
+    mockShowConfirm.mockResolvedValue(true);
+    render(
+      <DraggableSticker widget={mockWidget}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    fireEvent.keyDown(sticker, { key: 'Delete', altKey: true });
+
+    await waitFor(() => expect(mockShowConfirm).toHaveBeenCalled());
+    await waitFor(() => expect(mockDeleteAllWidgets).toHaveBeenCalledTimes(1));
+    // The single sticker delete path must NOT also fire.
+    expect(mockRemoveWidget).not.toHaveBeenCalled();
+  });
+
+  it('does not clear all widgets on Alt+Delete when the board is read-only', async () => {
+    mockIsActiveBoardReadOnly = true;
+    mockShowConfirm.mockResolvedValue(true);
+    render(
+      <DraggableSticker widget={mockWidget}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    fireEvent.keyDown(sticker, { key: 'Delete', altKey: true });
+
+    // Guarded before the confirm dialog is even shown.
+    await Promise.resolve();
+    expect(mockShowConfirm).not.toHaveBeenCalled();
+    expect(mockDeleteAllWidgets).not.toHaveBeenCalled();
+  });
+
+  it('cancels a queued animation frame on unmount mid-gesture', () => {
+    const { unmount } = render(
+      <DraggableSticker widget={mockWidget}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    // Spy AFTER the initial render so React's own scheduling is untouched.
+    const rafSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockReturnValue(4242 as unknown as number);
+    const cancelSpy = vi.spyOn(window, 'cancelAnimationFrame');
+
+    // Start a body-drag and move once so a frame is queued (rafId set).
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, pointerId: 1 })
+    );
+    act(() => {
+      window.dispatchEvent(
+        new PointerEvent('pointermove', {
+          bubbles: true,
+          pointerId: 1,
+          clientX: 20,
+          clientY: 20,
+        })
+      );
+    });
+    expect(rafSpy).toHaveBeenCalled();
+
+    cancelSpy.mockClear();
+    unmount();
+    // The cleanup must cancel the queued frame so it can't fire post-unmount.
+    expect(cancelSpy).toHaveBeenCalledWith(4242);
+
+    rafSpy.mockRestore();
+    cancelSpy.mockRestore();
   });
 
   it('does not remove sticker on widget-escape-press for a different ID', () => {
