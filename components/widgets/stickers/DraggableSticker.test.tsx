@@ -347,6 +347,56 @@ describe('DraggableSticker', () => {
     expect(removeSpy).toHaveBeenCalledWith('pointermove', rotateMove);
   });
 
+  it('a rotate ending normally leaves a concurrent drag registered (removed only on unmount)', () => {
+    const addSpy = vi.spyOn(window, 'addEventListener');
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+
+    const { unmount } = render(
+      <DraggableSticker widget={mockWidget}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    // Body-drag with pointerId 1, no pointerup — stays active.
+    addSpy.mockClear();
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, pointerId: 1 })
+    );
+    const dragMove = addSpy.mock.calls.find((c) => c[0] === 'pointermove')?.[1];
+    expect(dragMove).toBeTruthy();
+
+    // Rotate with pointerId 2.
+    const rotateHandle = sticker.querySelector('.cursor-grab');
+    if (!rotateHandle) throw new Error('Rotate handle not found');
+    addSpy.mockClear();
+    fireEvent(
+      rotateHandle,
+      new PointerEvent('pointerdown', { bubbles: true, pointerId: 2 })
+    );
+    const rotateMove = addSpy.mock.calls.find(
+      (c) => c[0] === 'pointermove'
+    )?.[1];
+    expect(rotateMove).toBeTruthy();
+
+    // End ONLY the rotate (pointerId 2). Its cleanup must remove just its own
+    // listeners and leave the drag's registered (Bug 1: a single-slot ref
+    // would have discarded the drag cleanup here).
+    removeSpy.mockClear();
+    act(() => {
+      window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 2 }));
+    });
+    expect(removeSpy).toHaveBeenCalledWith('pointermove', rotateMove);
+    expect(removeSpy).not.toHaveBeenCalledWith('pointermove', dragMove);
+
+    // The still-active drag is torn down on unmount.
+    removeSpy.mockClear();
+    unmount();
+    expect(removeSpy).toHaveBeenCalledWith('pointermove', dragMove);
+  });
+
   it('deselects sticker on widget-escape-press event', () => {
     render(
       <DraggableSticker widget={mockWidget}>

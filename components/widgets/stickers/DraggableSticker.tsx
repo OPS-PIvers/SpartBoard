@@ -37,12 +37,18 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
   const [showMenu, setShowMenu] = useState(false);
 
   const nodeRef = useRef<HTMLDivElement>(null);
-  const cleanupRef = useRef<(() => void) | null>(null);
+  // Active per-gesture listener cleanups. A Set (not a single slot) so
+  // concurrent gestures — e.g. a body-drag whose first pointermove hasn't
+  // fired yet plus a second-finger rotate/resize — are each tracked and torn
+  // down independently; each gesture removes only its own entry on end.
+  const cleanupFnsRef = useRef<Set<() => void>>(new Set());
 
-  // Clean up any active window listeners on unmount
+  // Run every still-registered gesture cleanup on unmount.
   useEffect(() => {
+    const cleanups = cleanupFnsRef.current;
     return () => {
-      cleanupRef.current?.();
+      cleanups.forEach((fn) => fn());
+      cleanups.clear();
     };
   }, []);
 
@@ -168,13 +174,13 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
-      cleanupRef.current = null;
+      cleanupFnsRef.current.delete(cleanup);
     };
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerUp);
-    cleanupRef.current = cleanup;
+    cleanupFnsRef.current.add(cleanup);
   };
 
   const handleKeyDown = async (e: React.KeyboardEvent) => {
@@ -263,22 +269,15 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
-      cleanupRef.current = null;
+      cleanupFnsRef.current.delete(cleanup);
     };
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerUp);
-    // Register with cleanupRef so the unmount effect removes these listeners if
-    // the component unmounts mid-rotate (dashboard switch / remote delete).
-    // Chain onto any existing cleanup (e.g. an in-flight body-drag whose first
-    // pointermove hasn't fired yet) rather than overwriting it, so a concurrent
-    // gesture's listeners aren't orphaned on unmount.
-    const prevCleanup = cleanupRef.current;
-    cleanupRef.current = () => {
-      prevCleanup?.();
-      cleanup();
-    };
+    // Track this gesture's cleanup so the unmount effect removes its listeners
+    // if the component unmounts mid-rotate (dashboard switch / remote delete).
+    cleanupFnsRef.current.add(cleanup);
   };
 
   const handleResizeStart = (e: React.PointerEvent) => {
@@ -339,22 +338,15 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
-      cleanupRef.current = null;
+      cleanupFnsRef.current.delete(cleanup);
     };
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerUp);
-    // Register with cleanupRef so the unmount effect removes these listeners if
-    // the component unmounts mid-resize (dashboard switch / remote delete).
-    // Chain onto any existing cleanup (e.g. an in-flight body-drag whose first
-    // pointermove hasn't fired yet) rather than overwriting it, so a concurrent
-    // gesture's listeners aren't orphaned on unmount.
-    const prevCleanup = cleanupRef.current;
-    cleanupRef.current = () => {
-      prevCleanup?.();
-      cleanup();
-    };
+    // Track this gesture's cleanup so the unmount effect removes its listeners
+    // if the component unmounts mid-resize (dashboard switch / remote delete).
+    cleanupFnsRef.current.add(cleanup);
   };
 
   return (
