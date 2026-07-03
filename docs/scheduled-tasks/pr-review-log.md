@@ -1715,3 +1715,22 @@ _Automated nightly review by claude-opus-4-6_
   - Branch-safety: only #2098 is a `dev-*`→`main` PR (read-only for fixes); the rest target `dev-paul` from pushable feature branches. No fix pushes were needed this run, so nothing was pushed to any PR branch.
   - CI health: #2098 shows all 14 checks green; no failing checks observed on any open PR.
   - Housekeeping: three separate "run 23" `unifier.md` PRs (#2118, #2124, #2127) are open at once — flagged in each review that they must merge in a deliberate order (ideally consolidated) to avoid re-introducing the exact log duplication #2127 is cleaning up.
+
+## 2026-07-03
+
+- PRs reviewed: 3
+  - #2125 — fix(stickers): guard floating-menu Delete on locked/read-only boards (head `claude/serene-meitner-7luik8`, base `dev-paul`)
+  - #2119 — audit(tuesday): scheduled audit journals + SegmentedControl unification (head `scheduled-tasks`, base `dev-paul`)
+  - #2098 — NumberLine Escape-cancel/a11y + AI feature label sync (head `dev-paul`, base `main`)
+- Comments processed: 3 new unresolved threads — 0 fixed, 3 explained. Every other open review thread across the 3 PRs already carried an author reply from an earlier run and needed no new action.
+  - #2125 (discussion_r3517394360): outdated single-slot `cleanupRef` fragility note → EXPLAINED. Superseded by the `Set<() => void>` gesture-cleanup refactor in `b981cc7`; no further change.
+  - #2119 (discussion_r3517687333): `SegmentedControl` `role="tab"`→`role="radio"` a11y swap → EXPLAINED (no fix). The suggested swap is incomplete — ARIA `role="radio"` on `<button>`s still needs a custom roving-tabindex + arrow-key handler (native arrow-nav only applies to real `<input type="radio">`), and the container needs `role="radiogroup"`. A correct fix is a focused a11y follow-up, out of scope for an audit-journal PR.
+  - #2119 (discussion_r3517687898): `SpecialistScheduleWidget.handleStartTimer` pre-existing bugs (unclamped `newXProp` off-screen spawn; `20/safeCurW` vs `20/safeRefW` gap denominator) → EXPLAINED (no fix). Off-screen recovery is a UX tradeoff (flush-right-overlap vs place-left), not a one-liner; the denominator is an arguable proportional-coord consistency call. Tracked for a dedicated `SpecialistScheduleWidget` placement fix + regression test.
+- Fixes pushed: 0 (no PR carried an unaddressed comment with an unambiguous, in-scope mechanical fix).
+- Reviews posted: 3 (one structured review per PR)
+  - #2125: Ready — sticker lock/read-only guards; closes several unguarded z-order/delete/clear-board write paths on locked boards; ~19 regression tests; all 18 threads dispositioned.
+  - #2119: Ready — audit journals + `Segmented`→shared `SegmentedControl` extraction (re-exported to preserve import paths) + valid SpecialistSchedule Tailwind fix (arbitrary `border-[min(6px,1.5cqmin)]` class → inline `borderWidth` style). Two adjacent findings deferred.
+  - #2098: Ready with minor notes — dev-paul→main integration PR aggregating fixes routed via #2099/#2123/#2125/#2128; all 12 threads dispositioned; deferred read-only-viewer close + matching-quiz builder validation are non-blocking follow-ups.
+- Notes:
+  - Branch-safety: only #2098 is a `dev-*`→`main` PR (read-only for fixes; dev-paul push exception unused this run since all comments were already addressed via routed sub-PRs). #2125 and #2119 target `dev-paul` from pushable branches. No fix pushes were needed, so nothing was pushed to any PR branch.
+  - CI: both #2098 and #2125 report no legacy commit statuses (repo uses GitHub Actions checks); merge-readiness noted as pending Actions green.
