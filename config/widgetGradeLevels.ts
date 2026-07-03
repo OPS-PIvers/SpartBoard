@@ -4,7 +4,7 @@ import {
   GradeFilter,
   InternalToolType,
   FeaturePermission,
-} from '../types';
+} from '@/types';
 
 export const ALL_GRADE_LEVELS: GradeLevel[] = ['k-2', '3-5', '6-8', '9-12'];
 
