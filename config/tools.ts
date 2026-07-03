@@ -47,10 +47,10 @@ import {
   Triangle,
   Workflow,
 } from 'lucide-react';
-import { ToolMetadata } from '../types';
+import { ToolMetadata } from '@/types';
 
-import { RecordIcon } from '../components/layout/dock/RecordIcon';
-import { First5Icon } from '../components/widgets/First5/First5Icon';
+import { RecordIcon } from '@/components/layout/dock/RecordIcon';
+import { First5Icon } from '@/components/widgets/First5/First5Icon';
 
 /**
  * TOOLS is the Dock-facing catalog of user-selectable widgets. It is
