@@ -205,20 +205,27 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
       return;
     }
 
+    // A focused locked sticker absorbs EVERY Delete/Backspace variant (plain,
+    // Shift, Alt, Ctrl, …) so none can fall through to DashboardView's window
+    // keydown listener — which treats Shift/Alt+Delete as "Clear Board" and
+    // calls deleteAllWidgets(), a bulk delete with no per-widget lock guard.
+    // This guard runs before the specific branches, so the lock is honoured for
+    // any modifier combination, not just the two we act on.
+    if ((e.key === 'Delete' || e.key === 'Backspace') && isLocked) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    // Plain Delete/Backspace (no modifiers): remove just this sticker.
     if (
       (e.key === 'Delete' || e.key === 'Backspace') &&
       !e.shiftKey &&
       !e.altKey &&
       !e.ctrlKey
     ) {
-      // Stop/prevent BEFORE the lock check so a focused locked sticker fully
-      // absorbs Delete. Otherwise the native event keeps bubbling to
-      // DashboardView's window keydown listener, which would act at the board
-      // level (and Alt+Delete → Clear Board → deleteAllWidgets has no
-      // per-widget lock guard, so it would wipe the whole board).
       e.preventDefault();
       e.stopPropagation();
-      if (isLocked) return;
       removeWidget(widget.id);
       return;
     }
@@ -227,7 +234,6 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     if ((e.key === 'Delete' || e.key === 'Backspace') && e.altKey) {
       e.preventDefault();
       e.stopPropagation();
-      if (isLocked) return;
       const confirmed = await showConfirm(t('widgetWindow.clearEntireBoard'), {
         title: t('widgetWindow.clearBoardTitle'),
         variant: 'danger',
