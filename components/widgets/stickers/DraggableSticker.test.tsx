@@ -303,6 +303,50 @@ describe('DraggableSticker', () => {
     expect(removeSpy).toHaveBeenCalledWith('pointermove', moveHandler);
   });
 
+  it('chains gesture cleanups so a concurrent body-drag is not orphaned on unmount', () => {
+    const addSpy = vi.spyOn(window, 'addEventListener');
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+
+    const { unmount } = render(
+      <DraggableSticker widget={mockWidget}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    // Start a body-drag but DON'T fire pointerup — its cleanup stays registered
+    // in cleanupRef, and with no pointermove isDragging stays false so the
+    // rotate handle renders (the narrow concurrent-gesture window).
+    addSpy.mockClear();
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+    const dragMove = addSpy.mock.calls.find((c) => c[0] === 'pointermove')?.[1];
+    expect(dragMove).toBeTruthy();
+
+    // Start a rotate gesture — chains onto (does not overwrite) the drag cleanup.
+    const rotateHandle = sticker.querySelector('.cursor-grab');
+    if (!rotateHandle) throw new Error('Rotate handle not found');
+    addSpy.mockClear();
+    fireEvent(
+      rotateHandle,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+    const rotateMove = addSpy.mock.calls.find(
+      (c) => c[0] === 'pointermove'
+    )?.[1];
+    expect(rotateMove).toBeTruthy();
+    expect(rotateMove).not.toBe(dragMove);
+
+    removeSpy.mockClear();
+    unmount();
+    // Both gestures' listeners must be torn down (chained, not overwritten).
+    expect(removeSpy).toHaveBeenCalledWith('pointermove', dragMove);
+    expect(removeSpy).toHaveBeenCalledWith('pointermove', rotateMove);
+  });
+
   it('deselects sticker on widget-escape-press event', () => {
     render(
       <DraggableSticker widget={mockWidget}>

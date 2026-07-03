@@ -271,7 +271,14 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     window.addEventListener('pointercancel', onPointerUp);
     // Register with cleanupRef so the unmount effect removes these listeners if
     // the component unmounts mid-rotate (dashboard switch / remote delete).
-    cleanupRef.current = cleanup;
+    // Chain onto any existing cleanup (e.g. an in-flight body-drag whose first
+    // pointermove hasn't fired yet) rather than overwriting it, so a concurrent
+    // gesture's listeners aren't orphaned on unmount.
+    const prevCleanup = cleanupRef.current;
+    cleanupRef.current = () => {
+      prevCleanup?.();
+      cleanup();
+    };
   };
 
   const handleResizeStart = (e: React.PointerEvent) => {
@@ -340,7 +347,14 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     window.addEventListener('pointercancel', onPointerUp);
     // Register with cleanupRef so the unmount effect removes these listeners if
     // the component unmounts mid-resize (dashboard switch / remote delete).
-    cleanupRef.current = cleanup;
+    // Chain onto any existing cleanup (e.g. an in-flight body-drag whose first
+    // pointermove hasn't fired yet) rather than overwriting it, so a concurrent
+    // gesture's listeners aren't orphaned on unmount.
+    const prevCleanup = cleanupRef.current;
+    cleanupRef.current = () => {
+      prevCleanup?.();
+      cleanup();
+    };
   };
 
   return (
