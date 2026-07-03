@@ -147,6 +147,11 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
 
   // Cleanup on unmount
   useEffect(() => {
+    // Re-assert mounted on (re)mount. React 18 StrictMode runs mount → cleanup
+    // → remount in dev; without resetting here, the cleanup below leaves
+    // mountedRef.current === false permanently, so startRecording()'s
+    // post-getDisplayMedia guard aborts every recording in development.
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       if (timerRef.current) clearInterval(timerRef.current);
