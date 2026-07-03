@@ -516,6 +516,30 @@ describe('DraggableSticker', () => {
     expect(mockDeleteAllWidgets).not.toHaveBeenCalled();
   });
 
+  it('absorbs Alt+Delete on a locked sticker so it never reaches the window (no board clear)', () => {
+    const windowHandler = vi.fn();
+    window.addEventListener('keydown', windowHandler);
+    try {
+      render(
+        <DraggableSticker widget={{ ...mockWidget, isLocked: true }}>
+          <div>Sticker Content</div>
+        </DraggableSticker>
+      );
+      const sticker = screen.getByText('Sticker Content').closest('.absolute');
+      if (!sticker) throw new Error('Sticker not found');
+
+      fireEvent.keyDown(sticker, { key: 'Delete', altKey: true });
+
+      // Locked: no board-level clear is triggered, and the event is stopped
+      // before it can bubble to DashboardView's window keydown handler.
+      expect(mockShowConfirm).not.toHaveBeenCalled();
+      expect(mockDeleteAllWidgets).not.toHaveBeenCalled();
+      expect(windowHandler).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('keydown', windowHandler);
+    }
+  });
+
   it('cancels a queued animation frame on unmount mid-gesture', () => {
     const { unmount } = render(
       <DraggableSticker widget={mockWidget}>

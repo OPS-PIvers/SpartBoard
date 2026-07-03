@@ -211,18 +211,23 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
       !e.altKey &&
       !e.ctrlKey
     ) {
-      if (isLocked) return;
+      // Stop/prevent BEFORE the lock check so a focused locked sticker fully
+      // absorbs Delete. Otherwise the native event keeps bubbling to
+      // DashboardView's window keydown listener, which would act at the board
+      // level (and Alt+Delete → Clear Board → deleteAllWidgets has no
+      // per-widget lock guard, so it would wipe the whole board).
       e.preventDefault();
       e.stopPropagation();
+      if (isLocked) return;
       removeWidget(widget.id);
       return;
     }
 
     // Alt + Delete or Alt + Backspace: Clear all widgets
     if ((e.key === 'Delete' || e.key === 'Backspace') && e.altKey) {
-      if (isLocked) return;
       e.preventDefault();
       e.stopPropagation();
+      if (isLocked) return;
       const confirmed = await showConfirm(t('widgetWindow.clearEntireBoard'), {
         title: t('widgetWindow.clearBoardTitle'),
         variant: 'danger',
@@ -467,7 +472,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                         if (!isLocked) moveWidgetLayer(widget.id, 'up');
                         setShowMenu(false);
                       }}
-                      aria-disabled={isLocked}
+                      aria-disabled={isLocked || undefined}
                       tabIndex={isLocked ? -1 : undefined}
                       className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
                         isLocked
@@ -483,7 +488,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                         if (!isLocked) moveWidgetLayer(widget.id, 'down');
                         setShowMenu(false);
                       }}
-                      aria-disabled={isLocked}
+                      aria-disabled={isLocked || undefined}
                       tabIndex={isLocked ? -1 : undefined}
                       className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
                         isLocked
@@ -502,7 +507,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                         if (!isLocked) removeWidget(widget.id);
                         setShowMenu(false);
                       }}
-                      aria-disabled={isLocked}
+                      aria-disabled={isLocked || undefined}
                       tabIndex={isLocked ? -1 : undefined}
                       className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
                         isLocked
