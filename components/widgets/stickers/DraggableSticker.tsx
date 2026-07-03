@@ -121,6 +121,12 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     // but a per-widget lock (`widget.isLocked`) on a *writable* board isn't
     // covered there, so this local skip is still required to keep a locked
     // sticker's z-order frozen.
+    //
+    // Tradeoff: because z-order is frozen, a locked sticker that has been buried
+    // under higher-z siblings can't be raised. Its Options menu renders inside
+    // this sticker's own stacking context (the root's `transform: rotate()`), so
+    // it stays visually behind the covering siblings and is unreachable by
+    // pointer or keyboard. Intended recovery is to unlock the sticker first.
     if (isLocked) return;
 
     // Select and bring this sticker to the front on click or drag start.
