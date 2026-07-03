@@ -111,9 +111,10 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
 
     // Locked / read-only stickers may be selected (to reveal the menu) but not
     // dragged — skip bring-to-front, pointer capture, and the move wiring
-    // entirely. `bringToFront` is unguarded in DashboardContext (unlike the
-    // other mutating actions), so calling it on a read-only board would write a
-    // z-index change straight to Firestore.
+    // entirely. `bringToFront` now guards read-only boards at the context level,
+    // but a per-widget lock (`widget.isLocked`) on a *writable* board isn't
+    // covered there, so this local skip is still required to keep a locked
+    // sticker's z-order frozen.
     if (isLocked) return;
 
     // Select and bring this sticker to the front on click or drag start.
@@ -255,14 +256,22 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
       } catch {
         /* already released */
       }
+      cleanup();
+    };
+
+    const cleanup = () => {
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
+      cleanupRef.current = null;
     };
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerUp);
+    // Register with cleanupRef so the unmount effect removes these listeners if
+    // the component unmounts mid-rotate (dashboard switch / remote delete).
+    cleanupRef.current = cleanup;
   };
 
   const handleResizeStart = (e: React.PointerEvent) => {
@@ -316,14 +325,22 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
       } catch {
         /* already released */
       }
+      cleanup();
+    };
+
+    const cleanup = () => {
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
+      cleanupRef.current = null;
     };
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerUp);
+    // Register with cleanupRef so the unmount effect removes these listeners if
+    // the component unmounts mid-resize (dashboard switch / remote delete).
+    cleanupRef.current = cleanup;
   };
 
   return (

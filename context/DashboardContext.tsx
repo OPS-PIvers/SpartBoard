@@ -4963,6 +4963,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const bringToFront = useCallback((id: string) => {
     if (!activeIdRef.current) return;
+    // Read-only boards must not persist z-order changes. Every other mutating
+    // action guards on this ref; bringToFront was the sole omission, so a
+    // pointer-down on any widget (via DraggableWindow) wrote to Firestore.
+    if (isActiveBoardReadOnlyRef.current) return;
 
     setDashboards((prev) => {
       const active = prev.find((d) => d.id === activeIdRef.current);

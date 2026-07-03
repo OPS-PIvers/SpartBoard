@@ -256,6 +256,53 @@ describe('DraggableSticker', () => {
     expect(screen.queryByText('Delete')).not.toBeInTheDocument();
   });
 
+  // Regression: handleRotateStart / handleResizeStart register their window
+  // listeners with cleanupRef so the unmount effect tears them down if the
+  // component unmounts mid-gesture (dashboard switch / remote delete).
+  it.each([
+    ['rotate', '.cursor-grab'],
+    ['resize', '.cursor-nwse-resize'],
+  ])('removes %s-gesture window listeners on unmount mid-gesture', (_, sel) => {
+    const addSpy = vi.spyOn(window, 'addEventListener');
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+
+    const { unmount } = render(
+      <DraggableSticker widget={mockWidget}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    // Select the sticker (and end the incidental drag) so handles render.
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+    act(() => {
+      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    });
+
+    const handle = sticker.querySelector(sel);
+    if (!handle) throw new Error(`${sel} handle not found`);
+
+    addSpy.mockClear();
+    // Start the gesture — registers pointermove/up/cancel on window.
+    fireEvent(
+      handle,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+    const moveHandler = addSpy.mock.calls.find(
+      (c) => c[0] === 'pointermove'
+    )?.[1];
+    expect(moveHandler).toBeTruthy();
+
+    removeSpy.mockClear();
+    // Unmount mid-gesture — the cleanup effect must remove the listeners.
+    unmount();
+    expect(removeSpy).toHaveBeenCalledWith('pointermove', moveHandler);
+  });
+
   it('deselects sticker on widget-escape-press event', () => {
     render(
       <DraggableSticker widget={mockWidget}>
