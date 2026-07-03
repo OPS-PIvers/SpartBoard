@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
 _Last audited: 2026-07-03_
-_Last action: 2026-06-24 — MEDIUM `ClockWidget`/`TimeTool` inline font-family pickers replaced with shared `TypographySettings` (new `showColorPicker` opt-out so no dead `fontColor` control is surfaced)_
+_Last action: 2026-07-03 — MEDIUM `Segmented<T>` promoted from `Organization/primitives.tsx` to `components/common/SegmentedControl.tsx` (verbatim extraction + re-export; prerequisite for the segmented-control unification)_
 
 ---
 
@@ -76,17 +76,10 @@ _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widget
 ### MEDIUM Segmented-control pill selector pattern duplicated 15× across 12 files with no shared component
 
 - **Detected:** 2026-06-10
-- **Updated 2026-07-03:** Count increased from 12× to 15× across 12 files (3 additional instances found in QuizWidget/StatsView.tsx, SmartNotebook/Settings.tsx, Stations/Settings.tsx). Additionally: a `Segmented<T>` component already exists in `components/admin/Organization/components/primitives.tsx` (lines 343–371) — a generic, accessible, keyboard-navigable segmented control with `aria-pressed` and `role="group"` semantics. This is a ready-made predecessor that should be extracted to `components/common/SegmentedControl.tsx` rather than written from scratch. See separate MEDIUM item below.
+- **Updated 2026-07-03:** Count increased from 12× to 15× across 12 files (3 additional instances found in QuizWidget/StatsView.tsx, SmartNotebook/Settings.tsx, Stations/Settings.tsx). The prerequisite is now **done**: `SegmentedControl` (the promoted `Segmented<T>`) lives in `components/common/SegmentedControl.tsx` as of the 2026-07-03 action (see Completed). The remaining work is migrating the 15 hand-rolled call sites to `<SegmentedControl … />`.
 - **File:** components/widgets/ClockWidget/Settings.tsx, Checklist/Settings.tsx, Countdown/Settings.tsx, TimeTool/Settings.tsx, Weather/Settings.tsx (×2), Embed/Settings.tsx, WorkSymbols/Settings.tsx, RevealGrid/Settings.tsx (×3), QuizWidget/StatsView.tsx, SmartNotebook/Settings.tsx, Stations/Settings.tsx
-- **Detail:** The CSS string `"flex bg-slate-100 p-1 rounded-xl"` appears 15 times across settings panels as the outer container of a segmented tab/toggle control (pill selector). Each file implements the inner buttons independently with slightly varying aria attributes, selected-state classes, and label text. No shared `SegmentedControl` or `TabToggle` component exists in `components/common/`. As the pattern drifts across files, visual consistency degrades — some instances use `rounded-lg` on the inner buttons, some use `rounded-md`, and aria labeling is inconsistently applied.
-- **Fix:** Promote `Segmented<T>` from `Organization/primitives.tsx` (lines 343–371) to `components/common/SegmentedControl.tsx` (see separate MEDIUM item). Then migrate the 15 existing call sites. The component should apply the standard outer `flex bg-slate-100 p-1 rounded-xl` chrome and standardize inner button sizing, rounded corners, and `aria-pressed` attributes. This is a pure visual refactor with no behavior change.
-
-### MEDIUM `Segmented<T>` component in `Organization/primitives.tsx` not promoted to `components/common/`
-
-- **Detected:** 2026-07-03
-- **File:** components/admin/Organization/components/primitives.tsx (lines 343–371)
-- **Detail:** A generic, fully accessible `Segmented<T>` component already exists in `Organization/primitives.tsx` (lines 343–371). It accepts `options: { value: T; label: string; icon?: React.ReactNode }[]`, `value: T`, `onChange: (v: T) => void`, and an optional `className` prop. It renders the standard `flex bg-slate-100 p-1 rounded-xl` outer chrome, applies `aria-pressed` + `role="group"` semantics on each inner button, and handles keyboard navigation. This is a higher-quality implementation than any of the 15 hand-rolled segmented-control instances in the codebase. However, it is private to the Organization admin panel — no other file can import it without reaching into a component subdirectory. As a result all 15 non-Organization instances remain hand-rolled, forking visual style and accessibility.
-- **Fix:** Extract `Segmented<T>` verbatim (or with minor cleanup) to `components/common/SegmentedControl.tsx`. Update the one import site in `Organization/primitives.tsx` to use the shared version. Then address the 15 hand-rolled instances tracked in the MEDIUM segmented-control item above — each can be replaced with `<SegmentedControl options={…} value={…} onChange={…} />` using the same generic shape. This is a prerequisite for the segmented-control unification; doing it first avoids writing the shared component from scratch.
+- **Detail:** The CSS string `"flex bg-slate-100 p-1 rounded-xl"` appears 15 times across settings panels as the outer container of a segmented tab/toggle control (pill selector). Each file implements the inner buttons independently with slightly varying aria attributes, selected-state classes, and label text. The shared `components/common/SegmentedControl.tsx` now exists to absorb these. As the pattern drifts across files, visual consistency degrades — some instances use `rounded-lg` on the inner buttons, some use `rounded-md`, and aria labeling is inconsistently applied.
+- **Fix:** Migrate the 15 existing call sites to `<SegmentedControl options={…} value={…} onChange={…} ariaLabel={…} />` from `@/components/common/SegmentedControl`. Note the shared component uses `role="tablist"`/`role="tab"`/`aria-selected` tab semantics and a `rounded-lg`/`rounded-md` chrome (not the `rounded-xl` outer some sites use) — verify each migrated site visually (admin/settings runtime) since the corner radius and selected-state colors will normalize. This is a visual refactor with no logic change but carries per-site appearance-normalization risk, so it needs runtime verification and is best done in a supervised batch.
 
 ### MEDIUM Admin panels duplicate font-options arrays — no shared `FontFamilySelect` primitive
 
@@ -132,6 +125,14 @@ _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widget
 ---
 
 ## Completed
+
+### MEDIUM `Segmented<T>` component in `Organization/primitives.tsx` not promoted to `components/common/`
+
+- **Detected:** 2026-07-03
+- **Completed:** 2026-07-03
+- **File:** components/common/SegmentedControl.tsx (new), components/admin/Organization/components/primitives.tsx
+- **Detail:** The generic segmented (pill) control lived privately inside the Organization admin panel's `primitives.tsx`, so no widget settings panel or admin config panel could import it — leaving all 15 hand-rolled segmented-control instances (tracked in the MEDIUM segmented-control item) unable to consolidate onto it. This item was the explicit prerequisite for that unification: extract the component to the shared library first, then migrate call sites.
+- **Resolution:** Extracted the component **verbatim** to `components/common/SegmentedControl.tsx`, exported as `SegmentedControl` (with a doc comment on the promotion). Replaced the local definition in `primitives.tsx` (lines 343–371) with a single re-export: `export { SegmentedControl as Segmented } from '@/components/common/SegmentedControl';`. This keeps the three existing consumers (`views/AllOrganizationsView.tsx`, `views/BuildingsView.tsx`, `views/UsersView.tsx`) — which import `Segmented` from `primitives` — working with **zero changes** and identical rendered output, so no admin runtime is required to verify the move. The actual component uses `role="tablist"`/`role="tab"`/`aria-selected` tab semantics and `{value; label}[]` options (the journal's earlier description citing `aria-pressed`/`role="group"`/`icon`/`className`/keyboard-nav was inaccurate — extracted what actually exists). File-recency check passed: `primitives.tsx` last touched at `6a084586` (#2081), outside the last 5 branch commits. Note: a separate `SegmentedTabs` (session-views tab variant) already existed at `components/common/sessionViews/SegmentedTabs.tsx` — no name collision, different component/semantics. `pnpm run type-check` (exit 0), `eslint --max-warnings 0` on both changed files (exit 0), and `prettier --check` all clean. Remaining follow-up: migrate the 15 hand-rolled call sites (tracked as the still-open MEDIUM segmented-control item), which carries per-site visual-normalization risk and needs runtime verification.
 
 ### LOW `InstructionalRoutinesWidget` uses hardcoded brand blue hex for numbered step badge
 
