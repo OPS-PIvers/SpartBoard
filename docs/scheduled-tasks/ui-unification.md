@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-06-26_
+_Last audited: 2026-07-03_
 _Last action: 2026-06-24 — MEDIUM `ClockWidget`/`TimeTool` inline font-family pickers replaced with shared `TypographySettings` (new `showColorPicker` opt-out so no dead `fontColor` control is surfaced)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-03: Weekly audit pass (Friday). New dev-paul commits since 2026-06-26: pr-review log (docs), fix(css-scaling) SpecialistSchedule border, fix(widgets) 3 review findings — none touch Settings.tsx or admin panel files. THREE items resolved outside journal workflow since last audit: (1) `InstructionalRoutines/Widget.tsx:217` hardcoded `'#2d3f89'` → now `var(--spart-primary, #2d3f89)` (moved to Completed); (2) `StationsConfigurationPanel.tsx` local font options → now imports `FONTS` from `@/config/fonts` (StationsConfigurationPanel removed from the MEDIUM admin font-options item — others remain); (3) `Organization/primitives.tsx` local `Toggle` already resolved by 2026-06-26 action. TWO NEW MEDIUM items: (1) `ClockConfigurationPanel.tsx` fourth admin panel with local font-options array (value space differs from Checklist/NumberLine — extends existing MEDIUM item); (2) `Segmented<T>` component in `Organization/primitives.tsx` is a fully accessible drop-in predecessor for the needed shared `SegmentedControl` — not promoted to `components/common/`; segmented-control count updated 12→15 across 12 files. Segmented-control MEDIUM item updated. All other pre-existing open items re-confirmed valid._
 
 _2026-06-27 (action-agent visit, Saturday): Evaluated this journal's MEDIUM items as candidates for the daily action pass. Findings: (1) the `Organization/primitives.tsx` MEDIUM has its `Card`/`OrgToast`/`Btn` remainder explicitly deferred for admin runtime; (2) the `nextUp`/`video-activity`/`guided-learning` appearance-panel MEDIUM has a **false premise** — the three configs do not declare the claimed `fontFamily`/`fontColor`/`cardColor`/`cardOpacity` fields (see the ⚠️ note appended to that item); (3) `SegmentedControl` (12 sites, divergent inner styling) and `FontFamilySelect` (6 admin panels, distinct prefixed-vs-bare value spaces) both carry visual/correctness-regression risk that cannot be verified without runtime; (4) `MusicWidget` → `SurfaceColorSettings` would require migrating `MusicConfig.bgColor`/`textColor` to `cardColor`/`cardOpacity` (a behavior-changing data-model migration). No ui-unification MEDIUM is safe for an unattended pass right now. Action agent took the highest-priority safe item from the daily css-scaling journal instead (ActivityWall empty-state fontSize). No code change to this journal's items._
 
@@ -64,13 +66,6 @@ _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widget
 - **Detail:** The file is the largest admin config panel at 706 lines and contains per-widget building-default forms inline. Many fields it renders (string inputs, number inputs, color pickers, selects, booleans) follow the same pattern that `SchemaDrivenConfigurationPanel` was designed to handle. Only `MagicConfigurationPanel.tsx` and `RecordConfigurationPanel.tsx` currently use `SchemaDrivenConfigurationPanel`. The 18 remaining config panels that don't use it include `FeatureConfigurationPanel`, `SoundboardConfigurationPanel` (593 lines), `ScheduleConfigurationPanel` (538 lines), and `MaterialsConfigurationPanel` (523 lines).
 - **Fix:** Audit `FeatureConfigurationPanel` for schema-driven extraction candidates. For panels whose entire form can be expressed as a field schema (input type + label + key + validation), migrate to `SchemaDrivenConfigurationPanel`. Panels with complex custom UIs (materials catalog, seating-chart layout, specialist schedule) should remain manual. Start with the simplest panels (DiceConfigurationPanel, TrafficLightConfigurationPanel, DrawingConfigurationPanel) as proof-of-concept before tackling the large ones.
 
-### LOW `InstructionalRoutinesWidget` uses hardcoded brand blue hex for numbered step badge
-
-- **Detected:** 2026-05-06
-- **File:** components/widgets/InstructionalRoutines/Widget.tsx:217
-- **Detail:** The numbered step badge on list/step-view routines uses `style={{ backgroundColor: '#2d3f89' }}`. `--spart-primary` is set by the admin's global style configuration in `DashboardView.tsx` specifically so that widget chrome can use `var(--spart-primary)` instead of hardcoded brand blue. Using a hardcoded hex means this badge will not update when the admin changes the primary color.
-- **Fix:** Replace `backgroundColor: '#2d3f89'` with `backgroundColor: 'var(--spart-primary, #2d3f89)'` to respect the theme while keeping the brand blue as the fallback.
-
 ### LOW `TextConfig` has `fontFamily`, `fontColor`, `textSizePreset` but no appearance panel or settings UI
 
 - **Detected:** 2026-04-29
@@ -78,19 +73,28 @@ _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widget
 - **Detail:** `TextConfig` declares `fontFamily?: string`, `fontColor?: string`, and `textSizePreset?: TextSizePreset`. `TextWidget/Widget.tsx` reads all three at lines 37-47 and applies them: `fontFamily` sets the container-level CSS font class, `fontColor` sets the default text color, `textSizePreset` adjusts the base font size multiplier. However, `text` is absent from `WIDGET_APPEARANCE_COMPONENTS` and `TextSettings` only shows template shortcuts — no UI exists to configure these three fields. They can only be set via admin building config. Teachers have no way to change the widget-level font family or base text color from the dashboard. The FormattingToolbar allows per-selection inline font changes in the content HTML, but `config.fontFamily`/`config.fontColor` control the container defaults that show for unformatted text.
 - **Fix:** Create a `TextAppearanceSettings` component in `components/widgets/TextWidget/Settings.tsx` that renders `TypographySettings` (fontFamily + fontColor) and `TextSizePresetSettings` (textSizePreset). Register in `WIDGET_APPEARANCE_COMPONENTS` as `'text': lazyNamed(() => import('./TextWidget/Settings'), 'TextAppearanceSettings')`. This exposes three config fields that are already consumed by the widget but unreachable by end users.
 
-### MEDIUM Segmented-control pill selector pattern duplicated 12× across settings panels with no shared component
+### MEDIUM Segmented-control pill selector pattern duplicated 15× across 12 files with no shared component
 
 - **Detected:** 2026-06-10
-- **File:** components/widgets/ClockWidget/Settings.tsx, Checklist/Settings.tsx, Countdown/Settings.tsx, TimeTool/Settings.tsx, Weather/Settings.tsx (×2), Embed/Settings.tsx, WorkSymbols/Settings.tsx, RevealGrid/Settings.tsx (×3)
-- **Detail:** The CSS string `"flex bg-slate-100 p-1 rounded-xl"` appears 12 times across settings panels as the outer container of a segmented tab/toggle control (pill selector). Each file implements the inner buttons independently with slightly varying aria attributes, selected-state classes, and label text. No shared `SegmentedControl` or `TabToggle` component exists in `components/common/`. As the pattern drifts across files, visual consistency degrades — some instances use `rounded-lg` on the inner buttons, some use `rounded-md`, and aria labeling is inconsistently applied.
-- **Fix:** Create a `components/common/SegmentedControl.tsx` component accepting `options: { value: T; label: string }[]`, `value: T`, and `onChange: (v: T) => void`. Migrate the 12 existing call sites. The component should apply the standard outer `flex bg-slate-100 p-1 rounded-xl` chrome and standardize inner button sizing, rounded corners, and `aria-pressed` attributes. This is a pure visual refactor with no behavior change.
+- **Updated 2026-07-03:** Count increased from 12× to 15× across 12 files (3 additional instances found in QuizWidget/StatsView.tsx, SmartNotebook/Settings.tsx, Stations/Settings.tsx). Additionally: a `Segmented<T>` component already exists in `components/admin/Organization/components/primitives.tsx` (lines 343–371) — a generic, accessible, keyboard-navigable segmented control with `aria-pressed` and `role="group"` semantics. This is a ready-made predecessor that should be extracted to `components/common/SegmentedControl.tsx` rather than written from scratch. See separate MEDIUM item below.
+- **File:** components/widgets/ClockWidget/Settings.tsx, Checklist/Settings.tsx, Countdown/Settings.tsx, TimeTool/Settings.tsx, Weather/Settings.tsx (×2), Embed/Settings.tsx, WorkSymbols/Settings.tsx, RevealGrid/Settings.tsx (×3), QuizWidget/StatsView.tsx, SmartNotebook/Settings.tsx, Stations/Settings.tsx
+- **Detail:** The CSS string `"flex bg-slate-100 p-1 rounded-xl"` appears 15 times across settings panels as the outer container of a segmented tab/toggle control (pill selector). Each file implements the inner buttons independently with slightly varying aria attributes, selected-state classes, and label text. No shared `SegmentedControl` or `TabToggle` component exists in `components/common/`. As the pattern drifts across files, visual consistency degrades — some instances use `rounded-lg` on the inner buttons, some use `rounded-md`, and aria labeling is inconsistently applied.
+- **Fix:** Promote `Segmented<T>` from `Organization/primitives.tsx` (lines 343–371) to `components/common/SegmentedControl.tsx` (see separate MEDIUM item). Then migrate the 15 existing call sites. The component should apply the standard outer `flex bg-slate-100 p-1 rounded-xl` chrome and standardize inner button sizing, rounded corners, and `aria-pressed` attributes. This is a pure visual refactor with no behavior change.
+
+### MEDIUM `Segmented<T>` component in `Organization/primitives.tsx` not promoted to `components/common/`
+
+- **Detected:** 2026-07-03
+- **File:** components/admin/Organization/components/primitives.tsx (lines 343–371)
+- **Detail:** A generic, fully accessible `Segmented<T>` component already exists in `Organization/primitives.tsx` (lines 343–371). It accepts `options: { value: T; label: string; icon?: React.ReactNode }[]`, `value: T`, `onChange: (v: T) => void`, and an optional `className` prop. It renders the standard `flex bg-slate-100 p-1 rounded-xl` outer chrome, applies `aria-pressed` + `role="group"` semantics on each inner button, and handles keyboard navigation. This is a higher-quality implementation than any of the 15 hand-rolled segmented-control instances in the codebase. However, it is private to the Organization admin panel — no other file can import it without reaching into a component subdirectory. As a result all 15 non-Organization instances remain hand-rolled, forking visual style and accessibility.
+- **Fix:** Extract `Segmented<T>` verbatim (or with minor cleanup) to `components/common/SegmentedControl.tsx`. Update the one import site in `Organization/primitives.tsx` to use the shared version. Then address the 15 hand-rolled instances tracked in the MEDIUM segmented-control item above — each can be replaced with `<SegmentedControl options={…} value={…} onChange={…} />` using the same generic shape. This is a prerequisite for the segmented-control unification; doing it first avoids writing the shared component from scratch.
 
 ### MEDIUM Admin panels duplicate font-options arrays — no shared `FontFamilySelect` primitive
 
 - **Detected:** 2026-06-10
-- **File:** components/admin/ChecklistConfigurationPanel.tsx, NumberLineConfigurationPanel.tsx, StationsConfigurationPanel.tsx, ConceptWebConfigurationPanel.tsx, RevealGridConfigurationPanel.tsx, GraphicOrganizerConfigurationModal.tsx
-- **Detail:** At least 6 admin building-config panels declare their own local font-options array with `{ value: 'global', label: 'Inherit (building default)' }` as the first entry and the four family values below. Two panels (`NumberLine`, `GraphicOrganizer`) define a named `FONT_OPTIONS` constant; four use an inline `<select>` with raw option strings. Any future addition of a font family to the project (or a rename of the `'global'` sentinel) must be updated in 6 places. `StationsConfigurationPanel` uses the prefixed `FONTS` array (font-sans etc.) while the others use bare `GlobalFontFamily` values — a correctness distinction that could be lost in a copy-paste.
-- **Fix:** Create a shared `components/admin/common/FontFamilySelect.tsx` component (or a `ADMIN_FONT_OPTIONS` constant in a shared admin-config utility) that exports the two option-set variants (prefixed for widgets using `TypographySettings`, bare for widgets using `GlobalFontFamily` directly). Replace the 6 local arrays with imports from the shared source.
+- **Updated 2026-07-03:** `StationsConfigurationPanel.tsx` resolved — now imports `FONTS` from `@/config/fonts`. `ClockConfigurationPanel.tsx` identified as a new fourth duplicate (local 4-entry `FONT_FAMILY_OPTIONS` array using `font-*` prefixed ids, lines 16–21). Note: two distinct value spaces exist — `GlobalFontFamily` bare values (Checklist, NumberLine) vs. `font-*` prefixed ids (Clock) — each requires a separate shared constant.
+- **File:** components/admin/ChecklistConfigurationPanel.tsx (lines 153–165), NumberLineConfigurationPanel.tsx (lines 63–79), ClockConfigurationPanel.tsx (lines 16–21, added 2026-07-03); ~~StationsConfigurationPanel.tsx~~ (resolved — now imports `FONTS`); ConceptWebConfigurationPanel.tsx, RevealGridConfigurationPanel.tsx, GraphicOrganizerConfigurationModal.tsx (not re-verified this pass)
+- **Detail:** Admin building-config panels declare local font-options arrays instead of a shared source. `ChecklistConfigurationPanel.tsx` uses inline `<option>` elements with bare `GlobalFontFamily` values; `NumberLineConfigurationPanel.tsx` defines a local `FONT_OPTIONS` constant with the same value space; `ClockConfigurationPanel.tsx` defines a partial 4-entry array with `font-*` prefixed ids. Future font additions or `'global'` sentinel renames must be updated across multiple files.
+- **Fix:** (1) For `GlobalFontFamily` panels (Checklist, NumberLine, ConceptWeb, RevealGrid, GraphicOrganizer): extract a `GLOBAL_FONT_FAMILY_OPTIONS` constant into `config/fonts.ts` and import it. (2) For `font-*` prefixed panels (Clock): import the existing `FONTS` array from `@/config/fonts` (as Stations already does). Remove all local array declarations.
 
 ### MEDIUM `MusicWidget/Settings.tsx` implements inline background/text color picker instead of `SurfaceColorSettings`
 
@@ -128,6 +132,14 @@ _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widget
 ---
 
 ## Completed
+
+### LOW `InstructionalRoutinesWidget` uses hardcoded brand blue hex for numbered step badge
+
+- **Detected:** 2026-05-06
+- **Completed:** 2026-07-03 (resolved outside journal workflow — confirmed by 2026-07-03 audit pass)
+- **File:** components/widgets/InstructionalRoutines/Widget.tsx:217
+- **Detail:** The numbered step badge on list/step-view routines used `style={{ backgroundColor: '#2d3f89' }}`. `--spart-primary` is set by the admin's global style configuration in `DashboardView.tsx` so widget chrome can use `var(--spart-primary)` instead of hardcoded brand blue.
+- **Resolution:** Line 217 now reads `backgroundColor: 'var(--spart-primary, #2d3f89)'`, applying the CSS variable with a brand-blue fallback. Change was made outside the scheduled-task journal workflow and detected on the 2026-07-03 audit pass.
 
 ### MEDIUM `ClockWidget/Settings.tsx` and `TimeTool/Settings.tsx` implement identical inline font family selector instead of `TypographySettings`
 

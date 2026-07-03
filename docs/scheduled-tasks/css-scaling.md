@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-02_
+_Last audited: 2026-07-03_
 _Last action: 2026-06-27 — LOW ActivityWall empty-state heading `fontSize` added (`min(14px, 5.5cqmin)` + scaled `marginTop`); was unscaled 16px on a `skipScaling` widget_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-03: Full scan of Widget.tsx files. New dev-paul commits since 2026-07-02: pr-review log (docs), fix(css-scaling) SpecialistSchedule border-width inline style (08afce65 — already on scheduled-tasks branch, confirmed in Completed), fix(widgets) resolve 3 review findings from #2098/#2125 (0bbe0b87 — touches GuidedLearningEditor editor sub-component only; not front-face widget content). ONE NEW LOW item: `Stations/Widget.tsx:341,367` — `ml-1` hardcoded left margin on Shuffle/Rotate button label spans; added as sub-entry to the group open item. All other pre-existing open items (TalkingTool 9px cap, ClockWidget bare cqmin, EmbedWidget portaled toolbar, QuizResults text-sm, RevealGrid spacing, multi-widget group, InstructionalRoutines p-8/gap-4, MiniApp dialog) re-confirmed present and valid. WON'T FIX decisions (Countdown, Weather, TimeTool, Stations maxHeight, LunchCount maxHeight, ActivityWall modal, MusicWidget, SyntaxFramer, TrafficLight, Checklist, DrawingWidget) all re-confirmed._
 
 _2026-07-02 (action): Resolved the LOW `SpecialistScheduleWidget border-[min()]` item (highest-priority Open across today's reading list — daily journals widget-registry/typescript-eslint had no open items, css-scaling is first among dailies with open items; all remaining items across the two Thursday weeklies are also LOW, so the daily-before-weekly tiebreak applies; this was first in css-scaling document order). File-recency check passed: `SpecialistScheduleWidget.tsx` last touched at 90d63efa (PR #1798, position ~498 in history) — far outside the last 5 branch commits. Moved the `min(6px,1.5cqmin)` border-width from the Tailwind arbitrary-value class into the existing inline `style` prop; rendering is identical. See Completed for details. PR opened to dev-paul._
 
@@ -175,6 +177,7 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
   - `SoundWidget/Widget.tsx:182, :210, :212` — `p-2` content wrapper, `pb-3` footer, `px-6 py-2` level label
   - `SoundboardWidget/Widget.tsx:391` — `gap-2` selection bar (~~`mb-2` Music icon resolved 2026-06-08 — replaced with ScaledEmptyState~~)
   - `SpecialistSchedule/SpecialistScheduleWidget.tsx:234, :314` — `mb-2 pb-2` header row, `px-2 py-1` "Now" badge
+  - `Stations/Widget.tsx:341, :367` — `ml-1` on Shuffle/Rotate action-bar button label spans; all other sizing on these buttons already uses `clamp()` inline styles (detected 2026-07-03)
   - `TalkingTool/Widget.tsx:80, :109, :135` — `p-2 space-y-2`, `mb-2`, `mb-4`
   - `Webcam/Widget.tsx:457, :470, :480, :497, :527, :531, :542, :547, :558` — `p-6`, `p-6 mb-4`, `px-4 py-2`, `gap-2`, `p-4` (multiple), `gap-3`, `gap-2` (multiple)
 - **Fix:** For each widget, convert hardcoded spacing and icon-size Tailwind classes to inline `cqmin` equivalents. Example: `gap-2` → `style={{ gap: 'min(8px, 2cqmin)' }}`, `w-8 h-8` → `style={{ width: 'min(32px, 8cqmin)', height: 'min(32px, 8cqmin)' }}`. Prioritize widgets visible in default-size teacher dashboards (DiceWidget, NextUp, SoundWidget) over utility widgets.

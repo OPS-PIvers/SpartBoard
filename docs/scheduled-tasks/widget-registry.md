@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-02_
+_Last audited: 2026-07-03_
 _Last action: 2026-06-25_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-03: Full audit. New dev-paul commits since 2026-07-02: pr-review log (d82203f4 — docs only), fix(css-scaling) SpecialistSchedule border-width to inline style (08afce65 — already completed in css-scaling journal), fix(widgets) resolve 3 review findings from #2098/#2125 (0bbe0b87 — touches GuidedLearningEditor, a sub-component, not registry). VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations (sticker intentional WidgetRenderer special-case; 7 intentionally excluded from tools.ts; 3 InternalToolType entries documented). All sampled lazyNamed() export names verified correct. pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
 _2026-07-02: Full audit. New dev-paul commit since 2026-07-01: fix(quiz): strict Matching grade compares unique prompts, not raw pair count (#2123) — changes hooks/useQuizSession.ts and tests/hooks/useQuizSession.gradeAnswer.test.ts only. No impact on types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations (sticker intentional WidgetRenderer special-case; 7 intentionally excluded from tools.ts; 3 InternalToolType entries documented). All sampled lazyNamed() export names verified correct. pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
