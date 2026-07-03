@@ -126,6 +126,7 @@ interface ContextSnapshot {
   bringToFront: (id: string) => void;
   minimizeAllWidgets: () => void;
   restoreAllWidgets: () => void;
+  isActiveBoardReadOnly: boolean;
 }
 
 const TestConsumer: React.FC<{
@@ -139,6 +140,7 @@ const TestConsumer: React.FC<{
       bringToFront: ctx.bringToFront,
       minimizeAllWidgets: ctx.minimizeAllWidgets,
       restoreAllWidgets: ctx.restoreAllWidgets,
+      isActiveBoardReadOnly: ctx.isActiveBoardReadOnly,
     };
   });
   return null;
@@ -278,6 +280,34 @@ describe('DashboardContext bringToFront', () => {
     });
     // Non-group widget object is untouched
     expect(getWidget(stateRef, 'solo')).toBe(soloBefore);
+  });
+
+  it('is a no-op on a read-only (viewer) board — never writes a z-order change', async () => {
+    const stateRef = setup();
+    await pushSnapshot([
+      {
+        ...makeDashboard([makeWidget('w1', 1), makeWidget('w2', 2)]),
+        // viewer + not ended ⇒ isActiveBoardReadOnly. No linkedShareId, so the
+        // share-subscription/mirror machinery stays dormant in this harness.
+        linkedShareRole: 'viewer',
+        linkedShareEnded: false,
+      },
+    ]);
+
+    // Guard is only meaningful if the board really is read-only.
+    expect(stateRef.current?.isActiveBoardReadOnly).toBe(true);
+
+    const dashboardsBefore = stateRef.current?.dashboards;
+
+    act(() => {
+      // w1 is NOT frontmost — on a writable board this would raise it to z=3.
+      stateRef.current?.bringToFront('w1');
+    });
+
+    // The read-only guard returns before setDashboards: identity is unchanged
+    // (no commit, no Firestore write) and w1's z stays put.
+    expect(stateRef.current?.dashboards).toBe(dashboardsBefore);
+    expect(getWidget(stateRef, 'w1').z).toBe(1);
   });
 
   it('is a state no-op when the entire group is already on top', async () => {
