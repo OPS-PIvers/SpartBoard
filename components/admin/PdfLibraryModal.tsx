@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useId, useRef } from 'react';
 import {
   collection,
   onSnapshot,
@@ -46,6 +46,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
   onClose,
 }) => {
   const { showConfirm } = useDialog();
+  const pdfNameId = useId();
   const { uploadAdminPdf, deleteFile } = useStorage();
   const BUILDINGS = useAdminBuildings();
   const BUILDINGS_BY_ID = React.useMemo(
@@ -558,8 +559,9 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
 
               {/* Title */}
               <div>
-                <SettingsLabel>PDF Name</SettingsLabel>
+                <SettingsLabel htmlFor={pdfNameId}>PDF Name</SettingsLabel>
                 <input
+                  id={pdfNameId}
                   type="text"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}

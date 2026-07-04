@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useId, useRef } from 'react';
 import {
   collection,
   onSnapshot,
@@ -40,6 +40,8 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
   onClose,
 }) => {
   const { showConfirm } = useDialog();
+  const titleInputId = useId();
+  const htmlCodeId = useId();
   const BUILDINGS = useAdminBuildings();
   const BUILDINGS_BY_ID = React.useMemo(
     () => new Map(BUILDINGS.map((b) => [b.id, b])),
@@ -346,8 +348,9 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
             <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-4">
               {/* Title */}
               <div>
-                <SettingsLabel>App Title</SettingsLabel>
+                <SettingsLabel htmlFor={titleInputId}>App Title</SettingsLabel>
                 <input
+                  id={titleInputId}
                   type="text"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
@@ -398,11 +401,12 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
 
               {/* Code Editor */}
               <div className="flex flex-col" style={{ minHeight: 240 }}>
-                <SettingsLabel>
+                <SettingsLabel htmlFor={htmlCodeId}>
                   <Code2 className="w-3.5 h-3.5 inline-block mr-1 align-text-bottom" />
                   HTML Code
                 </SettingsLabel>
                 <textarea
+                  id={htmlCodeId}
                   value={editCode}
                   onChange={(e) => setEditCode(e.target.value)}
                   className="flex-1 w-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none leading-relaxed custom-scrollbar shadow-inner"
