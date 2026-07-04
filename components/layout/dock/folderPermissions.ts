@@ -10,10 +10,14 @@ import { WidgetType, InternalToolType } from '@/types';
  */
 export function shouldShowFolder(
   isEditMode: boolean,
-  items: (WidgetType | InternalToolType)[],
+  items: (WidgetType | InternalToolType)[] | undefined,
   canAccessTool: (type: WidgetType | InternalToolType) => boolean
 ): boolean {
-  return isEditMode || items.some(canAccessTool);
+  // Firestore/localStorage load dock data with a bare cast and no per-item
+  // shape validation — a legacy or partially-written document can deliver
+  // `items: undefined`. This is the first call site on that data, so guard
+  // here rather than let `.some` throw and crash the whole Dock render.
+  return isEditMode || (items ?? []).some(canAccessTool);
 }
 
 /**

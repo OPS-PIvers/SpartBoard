@@ -1,4 +1,10 @@
-import React, { useState, useRef, useCallback, useLayoutEffect } from 'react';
+import React, {
+  useState,
+  useRef,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { FolderPlus, X } from 'lucide-react';
 import { useLongPress } from '@/hooks/useLongPress';
@@ -86,7 +92,10 @@ export const FolderItem = React.memo(
     // `Dock.tsx` applies to top-level items. The underlying `folder.items`
     // array is left untouched so a restored permission brings the item
     // back in its original position.
-    const visibleItems = folder.items.filter((type) => canAccessTool(type));
+    const visibleItems = useMemo(
+      () => folder.items.filter((type) => canAccessTool(type)),
+      [folder.items, canAccessTool]
+    );
 
     const {
       attributes,
@@ -266,12 +275,12 @@ export const FolderItem = React.memo(
                       );
                     })}
                     {folder.items.length === 0 && (
-                      <div className="col-span-3 py-4 text-center text-xxs text-slate-400 italic">
+                      <div className="col-span-3 py-4 text-center text-xxs text-slate-300 italic">
                         Drag items here to add them
                       </div>
                     )}
                     {folder.items.length > 0 && visibleItems.length === 0 && (
-                      <div className="col-span-3 py-4 text-center text-xxs text-slate-400 italic">
+                      <div className="col-span-3 py-4 text-center text-xxs text-slate-300 italic">
                         Items unavailable
                       </div>
                     )}
