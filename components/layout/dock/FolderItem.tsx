@@ -49,6 +49,18 @@ interface FolderItemProps {
   ) => void;
   globalStyle: GlobalStyle;
   dockPosition?: DockPosition;
+  /**
+   * Permission gate — mirrors the check `Dock.tsx` already applies to every
+   * top-level dock item (`if (!tool || !canAccessTool(tool.type)) return
+   * null;`) before rendering it. Folder contents previously skipped this
+   * check entirely: a widget/feature placed in a folder stayed visible and
+   * addable there even after the user's access was revoked (permission
+   * change, building reassignment, admin disable), because `TOOLS.find`
+   * only confirms the type exists in the static config, not that the
+   * current user may use it. Items the user can no longer access are
+   * filtered out of both the folder preview tile and the open popover.
+   */
+  canAccessTool: (type: WidgetType | InternalToolType) => boolean;
 }
 
 // Folder Item Component
@@ -65,7 +77,17 @@ export const FolderItem = React.memo(
     onReorder,
     globalStyle,
     dockPosition = 'bottom',
+    canAccessTool,
   }: FolderItemProps) => {
+    // Items the current user can no longer access (permission revoked,
+    // building reassignment, admin-disabled feature/widget) are excluded
+    // from every rendered surface below — the closed-folder preview tile,
+    // the open popover grid, and its drag-sort context — the same gate
+    // `Dock.tsx` applies to top-level items. The underlying `folder.items`
+    // array is left untouched so a restored permission brings the item
+    // back in its original position.
+    const visibleItems = folder.items.filter((type) => canAccessTool(type));
+
     const {
       attributes,
       listeners,
@@ -212,11 +234,11 @@ export const FolderItem = React.memo(
                 onDragCancel={endWidgetDrag}
               >
                 <SortableContext
-                  items={folder.items}
+                  items={visibleItems}
                   strategy={rectSortingStrategy}
                 >
                   <div className="grid grid-cols-3 gap-3">
-                    {folder.items.map((type) => {
+                    {visibleItems.map((type) => {
                       const tool = TOOLS.find((t) => t.type === type);
                       if (!tool) return null;
 
@@ -243,7 +265,7 @@ export const FolderItem = React.memo(
                         />
                       );
                     })}
-                    {folder.items.length === 0 && (
+                    {visibleItems.length === 0 && (
                       <div className="col-span-3 py-4 text-center text-xxs text-slate-400 italic">
                         Drag items here to add them
                       </div>
@@ -293,7 +315,7 @@ export const FolderItem = React.memo(
               color="bg-slate-200/50"
               className="backdrop-blur-md shadow-inner border border-white/20 grid grid-cols-2 gap-0.5 overflow-hidden group-hover:bg-slate-200/80 transition-colors p-1.5"
             >
-              {folder.items.slice(0, 4).map((type, i) => {
+              {visibleItems.slice(0, 4).map((type, i) => {
                 const tool = TOOLS.find((t) => t.type === type);
                 return (
                   <div
@@ -302,7 +324,7 @@ export const FolderItem = React.memo(
                   />
                 );
               })}
-              {folder.items.length === 0 && (
+              {visibleItems.length === 0 && (
                 <div className="col-span-2 row-span-2 flex items-center justify-center opacity-20 text-slate-600">
                   <FolderPlus className="w-4 h-4" />
                 </div>

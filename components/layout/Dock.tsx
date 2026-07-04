@@ -1314,6 +1314,7 @@ export const Dock: React.FC = () => {
                             onReorder={reorderFolderItems}
                             globalStyle={globalStyle}
                             dockPosition={dockPosition}
+                            canAccessTool={canAccessTool}
                           />
                         );
                       }
