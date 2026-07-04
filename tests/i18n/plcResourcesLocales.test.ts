@@ -126,6 +126,11 @@ describe.each([
       const localeValue = getLeaf(locale, `${NAMESPACE}.${leaf}`);
       expect(
         localeValue,
+        `${code}.${NAMESPACE}.${leaf} is missing — this test must not pass ` +
+          `vacuously against an undefined value.`
+      ).toBeTruthy();
+      expect(
+        localeValue,
         `${code}.${NAMESPACE}.${leaf} is still the verbatim EN string ` +
           `"${enValue}" — this key is present so i18next's defaultValue ` +
           `fallback never fires, and ${code} users silently see English.`

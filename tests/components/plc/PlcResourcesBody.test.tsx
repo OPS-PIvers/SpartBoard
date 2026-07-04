@@ -6,7 +6,14 @@ import type { Plc, PlcResource } from '@/types';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (_k: string, o?: { defaultValue?: string }) => o?.defaultValue ?? _k,
+    // Kind-group labels get a distinguishable [translated] wrapper so tests
+    // can prove a call site actually routes through t() rather than reading
+    // the raw KIND_META label constant directly — both would otherwise
+    // resolve to the exact same string via defaultValue passthrough.
+    t: (_k: string, o?: { defaultValue?: string }) =>
+      _k.startsWith('plcDashboard.resources.kind.')
+        ? `[${o?.defaultValue}]`
+        : (o?.defaultValue ?? _k),
   }),
 }));
 
@@ -173,9 +180,24 @@ describe('PlcResourcesBody', () => {
     render(<PlcResourcesBody plc={PLC} />);
     expect(screen.getByText('A Doc')).toBeInTheDocument();
     expect(screen.getByText('A Quiz')).toBeInTheDocument();
-    // Both group headings present
-    expect(screen.getByText('Documents')).toBeInTheDocument();
-    expect(screen.getByText('Quizzes')).toBeInTheDocument();
+    // Both group headings present (mock t() wraps in [] — see mock comment)
+    expect(screen.getByText('[Documents]')).toBeInTheDocument();
+    expect(screen.getByText('[Quizzes]')).toBeInTheDocument();
+  });
+
+  it('translates the kind-group section aria-label the same way as its visible heading', () => {
+    // Regression: <section aria-label={label}> read the raw KIND_META
+    // label constant directly instead of routing through t(), so a German
+    // screen-reader user heard the English section name while the visible
+    // <h3> (which did call t()) showed the translated text.
+    mockUsePlcResources.mockReturnValue({
+      resources: [makeResource({ id: 'r1', kind: 'doc', title: 'A Doc' })],
+      loading: false,
+      error: null,
+    });
+    const { container } = render(<PlcResourcesBody plc={PLC} />);
+    const section = container.querySelector('section[aria-label]');
+    expect(section).toHaveAttribute('aria-label', '[Documents]');
   });
 
   it('calls createDoc with title and url when Use is clicked on a doc resource', async () => {

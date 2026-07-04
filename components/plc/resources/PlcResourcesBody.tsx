@@ -271,7 +271,12 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
         const { label, icon: KindIcon } = KIND_META[kind];
         const isDeepLink = !ONE_CLICK_KINDS.has(kind);
         return (
-          <section key={kind} aria-label={label}>
+          <section
+            key={kind}
+            aria-label={t(`plcDashboard.resources.kind.${kind}`, {
+              defaultValue: label,
+            })}
+          >
             <div className="flex items-center gap-2 mb-3">
               <KindIcon className="w-4 h-4 text-slate-500" />
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">
