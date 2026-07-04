@@ -40,10 +40,9 @@
  */
 
 import { readFileSync, existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname = import.meta.dirname;
 
 /**
  * @typedef {{ name: string, assertionResults?: unknown[], status?: string, message?: string }} VitestFileResult
@@ -150,6 +149,12 @@ function main() {
   const allIssues = [];
 
   for (const target of targets) {
+    if (!target.baseline) {
+      allIssues.push(
+        `[${target.label}] baseline configuration is missing in test-count-baseline.json`
+      );
+      continue;
+    }
     if (!existsSync(target.reportPath)) {
       allIssues.push(
         `[${target.label}] report not found at ${target.reportPath} — run 'pnpm test' / ` +
@@ -178,6 +183,9 @@ function main() {
   );
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+const isMain =
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === path.resolve(import.meta.filename);
+if (isMain) {
   main();
 }
