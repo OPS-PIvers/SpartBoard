@@ -86,4 +86,29 @@ describe('MatchingAnswerEditor duplicate-term guard', () => {
     fireEvent.change(termInputs[1], { target: { value: 'cat' } });
     expect(screen.getByRole('alert')).toBeInTheDocument();
   });
+
+  it('flags blank-term rows that carry definitions (they collide on the grader’s "" key)', () => {
+    // ":animal|:feline" — two rows with empty terms and distinct definitions.
+    // serializePairs still emits `:animal|:feline`, and the grader's Map keys
+    // on the (empty) term text, so the second row silently overwrites the
+    // first. Detection must flag this the same as any other duplicate term.
+    render(<MatchingHarness initial=":animal|:feline" />);
+    expect(screen.getByRole('alert')).toHaveTextContent(/duplicate/i);
+    const termInputs = screen.getAllByPlaceholderText('Term');
+    termInputs.forEach((input) =>
+      expect(input).toHaveAttribute('aria-invalid', 'true')
+    );
+  });
+
+  it('does not warn on default fully-empty placeholder rows', () => {
+    // A fresh editor starts with two empty rows (no term, no definition).
+    // Those are dropped by serializePairs and never reach the grader, so they
+    // must not be treated as blank-term duplicates.
+    render(<MatchingHarness initial="" />);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    const termInputs = screen.getAllByPlaceholderText('Term');
+    termInputs.forEach((input) =>
+      expect(input).toHaveAttribute('aria-invalid', 'false')
+    );
+  });
 });
