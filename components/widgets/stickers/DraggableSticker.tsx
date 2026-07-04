@@ -29,6 +29,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     bringToFront,
     moveWidgetLayer,
     deleteAllWidgets,
+    isActiveBoardReadOnly,
   } = useDashboard();
   const { showConfirm } = useDialog();
   const [isSelected, setIsSelected] = useState(false);
@@ -36,12 +37,18 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
   const [showMenu, setShowMenu] = useState(false);
 
   const nodeRef = useRef<HTMLDivElement>(null);
-  const cleanupRef = useRef<(() => void) | null>(null);
+  // Active per-gesture listener cleanups. A Set (not a single slot) so
+  // concurrent gestures — e.g. a body-drag whose first pointermove hasn't
+  // fired yet plus a second-finger rotate/resize — are each tracked and torn
+  // down independently; each gesture removes only its own entry on end.
+  const cleanupFnsRef = useRef<Set<() => void>>(new Set());
 
-  // Clean up any active window listeners on unmount
+  // Run every still-registered gesture cleanup on unmount.
   useEffect(() => {
+    const cleanups = cleanupFnsRef.current;
     return () => {
-      cleanupRef.current?.();
+      cleanups.forEach((fn) => fn());
+      cleanups.clear();
     };
   }, []);
 
@@ -54,6 +61,10 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
 
   const config = widget.config as StickerConfig;
   const rotation = config.rotation ?? 0;
+  // A sticker is locked (no delete/move) on per-widget-locked or read-only
+  // boards. Used to gate every delete affordance — keyboard shortcuts AND the
+  // floating menu Delete button — so they stay behaviourally consistent.
+  const isLocked = (widget.isLocked ?? false) || isActiveBoardReadOnly;
 
   useEffect(() => {
     const handleEscapePress = (e: Event) => {
@@ -73,6 +84,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
         setIsSelected(false);
         setShowMenu(false);
       } else if (key === 'Delete' || key === 'Backspace') {
+        if (isLocked) return;
         removeWidget(widget.id);
       }
     };
@@ -86,7 +98,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
         handleCustomKeyboard
       );
     };
-  }, [widget.id, removeWidget]);
+  }, [widget.id, isLocked, removeWidget]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     // If clicking menu or handles, don't drag
@@ -100,11 +112,27 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     // Explicitly focus the sticker so it can receive keyboard events
     const captureTarget = e.currentTarget as HTMLElement;
     captureTarget.focus();
-    captureTarget.setPointerCapture(e.pointerId);
 
     setIsSelected(true);
+
+    // Locked / read-only stickers may be selected (to reveal the menu) but not
+    // dragged — skip bring-to-front, pointer capture, and the move wiring
+    // entirely. `bringToFront` now guards read-only boards at the context level,
+    // but a per-widget lock (`widget.isLocked`) on a *writable* board isn't
+    // covered there, so this local skip is still required to keep a locked
+    // sticker's z-order frozen.
+    //
+    // Tradeoff: because z-order is frozen, a locked sticker that has been buried
+    // under higher-z siblings can't be raised. Its Options menu renders inside
+    // this sticker's own stacking context (the root's `transform: rotate()`), so
+    // it stays visually behind the covering siblings and is unreachable by
+    // pointer or keyboard. Intended recovery is to unlock the sticker first.
+    if (isLocked) return;
+
     // Select and bring this sticker to the front on click or drag start.
     bringToFront(widget.id);
+
+    captureTarget.setPointerCapture(e.pointerId);
 
     const startX = e.clientX;
     const startY = e.clientY;
@@ -149,16 +177,23 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     };
 
     const cleanup = () => {
+      // Cancel any queued frame so it can't fire (and call updateWidget with
+      // stale coords) after an unmount-path teardown. On the normal pointerup
+      // path rafId is already null, so this is a no-op there.
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
-      cleanupRef.current = null;
+      cleanupFnsRef.current.delete(cleanup);
     };
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerUp);
-    cleanupRef.current = cleanup;
+    cleanupFnsRef.current.add(cleanup);
   };
 
   const handleKeyDown = async (e: React.KeyboardEvent) => {
@@ -170,6 +205,19 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
       return;
     }
 
+    // A focused locked sticker absorbs EVERY Delete/Backspace variant (plain,
+    // Shift, Alt, Ctrl, …) so none can fall through to DashboardView's window
+    // keydown listener — which treats Shift/Alt+Delete as "Clear Board" and
+    // calls deleteAllWidgets(), a bulk delete with no per-widget lock guard.
+    // This guard runs before the specific branches, so the lock is honoured for
+    // any modifier combination, not just the two we act on.
+    if ((e.key === 'Delete' || e.key === 'Backspace') && isLocked) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    // Plain Delete/Backspace (no modifiers): remove just this sticker.
     if (
       (e.key === 'Delete' || e.key === 'Backspace') &&
       !e.shiftKey &&
@@ -238,14 +286,29 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
       } catch {
         /* already released */
       }
+      cleanup();
+    };
+
+    const cleanup = () => {
+      // Cancel any queued frame so it can't fire (and call updateWidget with
+      // stale coords) after an unmount-path teardown. On the normal pointerup
+      // path rafId is already null, so this is a no-op there.
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
+      cleanupFnsRef.current.delete(cleanup);
     };
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerUp);
+    // Track this gesture's cleanup so the unmount effect removes its listeners
+    // if the component unmounts mid-rotate (dashboard switch / remote delete).
+    cleanupFnsRef.current.add(cleanup);
   };
 
   const handleResizeStart = (e: React.PointerEvent) => {
@@ -299,14 +362,29 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
       } catch {
         /* already released */
       }
+      cleanup();
+    };
+
+    const cleanup = () => {
+      // Cancel any queued frame so it can't fire (and call updateWidget with
+      // stale coords) after an unmount-path teardown. On the normal pointerup
+      // path rafId is already null, so this is a no-op there.
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
+      cleanupFnsRef.current.delete(cleanup);
     };
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerUp);
+    // Track this gesture's cleanup so the unmount effect removes its listeners
+    // if the component unmounts mid-resize (dashboard switch / remote delete).
+    cleanupFnsRef.current.add(cleanup);
   };
 
   return (
@@ -323,7 +401,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
         height: widget.h,
         zIndex: widget.z,
         transform: `rotate(${rotation}deg)`,
-        cursor: 'move',
+        cursor: isLocked ? 'default' : 'move',
         touchAction: 'none',
       }}
       onPointerDown={handlePointerDown}
@@ -339,24 +417,30 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
         {/* Handles & Menu */}
         {isSelected && !isDragging && (
           <>
-            {/* Rotate Handle */}
-            <div
-              className="sticker-control absolute -top-8 left-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing"
-              onPointerDown={handleRotateStart}
-            >
-              <div className="p-1.5 bg-white shadow rounded-full text-blue-600 border border-blue-100">
-                <RotateCw size={14} />
-              </div>
-              <div className="h-4 w-0.5 bg-blue-400 mx-auto" />
-            </div>
+            {/* Rotate + Resize handles are hidden for locked / read-only
+                stickers, matching the disabled drag + Delete behaviour. */}
+            {!isLocked && (
+              <>
+                {/* Rotate Handle */}
+                <div
+                  className="sticker-control absolute -top-8 left-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing"
+                  onPointerDown={handleRotateStart}
+                >
+                  <div className="p-1.5 bg-white shadow rounded-full text-blue-600 border border-blue-100">
+                    <RotateCw size={14} />
+                  </div>
+                  <div className="h-4 w-0.5 bg-blue-400 mx-auto" />
+                </div>
 
-            {/* Resize Handle (Corner) */}
-            <div
-              className="sticker-control absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize flex items-end justify-end p-0.5"
-              onPointerDown={handleResizeStart}
-            >
-              <div className="w-3 h-3 border-r-2 border-b-2 border-blue-500 bg-white rounded-br-[2px]" />
-            </div>
+                {/* Resize Handle (Corner) */}
+                <div
+                  className="sticker-control absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize flex items-end justify-end p-0.5"
+                  onPointerDown={handleResizeStart}
+                >
+                  <div className="w-3 h-3 border-r-2 border-b-2 border-blue-500 bg-white rounded-br-[2px]" />
+                </div>
+              </>
+            )}
 
             {/* Menu Button (Top Right) */}
             <div
@@ -383,22 +467,40 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                     <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-50 mb-1">
                       Layers
                     </div>
+                    {/* Locked stickers keep these menu items visible but inert
+                        via an inline `!isLocked` guard + aria-disabled, rather
+                        than the native `disabled` attribute — a `disabled`
+                        button swallows the click, so `setShowMenu(false)` would
+                        never run and the menu would stay open (useClickOutside
+                        can't close it since the panel lives inside nodeRef). */}
                     <button
                       onClick={() => {
-                        moveWidgetLayer(widget.id, 'up');
+                        if (!isLocked) moveWidgetLayer(widget.id, 'up');
                         setShowMenu(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2"
+                      aria-disabled={isLocked || undefined}
+                      tabIndex={isLocked ? -1 : undefined}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
+                        isLocked
+                          ? 'text-slate-400 opacity-40 cursor-not-allowed'
+                          : 'text-slate-700 hover:bg-blue-50 hover:text-blue-600'
+                      }`}
                     >
                       <ArrowUp size={14} />
                       Bring Forward
                     </button>
                     <button
                       onClick={() => {
-                        moveWidgetLayer(widget.id, 'down');
+                        if (!isLocked) moveWidgetLayer(widget.id, 'down');
                         setShowMenu(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2"
+                      aria-disabled={isLocked || undefined}
+                      tabIndex={isLocked ? -1 : undefined}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
+                        isLocked
+                          ? 'text-slate-400 opacity-40 cursor-not-allowed'
+                          : 'text-slate-700 hover:bg-blue-50 hover:text-blue-600'
+                      }`}
                     >
                       <ArrowDown size={14} />
                       Send Backward
@@ -407,8 +509,17 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                     <div className="h-px bg-slate-100 my-1" />
 
                     <button
-                      onClick={() => removeWidget(widget.id)}
-                      className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                      onClick={() => {
+                        if (!isLocked) removeWidget(widget.id);
+                        setShowMenu(false);
+                      }}
+                      aria-disabled={isLocked || undefined}
+                      tabIndex={isLocked ? -1 : undefined}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
+                        isLocked
+                          ? 'text-red-300 opacity-40 cursor-not-allowed'
+                          : 'text-red-600 hover:bg-red-50'
+                      }`}
                     >
                       <Trash2 size={14} />
                       Delete

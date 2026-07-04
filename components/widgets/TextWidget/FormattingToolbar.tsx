@@ -94,9 +94,10 @@ const MenuButton: React.FC<{
   icon: React.ReactNode;
   label: string;
   onClick: (e: React.MouseEvent) => void;
+  onClose: () => void;
   isOpen: boolean;
   children: React.ReactNode;
-}> = ({ icon, label, onClick, isOpen, children }) => {
+}> = ({ icon, label, onClick, onClose, isOpen, children }) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({
     top: 0,
@@ -151,9 +152,17 @@ const MenuButton: React.FC<{
           <div
             className="p-1 bg-white border border-slate-200 rounded-lg shadow-xl z-dropdown min-w-[120px] animate-in fade-in zoom-in-95 duration-100"
             data-click-outside-ignore="true"
+            data-widget-portal=""
             style={menuStyle}
             onMouseDown={(e) => e.preventDefault()}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.nativeEvent.stopImmediatePropagation();
+                e.stopPropagation();
+                onClose();
+              }
+            }}
           >
             {children}
           </div>,
@@ -824,6 +833,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           icon={<Type className="w-3.5 h-3.5 text-slate-600" />}
           label="Font Family"
           isOpen={showFontMenu}
+          onClose={closeAllMenus}
           onClick={() => {
             const wasOpen = showFontMenu;
             closeAllMenus();
@@ -1012,6 +1022,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           icon={<AlignLeft className="w-3.5 h-3.5 text-slate-600" />}
           label="Alignment & Layout"
           isOpen={showAlignMenu}
+          onClose={closeAllMenus}
           onClick={() => {
             const wasOpen = showAlignMenu;
             closeAllMenus();
@@ -1157,6 +1168,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           icon={<Palette className="w-3.5 h-3.5 text-slate-600" />}
           label="Colors"
           isOpen={showColorMenu}
+          onClose={closeAllMenus}
           onClick={() => {
             const wasOpen = showColorMenu;
             closeAllMenus();
@@ -1330,6 +1342,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           icon={<MoreHorizontal className="w-3.5 h-3.5 text-slate-600" />}
           label="More options"
           isOpen={showOverflowMenu}
+          onClose={closeAllMenus}
           onClick={() => {
             const wasOpen = showOverflowMenu;
             closeAllMenus();

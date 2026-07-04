@@ -7,7 +7,7 @@ import type { PlcInvitation } from '@/types';
 
 vi.mock('firebase/firestore');
 
-vi.mock('../../context/useAuth', () => ({
+vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(),
 }));
 

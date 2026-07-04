@@ -1551,7 +1551,13 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                       height: 'min(40px, 14cqmin)',
                     }}
                   />
-                  <p className="font-black text-slate-800 mt-2">
+                  <p
+                    className="font-black text-slate-800"
+                    style={{
+                      fontSize: 'min(14px, 5.5cqmin)',
+                      marginTop: 'min(8px, 2cqmin)',
+                    }}
+                  >
                     No activities yet
                   </p>
                   <p

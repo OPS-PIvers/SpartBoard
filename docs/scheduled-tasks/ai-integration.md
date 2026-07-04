@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-06-22_
+_Last audited: 2026-07-01_
 _Last action: never_
 
 ---
@@ -35,6 +35,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-01: Full AI integration audit (Audit E2 — Wednesday). Reviewed utils/ai.ts and functions/src/aiGeneration.ts. All generation types in the table above confirmed. Gemini model strings: DEFAULT_ADVANCED_MODEL ('gemini-3-flash-preview') and DEFAULT_STANDARD_MODEL ('gemini-3.1-flash-lite-preview') confirmed as constants at the top of functions/src/aiGeneration.ts. transcribeVideoWithGemini hardcoded model fallback still present (existing LOW item). RevealGrid AI button still has no onClick handler (existing MEDIUM item). instructional-routine missing client canAccessFeature() gate (existing LOW item). guided-learning AI no ai_usage rate limit, admin-only isAdmin gate (existing MEDIUM item). All 5 existing open items confirmed valid. Zero new items._
 
 ### LOW `instructional-routine` AI has no client-side feature permission gate (server-side now fixed)
 

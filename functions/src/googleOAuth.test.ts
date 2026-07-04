@@ -371,10 +371,16 @@ describe('refreshGoogleAccessToken', () => {
   });
 
   it('deletes the stored doc AND returns needs-consent when decryption fails', async () => {
-    // Pre-populate with a doc whose ciphertext won't decrypt under the
-    // current key — simulates GOOGLE_OAUTH_REFRESH_TOKEN_KEY rotation.
+    // Pre-populate with a properly-formed AES ciphertext that was encrypted
+    // with a *different* key than what the mock provides. Using a valid
+    // Salted__ ciphertext (vs a raw invalid string) makes decryption fail
+    // deterministically across Node versions: wrong-key AES output is random
+    // bytes that CryptoJS cannot decode as UTF-8, so it reliably returns "".
+    // Generated with: CryptoJS.AES.encrypt('fake-refresh-token-value', 'old-key-before-rotation').toString()
+    const WRONG_KEY_CIPHERTEXT =
+      'U2FsdGVkX1//A7x1s8GLcL/BjJr+goCH3uuG0i8XC4LVzD6TeOdV7UVKEYtWS4O/';
     firestoreDocs.set(PRIVATE_DOC_PATH_FOR(TEST_UID), {
-      encryptedRefreshToken: 'not-a-valid-ciphertext',
+      encryptedRefreshToken: WRONG_KEY_CIPHERTEXT,
       updatedAt: 1,
       scope: ALL_SCOPES,
     });

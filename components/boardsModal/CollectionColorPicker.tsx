@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Check, Folder } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 // Curated 10-color palette for Collection accents. Anchored on the SpartBoard
 // brand pair (blue + red) plus 8 Tailwind-600 shades chosen for good
@@ -65,6 +66,7 @@ export const CollectionColorPicker: React.FC<CollectionColorPickerProps> = ({
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (isEscapeFromWidgetInput(e)) return;
         e.preventDefault();
         e.stopImmediatePropagation();
         onClose();

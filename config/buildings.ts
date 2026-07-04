@@ -1,5 +1,5 @@
-import { GradeLevel, LunchCountConfig } from '../types';
-import type { BuildingRecord, BuildingType } from '../types/organization';
+import { GradeLevel, LunchCountConfig } from '@/types';
+import type { BuildingRecord, BuildingType } from '@/types/organization';
 
 /**
  * Represents a school building with its associated grade levels.

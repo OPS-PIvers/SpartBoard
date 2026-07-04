@@ -340,35 +340,9 @@ export const Avatar: React.FC<{
 
 // Segmented ---------------------------------------------------------
 
-export const Segmented: <T extends string>(props: {
-  value: T;
-  onChange: (v: T) => void;
-  options: { value: T; label: string }[];
-  ariaLabel?: string;
-}) => React.ReactElement = ({ value, onChange, options, ariaLabel }) => (
-  <div
-    role="tablist"
-    aria-label={ariaLabel}
-    className="inline-flex p-1 bg-slate-100 rounded-lg"
-  >
-    {options.map((opt) => (
-      <button
-        key={opt.value}
-        type="button"
-        role="tab"
-        aria-selected={value === opt.value}
-        onClick={() => onChange(opt.value)}
-        className={`h-8 px-3 rounded-md text-xs font-semibold transition-all ${
-          value === opt.value
-            ? 'bg-white text-slate-900 shadow-sm'
-            : 'text-slate-500 hover:text-slate-700'
-        }`}
-      >
-        {opt.label}
-      </button>
-    ))}
-  </div>
-);
+// Promoted to the shared component library. Re-exported here as `Segmented`
+// so existing Organization view consumers keep their import path.
+export { SegmentedControl as Segmented } from '@/components/common/SegmentedControl';
 
 // RowMenu -----------------------------------------------------------
 

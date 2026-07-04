@@ -32,7 +32,7 @@ const mockUser = {
   email: 'recipient@example.com',
 };
 
-vi.mock('../context/useAuth', () => ({
+vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: mockUser,
     isAdmin: false,
@@ -53,7 +53,7 @@ const mockSubscribeToDashboards = vi.fn((cb: SubscribeCb) => {
   return () => undefined;
 });
 
-vi.mock('../hooks/useFirestore', () => ({
+vi.mock('@/hooks/useFirestore', () => ({
   useFirestore: () => ({
     saveDashboard: mockSaveDashboard,
     saveDashboards: vi.fn().mockResolvedValue(undefined),
@@ -75,7 +75,7 @@ vi.mock('../hooks/useFirestore', () => ({
   }),
 }));
 
-vi.mock('../hooks/useRosters', () => ({
+vi.mock('@/hooks/useRosters', () => ({
   useRosters: () => ({
     rosters: [],
     activeRosterId: null,
@@ -91,7 +91,7 @@ vi.mock('../hooks/useRosters', () => ({
 const mockCreateCollection = vi.fn().mockResolvedValue('new-collection-id');
 const mockDeleteCollection = vi.fn().mockResolvedValue(undefined);
 
-vi.mock('../hooks/useCollections', () => ({
+vi.mock('@/hooks/useCollections', () => ({
   useCollections: () => ({
     collections: [],
     loading: false,
@@ -112,7 +112,7 @@ vi.mock('../hooks/useCollections', () => ({
 const mockLoadSharedCollection = vi.fn();
 const mockLoadSharedCollectionBoards = vi.fn();
 
-vi.mock('../hooks/useSharedCollection', () => ({
+vi.mock('@/hooks/useSharedCollection', () => ({
   useSharedCollection: () => ({
     shareCollection: vi.fn().mockResolvedValue('mock-share-id'),
     shareSubstituteCollection: vi.fn().mockResolvedValue('mock-sub-share-id'),

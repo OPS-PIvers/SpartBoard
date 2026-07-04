@@ -39,7 +39,7 @@ const driveMock = {
   isConnected: false,
 };
 
-vi.mock('../hooks/useGoogleDrive', () => ({
+vi.mock('@/hooks/useGoogleDrive', () => ({
   useGoogleDrive: () => driveMock,
 }));
 
@@ -75,11 +75,11 @@ const firestoreMock = {
   activeRosterId: null,
 };
 
-vi.mock('../hooks/useFirestore', () => ({
+vi.mock('@/hooks/useFirestore', () => ({
   useFirestore: () => firestoreMock,
 }));
 
-vi.mock('../hooks/useRosters', () => ({
+vi.mock('@/hooks/useRosters', () => ({
   useRosters: () => ({
     rosters: [],
     activeRosterId: null,
@@ -91,7 +91,7 @@ vi.mock('../hooks/useRosters', () => ({
   }),
 }));
 
-vi.mock('../hooks/useCollections', () => ({
+vi.mock('@/hooks/useCollections', () => ({
   useCollections: () => ({
     collections: [],
     loading: false,
@@ -106,7 +106,7 @@ vi.mock('../hooks/useCollections', () => ({
   }),
 }));
 
-vi.mock('../hooks/useSharedCollection', () => ({
+vi.mock('@/hooks/useSharedCollection', () => ({
   useSharedCollection: () => ({
     shareCollection: vi.fn().mockResolvedValue('mock-collection-share-id'),
     shareSubstituteCollection: vi

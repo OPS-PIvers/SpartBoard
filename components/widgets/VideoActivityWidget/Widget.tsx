@@ -565,7 +565,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           const sessionOptions: VideoActivitySessionOptions = {
             ...behavior.sessionOptions,
             attemptLimit: behavior.attemptLimit,
-            ...(dueAt != null ? { dueAt } : {}),
+            ...(dueAt != null ? { dueAt, dueAtHasTime: true } : {}),
           };
           // Auto-generate the assignment name from the activity title.
           const assignmentName = `${meta.title} - ${new Date().toLocaleString(
@@ -990,6 +990,9 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             assigningToClassroom.className ?? assigningToClassroom.activityTitle
           }
           initialDueAt={assigningToClassroom.sessionOptions?.dueAt ?? null}
+          initialDueAtHasTime={
+            assigningToClassroom.sessionOptions?.dueAtHasTime
+          }
           classlinkClassIds={
             deriveSessionTargetsFromRosters(
               rosters.filter((r) =>

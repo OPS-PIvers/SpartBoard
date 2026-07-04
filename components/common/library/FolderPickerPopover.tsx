@@ -25,6 +25,7 @@ import { createPortal } from 'react-dom';
 import { Folder as FolderIcon, Check, Inbox } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import type { LibraryFolder } from '@/types';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 export interface FolderPickerPopoverProps {
   folders: LibraryFolder[];
@@ -147,7 +148,9 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
       onClose();
     };
     const handleKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') onClose();
+      if (event.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(event)) return;
+      onClose();
     };
     document.addEventListener('mousedown', handlePointer);
     document.addEventListener('touchstart', handlePointer);

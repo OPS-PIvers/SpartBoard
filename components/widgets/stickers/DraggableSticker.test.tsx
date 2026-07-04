@@ -1,5 +1,11 @@
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  act,
+  waitFor,
+} from '@testing-library/react';
 import { DraggableSticker } from './DraggableSticker';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { WidgetData } from '@/types';
@@ -9,6 +15,11 @@ const mockUpdateWidget = vi.fn();
 const mockRemoveWidget = vi.fn();
 const mockBringToFront = vi.fn();
 const mockMoveWidgetLayer = vi.fn();
+const mockDeleteAllWidgets = vi.fn();
+const mockShowConfirm = vi.fn();
+// Mutable so individual tests can exercise the read-only board path; reset in
+// beforeEach. `mock`-prefixed so it's usable inside vi.mock's hoisted factory.
+let mockIsActiveBoardReadOnly = false;
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
@@ -16,7 +27,13 @@ vi.mock('@/context/useDashboard', () => ({
     removeWidget: mockRemoveWidget,
     bringToFront: mockBringToFront,
     moveWidgetLayer: mockMoveWidgetLayer,
+    deleteAllWidgets: mockDeleteAllWidgets,
+    isActiveBoardReadOnly: mockIsActiveBoardReadOnly,
   }),
+}));
+
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({ showConfirm: mockShowConfirm }),
 }));
 
 vi.mock('@/hooks/useClickOutside', () => ({
@@ -41,6 +58,7 @@ describe('DraggableSticker', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsActiveBoardReadOnly = false;
   });
 
   it('shows resize and rotate handles immediately when selected', () => {
@@ -104,6 +122,294 @@ describe('DraggableSticker', () => {
     expect(mockRemoveWidget).toHaveBeenCalledWith('sticker-1');
   });
 
+  it('disables the menu Delete button when the sticker is locked', () => {
+    render(
+      <DraggableSticker widget={{ ...mockWidget, isLocked: true }}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    // Select sticker and open the menu
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+    fireEvent.click(screen.getByTitle('Sticker Options'));
+
+    const deleteButton = screen.getByText('Delete').closest('button');
+    if (!deleteButton) throw new Error('Delete button not found');
+    expect(deleteButton).toHaveAttribute('aria-disabled', 'true');
+    // Removed from tab order so keyboard/AT users can't silently activate it.
+    expect(deleteButton).toHaveAttribute('tabindex', '-1');
+
+    // Clicking the inert Delete must not remove the widget, but must still
+    // close the menu (the inline guard runs setShowMenu(false) regardless).
+    fireEvent.click(deleteButton);
+    expect(mockRemoveWidget).not.toHaveBeenCalled();
+    expect(screen.queryByText('Delete')).not.toBeInTheDocument();
+  });
+
+  it('hides rotate/resize handles and blocks dragging when locked', () => {
+    render(
+      <DraggableSticker widget={{ ...mockWidget, isLocked: true }}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    // Selecting a locked sticker still reveals the menu button...
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+    expect(screen.getByTitle('Sticker Options')).toBeInTheDocument();
+
+    // ...but the rotate/resize handles are not rendered.
+    expect(sticker.querySelector('.cursor-grab')).not.toBeInTheDocument();
+    expect(
+      sticker.querySelector('.cursor-nwse-resize')
+    ).not.toBeInTheDocument();
+
+    // A locked sticker must not be brought to front (an unguarded write) on
+    // select — this is the synchronously-observable proof the drag guard ran.
+    expect(mockBringToFront).not.toHaveBeenCalled();
+
+    // The drag guard returns before the pointermove listener is registered, so
+    // a dispatched move reaches nothing — assert bringToFront is STILL not
+    // called afterwards, confirming the listener was never wired up.
+    act(() => {
+      window.dispatchEvent(
+        new PointerEvent('pointermove', {
+          bubbles: true,
+          clientX: 500,
+          clientY: 500,
+        })
+      );
+    });
+    expect(mockBringToFront).not.toHaveBeenCalled();
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
+  it('disables the layer buttons when the sticker is locked', () => {
+    render(
+      <DraggableSticker widget={{ ...mockWidget, isLocked: true }}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+    fireEvent.click(screen.getByTitle('Sticker Options'));
+
+    const forward = screen.getByText('Bring Forward').closest('button');
+    const backward = screen.getByText('Send Backward').closest('button');
+    expect(forward).toHaveAttribute('aria-disabled', 'true');
+    expect(backward).toHaveAttribute('aria-disabled', 'true');
+
+    // Clicking an inert layer button must not write a z-order change, but must
+    // still close the menu. (Clicking one closes the menu, so assert on one.)
+    if (!forward) throw new Error('Bring Forward not found');
+    fireEvent.click(forward);
+    expect(mockMoveWidgetLayer).not.toHaveBeenCalled();
+    expect(screen.queryByText('Bring Forward')).not.toBeInTheDocument();
+  });
+
+  it('performs no mutating writes when a sticker is selected on a read-only board', () => {
+    mockIsActiveBoardReadOnly = true;
+    render(
+      <DraggableSticker widget={mockWidget}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+
+    // Selectable (menu button visible), handles hidden, and — critically — no
+    // bringToFront/updateWidget write is issued against the read-only board.
+    expect(screen.getByTitle('Sticker Options')).toBeInTheDocument();
+    expect(sticker.querySelector('.cursor-grab')).not.toBeInTheDocument();
+    expect(
+      sticker.querySelector('.cursor-nwse-resize')
+    ).not.toBeInTheDocument();
+    expect(mockBringToFront).not.toHaveBeenCalled();
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+
+    // The context menu must also reflect the read-only state — this exercises
+    // the `isActiveBoardReadOnly` branch of the inline lock guard specifically,
+    // which the `widget.isLocked` tests above don't cover.
+    fireEvent.click(screen.getByTitle('Sticker Options'));
+    const deleteButton = screen.getByText('Delete').closest('button');
+    const forward = screen.getByText('Bring Forward').closest('button');
+    const backward = screen.getByText('Send Backward').closest('button');
+    expect(deleteButton).toHaveAttribute('aria-disabled', 'true');
+    expect(forward).toHaveAttribute('aria-disabled', 'true');
+    expect(backward).toHaveAttribute('aria-disabled', 'true');
+
+    // Clicking Delete closes the menu but issues no write.
+    if (!deleteButton) throw new Error('Delete button not found');
+    fireEvent.click(deleteButton);
+    expect(mockRemoveWidget).not.toHaveBeenCalled();
+    expect(mockMoveWidgetLayer).not.toHaveBeenCalled();
+    expect(screen.queryByText('Delete')).not.toBeInTheDocument();
+  });
+
+  // Regression: handleRotateStart / handleResizeStart register their window
+  // listeners with cleanupRef so the unmount effect tears them down if the
+  // component unmounts mid-gesture (dashboard switch / remote delete).
+  it.each([
+    ['rotate', '.cursor-grab'],
+    ['resize', '.cursor-nwse-resize'],
+  ])('removes %s-gesture window listeners on unmount mid-gesture', (_, sel) => {
+    const addSpy = vi.spyOn(window, 'addEventListener');
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+
+    const { unmount } = render(
+      <DraggableSticker widget={mockWidget}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    // Select the sticker (and end the incidental drag) so handles render.
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+    act(() => {
+      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    });
+
+    const handle = sticker.querySelector(sel);
+    if (!handle) throw new Error(`${sel} handle not found`);
+
+    addSpy.mockClear();
+    // Start the gesture — registers pointermove/up/cancel on window.
+    fireEvent(
+      handle,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+    const moveHandler = addSpy.mock.calls.find(
+      (c) => c[0] === 'pointermove'
+    )?.[1];
+    expect(moveHandler).toBeTruthy();
+
+    removeSpy.mockClear();
+    // Unmount mid-gesture — the cleanup effect must remove the listeners.
+    unmount();
+    expect(removeSpy).toHaveBeenCalledWith('pointermove', moveHandler);
+  });
+
+  it('chains gesture cleanups so a concurrent body-drag is not orphaned on unmount', () => {
+    const addSpy = vi.spyOn(window, 'addEventListener');
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+
+    const { unmount } = render(
+      <DraggableSticker widget={mockWidget}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    // Start a body-drag but DON'T fire pointerup — its cleanup stays registered
+    // in cleanupRef, and with no pointermove isDragging stays false so the
+    // rotate handle renders (the narrow concurrent-gesture window).
+    addSpy.mockClear();
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+    const dragMove = addSpy.mock.calls.find((c) => c[0] === 'pointermove')?.[1];
+    expect(dragMove).toBeTruthy();
+
+    // Start a rotate gesture — chains onto (does not overwrite) the drag cleanup.
+    const rotateHandle = sticker.querySelector('.cursor-grab');
+    if (!rotateHandle) throw new Error('Rotate handle not found');
+    addSpy.mockClear();
+    fireEvent(
+      rotateHandle,
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    );
+    const rotateMove = addSpy.mock.calls.find(
+      (c) => c[0] === 'pointermove'
+    )?.[1];
+    expect(rotateMove).toBeTruthy();
+    expect(rotateMove).not.toBe(dragMove);
+
+    removeSpy.mockClear();
+    unmount();
+    // Both gestures' listeners must be torn down (chained, not overwritten).
+    expect(removeSpy).toHaveBeenCalledWith('pointermove', dragMove);
+    expect(removeSpy).toHaveBeenCalledWith('pointermove', rotateMove);
+  });
+
+  it('a rotate ending normally leaves a concurrent drag registered (removed only on unmount)', () => {
+    const addSpy = vi.spyOn(window, 'addEventListener');
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+
+    const { unmount } = render(
+      <DraggableSticker widget={mockWidget}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    // Body-drag with pointerId 1, no pointerup — stays active.
+    addSpy.mockClear();
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, pointerId: 1 })
+    );
+    const dragMove = addSpy.mock.calls.find((c) => c[0] === 'pointermove')?.[1];
+    expect(dragMove).toBeTruthy();
+
+    // Rotate with pointerId 2.
+    const rotateHandle = sticker.querySelector('.cursor-grab');
+    if (!rotateHandle) throw new Error('Rotate handle not found');
+    addSpy.mockClear();
+    fireEvent(
+      rotateHandle,
+      new PointerEvent('pointerdown', { bubbles: true, pointerId: 2 })
+    );
+    const rotateMove = addSpy.mock.calls.find(
+      (c) => c[0] === 'pointermove'
+    )?.[1];
+    expect(rotateMove).toBeTruthy();
+
+    // End ONLY the rotate (pointerId 2). Its cleanup must remove just its own
+    // listeners and leave the drag's registered (Bug 1: a single-slot ref
+    // would have discarded the drag cleanup here).
+    removeSpy.mockClear();
+    act(() => {
+      window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 2 }));
+    });
+    expect(removeSpy).toHaveBeenCalledWith('pointermove', rotateMove);
+    expect(removeSpy).not.toHaveBeenCalledWith('pointermove', dragMove);
+
+    // The still-active drag is torn down on unmount.
+    removeSpy.mockClear();
+    unmount();
+    expect(removeSpy).toHaveBeenCalledWith('pointermove', dragMove);
+  });
+
   it('deselects sticker on widget-escape-press event', () => {
     render(
       <DraggableSticker widget={mockWidget}>
@@ -149,6 +455,155 @@ describe('DraggableSticker', () => {
     });
 
     expect(mockRemoveWidget).toHaveBeenCalledWith('sticker-1');
+  });
+
+  it('ignores a keyboard Delete event on a read-only board', () => {
+    mockIsActiveBoardReadOnly = true;
+    render(
+      <DraggableSticker widget={mockWidget}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('widget-keyboard-action', {
+          detail: { widgetId: 'sticker-1', key: 'Delete', shiftKey: false },
+        })
+      );
+    });
+
+    // isLocked (via isActiveBoardReadOnly) must suppress the delete.
+    expect(mockRemoveWidget).not.toHaveBeenCalled();
+  });
+
+  it('clears all widgets on Alt+Delete after confirmation', async () => {
+    mockShowConfirm.mockResolvedValue(true);
+    render(
+      <DraggableSticker widget={mockWidget}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    fireEvent.keyDown(sticker, { key: 'Delete', altKey: true });
+
+    await waitFor(() => expect(mockShowConfirm).toHaveBeenCalled());
+    await waitFor(() => expect(mockDeleteAllWidgets).toHaveBeenCalledTimes(1));
+    // The single sticker delete path must NOT also fire.
+    expect(mockRemoveWidget).not.toHaveBeenCalled();
+  });
+
+  it('does not clear all widgets on Alt+Delete when the board is read-only', async () => {
+    mockIsActiveBoardReadOnly = true;
+    mockShowConfirm.mockResolvedValue(true);
+    render(
+      <DraggableSticker widget={mockWidget}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    fireEvent.keyDown(sticker, { key: 'Delete', altKey: true });
+
+    // Guarded before the confirm dialog is even shown.
+    await Promise.resolve();
+    expect(mockShowConfirm).not.toHaveBeenCalled();
+    expect(mockDeleteAllWidgets).not.toHaveBeenCalled();
+  });
+
+  it('absorbs Alt+Delete on a locked sticker so it never reaches the window (no board clear)', () => {
+    const windowHandler = vi.fn();
+    window.addEventListener('keydown', windowHandler);
+    try {
+      render(
+        <DraggableSticker widget={{ ...mockWidget, isLocked: true }}>
+          <div>Sticker Content</div>
+        </DraggableSticker>
+      );
+      const sticker = screen.getByText('Sticker Content').closest('.absolute');
+      if (!sticker) throw new Error('Sticker not found');
+
+      fireEvent.keyDown(sticker, { key: 'Delete', altKey: true });
+
+      // Locked: no board-level clear is triggered, and the event is stopped
+      // before it can bubble to DashboardView's window keydown handler.
+      expect(mockShowConfirm).not.toHaveBeenCalled();
+      expect(mockDeleteAllWidgets).not.toHaveBeenCalled();
+      expect(windowHandler).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('keydown', windowHandler);
+    }
+  });
+
+  it('absorbs Shift+Delete on a locked sticker so it never reaches the window (no board clear)', () => {
+    const windowHandler = vi.fn();
+    window.addEventListener('keydown', windowHandler);
+    try {
+      render(
+        <DraggableSticker widget={{ ...mockWidget, isLocked: true }}>
+          <div>Sticker Content</div>
+        </DraggableSticker>
+      );
+      const sticker = screen.getByText('Sticker Content').closest('.absolute');
+      if (!sticker) throw new Error('Sticker not found');
+
+      // Shift+Delete matches neither the plain nor Alt branch — the top locked
+      // guard must still absorb it so it can't bubble to the board handler.
+      fireEvent.keyDown(sticker, { key: 'Delete', shiftKey: true });
+
+      expect(mockRemoveWidget).not.toHaveBeenCalled();
+      expect(mockShowConfirm).not.toHaveBeenCalled();
+      expect(mockDeleteAllWidgets).not.toHaveBeenCalled();
+      expect(windowHandler).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('keydown', windowHandler);
+    }
+  });
+
+  it('cancels a queued animation frame on unmount mid-gesture', () => {
+    const { unmount } = render(
+      <DraggableSticker widget={mockWidget}>
+        <div>Sticker Content</div>
+      </DraggableSticker>
+    );
+    const sticker = screen.getByText('Sticker Content').closest('.absolute');
+    if (!sticker) throw new Error('Sticker not found');
+
+    // Spy AFTER the initial render so React's own scheduling is untouched.
+    const rafSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockReturnValue(4242 as unknown as number);
+    const cancelSpy = vi.spyOn(window, 'cancelAnimationFrame');
+
+    // Start a body-drag and move once so a frame is queued (rafId set).
+    fireEvent(
+      sticker,
+      new PointerEvent('pointerdown', { bubbles: true, pointerId: 1 })
+    );
+    act(() => {
+      window.dispatchEvent(
+        new PointerEvent('pointermove', {
+          bubbles: true,
+          pointerId: 1,
+          clientX: 20,
+          clientY: 20,
+        })
+      );
+    });
+    expect(rafSpy).toHaveBeenCalled();
+
+    cancelSpy.mockClear();
+    unmount();
+    // The cleanup must cancel the queued frame so it can't fire post-unmount.
+    expect(cancelSpy).toHaveBeenCalledWith(4242);
+
+    rafSpy.mockRestore();
+    cancelSpy.mockRestore();
   });
 
   it('does not remove sticker on widget-escape-press for a different ID', () => {

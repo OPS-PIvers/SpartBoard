@@ -212,6 +212,7 @@ function SettingChip<T extends string>({
           <div
             ref={popoverRef}
             role="menu"
+            data-widget-portal=""
             data-click-outside-ignore="true"
             className="overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
             style={{
@@ -220,6 +221,17 @@ function SettingChip<T extends string>({
               left: pos.left,
               width: SETTING_CHIP_POPOVER_WIDTH,
               zIndex: Z_INDEX.modalContent,
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.nativeEvent.stopImmediatePropagation();
+                // Also stop React's synthetic bubble: this popover renders in
+                // the widget settings panel wrapped by DraggableWindow's
+                // onKeyDown, whose flipped-close branch would otherwise fire and
+                // close the whole settings panel along with this popover.
+                e.stopPropagation();
+                setOpen(false);
+              }
             }}
           >
             {options.map((opt) => {
@@ -324,6 +336,7 @@ const WelcomeChip: React.FC<WelcomeChipProps> = ({
             role="dialog"
             aria-label="Welcome screen settings"
             data-click-outside-ignore="true"
+            data-widget-portal=""
             className="rounded-xl border border-slate-200 bg-white p-3 shadow-lg"
             style={{
               position: 'fixed',
@@ -331,6 +344,17 @@ const WelcomeChip: React.FC<WelcomeChipProps> = ({
               left: pos.left,
               width: WELCOME_CHIP_POPOVER_WIDTH,
               zIndex: Z_INDEX.modalContent,
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.nativeEvent.stopImmediatePropagation();
+                // Also stop React's synthetic bubble: this popover renders in
+                // the widget settings panel wrapped by DraggableWindow's
+                // onKeyDown, whose flipped-close branch would otherwise fire and
+                // close the whole settings panel along with this popover.
+                e.stopPropagation();
+                setOpen(false);
+              }
             }}
           >
             <label className="flex items-start gap-2 text-sm text-slate-700">
@@ -1027,6 +1051,7 @@ const CaptureMenuButton: React.FC<{
           <div
             ref={popoverRef}
             role="menu"
+            data-widget-portal=""
             data-click-outside-ignore="true"
             className="overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
             style={{
@@ -1035,6 +1060,17 @@ const CaptureMenuButton: React.FC<{
               left: pos.left,
               width: CAPTURE_MENU_WIDTH,
               zIndex: Z_INDEX.modalContent,
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.nativeEvent.stopImmediatePropagation();
+                // Also stop React's synthetic bubble: this popover renders in
+                // the widget settings panel wrapped by DraggableWindow's
+                // onKeyDown, whose flipped-close branch would otherwise fire and
+                // close the whole settings panel along with this popover.
+                e.stopPropagation();
+                setOpen(false);
+              }
             }}
           >
             {CAPTURE_OPTIONS.map((opt) => (

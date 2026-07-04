@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-26_
-_Last action: 2026-06-18_
+_Last audited: 2026-07-03_
+_Last action: 2026-06-27 — LOW ActivityWall empty-state heading `fontSize` added (`min(14px, 5.5cqmin)` + scaled `marginTop`); was unscaled 16px on a `skipScaling` widget_
 
 ---
 
@@ -21,6 +21,22 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-03: Full scan of Widget.tsx files. New dev-paul commits since 2026-07-02: pr-review log (docs), fix(css-scaling) SpecialistSchedule border-width inline style (08afce65 — already on scheduled-tasks branch, confirmed in Completed), fix(widgets) resolve 3 review findings from #2098/#2125 (0bbe0b87 — touches GuidedLearningEditor editor sub-component only; not front-face widget content). ONE NEW LOW item: `Stations/Widget.tsx:341,367` — `ml-1` hardcoded left margin on Shuffle/Rotate button label spans; added as sub-entry to the group open item. All other pre-existing open items (TalkingTool 9px cap, ClockWidget bare cqmin, EmbedWidget portaled toolbar, QuizResults text-sm, RevealGrid spacing, multi-widget group, InstructionalRoutines p-8/gap-4, MiniApp dialog) re-confirmed present and valid. WON'T FIX decisions (Countdown, Weather, TimeTool, Stations maxHeight, LunchCount maxHeight, ActivityWall modal, MusicWidget, SyntaxFramer, TrafficLight, Checklist, DrawingWidget) all re-confirmed._
+
+_2026-07-02 (action): Resolved the LOW `SpecialistScheduleWidget border-[min()]` item (highest-priority Open across today's reading list — daily journals widget-registry/typescript-eslint had no open items, css-scaling is first among dailies with open items; all remaining items across the two Thursday weeklies are also LOW, so the daily-before-weekly tiebreak applies; this was first in css-scaling document order). File-recency check passed: `SpecialistScheduleWidget.tsx` last touched at 90d63efa (PR #1798, position ~498 in history) — far outside the last 5 branch commits. Moved the `min(6px,1.5cqmin)` border-width from the Tailwind arbitrary-value class into the existing inline `style` prop; rendering is identical. See Completed for details. PR opened to dev-paul._
+
+_2026-07-02: Full scan of 58 Widget.tsx files (+ MaterialsWidget/index.tsx). New dev-paul commit since 2026-07-01: fix(quiz): strict Matching grade compares unique prompts, not raw pair count (#2123) — changes hooks/useQuizSession.ts and tests/hooks/useQuizSession.gradeAnswer.test.ts only. No widget front-face content changes. All pre-existing open items (SpecialistSchedule border-[min()], TalkingTool 9px cap, ClockWidget bare cqmin uncapped, EmbedWidget portaled toolbar text-xs, QuizResults text-sm period-filter, RevealGrid hardcoded spacing, multi-widget group spacing, MiniApp dialog text sizes, InstructionalRoutines p-8/gap-4) confirmed present and valid. DrawingWidget excluded (skipScaling:false). ActivityWall max-h-[75vh] re-confirmed viewport-modal context, WON'T FIX. Zero new anti-patterns._
+
+_2026-07-01: Full scan of 58 Widget.tsx files. New dev-paul commit since 2026-06-30: style(docs) fix prettier formatting in unifier.md — docs-only, no widget front-face changes. Automated agent scan confirmed: RevealGrid text-xs/text-gray-700, MiniApp overlay text sizes, Embed toolbar text-xs, GuidedLearning w-8 h-8 Loader2 (line shifted to :618), NextUp spacing utilities — all pre-existing items, all confirmed valid. NEW sub-entries added to group open item: InstructionalRoutines/Widget.tsx:186 uses `p-8` in the `isHero` branch and :276 uses `mt-4 gap-4`/`gap-2` in the action row — hardcoded Tailwind padding/gap in a skipScaling:true widget's front-face content. Countdown color classes (text-slate-400/text-slate-700) reviewed — color-only classes, not sizing violations, WON'T FIX. GuidedLearning group item line reference updated from :231 to :618. All other pre-existing open items confirmed valid._
+
+_2026-06-30: Full scan of all Widget.tsx files. New commits since 2026-06-28: fix(analytics) label additions, fix(widgets) local-time date helpers, fix(layout) isLocked gaps. None touch widget front-face content. Comprehensive agent scan flagged 3 candidates: (1) SyntaxFramer/Widget.tsx:130 cqh/cqw mix in character-count formula — WON'T FIX per journal guidance (fill-better formula, same 2026-06-06 analysis); (2) Checklist/Widget.tsx separate cqh/cqw axes — WON'T FIX (documented in Completed section per ClockWidget precedent); (3) NeedDoPutThen/Widget.tsx:134 template literal with `sizeMultiplier` — NOT a violation; this is intentional textSizePreset support (sizeMultiplier is derived from config.textSizePreset via resolveTextPresetMultiplier, producing a dynamic but valid cqmin formula). All pre-existing open items (SpecialistSchedule border-[min()], TalkingTool 9px cap, ClockWidget bare cqmin, EmbedWidget portaled toolbar, QuizResults text-sm, RevealGrid spacing, multi-widget group, MiniApp dialog) re-confirmed present and valid. Zero new anti-patterns._
+
+_2026-06-28: Full scan of all Widget.tsx files. New commits since 2026-06-27: fix(activity-wall) scale empty-state heading (already moved to Completed). Automated scan flagged MusicWidget cqh-only, Countdown cqh/cqw, Weather hideClothing cqh/cqw, LunchCount cqh/cqw, SyntaxFramer cqh/cqw, InstructionalRoutines cqh/cqw, Checklist cqh/cqw, LunchCount maxHeight:45cqh, Stations maxHeight:40cqh, ActivityWall modal max-h-[75vh] — all WON'T FIX per journal guidance (fill-better formula or intentional design cap, documented in prior entries). All pre-existing open items (SpecialistSchedule border-[min()], TalkingTool 9px cap, ClockWidget bare cqmin, EmbedWidget portaled toolbar, QuizResults period-filter, RevealGrid spacing, multi-widget group, MiniApp dialog) re-confirmed present and valid. Zero new anti-patterns._
+
+_2026-06-27 (action): Took the highest-priority **safe** open item this pass — the LOW ActivityWall empty-state `fontSize` fix (moved to Completed). Selection rationale: the HIGH `DashboardContext.tsx` extraction and the three code-structure MEDIUM large-file items are all BLOCKED (need supervised runtime verification); every ui-unification MEDIUM is blocked-for-admin-runtime, false-premise, or requires a data-model migration the widgets don't consume (see ui-unification.md note dated 2026-06-27). With no actionable HIGH/MEDIUM, the highest-priority safe item is this daily-journal LOW. ActivityWall heading now uses `min(14px, 5.5cqmin)` + scaled `marginTop`, matching its already-scaled icon/subtitle siblings. type-check/eslint/prettier clean._
+
+_2026-06-27: Full scan of all Widget.tsx files. New dev-paul commits since 2026-06-26: refactor(rules), Review fixes for #2076, Rules/auth hardening (#2081), fix(ci) prod hosting, fix(lint) LinksPanel/ShortenUrlButton. Only widget-related changes: commit 6a084586 (Rules/auth hardening) touched components/widgets/Embed/Widget.test.tsx and components/widgets/TalkingTool/Widget.test.tsx — test files only, not front-face content. No widget Widget.tsx or index.tsx front-face content changed. All pre-existing open items re-confirmed valid (SpecialistSchedule border-[min()], ActivityWall empty-state paragraph fontSize, TalkingTool 9px cap, ClockWidget bare cqmin, EmbedWidget portaled toolbar, QuizResults text-sm, RevealGrid spacing, multi-widget group spacing, MiniApp dialog text sizes). Zero new anti-patterns._
 
 _2026-06-26: Full scan of all Widget.tsx files. New dev-paul commits since 2026-06-25: docs(audit) close-outs — no widget front-face content changes. Automated agent scan re-flagged 27 candidates across ActivityWall/MiniApp/Embed/RevealGrid/DrawingWidget; all reviewed: ActivityWall `text-sm` instances are inside fullscreen modal overlays (max-h-[75vh] context confirmed in prior journal entries) or already tracked as the 2026-06-25 empty-state paragraph item (:1554); MiniApp `text-sm`/`text-xs` already tracked as the open "MiniApp internal dialog overlays" item; Embed `text-xs` already tracked as the open "EmbedWidget zoom toolbar" item; RevealGrid header text classes already tracked as the open "RevealGridWidget hardcoded spacing" item; DrawingWidget has `skipScaling:false` — CSS transform scaling, not container queries, so Tailwind text classes are not CQ violations there. All pre-existing open items re-confirmed valid. Zero new anti-patterns._
 
@@ -112,20 +128,6 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### LOW SpecialistScheduleWidget uses `border-[min()]` Tailwind arbitrary value — inline style is the project convention for `cqmin` values
-
-- **Detected:** 2026-06-25
-- **File:** components/widgets/SpecialistSchedule/SpecialistScheduleWidget.tsx:395
-- **Detail:** The widget uses `className="... border-[min(6px,1.5cqmin)] ..."` (Tailwind JIT arbitrary value syntax). Tailwind v3.4 JIT correctly handles balanced parentheses inside `[...]`, so `min(6px,1.5cqmin)` is parsed as a single value and generates valid `border-width: min(6px, 1.5cqmin)` CSS — the border renders correctly. The concern is stylistic: all other `cqmin`-based sizing in widget front-face content uses inline `style` props rather than Tailwind arbitrary values, making intent explicit and avoiding reliance on Tailwind's balanced-paren parsing behaviour. Widget has `skipScaling: true`. (Note: a prior version of this entry incorrectly described this as a rendering bug — it is not; only a style consistency issue.)
-- **Fix:** Move the border-width from `className` to a `style` prop to match the project convention: `style={{ borderWidth: 'min(6px, 1.5cqmin)' }}`. Keep border-style/color Tailwind classes on `className`.
-
-### LOW ActivityWall empty-state paragraph has no `fontSize` style — unscaled at all widget sizes
-
-- **Detected:** 2026-06-25
-- **File:** components/widgets/ActivityWall/Widget.tsx:1554
-- **Detail:** The "No activities yet" empty-state paragraph uses `<p className="font-black text-slate-800 mt-2">` with no `fontSize` style. Widget has `skipScaling: true`, so the paragraph falls back to the browser default 16px regardless of widget size. At small widget sizes the text can overflow; at large sizes it appears undersized relative to the container. This empty state is shown whenever the activity wall has no content, which is the first thing a teacher sees after adding the widget.
-- **Fix:** Either replace the hand-rolled empty state with the shared `ScaledEmptyState` component (`import { ScaledEmptyState } from '@/components/common/ScaledEmptyState'`), or add an inline fontSize: `style={{ fontSize: 'min(14px, 5.5cqmin)', marginTop: 'min(8px, 2cqmin)' }}` and remove `mt-2` from `className`.
-
 ### LOW TalkingTool font-size pixel cap (`9px`) is below the recommended 10px minimum
 
 - **Detected:** 2026-06-25
@@ -168,12 +170,14 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 - **Detail:** The following widgets have `skipScaling: true` and contain hardcoded Tailwind spacing utilities (`gap-N`, `p-N`, `px-N py-N`, `mb-N`) or icon size classes (`w-N h-N`) in their front-face content. These cause fixed-pixel spacing that does not respond to container query scaling, creating density mismatches at large widget sizes. None affect text legibility directly (no Tailwind text-size classes), so severity is LOW.
   - `CatalystWidget/Widget.tsx:88` — `mr-2` on back button
   - `DiceWidget/Widget.tsx:109, :113-116` — `px-3 pb-3` footer, `py-4 px-6 gap-3` Roll Dice button
-  - `GuidedLearning/Widget.tsx:231` — `w-8 h-8` on Loader2 loading icon
+  - `GuidedLearning/Widget.tsx:618` — `w-8 h-8` on Loader2 loading icon (line shifted from :231 — confirmed 2026-07-01)
+  - `InstructionalRoutines/Widget.tsx:186, :276` — `p-8` in `isHero` branch, `mt-4 gap-4`/`gap-2` in action row (detected 2026-07-01)
   - `NextUp/Widget.tsx:295, :331, :344, :346, :360, :409, :425, :430` — `p-6`, `gap-2`, `p-1`, `px-3 py-1`, `mb-2 px-1`, `space-y-2`, `py-8`
   - ~~`random/RandomWidget.tsx:711, :750, :752`~~ — resolved by random redesign (2026-05-15; commits b0b11656, f8fb1e6b converted all to `cqmin`)
   - `SoundWidget/Widget.tsx:182, :210, :212` — `p-2` content wrapper, `pb-3` footer, `px-6 py-2` level label
   - `SoundboardWidget/Widget.tsx:391` — `gap-2` selection bar (~~`mb-2` Music icon resolved 2026-06-08 — replaced with ScaledEmptyState~~)
   - `SpecialistSchedule/SpecialistScheduleWidget.tsx:234, :314` — `mb-2 pb-2` header row, `px-2 py-1` "Now" badge
+  - `Stations/Widget.tsx:341, :367` — `ml-1` on Shuffle/Rotate action-bar button label spans; all other sizing on these buttons already uses `clamp()` inline styles (detected 2026-07-03)
   - `TalkingTool/Widget.tsx:80, :109, :135` — `p-2 space-y-2`, `mb-2`, `mb-4`
   - `Webcam/Widget.tsx:457, :470, :480, :497, :527, :531, :542, :547, :558` — `p-6`, `p-6 mb-4`, `px-4 py-2`, `gap-2`, `p-4` (multiple), `gap-3`, `gap-2` (multiple)
 - **Fix:** For each widget, convert hardcoded spacing and icon-size Tailwind classes to inline `cqmin` equivalents. Example: `gap-2` → `style={{ gap: 'min(8px, 2cqmin)' }}`, `w-8 h-8` → `style={{ width: 'min(32px, 8cqmin)', height: 'min(32px, 8cqmin)' }}`. Prioritize widgets visible in default-size teacher dashboards (DiceWidget, NextUp, SoundWidget) over utility widgets.
@@ -189,6 +193,14 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 
 ## Completed
 
+### LOW SpecialistScheduleWidget uses `border-[min()]` Tailwind arbitrary value — inline style is the project convention for `cqmin` values
+
+- **Detected:** 2026-06-25
+- **Completed:** 2026-07-02
+- **File:** components/widgets/SpecialistSchedule/SpecialistScheduleWidget.tsx:395
+- **Detail:** The active-item card used `className="... border-[min(6px,1.5cqmin)] border-teal-600 ..."` (Tailwind JIT arbitrary value syntax). The border rendered correctly (Tailwind v3.4 JIT handles balanced parentheses), so this was purely a style-consistency issue: all other `cqmin`-based sizing in widget front-face content uses inline `style` props. Widget has `skipScaling: true`.
+- **Resolution:** Moved the border-width off `className` into the existing inline `style` prop as `...(isActive ? { borderWidth: 'min(6px, 1.5cqmin)' } : {})`, keeping `border-teal-600 shadow-md z-10` (color/shadow/z only) on `className`. The inactive branch keeps its `border border-slate-200 shadow-sm` classes unchanged. Rendering is identical (border-style `solid` comes from Tailwind preflight in both the old and new form; only the width source moved). `pnpm type-check` (exit 0), `eslint --max-warnings 0` on the changed file (exit 0), `prettier --check` (clean).
+
 ### LOW PollWidget progress bar has no upper size cap — grows excessively at large widget sizes
 
 - **Detected:** 2026-05-28
@@ -196,6 +208,14 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 - **File:** components/widgets/PollWidget/Widget.tsx:244 (was :161 at detection; line shifted as the file grew with the live-session QR/tally feature)
 - **Detail:** The poll results progress bar wrapper used `className="h-[min(5cqmin)] min-h-[16px] ..."`. The `h-[min(5cqmin)]` is effectively `height: 5cqmin` and `min-h-[16px]` adds a 16px floor, but there was no upper cap — at large widget sizes the bar grew disproportionately tall. Widget has `skipScaling: true`.
 - **Resolution:** Replaced the two Tailwind height classes with a single inline style using the recommended cap pattern: `style={{ height: 'clamp(16px, 5cqmin, 24px)' }}` (16px floor, scales with `5cqmin`, capped at 24px). Kept the visual classes (`bg-slate-100 rounded-full overflow-hidden relative border border-slate-200/50`) on `className`. `pnpm type-check`, `eslint --max-warnings 0`, and `prettier` on the changed file all clean.
+
+### LOW ActivityWall empty-state paragraph has no `fontSize` style — unscaled at all widget sizes
+
+- **Detected:** 2026-06-25
+- **Completed:** 2026-06-27
+- **File:** components/widgets/ActivityWall/Widget.tsx:1554
+- **Detail:** The "No activities yet" empty-state heading paragraph used `<p className="font-black text-slate-800 mt-2">` with no `fontSize` style. Widget has `skipScaling: true`, so the heading fell back to the browser default 16px regardless of widget size, while its sibling icon (`min(40px, 14cqmin)`) and subtitle (`min(11px, 3.6cqmin)`) already scaled with the container. At small widget sizes the heading could overflow; at large sizes it appeared undersized relative to the surrounding scaled elements. This empty state is the first thing a teacher sees after adding the widget.
+- **Resolution:** Added an inline `fontSize: 'min(14px, 5.5cqmin)'` (medium-text tier per CLAUDE.md, one step above the `min(11px, 3.6cqmin)` subtitle to preserve hierarchy) and converted the `mt-2` Tailwind margin to an inline `marginTop: 'min(8px, 2cqmin)'` so the spacing scales too. Kept `font-black text-slate-800` on `className`. `pnpm type-check` (exit 0), `eslint --max-warnings 0` on the changed file (exit 0), `prettier --check` (clean).
 
 ### LOW ActivityWall inline activity-editor checkbox uses hardcoded `h-4 w-4` icon size
 

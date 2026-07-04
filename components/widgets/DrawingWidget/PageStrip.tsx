@@ -209,6 +209,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
             <div
               id="drawing-page-popover"
               data-testid="drawing-page-popover"
+              data-widget-portal=""
               role="dialog"
               aria-label="Pages"
               className="fixed z-[2147483600] w-[280px] max-h-[60vh] flex flex-col rounded-xl bg-slate-900/95 backdrop-blur-md shadow-xl border border-white/10 overflow-hidden"
