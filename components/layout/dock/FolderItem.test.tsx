@@ -4,6 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { DndContext } from '@dnd-kit/core';
 import { SortableContext } from '@dnd-kit/sortable';
 import { FolderItem } from './FolderItem';
+import { reorderPreservingHidden } from './folderPermissions';
 import type { DockFolder } from '@/types';
 import { DEFAULT_GLOBAL_STYLE } from '@/types';
 
@@ -137,5 +138,68 @@ describe('FolderItem permission gating', () => {
 
     expect(screen.getByText('Drag items here to add them')).toBeInTheDocument();
     expect(screen.queryByText('Items unavailable')).not.toBeInTheDocument();
+  });
+
+  it('shows the closed-tile FolderPlus icon for an all-gated (populated) folder too, not just a truly empty one', () => {
+    // The closed 2x2 preview tile is decorative and only ever visible for
+    // an all-gated folder while isEditMode keeps Dock.tsx from hiding it
+    // entirely — showing FolderPlus (rather than a blank icon-less tile)
+    // avoids the tile looking broken while a teacher is managing it.
+    const { container } = renderFolderItem({
+      folder,
+      canAccessTool: () => false,
+    });
+
+    const tile = container.querySelector(`[data-folder-id="${folder.id}"]`);
+    expect(tile?.querySelector('.lucide-folder-plus')).toBeInTheDocument();
+  });
+
+  it('does not show the closed-tile FolderPlus icon when at least one item is visible', () => {
+    const { container } = renderFolderItem({
+      folder,
+      canAccessTool: () => true,
+    });
+
+    const tile = container.querySelector(`[data-folder-id="${folder.id}"]`);
+    expect(tile?.querySelector('.lucide-folder-plus')).not.toBeInTheDocument();
+  });
+});
+
+describe('reorderPreservingHidden', () => {
+  // 'clock' and 'time-tool' stand in for visible items; 'weather' stands in
+  // for a permission-gated (hidden) item that must not move.
+  it('reorders visible items while leaving a hidden item at its original absolute index', () => {
+    // folder.items = ['clock', 'weather'(hidden), 'time-tool'];
+    // visibleItems = ['clock', 'time-tool']. Dragging 'time-tool' before
+    // 'clock' in visible-space must NOT shift 'weather' out of index 1 — a
+    // restored permission should find it exactly where it was left.
+    const result = reorderPreservingHidden(
+      ['clock', 'weather', 'time-tool'],
+      ['clock', 'time-tool'],
+      'time-tool',
+      'clock'
+    );
+
+    expect(result).toEqual(['time-tool', 'weather', 'clock']);
+  });
+
+  it('returns null when the dragged or drop-target type is not currently visible', () => {
+    const result = reorderPreservingHidden(
+      ['clock', 'weather', 'time-tool'],
+      ['clock', 'time-tool'],
+      'weather',
+      'clock'
+    );
+    expect(result).toBeNull();
+  });
+
+  it('reorders correctly when nothing is hidden (visibleItems === allItems)', () => {
+    const result = reorderPreservingHidden(
+      ['clock', 'time-tool'],
+      ['clock', 'time-tool'],
+      'clock',
+      'time-tool'
+    );
+    expect(result).toEqual(['time-tool', 'clock']);
   });
 });

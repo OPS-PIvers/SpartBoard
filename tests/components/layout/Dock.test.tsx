@@ -17,6 +17,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Dock } from '@/components/layout/Dock';
+import { shouldShowFolder } from '@/components/layout/dock/folderPermissions';
 
 // ── Module mocks ─────────────────────────────────────────────────────────────
 
@@ -824,5 +825,41 @@ describe('Dock smart-paste – SELECT element is excluded from paste interceptio
 
     document.body.removeChild(selectEl);
     unmount();
+  });
+});
+
+describe('shouldShowFolder', () => {
+  it('hides a folder with no items when not in edit mode (Array.prototype.some on [] is always false)', () => {
+    // Regression: `!isEditMode && !items.some(...)` must not permanently
+    // hide a freshly-created folder (addFolder seeds items: []) or one
+    // drained to empty one item at a time (moveItemOutOfFolder) — both are
+    // legitimate mid-edit states, not "some/all items gated" states.
+    expect(shouldShowFolder(false, [], () => true)).toBe(false);
+  });
+
+  it('shows a folder with no items while in edit mode, so it stays reachable to populate or delete', () => {
+    expect(shouldShowFolder(true, [], () => true)).toBe(true);
+  });
+
+  it('shows an all-gated folder while in edit mode, so rename/delete controls stay reachable', () => {
+    expect(shouldShowFolder(true, ['clock', 'time-tool'], () => false)).toBe(
+      true
+    );
+  });
+
+  it('hides an all-gated folder when not in edit mode', () => {
+    expect(shouldShowFolder(false, ['clock', 'time-tool'], () => false)).toBe(
+      false
+    );
+  });
+
+  it('shows a folder with at least one accessible item regardless of edit mode', () => {
+    const canAccessTool = (t: string) => t === 'clock';
+    expect(shouldShowFolder(false, ['clock', 'time-tool'], canAccessTool)).toBe(
+      true
+    );
+    expect(shouldShowFolder(true, ['clock', 'time-tool'], canAccessTool)).toBe(
+      true
+    );
   });
 });

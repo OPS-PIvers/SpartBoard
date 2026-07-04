@@ -5,7 +5,6 @@ import { useLongPress } from '@/hooks/useLongPress';
 import {
   useSortable,
   SortableContext,
-  arrayMove,
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import {
@@ -33,6 +32,7 @@ import {
   DockPosition,
 } from '@/types';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
+import { reorderPreservingHidden } from './folderPermissions';
 
 interface FolderItemProps {
   folder: DockFolder;
@@ -134,18 +134,18 @@ export const FolderItem = React.memo(
         endWidgetDrag();
         const { active, over } = event;
         if (active.id !== over?.id) {
-          const oldIndex = folder.items.indexOf(
-            active.id as WidgetType | InternalToolType
-          );
-          const newIndex = folder.items.indexOf(
+          const newItems = reorderPreservingHidden(
+            folder.items,
+            visibleItems,
+            active.id as WidgetType | InternalToolType,
             over?.id as WidgetType | InternalToolType
           );
-          if (oldIndex !== -1 && newIndex !== -1) {
-            onReorder(folder.id, arrayMove(folder.items, oldIndex, newIndex));
+          if (newItems) {
+            onReorder(folder.id, newItems);
           }
         }
       },
-      [folder.id, folder.items, onReorder]
+      [folder.id, folder.items, visibleItems, onReorder]
     );
 
     const style = {
@@ -329,7 +329,7 @@ export const FolderItem = React.memo(
                   />
                 );
               })}
-              {folder.items.length === 0 && (
+              {visibleItems.length === 0 && (
                 <div className="col-span-2 row-span-2 flex items-center justify-center opacity-20 text-slate-600">
                   <FolderPlus className="w-4 h-4" />
                 </div>
