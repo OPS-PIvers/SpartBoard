@@ -91,22 +91,7 @@ function serializePairs(rows: PairRow[]): string {
     .join('|');
 }
 
-/**
- * `serializePairs` writes `correctAnswer` as `term:def|term:def`, and
- * grading (`gradeAnswer` in `hooks/useQuizSession.ts`) builds a left→right
- * `Map` keyed by term — a case/whitespace-insensitive duplicate collapses to
- * a single map entry, silently discarding every row but the last with that
- * term. The student-facing matching UI has the same collision (drop zones
- * are keyed by term text), so a duplicate term isn't just under-graded —
- * the student can't even place two answers for it. Root-causing this means
- * catching the duplicate here, at entry, rather than downstream.
- *
- * Returns the ids of every row whose (trimmed, case-insensitive,
- * internal-whitespace-collapsed) term collides with another non-empty row —
- * the same normalization `normalizeAnswer` in `hooks/useQuizSession.ts`
- * applies before building the grading map, so two terms that grade as one
- * duplicate are also flagged as one here.
- */
+// Guards against gradeAnswer's Map keying on term text (equivalent normalization for the term portion): a duplicate term silently overwrites the first row, so flag it here at entry time.
 function findDuplicateTermRowIds(rows: PairRow[]): Set<string> {
   const seen = new Map<string, string[]>();
   for (const row of rows) {

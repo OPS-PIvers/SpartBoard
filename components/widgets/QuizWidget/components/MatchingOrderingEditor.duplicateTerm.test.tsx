@@ -1,23 +1,3 @@
-/**
- * Regression test for the duplicate-left-term data-corruption bug flagged
- * in docs/routines/debugger.md (backlog: `MatchingOrderingEditor.tsx`
- * `serializePairs`, spotted on PR #2111 review but never fixed).
- *
- * A teacher who types the same Term into two rows produces
- * `correctAnswer = "term:a|term:b"`. Downstream:
- *  - `gradeAnswer` (hooks/useQuizSession.ts) builds a left→right `Map`
- *    keyed by term, so the second row silently overwrites the first —
- *    only one of the two rows the teacher created is ever graded.
- *  - The student-facing matching UI keys its drop zones by term text too,
- *    so the student can't even place two separate answers for it.
- *
- * Root-cause fix: surface the collision at the point of entry (the editor)
- * so a teacher can never save an unscoreable duplicate-term pair without
- * seeing a clear warning. This test asserts the editor detects duplicates
- * (case/whitespace-insensitive) and flags them — it fails on the
- * pre-fix editor, which has no duplicate-term detection at all.
- */
-
 import React, { useCallback, useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
