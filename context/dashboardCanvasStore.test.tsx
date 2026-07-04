@@ -36,7 +36,7 @@ import {
   DashboardContext,
   type DashboardContextValue,
 } from './DashboardContextValue';
-import { Dashboard, WidgetData } from '../types';
+import { Dashboard, WidgetData } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Mocks (mirrors context/DashboardContext.bringToFront.test.tsx)

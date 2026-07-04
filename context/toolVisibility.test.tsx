@@ -32,7 +32,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DashboardProvider } from './DashboardContext';
 import { useDashboard } from './useDashboard';
 import { useToolVisibility } from './useToolVisibility';
-import { Dashboard, WidgetData, WidgetType, DockItem } from '../types';
+import { Dashboard, WidgetData, WidgetType, DockItem } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Mocks (mirrors context/dashboardCanvasStore.test.tsx)

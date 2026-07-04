@@ -11,6 +11,7 @@ import {
 import { useStorage } from '@/hooks/useStorage';
 import { useImageUpload } from '@/hooks/useImageUpload';
 import { Card } from '@/components/common/Card';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { GlobalSticker, GradeLevel } from '@/types';
 import { ALL_GRADE_LEVELS } from '@/config/widgetGradeLevels';
 import { useDialog } from '@/context/useDialog';
@@ -344,9 +345,7 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xxs font-black uppercase text-slate-400 tracking-widest block px-1">
-                      Grade Levels
-                    </label>
+                    <SettingsLabel className="px-1">Grade Levels</SettingsLabel>
                     <div className="grid grid-cols-2 gap-1.5">
                       {ALL_GRADE_LEVELS.map((level) => {
                         const isSelected = sticker.gradeLevels?.includes(level);

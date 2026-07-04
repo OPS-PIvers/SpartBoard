@@ -11,6 +11,7 @@ import {
 import { Plus, Trash2, GripVertical } from 'lucide-react';
 import { Card } from '@/components/common/Card';
 import { HexColorField } from './HexColorField';
+import { GLOBAL_FONT_FAMILY_OPTIONS } from '@/config/fonts';
 
 interface ChecklistConfigurationPanelProps {
   config: ChecklistGlobalConfig;
@@ -151,17 +152,11 @@ export const ChecklistConfigurationPanel: React.FC<
               className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
             >
               <option value="global">Global (Dashboard default)</option>
-              <option value="sans">Sans Serif</option>
-              <option value="serif">Serif</option>
-              <option value="mono">Monospace</option>
-              <option value="handwritten">Handwritten</option>
-              <option value="rounded">Rounded</option>
-              <option value="comic">Comic</option>
-              <option value="slab">Slab Serif</option>
-              <option value="retro">Retro</option>
-              <option value="fun">Fun</option>
-              <option value="marker">Marker</option>
-              <option value="cursive">Cursive</option>
+              {GLOBAL_FONT_FAMILY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
           </div>
           <div>

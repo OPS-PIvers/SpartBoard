@@ -6,7 +6,16 @@ import { usePlcResources } from '@/hooks/usePlcResources';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (_k: string, o?: { defaultValue?: string }) => o?.defaultValue ?? _k,
+    // kindBadge.* labels get a distinguishable [translated] wrapper so a
+    // test can prove getKindLabel(t, kind) actually routes through t()
+    // rather than reading the raw KIND_LABELS constant — both would
+    // otherwise resolve to the identical string via defaultValue
+    // passthrough, making a regression (reverting to KIND_LABELS[kind])
+    // pass silently. Same pattern as PlcResourcesBody.test.tsx.
+    t: (_k: string, o?: { defaultValue?: string }) =>
+      _k.startsWith('plcDashboard.resources.kindBadge.')
+        ? `[${o?.defaultValue}]`
+        : (o?.defaultValue ?? _k),
   }),
 }));
 
@@ -250,5 +259,38 @@ describe('PlcResourcesManager', () => {
     } finally {
       confirmSpy.mockRestore();
     }
+  });
+
+  it('renders a resource row kind badge translated via t(), not the raw KIND_LABELS constant', () => {
+    // Regression: getKindLabel(t, res.kind) must actually call t() so the
+    // badge can be localized — reverting it to a direct KIND_LABELS[kind]
+    // lookup would previously have passed every test in this file silently,
+    // since both resolve to the same string via defaultValue passthrough.
+    vi.mocked(usePlcResources).mockReturnValue({
+      resources: [
+        {
+          id: 'res-1',
+          kind: 'doc',
+          title: 'Planning Doc',
+          description: '',
+          refId: 'https://docs.google.com/d/x',
+          scope: 'all',
+          plcIds: [],
+          createdByAdminUid: 'admin-1',
+          createdByAdminEmail: 'admin@school.edu',
+          createdAt: 1,
+          updatedAt: 2,
+        },
+      ],
+      loading: false,
+      error: null,
+      createResource: mockCreateResource,
+      updateResource: mockUpdateResource,
+      deleteResource: mockDeleteResource,
+    });
+
+    render(<PlcResourcesManager />);
+
+    expect(screen.getByText('[Document / Link]')).toBeInTheDocument();
   });
 });

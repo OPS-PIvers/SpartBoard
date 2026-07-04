@@ -490,7 +490,9 @@ export function gradeAnswer(
     const lis = longestOrderedSubsequenceLength(correctItems, givenItems);
     const pointsEarned =
       correctItems.length === 0 ? 0 : (lis / correctItems.length) * max;
-    return { isCorrect, pointsEarned, pointsMax: max };
+    // isCorrect must share pointsEarned's lis-based formula, not the strict whole-string equality above.
+    const partialIsCorrect = lis === correctItems.length;
+    return { isCorrect: partialIsCorrect, pointsEarned, pointsMax: max };
   }
   return { isCorrect: false, pointsEarned: 0, pointsMax: max };
 }
