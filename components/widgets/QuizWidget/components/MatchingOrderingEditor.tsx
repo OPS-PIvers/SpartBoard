@@ -27,6 +27,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useResetOnChange } from '@/hooks/useResetOnChange';
+import { normalizeAnswer } from '@/hooks/useQuizSession';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -95,7 +96,7 @@ function serializePairs(rows: PairRow[]): string {
 function findDuplicateTermRowIds(rows: PairRow[]): Set<string> {
   const seen = new Map<string, string[]>();
   for (const row of rows) {
-    const key = row.term.trim().toLowerCase().replace(/\s+/g, ' ');
+    const key = normalizeAnswer(row.term);
     if (!key) continue;
     const ids = seen.get(key);
     if (ids) ids.push(row.id);
