@@ -490,7 +490,7 @@ export function gradeAnswer(
     const lis = longestOrderedSubsequenceLength(correctItems, givenItems);
     const pointsEarned =
       correctItems.length === 0 ? 0 : (lis / correctItems.length) * max;
-    // isCorrect must share pointsEarned's lis-based formula, not the strict whole-string equality above (mirrors Matching's fix in #1950).
+    // isCorrect must share pointsEarned's lis-based formula, not the strict whole-string equality above.
     const partialIsCorrect =
       correctItems.length > 0 && lis === correctItems.length;
     return { isCorrect: partialIsCorrect, pointsEarned, pointsMax: max };
