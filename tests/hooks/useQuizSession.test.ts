@@ -333,6 +333,33 @@ describe('gradeAnswer', () => {
       expect(grade.pointsEarned).toBe(3);
     });
 
+    it('Ordering: isCorrect stays consistent with pointsEarned when the given answer has an extra item not in correctAnswer', () => {
+      // Regression: a question edited (item removed) after a student already
+      // submitted leaves the stored response one item longer than the
+      // current correctAnswer. `longestOrderedSubsequenceLength` skips the
+      // unmatched extra item and still reports a full-length subsequence
+      // over the remaining ones, so pointsEarned reaches max — but the old
+      // code derived isCorrect from strict whole-string equality
+      // (`correct === given`), which is false here because the strings
+      // differ in length. That produced the same isCorrect=false /
+      // pointsEarned=max contradiction already fixed for Matching partial
+      // credit (#1950); isCorrect must instead track the same
+      // lis === correctItems.length formula that pointsEarned uses.
+      const q: QuizQuestion = {
+        id: 'po-extra',
+        timeLimit: 0,
+        text: 'Order',
+        type: 'Ordering',
+        correctAnswer: 'A|B|C',
+        incorrectAnswers: [],
+        points: 3,
+        allowPartialCredit: true,
+      };
+      const grade = gradeAnswer(q, 'A|B|C|D');
+      expect(grade.pointsEarned).toBe(3);
+      expect(grade.isCorrect).toBe(true);
+    });
+
     it('Matching: empty student answer earns zero points and is not flagged correct', () => {
       const q: QuizQuestion = {
         id: 'pm-empty',
