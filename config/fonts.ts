@@ -1,3 +1,5 @@
+import type { GlobalFontFamily } from '@/types';
+
 export const FONTS = [
   { id: 'global', label: 'Inherit', icon: 'G', className: '' },
   { id: 'font-sans', label: 'Modern', icon: 'Aa', className: 'font-sans' },
@@ -32,6 +34,24 @@ export const FONTS = [
     className: 'font-cursive',
   },
 ] as const;
+
+// Non-`global` GlobalFontFamily entries; each panel renders its own leading `global` option separately.
+export const GLOBAL_FONT_FAMILY_OPTIONS: {
+  value: GlobalFontFamily;
+  label: string;
+}[] = [
+  { value: 'sans', label: 'Sans Serif' },
+  { value: 'serif', label: 'Serif' },
+  { value: 'mono', label: 'Monospace' },
+  { value: 'handwritten', label: 'Handwritten' },
+  { value: 'rounded', label: 'Rounded' },
+  { value: 'comic', label: 'Comic' },
+  { value: 'slab', label: 'Slab Serif' },
+  { value: 'retro', label: 'Retro' },
+  { value: 'fun', label: 'Fun' },
+  { value: 'marker', label: 'Marker' },
+  { value: 'cursive', label: 'Cursive' },
+];
 
 export const FONT_COLORS = [
   '#000000',

@@ -8,6 +8,7 @@ import {
   GlobalFontFamily,
 } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
+import { GLOBAL_FONT_FAMILY_OPTIONS } from '@/config/fonts';
 
 /**
  * Hex color text input with debounced commit. Keeps user keystrokes in
@@ -65,17 +66,7 @@ const FONT_FAMILY_OPTIONS: {
   label: string;
 }[] = [
   { value: 'global', label: 'Inherit (Dashboard default)' },
-  { value: 'sans', label: 'Sans Serif' },
-  { value: 'serif', label: 'Serif' },
-  { value: 'mono', label: 'Monospace' },
-  { value: 'handwritten', label: 'Handwritten' },
-  { value: 'rounded', label: 'Rounded' },
-  { value: 'comic', label: 'Comic' },
-  { value: 'slab', label: 'Slab Serif' },
-  { value: 'retro', label: 'Retro' },
-  { value: 'fun', label: 'Fun' },
-  { value: 'marker', label: 'Marker' },
-  { value: 'cursive', label: 'Cursive' },
+  ...GLOBAL_FONT_FAMILY_OPTIONS,
 ];
 
 // Accept the three CSS-valid hex forms an HTML color picker / Tailwind

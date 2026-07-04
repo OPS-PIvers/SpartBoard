@@ -1734,3 +1734,33 @@ _Automated nightly review by claude-opus-4-6_
 - Notes:
   - Branch-safety: only #2098 is a `dev-*`→`main` PR (read-only for fixes; dev-paul push exception unused this run since all comments were already addressed via routed sub-PRs). #2125 and #2119 target `dev-paul` from pushable branches. No fix pushes were needed, so nothing was pushed to any PR branch.
   - CI: both #2098 and #2125 report no legacy commit statuses (repo uses GitHub Actions checks); merge-readiness noted as pending Actions green.
+
+## 2026-07-04
+
+- PRs reviewed: 6 of 9 open (structured reviews posted)
+  - #2139 — fix(test): CI guard for silently-omitted Vitest suites (head `nightly/build-tooling-2026-07-04`, base `dev-paul`)
+  - #2138 — fix(i18n): add missing `plcDashboard.resources` namespace to all locales (head `nightly/admin-config-2026-07-04`, base `dev-paul`)
+  - #2137 — fix(state): Ordering partial-credit `isCorrect`/`pointsEarned` consistency (head `nightly/state-data-2026-07-04`, base `dev-paul`)
+  - #2136 — fix(dock): gate folder items by permission (head `nightly/dashboard-layout-2026-07-04`, base `dev-paul`)
+  - #2135 — fix(widgets): warn on duplicate terms in Matching editor (head `nightly/widgets-2026-07-04`, base `dev-paul`)
+  - #2098 — NumberLine Escape-cancel/a11y + AI feature label sync (head `dev-paul`, base `main`)
+  - Not separately reviewed: #2134 (engaged via a fix push), #2131 (all threads already resolved/declined), #2132 (mechanical import-path swaps), #2133 (docs-only unifier log) — all low-risk and already carrying automated reviews.
+- Comments processed: 14 unresolved threads acted on across 4 PRs — 4 fixed (2 pushes), 10 explained + resolved (already addressed by follow-up commits on their branches). #2098 (12 threads) and #2131 (5 threads) already had author replies on every thread; no new action.
+  - #2139: 3 gemini threads → FIXED in 21f08db, replied + resolved.
+  - #2134: 1 claude thread → FIXED in 7354f7b, replied + resolved.
+  - #2136: 6 claude threads → EXPLAINED + resolved (all addressed by follow-up commits 666fda6/f2b7f21: `shouldShowFolder` guard, `reorderPreservingHidden`, `visibleItems`-based FolderPlus).
+  - #2135: 4 threads → EXPLAINED + resolved (dedup now keys on shared `normalizeAnswer`; comment blocks trimmed per CLAUDE.md).
+- Fixes pushed: 2
+  - #2139 / `nightly/build-tooling-2026-07-04` / 21f08db — adopt native `import.meta.dirname`/`filename` (drop `node:url`), guard missing baseline entry, normalize `isMain` path comparison. Verified: 9/9 script tests, format, functional run.
+  - #2134 / `scheduled-tasks` / 7354f7b — trim `GLOBAL_FONT_FAMILY_OPTIONS` block comment to one line (CLAUDE.md one-line rule). Verified: type-check, lint, format clean.
+- Reviews posted: 6 (one structured review per reviewed PR)
+  - #2139: Ready — real, empirically-reproduced CI gap closed; additive tooling, gitignored artifacts, 9-test coverage.
+  - #2138: Ready with minor notes — solid i18n fix (feature was English-only in every language); flagged the ~50-line test-file header comment vs the CLAUDE.md one-line rule.
+  - #2137: Ready with minor notes — correct Ordering partial-credit fix; flagged the new 11-line comment block vs the one-line rule.
+  - #2136: Ready with minor notes — dock permission gating complete; flagged that the two extracted `folderPermissions.ts` helpers have no dedicated unit test (`reorderPreservingHidden` in particular).
+  - #2135: Ready — duplicate-term warning root-caused at entry; dedup shares `normalizeAnswer` with grading.
+  - #2098: Ready — dev-paul→main integration PR, all 15 checks green, all 12 threads dispositioned; deferred read-only-close follow-up is non-blocking.
+- Notes:
+  - Cross-PR pattern: three nightly PRs this run (#2137, #2138, and the pre-fix #2135/#2134) introduced multi-paragraph comment blocks that violate the CLAUDE.md "one short line max" rule. #2135/#2134 were corrected; #2137/#2138 flagged in review. Worth a lint rule if it keeps recurring.
+  - Branch-safety: only #2098 targets `main` (from `dev-paul`) — no push made there. All fix pushes went to pushable branches (`nightly/build-tooling-2026-07-04`, `scheduled-tasks`). `main` never touched.
+  - CI health: all checks green on every PR inspected (#2098 15/15, #2137 7/7); no failing checks observed. New CI runs will trigger on the two fix pushes.

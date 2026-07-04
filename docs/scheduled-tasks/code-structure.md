@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-07-03_
+_Last audited: 2026-07-04_
 _Last action: 2026-06-12 — MEDIUM cardOpacity range-check extracted into shared `isCardOpacity` guard in adminBuildingConfig.ts_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-04: Weekly audit pass (Saturday). New dev-paul commits since 2026-07-03: pr-review log (docs only), fix(css-scaling) SpecialistSchedule border, fix(widgets) 3 review findings — none touch context/hooks/utils source files. DashboardContext.tsx confirmed at **5,865 lines** (unchanged from 2026-07-03 — same build). MEDIUM `functions/src/index.ts` item: **file is now 144 lines** — confirmed a thin barrel of re-exports with JSDoc documenting the architecture. The domain split was completed upstream (each Cloud Function lives in its own leaf module); this resolves the MEDIUM item tracked since 2026-04-15. Moved to Completed. NEW LOW: `utils/videoActivityDriveService.ts` is only imported by its test file (`tests/utils/videoActivityDriveService.test.ts`) — zero production imports found in components/context/hooks/utils. The file exports `buildVideoActivityResultsSheetData` which appears to have been extracted for the VA export flow but never wired into any component or hook. Added as new open item. All other open items (HIGH DashboardContext BLOCKED, MEDIUM large-files BLOCKED, LOW gen1 logger, LOW OAuth timeout, LOW double-getDoc userProfile, LOW simple switch cases, LOW feature_permissions read docs, LOW single-consumer utils) re-confirmed valid. 1 MEDIUM item resolved, 1 LOW item added._
 
 _2026-07-03: Weekly audit pass (Friday). New dev-paul commits since 2026-06-26: pr-review log (docs), fix(css-scaling) SpecialistSchedule border inline style, fix(widgets) 3 review findings from #2098/#2125 (GuidedLearningEditor, not context/hooks/utils). DashboardContext.tsx now **5,865 lines** (+95 from 5,770 on 2026-06-26) — continued slow growth; BLOCKED extraction status unchanged. New large files not previously tracked added to MEDIUM item: `QuizResults.tsx` (2,314), `QuizWidget/Widget.tsx` (2,306), `SmartNotebook/PageEditor.tsx` (2,269), `PlcContext.tsx` (1,446). NEW LOW: double `getDoc` on `userProfile/profile` between AuthContext and DashboardContext — two independent reads for disjoint field groups (distinct from the resolved write-coordination item). Existing LOW gen1 logger import confirmed still open. classroomAddon utils group highlighted as highest-priority colocation candidates in single-consumer utils item. 1 new LOW open item added._
 
@@ -52,19 +54,12 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
 - **Detail:** The context file is the largest non-test source file at 3504 lines (was 3165 on 2026-04-15). It owns: (1) Firestore CRUD + real-time sync, (2) Google Drive backup/restore orchestration, (3) widget CRUD actions (add/update/delete/reorder), (4) `getAdminBuildingConfig` — a 400-line switch at lines 2127–2540 covering 30+ widget types that maps per-building admin overrides onto widget defaults, (5) `applyDashboardTemplate` and `loadStarterPack`, (6) migration and legacy handling.
 - **Fix:** Extract `getAdminBuildingConfig` into `utils/adminBuildingConfig.ts` (pure function: `(type, featurePermissions, selectedBuildings) => Record<string, unknown>`). This removes ~400 lines from the context without touching its public API and makes the validation logic independently testable. Also consider extracting migration logic to `utils/dashboardMigration.ts` (~150 lines).
 
-### MEDIUM `functions/src/index.ts` is 3525 lines — single file for all Cloud Functions (growth stalled)
+### LOW `utils/videoActivityDriveService.ts` has zero production imports — never wired into any component or hook
 
-- **Detected:** 2026-04-15
-- **Updated:** 2026-06-05 — file is now **4,305 lines** per audit (15 exported Cloud Functions). Domain split already in progress for newer functions (spotifyOAuth.ts, syncedQuizGroups.ts, etc.). BLOCKED status unchanged.
-- **Assessed 2026-06-03 (action agent):** Deferred — not safe for an unattended automated pass. The file is now **4305 lines** with 15+ exported Cloud Functions plus inline AI-generation pipeline state: module-level caches (`__resetGenerateWithAICaches`), model constants, prompt builders, and `validateAndBucketVideoQuestions` / `validateAndBucketQuizQuestions` validators that are shared across the generation functions. A by-domain split must carefully relocate this shared module state while preserving every deployed function name via `index.ts` re-exports. There is no functions deploy/runtime in this environment (CI only runs `tsc`/lint/format/build, not a deploy), so a deployed-surface or shared-state regression would not be caught by the available checks — the same risk profile that BLOCKED the `DashboardContext.tsx` extraction. Recommend a supervised session that can verify the deployed function surface (and the AI-generation cache/validator wiring) before landing this split. Took the highest-priority safe Open item instead this pass (see ui-unification.md — CarRiderProConfig dead-field removal).
-- **Updated:** 2026-05-27 — functions/src/index.ts now primarily re-exports from domain modules (spotifyOAuth.ts, syncedQuizGroups.ts, syncedVideoActivityGroups.ts, expireSubShares.ts added as new modules). The split-by-domain pattern is already in progress for newer functions. 3 new Cloud Functions added since 2026-05-22: `spotifyOAuth` (Spotify OAuth exchange), synced quiz/video-activity group helpers (exported from domain files). The functions split work has organically begun — consider documenting the in-progress state and formalizing the remaining consolidation.
-- **Updated:** 2026-05-22 — file is now **4300 lines** (+775 from 3525 on 2026-05-13). 15 exported Cloud Functions (count unchanged). Growth is from expansion of existing functions (not new ones). New large hooks added since last audit: `hooks/useVideoActivityAssignments.ts` (1100 lines), `hooks/useStudentAssignments.ts` (619 lines), `hooks/useCollections.ts` (604 lines), `hooks/useFolders.ts` (531 lines) — all exceeding 500 lines. No 3+ level relative import depth issues found in new PLC components.
-- **Updated:** 2026-05-13 — `DashboardContext.tsx` is now 4441 lines (+937 from 3504 on 2026-05-06). Major growth. `getAdminBuildingConfig` switch is now 18 cases (was 30+ noted earlier; count stabilized). Single-consumer utils list updated: now also includes `lastActiveThrottle.ts`, `migrateProportionalLayout.ts`, `proportionalLayout.ts`, `mockGuidedLearningDriveService.ts`, `periodCompat.ts`, `quizShuffle.ts`, `rosterRestrictions.ts`, `smartPaste.ts`, `testClassAccess.ts`, `youtubeSearch.ts`.
-- **Updated:** 2026-05-06 — file stable at 3525 lines (from 3524, +1) since 2026-04-29 audit. Growth has stalled.
-- **Updated:** 2026-04-29 — file grew from 2488 to 3524 lines (+1036) since 2026-04-22 audit. Four new Cloud Functions were added: `studentLoginV1` (256MiB, public invoker, handles Google + ClassLink SSO for students), `getAssignmentPseudonymV1` (128MiB, student-role only), `getStudentClassDirectoryV1` (256MiB, public invoker), and `getPseudonymsForAssignmentV1` (256MiB, minInstances:1, public invoker). These are all student SSO / pseudonym functions.
-- **File:** functions/src/index.ts
-- **Detail:** 15 Cloud Functions now live in one file. Logical groupings: ClassLink roster integration (getClassLinkRosterV1), AI generation (generateWithAI, generateVideoActivity, transcribeVideoWithGemini, generateGuidedLearning), utility (fetchExternalProxy, archiveActivityWallPhoto, checkUrlCompatibility), admin (adminAnalytics), student SSO/pseudonym (studentLoginV1, getAssignmentPseudonymV1, getStudentClassDirectoryV1, getPseudonymsForAssignmentV1, commitRosterPinIndexV1, pinLoginV1). The file is increasingly difficult to navigate. The `getPseudonymsForAssignmentV1` has `minInstances: 1` — verify this is intentional (cold start cost vs. latency tradeoff).
-- **Fix:** Split into domain files: `functions/src/classlink.ts`, `functions/src/ai.ts`, `functions/src/utils.ts`, `functions/src/admin.ts`, `functions/src/studentSso.ts`. Re-export all functions from `functions/src/index.ts` to preserve deployed names. This is a refactor with no behavior change but significantly improves reviewability. **Priority has increased** given the 42% growth in 7 days.
+- **Detected:** 2026-07-04
+- **File:** utils/videoActivityDriveService.ts
+- **Detail:** The file exports `buildVideoActivityResultsSheetData` (a wrapper around `buildResultsSheetData` from `utils/assignmentExportShared.ts` using `gradeVideoActivityAnswer` to correctly grade MA/FIB-with-variants). It was extracted to fix a grading gap for the VA export flow (the comment references "the TODO PR2a left at Results.tsx:170"). However, zero production files import it — only `tests/utils/videoActivityDriveService.test.ts` does. The function has no hook, component, or context consumer; teachers cannot reach the VA results export that uses the corrected grader.
+- **Fix:** Wire `buildVideoActivityResultsSheetData` into the video-activity results export path. Locate the VA results export trigger (likely in `components/widgets/VideoActivityWidget/components/VideoActivityManager.tsx` or a hook) and replace the call to `buildResultsSheetData` (which misses MA/FIB-with-variants) with `buildVideoActivityResultsSheetData` from `@/utils/videoActivityDriveService`. Alternatively, if the PR2a fix was superseded by other changes, verify `buildResultsSheetData` now handles MA/FIB correctly and delete `videoActivityDriveService.ts` as dead code.
 
 ### HIGH `DashboardContext.tsx` grew 1262 lines since May 13 extraction — now 5596 lines
 
@@ -167,6 +162,13 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
 ---
 
 ## Completed
+
+### MEDIUM `functions/src/index.ts` is 3525 lines — single file for all Cloud Functions (growth stalled)
+
+- **Detected:** 2026-04-15
+- **Completed:** 2026-07-04 (resolved outside journal workflow)
+- **File:** functions/src/index.ts
+- **Resolution:** 2026-07-04 audit confirmed `functions/src/index.ts` is now **144 lines** — a thin barrel of re-exports. JSDoc at the top of the file reads: "Cloud Functions entrypoint — a THIN BARREL of re-exports (F12). Every Cloud Function lives in its own leaf module." The domain split was completed upstream. All Cloud Functions now live in leaf modules (classlinkRoster.ts, aiGeneration.ts, embedProxy.ts, driveArchive.ts, adminAnalyticsEndpoint.ts, studentIdentity.ts, organizationInvites.ts, gcPlcOrphans.ts, plcWeeklyDigest.ts, aggregatePlcAssessment.ts, mirrorPlcIndex.ts, migratePlcs.ts, adminAnalyticsSnapshot.ts, expireSubShares.ts, finalizeIdleQuizAttempts.ts, googleOAuth.ts, spotifyOAuth.ts, classroomAddonAuth.ts, lti/ modules, etc.). The index.ts is a pure re-export barrel, resolving the navigability and growth concerns entirely. Prior journal entries tracked growth from 3525 → 4305 lines as of 2026-06-05; the split was completed outside the scheduled-task workflow at some point thereafter.
 
 ### MEDIUM Concurrent reads and writes to `userProfile` document between `AuthContext` and `DashboardContext`
 

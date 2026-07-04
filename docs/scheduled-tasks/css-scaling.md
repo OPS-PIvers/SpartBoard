@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-03_
+_Last audited: 2026-07-04_
 _Last action: 2026-06-27 — LOW ActivityWall empty-state heading `fontSize` added (`min(14px, 5.5cqmin)` + scaled `marginTop`); was unscaled 16px on a `skipScaling` widget_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-04: Full scan. New dev-paul commits since 2026-07-03: none beyond the rebase — no widget front-face content changes. Automated agent scan of 9 Widget.tsx files (BloomsTaxonomy, Stations, NeedDoPutThen, WorkSymbols, First5, CarRiderPro, BlendingBoard, Countdown, NextUp) — all clean. No Tailwind text-size classes on content elements, no hardcoded px-cap Tailwind classes, no bare uncapped cqmin on primary content, no unsized overflow-hidden, no fixed-pixel icon props. The existing open items (TalkingTool 9px cap, ClockWidget bare cqmin, EmbedWidget portaled toolbar, QuizResults text-sm, RevealGrid spacing, multi-widget group, InstructionalRoutines p-8/gap-4, MiniApp dialog, Stations ml-1) were not re-confirmed this pass (scan covered a different subset); assume valid per prior daily audit 2026-07-03. Zero new anti-patterns._
 
 _2026-07-03: Full scan of Widget.tsx files. New dev-paul commits since 2026-07-02: pr-review log (docs), fix(css-scaling) SpecialistSchedule border-width inline style (08afce65 — already on scheduled-tasks branch, confirmed in Completed), fix(widgets) resolve 3 review findings from #2098/#2125 (0bbe0b87 — touches GuidedLearningEditor editor sub-component only; not front-face widget content). ONE NEW LOW item: `Stations/Widget.tsx:341,367` — `ml-1` hardcoded left margin on Shuffle/Rotate button label spans; added as sub-entry to the group open item. All other pre-existing open items (TalkingTool 9px cap, ClockWidget bare cqmin, EmbedWidget portaled toolbar, QuizResults text-sm, RevealGrid spacing, multi-widget group, InstructionalRoutines p-8/gap-4, MiniApp dialog) re-confirmed present and valid. WON'T FIX decisions (Countdown, Weather, TimeTool, Stations maxHeight, LunchCount maxHeight, ActivityWall modal, MusicWidget, SyntaxFramer, TrafficLight, Checklist, DrawingWidget) all re-confirmed._
 
