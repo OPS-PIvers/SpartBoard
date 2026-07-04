@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useId, useRef } from 'react';
 import {
   collection,
   onSnapshot,
@@ -29,6 +29,7 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { GlobalPdfItem, PdfGlobalConfig, FeaturePermission } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { Toast } from '@/components/common/Toast';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useDialog } from '@/context/useDialog';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
@@ -45,6 +46,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
   onClose,
 }) => {
   const { showConfirm } = useDialog();
+  const pdfNameId = useId();
   const { uploadAdminPdf, deleteFile } = useStorage();
   const BUILDINGS = useAdminBuildings();
   const BUILDINGS_BY_ID = React.useMemo(
@@ -529,9 +531,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
             <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-6">
               {/* File Upload */}
               <div>
-                <label className="block text-xxs font-black uppercase text-slate-400 tracking-widest mb-1">
-                  PDF File
-                </label>
+                <SettingsLabel>PDF File</SettingsLabel>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => fileInputRef.current?.click()}
@@ -559,10 +559,9 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
 
               {/* Title */}
               <div>
-                <label className="block text-xxs font-black uppercase text-slate-400 tracking-widest mb-1">
-                  PDF Name
-                </label>
+                <SettingsLabel htmlFor={pdfNameId}>PDF Name</SettingsLabel>
                 <input
+                  id={pdfNameId}
                   type="text"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
@@ -573,9 +572,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
 
               {/* Building Targeting */}
               <div>
-                <label className="block text-xxs font-black uppercase text-slate-400 tracking-widest mb-1">
-                  Available To
-                </label>
+                <SettingsLabel>Available To</SettingsLabel>
                 <p className="text-xs text-slate-500 mb-2">
                   Select which buildings can see this PDF. Leave all unchecked
                   to make it available to everyone.
