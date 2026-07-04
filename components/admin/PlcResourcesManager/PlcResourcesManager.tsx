@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Pencil, Trash2, Plus, X, Check } from 'lucide-react';
 import {
   usePlcResources,
@@ -10,6 +11,8 @@ import { PlcTargetPicker, PlcTargetPickerValue } from './PlcTargetPicker';
 import { PlcRecoveryPanel } from './PlcRecoveryPanel';
 import { PlcResourceKind } from '@/types';
 
+// English fallbacks only — the real, localized strings live at
+// plcDashboard.resources.kindBadge.<kind> in locales/*.json.
 const KIND_LABELS: Record<PlcResourceKind, string> = {
   quiz: 'Quiz',
   'video-activity': 'Video Activity',
@@ -17,6 +20,11 @@ const KIND_LABELS: Record<PlcResourceKind, string> = {
   doc: 'Document / Link',
   board: 'Shared Board',
 };
+
+const getKindLabel = (t: TFunction, kind: PlcResourceKind): string =>
+  t(`plcDashboard.resources.kindBadge.${kind}`, {
+    defaultValue: KIND_LABELS[kind],
+  });
 
 const EMPTY_FORM: CreatePlcResourceInput = {
   kind: 'doc',
@@ -237,7 +245,7 @@ export const PlcResourcesManager: React.FC = () => {
             >
               {(Object.keys(KIND_LABELS) as PlcResourceKind[]).map((k) => (
                 <option key={k} value={k}>
-                  {KIND_LABELS[k]}
+                  {getKindLabel(t, k)}
                 </option>
               ))}
             </select>
@@ -371,7 +379,12 @@ export const PlcResourcesManager: React.FC = () => {
             })}
           </p>
         ) : (
-          <ul className="space-y-2" aria-label="Pushed resources">
+          <ul
+            className="space-y-2"
+            aria-label={t('plcDashboard.resources.listAriaLabel', {
+              defaultValue: 'Pushed resources',
+            })}
+          >
             {resources.map((res) => (
               <li
                 key={res.id}
@@ -380,7 +393,7 @@ export const PlcResourcesManager: React.FC = () => {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-brand-blue-primary bg-brand-blue-primary/10 px-2 py-0.5 rounded-full">
-                      {KIND_LABELS[res.kind]}
+                      {getKindLabel(t, res.kind)}
                     </span>
                     <span className="text-xs text-slate-400">
                       {res.scope === 'all'
@@ -407,6 +420,7 @@ export const PlcResourcesManager: React.FC = () => {
                     onClick={() => handleEdit(res)}
                     className="p-1.5 text-slate-400 hover:text-brand-blue-primary rounded-lg hover:bg-slate-100 transition-colors"
                     aria-label={t('plcDashboard.resources.editAction', {
+                      title: res.title,
                       defaultValue: `Edit ${res.title}`,
                     })}
                   >
@@ -416,6 +430,7 @@ export const PlcResourcesManager: React.FC = () => {
                     onClick={() => handleDelete(res.id)}
                     className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
                     aria-label={t('plcDashboard.resources.deleteAction', {
+                      title: res.title,
                       defaultValue: `Delete ${res.title}`,
                     })}
                   >
