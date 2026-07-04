@@ -12,7 +12,7 @@
     "start": "pnpm run shell",
     "deploy": "pnpm run build && firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "test": "vitest run"
+    "test": "vitest run --reporter=default --reporter=json --outputFile=../.vitest-reports/functions.json"
   },
   "engines": {
     "node": "24"
