@@ -3,7 +3,7 @@ import { render, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DashboardProvider } from './DashboardContext';
 import { useDashboard } from './useDashboard';
-import { Dashboard, WidgetData } from '../types';
+import { Dashboard, WidgetData } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Mocks (mirrors tests/DashboardContext_removeWidgets.test.tsx)
