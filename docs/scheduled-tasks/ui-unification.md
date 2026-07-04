@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-07-03_
+_Last audited: 2026-07-04_
 _Last action: 2026-07-03 — MEDIUM `Segmented<T>` promoted from `Organization/primitives.tsx` to `components/common/SegmentedControl.tsx` (verbatim extraction + re-export; prerequisite for the segmented-control unification)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-04: Weekly audit pass (Saturday). New dev-paul commits since 2026-07-03: pr-review log (docs), fix(css-scaling) SpecialistSchedule border, fix(widgets) 3 review findings — none touch Settings.tsx or admin panel files. Spot-checked 4 Settings panels (Scoreboard, TextWidget, Poll, Expectations) — all clean, no inline reimplementation of shared controls found. WIDGET_APPEARANCE_COMPONENTS cross-reference: text widget gap confirmed still open (LOW item 2026-04-29 — TextConfig has fontFamily/fontColor/textSizePreset but no appearance panel registered). Hardcoded brand hex colors: GuidedLearning/BannerInteraction, MaterialsWidget, Countdown, NextUp/Settings confirmed still present (LOW items already tracked). No new open items. All existing open/in-progress items re-confirmed valid._
 
 _2026-07-03: Weekly audit pass (Friday). New dev-paul commits since 2026-06-26: pr-review log (docs), fix(css-scaling) SpecialistSchedule border, fix(widgets) 3 review findings — none touch Settings.tsx or admin panel files. THREE items resolved outside journal workflow since last audit: (1) `InstructionalRoutines/Widget.tsx:217` hardcoded `'#2d3f89'` → now `var(--spart-primary, #2d3f89)` (moved to Completed); (2) `StationsConfigurationPanel.tsx` local font options → now imports `FONTS` from `@/config/fonts` (StationsConfigurationPanel removed from the MEDIUM admin font-options item — others remain); (3) `Organization/primitives.tsx` local `Toggle` already resolved by 2026-06-26 action. TWO NEW MEDIUM items: (1) `ClockConfigurationPanel.tsx` fourth admin panel with local font-options array (value space differs from Checklist/NumberLine — extends existing MEDIUM item); (2) `Segmented<T>` component in `Organization/primitives.tsx` is a fully accessible drop-in predecessor for the needed shared `SegmentedControl` — not promoted to `components/common/`; segmented-control count updated 12→15 across 12 files. Segmented-control MEDIUM item updated. All other pre-existing open items re-confirmed valid._
 
