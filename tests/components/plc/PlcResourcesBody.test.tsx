@@ -4,16 +4,29 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PlcResourcesBody } from '@/components/plc/resources/PlcResourcesBody';
 import type { Plc, PlcResource } from '@/types';
 
+// Fixed key -> resolved-value map for keys where real i18next's behavior
+// (one locale value per key, shared by every call site using that key) must
+// be simulated rather than the naive defaultValue-echo used for the rest of
+// this mock. A defaultValue echo can't reproduce the "two call sites share
+// one key" bug class: each call site would just get back its own
+// defaultValue regardless of whether the source actually shares a key.
+const FIXED_TRANSLATIONS: Record<string, string> = {
+  'plcDashboard.resources.used': 'Added',
+  'plcDashboard.resources.usedStatus': 'Added to your PLC',
+};
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     // Kind-group labels get a distinguishable [translated] wrapper so tests
     // can prove a call site actually routes through t() rather than reading
     // the raw KIND_META label constant directly — both would otherwise
     // resolve to the exact same string via defaultValue passthrough.
-    t: (_k: string, o?: { defaultValue?: string }) =>
-      _k.startsWith('plcDashboard.resources.kind.')
+    t: (_k: string, o?: { defaultValue?: string }) => {
+      if (_k in FIXED_TRANSLATIONS) return FIXED_TRANSLATIONS[_k];
+      return _k.startsWith('plcDashboard.resources.kind.')
         ? `[${o?.defaultValue}]`
-        : (o?.defaultValue ?? _k),
+        : (o?.defaultValue ?? _k);
+    },
   }),
 }));
 
@@ -237,6 +250,12 @@ describe('PlcResourcesBody', () => {
     await waitFor(() => {
       expect(screen.getByText('Added')).toBeInTheDocument();
     });
+    // Regression: the confirmation paragraph and the button label used to
+    // share the same 'plcDashboard.resources.used' key. Once that key
+    // resolved to a real locale value, both sites rendered the terser button
+    // text and the more descriptive paragraph copy was silently lost. They
+    // must use distinct keys and render distinct text.
+    expect(screen.getByText('Added to your PLC')).toBeInTheDocument();
   });
 
   it('one-click imports a quiz into the PLC library (pull canonical → writePlcQuizEntry)', async () => {

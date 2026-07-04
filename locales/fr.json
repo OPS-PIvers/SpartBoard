@@ -1075,6 +1075,7 @@
         "board": "Tableaux"
       },
       "used": "Ajouté",
+      "usedStatus": "Ajouté à votre CAP",
       "openAction": "Ouvrir {{title}} dans cette CAP",
       "useAction": "Utiliser {{title}} dans cette CAP",
       "using": "Ajout en cours…",

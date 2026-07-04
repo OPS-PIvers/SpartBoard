@@ -1075,6 +1075,7 @@
         "board": "Tafeln"
       },
       "used": "Hinzugefügt",
+      "usedStatus": "Zu deiner PLC hinzugefügt",
       "openAction": "{{title}} in dieser PLC öffnen",
       "useAction": "{{title}} in dieser PLC verwenden",
       "using": "Wird hinzugefügt…",

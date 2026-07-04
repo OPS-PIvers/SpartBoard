@@ -1075,6 +1075,7 @@
         "board": "Boards"
       },
       "used": "Added",
+      "usedStatus": "Added to your PLC",
       "openAction": "Open {{title}} in this PLC",
       "useAction": "Use {{title}} in this PLC",
       "using": "Adding…",

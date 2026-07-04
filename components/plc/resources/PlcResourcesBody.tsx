@@ -315,7 +315,7 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
                       {isDone && (
                         <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                           <Check className="w-3 h-3" />
-                          {t('plcDashboard.resources.used', {
+                          {t('plcDashboard.resources.usedStatus', {
                             defaultValue: 'Added to your PLC',
                           })}
                         </p>

@@ -1075,6 +1075,7 @@
         "board": "Tableros"
       },
       "used": "Añadido",
+      "usedStatus": "Añadido a tu PLC",
       "openAction": "Abrir {{title}} en esta PLC",
       "useAction": "Usar {{title}} en esta PLC",
       "using": "Añadiendo…",
