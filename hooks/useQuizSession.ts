@@ -491,8 +491,7 @@ export function gradeAnswer(
     const pointsEarned =
       correctItems.length === 0 ? 0 : (lis / correctItems.length) * max;
     // isCorrect must share pointsEarned's lis-based formula, not the strict whole-string equality above.
-    const partialIsCorrect =
-      correctItems.length > 0 && lis === correctItems.length;
+    const partialIsCorrect = lis === correctItems.length;
     return { isCorrect: partialIsCorrect, pointsEarned, pointsMax: max };
   }
   return { isCorrect: false, pointsEarned: 0, pointsMax: max };
