@@ -4,9 +4,29 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PlcResourcesBody } from '@/components/plc/resources/PlcResourcesBody';
 import type { Plc, PlcResource } from '@/types';
 
+// Fixed key -> resolved-value map for keys where real i18next's behavior
+// (one locale value per key, shared by every call site using that key) must
+// be simulated rather than the naive defaultValue-echo used for the rest of
+// this mock. A defaultValue echo can't reproduce the "two call sites share
+// one key" bug class: each call site would just get back its own
+// defaultValue regardless of whether the source actually shares a key.
+const FIXED_TRANSLATIONS: Record<string, string> = {
+  'plcDashboard.resources.used': 'Added',
+  'plcDashboard.resources.usedStatus': 'Added to your PLC',
+};
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (_k: string, o?: { defaultValue?: string }) => o?.defaultValue ?? _k,
+    // Kind-group labels get a distinguishable [translated] wrapper so tests
+    // can prove a call site actually routes through t() rather than reading
+    // the raw KIND_META label constant directly — both would otherwise
+    // resolve to the exact same string via defaultValue passthrough.
+    t: (_k: string, o?: { defaultValue?: string }) => {
+      if (_k in FIXED_TRANSLATIONS) return FIXED_TRANSLATIONS[_k];
+      return _k.startsWith('plcDashboard.resources.kind.')
+        ? `[${o?.defaultValue}]`
+        : (o?.defaultValue ?? _k);
+    },
   }),
 }));
 
@@ -173,9 +193,24 @@ describe('PlcResourcesBody', () => {
     render(<PlcResourcesBody plc={PLC} />);
     expect(screen.getByText('A Doc')).toBeInTheDocument();
     expect(screen.getByText('A Quiz')).toBeInTheDocument();
-    // Both group headings present
-    expect(screen.getByText('Documents')).toBeInTheDocument();
-    expect(screen.getByText('Quizzes')).toBeInTheDocument();
+    // Both group headings present (mock t() wraps in [] — see mock comment)
+    expect(screen.getByText('[Documents]')).toBeInTheDocument();
+    expect(screen.getByText('[Quizzes]')).toBeInTheDocument();
+  });
+
+  it('translates the kind-group section aria-label the same way as its visible heading', () => {
+    // Regression: <section aria-label={label}> read the raw KIND_META
+    // label constant directly instead of routing through t(), so a German
+    // screen-reader user heard the English section name while the visible
+    // <h3> (which did call t()) showed the translated text.
+    mockUsePlcResources.mockReturnValue({
+      resources: [makeResource({ id: 'r1', kind: 'doc', title: 'A Doc' })],
+      loading: false,
+      error: null,
+    });
+    const { container } = render(<PlcResourcesBody plc={PLC} />);
+    const section = container.querySelector('section[aria-label]');
+    expect(section).toHaveAttribute('aria-label', '[Documents]');
   });
 
   it('calls createDoc with title and url when Use is clicked on a doc resource', async () => {
@@ -215,6 +250,12 @@ describe('PlcResourcesBody', () => {
     await waitFor(() => {
       expect(screen.getByText('Added')).toBeInTheDocument();
     });
+    // Regression: the confirmation paragraph and the button label used to
+    // share the same 'plcDashboard.resources.used' key. Once that key
+    // resolved to a real locale value, both sites rendered the terser button
+    // text and the more descriptive paragraph copy was silently lost. They
+    // must use distinct keys and render distinct text.
+    expect(screen.getByText('Added to your PLC')).toBeInTheDocument();
   });
 
   it('one-click imports a quiz into the PLC library (pull canonical → writePlcQuizEntry)', async () => {
