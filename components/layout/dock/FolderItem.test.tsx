@@ -108,13 +108,34 @@ describe('FolderItem permission gating', () => {
     expect(onAdd).not.toHaveBeenCalledWith('time-tool');
   });
 
-  it('shows the empty-folder placeholder when every item is inaccessible', () => {
+  it('shows "Items unavailable" (not the empty-folder placeholder) when every item is gated', () => {
+    // A populated-but-all-gated folder must be visually distinct from a
+    // truly empty one — "Drag items here" would wrongly invite a teacher to
+    // drag more items into a folder that already has hidden ones, creating
+    // duplicates once permissions are restored.
     renderFolderItem({ folder, canAccessTool: () => false });
 
     fireEvent.click(screen.getByText('My Folder'));
 
-    expect(screen.getByText('Drag items here to add them')).toBeInTheDocument();
+    expect(screen.getByText('Items unavailable')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Drag items here to add them')
+    ).not.toBeInTheDocument();
     expect(screen.queryByText('Clock')).not.toBeInTheDocument();
     expect(screen.queryByText('Timer')).not.toBeInTheDocument();
+  });
+
+  it('shows the empty-folder placeholder only for a truly empty folder', () => {
+    const emptyFolder: DockFolder = {
+      id: 'folder-2',
+      name: 'Empty',
+      items: [],
+    };
+    renderFolderItem({ folder: emptyFolder, canAccessTool: () => true });
+
+    fireEvent.click(screen.getByText('Empty'));
+
+    expect(screen.getByText('Drag items here to add them')).toBeInTheDocument();
+    expect(screen.queryByText('Items unavailable')).not.toBeInTheDocument();
   });
 });

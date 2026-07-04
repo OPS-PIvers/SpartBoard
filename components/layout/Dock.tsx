@@ -1282,6 +1282,8 @@ export const Dock: React.FC = () => {
                           />
                         );
                       } else {
+                        if (!item.folder.items.some((t) => canAccessTool(t)))
+                          return null;
                         return (
                           <FolderItem
                             key={item.folder.id}

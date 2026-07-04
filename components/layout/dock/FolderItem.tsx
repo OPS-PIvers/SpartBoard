@@ -265,9 +265,14 @@ export const FolderItem = React.memo(
                         />
                       );
                     })}
-                    {visibleItems.length === 0 && (
+                    {folder.items.length === 0 && (
                       <div className="col-span-3 py-4 text-center text-xxs text-slate-400 italic">
                         Drag items here to add them
+                      </div>
+                    )}
+                    {folder.items.length > 0 && visibleItems.length === 0 && (
+                      <div className="col-span-3 py-4 text-center text-xxs text-slate-400 italic">
+                        Items unavailable
                       </div>
                     )}
                   </div>
@@ -324,7 +329,7 @@ export const FolderItem = React.memo(
                   />
                 );
               })}
-              {visibleItems.length === 0 && (
+              {folder.items.length === 0 && (
                 <div className="col-span-2 row-span-2 flex items-center justify-center opacity-20 text-slate-600">
                   <FolderPlus className="w-4 h-4" />
                 </div>
