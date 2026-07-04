@@ -101,13 +101,16 @@ function serializePairs(rows: PairRow[]): string {
  * the student can't even place two answers for it. Root-causing this means
  * catching the duplicate here, at entry, rather than downstream.
  *
- * Returns the ids of every row whose (trimmed, case-insensitive) term
- * collides with another non-empty row.
+ * Returns the ids of every row whose (trimmed, case-insensitive,
+ * internal-whitespace-collapsed) term collides with another non-empty row —
+ * the same normalization `normalizeAnswer` in `hooks/useQuizSession.ts`
+ * applies before building the grading map, so two terms that grade as one
+ * duplicate are also flagged as one here.
  */
 function findDuplicateTermRowIds(rows: PairRow[]): Set<string> {
   const seen = new Map<string, string[]>();
   for (const row of rows) {
-    const key = row.term.trim().toLowerCase();
+    const key = row.term.trim().toLowerCase().replace(/\s+/g, ' ');
     if (!key) continue;
     const ids = seen.get(key);
     if (ids) ids.push(row.id);

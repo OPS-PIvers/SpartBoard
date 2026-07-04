@@ -84,6 +84,20 @@ describe('MatchingAnswerEditor duplicate-term guard', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
+  it('collapses internal whitespace the same way the grading engine does', () => {
+    // hooks/useQuizSession.ts normalizeAnswer collapses internal whitespace
+    // (`.replace(/\s+/g, ' ')`) before building the grading map, so "cat  dog"
+    // and "cat dog" grade as the same duplicate term. The editor's detection
+    // must use the same normalization or it would miss a duplicate the
+    // grader silently collapses.
+    render(<MatchingHarness initial="cat  dog:animal|cat dog:mammal" />);
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    const termInputs = screen.getAllByPlaceholderText('Term');
+    termInputs.forEach((input) =>
+      expect(input).toHaveAttribute('aria-invalid', 'true')
+    );
+  });
+
   it('flags a duplicate introduced by editing an existing unique row to match another', () => {
     render(<MatchingHarness initial="cat:animal|dog:animal" />);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
