@@ -35,17 +35,7 @@ export const FONTS = [
   },
 ] as const;
 
-/**
- * Font-family options for admin building-config panels that persist a bare
- * `GlobalFontFamily` value (no `font-` prefix). These are the non-`global`
- * entries shared verbatim (same order, same labels) by the Checklist and
- * NumberLine configuration panels. Each panel renders its own leading
- * `global` option (their wording differs — "Global (Dashboard default)" vs
- * "Inherit (Dashboard default)") and maps this constant for the rest, so the
- * shared source only covers the identical portion. Panels with divergent
- * option subsets/labels (ConceptWeb, RevealGrid, Clock) intentionally do not
- * consume this.
- */
+// Non-`global` GlobalFontFamily entries; each panel renders its own leading `global` option separately.
 export const GLOBAL_FONT_FAMILY_OPTIONS: {
   value: GlobalFontFamily;
   label: string;
