@@ -490,18 +490,7 @@ export function gradeAnswer(
     const lis = longestOrderedSubsequenceLength(correctItems, givenItems);
     const pointsEarned =
       correctItems.length === 0 ? 0 : (lis / correctItems.length) * max;
-    // Partial-credit isCorrect must be derived from the SAME formula as
-    // pointsEarned (lis === correctItems.length), not from the strict
-    // whole-string equality used above for the non-partial branch. The two
-    // diverge whenever `given` contains an item outside `correctItems` — the
-    // ordering UI never lets a student add items itself, but a question
-    // edited (items removed) after a student already submitted an answer
-    // leaves exactly that shape: `longestOrderedSubsequenceLength` skips the
-    // now-unknown item and still reports a full-length subsequence over the
-    // remaining ones, so `pointsEarned` reaches `max` while `correct===given`
-    // stays false on the now-shorter string. Reusing the strict `isCorrect`
-    // here produced the same isCorrect=false/pointsEarned=max contradiction
-    // already fixed for Matching partial credit (#1950).
+    // isCorrect must share pointsEarned's lis-based formula, not the strict whole-string equality above (mirrors Matching's fix in #1950).
     const partialIsCorrect =
       correctItems.length > 0 && lis === correctItems.length;
     return { isCorrect: partialIsCorrect, pointsEarned, pointsMax: max };
