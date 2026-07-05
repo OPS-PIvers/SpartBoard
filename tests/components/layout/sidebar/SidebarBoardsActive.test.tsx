@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SidebarBoardsActive } from '@/components/layout/sidebar/SidebarBoardsActive';
 import type { Dashboard } from '@/types';
@@ -15,6 +15,11 @@ interface MockUseAuthReturn {
 
 const mockUseDashboard = vi.fn<() => MockUseDashboardReturn>();
 const mockUseAuth = vi.fn<() => MockUseAuthReturn>();
+
+beforeEach(() => {
+  mockUseDashboard.mockReset();
+  mockUseAuth.mockReset();
+});
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => mockUseDashboard(),
