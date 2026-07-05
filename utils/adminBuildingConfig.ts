@@ -99,12 +99,13 @@ const sanitizeNumberLineMarkers = (value: unknown): NumberLineMarker[] => {
     if (typeof entry !== 'object' || entry === null) continue;
     const rec = entry as Record<string, unknown>;
     if (typeof rec.id !== 'string' || rec.id.trim() === '') continue;
+    const id = rec.id.trim();
     if (typeof rec.value !== 'number' || !Number.isFinite(rec.value)) continue;
     if (!isHexColor(rec.color)) continue;
-    if (seen.has(rec.id)) continue;
-    seen.add(rec.id);
+    if (seen.has(id)) continue;
+    seen.add(id);
     const marker: NumberLineMarker = {
-      id: rec.id,
+      id,
       value: rec.value,
       color: rec.color.trim(),
     };
@@ -124,15 +125,16 @@ const sanitizeNumberLineJumps = (value: unknown): NumberLineJump[] => {
     if (typeof entry !== 'object' || entry === null) continue;
     const rec = entry as Record<string, unknown>;
     if (typeof rec.id !== 'string' || rec.id.trim() === '') continue;
+    const id = rec.id.trim();
     if (typeof rec.startValue !== 'number' || !Number.isFinite(rec.startValue))
       continue;
     if (typeof rec.endValue !== 'number' || !Number.isFinite(rec.endValue))
       continue;
     if (rec.startValue === rec.endValue) continue;
-    if (seen.has(rec.id)) continue;
-    seen.add(rec.id);
+    if (seen.has(id)) continue;
+    seen.add(id);
     const jump: NumberLineJump = {
-      id: rec.id,
+      id,
       startValue: rec.startValue,
       endValue: rec.endValue,
     };

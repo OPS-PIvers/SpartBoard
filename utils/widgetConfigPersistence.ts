@@ -71,7 +71,10 @@ const TRANSIENT_CONFIG_KEYS = new Set<string>([
   'cards',
   'memoryCards',
   'hotspots',
-  // NumberLine: admin building defaults define the marker/jump sets; teacher saved configs must not override them.
+  // NumberLine: admin building defaults define the marker/jump sets; teacher saved configs must not
+  // override them. These keys strip from ALL widget saved configs (TRANSIENT_CONFIG_KEYS is not
+  // widget-type-scoped) — intentional, since no other widget currently uses 'markers' or 'jumps'
+  // as top-level config fields.
   'markers',
   'jumps',
 

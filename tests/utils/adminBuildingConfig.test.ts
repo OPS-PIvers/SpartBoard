@@ -404,6 +404,28 @@ describe('getAdminBuildingConfig', () => {
       );
     });
 
+    it('trims whitespace from marker and jump ids before dedup', () => {
+      const perm = makePerm('numberLine', {
+        high: {
+          markers: [
+            { id: ' m1 ', value: 5, color: '#3b82f6' }, // padded id
+            { id: 'm1', value: 10, color: '#ef4444' }, // would be dup after trim
+          ],
+          jumps: [
+            { id: ' j1 ', startValue: 0, endValue: 5 },
+            { id: 'j1', startValue: 5, endValue: 10 }, // would be dup after trim
+          ],
+        },
+      });
+      const result = getAdminBuildingConfig('numberLine', [perm], ['high']);
+      expect((result.markers as { id: string }[]).map((m) => m.id)).toEqual([
+        'm1',
+      ]);
+      expect((result.jumps as { id: string }[]).map((j) => j.id)).toEqual([
+        'j1',
+      ]);
+    });
+
     it('drops zero-length jumps (startValue === endValue)', () => {
       const perm = makePerm('numberLine', {
         high: {
