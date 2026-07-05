@@ -4,8 +4,6 @@ import { describe, it, expect } from 'vitest';
 import en from '@/locales/en.json';
 import de from '@/locales/de.json';
 
-type LocaleFile = typeof en;
-
 /** Dotted path walker — returns the leaf string or undefined. */
 function getLeaf(root: unknown, path: string): string | undefined {
   let node: unknown = root;
@@ -86,7 +84,7 @@ describe('DE locale — "Board" terminology replaced with "Tafel"', () => {
   it.each(AFFECTED_KEYS)(
     'de.$path is the Tafel-based translation, not the Board drift',
     ({ path, expectedDe }) => {
-      const value = getLeaf(de as unknown as LocaleFile, path);
+      const value = getLeaf(de, path);
       expect(value, `de.${path} is missing`).toBeDefined();
       expect(
         value,
@@ -99,7 +97,7 @@ describe('DE locale — "Board" terminology replaced with "Tafel"', () => {
   it('has no remaining standalone "Board"/"Boards" usages anywhere in the locale', () => {
     const all: Array<[string, string]> = [];
     collectStrings(de, '', all);
-    const offenders = all.filter(([, value]) => /\bBoards?\b/.test(value));
+    const offenders = all.filter(([, value]) => /\bboards?\b/i.test(value));
     expect(
       offenders,
       `Found ${offenders.length} DE locale value(s) using the English loanword "Board" ` +
