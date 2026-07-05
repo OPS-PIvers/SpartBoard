@@ -79,6 +79,8 @@ interface ShareSnapshot {
   error: string | null;
 }
 
+const MAX_PERMISSION_DENIED_RETRIES = 3;
+
 /**
  * Live list of substitute shares in the given building. The `shared_boards`
  * read rule now gates @orono callers on `expiresAt > request.time` (mirrors
@@ -88,11 +90,22 @@ interface ShareSnapshot {
  * result set entirely (composite index provisioned in firestore.indexes.json).
  * The client-side filter stays as belt-and-suspenders for the narrow
  * clock-skew window. Mirrors `SubCollectionsList.tsx`.
+ *
+ * `Date.now()` is only captured when this effect (re)runs, so a share that
+ * expires WHILE the listener is open stays inside the frozen query filter.
+ * If `expireSubShares.ts` later writes to that (now rule-ineligible) doc,
+ * Firestore re-evaluates the rule for the write and denies the WHOLE query
+ * with `permission-denied` — confirmed empirically against the emulator, not
+ * just a silent per-doc removal. Re-subscribing with a fresh `Date.now()`
+ * baseline (which naturally excludes the newly-expired doc) recovers
+ * transparently; `retryCount` is capped so a genuine, non-expiry permission
+ * problem falls through to the friendly error instead of retrying forever.
  */
 export function useSubstituteShares(
   buildingId: string
 ): UseSubstituteSharesState {
   const [snapshot, setSnapshot] = useState<ShareSnapshot | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (!buildingId) return;
@@ -106,6 +119,7 @@ export function useSubstituteShares(
     const unsub = onSnapshot(
       q,
       (snap) => {
+        setRetryCount(0);
         const now = Date.now();
         const shares: SubstituteShareDoc[] = [];
         snap.docs.forEach((d) => {
@@ -125,6 +139,13 @@ export function useSubstituteShares(
         logError('useSubstituteShares.snapshot', err, {
           buildingId: canonical,
         });
+        if (
+          err.code === 'permission-denied' &&
+          retryCount < MAX_PERMISSION_DENIED_RETRIES
+        ) {
+          setRetryCount((c) => c + 1);
+          return;
+        }
         setSnapshot({
           buildingId: canonical,
           shares: [],
@@ -133,7 +154,7 @@ export function useSubstituteShares(
       }
     );
     return unsub;
-  }, [buildingId]);
+  }, [buildingId, retryCount]);
 
   if (!buildingId) {
     return { shares: [], loading: false, error: null };
@@ -153,12 +174,18 @@ interface UseSubstituteShareState {
   share: SubstituteShareDoc | null;
   loading: boolean;
   error: string | null;
+  // A permission-denied read for a substitute share can only happen because
+  // expiresAt lapsed (the read rule's only other branches are host/admin,
+  // which never deny) — treat it as "expired" so the UI shows the correct
+  // message and auto-redirect instead of a generic permission error.
+  permissionDeniedLikelyExpired: boolean;
 }
 
 interface SingleSnapshot {
   shareId: string;
   share: SubstituteShareDoc | null;
   error: string | null;
+  permissionDeniedLikelyExpired: boolean;
 }
 
 /** Live single-doc subscription for the sub-board view. */
@@ -179,7 +206,12 @@ export function useSubstituteShare(
       ref,
       (snap) => {
         if (!snap.exists()) {
-          setSnapshot({ shareId, share: null, error: 'Share not found' });
+          setSnapshot({
+            shareId,
+            share: null,
+            error: 'Share not found',
+            permissionDeniedLikelyExpired: false,
+          });
           return;
         }
         const data = snap.data() as Record<string, unknown>;
@@ -188,6 +220,7 @@ export function useSubstituteShare(
             shareId,
             share: null,
             error: 'Not a substitute share',
+            permissionDeniedLikelyExpired: false,
           });
           return;
         }
@@ -205,6 +238,7 @@ export function useSubstituteShare(
             shareId,
             share: null,
             error: 'This share is not available in your building.',
+            permissionDeniedLikelyExpired: false,
           });
           return;
         }
@@ -215,6 +249,7 @@ export function useSubstituteShare(
             shareId: snap.id,
           },
           error: null,
+          permissionDeniedLikelyExpired: false,
         });
       },
       (err) => {
@@ -223,6 +258,7 @@ export function useSubstituteShare(
           shareId,
           share: null,
           error: friendlySubShareError(err),
+          permissionDeniedLikelyExpired: err.code === 'permission-denied',
         });
       }
     );
@@ -230,15 +266,26 @@ export function useSubstituteShare(
   }, [shareId, expectedBuildingId]);
 
   if (!shareId) {
-    return { share: null, loading: false, error: null };
+    return {
+      share: null,
+      loading: false,
+      error: null,
+      permissionDeniedLikelyExpired: false,
+    };
   }
   if (!snapshot || snapshot.shareId !== shareId) {
-    return { share: null, loading: true, error: null };
+    return {
+      share: null,
+      loading: true,
+      error: null,
+      permissionDeniedLikelyExpired: false,
+    };
   }
   return {
     share: snapshot.share,
     loading: false,
     error: snapshot.error,
+    permissionDeniedLikelyExpired: snapshot.permissionDeniedLikelyExpired,
   };
 }
 
