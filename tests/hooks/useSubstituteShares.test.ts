@@ -241,12 +241,16 @@ describe('useSubstituteShares — error handling', () => {
     expect(listeners).toHaveLength(2); // re-subscribed
     expect(result.current.loading).toBe(true);
     expect(result.current.error).toBeNull();
+    // Expiry-driven reconnects are expected and transparent — don't log them
+    // as errors (would trip error-dashboard rate limits for routine expiry).
+    expect(mockLogError).not.toHaveBeenCalled();
 
     act(() => {
       lastListener().next(fakeCollSnap([]));
     });
     expect(result.current.error).toBeNull();
     expect(result.current.loading).toBe(false);
+    expect(mockLogError).not.toHaveBeenCalled();
   });
 
   it('gives up and surfaces the friendly message after repeated permission-denied hits', () => {
@@ -264,6 +268,14 @@ describe('useSubstituteShares — error handling', () => {
       error: 'You do not have permission to view this board.',
     });
     expect(listeners.length).toBeLessThanOrEqual(5);
+    // Only the final, exhausted attempt should be logged — not the 3
+    // retried ones.
+    expect(mockLogError).toHaveBeenCalledTimes(1);
+    expect(mockLogError).toHaveBeenCalledWith(
+      'useSubstituteShares.snapshot',
+      { code: 'permission-denied' },
+      { buildingId: 'high' }
+    );
   });
 
   it('resets the retry count after a successful snapshot', () => {
@@ -272,9 +284,14 @@ describe('useSubstituteShares — error handling', () => {
     act(() => {
       lastListener().error({ code: 'permission-denied' });
     });
+    expect(listeners).toHaveLength(2);
     act(() => {
       lastListener().next(fakeCollSnap([]));
     });
+    // The retry count reset lives in a ref, not state, so a successful
+    // snapshot must NOT tear down and rebuild the just-recovered listener.
+    expect(listeners).toHaveLength(2);
+
     // Three more denials after a successful recovery should NOT immediately
     // exhaust retries (the counter reset on the intervening success) — the
     // last known-good (empty) shares list stays shown rather than flipping
@@ -301,14 +318,16 @@ describe('useSubstituteShares — error handling', () => {
 
   it('logs the canonical building ID (not the raw input) in the error context', () => {
     renderHook(() => useSubstituteShares('orono-high-school'));
+    // A non-retryable code so this hits logError immediately rather than
+    // entering the permission-denied retry path.
     act(() => {
-      lastListener().error({ code: 'permission-denied' });
+      lastListener().error({ code: 'unavailable' });
     });
 
     // canonicalBuildingId('orono-high-school') === 'high'
     expect(mockLogError).toHaveBeenCalledWith(
       'useSubstituteShares.snapshot',
-      { code: 'permission-denied' },
+      { code: 'unavailable' },
       { buildingId: 'high' }
     );
   });

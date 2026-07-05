@@ -10,7 +10,7 @@
  * by `firestore.rules` (`allow read: if request.auth != null`).
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   collection,
   doc,
@@ -98,14 +98,18 @@ const MAX_PERMISSION_DENIED_RETRIES = 3;
  * with `permission-denied` — confirmed empirically against the emulator, not
  * just a silent per-doc removal. Re-subscribing with a fresh `Date.now()`
  * baseline (which naturally excludes the newly-expired doc) recovers
- * transparently; `retryCount` is capped so a genuine, non-expiry permission
- * problem falls through to the friendly error instead of retrying forever.
+ * transparently. The retry count lives in a ref (not state) so resetting it
+ * to 0 on a successful snapshot never itself triggers an effect re-run —
+ * only `retryToken` (bumped exclusively on a denial that should retry) tears
+ * down and rebuilds the listener; a capped ref count falls through to the
+ * friendly error for a genuine, non-expiry permission problem.
  */
 export function useSubstituteShares(
   buildingId: string
 ): UseSubstituteSharesState {
   const [snapshot, setSnapshot] = useState<ShareSnapshot | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
+  const [retryToken, setRetryToken] = useState(0);
+  const retryCountRef = useRef(0);
 
   useEffect(() => {
     if (!buildingId) return;
@@ -119,7 +123,7 @@ export function useSubstituteShares(
     const unsub = onSnapshot(
       q,
       (snap) => {
-        setRetryCount(0);
+        retryCountRef.current = 0;
         const now = Date.now();
         const shares: SubstituteShareDoc[] = [];
         snap.docs.forEach((d) => {
@@ -136,16 +140,17 @@ export function useSubstituteShares(
         setSnapshot({ buildingId: canonical, shares, error: null });
       },
       (err) => {
+        if (
+          err.code === 'permission-denied' &&
+          retryCountRef.current < MAX_PERMISSION_DENIED_RETRIES
+        ) {
+          retryCountRef.current += 1;
+          setRetryToken((t) => t + 1);
+          return;
+        }
         logError('useSubstituteShares.snapshot', err, {
           buildingId: canonical,
         });
-        if (
-          err.code === 'permission-denied' &&
-          retryCount < MAX_PERMISSION_DENIED_RETRIES
-        ) {
-          setRetryCount((c) => c + 1);
-          return;
-        }
         setSnapshot({
           buildingId: canonical,
           shares: [],
@@ -154,7 +159,7 @@ export function useSubstituteShares(
       }
     );
     return unsub;
-  }, [buildingId, retryCount]);
+  }, [buildingId, retryToken]);
 
   if (!buildingId) {
     return { shares: [], loading: false, error: null };
