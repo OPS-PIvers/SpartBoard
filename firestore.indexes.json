@@ -20,6 +20,29 @@
       "density": "SPARSE_ALL"
     },
     {
+      "collectionGroup": "shared_boards",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "intendedMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "buildingId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expiresAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
       "collectionGroup": "miniapps",
       "queryScope": "COLLECTION",
       "fields": [

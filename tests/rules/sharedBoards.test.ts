@@ -35,6 +35,14 @@ const COLLAB_UID = 'collaborator-uid';
 const VIEWER_UID = 'viewer-uid';
 const STRANGER_UID = 'stranger-uid';
 
+const ORONO_UID = 'orono-teacher-uid';
+const ORONO_EMAIL = 'teacher@orono.k12.mn.us';
+const ADMIN_UID = 'admin-uid-sb';
+const ADMIN_EMAIL = 'admin@external-district.org';
+
+const NOW_MS = Date.now();
+const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000; // 1209600000
+
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
 );
@@ -61,6 +69,13 @@ const asStranger = () =>
     .authenticatedContext(STRANGER_UID, { email: 'stranger@example.com' })
     .firestore();
 
+const asOronoTeacher = () =>
+  testEnv.authenticatedContext(ORONO_UID, { email: ORONO_EMAIL }).firestore();
+
+// isAdmin() matches on request.auth.token.email.lower(), so the token needs an email.
+const asAdmin = () =>
+  testEnv.authenticatedContext(ADMIN_UID, { email: ADMIN_EMAIL }).firestore();
+
 const seededShare = (overrides: Record<string, unknown> = {}) => ({
   name: 'Shared Board',
   background: 'bg-slate-800',
@@ -72,6 +87,23 @@ const seededShare = (overrides: Record<string, unknown> = {}) => ({
     [COLLAB_UID]: { role: 'collaborator', joinedAt: 1000 },
     [VIEWER_UID]: { role: 'viewer', joinedAt: 1000 },
   },
+  updatedAt: 1000,
+  updatedBy: HOST_UID,
+  ...overrides,
+});
+
+/** A valid substitute-mode `/shared_boards` document. */
+const subShareDoc = (overrides: Record<string, unknown> = {}) => ({
+  name: 'Sub Board',
+  background: 'bg-slate-800',
+  widgets: [],
+  sharedAt: 1000,
+  originalAuthor: HOST_UID,
+  originalAuthorName: 'Host Display',
+  intendedMode: 'substitute',
+  buildingId: 'ohs',
+  expiresAt: NOW_MS + FOURTEEN_DAYS_MS - 60_000, // 1 minute under the cap
+  initialState: [],
   updatedAt: 1000,
   updatedBy: HOST_UID,
   ...overrides,
@@ -101,6 +133,10 @@ beforeEach(async () => {
       doc(ctx.firestore(), `shared_boards/${SHARE_ID}`),
       seededShare()
     );
+    // Seed the admin doc so isAdmin() resolves for ADMIN_EMAIL.
+    await setDoc(doc(ctx.firestore(), `admins/${ADMIN_EMAIL}`), {
+      email: ADMIN_EMAIL,
+    });
   });
 });
 
@@ -111,6 +147,61 @@ describe('shared_boards — read', () => {
     await assertSucceeds(
       getDoc(doc(asStranger(), `shared_boards/${SHARE_ID}`))
     );
+  });
+});
+
+describe('shared_boards — read, substitute share', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `shared_boards/${SHARE_ID}`),
+        subShareDoc()
+      );
+    });
+  });
+
+  it('non-Orono email is denied on substitute share', async () => {
+    await assertFails(getDoc(doc(asStranger(), `shared_boards/${SHARE_ID}`)));
+  });
+
+  it('Orono email is allowed on substitute share', async () => {
+    await assertSucceeds(
+      getDoc(doc(asOronoTeacher(), `shared_boards/${SHARE_ID}`))
+    );
+  });
+
+  it('host can always read their own substitute share', async () => {
+    await assertSucceeds(getDoc(doc(asHost(), `shared_boards/${SHARE_ID}`)));
+  });
+
+  it('admin can read substitute share', async () => {
+    await assertSucceeds(getDoc(doc(asAdmin(), `shared_boards/${SHARE_ID}`)));
+  });
+});
+
+// Regression: the @orono.k12.mn.us read branch had no expiresAt cutoff.
+describe('shared_boards — read, substitute share expiry', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `shared_boards/${SHARE_ID}`),
+        subShareDoc({ expiresAt: NOW_MS - 60_000 }) // 1 minute past
+      );
+    });
+  });
+
+  it('Orono email is denied on expired substitute share', async () => {
+    await assertFails(
+      getDoc(doc(asOronoTeacher(), `shared_boards/${SHARE_ID}`))
+    );
+  });
+
+  it('host can still read their own expired substitute share', async () => {
+    await assertSucceeds(getDoc(doc(asHost(), `shared_boards/${SHARE_ID}`)));
+  });
+
+  it('admin can read expired substitute share', async () => {
+    await assertSucceeds(getDoc(doc(asAdmin(), `shared_boards/${SHARE_ID}`)));
   });
 });
 
@@ -325,6 +416,11 @@ describe('shared_boards — intendedMode immutability', () => {
         doc(ctx.firestore(), `shared_boards/${SHARE_ID}`),
         seededShare({ intendedMode: 'view-only' })
       );
+      // Re-seed the admin doc wiped by clearFirestore() above (top-level
+      // beforeEach already seeded it, but this block clears again).
+      await setDoc(doc(ctx.firestore(), `admins/${ADMIN_EMAIL}`), {
+        email: ADMIN_EMAIL,
+      });
     });
   });
 

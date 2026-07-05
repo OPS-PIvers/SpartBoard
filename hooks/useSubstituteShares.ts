@@ -80,10 +80,14 @@ interface ShareSnapshot {
 }
 
 /**
- * Live list of substitute shares in the given building. Filters expired
- * shares client-side (Firestore can't do `expiresAt > now` plus building
- * scoping without a composite index — the result set is small in practice,
- * so client filtering is fine).
+ * Live list of substitute shares in the given building. The `shared_boards`
+ * read rule now gates @orono callers on `expiresAt > request.time` (mirrors
+ * `shared_collections`) — Firestore evaluates a list query's rule against
+ * every matched doc and fails the WHOLE query if any one is denied, so the
+ * `where('expiresAt', '>')` constraint below keeps expired docs out of the
+ * result set entirely (composite index provisioned in firestore.indexes.json).
+ * The client-side filter stays as belt-and-suspenders for the narrow
+ * clock-skew window. Mirrors `SubCollectionsList.tsx`.
  */
 export function useSubstituteShares(
   buildingId: string
@@ -96,7 +100,8 @@ export function useSubstituteShares(
     const q = query(
       collection(db, 'shared_boards'),
       where('intendedMode', '==', 'substitute' as SharedBoardIntendedMode),
-      where('buildingId', '==', canonical)
+      where('buildingId', '==', canonical),
+      where('expiresAt', '>', Date.now())
     );
     const unsub = onSnapshot(
       q,

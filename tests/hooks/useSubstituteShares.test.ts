@@ -118,6 +118,15 @@ describe('useSubstituteShares — listener wiring', () => {
     expect(listeners).toHaveLength(1);
   });
 
+  it('includes an expiresAt > now query constraint so the read rule can be proven for the whole query (#2150)', () => {
+    const now = 1_700_000_000_000;
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+
+    renderHook(() => useSubstituteShares('high'));
+
+    expect(mockWhere).toHaveBeenCalledWith('expiresAt', '>', now);
+  });
+
   it('canonicalizes a legacy building ID before scoping the query', () => {
     renderHook(() => useSubstituteShares('orono-high-school'));
 
