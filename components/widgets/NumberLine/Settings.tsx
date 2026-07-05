@@ -50,6 +50,12 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
   const [newMarkerLabel, setNewMarkerLabel] = useState<string>('Start');
 
   const handleAddJump = () => {
+    if (
+      !Number.isFinite(newJumpStart) ||
+      !Number.isFinite(newJumpEnd) ||
+      newJumpStart === newJumpEnd
+    )
+      return;
     const jump: NumberLineJump = {
       id: crypto.randomUUID(),
       startValue: newJumpStart,
@@ -60,6 +66,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
   };
 
   const handleAddMarker = () => {
+    if (!Number.isFinite(newMarkerValue)) return;
     const marker: NumberLineMarker = {
       id: crypto.randomUUID(),
       value: newMarkerValue,
@@ -250,9 +257,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             <input
               type="number"
               value={newMarkerValue}
-              onChange={(e) =>
-                setNewMarkerValue(parseFloat(e.target.value) || 0)
-              }
+              onChange={(e) => setNewMarkerValue(e.target.valueAsNumber)}
               className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-sm"
             />
           </div>
@@ -332,7 +337,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             <input
               type="number"
               value={newJumpStart}
-              onChange={(e) => setNewJumpStart(parseFloat(e.target.value) || 0)}
+              onChange={(e) => setNewJumpStart(e.target.valueAsNumber)}
               className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-sm"
             />
           </div>
@@ -343,7 +348,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             <input
               type="number"
               value={newJumpEnd}
-              onChange={(e) => setNewJumpEnd(parseFloat(e.target.value) || 0)}
+              onChange={(e) => setNewJumpEnd(e.target.valueAsNumber)}
               className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-sm"
             />
           </div>
