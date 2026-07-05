@@ -1764,3 +1764,41 @@ _Automated nightly review by claude-opus-4-6_
   - Cross-PR pattern: three nightly PRs this run (#2137, #2138, and the pre-fix #2135/#2134) introduced multi-paragraph comment blocks that violate the CLAUDE.md "one short line max" rule. #2135/#2134 were corrected; #2137/#2138 flagged in review. Worth a lint rule if it keeps recurring.
   - Branch-safety: only #2098 targets `main` (from `dev-paul`) — no push made there. All fix pushes went to pushable branches (`nightly/build-tooling-2026-07-04`, `scheduled-tasks`). `main` never touched.
   - CI health: all checks green on every PR inspected (#2098 15/15, #2137 7/7); no failing checks observed. New CI runs will trigger on the two fix pushes.
+
+## 2026-07-05
+
+- PRs reviewed: 9
+  - #2150 — fix(rules): shared_boards substitute reads had no expiresAt cutoff (head `nightly/build-tooling-2026-07-05`, base `dev-paul`)
+  - #2149 — fix(i18n): replace DE "Board" loanword with "Tafel" (head `nightly/admin-config-2026-07-05`, base `dev-paul`)
+  - #2148 — fix(dashboard-layout): stop stale collection id leaking into active-board picker (head `nightly/dashboard-layout-2026-07-05`, base `dev-paul`)
+  - #2147 — fix(TimeTool): clamp hold-to-ramp duration to the shared ceiling (head `nightly/widgets-2026-07-05`, base `dev-paul`)
+  - #2146 — audit(sunday) + NumberLine markers/jumps admin building defaults (head `scheduled-tasks`, base `dev-paul`)
+  - #2145 — docs(routines): nightly unifier run 26 log (head `nightly/unifier-log-2026-07-05`, base `dev-paul`)
+  - #2144 — refactor(settings): unify 4 missed canonical labels to SettingsLabel (head `nightly/unify-settings-labels-2026-07-05`, base `dev-paul`)
+  - #2142 — refactor(imports): fix plc/resources cross-subdir relative import (head `nightly/unify-import-paths-2026-07-05`, base `dev-paul`)
+  - #2141 — Refactor admin modals to use SettingsLabel and improve accessibility (head `dev-paul`, base `main`)
+- Comments processed: 15 unresolved threads across 5 PRs — 7 fixed (3 pushes), 8 explained.
+  - #2149: 2 gemini threads → FIXED in 972fbf7, replied. (redundant LocaleFile cast removed; Board guard made case-insensitive)
+  - #2148: 2 claude threads → 1 FIXED in 1f58777 (beforeEach mock reset), 1 already-addressed on branch head (uses `Dashboard` directly, not `MockBoard`); both replied.
+  - #2146: 5 threads → 3 FIXED in 7b4782f (handleAddJump reset, stale add-form reset on building switch, marker+jump label trim ×2 = 3 code changes), 1 outdated audit-log note EXPLAINED (do-not-rewrite guidance honored); all replied.
+  - #2150: 1 claude thread → EXPLAINED (legacy-doc dead-zone is a production data-audit decision, not a code change); replied.
+  - #2144: 4 threads → EXPLAINED (import/first false positive; mb-1→mb-2 spacing = visual judgment ×2; semantic `<label>` = scope decision); all replied.
+  - #2141: 1 open claude thread (of 9; other 8 already author-resolved) → EXPLAINED, not auto-pushed to `dev-paul`→`main` (MatchingOrderingEditor normalization mismatch is a grading-path tradeoff for a human); replied.
+- Fixes pushed: 3
+  - #2149 / `nightly/admin-config-2026-07-05` / 972fbf7 — drop redundant `LocaleFile` cast + delete unused type; make Board regression guard `/i`. Verified: type-check, lint, 25/25 tests.
+  - #2148 / `nightly/dashboard-layout-2026-07-05` / 1f58777 — reset mocks in `beforeEach` to prevent cross-test leakage. Verified: lint, 3/3 tests.
+  - #2146 / `scheduled-tasks` / 7b4782f — reset add-jump form, clear stale add-form state on building switch, trim marker/jump labels. Verified: full type-check, lint, 47/47 tests.
+- Reviews posted: 9 (one structured review per PR)
+  - #2150: Ready with minor notes — security-positive expiry gate; flagged composite-index deploy ordering + legacy-doc audit.
+  - #2149: Ready — clean terminology fix with durable regression guard.
+  - #2148: Ready — correct nullish-coalescing-over-meaningful-null fix, matches sibling `BoardNavFab`.
+  - #2147: Ready — root-cause clamp at persistence layer + UI disable; noted PR body undersells the diff (adds UI guard too).
+  - #2146: Ready with minor notes — well-validated admin-config addition; bundles audit journal + feature code.
+  - #2145: Ready — docs-only unifier log with self-verified line-count check.
+  - #2144: Ready with minor notes — clean label consolidation; flagged semantic `<label>` scope + label spacing for visual review.
+  - #2142: Ready — trivial correct import-path convention fix; recommended `no-restricted-imports` follow-up.
+  - #2141: Ready with minor notes — integration PR to `main`; crash guards resolved, one open normalization thread flagged for human sign-off.
+- Notes:
+  - Branch-safety: #2141 targets `main` (from `dev-paul`) — no push made there; its one open thread was explained, not fixed. All 3 fix pushes went to pushable branches (`nightly/admin-config-*`, `nightly/dashboard-layout-*`, `scheduled-tasks`). `main` never touched.
+  - Force-push detection: #2148 was force-pushed between review and this run (c31cce7→cc0d025), which already resolved the `MockBoard`→`Dashboard` comment; verified against the branch head rather than the stale review diff.
+  - CI health: not separately polled this run; the 3 fix pushes will trigger fresh PR-validation runs on their branches.
