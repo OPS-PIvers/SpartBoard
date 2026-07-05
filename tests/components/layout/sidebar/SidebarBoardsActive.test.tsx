@@ -154,6 +154,44 @@ describe('SidebarBoardsActive', () => {
     expect(screen.getByText('Boards')).toBeInTheDocument();
   });
 
+  it('shows root boards for a legacy board with no collectionId (undefined)', () => {
+    mockUseDashboard.mockReturnValue({
+      dashboards: [
+        {
+          id: 'legacy1',
+          name: 'Legacy Board',
+          collectionId: undefined,
+          createdAt: 0,
+          background: '',
+          widgets: [],
+        },
+        {
+          id: 'c1-board',
+          name: 'Collection Board',
+          collectionId: 'c1',
+          createdAt: 0,
+          background: '',
+          widgets: [],
+        },
+      ],
+      activeDashboard: {
+        id: 'legacy1',
+        name: 'Legacy Board',
+        collectionId: undefined,
+        createdAt: 0,
+        background: '',
+        widgets: [],
+      },
+      loadDashboard: vi.fn(),
+    });
+    mockUseAuth.mockReturnValue({ lastActiveCollectionId: 'c1' });
+
+    const onOpenModal = vi.fn();
+    render(<SidebarBoardsActive isVisible={true} onOpenModal={onOpenModal} />);
+    expect(screen.getByText('Legacy Board')).toBeInTheDocument();
+    expect(screen.queryByText('Collection Board')).not.toBeInTheDocument();
+  });
+
   it('falls back to lastActiveCollectionId when there is no active dashboard at all', () => {
     mockUseDashboard.mockReturnValue({
       dashboards: [
