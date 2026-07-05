@@ -403,6 +403,20 @@ describe('getAdminBuildingConfig', () => {
         {}
       );
     });
+
+    it('drops zero-length jumps (startValue === endValue)', () => {
+      const perm = makePerm('numberLine', {
+        high: {
+          jumps: [
+            { id: 'j1', startValue: 5, endValue: 5 }, // zero-length
+            { id: 'j2', startValue: 0, endValue: 5 }, // valid
+          ],
+        },
+      });
+      expect(getAdminBuildingConfig('numberLine', [perm], ['high'])).toEqual({
+        jumps: [{ id: 'j2', startValue: 0, endValue: 5 }],
+      });
+    });
   });
 
   describe('concept-web', () => {

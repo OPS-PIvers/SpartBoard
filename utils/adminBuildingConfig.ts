@@ -128,6 +128,7 @@ const sanitizeNumberLineJumps = (value: unknown): NumberLineJump[] => {
       continue;
     if (typeof rec.endValue !== 'number' || !Number.isFinite(rec.endValue))
       continue;
+    if (rec.startValue === rec.endValue) continue;
     if (seen.has(rec.id)) continue;
     seen.add(rec.id);
     const jump: NumberLineJump = {

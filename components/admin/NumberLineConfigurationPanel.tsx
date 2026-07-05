@@ -156,7 +156,12 @@ export const NumberLineConfigurationPanel: React.FC<
   };
 
   const handleAddJump = () => {
-    if (!Number.isFinite(newJumpStart) || !Number.isFinite(newJumpEnd)) return;
+    if (
+      !Number.isFinite(newJumpStart) ||
+      !Number.isFinite(newJumpEnd) ||
+      newJumpStart === newJumpEnd
+    )
+      return;
     const jump: NumberLineJump = {
       id: crypto.randomUUID(),
       startValue: newJumpStart,
