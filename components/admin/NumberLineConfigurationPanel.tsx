@@ -142,6 +142,7 @@ export const NumberLineConfigurationPanel: React.FC<
   };
 
   const handleAddMarker = () => {
+    if (!Number.isFinite(newMarkerValue)) return;
     const marker: NumberLineMarker = {
       id: crypto.randomUUID(),
       value: newMarkerValue,
@@ -155,6 +156,7 @@ export const NumberLineConfigurationPanel: React.FC<
   };
 
   const handleAddJump = () => {
+    if (!Number.isFinite(newJumpStart) || !Number.isFinite(newJumpEnd)) return;
     const jump: NumberLineJump = {
       id: crypto.randomUUID(),
       startValue: newJumpStart,
@@ -290,9 +292,7 @@ export const NumberLineConfigurationPanel: React.FC<
               <input
                 type="number"
                 value={newMarkerValue}
-                onChange={(e) =>
-                  setNewMarkerValue(parseFloat(e.target.value) || 0)
-                }
+                onChange={(e) => setNewMarkerValue(e.target.valueAsNumber)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -386,9 +386,7 @@ export const NumberLineConfigurationPanel: React.FC<
               <input
                 type="number"
                 value={newJumpStart}
-                onChange={(e) =>
-                  setNewJumpStart(parseFloat(e.target.value) || 0)
-                }
+                onChange={(e) => setNewJumpStart(e.target.valueAsNumber)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -399,7 +397,7 @@ export const NumberLineConfigurationPanel: React.FC<
               <input
                 type="number"
                 value={newJumpEnd}
-                onChange={(e) => setNewJumpEnd(parseFloat(e.target.value) || 0)}
+                onChange={(e) => setNewJumpEnd(e.target.valueAsNumber)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
