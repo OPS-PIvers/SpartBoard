@@ -23,7 +23,7 @@ import { pullSyncedVideoActivityContent } from '@/hooks/useSyncedVideoActivityGr
 import { logError } from '@/utils/logError';
 import { getPlcMemberEmail } from '@/utils/plc';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
-import type { PlcSectionId } from '../sections';
+import type { PlcSectionId } from '@/components/plc/sections';
 
 interface PlcResourcesBodyProps {
   plc: Plc;
