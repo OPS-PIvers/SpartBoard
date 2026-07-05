@@ -28,7 +28,7 @@ import { getMaterialsCatalog } from '@/components/widgets/MaterialsWidget/consta
  */
 const HEX_COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 const isHexColor = (value: unknown): value is string =>
-  typeof value === 'string' && HEX_COLOR_RE.test(value.trim());
+  typeof value === 'string' && HEX_COLOR_RE.test(value);
 
 /**
  * The `GlobalFontFamily` union values, used to validate per-building

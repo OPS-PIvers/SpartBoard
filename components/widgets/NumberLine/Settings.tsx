@@ -47,7 +47,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
 
   // Add Marker State
   const [newMarkerValue, setNewMarkerValue] = useState<number>(0);
-  const [newMarkerLabel, setNewMarkerLabel] = useState<string>('Start');
+  const [newMarkerLabel, setNewMarkerLabel] = useState<string>('');
 
   const markerValueId = useId();
   const markerLabelId = useId();
@@ -62,24 +62,31 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
       newJumpStart === newJumpEnd
     )
       return;
+    const trimmedLabel = newJumpLabel.trim();
     const jump: NumberLineJump = {
       id: crypto.randomUUID(),
       startValue: newJumpStart,
       endValue: newJumpEnd,
-      label: newJumpLabel,
+      ...(trimmedLabel !== '' && { label: trimmedLabel }),
     };
     updateConfig({ jumps: [...jumps, jump] });
+    setNewJumpStart(0);
+    setNewJumpEnd(5);
+    setNewJumpLabel('+5');
   };
 
   const handleAddMarker = () => {
     if (!Number.isFinite(newMarkerValue)) return;
+    const trimmedLabel = newMarkerLabel.trim();
     const marker: NumberLineMarker = {
       id: crypto.randomUUID(),
       value: newMarkerValue,
-      label: newMarkerLabel,
+      ...(trimmedLabel !== '' && { label: trimmedLabel }),
       color: WIDGET_PALETTE[markers.length % WIDGET_PALETTE.length],
     };
     updateConfig({ markers: [...markers, marker] });
+    setNewMarkerValue(0);
+    setNewMarkerLabel('');
   };
 
   const removeMarker = (id: string) => {
