@@ -170,6 +170,18 @@ describe('shared_boards — read, substitute share', () => {
     );
   });
 
+  it('a spoofed email with an embedded @ before the orono domain is denied', async () => {
+    // Regression: `.*@orono...` let `.*` absorb an embedded `@`, so a token
+    // email like `x@evil.com@orono.k12.mn.us` matched the old regex. `[^@]+`
+    // requires the local part to be @-free, closing the gap.
+    const spoofedDb = testEnv
+      .authenticatedContext('spoofed-uid', {
+        email: 'x@evil.com@orono.k12.mn.us',
+      })
+      .firestore();
+    await assertFails(getDoc(doc(spoofedDb, `shared_boards/${SHARE_ID}`)));
+  });
+
   it('host can always read their own substitute share', async () => {
     await assertSucceeds(getDoc(doc(asHost(), `shared_boards/${SHARE_ID}`)));
   });

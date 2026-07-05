@@ -365,6 +365,43 @@ describe('useSubstituteShares — building change & cleanup', () => {
     unmount();
     expect(unsub).toHaveBeenCalledTimes(1);
   });
+
+  it('gives a fresh retry budget to a new building instead of carrying over a depleted one', () => {
+    // Regression: retryCountRef must reset when buildingId changes, not just
+    // on a successful snapshot — otherwise a building with partial retries
+    // "poisons" the next building's listener with a depleted retry budget.
+    const { result, rerender } = renderHook(
+      ({ b }: { b: string }) => useSubstituteShares(b),
+      { initialProps: { b: 'high' } }
+    );
+
+    // Exhaust 2 of 3 retries on 'high' without ever succeeding.
+    act(() => {
+      lastListener().error({ code: 'permission-denied' });
+    });
+    act(() => {
+      lastListener().error({ code: 'permission-denied' });
+    });
+    expect(listeners).toHaveLength(3);
+
+    rerender({ b: 'middle' });
+    expect(listeners).toHaveLength(4);
+
+    // 'middle' should get the full retry budget (3), not carry over 'high's
+    // depleted count (2 already used).
+    act(() => {
+      lastListener().error({ code: 'permission-denied' });
+    });
+    act(() => {
+      lastListener().error({ code: 'permission-denied' });
+    });
+    act(() => {
+      lastListener().error({ code: 'permission-denied' });
+    });
+    expect(listeners).toHaveLength(7);
+    expect(result.current.error).toBeNull();
+    expect(result.current.loading).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------

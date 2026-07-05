@@ -863,7 +863,7 @@ service cloud.firestore {
         || resource.data.get('originalAuthor', null) == request.auth.uid
         || isAdmin()
         || (
-          request.auth.token.get('email', '').lower().matches('.*@orono[.]k12[.]mn[.]us$')
+          request.auth.token.get('email', '').lower().matches('[^@]+@orono[.]k12[.]mn[.]us$')
           && resource.data.get('expiresAt', 0) > request.time.toMillis()
         )
       );
@@ -988,7 +988,7 @@ service cloud.firestore {
         || resource.data.get('hostUid', null) == request.auth.uid
         || isAdmin()
         || (
-          request.auth.token.get('email', '').lower().matches('.*@orono[.]k12[.]mn[.]us$')
+          request.auth.token.get('email', '').lower().matches('[^@]+@orono[.]k12[.]mn[.]us$')
           && resource.data.get('expiresAt', 0) > request.time.toMillis()
         )
       );
@@ -1043,7 +1043,7 @@ service cloud.firestore {
           || get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('hostUid', null) == request.auth.uid
           || isAdmin()
           || (
-            request.auth.token.get('email', '').lower().matches('.*@orono[.]k12[.]mn[.]us$')
+            request.auth.token.get('email', '').lower().matches('[^@]+@orono[.]k12[.]mn[.]us$')
             && get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('expiresAt', 0) > request.time.toMillis()
           )
         );

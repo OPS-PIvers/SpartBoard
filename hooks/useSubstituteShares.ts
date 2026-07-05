@@ -110,8 +110,16 @@ export function useSubstituteShares(
   const [snapshot, setSnapshot] = useState<ShareSnapshot | null>(null);
   const [retryToken, setRetryToken] = useState(0);
   const retryCountRef = useRef(0);
+  const prevBuildingIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
+    // Reset the retry budget only on an actual buildingId change — this
+    // effect also re-runs on a retryToken bump (the retry itself), and
+    // resetting unconditionally there would defeat the retry cap.
+    if (prevBuildingIdRef.current !== buildingId) {
+      retryCountRef.current = 0;
+      prevBuildingIdRef.current = buildingId;
+    }
     if (!buildingId) return;
     const canonical = canonicalBuildingId(buildingId);
     const q = query(
@@ -179,10 +187,9 @@ interface UseSubstituteShareState {
   share: SubstituteShareDoc | null;
   loading: boolean;
   error: string | null;
-  // A permission-denied read for a substitute share can only happen because
-  // expiresAt lapsed (the read rule's only other branches are host/admin,
-  // which never deny) — treat it as "expired" so the UI shows the correct
-  // message and auto-redirect instead of a generic permission error.
+  // A permission-denied for a substitute share most likely means expiresAt
+  // lapsed — the non-Orono, non-host, non-admin case is an edge (subs portal
+  // is district-gated), but worth distinguishing in the UI message if needed.
   permissionDeniedLikelyExpired: boolean;
 }
 
