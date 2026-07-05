@@ -90,14 +90,7 @@ const isCardOpacity = (value: unknown): value is number =>
  */
 const VALID_TRAFFIC_COLORS = ['red', 'yellow', 'green'] as const;
 
-/**
- * Sanitizes an admin-stored NumberLine `markers` array into well-formed
- * `NumberLineMarker[]`. Each marker must carry a non-empty `id` (the panel
- * generates one via `crypto.randomUUID()`), a finite numeric `value`, and a
- * valid hex `color`; malformed or duplicate-id entries are dropped rather than
- * seeded into a new widget where they'd break the render/remove-by-id logic.
- * `label` is copied through only when it's a string.
- */
+// Validates admin-stored markers: requires non-empty id, finite value, hex color; drops malformed/dup-id entries.
 const sanitizeNumberLineMarkers = (value: unknown): NumberLineMarker[] => {
   if (!Array.isArray(value)) return [];
   const seen = new Set<string>();
@@ -122,13 +115,7 @@ const sanitizeNumberLineMarkers = (value: unknown): NumberLineMarker[] => {
   return out;
 };
 
-/**
- * Sanitizes an admin-stored NumberLine `jumps` array into well-formed
- * `NumberLineJump[]`. Each jump needs a non-empty `id` plus finite numeric
- * `startValue`/`endValue`; malformed or duplicate-id entries are dropped.
- * Mirrors `sanitizeNumberLineMarkers` so the two overlay collections validate
- * with the same strictness.
- */
+// Validates admin-stored jumps: requires non-empty id, finite startValue/endValue; drops malformed/dup-id entries.
 const sanitizeNumberLineJumps = (value: unknown): NumberLineJump[] => {
   if (!Array.isArray(value)) return [];
   const seen = new Set<string>();

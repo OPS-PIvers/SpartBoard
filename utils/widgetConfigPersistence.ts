@@ -71,6 +71,8 @@ const TRANSIENT_CONFIG_KEYS = new Set<string>([
   'cards',
   'memoryCards',
   'hotspots',
+  'markers',
+  'jumps',
 
   // User-typed instance content: styling should carry over to new widgets,
   // but the text/notes themselves belong to a single instance only.
