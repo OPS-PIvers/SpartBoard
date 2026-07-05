@@ -116,6 +116,19 @@ export const NumberLineConfigurationPanel: React.FC<
   const [newJumpEnd, setNewJumpEnd] = useState(5);
   const [newJumpLabel, setNewJumpLabel] = useState('+5');
 
+  // Reset the add-marker/add-jump form fields when the admin switches
+  // buildings (adjust-state-while-rendering, same pattern as HexColorTextInput)
+  // so stale values from the previous building don't stay silently pre-filled.
+  const [prevBuildingId, setPrevBuildingId] = useState(selectedBuildingId);
+  if (prevBuildingId !== selectedBuildingId) {
+    setPrevBuildingId(selectedBuildingId);
+    setNewMarkerValue(0);
+    setNewMarkerLabel('');
+    setNewJumpStart(0);
+    setNewJumpEnd(5);
+    setNewJumpLabel('+5');
+  }
+
   const handleUpdateBuilding = (
     updates: Partial<BuildingNumberLineDefaults>
   ) => {
@@ -150,6 +163,9 @@ export const NumberLineConfigurationPanel: React.FC<
     const trimmedLabel = newJumpLabel.trim();
     if (trimmedLabel) jump.label = trimmedLabel;
     handleUpdateBuilding({ jumps: [...jumps, jump] });
+    setNewJumpStart(0);
+    setNewJumpEnd(5);
+    setNewJumpLabel('+5');
   };
 
   return (

@@ -115,7 +115,8 @@ const sanitizeNumberLineMarkers = (value: unknown): NumberLineMarker[] => {
       value: rec.value,
       color: rec.color.trim(),
     };
-    if (typeof rec.label === 'string') marker.label = rec.label;
+    if (typeof rec.label === 'string' && rec.label.trim() !== '')
+      marker.label = rec.label.trim();
     out.push(marker);
   }
   return out;
@@ -147,7 +148,8 @@ const sanitizeNumberLineJumps = (value: unknown): NumberLineJump[] => {
       startValue: rec.startValue,
       endValue: rec.endValue,
     };
-    if (typeof rec.label === 'string') jump.label = rec.label;
+    if (typeof rec.label === 'string' && rec.label.trim() !== '')
+      jump.label = rec.label.trim();
     out.push(jump);
   }
   return out;
