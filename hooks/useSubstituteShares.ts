@@ -153,6 +153,10 @@ export function useSubstituteShares(
           retryCountRef.current < MAX_PERMISSION_DENIED_RETRIES
         ) {
           retryCountRef.current += 1;
+          // Clear the stale snapshot so callers see loading instead of the
+          // old list (which may include the now-expired, no-longer-readable
+          // doc that triggered this denial) until the re-subscribe resolves.
+          setSnapshot(null);
           setRetryToken((t) => t + 1);
           return;
         }

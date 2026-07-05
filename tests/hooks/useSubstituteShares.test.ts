@@ -253,6 +253,34 @@ describe('useSubstituteShares — error handling', () => {
     expect(mockLogError).not.toHaveBeenCalled();
   });
 
+  it('clears the stale snapshot during a retry instead of showing the list that triggered the denial', () => {
+    // Regression (#2150 round 6): a permission-denied caused by a share
+    // expiring mid-listener must not leave the pre-denial (possibly
+    // now-expired) shares on screen while the re-subscribe is in flight.
+    const now = 1_000_000;
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+
+    const { result } = renderHook(() => useSubstituteShares('high'));
+    act(() => {
+      lastListener().next(
+        fakeCollSnap([
+          { id: 'live', data: { expiresAt: now + 1, sharedAt: 1 } },
+        ])
+      );
+    });
+    expect(result.current).toEqual({
+      shares: [{ shareId: 'live', expiresAt: now + 1, sharedAt: 1 }],
+      loading: false,
+      error: null,
+    });
+
+    act(() => {
+      lastListener().error({ code: 'permission-denied' });
+    });
+
+    expect(result.current).toEqual({ shares: [], loading: true, error: null });
+  });
+
   it('gives up and surfaces the friendly message after repeated permission-denied hits', () => {
     const { result } = renderHook(() => useSubstituteShares('high'));
 
@@ -293,18 +321,20 @@ describe('useSubstituteShares — error handling', () => {
     expect(listeners).toHaveLength(2);
 
     // Three more denials after a successful recovery should NOT immediately
-    // exhaust retries (the counter reset on the intervening success) — the
-    // last known-good (empty) shares list stays shown rather than flipping
-    // back to a loading spinner or an error on every transient re-subscribe.
+    // exhaust retries (the counter reset on the intervening success) — each
+    // one is still within budget, so the hook keeps retrying instead of
+    // giving up with the friendly error message.
     for (let i = 0; i < 3; i++) {
       act(() => {
         lastListener().error({ code: 'permission-denied' });
       });
     }
 
-    expect(result.current.error).toBeNull();
-    expect(result.current.loading).toBe(false);
-    expect(result.current.shares).toEqual([]);
+    // Still mid-retry (not given up), and — since each denial here means a
+    // doc in the just-shown snapshot became rule-ineligible — the stale list
+    // is cleared rather than left on screen while the re-subscribe is in
+    // flight (see the round-6 regression test above).
+    expect(result.current).toEqual({ shares: [], loading: true, error: null });
   });
 
   it('falls back to a generic message for an unknown error code', () => {
