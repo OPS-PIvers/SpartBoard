@@ -2,6 +2,8 @@ import {
   FeaturePermission,
   MaterialsGlobalConfig,
   NextUpConfig,
+  NumberLineJump,
+  NumberLineMarker,
   WidgetType,
 } from '@/types';
 import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
@@ -87,6 +89,69 @@ const isCardOpacity = (value: unknown): value is number =>
  * inside the `time-tool` case on every call.
  */
 const VALID_TRAFFIC_COLORS = ['red', 'yellow', 'green'] as const;
+
+/**
+ * Sanitizes an admin-stored NumberLine `markers` array into well-formed
+ * `NumberLineMarker[]`. Each marker must carry a non-empty `id` (the panel
+ * generates one via `crypto.randomUUID()`), a finite numeric `value`, and a
+ * valid hex `color`; malformed or duplicate-id entries are dropped rather than
+ * seeded into a new widget where they'd break the render/remove-by-id logic.
+ * `label` is copied through only when it's a string.
+ */
+const sanitizeNumberLineMarkers = (value: unknown): NumberLineMarker[] => {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const out: NumberLineMarker[] = [];
+  for (const entry of value) {
+    if (typeof entry !== 'object' || entry === null) continue;
+    const rec = entry as Record<string, unknown>;
+    if (typeof rec.id !== 'string' || rec.id.trim() === '') continue;
+    if (typeof rec.value !== 'number' || !Number.isFinite(rec.value)) continue;
+    if (!isHexColor(rec.color)) continue;
+    if (seen.has(rec.id)) continue;
+    seen.add(rec.id);
+    const marker: NumberLineMarker = {
+      id: rec.id,
+      value: rec.value,
+      color: rec.color.trim(),
+    };
+    if (typeof rec.label === 'string') marker.label = rec.label;
+    out.push(marker);
+  }
+  return out;
+};
+
+/**
+ * Sanitizes an admin-stored NumberLine `jumps` array into well-formed
+ * `NumberLineJump[]`. Each jump needs a non-empty `id` plus finite numeric
+ * `startValue`/`endValue`; malformed or duplicate-id entries are dropped.
+ * Mirrors `sanitizeNumberLineMarkers` so the two overlay collections validate
+ * with the same strictness.
+ */
+const sanitizeNumberLineJumps = (value: unknown): NumberLineJump[] => {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const out: NumberLineJump[] = [];
+  for (const entry of value) {
+    if (typeof entry !== 'object' || entry === null) continue;
+    const rec = entry as Record<string, unknown>;
+    if (typeof rec.id !== 'string' || rec.id.trim() === '') continue;
+    if (typeof rec.startValue !== 'number' || !Number.isFinite(rec.startValue))
+      continue;
+    if (typeof rec.endValue !== 'number' || !Number.isFinite(rec.endValue))
+      continue;
+    if (seen.has(rec.id)) continue;
+    seen.add(rec.id);
+    const jump: NumberLineJump = {
+      id: rec.id,
+      startValue: rec.startValue,
+      endValue: rec.endValue,
+    };
+    if (typeof rec.label === 'string') jump.label = rec.label;
+    out.push(jump);
+  }
+  return out;
+};
 
 /**
  * Extracts building-level config overrides for a widget type from the admin's
@@ -209,6 +274,13 @@ export const getAdminBuildingConfig = (
       if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;
       if (isGlobalFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
       if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
+      // Only seed the overlay arrays when at least one well-formed entry
+      // survives validation — an empty array would needlessly override the
+      // widget's own empty default.
+      const markers = sanitizeNumberLineMarkers(raw.markers);
+      if (markers.length > 0) out.markers = markers;
+      const jumps = sanitizeNumberLineJumps(raw.jumps);
+      if (jumps.length > 0) out.jumps = jumps;
       break;
     }
     case 'syntax-framer':

@@ -345,6 +345,64 @@ describe('getAdminBuildingConfig', () => {
         {}
       );
     });
+
+    it('passes through well-formed markers and jumps, copying optional labels', () => {
+      const perm = makePerm('numberLine', {
+        high: {
+          markers: [
+            { id: 'm1', value: 5, label: 'Start', color: '#3b82f6' },
+            { id: 'm2', value: 10, color: '#ef4444' }, // no label
+          ],
+          jumps: [
+            { id: 'j1', startValue: 0, endValue: 5, label: '+5' },
+            { id: 'j2', startValue: 5, endValue: 10 }, // no label
+          ],
+        },
+      });
+      expect(getAdminBuildingConfig('numberLine', [perm], ['high'])).toEqual({
+        markers: [
+          { id: 'm1', value: 5, color: '#3b82f6', label: 'Start' },
+          { id: 'm2', value: 10, color: '#ef4444' },
+        ],
+        jumps: [
+          { id: 'j1', startValue: 0, endValue: 5, label: '+5' },
+          { id: 'j2', startValue: 5, endValue: 10 },
+        ],
+      });
+    });
+
+    it('drops malformed markers (missing id, non-finite value, invalid color) and duplicate ids', () => {
+      const perm = makePerm('numberLine', {
+        high: {
+          markers: [
+            { value: 5, color: '#3b82f6' }, // missing id
+            { id: 'm1', value: Number.NaN, color: '#3b82f6' }, // non-finite
+            { id: 'm2', value: 3, color: 'blue' }, // invalid color
+            { id: 'm3', value: 7, color: '#10b981' }, // valid
+            { id: 'm3', value: 8, color: '#f59e0b' }, // duplicate id — dropped
+          ],
+        },
+      });
+      expect(getAdminBuildingConfig('numberLine', [perm], ['high'])).toEqual({
+        markers: [{ id: 'm3', value: 7, color: '#10b981' }],
+      });
+    });
+
+    it('drops malformed jumps and omits the key when nothing survives', () => {
+      const perm = makePerm('numberLine', {
+        high: {
+          markers: 'not-an-array',
+          jumps: [
+            { id: 'j1', startValue: 0 }, // missing endValue
+            { id: 'j2', startValue: 'x', endValue: 5 }, // non-numeric start
+            { startValue: 0, endValue: 5 }, // missing id
+          ],
+        },
+      });
+      expect(getAdminBuildingConfig('numberLine', [perm], ['high'])).toEqual(
+        {}
+      );
+    });
   });
 
   describe('concept-web', () => {
