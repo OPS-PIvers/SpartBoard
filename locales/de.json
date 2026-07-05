@@ -1274,7 +1274,7 @@
       "title": "Tastenkürzel & Gesten",
       "keyboard": "Tastatur",
       "touchscreenGestures": "Touchscreen-Gesten",
-      "boardGestures": "Board-Hintergrund",
+      "boardGestures": "Tafel-Hintergrund",
       "widgetGestures": "Widget-Fenster",
       "footer": "Drücken Sie jederzeit <kbd>Strg/⌘</kbd> + <kbd>/</kbd>, um dieses Panel zu öffnen",
       "shortcuts": {
@@ -1324,7 +1324,7 @@
     },
     "stickers": {
       "collectionTitle": "Sticker-Sammlung",
-      "clearAll": "Alle Sticker vom Board löschen",
+      "clearAll": "Alle Sticker von der Tafel löschen",
       "wait": "Warten...",
       "dropOrPaste": "Bild ablegen oder einfügen",
       "toAddCustom": "um benutzerdefinierte Sticker hinzuzufügen",
@@ -1333,8 +1333,8 @@
       "myCollection": "Meine Sammlung",
       "dragOrClick": "Ziehen oder klicken zum Hinzufügen",
       "deleteSticker": "Sticker löschen",
-      "dragFromLibrary": "Sticker aus der Bibliothek auf das Board ziehen",
-      "stickerAdded": "Sticker zum Board hinzugefügt!",
+      "dragFromLibrary": "Sticker aus der Bibliothek auf die Tafel ziehen",
+      "stickerAdded": "Sticker zur Tafel hinzugefügt!",
       "filterAll": "Alle",
       "filterFavorites": "Favoriten",
       "filterMine": "Meine",
@@ -1405,7 +1405,7 @@
       "colorPalette": "Farbpalette",
       "glow": "Leuchten",
       "fonts": {
-        "inherit": "Vom Board",
+        "inherit": "Von der Tafel",
         "digital": "Digital",
         "modern": "Modern",
         "school": "Schule"
@@ -1547,7 +1547,7 @@
   },
   "shareCollection": {
     "title": "Sammlung teilen",
-    "subtitle": "{{count}} Board(s) aus dieser Sammlung werden geteilt.",
+    "subtitle": "{{count}} Tafel(n) aus dieser Sammlung werden geteilt.",
     "mode": "Freigabemodus",
     "copyMode": "Kopieren",
     "copyModeHint": "Der Empfänger importiert eine vollständige Kopie in sein Konto.",
@@ -1589,7 +1589,7 @@
     "heading": "Sammlungen",
     "boardCount": "{{count}} Tafel(n)",
     "boardPlaceholder": "Tafel …{{id}}",
-    "openBoard": "Dieses Board öffnen"
+    "openBoard": "Diese Tafel öffnen"
   },
   "collectionMenu": {
     "share": "Sammlung teilen…",
@@ -1648,7 +1648,7 @@
     "emptyResults": "Keine passenden Widgets."
   },
   "style": {
-    "readOnlyNotice": "Dieses Board ist schreibgeschützt. Stiländerungen werden nicht gespeichert."
+    "readOnlyNotice": "Diese Tafel ist schreibgeschützt. Stiländerungen werden nicht gespeichert."
   },
   "whatsNew": {
     "title": "Was ist neu",
@@ -1678,7 +1678,7 @@
       "dropImages": "Bilder hier ablegen oder zum Durchsuchen klicken",
       "supportedFiles": "PNG, JPG, GIF, WebP, SVG · Mehrere Dateien unterstützt",
       "collectionTitle": "Sticker-Sammlung",
-      "clearAll": "Alle Sticker vom Board löschen",
+      "clearAll": "Alle Sticker von der Tafel löschen",
       "wait": "Warten...",
       "dropOrPaste": "Bild ablegen oder einfügen",
       "toAddCustom": "um benutzerdefinierte Sticker hinzuzufügen",
@@ -1687,8 +1687,8 @@
       "myCollection": "Meine Sammlung",
       "dragOrClick": "Ziehen oder klicken zum Hinzufügen",
       "deleteSticker": "Sticker löschen",
-      "dragFromLibrary": "Sticker aus der Bibliothek auf das Board ziehen",
-      "stickerAdded": "Sticker zum Board hinzugefügt!"
+      "dragFromLibrary": "Sticker aus der Bibliothek auf die Tafel ziehen",
+      "stickerAdded": "Sticker zur Tafel hinzugefügt!"
     },
     "plc": {
       "recovery": {
@@ -1719,7 +1719,7 @@
     "loading": "PLG wird geladen…",
     "notFoundTitle": "PLG nicht gefunden",
     "notFoundBody": "Diese PLG existiert nicht oder Sie sind kein Mitglied mehr.",
-    "backToBoard": "Zurück zu meinem Board",
+    "backToBoard": "Zurück zu meiner Tafel",
     "hubTitle": "Meine PLGs",
     "hubSubtitle": "Öffnen Sie eine professionelle Lerngemeinschaft, um mit Ihrem Team zusammenzuarbeiten.",
     "hubEmptyTitle": "Noch keine PLGs",
