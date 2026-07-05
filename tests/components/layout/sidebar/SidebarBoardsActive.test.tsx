@@ -5,12 +5,12 @@ import type { Dashboard } from '@/types';
 
 interface MockUseDashboardReturn {
   dashboards: Dashboard[];
-  activeDashboard: Dashboard;
-  loadDashboard: () => void;
+  activeDashboard: Dashboard | null;
+  loadDashboard: (id: string) => void;
 }
 
 interface MockUseAuthReturn {
-  lastActiveCollectionId: string | null;
+  lastActiveCollectionId: string | null | undefined;
 }
 
 const mockUseDashboard = vi.fn<() => MockUseDashboardReturn>();
@@ -151,6 +151,60 @@ describe('SidebarBoardsActive', () => {
     render(<SidebarBoardsActive isVisible={true} onOpenModal={onOpenModal} />);
     expect(screen.getByText('Root Board')).toBeInTheDocument();
     expect(screen.queryByText('Collection Board')).not.toBeInTheDocument();
+    expect(screen.getByText('Boards')).toBeInTheDocument();
+  });
+
+  it('falls back to lastActiveCollectionId when there is no active dashboard at all', () => {
+    mockUseDashboard.mockReturnValue({
+      dashboards: [
+        {
+          id: 'root1',
+          name: 'Root Board',
+          collectionId: null,
+          createdAt: 0,
+          background: '',
+          widgets: [],
+        },
+        {
+          id: 'c1-board',
+          name: 'Collection Board',
+          collectionId: 'c1',
+          createdAt: 0,
+          background: '',
+          widgets: [],
+        },
+      ],
+      activeDashboard: null,
+      loadDashboard: vi.fn(),
+    });
+    mockUseAuth.mockReturnValue({ lastActiveCollectionId: 'c1' });
+
+    const onOpenModal = vi.fn();
+    render(<SidebarBoardsActive isVisible={true} onOpenModal={onOpenModal} />);
+    expect(screen.getByText('Collection Board')).toBeInTheDocument();
+    expect(screen.queryByText('Root Board')).not.toBeInTheDocument();
+  });
+
+  it('treats an undefined lastActiveCollectionId (profile not yet loaded) as root, not a crash', () => {
+    mockUseDashboard.mockReturnValue({
+      dashboards: [
+        {
+          id: 'root1',
+          name: 'Root Board',
+          collectionId: null,
+          createdAt: 0,
+          background: '',
+          widgets: [],
+        },
+      ],
+      activeDashboard: null,
+      loadDashboard: vi.fn(),
+    });
+    mockUseAuth.mockReturnValue({ lastActiveCollectionId: undefined });
+
+    const onOpenModal = vi.fn();
+    render(<SidebarBoardsActive isVisible={true} onOpenModal={onOpenModal} />);
+    expect(screen.getByText('Root Board')).toBeInTheDocument();
     expect(screen.getByText('Boards')).toBeInTheDocument();
   });
 });
