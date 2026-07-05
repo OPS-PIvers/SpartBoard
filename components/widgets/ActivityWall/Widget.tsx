@@ -60,6 +60,7 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useActivityWallLibrary } from '@/hooks/useActivityWallLibrary';
 import { Modal } from '@/components/common/Modal';
 import { ActivityWallShareModal } from '@/components/widgets/ActivityWall/ShareModal';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 
 const encodeActivityData = (
   activity: ActivityWallActivity,
@@ -1875,21 +1876,14 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
               style={{ padding: 'min(8px, 2cqmin)' }}
             >
               {visibleSubmissions.length === 0 ? (
-                <div
-                  className="h-full flex flex-col items-center justify-center text-slate-500 text-center"
-                  style={{ gap: 'min(6px, 1.5cqmin)' }}
-                >
-                  <MessageSquare
-                    style={{
-                      width: 'min(24px, 7cqmin)',
-                      height: 'min(24px, 7cqmin)',
-                    }}
-                    className="opacity-40"
-                  />
-                  <span style={{ fontSize: 'min(11px, 3.8cqmin)' }}>
-                    Responses will appear here after participants submit.
-                  </span>
-                </div>
+                <ScaledEmptyState
+                  icon={MessageSquare}
+                  title="No Responses Yet"
+                  subtitle="Responses will appear here after participants submit."
+                  iconClassName="text-slate-400"
+                  titleClassName="text-slate-600"
+                  subtitleClassName="text-slate-500"
+                />
               ) : activeActivity.mode === 'text' ? (
                 <div
                   className="flex flex-col"
