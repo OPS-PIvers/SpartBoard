@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { GlassCard } from '@/components/common/GlassCard';
 import { Modal } from '@/components/common/Modal';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 import {
   generateDashboardLayout,
   buildPromptWithFileContext,
@@ -101,9 +102,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
         )}
 
         <div className="mb-6">
-          <p className="text-xxs font-black uppercase tracking-widest text-slate-400 mb-2">
-            Try these
-          </p>
+          <SettingsLabel>Try these</SettingsLabel>
           <div className="flex flex-wrap gap-2">
             {[
               'Small group rotations with a timer',

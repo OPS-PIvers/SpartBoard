@@ -32,6 +32,7 @@ const WIDGET_TYPES: WidgetType[] = TOOLS.filter(
 ).map((tool) => tool.type as WidgetType);
 import { functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useStorage } from '@/hooks/useStorage';
 import { removeBackground, trimImageWhitespace } from '@/utils/imageProcessing';
 import { PromptDialog } from './PromptDialog';
@@ -372,9 +373,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
         </div>
 
         <div className="space-y-3 pt-4 border-t">
-          <label className="text-xxs font-black uppercase text-slate-400 tracking-widest block mb-2">
-            Default Steps
-          </label>
+          <SettingsLabel>Default Steps</SettingsLabel>
           {routine.steps.map((step, i) => (
             <div
               key={i}
