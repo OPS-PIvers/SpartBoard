@@ -108,8 +108,6 @@ export const NumberLineConfigurationPanel: React.FC<
   const markers = currentBuildingConfig.markers ?? [];
   const jumps = currentBuildingConfig.jumps ?? [];
 
-  // Add-marker / add-jump form state (mirrors the user-level NumberLine
-  // Settings panel so admins build defaults the same way teachers do).
   const [newMarkerValue, setNewMarkerValue] = useState(0);
   const [newMarkerLabel, setNewMarkerLabel] = useState('');
   const [newJumpStart, setNewJumpStart] = useState(0);
@@ -122,9 +120,7 @@ export const NumberLineConfigurationPanel: React.FC<
   const jumpEndId = useId();
   const jumpLabelId = useId();
 
-  // Reset the add-marker/add-jump form fields when the admin switches
-  // buildings (adjust-state-while-rendering, same pattern as HexColorTextInput)
-  // so stale values from the previous building don't stay silently pre-filled.
+  // Clear add-form fields on building switch (adjust-state-while-rendering).
   const [prevBuildingId, setPrevBuildingId] = useState(selectedBuildingId);
   if (prevBuildingId !== selectedBuildingId) {
     setPrevBuildingId(selectedBuildingId);
