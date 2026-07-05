@@ -4893,10 +4893,7 @@ export type BuildingNumberLineDefaults = Pick<
   | 'fontFamily'
   | 'fontColor'
 > & {
-  // Optional at the building level (unlike the required arrays in
-  // NumberLineConfig): an admin may pre-seed benchmark markers / skip-count
-  // jumps for a building's math curriculum, but most buildings leave them
-  // unset so new widgets start with empty overlays.
+  // Optional at building level; NumberLineConfig requires non-null arrays but buildings can leave these unset.
   markers?: NumberLineMarker[];
   jumps?: NumberLineJump[];
 };

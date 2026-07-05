@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { Plus, X, ArrowRightCircle } from 'lucide-react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
@@ -115,6 +115,12 @@ export const NumberLineConfigurationPanel: React.FC<
   const [newJumpStart, setNewJumpStart] = useState(0);
   const [newJumpEnd, setNewJumpEnd] = useState(5);
   const [newJumpLabel, setNewJumpLabel] = useState('+5');
+
+  const markerValueId = useId();
+  const markerLabelId = useId();
+  const jumpStartId = useId();
+  const jumpEndId = useId();
+  const jumpLabelId = useId();
 
   // Reset the add-marker/add-jump form fields when the admin switches
   // buildings (adjust-state-while-rendering, same pattern as HexColorTextInput)
@@ -291,10 +297,14 @@ export const NumberLineConfigurationPanel: React.FC<
 
           <div className="flex gap-2 items-end bg-slate-50 p-3 rounded-lg border border-slate-200">
             <div className="flex-1">
-              <label className="block text-xs font-medium text-slate-500 mb-1">
+              <label
+                htmlFor={markerValueId}
+                className="block text-xs font-medium text-slate-500 mb-1"
+              >
                 Value
               </label>
               <input
+                id={markerValueId}
                 type="number"
                 value={newMarkerValue}
                 onChange={(e) => setNewMarkerValue(e.target.valueAsNumber)}
@@ -302,10 +312,14 @@ export const NumberLineConfigurationPanel: React.FC<
               />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium text-slate-500 mb-1">
+              <label
+                htmlFor={markerLabelId}
+                className="block text-xs font-medium text-slate-500 mb-1"
+              >
                 Label
               </label>
               <input
+                id={markerLabelId}
                 type="text"
                 value={newMarkerLabel}
                 onChange={(e) => setNewMarkerLabel(e.target.value)}
@@ -385,10 +399,14 @@ export const NumberLineConfigurationPanel: React.FC<
 
           <div className="flex gap-2 items-end bg-slate-50 p-3 rounded-lg border border-slate-200">
             <div className="w-20">
-              <label className="block text-xs font-medium text-slate-500 mb-1">
+              <label
+                htmlFor={jumpStartId}
+                className="block text-xs font-medium text-slate-500 mb-1"
+              >
                 Start
               </label>
               <input
+                id={jumpStartId}
                 type="number"
                 value={newJumpStart}
                 onChange={(e) => setNewJumpStart(e.target.valueAsNumber)}
@@ -396,10 +414,14 @@ export const NumberLineConfigurationPanel: React.FC<
               />
             </div>
             <div className="w-20">
-              <label className="block text-xs font-medium text-slate-500 mb-1">
+              <label
+                htmlFor={jumpEndId}
+                className="block text-xs font-medium text-slate-500 mb-1"
+              >
                 End
               </label>
               <input
+                id={jumpEndId}
                 type="number"
                 value={newJumpEnd}
                 onChange={(e) => setNewJumpEnd(e.target.valueAsNumber)}
@@ -407,10 +429,14 @@ export const NumberLineConfigurationPanel: React.FC<
               />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium text-slate-500 mb-1">
+              <label
+                htmlFor={jumpLabelId}
+                className="block text-xs font-medium text-slate-500 mb-1"
+              >
                 Label
               </label>
               <input
+                id={jumpLabelId}
                 type="text"
                 value={newJumpLabel}
                 onChange={(e) => setNewJumpLabel(e.target.value)}

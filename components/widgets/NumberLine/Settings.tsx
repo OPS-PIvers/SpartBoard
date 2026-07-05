@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 import { TypographySettings } from '@/components/common/TypographySettings';
@@ -48,6 +48,12 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
   // Add Marker State
   const [newMarkerValue, setNewMarkerValue] = useState<number>(0);
   const [newMarkerLabel, setNewMarkerLabel] = useState<string>('Start');
+
+  const markerValueId = useId();
+  const markerLabelId = useId();
+  const jumpStartId = useId();
+  const jumpEndId = useId();
+  const jumpLabelId = useId();
 
   const handleAddJump = () => {
     if (
@@ -251,10 +257,14 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
         {/* Add Marker Form */}
         <div className="flex gap-2 items-end mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
           <div className="flex-1">
-            <label className="block text-xxs font-bold uppercase text-slate-400 mb-1">
+            <label
+              htmlFor={markerValueId}
+              className="block text-xxs font-bold uppercase text-slate-400 mb-1"
+            >
               Value
             </label>
             <input
+              id={markerValueId}
               type="number"
               value={newMarkerValue}
               onChange={(e) => setNewMarkerValue(e.target.valueAsNumber)}
@@ -262,10 +272,14 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             />
           </div>
           <div className="flex-1">
-            <label className="block text-xxs font-bold uppercase text-slate-400 mb-1">
+            <label
+              htmlFor={markerLabelId}
+              className="block text-xxs font-bold uppercase text-slate-400 mb-1"
+            >
               Label
             </label>
             <input
+              id={markerLabelId}
               type="text"
               value={newMarkerLabel}
               onChange={(e) => setNewMarkerLabel(e.target.value)}
@@ -331,10 +345,14 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
         {/* Add Jump Form */}
         <div className="flex gap-2 items-end mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
           <div className="w-16">
-            <label className="block text-xxs font-bold uppercase text-slate-400 mb-1">
+            <label
+              htmlFor={jumpStartId}
+              className="block text-xxs font-bold uppercase text-slate-400 mb-1"
+            >
               Start
             </label>
             <input
+              id={jumpStartId}
               type="number"
               value={newJumpStart}
               onChange={(e) => setNewJumpStart(e.target.valueAsNumber)}
@@ -342,10 +360,14 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             />
           </div>
           <div className="w-16">
-            <label className="block text-xxs font-bold uppercase text-slate-400 mb-1">
+            <label
+              htmlFor={jumpEndId}
+              className="block text-xxs font-bold uppercase text-slate-400 mb-1"
+            >
               End
             </label>
             <input
+              id={jumpEndId}
               type="number"
               value={newJumpEnd}
               onChange={(e) => setNewJumpEnd(e.target.valueAsNumber)}
@@ -353,10 +375,14 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             />
           </div>
           <div className="flex-1">
-            <label className="block text-xxs font-bold uppercase text-slate-400 mb-1">
+            <label
+              htmlFor={jumpLabelId}
+              className="block text-xxs font-bold uppercase text-slate-400 mb-1"
+            >
               Label
             </label>
             <input
+              id={jumpLabelId}
               type="text"
               value={newJumpLabel}
               onChange={(e) => setNewJumpLabel(e.target.value)}
