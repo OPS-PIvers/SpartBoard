@@ -21,6 +21,14 @@ import { TOOLS } from '@/config/tools';
 import { WidgetType } from '@/types';
 import { httpsCallable } from 'firebase/functions';
 import { reportAiModelConfigFallback } from '@/utils/aiModelConfigFallback';
+import { functions } from '@/config/firebase';
+import { useAuth } from '@/context/useAuth';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { useStorage } from '@/hooks/useStorage';
+import { removeBackground, trimImageWhitespace } from '@/utils/imageProcessing';
+import { PromptDialog } from './PromptDialog';
+import { Toast } from '@/components/common/Toast';
+import { Card } from '@/components/common/Card';
 
 // Derive widget types from TOOLS registry, excluding catalyst-related widgets and internal tools
 const WIDGET_TYPES: WidgetType[] = TOOLS.filter(
@@ -30,14 +38,6 @@ const WIDGET_TYPES: WidgetType[] = TOOLS.filter(
     tool.type !== 'record' &&
     tool.type !== 'magic'
 ).map((tool) => tool.type as WidgetType);
-import { functions } from '@/config/firebase';
-import { useAuth } from '@/context/useAuth';
-import { SettingsLabel } from '@/components/common/SettingsLabel';
-import { useStorage } from '@/hooks/useStorage';
-import { removeBackground, trimImageWhitespace } from '@/utils/imageProcessing';
-import { PromptDialog } from './PromptDialog';
-import { Toast } from '@/components/common/Toast';
-import { Card } from '@/components/common/Card';
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
