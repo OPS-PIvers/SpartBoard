@@ -100,7 +100,9 @@ const MarkerColorSwatch: React.FC<{
       type="color"
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
-      onBlur={(e) => onCommit(e.target.value)}
+      onBlur={(e) => {
+        if (e.target.value !== color) onCommit(e.target.value);
+      }}
       className="w-6 h-6 border-0 p-0 cursor-pointer"
       aria-label={ariaLabel}
     />
