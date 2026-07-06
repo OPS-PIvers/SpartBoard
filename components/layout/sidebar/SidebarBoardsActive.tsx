@@ -17,8 +17,10 @@ export const SidebarBoardsActive: React.FC<SidebarBoardsActiveProps> = ({
   const { dashboards, activeDashboard, loadDashboard } = useDashboard();
   const { lastActiveCollectionId } = useAuth();
 
-  const activeCollectionId =
-    activeDashboard?.collectionId ?? lastActiveCollectionId ?? null;
+  // collectionId: null (root) is meaningful — only fall back when there's no active dashboard.
+  const activeCollectionId = activeDashboard
+    ? (activeDashboard.collectionId ?? null)
+    : (lastActiveCollectionId ?? null);
 
   const boardsInActiveCollection = dashboards
     .filter((d) => (d.collectionId ?? null) === activeCollectionId)
