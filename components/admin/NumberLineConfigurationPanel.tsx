@@ -82,6 +82,31 @@ const isValidHex = (color?: string): boolean =>
   typeof color === 'string' &&
   /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color);
 
+// Controlled color swatch that buffers draft locally and only writes to
+// the parent (Firestore) on blur, avoiding a write per pointer-move during drag.
+const MarkerColorSwatch: React.FC<{
+  color: string;
+  onCommit: (color: string) => void;
+  ariaLabel: string;
+}> = ({ color, onCommit, ariaLabel }) => {
+  const [draft, setDraft] = useState(color);
+  const [prevColor, setPrevColor] = useState(color);
+  if (prevColor !== color) {
+    setPrevColor(color);
+    setDraft(color);
+  }
+  return (
+    <input
+      type="color"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={(e) => onCommit(e.target.value)}
+      className="w-6 h-6 border-0 p-0 cursor-pointer"
+      aria-label={ariaLabel}
+    />
+  );
+};
+
 interface NumberLineConfigurationPanelProps {
   config: NumberLineGlobalConfig;
   onChange: (newConfig: NumberLineGlobalConfig) => void;
@@ -110,6 +135,7 @@ export const NumberLineConfigurationPanel: React.FC<
 
   const [newMarkerValue, setNewMarkerValue] = useState(0);
   const [newMarkerLabel, setNewMarkerLabel] = useState('');
+  const [addMarkerCount, setAddMarkerCount] = useState(0);
   const [newJumpStart, setNewJumpStart] = useState(0);
   const [newJumpEnd, setNewJumpEnd] = useState(5);
   const [newJumpLabel, setNewJumpLabel] = useState('+5');
@@ -126,6 +152,7 @@ export const NumberLineConfigurationPanel: React.FC<
     setPrevBuildingId(selectedBuildingId);
     setNewMarkerValue(0);
     setNewMarkerLabel('');
+    setAddMarkerCount(0);
     setNewJumpStart(0);
     setNewJumpEnd(5);
     setNewJumpLabel('+5');
@@ -148,13 +175,14 @@ export const NumberLineConfigurationPanel: React.FC<
     const marker: NumberLineMarker = {
       id: crypto.randomUUID(),
       value: newMarkerValue,
-      color: WIDGET_PALETTE[markers.length % WIDGET_PALETTE.length],
+      color: WIDGET_PALETTE[addMarkerCount % WIDGET_PALETTE.length],
     };
     const trimmedLabel = newMarkerLabel.trim();
     if (trimmedLabel) marker.label = trimmedLabel;
     handleUpdateBuilding({ markers: [...markers, marker] });
     setNewMarkerValue(0);
     setNewMarkerLabel('');
+    setAddMarkerCount((c) => c + 1);
   };
 
   const handleAddJump = () => {
@@ -326,9 +354,10 @@ export const NumberLineConfigurationPanel: React.FC<
             <button
               type="button"
               onClick={handleAddMarker}
+              disabled={!Number.isFinite(newMarkerValue)}
               aria-label="Add default marker"
               title="Add default marker"
-              className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-5 h-5" />
             </button>
@@ -345,18 +374,16 @@ export const NumberLineConfigurationPanel: React.FC<
                 key={marker.id}
                 className="flex items-center gap-3 bg-white border border-slate-200 p-2 rounded-lg"
               >
-                <input
-                  type="color"
-                  defaultValue={marker.color}
-                  onBlur={(e) =>
+                <MarkerColorSwatch
+                  color={marker.color}
+                  onCommit={(c) =>
                     handleUpdateBuilding({
                       markers: markers.map((m) =>
-                        m.id === marker.id ? { ...m, color: e.target.value } : m
+                        m.id === marker.id ? { ...m, color: c } : m
                       ),
                     })
                   }
-                  className="w-6 h-6 border-0 p-0 cursor-pointer"
-                  aria-label={`Marker ${marker.value} color`}
+                  ariaLabel={`Marker ${marker.value} color`}
                 />
                 <div className="flex-1 font-mono font-bold text-slate-700">
                   {marker.value}
@@ -443,9 +470,14 @@ export const NumberLineConfigurationPanel: React.FC<
             <button
               type="button"
               onClick={handleAddJump}
+              disabled={
+                !Number.isFinite(newJumpStart) ||
+                !Number.isFinite(newJumpEnd) ||
+                newJumpStart === newJumpEnd
+              }
               aria-label="Add default jump"
               title="Add default jump"
-              className="bg-emerald-600 text-white p-2 rounded-lg hover:bg-emerald-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              className="bg-emerald-600 text-white p-2 rounded-lg hover:bg-emerald-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-5 h-5" />
             </button>
