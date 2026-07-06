@@ -71,14 +71,16 @@ const TRANSIENT_CONFIG_KEYS = new Set<string>([
   'cards',
   'memoryCards',
   'hotspots',
-  // Admin building defaults own these arrays; strip from saved defaults so they don't override per-building config.
-  'markers',
-  'jumps',
 
   // User-typed instance content: styling should carry over to new widgets,
   // but the text/notes themselves belong to a single instance only.
   'content',
 ]);
+
+// Keys where adminConfig wins over saved — but only when adminConfig actually provides them.
+// getAdminBuildingConfig only sets these when the admin has explicitly configured non-empty values,
+// so presence in adminConfig is a reliable signal that the admin has taken ownership.
+const ADMIN_WINS_WHEN_PRESENT = new Set<string>(['markers', 'jumps']);
 
 /** Strips transient/runtime keys from a config object before persisting. */
 export function stripTransientKeys(
@@ -98,6 +100,10 @@ export function stripTransientKeys(
  *   2. adminConfig  — from getAdminBuildingConfig (per-building admin defaults)
  *   3. saved        — from user's savedWidgetConfigs (transient keys are stripped here)
  *   4. overrides    — explicit per-add overrides (e.g. AI-provided config, paste import)
+ *
+ * For ADMIN_WINS_WHEN_PRESENT keys (e.g. markers, jumps): adminConfig takes precedence over
+ * saved only when it actually provides the key. When adminConfig omits them (building has no
+ * defaults configured), saved config is preserved so teacher templates are not silently lost.
  */
 export function mergeWidgetConfig(
   defaults: Partial<WidgetConfig> | undefined,
@@ -105,11 +111,22 @@ export function mergeWidgetConfig(
   saved: Partial<WidgetConfig> | undefined,
   overrides: Partial<WidgetConfig> | undefined
 ): WidgetConfig {
+  const strippedSaved = Object.fromEntries(
+    Object.entries(stripTransientKeys(saved ?? {})).filter(
+      ([key]) =>
+        !(
+          ADMIN_WINS_WHEN_PRESENT.has(key) &&
+          adminConfig != null &&
+          key in adminConfig
+        )
+    )
+  ) as Partial<WidgetConfig>;
+
   return Object.assign(
     {},
     defaults ?? {},
     adminConfig ?? {},
-    stripTransientKeys(saved ?? {}),
+    strippedSaved,
     overrides ?? {}
   ) as WidgetConfig;
 }

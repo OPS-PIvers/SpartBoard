@@ -131,7 +131,7 @@ describe('stripTransientKeys', () => {
     expect(result).not.toHaveProperty('remainingStudents');
   });
 
-  it('strips markers and jumps so NumberLine admin building defaults are not overridden', () => {
+  it('preserves markers and jumps (conditional admin-win logic lives in mergeWidgetConfig)', () => {
     const config = {
       markers: [{ id: 'm1', value: 5, color: '#ff0000' }],
       jumps: [{ id: 'j1', startValue: 0, endValue: 5 }],
@@ -141,9 +141,7 @@ describe('stripTransientKeys', () => {
 
     const result = stripTransientKeys(config);
 
-    expect(result).toEqual({ min: 0, max: 10 });
-    expect(result).not.toHaveProperty('markers');
-    expect(result).not.toHaveProperty('jumps');
+    expect(result).toEqual(config);
   });
 });
 
@@ -197,5 +195,40 @@ describe('mergeWidgetConfig', () => {
       undefined
     );
     expect(result).toEqual({});
+  });
+
+  it('admin markers/jumps win over saved when adminConfig provides them', () => {
+    const adminMarker = { id: 'a1', value: 0, color: '#0000ff' };
+    const savedMarker = { id: 's1', value: 5, color: '#ff0000' };
+    const result = mergeWidgetConfig(
+      { min: 0, max: 10 } as Partial<WidgetConfig>,
+      { markers: [adminMarker] } as Record<string, unknown>,
+      { markers: [savedMarker], min: -5 } as Partial<WidgetConfig>,
+      undefined
+    );
+    expect(result.markers).toEqual([adminMarker]);
+    expect(result.min).toBe(-5);
+  });
+
+  it('saved markers/jumps are preserved when adminConfig does not provide them', () => {
+    const savedMarker = { id: 's1', value: 5, color: '#ff0000' };
+    const result = mergeWidgetConfig(
+      { min: 0, max: 10 } as Partial<WidgetConfig>,
+      { fontColor: '#333' } as Record<string, unknown>,
+      { markers: [savedMarker] } as Partial<WidgetConfig>,
+      undefined
+    );
+    expect(result.markers).toEqual([savedMarker]);
+  });
+
+  it('saved jumps are preserved when adminConfig has no jumps', () => {
+    const savedJump = { id: 'j1', startValue: 0, endValue: 5 };
+    const result = mergeWidgetConfig(
+      {} as Partial<WidgetConfig>,
+      undefined,
+      { jumps: [savedJump] } as Partial<WidgetConfig>,
+      undefined
+    );
+    expect(result.jumps).toEqual([savedJump]);
   });
 });
