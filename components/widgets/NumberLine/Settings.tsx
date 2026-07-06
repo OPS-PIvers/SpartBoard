@@ -48,6 +48,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
   // Add Marker State
   const [newMarkerValue, setNewMarkerValue] = useState<number>(0);
   const [newMarkerLabel, setNewMarkerLabel] = useState<string>('');
+  const [markerAddCount, setMarkerAddCount] = useState(0);
 
   const markerValueId = useId();
   const markerLabelId = useId();
@@ -82,11 +83,12 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
       id: crypto.randomUUID(),
       value: newMarkerValue,
       ...(trimmedLabel !== '' && { label: trimmedLabel }),
-      color: WIDGET_PALETTE[markers.length % WIDGET_PALETTE.length],
+      color: WIDGET_PALETTE[markerAddCount % WIDGET_PALETTE.length],
     };
     updateConfig({ markers: [...markers, marker] });
     setNewMarkerValue(0);
     setNewMarkerLabel('');
+    setMarkerAddCount((c) => c + 1);
   };
 
   const removeMarker = (id: string) => {
@@ -297,9 +299,10 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
           <button
             type="button"
             onClick={handleAddMarker}
+            disabled={!Number.isFinite(newMarkerValue)}
             aria-label="Add marker"
             title="Add marker"
-            className="bg-blue-600 text-white p-1.5 rounded-md hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="bg-blue-600 text-white p-1.5 rounded-md hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-5 h-5" />
           </button>
@@ -402,9 +405,14 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
           <button
             type="button"
             onClick={handleAddJump}
+            disabled={
+              !Number.isFinite(newJumpStart) ||
+              !Number.isFinite(newJumpEnd) ||
+              newJumpStart === newJumpEnd
+            }
             aria-label="Add jump"
             title="Add jump"
-            className="bg-emerald-600 text-white p-1.5 rounded-md hover:bg-emerald-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            className="bg-emerald-600 text-white p-1.5 rounded-md hover:bg-emerald-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-5 h-5" />
           </button>

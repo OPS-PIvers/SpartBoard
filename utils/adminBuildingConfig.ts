@@ -266,7 +266,7 @@ export const getAdminBuildingConfig = (
       if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;
       if (isGlobalFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
       if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
-      // Only seed when ≥1 entry survives — an empty array would override the widget's own empty default.
+      // Only seed when ≥1 entry survives — empty means "unconfigured", not "explicitly cleared to none".
       const markers = sanitizeNumberLineMarkers(raw.markers);
       if (markers.length > 0) out.markers = markers;
       const jumps = sanitizeNumberLineJumps(raw.jumps);
