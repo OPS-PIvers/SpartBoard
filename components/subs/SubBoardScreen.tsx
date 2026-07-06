@@ -39,8 +39,13 @@ export const SubBoardScreen: React.FC<SubBoardScreenProps> = ({
   onBackToDirectory,
   onChangeBuilding,
 }) => {
-  const { share, loading, error } = useSubstituteShare(shareId, buildingId);
+  const { share, loading, error, permissionDeniedLikelyExpired } =
+    useSubstituteShare(shareId, buildingId);
   const [expired, setExpired] = useState(false);
+  // A denied read for a substitute share most likely means it just expired;
+  // treat it the same as the locally-detected expiry below (see
+  // permissionDeniedLikelyExpired's doc comment for the non-Orono edge case).
+  const isExpired = expired || permissionDeniedLikelyExpired;
 
   // Imperatively check expiration on a 60-second tick so an idle sub
   // still gets bounced back when the share lapses. Same pattern as
@@ -57,10 +62,10 @@ export const SubBoardScreen: React.FC<SubBoardScreenProps> = ({
   }, [expiresAt]);
 
   useEffect(() => {
-    if (!expired) return;
+    if (!isExpired) return;
     const id = window.setTimeout(onBackToDirectory, 1500);
     return () => window.clearTimeout(id);
-  }, [expired, onBackToDirectory]);
+  }, [isExpired, onBackToDirectory]);
 
   if (loading) {
     return (
@@ -70,12 +75,14 @@ export const SubBoardScreen: React.FC<SubBoardScreenProps> = ({
     );
   }
 
-  if (!!error || !share || expired) {
+  if (!!error || !share || isExpired) {
     return (
       <div className="min-h-screen bg-slate-900">
         <ExpiredOrErrorPanel
           message={
-            expired ? 'This share has expired.' : (error ?? 'Share not found.')
+            isExpired
+              ? 'This share has expired.'
+              : (error ?? 'Share not found.')
           }
           onBack={onBackToDirectory}
         />

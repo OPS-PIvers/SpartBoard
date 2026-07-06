@@ -118,6 +118,15 @@ describe('useSubstituteShares — listener wiring', () => {
     expect(listeners).toHaveLength(1);
   });
 
+  it('includes an expiresAt > now query constraint so the read rule can be proven for the whole query (#2150)', () => {
+    const now = 1_700_000_000_000;
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+
+    renderHook(() => useSubstituteShares('high'));
+
+    expect(mockWhere).toHaveBeenCalledWith('expiresAt', '>', now);
+  });
+
   it('canonicalizes a legacy building ID before scoping the query', () => {
     renderHook(() => useSubstituteShares('orono-high-school'));
 
@@ -216,22 +225,116 @@ describe('useSubstituteShares — snapshot mapping', () => {
 });
 
 describe('useSubstituteShares — error handling', () => {
-  it('maps permission-denied to a friendly message, logs, and clears shares', () => {
+  it('re-subscribes (does not surface an error) on the first few permission-denied hits', () => {
+    // Regression (#2150 follow-up): a share expiring WHILE this listener is
+    // open, followed by expireSubShares.ts writing to it, denies the WHOLE
+    // query with permission-denied (confirmed against the real emulator) —
+    // not just a per-doc removal. Re-subscribing with a fresh Date.now()
+    // baseline (which excludes the now-expired doc) recovers transparently
+    // instead of parking the directory listing in a hard error state.
     const { result } = renderHook(() => useSubstituteShares('high'));
+    expect(listeners).toHaveLength(1);
+
     act(() => {
       lastListener().error({ code: 'permission-denied' });
     });
+    expect(listeners).toHaveLength(2); // re-subscribed
+    expect(result.current.loading).toBe(true);
+    expect(result.current.error).toBeNull();
+    // Expiry-driven reconnects are expected and transparent — don't log them
+    // as errors (would trip error-dashboard rate limits for routine expiry).
+    expect(mockLogError).not.toHaveBeenCalled();
+
+    act(() => {
+      lastListener().next(fakeCollSnap([]));
+    });
+    expect(result.current.error).toBeNull();
+    expect(result.current.loading).toBe(false);
+    expect(mockLogError).not.toHaveBeenCalled();
+  });
+
+  it('clears the stale snapshot during a retry instead of showing the list that triggered the denial', () => {
+    // Regression (#2150 round 6): a permission-denied caused by a share
+    // expiring mid-listener must not leave the pre-denial (possibly
+    // now-expired) shares on screen while the re-subscribe is in flight.
+    const now = 1_000_000;
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+
+    const { result } = renderHook(() => useSubstituteShares('high'));
+    act(() => {
+      lastListener().next(
+        fakeCollSnap([
+          { id: 'live', data: { expiresAt: now + 1, sharedAt: 1 } },
+        ])
+      );
+    });
+    expect(result.current).toEqual({
+      shares: [{ shareId: 'live', expiresAt: now + 1, sharedAt: 1 }],
+      loading: false,
+      error: null,
+    });
+
+    act(() => {
+      lastListener().error({ code: 'permission-denied' });
+    });
+
+    expect(result.current).toEqual({ shares: [], loading: true, error: null });
+  });
+
+  it('gives up and surfaces the friendly message after repeated permission-denied hits', () => {
+    const { result } = renderHook(() => useSubstituteShares('high'));
+
+    for (let i = 0; i < 4; i++) {
+      act(() => {
+        lastListener().error({ code: 'permission-denied' });
+      });
+    }
 
     expect(result.current).toEqual({
       shares: [],
       loading: false,
       error: 'You do not have permission to view this board.',
     });
+    expect(listeners.length).toBeLessThanOrEqual(5);
+    // Only the final, exhausted attempt should be logged — not the 3
+    // retried ones.
+    expect(mockLogError).toHaveBeenCalledTimes(1);
     expect(mockLogError).toHaveBeenCalledWith(
       'useSubstituteShares.snapshot',
       { code: 'permission-denied' },
       { buildingId: 'high' }
     );
+  });
+
+  it('resets the retry count after a successful snapshot', () => {
+    const { result } = renderHook(() => useSubstituteShares('high'));
+
+    act(() => {
+      lastListener().error({ code: 'permission-denied' });
+    });
+    expect(listeners).toHaveLength(2);
+    act(() => {
+      lastListener().next(fakeCollSnap([]));
+    });
+    // The retry count reset lives in a ref, not state, so a successful
+    // snapshot must NOT tear down and rebuild the just-recovered listener.
+    expect(listeners).toHaveLength(2);
+
+    // Three more denials after a successful recovery should NOT immediately
+    // exhaust retries (the counter reset on the intervening success) — each
+    // one is still within budget, so the hook keeps retrying instead of
+    // giving up with the friendly error message.
+    for (let i = 0; i < 3; i++) {
+      act(() => {
+        lastListener().error({ code: 'permission-denied' });
+      });
+    }
+
+    // Still mid-retry (not given up), and — since each denial here means a
+    // doc in the just-shown snapshot became rule-ineligible — the stale list
+    // is cleared rather than left on screen while the re-subscribe is in
+    // flight (see the round-6 regression test above).
+    expect(result.current).toEqual({ shares: [], loading: true, error: null });
   });
 
   it('falls back to a generic message for an unknown error code', () => {
@@ -245,14 +348,16 @@ describe('useSubstituteShares — error handling', () => {
 
   it('logs the canonical building ID (not the raw input) in the error context', () => {
     renderHook(() => useSubstituteShares('orono-high-school'));
+    // A non-retryable code so this hits logError immediately rather than
+    // entering the permission-denied retry path.
     act(() => {
-      lastListener().error({ code: 'permission-denied' });
+      lastListener().error({ code: 'unavailable' });
     });
 
     // canonicalBuildingId('orono-high-school') === 'high'
     expect(mockLogError).toHaveBeenCalledWith(
       'useSubstituteShares.snapshot',
-      { code: 'permission-denied' },
+      { code: 'unavailable' },
       { buildingId: 'high' }
     );
   });
@@ -290,6 +395,43 @@ describe('useSubstituteShares — building change & cleanup', () => {
     unmount();
     expect(unsub).toHaveBeenCalledTimes(1);
   });
+
+  it('gives a fresh retry budget to a new building instead of carrying over a depleted one', () => {
+    // Regression: retryCountRef must reset when buildingId changes, not just
+    // on a successful snapshot — otherwise a building with partial retries
+    // "poisons" the next building's listener with a depleted retry budget.
+    const { result, rerender } = renderHook(
+      ({ b }: { b: string }) => useSubstituteShares(b),
+      { initialProps: { b: 'high' } }
+    );
+
+    // Exhaust 2 of 3 retries on 'high' without ever succeeding.
+    act(() => {
+      lastListener().error({ code: 'permission-denied' });
+    });
+    act(() => {
+      lastListener().error({ code: 'permission-denied' });
+    });
+    expect(listeners).toHaveLength(3);
+
+    rerender({ b: 'middle' });
+    expect(listeners).toHaveLength(4);
+
+    // 'middle' should get the full retry budget (3), not carry over 'high's
+    // depleted count (2 already used).
+    act(() => {
+      lastListener().error({ code: 'permission-denied' });
+    });
+    act(() => {
+      lastListener().error({ code: 'permission-denied' });
+    });
+    act(() => {
+      lastListener().error({ code: 'permission-denied' });
+    });
+    expect(listeners).toHaveLength(7);
+    expect(result.current.error).toBeNull();
+    expect(result.current.loading).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -304,6 +446,7 @@ describe('useSubstituteShare — single-doc subscription', () => {
       share: null,
       loading: false,
       error: null,
+      permissionDeniedLikelyExpired: false,
     });
     expect(mockOnSnapshot).not.toHaveBeenCalled();
   });
@@ -311,7 +454,12 @@ describe('useSubstituteShare — single-doc subscription', () => {
   it('targets shared_boards/{shareId} and is loading until the first snapshot', () => {
     const { result } = renderHook(() => useSubstituteShare('s1', 'high'));
 
-    expect(result.current).toEqual({ share: null, loading: true, error: null });
+    expect(result.current).toEqual({
+      share: null,
+      loading: true,
+      error: null,
+      permissionDeniedLikelyExpired: false,
+    });
     expect(mockDoc).toHaveBeenCalledWith(
       { __mock: 'db' },
       'shared_boards',
@@ -330,6 +478,7 @@ describe('useSubstituteShare — single-doc subscription', () => {
       share: null,
       loading: false,
       error: 'Share not found',
+      permissionDeniedLikelyExpired: false,
     });
   });
 
@@ -414,12 +563,27 @@ describe('useSubstituteShare — single-doc subscription', () => {
       share: null,
       loading: false,
       error: 'Could not reach the server. Check your internet connection.',
+      permissionDeniedLikelyExpired: false,
     });
     expect(mockLogError).toHaveBeenCalledWith(
       'useSubstituteShare.snapshot',
       { code: 'unavailable' },
       { shareId: 's1' }
     );
+  });
+
+  it("flags permission-denied as likely-expired (the read rule's only other branches are host/admin, which never deny)", () => {
+    const { result } = renderHook(() => useSubstituteShare('s1', 'high'));
+    act(() => {
+      lastListener().error({ code: 'permission-denied' });
+    });
+
+    expect(result.current).toEqual({
+      share: null,
+      loading: false,
+      error: 'You do not have permission to view this board.',
+      permissionDeniedLikelyExpired: true,
+    });
   });
 
   it('tears down the prior listener and re-enters loading when shareId changes', () => {
@@ -442,7 +606,12 @@ describe('useSubstituteShare — single-doc subscription', () => {
     rerender({ id: 's2' });
 
     expect(firstUnsub).toHaveBeenCalledTimes(1);
-    expect(result.current).toEqual({ share: null, loading: true, error: null });
+    expect(result.current).toEqual({
+      share: null,
+      loading: true,
+      error: null,
+      permissionDeniedLikelyExpired: false,
+    });
     expect(listeners).toHaveLength(2);
   });
 
