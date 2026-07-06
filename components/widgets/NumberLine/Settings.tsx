@@ -48,7 +48,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
   // Add Marker State
   const [newMarkerValue, setNewMarkerValue] = useState<number>(0);
   const [newMarkerLabel, setNewMarkerLabel] = useState<string>('');
-  const [markerAddCount, setMarkerAddCount] = useState(0);
+  const [markerAddCount, setMarkerAddCount] = useState(markers.length);
 
   const markerValueId = useId();
   const markerLabelId = useId();

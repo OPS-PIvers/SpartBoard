@@ -135,7 +135,7 @@ export const NumberLineConfigurationPanel: React.FC<
 
   const [newMarkerValue, setNewMarkerValue] = useState(0);
   const [newMarkerLabel, setNewMarkerLabel] = useState('');
-  const [addMarkerCount, setAddMarkerCount] = useState(0);
+  const [addMarkerCount, setAddMarkerCount] = useState(markers.length);
   const [newJumpStart, setNewJumpStart] = useState(0);
   const [newJumpEnd, setNewJumpEnd] = useState(5);
   const [newJumpLabel, setNewJumpLabel] = useState('+5');
@@ -152,7 +152,7 @@ export const NumberLineConfigurationPanel: React.FC<
     setPrevBuildingId(selectedBuildingId);
     setNewMarkerValue(0);
     setNewMarkerLabel('');
-    setAddMarkerCount(0);
+    setAddMarkerCount(markers.length);
     setNewJumpStart(0);
     setNewJumpEnd(5);
     setNewJumpLabel('+5');
