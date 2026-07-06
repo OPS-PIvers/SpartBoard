@@ -5,11 +5,12 @@
  * editors (Quiz, Video Activity, Guided Learning).
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { Code2, FileText, Sparkles } from 'lucide-react';
 import { LibraryFolder, MiniAppItem, TextConfig } from '@/types';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
@@ -38,6 +39,8 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
 }) => {
   const { canAccessFeature } = useAuth();
   const { addToast, activeDashboard } = useDashboard();
+  const titleFieldId = useId();
+  const htmlFieldId = useId();
 
   // --- Snapshot originals ---
   const originalTitle = app?.title ?? '';
@@ -230,10 +233,9 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
         {/* Title + AI generator button */}
         <div className="flex gap-2">
           <div className="flex-1">
-            <label className="block text-xxs font-black uppercase text-slate-400 tracking-widest mb-1">
-              App Title
-            </label>
+            <SettingsLabel htmlFor={titleFieldId}>App Title</SettingsLabel>
             <input
+              id={titleFieldId}
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -265,10 +267,9 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
 
         {/* HTML Code textarea */}
         <div className="flex-1 flex flex-col min-h-[250px]">
-          <label className="block text-xxs font-black uppercase text-slate-400 tracking-widest mb-1">
-            HTML Code
-          </label>
+          <SettingsLabel htmlFor={htmlFieldId}>HTML Code</SettingsLabel>
           <textarea
+            id={htmlFieldId}
             value={html}
             onChange={(e) => setHtml(e.target.value)}
             className="flex-1 w-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none leading-relaxed custom-scrollbar shadow-inner"
