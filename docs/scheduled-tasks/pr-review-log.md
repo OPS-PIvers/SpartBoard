@@ -1802,3 +1802,33 @@ _Automated nightly review by claude-opus-4-6_
   - Branch-safety: #2141 targets `main` (from `dev-paul`) — no push made there; its one open thread was explained, not fixed. All 3 fix pushes went to pushable branches (`nightly/admin-config-*`, `nightly/dashboard-layout-*`, `scheduled-tasks`). `main` never touched.
   - Force-push detection: #2148 was force-pushed between review and this run (c31cce7→cc0d025), which already resolved the `MockBoard`→`Dashboard` comment; verified against the branch head rather than the stale review diff.
   - CI health: not separately polled this run; the 3 fix pushes will trigger fresh PR-validation runs on their branches.
+
+## 2026-07-06
+
+- PRs reviewed: 13 open
+  - #2154 docs(unifier): run 26 log (D1+D4 shipped, D3 rejected) — nightly/unifier-log-2026-07-06
+  - #2153 chore(imports): remaining cross-dir relative imports → @/ — nightly/unify-import-paths-2026-07-06
+  - #2152 refactor(ui-unification): RandomGroups empty state → ScaledEmptyState — nightly/unify-empty-states-2026-07-06
+  - #2151 docs(nightly): debugger run 24 log — nightly/debugger-log-2026-07-05
+  - #2150 fix(rules): shared_boards substitute expiresAt cutoff — nightly/build-tooling-2026-07-05
+  - #2149 fix(i18n): DE "Board"→"Tafel" — nightly/admin-config-2026-07-05
+  - #2148 fix(dashboard-layout): stale collection id in active-board picker — nightly/dashboard-layout-2026-07-05
+  - #2147 fix(TimeTool): clamp hold-to-ramp duration — nightly/widgets-2026-07-05
+  - #2146 audit(sunday) + NumberLine markers/jumps admin config — scheduled-tasks
+  - #2145 docs(routines): unifier run 26 log — nightly/unifier-log-2026-07-05
+  - #2144 refactor(settings): unify 4 missed canonical labels to SettingsLabel — nightly/unify-settings-labels-2026-07-05
+  - #2142 refactor(imports): plc/resources cross-subdir import — nightly/unify-import-paths-2026-07-05
+  - #2141 Refactor admin modals to SettingsLabel + a11y (dev-paul → main)
+- Comments processed: 2 genuinely-unaddressed reviewer threads (both #2146) — 0 fixed, 2 explained. Both flagged a NumberLine marker-color-counter bug that a later commit already fixed (`useState(markers.length)` at Settings.tsx:51 and NumberLineConfigurationPanel.tsx:138); replied on each and noted them outdated. Every other review thread across all 13 PRs already carried an author reply (fixed/deferred/explained) or was marked resolved — no new action required.
+- Fixes pushed: 0 — no actionable unaddressed review comment required a code change this run.
+- Reviews posted: 13 (one structured review per open PR)
+  - #2153 Ready; #2152 Ready; #2142 Ready — clean mechanical refactors.
+  - #2147 Ready; #2148 Ready; #2149 Ready — well-tested root-cause fixes.
+  - #2150 Ready with minor notes — security-positive expiry gate + regex-spoof hardening; flagged legacy-`expiresAt` doc audit/backfill before the rules deploy.
+  - #2146 Ready with minor notes — NumberLine markers/jumps admin building-defaults; the two marker-color-counter threads already resolved in a later commit.
+  - #2144 Ready with minor notes — SettingsLabel unification; orphaned-`<label>` a11y + mb-1→mb-2 spacing + scope-extension deferred to a human.
+  - #2145 / #2151 / #2154 Ready — docs-only routine logs; flagged the two open run-26 unifier-log PRs (#2145 dated 07-05, #2154 dated 07-06) to avoid overlapping appends.
+  - #2141 Ready with minor notes — dev-paul→main rollup; folder-permission crash guards + dup-term logic resolved and tested, two deferred items (grader normalization mismatch, orphaned-label semantics) to decide before merge; CI pending at review time.
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` branch. #2141 (head `dev-paul` → `main`) received a review comment only. The two #2146 comment replies posted via the API; this log commit is the only push, to `scheduled-tasks`.
+  - Phase-1 outcome contrast: unlike the prior (07-05) run's 3 fix pushes, every actionable comment this run was already resolved (author replies or later commits), so nothing needed fixing — only two outdated no-reply threads needed a closing reply.
