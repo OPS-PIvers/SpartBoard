@@ -5,6 +5,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { RandomGroup, SharedGroup } from '@/types';
 import { StudentChip } from './StudentChip';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 
 interface RandomGroupsProps {
   displayResult: string | string[] | string[][] | RandomGroup[] | null;
@@ -620,21 +621,13 @@ export const RandomGroups: React.FC<RandomGroupsProps> = ({
         );
       })}
       {showEmptyState && (
-        <div
-          className="col-span-full row-span-full flex flex-col items-center justify-center text-slate-300 italic font-bold"
-          style={{ gap: 'clamp(8px, 2.5cqmin, 18px)' }}
-        >
-          <Users
-            className="opacity-20"
-            style={{
-              width: 'clamp(32px, 10cqmin, 72px)',
-              height: 'clamp(32px, 10cqmin, 72px)',
-            }}
-          />
-          <span style={{ fontSize: 'clamp(12px, 3.5cqmin, 22px)' }}>
-            Click Randomize to Group
-          </span>
-        </div>
+        <ScaledEmptyState
+          icon={Users}
+          title="Click Randomize to Group"
+          className="col-span-full row-span-full"
+          iconClassName="text-slate-300 opacity-20"
+          titleClassName="text-slate-300 italic"
+        />
       )}
     </div>
   );
