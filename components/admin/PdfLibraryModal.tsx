@@ -531,8 +531,14 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
             <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-6">
               {/* File Upload */}
               <div>
-                <SettingsLabel>PDF File</SettingsLabel>
-                <div className="flex items-center gap-3">
+                <SettingsLabel as="span" id="pdf-file-label">
+                  PDF File
+                </SettingsLabel>
+                <div
+                  role="group"
+                  aria-labelledby="pdf-file-label"
+                  className="flex items-center gap-3"
+                >
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider transition-colors flex items-center gap-2"
@@ -572,12 +578,18 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
 
               {/* Building Targeting */}
               <div>
-                <SettingsLabel>Available To</SettingsLabel>
+                <SettingsLabel as="span" id="pdf-available-to-label">
+                  Available To
+                </SettingsLabel>
                 <p className="text-xs text-slate-500 mb-2">
                   Select which buildings can see this PDF. Leave all unchecked
                   to make it available to everyone.
                 </p>
-                <div className="grid grid-cols-2 gap-1.5 mb-2">
+                <div
+                  role="group"
+                  aria-labelledby="pdf-available-to-label"
+                  className="grid grid-cols-2 gap-1.5 mb-2"
+                >
                   {BUILDINGS.map((building) => {
                     const isSelected = editBuildings.includes(building.id);
                     return (

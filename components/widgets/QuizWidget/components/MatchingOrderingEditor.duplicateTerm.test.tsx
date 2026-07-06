@@ -52,8 +52,10 @@ describe('MatchingAnswerEditor duplicate-term guard', () => {
     );
   });
 
-  it('is case- and whitespace-insensitive, and clears once the teacher fixes it', () => {
-    render(<MatchingHarness initial="Cat: animal| cat :feline" />);
+  it('is case- and leading-whitespace-insensitive, and clears once the teacher fixes it', () => {
+    // "Cat" vs " cat": the grader lowercases and the whole-pair .trim() drops
+    // the leading space, so both derive the key "cat" — a true collision.
+    render(<MatchingHarness initial="Cat:animal| cat:feline" />);
     expect(screen.getByRole('alert')).toBeInTheDocument();
 
     // Teacher edits the second row's term to be unique — warning should
@@ -62,6 +64,20 @@ describe('MatchingAnswerEditor duplicate-term guard', () => {
     const termInputs = screen.getAllByPlaceholderText('Term');
     fireEvent.change(termInputs[1], { target: { value: 'dog' } });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('does NOT flag a trailing space on the term (the grader keys them distinctly)', () => {
+    // gradeAnswer normalizes the whole `term:definition` pair then slices at
+    // the first ':' without re-trimming, so "Hello " and "Hello" are two
+    // distinct correctMap keys — two independent correct answers, not a
+    // collision. The editor must match that or it flags a false-positive
+    // duplicate the grader never sees.
+    render(<MatchingHarness initial="Hello:animal|Hello :feline" />);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    const termInputs = screen.getAllByPlaceholderText('Term');
+    termInputs.forEach((input) =>
+      expect(input).toHaveAttribute('aria-invalid', 'false')
+    );
   });
 
   it('collapses internal whitespace the same way the grading engine does', () => {

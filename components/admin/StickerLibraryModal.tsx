@@ -322,7 +322,7 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {normalizedStickers.map((sticker) => (
+              {normalizedStickers.map((sticker, index) => (
                 <Card
                   key={sticker.url}
                   padding="sm"
@@ -345,8 +345,18 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
                   </div>
 
                   <div className="space-y-2">
-                    <SettingsLabel className="px-1">Grade Levels</SettingsLabel>
-                    <div className="grid grid-cols-2 gap-1.5">
+                    <SettingsLabel
+                      as="span"
+                      id={`sticker-grade-levels-${index}`}
+                      className="px-1"
+                    >
+                      Grade Levels
+                    </SettingsLabel>
+                    <div
+                      role="group"
+                      aria-labelledby={`sticker-grade-levels-${index}`}
+                      className="grid grid-cols-2 gap-1.5"
+                    >
                       {ALL_GRADE_LEVELS.map((level) => {
                         const isSelected = sticker.gradeLevels?.includes(level);
                         return (

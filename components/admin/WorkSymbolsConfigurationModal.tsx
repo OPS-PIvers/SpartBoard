@@ -312,8 +312,18 @@ export const WorkSymbolsConfigurationModal: React.FC<
                   {/* Building toggles */}
                   {BUILDINGS.length > 1 && (
                     <div className="space-y-1.5">
-                      <SettingsLabel className="px-1">Buildings</SettingsLabel>
-                      <div className="flex flex-wrap gap-1.5">
+                      <SettingsLabel
+                        as="span"
+                        id={`work-symbols-buildings-${symbol.id}`}
+                        className="px-1"
+                      >
+                        Buildings
+                      </SettingsLabel>
+                      <div
+                        role="group"
+                        aria-labelledby={`work-symbols-buildings-${symbol.id}`}
+                        className="flex flex-wrap gap-1.5"
+                      >
                         {BUILDINGS.map((b) => {
                           const isAssigned =
                             symbol.buildings.length === 0 ||

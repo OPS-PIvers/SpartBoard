@@ -361,12 +361,18 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
 
               {/* Building Targeting */}
               <div>
-                <SettingsLabel>Available To</SettingsLabel>
+                <SettingsLabel as="span" id="miniapp-available-to-label">
+                  Available To
+                </SettingsLabel>
                 <p className="text-xs text-slate-500 mb-2">
                   Select which buildings can use this app. Leave all unchecked
                   to make it available to everyone.
                 </p>
-                <div className="grid grid-cols-2 gap-1.5 mb-2">
+                <div
+                  role="group"
+                  aria-labelledby="miniapp-available-to-label"
+                  className="grid grid-cols-2 gap-1.5 mb-2"
+                >
                   {BUILDINGS.map((building) => {
                     const isSelected = editBuildings.includes(building.id);
                     return (

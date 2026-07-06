@@ -82,8 +82,7 @@ const isValidHex = (color?: string): boolean =>
   typeof color === 'string' &&
   /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color);
 
-// Controlled color swatch that buffers draft locally and only writes to
-// the parent (Firestore) on blur, avoiding a write per pointer-move during drag.
+// Buffers local draft; commits on blur to avoid a Firestore write per pointer-move during drag.
 const MarkerColorSwatch: React.FC<{
   color: string;
   onCommit: (color: string) => void;

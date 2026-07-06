@@ -96,7 +96,11 @@ function serializePairs(rows: PairRow[]): string {
 function findDuplicateTermRowIds(rows: PairRow[]): Set<string> {
   const seen = new Map<string, string[]>();
   for (const row of rows) {
-    const key = normalizeAnswer(row.term);
+    // Derive the key exactly as gradeAnswer does: normalize the whole `term:definition` pair, then slice at the first ':' WITHOUT re-trimming, so a trailing space in the term doesn't false-positive against the grader.
+    const normalizedPair = normalizeAnswer(`${row.term}:${row.definition}`);
+    const colonIdx = normalizedPair.indexOf(':');
+    const key =
+      colonIdx === -1 ? normalizedPair : normalizedPair.slice(0, colonIdx);
     // Blank term + a definition still serializes (`:def`) and collides on the grader's '' key; skip only fully-empty rows.
     if (!key && !row.definition.trim()) continue;
     const ids = seen.get(key);
