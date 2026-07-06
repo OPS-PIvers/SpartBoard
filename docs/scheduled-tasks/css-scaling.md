@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-05_
+_Last audited: 2026-07-06_
 _Last action: 2026-06-27 — LOW ActivityWall empty-state heading `fontSize` added (`min(14px, 5.5cqmin)` + scaled `marginTop`); was unscaled 16px on a `skipScaling` widget_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-06: Full scan. No new dev-paul commits since 2026-07-05 (dev-paul HEAD 4620bab3, dated 2026-07-04). Scheduled-tasks-only commits: NumberLine/Settings.tsx (back-face settings panel — CQ scaling rules do not apply), utils/widgetConfigPersistence.ts, and tests — no widget front-face content changes. Verified key open items directly: RevealGrid text-xs at :162/:168 still present; GuidedLearning Loader2 w-8 h-8 still at :618. All other pre-existing open items (TalkingTool 9px cap, ClockWidget bare cqmin, QuizResults text-sm :1509, RevealGrid spacing, multi-widget group, InstructionalRoutines p-8/gap-4, Stations ml-1, EmbedWidget portaled toolbar, MiniApp dialog overlays) assumed valid per 2026-07-05 confirmation. Zero new anti-patterns._
 
 _2026-07-05: Full scan. New dev-paul commits since 2026-07-04: none beyond the scheduled-tasks rebase (no widget front-face content changes). Comprehensive agent scan of 47 Widget.tsx files (DrawingWidget and SeatingChart skipped — skipScaling:false). ZERO new anti-patterns found. Existing items re-confirmed: (1) RevealGrid header text-xs items — line numbers shifted from :164/:170 to :162/:168; (2) GuidedLearning w-8 h-8 Loader2 at :618 already in group open item — confirmed; (3) EmbedWidget portaled toolbar — unchanged; (4) MiniApp dialog overlays — confirmed with updated line ranges: MiniAppAssignModal :127-:266, Save App form :1291-:1319 (replacing stale :848/:866/:874 in the open item detail). All other pre-existing open items (TalkingTool 9px cap, ClockWidget bare cqmin, QuizResults text-sm :1509, RevealGrid spacing, multi-widget group, InstructionalRoutines p-8/gap-4, Stations ml-1) confirmed valid. Zero new anti-patterns._
 

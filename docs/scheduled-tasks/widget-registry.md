@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-05_
+_Last audited: 2026-07-06_
 _Last action: 2026-06-25_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-06: Full audit. No new dev-paul commits since 2026-07-05 (dev-paul HEAD remains 4620bab3 from 2026-07-04). Scheduled-tasks-only commits since last audit: fix(NumberLine) Settings.tsx reset add-form/label defaults/isHexColor, fix: collapse multi-line comment blocks, fix(NumberLine) Settings.tsx htmlFor/id labels, fix(NumberLine) Settings.tsx zero-length jump guard, fix(pr-2146) widgetConfigPersistence transient keys — all touch Settings.tsx (back-face) or utils, zero registry impact. VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations (sticker intentional WidgetRenderer special-case per JSDoc; 7 intentionally excluded from tools.ts; blooms-detail/stickers/onboarding documented omissions from WIDGET_SETTINGS_COMPONENTS; 3 InternalToolType entries documented). pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
 _2026-07-05: Full audit. New dev-paul commits since 2026-07-04: none beyond the scheduled-tasks rebase (2 commits dropped as already upstream: fix(pr-2134) reduce GLOBAL_FONT_FAMILY_OPTIONS doc to one-liner and pr-review 2026-07-04 batch — both already absorbed into dev-paul; no impact on WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts). VERIFIED COUNT: 63 WidgetType members (unchanged). Comprehensive agent scan confirmed all 63 correctly registered across all 5 locations (sticker intentional WidgetRenderer special-case per JSDoc; 7 intentionally excluded from tools.ts; blooms-detail/stickers/onboarding documented omissions from WIDGET_SETTINGS_COMPONENTS; 3 InternalToolType entries documented). Full lazyNamed() export-name verification pass over all 116 calls — zero mismatches confirmed. Naming patterns confirmed intentional: reveal-grid uses generic 'Widget'/'Settings' barrel aliases; quiz settings exports as QuizWidgetSettings; video-activity settings exports as VideoActivityWidgetSettings; custom-widget component exports as CustomWidgetWidget (doubled word). pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
