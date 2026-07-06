@@ -654,7 +654,7 @@ export class QuizDriveService {
         question: QuizQuestion,
         studentAnswer: string,
         response?: QuizResponse
-      ) => import('../types').GradeResult;
+      ) => import('@/types').GradeResult;
     }
   ): Promise<string> {
     // Quiz's grader threads per-response manual grades through for

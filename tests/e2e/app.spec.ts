@@ -1,4 +1,4 @@
-import { APP_NAME } from '../../config/constants';
+import { APP_NAME } from '@/config/constants';
 import { test, expect } from '@playwright/test';
 
 test.describe(APP_NAME, () => {
