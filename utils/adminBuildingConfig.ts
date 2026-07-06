@@ -107,7 +107,7 @@ const sanitizeNumberLineMarkers = (value: unknown): NumberLineMarker[] => {
     const marker: NumberLineMarker = {
       id,
       value: rec.value,
-      color: rec.color.trim(),
+      color: rec.color,
     };
     if (typeof rec.label === 'string' && rec.label.trim() !== '')
       marker.label = rec.label.trim();
