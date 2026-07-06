@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { clipboardWriteTextInitScript } from '../testHelpers/e2eMocks';
+import { clipboardWriteTextInitScript } from '@/tests/testHelpers/e2eMocks';
 
 test.describe('Board Sharing', () => {
   test.beforeEach(async ({ page }) => {

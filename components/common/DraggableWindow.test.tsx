@@ -898,7 +898,7 @@ describe('DraggableWindow', () => {
 
   it('saves title and resets editing state when clicking outside after editing title', async () => {
     const user = userEvent.setup();
-    const { useClickOutside } = await import('../../hooks/useClickOutside');
+    const { useClickOutside } = await import('@/hooks/useClickOutside');
 
     // Pass test-widget as selected so toolbar shows
     renderComponent({}, <div>Content</div>, <div>Settings</div>, 'test-widget');
