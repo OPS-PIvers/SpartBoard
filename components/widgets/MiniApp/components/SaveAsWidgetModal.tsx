@@ -4,6 +4,7 @@ import {
   CUSTOM_WIDGET_ICON_OPTIONS,
   getCustomWidgetIcon,
 } from '@/config/customWidgetIcons';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 
 const COLOR_PRESETS: ReadonlyArray<{ label: string; value: string }> = [
   { label: 'Blue', value: 'bg-blue-500' },
@@ -84,9 +85,7 @@ export const SaveAsWidgetModal: React.FC<SaveAsWidgetModalProps> = ({
               })}
             </div>
             <div className="min-w-0">
-              <p className="text-xxs font-black uppercase text-slate-400 tracking-widest">
-                Preview
-              </p>
+              <SettingsLabel>Preview</SettingsLabel>
               <p className="text-sm font-bold text-slate-700 truncate">
                 {trimmed.length > 0 ? trimmed : 'Untitled widget'}
               </p>
