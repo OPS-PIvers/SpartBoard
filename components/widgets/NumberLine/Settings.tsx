@@ -295,6 +295,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             />
           </div>
           <button
+            type="button"
             onClick={handleAddMarker}
             aria-label="Add marker"
             title="Add marker"
@@ -333,6 +334,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
               </div>
               <div className="flex-1 text-slate-500">{marker.label}</div>
               <button
+                type="button"
                 onClick={() => removeMarker(marker.id)}
                 aria-label="Remove marker"
                 title="Remove marker"
@@ -398,6 +400,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             />
           </div>
           <button
+            type="button"
             onClick={handleAddJump}
             aria-label="Add jump"
             title="Add jump"
@@ -428,6 +431,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
                 {jump.label}
               </div>
               <button
+                type="button"
                 onClick={() => removeJump(jump.id)}
                 aria-label="Remove jump"
                 title="Remove jump"
