@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { TimeToolConfig, WidgetData, WidgetConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { playTimerAlert, resumeAudio } from '@/utils/timeToolAudio';
+import { TIME_TOOL_MAX_DURATION_SECONDS } from '@/config/timeTool';
 
 export const useTimeTool = (widget: WidgetData) => {
   const { updateWidget, activeDashboard } = useDashboard();
@@ -100,8 +101,20 @@ export const useTimeTool = (widget: WidgetData) => {
       const current = config.isRunning
         ? runningDisplayTimeRef.current
         : config.elapsedTime;
-      const next = Math.max(0, current + deltaSeconds);
-      const nextDuration = Math.max(config.duration, next);
+      // Clamp to the shared ceiling so hold-to-ramp can't push past it the way
+      // the Keypad and admin validator already prevent.
+      const next = Math.min(
+        TIME_TOOL_MAX_DURATION_SECONDS,
+        Math.max(0, current + deltaSeconds)
+      );
+      const nextDuration = Math.min(
+        TIME_TOOL_MAX_DURATION_SECONDS,
+        Math.max(config.duration, next)
+      );
+      // Skip only if clamping had no effect vs. the value we computed from (not the stale persisted baseline).
+      if (next === current && nextDuration === config.duration) {
+        return;
+      }
       updateWidget(widget.id, {
         config: {
           ...config,

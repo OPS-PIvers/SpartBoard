@@ -1,10 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import {
+  render,
+  renderHook,
+  screen,
+  fireEvent,
+  cleanup,
+  act,
+} from '@testing-library/react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { useDashboard } from '@/context/useDashboard';
 import { useGlobalStyle } from '@/context/dashboardCanvasStore';
 import { WidgetData, TimeToolConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { TimeToolWidget } from './TimeToolWidget';
+import { useTimeTool } from './useTimeTool';
 import { DashboardContextValue } from '@/context/DashboardContextValue';
 
 // useTimeTool still reads the legacy context (updateWidget + activeDashboard);
@@ -508,6 +516,110 @@ describe('TimeToolWidget', () => {
           config: expect.objectContaining({
             elapsedTime: 150,
           }) as unknown,
+        })
+      );
+    });
+
+    it('clamps elapsedTime/duration to TIME_TOOL_MAX_DURATION_SECONDS instead of overflowing past it', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 59980,
+        elapsedTime: 59980,
+        adjustStepSeconds: 60,
+      });
+      renderWidget(widget);
+
+      fireEvent.pointerDown(screen.getByLabelText('Add time'));
+      fireEvent.pointerUp(screen.getByLabelText('Add time'));
+
+      const lastCall =
+        mockUpdateWidget.mock.calls[mockUpdateWidget.mock.calls.length - 1];
+      const updatedConfig = (lastCall?.[1] as { config: TimeToolConfig })
+        .config;
+      expect(updatedConfig.elapsedTime).toBe(59999);
+      expect(updatedConfig.duration).toBe(59999);
+    });
+
+    it('disables the "+" button once elapsedTime/duration reach the ceiling', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 59999,
+        elapsedTime: 59999,
+        adjustStepSeconds: 60,
+      });
+      renderWidget(widget);
+
+      expect(screen.getByLabelText('Add time')).toBeDisabled();
+
+      fireEvent.pointerDown(screen.getByLabelText('Add time'));
+      fireEvent.pointerUp(screen.getByLabelText('Add time'));
+
+      expect(mockUpdateWidget).not.toHaveBeenCalled();
+    });
+
+    it('keeps the "+" button disabled while running at the ceiling, even after the display decays below it', () => {
+      // Regression: displayTime alone re-enables the button once it decays below the ceiling; config.elapsedTime must also gate it.
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: true,
+        duration: 59999,
+        elapsedTime: 59999,
+        startTime: Date.now(),
+        adjustStepSeconds: 60,
+      });
+      renderWidget(widget);
+
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.getByLabelText('Add time')).toBeDisabled();
+    });
+
+    it('adjustTime is a no-op when running at the ceiling, avoiding a write-storm/startTime-reset loop', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: true,
+        duration: 59999,
+        elapsedTime: 59999,
+        startTime: Date.now(),
+        adjustStepSeconds: 60,
+      });
+      const { result } = renderHook(() => useTimeTool(widget));
+
+      result.current.adjustTime(60);
+
+      expect(mockUpdateWidget).not.toHaveBeenCalled();
+    });
+
+    it('does not silently drop a legitimate "+" press once the running display has decayed away from config.elapsedTime', () => {
+      // Regression: the no-op guard must compare next against `current` (what
+      // it was computed from), not the stale persisted config.elapsedTime —
+      // otherwise a coincidental match (e.g. after exactly one step's worth
+      // of countdown) silently swallows a real adjustment.
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: true,
+        duration: 300,
+        elapsedTime: 300,
+        startTime: Date.now(),
+        adjustStepSeconds: 60,
+      });
+      const { result } = renderHook(() => useTimeTool(widget));
+
+      act(() => {
+        vi.advanceTimersByTime(60000);
+      });
+      expect(result.current.displayTime).toBe(240);
+
+      result.current.adjustTime(60);
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'timetool-1',
+        expect.objectContaining({
+          config: expect.objectContaining({ elapsedTime: 300 }) as unknown,
         })
       );
     });

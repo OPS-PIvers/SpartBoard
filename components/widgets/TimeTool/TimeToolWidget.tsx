@@ -14,6 +14,7 @@ import {
   Minus,
 } from 'lucide-react';
 import { STANDARD_COLORS } from '@/config/colors';
+import { TIME_TOOL_MAX_DURATION_SECONDS } from '@/config/timeTool';
 import { WidgetLayout } from '../WidgetLayout';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -601,6 +602,10 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                       <AdjustButton
                         sign={1}
                         step={effectiveAdjustStep}
+                        disabled={
+                          displayTime >= TIME_TOOL_MAX_DURATION_SECONDS ||
+                          config.elapsedTime >= TIME_TOOL_MAX_DURATION_SECONDS
+                        }
                         ariaLabel={t('widgets.timeTool.addTime')}
                         onAdjust={adjustTime}
                       />
