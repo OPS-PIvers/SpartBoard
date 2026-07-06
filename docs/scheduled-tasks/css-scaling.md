@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-04_
+_Last audited: 2026-07-06_
 _Last action: 2026-06-27 — LOW ActivityWall empty-state heading `fontSize` added (`min(14px, 5.5cqmin)` + scaled `marginTop`); was unscaled 16px on a `skipScaling` widget_
 
 ---
@@ -21,6 +21,10 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-06: Full scan. No new dev-paul commits since 2026-07-05 (dev-paul HEAD 4620bab3, dated 2026-07-04). Scheduled-tasks-only commits: NumberLine/Settings.tsx (back-face settings panel — CQ scaling rules do not apply), utils/widgetConfigPersistence.ts, and tests — no widget front-face content changes. Verified key open items directly: RevealGrid text-xs at :162/:168 still present; GuidedLearning Loader2 w-8 h-8 still at :618. All other pre-existing open items (TalkingTool 9px cap, ClockWidget bare cqmin, QuizResults text-sm :1509, RevealGrid spacing, multi-widget group, InstructionalRoutines p-8/gap-4, Stations ml-1, EmbedWidget portaled toolbar, MiniApp dialog overlays) assumed valid per 2026-07-05 confirmation. Zero new anti-patterns._
+
+_2026-07-05: Full scan. New dev-paul commits since 2026-07-04: none beyond the scheduled-tasks rebase (no widget front-face content changes). Comprehensive agent scan of 47 Widget.tsx files (DrawingWidget and SeatingChart skipped — skipScaling:false). ZERO new anti-patterns found. Existing items re-confirmed: (1) RevealGrid header text-xs items — line numbers shifted from :164/:170 to :162/:168; (2) GuidedLearning w-8 h-8 Loader2 at :618 already in group open item — confirmed; (3) EmbedWidget portaled toolbar — unchanged; (4) MiniApp dialog overlays — confirmed with updated line ranges: MiniAppAssignModal :127-:266, Save App form :1291-:1319 (replacing stale :848/:866/:874 in the open item detail). All other pre-existing open items (TalkingTool 9px cap, ClockWidget bare cqmin, QuizResults text-sm :1509, RevealGrid spacing, multi-widget group, InstructionalRoutines p-8/gap-4, Stations ml-1) confirmed valid. Zero new anti-patterns._
 
 _2026-07-04: Full scan. New dev-paul commits since 2026-07-03: none beyond the rebase — no widget front-face content changes. Automated agent scan of 9 Widget.tsx files (BloomsTaxonomy, Stations, NeedDoPutThen, WorkSymbols, First5, CarRiderPro, BlendingBoard, Countdown, NextUp) — all clean. No Tailwind text-size classes on content elements, no hardcoded px-cap Tailwind classes, no bare uncapped cqmin on primary content, no unsized overflow-hidden, no fixed-pixel icon props. The existing open items (TalkingTool 9px cap, ClockWidget bare cqmin, EmbedWidget portaled toolbar, QuizResults text-sm, RevealGrid spacing, multi-widget group, InstructionalRoutines p-8/gap-4, MiniApp dialog, Stations ml-1) were not re-confirmed this pass (scan covered a different subset); assume valid per prior daily audit 2026-07-03. Zero new anti-patterns._
 
@@ -187,7 +191,7 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ### LOW MiniApp internal dialog overlays use hardcoded Tailwind text sizes
 
 - **Detected:** 2026-04-26
-- **File:** components/widgets/MiniApp/Widget.tsx:134, :138, :142, :148, :166, :177, :187, :194, :204, :219, :226, :237, :253, :260, :848, :866, :874
+- **File:** components/widgets/MiniApp/Widget.tsx (MiniAppAssignModal component: :127-:266; Save App form overlay: :1291-:1319)
 - **Detail:** The widget has two internal overlay dialogs rendered inside the container-query context: (1) the "Start Live Session" / "Share Link" dialog shown when the user launches a live session (lines 120–260), and (2) the "Save to Library" overlay shown when pasting HTML into the widget (lines 848–880). Both use hardcoded Tailwind classes `text-base`, `text-sm`, `text-xs` on labels, body text, code blocks, and buttons. Widget has `skipScaling: true`. At small widget sizes these overlays will show unscaled text and potentially overflow the widget bounds. The prior 2026-04-14 completion entry "MiniAppWidget uses hardcoded Tailwind text sizes — Resolved outside journal workflow" was inaccurate; these overlay states were not assessed.
 - **Fix:** For both overlay dialogs, replace `text-base` → `style={{ fontSize: 'min(16px, 6cqmin)' }}`, `text-sm` → `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`, `text-xs` → `style={{ fontSize: 'min(11px, 4cqmin)' }}`. Also convert any `w-4 h-4` icon sizes and `gap-2`, `p-3`/`p-5` spacing to `cqmin` equivalents.
 

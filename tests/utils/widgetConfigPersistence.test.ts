@@ -130,6 +130,21 @@ describe('stripTransientKeys', () => {
     expect(result).not.toHaveProperty('completedNames');
     expect(result).not.toHaveProperty('remainingStudents');
   });
+
+  it('strips markers and jumps so NumberLine admin building defaults are not overridden', () => {
+    const config = {
+      markers: [{ id: 'm1', value: 5, color: '#ff0000' }],
+      jumps: [{ id: 'j1', startValue: 0, endValue: 5 }],
+      min: 0,
+      max: 10,
+    } as Partial<WidgetConfig>;
+
+    const result = stripTransientKeys(config);
+
+    expect(result).toEqual({ min: 0, max: 10 });
+    expect(result).not.toHaveProperty('markers');
+    expect(result).not.toHaveProperty('jumps');
+  });
 });
 
 describe('mergeWidgetConfig', () => {

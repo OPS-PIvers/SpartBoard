@@ -71,6 +71,9 @@ const TRANSIENT_CONFIG_KEYS = new Set<string>([
   'cards',
   'memoryCards',
   'hotspots',
+  // Admin building defaults own these arrays; strip from saved defaults so they don't override per-building config.
+  'markers',
+  'jumps',
 
   // User-typed instance content: styling should carry over to new widgets,
   // but the text/notes themselves belong to a single instance only.

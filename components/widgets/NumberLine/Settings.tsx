@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 import { TypographySettings } from '@/components/common/TypographySettings';
@@ -47,26 +47,48 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
 
   // Add Marker State
   const [newMarkerValue, setNewMarkerValue] = useState<number>(0);
-  const [newMarkerLabel, setNewMarkerLabel] = useState<string>('Start');
+  const [newMarkerLabel, setNewMarkerLabel] = useState<string>('');
+  const [markerAddCount, setMarkerAddCount] = useState(markers.length);
+
+  const markerValueId = useId();
+  const markerLabelId = useId();
+  const jumpStartId = useId();
+  const jumpEndId = useId();
+  const jumpLabelId = useId();
 
   const handleAddJump = () => {
+    if (
+      !Number.isFinite(newJumpStart) ||
+      !Number.isFinite(newJumpEnd) ||
+      newJumpStart === newJumpEnd
+    )
+      return;
+    const trimmedLabel = newJumpLabel.trim();
     const jump: NumberLineJump = {
       id: crypto.randomUUID(),
       startValue: newJumpStart,
       endValue: newJumpEnd,
-      label: newJumpLabel,
+      ...(trimmedLabel !== '' && { label: trimmedLabel }),
     };
     updateConfig({ jumps: [...jumps, jump] });
+    setNewJumpStart(0);
+    setNewJumpEnd(5);
+    setNewJumpLabel('+5');
   };
 
   const handleAddMarker = () => {
+    if (!Number.isFinite(newMarkerValue)) return;
+    const trimmedLabel = newMarkerLabel.trim();
     const marker: NumberLineMarker = {
       id: crypto.randomUUID(),
       value: newMarkerValue,
-      label: newMarkerLabel,
-      color: WIDGET_PALETTE[markers.length % WIDGET_PALETTE.length],
+      ...(trimmedLabel !== '' && { label: trimmedLabel }),
+      color: WIDGET_PALETTE[markerAddCount % WIDGET_PALETTE.length],
     };
     updateConfig({ markers: [...markers, marker] });
+    setNewMarkerValue(0);
+    setNewMarkerLabel('');
+    setMarkerAddCount((c) => c + 1);
   };
 
   const removeMarker = (id: string) => {
@@ -244,23 +266,29 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
         {/* Add Marker Form */}
         <div className="flex gap-2 items-end mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
           <div className="flex-1">
-            <label className="block text-xxs font-bold uppercase text-slate-400 mb-1">
+            <label
+              htmlFor={markerValueId}
+              className="block text-xxs font-bold uppercase text-slate-400 mb-1"
+            >
               Value
             </label>
             <input
+              id={markerValueId}
               type="number"
               value={newMarkerValue}
-              onChange={(e) =>
-                setNewMarkerValue(parseFloat(e.target.value) || 0)
-              }
+              onChange={(e) => setNewMarkerValue(e.target.valueAsNumber)}
               className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-sm"
             />
           </div>
           <div className="flex-1">
-            <label className="block text-xxs font-bold uppercase text-slate-400 mb-1">
+            <label
+              htmlFor={markerLabelId}
+              className="block text-xxs font-bold uppercase text-slate-400 mb-1"
+            >
               Label
             </label>
             <input
+              id={markerLabelId}
               type="text"
               value={newMarkerLabel}
               onChange={(e) => setNewMarkerLabel(e.target.value)}
@@ -269,10 +297,12 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             />
           </div>
           <button
+            type="button"
             onClick={handleAddMarker}
+            disabled={!Number.isFinite(newMarkerValue)}
             aria-label="Add marker"
             title="Add marker"
-            className="bg-blue-600 text-white p-1.5 rounded-md hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="bg-blue-600 text-white p-1.5 rounded-md hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-5 h-5" />
           </button>
@@ -307,6 +337,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
               </div>
               <div className="flex-1 text-slate-500">{marker.label}</div>
               <button
+                type="button"
                 onClick={() => removeMarker(marker.id)}
                 aria-label="Remove marker"
                 title="Remove marker"
@@ -326,32 +357,44 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
         {/* Add Jump Form */}
         <div className="flex gap-2 items-end mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
           <div className="w-16">
-            <label className="block text-xxs font-bold uppercase text-slate-400 mb-1">
+            <label
+              htmlFor={jumpStartId}
+              className="block text-xxs font-bold uppercase text-slate-400 mb-1"
+            >
               Start
             </label>
             <input
+              id={jumpStartId}
               type="number"
               value={newJumpStart}
-              onChange={(e) => setNewJumpStart(parseFloat(e.target.value) || 0)}
+              onChange={(e) => setNewJumpStart(e.target.valueAsNumber)}
               className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-sm"
             />
           </div>
           <div className="w-16">
-            <label className="block text-xxs font-bold uppercase text-slate-400 mb-1">
+            <label
+              htmlFor={jumpEndId}
+              className="block text-xxs font-bold uppercase text-slate-400 mb-1"
+            >
               End
             </label>
             <input
+              id={jumpEndId}
               type="number"
               value={newJumpEnd}
-              onChange={(e) => setNewJumpEnd(parseFloat(e.target.value) || 0)}
+              onChange={(e) => setNewJumpEnd(e.target.valueAsNumber)}
               className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-sm"
             />
           </div>
           <div className="flex-1">
-            <label className="block text-xxs font-bold uppercase text-slate-400 mb-1">
+            <label
+              htmlFor={jumpLabelId}
+              className="block text-xxs font-bold uppercase text-slate-400 mb-1"
+            >
               Label
             </label>
             <input
+              id={jumpLabelId}
               type="text"
               value={newJumpLabel}
               onChange={(e) => setNewJumpLabel(e.target.value)}
@@ -360,10 +403,16 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             />
           </div>
           <button
+            type="button"
             onClick={handleAddJump}
+            disabled={
+              !Number.isFinite(newJumpStart) ||
+              !Number.isFinite(newJumpEnd) ||
+              newJumpStart === newJumpEnd
+            }
             aria-label="Add jump"
             title="Add jump"
-            className="bg-emerald-600 text-white p-1.5 rounded-md hover:bg-emerald-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            className="bg-emerald-600 text-white p-1.5 rounded-md hover:bg-emerald-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-5 h-5" />
           </button>
@@ -390,6 +439,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
                 {jump.label}
               </div>
               <button
+                type="button"
                 onClick={() => removeJump(jump.id)}
                 aria-label="Remove jump"
                 title="Remove jump"
