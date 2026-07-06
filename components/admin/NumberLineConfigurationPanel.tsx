@@ -347,8 +347,8 @@ export const NumberLineConfigurationPanel: React.FC<
               >
                 <input
                   type="color"
-                  value={marker.color}
-                  onChange={(e) =>
+                  defaultValue={marker.color}
+                  onBlur={(e) =>
                     handleUpdateBuilding({
                       markers: markers.map((m) =>
                         m.id === marker.id ? { ...m, color: e.target.value } : m
