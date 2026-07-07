@@ -111,14 +111,10 @@ export function ImportWizard<TData>({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Bumped on every open/close transition so in-flight async handlers (parse,
-  // AI-assist, picker) can detect a stale session and skip applying their
-  // result — the wizard stays mounted across close/reopen, so promises
-  // started before a close can still resolve after a reopen.
+  // Bumped on every open/close transition; in-flight handlers check it to drop results from a cancelled session.
   const sessionRef = useRef(0);
 
-  // Reset ephemeral state whenever the wizard opens.
-  // Using adjust-state-while-rendering so we don't need useEffect.
+  // Adjust-state-while-rendering: reset on open without useEffect.
   const [prevOpen, setPrevOpen] = useState(isOpen);
   if (prevOpen !== isOpen) {
     setPrevOpen(isOpen);
@@ -157,8 +153,7 @@ export function ImportWizard<TData>({
     setParseError(null);
     try {
       const result = await adapter.parse(payload);
-      // The wizard was closed and/or reopened while this parse was in
-      // flight — its result belongs to a cancelled session, discard it.
+      // Stale session — wizard closed/reopened while this parse was in flight.
       if (session !== sessionRef.current) return;
       setParsed(result.data);
       setWarnings(result.warnings);
@@ -322,8 +317,7 @@ export function ImportWizard<TData>({
     setSaving(true);
     try {
       await adapter.save(parsed, trimmed);
-      // A stale save (from before a close/reopen) must not close or report
-      // "saved" against the freshly-reopened session.
+      // Stale session — don't close or report "saved" against a freshly-reopened wizard.
       if (session !== sessionRef.current) return;
       onSaved?.(trimmed);
       onClose();
