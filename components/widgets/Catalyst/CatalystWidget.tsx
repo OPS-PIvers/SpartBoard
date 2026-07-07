@@ -6,10 +6,7 @@ import { isSafeIconUrl, renderCatalystIcon } from './catalystHelpers';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { Zap, ImageOff, ChevronLeft } from 'lucide-react';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
-import {
-  playCleanUp,
-  getAudioCtx,
-} from '@/components/widgets/StarterPack/audioUtils';
+import { playCleanUpUnlocked } from '@/components/widgets/StarterPack/audioUtils';
 import confetti from 'canvas-confetti';
 import { CatalystSettings } from './CatalystSettings';
 
@@ -24,19 +21,14 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
 
   const activeSet = sets.find((s) => s.id === activeSetId);
 
-  const handleExecute = (routineId: string) => {
+  const handleExecute = async (routineId: string) => {
     if (!activeSet) return;
     const routine = activeSet.routines.find((r) => r.id === routineId);
     if (!routine) return;
 
-    const ctx = getAudioCtx();
-    if (ctx && ctx.state === 'suspended') {
-      void ctx.resume();
-    }
-
     executeRoutine(routine, addWidget);
 
-    playCleanUp();
+    await playCleanUpUnlocked();
     void confetti({
       particleCount: 100,
       spread: 70,

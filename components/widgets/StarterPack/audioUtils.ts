@@ -19,6 +19,21 @@ export const getAudioCtx = () => {
   return audioCtx;
 };
 
+// Awaits ctx.resume() before playing — resume() doesn't flip ctx.state
+// synchronously, so a fire-and-forget resume left playCleanUp's own
+// suspended-state guard silently skipping the chime on first use.
+export const playCleanUpUnlocked = async (): Promise<void> => {
+  const ctx = getAudioCtx();
+  if (ctx && ctx.state === 'suspended') {
+    try {
+      await ctx.resume();
+    } catch {
+      // Resume failed — playCleanUp's guard below handles it safely.
+    }
+  }
+  playCleanUp();
+};
+
 export const playCleanUp = () => {
   try {
     const ctx = getAudioCtx();
