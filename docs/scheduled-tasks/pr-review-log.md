@@ -1832,3 +1832,30 @@ _Automated nightly review by claude-opus-4-6_
 - Notes:
   - Branch-safety: no push to `main` or any `dev-*` branch. #2141 (head `dev-paul` → `main`) received a review comment only. The two #2146 comment replies posted via the API; this log commit is the only push, to `scheduled-tasks`.
   - Phase-1 outcome contrast: unlike the prior (07-05) run's 3 fix pushes, every actionable comment this run was already resolved (author replies or later commits), so nothing needed fixing — only two outdated no-reply threads needed a closing reply.
+
+## 2026-07-07
+
+- PRs reviewed: 9 open
+  - #2162 fix(i18n): DE plcDashboard "PLC"→"PLG" terminology — nightly/admin-config-2026-07-07
+  - #2161 fix(privacy): Random/Stations custom-name fields → PII scrub allowlist — nightly/state-data-2026-07-07
+  - #2160 fix(import-wizard): guard stale in-flight promises after close/reopen — nightly/dashboard-layout-2026-07-07
+  - #2159 fix(audio): await AudioContext.resume() before cleanup chime — nightly/widgets-2026-07-07
+  - #2158 fix(announcements): close multi-tenant leak in no-org listener query — nightly/build-tooling-2026-07-07
+  - #2157 docs(skill-freshness): correct WIDGET_SCALING_CONFIG consequence — scheduled-tasks
+  - #2156 docs(unifier): run 28 log — nightly/unifier-log-2026-07-07
+  - #2155 fix(D4): unify plc import + ESLint no-restricted-imports rule — nightly/unify-import-paths-2026-07-07
+  - #2141 Refactor admin modals to SettingsLabel + a11y (dev-paul → main)
+- Comments processed: 11 unresolved threads acted on — 5 fixed, 6 explained/deferred. (Every other thread across the 9 PRs already carried an author reply or was resolved.)
+  - Fixed (5): #2162 ×1 (case-insensitive PLC guard regex); #2159 ×2 (void playCleanUpUnlocked so confetti isn't blocked on ctx.resume); #2158 ×2 (generic email fixture + LEAK-test rationale comment).
+  - Explained/deferred (6): #2161 ×3 — verified `lastResult`/`jigsawHomeGroups`/`jigsawExpertGroups` are real PII with RandomConfig-unique names (collateral-safe to add) but deferred the add to the maintainer because scrubbing `lastResult` changes reload persistence for the cross-widget Scoreboard/Stations integrations (privacy-vs-persistence product call); #2157 ×1 and #2155 ×1 — outdated threads already resolved on branch head; #2141 ×1 — validated the Dock `SortableContext.items` dnd-kit index bug but did not push (head `dev-paul` = read-only).
+- Fixes pushed: 3
+  - #2162 → nightly/admin-config-2026-07-07 — case-insensitive `/\bPLCs?\b/i` in the DE plcDashboard terminology guard (test 51/51, lint, format).
+  - #2159 → nightly/widgets-2026-07-07 — CatalystWidget + StarterPack/Widget handleExecute made synchronous with `void playCleanUpUnlocked()` (type-check, lint, format, audioUtils 2/2).
+  - #2158 → nightly/build-tooling-2026-07-07 — announcementsQuery.test.ts: generic `teacher@` fixture + LEAK-test rationale comment (rules suite 4/4 under the emulator, lint, format).
+- Reviews posted: 9 (one structured review per open PR)
+  - #2158 / #2159 / #2160 / #2162 / #2155 / #2157 / #2156 Ready.
+  - #2161 Ready with notes — shipped fields sound; outstanding `lastResult`/`jigsaw*` PII-scope decision flagged before it fully closes the leak.
+  - #2141 Needs changes — strong a11y/consistency refactor, but the Dock `SortableContext.items` filtering bug (hidden folder/gated tool ids left in the items array with no rendered node → dnd-kit index skew) should be fixed + tested before merge to main.
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` branch. #2141 (head `dev-paul` → `main`) received review comments only. All fixes went to `nightly/*` branches; this log commit is the only push to `scheduled-tasks`.
+  - #2158 fixes were verified against the real Firestore emulator (`firebase emulators:exec --only firestore`), 4/4 announcements-rules tests green.
