@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-06-30_
+_Last audited: 2026-07-07_
 _Last action: 2026-06-16_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-07: pnpm audit (root): **118 vulnerabilities** (6 low | 48 moderate | 62 high | 2 critical) — DOWN from 142 on 2026-06-30 (dompurify fix from PR #2120 has landed in dev-paul and was absorbed in today's rebase; 24-vulnerability reduction confirms the fix). pnpm audit (functions): 58 vulnerabilities (4 low | 23 moderate | 30 high | 1 critical) — unchanged. Root critical unchanged: (1) basic-ftp path traversal via firebase-tools>proxy-agent>pac-proxy-agent>get-uri>basic-ftp; (2) fast-xml-parser entity encoding bypass via firebase-admin>@google-cloud/storage. Functions critical: fast-xml-parser same path. Notable changes vs 2026-06-30 snapshot: (a) hono still at 4.12.15 — NEW CVE GHSA-wgpf-jwqj-8h8p (moderate): Lambda@Edge adapter drops all but the last value of a repeated request header; patched >=4.12.25 (more restrictive than the prior >=4.12.18 requirement); hono MEDIUM item updated with new CVE and patched version requirement; current latest is 4.12.28. (b) @hono/node-server authorization bypass HIGH is newly appearing in audit output (via firebase-tools chain); not a direct dep. (c) pnpm outdated version drift: vite latest now 8.1.3 (was 8.0.16); @google/genai latest 2.10.0 (stable from 2.9.0); firebase-admin (functions) latest 14.1.0 (from 14.0.0); lucide-react latest 1.23.0 (was 1.18.0); firebase (root) latest 12.15.0 (from 12.14.0); recharts latest 3.9.2 (from 3.9.0); i18next latest 26.3.4 (from 26.2.0); @playwright/test latest 1.61.1; @types/node 26.1.0 (2 majors ahead). (d) jose (functions): 4.15.9 → 6.2.3 (2 major versions behind; JWT library used in functions for token verification) — added as new LOW item (jwt-critical-for-security but no active CVE on 4.x in current audit). LOW major-versions item updated with current latest versions. Existing open items (ts-deepmerge, flatted, ws, yaml, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash, @types/tesseract.js, major-versions) all still active._
 
 _2026-06-30 (action): Fixed MEDIUM `dompurify` `ALLOWED_ATTR` pollution bypass (GHSA-cmwh-pvxp-8882). Bumped the direct production dependency `^3.4.2` → `^3.4.11` in `package.json` and added `"dompurify": "^3.4.11"` to `pnpm.overrides` (initially `">=3.4.11"`, tightened to `^3.4.11` in a follow-up commit per PR review — caps the transitive monaco bump below a hypothetical 4.x while resolving identically today). The override is required: before the fix, `pnpm why dompurify` showed two resolutions — `dompurify@3.4.2` (direct) and `dompurify@3.2.7` (transitive via `@monaco-editor/react > monaco-editor`, which pins dompurify to exactly `3.2.7`), so a top-level bump alone would not have lifted the transitive path. After `pnpm install`, `pnpm why dompurify` reports a single `dompurify@3.4.11` across both paths and `pnpm audit | grep -i 'dompurify|cmwh-pvxp'` returns 0. File-recency check passed: `package.json` last touched at 0164e761 (position 50 in branch history) — well outside the last 5 branch commits. `pnpm install --frozen-lockfile` passes against the dev-paul base. Verified clean: `prettier --check package.json` (clean), `pnpm type-check` (0 errors), `eslint utils/security.ts utils/notebookSvgEdit.ts` (0 warnings), `vitest run utils/security.test.ts` (15/15) + `vitest run utils/notebookSvgEdit.test.ts` (12/12). No code change required (usage passes config inline to `DOMPurify.sanitize()`, not `setConfig()`; sanitize API unchanged across 3.x). Moved item to Completed. PR opened against dev-paul: #2120 (branch `deps/dompurify-3.4.11`, rebased directly on dev-paul so the diff is exactly `package.json` + `pnpm-lock.yaml` — the code change does NOT carry this journal update; the journal record lives here on scheduled-tasks). Remaining MEDIUM items (ts-deepmerge, flatted, ws, yaml, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash) and the LOW items all still active._
 
@@ -60,15 +62,17 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 - **Detail:** `yaml` >=2.0.0 <2.8.3 has a stack overflow DoS vulnerability. Installed version is `yaml@2.8.2` (fix requires >=2.8.3). Reaches the codebase via multiple dev tool chains: `firebase-tools@15.8.0`, `lint-staged@16.2.7`, `tailwindcss@3.4.19 > postcss-load-config`, and `vite@6.4.2`. All are dev-only.
 - **Fix:** Add `"yaml": ">=2.8.3"` to `pnpm.overrides` in `package.json`. This is a safe override since yaml 2.x has a stable API. Verify with `pnpm why yaml` after install. No production impact.
 
-### MEDIUM `hono@4.12.15` has two MODERATE CVEs — patched in >=4.12.18
+### MEDIUM `hono@4.12.15` has three MODERATE CVEs — patched in >=4.12.25 (latest 4.12.28)
 
 - **Detected:** 2026-05-12
+- **Updated:** 2026-07-07
 - **File:** package.json (devDependency + pnpm.overrides)
-- **Detail:** Two new moderate CVEs affect `hono` >=4.12.15 <4.12.18 that were not present when hono was upgraded to 4.12.15 (2026-04-28 completed item):
-  - **GHSA-qp7p-654g-cw7p** (moderate): CSS Declaration Injection via Style Object Values in JSX SSR — unsafe CSS values can leak from attacker-controlled object properties when using `hono/jsx` SSR with style objects.
-  - **GHSA-p77w-8qqv-26rm** (moderate): Cache Middleware ignores `Vary: Authorization` / `Vary: Cookie` headers, leading to cross-user cache leakage — a cached response for one user can be served to a different user if cache keys don't account for auth headers.
-    `pnpm outdated` confirms current is 4.12.15, latest is 4.12.18. The `pnpm.overrides.hono` entry is what pins this across the dep graph.
-- **Fix:** In `package.json`, update both `devDependencies.hono` and `pnpm.overrides.hono` from `^4.12.14` → `^4.12.18`, then run `pnpm install`. Verify `pnpm audit` no longer reports hono advisories. Run `pnpm type-check`, `pnpm lint`, and `pnpm test` to confirm no regressions.
+- **Detail:** Three moderate CVEs affect `hono` at the installed version 4.12.15:
+  - **GHSA-qp7p-654g-cw7p** (moderate): CSS Declaration Injection via Style Object Values in JSX SSR — unsafe CSS values can leak from attacker-controlled object properties when using `hono/jsx` SSR with style objects. Patched >=4.12.18.
+  - **GHSA-p77w-8qqv-26rm** (moderate): Cache Middleware ignores `Vary: Authorization` / `Vary: Cookie` headers, leading to cross-user cache leakage. Patched >=4.12.18.
+  - **GHSA-wgpf-jwqj-8h8p** (moderate, detected 2026-07-07): Lambda@Edge adapter keeps only the last value of a repeated request header, dropping the rest. Patched >=4.12.25.
+    All three CVEs require >=4.12.25 to be fully resolved. Current latest is 4.12.28. The `pnpm.overrides.hono` entry pins this across the dep graph.
+- **Fix:** In `package.json`, update both `devDependencies.hono` and `pnpm.overrides.hono` to `^4.12.28` (or `>=4.12.25`), then run `pnpm install`. Verify `pnpm audit` no longer reports any hono advisories. Run `pnpm type-check`, `pnpm lint`, and `pnpm test` to confirm no regressions.
 
 ### MEDIUM `axios@1.15.0` has multiple CVEs — several require >=1.15.2, full fix in >=1.16.0
 
@@ -138,25 +142,35 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 - **Detail:** `pnpm outdated` reports `@types/tesseract.js@2.0.0` as "Deprecated" in the Latest column. Deprecated DefinitelyTyped packages are removed from the registry or superseded by bundled types. `tesseract.js` itself is installed at 7.0.0 — newer versions of tesseract.js may bundle their own types, making the separate `@types/tesseract.js` package redundant. If the DefinitelyTyped package is removed or falls out of sync, `tsc` may produce errors or use stale types.
 - **Fix:** Check whether `tesseract.js@7.0.0` bundles its own TypeScript types (inspect `node_modules/tesseract.js/package.json` for `"types"` or `"typings"` fields). If it does, remove `@types/tesseract.js` from `devDependencies` entirely and verify `pnpm type-check` still passes. If it doesn't bundle types, keep `@types/tesseract.js@2.0.0` but add a comment explaining why the deprecated package is retained.
 
+### LOW `jose@4.15.9` (functions) is 2 major versions behind — JWT library in production Cloud Functions
+
+- **Detected:** 2026-07-07
+- **File:** functions/package.json (direct dependency `jose@4.15.9`)
+- **Detail:** `jose` is the JWT/JWK library used in Firebase Cloud Functions for LTI and student auth token verification. Current installed version is 4.15.9; latest is 6.2.3 (2 major versions ahead). No active CVE on jose 4.x is currently reported by `pnpm audit`, but being 2 major versions behind on a security-sensitive JWT library is a maintenance risk. jose 5.x and 6.x include important security-relevant changes (e.g., stricter algorithm validation, updated algorithm support). This is a production dependency (not dev-only), unlike most other outdated packages.
+- **Fix:** Review the jose 5.x and 6.x migration guides for breaking API changes. Update `functions/package.json` `jose` to `^6.2.3` and run `pnpm -C functions type-check`, `pnpm -C functions test` to catch any breaking changes. Priority: plan migration within the next 2-4 weeks before a CVE is published against jose 4.x.
+
 ### LOW Major version updates available — require planned migration
 
 - **Detected:** 2026-04-14
-- **Updated:** 2026-06-30
+- **Updated:** 2026-07-07
 - **File:** package.json
 - **Detail:** Several packages have major version releases available that require migration planning (breaking changes):
-  - `tailwindcss`: 3.4.19 → **4.3.0** (major — config format changed completely)
-  - `vite`: 6.4.2 → **8.0.16** (2 majors ahead; focus on patching within v6 first)
+  - `tailwindcss`: 3.4.19 → **4.3.2** (major — config format changed completely)
+  - `vite`: 6.4.2 → **8.1.3** (2 majors ahead; focus on patching within v6 first)
   - `eslint`: 9.39.2 → **10.6.0** (major — verify flat config compatibility)
   - `@eslint/js`: 9.39.2 → **10.0.1** (paired with eslint)
-  - `typescript`: 5.9.3 → **6.0.3** (major — strict mode changes)
-  - `i18next`: 25.8.13 → **26.2.0** (major — API changes)
+  - `typescript`: 5.9.3 → **6.0.3** (major — strict mode changes; also affects functions/)
+  - `i18next`: 25.8.13 → **26.3.4** (major — API changes)
   - `react-i18next`: 16.5.4 → **17.0.8** (paired with i18next)
-  - `lucide-react`: 0.563.0 → **1.18.0** (first stable major — icon API changes possible)
+  - `lucide-react`: 0.563.0 → **1.23.0** (first stable major — icon API changes possible)
   - `@vitejs/plugin-react`: 5.1.2 → **6.0.3** (major)
-  - `@types/node`: 24.12.2 → **26.0.1** (2 major versions behind — verify Node 24 compat; was tracking 25.9.0 previously, latest now at 26.x)
+  - `@types/node`: 24.12.2 → **26.1.0** (2 major versions behind — verify Node 24 compat)
   - `jsdom`: 27.4.0 → **29.1.1** (2 majors ahead — test environment only; also resolves ws CVE)
-  - `lint-staged`: 16.2.7 → **17.0.5** (major — check husky integration compatibility)
-  - `@google/genai`: 1.51.0 → **2.10.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade)
+  - `lint-staged`: 16.2.7 → **17.0.8** (major — check husky integration compatibility)
+  - `@google/genai`: 1.51.0 → **2.10.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade; also affects functions/)
+  - `firebase`: 12.8.0 → **12.15.0** (7 minor versions behind — update to resolve fast-xml-parser and node-forge transitive CVEs)
+  - `firebase-admin` (functions): 13.6.0 → **14.1.0** (1 major — review migration guide for breaking changes)
+  - `jose` (functions): 4.15.9 → **6.2.3** (2 majors — separate LOW item above for JWT security context)
   - Functions: `jose` 4.15.9 → **6.2.3** (2 major versions behind; jose is a JWT/JWK library used transitively via `firebase-admin`; no direct import in project code confirmed. Major version gap may involve breaking API changes if ever imported directly.)
   - Functions: `firebase-admin` 13.6.0 → **14.1.0** (major version jump; check migration guide for breaking changes before updating)
     Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → **19.2.7**, `firebase-tools` 15.8.0 → **15.22.1+** (check latest), `firebase` 12.8.0 → **12.15.0**, `@playwright/test` 1.58.0 → **1.61.1**, `@typescript-eslint/*` 8.54.0 → **8.62.1**, `vitest` (root) 4.1.8 → **4.1.9**, `hono` 4.12.15 → **4.12.27** (also has active MEDIUM CVE — see separate item), `dompurify` 3.4.2 → **3.4.11** (also has active MEDIUM CVE — see separate item), `postcss` 8.5.6 → **8.5.16**, `prettier` 3.8.1 → **3.9.4**, `eslint-plugin-prettier` 5.5.5 → **5.5.6**, `eslint-plugin-react-hooks` 7.0.1 → **7.1.1**, `globals` 17.2.0 → **17.7.0**, `@firebase/rules-unit-testing` 5.0.0 → 5.0.1, `google-auth-library` (functions) 10.5.0 → **10.9.0**, `lucide-react` 0.563.0 → **1.18.0** (major; first stable), `react-i18next` 16.5.4 → **17.0.8** (major), `@google/genai` (root+functions) 1.51.0 → **2.10.0** (major — all AI generation flows need testing after upgrade), functions `axios` 1.15.0 → **1.18.1**, functions `@google-cloud/functions-framework` 5.0.0 → **5.0.2**, `axios` (root) 1.15.0 → **1.18.1** (also active separate MEDIUM CVE — upgrade resolves), `recharts` 3.8.1 → **3.9.0**. (Updated 2026-06-30)

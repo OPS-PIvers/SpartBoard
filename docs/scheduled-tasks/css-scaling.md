@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-06_
+_Last audited: 2026-07-07_
 _Last action: 2026-06-27 — LOW ActivityWall empty-state heading `fontSize` added (`min(14px, 5.5cqmin)` + scaled `marginTop`); was unscaled 16px on a `skipScaling` widget_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-07: Full scan of all 61 widget front-face files (58 skipScaling:true + 3 skipScaling:false exempt). No new dev-paul commits since 2026-07-06 (HEAD 558dd3ef — a11y group labels/comment, no widget front-face content changes). Comprehensive agent scan across all widget directories. FOUR findings reported by agent scan — all previously tracked or WON'T FIX: (1) RevealGrid/Widget.tsx :162/:168 text-xs in header — existing open item, confirmed still present; (2) MiniApp/Widget.tsx MiniAppAssignModal :127-:266 and Save App overlay :1291-:1319 text-xs/text-sm/text-base/w-4 h-4/w-5 h-5 — existing open item, confirmed still present with updated line ranges matching 2026-07-05 confirmation; (3) GuidedLearning/Widget.tsx :618 w-8 h-8 Loader2 — existing group open item, confirmed still present; (4) ActivityWall/Widget.tsx :2165 text-base in submission viewer Modal (max-h-[75vh]) — WON'T FIX per prior evaluations in 2026-05-13, 2026-06-28, 2026-07-03, 2026-07-05: the `<Modal>` is viewport-bounded (max-h-[75vh] context), outside the widget's container query surface; viewport-height sizing is correct here and text-base is appropriate for a fullscreen submission viewer. Agent also correctly excluded: portaled Embed toolbar (document.body — CQ doesn't apply), Catalyst Settings back-face uses, SoundboardWidget/Webcam decorative w-2 h-2 indicator dots, LunchCount vmin in portaled modal, InstructionalRoutines em cascading from cqw root, MusicWidget intentional cqh-only, DrawingWidget/SeatingChart skipScaling:false. Zero new anti-patterns._
 
 _2026-07-06: Full scan. No new dev-paul commits since 2026-07-05 (dev-paul HEAD 4620bab3, dated 2026-07-04). Scheduled-tasks-only commits: NumberLine/Settings.tsx (back-face settings panel — CQ scaling rules do not apply), utils/widgetConfigPersistence.ts, and tests — no widget front-face content changes. Verified key open items directly: RevealGrid text-xs at :162/:168 still present; GuidedLearning Loader2 w-8 h-8 still at :618. All other pre-existing open items (TalkingTool 9px cap, ClockWidget bare cqmin, QuizResults text-sm :1509, RevealGrid spacing, multi-widget group, InstructionalRoutines p-8/gap-4, Stations ml-1, EmbedWidget portaled toolbar, MiniApp dialog overlays) assumed valid per 2026-07-05 confirmation. Zero new anti-patterns._
 
