@@ -111,11 +111,18 @@ export function ImportWizard<TData>({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Bumped on every open/close transition so in-flight async handlers (parse,
+  // AI-assist, picker) can detect a stale session and skip applying their
+  // result — the wizard stays mounted across close/reopen, so promises
+  // started before a close can still resolve after a reopen.
+  const sessionRef = useRef(0);
+
   // Reset ephemeral state whenever the wizard opens.
   // Using adjust-state-while-rendering so we don't need useEffect.
   const [prevOpen, setPrevOpen] = useState(isOpen);
   if (prevOpen !== isOpen) {
     setPrevOpen(isOpen);
+    sessionRef.current += 1;
     if (isOpen) {
       setStep('source');
       setSheetUrl('');
@@ -145,10 +152,14 @@ export function ImportWizard<TData>({
     supportsCsv || supportsJson || supportsHtml || supportsFile;
 
   const runParse = async (payload: ImportSourcePayload): Promise<void> => {
+    const session = sessionRef.current;
     setLoading(true);
     setParseError(null);
     try {
       const result = await adapter.parse(payload);
+      // The wizard was closed and/or reopened while this parse was in
+      // flight — its result belongs to a cancelled session, discard it.
+      if (session !== sessionRef.current) return;
       setParsed(result.data);
       setWarnings(result.warnings);
       // If the adapter can extract a title from the parsed data (e.g. an
@@ -163,11 +174,12 @@ export function ImportWizard<TData>({
       }
       setStep('preview');
     } catch (err) {
+      if (session !== sessionRef.current) return;
       setParseError(
         err instanceof Error ? err.message : 'Failed to parse import source.'
       );
     } finally {
-      setLoading(false);
+      if (session === sessionRef.current) setLoading(false);
     }
   };
 
@@ -181,23 +193,26 @@ export function ImportWizard<TData>({
 
   const handlePickSheet = async (): Promise<void> => {
     if (!adapter.pickSheet) return;
+    const session = sessionRef.current;
     setParseError(null);
     setPicking(true);
     try {
       const picked = await adapter.pickSheet();
+      if (session !== sessionRef.current) return;
       // Null = the user dismissed the Picker — stay on the source step with no
       // error. Otherwise parse the picked sheet (it's now drive.file-readable).
       if (picked) {
         await runParse({ kind: 'sheet', url: picked.url });
       }
     } catch (err) {
+      if (session !== sessionRef.current) return;
       setParseError(
         err instanceof Error
           ? err.message
           : 'Failed to open the Google Drive picker.'
       );
     } finally {
-      setPicking(false);
+      if (session === sessionRef.current) setPicking(false);
     }
   };
 
@@ -208,6 +223,7 @@ export function ImportWizard<TData>({
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (!file) return;
 
+    const session = sessionRef.current;
     const kind = inferKindFromFileName(file.name, adapter.supportedSources);
     if (kind === 'file') {
       await runParse({ kind: 'file', file });
@@ -215,8 +231,10 @@ export function ImportWizard<TData>({
     }
     try {
       const text = await file.text();
+      if (session !== sessionRef.current) return;
       await runParse({ kind, text, fileName: file.name });
     } catch (err) {
+      if (session !== sessionRef.current) return;
       setParseError(
         err instanceof Error ? err.message : 'Failed to read the selected file.'
       );
@@ -263,23 +281,26 @@ export function ImportWizard<TData>({
   const handleAiGenerate = async (): Promise<void> => {
     if (!adapter.aiAssist) return;
     if (!aiPrompt.trim()) return;
+    const session = sessionRef.current;
     setAiGenerating(true);
     setParseError(null);
     try {
       const data = await adapter.aiAssist.generate({ prompt: aiPrompt.trim() });
+      if (session !== sessionRef.current) return;
       setParsed(data);
       setWarnings([]);
       setAiOpen(false);
       setAiPrompt('');
       setStep('preview');
     } catch (err) {
+      if (session !== sessionRef.current) return;
       setParseError(
         err instanceof Error
           ? err.message
           : 'Failed to generate from AI. Please try again.'
       );
     } finally {
-      setAiGenerating(false);
+      if (session === sessionRef.current) setAiGenerating(false);
     }
   };
 
@@ -295,19 +316,24 @@ export function ImportWizard<TData>({
       setValidationErrors(v.errors.length > 0 ? v.errors : ['Invalid import.']);
       return;
     }
+    const session = sessionRef.current;
     setValidationErrors([]);
     setSaveError(null);
     setSaving(true);
     try {
       await adapter.save(parsed, trimmed);
+      // A stale save (from before a close/reopen) must not close or report
+      // "saved" against the freshly-reopened session.
+      if (session !== sessionRef.current) return;
       onSaved?.(trimmed);
       onClose();
     } catch (err) {
+      if (session !== sessionRef.current) return;
       setSaveError(
         err instanceof Error ? err.message : 'Failed to save import.'
       );
     } finally {
-      setSaving(false);
+      if (session === sessionRef.current) setSaving(false);
     }
   };
 

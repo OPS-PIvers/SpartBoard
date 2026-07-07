@@ -484,6 +484,63 @@ describe('ImportWizard', () => {
     expect((titleInput as HTMLInputElement).value).toBe('User Typed Title');
   });
 
+  it('does not let a stale in-flight parse from before a close/reopen clobber the freshly-reset state', async () => {
+    // Deferred promise lets the test control exactly when adapter.parse resolves.
+    let resolveParse:
+      | ((v: { data: FakeData; warnings: string[] }) => void)
+      | null = null;
+    const parsePromise = new Promise<{ data: FakeData; warnings: string[] }>(
+      (resolve) => {
+        resolveParse = resolve;
+      }
+    );
+    const { adapter } = makeAdapter({
+      parseImpl: () => parsePromise,
+    });
+    const { rerender } = renderWizard(adapter);
+
+    // Kick off a parse that will not resolve until we say so.
+    const urlField = screen.getByLabelText('Google Sheet URL');
+    fireEvent.change(urlField, {
+      target: { value: 'https://docs.google.com/spreadsheets/d/stale' },
+    });
+    fireEvent.click(
+      urlField.parentElement?.querySelector('button') as HTMLButtonElement
+    );
+
+    // Close the wizard, then reopen it before the stale parse resolves —
+    // ImportWizard is always mounted by its callers (isOpen only toggles the
+    // Modal's own visibility), so this component instance's state survives.
+    rerender(
+      <ImportWizard<FakeData>
+        isOpen={false}
+        onClose={vi.fn()}
+        adapter={adapter}
+      />
+    );
+    rerender(
+      <ImportWizard<FakeData>
+        isOpen={true}
+        onClose={vi.fn()}
+        adapter={adapter}
+      />
+    );
+
+    // Reopening should have reset to a clean Source step.
+    expect(screen.getByLabelText('Google Sheet URL')).toBeInTheDocument();
+
+    // Now let the stale parse from before the close resolve.
+    await act(async () => {
+      resolveParse?.({ data: { rows: ['stale-row'] }, warnings: [] });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // The stale result must not push the freshly-reopened wizard to Preview.
+    expect(screen.queryByTestId('preview')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Google Sheet URL')).toBeInTheDocument();
+  });
+
   it('shows the template helper when adapter exposes templateHelper', () => {
     const { adapter } = makeAdapter({
       templateHelper: {
