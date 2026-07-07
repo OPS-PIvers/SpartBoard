@@ -38,7 +38,7 @@ const ORONO = 'orono';
 const OTHER = 'other-org';
 
 const MEMBER_UID = 'member-uid';
-const MEMBER_EMAIL = 'paul.ivers@orono.k12.mn.us';
+const MEMBER_EMAIL = 'teacher@orono.k12.mn.us';
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -102,6 +102,7 @@ describe('announcements list-query tenant isolation', () => {
     await assertFails(getDoc(doc(db, 'announcements/other-org-active')));
   });
 
+  // Intentional: this asserts the OLD unscoped query SUCCEEDS and returns a foreign-org doc — Firestore does not apply resource.data-dependent rule branches as a per-doc filter for list queries (see Firebase "Secure query" / rules-are-not-filters docs). If the rules are ever tightened to block this at the rules layer, this test will fail by design, signalling the fix's rationale changed — not a regression.
   it('LEAK (documents the Firestore quirk the fix works around): an unscoped isActive query returns a foreign-org doc the rule denies directly', async () => {
     const db = asMember();
     const q = query(
