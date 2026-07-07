@@ -161,7 +161,7 @@ describe('DE locale — "PLC" terminology replaced with "PLG" in plcDashboard', 
       'plcDashboard',
       all
     );
-    const offenders = all.filter(([, value]) => /\bPLCs?\b/.test(value));
+    const offenders = all.filter(([, value]) => /\bPLCs?\b/i.test(value));
     expect(
       offenders,
       `Found ${offenders.length} DE plcDashboard value(s) using the untranslated acronym "PLC" ` +
