@@ -197,6 +197,20 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 - **Detail:** The widget has two internal overlay dialogs rendered inside the container-query context: (1) the "Start Live Session" / "Share Link" dialog shown when the user launches a live session (lines 120–260), and (2) the "Save to Library" overlay shown when pasting HTML into the widget (lines 848–880). Both use hardcoded Tailwind classes `text-base`, `text-sm`, `text-xs` on labels, body text, code blocks, and buttons. Widget has `skipScaling: true`. At small widget sizes these overlays will show unscaled text and potentially overflow the widget bounds. The prior 2026-04-14 completion entry "MiniAppWidget uses hardcoded Tailwind text sizes — Resolved outside journal workflow" was inaccurate; these overlay states were not assessed.
 - **Fix:** For both overlay dialogs, replace `text-base` → `style={{ fontSize: 'min(16px, 6cqmin)' }}`, `text-sm` → `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`, `text-xs` → `style={{ fontSize: 'min(11px, 4cqmin)' }}`. Also convert any `w-4 h-4` icon sizes and `gap-2`, `p-3`/`p-5` spacing to `cqmin` equivalents.
 
+### LOW SmartNotebook drawing toolbar uses hardcoded Tailwind sizes in front-face editing UI
+
+- **Detected:** 2026-07-07
+- **File:** components/widgets/SmartNotebook/components/PageEditorOverlay.tsx :983, :1061
+- **Detail:** Line 983: `<span className="text-base leading-none" aria-hidden>+</span>` — the color-picker `+` label in the drawing toolbar uses `text-base` (16px hardcoded). Line 1061: `<span className="font-mono text-xs text-slate-300 w-12 text-right tabular-nums">` — the brush-size value display uses `text-xs` (12px hardcoded) plus `w-12` (48px fixed width). SmartNotebook has `skipScaling: true`, so this drawing toolbar content is inside the CSS container-query context and both elements are front-face content, not a settings back-face. Late-arriving finding from 2026-07-07 comprehensive scan.
+- **Fix:** Line 983: convert `text-base` to `style={{ fontSize: 'min(16px, 6cqmin)' }}`. Line 1061: convert `text-xs` to `style={{ fontSize: 'min(12px, 4.5cqmin)' }}` and `w-12` to `style={{ width: 'min(48px, 10cqmin)' }}`.
+
+### LOW RandomClassContextButton portaled dropdown uses hardcoded sizes — requires vmin/em not cqmin
+
+- **Detected:** 2026-07-07
+- **File:** components/widgets/random/RandomClassContextButton.tsx :289–:367
+- **Detail:** The context dropdown menu rendered via `createPortal` to `document.body` contains 9 violations: `w-4 h-4` and `w-3.5 h-3.5` on icon elements (lines 289, 290, 295, 303, 329, 334, 359, 360), and `text-sm` / `text-[10px]` on text elements (line 367). This dropdown is portaled outside the widget's CSS container-query context, so `cqmin` units **will not resolve** against the widget size. The fix requires viewport-relative or em-based units, not `cqmin`. The RandomWidget has `skipScaling: true`. Late-arriving finding from 2026-07-07 comprehensive scan.
+- **Fix:** Use `vmin` units (or em cascading from a viewport-based root) mirroring the LunchCount portaled modal pattern (which uses `vmin` per the comment at line 1045–1048). Example: `w-4 h-4` → `style={{ width: 'min(16px, 1.6vmin)', height: 'min(16px, 1.6vmin)' }}`, `text-sm` → `style={{ fontSize: 'min(14px, 1.4vmin)' }}`, `text-[10px]` → `style={{ fontSize: 'min(10px, 1vmin)' }}`.
+
 ---
 
 ## Completed
