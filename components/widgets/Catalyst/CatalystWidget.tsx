@@ -21,14 +21,15 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
 
   const activeSet = sets.find((s) => s.id === activeSetId);
 
-  const handleExecute = async (routineId: string) => {
+  const handleExecute = (routineId: string) => {
     if (!activeSet) return;
     const routine = activeSet.routines.find((r) => r.id === routineId);
     if (!routine) return;
 
     executeRoutine(routine, addWidget);
 
-    await playCleanUpUnlocked();
+    // Fire-and-forget — playCleanUpUnlocked awaits ctx.resume() internally, so don't block the confetti on it.
+    void playCleanUpUnlocked();
     void confetti({
       particleCount: 100,
       spread: 70,

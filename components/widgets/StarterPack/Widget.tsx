@@ -18,12 +18,12 @@ export const StarterPackWidget = ({ isStudentView }: WidgetComponentProps) => {
   // Combine packs for display
   const allPacks = [...publicPacks, ...userPacks];
 
-  const handleExecute = async (pack: StarterPack) => {
+  const handleExecute = (pack: StarterPack) => {
     // Call the execution logic with cleanSlate=true
     executePack(pack, true, addWidget, deleteAllWidgets);
 
-    // Audio and visual cues
-    await playCleanUpUnlocked();
+    // Fire-and-forget — playCleanUpUnlocked awaits ctx.resume() internally, so don't block the confetti on it.
+    void playCleanUpUnlocked();
     void confetti({
       particleCount: 100,
       spread: 70,
