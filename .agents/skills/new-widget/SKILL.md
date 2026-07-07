@@ -313,6 +313,17 @@ only if the widget genuinely has no appearance/style settings):
 intentionally omit it are `drawing` (canvas coordinates) and `seating-chart`
 (absolute-positioned nodes). All new widgets use container queries.
 
+> **`WIDGET_SCALING_CONFIG` is exhaustive — omitting an entry is a compile error,
+> not a silent runtime fallback.** Unlike `WIDGET_COMPONENTS`,
+> `WIDGET_SETTINGS_COMPONENTS`, and `WIDGET_APPEARANCE_COMPONENTS` (all typed
+> `Partial<Record<WidgetType, …>>`, so a missing entry only surfaces at runtime),
+> `WIDGET_SCALING_CONFIG` is a full `Record<WidgetType, ScalingConfig>`. Adding a
+> new `WidgetType` to `types.ts` without a matching entry here fails
+> `pnpm type-check` and blocks CI. `WIDGET_DEFAULTS` and `WIDGET_GRADE_LEVELS` are
+> exhaustive in the same way. The runtime `?? DEFAULT_SCALING_CONFIG` fallback in
+> `WidgetRenderer.tsx` can never fire for a shipped widget because the compiler
+> rejects the omission first.
+
 ---
 
 ## Step 5 — config/widgetDefaults.ts
@@ -459,7 +470,7 @@ import { WidgetData } from '../../types';
 
 | Mistake | Consequence | Fix |
 |---------|-------------|-----|
-| Skipping `WIDGET_SCALING_CONFIG` entry | Widget won't render — falls to `DEFAULT_SCALING_CONFIG` silently | Add entry with `skipScaling: true` |
+| Skipping `WIDGET_SCALING_CONFIG` entry | `pnpm type-check` fails and CI blocks the PR — the map is an exhaustive `Record<WidgetType, …>`, NOT a silent runtime fallback | Add entry with `skipScaling: true` |
 | Using `text-sm` in Widget.tsx | Content doesn't scale; looks broken at small sizes | Use `style={{ fontSize: 'min(14px, 5.5cqmin)' }}` |
 | Using `size={24}` on icons | Icon stays 24px regardless of widget size | Use `style={{ width/height }}` |
 | `lazyNamed` export name mismatch | Silent runtime crash, widget shows loading spinner forever | Match export name exactly |
