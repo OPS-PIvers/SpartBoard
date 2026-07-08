@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
 _Last audited: 2026-07-07_
-_Last action: 2026-05-26_
+_Last action: 2026-07-07 — HIGH WIDGET_SCALING_CONFIG consequence corrected in new-widget skill (both mirrors)_
 
 ---
 
