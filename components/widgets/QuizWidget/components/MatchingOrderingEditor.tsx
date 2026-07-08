@@ -215,6 +215,8 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
   matchingDistractors,
   onChange,
 }: MatchingAnswerEditorProps) {
+  // Unique per instance so multiple editors in one DOM don't collide on the warning id.
+  const warningId = React.useId();
   // Local row state owns ids/blank rows; the canonical wire form lives in
   // the parent's `correctAnswer`. We re-parse only when the parent value
   // changes from the outside (e.g., AI-generated questions, quiz reload).
@@ -358,9 +360,7 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
                           placeholder="Term"
                           aria-invalid={isDuplicateTerm}
                           aria-describedby={
-                            isDuplicateTerm
-                              ? 'duplicate-term-warning'
-                              : undefined
+                            isDuplicateTerm ? warningId : undefined
                           }
                           className={`px-3 py-2 bg-white border-2 rounded-xl text-emerald-800 font-bold focus:outline-none shadow-sm text-sm ${
                             isDuplicateTerm
@@ -406,7 +406,7 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
         </button>
         {duplicateTermRowIds.size > 0 && (
           <div
-            id="duplicate-term-warning"
+            id={warningId}
             role="alert"
             className="mt-2 p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg flex items-center gap-2 text-xs text-brand-red-dark font-bold"
           >
