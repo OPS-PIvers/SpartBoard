@@ -1859,3 +1859,32 @@ _Automated nightly review by claude-opus-4-6_
 - Notes:
   - Branch-safety: no push to `main` or any `dev-*` branch. #2141 (head `dev-paul` → `main`) received review comments only. All fixes went to `nightly/*` branches; this log commit is the only push to `scheduled-tasks`.
   - #2158 fixes were verified against the real Firestore emulator (`firebase emulators:exec --only firestore`), 4/4 announcements-rules tests green.
+
+## 2026-07-08
+
+- PRs reviewed: 13 (all open PRs)
+  - #2166 — fix(css-scaling): raise TalkingTool Scaffolding label cap to 10px (head `fix/talkingtool-scaffolding-cap`, base `dev-paul`)
+  - #2165 — docs(unifier): run 29 log (head `nightly/unifier-log-2026-07-08`, base `dev-paul`)
+  - #2164 — fix(D3): LunchCount SubmitReportModal notes label → SettingsLabel (head `nightly/unify-settings-labels-2026-07-08`, base `dev-paul`)
+  - #2163 — docs(nightly): debugger run 25 log (head `nightly/debugger-log-2026-07-07`, base `dev-paul`)
+  - #2162 — fix(i18n): DE plcDashboard PLC→PLG (head `nightly/admin-config-2026-07-07`, base `dev-paul`)
+  - #2161 — fix(privacy): Random/Stations PII scrub allowlist (head `nightly/state-data-2026-07-07`, base `dev-paul`)
+  - #2160 — fix(import-wizard): stale-promise guard (head `nightly/dashboard-layout-2026-07-07`, base `dev-paul`)
+  - #2159 — fix(audio): await AudioContext.resume() before chime (head `nightly/widgets-2026-07-07`, base `dev-paul`)
+  - #2158 — fix(announcements): multi-tenant no-org listener leak (head `nightly/build-tooling-2026-07-07`, base `dev-paul`)
+  - #2157 — docs(skill-freshness): WIDGET_SCALING_CONFIG consequence (head `scheduled-tasks`, base `dev-paul`)
+  - #2156 — docs(unifier): run 28 log (head `nightly/unifier-log-2026-07-07`, base `dev-paul`)
+  - #2155 — fix(D4): plc import + ESLint rule (head `nightly/unify-import-paths-2026-07-07`, base `dev-paul`)
+  - #2141 — Refactor admin modals to SettingsLabel + a11y (head `dev-paul`, base `main`) — dev-paul→main promotion (push only via the sanctioned review-comment-fix path)
+- Comments processed: 4 genuinely-unanswered threads actioned — 1 fixed, 3 explained. Every other unresolved thread across the 13 PRs already carried a reply from the prior (2026-07-07) run or was resolved-in-code, so no re-reply.
+  - Fixed (1): #2141 — `MatchingAnswerEditor` used a static `duplicate-term-warning` DOM id (+ its `aria-describedby`), which collides if two editors mount at once → replaced with `React.useId()`.
+  - Explained (3): #2141 ×2 — (a) `adminBuildingConfig.ts` `.trim()` removal is intentional, documented strictness (`isHexColor` docstring rejects `'#fff '`); legacy-data leniency is a maintainer/data call, not an auto-fix on a main-bound branch. (b) the `useSubstituteShares.ts` "#2150" comment is a valid cross-ref (the merged retry-logic PR), not a typo. #2157 ×1 — the `_Last action` header was already bumped in `09d34c9` (thread outdated).
+- Fixes pushed: 1
+  - #2141 → `dev-paul` (188cf12) — `React.useId()` for the duplicate-term warning id. Verified: type-check ✓, lint ✓, `MatchingOrderingEditor.duplicateTerm`/`.memo` tests 11/11 ✓, prettier ✓. Sanctioned path: PR #2141 merges `dev-paul`→`main` and carried review comments. Push re-triggered CI — Build ✓ and type-check ✓ at log time, remaining checks in progress.
+- Reviews posted: 1
+  - #2141 — Ready with minor notes. Consolidated merge-readiness for the only main-bound PR. Flagged (non-blocking, inline): the Dock `SortableContext.items` array is still built from full `dockItems` while hidden folders/gated tools `return null`, so dnd-kit sort indices can skew — a complete fix filters `items` by both `shouldShowFolder` and `canAccessTool`, with a reorder-after-hidden test. Also flagged the one-time `shared_boards`/`expiresAt` live-data check before merge.
+  - Refrained from re-reviewing #2155–#2166: each already carries a `gemini-code-assist` review plus prior-run structured reviews with resolved/answered threads; a second automated review this cycle would duplicate rather than add signal (harness frugality guidance).
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` branch except the sanctioned `dev-paul` review-comment-fix path (#2141). This log commit is the only push to `scheduled-tasks`.
+  - This run followed the 2026-07-07 run, which had already replied to / resolved the bulk of the open threads — so today's actionable surface was small (4 unanswered threads, 1 real fix).
+  - Env runs Node 22 (repo pins 24); local type-check/lint/tests green. CI on Node 24 remains the authoritative gate.
