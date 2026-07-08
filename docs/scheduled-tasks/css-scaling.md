@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-07-07_
-_Last action: 2026-06-27 — LOW ActivityWall empty-state heading `fontSize` added (`min(14px, 5.5cqmin)` + scaled `marginTop`); was unscaled 16px on a `skipScaling` widget_
+_Last action: 2026-07-08 — LOW TalkingTool `Scaffolding` label pixel cap raised `min(9px, 2.2cqmin)` → `min(10px, 2.2cqmin)`; 9px was below the 10px tertiary-text floor_
 
 ---
 
@@ -136,13 +136,6 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### LOW TalkingTool font-size pixel cap (`9px`) is below the recommended 10px minimum
-
-- **Detected:** 2026-06-25
-- **File:** components/widgets/TalkingTool/Widget.tsx:56–59 (approx.)
-- **Detail:** A font-size style uses `min(9px, 2.2cqmin)`. The CLAUDE.md scaling guidelines specify 10px as the minimum pixel cap for readable text (3.5cqmin tier). At 9px the text will be illegible on most displays even at large widget sizes, and falls below WCAG AA legibility requirements for body text on projected screens. Widget has `skipScaling: true`.
-- **Fix:** Raise the pixel cap to at least 10px: `style={{ fontSize: 'min(10px, 2.2cqmin)' }}`. If this is tertiary/metadata text (footnotes, labels), 10px is the floor; for any content teachers need to read at a glance, raise to `min(11px, 4cqmin)`.
-
 ### LOW ClockWidget hero text uses bare `cqmin` with no upper pixel cap
 
 - **Detected:** 2026-06-25
@@ -214,6 +207,15 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW TalkingTool font-size pixel cap (`9px`) is below the recommended 10px minimum
+
+- **Detected:** 2026-06-25
+- **Completed:** 2026-07-08
+- **File:** components/widgets/TalkingTool/Widget.tsx:58
+- **Detail:** The "Scaffolding" sidebar section-header label used `fontSize: 'min(9px, 2.2cqmin)'`. The CLAUDE.md scaling guidelines set 10px as the minimum pixel cap for tertiary/metadata text; a 9px cap left the label below that floor at large widget sizes. Widget has `skipScaling: true`.
+- **Selection rationale:** Highest-priority _safe_ Open item across today's reading list (Wednesday: dailies widget-registry/css-scaling/typescript-eslint + weeklies code-structure/ui-unification). No HIGH is actionable (code-structure DashboardContext HIGH is BLOCKED — supervised runtime required). All MEDIUMs are blocked/premise-incorrect for an unattended pass: code-structure's two MEDIUM large-file extractions are BLOCKED; ui-unification's primitives.tsx (Card/OrgToast/Btn), Segmented-control migration, and remaining font-options normalization all require admin/settings runtime verification; the nextUp/VA/GL appearance MEDIUM has a documented incorrect premise (configs don't declare the standard appearance fields); and MusicWidget's `SurfaceColorSettings` swap would re-wire the front-face widget from `bgColor`/`textColor` to `cardColor`/`cardOpacity` (behavior change needing runtime). That leaves LOW items, where daily-before-weekly makes css-scaling first, and this is the first actionable css-scaling LOW in document order.
+- **Resolution:** Raised the pixel cap `min(9px, 2.2cqmin)` → `min(10px, 2.2cqmin)` (kept the `2.2cqmin` factor so small-size scaling is unchanged; only the large-size clamp floor rose from 9px to the 10px tertiary-text minimum). File-recency check passed: `TalkingTool/Widget.tsx` last touched at 1b27ab81 (PR #1808) — far outside the last 5 branch commits. `pnpm type-check` (exit 0), `eslint --max-warnings 0` on the changed file (exit 0), `prettier --check` (clean).
 
 ### LOW SpecialistScheduleWidget uses `border-[min()]` Tailwind arbitrary value — inline style is the project convention for `cqmin` values
 
