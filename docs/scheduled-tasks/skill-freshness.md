@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
 _Last audited: 2026-07-09_
-_Last action: 2026-07-07 — HIGH WIDGET_SCALING_CONFIG consequence corrected in new-widget skill (both mirrors)_
+_Last action: 2026-07-09 — MEDIUM SpecialistSchedule Appearance.tsx/co-located-Settings pattern documented + stale `.agents/` reference row corrected in new-widget skill (both mirrors)_
 
 ---
 
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-09 action: Resolved the MEDIUM `spart-new-widget` SpecialistSchedule `Appearance.tsx` item (see Completed). SpecialistSchedule co-locates both `SpecialistScheduleSettings` and `SpecialistScheduleAppearanceSettings` as named exports in `Settings.tsx` (no separate `Appearance.tsx`); added a reference note documenting this to both skill mirrors and corrected the stale `.agents/` "Building-defaults consumption" row (`SpecialistSchedule/Widget.tsx` → `SpecialistScheduleWidget.tsx`). Documentation-only; PR opened against dev-paul. Remaining open: 5 LOW._
 
 _2026-07-09: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — consistent with all prior runs). Codebase-side verifications performed: (1) `SpecialistSchedule/` contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts`, `utils.ts` — still no `Appearance.tsx`; MEDIUM item about Appearance.tsx documentation still valid. (2) `FeaturePermissionsManager.tsx` exclusion array (lines 972–987) still contains the same 13 hardcoded types as 2026-07-07 — LOW item about exclusion array example still valid. (3) `FeatureConfigurationPanel.tsx` `BUILDING_CONFIG_PANELS` still present (line 92) — LOW secondary-exclusion-gate item still valid. (4) `lazyNamed()` convention confirmed correct across WidgetRegistry.ts (no changes to registry in new commits). New commits since 2026-07-07 (fix(audio) #2159, fix(announcements) #2158, fix(import-wizard) #2160, fix(privacy) #2161, fix(i18n) #2162, D3 LunchCount SubmitReportModal→SettingsLabel #2164, fix(css-scaling) #2166): none of these touch FeaturePermissionsManager, FeatureConfigurationPanel, SpecialistSchedule, WidgetRegistry, or any skill-checklist file. D3 LunchCount change (SubmitReportModal→SettingsLabel) is consistent with shared components patterns documented in the skill — no discrepancy. All 6 open items (1 MEDIUM + 5 LOW) remain valid._
 
@@ -43,13 +45,6 @@ _2026-05-12: Skill files not accessible at `/mnt/skills/user/` in this audit env
 _2026-05-05: Skill files not accessible at `/mnt/skills/user/` in this audit environment. Codebase-side verifications performed: `SpecialistSchedule/SpecialistScheduleWidget.tsx` still exists (Widget.tsx does not); `FeaturePermissionsManager.tsx` exclusion list still omits the 7 types noted in the LOW item below; `FeatureConfigurationPanel.tsx` secondary exclusion gate still undocumented in skill. `blending-board` was added to `BUILDING_CONFIG_PANELS` in `FeatureConfigurationPanel.tsx` this week — the exclusion-list LOW item is now more stale. All four open items remain valid._
 
 _2026-06-23 action: Fixed MEDIUM `admin-widget-config` reference to non-existent `SpecialistScheduleSettings.tsx`. Both skill copies (`.claude/skills/admin-widget-config/SKILL.md:222` and `.agents/skills/admin-widget-config/SKILL.md:185`) updated to reference the correct path `components/widgets/SpecialistSchedule/Settings.tsx`. Verified the target file exists and reads `featurePermissions` (Settings.tsx:48). File-recency check passed: skill files last touched at 19b6ae40 — outside the last 5 branch commits. Documentation-only change; PR opened against dev-paul. Item moved to Completed. 2 LOW open items remain._
-
-### MEDIUM `spart-new-widget` documents SpecialistSchedule as having a separate `Appearance.tsx` — actual pattern co-locates appearance in `Settings.tsx`
-
-- **Detected:** 2026-07-07
-- **File:** `.claude/skills/new-widget/SKILL.md` — "Reference implementations" / gold standard reference
-- **Detail:** `components/widgets/SpecialistSchedule/` contains: `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts`, `utils.ts`. There is NO separate `Appearance.tsx`. The appearance panel (`SpecialistScheduleAppearanceSettings`) is a named export from `Settings.tsx`, co-located with `SpecialistScheduleSettings`. If the skill documents a three-file template (`Widget.tsx` + `Settings.tsx` + `Appearance.tsx`) for the reference implementation, developers following it will create a separate `Appearance.tsx` that doesn't match the actual reference. The WidgetRegistry `lazyNamed` import for the appearance panel correctly targets the barrel `index.ts` which re-exports from `Settings.tsx` — this pattern works but is only clear from reading the source, not the skill.
-- **Fix:** Update the skill's reference implementation notes to document that SpecialistSchedule co-locates both `SpecialistScheduleSettings` and `SpecialistScheduleAppearanceSettings` as named exports in `Settings.tsx` (not a separate file). Also note this as a valid pattern alternative to a dedicated `Appearance.tsx`. The barrel `index.ts` re-exports both, so the WidgetRegistry `lazyNamed(() => import('./SpecialistSchedule'), 'SpecialistScheduleAppearanceSettings')` call resolves correctly.
 
 ### LOW `spart-new-widget` admin config step understates the number of code changes required
 
@@ -93,6 +88,14 @@ _2026-06-23 action: Fixed MEDIUM `admin-widget-config` reference to non-existent
 ---
 
 ## Completed
+
+### MEDIUM `spart-new-widget` documents SpecialistSchedule as having a separate `Appearance.tsx` — actual pattern co-locates appearance in `Settings.tsx`
+
+- **Detected:** 2026-07-07
+- **Completed:** 2026-07-09
+- **File:** `.claude/skills/new-widget/SKILL.md` + `.agents/skills/new-widget/SKILL.md` — "Reference Implementations" section
+- **Detail:** `components/widgets/SpecialistSchedule/` contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts`, `utils.ts`. There is NO separate `Appearance.tsx`. Both `SpecialistScheduleSettings` (Settings.tsx:44) and `SpecialistScheduleAppearanceSettings` (Settings.tsx:675) are named exports co-located in `Settings.tsx`; `index.ts` re-exports both via `export * from './SpecialistScheduleWidget'; export * from './Settings';`, so the WidgetRegistry `lazyNamed(() => import('./SpecialistSchedule'), 'SpecialistScheduleAppearanceSettings')` (WidgetRegistry.ts:482–484) resolves correctly.
+- **Resolution (2026-07-09):** Added a "SpecialistSchedule file layout (reference note)" callout after the Reference Implementations table in both skill mirrors documenting the co-located appearance-panel pattern and that co-location in `Settings.tsx` is a valid alternative to a dedicated `Appearance.tsx`. Also corrected the stale `.agents/` "Building-defaults consumption" row (was `SpecialistSchedule/Widget.tsx`, now `SpecialistScheduleWidget.tsx` with the "exception — do not imitate" note, matching the `.claude/` mirror). File-recency check passed: both skill files last touched at `12f0ab0f` (16th commit back — outside the last 5). Documentation-only change; PR opened against dev-paul.
 
 ### HIGH `spart-new-widget` misstates the consequence of skipping `WIDGET_SCALING_CONFIG`
 

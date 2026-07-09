@@ -560,3 +560,17 @@ gold standard for each pattern:
 | Settings + Appearance split         | `components/widgets/ClockWidget/Settings.tsx`                                                                                             |
 | Good empty state usage              | `components/widgets/QRWidget/Widget.tsx`                                                                                                  |
 | Transparent-root front-face pattern | `components/widgets/ExpectationsWidget/Widget.tsx`                                                                                        |
+
+> **SpecialistSchedule file layout (reference note):** SpecialistSchedule is
+> the canonical building-defaults example, but it does **not** follow the
+> standard two-file layout and has **no** separate `Appearance.tsx`. Its files
+> are `SpecialistScheduleWidget.tsx` (front face — non-standard filename, don't
+> imitate), `Settings.tsx`, `index.ts`, and `utils.ts`. Both the settings panel
+> (`SpecialistScheduleSettings`) and the appearance panel
+> (`SpecialistScheduleAppearanceSettings`) are named exports **co-located in
+> `Settings.tsx`** — co-locating the appearance panel in `Settings.tsx` is a
+> valid alternative to a dedicated `Appearance.tsx`. The barrel `index.ts`
+> (`export * from './SpecialistScheduleWidget'; export * from './Settings';`)
+> re-exports both, so the WidgetRegistry `lazyNamed(() =>
+import('./SpecialistSchedule'), 'SpecialistScheduleAppearanceSettings')` call
+> resolves correctly.
