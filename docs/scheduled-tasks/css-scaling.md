@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-06_
-_Last action: 2026-06-27 — LOW ActivityWall empty-state heading `fontSize` added (`min(14px, 5.5cqmin)` + scaled `marginTop`); was unscaled 16px on a `skipScaling` widget_
+_Last audited: 2026-07-07_
+_Last action: 2026-07-08 — LOW TalkingTool `Scaffolding` label pixel cap raised `min(9px, 2.2cqmin)` → `min(10px, 2.2cqmin)`; 9px was below the 10px tertiary-text floor_
 
 ---
 
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-07: Full scan of all 61 widget front-face files (58 skipScaling:true + 3 skipScaling:false exempt). No new dev-paul commits since 2026-07-06 (HEAD 558dd3ef — a11y group labels/comment, no widget front-face content changes). Comprehensive agent scan across all widget directories. FOUR findings reported by agent scan — all previously tracked or WON'T FIX: (1) RevealGrid/Widget.tsx :162/:168 text-xs in header — existing open item, confirmed still present; (2) MiniApp/Widget.tsx MiniAppAssignModal :127-:266 and Save App overlay :1291-:1319 text-xs/text-sm/text-base/w-4 h-4/w-5 h-5 — existing open item, confirmed still present with updated line ranges matching 2026-07-05 confirmation; (3) GuidedLearning/Widget.tsx :618 w-8 h-8 Loader2 — existing group open item, confirmed still present; (4) ActivityWall/Widget.tsx :2165 text-base in submission viewer Modal (max-h-[75vh]) — WON'T FIX per prior evaluations in 2026-05-13, 2026-06-28, 2026-07-03, 2026-07-05: the `<Modal>` is viewport-bounded (max-h-[75vh] context), outside the widget's container query surface; viewport-height sizing is correct here and text-base is appropriate for a fullscreen submission viewer. Agent also correctly excluded: portaled Embed toolbar (document.body — CQ doesn't apply), Catalyst Settings back-face uses, SoundboardWidget/Webcam decorative w-2 h-2 indicator dots, LunchCount vmin in portaled modal, InstructionalRoutines em cascading from cqw root, MusicWidget intentional cqh-only, DrawingWidget/SeatingChart skipScaling:false. Zero new anti-patterns._
 
 _2026-07-06: Full scan. No new dev-paul commits since 2026-07-05 (dev-paul HEAD 4620bab3, dated 2026-07-04). Scheduled-tasks-only commits: NumberLine/Settings.tsx (back-face settings panel — CQ scaling rules do not apply), utils/widgetConfigPersistence.ts, and tests — no widget front-face content changes. Verified key open items directly: RevealGrid text-xs at :162/:168 still present; GuidedLearning Loader2 w-8 h-8 still at :618. All other pre-existing open items (TalkingTool 9px cap, ClockWidget bare cqmin, QuizResults text-sm :1509, RevealGrid spacing, multi-widget group, InstructionalRoutines p-8/gap-4, Stations ml-1, EmbedWidget portaled toolbar, MiniApp dialog overlays) assumed valid per 2026-07-05 confirmation. Zero new anti-patterns._
 
@@ -134,13 +136,6 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### LOW TalkingTool font-size pixel cap (`9px`) is below the recommended 10px minimum
-
-- **Detected:** 2026-06-25
-- **File:** components/widgets/TalkingTool/Widget.tsx:56–59 (approx.)
-- **Detail:** A font-size style uses `min(9px, 2.2cqmin)`. The CLAUDE.md scaling guidelines specify 10px as the minimum pixel cap for readable text (3.5cqmin tier). At 9px the text will be illegible on most displays even at large widget sizes, and falls below WCAG AA legibility requirements for body text on projected screens. Widget has `skipScaling: true`.
-- **Fix:** Raise the pixel cap to at least 10px: `style={{ fontSize: 'min(10px, 2.2cqmin)' }}`. If this is tertiary/metadata text (footnotes, labels), 10px is the floor; for any content teachers need to read at a glance, raise to `min(11px, 4cqmin)`.
-
 ### LOW ClockWidget hero text uses bare `cqmin` with no upper pixel cap
 
 - **Detected:** 2026-06-25
@@ -195,9 +190,32 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 - **Detail:** The widget has two internal overlay dialogs rendered inside the container-query context: (1) the "Start Live Session" / "Share Link" dialog shown when the user launches a live session (lines 120–260), and (2) the "Save to Library" overlay shown when pasting HTML into the widget (lines 848–880). Both use hardcoded Tailwind classes `text-base`, `text-sm`, `text-xs` on labels, body text, code blocks, and buttons. Widget has `skipScaling: true`. At small widget sizes these overlays will show unscaled text and potentially overflow the widget bounds. The prior 2026-04-14 completion entry "MiniAppWidget uses hardcoded Tailwind text sizes — Resolved outside journal workflow" was inaccurate; these overlay states were not assessed.
 - **Fix:** For both overlay dialogs, replace `text-base` → `style={{ fontSize: 'min(16px, 6cqmin)' }}`, `text-sm` → `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`, `text-xs` → `style={{ fontSize: 'min(11px, 4cqmin)' }}`. Also convert any `w-4 h-4` icon sizes and `gap-2`, `p-3`/`p-5` spacing to `cqmin` equivalents.
 
+### LOW SmartNotebook drawing toolbar uses hardcoded Tailwind sizes in front-face editing UI
+
+- **Detected:** 2026-07-07
+- **File:** components/widgets/SmartNotebook/components/PageEditorOverlay.tsx :983, :1061
+- **Detail:** Line 983: `<span className="text-base leading-none" aria-hidden>+</span>` — the color-picker `+` label in the drawing toolbar uses `text-base` (16px hardcoded). Line 1061: `<span className="font-mono text-xs text-slate-300 w-12 text-right tabular-nums">` — the brush-size value display uses `text-xs` (12px hardcoded) plus `w-12` (48px fixed width). SmartNotebook has `skipScaling: true`, so this drawing toolbar content is inside the CSS container-query context and both elements are front-face content, not a settings back-face. Late-arriving finding from 2026-07-07 comprehensive scan.
+- **Fix:** Line 983: convert `text-base` to `style={{ fontSize: 'min(16px, 6cqmin)' }}`. Line 1061: convert `text-xs` to `style={{ fontSize: 'min(12px, 4.5cqmin)' }}` and `w-12` to `style={{ width: 'min(48px, 10cqmin)' }}`.
+
+### LOW RandomClassContextButton portaled dropdown uses hardcoded sizes — requires vmin/em not cqmin
+
+- **Detected:** 2026-07-07
+- **File:** components/widgets/random/RandomClassContextButton.tsx :289–:367
+- **Detail:** The context dropdown menu rendered via `createPortal` to `document.body` contains 9 violations: `w-4 h-4` and `w-3.5 h-3.5` on icon elements (lines 289, 290, 295, 303, 329, 334, 359, 360), and `text-sm` / `text-[10px]` on text elements (line 367). This dropdown is portaled outside the widget's CSS container-query context, so `cqmin` units **will not resolve** against the widget size. The fix requires viewport-relative or em-based units, not `cqmin`. The RandomWidget has `skipScaling: true`. Late-arriving finding from 2026-07-07 comprehensive scan.
+- **Fix:** Use `vmin` units (or em cascading from a viewport-based root) mirroring the LunchCount portaled modal pattern (which uses `vmin` per the comment at line 1045–1048). Example: `w-4 h-4` → `style={{ width: 'min(16px, 1.6vmin)', height: 'min(16px, 1.6vmin)' }}`, `text-sm` → `style={{ fontSize: 'min(14px, 1.4vmin)' }}`, `text-[10px]` → `style={{ fontSize: 'min(10px, 1vmin)' }}`.
+
 ---
 
 ## Completed
+
+### LOW TalkingTool font-size pixel cap (`9px`) is below the recommended 10px minimum
+
+- **Detected:** 2026-06-25
+- **Completed:** 2026-07-08
+- **File:** components/widgets/TalkingTool/Widget.tsx:58
+- **Detail:** The "Scaffolding" sidebar section-header label used `fontSize: 'min(9px, 2.2cqmin)'`. The CLAUDE.md scaling guidelines set 10px as the minimum pixel cap for tertiary/metadata text; a 9px cap left the label below that floor at large widget sizes. Widget has `skipScaling: true`.
+- **Selection rationale:** Highest-priority _safe_ Open item across today's reading list (Wednesday: dailies widget-registry/css-scaling/typescript-eslint + weeklies code-structure/ui-unification). No HIGH is actionable (code-structure DashboardContext HIGH is BLOCKED — supervised runtime required). All MEDIUMs are blocked/premise-incorrect for an unattended pass: code-structure's two MEDIUM large-file extractions are BLOCKED; ui-unification's primitives.tsx (Card/OrgToast/Btn), Segmented-control migration, and remaining font-options normalization all require admin/settings runtime verification; the nextUp/VA/GL appearance MEDIUM has a documented incorrect premise (configs don't declare the standard appearance fields); and MusicWidget's `SurfaceColorSettings` swap would re-wire the front-face widget from `bgColor`/`textColor` to `cardColor`/`cardOpacity` (behavior change needing runtime). That leaves LOW items, where daily-before-weekly makes css-scaling first, and this is the first actionable css-scaling LOW in document order.
+- **Resolution:** Raised the pixel cap `min(9px, 2.2cqmin)` → `min(10px, 2.2cqmin)` (kept the `2.2cqmin` factor so small-size scaling is unchanged; only the large-size clamp floor rose from 9px to the 10px tertiary-text minimum). File-recency check passed: `TalkingTool/Widget.tsx` last touched at 1b27ab81 (PR #1808) — far outside the last 5 branch commits. `pnpm type-check` (exit 0), `eslint --max-warnings 0` on the changed file (exit 0), `prettier --check` (clean).
 
 ### LOW SpecialistScheduleWidget uses `border-[min()]` Tailwind arbitrary value — inline style is the project convention for `cqmin` values
 
