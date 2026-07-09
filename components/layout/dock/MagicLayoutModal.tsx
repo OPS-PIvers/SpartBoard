@@ -102,8 +102,14 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
         )}
 
         <div className="mb-6">
-          <SettingsLabel>Try these</SettingsLabel>
-          <div className="flex flex-wrap gap-2">
+          <SettingsLabel as="span" id="magic-layout-suggestions-label">
+            Try these
+          </SettingsLabel>
+          <div
+            role="group"
+            aria-labelledby="magic-layout-suggestions-label"
+            className="flex flex-wrap gap-2"
+          >
             {[
               'Small group rotations with a timer',
               'Morning meeting with weather and calendar',
