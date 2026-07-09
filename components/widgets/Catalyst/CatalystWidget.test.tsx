@@ -20,8 +20,7 @@ vi.mock('@/hooks/useCatalystSets', () => ({
 }));
 
 vi.mock('@/components/widgets/StarterPack/audioUtils', () => ({
-  playCleanUp: vi.fn(),
-  getAudioCtx: vi.fn(() => null),
+  playCleanUpUnlocked: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock('canvas-confetti', () => ({ default: vi.fn() }));
