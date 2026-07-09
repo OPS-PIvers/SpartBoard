@@ -202,11 +202,16 @@ export const FeaturePermissionsManager: React.FC = () => {
     widgetType: WidgetType | InternalToolType,
     updates: Partial<FeaturePermission>
   ) => {
-    const current = getPermission(widgetType);
-    const updated = { ...current, ...updates };
-    setPermissions(new Map(permissions).set(widgetType, updated));
-    // Mark as having unsaved changes
-    setUnsavedChanges(new Set(unsavedChanges).add(widgetType));
+    setPermissions((prev) => {
+      const current = prev.get(widgetType) ?? {
+        widgetType,
+        accessLevel: 'public' as const,
+        betaUsers: [],
+        enabled: true,
+      };
+      return new Map(prev).set(widgetType, { ...current, ...updates });
+    });
+    setUnsavedChanges((prev) => new Set(prev).add(widgetType));
   };
 
   const savePermission = async (

@@ -1013,6 +1013,74 @@
       "todosNote": "Betrachter können die Aufgabenliste lesen, aber keine Einträge hinzufügen oder ändern.",
       "meetingNote": "Betrachter können dem Meeting folgen, es aber nicht bearbeiten oder speichern.",
       "homeNote": "Betrachter können hier alles lesen, aber keine neuen Inhalte erstellen."
+    },
+    "resources": {
+      "managerTitle": "PLC-Ressourcen",
+      "managerSubtitle": "Kuratierte Ressourcen (Dokumente, Quizze, Tafeln) an bestimmte oder alle PLCs senden.",
+      "addResource": "Ressource hinzufügen",
+      "editFormLabel": "Ressource bearbeiten",
+      "createFormLabel": "Ressource erstellen",
+      "editTitle": "Ressource bearbeiten",
+      "newTitle": "Neue Ressource",
+      "cancelForm": "Abbrechen",
+      "kindLabel": "Art",
+      "kindBadge": {
+        "quiz": "Quiz",
+        "video-activity": "Videoaktivität",
+        "assignment": "Aufgabe",
+        "doc": "Dokument / Link",
+        "board": "Geteilte Tafel"
+      },
+      "titleLabel": "Titel",
+      "titlePlaceholder": "z. B. Planungsdokument Einheit 3",
+      "refUrlLabel": "Google Docs-URL",
+      "refIdLabel": "Quell-ID (synchronisierte Gruppe / geteilte Tafel)",
+      "descriptionLabel": "Notizen für PLC-Mitglieder (optional)",
+      "descriptionPlaceholder": "Kontext oder Anweisungen…",
+      "saving": "Wird gespeichert…",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "errorTitleRequired": "Titel ist erforderlich.",
+      "errorRefRequired": "Quell-URL oder -ID ist erforderlich.",
+      "errorPlcRequired": "Wähle mindestens eine PLC aus, wenn du „Ausgewählte PLCs“ verwendest.",
+      "confirmDelete": "Diese Ressource löschen? PLCs sehen sie danach nicht mehr.",
+      "deleteFailed": "Die Ressource konnte nicht gelöscht werden. Bitte versuche es erneut.",
+      "loading": "Ressourcen werden geladen…",
+      "loadError": "Ressourcen konnten nicht geladen werden.",
+      "empty": "Noch keine Ressourcen. Füge oben eine hinzu.",
+      "listAriaLabel": "Gesendete Ressourcen",
+      "targetAllBadge": "Alle PLCs",
+      "targetSelectedBadge_one": "{{count}} PLC",
+      "targetSelectedBadge_other": "{{count}} PLCs",
+      "editAction": "{{title}} bearbeiten",
+      "deleteAction": "{{title}} löschen",
+      "targetLabel": "Senden an",
+      "scopeAll": "Alle PLCs",
+      "scopeSelected": "Ausgewählte PLCs",
+      "loadingPlcs": "PLCs werden geladen…",
+      "loadPlcsError": "PLCs konnten nicht geladen werden. Bitte versuche es erneut.",
+      "noPlcs": "Keine PLCs verfügbar.",
+      "selectPlcGroup": "PLCs auswählen",
+      "useSuccess": "„{{title}}“ wurde zu dieser PLC hinzugefügt.",
+      "useFailed": "Diese Ressource konnte nicht hinzugefügt werden.",
+      "emptyTitle": "Noch keine Ressourcen",
+      "emptySubtitle": "Dein Admin wird hier kuratierte Quizze, Dokumente und Tafeln bereitstellen.",
+      "inboxTitle": "Ressourcen",
+      "inboxSubtitle": "Von deinem Admin kuratiert. Klicke auf „Verwenden“, um sie zu deiner PLC hinzuzufügen.",
+      "kind": {
+        "quiz": "Quizze",
+        "video-activity": "Videoaktivitäten",
+        "assignment": "Aufgaben",
+        "doc": "Dokumente",
+        "board": "Tafeln"
+      },
+      "used": "Hinzugefügt",
+      "usedStatus": "Zu deiner PLC hinzugefügt",
+      "openAction": "{{title}} in dieser PLC öffnen",
+      "useAction": "{{title}} in dieser PLC verwenden",
+      "using": "Wird hinzugefügt…",
+      "open": "Öffnen",
+      "use": "Verwenden"
     }
   },
   "widgetWindow": {
@@ -1206,7 +1274,7 @@
       "title": "Tastenkürzel & Gesten",
       "keyboard": "Tastatur",
       "touchscreenGestures": "Touchscreen-Gesten",
-      "boardGestures": "Board-Hintergrund",
+      "boardGestures": "Tafel-Hintergrund",
       "widgetGestures": "Widget-Fenster",
       "footer": "Drücken Sie jederzeit <kbd>Strg/⌘</kbd> + <kbd>/</kbd>, um dieses Panel zu öffnen",
       "shortcuts": {
@@ -1256,7 +1324,7 @@
     },
     "stickers": {
       "collectionTitle": "Sticker-Sammlung",
-      "clearAll": "Alle Sticker vom Board löschen",
+      "clearAll": "Alle Sticker von der Tafel löschen",
       "wait": "Warten...",
       "dropOrPaste": "Bild ablegen oder einfügen",
       "toAddCustom": "um benutzerdefinierte Sticker hinzuzufügen",
@@ -1265,8 +1333,8 @@
       "myCollection": "Meine Sammlung",
       "dragOrClick": "Ziehen oder klicken zum Hinzufügen",
       "deleteSticker": "Sticker löschen",
-      "dragFromLibrary": "Sticker aus der Bibliothek auf das Board ziehen",
-      "stickerAdded": "Sticker zum Board hinzugefügt!",
+      "dragFromLibrary": "Sticker aus der Bibliothek auf die Tafel ziehen",
+      "stickerAdded": "Sticker zur Tafel hinzugefügt!",
       "filterAll": "Alle",
       "filterFavorites": "Favoriten",
       "filterMine": "Meine",
@@ -1337,7 +1405,7 @@
       "colorPalette": "Farbpalette",
       "glow": "Leuchten",
       "fonts": {
-        "inherit": "Vom Board",
+        "inherit": "Von der Tafel",
         "digital": "Digital",
         "modern": "Modern",
         "school": "Schule"
@@ -1479,7 +1547,7 @@
   },
   "shareCollection": {
     "title": "Sammlung teilen",
-    "subtitle": "{{count}} Board(s) aus dieser Sammlung werden geteilt.",
+    "subtitle": "{{count}} Tafel(n) aus dieser Sammlung werden geteilt.",
     "mode": "Freigabemodus",
     "copyMode": "Kopieren",
     "copyModeHint": "Der Empfänger importiert eine vollständige Kopie in sein Konto.",
@@ -1521,7 +1589,7 @@
     "heading": "Sammlungen",
     "boardCount": "{{count}} Tafel(n)",
     "boardPlaceholder": "Tafel …{{id}}",
-    "openBoard": "Dieses Board öffnen"
+    "openBoard": "Diese Tafel öffnen"
   },
   "collectionMenu": {
     "share": "Sammlung teilen…",
@@ -1580,7 +1648,7 @@
     "emptyResults": "Keine passenden Widgets."
   },
   "style": {
-    "readOnlyNotice": "Dieses Board ist schreibgeschützt. Stiländerungen werden nicht gespeichert."
+    "readOnlyNotice": "Diese Tafel ist schreibgeschützt. Stiländerungen werden nicht gespeichert."
   },
   "whatsNew": {
     "title": "Was ist neu",
@@ -1610,7 +1678,7 @@
       "dropImages": "Bilder hier ablegen oder zum Durchsuchen klicken",
       "supportedFiles": "PNG, JPG, GIF, WebP, SVG · Mehrere Dateien unterstützt",
       "collectionTitle": "Sticker-Sammlung",
-      "clearAll": "Alle Sticker vom Board löschen",
+      "clearAll": "Alle Sticker von der Tafel löschen",
       "wait": "Warten...",
       "dropOrPaste": "Bild ablegen oder einfügen",
       "toAddCustom": "um benutzerdefinierte Sticker hinzuzufügen",
@@ -1619,8 +1687,8 @@
       "myCollection": "Meine Sammlung",
       "dragOrClick": "Ziehen oder klicken zum Hinzufügen",
       "deleteSticker": "Sticker löschen",
-      "dragFromLibrary": "Sticker aus der Bibliothek auf das Board ziehen",
-      "stickerAdded": "Sticker zum Board hinzugefügt!"
+      "dragFromLibrary": "Sticker aus der Bibliothek auf die Tafel ziehen",
+      "stickerAdded": "Sticker zur Tafel hinzugefügt!"
     },
     "plc": {
       "recovery": {
@@ -1651,7 +1719,7 @@
     "loading": "PLG wird geladen…",
     "notFoundTitle": "PLG nicht gefunden",
     "notFoundBody": "Diese PLG existiert nicht oder Sie sind kein Mitglied mehr.",
-    "backToBoard": "Zurück zu meinem Board",
+    "backToBoard": "Zurück zu meiner Tafel",
     "hubTitle": "Meine PLGs",
     "hubSubtitle": "Öffnen Sie eine professionelle Lerngemeinschaft, um mit Ihrem Team zusammenzuarbeiten.",
     "hubEmptyTitle": "Noch keine PLGs",

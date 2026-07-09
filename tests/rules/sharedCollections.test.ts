@@ -74,6 +74,15 @@ const asExternalTeacher = () =>
 const asAdmin = () =>
   testEnv.authenticatedContext(ADMIN_UID, { email: ADMIN_EMAIL }).firestore();
 
+// A token email with an embedded @ before the orono domain — regression
+// fixture for the `[^@]+@orono...` regex hardening (mirrors sharedBoards.test.ts).
+const asSpoofedEmail = () =>
+  testEnv
+    .authenticatedContext('spoofed-uid-sc', {
+      email: 'x@evil.com@orono.k12.mn.us',
+    })
+    .firestore();
+
 // ---------------------------------------------------------------------------
 // Payload factories
 // ---------------------------------------------------------------------------
@@ -196,6 +205,13 @@ describe('shared_collections — read, substitute share', () => {
 
   it('Orono email is allowed on substitute share', async () => {
     await assertSucceeds(getDoc(doc(asOronoTeacher(), sharePath)));
+  });
+
+  it('a spoofed email with an embedded @ before the orono domain is denied', async () => {
+    // Regression (#2150 round 7): `.*@orono...` let `.*` absorb an embedded
+    // `@`, so a token email like `x@evil.com@orono.k12.mn.us` matched the
+    // old regex. `[^@]+` requires the local part to be @-free.
+    await assertFails(getDoc(doc(asSpoofedEmail(), sharePath)));
   });
 
   it('host can always read their own substitute share', async () => {
@@ -530,6 +546,16 @@ describe('shared_collections/boards — read', () => {
       await setDoc(doc(ctx.firestore(), boardPath), boardSnapshotDoc());
     });
     await assertSucceeds(getDoc(doc(asOronoTeacher(), boardPath)));
+  });
+
+  it('a spoofed email with an embedded @ before the orono domain is denied on the board subcollection', async () => {
+    // Regression (#2150 round 7): the same `[^@]+` hardening applies to this
+    // subcollection's inline email branch (firestore.rules line ~1046).
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), subShareDoc());
+      await setDoc(doc(ctx.firestore(), boardPath), boardSnapshotDoc());
+    });
+    await assertFails(getDoc(doc(asSpoofedEmail(), boardPath)));
   });
 
   it('unauthenticated read of board doc fails', async () => {

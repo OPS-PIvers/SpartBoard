@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { GripVertical, Plus, Trash2 } from 'lucide-react';
+import { AlertCircle, GripVertical, Plus, Trash2 } from 'lucide-react';
 import {
   DndContext,
   PointerSensor,
@@ -27,6 +27,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useResetOnChange } from '@/hooks/useResetOnChange';
+import { normalizeAnswer } from '@/hooks/useQuizSession';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -89,6 +90,28 @@ function serializePairs(rows: PairRow[]): string {
     .filter((r) => r.term.trim() || r.definition.trim())
     .map((r) => `${r.term}:${r.definition}`)
     .join('|');
+}
+
+// Guards against gradeAnswer's Map keying on term text (equivalent normalization for the term portion): a duplicate term silently overwrites the first row, so flag it here at entry time.
+function findDuplicateTermRowIds(rows: PairRow[]): Set<string> {
+  const seen = new Map<string, string[]>();
+  for (const row of rows) {
+    // Derive the key exactly as gradeAnswer does: normalize the whole `term:definition` pair, then slice at the first ':' WITHOUT re-trimming, so a trailing space in the term doesn't false-positive against the grader.
+    const normalizedPair = normalizeAnswer(`${row.term}:${row.definition}`);
+    const colonIdx = normalizedPair.indexOf(':');
+    const key =
+      colonIdx === -1 ? normalizedPair : normalizedPair.slice(0, colonIdx);
+    // Blank term + a definition still serializes (`:def`) and collides on the grader's '' key; skip only fully-empty rows.
+    if (!key && !row.definition.trim()) continue;
+    const ids = seen.get(key);
+    if (ids) ids.push(row.id);
+    else seen.set(key, [row.id]);
+  }
+  const duplicateIds = new Set<string>();
+  for (const ids of seen.values()) {
+    if (ids.length > 1) ids.forEach((id) => duplicateIds.add(id));
+  }
+  return duplicateIds;
 }
 
 function parseOrderItems(correctAnswer: string): OrderRow[] {
@@ -192,6 +215,8 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
   matchingDistractors,
   onChange,
 }: MatchingAnswerEditorProps) {
+  // Unique per instance so multiple editors in one DOM don't collide on the warning id.
+  const warningId = React.useId();
   // Local row state owns ids/blank rows; the canonical wire form lives in
   // the parent's `correctAnswer`. We re-parse only when the parent value
   // changes from the outside (e.g., AI-generated questions, quiz reload).
@@ -220,6 +245,11 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
+  );
+
+  const duplicateTermRowIds = React.useMemo(
+    () => findDuplicateTermRowIds(rows),
+    [rows]
   );
 
   const emit = (nextRows: PairRow[], nextDistractors: string[]) => {
@@ -304,54 +334,65 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
             strategy={verticalListSortingStrategy}
           >
             <div className="space-y-1.5">
-              {rows.map((row) => (
-                <SortableRow key={row.id} id={row.id}>
-                  {({ listeners, attributes }) => (
-                    <div className="grid grid-cols-[24px_1fr_1fr_32px] gap-2 items-center">
-                      <button
-                        type="button"
-                        className="flex items-center justify-center text-brand-blue-primary/30 hover:text-brand-blue-primary cursor-grab active:cursor-grabbing touch-none"
-                        aria-label="Drag to reorder"
-                        {...listeners}
-                        {...attributes}
-                      >
-                        <GripVertical className="w-4 h-4" />
-                      </button>
-                      <input
-                        type="text"
-                        value={row.term}
-                        onChange={(e) =>
-                          updateRow(row.id, {
-                            term: sanitizeTerm(e.target.value),
-                          })
-                        }
-                        placeholder="Term"
-                        className="px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 shadow-sm text-sm"
-                      />
-                      <input
-                        type="text"
-                        value={row.definition}
-                        onChange={(e) =>
-                          updateRow(row.id, {
-                            definition: sanitizeDefinition(e.target.value),
-                          })
-                        }
-                        placeholder="Match"
-                        className="px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 shadow-sm text-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeRow(row.id)}
-                        disabled={rows.length <= 2}
-                        className="flex items-center justify-center p-1.5 text-brand-red-primary hover:bg-brand-red-lighter rounded-lg transition-colors disabled:opacity-20 disabled:hover:bg-transparent"
-                        aria-label="Remove pair"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
-                </SortableRow>
-              ))}
+              {rows.map((row) => {
+                const isDuplicateTerm = duplicateTermRowIds.has(row.id);
+                return (
+                  <SortableRow key={row.id} id={row.id}>
+                    {({ listeners, attributes }) => (
+                      <div className="grid grid-cols-[24px_1fr_1fr_32px] gap-2 items-center">
+                        <button
+                          type="button"
+                          className="flex items-center justify-center text-brand-blue-primary/30 hover:text-brand-blue-primary cursor-grab active:cursor-grabbing touch-none"
+                          aria-label="Drag to reorder"
+                          {...listeners}
+                          {...attributes}
+                        >
+                          <GripVertical className="w-4 h-4" />
+                        </button>
+                        <input
+                          type="text"
+                          value={row.term}
+                          onChange={(e) =>
+                            updateRow(row.id, {
+                              term: sanitizeTerm(e.target.value),
+                            })
+                          }
+                          placeholder="Term"
+                          aria-invalid={isDuplicateTerm}
+                          aria-describedby={
+                            isDuplicateTerm ? warningId : undefined
+                          }
+                          className={`px-3 py-2 bg-white border-2 rounded-xl text-emerald-800 font-bold focus:outline-none shadow-sm text-sm ${
+                            isDuplicateTerm
+                              ? 'border-brand-red-primary focus:border-brand-red-primary'
+                              : 'border-emerald-500/20 focus:border-emerald-500'
+                          }`}
+                        />
+                        <input
+                          type="text"
+                          value={row.definition}
+                          onChange={(e) =>
+                            updateRow(row.id, {
+                              definition: sanitizeDefinition(e.target.value),
+                            })
+                          }
+                          placeholder="Match"
+                          className="px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 shadow-sm text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeRow(row.id)}
+                          disabled={rows.length <= 2}
+                          className="flex items-center justify-center p-1.5 text-brand-red-primary hover:bg-brand-red-lighter rounded-lg transition-colors disabled:opacity-20 disabled:hover:bg-transparent"
+                          aria-label="Remove pair"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </SortableRow>
+                );
+              })}
             </div>
           </SortableContext>
         </DndContext>
@@ -363,6 +404,17 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
           <Plus className="w-3.5 h-3.5" />
           Add Pair
         </button>
+        {duplicateTermRowIds.size > 0 && (
+          <div
+            id={warningId}
+            role="alert"
+            className="mt-2 p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg flex items-center gap-2 text-xs text-brand-red-dark font-bold"
+          >
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            Duplicate terms found. Give each row a unique term — students
+            can&apos;t tell repeated terms apart, and only one will be scored.
+          </div>
+        )}
       </div>
 
       <details className="bg-white/50 border border-brand-blue-primary/10 rounded-xl px-3 py-2">

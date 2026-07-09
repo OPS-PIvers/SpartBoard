@@ -6,6 +6,9 @@ interface SettingsLabelProps {
   icon?: LucideIcon | React.ElementType;
   className?: string;
   htmlFor?: string;
+  // 'span' renders a heading for a group of sibling controls (checkbox/chip groups) — a bare <label> would be orphaned; pair with role="group" + aria-labelledby={id}.
+  as?: 'label' | 'span';
+  id?: string;
 }
 
 export const SettingsLabel: React.FC<SettingsLabelProps> = ({
@@ -13,6 +16,8 @@ export const SettingsLabel: React.FC<SettingsLabelProps> = ({
   icon: Icon,
   className = '',
   htmlFor,
+  as = 'label',
+  id,
 }) => {
   const baseClasses =
     'text-xxs font-black text-slate-400 uppercase tracking-widest block mb-2';
@@ -28,14 +33,16 @@ export const SettingsLabel: React.FC<SettingsLabelProps> = ({
     </>
   );
 
-  // Always render as a <label>: HTML allows label without `for=`, and the
-  // element still provides implicit nesting-based association with any
-  // contained input — a semantic that a <div> drops, silently
-  // downgrading accessibility for screen-reader users. React strips
-  // `htmlFor={undefined}` from the rendered DOM automatically, so the
-  // bare prop pass works for both with-`for` and without-`for` callers.
+  // Default to <label>: it keeps the implicit nesting/`for=` association a real form-control label needs; use as="span" for group headings where a <label> would be orphaned.
+  if (as === 'span') {
+    return (
+      <span id={id} className={combinedClasses}>
+        {content}
+      </span>
+    );
+  }
   return (
-    <label htmlFor={htmlFor} className={combinedClasses}>
+    <label htmlFor={htmlFor} id={id} className={combinedClasses}>
       {content}
     </label>
   );

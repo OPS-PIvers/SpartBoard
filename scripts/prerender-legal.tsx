@@ -19,9 +19,9 @@ import fs from 'fs';
 import path from 'path';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { PrivacyPolicyPage } from '../components/legal/PrivacyPolicyPage';
-import { TermsOfServicePage } from '../components/legal/TermsOfServicePage';
-import { SupportPage } from '../components/legal/SupportPage';
+import { PrivacyPolicyPage } from '@/components/legal/PrivacyPolicyPage';
+import { TermsOfServicePage } from '@/components/legal/TermsOfServicePage';
+import { SupportPage } from '@/components/legal/SupportPage';
 
 const PAGES: Array<{
   route: string;

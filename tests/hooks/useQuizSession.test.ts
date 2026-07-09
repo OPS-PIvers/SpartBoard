@@ -333,6 +333,23 @@ describe('gradeAnswer', () => {
       expect(grade.pointsEarned).toBe(3);
     });
 
+    it('Ordering: isCorrect stays consistent with pointsEarned when the given answer has an extra item not in correctAnswer', () => {
+      // Regression: an edited question leaves a stale answer with an extra item; pointsEarned reaches max via LIS but isCorrect must not stay false.
+      const q: QuizQuestion = {
+        id: 'po-extra',
+        timeLimit: 0,
+        text: 'Order',
+        type: 'Ordering',
+        correctAnswer: 'A|B|C',
+        incorrectAnswers: [],
+        points: 3,
+        allowPartialCredit: true,
+      };
+      const grade = gradeAnswer(q, 'A|B|C|D');
+      expect(grade.pointsEarned).toBe(3);
+      expect(grade.isCorrect).toBe(true);
+    });
+
     it('Matching: empty student answer earns zero points and is not flagged correct', () => {
       const q: QuizQuestion = {
         id: 'pm-empty',

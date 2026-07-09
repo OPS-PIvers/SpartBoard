@@ -851,13 +851,21 @@ service cloud.firestore {
     match /shared_boards/{shareId} {
       // Substitute shares carry org-internal routing/Drive-grant metadata, so
       // reads are restricted to host, admins, and @orono.k12.mn.us callers (the
-      // gate the /subs UI enforces). Other modes stay readable by any authed user
-      // (discovered by share URL, not query).
+      // gate the /subs UI enforces) AND not past expiresAt for the email branch
+      // (a hostile direct-REST client could otherwise read a frozen board
+      // snapshot plus Drive-grant metadata indefinitely after expiry — the
+      // expireSubShares sweep can leave an expired doc with driveGrants in
+      // place for up to a 7-day grace window). Host and admin can still read
+      // past expiry for cleanup. Other modes stay readable by any authed user
+      // (discovered by share URL, not query). Mirrors /shared_collections.
       allow read: if request.auth != null && (
         resource.data.get('intendedMode', null) != 'substitute'
         || resource.data.get('originalAuthor', null) == request.auth.uid
         || isAdmin()
-        || request.auth.token.get('email', '').lower().matches('.*@orono[.]k12[.]mn[.]us$')
+        || (
+          request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
+          && resource.data.get('expiresAt', 0) > request.time.toMillis()
+        )
       );
 
       // Host writes their own share; a `plcId` tag requires current membership of
@@ -980,7 +988,7 @@ service cloud.firestore {
         || resource.data.get('hostUid', null) == request.auth.uid
         || isAdmin()
         || (
-          request.auth.token.get('email', '').lower().matches('.*@orono[.]k12[.]mn[.]us$')
+          request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
           && resource.data.get('expiresAt', 0) > request.time.toMillis()
         )
       );
@@ -1035,7 +1043,7 @@ service cloud.firestore {
           || get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('hostUid', null) == request.auth.uid
           || isAdmin()
           || (
-            request.auth.token.get('email', '').lower().matches('.*@orono[.]k12[.]mn[.]us$')
+            request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
             && get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('expiresAt', 0) > request.time.toMillis()
           )
         );

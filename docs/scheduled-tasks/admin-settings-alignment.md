@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-06-28_
+_Last audited: 2026-07-05_
 _Last action: 2026-06-28 — MEDIUM TimeTool admin building config coverage expanded from 3 to 11 fields_
 
 ---
@@ -15,6 +15,10 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-05 action notes (Sunday): Selected the MEDIUM `NumberLine markers/jumps` item — highest-severity Open across today's reading list. HIGH/MEDIUM tiebreak: the three dailies (widget-registry/css-scaling/typescript-eslint) had only LOW-or-none open items and the other Sunday weekly (legacy-cleanup) had only LOW, so the three MEDIUMs in this weekly journal outrank everything (severity beats daily-before-weekly). Of the three same-severity MEDIUMs, NumberLine markers/jumps is first in document order. File-recency check passed: types.ts (last b10ae486), utils/adminBuildingConfig.ts (7d705c48), components/admin/NumberLineConfigurationPanel.tsx (5e6c7120), and components/widgets/NumberLine/Settings.tsx (b0f2425a) are all outside the last 5 branch commits (85853d1f, b8976dac, 4620bab3, f0734113, 6d101178). Implemented: (1) types.ts — extended `BuildingNumberLineDefaults` with optional `markers?: NumberLineMarker[]` / `jumps?: NumberLineJump[]` (reusing the existing marker/jump interfaces; optional at building level unlike the required arrays in NumberLineConfig). (2) utils/adminBuildingConfig.ts — added module-scope `sanitizeNumberLineMarkers` / `sanitizeNumberLineJumps` validators (require non-empty `id`, finite numeric value(s), hex color for markers; drop malformed + duplicate-id entries; copy optional string `label`) and wired them into `case 'numberLine'` (only seeds the array when ≥1 entry survives, so an empty array never overrides the widget's own empty default). (3) NumberLineConfigurationPanel.tsx — added "Default Markers" and "Default Jumps" sections (add-forms + editable/removable lists, ids via `crypto.randomUUID()`, marker colors from `WIDGET_PALETTE`), mirroring the user-level Settings panel. Note: the audit's suggested marker/jump shapes (`{value, label?}` / `{step, color?}`) were imprecise — used the actual `NumberLineMarker`/`NumberLineJump` types instead. 5 new unit tests added to adminBuildingConfig.test.ts (47 pass). `pnpm type-check`/eslint --max-warnings 0/prettier --check all clean. Moved the item to Completed. PR opened to dev-paul._
+
+_2026-07-05 audit notes (Sunday): Full cross-check of new dev-paul commits since 2026-06-28 and deep review of 8 widget Settings.tsx files (TimeTool, NumberLine, RevealGrid, ConceptWeb, Checklist, GraphicOrganizer, plus spot-checks on Stations/NeedDoPutThen/SyntaxFramer). New commits since 2026-06-28: fix(analytics) label additions, pr-review batch #2107, fix(widgets) local-time date helpers, fix(layout) isLocked gaps, fix(functions) mirrorPlcIndex fallback, fix(state) gradeAnswer Matching, plus upstream CSS-scaling fix and widget review fixes — none touch adminBuildingConfig.ts or any ConfigurationPanel. FIVE NEW items detected: ⚠️ CORRECTION: a HIGH item was initially logged claiming GraphicOrganizer had no admin authoring pathway for custom templates — this was wrong. `GraphicOrganizerConfigurationModal.tsx` exists in `components/admin/` and is fully wired in `FeaturePermissionsManager.tsx`; admins can create/edit/delete custom templates per building, written to `feature_permissions/graphic-organizer` config and read at runtime by `Settings.tsx`. The HIGH item was retracted. The existing LOW open item has been updated to reflect the actual remaining gap (appearance defaults still not in `getAdminBuildingConfig`). (1) MEDIUM: NumberLine markers and jumps fields (Settings.tsx:240-403) not covered by existing case 'numberLine' or NumberLineConfigurationPanel. (2) MEDIUM: RevealGrid isMemoryMode (Settings.tsx:311-351) not in existing admin building config case. (3) MEDIUM: ConceptWeb fontColor dead user control — Settings.tsx renders fontColor picker (lines 115-119) but Widget.tsx hardcodes text-slate-800 and never reads config.fontColor. (4) LOW: TimeTool adjustStepSeconds (types.ts:2453, Settings.tsx:186-217) not in BuildingTimeToolDefaults (timerEndVoiceLevel remains intentionally excluded per Completed section). (5) LOW: Checklist textSizePreset written by Settings.tsx but absent from BuildingChecklistDefaults and case 'checklist' handler._
 
 _2026-06-28 audit notes (Sunday): Full 16-widget cross-check covering SpecialistSchedule, LunchCount, Checklist, TimeTool, Countdown, Schedule, Scoreboard, Music, Weather, Poll, Expectations, NextUp, InstructionalRoutines, GraphicOrganizer, ConceptWeb, SyntaxFramer. All pre-existing open items (TimeTool coverage, LunchCount/Expectations/SpecialistSchedule/Weather/SeatingChart/Clock/Checklist/Scoreboard/Drawing/SmartNotebook/guided-learning gaps) re-confirmed valid. THREE NEW LOW items detected: (1) Music: no `case 'music':` in getAdminBuildingConfig and no MusicConfigurationPanel.tsx — admins cannot pre-configure source or layout per building; (2) InstructionalRoutines: no switch case and no panel — admins cannot pre-load routine templates or set defaults per building; (3) GraphicOrganizer: no switch case and no panel — admins cannot set default template type or appearance per building. New commits since 2026-06-21 (fix(activity-wall) empty-state scale, upstream: rules/auth hardening, CI/lint fixes) do not touch adminBuildingConfig.ts or any ConfigurationPanel._
 
@@ -36,6 +40,20 @@ _2026-05-31 audit notes: Reviewed all changes since 2026-05-24. (1) Scoreboard g
 
 _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget gained `source` (curated/personal/curated-spotify), `layout`, and `personalSpotify*` fields in MusicConfig — these are user-level preferences; personal-spotify access is gated via `canAccessFeature('personal-spotify')` (GlobalFeaturePermission + `buildings?:string[]`), not through building defaults. No building-defaults admin config needed for music. (2) QuizBehaviorSettings added new behavior fields to QuizConfig and VideoActivityConfig — quiz behavior is set per-quiz in the quiz editor, not per-building. No building defaults needed. (3) `refactor(admin)` commit (31e46ad3) removed magic/record/remote panels — already captured in Completed item. (4) SmartNotebook continues to accumulate features but its existing open item (appearance fields gap) covers the new work. No new MEDIUM or HIGH items. One new LOW item added (guided-learning stub panel)._
 
+### MEDIUM RevealGrid: `isMemoryMode` not in admin building config
+
+- **Detected:** 2026-07-05
+- **File:** types.ts (RevealGridConfig), utils/adminBuildingConfig.ts (case 'reveal-grid'), components/widgets/RevealGrid/Settings.tsx:311-351
+- **Detail:** RevealGrid/Settings.tsx exposes `isMemoryMode` (flips revealed cards face-down after viewing, creating a memory/concentration game mode) as a user-configurable field (lines 311-351). The existing `case 'reveal-grid':` handler in adminBuildingConfig.ts does not extract or seed `isMemoryMode`. A building admin cannot pre-configure whether new RevealGrid widgets default to memory mode — a meaningful pedagogical default for assessment activities.
+- **Fix:** Add `isMemoryMode?: boolean` to `BuildingRevealGridDefaults` in types.ts. Add `typeof === 'boolean'` validation to the `case 'reveal-grid':` handler. Add a "Memory Mode" toggle to the RevealGrid admin panel (or create a minimal panel if one does not exist).
+
+### MEDIUM ConceptWeb: user-level `fontColor` picker in Settings.tsx is a dead control
+
+- **Detected:** 2026-07-05
+- **File:** components/widgets/ConceptWeb/Settings.tsx:115-119, components/widgets/ConceptWeb/Widget.tsx
+- **Detail:** ConceptWeb/Settings.tsx renders `<TypographySettings ... />` without passing `showColorPicker={false}`, causing the shared component to render a font-color picker that writes `config.fontColor`. However, ConceptWeb/Widget.tsx hardcodes node text as `text-slate-800` and never reads `config.fontColor` — the control writes a value with no visual effect. This was noted in the 2026-06-04 Completed entry (admin-side fontColor intentionally not wired), but the user-facing Settings.tsx panel still shows the picker. Violates the Widget Appearance Standard: "Ensure front-face widgets actually consume settings values (no dead controls)."
+- **Fix:** Pass `showColorPicker={false}` to `<TypographySettings />` in `ConceptWeb/Settings.tsx` to hide the dead picker. Alternatively, wire consumption in `ConceptWeb/Widget.tsx` by applying `config.fontColor` to node text. The first option is the minimal correct fix.
+
 ### LOW Existing `time-tool` widgets carrying legacy `fontFamily: 'sans'` / `clockStyle: 'standard'` are not remediated
 
 - **Detected:** 2026-06-28 (PR #2106 review follow-up)
@@ -49,6 +67,20 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 - **File:** utils/adminBuildingConfig.ts (`case 'clock'`)
 - **Detail:** The `clock` case accepts `raw.fontFamily`/`raw.themeColor` with a bare truthiness check, unlike the `time-tool` case added in #2106 which validates `themeColor` via `isHexColor` and `fontFamily` via `isWidgetFontFamily`. A malformed admin-stored value could round-trip through Firestore into a new clock widget. Pre-existing; surfaced by adjacency to the new `time-tool` case.
 - **Fix:** Mirror the `time-tool` case's validation in `case 'clock':` — `isHexColor(raw.themeColor)` and `isWidgetFontFamily(raw.fontFamily)` (clock's `fontFamily` uses the prefixed `FONTS`-id space via its `ClockConfigurationPanel` FONTS select). Verify `ClockConfig`'s font value space before tightening.
+
+### LOW TimeTool: `adjustStepSeconds` field not in admin building config
+
+- **Detected:** 2026-07-05
+- **File:** types.ts (TimeToolConfig / BuildingTimeToolDefaults line ~2453), utils/adminBuildingConfig.ts (case 'time-tool'), components/widgets/TimeTool/Settings.tsx:186-217
+- **Detail:** TimeTool/Settings.tsx exposes `adjustStepSeconds` (the increment for ±adjustment buttons, e.g., 15s/30s/60s) as a user-configurable field (lines 186-217). The 2026-06-28 MEDIUM fix extended `BuildingTimeToolDefaults` to cover 11 fields, but `adjustStepSeconds` was either newly added after that fix or overlooked in the original tally. It is not extracted by the `case 'time-tool':` handler. Note: `timerEndVoiceLevel` remains intentionally excluded per the Completed entry (depends on co-present Expectations widget, not a sensible building default).
+- **Fix:** Add `adjustStepSeconds?: number` to `BuildingTimeToolDefaults`. Add extraction and validation (positive integer, reasonable range e.g. 1–3600) to the `case 'time-tool':` handler. Add a step-size control to `TimeToolConfigurationPanel.tsx`.
+
+### LOW Checklist: `textSizePreset` user-configurable but not in admin building config
+
+- **Detected:** 2026-07-05
+- **File:** types.ts (ChecklistConfig / BuildingChecklistDefaults), utils/adminBuildingConfig.ts (case 'checklist'), components/admin/ChecklistConfigurationPanel.tsx
+- **Detail:** `ChecklistConfig` includes `textSizePreset` ('small' | 'medium' | 'large' | 'x-large'), written by `Checklist/Settings.tsx` (via `TextSizePresetSettings`) and consumed by `Checklist/Widget.tsx` (via `resolveTextPresetMultiplier`). `BuildingChecklistDefaults` covers fontFamily/fontColor/cardColor/cardOpacity/items/scaleMultiplier — but not `textSizePreset`. The 2026-06-04 MEDIUM fix intentionally omitted `textSizePreset` from scope. Admins cannot set a per-building default text size preset for checklist readability at classroom-projection distance.
+- **Fix:** Add `textSizePreset?: TextSizePreset` to `BuildingChecklistDefaults`. Add enum-membership validation (['small', 'medium', 'large', 'x-large']) to the `case 'checklist':` handler. Add a `TextSizePresetSettings` control to `ChecklistConfigurationPanel.tsx`.
 
 ### LOW Music widget: no admin building config or ConfigurationPanel
 
@@ -64,12 +96,13 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 - **Detail:** `InstructionalRoutines/Settings.tsx` exposes `scaleMultiplier`, `structure`, and `audience` as configurable fields. There is no `case 'instructionalRoutines':` in `getAdminBuildingConfig()` and no dedicated ConfigurationPanel. Admins cannot pre-set the default routine structure type (e.g., morning meeting) or audience (elementary/secondary) per building. An existing global instructional routines library is managed via Firestore (`/instructional_routines/` collection), but per-building widget-instance defaults cannot be pre-configured.
 - **Fix:** Add a `BuildingInstructionalRoutinesDefaults` interface to types.ts covering at minimum `scaleMultiplier` (validated 0.5–2.5) and `audience` ('elementary' | 'secondary'). Add a `case 'instructionalRoutines':` handler to `getAdminBuildingConfig()`. Create `InstructionalRoutinesConfigurationPanel.tsx` with an audience selector and scale control, following the existing pattern.
 
-### LOW GraphicOrganizer widget: no admin building config or ConfigurationPanel
+### LOW GraphicOrganizer widget: appearance defaults not in admin building config
 
 - **Detected:** 2026-06-28
-- **File:** utils/adminBuildingConfig.ts (no case 'graphic-organizer'), components/admin/ (no GraphicOrganizerConfigurationPanel.tsx), types.ts (GraphicOrganizerConfig)
-- **Detail:** `GraphicOrganizer/Settings.tsx` exposes `templateType` (organizer layout: Frayer/T-chart/Venn/KWL/Cause-Effect) and appearance fields (`fontFamily`, `fontColor`, `cardColor`, `cardOpacity`). There is no `case 'graphic-organizer':` in `getAdminBuildingConfig()` and no ConfigurationPanel. Admins cannot pre-set the default organizer template type or appearance per building — teachers always start with whatever the widget default is regardless of building context.
-- **Fix:** Add a `BuildingGraphicOrganizerDefaults` interface to types.ts covering `templateType` and the four appearance fields. Add a `case 'graphic-organizer':` handler to `getAdminBuildingConfig()` with enum-membership validation on `templateType` and standard hex/opacity/fontFamily validation for appearance. Create `GraphicOrganizerConfigurationPanel.tsx` with a template type selector and appearance defaults section, following the ConceptWeb panel pattern.
+- **Corrected:** 2026-07-05 — `GraphicOrganizerConfigurationModal.tsx` exists in `components/admin/` and is fully wired into `FeaturePermissionsManager.tsx`. Admins CAN create/edit/delete custom templates per building; templates are written to `feature_permissions/graphic-organizer config.buildings[buildingId].templates` and read at runtime by `Settings.tsx`. The premise that "no ConfigurationPanel exists" was wrong (the file is a Modal, not a Panel). Template authoring is covered. Remaining gap: appearance defaults only.
+- **File:** utils/adminBuildingConfig.ts (no case 'graphic-organizer'), types.ts (GraphicOrganizerConfig)
+- **Detail:** `GraphicOrganizer/Settings.tsx` exposes `templateType` and appearance fields (`fontFamily`, `fontColor`, `cardColor`, `cardOpacity`). `GraphicOrganizerConfigurationModal.tsx` covers custom templates only — it does not write appearance defaults. There is still no `case 'graphic-organizer':` in `getAdminBuildingConfig()`, so new widget instances are not seeded with per-building appearance defaults or a default `templateType`.
+- **Fix:** Add a `BuildingGraphicOrganizerDefaults` interface to types.ts covering `templateType` and the four appearance fields. Add a `case 'graphic-organizer':` handler to `getAdminBuildingConfig()` with enum-membership validation on `templateType` and standard hex/opacity/fontFamily validation. Extend `GraphicOrganizerConfigurationModal.tsx` with an appearance defaults section (or extend `DockDefaultsPanel` if it already covers those fields).
 
 ### LOW LunchCount not in getAdminBuildingConfig — no per-building instance defaults possible
 
@@ -165,6 +198,15 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 ---
 
 ## Completed
+
+### MEDIUM NumberLine: `markers` and `jumps` fields not in admin building config
+
+- **Detected:** 2026-07-05
+- **Completed:** 2026-07-05
+- **File:** types.ts (`BuildingNumberLineDefaults`), utils/adminBuildingConfig.ts (`case 'numberLine'` + `sanitizeNumberLineMarkers`/`sanitizeNumberLineJumps`), components/admin/NumberLineConfigurationPanel.tsx, tests/utils/adminBuildingConfig.test.ts
+- **Detail:** `NumberLine/Settings.tsx` exposes `markers` (labelled benchmark values with a colour) and `jumps` (skip-counting arcs) as user-configurable overlays, but `BuildingNumberLineDefaults` covered only the axis + appearance fields (min/max/step/displayMode/showArrows/cardColor/cardOpacity/fontFamily/fontColor). Admins could not pre-seed curriculum-standard markers or skip-count jumps per building.
+- **Resolution:** Extended the existing Path-B panel. (1) types.ts — added optional `markers?: NumberLineMarker[]` / `jumps?: NumberLineJump[]` to `BuildingNumberLineDefaults` (an intersection with the existing `Pick<>`, keeping them optional at the building level even though they are required arrays in `NumberLineConfig`; reused the existing `NumberLineMarker`/`NumberLineJump` interfaces rather than the audit's imprecise `{value,label?}`/`{step,color?}` shapes). (2) utils/adminBuildingConfig.ts — added module-scope `sanitizeNumberLineMarkers`/`sanitizeNumberLineJumps` that require a non-empty string `id`, finite numeric `value` (markers) / `startValue`+`endValue` (jumps), and a valid hex `color` (markers), drop malformed and duplicate-`id` entries, and copy an optional string `label`; wired both into `case 'numberLine'`, seeding the array only when ≥1 entry survives so an empty overlay never overrides the widget's own empty default. (3) NumberLineConfigurationPanel.tsx — added "Default Markers" and "Default Jumps" sections (add-forms, editable colour swatches, removable rows) mirroring the user-level Settings panel; ids via `crypto.randomUUID()`, marker colours cycled from `WIDGET_PALETTE`.
+- **Verification:** 5 new unit tests in `tests/utils/adminBuildingConfig.test.ts` (well-formed pass-through with optional-label copying; malformed markers — missing id / non-finite value / invalid colour / duplicate id — dropped; malformed jumps dropped and key omitted when nothing survives) — `vitest run tests/utils/adminBuildingConfig.test.ts` → 47 passed. `pnpm type-check`, `eslint --max-warnings 0`, and `prettier --check` all clean on the four changed files.
 
 ### MEDIUM TimeTool has only 20% admin building config coverage (3 of 15 user-configurable fields)
 

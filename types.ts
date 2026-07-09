@@ -4892,7 +4892,11 @@ export type BuildingNumberLineDefaults = Pick<
   | 'cardOpacity'
   | 'fontFamily'
   | 'fontColor'
->;
+> & {
+  // Optional at building level; NumberLineConfig requires non-null arrays but buildings can leave these unset.
+  markers?: NumberLineMarker[];
+  jumps?: NumberLineJump[];
+};
 
 export interface NumberLineGlobalConfig {
   buildingDefaults?: Record<string, BuildingNumberLineDefaults>;

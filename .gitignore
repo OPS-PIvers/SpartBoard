@@ -43,6 +43,7 @@ playwright-report/
 
 # Vitest
 coverage/
+.vitest-reports/
 .env
 .env.*
 

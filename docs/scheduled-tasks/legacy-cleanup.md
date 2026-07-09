@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-06-28_
+_Last audited: 2026-07-05_
 _Last action: never_
 
 ---
@@ -40,6 +40,17 @@ _Nothing currently in progress._
 ---
 
 ## Clean (no issues found)
+
+Migration code + dead exports + console.log audit (2026-07-05, re-verified):
+
+- Old type strings 'timer', 'stopwatch': Only in `utils/migration.ts:71-80` — correct.
+- Old type string 'workSymbols': Only in `utils/migration.ts:93` — correct.
+- `migrateLocalStorageToFirestore()`: Still actively called in `context/DashboardContext.tsx`. Still needed.
+- New dev-paul commits since 2026-06-28: fix(analytics), pr-review batch, fix(widgets) local-time date helpers, fix(layout) isLocked gaps, fix(functions), fix(state) — all docs/UI/logic; no new utility files introduced; no new dead exports, commented-out code, or console.log calls.
+- NEW: `scripts/checkTestCounts.mjs` (added by fix(test): add CI guard for silently-omitted Vitest test suites (#2139)) — classified as ONGOING CI HELPER, not a legacy issue. Has accompanying `scripts/checkTestCounts.test.ts` and `scripts/test-count-baseline.json`. Wired as `pnpm test:counts` in package.json. Not yet in `.github/workflows/` CI pipelines. Status: new tooling in adoption phase, no action needed.
+- `useScaledFont.ts`: Still dead. Existing LOW open item still valid.
+- `videoActivityDriveService.ts`: Still no production imports. Existing LOW open item still valid.
+- `scripts/tools/`: Still present with 9 Python/Playwright scripts. Existing LOW open item still valid.
 
 Migration code + dead exports + console.log audit (2026-06-28, re-verified):
 

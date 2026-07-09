@@ -215,6 +215,11 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useCatalystSets } from '@/hooks/useCatalystSets';
 import { useImageUpload } from '@/hooks/useImageUpload';
 import { useNotebookSharing } from '@/hooks/useNotebookSharing';
+import type { DockFolder } from '@/types';
+
+type MockDockItem =
+  | { type: 'tool'; toolType: string }
+  | { type: 'folder'; folder: DockFolder };
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -222,11 +227,11 @@ import { useNotebookSharing } from '@/hooks/useNotebookSharing';
 function setupMocks({
   canAccessWidget = vi.fn().mockReturnValue(true),
   canAccessFeature = vi.fn().mockReturnValue(true),
-  dockItems = [] as { type: 'tool'; toolType: string }[],
+  dockItems = [] as MockDockItem[],
 }: {
   canAccessWidget?: ReturnType<typeof vi.fn>;
   canAccessFeature?: ReturnType<typeof vi.fn>;
-  dockItems?: { type: 'tool'; toolType: string }[];
+  dockItems?: MockDockItem[];
 } = {}) {
   vi.mocked(useDashboard).mockReturnValue({
     addWidget: vi.fn(),
@@ -414,6 +419,55 @@ describe('Dock – InternalToolType permission gate', () => {
     expandDock();
 
     expect(screen.queryByTestId('dock-item-clock')).not.toBeInTheDocument();
+  });
+
+  it('renders a folder when at least one of its items is accessible', () => {
+    const canAccessWidget = vi.fn().mockImplementation((type: string) => {
+      if (type === 'time-tool') return false;
+      return true;
+    });
+    const canAccessFeature = vi.fn().mockReturnValue(true);
+    const folder: DockFolder = {
+      id: 'folder-1',
+      name: 'My Folder',
+      items: ['clock', 'time-tool'],
+    };
+
+    setupMocks({
+      canAccessWidget,
+      canAccessFeature,
+      dockItems: [{ type: 'folder', folder }],
+    });
+
+    render(<Dock />);
+    expandDock();
+
+    expect(screen.getByTestId('folder-item')).toBeInTheDocument();
+  });
+
+  it('hides a folder entirely when every one of its items is inaccessible', () => {
+    // Mirrors the top-level `if (!tool || !canAccessTool(tool.type)) return
+    // null;` guard: a folder whose contents are all permission-gated must
+    // be just as invisible as a single gated widget, not merely empty when
+    // opened.
+    const canAccessWidget = vi.fn().mockReturnValue(false);
+    const canAccessFeature = vi.fn().mockReturnValue(false);
+    const folder: DockFolder = {
+      id: 'folder-1',
+      name: 'My Folder',
+      items: ['clock', 'time-tool'],
+    };
+
+    setupMocks({
+      canAccessWidget,
+      canAccessFeature,
+      dockItems: [{ type: 'folder', folder }],
+    });
+
+    render(<Dock />);
+    expandDock();
+
+    expect(screen.queryByTestId('folder-item')).not.toBeInTheDocument();
   });
 });
 

@@ -81,6 +81,7 @@ import { useNotebookSharing } from '@/hooks/useNotebookSharing';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useCatalystSets } from '@/hooks/useCatalystSets';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
+import { shouldShowFolder } from './dock/folderPermissions';
 
 export const Dock: React.FC = () => {
   const { t } = useTranslation();
@@ -1282,6 +1283,14 @@ export const Dock: React.FC = () => {
                           />
                         );
                       } else {
+                        if (
+                          !shouldShowFolder(
+                            isEditMode,
+                            item.folder.items,
+                            canAccessTool
+                          )
+                        )
+                          return null;
                         return (
                           <FolderItem
                             key={item.folder.id}
@@ -1314,6 +1323,7 @@ export const Dock: React.FC = () => {
                             onReorder={reorderFolderItems}
                             globalStyle={globalStyle}
                             dockPosition={dockPosition}
+                            canAccessTool={canAccessTool}
                           />
                         );
                       }

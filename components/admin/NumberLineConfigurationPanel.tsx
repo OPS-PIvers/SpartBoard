@@ -1,13 +1,18 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
+import { Plus, X, ArrowRightCircle } from 'lucide-react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import {
   NumberLineGlobalConfig,
   BuildingNumberLineDefaults,
   NumberLineMode,
+  NumberLineMarker,
+  NumberLineJump,
   GlobalFontFamily,
 } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
+import { GLOBAL_FONT_FAMILY_OPTIONS } from '@/config/fonts';
+import { WIDGET_PALETTE } from '@/config/colors';
 
 /**
  * Hex color text input with debounced commit. Keeps user keystrokes in
@@ -65,17 +70,7 @@ const FONT_FAMILY_OPTIONS: {
   label: string;
 }[] = [
   { value: 'global', label: 'Inherit (Dashboard default)' },
-  { value: 'sans', label: 'Sans Serif' },
-  { value: 'serif', label: 'Serif' },
-  { value: 'mono', label: 'Monospace' },
-  { value: 'handwritten', label: 'Handwritten' },
-  { value: 'rounded', label: 'Rounded' },
-  { value: 'comic', label: 'Comic' },
-  { value: 'slab', label: 'Slab Serif' },
-  { value: 'retro', label: 'Retro' },
-  { value: 'fun', label: 'Fun' },
-  { value: 'marker', label: 'Marker' },
-  { value: 'cursive', label: 'Cursive' },
+  ...GLOBAL_FONT_FAMILY_OPTIONS,
 ];
 
 // Accept the three CSS-valid hex forms an HTML color picker / Tailwind
@@ -86,6 +81,30 @@ const FONT_FAMILY_OPTIONS: {
 const isValidHex = (color?: string): boolean =>
   typeof color === 'string' &&
   /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color);
+
+// Buffers local draft; commits on blur to avoid a Firestore write per pointer-move during drag.
+const MarkerColorSwatch: React.FC<{
+  color: string;
+  onCommit: (color: string) => void;
+  ariaLabel: string;
+}> = ({ color, onCommit, ariaLabel }) => {
+  const [draft, setDraft] = useState(color);
+  const [prevColor, setPrevColor] = useState(color);
+  if (prevColor !== color) {
+    setPrevColor(color);
+    setDraft(color);
+  }
+  return (
+    <input
+      type="color"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={(e) => onCommit(e.target.value)}
+      className="w-6 h-6 border-0 p-0 cursor-pointer"
+      aria-label={ariaLabel}
+    />
+  );
+};
 
 interface NumberLineConfigurationPanelProps {
   config: NumberLineGlobalConfig;
@@ -110,6 +129,34 @@ export const NumberLineConfigurationPanel: React.FC<
     showArrows: true,
   };
 
+  const markers = currentBuildingConfig.markers ?? [];
+  const jumps = currentBuildingConfig.jumps ?? [];
+
+  const [newMarkerValue, setNewMarkerValue] = useState(0);
+  const [newMarkerLabel, setNewMarkerLabel] = useState('');
+  const [addMarkerCount, setAddMarkerCount] = useState(markers.length);
+  const [newJumpStart, setNewJumpStart] = useState(0);
+  const [newJumpEnd, setNewJumpEnd] = useState(5);
+  const [newJumpLabel, setNewJumpLabel] = useState('+5');
+
+  const markerValueId = useId();
+  const markerLabelId = useId();
+  const jumpStartId = useId();
+  const jumpEndId = useId();
+  const jumpLabelId = useId();
+
+  // Clear add-form fields on building switch (adjust-state-while-rendering).
+  const [prevBuildingId, setPrevBuildingId] = useState(selectedBuildingId);
+  if (prevBuildingId !== selectedBuildingId) {
+    setPrevBuildingId(selectedBuildingId);
+    setNewMarkerValue(0);
+    setNewMarkerLabel('');
+    setAddMarkerCount(markers.length);
+    setNewJumpStart(0);
+    setNewJumpEnd(5);
+    setNewJumpLabel('+5');
+  }
+
   const handleUpdateBuilding = (
     updates: Partial<BuildingNumberLineDefaults>
   ) => {
@@ -120,6 +167,41 @@ export const NumberLineConfigurationPanel: React.FC<
         [selectedBuildingId]: { ...currentBuildingConfig, ...updates },
       },
     });
+  };
+
+  const handleAddMarker = () => {
+    if (!Number.isFinite(newMarkerValue)) return;
+    const marker: NumberLineMarker = {
+      id: crypto.randomUUID(),
+      value: newMarkerValue,
+      color: WIDGET_PALETTE[addMarkerCount % WIDGET_PALETTE.length],
+    };
+    const trimmedLabel = newMarkerLabel.trim();
+    if (trimmedLabel) marker.label = trimmedLabel;
+    handleUpdateBuilding({ markers: [...markers, marker] });
+    setNewMarkerValue(0);
+    setNewMarkerLabel('');
+    setAddMarkerCount((c) => c + 1);
+  };
+
+  const handleAddJump = () => {
+    if (
+      !Number.isFinite(newJumpStart) ||
+      !Number.isFinite(newJumpEnd) ||
+      newJumpStart === newJumpEnd
+    )
+      return;
+    const jump: NumberLineJump = {
+      id: crypto.randomUUID(),
+      startValue: newJumpStart,
+      endValue: newJumpEnd,
+    };
+    const trimmedLabel = newJumpLabel.trim();
+    if (trimmedLabel) jump.label = trimmedLabel;
+    handleUpdateBuilding({ jumps: [...jumps, jump] });
+    setNewJumpStart(0);
+    setNewJumpEnd(5);
+    setNewJumpLabel('+5');
   };
 
   return (
@@ -223,6 +305,218 @@ export const NumberLineConfigurationPanel: React.FC<
               handleUpdateBuilding({ showArrows: checked })
             }
           />
+        </div>
+
+        <div className="border-t border-slate-200 pt-4 space-y-4">
+          <div>
+            <h4 className="text-sm font-semibold text-slate-700">
+              Default Markers
+            </h4>
+            <p className="text-xs text-slate-500">
+              Benchmark values labelled on new number lines (e.g. curriculum
+              targets). Teachers can still edit or remove them.
+            </p>
+          </div>
+
+          <div className="flex gap-2 items-end bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <div className="flex-1">
+              <label
+                htmlFor={markerValueId}
+                className="block text-xs font-medium text-slate-500 mb-1"
+              >
+                Value
+              </label>
+              <input
+                id={markerValueId}
+                type="number"
+                value={newMarkerValue}
+                onChange={(e) => setNewMarkerValue(e.target.valueAsNumber)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div className="flex-1">
+              <label
+                htmlFor={markerLabelId}
+                className="block text-xs font-medium text-slate-500 mb-1"
+              >
+                Label
+              </label>
+              <input
+                id={markerLabelId}
+                type="text"
+                value={newMarkerLabel}
+                onChange={(e) => setNewMarkerLabel(e.target.value)}
+                placeholder="e.g. Start"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleAddMarker}
+              disabled={!Number.isFinite(newMarkerValue)}
+              aria-label="Add default marker"
+              title="Add default marker"
+              className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {markers.length === 0 && (
+              <div className="text-center text-slate-400 text-xs py-1 italic">
+                No default markers.
+              </div>
+            )}
+            {markers.map((marker) => (
+              <div
+                key={marker.id}
+                className="flex items-center gap-3 bg-white border border-slate-200 p-2 rounded-lg"
+              >
+                <MarkerColorSwatch
+                  color={marker.color}
+                  onCommit={(c) =>
+                    handleUpdateBuilding({
+                      markers: markers.map((m) =>
+                        m.id === marker.id ? { ...m, color: c } : m
+                      ),
+                    })
+                  }
+                  ariaLabel={`Marker ${marker.value} color`}
+                />
+                <div className="flex-1 font-mono font-bold text-slate-700">
+                  {marker.value}
+                </div>
+                <div className="flex-1 text-slate-500 text-sm">
+                  {marker.label}
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleUpdateBuilding({
+                      markers: markers.filter((m) => m.id !== marker.id),
+                    })
+                  }
+                  aria-label="Remove default marker"
+                  title="Remove default marker"
+                  className="text-slate-400 hover:text-red-500 p-1 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="border-t border-slate-200 pt-4 space-y-4">
+          <div>
+            <h4 className="text-sm font-semibold text-slate-700">
+              Default Jumps
+            </h4>
+            <p className="text-xs text-slate-500">
+              Skip-counting arcs shown on new number lines (e.g. counting by
+              5s). Teachers can still edit or remove them.
+            </p>
+          </div>
+
+          <div className="flex gap-2 items-end bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <div className="w-20">
+              <label
+                htmlFor={jumpStartId}
+                className="block text-xs font-medium text-slate-500 mb-1"
+              >
+                Start
+              </label>
+              <input
+                id={jumpStartId}
+                type="number"
+                value={newJumpStart}
+                onChange={(e) => setNewJumpStart(e.target.valueAsNumber)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div className="w-20">
+              <label
+                htmlFor={jumpEndId}
+                className="block text-xs font-medium text-slate-500 mb-1"
+              >
+                End
+              </label>
+              <input
+                id={jumpEndId}
+                type="number"
+                value={newJumpEnd}
+                onChange={(e) => setNewJumpEnd(e.target.valueAsNumber)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div className="flex-1">
+              <label
+                htmlFor={jumpLabelId}
+                className="block text-xs font-medium text-slate-500 mb-1"
+              >
+                Label
+              </label>
+              <input
+                id={jumpLabelId}
+                type="text"
+                value={newJumpLabel}
+                onChange={(e) => setNewJumpLabel(e.target.value)}
+                placeholder="+5"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleAddJump}
+              disabled={
+                !Number.isFinite(newJumpStart) ||
+                !Number.isFinite(newJumpEnd) ||
+                newJumpStart === newJumpEnd
+              }
+              aria-label="Add default jump"
+              title="Add default jump"
+              className="bg-emerald-600 text-white p-2 rounded-lg hover:bg-emerald-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {jumps.length === 0 && (
+              <div className="text-center text-slate-400 text-xs py-1 italic">
+                No default jumps.
+              </div>
+            )}
+            {jumps.map((jump) => (
+              <div
+                key={jump.id}
+                className="flex items-center gap-3 bg-white border border-slate-200 p-2 rounded-lg text-sm"
+              >
+                <div className="flex-1 font-mono text-slate-600">
+                  {jump.startValue}{' '}
+                  <ArrowRightCircle className="inline w-3 h-3 mx-1 text-slate-300" />{' '}
+                  {jump.endValue}
+                </div>
+                <div className="flex-1 font-bold text-slate-700">
+                  {jump.label}
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleUpdateBuilding({
+                      jumps: jumps.filter((j) => j.id !== jump.id),
+                    })
+                  }
+                  aria-label="Remove default jump"
+                  title="Remove default jump"
+                  className="text-slate-400 hover:text-red-500 p-1 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="border-t border-slate-200 pt-4 space-y-4">
