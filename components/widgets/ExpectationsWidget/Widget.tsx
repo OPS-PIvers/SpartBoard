@@ -14,13 +14,11 @@ import {
   ArrowLeft,
   MessagesSquare,
   CheckCircle2,
-  LayoutGrid,
 } from 'lucide-react';
 
 // --- Constants & Data ---
 
 import { WidgetLayout } from '../WidgetLayout';
-import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import {
   VOLUME_OPTIONS,
   GROUP_OPTIONS,
@@ -426,11 +424,15 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
       <WidgetLayout
         padding="p-0"
         content={
-          <ScaledEmptyState
-            icon={LayoutGrid}
-            title="No Categories Enabled"
-            subtitle="No expectation categories are enabled for this building."
-          />
+          <div
+            className="h-full w-full flex items-center justify-center text-slate-400 font-bold uppercase tracking-widest text-center"
+            style={{
+              fontSize: 'min(12px, 4cqmin)',
+              padding: 'min(24px, 5cqmin)',
+            }}
+          >
+            No expectation categories enabled for this building.
+          </div>
         }
       />
     );
