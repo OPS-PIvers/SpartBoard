@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-07-07_
+_Last audited: 2026-07-09_
 _Last action: 2026-07-07 — HIGH WIDGET_SCALING_CONFIG consequence corrected in new-widget skill (both mirrors)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-09: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — consistent with all prior runs). Codebase-side verifications performed: (1) `SpecialistSchedule/` contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts`, `utils.ts` — still no `Appearance.tsx`; MEDIUM item about Appearance.tsx documentation still valid. (2) `FeaturePermissionsManager.tsx` exclusion array (lines 972–987) still contains the same 13 hardcoded types as 2026-07-07 — LOW item about exclusion array example still valid. (3) `FeatureConfigurationPanel.tsx` `BUILDING_CONFIG_PANELS` still present (line 92) — LOW secondary-exclusion-gate item still valid. (4) `lazyNamed()` convention confirmed correct across WidgetRegistry.ts (no changes to registry in new commits). New commits since 2026-07-07 (fix(audio) #2159, fix(announcements) #2158, fix(import-wizard) #2160, fix(privacy) #2161, fix(i18n) #2162, D3 LunchCount SubmitReportModal→SettingsLabel #2164, fix(css-scaling) #2166): none of these touch FeaturePermissionsManager, FeatureConfigurationPanel, SpecialistSchedule, WidgetRegistry, or any skill-checklist file. D3 LunchCount change (SubmitReportModal→SettingsLabel) is consistent with shared components patterns documented in the skill — no discrepancy. All 6 open items (1 MEDIUM + 5 LOW) remain valid._
 
 _2026-07-07 action: Resolved the HIGH `WIDGET_SCALING_CONFIG` item (see Completed). On inspection the skill's Step 4 and 8-location table already **listed** `WIDGET_SCALING_CONFIG` — the finding's "checklist omits it" framing was inaccurate. The real defect was a **factually wrong consequence** in the Common Mistakes table: "Widget won't render — falls to `DEFAULT_SCALING_CONFIG` silently." That runtime-fallback behavior belongs to the `Partial` maps (`WIDGET_COMPONENTS` et al.); `WIDGET_SCALING_CONFIG` is an exhaustive `Record<WidgetType, ScalingConfig>` (verified `WidgetRegistry.ts:566`), so a missing entry is a `pnpm type-check` compile error and never reaches the `?? DEFAULT_SCALING_CONFIG` runtime fallback at `WidgetRenderer.tsx:306`. Corrected the Common Mistakes row and added an exhaustiveness callout in Step 4 across both mirrors (`.claude/` + `.agents/`). File-recency check passed: both skill files last touched at 1b27ab81 — outside the last 5 branch commits. Documentation-only; PR opened against dev-paul. Remaining open: 1 MEDIUM + 5 LOW._
 

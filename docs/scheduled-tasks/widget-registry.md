@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-07_
+_Last audited: 2026-07-09_
 _Last action: 2026-06-25_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-09: Full audit. New dev-paul commits since 2026-07-07 (12 commits, rebased): fix(css-scaling) TalkingTool cap (93f81326, already on scheduled-tasks), pr-review 13 PRs / fix(pr-2141) React.useId (1b31ebdb/188cf12a), docs(unifier) run 28 (2391a8c5), fix(announcements) multi-tenant listener (b7f9113a), fix(audio) await AudioContext.resume() for CatalystWidget + StarterPackWidget (2a7b535c), fix(import-wizard) stale promise guard (144439fd), fix(privacy) Random/Stations custom-name PII scrub (8ace02cd), fix(i18n) PLG in DE (a6777827), docs(nightly) run 25 (b2d7c101), D3 LunchCount SubmitReportModal→SettingsLabel (aa439eef), fix(css-scaling) TalkingTool cap upstream copy (0e16228d). None of these commits add, remove, or rename any WidgetType. The Catalyst and StarterPack changes are pure logic fixes (audioUtils.ts + await); no new component registrations. WidgetType union count unchanged at 63. All registrations across WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, config/tools.ts, config/widgetDefaults.ts, and config/widgetGradeLevels.ts verified correct. pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
 _2026-07-07: Full audit. No new dev-paul commits since 2026-07-06 (dev-paul HEAD remains 558dd3ef from 2026-07-06 — fix(review): a11y group labels, matching dup key, comment). Scheduled-tasks-only new commits: rebase onto dev-paul. Comprehensive agent scan confirmed VERIFIED COUNT: 63 WidgetType members (unchanged). All 63 WidgetTypes correctly registered across all 5 locations (sticker intentional WidgetRenderer special-case per JSDoc; 7 intentionally excluded from tools.ts; blooms-detail/stickers/onboarding documented omissions from WIDGET_SETTINGS_COMPONENTS; 3 InternalToolType entries documented). All sampled lazyNamed() export names verified correct (including reveal-grid barrel aliases, Catalyst multi-file index.ts, BloomsTaxonomy dual export). WIDGET_SCALING_CONFIG confirmed as exhaustive Record<WidgetType, ScalingConfig> — TypeScript enforces at compile time (noted in skill-freshness.md as missing from new-widget checklist). pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 

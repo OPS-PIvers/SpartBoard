@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-07_
+_Last audited: 2026-07-09_
 _Last action: 2026-07-08 — LOW TalkingTool `Scaffolding` label pixel cap raised `min(9px, 2.2cqmin)` → `min(10px, 2.2cqmin)`; 9px was below the 10px tertiary-text floor_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-09: Scan of widget files changed in new dev-paul commits (12 commits since 2026-07-07): components/widgets/Catalyst/CatalystWidget.tsx and components/widgets/StarterPack/Widget.tsx were modified by fix(audio) #2159 (await AudioContext.resume()) — both changes are pure logic fixes in audio utility calls; no front-face CSS content changed. components/widgets/LunchCount/SubmitReportModal.tsx modified by D3 #2164 — SubmitReportModal is a back-face/settings component; CQ scaling rules do not apply. components/widgets/QuizWidget/components/MatchingOrderingEditor.tsx modified by the import-path unification PR — editor sub-component, not front-face widget content. fix(privacy) #2161 touches Random/Stations config field names in PII scrub allowlist — no CSS changes. No other widget-relevant file changes. Direct verification of front-face changes in Catalyst/StarterPack: both Widget files confirmed clean (no text-xs/text-sm/text-base/hardcoded px size classes). All pre-existing open items (ClockWidget bare cqmin, EmbedWidget portaled toolbar, QuizResults text-sm, RevealGrid spacing, multi-widget group inc. MiniApp/GuidedLearning/InstructionalRoutines/Stations, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown) remain open and unchanged. TalkingTool cap item confirmed in Completed. Zero new anti-patterns._
 
 _2026-07-07: Full scan of all 61 widget front-face files (58 skipScaling:true + 3 skipScaling:false exempt). No new dev-paul commits since 2026-07-06 (HEAD 558dd3ef — a11y group labels/comment, no widget front-face content changes). Comprehensive agent scan across all widget directories. FOUR findings reported by agent scan — all previously tracked or WON'T FIX: (1) RevealGrid/Widget.tsx :162/:168 text-xs in header — existing open item, confirmed still present; (2) MiniApp/Widget.tsx MiniAppAssignModal :127-:266 and Save App overlay :1291-:1319 text-xs/text-sm/text-base/w-4 h-4/w-5 h-5 — existing open item, confirmed still present with updated line ranges matching 2026-07-05 confirmation; (3) GuidedLearning/Widget.tsx :618 w-8 h-8 Loader2 — existing group open item, confirmed still present; (4) ActivityWall/Widget.tsx :2165 text-base in submission viewer Modal (max-h-[75vh]) — WON'T FIX per prior evaluations in 2026-05-13, 2026-06-28, 2026-07-03, 2026-07-05: the `<Modal>` is viewport-bounded (max-h-[75vh] context), outside the widget's container query surface; viewport-height sizing is correct here and text-base is appropriate for a fullscreen submission viewer. Agent also correctly excluded: portaled Embed toolbar (document.body — CQ doesn't apply), Catalyst Settings back-face uses, SoundboardWidget/Webcam decorative w-2 h-2 indicator dots, LunchCount vmin in portaled modal, InstructionalRoutines em cascading from cqw root, MusicWidget intentional cqh-only, DrawingWidget/SeatingChart skipScaling:false. Zero new anti-patterns._
 
