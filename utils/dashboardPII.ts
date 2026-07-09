@@ -21,8 +21,12 @@ export const PII_WIDGET_FIELDS = [
   'lastNames', // RandomWidget, ChecklistWidget — newline-delimited name list
   'completedNames', // ChecklistWidget — names/IDs of students who completed items
   'remainingStudents', // RandomWidget — unpicked students in current session
+  'lockedNames', // RandomWidget — manually pinned names (Jigsaw/manual edit)
+  'unassignedNames', // RandomWidget — names parked in the Unassigned tray
+  'doneNames', // RandomWidget — names marked "done" in Shuffle mode
   'names', // SeatingChartWidget — custom roster name list
   'roster', // LunchCountConfig — student name array
+  'customRoster', // StationsConfig — custom-mode roster name list
 ] as const;
 
 export type PiiWidgetField = (typeof PII_WIDGET_FIELDS)[number];
