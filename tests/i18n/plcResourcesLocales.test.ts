@@ -47,14 +47,16 @@ const NAMESPACE = 'plcDashboard.resources';
 // in DE and FR). Listed explicitly so a future accidental verbatim-EN
 // regression on a *different* key is still caught.
 const EXPECTED_COGNATE_MATCHES: Record<string, string[]> = {
-  de: [
-    'kindBadge.quiz',
-    // "PLC" is kept as an untranslated acronym in German, matching the
-    // sibling admin.plc.recovery panel rendered on the same admin screen —
-    // so "{{count}} PLC"/"{{count}} PLCs" is the correct DE translation.
-    'targetSelectedBadge_one',
-    'targetSelectedBadge_other',
-  ],
+  // NOTE: an earlier version of this allowlist also carried
+  // 'targetSelectedBadge_one'/'_other' for de, on the theory that "PLC" is an
+  // intentional untranslated acronym there (citing admin.plc.recovery as
+  // precedent). That was wrong: the DE locale's own established term for PLC
+  // is "PLG" (see plcDashboard.subtitle: "PLG-Dashboard", plcDashboard.members.*,
+  // sidebar.plcs.*, plcDirectory.*), used 45+ times across plcDashboard. The
+  // admin.plc.recovery panel is a separate, admin-only namespace and is not a
+  // valid precedent for the teacher-facing plcDashboard. Fixed in
+  // deDashboardPlgTerminologyLocales.test.ts; do not re-add "PLC" here.
+  de: ['kindBadge.quiz'],
   es: [
     // Spanish also keeps "PLC" as an invariant, untranslated acronym
     // (matches admin.plc.recovery.empty: "No hay PLC recuperables…").
