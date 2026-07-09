@@ -353,7 +353,7 @@ const AnnouncementWindow: React.FC<{
  * as floating windows above the dashboard.
  */
 export const AnnouncementOverlay: React.FC = () => {
-  const { user, selectedBuildings, userTier, orgId } = useAuth();
+  const { user, selectedBuildings, userTier, orgId, roleResolved } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(() => {
     // Pre-populate from localStorage on mount
@@ -381,29 +381,42 @@ export const AnnouncementOverlay: React.FC = () => {
   //   Legacy docs without an orgId field won't appear on this path — those are
   //   backfilled separately via scripts/migrateAnnouncements.js (see report).
   //
-  // PATH B — orgId is null/undefined (user not yet in an org, or still loading):
-  //   Query: where('isActive', '==', true)  ← legacy behavior, unchanged.
-  //   This preserves behavior for org-less or loading users: legacy/no-orgId
-  //   docs remain visible, and the client-side org filter in useMemo provides
-  //   defense-in-depth.
+  // PATH B — orgId resolved to null (no org membership doc for this user,
+  // e.g. an internal-tier user who was never added as an org member — this
+  // is a PERMANENT state, not just a loading window; see `roleResolved` gate
+  // below):
+  //   Query: where('orgId', '==', null)
+  //   A plain where('isActive','==',true) scan (no orgId filter) was tried
+  //   here previously and is NOT SAFE: confirmed against the real Firestore
+  //   emulator, a security rule's per-document OR-branches (e.g.
+  //   isOrgMember(resource.data.orgId)) are NOT enforced as a per-doc filter
+  //   for a list query whose own where() clauses don't already pin that
+  //   field — Firestore silently returns every isActive doc, including other
+  //   orgs' docs that a direct getDoc() on the same rule correctly denies.
+  //   'orgId'=='null' is a real equality filter Firestore CAN prove safe, at
+  //   the cost of not surfacing legacy pre-isolation docs (missing the field
+  //   entirely) here either — the same accepted trade-off Path A already has
+  //   pending scripts/migrateAnnouncements.js.
   //
   // The effect re-subscribes whenever orgId changes so the scoped listener
   // opens as soon as the membership snapshot lands (orgId: null → 'orono').
   //
-  // Free-tier gate: a no-org ("free") teacher must NEVER open the global
-  // announcements listener — `userTier` is the already-exposed distribution
-  // tier ('internal' | 'org' | 'free'). The loading/unresolved state is treated
-  // as NOT subscribed (the gate only opens once the tier is positively known to
-  // be non-free), which fails closed. (We do NOT call setAnnouncements([]) here:
-  // a synchronous setState in an effect trips react-hooks/set-state-in-effect,
-  // and the render-time guard below already renders nothing for free users even
-  // if their tier flips mid-session.)
+  // Gating: a no-org ("free") teacher must NEVER open the announcements
+  // listener — `userTier` is the already-exposed distribution tier
+  // ('internal' | 'org' | 'free'). `roleResolved` (membership + student-role
+  // resolution settled) additionally holds the listener closed while orgId
+  // is still loading, so the still-loading window can never run the old
+  // unscoped query — both gates fail closed. (We do NOT call
+  // setAnnouncements([]) here: a synchronous setState in an effect trips
+  // react-hooks/set-state-in-effect, and the render-time guard below already
+  // renders nothing for free users even if their tier flips mid-session.)
   useEffect(() => {
     // We only subscribe if we have a user object.
     // isAuthBypass allows the UI to render, but Firestore still needs an auth
     // token unless the rules are set to allow public read (which they are not).
     if (!user) return;
     if (userTier === 'free') return;
+    if (!roleResolved) return;
 
     const announcementsRef = collection(db, 'announcements');
 
@@ -411,8 +424,8 @@ export const AnnouncementOverlay: React.FC = () => {
       orgId != null
         ? // PATH A: org-scoped — single-field index, no composite index required.
           query(announcementsRef, where('orgId', '==', orgId))
-        : // PATH B: legacy unscoped — isActive filter applied server-side.
-          query(announcementsRef, where('isActive', '==', true));
+        : // PATH B: see comment above — provably safe null-org scope.
+          query(announcementsRef, where('orgId', '==', null));
 
     const unsub = onSnapshot(
       q,
@@ -430,7 +443,7 @@ export const AnnouncementOverlay: React.FC = () => {
     return unsub;
     // orgId is intentionally included: when the membership snapshot delivers
     // orgId (null → 'orono'), the effect re-runs to open the org-scoped listener.
-  }, [user, userTier, orgId]);
+  }, [user, userTier, orgId, roleResolved]);
 
   // Periodic clock update for scheduled activation/dismissal checks
   useEffect(() => {

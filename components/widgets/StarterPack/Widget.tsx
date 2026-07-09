@@ -6,7 +6,7 @@ import { WidgetComponentProps, StarterPack } from '@/types';
 import * as LucideIcons from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
-import { playCleanUp, getAudioCtx } from './audioUtils';
+import { playCleanUpUnlocked } from './audioUtils';
 
 export const StarterPackWidget = ({ isStudentView }: WidgetComponentProps) => {
   const { user } = useAuth();
@@ -19,17 +19,11 @@ export const StarterPackWidget = ({ isStudentView }: WidgetComponentProps) => {
   const allPacks = [...publicPacks, ...userPacks];
 
   const handleExecute = (pack: StarterPack) => {
-    // Unlock audio context if needed
-    const ctx = getAudioCtx();
-    if (ctx && ctx.state === 'suspended') {
-      void ctx.resume();
-    }
-
     // Call the execution logic with cleanSlate=true
     executePack(pack, true, addWidget, deleteAllWidgets);
 
-    // Audio and visual cues
-    playCleanUp();
+    // Fire-and-forget — playCleanUpUnlocked awaits ctx.resume() internally, so don't block the confetti on it.
+    void playCleanUpUnlocked();
     void confetti({
       particleCount: 100,
       spread: 70,

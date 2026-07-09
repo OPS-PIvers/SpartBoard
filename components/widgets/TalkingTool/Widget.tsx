@@ -55,7 +55,7 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
           <label
             className="font-black uppercase text-slate-400 tracking-widest block"
             style={{
-              fontSize: 'min(9px, 2.2cqmin)',
+              fontSize: 'min(10px, 2.2cqmin)',
               marginBottom: 'min(4px, 1cqmin)',
             }}
           >

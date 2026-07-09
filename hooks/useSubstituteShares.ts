@@ -82,27 +82,8 @@ interface ShareSnapshot {
 const MAX_PERMISSION_DENIED_RETRIES = 3;
 
 /**
- * Live list of substitute shares in the given building. The `shared_boards`
- * read rule now gates @orono callers on `expiresAt > request.time` (mirrors
- * `shared_collections`) — Firestore evaluates a list query's rule against
- * every matched doc and fails the WHOLE query if any one is denied, so the
- * `where('expiresAt', '>')` constraint below keeps expired docs out of the
- * result set entirely (composite index provisioned in firestore.indexes.json).
- * The client-side filter stays as belt-and-suspenders for the narrow
- * clock-skew window. Mirrors `SubCollectionsList.tsx`.
- *
- * `Date.now()` is only captured when this effect (re)runs, so a share that
- * expires WHILE the listener is open stays inside the frozen query filter.
- * If `expireSubShares.ts` later writes to that (now rule-ineligible) doc,
- * Firestore re-evaluates the rule for the write and denies the WHOLE query
- * with `permission-denied` — confirmed empirically against the emulator, not
- * just a silent per-doc removal. Re-subscribing with a fresh `Date.now()`
- * baseline (which naturally excludes the newly-expired doc) recovers
- * transparently. The retry count lives in a ref (not state) so resetting it
- * to 0 on a successful snapshot never itself triggers an effect re-run —
- * only `retryToken` (bumped exclusively on a denial that should retry) tears
- * down and rebuilds the listener; a capped ref count falls through to the
- * friendly error for a genuine, non-expiry permission problem.
+ * Live list of substitute shares in the given building. The Firestore read rule
+ * gates @orono callers on expiresAt; see PR #2150 for the retry-on-permission-denied logic.
  */
 export function useSubstituteShares(
   buildingId: string
@@ -113,9 +94,7 @@ export function useSubstituteShares(
   const prevBuildingIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    // Reset the retry budget only on an actual buildingId change — this
-    // effect also re-runs on a retryToken bump (the retry itself), and
-    // resetting unconditionally there would defeat the retry cap.
+    // Reset only on actual buildingId change — retryToken bumps also re-run this effect.
     if (prevBuildingIdRef.current !== buildingId) {
       retryCountRef.current = 0;
       prevBuildingIdRef.current = buildingId;
@@ -153,9 +132,7 @@ export function useSubstituteShares(
           retryCountRef.current < MAX_PERMISSION_DENIED_RETRIES
         ) {
           retryCountRef.current += 1;
-          // Clear the stale snapshot so callers see loading instead of the
-          // old list (which may include the now-expired, no-longer-readable
-          // doc that triggered this denial) until the re-subscribe resolves.
+          // Clear stale snapshot so callers see loading, not the expired-doc list, until re-subscribe resolves.
           setSnapshot(null);
           setRetryToken((t) => t + 1);
           return;
@@ -191,9 +168,7 @@ interface UseSubstituteShareState {
   share: SubstituteShareDoc | null;
   loading: boolean;
   error: string | null;
-  // A permission-denied for a substitute share most likely means expiresAt
-  // lapsed — the non-Orono, non-host, non-admin case is an edge (subs portal
-  // is district-gated), but worth distinguishing in the UI message if needed.
+  // permission-denied on a substitute share most likely means expiry; useful for UI messaging.
   permissionDeniedLikelyExpired: boolean;
 }
 

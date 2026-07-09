@@ -42,9 +42,7 @@ export const SubBoardScreen: React.FC<SubBoardScreenProps> = ({
   const { share, loading, error, permissionDeniedLikelyExpired } =
     useSubstituteShare(shareId, buildingId);
   const [expired, setExpired] = useState(false);
-  // A denied read for a substitute share most likely means it just expired;
-  // treat it the same as the locally-detected expiry below (see
-  // permissionDeniedLikelyExpired's doc comment for the non-Orono edge case).
+  // permission-denied on a substitute share means expiry — same path as locally-detected expiry.
   const isExpired = expired || permissionDeniedLikelyExpired;
 
   // Imperatively check expiration on a 60-second tick so an idle sub
