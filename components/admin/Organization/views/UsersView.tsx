@@ -39,7 +39,7 @@ import {
   LocalModal,
   Textarea,
   Confirm,
-} from '../components/primitives';
+} from '@/components/admin/Organization/components/primitives';
 import { parseInvitesCsv, type InviteIntent } from '@/utils/csvImport';
 
 interface Props {
