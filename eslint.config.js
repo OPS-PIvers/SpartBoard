@@ -151,5 +151,36 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-assignment': 'off',
     },
   },
+  {
+    // D4 (Import Path Convention) enforcement: a file under a
+    // components/plc/<subdir>/ directory must not reach across into a
+    // SIBLING plc subdirectory (or the shared `plc/sections` module) via a
+    // relative import — use the `@/components/plc/<dir>/...` alias instead.
+    // This exact bug class recurred across many nightly unifier runs (see
+    // docs/routines/unifier.md D4 section — runs 6, 7, 17, 18, 26, 28).
+    // Root-level `components/plc/*.tsx` files (e.g. importing
+    // '../PlcAssignmentImportModal' from `plc/bodies/` or `plc/tabs/`) are
+    // an intentionally-preserved gray zone (D4-E2) and are NOT matched by
+    // this pattern, since it only fires when the segment immediately after
+    // the last '../' is itself a plc subdirectory name (or `sections`, the
+    // module at the center of the recurring bug).
+    files: ['components/plc/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex:
+                '^(\\.\\./)+(activity|assignments|authoring|bodies|comments|docs|home|meeting|members|presence|resources|search|sections|settings|sharedBoards|sharedData|sync|tabs|versions|viewer)(/.*)?$',
+              caseSensitive: true,
+              message:
+                "Cross-subdirectory plc import — use '@/components/plc/<dir>/...' instead of a relative path that escapes this subdirectory (see D4 in docs/routines/unifier.md).",
+            },
+          ],
+        },
+      ],
+    },
+  },
   prettierConfig
 );
