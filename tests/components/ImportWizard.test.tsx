@@ -484,6 +484,120 @@ describe('ImportWizard', () => {
     expect((titleInput as HTMLInputElement).value).toBe('User Typed Title');
   });
 
+  it('does not let a stale in-flight parse from before a close/reopen clobber the freshly-reset state', async () => {
+    // Deferred promise lets the test control exactly when adapter.parse resolves.
+    let resolveParse:
+      | ((v: { data: FakeData; warnings: string[] }) => void)
+      | null = null;
+    const parsePromise = new Promise<{ data: FakeData; warnings: string[] }>(
+      (resolve) => {
+        resolveParse = resolve;
+      }
+    );
+    const { adapter } = makeAdapter({
+      parseImpl: () => parsePromise,
+    });
+    const { rerender } = renderWizard(adapter);
+
+    // Kick off a parse that will not resolve until we say so.
+    const urlField = screen.getByLabelText('Google Sheet URL');
+    fireEvent.change(urlField, {
+      target: { value: 'https://docs.google.com/spreadsheets/d/stale' },
+    });
+    fireEvent.click(
+      urlField.parentElement?.querySelector('button') as HTMLButtonElement
+    );
+
+    // Close the wizard, then reopen it before the stale parse resolves —
+    // ImportWizard is always mounted by its callers (isOpen only toggles the
+    // Modal's own visibility), so this component instance's state survives.
+    rerender(
+      <ImportWizard<FakeData>
+        isOpen={false}
+        onClose={vi.fn()}
+        adapter={adapter}
+      />
+    );
+    rerender(
+      <ImportWizard<FakeData>
+        isOpen={true}
+        onClose={vi.fn()}
+        adapter={adapter}
+      />
+    );
+
+    // Reopening should have reset to a clean Source step.
+    expect(screen.getByLabelText('Google Sheet URL')).toBeInTheDocument();
+
+    // Now let the stale parse from before the close resolve.
+    await act(async () => {
+      resolveParse?.({ data: { rows: ['stale-row'] }, warnings: [] });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // The stale result must not push the freshly-reopened wizard to Preview.
+    expect(screen.queryByTestId('preview')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Google Sheet URL')).toBeInTheDocument();
+  });
+
+  it('does not fire onSaved/onClose when a stale save resolves after close/reopen', async () => {
+    let resolveSave: (() => void) | null = null;
+    const savePromise = new Promise<void>((resolve) => {
+      resolveSave = resolve;
+    });
+    const { adapter } = makeAdapter({ saveImpl: () => savePromise });
+    const { rerender, onSaved, onClose } = renderWizard(adapter);
+
+    // Source → parse → Preview.
+    const urlField = screen.getByLabelText('Google Sheet URL');
+    fireEvent.change(urlField, {
+      target: { value: 'https://docs.google.com/spreadsheets/d/x' },
+    });
+    fireEvent.click(
+      urlField.parentElement?.querySelector('button') as HTMLButtonElement
+    );
+    await screen.findByTestId('preview');
+
+    // Preview → Confirm.
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+    const titleInput = await screen.findByLabelText('Title');
+    fireEvent.change(titleInput, { target: { value: 'My Quiz' } });
+
+    // Start the save — this becomes the stale operation.
+    fireEvent.click(screen.getByRole('button', { name: /save to library/i }));
+
+    // Close and reopen before the save resolves.
+    rerender(
+      <ImportWizard<FakeData>
+        isOpen={false}
+        onClose={onClose}
+        adapter={adapter}
+        onSaved={onSaved}
+      />
+    );
+    rerender(
+      <ImportWizard<FakeData>
+        isOpen={true}
+        onClose={onClose}
+        adapter={adapter}
+        onSaved={onSaved}
+      />
+    );
+
+    // Let the stale save resolve.
+    await act(async () => {
+      resolveSave?.();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    // Freshly-reopened wizard should still be on Source.
+    expect(screen.getByLabelText('Google Sheet URL')).toBeInTheDocument();
+  });
+
   it('shows the template helper when adapter exposes templateHelper', () => {
     const { adapter } = makeAdapter({
       templateHelper: {
