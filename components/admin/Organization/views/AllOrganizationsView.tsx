@@ -13,7 +13,7 @@ import {
   LocalModal,
   Field,
   Select,
-} from '../components/primitives';
+} from '@/components/admin/Organization/components/primitives';
 
 const PLAN_LABEL: Record<Plan, string> = {
   basic: 'Basic Pack',

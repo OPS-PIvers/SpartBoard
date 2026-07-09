@@ -24,7 +24,7 @@ import {
   LocalModal,
   Textarea,
   Confirm,
-} from '../components/primitives';
+} from '@/components/admin/Organization/components/primitives';
 
 interface Props {
   roles: RoleRecord[];

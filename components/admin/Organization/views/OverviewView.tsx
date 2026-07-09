@@ -9,7 +9,7 @@ import {
   Btn,
   Badge,
   Confirm,
-} from '../components/primitives';
+} from '@/components/admin/Organization/components/primitives';
 import { Toggle } from '@/components/common/Toggle';
 
 const PLAN_META: Record<

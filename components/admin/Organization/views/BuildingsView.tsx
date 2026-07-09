@@ -13,7 +13,7 @@ import {
   Select,
   ViewHeader,
   LocalModal,
-} from '../components/primitives';
+} from '@/components/admin/Organization/components/primitives';
 
 const TYPE_META: Record<
   BuildingType,

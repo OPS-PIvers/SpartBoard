@@ -1,7 +1,12 @@
 import React from 'react';
 import { GraduationCap, Bell, UserRound, Utensils } from 'lucide-react';
 import type { StudentPageConfig } from '../types';
-import { Card, Field, Input, ViewHeader } from '../components/primitives';
+import {
+  Card,
+  Field,
+  Input,
+  ViewHeader,
+} from '@/components/admin/Organization/components/primitives';
 import { Toggle } from '@/components/common/Toggle';
 
 interface Props {

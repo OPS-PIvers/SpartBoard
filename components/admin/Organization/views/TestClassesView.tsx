@@ -12,7 +12,7 @@ import {
   Textarea,
   ViewHeader,
   LocalModal,
-} from '../components/primitives';
+} from '@/components/admin/Organization/components/primitives';
 
 interface Props {
   testClasses: TestClassRecord[];
