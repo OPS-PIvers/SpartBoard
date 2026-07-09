@@ -1888,3 +1888,27 @@ _Automated nightly review by claude-opus-4-6_
   - Branch-safety: no push to `main` or any `dev-*` branch except the sanctioned `dev-paul` review-comment-fix path (#2141). This log commit is the only push to `scheduled-tasks`.
   - This run followed the 2026-07-07 run, which had already replied to / resolved the bulk of the open threads — so today's actionable surface was small (4 unanswered threads, 1 real fix).
   - Env runs Node 22 (repo pins 24); local type-check/lint/tests green. CI on Node 24 remains the authoritative gate.
+
+## 2026-07-09
+
+- PRs reviewed: 5 open PRs (all authored by OPS-PIvers, all base `dev-paul`)
+  - #2171 — audit(scheduled-tasks): Thursday journals + skill fix (head `scheduled-tasks`, base `dev-paul`)
+  - #2170 — docs(unifier): runs 29+30 memory log (head `nightly/unifier-log-2026-07-09`, base `dev-paul`)
+  - #2169 — fix(D4): Organization/views imports → `@/` alias (head `nightly/unify-import-paths-2026-07-09`, base `dev-paul`)
+  - #2168 — fix(D3): SettingsLabel group-heading retrofit (head `nightly/unify-settings-labels-2026-07-09`, base `dev-paul`)
+  - #2167 — fix(D1): ExpectationsWidget empty state → ScaledEmptyState (head `nightly/unify-empty-states-2026-07-09`, base `dev-paul`)
+- Comments processed: 2 unresolved threads (both on #2167, contradictory) — 1 fixed, 1 explained.
+  - Fixed (1): #2167 — the committed `ScaledEmptyState` had color overrides (`titleClassName="text-slate-800"`, `iconClassName`/`subtitleClassName="text-slate-500"`) that render near-invisible on the transparent widget surface over the slate-900 dashboard and violate CLAUDE.md's muted-text-on-dark guidance. Dropped all three overrides so the component's dark-surface defaults (`text-slate-200`/`text-slate-300`) apply. Agreed with the `claude` reviewer thread over the contradictory `gemini-code-assist` thread.
+  - Explained (1): #2167 — the `gemini-code-assist` thread asked for the opposite (darker overrides for a "light-themed widget"). Explained it's based on a false premise: the empty-state code path renders on a transparent `WidgetLayout` (no card) over the dashboard, not on the widget's white `bg-white` category cards (which only appear in the main view). No fix in that direction.
+- Fixes pushed: 1
+  - #2167 → `nightly/unify-empty-states-2026-07-09` (44816fe) — drop ScaledEmptyState color overrides. Verified: type-check ✓, lint ✓ (eslint --max-warnings 0 on the file), prettier ✓.
+- Reviews posted: 5 (one structured review per open PR)
+  - #2167 — Ready. Empty-state unification, container-scaling boundary preserved, review contrast concern resolved.
+  - #2168 — Ready. Visual-neutral `SettingsLabel as="span"` + `role="group"`/`aria-labelledby` a11y fix; `SettingsLabel` confirmed to support the `as`/`id` props used.
+  - #2169 — Ready. Pure `@/`-alias import-path equivalence swap across 8 Organization/views files.
+  - #2170 — Ready with minor notes. Docs-only unifier log reconstruction; flagged a human sanity-check for residual duplicate rows.
+  - #2171 — Ready. Docs/skill-only; skill-doc SpecialistSchedule correction matches real codebase layout. Non-blocking nit: `.claude/` mirror blockquote continuation line missing its `>` marker (renders fine via lazy continuation).
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` branch. The only code push was to the non-protected feature branch `nightly/unify-empty-states-2026-07-09` (#2167). This log commit is the only push to `scheduled-tasks`.
+  - #2167 carried two directly-contradictory reviewer threads; resolved by reading ground truth (`WidgetLayout` provides no background; `ScaledEmptyState` defaults are `text-slate-200`/`300`) rather than either reviewer's assertion.
+  - Env runs Node 22 (repo pins 24); local type-check/lint/prettier green. CI on Node 24 remains the authoritative gate.
