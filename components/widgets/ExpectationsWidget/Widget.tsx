@@ -430,6 +430,9 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
             icon={LayoutGrid}
             title="No Categories Enabled"
             subtitle="No expectation categories are enabled for this building."
+            iconClassName="text-slate-500"
+            titleClassName="text-slate-800"
+            subtitleClassName="text-slate-500"
           />
         }
       />
