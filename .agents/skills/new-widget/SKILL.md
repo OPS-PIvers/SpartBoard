@@ -313,6 +313,17 @@ only if the widget genuinely has no appearance/style settings):
 intentionally omit it are `drawing` (canvas coordinates) and `seating-chart`
 (absolute-positioned nodes). All new widgets use container queries.
 
+> **`WIDGET_SCALING_CONFIG` is exhaustive — omitting an entry is a compile error,
+> not a silent runtime fallback.** Unlike `WIDGET_COMPONENTS`,
+> `WIDGET_SETTINGS_COMPONENTS`, and `WIDGET_APPEARANCE_COMPONENTS` (all typed
+> `Partial<Record<WidgetType, …>>`, so a missing entry only surfaces at runtime),
+> `WIDGET_SCALING_CONFIG` is a full `Record<WidgetType, ScalingConfig>`. Adding a
+> new `WidgetType` to `types.ts` without a matching entry here fails
+> `pnpm type-check` and blocks CI. `WIDGET_DEFAULTS` and `WIDGET_GRADE_LEVELS` are
+> exhaustive in the same way. The runtime `?? DEFAULT_SCALING_CONFIG` fallback in
+> `WidgetRenderer.tsx` can never fire for a shipped widget because the compiler
+> rejects the omission first.
+
 ---
 
 ## Step 5 — config/widgetDefaults.ts
@@ -459,7 +470,7 @@ import { WidgetData } from '../../types';
 
 | Mistake | Consequence | Fix |
 |---------|-------------|-----|
-| Skipping `WIDGET_SCALING_CONFIG` entry | Widget won't render — falls to `DEFAULT_SCALING_CONFIG` silently | Add entry with `skipScaling: true` |
+| Skipping `WIDGET_SCALING_CONFIG` entry | `pnpm type-check` fails and CI blocks the PR — the map is an exhaustive `Record<WidgetType, …>`, NOT a silent runtime fallback | Add entry with `skipScaling: true` |
 | Using `text-sm` in Widget.tsx | Content doesn't scale; looks broken at small sizes | Use `style={{ fontSize: 'min(14px, 5.5cqmin)' }}` |
 | Using `size={24}` on icons | Icon stays 24px regardless of widget size | Use `style={{ width/height }}` |
 | `lazyNamed` export name mismatch | Silent runtime crash, widget shows loading spinner forever | Match export name exactly |
@@ -509,7 +520,21 @@ gold standard for each pattern:
 | Clean scaling (hero number) | `components/widgets/ClockWidget/Widget.tsx` |
 | Icon + text layout | `components/widgets/Weather/Widget.tsx` |
 | List with cqmin rows | `components/widgets/LunchCount/Widget.tsx` |
-| Building-defaults consumption | `components/widgets/SpecialistSchedule/Widget.tsx` |
+| Building-defaults consumption | `components/widgets/SpecialistSchedule/SpecialistScheduleWidget.tsx` (exception to the standard `Widget.tsx` convention — do not imitate) |
 | Settings + Appearance split | `components/widgets/ClockWidget/Settings.tsx` |
 | Good empty state usage | `components/widgets/QRWidget/Widget.tsx` |
 | Transparent-root front-face pattern | `components/widgets/ExpectationsWidget/Widget.tsx` |
+
+> **SpecialistSchedule file layout (reference note):** SpecialistSchedule is
+> the canonical building-defaults example, but it does **not** follow the
+> standard two-file layout and has **no** separate `Appearance.tsx`. Its files
+> are `SpecialistScheduleWidget.tsx` (front face — non-standard filename, don't
+> imitate), `Settings.tsx`, `index.ts`, and `utils.ts`. Both the settings panel
+> (`SpecialistScheduleSettings`) and the appearance panel
+> (`SpecialistScheduleAppearanceSettings`) are named exports **co-located in
+> `Settings.tsx`** — co-locating the appearance panel in `Settings.tsx` is a
+> valid alternative to a dedicated `Appearance.tsx`. The barrel `index.ts`
+> (`export * from './SpecialistScheduleWidget'; export * from './Settings';`)
+> re-exports both, so the WidgetRegistry `lazyNamed(() =>
+> import('./SpecialistSchedule'), 'SpecialistScheduleAppearanceSettings')` call
+> resolves correctly.

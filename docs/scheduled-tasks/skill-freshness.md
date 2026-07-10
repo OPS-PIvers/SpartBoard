@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-06-30_
-_Last action: 2026-05-26_
+_Last audited: 2026-07-09_
+_Last action: 2026-07-09 — MEDIUM SpecialistSchedule Appearance.tsx/co-located-Settings pattern documented + stale `.agents/` reference row corrected in new-widget skill (both mirrors)_
 
 ---
 
@@ -15,6 +15,14 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-09 action: Resolved the MEDIUM `spart-new-widget` SpecialistSchedule `Appearance.tsx` item (see Completed). SpecialistSchedule co-locates both `SpecialistScheduleSettings` and `SpecialistScheduleAppearanceSettings` as named exports in `Settings.tsx` (no separate `Appearance.tsx`); added a reference note documenting this to both skill mirrors and corrected the stale `.agents/` "Building-defaults consumption" row (`SpecialistSchedule/Widget.tsx` → `SpecialistScheduleWidget.tsx`). Documentation-only; PR opened against dev-paul. Remaining open: 5 LOW._
+
+_2026-07-09: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — consistent with all prior runs). Codebase-side verifications performed: (1) `SpecialistSchedule/` contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts`, `utils.ts` — still no `Appearance.tsx`; MEDIUM item about Appearance.tsx documentation still valid. (2) `FeaturePermissionsManager.tsx` exclusion array (lines 972–987) still contains the same 13 hardcoded types as 2026-07-07 — LOW item about exclusion array example still valid. (3) `FeatureConfigurationPanel.tsx` `BUILDING_CONFIG_PANELS` still present (line 92) — LOW secondary-exclusion-gate item still valid. (4) `lazyNamed()` convention confirmed correct across WidgetRegistry.ts (no changes to registry in new commits). New commits since 2026-07-07 (fix(audio) #2159, fix(announcements) #2158, fix(import-wizard) #2160, fix(privacy) #2161, fix(i18n) #2162, D3 LunchCount SubmitReportModal→SettingsLabel #2164, fix(css-scaling) #2166): none of these touch FeaturePermissionsManager, FeatureConfigurationPanel, SpecialistSchedule, WidgetRegistry, or any skill-checklist file. D3 LunchCount change (SubmitReportModal→SettingsLabel) is consistent with shared components patterns documented in the skill — no discrepancy. All 6 open items (1 MEDIUM + 5 LOW) remain valid._
+
+_2026-07-07 action: Resolved the HIGH `WIDGET_SCALING_CONFIG` item (see Completed). On inspection the skill's Step 4 and 8-location table already **listed** `WIDGET_SCALING_CONFIG` — the finding's "checklist omits it" framing was inaccurate. The real defect was a **factually wrong consequence** in the Common Mistakes table: "Widget won't render — falls to `DEFAULT_SCALING_CONFIG` silently." That runtime-fallback behavior belongs to the `Partial` maps (`WIDGET_COMPONENTS` et al.); `WIDGET_SCALING_CONFIG` is an exhaustive `Record<WidgetType, ScalingConfig>` (verified `WidgetRegistry.ts:566`), so a missing entry is a `pnpm type-check` compile error and never reaches the `?? DEFAULT_SCALING_CONFIG` runtime fallback at `WidgetRenderer.tsx:306`. Corrected the Common Mistakes row and added an exhaustiveness callout in Step 4 across both mirrors (`.claude/` + `.agents/`). File-recency check passed: both skill files last touched at 1b27ab81 — outside the last 5 branch commits. Documentation-only; PR opened against dev-paul. Remaining open: 1 MEDIUM + 5 LOW._
+
+_2026-07-07: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — consistent with all prior runs except 2026-05-19 and 2026-06-23). Full codebase-side verification performed. Five new findings detected (1 HIGH, 1 MEDIUM, 3 LOW) — see new open items below. Existing 2 LOW items (exclusion array example, secondary exclusion gate) re-confirmed still valid: `FeaturePermissionsManager.tsx` exclusion array and `FeatureConfigurationPanel.tsx` `BUILDING_CONFIG_PANELS` both unchanged since 2026-06-30. New commits since 2026-06-30 (fix(review): a11y group labels, matching dup key, comment — touches Settings/Widget.tsx for grouping UI only) do not affect any skill-relevant patterns. Total open: 2 pre-existing LOW + 5 new items = 7 open._
 
 _2026-06-30: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — same as prior runs). Codebase-side verifications performed: (1) `SpecialistSchedule/` confirmed: contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts`, `utils.ts` — directory structure unchanged. (2) `FeaturePermissionsManager.tsx` exclusion array still contains the same 13 hardcoded types as 2026-06-23 — LOW item #1 remains valid. (3) `FeatureConfigurationPanel.tsx` `BUILDING_CONFIG_PANELS` still present and growing — LOW item #2 about undocumented secondary exclusion gate remains valid. (4) `lazyNamed()` convention confirmed correct across WidgetRegistry.ts. (5) `getAdminBuildingConfig` confirmed present in codebase. `SchemaDrivenConfigurationPanel` does not exist — codebase uses explicit modal pattern (not a skill-freshness tracking item). New commits since 2026-06-23 (fix(analytics), pr-review, docs(unifier), fix(widgets), fix(layout), fix(functions), fix(state)) do not affect any skill-relevant patterns. 2 LOW open items remain valid._
 
@@ -38,6 +46,27 @@ _2026-05-05: Skill files not accessible at `/mnt/skills/user/` in this audit env
 
 _2026-06-23 action: Fixed MEDIUM `admin-widget-config` reference to non-existent `SpecialistScheduleSettings.tsx`. Both skill copies (`.claude/skills/admin-widget-config/SKILL.md:222` and `.agents/skills/admin-widget-config/SKILL.md:185`) updated to reference the correct path `components/widgets/SpecialistSchedule/Settings.tsx`. Verified the target file exists and reads `featurePermissions` (Settings.tsx:48). File-recency check passed: skill files last touched at 19b6ae40 — outside the last 5 branch commits. Documentation-only change; PR opened against dev-paul. Item moved to Completed. 2 LOW open items remain._
 
+### LOW `spart-new-widget` admin config step understates the number of code changes required
+
+- **Detected:** 2026-07-07
+- **File:** `.claude/skills/new-widget/SKILL.md` — admin config wiring step
+- **Detail:** Adding admin config for a new widget requires two mandatory code changes: (1) create `components/admin/YourWidgetConfigurationPanel.tsx` with the panel component, and (2) add an entry to the `BUILDING_CONFIG_PANELS` partial map in `components/admin/FeatureConfigurationPanel.tsx`. Additionally, for complex widgets (e.g., SpecialistSchedule, Calendar, BloomsTaxonomy, GraphicOrganizer) a dedicated `*ConfigurationModal.tsx` is used instead of the generic modal — this is a third optional code change. If the skill describes admin wiring as a single step (e.g., "create a ConfigurationPanel"), developers may create the panel file but miss registering it in `BUILDING_CONFIG_PANELS`, resulting in the panel never appearing in the admin UI.
+- **Fix:** Update the admin config wiring step to list both required changes explicitly: (a) create `YourWidgetConfigurationPanel.tsx`, (b) import it in `FeatureConfigurationPanel.tsx` and register it in `BUILDING_CONFIG_PANELS`. Also add a note that a dedicated `*ConfigurationModal.tsx` is an optional pattern for complex widgets, referencing `BloomsTaxonomyConfigurationModal.tsx` as an example.
+
+### LOW `spart-new-widget` does not document the `BlendingBoardAppearanceSettings` suppressor pattern
+
+- **Detected:** 2026-07-07
+- **File:** `.claude/skills/new-widget/SKILL.md` — appearance panel registration step
+- **Detail:** `WIDGET_APPEARANCE_COMPONENTS` in `WidgetRegistry.ts` serves two distinct purposes: (1) registering a real appearance panel with style controls, and (2) suppressing the default `UniversalStyleSettings` fallback with a custom notice (e.g., `BlendingBoardAppearanceSettings` shows "centrally managed" — no actual style controls). The default `UniversalStyleSettings` is provided automatically for any widget NOT in `WIDGET_APPEARANCE_COMPONENTS`. If the skill only documents purpose (1), developers might incorrectly add a widget to `WIDGET_APPEARANCE_COMPONENTS` to suppress the default panel (purpose 2) without realizing that's why `BlendingBoard` is there — or conversely, omit the registration because their widget "doesn't need custom appearance" while not knowing the default panel would appear.
+- **Fix:** Add a note explaining both use cases: (a) "Register here to replace the default `UniversalStyleSettings` fallback with a custom appearance panel" and (b) "Register here with a custom suppressor component if you need to hide the default panel entirely (see `BlendingBoardAppearanceSettings` for the pattern)." Also note that most new widgets should just rely on the `UniversalStyleSettings` default and omit the registration unless they need custom appearance controls.
+
+### LOW `fontFamily` config field typed inconsistently — `string` vs `GlobalFontFamily` — skill should prescribe `GlobalFontFamily`
+
+- **Detected:** 2026-07-07
+- **File:** `types.ts` — widget config interfaces; `.claude/skills/new-widget/SKILL.md` — config interface template
+- **Detail:** The `fontFamily` field in widget config interfaces is typed inconsistently across widgets: `specialist-schedule` uses `fontFamily: string`, while `checklist`, `schedule`, `calendar`, and others that have appearance panels use the branded `GlobalFontFamily` type (imported from config/fonts.ts). Plain `string` allows any string value and bypasses the font-picker enforcement; `GlobalFontFamily` is the union of valid font family values and provides type safety for the font dropdown. New widgets should use `GlobalFontFamily` to stay consistent with the majority pattern and enable future font validation.
+- **Fix:** Update the `spart-new-widget` skill's config interface template to prescribe `fontFamily?: GlobalFontFamily` (not `string`). Separately, `specialist-schedule`'s `fontFamily: string` field is a pre-existing inconsistency that can be tightened in a future refactor pass.
+
 ### LOW `spart-widget-admin-config` exclusion array example is missing 7 widget types
 
 - **Detected:** 2026-04-14
@@ -59,6 +88,22 @@ _2026-06-23 action: Fixed MEDIUM `admin-widget-config` reference to non-existent
 ---
 
 ## Completed
+
+### MEDIUM `spart-new-widget` documents SpecialistSchedule as having a separate `Appearance.tsx` — actual pattern co-locates appearance in `Settings.tsx`
+
+- **Detected:** 2026-07-07
+- **Completed:** 2026-07-09
+- **File:** `.claude/skills/new-widget/SKILL.md` + `.agents/skills/new-widget/SKILL.md` — "Reference Implementations" section
+- **Detail:** `components/widgets/SpecialistSchedule/` contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts`, `utils.ts`. There is NO separate `Appearance.tsx`. Both `SpecialistScheduleSettings` (Settings.tsx:44) and `SpecialistScheduleAppearanceSettings` (Settings.tsx:675) are named exports co-located in `Settings.tsx`; `index.ts` re-exports both via `export * from './SpecialistScheduleWidget'; export * from './Settings';`, so the WidgetRegistry `lazyNamed(() => import('./SpecialistSchedule'), 'SpecialistScheduleAppearanceSettings')` (WidgetRegistry.ts:482–484) resolves correctly.
+- **Resolution (2026-07-09):** Added a "SpecialistSchedule file layout (reference note)" callout after the Reference Implementations table in both skill mirrors documenting the co-located appearance-panel pattern and that co-location in `Settings.tsx` is a valid alternative to a dedicated `Appearance.tsx`. Also corrected the stale `.agents/` "Building-defaults consumption" row (was `SpecialistSchedule/Widget.tsx`, now `SpecialistScheduleWidget.tsx` with the "exception — do not imitate" note, matching the `.claude/` mirror). File-recency check passed: both skill files last touched at `12f0ab0f` (16th commit back — outside the last 5). Documentation-only change; PR opened against dev-paul.
+
+### HIGH `spart-new-widget` misstates the consequence of skipping `WIDGET_SCALING_CONFIG`
+
+- **Detected:** 2026-07-07
+- **Completed:** 2026-07-07
+- **File:** `.claude/skills/new-widget/SKILL.md` + `.agents/skills/new-widget/SKILL.md` — Step 4 + "Common Mistakes" table
+- **Detail:** The item was originally logged as "checklist omits `WIDGET_SCALING_CONFIG`," but the skill's Step 4 and 8-location table already listed the map. The genuine defect was an incorrect consequence in the Common Mistakes table: it claimed skipping the entry means "Widget won't render — falls to `DEFAULT_SCALING_CONFIG` silently." `WIDGET_SCALING_CONFIG` is typed `Record<WidgetType, ScalingConfig>` (exhaustive; `WidgetRegistry.ts:566`), unlike the `Partial<Record<…>>` component maps (`WIDGET_COMPONENTS:86`, `WIDGET_SETTINGS_COMPONENTS:265`, `WIDGET_APPEARANCE_COMPONENTS:420`). A missing entry therefore fails `pnpm type-check` and blocks CI — the compiler rejects it before the runtime `?? DEFAULT_SCALING_CONFIG` fallback (`WidgetRenderer.tsx:306`) can fire. The stale "silent runtime fallback" wording would mislead a developer into hunting a rendering bug instead of reading the type error.
+- **Resolution:** Corrected the Common Mistakes row to describe the actual consequence (`pnpm type-check` failure / CI block) and added an exhaustiveness callout in Step 4 distinguishing the exhaustive `Record` maps (`WIDGET_SCALING_CONFIG`, `WIDGET_DEFAULTS`, `WIDGET_GRADE_LEVELS`) from the `Partial` component maps. Applied identically to both mirrors (`.claude/` + `.agents/`). Verified type against `WidgetRegistry.ts` and the runtime fallback in `WidgetRenderer.tsx`. Documentation-only change.
 
 ### MEDIUM `spart-widget-admin-config` references non-existent `SpecialistScheduleSettings.tsx`
 

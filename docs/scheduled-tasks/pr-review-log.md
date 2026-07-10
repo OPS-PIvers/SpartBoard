@@ -1832,3 +1832,83 @@ _Automated nightly review by claude-opus-4-6_
 - Notes:
   - Branch-safety: no push to `main` or any `dev-*` branch. #2141 (head `dev-paul` → `main`) received a review comment only. The two #2146 comment replies posted via the API; this log commit is the only push, to `scheduled-tasks`.
   - Phase-1 outcome contrast: unlike the prior (07-05) run's 3 fix pushes, every actionable comment this run was already resolved (author replies or later commits), so nothing needed fixing — only two outdated no-reply threads needed a closing reply.
+
+## 2026-07-07
+
+- PRs reviewed: 9 open
+  - #2162 fix(i18n): DE plcDashboard "PLC"→"PLG" terminology — nightly/admin-config-2026-07-07
+  - #2161 fix(privacy): Random/Stations custom-name fields → PII scrub allowlist — nightly/state-data-2026-07-07
+  - #2160 fix(import-wizard): guard stale in-flight promises after close/reopen — nightly/dashboard-layout-2026-07-07
+  - #2159 fix(audio): await AudioContext.resume() before cleanup chime — nightly/widgets-2026-07-07
+  - #2158 fix(announcements): close multi-tenant leak in no-org listener query — nightly/build-tooling-2026-07-07
+  - #2157 docs(skill-freshness): correct WIDGET_SCALING_CONFIG consequence — scheduled-tasks
+  - #2156 docs(unifier): run 28 log — nightly/unifier-log-2026-07-07
+  - #2155 fix(D4): unify plc import + ESLint no-restricted-imports rule — nightly/unify-import-paths-2026-07-07
+  - #2141 Refactor admin modals to SettingsLabel + a11y (dev-paul → main)
+- Comments processed: 11 unresolved threads acted on — 5 fixed, 6 explained/deferred. (Every other thread across the 9 PRs already carried an author reply or was resolved.)
+  - Fixed (5): #2162 ×1 (case-insensitive PLC guard regex); #2159 ×2 (void playCleanUpUnlocked so confetti isn't blocked on ctx.resume); #2158 ×2 (generic email fixture + LEAK-test rationale comment).
+  - Explained/deferred (6): #2161 ×3 — verified `lastResult`/`jigsawHomeGroups`/`jigsawExpertGroups` are real PII with RandomConfig-unique names (collateral-safe to add) but deferred the add to the maintainer because scrubbing `lastResult` changes reload persistence for the cross-widget Scoreboard/Stations integrations (privacy-vs-persistence product call); #2157 ×1 and #2155 ×1 — outdated threads already resolved on branch head; #2141 ×1 — validated the Dock `SortableContext.items` dnd-kit index bug but did not push (head `dev-paul` = read-only).
+- Fixes pushed: 3
+  - #2162 → nightly/admin-config-2026-07-07 — case-insensitive `/\bPLCs?\b/i` in the DE plcDashboard terminology guard (test 51/51, lint, format).
+  - #2159 → nightly/widgets-2026-07-07 — CatalystWidget + StarterPack/Widget handleExecute made synchronous with `void playCleanUpUnlocked()` (type-check, lint, format, audioUtils 2/2).
+  - #2158 → nightly/build-tooling-2026-07-07 — announcementsQuery.test.ts: generic `teacher@` fixture + LEAK-test rationale comment (rules suite 4/4 under the emulator, lint, format).
+- Reviews posted: 9 (one structured review per open PR)
+  - #2158 / #2159 / #2160 / #2162 / #2155 / #2157 / #2156 Ready.
+  - #2161 Ready with notes — shipped fields sound; outstanding `lastResult`/`jigsaw*` PII-scope decision flagged before it fully closes the leak.
+  - #2141 Needs changes — strong a11y/consistency refactor, but the Dock `SortableContext.items` filtering bug (hidden folder/gated tool ids left in the items array with no rendered node → dnd-kit index skew) should be fixed + tested before merge to main.
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` branch. #2141 (head `dev-paul` → `main`) received review comments only. All fixes went to `nightly/*` branches; this log commit is the only push to `scheduled-tasks`.
+  - #2158 fixes were verified against the real Firestore emulator (`firebase emulators:exec --only firestore`), 4/4 announcements-rules tests green.
+
+## 2026-07-08
+
+- PRs reviewed: 13 (all open PRs)
+  - #2166 — fix(css-scaling): raise TalkingTool Scaffolding label cap to 10px (head `fix/talkingtool-scaffolding-cap`, base `dev-paul`)
+  - #2165 — docs(unifier): run 29 log (head `nightly/unifier-log-2026-07-08`, base `dev-paul`)
+  - #2164 — fix(D3): LunchCount SubmitReportModal notes label → SettingsLabel (head `nightly/unify-settings-labels-2026-07-08`, base `dev-paul`)
+  - #2163 — docs(nightly): debugger run 25 log (head `nightly/debugger-log-2026-07-07`, base `dev-paul`)
+  - #2162 — fix(i18n): DE plcDashboard PLC→PLG (head `nightly/admin-config-2026-07-07`, base `dev-paul`)
+  - #2161 — fix(privacy): Random/Stations PII scrub allowlist (head `nightly/state-data-2026-07-07`, base `dev-paul`)
+  - #2160 — fix(import-wizard): stale-promise guard (head `nightly/dashboard-layout-2026-07-07`, base `dev-paul`)
+  - #2159 — fix(audio): await AudioContext.resume() before chime (head `nightly/widgets-2026-07-07`, base `dev-paul`)
+  - #2158 — fix(announcements): multi-tenant no-org listener leak (head `nightly/build-tooling-2026-07-07`, base `dev-paul`)
+  - #2157 — docs(skill-freshness): WIDGET_SCALING_CONFIG consequence (head `scheduled-tasks`, base `dev-paul`)
+  - #2156 — docs(unifier): run 28 log (head `nightly/unifier-log-2026-07-07`, base `dev-paul`)
+  - #2155 — fix(D4): plc import + ESLint rule (head `nightly/unify-import-paths-2026-07-07`, base `dev-paul`)
+  - #2141 — Refactor admin modals to SettingsLabel + a11y (head `dev-paul`, base `main`) — dev-paul→main promotion (push only via the sanctioned review-comment-fix path)
+- Comments processed: 4 genuinely-unanswered threads actioned — 1 fixed, 3 explained. Every other unresolved thread across the 13 PRs already carried a reply from the prior (2026-07-07) run or was resolved-in-code, so no re-reply.
+  - Fixed (1): #2141 — `MatchingAnswerEditor` used a static `duplicate-term-warning` DOM id (+ its `aria-describedby`), which collides if two editors mount at once → replaced with `React.useId()`.
+  - Explained (3): #2141 ×2 — (a) `adminBuildingConfig.ts` `.trim()` removal is intentional, documented strictness (`isHexColor` docstring rejects `'#fff '`); legacy-data leniency is a maintainer/data call, not an auto-fix on a main-bound branch. (b) the `useSubstituteShares.ts` "#2150" comment is a valid cross-ref (the merged retry-logic PR), not a typo. #2157 ×1 — the `_Last action` header was already bumped in `09d34c9` (thread outdated).
+- Fixes pushed: 1
+  - #2141 → `dev-paul` (188cf12) — `React.useId()` for the duplicate-term warning id. Verified: type-check ✓, lint ✓, `MatchingOrderingEditor.duplicateTerm`/`.memo` tests 11/11 ✓, prettier ✓. Sanctioned path: PR #2141 merges `dev-paul`→`main` and carried review comments. Push re-triggered CI — Build ✓ and type-check ✓ at log time, remaining checks in progress.
+- Reviews posted: 1
+  - #2141 — Ready with minor notes. Consolidated merge-readiness for the only main-bound PR. Flagged (non-blocking, inline): the Dock `SortableContext.items` array is still built from full `dockItems` while hidden folders/gated tools `return null`, so dnd-kit sort indices can skew — a complete fix filters `items` by both `shouldShowFolder` and `canAccessTool`, with a reorder-after-hidden test. Also flagged the one-time `shared_boards`/`expiresAt` live-data check before merge.
+  - Refrained from re-reviewing #2155–#2166: each already carries a `gemini-code-assist` review plus prior-run structured reviews with resolved/answered threads; a second automated review this cycle would duplicate rather than add signal (harness frugality guidance).
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` branch except the sanctioned `dev-paul` review-comment-fix path (#2141). This log commit is the only push to `scheduled-tasks`.
+  - This run followed the 2026-07-07 run, which had already replied to / resolved the bulk of the open threads — so today's actionable surface was small (4 unanswered threads, 1 real fix).
+  - Env runs Node 22 (repo pins 24); local type-check/lint/tests green. CI on Node 24 remains the authoritative gate.
+
+## 2026-07-09
+
+- PRs reviewed: 5 open PRs (all authored by OPS-PIvers, all base `dev-paul`)
+  - #2171 — audit(scheduled-tasks): Thursday journals + skill fix (head `scheduled-tasks`, base `dev-paul`)
+  - #2170 — docs(unifier): runs 29+30 memory log (head `nightly/unifier-log-2026-07-09`, base `dev-paul`)
+  - #2169 — fix(D4): Organization/views imports → `@/` alias (head `nightly/unify-import-paths-2026-07-09`, base `dev-paul`)
+  - #2168 — fix(D3): SettingsLabel group-heading retrofit (head `nightly/unify-settings-labels-2026-07-09`, base `dev-paul`)
+  - #2167 — fix(D1): ExpectationsWidget empty state → ScaledEmptyState (head `nightly/unify-empty-states-2026-07-09`, base `dev-paul`)
+- Comments processed: 2 unresolved threads (both on #2167, contradictory) — 1 fixed, 1 explained.
+  - Fixed (1): #2167 — the committed `ScaledEmptyState` had color overrides (`titleClassName="text-slate-800"`, `iconClassName`/`subtitleClassName="text-slate-500"`) that render near-invisible on the transparent widget surface over the slate-900 dashboard and violate CLAUDE.md's muted-text-on-dark guidance. Dropped all three overrides so the component's dark-surface defaults (`text-slate-200`/`text-slate-300`) apply. Agreed with the `claude` reviewer thread over the contradictory `gemini-code-assist` thread.
+  - Explained (1): #2167 — the `gemini-code-assist` thread asked for the opposite (darker overrides for a "light-themed widget"). Explained it's based on a false premise: the empty-state code path renders on a transparent `WidgetLayout` (no card) over the dashboard, not on the widget's white `bg-white` category cards (which only appear in the main view). No fix in that direction.
+- Fixes pushed: 1
+  - #2167 → `nightly/unify-empty-states-2026-07-09` (44816fe) — drop ScaledEmptyState color overrides. Verified: type-check ✓, lint ✓ (eslint --max-warnings 0 on the file), prettier ✓.
+- Reviews posted: 5 (one structured review per open PR)
+  - #2167 — Ready. Empty-state unification, container-scaling boundary preserved, review contrast concern resolved.
+  - #2168 — Ready. Visual-neutral `SettingsLabel as="span"` + `role="group"`/`aria-labelledby` a11y fix; `SettingsLabel` confirmed to support the `as`/`id` props used.
+  - #2169 — Ready. Pure `@/`-alias import-path equivalence swap across 8 Organization/views files.
+  - #2170 — Ready with minor notes. Docs-only unifier log reconstruction; flagged a human sanity-check for residual duplicate rows.
+  - #2171 — Ready. Docs/skill-only; skill-doc SpecialistSchedule correction matches real codebase layout. Non-blocking nit: `.claude/` mirror blockquote continuation line missing its `>` marker (renders fine via lazy continuation).
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` branch. The only code push was to the non-protected feature branch `nightly/unify-empty-states-2026-07-09` (#2167). This log commit is the only push to `scheduled-tasks`.
+  - #2167 carried two directly-contradictory reviewer threads; resolved by reading ground truth (`WidgetLayout` provides no background; `ScaledEmptyState` defaults are `text-slate-200`/`300`) rather than either reviewer's assertion.
+  - Env runs Node 22 (repo pins 24); local type-check/lint/prettier green. CI on Node 24 remains the authoritative gate.

@@ -372,8 +372,14 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
           </div>
         </div>
 
-        <div className="space-y-3 pt-4 border-t">
-          <SettingsLabel>Default Steps</SettingsLabel>
+        <div
+          className="space-y-3 pt-4 border-t"
+          role="group"
+          aria-labelledby="routine-default-steps-label"
+        >
+          <SettingsLabel as="span" id="routine-default-steps-label">
+            Default Steps
+          </SettingsLabel>
           {routine.steps.map((step, i) => (
             <div
               key={i}

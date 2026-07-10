@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/common/Button';
 import { Modal } from '@/components/common/Modal';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { FileSpreadsheet, X, Send } from 'lucide-react';
 
 /**
@@ -191,12 +192,9 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
 
           {/* Notes */}
           <div className="space-y-2">
-            <label
-              htmlFor="report-notes"
-              className="text-xxs font-black text-slate-400 uppercase tracking-widest"
-            >
+            <SettingsLabel htmlFor="report-notes">
               Additional Notes
-            </label>
+            </SettingsLabel>
             <textarea
               id="report-notes"
               value={notes}

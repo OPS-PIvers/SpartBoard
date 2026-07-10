@@ -79,6 +79,40 @@ describe('dashboardPII', () => {
           style: 'digital',
         } as unknown as WidgetConfig,
       },
+      {
+        id: 'widget-4',
+        type: 'random',
+        x: 3,
+        y: 3,
+        w: 2,
+        h: 2,
+        z: 1,
+        flipped: false,
+        config: {
+          mode: 'shuffle',
+          // Jigsaw/manual-edit name lists — same "raw student name" shape as
+          // firstNames/lastNames/remainingStudents above, just added later.
+          lockedNames: ['Alice Smith'],
+          unassignedNames: ['Bob Jones'],
+          doneNames: ['Carol Lee'],
+        } as unknown as WidgetConfig,
+      },
+      {
+        id: 'widget-5',
+        type: 'stations',
+        x: 4,
+        y: 4,
+        w: 2,
+        h: 2,
+        z: 1,
+        flipped: false,
+        config: {
+          stations: [],
+          assignments: {},
+          rosterMode: 'custom',
+          customRoster: ['Dana White'],
+        } as unknown as WidgetConfig,
+      },
     ],
   };
 
@@ -95,6 +129,20 @@ describe('dashboardPII', () => {
       expect(scrubbed.widgets[0].config).toEqual({ mode: 'wheel' });
       expect(scrubbed.widgets[1].config).toEqual({ layout: 'grid' });
       expect(scrubbed.widgets[2].config).toEqual({ style: 'digital' });
+    });
+
+    it('removes Random jigsaw/manual-edit name lists (lockedNames, unassignedNames, doneNames)', () => {
+      const scrubbed = scrubDashboardPII(mockDashboardWithPii);
+      expect(scrubbed.widgets[3].config).toEqual({ mode: 'shuffle' });
+    });
+
+    it('removes Stations custom roster names', () => {
+      const scrubbed = scrubDashboardPII(mockDashboardWithPii);
+      expect(scrubbed.widgets[4].config).toEqual({
+        stations: [],
+        assignments: {},
+        rosterMode: 'custom',
+      });
     });
 
     it('does not mutate the original dashboard', () => {
@@ -124,6 +172,14 @@ describe('dashboardPII', () => {
         },
         'widget-2': {
           names: ['Alice Smith', 'Bob Jones'],
+        },
+        'widget-4': {
+          lockedNames: ['Alice Smith'],
+          unassignedNames: ['Bob Jones'],
+          doneNames: ['Carol Lee'],
+        },
+        'widget-5': {
+          customRoster: ['Dana White'],
         },
       });
       // widget-3 has no PII, so it should be omitted

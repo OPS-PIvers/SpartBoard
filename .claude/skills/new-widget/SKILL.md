@@ -320,6 +320,17 @@ only if the widget genuinely has no appearance/style settings):
 intentionally omit it are `drawing` (canvas coordinates) and `seating-chart`
 (absolute-positioned nodes). All new widgets use container queries.
 
+> **`WIDGET_SCALING_CONFIG` is exhaustive — omitting an entry is a compile error,
+> not a silent runtime fallback.** Unlike `WIDGET_COMPONENTS`,
+> `WIDGET_SETTINGS_COMPONENTS`, and `WIDGET_APPEARANCE_COMPONENTS` (all typed
+> `Partial<Record<WidgetType, …>>`, so a missing entry only surfaces at runtime),
+> `WIDGET_SCALING_CONFIG` is a full `Record<WidgetType, ScalingConfig>`. Adding a
+> new `WidgetType` to `types.ts` without a matching entry here fails
+> `pnpm type-check` and blocks CI. `WIDGET_DEFAULTS` and `WIDGET_GRADE_LEVELS` are
+> exhaustive in the same way. The runtime `?? DEFAULT_SCALING_CONFIG` fallback in
+> `WidgetRenderer.tsx` can never fire for a shipped widget because the compiler
+> rejects the omission first.
+
 ---
 
 ## Step 5 — config/widgetDefaults.ts
@@ -493,22 +504,22 @@ import { WidgetData } from '../../types';
 
 ## Common Mistakes That Break Things
 
-| Mistake                                               | Consequence                                                                | Fix                                                                                                                |
-| ----------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Skipping `WIDGET_SCALING_CONFIG` entry                | Widget won't render — falls to `DEFAULT_SCALING_CONFIG` silently           | Add entry with `skipScaling: true`                                                                                 |
-| Using `text-sm` in Widget.tsx                         | Content doesn't scale; looks broken at small sizes                         | Use `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`                                                                  |
-| Using `size={24}` on icons                            | Icon stays 24px regardless of widget size                                  | Use `style={{ width/height }}`                                                                                     |
-| `lazyNamed` export name mismatch                      | Silent runtime crash, widget shows loading spinner forever                 | Match export name exactly                                                                                          |
-| Forgetting `WIDGET_GRADE_LEVELS` entry                | TypeScript error, widget may not appear in filtered dock                   | Add entry to map                                                                                                   |
-| Using `as YourWidgetConfig` on defaults               | Mismatched fields silently accepted                                        | Use `satisfies YourWidgetConfig`                                                                                   |
-| Relative imports                                      | Module resolution fails in some build contexts                             | Always use `@/`                                                                                                    |
-| Forgetting `ConfigForWidget` branch                   | TypeScript narrows to `never` for your type                                | Add ternary branch                                                                                                 |
-| Hand-rolling empty states                             | Inconsistent design across widgets                                         | Use `ScaledEmptyState`                                                                                             |
-| Mixing `cqw`/`cqh` instead of `cqmin`                 | Scaling breaks when widget is non-square                                   | Always use `cqmin`                                                                                                 |
-| `skipScaling: false` on new widgets                   | Widget uses legacy CSS-transform, scales inconsistently                    | Set `skipScaling: true`                                                                                            |
-| Full-widget root background in `Widget.tsx`           | Masks the glass shell; global/per-widget Transparency slider looks broken. | Keep the root transparent. Apply `hexToRgba(cardColor, cardOpacity)` only to internal surfaces (rows/cells/cards). |
-| Opaque `contentClassName` on `WidgetLayout`           | Reintroduces a full-widget shell even if content is otherwise correct      | Keep `contentClassName` structurally neutral; put backgrounds on smaller child surfaces                            |
-| Loading/empty/error state uses full-bleed opaque fill | Transparency works in the default view but breaks in edge states           | Apply the same transparent-root rule to all widget states                                                          |
+| Mistake                                               | Consequence                                                                                                                    | Fix                                                                                                                |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| Skipping `WIDGET_SCALING_CONFIG` entry                | `pnpm type-check` fails and CI blocks the PR — the map is an exhaustive `Record<WidgetType, …>`, NOT a silent runtime fallback | Add entry with `skipScaling: true`                                                                                 |
+| Using `text-sm` in Widget.tsx                         | Content doesn't scale; looks broken at small sizes                                                                             | Use `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`                                                                  |
+| Using `size={24}` on icons                            | Icon stays 24px regardless of widget size                                                                                      | Use `style={{ width/height }}`                                                                                     |
+| `lazyNamed` export name mismatch                      | Silent runtime crash, widget shows loading spinner forever                                                                     | Match export name exactly                                                                                          |
+| Forgetting `WIDGET_GRADE_LEVELS` entry                | TypeScript error, widget may not appear in filtered dock                                                                       | Add entry to map                                                                                                   |
+| Using `as YourWidgetConfig` on defaults               | Mismatched fields silently accepted                                                                                            | Use `satisfies YourWidgetConfig`                                                                                   |
+| Relative imports                                      | Module resolution fails in some build contexts                                                                                 | Always use `@/`                                                                                                    |
+| Forgetting `ConfigForWidget` branch                   | TypeScript narrows to `never` for your type                                                                                    | Add ternary branch                                                                                                 |
+| Hand-rolling empty states                             | Inconsistent design across widgets                                                                                             | Use `ScaledEmptyState`                                                                                             |
+| Mixing `cqw`/`cqh` instead of `cqmin`                 | Scaling breaks when widget is non-square                                                                                       | Always use `cqmin`                                                                                                 |
+| `skipScaling: false` on new widgets                   | Widget uses legacy CSS-transform, scales inconsistently                                                                        | Set `skipScaling: true`                                                                                            |
+| Full-widget root background in `Widget.tsx`           | Masks the glass shell; global/per-widget Transparency slider looks broken.                                                     | Keep the root transparent. Apply `hexToRgba(cardColor, cardOpacity)` only to internal surfaces (rows/cells/cards). |
+| Opaque `contentClassName` on `WidgetLayout`           | Reintroduces a full-widget shell even if content is otherwise correct                                                          | Keep `contentClassName` structurally neutral; put backgrounds on smaller child surfaces                            |
+| Loading/empty/error state uses full-bleed opaque fill | Transparency works in the default view but breaks in edge states                                                               | Apply the same transparent-root rule to all widget states                                                          |
 
 ---
 
@@ -549,3 +560,17 @@ gold standard for each pattern:
 | Settings + Appearance split         | `components/widgets/ClockWidget/Settings.tsx`                                                                                             |
 | Good empty state usage              | `components/widgets/QRWidget/Widget.tsx`                                                                                                  |
 | Transparent-root front-face pattern | `components/widgets/ExpectationsWidget/Widget.tsx`                                                                                        |
+
+> **SpecialistSchedule file layout (reference note):** SpecialistSchedule is
+> the canonical building-defaults example, but it does **not** follow the
+> standard two-file layout and has **no** separate `Appearance.tsx`. Its files
+> are `SpecialistScheduleWidget.tsx` (front face — non-standard filename, don't
+> imitate), `Settings.tsx`, `index.ts`, and `utils.ts`. Both the settings panel
+> (`SpecialistScheduleSettings`) and the appearance panel
+> (`SpecialistScheduleAppearanceSettings`) are named exports **co-located in
+> `Settings.tsx`** — co-locating the appearance panel in `Settings.tsx` is a
+> valid alternative to a dedicated `Appearance.tsx`. The barrel `index.ts`
+> (`export * from './SpecialistScheduleWidget'; export * from './Settings';`)
+> re-exports both, so the WidgetRegistry `lazyNamed(() =>
+import('./SpecialistSchedule'), 'SpecialistScheduleAppearanceSettings')` call
+> resolves correctly.

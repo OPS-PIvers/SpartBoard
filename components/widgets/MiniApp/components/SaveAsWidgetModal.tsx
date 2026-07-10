@@ -85,7 +85,7 @@ export const SaveAsWidgetModal: React.FC<SaveAsWidgetModalProps> = ({
               })}
             </div>
             <div className="min-w-0">
-              <SettingsLabel>Preview</SettingsLabel>
+              <SettingsLabel as="span">Preview</SettingsLabel>
               <p className="text-sm font-bold text-slate-700 truncate">
                 {trimmed.length > 0 ? trimmed : 'Untitled widget'}
               </p>

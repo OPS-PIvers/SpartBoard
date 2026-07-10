@@ -20,7 +20,7 @@
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Plc } from '@/types';
-import type { PlcSectionId } from '../sections';
+import type { PlcSectionId } from '@/components/plc/sections';
 import { usePlcActivity } from '@/context/usePlcContext';
 import { usePlcUnread } from '@/hooks/usePlcUnread';
 import { AttentionCard } from './cards/AttentionCard';

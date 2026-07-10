@@ -20,7 +20,7 @@ import {
   StatusPill,
   ViewHeader,
   LocalModal,
-} from '../components/primitives';
+} from '@/components/admin/Organization/components/primitives';
 
 const AUTH_LABEL: Record<AuthMethod, string> = {
   google: 'Google SSO',

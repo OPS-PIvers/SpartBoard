@@ -58,7 +58,11 @@ const MOCK_USER = { uid: 'user-1', email: 'test@example.com' };
 
 function mockAuth(
   selectedBuildings: string[] = [],
-  opts: { userTier?: 'internal' | 'org' | 'free'; orgId?: string | null } = {}
+  opts: {
+    userTier?: 'internal' | 'org' | 'free';
+    orgId?: string | null;
+    roleResolved?: boolean;
+  } = {}
 ) {
   vi.mocked(useAuth).mockReturnValue({
     user: MOCK_USER,
@@ -68,6 +72,9 @@ function mockAuth(
     // Default to 'internal' so existing behavior-tests subscribe (Orono path).
     userTier: opts.userTier ?? 'internal',
     orgId: opts.orgId ?? null,
+    // Default true so existing tests (written before the roleResolved gate)
+    // keep exercising post-resolution behavior; opt into false to test the gate.
+    roleResolved: opts.roleResolved ?? true,
   } as ReturnType<typeof useAuth>);
 }
 
@@ -683,21 +690,37 @@ describe('AnnouncementOverlay', () => {
       expect(screen.queryByText('Inactive')).not.toBeInTheDocument();
     });
 
-    it('PATH B: builds where("isActive","==",true) when orgId is null', () => {
-      // Legacy / org-loading path: no org scoping, isActive still filtered
-      // server-side exactly as before.
+    it('PATH B: builds where("orgId","==",null) when orgId is null', () => {
+      // Regression (data leak): a bare where('isActive','==',true) scan has no
+      // orgId filter for Firestore to structurally enforce. Confirmed against
+      // the real Firestore emulator that this lets a foreign org's doc come
+      // back even though a direct getDoc() on that same doc is correctly
+      // denied by firestore.rules — list queries only get the isolation the
+      // rule promises when the query itself is scoped to the same field the
+      // rule branches on. where('orgId','==',null) is a real equality filter
+      // Firestore can prove safe.
       mockAuth([], { userTier: 'internal', orgId: null });
       render(<AnnouncementOverlay />);
-      expect(vi.mocked(where)).toHaveBeenCalledWith('isActive', '==', true);
+      expect(vi.mocked(where)).toHaveBeenCalledWith('orgId', '==', null);
     });
 
-    it('PATH B: does NOT use where("orgId",...) when orgId is null', () => {
+    it('PATH B: does NOT use where("isActive",...) as a server constraint when orgId is null', () => {
       mockAuth([], { userTier: 'internal', orgId: null });
       render(<AnnouncementOverlay />);
-      const orgIdCalls = vi
+      const isActiveCalls = vi
         .mocked(where)
-        .mock.calls.filter((args) => args[0] === 'orgId');
-      expect(orgIdCalls).toHaveLength(0);
+        .mock.calls.filter((args) => args[0] === 'isActive');
+      expect(isActiveCalls).toHaveLength(0);
+    });
+
+    it('does not subscribe while membership resolution is still pending (roleResolved=false)', () => {
+      // The listener must fail closed during the loading window rather than
+      // open the (formerly unsafe) unscoped query. Once roleResolved flips to
+      // true the effect re-runs and subscribes with the correct scoped query.
+      mockAuth([], { userTier: 'internal', orgId: null, roleResolved: false });
+      render(<AnnouncementOverlay />);
+      expect(firestoreCallback).toBeNull();
+      expect(vi.mocked(where)).not.toHaveBeenCalled();
     });
 
     it('re-subscribes with org-scoped query when orgId resolves from null to a string', () => {
@@ -706,13 +729,11 @@ describe('AnnouncementOverlay', () => {
       // listener and open a new org-scoped one.
       const { rerender } = render(<AnnouncementOverlay />);
 
-      // Initial render: orgId null → PATH B
+      // Initial render: orgId null → PATH B (orgId==null, not yet the real org)
       mockAuth([], { userTier: 'internal', orgId: null });
       rerender(<AnnouncementOverlay />);
-      // orgId-equality calls should still be zero
-      expect(
-        vi.mocked(where).mock.calls.filter((args) => args[0] === 'orgId')
-      ).toHaveLength(0);
+      expect(vi.mocked(where)).toHaveBeenCalledWith('orgId', '==', null);
+      expect(vi.mocked(where)).not.toHaveBeenCalledWith('orgId', '==', 'orono');
 
       vi.mocked(where).mockClear();
 
