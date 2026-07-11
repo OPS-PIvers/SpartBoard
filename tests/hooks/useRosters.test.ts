@@ -734,7 +734,10 @@ describe('useRosters — PII migration', () => {
     ]);
 
     // Poll the write itself — the upload call alone doesn't prove updateDoc has run yet.
-    await waitFor(() => expect(mockUpdateDoc).toHaveBeenCalledTimes(1));
+    // Poll on the weaker "called" condition, then assert the exact count synchronously —
+    // an exact-count poll condition times out instead of failing clearly if the count ever overshoots.
+    await waitFor(() => expect(mockUpdateDoc).toHaveBeenCalled());
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
     expect(uploadFile).toHaveBeenCalledTimes(1);
     // Firestore doc patched: driveFileId set, count kept, students deleted.
     expect(mockUpdateDoc).toHaveBeenCalledWith(
