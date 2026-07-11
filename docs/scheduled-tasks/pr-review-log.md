@@ -1928,3 +1928,19 @@ _Automated nightly review by claude-opus-4-6_
   - Branch-safety: no push to `main` or any `dev-*` branch. #2172 merges `dev-paul`→`main` and needed no fix (all comments already addressed), so the sanctioned `dev-paul` fix path went unused. This log commit is the only push to `scheduled-tasks`.
   - #2173 CI status: pending/none reported (draft PR).
   - Env runs Node 22 (repo pins 24); CI on Node 24 remains the authoritative gate.
+
+## 2026-07-11
+
+- PRs reviewed: 3 open PRs (all authored by OPS-PIvers, all draft, all base `dev-paul`)
+  - #2176 — fix(css-scaling): scale QuizResults period-filter select with cqmin (head `scheduled-tasks`)
+  - #2175 — docs(unifier): log nightly run 31 — 2026-07-11 (head `nightly/unifier-log-2026-07-11`)
+  - #2174 — D4: use @/ alias for i18n locale imports (head `nightly/unify-import-paths-2026-07-11`)
+- Comments processed: 0 change-requesting review comments. No inline review threads on any PR. Existing reviews were all non-actionable: `gemini-code-assist[bot]` "no feedback" summaries (+ its own sunsetting notice) on all three, and `claude[bot]` LGTM reviews on #2176 and #2174. No replies posted — none were questions or change requests, and harness guidance is to be frugal with GitHub replies.
+- Fixes pushed: 0 (no PR carried an unresolved comment requiring a code fix).
+- Reviews posted: 3 structured reviews (one per PR) — all **Ready**.
+  - #2176 — Ready. Verified the fix against ground truth: QuizWidget has `skipScaling: true`; the wrapping `<div>` (`padding: min(8px,2cqmin) min(16px,4cqmin)`/`gap`) and sibling `<label>` (`fontSize: min(10px,3cqmin)`) were already scaled, so the `<select>` was genuinely the lone hardcoded outlier. `min(14px, 5.5cqmin)` is the correct body/form tier per CLAUDE.md. WON'T FIX on the ClockWidget hero cap is sound (jsdom `cssstyle` drops `min()`/`clamp()`, defeating the cqmin regression test; bare `cqmin` hero text is CLAUDE.md-endorsed).
+  - #2175 — Ready. Doc-only unifier run-31 log; backlog-row hygiene fix (4 NEEDS REVIEW → CLOSED D1-E19–E22) correctly reconciles backlog vs exceptions tables. Zero code risk.
+  - #2174 — Ready. Pure mechanical `@/` alias equivalence for 4 i18n locale imports; `@/` resolves to repo root in both `vite.config.ts` and `tsconfig.json`, same resolved modules.
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` branch. No PR merged `dev-paul`→`main` this run, so the sanctioned `dev-paul` fix path went unused. This log commit is the only push to `scheduled-tasks`.
+  - Env runs Node 22 (repo pins 24); CI on Node 24 remains the authoritative gate.
