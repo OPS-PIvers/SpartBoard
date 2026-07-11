@@ -135,6 +135,65 @@ describe('TalkingToolWidget', () => {
     ).toBeInTheDocument();
   });
 
+  it('resyncs the active tab when the admin removes the currently selected category', () => {
+    vi.mocked(useAuth).mockReturnValue(mockAuthContext());
+
+    const { rerender } = render(<TalkingToolWidget widget={mockWidget} />);
+
+    // Select the "Share What You Think" tab
+    fireEvent.click(screen.getByText('Share What You Think'));
+    expect(
+      screen.getByText('Share What You Think', { selector: 'h3' })
+    ).toBeInTheDocument();
+
+    // Admin live-updates feature permissions, dropping the "share" category
+    vi.mocked(useAuth).mockReturnValue(
+      mockAuthContext({
+        featurePermissions: [
+          {
+            widgetType: 'talking-tool',
+            accessLevel: 'public',
+            betaUsers: [],
+            enabled: true,
+            config: {
+              categories: [
+                {
+                  id: 'listen',
+                  label: 'Listen Closely',
+                  color: '#008ab6',
+                  icon: 'Ear',
+                  stems: [{ id: 'l1', text: 'What do you mean by ________?' }],
+                },
+                {
+                  id: 'support',
+                  label: 'Support What You Say',
+                  color: '#5aafd1',
+                  icon: 'BookOpen',
+                  stems: [{ id: 'su1', text: 'In the text, ________.' }],
+                },
+              ],
+            },
+          },
+        ] as FeaturePermission[],
+      })
+    );
+    rerender(<TalkingToolWidget widget={mockWidget} />);
+
+    // Content falls back to the first remaining category
+    expect(
+      screen.getByText('Listen Closely', { selector: 'h3' })
+    ).toBeInTheDocument();
+
+    // The sidebar button for that same category must be the one highlighted as active
+    const listenButton = screen
+      .getByText('Listen Closely', {
+        selector: 'span',
+      })
+      .closest('button');
+    expect(listenButton).not.toBeNull();
+    expect(listenButton?.style.backgroundColor).toBe('rgb(0, 138, 182)');
+  });
+
   it('renders custom categories from global config', () => {
     vi.mocked(useAuth).mockReturnValue(
       mockAuthContext({

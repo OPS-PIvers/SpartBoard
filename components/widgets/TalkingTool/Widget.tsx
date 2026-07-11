@@ -33,6 +33,15 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
     : DEFAULT_TALKING_TOOL_CATEGORIES;
 
   const [activeTab, setActiveTab] = useState<string>(categories[0]?.id ?? '');
+  // Resync activeTab during render if the admin-configured category set changed underneath it
+  const categoryKey = categories.map((c) => c.id).join('|');
+  const [lastCategoryKey, setLastCategoryKey] = useState(categoryKey);
+  if (categoryKey !== lastCategoryKey) {
+    setLastCategoryKey(categoryKey);
+    if (!categories.some((c) => c.id === activeTab)) {
+      setActiveTab(categories[0]?.id ?? '');
+    }
+  }
 
   const activeCat = categories.find((c) => c.id === activeTab) ?? categories[0];
 
