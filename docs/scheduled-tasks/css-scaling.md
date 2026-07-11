@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-09_
+_Last audited: 2026-07-11_
 _Last action: 2026-07-08 — LOW TalkingTool `Scaffolding` label pixel cap raised `min(9px, 2.2cqmin)` → `min(10px, 2.2cqmin)`; 9px was below the 10px tertiary-text floor_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-11: Scan of widget files changed in new dev-paul commits (absorbed via rebase since 2026-07-09): InstructionalRoutines/LibraryManager.tsx — back-face editor component, role="group" a11y addition; CQ scaling rules do not apply. MiniApp/SaveAsWidgetModal.tsx — modal sub-component (back-face context); CQ scaling rules do not apply. MagicLayoutModal.tsx — dock overlay, not a widget Widget.tsx; not in CQ context. revert(ExpectationsWidget): kernel of the ScaledEmptyState revert is that the widget keeps its text-only empty state per unifier exceptions — net effect is ExpectationsWidget/Widget.tsx is unchanged from pre-2026-07-09 state (no front-face scaling change). functions/src/aiGeneration.ts — cloud function, no CQ context. No other Widget.tsx / index.tsx front-face content changed. All pre-existing open items (ClockWidget bare cqmin, EmbedWidget portaled toolbar, QuizResults text-sm, RevealGrid spacing, multi-widget group inc. CatalystWidget/DiceWidget/GuidedLearning/InstructionalRoutines/NextUp/SoundWidget/SoundboardWidget/SpecialistSchedule/Stations/TalkingTool/Webcam, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown, MiniApp dialog overlays) remain open and unchanged. Zero new anti-patterns._
 
 _2026-07-09: Scan of widget files changed in new dev-paul commits (12 commits since 2026-07-07): components/widgets/Catalyst/CatalystWidget.tsx and components/widgets/StarterPack/Widget.tsx were modified by fix(audio) #2159 (await AudioContext.resume()) — both changes are pure logic fixes in audio utility calls; no front-face CSS content changed. components/widgets/LunchCount/SubmitReportModal.tsx modified by D3 #2164 — SubmitReportModal is a back-face/settings component; CQ scaling rules do not apply. components/widgets/QuizWidget/components/MatchingOrderingEditor.tsx modified by the import-path unification PR — editor sub-component, not front-face widget content. fix(privacy) #2161 touches Random/Stations config field names in PII scrub allowlist — no CSS changes. No other widget-relevant file changes. Direct verification of front-face changes in Catalyst/StarterPack: both Widget files confirmed clean (no text-xs/text-sm/text-base/hardcoded px size classes). All pre-existing open items (ClockWidget bare cqmin, EmbedWidget portaled toolbar, QuizResults text-sm, RevealGrid spacing, multi-widget group inc. MiniApp/GuidedLearning/InstructionalRoutines/Stations, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown) remain open and unchanged. TalkingTool cap item confirmed in Completed. Zero new anti-patterns._
 
