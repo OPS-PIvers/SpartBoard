@@ -646,6 +646,56 @@ describe('ImportWizard', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('closes the stale blank tab if the session changes before createTemplate resolves', async () => {
+    let resolveCreate: ((v: { url: string }) => void) | null = null;
+    const createPromise = new Promise<{ url: string }>((resolve) => {
+      resolveCreate = resolve;
+    });
+    const mockClose = vi.fn();
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue({
+      closed: false,
+      close: mockClose,
+      location: { href: '' },
+    } as unknown as Window);
+    const { adapter } = makeAdapter({
+      templateHelper: {
+        createTemplate: () => createPromise,
+        instructions: <p>Template instructions here.</p>,
+      },
+    });
+    const { rerender } = renderWizard(adapter);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /template .* format help/i })
+    );
+    fireEvent.click(screen.getByRole('button', { name: /create template/i }));
+
+    rerender(
+      <ImportWizard<FakeData>
+        isOpen={false}
+        onClose={vi.fn()}
+        adapter={adapter}
+      />
+    );
+    rerender(
+      <ImportWizard<FakeData>
+        isOpen={true}
+        onClose={vi.fn()}
+        adapter={adapter}
+      />
+    );
+
+    await act(async () => {
+      resolveCreate?.({ url: 'https://example.com/tpl' });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // The stale blank tab must have been closed, not navigated.
+    expect(mockClose).toHaveBeenCalledTimes(1);
+    openSpy.mockRestore();
+  });
+
   it('does not surface a stale handleCopyTemplateUrl error after close/reopen', async () => {
     let rejectCopy: ((err: Error) => void) | null = null;
     const createPromise = new Promise<{ url: string }>((_resolve, reject) => {
