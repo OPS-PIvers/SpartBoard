@@ -22,6 +22,8 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-07-11 (action): Saturday run — weekly journals skipped, so the reading list is the three dailies only (widget-registry, css-scaling, typescript-eslint). widget-registry and typescript-eslint both report "No open items", so css-scaling is the highest-priority journal and every open item in it is LOW. Worked in document order. **Item 1 (ClockWidget bare cqmin cap) → reclassified WON'T FIX** (see Completed): the suggested `clamp()` cap is unobservable in the jsdom test env — `cssstyle` silently drops ALL CSS math functions (`min()`/`clamp()`) from inline `fontSize`, so a capped value renders as `""`. This permanently destroys the discriminating power of the purpose-built cqh/cqw regression test in `ClockWidget/Widget.test.tsx` (both good and bad code would render `""`); combined with CLAUDE.md explicitly endorsing bare `Ycqmin` for hero text and the cap being a no-op at default widget size, the change is net-negative. Reverted the trial edit; code unchanged. **Item 2 (QuizResults period-filter `<select>`) → COMPLETED** (see Completed). File-recency check on QuizResults.tsx passed (last touched 85a5d3e7, outside last 5 branch commits). type-check/eslint/prettier clean; all 99 QuizWidget tests pass. PR opened to dev-paul._
+
 _2026-07-11: Scan of widget files changed in new dev-paul commits (absorbed via rebase since 2026-07-09): InstructionalRoutines/LibraryManager.tsx — back-face editor component, role="group" a11y addition; CQ scaling rules do not apply. MiniApp/SaveAsWidgetModal.tsx — modal sub-component (back-face context); CQ scaling rules do not apply. MagicLayoutModal.tsx — dock overlay, not a widget Widget.tsx; not in CQ context. revert(ExpectationsWidget): kernel of the ScaledEmptyState revert is that the widget keeps its text-only empty state per unifier exceptions — net effect is ExpectationsWidget/Widget.tsx is unchanged from pre-2026-07-09 state (no front-face scaling change). functions/src/aiGeneration.ts — cloud function, no CQ context. No other Widget.tsx / index.tsx front-face content changed. All pre-existing open items (ClockWidget bare cqmin, EmbedWidget portaled toolbar, QuizResults text-sm, RevealGrid spacing, multi-widget group inc. CatalystWidget/DiceWidget/GuidedLearning/InstructionalRoutines/NextUp/SoundWidget/SoundboardWidget/SpecialistSchedule/Stations/TalkingTool/Webcam, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown, MiniApp dialog overlays) remain open and unchanged. Zero new anti-patterns._
 
 _2026-07-09: Scan of widget files changed in new dev-paul commits (12 commits since 2026-07-07): components/widgets/Catalyst/CatalystWidget.tsx and components/widgets/StarterPack/Widget.tsx were modified by fix(audio) #2159 (await AudioContext.resume()) — both changes are pure logic fixes in audio utility calls; no front-face CSS content changed. components/widgets/LunchCount/SubmitReportModal.tsx modified by D3 #2164 — SubmitReportModal is a back-face/settings component; CQ scaling rules do not apply. components/widgets/QuizWidget/components/MatchingOrderingEditor.tsx modified by the import-path unification PR — editor sub-component, not front-face widget content. fix(privacy) #2161 touches Random/Stations config field names in PII scrub allowlist — no CSS changes. No other widget-relevant file changes. Direct verification of front-face changes in Catalyst/StarterPack: both Widget files confirmed clean (no text-xs/text-sm/text-base/hardcoded px size classes). All pre-existing open items (ClockWidget bare cqmin, EmbedWidget portaled toolbar, QuizResults text-sm, RevealGrid spacing, multi-widget group inc. MiniApp/GuidedLearning/InstructionalRoutines/Stations, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown) remain open and unchanged. TalkingTool cap item confirmed in Completed. Zero new anti-patterns._
@@ -140,26 +142,12 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### LOW ClockWidget hero text uses bare `cqmin` with no upper pixel cap
-
-- **Detected:** 2026-06-25
-- **File:** components/widgets/ClockWidget/Widget.tsx:70–71
-- **Detail:** The primary time display uses `fontSize: showSeconds ? '40cqmin' : '50cqmin'` — bare `cqmin` with no `clamp()` or `min(Xpx, ...)` cap. At large widget sizes (e.g. fullscreen or 1000+ px) the digits could reach 400–500px+, causing rendering artifacts and overflow. The prior WON'T FIX entry in Completed covers the `cqh`/`cqw` mix that was intentionally retained; the current code appears to use bare `cqmin` instead (a separate issue). CLAUDE.md recommends `clamp(Xpx, Ycqmin, Zpx)` for hero text to bound maximum size.
-- **Fix:** Add an upper bound: `fontSize: showSeconds ? 'clamp(24px, 40cqmin, 240px)' : 'clamp(24px, 50cqmin, 300px)'`. Adjust the pixel caps to match the desired maximum legible size on the projected screen. Verify visually that the clock still fills adequately at the widget's default size before committing.
-
 ### LOW EmbedWidget zoom toolbar uses hardcoded sizes — portaled outside container query context
 
 - **Detected:** 2026-04-28
 - **File:** components/widgets/Embed/Widget.tsx:443 (zoom reset button), :437 (ZoomOut icon), :457 (ZoomIn icon), :426 (toolbar gap)
 - **Detail:** The hover-visible zoom toolbar uses `text-xs font-mono` on the percentage reset button (line 443), `className="w-4 h-4"` on ZoomOut/ZoomIn icons (lines 437, 457), `p-2` on the zoom buttons, and `gap: 4` (hardcoded pixels) on the toolbar flex container (line 426). Widget has `skipScaling: true`. Critically, the entire toolbar is rendered via `createPortal` to `document.body` (line 393) with `position: fixed` — it lives **outside** the widget's container query context, so `cqmin` units will not resolve against the widget size. The hardcoded sizes will not scale with the widget, but cqmin is not a straightforward fix either.
 - **Fix:** Two options: (a) Remove the portal if the toolbar doesn't need to escape the iframe stacking context — then convert to `cqmin` as normal: `text-xs` → `style={{ fontSize: 'min(11px, 4cqmin)' }}`, icons `w-4 h-4` → `style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}`, `gap: 4` → `style={{ gap: 'min(4px, 1cqmin)' }}`; (b) Keep the portal and pass the widget's computed `cqmin`-equivalent pixel size down as a prop derived from the widget's `rect` dimensions, then use those pixel values directly in the portaled toolbar's styles.
-
-### LOW QuizResults period-filter `<select>` uses hardcoded `text-sm`
-
-- **Detected:** 2026-04-27
-- **File:** components/widgets/QuizWidget/components/QuizResults.tsx:1509 (line shifted from :1530 as of 2026-06-15 sessionViews restyle)
-- **Detail:** The period filter `<select>` in the quiz results view uses `text-sm` (hardcoded Tailwind). The QuizWidget has `skipScaling: true`, so this element is inside a CSS container-query context. Introduced by the 2026-04-26 commit `fix(quiz): persist Results export URL on assignment doc (#1419)`. QuizResults grew significantly in the 2026-05-05 merge (matching/ordering editor addition) — line number has shifted.
-- **Fix:** Replace `text-sm` with an inline style: `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`. The surrounding `px-2 py-1` padding on the same element should also be converted: `style={{ padding: 'min(4px, 1.5cqmin) min(8px, 2.5cqmin)' }}`.
 
 ### LOW RevealGridWidget has additional hardcoded spacing beyond `text-xs` labels
 
@@ -211,6 +199,27 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW QuizResults period-filter `<select>` uses hardcoded `text-sm`
+
+- **Detected:** 2026-04-27
+- **Completed:** 2026-07-11
+- **File:** components/widgets/QuizWidget/components/QuizResults.tsx:1546 (was :1509 at last note; line shifted as the file grew with the external-Sheets OAuth work)
+- **Detail:** The period-filter `<select>` in the quiz results view used hardcoded `px-2 py-1` and `text-sm` Tailwind classes. QuizWidget has `skipScaling: true`, so the element sits in a CSS container-query context. It was the lone unscaled element among already-scaled siblings — the `<label>` next to it uses `style={{ fontSize: 'min(10px, 3cqmin)' }}` and the wrapping row uses inline `padding: 'min(8px, 2cqmin) min(16px, 4cqmin)'` / `gap: 'min(8px, 2cqmin)'`.
+- **Selection rationale:** Saturday run — weekly journals skipped, so the reading list is the three dailies. widget-registry and typescript-eslint both report "No open items"; css-scaling is the highest-priority journal and all its open items are LOW. Item 1 in document order (ClockWidget bare cqmin cap) was reclassified WON'T FIX (see next entry), making this the first actionable css-scaling LOW.
+- **Resolution:** Removed `px-2 py-1 text-sm` from `className` and added an inline `style` with `padding: 'min(4px, 1.5cqmin) min(8px, 2.5cqmin)'` and `fontSize: 'min(14px, 5.5cqmin)'` (the exact pattern from the journal fix note), matching the sibling label/row scaling. Kept the visual classes (`bg-white border border-slate-200 rounded-lg text-slate-800 focus:...`) on `className`. File-recency check passed: last touched at 85a5d3e7, outside the last 5 branch commits. `pnpm type-check` (exit 0), `eslint --max-warnings 0` on the changed file (exit 0), `prettier --check` (clean), all 99 QuizWidget tests pass.
+
+### WON'T FIX — LOW ClockWidget hero text uses bare `cqmin` with no upper pixel cap
+
+- **Detected:** 2026-06-25
+- **Resolved (WON'T FIX):** 2026-07-11
+- **File:** components/widgets/ClockWidget/Widget.tsx:69–70
+- **Detail:** The primary time display uses `fontSize: showSeconds ? '40cqmin' : '50cqmin'` — bare `cqmin` with no upper cap. The item proposed `clamp(24px, 40cqmin, 240px)` / `clamp(24px, 50cqmin, 300px)` to bound the maximum digit size on large/fullscreen widgets.
+- **Why WON'T FIX (3 reasons):**
+  1. **Breaks a purpose-built regression test with no jsdom-observable alternative.** `ClockWidget/Widget.test.tsx` (the "time display uses cqmin units" tests) reads the rendered `.style.fontSize` and asserts it matches `/cqmin/` and not `/cqh|cqw/`. The test env is jsdom, whose `cssstyle` engine **silently drops every CSS math function** (`min()` and `clamp()` alike) from inline `fontSize`, yielding `""`. Verified empirically: `clamp(24px, 40cqmin, 240px)`, `min(40cqmin, 240px)`, and even `min(14px, 5.5cqmin)` all serialize to `""` on both `.style.fontSize` and `getAttribute('style')`; only a bare unit like `40cqmin` survives. Adding any cap makes both good code (`clamp(cqmin)`) and bad code (`min(cqh, cqw)`) render `""`, so the test can no longer distinguish them — its discriminating power is permanently destroyed. There is no other DOM path to observe the value in jsdom.
+  2. **CLAUDE.md explicitly endorses bare `cqmin` for hero text.** The scaling guide lists `style={{ fontSize: '25cqmin' }}` ("For unlimited scaling, use `Ycqmin` alone") as an accepted hero-text form alongside `clamp()`. The current code is within guidance, not an anti-pattern.
+  3. **The cap is a no-op at default size and the overflow concern is theoretical.** At the default clock size the digits never approach the proposed 240–300px caps; the caps only engage at very large/fullscreen sizes, exactly the "glanceable at distance" projector use case where large digits are desired. No actual overflow bug was reproduced (the flex column centers with `justify-center`; the date sibling is a separate `12cqmin`).
+- **Action:** Trial edit reverted; ClockWidget code unchanged. Distinct from the older Completed WON'T FIX for the `cqh`/`cqw` mix (that concerned a different, since-changed formula).
 
 ### LOW TalkingTool font-size pixel cap (`9px`) is below the recommended 10px minimum
 
