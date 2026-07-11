@@ -713,7 +713,15 @@ describe('useRosters — deleteRoster & setActiveRoster', () => {
 describe('useRosters — PII migration', () => {
   it('moves students[] out of Firestore into Drive and removes the field', async () => {
     localStorage.removeItem(migrationKey(TEACHER_UID)); // force migration
-    const uploadFile = vi.fn().mockResolvedValue({ id: 'migrated-file' });
+    // Resolve on a later macrotask (like a real Drive call) so the test can't assume updateDoc already fired.
+    const uploadFile = vi
+      .fn()
+      .mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve({ id: 'migrated-file' }), 5)
+          )
+      );
     currentDriveService = makeDriveService({ uploadFile });
 
     const { result } = renderHook(() => useRosters(mockUser));
@@ -725,7 +733,9 @@ describe('useRosters — PII migration', () => {
       }),
     ]);
 
-    await waitFor(() => expect(uploadFile).toHaveBeenCalledTimes(1));
+    // Poll the write itself — the upload call alone doesn't prove updateDoc has run yet.
+    await waitFor(() => expect(mockUpdateDoc).toHaveBeenCalledTimes(1));
+    expect(uploadFile).toHaveBeenCalledTimes(1);
     // Firestore doc patched: driveFileId set, count kept, students deleted.
     expect(mockUpdateDoc).toHaveBeenCalledWith(
       'users/teacher-1/rosters/r1',
@@ -740,7 +750,10 @@ describe('useRosters — PII migration', () => {
     await waitFor(() =>
       expect(localStorage.getItem(migrationKey(TEACHER_UID))).toBe('1')
     );
-    expect(result.current.rosters[0].students[0].id).toBe('s1');
+    // Poll — rosters state settles after the flag write, not necessarily in the same tick.
+    await waitFor(() =>
+      expect(result.current.rosters[0]?.students[0]?.id).toBe('s1')
+    );
   });
 
   it('does not re-run migration once the per-user flag is set', async () => {
