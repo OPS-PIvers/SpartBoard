@@ -96,6 +96,7 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
             return (
               <button
                 key={cat.id}
+                aria-pressed={isActive}
                 onClick={() => setActiveTab(cat.id)}
                 className={`w-full flex flex-col items-center justify-center transition-all border ${
                   isActive

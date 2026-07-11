@@ -192,6 +192,7 @@ describe('TalkingToolWidget', () => {
       .closest('button');
     expect(listenButton).not.toBeNull();
     expect(listenButton?.style.backgroundColor).toBe('rgb(0, 138, 182)');
+    expect(listenButton).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('renders custom categories from global config', () => {
