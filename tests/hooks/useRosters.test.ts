@@ -719,7 +719,7 @@ describe('useRosters — PII migration', () => {
       .mockImplementation(
         () =>
           new Promise((resolve) =>
-            setTimeout(() => resolve({ id: 'migrated-file' }), 5)
+            setTimeout(() => resolve({ id: 'migrated-file' }), 0)
           )
       );
     currentDriveService = makeDriveService({ uploadFile });
