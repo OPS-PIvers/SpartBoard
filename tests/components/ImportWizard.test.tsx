@@ -598,6 +598,99 @@ describe('ImportWizard', () => {
     expect(screen.getByLabelText('Google Sheet URL')).toBeInTheDocument();
   });
 
+  it('does not surface a stale handleCreateTemplate error after close/reopen', async () => {
+    let rejectCreate: ((err: Error) => void) | null = null;
+    const createPromise = new Promise<{ url: string }>((_resolve, reject) => {
+      rejectCreate = reject;
+    });
+    const { adapter } = makeAdapter({
+      templateHelper: {
+        createTemplate: () => createPromise,
+        instructions: <p>Template instructions here.</p>,
+      },
+    });
+    const { rerender } = renderWizard(adapter);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /template .* format help/i })
+    );
+    fireEvent.click(screen.getByRole('button', { name: /create template/i }));
+
+    // Close the wizard, then reopen it before the stale create-template
+    // request settles — ImportWizard is always mounted; only isOpen toggles.
+    rerender(
+      <ImportWizard<FakeData>
+        isOpen={false}
+        onClose={vi.fn()}
+        adapter={adapter}
+      />
+    );
+    rerender(
+      <ImportWizard<FakeData>
+        isOpen={true}
+        onClose={vi.fn()}
+        adapter={adapter}
+      />
+    );
+
+    await act(async () => {
+      rejectCreate?.(new Error('Template service unavailable'));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // The freshly-reopened wizard must not show an error from the cancelled
+    // pre-reopen request.
+    expect(
+      screen.queryByText('Template service unavailable')
+    ).not.toBeInTheDocument();
+  });
+
+  it('does not surface a stale handleCopyTemplateUrl error after close/reopen', async () => {
+    let rejectCopy: ((err: Error) => void) | null = null;
+    const createPromise = new Promise<{ url: string }>((_resolve, reject) => {
+      rejectCopy = reject;
+    });
+    Object.assign(navigator, {
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+    const { adapter } = makeAdapter({
+      templateHelper: {
+        createTemplate: () => createPromise,
+        instructions: <p>Template instructions here.</p>,
+      },
+    });
+    const { rerender } = renderWizard(adapter);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /template .* format help/i })
+    );
+    fireEvent.click(screen.getByRole('button', { name: /copy template url/i }));
+
+    rerender(
+      <ImportWizard<FakeData>
+        isOpen={false}
+        onClose={vi.fn()}
+        adapter={adapter}
+      />
+    );
+    rerender(
+      <ImportWizard<FakeData>
+        isOpen={true}
+        onClose={vi.fn()}
+        adapter={adapter}
+      />
+    );
+
+    await act(async () => {
+      rejectCopy?.(new Error('Clipboard denied'));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByText('Clipboard denied')).not.toBeInTheDocument();
+  });
+
   it('shows the template helper when adapter exposes templateHelper', () => {
     const { adapter } = makeAdapter({
       templateHelper: {
