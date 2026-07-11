@@ -246,7 +246,10 @@ export function ImportWizard<TData>({
     const newTab = window.open('about:blank', '_blank', 'noopener,noreferrer');
     try {
       const { url } = await adapter.templateHelper.createTemplate();
-      if (session !== sessionRef.current) return;
+      if (session !== sessionRef.current) {
+        if (newTab && !newTab.closed) newTab.close();
+        return;
+      }
       if (newTab && !newTab.closed) {
         newTab.location.href = url;
       } else {
