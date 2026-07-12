@@ -49,6 +49,10 @@ export const WorkSymbolsConfigurationPanel: React.FC<
   const handleUpdateBuilding = (
     updates: Partial<BuildingWorkSymbolsDefaults>
   ) => {
+    // No building selected yet (buildings still loading, or the org has none):
+    // bail out rather than writing a `buildingDefaults['']` key that would
+    // pollute the persisted global config with an invalid empty building id.
+    if (!selectedBuildingId) return;
     onChange({
       ...config,
       buildingDefaults: {
@@ -88,10 +92,14 @@ export const WorkSymbolsConfigurationPanel: React.FC<
 
         {/* Default Font Family */}
         <div>
-          <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
+          <label
+            htmlFor={`ws-font-${selectedBuildingId}`}
+            className="text-xxs font-bold text-slate-500 uppercase mb-1 block"
+          >
             Default Font Family
           </label>
           <select
+            id={`ws-font-${selectedBuildingId}`}
             value={currentBuildingConfig.fontFamily ?? 'global'}
             onChange={(e) => {
               const selected = e.target.value;
@@ -116,10 +124,14 @@ export const WorkSymbolsConfigurationPanel: React.FC<
 
         {/* Default Text Size */}
         <div>
-          <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
+          <label
+            htmlFor={`ws-size-${selectedBuildingId}`}
+            className="text-xxs font-bold text-slate-500 uppercase mb-1 block"
+          >
             Default Text Size
           </label>
           <select
+            id={`ws-size-${selectedBuildingId}`}
             value={currentBuildingConfig.textSizePreset ?? 'medium'}
             onChange={(e) =>
               handleUpdateBuilding({
@@ -138,10 +150,14 @@ export const WorkSymbolsConfigurationPanel: React.FC<
 
         {/* Default Text Colour */}
         <div>
-          <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
+          <label
+            htmlFor={`ws-color-${selectedBuildingId}`}
+            className="text-xxs font-bold text-slate-500 uppercase mb-1 block"
+          >
             Default Text Colour
           </label>
           <HexColorField
+            id={`ws-color-${selectedBuildingId}`}
             value={currentBuildingConfig.fontColor}
             onChange={(fontColor) => handleUpdateBuilding({ fontColor })}
             fallback="#1e293b"
@@ -151,10 +167,14 @@ export const WorkSymbolsConfigurationPanel: React.FC<
 
         {/* Default Title Position */}
         <div>
-          <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
+          <label
+            htmlFor={`ws-title-pos-${selectedBuildingId}`}
+            className="text-xxs font-bold text-slate-500 uppercase mb-1 block"
+          >
             Default Title Position
           </label>
           <select
+            id={`ws-title-pos-${selectedBuildingId}`}
             value={currentBuildingConfig.titlePosition ?? 'bottom'}
             onChange={(e) =>
               handleUpdateBuilding({
