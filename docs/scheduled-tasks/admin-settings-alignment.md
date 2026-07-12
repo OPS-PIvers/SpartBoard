@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
 _Last audited: 2026-07-12_
-_Last action: 2026-06-28 — MEDIUM TimeTool admin building config coverage expanded from 3 to 11 fields_
+_Last action: 2026-07-12 — HIGH WorkSymbols admin building config added (work-symbols case + BuildingWorkSymbolsDefaults + WorkSymbolsConfigurationPanel embedded in modal)_
 
 ---
 
@@ -41,13 +41,6 @@ _2026-06-04 action notes: Selected the MEDIUM appearance-settings group (highest
 _2026-05-31 audit notes: Reviewed all changes since 2026-05-24. (1) Scoreboard gained `layout?: 'cards' | 'rows'` in `ScoreboardConfig` (commit 4f5d2bb6) — added as a user-configurable toggle in Settings.tsx. `BuildingScoreboardDefaults` does not include `layout`; `ScoreboardConfigurationPanel.tsx` exposes only team defaults; `case 'scoreboard':` in `adminBuildingConfig.ts` passes through only `teams`. New LOW gap added. (2) Classroom-addon commits (VA grade push, grade passback, assignment settings, PLC parity) added `ClassroomAddonContext`, `ClassroomCourseWork`, and session types to types.ts — none are widget-config fields; no building defaults impact. (3) Notebook fix (#1759) and Spotify fix (#1758) are logic-only; no config changes. (4) NumberLine ConfigurationPanel fix already captured in Completed. No new HIGH or MEDIUM items._
 
 _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget gained `source` (curated/personal/curated-spotify), `layout`, and `personalSpotify*` fields in MusicConfig — these are user-level preferences; personal-spotify access is gated via `canAccessFeature('personal-spotify')` (GlobalFeaturePermission + `buildings?:string[]`), not through building defaults. No building-defaults admin config needed for music. (2) QuizBehaviorSettings added new behavior fields to QuizConfig and VideoActivityConfig — quiz behavior is set per-quiz in the quiz editor, not per-building. No building defaults needed. (3) `refactor(admin)` commit (31e46ad3) removed magic/record/remote panels — already captured in Completed item. (4) SmartNotebook continues to accumulate features but its existing open item (appearance fields gap) covers the new work. No new MEDIUM or HIGH items. One new LOW item added (guided-learning stub panel)._
-
-### HIGH WorkSymbols: no `work-symbols` case in admin building config — all appearance fields undefaultable
-
-- **Detected:** 2026-07-12
-- **File:** utils/adminBuildingConfig.ts (no case 'work-symbols'), types.ts (WorkSymbolsConfig), components/widgets/WorkSymbols/Settings.tsx, components/widgets/WorkSymbols/Widget.tsx
-- **Detail:** `WorkSymbols/Settings.tsx` exposes an appearance tab with `fontFamily`, `fontColor`, `textSizePreset`, and `titlePosition` as user-configurable fields — all consumed by `WorkSymbols/Widget.tsx`. `getAdminBuildingConfig()` has no `case 'work-symbols'`; it falls through to `default: break` returning `{}`. There is no `BuildingWorkSymbolsDefaults` interface and no `WorkSymbolsConfigurationPanel.tsx`. The content tab in `WorkSymbols/Settings.tsx` returns `null`, making the appearance tab the ONLY teacher-visible settings surface — so zero admin pre-configuration of any kind is possible. A building admin cannot pre-set symbol font, text color, text size, or title position.
-- **Fix:** Add a `BuildingWorkSymbolsDefaults` interface to types.ts covering `fontFamily`, `fontColor`, `textSizePreset`, and `titlePosition`. Add a `case 'work-symbols':` handler to `getAdminBuildingConfig()` with `isWidgetFontFamily` validation on `fontFamily`, `isHexColor` on `fontColor`, enum-membership check on `textSizePreset` (`['small','medium','large','x-large']`), and enum-membership check on `titlePosition`. Create `WorkSymbolsConfigurationPanel.tsx` following the Stations/NeedDoPutThen panel pattern.
 
 ### HIGH GraphicOrganizer: no `graphic-organizer` case in admin building config — appearance defaults have no path
 
@@ -230,6 +223,14 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 ---
 
 ## Completed
+
+### HIGH WorkSymbols: no `work-symbols` case in admin building config — all appearance fields undefaultable
+
+- **Detected:** 2026-07-12
+- **Completed:** 2026-07-12
+- **File:** types.ts (`BuildingWorkSymbolsDefaults` + `WorkSymbolsGlobalConfig.buildingDefaults`), utils/adminBuildingConfig.ts (`case 'work-symbols'`), components/admin/WorkSymbolsConfigurationPanel.tsx (new), components/admin/WorkSymbolsConfigurationModal.tsx (panel wired in + `normalizeConfig` preserves `buildingDefaults`), tests/utils/adminBuildingConfig.test.ts
+- **Detail:** `WorkSymbols/Settings.tsx` exposes an appearance tab (`fontFamily`, `fontColor`, `textSizePreset`, `titlePosition`) — all consumed by `WorkSymbols/Widget.tsx` — but `getAdminBuildingConfig()` had no `case 'work-symbols'`, so a building admin could not pre-set any of them. Additionally, unlike most widgets, `work-symbols` does NOT flow through `GenericConfigurationModal`/`FeatureConfigurationPanel` (it is excluded there and opens its own dedicated `WorkSymbolsConfigurationModal` from `FeaturePermissionsManager`), so simply registering a panel in `BUILDING_CONFIG_PANELS` would never render. The building-defaults UI had to be embedded inside the existing modal instead.
+- **Action (2026-07-12, Sunday):** Selected as the highest-priority Open item across today's reading list — the three dailies (widget-registry/css-scaling/typescript-eslint) had only LOW-or-none open items and legacy-cleanup had only MEDIUM/LOW, so this HIGH outranks everything (HIGH beats the daily-before-weekly tiebreak). First of three same-severity HIGHs in document order. File-recency check passed: adminBuildingConfig.ts (last 333c269b), types.ts (e7bda013), WorkSymbols/ (00b69642), and the modal (untouched recently) are all outside the last 5 branch commits (8f38c139, b1215829, 2926491d, 2e7d881e, c582882b). Implemented: (1) types.ts — added `BuildingWorkSymbolsDefaults` (buildingId + optional fontFamily/fontColor/textSizePreset/titlePosition) and extended `WorkSymbolsGlobalConfig` with `buildingDefaults?: Record<string, BuildingWorkSymbolsDefaults>`. (2) utils/adminBuildingConfig.ts — added `case 'work-symbols'` validating `fontFamily` via `isWidgetFontFamily` (prefixed `FONTS`-id space, like stations/need-do-put-then — the widget decodes via `getFontClass`), `fontColor` via `isHexColor`, `textSizePreset` via enum membership, and `titlePosition` via a `'bottom'|'top'` check. (3) components/admin/WorkSymbolsConfigurationPanel.tsx — new building-defaults panel mirroring `NeedDoPutThenConfigurationPanel` (BuildingSelector + font/text-size/text-colour/title-position controls; `'global'` font persisted as `undefined`). (4) WorkSymbolsConfigurationModal.tsx — embedded the panel below the symbol grid and updated `normalizeConfig` to preserve `buildingDefaults` so it round-trips through save/external-sync. Added 4 unit tests to adminBuildingConfig.test.ts (53 pass total). `pnpm type-check` / `eslint --max-warnings 0` / `prettier --check` all clean. PR opened to dev-paul.
 
 ### MEDIUM NumberLine: `markers` and `jumps` fields not in admin building config
 

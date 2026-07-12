@@ -611,6 +611,57 @@ describe('getAdminBuildingConfig', () => {
     });
   });
 
+  describe('work-symbols', () => {
+    it('passes through the prefixed font family, text colour, text size preset, and title position', () => {
+      const perm = makePerm('work-symbols', {
+        high: {
+          fontFamily: 'font-marker',
+          fontColor: '#1e293b',
+          textSizePreset: 'x-large',
+          titlePosition: 'top',
+        },
+      });
+      expect(getAdminBuildingConfig('work-symbols', [perm], ['high'])).toEqual({
+        fontFamily: 'font-marker',
+        fontColor: '#1e293b',
+        textSizePreset: 'x-large',
+        titlePosition: 'top',
+      });
+    });
+
+    it('rejects bare GlobalFontFamily ids — uses the prefixed space', () => {
+      const perm = makePerm('work-symbols', {
+        high: { fontFamily: 'sans' },
+      });
+      expect(getAdminBuildingConfig('work-symbols', [perm], ['high'])).toEqual(
+        {}
+      );
+    });
+
+    it('rejects invalid font, colour, text size preset, and title position values', () => {
+      const perm = makePerm('work-symbols', {
+        high: {
+          fontFamily: 'not-a-font',
+          fontColor: 'rgb(0,0,0)',
+          textSizePreset: 'gigantic',
+          titlePosition: 'sideways',
+        },
+      });
+      expect(getAdminBuildingConfig('work-symbols', [perm], ['high'])).toEqual(
+        {}
+      );
+    });
+
+    it('seeds only the provided fields', () => {
+      const perm = makePerm('work-symbols', {
+        high: { titlePosition: 'bottom' },
+      });
+      expect(getAdminBuildingConfig('work-symbols', [perm], ['high'])).toEqual({
+        titlePosition: 'bottom',
+      });
+    });
+  });
+
   describe('checklist', () => {
     it('passes through scale, items, font family, and appearance fields', () => {
       const perm = makePerm('checklist', {
