@@ -31,15 +31,7 @@ const TITLE_POSITION_OPTIONS: {
   { value: 'top', label: 'Top' },
 ];
 
-/**
- * Admin building-default panel for the Work Symbols widget. Exposes the
- * appearance fields the widget actually consumes (font family, text size
- * preset, text colour, title position). `fontFamily` is stored in the shared
- * `TypographySettings` value space (`FONTS` ids like `'font-sans'`), so the
- * value seeded into a new widget instance matches what the teacher's own
- * Appearance tab would write. The symbol library (image uploads + per-building
- * availability) is configured separately in the surrounding modal.
- */
+// Admin building-default panel for Work Symbols appearance fields (font family, text size, colour, title position); symbol library is configured separately in the surrounding modal.
 export const WorkSymbolsConfigurationPanel: React.FC<
   WorkSymbolsConfigurationPanelProps
 > = ({ config, onChange }) => {
