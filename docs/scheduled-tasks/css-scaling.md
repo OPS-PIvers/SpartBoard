@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-11_
+_Last audited: 2026-07-12_
 _Last action: 2026-07-08 — LOW TalkingTool `Scaffolding` label pixel cap raised `min(9px, 2.2cqmin)` → `min(10px, 2.2cqmin)`; 9px was below the 10px tertiary-text floor_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-12: Targeted scan of 10 widget front-face files (Checklist, RevealGrid, ConceptWeb, SyntaxFramer, GraphicOrganizer, ExpectationsWidget, PollWidget, TimerWidget/TimeTool, CountdownWidget, WordCloud). New dev-paul commits since 2026-07-11: pr-review docs only — no widget front-face content changes. ONE file has violations: RevealGrid/Widget.tsx at lines 158 (gap-2 header), 162 (text-xs py-1 px-3 button), 168 (text-xs label), 183 (gap-4 main grid) — all already tracked in the existing open item "LOW RevealGrid has additional hardcoded spacing". Line numbers have shifted slightly from :159/:164/:170/:185 to :158/:162/:168/:183; updated in open item. All 9 other audited files are clean. WordCloud directory not found (widget no longer exists in this codebase). Zero new anti-patterns._
 
 _2026-07-11 (action): Saturday run — weekly journals skipped, so the reading list is the three dailies only (widget-registry, css-scaling, typescript-eslint). widget-registry and typescript-eslint both report "No open items", so css-scaling is the highest-priority journal and every open item in it is LOW. Worked in document order. **Item 1 (ClockWidget bare cqmin cap) → reclassified WON'T FIX** (see Completed): the suggested `clamp()` cap is unobservable in the jsdom test env — `cssstyle` silently drops ALL CSS math functions (`min()`/`clamp()`) from inline `fontSize`, so a capped value renders as `""`. This permanently destroys the discriminating power of the purpose-built cqh/cqw regression test in `ClockWidget/Widget.test.tsx` (both good and bad code would render `""`); combined with CLAUDE.md explicitly endorsing bare `Ycqmin` for hero text and the cap being a no-op at default widget size, the change is net-negative. Reverted the trial edit; code unchanged. **Item 2 (QuizResults period-filter `<select>`) → COMPLETED** (see Completed). File-recency check on QuizResults.tsx passed (last touched 85a5d3e7, outside last 5 branch commits). type-check/eslint/prettier clean; all 99 QuizWidget tests pass. PR opened to dev-paul._
 
@@ -152,7 +154,7 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ### LOW RevealGridWidget has additional hardcoded spacing beyond `text-xs` labels
 
 - **Detected:** 2026-04-12 (expanded 2026-04-14)
-- **File:** components/widgets/RevealGrid/Widget.tsx:159, :164, :170, :185
+- **File:** components/widgets/RevealGrid/Widget.tsx:158, :162, :168, :183 (lines confirmed 2026-07-12; shifted from :159/:164/:170/:185)
 - **Detail:** In addition to the previously noted `text-xs` on control labels (lines 164, 170), the widget also has: `gap-2` on the header controls row (line 159), `py-1 px-3` on the "Start Over" button (line 164), and `gap-4` on the main card grid (line 185). Widget has `skipScaling: true`.
 - **Fix:** Convert all noted Tailwind sizing classes to inline `cqmin` equivalents per project pattern. See prior entry for text-xs fix guidance.
 
