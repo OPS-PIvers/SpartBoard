@@ -84,13 +84,13 @@ export const DrawingSettings: React.FC<{ widget: WidgetData }> = ({
         <SettingsLabel
           icon={Palette}
           as="span"
-          id="drawing-color-presets-label"
+          id={`drawing-color-presets-label-${widget.id}`}
         >
           Color Presets
         </SettingsLabel>
         <div
           role="group"
-          aria-labelledby="drawing-color-presets-label"
+          aria-labelledby={`drawing-color-presets-label-${widget.id}`}
           className="flex gap-2 px-2"
         >
           {customColors.map((c, i) => (
