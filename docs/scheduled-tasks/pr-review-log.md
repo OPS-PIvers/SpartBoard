@@ -1928,3 +1928,56 @@ _Automated nightly review by claude-opus-4-6_
   - Branch-safety: no push to `main` or any `dev-*` branch. #2172 merges `dev-paul`→`main` and needed no fix (all comments already addressed), so the sanctioned `dev-paul` fix path went unused. This log commit is the only push to `scheduled-tasks`.
   - #2173 CI status: pending/none reported (draft PR).
   - Env runs Node 22 (repo pins 24); CI on Node 24 remains the authoritative gate.
+
+## 2026-07-11
+
+- PRs reviewed: 3 open PRs (all authored by OPS-PIvers, all draft, all base `dev-paul`)
+  - #2176 — fix(css-scaling): scale QuizResults period-filter select with cqmin (head `scheduled-tasks`)
+  - #2175 — docs(unifier): log nightly run 31 — 2026-07-11 (head `nightly/unifier-log-2026-07-11`)
+  - #2174 — D4: use @/ alias for i18n locale imports (head `nightly/unify-import-paths-2026-07-11`)
+- Comments processed: 0 change-requesting review comments. No inline review threads on any PR. Existing reviews were all non-actionable: `gemini-code-assist[bot]` "no feedback" summaries (+ its own sunsetting notice) on all three, and `claude[bot]` LGTM reviews on #2176 and #2174. No replies posted — none were questions or change requests, and harness guidance is to be frugal with GitHub replies.
+- Fixes pushed: 0 (no PR carried an unresolved comment requiring a code fix).
+- Reviews posted: 3 structured reviews (one per PR) — all **Ready**.
+  - #2176 — Ready. Verified the fix against ground truth: QuizWidget has `skipScaling: true`; the wrapping `<div>` (`padding: min(8px,2cqmin) min(16px,4cqmin)`/`gap`) and sibling `<label>` (`fontSize: min(10px,3cqmin)`) were already scaled, so the `<select>` was genuinely the lone hardcoded outlier. `min(14px, 5.5cqmin)` is the correct body/form tier per CLAUDE.md. WON'T FIX on the ClockWidget hero cap is sound (jsdom `cssstyle` drops `min()`/`clamp()`, defeating the cqmin regression test; bare `cqmin` hero text is CLAUDE.md-endorsed).
+  - #2175 — Ready. Doc-only unifier run-31 log; backlog-row hygiene fix (4 NEEDS REVIEW → CLOSED D1-E19–E22) correctly reconciles backlog vs exceptions tables. Zero code risk.
+  - #2174 — Ready. Pure mechanical `@/` alias equivalence for 4 i18n locale imports; `@/` resolves to repo root in both `vite.config.ts` and `tsconfig.json`, same resolved modules.
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` branch. No PR merged `dev-paul`→`main` this run, so the sanctioned `dev-paul` fix path went unused. This log commit is the only push to `scheduled-tasks`.
+  - Env runs Node 22 (repo pins 24); CI on Node 24 remains the authoritative gate.
+
+## 2026-07-12
+
+- PRs reviewed: 12 open PRs (all authored by OPS-PIvers, all draft, all base `dev-paul`; heads are `nightly/*` or `scheduled-tasks`, none `main`/`dev-*` → all in-scope)
+  - #2185 — docs(unifier): log nightly run 32 (head `nightly/unifier-log-2026-07-12`)
+  - #2184 — D4: use @/ alias for MathToolInstance's math-tools imports (head `nightly/unify-import-paths-2026-07-12`)
+  - #2183 — D3: retrofit DrawingWidget "Color Presets" label to as="span" group heading (head `nightly/unify-settings-labels-2026-07-12`)
+  - #2182 — docs(ai): nightly debugger run 26 (head `nightly/debugger-log-2026-07-11`)
+  - #2181 — test(useRosters): fix PII-migration test race (head `nightly/build-tooling-2026-07-11`)
+  - #2180 — fix(i18n): FR plcDashboard PLC→CAP terminology drift (7 keys) (head `nightly/admin-config-2026-07-11`)
+  - #2179 — fix(useSyncedQuizGroups): dedupe syncGroupIds to prevent loading hang (head `nightly/state-data-2026-07-11`)
+  - #2178 — fix(ImportWizard): guard 2 remaining async handlers (head `nightly/dashboard-layout-2026-07-11`)
+  - #2177 — fix(TalkingToolWidget): resync active tab on live category change (head `nightly/widgets-2026-07-11`)
+  - #2176 — scheduled-tasks: WorkSymbols admin building config + QuizResults period-filter scaling (head `scheduled-tasks`)
+  - #2175 — docs(unifier): log nightly run 31 (head `nightly/unifier-log-2026-07-11`)
+  - #2174 — D4: use @/ alias for i18n locale imports (head `nightly/unify-import-paths-2026-07-11`)
+- Comments processed: 2 unresolved inline threads actioned — 0 fixed (no push needed), 2 explained + resolved. Every other PR's inline threads were already resolved / already carried author replies.
+  - #2183: 2 unresolved-but-`is_outdated` `claude` threads asking to scope the "Color Presets" `id`/`aria-labelledby` per widget instance (duplicate-DOM-id when two drawing widgets are flipped simultaneously). Verified the fix is ALREADY on the branch — both are `` `drawing-color-presets-label-${widget.id}` ``. Replied once confirming and resolved both threads. No push.
+  - All other PRs (#2185/#2184/#2182/#2181/#2180/#2179/#2178/#2177/#2176/#2175/#2174): no open actionable review threads (resolved-in-code, prior author replies, or gemini/claude non-actionable summaries).
+- Fixes pushed: 0 (no PR carried an unresolved comment requiring a code fix; the one candidate on #2183 was already fixed in-branch).
+- Reviews posted: 12 structured reviews (one per PR).
+  - #2185 — Ready with minor notes. Doc-only run-32 log, stacked on the still-open #2175; flagged the merge-order dependency (merge #2175 first, or close it) to avoid the doc-duplication failure mode.
+  - #2184 — Ready. Mechanical `@/` alias unification (12 imports) + matching narrowly-scoped `no-restricted-imports` rule mirroring the `plc/**` pattern.
+  - #2183 — Ready. Accessibility-only `as="span"` group-heading retrofit; per-instance id scoping correctly handles the per-widget `DraggableWindow` render (the key detail).
+  - #2182 — Ready. Doc-only debugger run-26 log; backlog cross-references shipped PRs correctly.
+  - #2181 — Ready. Test-only race fix; polls the real downstream write instead of the `uploadFile` proxy, 0ms macrotask-deferred mock. Production code untouched.
+  - #2180 — Ready. FR `plcDashboard` PLC→CAP fix (7 keys incl. a gender-agreement fix) + recursive-sweep regression test.
+  - #2179 — Ready. One-line dedup fix bringing `useSyncedQuizGroups` in lockstep with its already-fixed VA sibling; removes a latent loading-hang + redundant listener.
+  - #2178 — Ready. Completes `sessionRef` cancellation-guard coverage for the last 2 ImportWizard handlers, incl. stale-blank-tab cleanup; 3 new tests.
+  - #2177 — Ready. Render-time `activeTab` resync (repo-sanctioned "adjust state while rendering") + `aria-pressed` a11y bonus; regression test asserts both highlight and ARIA state.
+  - #2176 — Ready with minor notes. WorkSymbols per-building appearance defaults (validated `getAdminBuildingConfig` case + panel embedded in the dedicated modal) and QuizResults `<select>` cqmin scaling; two independent low-risk fixes, 4 new validation tests. `types.ts` change is purely additive (no `WidgetConfig`/`ConfigForWidget` impact); no `DashboardContext`/`WidgetRegistry` touch.
+  - #2175 — Ready. Doc-only run-31 log; closes 4 stale D1 NEEDS-REVIEW backlog rows.
+  - #2174 — Ready. Mechanical `@/` alias for 4 i18n locale imports.
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` branch. No PR merged `dev-paul`→`main` this run, so the sanctioned `dev-paul` fix path went unused. This log commit is the only push to `scheduled-tasks`.
+  - Merge-order flag: #2185 (run-32 log) is stacked on #2175 (run-31 log); both edit `docs/routines/unifier.md`. Merge #2175 first (then #2185 shrinks to the run-32 delta), or land only one — surfaced in both reviews.
+  - No code fixes were pushed, so no local verification was required. All code PRs claim `pnpm run validate` + `build` green; CI on Node 24 remains the authoritative gate (env runs Node 22, repo pins 24).

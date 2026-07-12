@@ -18,6 +18,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { Button } from '@/components/common/Button';
 import { Card } from '@/components/common/Card';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { WorkSymbolsConfigurationPanel } from './WorkSymbolsConfigurationPanel';
 
 interface WorkSymbolsConfigurationModalProps {
   isOpen: boolean;
@@ -30,7 +31,10 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const normalizeConfig = (raw: unknown): WorkSymbolsGlobalConfig => {
   const config = raw as WorkSymbolsGlobalConfig | undefined;
-  return { symbols: config?.symbols ?? [] };
+  return {
+    symbols: config?.symbols ?? [],
+    buildingDefaults: config?.buildingDefaults ?? {},
+  };
 };
 
 export const WorkSymbolsConfigurationModal: React.FC<
@@ -381,6 +385,14 @@ export const WorkSymbolsConfigurationModal: React.FC<
               ))}
             </div>
           )}
+
+          {/* Building appearance defaults */}
+          <div className="pt-4 border-t border-slate-200">
+            <WorkSymbolsConfigurationPanel
+              config={globalConfig}
+              onChange={setGlobalConfig}
+            />
+          </div>
         </div>
 
         {/* Footer */}
