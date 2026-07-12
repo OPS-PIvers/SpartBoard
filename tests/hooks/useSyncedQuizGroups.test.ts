@@ -10,11 +10,13 @@
  */
 
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
 import * as firestore from 'firebase/firestore';
 import {
   publishSyncedQuiz,
   pullSyncedQuizContent,
   createSyncedQuizGroup,
+  useSyncedQuizGroupsByIds,
 } from '@/hooks/useSyncedQuizGroups';
 import type { QuizBehaviorSettings } from '@/types';
 
@@ -235,5 +237,35 @@ describe('createSyncedQuizGroup — behavior field threading', () => {
     const [_ref, payload] = (firestore.setDoc as unknown as Mock).mock
       .calls[0] as [unknown, Record<string, unknown>];
     expect(payload).not.toHaveProperty('behavior');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// useSyncedQuizGroupsByIds — loading must resolve even with duplicate ids
+// ---------------------------------------------------------------------------
+
+describe('useSyncedQuizGroupsByIds — duplicate id handling', () => {
+  beforeEach(() => {
+    // `doc()` is mocked (top-level beforeEach) to return the joined path string.
+    (firestore.onSnapshot as unknown as Mock).mockImplementation(
+      (
+        ref: string,
+        onNext: (snap: { exists: () => boolean; data: () => unknown }) => void
+      ) => {
+        const id = ref.split('/').pop();
+        onNext({ exists: () => true, data: () => ({ title: id }) });
+        return () => undefined;
+      }
+    );
+  });
+
+  it('resolves loading to false when the id list contains a duplicate', async () => {
+    const { result } = renderHook(() =>
+      useSyncedQuizGroupsByIds(['group-1', 'group-1', 'group-2'])
+    );
+
+    // Regression for the twin bug already fixed in useSyncedVideoActivityGroups.
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.groups.size).toBe(2);
   });
 });
