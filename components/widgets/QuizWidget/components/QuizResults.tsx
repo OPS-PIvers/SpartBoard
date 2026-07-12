@@ -1543,7 +1543,11 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
                 id="quiz-results-period-filter"
                 value={periodFilter}
                 onChange={(e) => setPeriodFilter(e.target.value)}
-                className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                style={{
+                  padding: 'min(4px, 1.5cqmin) min(8px, 2.5cqmin)',
+                  fontSize: 'min(14px, 5.5cqmin)',
+                }}
               >
                 <option value="all">All Periods ({responses.length})</option>
                 {availablePeriods.map((p) => (

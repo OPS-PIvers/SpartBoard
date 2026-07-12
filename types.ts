@@ -1921,8 +1921,30 @@ export interface WorkSymbol {
   buildings: string[];
 }
 
+/**
+ * Per-building appearance defaults for the Work Symbols widget. These
+ * pre-populate a new widget instance's appearance for teachers in the given
+ * building; teachers can still override them per-instance from the widget's
+ * Appearance tab. Only the fields the widget actually consumes are exposed.
+ */
+export interface BuildingWorkSymbolsDefaults {
+  buildingId: string;
+  /**
+   * Stored in the shared `TypographySettings` value space — a `FONTS` id such
+   * as `'font-sans'` / `'font-mono'`. The `'global'` sentinel (inherit from the
+   * dashboard) is represented by absence/`undefined`, never the literal string.
+   * Seeds `WorkSymbolsConfig.fontFamily`, decoded at render via `getFontClass()`
+   * (same prefixed space the Stations / Need-Do-Put-Then widgets use).
+   */
+  fontFamily?: string;
+  fontColor?: string;
+  textSizePreset?: TextSizePreset;
+  titlePosition?: 'bottom' | 'top';
+}
+
 export interface WorkSymbolsGlobalConfig {
   symbols: WorkSymbol[];
+  buildingDefaults?: Record<string, BuildingWorkSymbolsDefaults>;
 }
 
 // --- BLOOM'S TAXONOMY ---

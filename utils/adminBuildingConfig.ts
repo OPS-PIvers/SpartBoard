@@ -674,6 +674,32 @@ export const getAdminBuildingConfig = (
         out.viewMode = raw.viewMode;
       break;
     }
+    case 'work-symbols': {
+      // WorkSymbols uses the shared TypographySettings / TextSizePresetSettings
+      // primitives, so `fontFamily` lives in the prefixed `FONTS`-id space
+      // (validated by `isWidgetFontFamily`, like `stations`/`need-do-put-then`).
+      // All four fields are actively consumed by WorkSymbols/Widget.tsx
+      // (getFontClass, resolveTextPresetMultiplier, fontColor, titlePosition).
+      const validTextSizePresets = [
+        'small',
+        'medium',
+        'large',
+        'x-large',
+      ] as const;
+      if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
+      if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
+      if (
+        typeof raw.textSizePreset === 'string' &&
+        (validTextSizePresets as readonly string[]).includes(raw.textSizePreset)
+      )
+        out.textSizePreset = raw.textSizePreset;
+      if (
+        typeof raw.titlePosition === 'string' &&
+        (raw.titlePosition === 'bottom' || raw.titlePosition === 'top')
+      )
+        out.titlePosition = raw.titlePosition;
+      break;
+    }
     default:
       break;
   }

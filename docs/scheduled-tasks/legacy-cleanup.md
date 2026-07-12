@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-07-05_
+_Last audited: 2026-07-12_
 _Last action: never_
 
 ---
@@ -16,19 +16,33 @@ _Nothing currently in progress._
 
 ## Open
 
-### LOW scripts/tools/\*.py — 8 deprecated manual-testing scripts with no automated role
+### MEDIUM `migrateLocalStorageToFirestore` still invoked on every sign-in — dead overhead if migration window has closed
 
-- **Detected:** 2026-04-16
+- **Detected:** 2026-07-12
+- **File:** `utils/migration.ts:148` (export), `context/DashboardContext.tsx:2046` (call site)
+- **Detail:** `migrateLocalStorageToFirestore()` is called unconditionally on every authenticated sign-in in `DashboardContext.tsx`. The function short-circuits immediately when `localStorage.getItem('classroom_dashboards')` is `null`, making it a no-op for the vast majority of users — but the call still runs on every sign-in. If the localStorage-to-Firestore migration window has definitively closed (no active users retain pre-Firestore dashboard data), this is live dead overhead in the hot sign-in path. Prior audits noted "still needed" without assessing whether the migration window has closed. The `timer`/`stopwatch`/`workSymbols` branches in `migrateWidget()` are related but separate (they guard against old Firestore-stored widget types, not localStorage data).
+- **Fix:** Audit Firestore data or user activity logs to determine whether any `classroom_dashboards` localStorage keys remain in the wild. If migration is complete, remove the `migrateLocalStorageToFirestore()` call from `DashboardContext.tsx` and delete or archive the export. If uncertainty remains, add a short-circuit at the call site gated on a Firestore document flag to skip the localStorage check after the user has migrated at least once.
+
+### MEDIUM scripts/tools/\*.py — 9 stale dev-session scripts including one that writes to source files
+
+- **Detected:** 2026-04-16 (severity upgraded 2026-07-12)
 - **File:** scripts/tools/ (verify_routines_manager.py, verify_dock_icons.py, verify_routines.py, verify_lunch_count.py, refactor_manager.py, fix_buttons.py, inspect_buttons.py, debug_admin_settings.py, debug_landing.py)
-- **Detail:** The `scripts/tools/` directory contains 9 Python/Playwright scripts. All are either one-off refactoring tasks that have already been executed (refactor*manager.py, fix_buttons.py) or manual test/debug inspection scripts (verify*\_.py, inspect\_\_.py, debug\_\*.py). None are wired into any CI pipeline, build step, or npm script. They provide no automated value and their presence in the repository creates confusion about what testing tools are canonical.
+- **Detail:** The `scripts/tools/` directory contains 9 Python/Playwright scripts. All are stale dev-session artifacts. `fix_buttons.py` directly writes to `components/widgets/Breathing/BreathingWidget.tsx` — the fix was presumably applied long ago, but the script could accidentally re-apply it. `refactor_manager.py` reads from `FeaturePermissionsManager.tsx.bak`, a backup file that likely no longer exists; running it would silently fail or corrupt state. None are wired into any CI pipeline. Severity upgraded from LOW: a script that modifies source files in the working tree is a confusion/safety risk.
 - **Fix:** Delete `scripts/tools/` directory entirely. Ongoing E2E testing is handled by `tests/e2e/` via Playwright and pnpm test:e2e.
 
 ### LOW `hooks/useScaledFont.ts` — dead hook with no production imports
 
 - **Detected:** 2026-05-17
 - **File:** hooks/useScaledFont.ts
-- **Detail:** `useScaledFont` was introduced in PR #1213 (Expectations Widget Enhancements). It calculates a font size based on widget width/height using the CSS `transform: scale()` era approach. The project subsequently adopted CSS container queries (`cqmin`/`cqw`/`cqh` units) as the standard scaling mechanism, and `useScaledFont` was never called from any production file. Zero imports found in components/, context/, hooks/, utils/ (only the file's own exports exist). The file has a JSDoc block and looks legitimate but is dead code.
-- **Fix:** Delete `hooks/useScaledFont.ts`. Confirm no test file imports it, then remove. Run `pnpm type-check` and `pnpm lint` to verify clean.
+- **Detail:** `useScaledFont` was introduced in PR #1213 (Expectations Widget Enhancements). It calculates a font size based on widget width/height using the CSS `transform: scale()` era approach. The project subsequently adopted CSS container queries (`cqmin`/`cqw`/`cqh` units) as the standard scaling mechanism, and `useScaledFont` was never called from any production file. Zero imports found in components/, context/, hooks/, utils/ (only the file's own exports exist). The file has a JSDoc block and looks legitimate but is dead code. Confirmed 2026-07-12: `ScheduleWidget.test.tsx:57` still mocks it (`vi.mock('@/hooks/useScaledFont')`) even though the production import is gone — the test mock is also dead.
+- **Fix:** Delete `hooks/useScaledFont.ts` and remove the `vi.mock('@/hooks/useScaledFont')` from `ScheduleWidget.test.tsx`. Run `pnpm type-check` and `pnpm lint` to verify clean.
+
+### LOW `utils/imageProcessing.ts:109` — `console.warn` fires on successful completion
+
+- **Detected:** 2026-07-12
+- **File:** utils/imageProcessing.ts:109
+- **Detail:** `console.warn('Background removal complete: ${key}')` is called when AI background removal reaches 100% (`current === total`). The comment above it reads "Final progress log." This is a debug trace left from development — `console.warn` is inappropriate for a success condition and will appear in production browser consoles. All other `console.warn`/`console.error` calls in the codebase are legitimate error-reporting paths; this is the sole misuse.
+- **Fix:** Delete line 109 (silent success is correct; the caller handles the resolved promise). If observability is desired, replace with a structured logger or a non-warn approach.
 
 ### LOW `utils/videoActivityDriveService.ts` — export added 2026-05-08 with no production call site
 
