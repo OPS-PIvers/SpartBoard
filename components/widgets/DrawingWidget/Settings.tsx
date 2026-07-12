@@ -81,8 +81,18 @@ export const DrawingSettings: React.FC<{ widget: WidgetData }> = ({
   return (
     <div className="space-y-6">
       <div>
-        <SettingsLabel icon={Palette}>Color Presets</SettingsLabel>
-        <div className="flex gap-2 px-2">
+        <SettingsLabel
+          icon={Palette}
+          as="span"
+          id="drawing-color-presets-label"
+        >
+          Color Presets
+        </SettingsLabel>
+        <div
+          role="group"
+          aria-labelledby="drawing-color-presets-label"
+          className="flex gap-2 px-2"
+        >
           {customColors.map((c, i) => (
             <div
               key={i}
