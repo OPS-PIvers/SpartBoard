@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-07-01_
+_Last audited: 2026-07-13_
 _Last action: 2026-05-01_
 
 ---
 
 ## Audit Log
+
+_2026-07-13: Full audit (Audit E — Monday weekly). (1) Type assertion density: all existing cast items re-confirmed valid — hooks/useFirestore.ts `as unknown as Dashboard` double-casts (MEDIUM, :266/:398), utils/ai_security.ts structuredClone round-trip casts (MEDIUM, 7 instances), utils/smartPaste.ts + utils/dashboardPII.ts single-casts (LOW), CustomWidget/BlockRenderer.tsx 18 sequential casts (LOW), icon registry 3-file cast (LOW), FeatureConfigurationPanel.tsx BuildingConfigPanel cast (LOW), QuizWidget component-level state density 12 useState + 5 useRef (LOW). (2) Heavy hooks: useQuizSession.ts (22 useState/useRef), useVideoActivitySession.ts (18) — unchanged, existing LOW item. (3) Prop drilling and nested ternaries: minimal, consistent with prior audits. Zero new items. All existing open items remain valid._
 
 _2026-07-01: Full audit (Audit E1 — Wednesday). (1) Object.assign merges: mergeWidgetConfig() in utils/widgetConfigPersistence.ts remains the single canonical merge point; addWidget() and addWidgets() in DashboardContext.tsx are the only 2 call sites — well-factored, no extraction needed. (2) Type assertions: Full scan found a NEW MEDIUM finding — hooks/useFirestore.ts:266 uses `as unknown as Dashboard` on a Firestore DocumentData snapshot (masking potential shape mismatch), and :398 uses `{ intendedMode } as unknown as Partial<Dashboard>` (intendedMode is SharedBoardImportMode, not a Dashboard field). Both are class (b) — masking mismatch. New MEDIUM item added. Other existing casts all confirmed valid (ai_security.ts MEDIUM, smartPaste.ts LOW, BlockRenderer.tsx LOW, FeatureConfigurationPanel.tsx LOW, Results.tsx LOW). (3) Heavy hooks: useQuizSession.ts and useVideoActivitySession.ts — existing LOW item covers these. (4) Prop drilling: minimal — consistent with prior audits. (5) Nested ternaries: a few instances in analytics/admin files — no new items. All existing open items confirmed valid. One new MEDIUM item added._
 

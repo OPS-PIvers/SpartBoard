@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-07-01_
+_Last audited: 2026-07-13_
 _Last action: 2026-05-18 (admin_audit_log immutability hardening)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-13: Full collection audit. Scanned components/, context/, hooks/, utils/, and functions/src/ for all Firestore collection() and collectionGroup() calls. Cross-referenced against firestore.rules match blocks. Default-deny catch-all confirmed present at `match /{document=**}` (line 3831). Result: 100% collection coverage — all client-facing collections confirmed to have explicit match blocks. No new collections introduced since 2026-07-01 (docs-only commits only). All existing open items (pollVotes unrestricted write, sessions broad read, admin_settings/user_roles redundant rule, classroom_grade_links no explicit rule, ai_usage implicit write denial) confirmed present and valid. Zero new items._
 
 _2026-07-01: Full collection audit. Scanned components/, context/, hooks/, utils/, and functions/src/ for all Firestore collection() and collectionGroup() calls. Cross-referenced against firestore.rules match blocks. Default-deny catch-all confirmed present. Result: 100% collection coverage — all client-facing collections have explicit rules match blocks. classroom_grade_links (Admin SDK only, no client access) confirmed already tracked as LOW open item (detected 2026-06-17). users/{userId}/plc_layouts rule exists in firestore.rules but no production client code accesses it yet — pre-landing feature, informational only. All existing open items (pollVotes unrestricted write, sessions broad read, admin_settings/user_roles redundant rule, classroom_grade_links no explicit rule, ai_usage no explicit write denial) confirmed present and valid. Zero new items._
 
