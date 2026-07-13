@@ -318,8 +318,13 @@ describe('selectTargets', () => {
     expect(targets.map((t) => t.label)).toEqual(['rules']);
   });
 
-  it('an unknown requested label selects nothing (fails loudly via empty targets, not silently)', () => {
-    const targets = selectTargets(allTargets, 'typo-d-label');
-    expect(targets).toEqual([]);
+  it('an unknown requested label throws instead of silently selecting nothing', () => {
+    // claude[bot] review (#2194): `targets: []` reaches main()'s for-loop,
+    // which iterates zero times and prints "guard passed" — a typo'd label
+    // would silently no-op the entire guard. Throwing here is the actual
+    // fail-loud behavior; the caller (main) lets it propagate and crash.
+    expect(() => selectTargets(allTargets, 'typo-d-label')).toThrow(
+      /Unknown checkTestCounts.mjs target "typo-d-label"/
+    );
   });
 });

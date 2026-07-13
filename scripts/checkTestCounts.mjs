@@ -192,9 +192,16 @@ export function evaluateTarget(target, reportExists, readReport) {
  * @returns {CountTarget[]}
  */
 export function selectTargets(allTargets, requestedLabel) {
-  return requestedLabel
-    ? allTargets.filter((t) => t.label === requestedLabel)
-    : allTargets;
+  if (!requestedLabel) return allTargets;
+  const matches = allTargets.filter((t) => t.label === requestedLabel);
+  if (matches.length === 0) {
+    throw new Error(
+      `Unknown checkTestCounts.mjs target "${requestedLabel}" — known ` +
+        `targets: ${allTargets.map((t) => t.label).join(', ')}. A typo here ` +
+        `would otherwise silently no-op the guard (0 targets evaluated).`
+    );
+  }
+  return matches;
 }
 
 function main() {
