@@ -3,6 +3,7 @@ import {
   findEmptyTestFiles,
   checkCountFloor,
   validateReport,
+  evaluateTarget,
 } from './checkTestCounts.mjs';
 
 /**
@@ -192,5 +193,123 @@ describe('validateReport', () => {
       'functions'
     );
     expect(issues).toEqual([]);
+  });
+});
+
+describe('evaluateTarget', () => {
+  // Third-surface gap (found 2026-07-13): `tests/rules/**` (run via
+  // `pnpm run test:rules` against the Firestore emulator, its own PR-
+  // validation CI step) had no count-floor guard at all — only `root` and
+  // `functions` were ever checked. `evaluateTarget` is the per-target unit
+  // that now backs all three; these cases pin the exact regression the fix
+  // closes (a rules test file going invisible is now caught) AND the
+  // constraint that made the gap easy to reintroduce (a REQUIRED report
+  // path must not silently no-op, but the OPTIONAL `rules` report must not
+  // break `validate`/`test:all`, which never run `test:rules`).
+
+  it('FAILS before: a required target with no baseline concept for "rules" means a rules regression is invisible', () => {
+    // Models the pre-fix world directly: the only targets ever evaluated
+    // were root/functions, so a rules-suite regression (file count 8, true
+    // baseline 44) never reaches ANY check — there is no rules baseline to
+    // compare against in the first place, `validateReport`/`checkCountFloor`
+    // are simply never called for that data. This is the silent-drop bug:
+    // zero issues are ever produced for the rules suite, no matter how far
+    // it regresses.
+    const rulesReport = { numTotalTests: 12, testResults: [] };
+    const preFixTargets = [
+      {
+        label: 'root',
+        reportPath: '/x/root.json',
+        baseline: { testFiles: 1, tests: 1 },
+      },
+      {
+        label: 'functions',
+        reportPath: '/x/functions.json',
+        baseline: { testFiles: 1, tests: 1 },
+      },
+    ];
+    // The pre-fix target list has no entry that could ever surface
+    // `rulesReport`'s regression — confirm no target even references it.
+    expect(preFixTargets.some((t) => t.label === 'rules')).toBe(false);
+    expect(rulesReport.numTotalTests).toBeLessThan(44); // the regression exists...
+    // ...but nothing above checks it. (Post-fix case below shows it caught.)
+  });
+
+  it('PASSES after: a rules-suite regression is caught once "rules" is evaluated as a target', () => {
+    const rulesReport = { numTotalTests: 12, testResults: [] };
+    const issues = evaluateTarget(
+      {
+        label: 'rules',
+        reportPath: '/repo/.vitest-reports/rules.json',
+        baseline: { testFiles: 44, tests: 1112 },
+        optional: true,
+      },
+      () => true, // report file exists this run
+      () => rulesReport
+    );
+    expect(issues.some((i) => i.includes('test file count dropped to 0'))).toBe(
+      true
+    );
+    expect(
+      issues.some((i) => i.includes('total test count dropped to 12'))
+    ).toBe(true);
+  });
+
+  it('an OPTIONAL missing report (rules, when test:rules was not run) produces no issues', () => {
+    // This is the constraint that makes the fix safe to ship: `validate`
+    // and `test:all` never run `test:rules` (it needs a separate emulator),
+    // so `.vitest-reports/rules.json` legitimately does not exist on that
+    // path. If this returned an issue, every `pnpm run validate` on a
+    // fresh checkout would fail for a report that was never supposed to
+    // exist there.
+    const issues = evaluateTarget(
+      {
+        label: 'rules',
+        reportPath: '/repo/.vitest-reports/rules.json',
+        baseline: { testFiles: 44, tests: 1112 },
+        optional: true,
+      },
+      () => false, // report file does not exist
+      () => {
+        throw new Error(
+          'readReport must not be called when the report is missing'
+        );
+      }
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('a REQUIRED missing report (root/functions) still fails loudly', () => {
+    const issues = evaluateTarget(
+      {
+        label: 'root',
+        reportPath: '/repo/.vitest-reports/root.json',
+        baseline: { testFiles: 1, tests: 1 },
+        // optional omitted -> required, matches root/functions today
+      },
+      () => false,
+      () => {
+        throw new Error(
+          'readReport must not be called when the report is missing'
+        );
+      }
+    );
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain('report not found');
+  });
+
+  it('a missing baseline entry fails regardless of optional', () => {
+    const issues = evaluateTarget(
+      {
+        label: 'rules',
+        reportPath: '/repo/.vitest-reports/rules.json',
+        baseline: undefined,
+        optional: true,
+      },
+      () => true,
+      () => ({ numTotalTests: 0, testResults: [] })
+    );
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain('baseline configuration is missing');
   });
 });

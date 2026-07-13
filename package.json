@@ -31,7 +31,7 @@
     "test:all": "pnpm test && pnpm -C functions test && pnpm run test:counts",
     "test:counts": "node scripts/checkTestCounts.mjs",
     "test:e2e": "playwright test",
-    "test:rules": "firebase emulators:exec --only firestore \"vitest run --config vitest.rules.config.ts\"",
+    "test:rules": "firebase emulators:exec --only firestore \"vitest run --config vitest.rules.config.ts --reporter=default --reporter=json --outputFile=.vitest-reports/rules.json && node scripts/checkTestCounts.mjs\"",
     "test:perf": "vitest run --config vitest.perf.config.ts",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
