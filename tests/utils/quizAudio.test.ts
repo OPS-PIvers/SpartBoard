@@ -249,7 +249,7 @@ describe('quizAudio — graceful degradation', () => {
 
     // getCtx() re-attempts construction while the singleton is null, but every
     // attempt fails and no oscillator is ever produced.
-    expect(attempts).toBeGreaterThanOrEqual(1);
+    expect(attempts).toBe(2);
     expect(oscillators).toHaveLength(0);
   });
 });
