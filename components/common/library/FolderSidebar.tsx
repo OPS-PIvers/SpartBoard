@@ -24,11 +24,15 @@ export interface FolderSidebarProps {
   /** Which widget's folder tree to render. Reserved for future use. */
   widget: LibraryFolderWidget;
   folders: LibraryFolder[];
-  /** `null` = "All items" (root). */
+  /** `null` = "All items" (no folder filter — every item is shown). */
   selectedFolderId: string | null;
   onSelectFolder: (folderId: string | null) => void;
 
-  /** Count of items whose `folderId === folder.id` (null key = root). */
+  /**
+   * Per-folder item counts, keyed by `folder.id` plus `ROOT_FOLDER_COUNT_KEY`
+   * ("root") for unfoldered items. The "All items" row's badge is the sum of
+   * every bucket here (it shows every item, not just unfoldered ones).
+   */
   itemCounts?: Record<string, number>;
 
   /** Hook-level CRUD. Passing a handler enables that affordance in the UI. */
@@ -86,7 +90,15 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   );
   const [commitError, setCommitError] = useState<string | null>(null);
 
-  const rootCount = itemCounts?.['root'] ?? itemCounts?.[''] ?? 0;
+  // "All items" bypasses folder filtering entirely (selectedFolderId === null
+  // means "show everything the caller passed in" — see filterByFolder's
+  // contract in folderFilters.ts), so its badge must sum every bucket in
+  // itemCounts, not just the root bucket. Reading only itemCounts['root']
+  // undercounted whenever any items were actually filed into a folder — e.g.
+  // 7 unfoldered + 3 in "Unit 2" showed "7" on a row that opens all 10.
+  const totalItemCount = itemCounts
+    ? Object.values(itemCounts).reduce((sum, count) => sum + count, 0)
+    : 0;
 
   // Count descendants + direct items for the delete modal.
   const deleteImpact = useMemo(() => {
@@ -250,7 +262,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
           }}
         />
         {!isRail && <span className="flex-1 truncate">All items</span>}
-        {!isRail && rootCount > 0 && (
+        {!isRail && totalItemCount > 0 && (
           <span
             className={`inline-flex items-center justify-center rounded-full font-bold leading-none ${
               selectedFolderId === null
@@ -262,7 +274,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
               fontSize: 'min(10px, 3cqmin)',
             }}
           >
-            {rootCount}
+            {totalItemCount}
           </span>
         )}
       </button>
