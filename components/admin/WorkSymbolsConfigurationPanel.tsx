@@ -8,6 +8,7 @@ import {
   TextSizePreset,
 } from '@/types';
 import { Card } from '@/components/common/Card';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { FONTS } from '@/config/fonts';
 import { HexColorField } from './HexColorField';
 
@@ -69,9 +70,9 @@ export const WorkSymbolsConfigurationPanel: React.FC<
     <div className="space-y-6">
       {/* Building Selector */}
       <div>
-        <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block">
-        <SettingsLabel as="span">Configure Building Work Symbols Defaults</SettingsLabel>
-        </label>
+        <SettingsLabel as="span">
+          Configure Building Work Symbols Defaults
+        </SettingsLabel>
         <BuildingSelector
           selectedId={selectedBuildingId}
           onSelect={setSelectedBuildingId}
