@@ -3,6 +3,8 @@ import {
   findEmptyTestFiles,
   checkCountFloor,
   validateReport,
+  evaluateTarget,
+  selectTargets,
 } from './checkTestCounts.mjs';
 
 /**
@@ -192,5 +194,137 @@ describe('validateReport', () => {
       'functions'
     );
     expect(issues).toEqual([]);
+  });
+});
+
+describe('evaluateTarget', () => {
+  // Third-surface gap (found 2026-07-13): `tests/rules/**` (run via
+  // `pnpm run test:rules` against the Firestore emulator, its own PR-
+  // validation CI step) had no count-floor guard at all — only `root` and
+  // `functions` were ever checked. `evaluateTarget` is the per-target unit
+  // that now backs all three; these cases pin the exact regression the fix
+  // closes (a rules test file going invisible is now caught) AND the
+  // constraint that made the gap easy to reintroduce (a REQUIRED report
+  // path must not silently no-op, but the OPTIONAL `rules` report must not
+  // break `validate`/`test:all`, which never run `test:rules`).
+
+  it('PASSES after: a rules-suite regression is caught once "rules" is evaluated as a target', () => {
+    const rulesReport = { numTotalTests: 12, testResults: [] };
+    const issues = evaluateTarget(
+      {
+        label: 'rules',
+        reportPath: '/repo/.vitest-reports/rules.json',
+        baseline: { testFiles: 44, tests: 1112 },
+        optional: true,
+      },
+      () => true, // report file exists this run
+      () => rulesReport
+    );
+    expect(issues.some((i) => i.includes('test file count dropped to 0'))).toBe(
+      true
+    );
+    expect(
+      issues.some((i) => i.includes('total test count dropped to 12'))
+    ).toBe(true);
+  });
+
+  it('an OPTIONAL missing report (rules, when test:rules was not run) produces no issues', () => {
+    // This is the constraint that makes the fix safe to ship: `validate`
+    // and `test:all` never run `test:rules` (it needs a separate emulator),
+    // so `.vitest-reports/rules.json` legitimately does not exist on that
+    // path. If this returned an issue, every `pnpm run validate` on a
+    // fresh checkout would fail for a report that was never supposed to
+    // exist there.
+    const issues = evaluateTarget(
+      {
+        label: 'rules',
+        reportPath: '/repo/.vitest-reports/rules.json',
+        baseline: { testFiles: 44, tests: 1112 },
+        optional: true,
+      },
+      () => false, // report file does not exist
+      () => {
+        throw new Error(
+          'readReport must not be called when the report is missing'
+        );
+      }
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('a REQUIRED missing report (root/functions) still fails loudly', () => {
+    const issues = evaluateTarget(
+      {
+        label: 'root',
+        reportPath: '/repo/.vitest-reports/root.json',
+        baseline: { testFiles: 1, tests: 1 },
+        // optional omitted -> required, matches root/functions today
+      },
+      () => false,
+      () => {
+        throw new Error(
+          'readReport must not be called when the report is missing'
+        );
+      }
+    );
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain('report not found');
+  });
+
+  it('a missing baseline entry fails regardless of optional', () => {
+    const issues = evaluateTarget(
+      {
+        label: 'rules',
+        reportPath: '/repo/.vitest-reports/rules.json',
+        baseline: undefined,
+        optional: true,
+      },
+      () => true,
+      () => ({ numTotalTests: 0, testResults: [] })
+    );
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain('baseline configuration is missing');
+  });
+});
+
+describe('selectTargets', () => {
+  // FAILS before / PASSES after (found in CI, run 2026-07-13): `test:rules`
+  // runs in its own isolated CI job with no `root`/`functions` reports ever
+  // produced there. Calling `checkTestCounts.mjs` with no filter evaluated
+  // ALL targets unconditionally, so the rules CI job failed on "report not
+  // found" for root/functions even though the rules suite itself was green.
+  const allTargets = [
+    { label: 'root', reportPath: '/x/root.json', baseline: undefined },
+    {
+      label: 'functions',
+      reportPath: '/x/functions.json',
+      baseline: undefined,
+    },
+    {
+      label: 'rules',
+      reportPath: '/x/rules.json',
+      baseline: undefined,
+      optional: true,
+    },
+  ];
+
+  it('FAILS before: no filter means test:rules would still evaluate root/functions', () => {
+    const targets = selectTargets(allTargets, undefined);
+    expect(targets.map((t) => t.label)).toEqual(['root', 'functions', 'rules']);
+  });
+
+  it('PASSES after: requesting "rules" scopes evaluation to just that target', () => {
+    const targets = selectTargets(allTargets, 'rules');
+    expect(targets.map((t) => t.label)).toEqual(['rules']);
+  });
+
+  it('an unknown requested label throws instead of silently selecting nothing', () => {
+    // claude[bot] review (#2194): `targets: []` reaches main()'s for-loop,
+    // which iterates zero times and prints "guard passed" — a typo'd label
+    // would silently no-op the entire guard. Throwing here is the actual
+    // fail-loud behavior; the caller (main) lets it propagate and crash.
+    expect(() => selectTargets(allTargets, 'typo-d-label')).toThrow(
+      /Unknown checkTestCounts.mjs target "typo-d-label"/
+    );
   });
 });

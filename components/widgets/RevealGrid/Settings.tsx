@@ -284,8 +284,14 @@ export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
     <div className="space-y-6">
       {/* Columns */}
       <div>
-        <SettingsLabel>Columns</SettingsLabel>
-        <div className="flex bg-slate-100 p-1 rounded-xl">
+        <SettingsLabel as="span" id={`revealgrid-columns-label-${widget.id}`}>
+          Columns
+        </SettingsLabel>
+        <div
+          role="group"
+          aria-labelledby={`revealgrid-columns-label-${widget.id}`}
+          className="flex bg-slate-100 p-1 rounded-xl"
+        >
           {([2, 3, 4, 5] as const).map((n) => (
             <button
               key={n}
