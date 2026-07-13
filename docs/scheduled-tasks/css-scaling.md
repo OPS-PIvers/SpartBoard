@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-12_
+_Last audited: 2026-07-13_
 _Last action: 2026-07-08 — LOW TalkingTool `Scaffolding` label pixel cap raised `min(9px, 2.2cqmin)` → `min(10px, 2.2cqmin)`; 9px was below the 10px tertiary-text floor_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-13: Scan of widget files changed in new dev-paul commits (absorbed via rebase since 2026-07-12): docs-only changes — no widget front-face content changes. All pre-existing open items (EmbedWidget portaled toolbar, RevealGrid hardcoded spacing at :158/:162/:168/:183, MiniApp dialog overlays, SmartNotebook drawing toolbar PageEditorOverlay.tsx :983/:1061, RandomClassContextButton portaled dropdown) confirmed present and valid. Spot-check of ActivityWall Modal confirmed WON'T FIX reasoning is still correct: `<Modal>` uses `createPortal(...)` rendering outside the widget's CQ context, so `max-h-[75vh]` and `text-base` in the submission viewer are appropriate viewport-level sizing. Zero new anti-patterns._
 
 _2026-07-12: Targeted scan of 10 widget front-face files (Checklist, RevealGrid, ConceptWeb, SyntaxFramer, GraphicOrganizer, ExpectationsWidget, PollWidget, TimerWidget/TimeTool, CountdownWidget, WordCloud). New dev-paul commits since 2026-07-11: pr-review docs only — no widget front-face content changes. ONE file has violations: RevealGrid/Widget.tsx at lines 158 (gap-2 header), 162 (text-xs py-1 px-3 button), 168 (text-xs label), 183 (gap-4 main grid) — all already tracked in the existing open item "LOW RevealGrid has additional hardcoded spacing". Line numbers have shifted slightly from :159/:164/:170/:185 to :158/:162/:168/:183; updated in open item. All 9 other audited files are clean. WordCloud directory not found (widget no longer exists in this codebase). Zero new anti-patterns._
 

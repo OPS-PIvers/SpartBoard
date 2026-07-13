@@ -42,12 +42,20 @@ export function useResultsTabWarnings({
   // rapid hide→return→hide race window (Firestore round-trip is ~100-200ms,
   // comfortably within motivated-cheater behavior).
   const currentWarningsRef = useRef(currentWarnings);
+  // Tracks the last `currentWarnings` this effect has accounted for, so a
+  // snapshot only clears as much of `pendingDeltaRef` as it actually
+  // confirms — a blanket reset-to-0 on any snapshot discards the tally for
+  // a second write still in flight when only the first of two rapid writes
+  // has landed, delaying the lockout flip past the event that crosses it.
+  const prevCurrentWarningsRef = useRef(currentWarnings);
   useEffect(() => {
+    const prev = prevCurrentWarningsRef.current;
+    prevCurrentWarningsRef.current = currentWarnings;
     currentWarningsRef.current = currentWarnings;
-    // When a fresh snapshot arrives the server count is now authoritative;
-    // any in-flight delta we accumulated locally has been absorbed, so
-    // reset the pending tally. (See `pendingDeltaRef` below.)
-    pendingDeltaRef.current = 0;
+    pendingDeltaRef.current =
+      currentWarnings > prev
+        ? Math.max(0, pendingDeltaRef.current - (currentWarnings - prev))
+        : 0; // non-increase (equal, or a teacher-unlock decrement): nothing pending to confirm
   }, [currentWarnings]);
 
   // Counts increments fired locally since the last snapshot landed.

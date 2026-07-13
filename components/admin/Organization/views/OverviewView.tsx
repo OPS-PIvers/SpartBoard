@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { LayoutGrid, Sparkles, Package, Archive, Lock } from 'lucide-react';
-import type { ActorRole, OrgRecord, Plan } from '../types';
+import type {
+  ActorRole,
+  OrgRecord,
+  Plan,
+} from '@/components/admin/Organization/types';
 import {
   Card,
   Field,

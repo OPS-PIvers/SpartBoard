@@ -41,6 +41,7 @@ import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
 import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettingsModal';
 import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
@@ -798,55 +799,22 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // ─── Guard: not signed in ──────────────────────────────────────────────────
   if (!user) {
     return (
-      <div
-        className="flex flex-col items-center justify-center h-full text-slate-400 text-center"
-        style={{ gap: 'min(12px, 3cqmin)', padding: 'min(24px, 6cqmin)' }}
-      >
-        <LogIn
-          className="opacity-40"
-          style={{ width: 'min(32px, 8cqmin)', height: 'min(32px, 8cqmin)' }}
-        />
-        <p
-          className="font-medium text-slate-300"
-          style={{ fontSize: 'min(13px, 4.5cqmin)' }}
-        >
-          Sign in required
-        </p>
-        <p
-          className="text-slate-500"
-          style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-        >
-          Sign in with Google to use the Quiz widget.
-        </p>
-      </div>
+      <ScaledEmptyState
+        icon={LogIn}
+        title="Sign in required"
+        subtitle="Sign in with Google to use the Quiz widget."
+      />
     );
   }
 
   // ─── Guard: no Drive access ────────────────────────────────────────────────
   if (!isDriveConnected && !googleAccessToken) {
     return (
-      <div
-        className="flex flex-col items-center justify-center h-full text-slate-400 text-center"
-        style={{ gap: 'min(12px, 3cqmin)', padding: 'min(24px, 6cqmin)' }}
-      >
-        <AlertTriangle
-          className="opacity-40"
-          style={{ width: 'min(32px, 8cqmin)', height: 'min(32px, 8cqmin)' }}
-        />
-        <p
-          className="font-medium text-slate-300"
-          style={{ fontSize: 'min(13px, 4.5cqmin)' }}
-        >
-          Drive access needed
-        </p>
-        <p
-          className="text-slate-500"
-          style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-        >
-          Sign out and sign in again to grant Google Drive and Sheets access for
-          quiz storage.
-        </p>
-      </div>
+      <ScaledEmptyState
+        icon={AlertTriangle}
+        title="Drive access needed"
+        subtitle="Sign out and sign in again to grant Google Drive and Sheets access for quiz storage."
+      />
     );
   }
 
