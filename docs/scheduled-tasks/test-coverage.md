@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
 _Last audited: 2026-07-13_
-_Last action: 2026-07-01_
+_Last action: 2026-07-13_
 
 ---
 
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-13 (Monday, action): Added `tests/utils/quizAudio.test.ts` (13 tests) — Priority 2 of the MEDIUM "utils/ files with complex logic" item. Covers `utils/quizAudio.ts`: the six synthesized sound effects (`playCorrectChime`, `playIncorrectBuzz`, `playCountdownTick`, `playPodiumFanfare`, `playQuizCompleteCelebration`, `playStreakSound`) asserting per-effect oscillator counts and gain/destination wiring; AudioContext lifecycle (resume on suspended, no-resume on running, single-instance singleton reuse, `webkitAudioContext` Safari fallback); and graceful degradation (no throw when no AudioContext implementation exists and when the constructor throws). Tests use `vi.resetModules()` + dynamic import to reset the module-level singleton per case. `pnpm exec vitest run tests/utils/quizAudio.test.ts` → 13 passing; `pnpm run type-check`, `pnpm exec eslint --max-warnings 0`, and `pnpm exec prettier --check` all clean. Progress note added to the MEDIUM utils/ complex-logic item; `quizAudio.ts` removed from its untested File list. Remaining Priority 1 (`spotifyAuth.ts`) and Priority 3 (`plcActivity.ts`) still open._
 
 _2026-07-13: Full test run. pnpm test exit 0 — 561 files / 6808 tests, all passing. No failing tests. New dev-paul commits since 2026-07-01 (absorbed via rebase): docs-only changes. Four new untested utils/ files identified since 2026-07-01 audit: `utils/activityWallNormalize.ts` (activity wall post normalization), `utils/guidedLearningMedia.ts` (guided learning media handling), `utils/ltiCourseLinks.ts` (LTI course link management), `utils/miniAppNormalize.ts` (mini-app normalization). Progress note added to MEDIUM utils/ coverage open item. All other existing open items remain valid._
 
@@ -27,9 +29,10 @@ _2026-06-22: Full audit. Test suite: 516 files / 5697 tests, all passing (up fro
 ### MEDIUM utils/ files with complex logic have no test coverage
 
 - **Detected:** 2026-06-22
-- **File:** utils/spotifyAuth.ts, utils/imageProcessing.ts, utils/plcActivity.ts, utils/quizAudio.ts, utils/guidedLearningDriveService.ts, utils/shortLinksApi.ts, utils/pexelsService.ts, utils/previewMode.ts, utils/lastActiveThrottle.ts, utils/classroomCourses.ts
+- **Progress (2026-07-13, action):** `quizAudio.ts` now covered by `tests/utils/quizAudio.test.ts` (13 tests) — Priority 2 done. Removed from the File list below. Remaining Priority 1 `spotifyAuth.ts` and Priority 3 `plcActivity.ts` still open.
+- **File:** utils/spotifyAuth.ts, utils/imageProcessing.ts, utils/plcActivity.ts, utils/guidedLearningDriveService.ts, utils/shortLinksApi.ts, utils/pexelsService.ts, utils/previewMode.ts, utils/lastActiveThrottle.ts, utils/classroomCourses.ts
 - **Detail:** 30 of 152 utils/ files (19.7%) have no test coverage. The highest-risk untested files: `spotifyAuth.ts` — PKCE challenge generation, popup window management, in-memory token caching (security-critical OAuth flow); `imageProcessing.ts` — web worker lifecycle, canvas trim algorithm, error handling; `plcActivity.ts` — fire-and-forget Firestore writer with error suppression, isForeignMentionEvent classification; `quizAudio.ts` — AudioContext singleton management, Safari fallback, oscillator synthesis; `guidedLearningDriveService.ts` — Google Drive JSON read/write, permission/404 error paths; `lastActiveThrottle.ts` — throttle window calculation, write suppression on rapid events; `classroomCourses.ts` — Google Classroom course pagination and metadata normalization.
-- **Fix:** Priority 1 — `spotifyAuth.ts` (PKCE generation, token cache, popup messaging protocol). Priority 2 — `quizAudio.ts` (AudioContext creation with webkitAudioContext fallback, null context graceful degradation). Priority 3 — `plcActivity.ts` (isForeignMentionEvent logic, Firestore error suppression). Use `vi.mock('firebase/firestore')` and `vi.stubGlobal('AudioContext', ...)` patterns from existing test files as reference.
+- **Fix:** Priority 1 — `spotifyAuth.ts` (PKCE generation, token cache, popup messaging protocol). ~~Priority 2 — `quizAudio.ts`~~ ✓ done 2026-07-13. Priority 3 — `plcActivity.ts` (isForeignMentionEvent logic, Firestore error suppression). Use `vi.mock('firebase/firestore')` and `vi.stubGlobal('AudioContext', ...)` patterns from existing test files as reference.
 
 ### MEDIUM functions/src/ Cloud Function execution paths lack test coverage
 
