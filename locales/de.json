@@ -82,7 +82,7 @@
       "boards": "Tafeln",
       "backgrounds": "Hintergründe",
       "classes": "Meine Klassen",
-      "plcs": "Meine PLCs",
+      "plcs": "Meine PLGs",
       "widgets": "Widgets",
       "globalStyle": "Globaler Stil",
       "generalSettings": "Allgemeine Einstellungen",
@@ -273,17 +273,17 @@
   "plc": {
     "errors": {
       "notSignedIn": "Du musst angemeldet sein, um das zu tun.",
-      "nameRequired": "PLC-Name erforderlich.",
-      "accountEmailRequired": "Zum Erstellen einer PLC ist eine Konto-E-Mail erforderlich.",
-      "plcNotFound": "PLC nicht gefunden.",
-      "leadCannotLeave": "Die Leitung muss die Leitung übertragen, bevor sie die PLC verlässt.",
-      "leadCannotBeRemoved": "Die Leitung kann nicht entfernt werden; übertrage die Leitung oder lösche die PLC.",
-      "notAMember": "Diese Person ist kein Mitglied dieser PLC.",
+      "nameRequired": "PLG-Name erforderlich.",
+      "accountEmailRequired": "Zum Erstellen einer PLG ist eine Konto-E-Mail erforderlich.",
+      "plcNotFound": "PLG nicht gefunden.",
+      "leadCannotLeave": "Die Leitung muss die Leitung übertragen, bevor sie die PLG verlässt.",
+      "leadCannotBeRemoved": "Die Leitung kann nicht entfernt werden; übertrage die Leitung oder lösche die PLG.",
+      "notAMember": "Diese Person ist kein Mitglied dieser PLG.",
       "targetNotActiveMember": "Du kannst die Leitung nur an ein aktives Mitglied übertragen.",
-      "cannotDemoteLead": "Verwende „Leitung übertragen“, um zu ändern, wer die PLC leitet.",
-      "invalidRole": "Das ist keine gültige PLC-Rolle.",
-      "alreadyLead": "Dieses Mitglied leitet diese PLC bereits.",
-      "orgRequired": "PLCs stehen nur Mitgliedern einer Organisation zur Verfügung."
+      "cannotDemoteLead": "Verwende „Leitung übertragen“, um zu ändern, wer die PLG leitet.",
+      "invalidRole": "Das ist keine gültige PLG-Rolle.",
+      "alreadyLead": "Dieses Mitglied leitet diese PLG bereits.",
+      "orgRequired": "PLGs stehen nur Mitgliedern einer Organisation zur Verfügung."
     }
   },
   "plcDashboard": {
