@@ -16,41 +16,25 @@
 import { VideoActivityQuestion, VideoActivityResponse } from '@/types';
 import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
 
-type AnswerLike = { questionId: string; answer: string };
 type ResponseLike = Pick<VideoActivityResponse, 'answers'>;
-
-/** The first answer a response submitted for `questionId`, ignoring later duplicates. */
-function firstAnswerFor(
-  response: ResponseLike,
-  questionId: string
-): AnswerLike | undefined {
-  return response.answers.find((a) => a.questionId === questionId);
-}
-
-/** Whether a response's (first, authoritative) answer to `question` is correct. */
-export function isResponseCorrectForQuestion(
-  response: ResponseLike,
-  question: VideoActivityQuestion
-): boolean {
-  const answer = firstAnswerFor(response, question.id);
-  return (
-    !!answer && gradeVideoActivityAnswer(question, answer.answer).isCorrect
-  );
-}
 
 /** Percentage of respondents who got `question` right, deduped per response. */
 export function computeQuestionAccuracy(
   question: VideoActivityQuestion,
   responses: ResponseLike[]
 ): number {
-  const answered = responses.filter(
-    (r) => firstAnswerFor(r, question.id) !== undefined
-  );
-  if (answered.length === 0) return 0;
-  const correct = answered.filter((r) =>
-    isResponseCorrectForQuestion(r, question)
-  ).length;
-  return Math.round((correct / answered.length) * 100);
+  let answeredCount = 0;
+  let correctCount = 0;
+  for (const r of responses) {
+    const answer = r.answers.find((a) => a.questionId === question.id);
+    if (answer === undefined) continue;
+    answeredCount++;
+    if (gradeVideoActivityAnswer(question, answer.answer).isCorrect) {
+      correctCount++;
+    }
+  }
+  if (answeredCount === 0) return 0;
+  return Math.round((correctCount / answeredCount) * 100);
 }
 
 /** Count of questions a response answered correctly, deduped per question. */
@@ -58,6 +42,18 @@ export function countCorrectAnswers(
   response: ResponseLike,
   questions: VideoActivityQuestion[]
 ): number {
-  return questions.filter((q) => isResponseCorrectForQuestion(response, q))
-    .length;
+  const firstAnswers = new Map<string, string>();
+  for (const a of response.answers) {
+    if (!firstAnswers.has(a.questionId)) {
+      firstAnswers.set(a.questionId, a.answer);
+    }
+  }
+  let correctCount = 0;
+  for (const q of questions) {
+    const answer = firstAnswers.get(q.id);
+    if (answer !== undefined && gradeVideoActivityAnswer(q, answer).isCorrect) {
+      correctCount++;
+    }
+  }
+  return correctCount;
 }
