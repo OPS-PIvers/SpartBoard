@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { School, Plus } from 'lucide-react';
-import type { BuildingRecord, BuildingType } from '../types';
+import type {
+  BuildingRecord,
+  BuildingType,
+} from '@/components/admin/Organization/types';
 import {
   Avatar,
   Badge,

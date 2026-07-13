@@ -13,7 +13,7 @@ import type {
   CapabilityId,
   RoleId,
   RoleRecord,
-} from '../types';
+} from '@/components/admin/Organization/types';
 import { CAPABILITY_GROUPS } from '@/config/organizationCapabilities';
 import {
   Badge,
