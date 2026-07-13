@@ -135,4 +135,61 @@ describe('useResultsTabWarnings', () => {
     document.dispatchEvent(new Event('visibilitychange'));
     expect(updateDoc).not.toHaveBeenCalled();
   });
+
+  it('flips resultsLockedOut on the 3rd rapid warning even when only the 1st write has been reflected in a snapshot', async () => {
+    // Reproduces the race the hook's own comments claim to guard against:
+    // a burst of hide/return events fires 3 local increments before the
+    // Firestore round-trip for any of them lands. A snapshot reflecting
+    // ONLY the first write (currentWarnings: 0 -> 1) arrives between the
+    // 2nd and 3rd local events. The pending local tally for the *second*
+    // in-flight write must survive that snapshot — it hasn't landed yet.
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'visible',
+      configurable: true,
+    });
+    const cycle = async () => {
+      await act(() => {
+        Object.defineProperty(document, 'visibilityState', {
+          value: 'hidden',
+          configurable: true,
+        });
+        document.dispatchEvent(new Event('visibilitychange'));
+        return Promise.resolve();
+      });
+      await act(() => {
+        Object.defineProperty(document, 'visibilityState', {
+          value: 'visible',
+          configurable: true,
+        });
+        document.dispatchEvent(new Event('visibilitychange'));
+        return Promise.resolve();
+      });
+    };
+
+    const { rerender } = renderHook(
+      (props: { currentWarnings: number }) =>
+        useResultsTabWarnings({
+          enabled: true,
+          threshold: 3,
+          currentWarnings: props.currentWarnings,
+          responseDocPath: 'quiz_sessions/x/responses/y',
+        }),
+      { initialProps: { currentWarnings: 0 } }
+    );
+
+    await cycle(); // local write #1 (server will eventually read 1)
+    await cycle(); // local write #2, still in flight (server will eventually read 2)
+
+    // Simulate write #1's snapshot landing — the ONLY write reflected so far.
+    rerender({ currentWarnings: 1 });
+
+    await cycle(); // local write #3 — this is the event that should cross threshold=3
+
+    expect(updateDoc).toHaveBeenCalledTimes(3);
+    expect(updateDoc.mock.calls[2][1]).toMatchObject({
+      resultsTabWarnings: { __increment: 1 },
+      resultsLockedOut: true,
+      resultsLockedOutAt: expect.any(Number) as unknown,
+    });
+  });
 });
