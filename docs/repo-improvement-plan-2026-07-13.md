@@ -47,7 +47,7 @@ These are the highest payoff-to-effort items. All are S except S1's siblings. Re
 
 - **File:** `firestore.rules:2815-2830`
 - **Problem:** `create` requires only `request.auth.uid == studentId`; `{userId}` is unconstrained, no class/PIN gate, no field validation. A student can inject presence records into any teacher's legacy session and write arbitrary fields into their own doc. Griefing (no PII), but compounds the already-tracked broad `sessions` read.
-- **Fix:** gate `create` on the parent session existing/active; constrain writable fields with `hasOnly([...])`. Best folded into the planned CF join-code work for the broad-read item. **Also has zero rules-test coverage** — see T2.
+- **Fix:** gate `create` on the parent session existing/active; constrain writable fields with `hasOnly([...])`. Best folded into the planned CF join-code work for the broad-read item. **Also has zero rules-test coverage** — see T1.
 
 ### C1 — Duplicate "My First Board" on first sign-in · **S**
 
