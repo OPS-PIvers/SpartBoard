@@ -179,12 +179,30 @@ export function evaluateTarget(target, reportExists, readReport) {
   return validateReport(readReport(reportPath), baseline, label);
 }
 
+/**
+ * `pnpm run test:rules` runs in its own CI job/emulator session, isolated
+ * from the `root`/`functions` jobs that produce those reports — without a
+ * filter it would always fail there on "report not found" for reports this
+ * invocation never had any reason to produce. An explicit target name (e.g.
+ * `node scripts/checkTestCounts.mjs rules`) scopes the guard to just that
+ * suite; no argument checks everything, matching the pre-`rules` behavior.
+ *
+ * @param {CountTarget[]} allTargets
+ * @param {string | undefined} requestedLabel
+ * @returns {CountTarget[]}
+ */
+export function selectTargets(allTargets, requestedLabel) {
+  return requestedLabel
+    ? allTargets.filter((t) => t.label === requestedLabel)
+    : allTargets;
+}
+
 function main() {
   const baselinePath = path.join(__dirname, 'test-count-baseline.json');
   const baselines = readJson(baselinePath);
 
   /** @type {CountTarget[]} */
-  const targets = [
+  const allTargets = [
     {
       label: 'root',
       reportPath: path.resolve(__dirname, '..', '.vitest-reports/root.json'),
@@ -206,6 +224,8 @@ function main() {
       optional: true,
     },
   ];
+
+  const targets = selectTargets(allTargets, process.argv[2]);
 
   /** @type {string[]} */
   const allIssues = [];

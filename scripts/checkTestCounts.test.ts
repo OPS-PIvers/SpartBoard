@@ -4,6 +4,7 @@ import {
   checkCountFloor,
   validateReport,
   evaluateTarget,
+  selectTargets,
 } from './checkTestCounts.mjs';
 
 /**
@@ -207,34 +208,6 @@ describe('evaluateTarget', () => {
   // path must not silently no-op, but the OPTIONAL `rules` report must not
   // break `validate`/`test:all`, which never run `test:rules`).
 
-  it('FAILS before: a required target with no baseline concept for "rules" means a rules regression is invisible', () => {
-    // Models the pre-fix world directly: the only targets ever evaluated
-    // were root/functions, so a rules-suite regression (file count 8, true
-    // baseline 44) never reaches ANY check — there is no rules baseline to
-    // compare against in the first place, `validateReport`/`checkCountFloor`
-    // are simply never called for that data. This is the silent-drop bug:
-    // zero issues are ever produced for the rules suite, no matter how far
-    // it regresses.
-    const rulesReport = { numTotalTests: 12, testResults: [] };
-    const preFixTargets = [
-      {
-        label: 'root',
-        reportPath: '/x/root.json',
-        baseline: { testFiles: 1, tests: 1 },
-      },
-      {
-        label: 'functions',
-        reportPath: '/x/functions.json',
-        baseline: { testFiles: 1, tests: 1 },
-      },
-    ];
-    // The pre-fix target list has no entry that could ever surface
-    // `rulesReport`'s regression — confirm no target even references it.
-    expect(preFixTargets.some((t) => t.label === 'rules')).toBe(false);
-    expect(rulesReport.numTotalTests).toBeLessThan(44); // the regression exists...
-    // ...but nothing above checks it. (Post-fix case below shows it caught.)
-  });
-
   it('PASSES after: a rules-suite regression is caught once "rules" is evaluated as a target', () => {
     const rulesReport = { numTotalTests: 12, testResults: [] };
     const issues = evaluateTarget(
@@ -311,5 +284,42 @@ describe('evaluateTarget', () => {
     );
     expect(issues).toHaveLength(1);
     expect(issues[0]).toContain('baseline configuration is missing');
+  });
+});
+
+describe('selectTargets', () => {
+  // FAILS before / PASSES after (found in CI, run 2026-07-13): `test:rules`
+  // runs in its own isolated CI job with no `root`/`functions` reports ever
+  // produced there. Calling `checkTestCounts.mjs` with no filter evaluated
+  // ALL targets unconditionally, so the rules CI job failed on "report not
+  // found" for root/functions even though the rules suite itself was green.
+  const allTargets = [
+    { label: 'root', reportPath: '/x/root.json', baseline: undefined },
+    {
+      label: 'functions',
+      reportPath: '/x/functions.json',
+      baseline: undefined,
+    },
+    {
+      label: 'rules',
+      reportPath: '/x/rules.json',
+      baseline: undefined,
+      optional: true,
+    },
+  ];
+
+  it('FAILS before: no filter means test:rules would still evaluate root/functions', () => {
+    const targets = selectTargets(allTargets, undefined);
+    expect(targets.map((t) => t.label)).toEqual(['root', 'functions', 'rules']);
+  });
+
+  it('PASSES after: requesting "rules" scopes evaluation to just that target', () => {
+    const targets = selectTargets(allTargets, 'rules');
+    expect(targets.map((t) => t.label)).toEqual(['rules']);
+  });
+
+  it('an unknown requested label selects nothing (fails loudly via empty targets, not silently)', () => {
+    const targets = selectTargets(allTargets, 'typo-d-label');
+    expect(targets).toEqual([]);
   });
 });
