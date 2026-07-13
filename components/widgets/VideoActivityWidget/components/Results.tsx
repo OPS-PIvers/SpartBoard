@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import {
   PlcLinkage,
+  VideoActivityQuestion,
   VideoActivityResponse,
   VideoActivitySession,
 } from '@/types';
@@ -32,6 +33,10 @@ import {
   videoActivityMaxPoints,
   buildVideoActivityGradeEntries,
 } from '@/utils/videoActivityGrading';
+import {
+  computeQuestionAccuracy,
+  countCorrectAnswers,
+} from './questionAccuracyStats';
 import {
   runClassroomGradePush,
   createToastGradePushHandlers,
@@ -197,19 +202,8 @@ export const Results: React.FC<ResultsProps> = ({
     };
   }, [responses, questions]);
 
-  const getQuestionAccuracy = (questionId: string): number => {
-    const answered = responses.filter((r) =>
-      r.answers.some((a) => a.questionId === questionId)
-    );
-    if (answered.length === 0) return 0;
-    const correct = answered.filter((r) =>
-      r.answers.some(
-        (a) =>
-          a.questionId === questionId && isAnswerCorrect(a.questionId, a.answer)
-      )
-    ).length;
-    return Math.round((correct / answered.length) * 100);
-  };
+  const getQuestionAccuracy = (question: VideoActivityQuestion): number =>
+    computeQuestionAccuracy(question, responses);
 
   const formatTimestamp = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -636,7 +630,7 @@ export const Results: React.FC<ResultsProps> = ({
           ) : (
             <div className="bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm overflow-hidden">
               {questions.map((q, idx) => {
-                const accuracy = getQuestionAccuracy(q.id);
+                const accuracy = getQuestionAccuracy(q);
                 const colors = scoreColorClasses(accuracy);
                 return (
                   <SessionRow
@@ -729,9 +723,7 @@ export const Results: React.FC<ResultsProps> = ({
                     questions,
                     r.answers
                   );
-                  const correct = r.answers.filter((a) =>
-                    isAnswerCorrect(a.questionId, a.answer)
-                  ).length;
+                  const correct = countCorrectAnswers(r, questions);
                   return (
                     <SessionRow
                       key={r._responseKey ?? r.studentUid ?? r.pin}

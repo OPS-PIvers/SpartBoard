@@ -1,6 +1,6 @@
 import React from 'react';
 import { GraduationCap, Bell, UserRound, Utensils } from 'lucide-react';
-import type { StudentPageConfig } from '../types';
+import type { StudentPageConfig } from '@/components/admin/Organization/types';
 import {
   Card,
   Field,

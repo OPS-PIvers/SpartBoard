@@ -8,7 +8,10 @@ import {
   Users,
   Info,
 } from 'lucide-react';
-import type { AuthMethod, DomainRecord } from '../types';
+import type {
+  AuthMethod,
+  DomainRecord,
+} from '@/components/admin/Organization/types';
 import {
   Badge,
   Btn,

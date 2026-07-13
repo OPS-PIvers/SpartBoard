@@ -1981,3 +1981,41 @@ _Automated nightly review by claude-opus-4-6_
   - Branch-safety: no push to `main` or any `dev-*` branch. No PR merged `dev-paul`→`main` this run, so the sanctioned `dev-paul` fix path went unused. This log commit is the only push to `scheduled-tasks`.
   - Merge-order flag: #2185 (run-32 log) is stacked on #2175 (run-31 log); both edit `docs/routines/unifier.md`. Merge #2175 first (then #2185 shrinks to the run-32 delta), or land only one — surfaced in both reviews.
   - No code fixes were pushed, so no local verification was required. All code PRs claim `pnpm run validate` + `build` green; CI on Node 24 remains the authoritative gate (env runs Node 22, repo pins 24).
+
+## 2026-07-13
+
+- PRs reviewed: 10 open PRs (all authored by OPS-PIvers, all draft). #2186 base `main` (head `dev-paul`, the promotion PR); all others base `dev-paul` with `nightly/*`, `scheduled-tasks`, or `fix/*` heads. No PR has a `main`/`dev-*` head requiring push, so all are in-scope for review; per branch-safety, `dev-paul` (head of #2186) and `main` remain push-read-only except the sanctioned review-comment-fix path on the promotion PR.
+  - #2195 — docs(debugger): log nightly run 27 (head `nightly/debugger-log-2026-07-13`)
+  - #2194 — fix(test:counts): extend silent-test-drop guard to the Firestore rules suite (head `nightly/build-tooling-2026-07-13`)
+  - #2193 — fix(i18n): DE sidebar.nav.plcs + plc.errors PLC→PLG drift (head `nightly/admin-config-2026-07-13`)
+  - #2192 — fix(useResultsTabWarnings): don't zero pending-write tally on a partial snapshot (head `nightly/state-data-2026-07-13`)
+  - #2191 — fix(FolderSidebar): "All items" badge undercounts when items are filed into folders (head `nightly/dashboard-layout-2026-07-13`)
+  - #2190 — fix(VideoActivityWidget): dedup per-question answers in Results teacher stats (head `nightly/widgets-2026-07-13`)
+  - #2189 — fix: Prettier formatting drift in docs/routines/unifier.md (head `nightly/baseline-fix-2026-07-13`)
+  - #2188 — audit + test-coverage action: Monday (journals + quizAudio tests) (head `scheduled-tasks`)
+  - #2187 — fix(unifier): dedupe docs/routines/unifier.md after merge-commit corruption (head `fix/unifier-doc-dedup-2026-07-12`)
+  - #2186 — Document admin-only design intent for generateGuidedLearning / WorkSymbols config + a11y + fixes (head `dev-paul`, base `main`) — dev-paul→main promotion
+- Comments processed: 7 unresolved inline threads actioned — 0 fixed (no push needed), 7 explained. Every actionable suggestion was already implemented in-branch or was incorrect/not-applicable when verified against the current file state.
+  - #2194: 2 threads. Gemini(high) "pass `rules` arg" + Claude "test description vs `main()` behavior" — BOTH already resolved on the branch (`test:rules` passes `rules`; `selectTargets` throws on unknown label + test/description corrected with a `claude[bot]` credit). Replied, no push.
+  - #2192: 1 thread. Gemini(med) "remove redundant `Promise.resolve()` in `act()`" — DECLINED: the thenable return puts `act` in async mode so each hide/return cycle's effect flushes before the next, which is load-bearing for the in-flight-write race this test pins (corroborated by #2195's own run notes). Replied, no push.
+  - #2190: 1 thread. Gemini(med) lookup-optimization — already fully implemented in the current file (single-loop accuracy, `Map`-based count). Replied, no push.
+  - #2188: 2 threads. Claude `toBe(2)` — already applied. Gemini css-scaling.md line refs (`:989/:1069`) — verified INCORRECT against the branch; the doc's existing `:983/:1061` matches `PageEditorOverlay.tsx` exactly (confirmed via `git show`). Replied to both, no push.
+  - #2186: 5 threads, 4 already carried author replies (WorkSymbols `global` sentinel refutation, empty-`selectedBuildingId` guard, label `htmlFor`/`id` a11y, unifier.md dedup via #2187). The 1 unanswered Claude thread (TalkingTool `aria-pressed` → `role="tab"`) EXPLAINED as a non-blocking a11y follow-up. Replied.
+  - #2195/#2193/#2191/#2189/#2187: no open review threads.
+- Fixes pushed: 0 (no PR carried an unresolved comment requiring a code fix; every candidate was already resolved in-branch or non-actionable).
+- Reviews posted: 10 structured reviews (one per PR).
+  - #2195 — Ready with minor notes. Doc-only run-27 log; flagged `unifier.md` merge-order coordination with #2189/#2187.
+  - #2194 — Ready. Extends the test-count guard to the rules suite; `optional: true` correctly keeps `validate`/`test:all` green while still failing loud on missing required reports. 4 new unit tests.
+  - #2193 — Ready. DE PLC→PLG terminology fix (11 keys) with a correctly-scoped (`plc.errors` + `sidebar.nav.plcs`) recursive-scan test.
+  - #2192 — Ready. Snapshot-reconciliation race fix on the anti-cheating lockout path; reduces pending tally only by the confirmed delta. Regression test verified fail-before/pass-after.
+  - #2191 — Ready. Sums all `itemCounts` buckets for the "All items" badge (was root-only); GL undercount limitation correctly logged as backlog. 3-case test.
+  - #2190 — Ready. First-occurrence dedup extracted to a tested pure module, matching the codebase's established dedup-fence pattern. 7-case test.
+  - #2189 — Ready. Formatting-only baseline unblock; land before sibling nightly PRs.
+  - #2188 — Ready. Monday audit journals + new `quizAudio.test.ts` (13 tests); no production code.
+  - #2187 — Ready. Restores `unifier.md` after a merge-artifact duplication; suggested a lightweight duplicate-header/row-count CI guard as follow-up given this is the 3rd occurrence.
+  - #2186 — Ready with minor notes. Promotion PR bundling a feature + 3 fixes + a refactor; all threads addressed. Suggested a focused test for the new `WorkSymbolsConfigurationPanel` and preferring narrower integration PRs. `types.ts`/admin changes checked: additive config, correct admin-level placement, no new Firestore collection (so no `firestore.rules` change needed).
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` branch. This log commit is the only push to `scheduled-tasks` (which also rides into open PR #2188).
+  - Merge-order flag: #2189, #2195, and #2187 all touch `docs/routines/unifier.md`. Sequence deliberately (or land one) to avoid the recurring doc-merge concatenation artifact #2187 was created to repair.
+  - Recurring failure class: `unifier.md` has now hit merge-corruption 3× — a small CI check (duplicate `Run count:` header / Run Log row-count floor) would catch it mechanically; surfaced in #2187's review.
+  - No code fixes were pushed, so no local verification was required. All code PRs claim `pnpm run validate` + `build` green; CI on Node 24 remains the authoritative gate (this env runs Node 22, repo pins 24).

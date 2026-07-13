@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Download, Plus, Search } from 'lucide-react';
-import type { OrgRecord, Plan } from '../types';
+import type { OrgRecord, Plan } from '@/components/admin/Organization/types';
 import {
   Badge,
   Btn,

@@ -212,5 +212,33 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // D4 (Import Path Convention) enforcement: a file under
+    // components/admin/Organization/views/ must not reach across into a
+    // SIBLING Organization-level directory/module (`components/`, `lib/`,
+    // or `types.ts`) via a relative import — use the
+    // `@/components/admin/Organization/...` alias instead. This is the same
+    // recurring cross-subdirectory-relative-import bug class already
+    // guarded for `components/plc/**` and `components/widgets/**` above;
+    // found here as 7 files in `views/` still using '../types' even though
+    // a prior fix (#2169) already converted their sibling
+    // `components/primitives` import to the `@/` alias in the same files.
+    files: ['components/admin/Organization/views/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: '^(\\.\\./)+(components|lib|types)(/.*)?$',
+              caseSensitive: true,
+              message:
+                "Cross-subdirectory Organization import — use '@/components/admin/Organization/...' instead of a relative path that escapes this view's own directory (see D4 in docs/routines/unifier.md).",
+            },
+          ],
+        },
+      ],
+    },
+  },
   prettierConfig
 );
