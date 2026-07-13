@@ -4,27 +4,27 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
 _Last audited: 2026-07-01_
-_Last action: never_
+_Last action: 2026-07-10 — MEDIUM `guided-learning` stale-entry resolved: documented admin-only + deliberate no-rate-limit design intent in `generateGuidedLearning` docblock (option b)_
 
 ---
 
 ## AI Generation Type Map (as of 2026-04-24)
 
-| Generation Type            | Cloud Function              | Client Caller                                       | Rate Limit                         | Loading State      | Error State        | Feature Gate                              |
-| -------------------------- | --------------------------- | --------------------------------------------------- | ---------------------------------- | ------------------ | ------------------ | ----------------------------------------- |
-| `mini-app`                 | `generateWithAI`            | utils/ai.ts `generateMiniAppCode`                   | `embed-mini-app` specific + global | ✓                  | ✓                  | `canAccessFeature('embed-mini-app')`      |
-| `poll`                     | `generateWithAI`            | utils/ai.ts `generatePoll`                          | `smart-poll` specific + global     | ✓                  | ✓                  | `canAccessFeature('smart-poll')`          |
-| `dashboard-layout`         | `generateWithAI`            | utils/ai.ts `generateDashboardLayout`               | global only                        | ✓ (`isGenerating`) | ✓ (toast)          | `canAccessFeature('magic-layout')` ✓      |
-| `instructional-routine`    | `generateWithAI`            | InstructionalRoutines/LibraryManager.tsx            | global only                        | ✓ (`isGenerating`) | ✓ (`errorMessage`) | ✗ **missing client gate**                 |
-| `ocr`                      | `generateWithAI`            | utils/ai.ts `extractTextWithGemini`                 | `ocr` specific + global            | ✓ (`isBusy`)       | ✓                  | `canAccessFeature('gemini-functions')` ✓  |
-| `quiz`                     | `generateWithAI`            | utils/ai.ts `generateQuiz`                          | `quiz` specific + global           | ✓                  | ✓                  | widget-level quiz access                  |
-| `widget-builder`           | `generateWithAI`            | admin/WidgetBuilder/GeminiPanel.tsx                 | global only                        | ✓ (`loading`)      | ✓ (`error`)        | admin-only panel                          |
-| `widget-explainer`         | `generateWithAI`            | admin/WidgetBuilder/GeminiPanel.tsx                 | global only                        | ✓ (`loading`)      | ✓ (`error`)        | admin-only panel                          |
-| `blooms-ai`                | `generateWithAI`            | utils/ai.ts `generateBloomsContent`                 | `blooms-ai` specific + global      | ✓ (`aiLoading`)    | ✓ (toast)          | `aiEnabled` flag in admin building config |
-| `video-activity`           | `generateVideoActivity`     | utils/ai.ts `generateVideoActivity`                 | per-function rate limit            | ✓                  | ✓                  | feature perm checked                      |
-| `transcription`            | `transcribeVideoWithGemini` | utils/ai.ts `transcribeVideoWithGemini`             | per-function rate limit            | ✓                  | ✓                  | feature perm checked                      |
-| `guided-learning`          | `generateGuidedLearning`    | GuidedLearning/components/GuidedLearningAIGenerator | None (admin-only server check)     | ✓                  | ✓                  | `isAdmin` check in Widget.tsx (not perm)  |
-| `video-activity-recommend` | `generateWithAI`            | utils/ai.ts `recommendVideoForActivity`             | global only                        | ✓                  | ✓                  | ✗ **AIData interface gap (see LOW item)** |
+| Generation Type            | Cloud Function              | Client Caller                                       | Rate Limit                                 | Loading State      | Error State        | Feature Gate                              |
+| -------------------------- | --------------------------- | --------------------------------------------------- | ------------------------------------------ | ------------------ | ------------------ | ----------------------------------------- |
+| `mini-app`                 | `generateWithAI`            | utils/ai.ts `generateMiniAppCode`                   | `embed-mini-app` specific + global         | ✓                  | ✓                  | `canAccessFeature('embed-mini-app')`      |
+| `poll`                     | `generateWithAI`            | utils/ai.ts `generatePoll`                          | `smart-poll` specific + global             | ✓                  | ✓                  | `canAccessFeature('smart-poll')`          |
+| `dashboard-layout`         | `generateWithAI`            | utils/ai.ts `generateDashboardLayout`               | global only                                | ✓ (`isGenerating`) | ✓ (toast)          | `canAccessFeature('magic-layout')` ✓      |
+| `instructional-routine`    | `generateWithAI`            | InstructionalRoutines/LibraryManager.tsx            | global only                                | ✓ (`isGenerating`) | ✓ (`errorMessage`) | ✗ **missing client gate**                 |
+| `ocr`                      | `generateWithAI`            | utils/ai.ts `extractTextWithGemini`                 | `ocr` specific + global                    | ✓ (`isBusy`)       | ✓                  | `canAccessFeature('gemini-functions')` ✓  |
+| `quiz`                     | `generateWithAI`            | utils/ai.ts `generateQuiz`                          | `quiz` specific + global                   | ✓                  | ✓                  | widget-level quiz access                  |
+| `widget-builder`           | `generateWithAI`            | admin/WidgetBuilder/GeminiPanel.tsx                 | global only                                | ✓ (`loading`)      | ✓ (`error`)        | admin-only panel                          |
+| `widget-explainer`         | `generateWithAI`            | admin/WidgetBuilder/GeminiPanel.tsx                 | global only                                | ✓ (`loading`)      | ✓ (`error`)        | admin-only panel                          |
+| `blooms-ai`                | `generateWithAI`            | utils/ai.ts `generateBloomsContent`                 | `blooms-ai` specific + global              | ✓ (`aiLoading`)    | ✓ (toast)          | `aiEnabled` flag in admin building config |
+| `video-activity`           | `generateVideoActivity`     | utils/ai.ts `generateVideoActivity`                 | per-function rate limit                    | ✓                  | ✓                  | feature perm checked                      |
+| `transcription`            | `transcribeVideoWithGemini` | utils/ai.ts `transcribeVideoWithGemini`             | per-function rate limit                    | ✓                  | ✓                  | feature perm checked                      |
+| `guided-learning`          | `generateGuidedLearning`    | GuidedLearning/components/GuidedLearningAIGenerator | None — admin-exempt by design (documented) | ✓                  | ✓                  | `isAdmin` check in Widget.tsx (not perm)  |
+| `video-activity-recommend` | `generateWithAI`            | utils/ai.ts `recommendVideoForActivity`             | global only                                | ✓                  | ✓                  | ✗ **AIData interface gap (see LOW item)** |
 
 ---
 
@@ -44,13 +44,6 @@ _2026-07-01: Full AI integration audit (Audit E2 — Wednesday). Reviewed utils/
 - **File:** components/widgets/InstructionalRoutines/LibraryManager.tsx:71–97
 - **Detail:** The "Magic Design" AI button in the InstructionalRoutines library manager calls `generateWithAI` with `type: 'instructional-routine'` without any `canAccessFeature()` or admin check. Server-side `specificFeatureId = 'instructional-routine'` was added in PR #1873, so quota tracking and per-feature rate limiting now apply server-side. However, no client-side gate exists in `LibraryManager.tsx` — any user with widget access can trigger the AI. An admin cannot disable the button independently of the widget without removing widget access entirely.
 - **Fix:** In `LibraryManager.tsx`, wrap the Magic Design button with `canAccessFeature('instructional-routine')` from `useAuth()`. To make this work, also add `'instructional-routine'` to the `GlobalFeature` union in types.ts and expose it in `GlobalPermissionsManager.tsx`. This gives admins a toggle independent of widget access.
-
-### MEDIUM `guided-learning` AI entry stale after #1368 rebuild
-
-- **Detected:** 2026-04-24
-- **File:** functions/src/index.ts:1823, components/widgets/GuidedLearning/Widget.tsx:591, components/widgets/GuidedLearning/components/GuidedLearningAIGenerator.tsx
-- **Detail:** PR #1368 (merged April 21, 2026) rebuilt `generateGuidedLearning` from a single-image function with rate limiting into a multi-image function (up to 10 images, 20 MB cap) gated admin-only server-side. Two regressions relative to the April 17 audit: (1) the cloud function no longer performs any `ai_usage` rate-limit check — any admin can call it unlimited times per day; (2) the client-side gate changed from a feature permission check to a direct `isAdmin` check in `GuidedLearning/Widget.tsx`, meaning no admin can selectively disable this AI feature for certain buildings without removing the widget entirely. The journal table has been updated to reflect current state (see above).
-- **Fix:** (a) Restore per-user rate limiting in `generateGuidedLearning` by adding an `ai_usage` check against the global `gemini-functions` daily limit (consistent with other `generateWithAI` functions that are not admin-only). (b) Either keep admin-only behavior (acceptable since GL AI is an admin authoring tool) and document the design intent explicitly in the function's docblock, OR add a `canAccessFeature('guided-learning-ai')` check in `GuidedLearning/Widget.tsx` for finer-grained access control. At minimum, add a JSDoc comment explaining why rate limiting is omitted.
 
 ### LOW Hardcoded model string at functions/src/index.ts:2513 (was :2525, :1980, :1714, :1616)
 
@@ -95,6 +88,8 @@ The following widgets have structured config schemas well-suited for AI content 
 ---
 
 ## Completed
+
+_2026-07-10 (action): Resolved the MEDIUM `guided-learning` AI stale-entry item. File-recency check passed: `generateGuidedLearning` actually lives in `functions/src/aiGeneration.ts` (the journal's `index.ts:1823` refs were stale — the AI functions were extracted to `aiGeneration.ts`), last touched at 37f57855, far outside the last 5 branch commits. Chose option (b): DOCUMENT the design intent rather than add a per-admin cap. Rationale: `generateGuidedLearning` is admin-ONLY (non-admins get `permission-denied` before any model call), and admins are exempt from the daily `ai_usage` cap in every Gemini Cloud Function (`generateWithAI`, `generateVideoActivity`, `transcribeVideoWithGemini` all short-circuit for admins — see the `isExternalCaller` docblock). Adding a per-admin cap only here would break the uniform admin-exempt policy and throttle the intended authoring workflow. Added a docblock above `generateGuidedLearning` explaining the admin-only gate, the deliberate no-rate-limit design, and the `canAccessFeature('guided-learning-ai')` path as the correct future extension if per-building control is ever needed. Comment-only source change; `tsc --noEmit`, `eslint`, and `prettier --check` all clean. Journal table row updated; PR opened to dev-paul._
 
 _2026-06-22: Full audit pass (Audit E2 — Monday/Wednesday/Friday). New commits since 2026-06-19: fix(Modal), fix(i18n), fix(widgets/expectations), pr-review batch — none add new AI generation types or modify AI pipeline. All 13 generation types re-verified: rate limits, loading/error states, feature permission gates all present and consistent. Model strings: DEFAULT_ADVANCED_MODEL ('gemini-3-flash-preview') and DEFAULT_STANDARD_MODEL ('gemini-3.1-flash-lite-preview') used consistently; no new hardcoded strings introduced. JSON mode: all generation types use parseGeminiJson server-side safely — no manual JSON.parse on AI text found in any Settings.tsx AI handlers. NEW MEDIUM FINDING: RevealGrid "Generate" button has no onClick handler — looks implemented but does nothing (added as MEDIUM open item; supersedes the prior LOW item). Hardcoded model string LOW at line 2513 unchanged. instructional-routine client gate LOW unchanged. guided-learning rate limit MEDIUM unchanged. responseSchema LOW unchanged. AI opportunities (ConceptWeb, SyntaxFramer, GraphicOrganizer, Checklist) still unimplemented. 1 new MEDIUM item added._
 

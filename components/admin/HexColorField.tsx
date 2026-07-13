@@ -39,6 +39,12 @@ interface HexColorFieldProps {
   /** Swatch/placeholder shown when no valid value is set yet. */
   fallback: string;
   ariaLabel: string;
+  /**
+   * Optional id applied to the hex text input so a surrounding `<label htmlFor>`
+   * can be programmatically associated with the control (WCAG 1.3.1). The
+   * native colour swatch keeps its own `aria-label` for its accessible name.
+   */
+  id?: string;
   swatchClassName?: string;
   inputClassName?: string;
 }
@@ -60,6 +66,7 @@ export const HexColorField: React.FC<HexColorFieldProps> = ({
   onChange,
   fallback,
   ariaLabel,
+  id,
   swatchClassName = 'w-10 h-8 rounded border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0',
   inputClassName = 'flex-1 px-2 py-1.5 text-xs font-mono border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none',
 }) => {
@@ -84,6 +91,7 @@ export const HexColorField: React.FC<HexColorFieldProps> = ({
         aria-label={ariaLabel}
       />
       <input
+        id={id}
         type="text"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}

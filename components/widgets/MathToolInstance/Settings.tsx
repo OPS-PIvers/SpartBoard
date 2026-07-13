@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { WidgetData, MathToolConfig, NumberLineMode } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
-import { CSS_PPI, MATH_TOOL_META } from '../math-tools/mathToolUtils';
+import {
+  CSS_PPI,
+  MATH_TOOL_META,
+} from '@/components/widgets/math-tools/mathToolUtils';
 import { ROTATABLE_TOOLS } from './constants';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 

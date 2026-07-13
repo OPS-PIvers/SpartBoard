@@ -1,58 +1,60 @@
 import React, { Suspense, lazy, useRef } from 'react';
 import { WidgetData, MathToolConfig } from '@/types';
 import { useDashboardActions } from '@/context/dashboardCanvasStore';
-import { CSS_PPI } from '../math-tools/mathToolUtils';
-import { StickerPieceSVG } from '../math-tools/StickerPieces';
+import { CSS_PPI } from '@/components/widgets/math-tools/mathToolUtils';
+import { StickerPieceSVG } from '@/components/widgets/math-tools/StickerPieces';
 import { WidgetLayout } from '../WidgetLayout';
 import { ROTATABLE_TOOLS } from './constants';
 import { RotationHandle } from './RotationHandle';
 
 // Lazy load all tool components to keep the bundle lean
 const RulerTool = lazy(() =>
-  import('../math-tools/RulerTool').then((m) => ({ default: m.RulerTool }))
+  import('@/components/widgets/math-tools/RulerTool').then((m) => ({
+    default: m.RulerTool,
+  }))
 );
 const ProtractorTool = lazy(() =>
-  import('../math-tools/ProtractorTool').then((m) => ({
+  import('@/components/widgets/math-tools/ProtractorTool').then((m) => ({
     default: m.ProtractorTool,
   }))
 );
 const NumberLineTool = lazy(() =>
-  import('../math-tools/NumberLineTool').then((m) => ({
+  import('@/components/widgets/math-tools/NumberLineTool').then((m) => ({
     default: m.NumberLineTool,
   }))
 );
 const Base10BlocksTool = lazy(() =>
-  import('../math-tools/Base10BlocksTool').then((m) => ({
+  import('@/components/widgets/math-tools/Base10BlocksTool').then((m) => ({
     default: m.Base10BlocksTool,
   }))
 );
 const FractionTilesTool = lazy(() =>
-  import('../math-tools/FractionTilesTool').then((m) => ({
+  import('@/components/widgets/math-tools/FractionTilesTool').then((m) => ({
     default: m.FractionTilesTool,
   }))
 );
 const GeoboardTool = lazy(() =>
-  import('../math-tools/GeoboardTool').then((m) => ({
+  import('@/components/widgets/math-tools/GeoboardTool').then((m) => ({
     default: m.GeoboardTool,
   }))
 );
 const PatternBlocksTool = lazy(() =>
-  import('../math-tools/PatternBlocksTool').then((m) => ({
+  import('@/components/widgets/math-tools/PatternBlocksTool').then((m) => ({
     default: m.PatternBlocksTool,
   }))
 );
 const AlgebraTilesTool = lazy(() =>
-  import('../math-tools/AlgebraTilesTool').then((m) => ({
+  import('@/components/widgets/math-tools/AlgebraTilesTool').then((m) => ({
     default: m.AlgebraTilesTool,
   }))
 );
 const CoordinatePlaneTool = lazy(() =>
-  import('../math-tools/CoordinatePlaneTool').then((m) => ({
+  import('@/components/widgets/math-tools/CoordinatePlaneTool').then((m) => ({
     default: m.CoordinatePlaneTool,
   }))
 );
 const CalculatorTool = lazy(() =>
-  import('../math-tools/CalculatorTool').then((m) => ({
+  import('@/components/widgets/math-tools/CalculatorTool').then((m) => ({
     default: m.CalculatorTool,
   }))
 );

@@ -182,5 +182,35 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // D4 (Import Path Convention) enforcement: a file under any
+    // components/widgets/<WidgetDir>/ directory must not reach across into
+    // the SIBLING `components/widgets/math-tools/` shared tool-implementation
+    // directory via a relative import — use the
+    // `@/components/widgets/math-tools/...` alias instead. This is the same
+    // recurring cross-subdirectory-relative-import bug class already guarded
+    // for `components/plc/**` above; found here in `MathToolInstance/` (which
+    // used '../math-tools/...') while its sibling `MathTools/` already used
+    // the canonical alias for the identical module. `'../WidgetLayout'` from
+    // inside a widget subfolder (a root-level shared file, not a sibling
+    // feature directory) is an intentionally-preserved gray zone (D4-E2) and
+    // is NOT matched by this pattern.
+    files: ['components/widgets/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: '^(\\.\\./)+math-tools(/.*)?$',
+              caseSensitive: true,
+              message:
+                "Cross-subdirectory widgets import — use '@/components/widgets/math-tools/...' instead of a relative path that escapes this widget's own directory (see D4 in docs/routines/unifier.md).",
+            },
+          ],
+        },
+      ],
+    },
+  },
   prettierConfig
 );

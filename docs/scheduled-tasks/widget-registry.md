@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-09_
+_Last audited: 2026-07-12_
 _Last action: 2026-06-25_
 
 ---
@@ -15,6 +15,10 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-12: Full audit. New dev-paul commits since 2026-07-11 (absorbed via rebase): pr-review 3 PRs (2926491d — docs only). No source file changes touching types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All registrations across WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, config/tools.ts, config/widgetDefaults.ts, and config/widgetGradeLevels.ts verified correct. RevealGrid barrel aliases ('Widget'/'Settings' via index.ts re-export) confirmed intentional and functional per prior audits (index.ts re-exports RevealGridWidget as Widget and RevealGridSettings as Settings; the bare names are aliases, not missing exports). pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
+
+_2026-07-11: Full audit. New dev-paul commits since 2026-07-09 (absorbed via rebase): pr-review 2 PRs (1fabc9bc — docs only), docs(ai) trim noise / add generateGuidedLearning intent (9b649647/236ad7ef — docs only), revert(ExpectationsWidget) keep text-only empty state per unifier exceptions (08b86c2a — front-face revert, no registry impact), docs(unifier) runs 29+30 (ccbbd63a), fix(D4) Organization/views @/ alias imports (c3bcd28a — no widget registry files), refactor(settings) SettingsLabel as="span" group pattern (4b599e47 — back-face Settings.tsx files only), fix(D1) ExpectationsWidget ScaledEmptyState (121ccfa4 — then reverted; net zero). Changed widget sub-files: InstructionalRoutines/LibraryManager.tsx and MiniApp/SaveAsWidgetModal.tsx (both back-face/editor components — a11y SettingsLabel role="group" fixes only; no registry impact). None of these commits add, remove, or rename any WidgetType. VERIFIED COUNT: 63 WidgetType members (unchanged). All registrations across WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, config/tools.ts, config/widgetDefaults.ts, and config/widgetGradeLevels.ts verified correct. pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
 _2026-07-09: Full audit. New dev-paul commits since 2026-07-07 (12 commits, rebased): fix(css-scaling) TalkingTool cap (93f81326, already on scheduled-tasks), pr-review 13 PRs / fix(pr-2141) React.useId (1b31ebdb/188cf12a), docs(unifier) run 28 (2391a8c5), fix(announcements) multi-tenant listener (b7f9113a), fix(audio) await AudioContext.resume() for CatalystWidget + StarterPackWidget (2a7b535c), fix(import-wizard) stale promise guard (144439fd), fix(privacy) Random/Stations custom-name PII scrub (8ace02cd), fix(i18n) PLG in DE (a6777827), docs(nightly) run 25 (b2d7c101), D3 LunchCount SubmitReportModal→SettingsLabel (aa439eef), fix(css-scaling) TalkingTool cap upstream copy (0e16228d). None of these commits add, remove, or rename any WidgetType. The Catalyst and StarterPack changes are pure logic fixes (audioUtils.ts + await); no new component registrations. WidgetType union count unchanged at 63. All registrations across WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, config/tools.ts, config/widgetDefaults.ts, and config/widgetGradeLevels.ts verified correct. pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 

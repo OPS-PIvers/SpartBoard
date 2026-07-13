@@ -119,7 +119,10 @@ export function useSyncedQuizGroupsByIds(
   // contents in a fresh array reference. Inside the effect we re-derive
   // the id list from `idsKey` rather than closing over the prop so the
   // effect's dependency list reflects what it actually consumes.
-  const idsKey = (syncGroupIds ?? []).slice().sort().join(',');
+  // Dedupe first — a repeated id would otherwise inflate `total` below and hang `loading` at `true` forever.
+  const idsKey = Array.from(new Set(syncGroupIds ?? []))
+    .sort()
+    .join(',');
 
   // Adjust state during render when the id set changes — React's
   // sanctioned alternative to calling setState synchronously inside an

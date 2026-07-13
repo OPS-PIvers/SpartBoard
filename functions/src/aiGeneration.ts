@@ -2070,6 +2070,27 @@ interface GuidedLearningImageInput {
   caption?: string;
 }
 
+/**
+ * Multi-image guided-learning generator (rebuilt in #1368 from the original
+ * single-image function into a 10-image / 20 MB authoring tool).
+ *
+ * ADMIN-ONLY BY DESIGN: this is an authoring tool for teacher-facing content,
+ * not a runtime student feature, so the caller must have an `admins/{email}`
+ * document — non-admins are rejected with `permission-denied` before any model
+ * call. Because the widget-side entry point already gates the "Generate with
+ * AI" action behind `isAdmin`, this server check is the authoritative gate.
+ *
+ * NO `ai_usage` RATE LIMIT IS APPLIED, DELIBERATELY: every caller here is
+ * necessarily an admin, and admins are exempt from the daily `ai_usage` cap in
+ * ALL Gemini Cloud Functions (`generateWithAI`, `generateVideoActivity`,
+ * `transcribeVideoWithGemini` all short-circuit before computing a limit for
+ * admins — see the `isExternalCaller` docblock above). Adding a per-admin cap
+ * only here would be inconsistent with that established policy and would
+ * throttle the intended admin authoring workflow. If finer-grained control is
+ * ever needed (e.g. per-building disablement), introduce a
+ * `canAccessFeature('guided-learning-ai')` gate on the client rather than a
+ * server-side usage counter, so the admin-exempt policy stays uniform.
+ */
 export const generateGuidedLearning = onCall(
   {
     memory: '512MiB',

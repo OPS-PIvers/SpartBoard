@@ -238,6 +238,7 @@ export function ImportWizard<TData>({
 
   const handleCreateTemplate = async (): Promise<void> => {
     if (!adapter.templateHelper) return;
+    const session = sessionRef.current;
     setCreatingTemplate(true);
     setParseError(null);
     // Open blank tab synchronously to preserve the user gesture
@@ -245,6 +246,10 @@ export function ImportWizard<TData>({
     const newTab = window.open('about:blank', '_blank', 'noopener,noreferrer');
     try {
       const { url } = await adapter.templateHelper.createTemplate();
+      if (session !== sessionRef.current) {
+        if (newTab && !newTab.closed) newTab.close();
+        return;
+      }
       if (newTab && !newTab.closed) {
         newTab.location.href = url;
       } else {
@@ -252,21 +257,25 @@ export function ImportWizard<TData>({
       }
     } catch (err) {
       if (newTab && !newTab.closed) newTab.close();
+      if (session !== sessionRef.current) return;
       setParseError(
         err instanceof Error ? err.message : 'Failed to create template.'
       );
     } finally {
-      setCreatingTemplate(false);
+      if (session === sessionRef.current) setCreatingTemplate(false);
     }
   };
 
   const handleCopyTemplateUrl = async (): Promise<void> => {
     if (!adapter.templateHelper) return;
+    const session = sessionRef.current;
     setParseError(null);
     try {
       const { url } = await adapter.templateHelper.createTemplate();
+      if (session !== sessionRef.current) return;
       await navigator.clipboard.writeText(url);
     } catch (err) {
+      if (session !== sessionRef.current) return;
       setParseError(
         err instanceof Error ? err.message : 'Failed to copy template URL.'
       );
