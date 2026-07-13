@@ -21,7 +21,7 @@ import type {
   RoleRecord,
   UserRecord,
   UserStatus,
-} from '../types';
+} from '@/components/admin/Organization/types';
 import {
   Avatar,
   Badge,
