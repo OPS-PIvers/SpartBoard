@@ -70,7 +70,9 @@ export const WorkSymbolsConfigurationPanel: React.FC<
     <div className="space-y-6">
       {/* Building Selector */}
       <div>
-        <SettingsLabel>Configure Building Work Symbols Defaults</SettingsLabel>
+        <SettingsLabel as="span">
+          Configure Building Work Symbols Defaults
+        </SettingsLabel>
         <BuildingSelector
           selectedId={selectedBuildingId}
           onSelect={setSelectedBuildingId}
