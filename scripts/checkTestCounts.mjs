@@ -37,6 +37,25 @@
  *      to check against). Growth is always allowed; a deliberate reduction
  *      requires a conscious edit to the baseline file, mirroring the
  *      existing coverage-threshold ratchet pattern in `vitest.config.ts`.
+ *
+ * THIRD SURFACE (found 2026-07-13): the two checks above only ever covered
+ * `root` (`pnpm test`) and `functions` (`pnpm -C functions test`) — the
+ * Firestore-rules suite (`tests/rules/**`, run via `pnpm run test:rules`
+ * against the emulator, and invoked as its own PR-validation CI step) had
+ * NO count-floor guard at all. A rules test file going invisible to Vitest's
+ * collector (typo'd extension, an over-broad `exclude`, a disabled `describe`
+ * block) was exactly as silent there as the pre-#2047 `functions/` gap this
+ * script was built to close — `pnpm run test:rules` would exit 0 with fewer
+ * files/tests and nothing downstream would ever notice. `rules` is now a
+ * third target below, reading `.vitest-reports/rules.json`. Unlike `root`/
+ * `functions` (unconditionally required — `pnpm test` / `pnpm -C functions
+ * test` always run immediately before this script in `validate`/`test:all`),
+ * the `rules` report is OPTIONAL: `test:rules` boots a separate Firestore
+ * emulator and is deliberately NOT part of `validate`/`test:all` (see
+ * CLAUDE.md), so `.vitest-reports/rules.json` legitimately won't exist on
+ * that path — a missing optional report is silently skipped, not an error.
+ * `pnpm run test:rules` itself now chains this script afterward so the guard
+ * actually runs whenever the rules report IS produced.
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -124,11 +143,73 @@ function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, 'utf-8'));
 }
 
+/**
+ * @typedef {{ label: string, reportPath: string, baseline?: CountBaseline, optional?: boolean }} CountTarget
+ */
+
+/**
+ * Evaluate one target's guard, given filesystem-probing callbacks (injected
+ * so this stays unit-testable without touching disk — see
+ * `checkTestCounts.test.ts`). A missing REQUIRED report (root/functions,
+ * which always run immediately before this script) is an error. A missing
+ * OPTIONAL report (rules — a separate emulator-backed command not chained
+ * into `validate`/`test:all`) is silently skipped: its absence means the
+ * suite that would produce it simply wasn't run on this invocation, not
+ * that anything went invisible.
+ *
+ * @param {CountTarget} target
+ * @param {(reportPath: string) => boolean} reportExists
+ * @param {(reportPath: string) => VitestJsonReport} readReport
+ * @returns {string[]}
+ */
+export function evaluateTarget(target, reportExists, readReport) {
+  const { label, reportPath, baseline, optional } = target;
+  if (!baseline) {
+    return [
+      `[${label}] baseline configuration is missing in test-count-baseline.json`,
+    ];
+  }
+  if (!reportExists(reportPath)) {
+    if (optional) return [];
+    return [
+      `[${label}] report not found at ${reportPath} — run 'pnpm test' / ` +
+        `'pnpm -C functions test' first (they write this report as a side artifact).`,
+    ];
+  }
+  return validateReport(readReport(reportPath), baseline, label);
+}
+
+/**
+ * `pnpm run test:rules` runs in its own CI job/emulator session, isolated
+ * from the `root`/`functions` jobs that produce those reports — without a
+ * filter it would always fail there on "report not found" for reports this
+ * invocation never had any reason to produce. An explicit target name (e.g.
+ * `node scripts/checkTestCounts.mjs rules`) scopes the guard to just that
+ * suite; no argument checks everything, matching the pre-`rules` behavior.
+ *
+ * @param {CountTarget[]} allTargets
+ * @param {string | undefined} requestedLabel
+ * @returns {CountTarget[]}
+ */
+export function selectTargets(allTargets, requestedLabel) {
+  if (!requestedLabel) return allTargets;
+  const matches = allTargets.filter((t) => t.label === requestedLabel);
+  if (matches.length === 0) {
+    throw new Error(
+      `Unknown checkTestCounts.mjs target "${requestedLabel}" — known ` +
+        `targets: ${allTargets.map((t) => t.label).join(', ')}. A typo here ` +
+        `would otherwise silently no-op the guard (0 targets evaluated).`
+    );
+  }
+  return matches;
+}
+
 function main() {
   const baselinePath = path.join(__dirname, 'test-count-baseline.json');
   const baselines = readJson(baselinePath);
 
-  const targets = [
+  /** @type {CountTarget[]} */
+  const allTargets = [
     {
       label: 'root',
       reportPath: path.resolve(__dirname, '..', '.vitest-reports/root.json'),
@@ -143,27 +224,21 @@ function main() {
       ),
       baseline: baselines.functions,
     },
+    {
+      label: 'rules',
+      reportPath: path.resolve(__dirname, '..', '.vitest-reports/rules.json'),
+      baseline: baselines.rules,
+      optional: true,
+    },
   ];
+
+  const targets = selectTargets(allTargets, process.argv[2]);
 
   /** @type {string[]} */
   const allIssues = [];
 
   for (const target of targets) {
-    if (!target.baseline) {
-      allIssues.push(
-        `[${target.label}] baseline configuration is missing in test-count-baseline.json`
-      );
-      continue;
-    }
-    if (!existsSync(target.reportPath)) {
-      allIssues.push(
-        `[${target.label}] report not found at ${target.reportPath} — run 'pnpm test' / ` +
-          `'pnpm -C functions test' first (they write this report as a side artifact).`
-      );
-      continue;
-    }
-    const report = readJson(target.reportPath);
-    allIssues.push(...validateReport(report, target.baseline, target.label));
+    allIssues.push(...evaluateTarget(target, existsSync, readJson));
   }
 
   if (allIssues.length > 0) {
