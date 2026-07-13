@@ -1,5 +1,5 @@
 {
-  "_comment": "Test-count floor for scripts/checkTestCounts.mjs. Growth is always allowed; a drop must be a conscious edit here (mirrors the coverage-threshold ratchet pattern in vitest.config.ts). Regenerate via: pnpm test && pnpm -C functions test, then read testResults.length / numTotalTests from .vitest-reports/{root,functions}.json.",
+  "_comment": "Test-count floor for scripts/checkTestCounts.mjs. Growth is always allowed; a drop must be a conscious edit here (mirrors the coverage-threshold ratchet pattern in vitest.config.ts). Regenerate via: pnpm test && pnpm -C functions test, then read testResults.length / numTotalTests from .vitest-reports/{root,functions}.json. 'rules' (tests/rules/**) is regenerated via 'pnpm run test:rules', reading the same fields from .vitest-reports/rules.json — it is optional (see checkTestCounts.mjs), so its absence never blocks validate/test:all.",
   "root": {
     "testFiles": 552,
     "tests": 5994
@@ -7,5 +7,9 @@
   "functions": {
     "testFiles": 37,
     "tests": 703
+  },
+  "rules": {
+    "testFiles": 47,
+    "tests": 1112
   }
 }
