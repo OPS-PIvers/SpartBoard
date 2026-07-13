@@ -70,7 +70,7 @@ export const WorkSymbolsConfigurationPanel: React.FC<
       {/* Building Selector */}
       <div>
         <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block">
-          Configure Building Work Symbols Defaults
+        <SettingsLabel as="span">Configure Building Work Symbols Defaults</SettingsLabel>
         </label>
         <BuildingSelector
           selectedId={selectedBuildingId}
