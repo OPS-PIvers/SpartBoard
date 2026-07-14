@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-13_
+_Last audited: 2026-07-14_
 _Last action: 2026-07-08 — LOW TalkingTool `Scaffolding` label pixel cap raised `min(9px, 2.2cqmin)` → `min(10px, 2.2cqmin)`; 9px was below the 10px tertiary-text floor_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-14: Scan of widget files changed in new dev-paul commits (absorbed via rebase since 2026-07-13). Widget front-face changes: (1) QuizWidget/Widget.tsx changed by D1 (#2196 — convert sign-in/Drive-access guards to ScaledEmptyState): removes two hand-rolled empty-state divs that were already correctly cqmin-scaled; replaces with ScaledEmptyState. Net CSS scaling effect: clean (no violations added or removed; change is an improvement to text-color correctness — old divs used text-slate-500 on dark surface below WCAG AA; ScaledEmptyState uses text-slate-300). (2) RevealGrid/Settings.tsx changed by #2197 — Settings.tsx back-face only, CQ scaling rules do not apply. (3) WorkSymbolsConfigurationPanel.tsx changed by #2201 — admin component, no CQ context. All other new commits are docs, i18n, hook, or test fixes with no widget front-face content changes. Comprehensive sub-agent scan of all 61 Widget.tsx files (DrawingWidget/SeatingChart excluded per skipScaling:false). Findings: RevealGrid :162/:168 text-xs — existing open item (unchanged); GuidedLearning :618 w-8 h-8 Loader2 — existing group open item (unchanged); ActivityWall :2165 text-base — agent incorrectly flagged as not-portaled; Modal.tsx uses createPortal at :106 confirmed (grep on Modal.tsx); WON'T FIX reasoning stands (modal is viewport-bounded, outside CQ context); MiniApp :127-:266/:1291-:1319 — existing open item (unchanged). All pre-existing open items (EmbedWidget portaled toolbar, RevealGrid hardcoded spacing at :158/:162/:168/:183, multi-widget group spacing, MiniApp dialog overlays, SmartNotebook drawing toolbar PageEditorOverlay.tsx :983/:1061, RandomClassContextButton portaled dropdown) confirmed present and valid. Zero new anti-patterns._
 
 _2026-07-13: Scan of widget files changed in new dev-paul commits (absorbed via rebase since 2026-07-12): docs-only changes — no widget front-face content changes. All pre-existing open items (EmbedWidget portaled toolbar, RevealGrid hardcoded spacing at :158/:162/:168/:183, MiniApp dialog overlays, SmartNotebook drawing toolbar PageEditorOverlay.tsx :983/:1061, RandomClassContextButton portaled dropdown) confirmed present and valid. Spot-check of ActivityWall Modal confirmed WON'T FIX reasoning is still correct: `<Modal>` uses `createPortal(...)` rendering outside the widget's CQ context, so `max-h-[75vh]` and `text-base` in the submission viewer are appropriate viewport-level sizing. Zero new anti-patterns._
 
