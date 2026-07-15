@@ -80,17 +80,38 @@ vi.mock('@/hooks/useQuizAssignments', () => ({
   useQuizAssignments: () => ({ createAssignment }),
 }));
 
+const duplicatedActivityQuestions = [dupQuestion, dupQuestion];
+
+const loadActivityData = vi.fn(() => ({
+  id: 'va-1',
+  title: 'My Video Activity',
+  questions: duplicatedActivityQuestions,
+  createdAt: 0,
+  updatedAt: 0,
+}));
+
 vi.mock('@/hooks/useVideoActivity', () => ({
   useVideoActivity: () => ({
-    activities: [],
-    loadActivityData: vi.fn(),
+    activities: [
+      {
+        id: 'va-1',
+        title: 'My Video Activity',
+        driveFileId: 'drive-file-2',
+        questionCount: 2,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ],
+    loadActivityData,
     loading: false,
   }),
 }));
 
+const createVaAssignment = vi.fn(() => ({ id: 'assign-2', code: 'DEF456' }));
+
 vi.mock('@/hooks/useVideoActivityAssignments', () => ({
   useVideoActivityAssignments: () => ({
-    createAssignment: vi.fn(),
+    createAssignment: createVaAssignment,
   }),
 }));
 
@@ -120,8 +141,30 @@ describe('ClassroomAddonTeacherSpike attach flow — maxPoints dedup', () => {
 
     await waitFor(() => expect(mockCallable).toHaveBeenCalled());
 
-    const params = mockCallable.mock.calls[0][0];
+    const lastCall = mockCallable.mock.calls.at(-1);
+    if (!lastCall) throw new Error('mockCallable was not called');
     // Two entries of the SAME 10-point question id must dedup to 10, not 20.
-    expect(params.maxPoints).toBe(10);
+    expect(lastCall[0].maxPoints).toBe(10);
+  });
+
+  it('dedupes duplicate question ids when computing the attached video activity maxPoints', async () => {
+    render(<ClassroomAddonTeacherSpike />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Video Activity' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Video Activity' }));
+    fireEvent.click(
+      await screen.findByRole('option', { name: 'My Video Activity' })
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /attach video activity/i })
+    );
+
+    await waitFor(() => expect(mockCallable).toHaveBeenCalled());
+
+    const lastCall = mockCallable.mock.calls.at(-1);
+    if (!lastCall) throw new Error('mockCallable was not called');
+    // Two entries of the SAME 10-point question id must dedup to 10, not 20.
+    expect(lastCall[0].maxPoints).toBe(10);
   });
 });
