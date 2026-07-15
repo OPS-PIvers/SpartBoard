@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-07-04_
+_Last audited: 2026-07-15_
 _Last action: 2026-07-03 — MEDIUM `Segmented<T>` promoted from `Organization/primitives.tsx` to `components/common/SegmentedControl.tsx` (verbatim extraction + re-export; prerequisite for the segmented-control unification)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-15: Weekly audit pass (Wednesday). No new dev-paul commits since 2026-07-14 (dev-paul HEAD 6249f325 already captured). Comprehensive sub-agent scan of all widget Settings.tsx files and admin ConfigurationPanel files. TWO NEW MEDIUM items: (1) `MaterialsWidget/Settings.tsx` uses non-standard field names `titleFont` and `titleColor` (instead of the standard `fontFamily`/`fontColor`) with inline custom font and color pickers — the widget is the only one in the codebase with non-standard appearance field names, which blocks adoption of `TypographySettings` and `SurfaceColorSettings` without a config-key migration. (2) `RevealGrid/Settings.tsx` (lines 590–628) implements an inline `<select>` element for font family in the widget's flip-panel AppearanceSettings (not the admin ConfigurationPanel already tracked) instead of `TypographySettings` — distinct from the `RevealGridConfigurationPanel.tsx` admin entry in the MEDIUM admin font-options item. Pre-existing items re-confirmed: NextUp/Settings.tsx custom toggle — already tracked in LOW custom-binary-toggle item; MusicWidget bgColor/textColor — already tracked in MEDIUM MusicWidget item; hardcoded brand hex — already tracked in LOW items. 2 new MEDIUM open items added._
 
 _2026-07-04 (action, Saturday): Nothing In Progress in any Saturday-reading journal; daily journals (widget-registry, css-scaling, typescript-eslint) have no actionable Open items. Highest-severity Open item is the HIGH `DashboardContext.tsx` extraction (code-structure) — standing BLOCKED (needs supervised runtime verification), as are both code-structure MEDIUMs (large-file extractions). Per the established pattern, took the highest-priority **safe** MEDIUM instead: the Admin font-options item's Checklist+NumberLine slice (see Partial action note on that item). Byte-identical rendered output; type-check/lint/prettier all clean; PR opened to dev-paul._
 
@@ -33,6 +35,20 @@ _2026-06-13: Weekly audit pass (Saturday). Rebase onto dev-paul: pr-review batch
 _2026-06-12: Weekly audit pass. Scanned Settings.tsx files and admin ConfigurationPanel files after rebase onto dev-paul (docs/unifier run 13, D4 @/ alias in tests/, perf baseline, fix DraggableWindow, debugger run 14). None of these commits touch widget Settings.tsx or admin config panels. All existing open items re-confirmed valid. New finding: ClockWidget/Settings.tsx custom color palette button group (lines 120-139) is distinct from the font-family picker issue already tracked under the ClockWidget/TimeTool MEDIUM item — the color palette should use SurfaceColorSettings or a shared color-picker. 1 new LOW open item added._
 
 _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widgets/ and all \*ConfigurationPanel.tsx under components/admin/. New findings: (1) TimeTool/Settings.tsx duplicates the identical custom 4-button font picker as ClockWidget — added as extension of the existing ClockWidget open item. (2) Segmented-control pill selector pattern (`flex bg-slate-100 p-1 rounded-xl`) duplicated 12× across settings panels with no shared component. (3) Font-options arrays (`{ value: 'global', label: 'Inherit' }` pattern) duplicated in 5+ admin panels. (4) 27 hardcoded hex instances across additional files not yet tracked. Existing open items (ClockWidget font picker, MusicWidget color picker, nextUp/video-activity/guided-learning missing appearance panels, ExpectationsWidget custom toggle, two hardcoded-hex LOW items, InstructionalRoutines, TextConfig) all re-confirmed valid. 4 new open items added._
+
+### MEDIUM `MaterialsWidget/Settings.tsx` uses non-standard appearance field names `titleFont`/`titleColor` — blocks shared appearance system adoption
+
+- **Detected:** 2026-07-15
+- **File:** components/widgets/MaterialsWidget/Settings.tsx, types.ts (`MaterialsConfig`)
+- **Detail:** `MaterialsConfig` declares `titleFont` and `titleColor` instead of the project-standard `fontFamily` and `fontColor`. The settings panel implements custom inline font and color pickers keyed to these non-standard fields. This is the only widget in the codebase whose appearance config uses non-standard field names — every other widget with font/color customization uses `fontFamily`/`fontColor` (the names consumed by `TypographySettings` and written by the admin `getAdminBuildingConfig` validation). Consequences: (a) `TypographySettings` cannot be dropped in without a data-key migration; (b) `getAdminBuildingConfig` has no `materials` case and therefore cannot seed per-building font/color defaults; (c) when the standard appearance primitives evolve (new font options, new color picker behavior), `MaterialsWidget` silently diverges. The widget also has hardcoded `'#2d3f89'` as `titleColor` default (tracked separately in the LOW hardcoded-hex item) and a custom binary toggle for view mode (tracked separately in the LOW custom-binary-toggle item).
+- **Fix:** (1) In `types.ts`, rename `titleFont` → `fontFamily` and `titleColor` → `fontColor` in `MaterialsConfig`. (2) Add a backward-compatibility migration in `utils/migration.ts` (or `adminBuildingConfig.ts`) to rename the keys in persisted widget configs (one-time migration on load). (3) Replace the inline font/color pickers in `MaterialsWidget/Settings.tsx` with `<TypographySettings />` (reusing the `showColorPicker={false}` variant if needed, then adding `fontColor` pickers via standard shared component). (4) Add a `'materials'` case to `utils/adminBuildingConfig.ts` so per-building defaults can be seeded. The migration step means this requires runtime-verified execution (not safe for an unattended pass).
+
+### MEDIUM `RevealGrid/Settings.tsx` (flip panel) implements inline `<select>` for font family instead of `TypographySettings`
+
+- **Detected:** 2026-07-15
+- **File:** components/widgets/RevealGrid/Settings.tsx (lines 590–628 approx)
+- **Detail:** The RevealGrid widget's flip-panel AppearanceSettings section implements an inline `<select>` element for font family selection rather than using the shared `TypographySettings` component. This is distinct from the `RevealGridConfigurationPanel.tsx` admin-panel font-options item (tracked in the MEDIUM admin font-options item). The inline `<select>` uses a locally-defined option set and styled with raw Tailwind classes instead of the project's dark-mode input styling pattern. As `TypographySettings` evolves (new font options, additional visual improvements), the inline select will not receive those updates. Note: `RevealGridConfig` likely has a `fontFamily` field consumed by the widget front-face — verify before actioning.
+- **Fix:** Replace the inline `<select>` block (lines 590–628) with `<TypographySettings config={config} updateConfig={updateConfig} />` (or `showColorPicker={false}` variant if no `fontColor` field exists in `RevealGridConfig`). Follow the `ClockAppearanceSettings`/`TimeToolAppearanceSettings` resolution pattern (see Completed). Verify `RevealGridConfig` field names match `TypographySettings` expectations (`fontFamily`, not `revealFont` or similar).
 
 ### MEDIUM `Organization/components/primitives.tsx` re-implements `Card`, `OrgToast`, and `Btn` from scratch — parallel design system (`Toggle` resolved 2026-06-26)
 

@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-14_
+_Last audited: 2026-07-15_
 _Last action: 2026-07-08 — LOW TalkingTool `Scaffolding` label pixel cap raised `min(9px, 2.2cqmin)` → `min(10px, 2.2cqmin)`; 9px was below the 10px tertiary-text floor_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-15: Scan of widget files changed in new dev-paul commits since 2026-07-14 (absorbed via rebase). No new dev-paul commits since yesterday (dev-paul HEAD 6249f325 already captured). Rebase onto origin/dev-paul clean. Comprehensive sub-agent scan of all 61 Widget.tsx files (DrawingWidget/SeatingChart excluded per skipScaling:false). Eight candidate findings reviewed: (1) Countdown `min(42cqh,55cqw)` hero — WON'T FIX (fill-better formula, documented in Completed); (2) LunchCount cqh/cqw — WON'T FIX per 2026-06-17 analysis (intentional sub-section cap); (3) MusicWidget cqh-only title — WON'T FIX per journal guidance (fill-better, documented in Completed); (4) TrafficLight `min(Xcqh,Ycqw)` light circle — WON'T FIX (fill-better portrait/landscape formula); (5) Weather compact-branch `min(65cqh,30cqw)` — WON'T FIX (hideClothing sub-mode fill-better per 2026-06-05); (6) InstructionalRoutines `scalingStyles` useMemo uses `cqh`/`cqw` in computed formula — WON'T FIX (scaleMultiplier math is intentional fill-better formulation); (7) RevealGrid :162/:168 text-xs — existing open item (unchanged); (8) GuidedLearning :618 w-8 h-8 Loader2 — existing group open item (unchanged). All eight findings are WON'T FIX per journal guidance or already tracked. Zero new anti-patterns._
 
 _2026-07-14: Scan of widget files changed in new dev-paul commits (absorbed via rebase since 2026-07-13). Widget front-face changes: (1) QuizWidget/Widget.tsx changed by D1 (#2196 — convert sign-in/Drive-access guards to ScaledEmptyState): removes two hand-rolled empty-state divs that were already correctly cqmin-scaled; replaces with ScaledEmptyState. Net CSS scaling effect: clean (no violations added or removed; change is an improvement to text-color correctness — old divs used text-slate-500 on dark surface below WCAG AA; ScaledEmptyState uses text-slate-300). (2) RevealGrid/Settings.tsx changed by #2197 — Settings.tsx back-face only, CQ scaling rules do not apply. (3) WorkSymbolsConfigurationPanel.tsx changed by #2201 — admin component, no CQ context. All other new commits are docs, i18n, hook, or test fixes with no widget front-face content changes. Comprehensive sub-agent scan of all 61 Widget.tsx files (DrawingWidget/SeatingChart excluded per skipScaling:false). Findings: RevealGrid :162/:168 text-xs — existing open item (unchanged); GuidedLearning :618 w-8 h-8 Loader2 — existing group open item (unchanged); ActivityWall :2165 text-base — agent incorrectly flagged as not-portaled; Modal.tsx uses createPortal at :106 confirmed (grep on Modal.tsx); WON'T FIX reasoning stands (modal is viewport-bounded, outside CQ context); MiniApp :127-:266/:1291-:1319 — existing open item (unchanged). All pre-existing open items (EmbedWidget portaled toolbar, RevealGrid hardcoded spacing at :158/:162/:168/:183, multi-widget group spacing, MiniApp dialog overlays, SmartNotebook drawing toolbar PageEditorOverlay.tsx :983/:1061, RandomClassContextButton portaled dropdown) confirmed present and valid. Zero new anti-patterns._
 
