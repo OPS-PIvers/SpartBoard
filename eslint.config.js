@@ -164,7 +164,7 @@ export default tseslint.config(
     // this pattern, since it only fires when the segment immediately after
     // the last '../' is itself a plc subdirectory name (or `sections`, the
     // module at the center of the recurring bug).
-    // Intentionally forward-looking: mirrors PLC_SECTIONS ids in sections.ts — update in lockstep when that list grows.
+    // Covers existing components/plc/ subdirectory names plus forward-looking PLC_SECTIONS ids from sections.ts (e.g. assessments/todos, no dir yet) — keep both in sync.
     files: ['components/plc/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
