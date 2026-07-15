@@ -967,7 +967,7 @@ describe('activity_wall_sessions/submissions — moderation status gate', () => 
   const col = 'activity_wall_sessions';
   const MODERATED_SESSION = 'session-moderated';
   const OPEN_SESSION = 'session-open';
-  const subFor = (session: string, status: 'approved' | 'pending') => ({
+  const subFor = (status: 'approved' | 'pending') => ({
     id: 'sub-1',
     content: 'Hello world',
     submittedAt: 1000,
@@ -997,7 +997,7 @@ describe('activity_wall_sessions/submissions — moderation status gate', () => 
     await assertFails(
       addDoc(
         collection(asStudentA(), `${col}/${MODERATED_SESSION}/submissions`),
-        subFor(MODERATED_SESSION, 'approved')
+        subFor('approved')
       )
     );
   });
@@ -1006,7 +1006,7 @@ describe('activity_wall_sessions/submissions — moderation status gate', () => 
     await assertSucceeds(
       addDoc(
         collection(asStudentA(), `${col}/${MODERATED_SESSION}/submissions`),
-        subFor(MODERATED_SESSION, 'pending')
+        subFor('pending')
       )
     );
   });
@@ -1015,7 +1015,7 @@ describe('activity_wall_sessions/submissions — moderation status gate', () => 
     await assertSucceeds(
       addDoc(
         collection(asStudentA(), `${col}/${OPEN_SESSION}/submissions`),
-        subFor(OPEN_SESSION, 'approved')
+        subFor('approved')
       )
     );
   });
@@ -1024,7 +1024,7 @@ describe('activity_wall_sessions/submissions — moderation status gate', () => 
     await assertFails(
       addDoc(
         collection(asStudentA(), `${col}/${OPEN_SESSION}/submissions`),
-        subFor(OPEN_SESSION, 'pending')
+        subFor('pending')
       )
     );
   });
