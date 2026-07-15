@@ -30,7 +30,6 @@ import { GoogleDriveIcon } from '@/components/common/GoogleDriveIcon';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
-import { AdminSettings } from '@/components/admin/AdminSettings';
 import { ShortLinkQuickCreate } from '@/components/admin/ShortLinkQuickCreate';
 import { WhatsNewModal } from '@/components/layout/WhatsNewModal';
 import {
@@ -56,6 +55,13 @@ import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
 import { BoardsModal } from '@/components/boardsModal/BoardsModal';
 
 declare const __APP_VERSION__: string;
+
+// Lazy: AdminSettings pulls in recharts + the admin surface (~1.2MB) but only admins open it.
+const AdminSettings = React.lazy(() =>
+  import('@/components/admin/AdminSettings').then((m) => ({
+    default: m.AdminSettings,
+  }))
+);
 
 type MenuSection = 'main' | 'classes' | 'plcs' | 'google-drive' | 'buildings';
 
@@ -327,7 +333,9 @@ export const Sidebar: React.FC = () => {
       </GlassCard>
 
       {showAdminSettings && (
-        <AdminSettings onClose={() => setShowAdminSettings(false)} />
+        <React.Suspense fallback={null}>
+          <AdminSettings onClose={() => setShowAdminSettings(false)} />
+        </React.Suspense>
       )}
 
       {showSettingsModal && (
