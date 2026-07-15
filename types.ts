@@ -5109,9 +5109,7 @@ export interface RevealGridConfig {
   revealMode: 'flip' | 'fade';
   isMemoryMode?: boolean;
   memoryCards?: MemoryCard[];
-  // Accepts both the shared TypographySettings ids (`font-sans`, …) and the
-  // legacy bare GlobalFontFamily values (`sans`, …); `getFontClass` normalizes
-  // either form to the final `font-*` class.
+  // Accepts `font-*` ids (TypographySettings) and bare GlobalFontFamily values; getFontClass normalizes both.
   fontFamily?: string;
   defaultCardColor?: string;
   defaultCardBackColor?: string;
