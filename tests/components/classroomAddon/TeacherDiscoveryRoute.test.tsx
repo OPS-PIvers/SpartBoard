@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import type { QuizQuestion } from '@/types';
+import type { QuizQuestion, VideoActivityQuestion } from '@/types';
 
 // Regression: attach flow's maxPoints must dedup duplicate question ids like other LMS-attach surfaces.
 
@@ -80,7 +80,16 @@ vi.mock('@/hooks/useQuizAssignments', () => ({
   useQuizAssignments: () => ({ createAssignment }),
 }));
 
-const duplicatedActivityQuestions = [dupQuestion, dupQuestion];
+const dupVaQuestion: VideoActivityQuestion = {
+  id: 'q-dup',
+  type: 'MC',
+  points: 10,
+  timestamp: 0,
+} as unknown as VideoActivityQuestion;
+const duplicatedActivityQuestions: VideoActivityQuestion[] = [
+  dupVaQuestion,
+  dupVaQuestion,
+];
 
 const loadActivityData = vi.fn(() => ({
   id: 'va-1',
