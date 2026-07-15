@@ -164,14 +164,7 @@ export default tseslint.config(
     // this pattern, since it only fires when the segment immediately after
     // the last '../' is itself a plc subdirectory name (or `sections`, the
     // module at the center of the recurring bug).
-    //
-    // The regex's identifier list is intentionally forward-looking: it
-    // includes every canonical id in `PLC_SECTIONS` (components/plc/sections.ts),
-    // not just directories that currently exist, so a relative import into a
-    // not-yet-created section directory is still caught. `assessments` and
-    // `todos` were added 2026-07-15 after a nightly D4 sweep found they were
-    // real `PLC_SECTIONS` ids missing from this list. If sections.ts ever
-    // grows a new id, add it here too.
+    // Intentionally forward-looking: mirrors PLC_SECTIONS ids in sections.ts — update in lockstep when that list grows.
     files: ['components/plc/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
