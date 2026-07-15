@@ -823,11 +823,12 @@ describe('activity_wall_sessions/submissions — student-role gate', () => {
   const col = 'activity_wall_sessions';
   const subCol = (session: string) =>
     collection(asStudentA(), `${col}/${session}/submissions`);
+  // seedSessions() has no moderationEnabled field, so rules default to false → 'approved'.
   const validSub = () => ({
     id: 'sub-1',
     content: 'Hello world',
     submittedAt: 1000,
-    status: 'pending' as const,
+    status: 'approved' as const,
   });
 
   beforeEach(async () => {
@@ -890,11 +891,12 @@ describe('activity_wall_sessions/submissions — student-role gate', () => {
 // above, which seeds `classId` and still passes unchanged).
 describe('activity_wall_sessions/submissions — Phase-5A compat (classIds list)', () => {
   const col = 'activity_wall_sessions';
+  // No moderationEnabled field seeded → rules default false → 'approved'.
   const validSub = () => ({
     id: 'sub-1',
     content: 'Hello world',
     submittedAt: 1000,
-    status: 'pending' as const,
+    status: 'approved' as const,
   });
 
   beforeEach(async () => {
@@ -948,6 +950,81 @@ describe('activity_wall_sessions/submissions — Phase-5A compat (classIds list)
       addDoc(
         collection(asAnonStudent(), `${col}/${SESSION_A}/submissions`),
         validSub()
+      )
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// activity_wall_sessions/submissions — moderation status is server-enforced
+// ---------------------------------------------------------------------------
+// The client always writes status: moderationEnabled ? 'pending' : 'approved'
+// (see ActivityWallStudentApp.tsx). Prior to this gate the create rule only
+// checked `status in ['approved', 'pending']`, so a submitter could set
+// status: 'approved' directly on a moderated session and skip the teacher's
+// review queue entirely.
+describe('activity_wall_sessions/submissions — moderation status gate', () => {
+  const col = 'activity_wall_sessions';
+  const MODERATED_SESSION = 'session-moderated';
+  const OPEN_SESSION = 'session-open';
+  const subFor = (session: string, status: 'approved' | 'pending') => ({
+    id: 'sub-1',
+    content: 'Hello world',
+    submittedAt: 1000,
+    status,
+  });
+
+  beforeEach(async () => {
+    await testEnv.clearFirestore();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, `${col}/${MODERATED_SESSION}`), {
+        teacherUid: TEACHER_UID,
+        classId: CLASS_A,
+        status: 'active',
+        moderationEnabled: true,
+      });
+      await setDoc(doc(db, `${col}/${OPEN_SESSION}`), {
+        teacherUid: TEACHER_UID,
+        classId: CLASS_A,
+        status: 'active',
+        moderationEnabled: false,
+      });
+    });
+  });
+
+  it('cannot self-approve a submission when moderation is enabled', async () => {
+    await assertFails(
+      addDoc(
+        collection(asStudentA(), `${col}/${MODERATED_SESSION}/submissions`),
+        subFor(MODERATED_SESSION, 'approved')
+      )
+    );
+  });
+
+  it('can submit as pending when moderation is enabled', async () => {
+    await assertSucceeds(
+      addDoc(
+        collection(asStudentA(), `${col}/${MODERATED_SESSION}/submissions`),
+        subFor(MODERATED_SESSION, 'pending')
+      )
+    );
+  });
+
+  it('auto-approves when moderation is disabled', async () => {
+    await assertSucceeds(
+      addDoc(
+        collection(asStudentA(), `${col}/${OPEN_SESSION}/submissions`),
+        subFor(OPEN_SESSION, 'approved')
+      )
+    );
+  });
+
+  it('cannot submit as pending when moderation is disabled', async () => {
+    await assertFails(
+      addDoc(
+        collection(asStudentA(), `${col}/${OPEN_SESSION}/submissions`),
+        subFor(OPEN_SESSION, 'pending')
       )
     );
   });
