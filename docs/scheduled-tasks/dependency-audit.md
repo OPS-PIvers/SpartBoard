@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
 _Last audited: 2026-07-16_
-_Last action: 2026-06-16_
+_Last action: 2026-07-16_
 
 ---
 
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-16 (action): Resolved the MEDIUM `flatted@3.3.3` DoS + prototype-pollution item. Selection: today is Thursday; reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + weeklies B1 skill-freshness / B2 dependency-audit. widget-registry and typescript-eslint report no open items; css-scaling's open items are all LOW; skill-freshness open items are all LOW. The only MEDIUM/HIGH items today are the dependency-audit MEDIUMs, so this weekly journal wins the severity tiebreak. In document order the first MEDIUM is the `pnpm audit` 410 tooling item — **skipped as not a safe unattended auto-fix**: its fix is an open-ended scanner/automation decision (switch scanner, adopt Dependabot via `.github/dependabot.yml`, or bump the pinned pnpm) that changes repo automation policy and targets a protected branch; that is a maintainer decision, not a mechanical override. (Confirmed still broken: `pnpm audit` returns HTTP 410, exit 0.) The next actionable MEDIUM in document order is `flatted`. File-recency check on `package.json`/`pnpm-lock.yaml` passed (last touched at 2666838b `#2194`, outside the last 5 branch commits). Confirmed `pnpm why flatted` resolved to the vulnerable `flatted@3.3.3` via `eslint@9.39.2 > file-entry-cache@8.0.0 > flat-cache@4.0.1`. Applied the journal fix: added `"flatted": "^3.4.2"` to `pnpm.overrides` in `package.json` (caret matches the file's existing override convention; latest flatted is 3.4.2, the patched version, so `^3.4.2` resolves to 3.4.2 and stays within 3.x). After `pnpm install`, `pnpm why flatted` reports a single `flatted@3.4.2`. Lockfile diff minimal (5 add / 4 del — override declaration + flatted 3.3.3→3.4.2). Dev/CI tooling only (ESLint file-entry cache) — no production runtime impact. Verified clean: `prettier --check package.json pnpm-lock.yaml` (clean), `pnpm run type-check` (0 errors), `pnpm run lint` (root + functions, `--max-warnings 0`, exit 0 — exercises ESLint's flatted-backed cache). Moved item to Completed. PR opened against dev-paul. Remaining MEDIUM items (pnpm-audit-410, ws, yaml, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash) and the LOW items all still active._
 
 _2026-07-16: `pnpm audit` (both root and functions) **fails with HTTP 410** — npm has retired both audit endpoints (`/-/npm/v1/security/audits/quick` and `/-/npm/v1/security/audits`). Exit code 0 is returned but no vulnerability data is produced. This breaks the scheduled vulnerability scanning workflow. See new MEDIUM item below. `pnpm outdated` (root) — notable version drift since 2026-07-09: `typescript` (dev) latest is now **7.0.2** (the LOW major-versions item listed it at `6.0.3` — TypeScript has jumped another major since the 2026-07-07 snapshot); `hono` latest moved to `4.12.30` (was `4.12.28`, still need `>=4.12.25`); `firebase` `12.8.0` → **`12.16.0`** (was `12.15.0`); `@google/genai` latest `2.12.0` (was `2.10.0`); `firebase-tools` `15.22.3` → `15.24.0`; `postcss` `8.5.6` → `8.5.19`; `react-i18next` latest `17.0.10` (was `17.0.8`); `eslint` latest `10.7.0` (was `10.6.0`); `vite` latest `8.1.4` (was `8.1.3`); `lucide-react` latest `1.24.0` (was `1.23.0`); `vitest` / `@vitest/coverage-v8` now at `4.1.10`; `dompurify` bumped to `3.4.12`. Functions `pnpm outdated` — `@google/genai` latest `2.12.0`, `jose` latest `6.2.3` (unchanged), `typescript` latest `7.0.2`, all other entries minor patch drift. All existing Open items (flatted, ws, yaml, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash, @types/tesseract.js, jose, major-versions) remain valid. LOW major-versions item detail updated to reflect `typescript` latest is now `7.0.2` and `firebase` latest is `12.16.0`. No new vulnerability data available — `pnpm audit` 410 blocks CVE checks; last successful audit data was 2026-07-09._
 
@@ -40,16 +42,6 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 - **File:** package.json / functions/package.json (tooling)
 - **Detail:** `pnpm audit` (both root and functions) now returns HTTP 410 with: `"This endpoint is being retired. Use the bulk advisory endpoint instead."` Both endpoints (`/-/npm/v1/security/audits/quick` and `/-/npm/v1/security/audits`) are gone. Exit code is 0, so CI does not fail — but no vulnerability data is returned. The last successful audit data is from the 2026-07-09 run (118 vulns root / 58 vulns functions). Without a working audit command, new CVEs in direct or transitive dependencies will not be detected by this scheduled workflow.
 - **Fix:** Switch to an alternative vulnerability scanner. Options: (a) `npm audit` via Node's own npm CLI (uses different endpoints — confirm working); (b) `pnpm audit --use-node-fetch` or newer pnpm version that supports the bulk advisory endpoint; (c) install and run `osv-scanner` against `pnpm-lock.yaml` and `functions/pnpm-lock.yaml`; (d) enable GitHub Dependabot security alerts on the repository (declarative, no CLI dependency). Option (d) is lowest friction and complements the scheduled journal. Update the journal to reflect the new scanning method once adopted.
-
-### MEDIUM `flatted@3.3.3` has unbounded recursion DoS + prototype pollution — via eslint chain
-
-- **Detected:** 2026-05-19
-- **File:** package.json (devDependency via `eslint > file-entry-cache > flat-cache > flatted`)
-- **Detail:** Two CVEs affect `flatted` <3.4.2:
-  - Unbounded recursion DoS via deeply nested circular structures passed to `parse()` — `flatted@3.3.3` is vulnerable (<3.4.0 fix).
-  - Prototype pollution via `parse()` — affects `flatted` <=3.4.1, fix >=3.4.2.
-    The installed version is `flatted@3.3.3`. This is dev-only (ESLint toolchain, not shipped to users). `pnpm audit` reports both advisories. The dep chain is `eslint@9.39.2 > file-entry-cache@8.0.0 > flat-cache@4.0.1 > flatted@3.3.3`.
-- **Fix:** Add `"flatted": ">=3.4.2"` to `pnpm.overrides` in `package.json`. This forces flatted to resolve to >=3.4.2 across the eslint dependency chain. Verify with `pnpm why flatted` after `pnpm install`. Dev/CI tooling only — no production runtime impact.
 
 ### MEDIUM `ws@8.19.0` + `ws@8.20.0` uninitialized memory disclosure — via jsdom/vitest
 
@@ -184,6 +176,14 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 ---
 
 ## Completed
+
+### MEDIUM `flatted@3.3.3` has unbounded recursion DoS + prototype pollution — via eslint chain
+
+- **Detected:** 2026-05-19
+- **Completed:** 2026-07-16
+- **File:** package.json (`pnpm.overrides`; devDependency via `eslint@9.39.2 > file-entry-cache@8.0.0 > flat-cache@4.0.1 > flatted`), pnpm-lock.yaml
+- **Detail:** Two CVEs affect `flatted` <3.4.2: (1) unbounded recursion DoS via deeply nested circular structures passed to `parse()` (fix <3.4.0), and (2) prototype pollution via `parse()` (affects <=3.4.1, fix >=3.4.2). The installed version was `flatted@3.3.3` — vulnerable to both. Dev-only (ESLint file-entry cache toolchain, not shipped to users).
+- **Resolution:** Added `"flatted": "^3.4.2"` to `pnpm.overrides` in `package.json` (caret matches the file's existing override convention; latest flatted is 3.4.2 — the patched version — so `^3.4.2` resolves to 3.4.2 and stays within 3.x). After `pnpm install`, `pnpm why flatted` reports a single `flatted@3.4.2` across the eslint chain. Lockfile diff minimal (5 add / 4 del — override declaration + flatted 3.3.3→3.4.2). Verified clean: `prettier --check package.json pnpm-lock.yaml` (clean), `pnpm run type-check` (0 errors), `pnpm run lint` (root + functions, `--max-warnings 0`, exit 0 — exercises ESLint's flatted-backed cache). No production runtime impact. PR opened against dev-paul (diff = `package.json` + `pnpm-lock.yaml`; this journal record lives on scheduled-tasks).
 
 ### MEDIUM `ts-deepmerge` prototype method override DoS — via `firebase-functions-test` in functions
 
