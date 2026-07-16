@@ -105,6 +105,7 @@ import {
 } from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
@@ -2064,13 +2065,7 @@ const AssignmentsList: React.FC<{
   }
   if (assignments.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center flex-1 text-center text-brand-blue-primary/60 gap-3 py-10">
-        <Inbox className="w-10 h-10 opacity-40" />
-        <p className="font-semibold text-brand-blue-dark text-sm">
-          {emptyTitle}
-        </p>
-        <p className="text-xs max-w-[360px]">{emptySub}</p>
-      </div>
+      <ScaledEmptyState icon={Inbox} title={emptyTitle} subtitle={emptySub} />
     );
   }
 

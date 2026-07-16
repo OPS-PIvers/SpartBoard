@@ -56,12 +56,9 @@ const EXPECTED_COGNATE_MATCHES: Record<string, string[]> = {
   // admin.plc.recovery panel is a separate, admin-only namespace and is not a
   // valid precedent for the teacher-facing plcDashboard. Fixed in
   // deDashboardPlgTerminologyLocales.test.ts; do not re-add "PLC" here.
+  // ES's established term is "Comunidad" (same mistake as de above). Fixed in esDashboardComunidadTerminologyLocales.test.ts.
   de: ['kindBadge.quiz'],
-  es: [
-    // Spanish also keeps "PLC" as an invariant, untranslated acronym
-    // (matches admin.plc.recovery.empty: "No hay PLC recuperables…").
-    'targetSelectedBadge_one',
-  ],
+  es: [],
   fr: ['kindBadge.quiz', 'kind.doc'],
 };
 

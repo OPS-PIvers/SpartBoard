@@ -4,6 +4,19 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-07-14
+
+- PRs reviewed: 1 (all open PRs)
+  - #2204 — fix(deps): override ts-deepmerge to ^8.0.0 in functions (GHSA-87mf-gv2c-c62c) (head `deps/ts-deepmerge-8`, base `dev-paul`, draft)
+- Comments processed: 0 actionable — 0 fixed, 0 explained.
+  - #2204 has no inline review threads. Existing feedback is a Gemini `COMMENTED` review with no change requests (neutral LGTM + Gemini-Code-Assist sunset notice) and a `claude[bot]` issue comment that is an explicit LGTM. Neither requires a code fix; no per-comment replies posted (both are automated bot approvals — replying would be pure noise, per frugality).
+- Fixes pushed: 0 (no comment required an automated code fix this run)
+- Reviews posted: 1 (one structured review)
+  - #2204: Ready — minimal two-file security override (`functions/package.json` + `functions/pnpm-lock.yaml`) resolving the `ts-deepmerge` prototype-override DoS. Independently verified the core claim: `grep` across the entire `functions/` tree for `ts-deepmerge`/`firebase-functions-test` returns zero source imports, so the known v8 default-export forward-compat hazard (fft's cloudevent `wrap()`) is dormant. Flagged that no CI checks have reported on the head commit yet (combined status `pending`, 0 checks) — confirm PR validation is green before merge.
+- Notes:
+  - Branch-safety: #2204 head is `deps/ts-deepmerge-8` (non-`main`/non-`dev-*`) → pushable; no fix was required this run. Base is `dev-paul`.
+  - Env runs Node 22 (repo wants 24); no local fix verification was needed since no fix was pushed. CI on Node 24 remains the authoritative gate.
+
 ## 2026-07-01
 
 - PRs reviewed: 7 (all open PRs)

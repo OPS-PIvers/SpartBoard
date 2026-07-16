@@ -180,8 +180,18 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
       {/* ── Layout selector ── */}
       <div className="space-y-2 pt-1 border-t border-slate-100">
-        <SettingsLabel icon={LayoutGrid}>Layout</SettingsLabel>
-        <div className="grid grid-cols-3 gap-2">
+        <SettingsLabel
+          as="span"
+          icon={LayoutGrid}
+          id={`music-layout-label-${widget.id}`}
+        >
+          Layout
+        </SettingsLabel>
+        <div
+          className="grid grid-cols-3 gap-2"
+          role="group"
+          aria-labelledby={`music-layout-label-${widget.id}`}
+        >
           {LAYOUT_OPTIONS.map((opt) => {
             const isActive = layout === opt.value;
             return (
