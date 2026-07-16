@@ -164,6 +164,7 @@ export default tseslint.config(
     // this pattern, since it only fires when the segment immediately after
     // the last '../' is itself a plc subdirectory name (or `sections`, the
     // module at the center of the recurring bug).
+    // Covers existing components/plc/ subdirectory names plus forward-looking PLC_SECTIONS ids from sections.ts (e.g. assessments/todos, no dir yet) — keep both in sync.
     files: ['components/plc/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
@@ -172,7 +173,7 @@ export default tseslint.config(
           patterns: [
             {
               regex:
-                '^(\\.\\./)+(activity|assignments|authoring|bodies|comments|docs|home|meeting|members|presence|resources|search|sections|settings|sharedBoards|sharedData|sync|tabs|versions|viewer)(/.*)?$',
+                '^(\\.\\./)+(activity|assessments|assignments|authoring|bodies|comments|docs|home|meeting|members|presence|resources|search|sections|settings|sharedBoards|sharedData|sync|tabs|todos|versions|viewer)(/.*)?$',
               caseSensitive: true,
               message:
                 "Cross-subdirectory plc import — use '@/components/plc/<dir>/...' instead of a relative path that escapes this subdirectory (see D4 in docs/routines/unifier.md).",

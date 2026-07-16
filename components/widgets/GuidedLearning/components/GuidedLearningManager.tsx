@@ -65,6 +65,7 @@ import { LibraryPreviewPane } from '@/components/common/library/LibraryPreviewPa
 import {
   countItemsByFolder,
   filterSourcedEntriesByFolder,
+  ROOT_FOLDER_COUNT_KEY,
 } from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -439,9 +440,15 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     setSelectedFolderId(null);
   }
 
-  // Only personal sets participate in folders. Building sets are always at
-  // root (they're shared at the building level and have no folderId field).
-  const folderItemCounts = useMemo(() => countItemsByFolder(sets), [sets]);
+  // Building sets have no folderId; fold them into the root bucket so "All items" counts them.
+  const folderItemCounts = useMemo(() => {
+    const counts = countItemsByFolder(sets);
+    if (buildingSets.length > 0) {
+      counts[ROOT_FOLDER_COUNT_KEY] =
+        (counts[ROOT_FOLDER_COUNT_KEY] ?? 0) + buildingSets.length;
+    }
+    return counts;
+  }, [sets, buildingSets]);
 
   const allEntries = useMemo(
     () =>

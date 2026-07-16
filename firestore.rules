@@ -3698,6 +3698,14 @@ service cloud.firestore {
         function awSessionClassIds() {
           return get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data.get('classIds', []);
         }
+        // Moderation flag: when true the client submits 'pending' for teacher
+        // review; when false/absent it auto-approves. Pinning create's status
+        // to this value (instead of allowing either) closes a bypass where a
+        // submitter could set status: 'approved' directly and skip the review
+        // queue even though the teacher enabled moderation.
+        function awSessionModerationEnabled() {
+          return get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data.get('moderationEnabled', false);
+        }
 
         // Any authed user (incl. anon) can create a submission (photo subs may
         // carry storage metadata for Drive archiving). studentRole users must be
@@ -3710,7 +3718,7 @@ service cloud.firestore {
           request.resource.data.content.size() > 0 &&
           request.resource.data.content.size() <= 5000 &&
           request.resource.data.submittedAt is int &&
-          request.resource.data.status in ['approved', 'pending'] &&
+          request.resource.data.status == (awSessionModerationEnabled() ? 'pending' : 'approved') &&
           (!('participantLabel' in request.resource.data) || request.resource.data.participantLabel is string) &&
           (!('storagePath' in request.resource.data) || request.resource.data.storagePath is string) &&
           (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus == 'firebase') &&
