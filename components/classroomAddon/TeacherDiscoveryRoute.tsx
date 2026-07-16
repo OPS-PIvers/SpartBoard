@@ -415,7 +415,12 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     const quizData = await loadQuizData(selectedQuiz.driveFileId);
 
     // Classroom grade scale = quiz's total points (e.g. 17/20), not a percentage.
-    const maxPoints = quizMaxPoints(quizData.questions);
+    // loadQuizData returns the raw Drive JSON blob unvalidated (no normalizer),
+    // so guard against a malformed/legacy file missing `questions` — fall back to
+    // 100, matching quizMaxPoints's own empty-set denominator.
+    const maxPoints = quizData?.questions
+      ? quizMaxPoints(quizData.questions)
+      : 100;
 
     const targeting = await resolveClassTargeting();
 
