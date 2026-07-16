@@ -4,6 +4,19 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-07-14
+
+- PRs reviewed: 1 (all open PRs)
+  - #2204 — fix(deps): override ts-deepmerge to ^8.0.0 in functions (GHSA-87mf-gv2c-c62c) (head `deps/ts-deepmerge-8`, base `dev-paul`, draft)
+- Comments processed: 0 actionable — 0 fixed, 0 explained.
+  - #2204 has no inline review threads. Existing feedback is a Gemini `COMMENTED` review with no change requests (neutral LGTM + Gemini-Code-Assist sunset notice) and a `claude[bot]` issue comment that is an explicit LGTM. Neither requires a code fix; no per-comment replies posted (both are automated bot approvals — replying would be pure noise, per frugality).
+- Fixes pushed: 0 (no comment required an automated code fix this run)
+- Reviews posted: 1 (one structured review)
+  - #2204: Ready — minimal two-file security override (`functions/package.json` + `functions/pnpm-lock.yaml`) resolving the `ts-deepmerge` prototype-override DoS. Independently verified the core claim: `grep` across the entire `functions/` tree for `ts-deepmerge`/`firebase-functions-test` returns zero source imports, so the known v8 default-export forward-compat hazard (fft's cloudevent `wrap()`) is dormant. Flagged that no CI checks have reported on the head commit yet (combined status `pending`, 0 checks) — confirm PR validation is green before merge.
+- Notes:
+  - Branch-safety: #2204 head is `deps/ts-deepmerge-8` (non-`main`/non-`dev-*`) → pushable; no fix was required this run. Base is `dev-paul`.
+  - Env runs Node 22 (repo wants 24); no local fix verification was needed since no fix was pushed. CI on Node 24 remains the authoritative gate.
+
 ## 2026-07-01
 
 - PRs reviewed: 7 (all open PRs)
@@ -2019,3 +2032,38 @@ _Automated nightly review by claude-opus-4-6_
   - Merge-order flag: #2189, #2195, and #2187 all touch `docs/routines/unifier.md`. Sequence deliberately (or land one) to avoid the recurring doc-merge concatenation artifact #2187 was created to repair.
   - Recurring failure class: `unifier.md` has now hit merge-corruption 3× — a small CI check (duplicate `Run count:` header / Run Log row-count floor) would catch it mechanically; surfaced in #2187's review.
   - No code fixes were pushed, so no local verification was required. All code PRs claim `pnpm run validate` + `build` green; CI on Node 24 remains the authoritative gate (this env runs Node 22, repo pins 24).
+
+## 2026-07-15
+
+- PRs reviewed: 11 open PRs (all authored by OPS-PIvers, all draft). #2205 base `main` (head `dev-paul`, the promotion PR); all others base `dev-paul` with `nightly/*` or `scheduled-tasks` heads. Per branch-safety, `main` and `dev-*` heads remain push-read-only except the sanctioned review-comment-fix path on the `dev-paul → main` promotion PR.
+  - #2215 — fix(rules): close moderation-bypass on activity_wall_sessions submissions (head `nightly/build-tooling-2026-07-15`)
+  - #2214 — fix(i18n): translate ES plcDashboard "PLC" drift to "Comunidad" (head `nightly/admin-config-2026-07-15`)
+  - #2213 — fix(classroomAddon): dedup question ids when computing pushed maxPoints (head `nightly/state-data-2026-07-15`)
+  - #2212 — perf(Sidebar): code-split AdminSettings out of the always-mounted chunk (head `nightly/dashboard-layout-2026-07-15`)
+  - #2211 — fix(GuidedLearning): count building sets in "All items" sidebar badge (head `nightly/widgets-2026-07-15`)
+  - #2210 — audit(wednesday) 2026-07-15 + RevealGrid font-picker unification (head `scheduled-tasks`)
+  - #2209 — docs(unifier): log nightly run 34 (head `nightly/unifier-log-2026-07-15`)
+  - #2208 — D4: widen plc import-escape ESLint regex to cover assessments/todos (head `nightly/unify-import-paths-2026-07-15`)
+  - #2207 — D3: retrofit RandomSettings "Animation Style" to SettingsLabel group-heading (head `nightly/unify-settings-labels-2026-07-15`)
+  - #2206 — D1: convert QuizManager active/archive empty state to ScaledEmptyState (head `nightly/unify-empty-states-2026-07-15`)
+  - #2205 — Add prioritized repo improvement plan + ts-deepmerge override (head `dev-paul`, base `main`) — dev-paul→main promotion
+- Comments processed: 3 unresolved inline threads across 2 PRs — 0 fixed (no push needed), 3 explained. Every actionable suggestion was already implemented in-branch or was incorrect/not-applicable when verified.
+  - #2212: 1 thread. Claude "missing `LazyChunkErrorBoundary` around the lazy Suspense" — ALREADY ADDRESSED in a later commit (thread was marked outdated); `Sidebar.tsx:30` imports it and it wraps `AdminSettings` at lines 337–341, matching the `DashboardView.tsx` pattern. Replied, no push.
+  - #2205: 2 threads. Gemini(critical) + Claude both flagged the `ts-deepmerge` 2.0.7 → ^8.0.0 override as an ESM-only break for the CommonJS `functions` workspace. DISPROVEN empirically in-env: v8 ships a dual package (`exports.require → ./cjs/index.js`), and `firebase-functions-test@3.4.1`'s transitive `require("ts-deepmerge")` loads cleanly (`merge({a:1},{b:2})` → `{a:1,b:2}`), no `ERR_REQUIRE_ESM`. Also answered Claude's CVE question — the override remediates advisory GHSA-87mf-gv2c-c62c (merged via #2204). Replied to both, no push.
+- Fixes pushed: 0 (no PR carried an unresolved comment requiring a code fix; every candidate was already resolved in-branch or non-actionable).
+- Reviews posted: 11 structured reviews (one per PR).
+  - #2215 — Ready with minor notes. `awSessionModerationEnabled()` mirrors the existing `awSessionClassIds()` helper and pins create's `status` to the moderation-implied value; 4-test suite covers both states with fail-before/pass-after. Flagged (non-blocking): verify the submissions `update` rule can't still flip pending→approved, and check sibling collections (e.g. `mini_app_sessions/submissions`) for the same unconditional `in [...]` pattern.
+  - #2214 — Ready. Pure `locales/es.json` value edits; interpolation placeholders + pluralization preserved; no-remaining-PLC sweep correctly scoped to `es.plcDashboard`.
+  - #2213 — Ready with minor notes. Inline `reduce` → shared `quizMaxPoints`/`videoActivityMaxPoints` (dedupe by id, `|| 100` fallback kept); behavior-preserving for the non-duplicate case; test asserts `maxPoints: 10` (was `20`). Cosmetic test-robustness notes only.
+  - #2212 — Ready with minor notes. Correct `React.lazy` + named-export interop, `Suspense fallback={null}`, wrapped in `LazyChunkErrorBoundary` (prior reviewer concern resolved); test guards against static-import relapse via module-eval counting. ~254KB gzip off non-admin initial load.
+  - #2211 — Ready with minor notes. Folds `buildingSets.length` into `ROOT_FOLDER_COUNT_KEY`; no double-count (personal-only `sets` feed `countItemsByFolder`, building sets mapped separately); named folder rows untouched. Test asserts badge reads 2.
+  - #2210 — Ready with minor notes. RevealGrid inline `<select>` → shared `TypographySettings`; `getFontClass` normalization means no migration, `ClockConfig.fontFamily` precedent for `GlobalFontFamily → string`, `showColorPicker={false}` avoids a dead control (no `fontColor` field); admin `RevealGridConfigurationPanel` untouched. Audit-doc updates accurate.
+  - #2209 — Ready. Docs-only (`docs/routines/unifier.md`); no source/build impact.
+  - #2208 — Ready. Adds `assessments`/`todos` to the plc import-escape regex; both confirmed as real `PLC_SECTIONS` ids; additive lint-config only. Suggested a guard test tying the alternation to `PLC_SECTIONS` (drift has recurred twice).
+  - #2207 — Ready. `SettingsLabel` group-heading retrofit (`as="span"`+`id`, `role="group"`/`aria-labelledby`), uses `useId()` avoiding duplicate DOM ids across lazily-loaded instances; semantics-only, back-face panel so cqmin rules N/A.
+  - #2206 — Ready with minor notes. Genuine front-face empty state → `ScaledEmptyState`, full container-query scope, matches sibling `VideoActivityManager.tsx:1007`. Minor: removed markup used `brand-blue` light-surface colors vs ScaledEmptyState's slate defaults — pre-existing backlog, worth a contrast check on the LibraryShell surface.
+  - #2205 — Ready with minor notes. dev-paul→main promotion: advisory docs plan (no code impact) + verified-safe `ts-deepmerge` security override. Suggested a final CI `pnpm -C functions test` confirmation before merge.
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` branch. This log commit is the only push to `scheduled-tasks` (which also rides into open PR #2210).
+  - Empirical verification: for #2205, actually reinstalled the `functions` workspace to the lockfile-pinned `ts-deepmerge@8.0.0` and loaded `firebase-functions-test` under Node CommonJS to disprove the ESM-break claim rather than relying on the PR description.
+  - No code fixes were pushed, so no local validate run was required. All code PRs claim `pnpm run validate` + `build` green; CI on Node 24 remains the authoritative gate (this env runs Node 22, repo pins 24).

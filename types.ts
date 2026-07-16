@@ -5109,7 +5109,8 @@ export interface RevealGridConfig {
   revealMode: 'flip' | 'fade';
   isMemoryMode?: boolean;
   memoryCards?: MemoryCard[];
-  fontFamily?: GlobalFontFamily;
+  // Accepts `font-*` ids (TypographySettings) and bare GlobalFontFamily values; getFontClass normalizes both.
+  fontFamily?: string;
   defaultCardColor?: string;
   defaultCardBackColor?: string;
   activeDriveFileId?: string | null;

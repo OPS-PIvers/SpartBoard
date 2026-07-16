@@ -2,12 +2,7 @@ import React, { useState } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDialog } from '@/context/useDialog';
-import {
-  WidgetData,
-  RevealGridConfig,
-  RevealCard,
-  GlobalFontFamily,
-} from '@/types';
+import { WidgetData, RevealGridConfig, RevealCard } from '@/types';
 import {
   Plus,
   Trash2,
@@ -22,6 +17,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { TypographySettings } from '@/components/common/TypographySettings';
 
 export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -595,37 +591,14 @@ export const RevealGridAppearanceSettings: React.FC<{
 
   return (
     <div className="space-y-6">
-      {/* Font Family */}
-      <div>
-        <SettingsLabel>Font Family</SettingsLabel>
-        <select
-          value={config.fontFamily ?? 'global'}
-          onChange={(e) =>
-            updateWidget(widget.id, {
-              config: {
-                ...config,
-                fontFamily:
-                  e.target.value === 'global'
-                    ? undefined
-                    : (e.target.value as GlobalFontFamily),
-              },
-            })
-          }
-          className="w-full p-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="global">Use Dashboard Default</option>
-          <option value="sans">Sans Serif</option>
-          <option value="serif">Serif</option>
-          <option value="mono">Monospace</option>
-          <option value="comic">Comic</option>
-          <option value="handwritten">Handwritten</option>
-          <option value="rounded">Rounded</option>
-          <option value="fun">Fun</option>
-          <option value="slab">Slab</option>
-          <option value="retro">Retro</option>
-          <option value="marker">Marker</option>
-        </select>
-      </div>
+      {/* Font Family — shared picker (RevealGrid manages card colors below) */}
+      <TypographySettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, { config: { ...config, ...updates } })
+        }
+        showColorPicker={false}
+      />
 
       {/* Default Card Colors */}
       <div className="space-y-4">

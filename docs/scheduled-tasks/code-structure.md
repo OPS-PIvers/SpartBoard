@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-07-04_
+_Last audited: 2026-07-15_
 _Last action: 2026-06-12 — MEDIUM cardOpacity range-check extracted into shared `isCardOpacity` guard in adminBuildingConfig.ts_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-15: Weekly audit pass (Wednesday). No new dev-paul commits since 2026-07-14 (dev-paul HEAD 6249f325 already captured). DashboardContext.tsx not re-measured (last confirmed 5,865 lines on 2026-07-03 — BLOCKED status unchanged). Two new LOW items found in `utils/adminBuildingConfig.ts`: (1) `validRevealFonts` local constant (11 font family strings) duplicates the module-level `VALID_FONT_FAMILIES` constant exported from the same file — redundant definition; (2) `validTextSizePresets` inline array `['small', 'medium', 'large', 'x-large']` declared twice in two separate switch cases (need-do-put-then and work-symbols) — same array, no shared constant. Additionally: 4-field appearance validation block (`fontFamily`/`fontColor`/`cardColor`/`cardOpacity`) repeated across 4+ switch cases with identical guard logic — the existing LOW "simple switch cases" item partially covers this but doesn't enumerate the 4-field block pattern explicitly; added as a note to that item rather than a separate entry. New LOW item: `utils/mockGuidedLearningDriveService.ts` is a dev mock / test double that lives in `utils/` rather than `tests/` — it exports no production logic and imports only from test-adjacent service modules. All pre-existing open items re-confirmed valid. 2 new LOW open items added._
 
 _2026-07-04: Weekly audit pass (Saturday). New dev-paul commits since 2026-07-03: pr-review log (docs only), fix(css-scaling) SpecialistSchedule border, fix(widgets) 3 review findings — none touch context/hooks/utils source files. DashboardContext.tsx confirmed at **5,865 lines** (unchanged from 2026-07-03 — same build). MEDIUM `functions/src/index.ts` item: **file is now 144 lines** — confirmed a thin barrel of re-exports with JSDoc documenting the architecture. The domain split was completed upstream (each Cloud Function lives in its own leaf module); this resolves the MEDIUM item tracked since 2026-04-15. Moved to Completed. NEW LOW: `utils/videoActivityDriveService.ts` is only imported by its test file (`tests/utils/videoActivityDriveService.test.ts`) — zero production imports found in components/context/hooks/utils. The file exports `buildVideoActivityResultsSheetData` which appears to have been extracted for the VA export flow but never wired into any component or hook. Added as new open item. All other open items (HIGH DashboardContext BLOCKED, MEDIUM large-files BLOCKED, LOW gen1 logger, LOW OAuth timeout, LOW double-getDoc userProfile, LOW simple switch cases, LOW feature_permissions read docs, LOW single-consumer utils) re-confirmed valid. 1 MEDIUM item resolved, 1 LOW item added._
 
@@ -158,6 +160,20 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
   - `utils/userTier.ts` — 1 consumer (2026-06-13)
     Single-consumer utils are not necessarily wrong — domain separation is valid — but warrant a quick sanity check that they are not duplicating logic that already exists elsewhere, and that they are documented or self-explanatory.
 - **Fix:** Verify each file's consumer. For `migration.ts` (owned entirely by DashboardContext), consider whether inlining or consolidating the migration logic into the context would reduce indirection. No action required if each file's scope is intentionally bounded.
+
+### LOW `adminBuildingConfig.ts` — duplicate local constants: `validRevealFonts` and `validTextSizePresets`
+
+- **Detected:** 2026-07-15
+- **File:** utils/adminBuildingConfig.ts
+- **Detail:** Two redundant constant declarations found in the reveal-grid switch case: (1) A local `validRevealFonts` constant (array of 11 font family strings) duplicates the module-level exported `VALID_FONT_FAMILIES` constant already defined in the same file — the local copy was likely written before the module-level constant existed or copied without noticing the duplication. (2) The inline `validTextSizePresets` array `['small', 'medium', 'large', 'x-large']` is declared twice in two separate switch cases (`need-do-put-then` and `work-symbols`) with no shared constant — a future addition of a new preset value would require updating both sites independently. Additionally, the 4-field appearance validation block (`fontFamily`/`fontColor`/`cardColor`/`cardOpacity`) is repeated verbatim across 4+ switch cases; this is related to the existing LOW "simple switch cases" item and can be addressed in that pass.
+- **Fix:** (1) Replace the local `validRevealFonts` reference with `VALID_FONT_FAMILIES` (already in scope). (2) Extract `validTextSizePresets` to a module-level `const VALID_TEXT_SIZE_PRESETS = ['small', 'medium', 'large', 'x-large'] as const` and reference it in both switch cases. Both changes are pure refactors with no behavior impact. The 4-field appearance block can be factored alongside the "simple switch cases" data-declaration refactor already tracked.
+
+### LOW `utils/mockGuidedLearningDriveService.ts` — dev mock lives in `utils/` not `tests/`
+
+- **Detected:** 2026-07-15
+- **File:** utils/mockGuidedLearningDriveService.ts
+- **Detail:** The file is a dev/test double for the guided-learning Drive service. It exports no production logic and has no production imports — only the corresponding test file references it. Dev mocks and test doubles conventionally live under `tests/` (or alongside their source in `__mocks__/`) so that `utils/` remains production-only logic. Its presence in `utils/` could mislead a developer into importing it from production code.
+- **Fix:** Move `utils/mockGuidedLearningDriveService.ts` to `tests/utils/` (or `tests/testHelpers/`) and update the one import in the test file that references it. Verify the move does not break the test suite with `pnpm test`.
 
 ---
 
