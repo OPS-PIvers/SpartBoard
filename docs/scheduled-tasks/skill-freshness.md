@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-07-16_
+_Last audited: 2026-07-09_
 _Last action: 2026-07-09 — MEDIUM SpecialistSchedule Appearance.tsx/co-located-Settings pattern documented + stale `.agents/` reference row corrected in new-widget skill (both mirrors)_
 
 ---
@@ -15,8 +15,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-_2026-07-16: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — consistent with all prior runs). Codebase-side verifications performed against new dev-paul commits since 2026-07-09: fix(rules) moderation-bypass (#2215 — firestore.rules + test), fix(i18n) ES Comunidad (#2214 — locales), fix(classroomAddon) dedup question ids (#2213 — classroomAddon component), perf(Sidebar) code-split AdminSettings (#2212 — Sidebar.tsx), fix(GuidedLearning) folder badge (#2211 — GuidedLearningManager.tsx), docs(unifier) run 34 (#2209 — docs), D4 ESLint regex widen (#2208 — eslint.config.js), Retrofit RandomSettings SettingsLabel (#2207 — RandomSettings.tsx back-face), QuizManager unify-empty-states (#2206 — QuizManager.tsx). None of these touch FeaturePermissionsManager.tsx, FeatureConfigurationPanel.tsx, SpecialistSchedule/, WidgetRegistry.ts, types.ts, or any skill file. Verified: (1) `SpecialistSchedule/` still contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts`, `utils.ts` — no `Appearance.tsx`; reference note added 2026-07-09 in both skill mirrors remains accurate. (2) `FeaturePermissionsManager.tsx` exclusion array still 13 hardcoded types — LOW item about exclusion array example remains valid. (3) `FeatureConfigurationPanel.tsx` `BUILDING_CONFIG_PANELS` (line 92) still present and growing — LOW secondary-exclusion-gate item remains valid. (4) `lazyNamed()` convention confirmed correct across WidgetRegistry.ts. (5) RandomSettings SettingsLabel retrofit is consistent with the `SettingsLabel` group-heading pattern documented in the skill — no discrepancy. All 5 pre-existing LOW items remain valid. Zero new items._
 
 _2026-07-09 action: Resolved the MEDIUM `spart-new-widget` SpecialistSchedule `Appearance.tsx` item (see Completed). SpecialistSchedule co-locates both `SpecialistScheduleSettings` and `SpecialistScheduleAppearanceSettings` as named exports in `Settings.tsx` (no separate `Appearance.tsx`); added a reference note documenting this to both skill mirrors and corrected the stale `.agents/` "Building-defaults consumption" row (`SpecialistSchedule/Widget.tsx` → `SpecialistScheduleWidget.tsx`). Documentation-only; PR opened against dev-paul. Remaining open: 5 LOW._
 
