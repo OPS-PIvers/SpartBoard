@@ -2019,3 +2019,28 @@ _Automated nightly review by claude-opus-4-6_
   - Merge-order flag: #2189, #2195, and #2187 all touch `docs/routines/unifier.md`. Sequence deliberately (or land one) to avoid the recurring doc-merge concatenation artifact #2187 was created to repair.
   - Recurring failure class: `unifier.md` has now hit merge-corruption 3× — a small CI check (duplicate `Run count:` header / Run Log row-count floor) would catch it mechanically; surfaced in #2187's review.
   - No code fixes were pushed, so no local verification was required. All code PRs claim `pnpm run validate` + `build` green; CI on Node 24 remains the authoritative gate (this env runs Node 22, repo pins 24).
+
+## 2026-07-16
+
+- PRs reviewed: 5 open PRs (all authored by OPS-PIvers, all draft except #2217).
+  - #2221 — audit(thursday) + fix(deps): journals + `flatted` DoS/proto-pollution override (head `scheduled-tasks`, base `dev-paul`)
+  - #2220 — docs(unifier): log nightly run 35 (head `nightly/unifier-log-2026-07-16`, base `dev-paul`)
+  - #2219 — Unify ActivityWall library empty state onto ScaledEmptyState (head `nightly/unify-empty-states-2026-07-16`, base `dev-paul`)
+  - #2218 — Retrofit MusicWidget "Layout" label to group-heading SettingsLabel (head `nightly/unify-settings-labels-2026-07-16`, base `dev-paul`)
+  - #2217 — Audit results and fixes for widget registry, linting, and i18n (head `dev-paul`, base `main`) — dev-paul→main promotion
+- Comments processed: 3 unresolved inline threads on #2217 (gemini-code-assist) — 1 fixed + pushed, 2 explained (no fix). All other PRs (#2221/#2220/#2219/#2218) had zero review threads.
+  - #2217 quiz path (`TeacherDiscoveryRoute.tsx:418`): gemini(med) optional-chaining guard on `quizData.questions`. VALID — `loadQuizData` returns the raw Drive JSON blob with no normalizer, so a malformed/legacy file can yield undefined `questions` → `quizMaxPoints(undefined)` throws. Fixed with `quizData?.questions ? quizMaxPoints(quizData.questions) : 100` (100 matches the helper's own empty-set denominator). Pushed to `dev-paul` (d44cef9); verified type-check ✓ lint ✓ format ✓ + `TeacherDiscoveryRoute.test.tsx` (2 tests) ✓. Replied + this is the sanctioned dev-paul review-comment-fix path.
+  - #2217 VA path (`:561`): gemini(med) same guard for `activityData.questions`. DECLINED — `loadActivityData` normalizes via `normalizeVideoActivityQuestions(raw.questions)` = `(qs ?? []).map(...)`, guaranteeing a defined array; the guard would be dead code. Replied.
+  - #2217 GuidedLearning (`GuidedLearningManager.tsx:449`): gemini(med) `buildingSets && buildingSets.length` guard. DECLINED — `buildingSets` is a required non-optional prop already dereferenced unguarded via `.map()` at lines 304/456; the guard would be redundant and locally inconsistent. Replied.
+- Fixes pushed: 1
+  - #2217 / `dev-paul` (d44cef9) — guard quiz-attach `maxPoints` against unvalidated Drive JSON (`quizData?.questions ? … : 100`).
+- Reviews posted: 5 structured reviews (one per PR).
+  - #2221 — Ready. Dev-only `flatted` override (^3.4.2) closing 2 advisories via the eslint chain; minimal lockfile diff. Flagged the newly-logged `pnpm audit` HTTP 410 (CVE scanning currently blind) as a maintainer follow-up (Dependabot/osv-scanner).
+  - #2220 — Ready. Docs-only unifier run-35 log; large add/del count is expected in-place log rewrite churn.
+  - #2219 — Ready with minor notes. ScaledEmptyState conversion with a correctly-scoped `container-type: size` boundary on the empty-state arm only; two intentional canonical deltas (uppercase/tracked title, cqmin constants). Per the PR's own visual-risk tag, recommended a one-glance preview check.
+  - #2218 — Ready. Mechanical `as="span"` group-heading a11y retrofit; per-instance `${widget.id}` id scoping correct for per-widget render.
+  - #2217 — Ready with minor notes. dev-paul→main rollup; the one actionable reviewer comment resolved. `types.ts` change is a pure widening (`RevealGridConfig.fontFamily` → `string`), no `WidgetType`/registry impact. `firestore.rules` moderation-bypass fix is sound and tested; noted the added second `get()` on the session doc (well under the per-request access-call limit).
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` head EXCEPT the sanctioned path — #2217 merges `dev-paul`→`main` and carried unresolved review comments, so the one code fix was pushed to `dev-paul` per the standing rule. No other `dev-*`/`main` push.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); type-check/lint/format/tests all still ran green locally. CI on Node 24 remains the authoritative gate.
+  - This review-log commit is on the designated `claude/compassionate-shannon-ijvfgq` branch (where prior runs' pr-review-log.md already lives), not `scheduled-tasks` — avoids polluting the unrelated open PR #2221 and honors the branch-safety directive.
