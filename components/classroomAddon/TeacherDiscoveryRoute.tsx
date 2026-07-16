@@ -43,6 +43,8 @@ import {
   getVideoActivityBehavior,
   formatVideoActivityBehaviorSummary,
 } from '@/utils/videoActivityBehavior';
+import { quizMaxPoints } from '@/utils/quizMaxPoints';
+import { videoActivityMaxPoints } from '@/utils/videoActivityGrading';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { logError } from '@/utils/logError';
 import { ensureGis, requestAccessToken } from './gisOAuth';
@@ -412,11 +414,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     append(`Loading "${selectedQuiz.title}"…`);
     const quizData = await loadQuizData(selectedQuiz.driveFileId);
 
-    // The Classroom grade scale = the quiz's total points, so a 17/20 quiz
-    // reads as 17/20 in Classroom (not a percentage out of 100). Fall back to
-    // 100 only when the quiz has no questions/points to sum.
-    const quizMaxPoints =
-      quizData.questions.reduce((s, q) => s + (q.points ?? 1), 0) || 100;
+    // Classroom grade scale = quiz's total points (e.g. 17/20), not a percentage.
+    const maxPoints = quizMaxPoints(quizData.questions);
 
     const targeting = await resolveClassTargeting();
 
@@ -481,7 +480,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       {
         quizCode: code,
         kind: 'quiz',
-        maxPoints: quizMaxPoints,
+        maxPoints,
       }
     );
     append(
@@ -498,7 +497,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         attachmentId,
         courseId,
         itemId,
-        maxPoints: quizMaxPoints,
+        maxPoints,
         attachedAt: Date.now(),
       };
       try {
@@ -558,11 +557,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     append(`Loading "${selectedActivity.title}"…`);
     const activityData = await loadActivityData(selectedActivity.driveFileId);
 
-    // The Classroom grade scale = the activity's total points, so pushed grades
-    // read identically in Classroom (not a percentage out of 100). Fall back to
-    // 100 only when the activity has no questions/points to sum.
-    const vaMaxPoints =
-      activityData.questions.reduce((s, q) => s + (q.points ?? 1), 0) || 100;
+    // Classroom grade scale = activity's total points (e.g. 17/20), not a percentage.
+    const maxPoints = videoActivityMaxPoints(activityData.questions);
 
     const targeting = await resolveClassTargeting();
 
@@ -629,7 +625,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       {
         sessionId,
         kind: 'va',
-        maxPoints: vaMaxPoints,
+        maxPoints,
       }
     );
     append(
@@ -646,7 +642,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         attachmentId,
         courseId,
         itemId,
-        maxPoints: vaMaxPoints,
+        maxPoints,
         attachedAt: Date.now(),
       };
       try {
