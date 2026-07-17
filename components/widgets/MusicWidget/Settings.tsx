@@ -120,6 +120,7 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { stations, isLoading } = useMusicStations();
   const { layout = 'default', source = 'curated' } = config;
   const layoutLabelId = useId();
+  const sourceLabelId = useId();
 
   const activeStation = stations.find((s) => s.id === config.stationId);
   const isCuratedSpotify = activeStation?.url
@@ -135,8 +136,14 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       {/* ── Source selector (gated behind personal-spotify feature) ── */}
       {canUsePersonal && (
         <div className="space-y-2">
-          <SettingsLabel icon={Music2}>Source</SettingsLabel>
-          <div className="grid grid-cols-2 gap-2">
+          <SettingsLabel as="span" icon={Music2} id={sourceLabelId}>
+            Source
+          </SettingsLabel>
+          <div
+            className="grid grid-cols-2 gap-2"
+            role="group"
+            aria-labelledby={sourceLabelId}
+          >
             {SOURCE_OPTIONS.map((opt) => {
               const isActive = source === opt.value;
               const Icon = opt.icon;
