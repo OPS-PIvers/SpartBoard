@@ -55,10 +55,7 @@ export const SyntaxFramerConfigurationPanel: React.FC<
         onSelect={setSelectedBuildingId}
       />
 
-      <div
-        className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-6"
-        role="tabpanel"
-      >
+      <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-6">
         <div>
           <label className="text-sm font-black text-slate-700 uppercase tracking-widest block mb-3 flex items-center gap-2">
             <Calculator className="w-4 h-4 text-slate-400" />
