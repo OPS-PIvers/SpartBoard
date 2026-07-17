@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-16_
+_Last audited: 2026-07-17_
 _Last action: 2026-07-08 — LOW TalkingTool `Scaffolding` label pixel cap raised `min(9px, 2.2cqmin)` → `min(10px, 2.2cqmin)`; 9px was below the 10px tertiary-text floor_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-17: Full scan (Friday weekly). DrawingWidget/Widget.tsx ~line 1602 `w-8 h-8` Pencil icon + `text-sm` "Start drawing" label + toolbar `w-7 h-7`/`w-4 h-4` icon buttons — WON'T FIX: DrawingWidget has `skipScaling: false` (CSS transform scaling); hardcoded Tailwind sizes are not CQ violations. GuidedLearning :618 `w-8 h-8` Loader2 — existing group open item (unchanged). MiniApp dialog overlays :127-:266/:1291-:1319 — existing open item (unchanged). RevealGrid :162/:168 text-xs / :183 gap-4 — existing open item (unchanged). All pre-existing open items (EmbedWidget portaled toolbar, RevealGrid hardcoded spacing, multi-widget group spacing, MiniApp dialog overlays, SmartNotebook PageEditorOverlay.tsx, RandomClassContextButton portaled dropdown) confirmed valid. Zero new anti-patterns._
 
 _2026-07-16: Scan of widget files changed in new dev-paul commits since 2026-07-15 (absorbed via rebase). Widget front-face relevant files: (1) `components/widgets/GuidedLearning/components/GuidedLearningManager.tsx` — back-face manager component (folder/set management UI); CQ scaling rules do not apply. (2) `components/widgets/random/RandomSettings.tsx` — settings panel (back-face); CQ scaling rules do not apply. RandomSettings change retrofits Animation Style label to use `SettingsLabel` group-heading pattern — consistent with settings-panel styling, no CQ impact. (3) `components/widgets/QuizWidget/components/QuizManager.tsx` — quiz manager component (admin/back-face context); CQ scaling rules do not apply. No widget front-face content changed. All pre-existing open items (EmbedWidget portaled toolbar, RevealGrid :158/:162/:168/:183 hardcoded spacing, multi-widget group inc. GuidedLearning/Loader2, MiniApp dialog overlays, SmartNotebook PageEditorOverlay.tsx, RandomClassContextButton portaled dropdown) confirmed still present and valid. Zero new anti-patterns._
 

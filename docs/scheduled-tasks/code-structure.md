@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-07-15_
+_Last audited: 2026-07-17_
 _Last action: 2026-06-12 — MEDIUM cardOpacity range-check extracted into shared `isCardOpacity` guard in adminBuildingConfig.ts_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-17: Friday pass (C1). New dev-paul commits since 2026-07-16: docs only. No source changes touching context/DashboardContext.tsx, utils/adminBuildingConfig.ts, functions/src/, or any other structure-relevant files. DashboardContext.tsx confirmed 5,865 lines (unchanged — BLOCKED status unchanged). All existing open items re-confirmed valid. Zero new items._
 
 _2026-07-15: Weekly audit pass (Wednesday). No new dev-paul commits since 2026-07-14 (dev-paul HEAD 6249f325 already captured). DashboardContext.tsx not re-measured (last confirmed 5,865 lines on 2026-07-03 — BLOCKED status unchanged). Two new LOW items found in `utils/adminBuildingConfig.ts`: (1) `validRevealFonts` local constant (11 font family strings) duplicates the module-level `VALID_FONT_FAMILIES` constant exported from the same file — redundant definition; (2) `validTextSizePresets` inline array `['small', 'medium', 'large', 'x-large']` declared twice in two separate switch cases (need-do-put-then and work-symbols) — same array, no shared constant. Additionally: 4-field appearance validation block (`fontFamily`/`fontColor`/`cardColor`/`cardOpacity`) repeated across 4+ switch cases with identical guard logic — the existing LOW "simple switch cases" item partially covers this but doesn't enumerate the 4-field block pattern explicitly; added as a note to that item rather than a separate entry. New LOW item: `utils/mockGuidedLearningDriveService.ts` is a dev mock / test double that lives in `utils/` rather than `tests/` — it exports no production logic and imports only from test-adjacent service modules. All pre-existing open items re-confirmed valid. 2 new LOW open items added._
 

@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-16_
+_Last audited: 2026-07-17_
 _Last action: 2026-06-25_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-17: Full audit. New dev-paul commits since 2026-07-16: docs only. No source file changes touching types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. VERIFIED COUNT: 63 WidgetType members (unchanged). All registrations across WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, config/tools.ts, config/widgetDefaults.ts, and config/widgetGradeLevels.ts verified correct. pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
 _2026-07-16: Full audit. New dev-paul commits since 2026-07-15 (absorbed via rebase): docs(debugger) run 28 (#2216 — docs only), fix(rules) close moderation-bypass on activity_wall_sessions (#2215 — firestore.rules + test only), fix(i18n) ES plcDashboard "Comunidad" term (#2214 — i18n only), fix(classroomAddon) dedup question ids (#2213 — classroomAddon component, not a widget), perf(Sidebar) code-split AdminSettings (#2212 — Sidebar.tsx, not registry), fix(GuidedLearning) count building sets in "All items" badge (#2211 — GuidedLearningManager.tsx, back-face manager component), docs(unifier) run 34 (#2209 — docs only), D4 widen plc import-escape ESLint regex (#2208 — eslint.config.js only), d06012a8 Retrofit RandomSettings Animation Style label to group-heading SettingsLabel (#2207 — RandomSettings.tsx back-face only), QuizManager.tsx unify-empty-states (#2206 — manager component). None of these commits add, remove, or rename any WidgetType. Verified: 63 WidgetType members in types.ts (unchanged). WIDGET_SCALING_CONFIG confirmed exhaustive (63 entries — all WidgetTypes); WIDGET_GRADE_LEVELS confirmed exhaustive Record<WidgetType | InternalToolType, GradeLevel[]> (all 63 widget types + InternalToolTypes present). WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS (Partial maps) verified via direct file inspection — all lazyNamed() references match the pattern in prior audits. widgetDefaults.ts confirmed 63 entries. config/tools.ts and config/widgetGradeLevels.ts verified unchanged. pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
