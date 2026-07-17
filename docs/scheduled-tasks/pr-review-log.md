@@ -2033,37 +2033,50 @@ _Automated nightly review by claude-opus-4-6_
   - Recurring failure class: `unifier.md` has now hit merge-corruption 3× — a small CI check (duplicate `Run count:` header / Run Log row-count floor) would catch it mechanically; surfaced in #2187's review.
   - No code fixes were pushed, so no local verification was required. All code PRs claim `pnpm run validate` + `build` green; CI on Node 24 remains the authoritative gate (this env runs Node 22, repo pins 24).
 
-## 2026-07-15
+## 2026-07-16
 
-- PRs reviewed: 11 open PRs (all authored by OPS-PIvers, all draft). #2205 base `main` (head `dev-paul`, the promotion PR); all others base `dev-paul` with `nightly/*` or `scheduled-tasks` heads. Per branch-safety, `main` and `dev-*` heads remain push-read-only except the sanctioned review-comment-fix path on the `dev-paul → main` promotion PR.
-  - #2215 — fix(rules): close moderation-bypass on activity_wall_sessions submissions (head `nightly/build-tooling-2026-07-15`)
-  - #2214 — fix(i18n): translate ES plcDashboard "PLC" drift to "Comunidad" (head `nightly/admin-config-2026-07-15`)
-  - #2213 — fix(classroomAddon): dedup question ids when computing pushed maxPoints (head `nightly/state-data-2026-07-15`)
-  - #2212 — perf(Sidebar): code-split AdminSettings out of the always-mounted chunk (head `nightly/dashboard-layout-2026-07-15`)
-  - #2211 — fix(GuidedLearning): count building sets in "All items" sidebar badge (head `nightly/widgets-2026-07-15`)
-  - #2210 — audit(wednesday) 2026-07-15 + RevealGrid font-picker unification (head `scheduled-tasks`)
-  - #2209 — docs(unifier): log nightly run 34 (head `nightly/unifier-log-2026-07-15`)
-  - #2208 — D4: widen plc import-escape ESLint regex to cover assessments/todos (head `nightly/unify-import-paths-2026-07-15`)
-  - #2207 — D3: retrofit RandomSettings "Animation Style" to SettingsLabel group-heading (head `nightly/unify-settings-labels-2026-07-15`)
-  - #2206 — D1: convert QuizManager active/archive empty state to ScaledEmptyState (head `nightly/unify-empty-states-2026-07-15`)
-  - #2205 — Add prioritized repo improvement plan + ts-deepmerge override (head `dev-paul`, base `main`) — dev-paul→main promotion
-- Comments processed: 3 unresolved inline threads across 2 PRs — 0 fixed (no push needed), 3 explained. Every actionable suggestion was already implemented in-branch or was incorrect/not-applicable when verified.
-  - #2212: 1 thread. Claude "missing `LazyChunkErrorBoundary` around the lazy Suspense" — ALREADY ADDRESSED in a later commit (thread was marked outdated); `Sidebar.tsx:30` imports it and it wraps `AdminSettings` at lines 337–341, matching the `DashboardView.tsx` pattern. Replied, no push.
-  - #2205: 2 threads. Gemini(critical) + Claude both flagged the `ts-deepmerge` 2.0.7 → ^8.0.0 override as an ESM-only break for the CommonJS `functions` workspace. DISPROVEN empirically in-env: v8 ships a dual package (`exports.require → ./cjs/index.js`), and `firebase-functions-test@3.4.1`'s transitive `require("ts-deepmerge")` loads cleanly (`merge({a:1},{b:2})` → `{a:1,b:2}`), no `ERR_REQUIRE_ESM`. Also answered Claude's CVE question — the override remediates advisory GHSA-87mf-gv2c-c62c (merged via #2204). Replied to both, no push.
-- Fixes pushed: 0 (no PR carried an unresolved comment requiring a code fix; every candidate was already resolved in-branch or non-actionable).
-- Reviews posted: 11 structured reviews (one per PR).
-  - #2215 — Ready with minor notes. `awSessionModerationEnabled()` mirrors the existing `awSessionClassIds()` helper and pins create's `status` to the moderation-implied value; 4-test suite covers both states with fail-before/pass-after. Flagged (non-blocking): verify the submissions `update` rule can't still flip pending→approved, and check sibling collections (e.g. `mini_app_sessions/submissions`) for the same unconditional `in [...]` pattern.
-  - #2214 — Ready. Pure `locales/es.json` value edits; interpolation placeholders + pluralization preserved; no-remaining-PLC sweep correctly scoped to `es.plcDashboard`.
-  - #2213 — Ready with minor notes. Inline `reduce` → shared `quizMaxPoints`/`videoActivityMaxPoints` (dedupe by id, `|| 100` fallback kept); behavior-preserving for the non-duplicate case; test asserts `maxPoints: 10` (was `20`). Cosmetic test-robustness notes only.
-  - #2212 — Ready with minor notes. Correct `React.lazy` + named-export interop, `Suspense fallback={null}`, wrapped in `LazyChunkErrorBoundary` (prior reviewer concern resolved); test guards against static-import relapse via module-eval counting. ~254KB gzip off non-admin initial load.
-  - #2211 — Ready with minor notes. Folds `buildingSets.length` into `ROOT_FOLDER_COUNT_KEY`; no double-count (personal-only `sets` feed `countItemsByFolder`, building sets mapped separately); named folder rows untouched. Test asserts badge reads 2.
-  - #2210 — Ready with minor notes. RevealGrid inline `<select>` → shared `TypographySettings`; `getFontClass` normalization means no migration, `ClockConfig.fontFamily` precedent for `GlobalFontFamily → string`, `showColorPicker={false}` avoids a dead control (no `fontColor` field); admin `RevealGridConfigurationPanel` untouched. Audit-doc updates accurate.
-  - #2209 — Ready. Docs-only (`docs/routines/unifier.md`); no source/build impact.
-  - #2208 — Ready. Adds `assessments`/`todos` to the plc import-escape regex; both confirmed as real `PLC_SECTIONS` ids; additive lint-config only. Suggested a guard test tying the alternation to `PLC_SECTIONS` (drift has recurred twice).
-  - #2207 — Ready. `SettingsLabel` group-heading retrofit (`as="span"`+`id`, `role="group"`/`aria-labelledby`), uses `useId()` avoiding duplicate DOM ids across lazily-loaded instances; semantics-only, back-face panel so cqmin rules N/A.
-  - #2206 — Ready with minor notes. Genuine front-face empty state → `ScaledEmptyState`, full container-query scope, matches sibling `VideoActivityManager.tsx:1007`. Minor: removed markup used `brand-blue` light-surface colors vs ScaledEmptyState's slate defaults — pre-existing backlog, worth a contrast check on the LibraryShell surface.
-  - #2205 — Ready with minor notes. dev-paul→main promotion: advisory docs plan (no code impact) + verified-safe `ts-deepmerge` security override. Suggested a final CI `pnpm -C functions test` confirmation before merge.
+- PRs reviewed: 5 open PRs (all authored by OPS-PIvers, all draft except #2217).
+  - #2221 — audit(thursday) + fix(deps): journals + `flatted` DoS/proto-pollution override (head `scheduled-tasks`, base `dev-paul`)
+  - #2220 — docs(unifier): log nightly run 35 (head `nightly/unifier-log-2026-07-16`, base `dev-paul`)
+  - #2219 — Unify ActivityWall library empty state onto ScaledEmptyState (head `nightly/unify-empty-states-2026-07-16`, base `dev-paul`)
+  - #2218 — Retrofit MusicWidget "Layout" label to group-heading SettingsLabel (head `nightly/unify-settings-labels-2026-07-16`, base `dev-paul`)
+  - #2217 — Audit results and fixes for widget registry, linting, and i18n (head `dev-paul`, base `main`) — dev-paul→main promotion
+- Comments processed: 3 unresolved inline threads on #2217 (gemini-code-assist) — 1 fixed + pushed, 2 explained (no fix). All other PRs (#2221/#2220/#2219/#2218) had zero review threads.
+  - #2217 quiz path (`TeacherDiscoveryRoute.tsx:418`): gemini(med) optional-chaining guard on `quizData.questions`. VALID — `loadQuizData` returns the raw Drive JSON blob with no normalizer, so a malformed/legacy file can yield undefined `questions` → `quizMaxPoints(undefined)` throws. Fixed with `quizData?.questions ? quizMaxPoints(quizData.questions) : 100` (100 matches the helper's own empty-set denominator). Pushed to `dev-paul` (d44cef9); verified type-check ✓ lint ✓ format ✓ + `TeacherDiscoveryRoute.test.tsx` (2 tests) ✓. Replied + this is the sanctioned dev-paul review-comment-fix path.
+  - #2217 VA path (`:561`): gemini(med) same guard for `activityData.questions`. DECLINED — `loadActivityData` normalizes via `normalizeVideoActivityQuestions(raw.questions)` = `(qs ?? []).map(...)`, guaranteeing a defined array; the guard would be dead code. Replied.
+  - #2217 GuidedLearning (`GuidedLearningManager.tsx:449`): gemini(med) `buildingSets && buildingSets.length` guard. DECLINED — `buildingSets` is a required non-optional prop already dereferenced unguarded via `.map()` at lines 304/456; the guard would be redundant and locally inconsistent. Replied.
+- Fixes pushed: 1
+  - #2217 / `dev-paul` (d44cef9) — guard quiz-attach `maxPoints` against unvalidated Drive JSON (`quizData?.questions ? … : 100`).
+- Reviews posted: 5 structured reviews (one per PR).
+  - #2221 — Ready. Dev-only `flatted` override (^3.4.2) closing 2 advisories via the eslint chain; minimal lockfile diff. Flagged the newly-logged `pnpm audit` HTTP 410 (CVE scanning currently blind) as a maintainer follow-up (Dependabot/osv-scanner).
+  - #2220 — Ready. Docs-only unifier run-35 log; large add/del count is expected in-place log rewrite churn.
+  - #2219 — Ready with minor notes. ScaledEmptyState conversion with a correctly-scoped `container-type: size` boundary on the empty-state arm only; two intentional canonical deltas (uppercase/tracked title, cqmin constants). Per the PR's own visual-risk tag, recommended a one-glance preview check.
+  - #2218 — Ready. Mechanical `as="span"` group-heading a11y retrofit; per-instance `${widget.id}` id scoping correct for per-widget render.
+  - #2217 — Ready with minor notes. dev-paul→main rollup; the one actionable reviewer comment resolved. `types.ts` change is a pure widening (`RevealGridConfig.fontFamily` → `string`), no `WidgetType`/registry impact. `firestore.rules` moderation-bypass fix is sound and tested; noted the added second `get()` on the session doc (well under the per-request access-call limit).
 - Notes:
-  - Branch-safety: no push to `main` or any `dev-*` branch. This log commit is the only push to `scheduled-tasks` (which also rides into open PR #2210).
-  - Empirical verification: for #2205, actually reinstalled the `functions` workspace to the lockfile-pinned `ts-deepmerge@8.0.0` and loaded `firebase-functions-test` under Node CommonJS to disprove the ESM-break claim rather than relying on the PR description.
-  - No code fixes were pushed, so no local validate run was required. All code PRs claim `pnpm run validate` + `build` green; CI on Node 24 remains the authoritative gate (this env runs Node 22, repo pins 24).
+  - Branch-safety: no push to `main` or any `dev-*` head EXCEPT the sanctioned path — #2217 merges `dev-paul`→`main` and carried unresolved review comments, so the one code fix was pushed to `dev-paul` per the standing rule. No other `dev-*`/`main` push.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); type-check/lint/format/tests all still ran green locally. CI on Node 24 remains the authoritative gate.
+  - This review-log commit is on the designated `claude/compassionate-shannon-ijvfgq` branch (where prior runs' pr-review-log.md already lives), not `scheduled-tasks` — avoids polluting the unrelated open PR #2221 and honors the branch-safety directive.
+
+## 2026-07-17
+
+- PRs reviewed: 4 open PRs (all authored by OPS-PIvers; #2223 is the only non-draft).
+  - #2226 — audit(friday) journals + accumulated code (5 admin panels → shared `BuildingSelector`, `TeacherDiscoveryRoute` guard, ActivityWall/MusicWidget unification) (head `scheduled-tasks`, base `dev-paul`)
+  - #2225 — docs(unifier): log nightly run 36 (head `nightly/unifier-log-2026-07-17`, base `dev-paul`)
+  - #2224 — D3: unify MusicWidget "Source" label onto SettingsLabel group-heading form (head `nightly/unify-settings-labels-2026-07-17`, base `dev-paul`)
+  - #2223 — Refactor MusicWidget and ActivityWall empty state components (head `dev-paul`, base `main`) — dev-paul→main promotion
+- Comments processed: 4 unresolved inline threads across #2223/#2226 — 0 fixed, 4 explained (no code fix warranted).
+  - #2223 useId (`MusicWidget/Settings.tsx`, gemini med): ALREADY FIXED on branch (`useId()` replaced the `widget.id` interpolation) — thread outdated, owner already replied. No action.
+  - #2223 unifier.md PR-number refs (owner thread): owner already replied declining, with API-verified rationale that `#2218`/`#2219` are the correct authoring PRs (not the `#2223` rollup). No action.
+  - #2223 `role="radiogroup"` (`MusicWidget/Settings.tsx:194`, claude bot): DECLINED — explicitly non-blocking; a correct ARIA radiogroup needs `role="radio"`+`aria-checked` on each option AND roving-tabindex arrow-key nav, a deliberate a11y design change, not a mechanical one-line role swap. Replied inline.
+  - #2226 `Array.isArray` guard (`TeacherDiscoveryRoute.tsx`, gemini med): ALREADY APPLIED on `scheduled-tasks` (line 421: `Array.isArray(quizData?.questions) ? quizMaxPoints(...) : 100`) — thread outdated/resolved by the code. No reply needed.
+- Fixes pushed: 0 (no fix warranted — every actionable comment was already applied on-branch or is a non-blocking design tradeoff).
+- Reviews posted: 4 structured reviews (one per PR).
+  - #2223 — Ready. dev-paul→main rollup: MusicWidget `useId()` + ActivityWall `ScaledEmptyState` (empty-branch-scoped `container-type: size`, avoids the `:1890` rescoping regression) + dev-only `flatted` override. No DashboardContext/WidgetRegistry/types.ts touch.
+  - #2226 — Ready with minor notes. Audit journals + audit-aligned code: 5 admin panels drop bespoke building tabs for shared `BuildingSelector` (resolves the C2 finding in this PR's own body; removes `text-green-700` deviation + lone native `<select>`). Recommended a manual building-switch spot-check since no test added for the presentational swaps.
+  - #2224 — Ready. Mechanical `as="span"` + `useId()` group-heading a11y retrofit; `SettingsLabel` computes classes before branching on `as`, so zero visual delta.
+  - #2225 — Ready. Docs-only unifier run-36 log; no code impact.
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` branch. No code fixes were pushed anywhere. Only outward actions were 4 PR reviews + 1 inline reply.
+  - This review-log commit is on the designated `claude/compassionate-shannon-axeq3a` branch (matching the prior run's precedent), NOT `scheduled-tasks` — avoids adding an extra commit to the in-flight PR #2226 and honors the designated-branch directive.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning). No local fixes required this run; CI on Node 24 remains the authoritative gate.
