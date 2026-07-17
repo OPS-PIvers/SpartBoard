@@ -209,9 +209,6 @@ export const NumberLineConfigurationPanel: React.FC<
     <div className="space-y-6">
       {BUILDINGS.length > 1 && (
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            Building
-          </label>
           <BuildingSelector
             selectedId={selectedBuildingId}
             onSelect={setSelectedBuildingId}
