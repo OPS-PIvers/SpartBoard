@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-07-09_
-_Last action: 2026-06-16_
+_Last audited: 2026-07-16_
+_Last action: 2026-07-16_
 
 ---
 
@@ -15,6 +15,10 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-16 (action): Resolved the MEDIUM `flatted@3.3.3` DoS + prototype-pollution item. Selection: today is Thursday; reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + weeklies B1 skill-freshness / B2 dependency-audit. widget-registry and typescript-eslint report no open items; css-scaling's open items are all LOW; skill-freshness open items are all LOW. The only MEDIUM/HIGH items today are the dependency-audit MEDIUMs, so this weekly journal wins the severity tiebreak. In document order the first MEDIUM is the `pnpm audit` 410 tooling item — **skipped as not a safe unattended auto-fix**: its fix is an open-ended scanner/automation decision (switch scanner, adopt Dependabot via `.github/dependabot.yml`, or bump the pinned pnpm) that changes repo automation policy and targets a protected branch; that is a maintainer decision, not a mechanical override. (Confirmed still broken: `pnpm audit` returns HTTP 410, exit 0.) The next actionable MEDIUM in document order is `flatted`. File-recency check on `package.json`/`pnpm-lock.yaml` passed (last touched at 2666838b `#2194`, outside the last 5 branch commits). Confirmed `pnpm why flatted` resolved to the vulnerable `flatted@3.3.3` via `eslint@9.39.2 > file-entry-cache@8.0.0 > flat-cache@4.0.1`. Applied the journal fix: added `"flatted": "^3.4.2"` to `pnpm.overrides` in `package.json` (caret matches the file's existing override convention; latest flatted is 3.4.2, the patched version, so `^3.4.2` resolves to 3.4.2 and stays within 3.x). After `pnpm install`, `pnpm why flatted` reports a single `flatted@3.4.2`. Lockfile diff minimal (5 add / 4 del — override declaration + flatted 3.3.3→3.4.2). Dev/CI tooling only (ESLint file-entry cache) — no production runtime impact. Verified clean: `prettier --check package.json pnpm-lock.yaml` (clean), `pnpm run type-check` (0 errors), `pnpm run lint` (root + functions, `--max-warnings 0`, exit 0 — exercises ESLint's flatted-backed cache). Moved item to Completed. PR opened against dev-paul. Remaining MEDIUM items (pnpm-audit-410, ws, yaml, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash) and the LOW items all still active._
+
+_2026-07-16: `pnpm audit` (both root and functions) **fails with HTTP 410** — npm has retired both audit endpoints (`/-/npm/v1/security/audits/quick` and `/-/npm/v1/security/audits`). Exit code 0 is returned but no vulnerability data is produced. This breaks the scheduled vulnerability scanning workflow. See new MEDIUM item below. `pnpm outdated` (root) — notable version drift since 2026-07-09: `typescript` (dev) latest is now **7.0.2** (the LOW major-versions item listed it at `6.0.3` — TypeScript has jumped another major since the 2026-07-07 snapshot); `hono` latest moved to `4.12.30` (was `4.12.28`, still need `>=4.12.25`); `firebase` `12.8.0` → **`12.16.0`** (was `12.15.0`); `@google/genai` latest `2.12.0` (was `2.10.0`); `firebase-tools` `15.22.3` → `15.24.0`; `postcss` `8.5.6` → `8.5.19`; `react-i18next` latest `17.0.10` (was `17.0.8`); `eslint` latest `10.7.0` (was `10.6.0`); `vite` latest `8.1.4` (was `8.1.3`); `lucide-react` latest `1.24.0` (was `1.23.0`); `vitest` / `@vitest/coverage-v8` now at `4.1.10`; `dompurify` bumped to `3.4.12`. Functions `pnpm outdated` — `@google/genai` latest `2.12.0`, `jose` latest `6.2.3` (unchanged), `typescript` latest `7.0.2`, all other entries minor patch drift. All existing Open items (flatted, ws, yaml, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash, @types/tesseract.js, jose, major-versions) remain valid. LOW major-versions item detail updated to reflect `typescript` latest is now `7.0.2` and `firebase` latest is `12.16.0`. No new vulnerability data available — `pnpm audit` 410 blocks CVE checks; last successful audit data was 2026-07-09._
 
 _2026-07-14 (action): Resolved the MEDIUM `ts-deepmerge` prototype-method-override DoS (GHSA-87mf-gv2c-c62c / CVE-2026-12644) — highest-priority Open item across today's Tuesday reading list (three dailies + weeklies B1 skill-freshness / B2 dependency-audit). All HIGH items are already in Completed; css-scaling/skill-freshness open items are all LOW; this was the first MEDIUM in dependency-audit document order. File-recency check on `functions/package.json` passed (last touched at 6d101178, well outside the last 5 branch commits). **Fix step (a) does not work:** `firebase-functions-test@3.5.0` (latest) still pins `ts-deepmerge: ^2.0.1`, so upgrading fft would NOT pull in the patched >=8.0.0 — confirmed via `pnpm view firebase-functions-test@3.5.0 dependencies`. Applied step (b): added `"ts-deepmerge": "^8.0.0"` to `pnpm.overrides` in `functions/package.json` (caret to match the file's existing override convention; only 8.0.0 exists in 8.x so `^8.0.0` ≡ `>=8.0.0` today). **Compatibility note:** ts-deepmerge dropped its default export at v3.0.0 (v2 = `export default merge`; v3+ = named `{ merge }` only), and `firebase-functions-test@3.4.1` consumes it as `ts_deepmerge_1.default(...)` (`lib/cloudevent/generate.js:51`). There is therefore NO patched version compatible with fft's default-export usage — the override forces an incompatible major on fft's cloudevent `mergeCloudEvents` helper. This is safe for this repo because **`firebase-functions-test` is not imported anywhere in the functions test suite** (verified: zero imports; the only textual matches are two comments in `gcPlcOrphans.test.ts`/`plcWeeklyDigest.test.ts` referencing the "functions-test posture" testing style, not the package). If a future test starts using fft's v2 cloudevent `wrap()`, this override must be revisited. After `pnpm -C functions install`: `pnpm why ts-deepmerge` reports a single `ts-deepmerge@8.0.0` and `pnpm audit | grep GHSA-87mf-gv2c-c62c` returns 0. Verified clean: `prettier --check functions/package.json` (clean), `pnpm -C functions type-check` (0 errors), `pnpm -C functions build` (tsc succeeds), `pnpm -C functions test` (37 files / 703 tests all pass). Lockfile diff is minimal (6 add / 4 del — override declaration + ts-deepmerge 2.0.7→8.0.0). Moved item to Completed. PR opened against dev-paul. Remaining MEDIUM items (flatted, ws, yaml, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash) and the LOW items all still active._
 
@@ -32,15 +36,12 @@ _2026-06-16 (action): Fixed MEDIUM `qs` DoS in functions (GHSA-q8mj-m7cp-5q26). 
 
 _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 high | 2 critical). pnpm audit (functions): 59 vulnerabilities (4 low | 24 moderate | 30 high | 1 critical). No new vulnerabilities beyond existing tracked items. Status updates: (a) vitest@4.1.8 — CRITICAL GHSA-5xrq-8626-4rwp NOT reported in audit output (resolved — already in Completed from 2026-06-09); (b) firebase-admin latest jumped to 14.0.0 (major) — MEDIUM firebase-admin item updated; (c) firebase-tools latest is now 15.20.0 (up from 15.19.1); (d) vite latest is 8.0.16 (2 majors); (e) hono still at 4.12.15 (both MEDIUM and HIGH open items remain). @modelcontextprotocol/sdk still at 1.25.2. All open items confirmed still active._
 
-### MEDIUM `flatted@3.3.3` has unbounded recursion DoS + prototype pollution — via eslint chain
+### MEDIUM `pnpm audit` is broken — npm retired both security audit API endpoints (HTTP 410)
 
-- **Detected:** 2026-05-19
-- **File:** package.json (devDependency via `eslint > file-entry-cache > flat-cache > flatted`)
-- **Detail:** Two CVEs affect `flatted` <3.4.2:
-  - Unbounded recursion DoS via deeply nested circular structures passed to `parse()` — `flatted@3.3.3` is vulnerable (<3.4.0 fix).
-  - Prototype pollution via `parse()` — affects `flatted` <=3.4.1, fix >=3.4.2.
-    The installed version is `flatted@3.3.3`. This is dev-only (ESLint toolchain, not shipped to users). `pnpm audit` reports both advisories. The dep chain is `eslint@9.39.2 > file-entry-cache@8.0.0 > flat-cache@4.0.1 > flatted@3.3.3`.
-- **Fix:** Add `"flatted": ">=3.4.2"` to `pnpm.overrides` in `package.json`. This forces flatted to resolve to >=3.4.2 across the eslint dependency chain. Verify with `pnpm why flatted` after `pnpm install`. Dev/CI tooling only — no production runtime impact.
+- **Detected:** 2026-07-16
+- **File:** package.json / functions/package.json (tooling)
+- **Detail:** `pnpm audit` (both root and functions) now returns HTTP 410 with: `"This endpoint is being retired. Use the bulk advisory endpoint instead."` Both endpoints (`/-/npm/v1/security/audits/quick` and `/-/npm/v1/security/audits`) are gone. Exit code is 0, so CI does not fail — but no vulnerability data is returned. The last successful audit data is from the 2026-07-09 run (118 vulns root / 58 vulns functions). Without a working audit command, new CVEs in direct or transitive dependencies will not be detected by this scheduled workflow.
+- **Fix:** Switch to an alternative vulnerability scanner. Options: (a) `npm audit` via Node's own npm CLI (uses different endpoints — confirm working); (b) `pnpm audit --use-node-fetch` or newer pnpm version that supports the bulk advisory endpoint; (c) install and run `osv-scanner` against `pnpm-lock.yaml` and `functions/pnpm-lock.yaml`; (d) enable GitHub Dependabot security alerts on the repository (declarative, no CLI dependency). Option (d) is lowest friction and complements the scheduled journal. Update the journal to reflect the new scanning method once adopted.
 
 ### MEDIUM `ws@8.19.0` + `ws@8.20.0` uninitialized memory disclosure — via jsdom/vitest
 
@@ -156,7 +157,7 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
   - `vite`: 6.4.2 → **8.1.3** (2 majors ahead; focus on patching within v6 first)
   - `eslint`: 9.39.2 → **10.6.0** (major — verify flat config compatibility)
   - `@eslint/js`: 9.39.2 → **10.0.1** (paired with eslint)
-  - `typescript`: 5.9.3 → **6.0.3** (major — strict mode changes; also affects functions/)
+  - `typescript`: 5.9.3 → **7.0.2** (2 majors ahead now — strict mode + decorator changes; also affects functions/; was 6.0.3 as of 2026-07-07, jumped again to 7.0.2 as of 2026-07-16)
   - `i18next`: 25.8.13 → **26.3.4** (major — API changes)
   - `react-i18next`: 16.5.4 → **17.0.8** (paired with i18next)
   - `lucide-react`: 0.563.0 → **1.23.0** (first stable major — icon API changes possible)
@@ -165,7 +166,7 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
   - `jsdom`: 27.4.0 → **29.1.1** (2 majors ahead — test environment only; also resolves ws CVE)
   - `lint-staged`: 16.2.7 → **17.0.8** (major — check husky integration compatibility)
   - `@google/genai`: 1.51.0 → **2.10.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade; also affects functions/)
-  - `firebase`: 12.8.0 → **12.15.0** (7 minor versions behind — update to resolve fast-xml-parser and node-forge transitive CVEs)
+  - `firebase`: 12.8.0 → **12.16.0** (latest as of 2026-07-16; update to resolve fast-xml-parser and node-forge transitive CVEs)
   - `firebase-admin` (functions): 13.6.0 → **14.1.0** (1 major — review migration guide for breaking changes)
   - `jose` (functions): 4.15.9 → **6.2.3** (2 majors — separate LOW item above for JWT security context)
     Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → **19.2.7**, `firebase-tools` 15.8.0 → **15.22.1+** (check latest), `firebase` 12.8.0 → **12.15.0**, `@playwright/test` 1.58.0 → **1.61.1**, `@typescript-eslint/*` 8.54.0 → **8.62.1**, `vitest` (root) 4.1.8 → **4.1.9**, `hono` 4.12.15 → **4.12.27** (also has active MEDIUM CVE — see separate item), `dompurify` 3.4.2 → **3.4.11** (also has active MEDIUM CVE — see separate item), `postcss` 8.5.6 → **8.5.16**, `prettier` 3.8.1 → **3.9.4**, `eslint-plugin-prettier` 5.5.5 → **5.5.6**, `eslint-plugin-react-hooks` 7.0.1 → **7.1.1**, `globals` 17.2.0 → **17.7.0**, `@firebase/rules-unit-testing` 5.0.0 → 5.0.1, `google-auth-library` (functions) 10.5.0 → **10.9.0**, `lucide-react` 0.563.0 → **1.18.0** (major; first stable), `react-i18next` 16.5.4 → **17.0.8** (major), `@google/genai` (root+functions) 1.51.0 → **2.10.0** (major — all AI generation flows need testing after upgrade), functions `axios` 1.15.0 → **1.18.1**, functions `@google-cloud/functions-framework` 5.0.0 → **5.0.2**, `axios` (root) 1.15.0 → **1.18.1** (also active separate MEDIUM CVE — upgrade resolves), `recharts` 3.8.1 → **3.9.0**. (Updated 2026-06-30)
@@ -175,6 +176,14 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 ---
 
 ## Completed
+
+### MEDIUM `flatted@3.3.3` has unbounded recursion DoS + prototype pollution — via eslint chain
+
+- **Detected:** 2026-05-19
+- **Completed:** 2026-07-16
+- **File:** package.json (`pnpm.overrides`; devDependency via `eslint@9.39.2 > file-entry-cache@8.0.0 > flat-cache@4.0.1 > flatted`), pnpm-lock.yaml
+- **Detail:** Two CVEs affect `flatted` <3.4.2: (1) unbounded recursion DoS via deeply nested circular structures passed to `parse()` (fix <3.4.0), and (2) prototype pollution via `parse()` (affects <=3.4.1, fix >=3.4.2). The installed version was `flatted@3.3.3` — vulnerable to both. Dev-only (ESLint file-entry cache toolchain, not shipped to users).
+- **Resolution:** Added `"flatted": "^3.4.2"` to `pnpm.overrides` in `package.json` (caret matches the file's existing override convention; latest flatted is 3.4.2 — the patched version — so `^3.4.2` resolves to 3.4.2 and stays within 3.x). After `pnpm install`, `pnpm why flatted` reports a single `flatted@3.4.2` across the eslint chain. Lockfile diff minimal (5 add / 4 del — override declaration + flatted 3.3.3→3.4.2). Verified clean: `prettier --check package.json pnpm-lock.yaml` (clean), `pnpm run type-check` (0 errors), `pnpm run lint` (root + functions, `--max-warnings 0`, exit 0 — exercises ESLint's flatted-backed cache). No production runtime impact. PR opened against dev-paul (diff = `package.json` + `pnpm-lock.yaml`; this journal record lives on scheduled-tasks).
 
 ### MEDIUM `ts-deepmerge` prototype method override DoS — via `firebase-functions-test` in functions
 

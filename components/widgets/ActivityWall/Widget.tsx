@@ -37,6 +37,7 @@ import {
   type ActivityWallActivityDefaults,
 } from './buildingDefaults';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { db, functions, storage } from '@/config/firebase';
 import {
   collection,
@@ -1543,29 +1544,23 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
               style={{ padding: 'min(10px, 2.8cqmin)' }}
             >
               {activities.length === 0 ? (
-                <div className="h-full w-full flex flex-col items-center justify-center text-center bg-slate-50 rounded-xl border border-slate-200">
-                  <LibraryBig
-                    className="text-brand-blue-primary"
-                    style={{
-                      width: 'min(40px, 14cqmin)',
-                      height: 'min(40px, 14cqmin)',
-                    }}
+                // This region is shorter than the full widget (the header
+                // above it eats vertical space), so it needs its own
+                // container-query boundary — otherwise ScaledEmptyState's
+                // cqmin sizing would resolve against the taller outer widget
+                // box and render larger than this actual space allows.
+                <div
+                  className="h-full w-full rounded-xl border border-slate-200 bg-slate-50"
+                  style={{ containerType: 'size' }}
+                >
+                  <ScaledEmptyState
+                    icon={LibraryBig}
+                    title="No Activities Yet"
+                    subtitle="Create your first activity to launch a wall."
+                    iconClassName="text-brand-blue-primary"
+                    titleClassName="text-slate-800"
+                    subtitleClassName="text-slate-500"
                   />
-                  <p
-                    className="font-black text-slate-800"
-                    style={{
-                      fontSize: 'min(14px, 5.5cqmin)',
-                      marginTop: 'min(8px, 2cqmin)',
-                    }}
-                  >
-                    No activities yet
-                  </p>
-                  <p
-                    className="text-slate-500 font-medium"
-                    style={{ fontSize: 'min(11px, 3.6cqmin)' }}
-                  >
-                    Create your first activity to launch a wall.
-                  </p>
                 </div>
               ) : (
                 <div className="space-y-2">

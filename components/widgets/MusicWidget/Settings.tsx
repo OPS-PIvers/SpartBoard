@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { LayoutGrid, Music, Music2, Palette, Radio } from 'lucide-react';
 import { WidgetData, MusicConfig, MusicLayout, MusicSource } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
@@ -119,6 +119,7 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const config = widget.config as MusicConfig;
   const { stations, isLoading } = useMusicStations();
   const { layout = 'default', source = 'curated' } = config;
+  const layoutLabelId = useId();
 
   const activeStation = stations.find((s) => s.id === config.stationId);
   const isCuratedSpotify = activeStation?.url
@@ -180,8 +181,14 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
       {/* ── Layout selector ── */}
       <div className="space-y-2 pt-1 border-t border-slate-100">
-        <SettingsLabel icon={LayoutGrid}>Layout</SettingsLabel>
-        <div className="grid grid-cols-3 gap-2">
+        <SettingsLabel as="span" icon={LayoutGrid} id={layoutLabelId}>
+          Layout
+        </SettingsLabel>
+        <div
+          className="grid grid-cols-3 gap-2"
+          role="group"
+          aria-labelledby={layoutLabelId}
+        >
           {LAYOUT_OPTIONS.map((opt) => {
             const isActive = layout === opt.value;
             return (
