@@ -42,6 +42,13 @@ _2026-06-12: Weekly audit pass. Scanned Settings.tsx files and admin Configurati
 
 _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widgets/ and all \*ConfigurationPanel.tsx under components/admin/. New findings: (1) TimeTool/Settings.tsx duplicates the identical custom 4-button font picker as ClockWidget — added as extension of the existing ClockWidget open item. (2) Segmented-control pill selector pattern (`flex bg-slate-100 p-1 rounded-xl`) duplicated 12× across settings panels with no shared component. (3) Font-options arrays (`{ value: 'global', label: 'Inherit' }` pattern) duplicated in 5+ admin panels. (4) 27 hardcoded hex instances across additional files not yet tracked. Existing open items (ClockWidget font picker, MusicWidget color picker, nextUp/video-activity/guided-learning missing appearance panels, ExpectationsWidget custom toggle, two hardcoded-hex LOW items, InstructionalRoutines, TextConfig) all re-confirmed valid. 4 new open items added._
 
+### LOW `BuildingSelector` tab buttons lack `id` attributes — callers cannot wire `role="tabpanel"` / `aria-labelledby` association
+
+- **Detected:** 2026-07-17 (surfaced during PR #2226 review)
+- **File:** components/admin/BuildingSelector.tsx (shared component), all 28+ admin panel callers
+- **Detail:** `BuildingSelector` renders tab buttons without stable `id` attributes, so callers have no way to wire `role="tabpanel"` + `aria-labelledby` on their content areas. `SyntaxFramerConfigurationPanel` previously implemented the full ARIA tablist pattern (per-tab `id`, content `role="tabpanel"` + `aria-labelledby`) before the unification in PR #2226 replaced it with `BuildingSelector`. The `aria-labelledby` was correctly dropped (the referenced IDs no longer exist), and the panel is now at parity with all other 28+ `BuildingSelector` callers — none of which expose the panel association. The gap affects all call sites, not uniquely this panel.
+- **Fix:** Add an optional `idPrefix` prop to `BuildingSelector`. When present, stamp each tab button with `id="${idPrefix}-tab-${buildingId}"`. Callers that want the full tablist association can then set `aria-labelledby={`${idPrefix}-tab-${selectedBuildingId}`}` and `role="tabpanel"` on their content div. No callers need to adopt it immediately — the prop is additive and opt-in.
+
 ### LOW Inline `<input type="range">` in 8 locations (6 admin panels + 2 widget Settings) — no shared Slider abstraction
 
 - **Detected:** 2026-07-17
