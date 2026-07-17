@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
 _Last audited: 2026-07-17_
-_Last action: 2026-07-17 — MEDIUM `BuildingSelector` shared component adopted in 5 divergent admin panels (ConceptWeb, RevealGrid, SmartNotebook, SyntaxFramer, NumberLine); SmartNotebook green-700 active color corrected to brand-blue standard_
+_Last action: 2026-07-17 — LOW `BuildingSelector idPrefix` prop implemented (commit 14e0b822); `SyntaxFramerConfigurationPanel` first caller to opt in with `role="tabpanel"` + `aria-labelledby`, restoring spec-compliant tablist → panel linkage. All PR #2226 reviewer requests resolved._
 
 ---
 
@@ -41,13 +41,6 @@ _2026-06-13: Weekly audit pass (Saturday). Rebase onto dev-paul: pr-review batch
 _2026-06-12: Weekly audit pass. Scanned Settings.tsx files and admin ConfigurationPanel files after rebase onto dev-paul (docs/unifier run 13, D4 @/ alias in tests/, perf baseline, fix DraggableWindow, debugger run 14). None of these commits touch widget Settings.tsx or admin config panels. All existing open items re-confirmed valid. New finding: ClockWidget/Settings.tsx custom color palette button group (lines 120-139) is distinct from the font-family picker issue already tracked under the ClockWidget/TimeTool MEDIUM item — the color palette should use SurfaceColorSettings or a shared color-picker. 1 new LOW open item added._
 
 _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widgets/ and all \*ConfigurationPanel.tsx under components/admin/. New findings: (1) TimeTool/Settings.tsx duplicates the identical custom 4-button font picker as ClockWidget — added as extension of the existing ClockWidget open item. (2) Segmented-control pill selector pattern (`flex bg-slate-100 p-1 rounded-xl`) duplicated 12× across settings panels with no shared component. (3) Font-options arrays (`{ value: 'global', label: 'Inherit' }` pattern) duplicated in 5+ admin panels. (4) 27 hardcoded hex instances across additional files not yet tracked. Existing open items (ClockWidget font picker, MusicWidget color picker, nextUp/video-activity/guided-learning missing appearance panels, ExpectationsWidget custom toggle, two hardcoded-hex LOW items, InstructionalRoutines, TextConfig) all re-confirmed valid. 4 new open items added._
-
-### LOW `BuildingSelector` tab buttons lack `id` attributes — callers cannot wire `role="tabpanel"` / `aria-labelledby` association
-
-- **Detected:** 2026-07-17 (surfaced during PR #2226 review)
-- **File:** components/admin/BuildingSelector.tsx (shared component), all 28+ admin panel callers
-- **Detail:** `BuildingSelector` renders tab buttons without stable `id` attributes, so callers have no way to wire `role="tabpanel"` + `aria-labelledby` on their content areas. `SyntaxFramerConfigurationPanel` previously implemented the full ARIA tablist pattern (per-tab `id`, content `role="tabpanel"` + `aria-labelledby`) before the unification in PR #2226 replaced it with `BuildingSelector`. The `aria-labelledby` was correctly dropped (the referenced IDs no longer exist), and the panel is now at parity with all other 28+ `BuildingSelector` callers — none of which expose the panel association. The gap affects all call sites, not uniquely this panel.
-- **Fix:** Add an optional `idPrefix` prop to `BuildingSelector`. When present, stamp each tab button with `id="${idPrefix}-tab-${buildingId}"`. Callers that want the full tablist association can then set `aria-labelledby={`${idPrefix}-tab-${selectedBuildingId}`}` and `role="tabpanel"` on their content div. No callers need to adopt it immediately — the prop is additive and opt-in.
 
 ### LOW Inline `<input type="range">` in 8 locations (6 admin panels + 2 widget Settings) — no shared Slider abstraction
 
@@ -166,6 +159,14 @@ _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widget
 ---
 
 ## Completed
+
+### LOW `BuildingSelector` tab buttons lacked `id` attributes — callers could not wire `role="tabpanel"` / `aria-labelledby` association
+
+- **Detected:** 2026-07-17 (surfaced during PR #2226 review)
+- **Completed:** 2026-07-17
+- **Files:** components/admin/BuildingSelector.tsx, components/admin/SyntaxFramerConfigurationPanel.tsx
+- **Detail:** `BuildingSelector` rendered tab buttons without stable `id` attributes, so callers had no way to wire `role="tabpanel"` + `aria-labelledby` on their content areas. Surfaced when `SyntaxFramerConfigurationPanel`'s existing `aria-labelledby` was correctly dropped during the `BuildingSelector` migration (the referenced per-tab IDs no longer existed), leaving the full 28+ caller set without ARIA tabpanel linkage.
+- **Resolution:** Added an optional `idPrefix` prop to `BuildingSelector` (commit `14e0b822`). When present, each tab button receives `id="${idPrefix}-tab-${buildingId}"`. The prop is additive — existing call sites with `idPrefix` omitted emit no `id` attributes and are unaffected. `SyntaxFramerConfigurationPanel` was the first caller to opt in: it passes `idPrefix="syntax-framer-building"` and its content div was restored to `role="tabpanel"` + `aria-labelledby={\`syntax-framer-building-tab-${selectedBuildingId}\`}`, re-establishing the full spec-compliant tablist → tabpanel association. Remaining 27+ callers can adopt `idPrefix` incrementally.
 
 ### MEDIUM `BuildingSelector` shared component bypassed in 5 admin configuration panels — divergent custom building-selector implementations
 
