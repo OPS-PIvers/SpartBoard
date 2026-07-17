@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import { BuildingSelector } from './BuildingSelector';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import {
   SyntaxFramerGlobalConfig,
@@ -49,38 +50,14 @@ export const SyntaxFramerConfigurationPanel: React.FC<
   return (
     <div className="space-y-4">
       {/* Building Tabs */}
-      <div
-        className="flex bg-slate-100 p-1 rounded-xl overflow-x-auto hide-scrollbar"
-        role="tablist"
-        aria-label="Select building for Syntax Framer defaults"
-      >
-        {BUILDINGS.map((building) => {
-          const isSelected = selectedBuildingId === building.id;
-          return (
-            <button
-              key={building.id}
-              id={`syntax-framer-building-tab-${building.id}`}
-              type="button"
-              role="tab"
-              aria-selected={isSelected}
-              tabIndex={isSelected ? 0 : -1}
-              className={`flex-1 min-w-[120px] px-3 py-1.5 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${
-                isSelected
-                  ? 'bg-white text-brand-blue-primary shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-              }`}
-              onClick={() => setSelectedBuildingId(building.id)}
-            >
-              {building.name}
-            </button>
-          );
-        })}
-      </div>
+      <BuildingSelector
+        selectedId={selectedBuildingId}
+        onSelect={setSelectedBuildingId}
+      />
 
       <div
         className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-6"
         role="tabpanel"
-        aria-labelledby={`syntax-framer-building-tab-${selectedBuildingId}`}
       >
         <div>
           <label className="text-sm font-black text-slate-700 uppercase tracking-widest block mb-3 flex items-center gap-2">

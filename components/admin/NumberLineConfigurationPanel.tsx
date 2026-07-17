@@ -2,6 +2,7 @@ import React, { useId, useState } from 'react';
 import { Plus, X, ArrowRightCircle } from 'lucide-react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import { BuildingSelector } from './BuildingSelector';
 import {
   NumberLineGlobalConfig,
   BuildingNumberLineDefaults,
@@ -211,17 +212,10 @@ export const NumberLineConfigurationPanel: React.FC<
           <label className="block text-sm font-medium text-slate-700 mb-1">
             Building
           </label>
-          <select
-            value={selectedBuildingId}
-            onChange={(e) => setSelectedBuildingId(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            {BUILDINGS.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
+          <BuildingSelector
+            selectedId={selectedBuildingId}
+            onSelect={setSelectedBuildingId}
+          />
         </div>
       )}
 

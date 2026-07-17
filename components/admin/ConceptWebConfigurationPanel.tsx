@@ -2,6 +2,7 @@ import React from 'react';
 import { ConceptWebGlobalConfig, GlobalFontFamily } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import { BuildingSelector } from './BuildingSelector';
 import { HexColorField } from './HexColorField';
 interface Props {
   config: Record<string, unknown>;
@@ -39,21 +40,10 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Building Tabs */}
-      <div className="flex overflow-x-auto gap-2 pb-2 custom-scrollbar">
-        {BUILDINGS.map((building) => (
-          <button
-            key={building.id}
-            onClick={() => setActiveBuildingId(building.id)}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest whitespace-nowrap transition-colors ${
-              activeBuildingId === building.id
-                ? 'bg-brand-blue-primary text-white shadow-sm'
-                : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-            }`}
-          >
-            {building.name}
-          </button>
-        ))}
-      </div>
+      <BuildingSelector
+        selectedId={activeBuildingId}
+        onSelect={setActiveBuildingId}
+      />
 
       <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-6">
         <div>
