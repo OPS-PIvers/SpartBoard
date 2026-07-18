@@ -54,6 +54,7 @@ export const SyntaxFramerConfigurationPanel: React.FC<
         selectedId={selectedBuildingId}
         onSelect={setSelectedBuildingId}
         idPrefix="syntax-framer-building"
+        ariaLabel="Select building for Syntax Framer defaults"
       />
 
       <div

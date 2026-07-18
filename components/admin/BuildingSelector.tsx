@@ -12,6 +12,8 @@ interface BuildingSelectorProps {
    * ARIA tablist → tabpanel association.
    */
   idPrefix?: string;
+  /** Override the tablist's accessible name (default: "Building Selection"). */
+  ariaLabel?: string;
 }
 
 export const BuildingSelector: React.FC<BuildingSelectorProps> = ({
@@ -19,6 +21,7 @@ export const BuildingSelector: React.FC<BuildingSelectorProps> = ({
   onSelect,
   activeClassName = 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm',
   idPrefix,
+  ariaLabel = 'Building Selection',
 }) => {
   const buildings = useAdminBuildings();
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -46,7 +49,7 @@ export const BuildingSelector: React.FC<BuildingSelectorProps> = ({
     <div
       className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar"
       role="tablist"
-      aria-label="Building Selection"
+      aria-label={ariaLabel}
     >
       {buildings.map((building, index) => (
         <button
