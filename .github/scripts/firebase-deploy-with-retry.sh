@@ -39,7 +39,9 @@ trap 'rm -f "$LOG_FILE"' EXIT
 # Case-insensitive substrings that mark a transient, retryable failure
 # rather than a real deploy error. `HTTP Error: 5[0-9][0-9]` covers every
 # 5xx server error (503 is the one seen in the wild); the rest cover
-# rate limiting and socket-level resets from the runner.
+# rate limiting and socket-level resets from the runner. The `.?` in
+# `code.?UNAVAILABLE` matches the gRPC UNAVAILABLE status whether the
+# Firebase SDK logs it as "code: UNAVAILABLE" or "code=UNAVAILABLE".
 TRANSIENT_PATTERN='HTTP Error: 5[0-9][0-9]|HTTP Error: 429|service is currently unavailable|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|premature close|Client network socket disconnected|Deadline exceeded|code.?UNAVAILABLE'
 
 attempt=1
