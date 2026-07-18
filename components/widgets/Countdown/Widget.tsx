@@ -18,6 +18,25 @@ const normalizeDate = (value: Date): Date => {
   return normalized;
 };
 
+const BARE_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+// `config.startDate`/`config.eventDate` are written two different ways: a bare
+// "YYYY-MM-DD" string (raw admin building-config JSON, hand-edited dashboard
+// imports, older data) or a full ISO timestamp anchored at local noon (the
+// Settings picker, via parseLocalDateInput). `new Date('YYYY-MM-DD')` parses
+// as UTC midnight per spec — normalizeDate's local getters then read that as
+// the PRIOR calendar day in any negative-UTC-offset timezone (all US zones).
+// Parsing bare dates as local noon (matching Settings) keeps both forms
+// resolving to the same intended calendar day everywhere.
+const parseConfigDate = (value: string): Date => {
+  const match = BARE_DATE_RE.exec(value);
+  if (match) {
+    const [, year, month, day] = match;
+    return new Date(Number(year), Number(month) - 1, Number(day), 12);
+  }
+  return new Date(value);
+};
+
 const isWeekendDate = (value: Date): boolean => {
   const dayOfWeek = value.getDay();
   return dayOfWeek === 0 || dayOfWeek === 6;
@@ -60,8 +79,8 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
   }, []);
 
   const calculatedDays = useMemo(() => {
-    const start = normalizeDate(new Date(startDate));
-    const event = normalizeDate(new Date(eventDate));
+    const start = normalizeDate(parseConfigDate(startDate));
+    const event = normalizeDate(parseConfigDate(eventDate));
     const todayAtMidnight = new Date(todayMidnightMs);
 
     const countStart = new Date(
@@ -91,8 +110,8 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
   }, [startDate, eventDate, includeWeekends, countToday, todayMidnightMs]);
 
   const gridData = useMemo(() => {
-    const start = normalizeDate(new Date(startDate));
-    const event = normalizeDate(new Date(eventDate));
+    const start = normalizeDate(parseConfigDate(startDate));
+    const event = normalizeDate(parseConfigDate(eventDate));
     const today = new Date(todayMidnightMs);
     const countStart = new Date(Math.max(today.getTime(), start.getTime()));
 

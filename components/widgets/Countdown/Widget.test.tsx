@@ -105,3 +105,49 @@ describe('CountdownWidget', () => {
     expect(screen.queryByText('3')).not.toBeInTheDocument();
   });
 });
+
+describe('CountdownWidget bare-date config (UTC-midnight parsing regression)', () => {
+  // config.startDate/eventDate can arrive as a bare "YYYY-MM-DD" string (raw
+  // admin building-config JSON, hand-edited dashboard imports) rather than the
+  // full-ISO-at-local-noon string the Settings picker writes. `new
+  // Date('YYYY-MM-DD')` parses as UTC midnight, which normalizeDate's local
+  // getters read as the PRIOR calendar day in any negative-UTC-offset
+  // timezone — so this only reproduces with a real non-UTC zone, not under
+  // the suite's global TZ=UTC pin (see tests/setTz.ts).
+  const originalTz = process.env.TZ;
+
+  beforeEach(() => {
+    process.env.TZ = 'America/Chicago';
+    vi.mocked(useGlobalStyle).mockReturnValue({
+      ...DEFAULT_GLOBAL_STYLE,
+      fontFamily: 'sans',
+    });
+    vi.useFakeTimers();
+    // 8:00 AM CST, Dec 20 2026 (14:00 UTC). December avoids DST ambiguity.
+    vi.setSystemTime(new Date('2026-12-20T14:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    process.env.TZ = originalTz;
+  });
+
+  it('counts a bare-date eventDate against its intended local calendar day', () => {
+    render(
+      <CountdownWidget
+        widget={buildWidget({
+          startDate: '2026-12-01T12:00:00.000Z',
+          eventDate: '2026-12-25',
+          countToday: true,
+          includeWeekends: true,
+        })}
+      />
+    );
+
+    // Dec 20 (today, CST) through Dec 24 counted, event lands on Dec 25 → 5.
+    // Before the fix, the bare "2026-12-25" parsed as UTC midnight reads as
+    // Dec 24, 6:00 PM CST — normalizeDate then floors it to Dec 24 local,
+    // one day early, so the widget showed 4.
+    expect(screen.getByText('5')).toBeInTheDocument();
+  });
+});
