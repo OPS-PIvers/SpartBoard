@@ -67,15 +67,20 @@ export const SmartNotebookConfigurationPanel: React.FC<Props> = ({
         </div>
 
         {/* Building Selector */}
-        <div className="border-b border-slate-100 bg-slate-50/50 p-2">
+        <div className="border-b border-slate-100 bg-slate-50/50 px-2 pt-2">
           <BuildingSelector
             selectedId={activeBuildingId}
             onSelect={setActiveBuildingId}
+            idPrefix="smart-notebook-building"
           />
         </div>
 
         {/* Configuration Body */}
-        <div className="p-5 space-y-8" role="tabpanel">
+        <div
+          className="p-5 space-y-8"
+          role="tabpanel"
+          aria-labelledby={`smart-notebook-building-tab-${activeBuildingId}`}
+        >
           {/* Storage Limit Section */}
           <section className="space-y-4">
             <div className="flex justify-between items-center pb-2 border-b border-slate-100">
