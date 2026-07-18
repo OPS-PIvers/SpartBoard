@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import { BuildingSelector } from './BuildingSelector';
 import { RevealGridGlobalConfig, GlobalFontFamily } from '@/types';
 
 interface RevealGridConfigurationPanelProps {
@@ -42,21 +43,10 @@ export const RevealGridConfigurationPanel: React.FC<
 
   return (
     <div className="space-y-6">
-      <div className="flex border-b border-slate-200 overflow-x-auto custom-scrollbar">
-        {BUILDINGS.map((building) => (
-          <button
-            key={building.id}
-            onClick={() => setActiveBuildingId(building.id)}
-            className={`px-4 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-colors ${
-              activeBuildingId === building.id
-                ? 'border-brand-blue-primary text-brand-blue-primary'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            {building.name}
-          </button>
-        ))}
-      </div>
+      <BuildingSelector
+        selectedId={activeBuildingId}
+        onSelect={setActiveBuildingId}
+      />
 
       <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-6">
         <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">
