@@ -48,7 +48,7 @@ export const SeatingChartConfigurationPanel: React.FC<
   return (
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
       {/* Building Tabs */}
-      <div className="border-b border-slate-200 bg-slate-50 p-2">
+      <div className="border-b border-slate-200 bg-slate-50 px-2 pt-2">
         <BuildingSelector
           selectedId={activeBuildingId}
           onSelect={setActiveBuildingId}

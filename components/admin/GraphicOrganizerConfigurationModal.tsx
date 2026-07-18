@@ -303,7 +303,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
               }
             />
 
-            <div className="mb-6 border-b border-slate-200 pb-2">
+            <div className="mb-6 border-b border-slate-200">
               <BuildingSelector
                 selectedId={selectedBuilding}
                 onSelect={(id) => {
