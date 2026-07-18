@@ -3,6 +3,7 @@ import React from 'react';
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CountdownWidget } from './Widget';
+import { parseConfigDate } from './utils';
 import { CountdownConfig, WidgetData, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { useGlobalStyle } from '@/context/dashboardCanvasStore';
 
@@ -106,12 +107,29 @@ describe('CountdownWidget', () => {
   });
 });
 
-describe('CountdownWidget bare-date config (UTC-midnight parsing regression)', () => {
-  // Overrides the suite's global TZ=UTC pin (tests/setTz.ts) — this bug only reproduces in a real non-UTC zone.
-  const originalTz = process.env.TZ;
+describe('parseConfigDate (bare-date UTC-midnight parsing regression)', () => {
+  it('anchors a bare YYYY-MM-DD string at local noon, not UTC midnight', () => {
+    // Timezone-independent: `new Date(year, month, day, 12)`'s own local
+    // getters always echo back what was constructed, in any process TZ.
+    // The pre-fix `new Date('2026-12-25')` parses as UTC midnight, which
+    // reads back as hour 0 (not 12) under this suite's TZ=UTC pin regardless
+    // of the host machine's real timezone.
+    const result = parseConfigDate('2026-12-25');
+    expect(result.getFullYear()).toBe(2026);
+    expect(result.getMonth()).toBe(11);
+    expect(result.getDate()).toBe(25);
+    expect(result.getHours()).toBe(12);
+  });
 
+  it('falls through to plain Date parsing for full ISO timestamps', () => {
+    const result = parseConfigDate('2026-12-25T12:00:00.000Z');
+    expect(result.toISOString()).toBe('2026-12-25T12:00:00.000Z');
+  });
+});
+
+describe('CountdownWidget bare-date config (UTC-midnight parsing regression)', () => {
   beforeEach(() => {
-    process.env.TZ = 'America/Chicago';
+    vi.stubEnv('TZ', 'America/Chicago');
     vi.mocked(useGlobalStyle).mockReturnValue({
       ...DEFAULT_GLOBAL_STYLE,
       fontFamily: 'sans',
@@ -123,7 +141,7 @@ describe('CountdownWidget bare-date config (UTC-midnight parsing regression)', (
 
   afterEach(() => {
     vi.useRealTimers();
-    process.env.TZ = originalTz;
+    vi.unstubAllEnvs();
   });
 
   it('counts a bare-date eventDate against its intended local calendar day', () => {

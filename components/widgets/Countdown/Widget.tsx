@@ -3,6 +3,7 @@ import { WidgetData, CountdownConfig } from '@/types';
 import { WidgetLayout } from '../WidgetLayout';
 import { getFontClass, hexToRgba } from '@/utils/styles';
 import { useGlobalStyle } from '@/context/dashboardCanvasStore';
+import { parseConfigDate } from './utils';
 
 interface CountdownDay {
   date: Date;
@@ -16,18 +17,6 @@ const normalizeDate = (value: Date): Date => {
   const normalized = new Date(value);
   normalized.setHours(0, 0, 0, 0);
   return normalized;
-};
-
-const BARE_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
-
-// Bare "YYYY-MM-DD" values parse as UTC midnight, which normalizeDate's local getters then read as the prior calendar day in negative-UTC-offset zones.
-const parseConfigDate = (value: string): Date => {
-  const match = BARE_DATE_RE.exec(value);
-  if (match) {
-    const [, year, month, day] = match;
-    return new Date(Number(year), Number(month) - 1, Number(day), 12);
-  }
-  return new Date(value);
 };
 
 const isWeekendDate = (value: Date): boolean => {
