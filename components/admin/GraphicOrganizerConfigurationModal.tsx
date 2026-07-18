@@ -307,9 +307,11 @@ export const GraphicOrganizerConfigurationModal: React.FC<
               <BuildingSelector
                 selectedId={selectedBuilding}
                 onSelect={(id) => {
+                  if (id !== selectedBuilding) {
+                    setEditingTemplateId(null);
+                    setCurrentTemplateDraft(null);
+                  }
                   setSelectedBuilding(id);
-                  setEditingTemplateId(null);
-                  setCurrentTemplateDraft(null);
                 }}
               />
             </div>

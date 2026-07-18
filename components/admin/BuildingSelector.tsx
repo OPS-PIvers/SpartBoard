@@ -26,6 +26,11 @@ export const BuildingSelector: React.FC<BuildingSelectorProps> = ({
   const buildings = useAdminBuildings();
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
+  // Fall back to index 0 when selectedId matches no building so the
+  // tablist always has exactly one tabbable button (ARIA roving-tabindex).
+  const activeIndex = buildings.findIndex((b) => b.id === selectedId);
+  const rovingIndex = activeIndex === -1 ? 0 : activeIndex;
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent, index: number) => {
       if (buildings.length === 0) return;
@@ -65,7 +70,7 @@ export const BuildingSelector: React.FC<BuildingSelectorProps> = ({
           role="tab"
           id={idPrefix ? `${idPrefix}-tab-${building.id}` : undefined}
           aria-selected={selectedId === building.id}
-          tabIndex={selectedId === building.id ? 0 : -1}
+          tabIndex={index === rovingIndex ? 0 : -1}
           onClick={() => onSelect(building.id)}
           onKeyDown={(e) => handleKeyDown(e, index)}
           className={`px-3 py-1.5 text-xs font-bold rounded-lg border whitespace-nowrap transition-colors ${
