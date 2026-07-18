@@ -2,6 +2,7 @@ import React from 'react';
 import { ClassesGlobalConfig, BuildingClassesDefaults } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import { BuildingSelector } from './BuildingSelector';
 import { Toggle } from '@/components/common/Toggle';
 
 interface ClassesConfigurationPanelProps {
@@ -37,21 +38,7 @@ export const ClassesConfigurationPanel: React.FC<
 
   return (
     <div className="space-y-4">
-      <div className="flex bg-slate-100 p-1 rounded-xl overflow-x-auto custom-scrollbar">
-        {BUILDINGS.map((building) => (
-          <button
-            key={building.id}
-            onClick={() => setActiveTab(building.id)}
-            className={`flex-1 min-w-[120px] py-2 px-3 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
-              activeTab === building.id
-                ? 'bg-white text-brand-blue-primary shadow-sm'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-            }`}
-          >
-            {building.name}
-          </button>
-        ))}
-      </div>
+      <BuildingSelector selectedId={activeTab} onSelect={setActiveTab} />
 
       <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-6">
         <div>

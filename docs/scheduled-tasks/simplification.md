@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-07-13_
+_Last audited: 2026-07-17_
 _Last action: 2026-05-01_
 
 ---
 
 ## Audit Log
+
+_2026-07-17: Full audit (Audit E1 — Friday weekly). (1) Type assertion density: all existing cast items re-confirmed valid — useFirestore.ts `as unknown as Dashboard` (MEDIUM), ai_security.ts structuredClone casts (MEDIUM), smartPaste.ts/dashboardPII.ts single-casts (LOW), BlockRenderer.tsx 18 casts (LOW), icon registry 3-file cast (LOW), FeatureConfigurationPanel.tsx BuildingConfigPanel cast (LOW), QuizWidget state density (LOW). (2) Heavy hooks: useQuizSession.ts (22 useState/useRef), useVideoActivitySession.ts (18) — unchanged, existing LOW item. (3) Prop drilling: NEW LOW — 6 live-session event callbacks threaded through DashboardView → MountedBoardsLayer → BoardCanvas → WidgetRenderer as passthrough props; intermediate layers forward without consuming. (4) Nested ternaries: NEW LOW — `val === 'all' ? 'All' : val === 'on' ? 'On' : 'Off'` repeated verbatim in GlobalPermissionsManager.tsx:724, BackgroundManager/index.tsx:657, FeaturePermissionsManager.tsx:376; DraggableWindow.tsx has a 4-deep nested ternary for corner-position assignment repeated twice in the same component. 2 new LOW open items added._
 
 _2026-07-13: Full audit (Audit E — Monday weekly). (1) Type assertion density: all existing cast items re-confirmed valid — hooks/useFirestore.ts `as unknown as Dashboard` double-casts (MEDIUM, :266/:398), utils/ai_security.ts structuredClone round-trip casts (MEDIUM, 7 instances), utils/smartPaste.ts + utils/dashboardPII.ts single-casts (LOW), CustomWidget/BlockRenderer.tsx 18 sequential casts (LOW), icon registry 3-file cast (LOW), FeatureConfigurationPanel.tsx BuildingConfigPanel cast (LOW), QuizWidget component-level state density 12 useState + 5 useRef (LOW). (2) Heavy hooks: useQuizSession.ts (22 useState/useRef), useVideoActivitySession.ts (18) — unchanged, existing LOW item. (3) Prop drilling and nested ternaries: minimal, consistent with prior audits. Zero new items. All existing open items remain valid._
 
@@ -23,6 +25,20 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### LOW Prop drilling — 6 live-session event callbacks threaded through 3 intermediate layers as passthrough props
+
+- **Detected:** 2026-07-17
+- **Files:** components/layout/DashboardView.tsx, components/layout/MountedBoardsLayer.tsx, components/layout/BoardCanvas.tsx, components/widgets/WidgetRenderer.tsx
+- **Detail:** Six live-session event callbacks are passed as props from `DashboardView` down through `MountedBoardsLayer` → `BoardCanvas` → `WidgetRenderer`, with intermediate layers forwarding them without consuming. The intermediate components' prop types inflate to include all 6 callbacks. These callbacks originate from `useLiveSession` which is already available in context or could be. The pattern creates brittle prop chains that must be updated if the callback set changes.
+- **Fix:** Either (a) expose the live-session callbacks via a `LiveSessionContext` (or extend `DashboardContext`) so `WidgetRenderer` can consume them directly without threading through intermediate layers; or (b) consolidate the 6 callbacks into a single `sessionCallbacks` object prop to reduce the spread of changes when the set evolves.
+
+### LOW Triple-duplicated `val === 'all' ? 'All' : val === 'on' ? 'On' : 'Off'` ternary and multi-level DraggableWindow corner ternary
+
+- **Detected:** 2026-07-17
+- **Files:** components/admin/GlobalPermissionsManager.tsx:724, components/admin/BackgroundManager/index.tsx:657, components/admin/FeaturePermissionsManager.tsx:376, components/common/DraggableWindow.tsx
+- **Detail:** The ternary `val === 'all' ? 'All' : val === 'on' ? 'On' : 'Off'` appears verbatim in three separate admin files. Each is a standalone expression with no shared helper. Separately, `DraggableWindow.tsx` contains a 4-deep nested ternary for corner-position CSS assignment that is duplicated in two places within the same component.
+- **Fix:** For the three-file ternary, extract to a shared `formatPermissionValue` (or `displayAccessLevel`) utility and import from a common location. For the `DraggableWindow` corner ternary, extract to a local `getCornerClass(position)` helper within the file. Both are mechanical extractions with no behavior change.
 
 ### MEDIUM `hooks/useFirestore.ts` uses `as unknown as Dashboard` double-cast masking Firestore snapshot shape mismatch
 

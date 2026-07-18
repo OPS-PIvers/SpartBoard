@@ -40,8 +40,12 @@
  *       publish); this sweeps any overflow that publish-time pruning missed
  *       (e.g. a publish that crashed before pruning).
  *
- * PLCs are iterated via a BOUNDED collection scan (cap per run) — the sweep is
- * idempotent and any PLCs not reached this run are picked up the next night.
+ * PLCs (and synced groups) are iterated via a PAGINATED collection scan
+ * (startAfter cursor on document id, mirrors `plcWeeklyDigest`), so every PLC
+ * up to the MAX_PLCS_PER_RUN safety ceiling is visited every run — not just
+ * the first page. The sweep is also idempotent, so a run that hits the
+ * ceiling (an unrealistically large tenant) picks up where pagination would
+ * have continued on the next scheduled run.
  *
  * All time comparisons go through tolerant parsers: a field may be a Firestore
  * `Timestamp` (the canonical serverTimestamp write) OR a legacy numeric millis
@@ -68,11 +72,31 @@ export const TOMBSTONE_GRACE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 /** Bounded version-history depth (mirrors `VERSION_HISTORY_LIMIT` client-side). */
 export const VERSION_HISTORY_LIMIT = 10;
 
-/** Max PLCs visited per run — keeps one sweep from monopolising the slot. */
-export const MAX_PLCS_PER_RUN = 200;
+/**
+ * Overall safety ceiling on PLCs visited per run — a runaway guard, NOT an
+ * expected limit. The sweep PAGINATES (PLC_PAGE_SIZE pages, startAfter
+ * cursor — mirrors `plcWeeklyDigest`'s fix for the identical bug), so every
+ * PLC up to this ceiling is covered every run; set far above any realistic
+ * single-district tenant. Prior to this, a single un-paginated `.limit()`
+ * page meant any PLC past the cap was silently never visited by ANY nightly
+ * run (activity/presence/tombstones for it would grow unbounded forever).
+ */
+export const MAX_PLCS_PER_RUN = 5000;
 
-/** Max synced groups (per collection) scanned per run for empty-group reaping. */
-export const MAX_GROUPS_PER_RUN = 500;
+/** Page size for the paginated PLC sweep (startAfter cursor on document id). */
+export const PLC_PAGE_SIZE = 200;
+
+/**
+ * Overall safety ceiling on synced groups (per collection) visited per run —
+ * same rationale as `MAX_PLCS_PER_RUN`. The empty-group reap and
+ * version-overflow sweeps both paginate (GROUP_PAGE_SIZE pages, startAfter
+ * cursor) so a group past the old single-page cap is no longer permanently
+ * unreachable.
+ */
+export const MAX_GROUPS_PER_RUN = 5000;
+
+/** Page size for the paginated synced-group sweeps (startAfter cursor on document id). */
+export const GROUP_PAGE_SIZE = 500;
 
 /** Max doc deletes per category per PLC per run (defensive batching). */
 export const MAX_DELETES_PER_CATEGORY = 500;
@@ -216,23 +240,42 @@ async function deleteRefs(
 /**
  * Reap empty synced groups across both canonical collections. A group is
  * deleted only when its `participants` map is empty (no teacher still shares
- * it). Bounded by `MAX_GROUPS_PER_RUN` per collection.
+ * it). Paginated (startAfter cursor on document id) so every group up to
+ * `MAX_GROUPS_PER_RUN` is visited, not just the first `GROUP_PAGE_SIZE` —
+ * a single un-paginated page silently starved any group past the cap forever.
  */
 async function sweepEmptyGroups(db: Firestore): Promise<number> {
   let total = 0;
   for (const collection of SYNCED_GROUP_COLLECTIONS) {
-    const snap = await db
-      .collection(collection)
-      .limit(MAX_GROUPS_PER_RUN)
-      .get();
-    const reapable: admin.firestore.DocumentReference[] = [];
-    for (const doc of snap.docs) {
-      if (isEmptyGroup(doc.data() as { participants?: unknown })) {
-        reapable.push(doc.ref);
+    let lastDoc: QueryDocSnap | undefined;
+    let visited = 0;
+    while (visited < MAX_GROUPS_PER_RUN) {
+      let pageQuery = db
+        .collection(collection)
+        .orderBy(admin.firestore.FieldPath.documentId())
+        .limit(GROUP_PAGE_SIZE);
+      if (lastDoc) pageQuery = pageQuery.startAfter(lastDoc);
+      const page = await pageQuery.get();
+      if (page.size === 0) break;
+
+      const reapable: admin.firestore.DocumentReference[] = [];
+      for (const doc of page.docs) {
+        visited += 1;
+        if (isEmptyGroup(doc.data() as { participants?: unknown })) {
+          reapable.push(doc.ref);
+        }
       }
+      if (reapable.length > 0) {
+        total += await deleteRefs(db, reapable);
+      }
+
+      lastDoc = page.docs[page.docs.length - 1];
+      if (page.size < GROUP_PAGE_SIZE) break;
     }
-    if (reapable.length > 0) {
-      total += await deleteRefs(db, reapable);
+    if (visited >= MAX_GROUPS_PER_RUN) {
+      console.warn(
+        `[gcPlcOrphans] hit MAX_GROUPS_PER_RUN ceiling (${MAX_GROUPS_PER_RUN}) on ${collection} — raise it or shard the sweep`
+      );
     }
   }
   return total;
@@ -335,22 +378,69 @@ export async function runGcPlcOrphans(
   // (a) + (e) operate on the canonical synced-group collections (PLC-independent).
   counts.emptyGroups = await sweepEmptyGroups(db);
   for (const collection of SYNCED_GROUP_COLLECTIONS) {
-    const snap = await db
-      .collection(collection)
-      .limit(MAX_GROUPS_PER_RUN)
-      .get();
-    for (const doc of snap.docs) {
-      counts.versionOverflow += await sweepVersionOverflow(db, doc.ref);
+    // Paginated (startAfter cursor on document id) — mirrors sweepEmptyGroups
+    // above. A single un-paginated page silently skipped every group past
+    // GROUP_PAGE_SIZE, forever (that group's version-history overflow would
+    // never be trimmed by any run).
+    let lastGroupDoc: QueryDocSnap | undefined;
+    let groupsVisited = 0;
+    while (groupsVisited < MAX_GROUPS_PER_RUN) {
+      let pageQuery = db
+        .collection(collection)
+        .orderBy(admin.firestore.FieldPath.documentId())
+        .limit(GROUP_PAGE_SIZE);
+      if (lastGroupDoc) pageQuery = pageQuery.startAfter(lastGroupDoc);
+      const page = await pageQuery.get();
+      if (page.size === 0) break;
+
+      for (const doc of page.docs) {
+        groupsVisited += 1;
+        counts.versionOverflow += await sweepVersionOverflow(db, doc.ref);
+      }
+
+      lastGroupDoc = page.docs[page.docs.length - 1];
+      if (page.size < GROUP_PAGE_SIZE) break;
+    }
+    if (groupsVisited >= MAX_GROUPS_PER_RUN) {
+      console.warn(
+        `[gcPlcOrphans] hit MAX_GROUPS_PER_RUN ceiling (${MAX_GROUPS_PER_RUN}) on ${collection} — raise it or shard the sweep`
+      );
     }
   }
 
-  // (b) + (c) + (d) are per-PLC. Bounded collection scan.
-  const plcsSnap = await db.collection('plcs').limit(MAX_PLCS_PER_RUN).get();
-  for (const plcDoc of plcsSnap.docs) {
-    const perPlc = await sweepPlc(db, plcDoc.ref, now);
-    counts.activity += perPlc.activity;
-    counts.presence += perPlc.presence;
-    counts.tombstones += perPlc.tombstones;
+  // (b) + (c) + (d) are per-PLC. Paginated (startAfter cursor on document id,
+  // mirrors `plcWeeklyDigest`'s fix for the identical bug) so EVERY PLC is
+  // covered, not just the first page — bounded by MAX_PLCS_PER_RUN (runaway
+  // guard) and the function timeout. A single un-paginated page silently
+  // skipped any PLC past the cap every run: its activity/presence/tombstones
+  // would grow unbounded forever since no nightly run would ever reach it.
+  let lastPlcDoc: QueryDocSnap | undefined;
+  let plcsVisited = 0;
+  while (plcsVisited < MAX_PLCS_PER_RUN) {
+    let pageQuery = db
+      .collection('plcs')
+      .orderBy(admin.firestore.FieldPath.documentId())
+      .limit(PLC_PAGE_SIZE);
+    if (lastPlcDoc) pageQuery = pageQuery.startAfter(lastPlcDoc);
+    const page = await pageQuery.get();
+    if (page.size === 0) break;
+
+    for (const plcDoc of page.docs) {
+      plcsVisited += 1;
+      const perPlc = await sweepPlc(db, plcDoc.ref, now);
+      counts.activity += perPlc.activity;
+      counts.presence += perPlc.presence;
+      counts.tombstones += perPlc.tombstones;
+    }
+
+    lastPlcDoc = page.docs[page.docs.length - 1];
+    if (page.size < PLC_PAGE_SIZE) break;
+  }
+
+  if (plcsVisited >= MAX_PLCS_PER_RUN) {
+    console.warn(
+      `[gcPlcOrphans] hit MAX_PLCS_PER_RUN safety ceiling (${MAX_PLCS_PER_RUN}) — raise it or shard the sweep`
+    );
   }
 
   return counts;

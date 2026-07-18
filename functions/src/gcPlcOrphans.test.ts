@@ -29,7 +29,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 vi.mock('firebase-admin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
-  firestore: vi.fn(),
+  // The sweep paginates with admin.firestore.FieldPath.documentId(); expose it
+  // as the '__name__' sentinel so the stub ColRef.orderBy gets a stable value
+  // (the stub sorts a documentId()-ordered query by doc id — see makeStubDb).
+  firestore: Object.assign(vi.fn(), {
+    FieldPath: { documentId: vi.fn(() => '__name__') },
+  }),
 }));
 
 // `./functionsInit` calls `setGlobalOptions` at import time.
@@ -55,6 +60,8 @@ import {
   ACTIVITY_RETENTION_MS,
   VERSION_HISTORY_LIMIT,
   SOFT_DELETE_SUBCOLLECTIONS,
+  PLC_PAGE_SIZE,
+  GROUP_PAGE_SIZE,
 } from './gcPlcOrphans';
 
 // ===========================================================================
@@ -194,10 +201,14 @@ interface StubDoc {
 
 /**
  * In-memory Firestore mirroring the Admin SDK surface `runGcPlcOrphans` uses:
- *   db.collection(name).limit(n).get() → { docs, size }
+ *   db.collection(name).orderBy(FieldPath.documentId()).limit(n).startAfter(d).get()
  *   docSnap.ref.collection('versions').get()
  *   db.batch().delete(ref).commit()
  * Deletes mutate the backing arrays so post-sweep assertions read true state.
+ * `orderBy`/`startAfter` mirror `plcWeeklyDigest.test.ts`'s stub: sort by doc
+ * id ascending (the '__name__' sentinel the mocked FieldPath.documentId()
+ * returns) and slice past the cursor doc — this is what actually exercises
+ * cross-page pagination in the regression tests below.
  */
 function makeStubDb(seed: {
   plcs?: StubDoc[];
@@ -219,6 +230,8 @@ function makeStubDb(seed: {
   }
   interface CollectionRef {
     limit: (n: number) => CollectionRef;
+    orderBy: (field: unknown) => CollectionRef;
+    startAfter: (cursor: DocSnap) => CollectionRef;
     get: () => Promise<{ docs: DocSnap[]; size: number }>;
   }
   interface DocSnap {
@@ -239,13 +252,23 @@ function makeStubDb(seed: {
 
   const makeCollectionRef = (
     backing: StubDoc[],
-    limit = Infinity
+    opts: { lim?: number; ordered?: boolean; afterId?: string } = {}
   ): CollectionRef => ({
-    limit: (n: number) => makeCollectionRef(backing, n),
+    limit: (n: number) => makeCollectionRef(backing, { ...opts, lim: n }),
+    orderBy: () => makeCollectionRef(backing, { ...opts, ordered: true }),
+    startAfter: (cursor: DocSnap) =>
+      makeCollectionRef(backing, { ...opts, afterId: cursor.id }),
     get: () => {
-      const slice = backing.slice(
+      let rows = opts.ordered
+        ? [...backing].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+        : [...backing];
+      if (opts.afterId !== undefined) {
+        const i = rows.findIndex((d) => d.id === opts.afterId);
+        if (i >= 0) rows = rows.slice(i + 1);
+      }
+      const slice = rows.slice(
         0,
-        limit === Infinity ? backing.length : limit
+        opts.lim === undefined ? rows.length : opts.lim
       );
       return Promise.resolve({
         size: slice.length,
@@ -488,6 +511,86 @@ describe('runGcPlcOrphans — full sweep summary', () => {
     // A second run on the now-clean DB still deletes nothing.
     const second = await runGcPlcOrphans(db, NOW);
     expect(second).toEqual(counts);
+  });
+});
+
+// ===========================================================================
+// 3. Pagination regressions — a PLC/group past the first page must still be
+//    swept. Before the fix, `runGcPlcOrphans` read a single un-paginated
+//    `.limit()` page per collection, so anything past PLC_PAGE_SIZE /
+//    GROUP_PAGE_SIZE was silently never visited by ANY run, forever (the
+//    exact bug `plcWeeklyDigest` was already fixed for — see its "Fixes the
+//    prior single limit() page" comment).
+// ===========================================================================
+
+describe('runGcPlcOrphans — PLC pagination past the first page', () => {
+  it('sweeps stale presence in a PLC beyond PLC_PAGE_SIZE, not just the first page', async () => {
+    // One PLC per id 'plc-000' .. 'plc-{PLC_PAGE_SIZE}', each with a single
+    // stale presence doc. Zero-padded ids sort lexicographically in doc-id
+    // order, matching the production orderBy(FieldPath.documentId()) cursor.
+    const total = PLC_PAGE_SIZE + 5;
+    const plcs = Array.from({ length: total }, (_, i) => ({
+      id: `plc-${String(i).padStart(6, '0')}`,
+      data: {},
+      sub: {
+        presence: [
+          { id: 'stale', data: { lastActiveAt: NOW - 10 * 60 * 1000 } },
+        ],
+      },
+    }));
+    const { db, root } = makeStubDb({ plcs });
+
+    const counts = await runGcPlcOrphans(db, NOW);
+
+    // Every PLC's stale presence doc must be pruned in a single run — not
+    // just the first PLC_PAGE_SIZE of them.
+    expect(counts.presence).toBe(total);
+    for (const plc of root.plcs) {
+      expect(plc.sub!.presence).toHaveLength(0);
+    }
+  });
+});
+
+describe('runGcPlcOrphans — synced-group pagination past the first page', () => {
+  it('reaps empty groups beyond GROUP_PAGE_SIZE, not just the first page', async () => {
+    const total = GROUP_PAGE_SIZE + 5;
+    const synced_quizzes = Array.from({ length: total }, (_, i) => ({
+      id: `grp-${String(i).padStart(6, '0')}`,
+      data: { participants: {} },
+    }));
+    const { db, root } = makeStubDb({ synced_quizzes });
+
+    const counts = await runGcPlcOrphans(db, NOW);
+
+    expect(counts.emptyGroups).toBe(total);
+    expect(root.synced_quizzes).toHaveLength(0);
+  });
+
+  it('trims version overflow for a group beyond GROUP_PAGE_SIZE, not just the first page', async () => {
+    const versions = Array.from({ length: 13 }, (_, i) => ({
+      id: String(i + 1),
+      data: { version: i + 1 },
+    }));
+    // Pad the target group's version-overflow victim to the very end of the
+    // collection (past GROUP_PAGE_SIZE) with filler live groups ahead of it.
+    const filler = Array.from({ length: GROUP_PAGE_SIZE + 5 }, (_, i) => ({
+      id: `filler-${String(i).padStart(6, '0')}`,
+      data: { participants: { uidA: { joinedAt: 1 } } },
+    }));
+    const target = {
+      id: 'zzz-target',
+      data: { participants: { uidA: { joinedAt: 1 } } },
+      sub: { versions },
+    };
+    const { db, root } = makeStubDb({
+      synced_quizzes: [...filler, target],
+    });
+
+    const counts = await runGcPlcOrphans(db, NOW);
+
+    expect(counts.versionOverflow).toBe(3);
+    const targetDoc = root.synced_quizzes.find((d) => d.id === 'zzz-target')!;
+    expect(targetDoc.sub!.versions).toHaveLength(VERSION_HISTORY_LIMIT);
   });
 });
 

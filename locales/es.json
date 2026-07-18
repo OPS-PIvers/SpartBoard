@@ -82,7 +82,7 @@
       "boards": "Tableros",
       "backgrounds": "Fondos",
       "classes": "Mis Clases",
-      "plcs": "Mis PLCs",
+      "plcs": "Mis Comunidades",
       "widgets": "Widgets",
       "globalStyle": "Estilo Global",
       "generalSettings": "Ajustes Generales",
@@ -273,17 +273,17 @@
   "plc": {
     "errors": {
       "notSignedIn": "Debes iniciar sesión para hacer eso.",
-      "nameRequired": "Se requiere el nombre de la PLC.",
-      "accountEmailRequired": "Se requiere un correo electrónico de cuenta para crear una PLC.",
-      "plcNotFound": "PLC no encontrada.",
-      "leadCannotLeave": "El líder debe transferir el liderazgo antes de abandonar la PLC.",
-      "leadCannotBeRemoved": "No se puede eliminar al líder; transfiere el liderazgo o elimina la PLC.",
-      "notAMember": "Esa persona no es miembro de esta PLC.",
+      "nameRequired": "Se requiere el nombre de la Comunidad.",
+      "accountEmailRequired": "Se requiere un correo electrónico de cuenta para crear una Comunidad.",
+      "plcNotFound": "Comunidad no encontrada.",
+      "leadCannotLeave": "El líder debe transferir el liderazgo antes de abandonar la Comunidad.",
+      "leadCannotBeRemoved": "No se puede eliminar al líder; transfiere el liderazgo o elimina la Comunidad.",
+      "notAMember": "Esa persona no es miembro de esta Comunidad.",
       "targetNotActiveMember": "Solo puedes transferir el liderazgo a un miembro activo.",
-      "cannotDemoteLead": "Usa «Transferir liderazgo» para cambiar quién lidera la PLC.",
-      "invalidRole": "Ese no es un rol válido de la PLC.",
-      "alreadyLead": "Ese miembro ya es el líder de esta PLC.",
-      "orgRequired": "Las PLC solo están disponibles para los miembros de una organización."
+      "cannotDemoteLead": "Usa «Transferir liderazgo» para cambiar quién lidera la Comunidad.",
+      "invalidRole": "Ese no es un rol válido de la Comunidad.",
+      "alreadyLead": "Ese miembro ya es el líder de esta Comunidad.",
+      "orgRequired": "Las Comunidades solo están disponibles para los miembros de una organización."
     }
   },
   "plcDashboard": {
