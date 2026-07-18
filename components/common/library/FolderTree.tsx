@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
 import type { LibraryFolder } from '@/types';
+import { useClickOutside } from '@/hooks/useClickOutside';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { folderDroppableId, type FolderDropData } from './folderDropTargets';
 import { useFolderPanelMode } from './LibraryFolderPanelContext';
 
@@ -191,6 +193,26 @@ const FolderRow: React.FC<FolderRowProps> = ({
   });
   const isOver = enableDrop && droppable.isOver;
 
+  // The overflow popover has no backdrop, so a click anywhere else on the
+  // page (another folder row, the item grid, a different widget) must
+  // dismiss it — every other kebab/overflow menu in this codebase does this
+  // (e.g. SidebarPlcs's PlcRow). `menuRef` is only attached while the popover
+  // is rendered, so `useClickOutside` is a no-op (ref.current is null) when
+  // the menu is closed.
+  const menuRef = useRef<HTMLDivElement>(null);
+  const kebabRef = useRef<HTMLButtonElement>(null);
+  useClickOutside(menuRef, () => onOpenMenu(null), [kebabRef]);
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(e)) return;
+      onOpenMenu(null);
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [isMenuOpen, onOpenMenu]);
+
   // Rail mode: render a single icon button per folder so the tiny rail is
   // still navigable. Nesting/rename/menu affordances are suppressed; the
   // user can expand the panel to access them.
@@ -356,6 +378,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
             </span>
           )}
           <button
+            ref={kebabRef}
             type="button"
             onClick={(e) => {
               e.stopPropagation();
@@ -379,6 +402,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
       {/* Overflow menu popover. */}
       {isMenuOpen && (
         <div
+          ref={menuRef}
           role="menu"
           onClick={(e) => e.stopPropagation()}
           className="absolute right-1 top-full mt-1 z-20 min-w-[160px] rounded-xl bg-white shadow-xl border border-slate-200 p-1 text-sm"
