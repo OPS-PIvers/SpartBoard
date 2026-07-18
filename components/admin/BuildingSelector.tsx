@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 
 interface BuildingSelectorProps {
@@ -26,24 +26,28 @@ export const BuildingSelector: React.FC<BuildingSelectorProps> = ({
   const buildings = useAdminBuildings();
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
-    const last = buildings.length - 1;
-    let target = -1;
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-      target = index === last ? 0 : index + 1;
-    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-      target = index === 0 ? last : index - 1;
-    } else if (e.key === 'Home') {
-      target = 0;
-    } else if (e.key === 'End') {
-      target = last;
-    }
-    if (target !== -1) {
-      e.preventDefault();
-      buttonRefs.current[target]?.focus();
-      onSelect(buildings[target].id);
-    }
-  };
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent, index: number) => {
+      if (buildings.length === 0) return;
+      const last = buildings.length - 1;
+      let target = -1;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        target = index === last ? 0 : index + 1;
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        target = index === 0 ? last : index - 1;
+      } else if (e.key === 'Home') {
+        target = 0;
+      } else if (e.key === 'End') {
+        target = last;
+      }
+      if (target !== -1) {
+        e.preventDefault();
+        buttonRefs.current[target]?.focus();
+        onSelect(buildings[target].id);
+      }
+    },
+    [buildings, onSelect]
+  );
 
   return (
     <div
