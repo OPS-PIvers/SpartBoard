@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import { BuildingSelector } from './BuildingSelector';
 import {
   GraphicOrganizerGlobalConfig,
   GraphicOrganizerBuildingConfig,
@@ -302,24 +303,15 @@ export const GraphicOrganizerConfigurationModal: React.FC<
               }
             />
 
-            <div className="mb-6 flex space-x-2 border-b border-slate-200 pb-2">
-              {BUILDINGS.map((building) => (
-                <button
-                  key={building.id}
-                  onClick={() => {
-                    setSelectedBuilding(building.id);
-                    setEditingTemplateId(null);
-                    setCurrentTemplateDraft(null);
-                  }}
-                  className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors ${
-                    selectedBuilding === building.id
-                      ? 'bg-white text-indigo-600 border border-slate-200 border-b-white -mb-[9px] z-10'
-                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  {building.name}
-                </button>
-              ))}
+            <div className="mb-6 border-b border-slate-200 pb-2">
+              <BuildingSelector
+                selectedId={selectedBuilding}
+                onSelect={(id) => {
+                  setSelectedBuilding(id);
+                  setEditingTemplateId(null);
+                  setCurrentTemplateDraft(null);
+                }}
+              />
             </div>
 
             <div className="bg-white rounded-xl border border-slate-200 p-6">

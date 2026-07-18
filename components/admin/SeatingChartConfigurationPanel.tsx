@@ -2,6 +2,7 @@ import React from 'react';
 import { SeatingChartGlobalConfig } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import { BuildingSelector } from './BuildingSelector';
 interface SeatingChartConfigurationPanelProps {
   config: Record<string, unknown>;
   onChange: (newConfig: Record<string, unknown>) => void;
@@ -47,20 +48,11 @@ export const SeatingChartConfigurationPanel: React.FC<
   return (
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
       {/* Building Tabs */}
-      <div className="flex overflow-x-auto border-b border-slate-200 bg-slate-50 custom-scrollbar">
-        {BUILDINGS.map((building) => (
-          <button
-            key={building.id}
-            onClick={() => setActiveBuildingId(building.id)}
-            className={`px-4 py-3 text-xs font-bold whitespace-nowrap transition-colors ${
-              activeBuildingId === building.id
-                ? 'bg-white text-brand-blue-primary border-b-2 border-brand-blue-primary'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            {building.name}
-          </button>
-        ))}
+      <div className="border-b border-slate-200 bg-slate-50 p-2">
+        <BuildingSelector
+          selectedId={activeBuildingId}
+          onSelect={setActiveBuildingId}
+        />
       </div>
 
       <div className="p-5 space-y-6">
