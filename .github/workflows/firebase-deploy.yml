@@ -76,8 +76,13 @@ jobs:
       - name: Create Service Account File
         run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > service-account.json
 
+      # Wrapped in a retry helper: `firebase deploy` occasionally hits a
+      # transient Google API blip (e.g. an HTTP 503 on the Firestore
+      # field/index reconciliation read) that fails the whole deploy even
+      # though the code is fine. The script retries those transient
+      # signatures with exponential backoff and fails fast on real errors.
       - name: Deploy Firebase Rules, Indexes, Functions, Storage
-        run: pnpm exec firebase deploy --only functions,firestore,storage --project spartboard --force
+        run: ./.github/scripts/firebase-deploy-with-retry.sh spartboard
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ./service-account.json
 
