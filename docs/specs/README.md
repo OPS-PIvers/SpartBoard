@@ -2,7 +2,7 @@
 
 These are **design-first implementation specs**, not built features. Each was produced by a read-only architecture pass that verified the backlog claim against the **current code on `dev-paul`** (the plan docs in this repo routinely lag the code), then laid out a recommendation-led build plan with the genuine open decisions flagged for Paul.
 
-They come from the backlog burndown of [`docs/remaining-todos-audit.md`](../remaining-todos-audit.md) — the Cluster-3 (large/needs-design) items, which were intentionally specced rather than built in the async run.
+They come from the backlog burndown of `docs/remaining-todos-audit.md` (since consolidated into the root [`TODO.md`](../../TODO.md)) — the Cluster-3 (large/needs-design) items, which were intentionally specced rather than built in the async run.
 
 | Spec                                          | Backlog item | What it covers                                                                                                                                 |
 | --------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
