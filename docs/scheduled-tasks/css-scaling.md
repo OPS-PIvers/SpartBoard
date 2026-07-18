@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-17_
+_Last audited: 2026-07-18_
 _Last action: 2026-07-08 — LOW TalkingTool `Scaffolding` label pixel cap raised `min(9px, 2.2cqmin)` → `min(10px, 2.2cqmin)`; 9px was below the 10px tertiary-text floor_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-18: Full scan (Saturday). New dev-paul commits since 2026-07-17: none touching widget front-face content (only BuildingSelector a11y/admin refactor, MusicWidget Settings back-face SettingsLabel group-heading unification, TeacherDiscoveryRoute guard fix). 47 Widget.tsx front-face files scanned + 8 sub-component files. FOUR new LOW anti-patterns found (all hardcoded Tailwind spacing in skipScaling:true widget front-face content): (1) ActivityWall/Widget.tsx — space-y-3/px-3 py-2/gap-2/mb-1/mt-1 in three front-face view branches (editor draft, library, submission list); font sizes are already scaled but layout spacings are not; (2) ClockWidget/Widget.tsx:115 — ml-2 on AM/PM badge span; (3) MathTools/Widget.tsx:169 — px-2 gap-1 on tab nav row container; (4) Onboarding/components/Header.tsx:14 — gap-2 between icon and title in header flex row. See new open items below._
 
 _2026-07-17: Full scan (Friday weekly). DrawingWidget/Widget.tsx ~line 1602 `w-8 h-8` Pencil icon + `text-sm` "Start drawing" label + toolbar `w-7 h-7`/`w-4 h-4` icon buttons — WON'T FIX: DrawingWidget has `skipScaling: false` (CSS transform scaling); hardcoded Tailwind sizes are not CQ violations. GuidedLearning :618 `w-8 h-8` Loader2 — existing group open item (unchanged). MiniApp dialog overlays :127-:266/:1291-:1319 — existing open item (unchanged). RevealGrid :162/:168 text-xs / :183 gap-4 — existing open item (unchanged). All pre-existing open items (EmbedWidget portaled toolbar, RevealGrid hardcoded spacing, multi-widget group spacing, MiniApp dialog overlays, SmartNotebook PageEditorOverlay.tsx, RandomClassContextButton portaled dropdown) confirmed valid. Zero new anti-patterns._
 
@@ -153,6 +155,34 @@ _2026-05-13: Scanned all 50 Widget.tsx files for hardcoded text-size classes, fi
 _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size classes and Tailwind pixel-cap violations. No new issues since 2026-05-06. `CatalystInstructionWidget.tsx:48` (`text-xs`) confirmed to be in the Settings component (back-face), not the front-face widget content — not a violation. All existing open items remain valid._
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
+
+### LOW ActivityWall three front-face view branches have hardcoded Tailwind spacing
+
+- **Detected:** 2026-07-18
+- **File:** components/widgets/ActivityWall/Widget.tsx (~:1299–1460, :1566, :1908–1920)
+- **Detail:** Widget has `skipScaling: true`. Font sizes throughout the file are correctly scaled with inline `style={{ fontSize: 'min(...)' }}`, but layout spacings in three front-face view branches are hardcoded: (1) editor-draft form (~:1299–1460): `space-y-3`, `mb-1` on field labels, `px-3 py-2` on inputs/selects/textarea, `gap-2`/`gap-3` on rows, `gap-1.5` on icon+label span, `mt-1` on helper text; (2) library activity list (:1566): `space-y-2` on card list container; (3) submission/live view (:1908–1920): `space-y-1` on list container, `px-2 py-1` on each submission button, `gap-2` on row flex container. Mirrors the existing MiniApp dialog overlay pattern — font sizes scaled but spacing not.
+- **Fix:** Convert each hardcoded spacing utility to inline `cqmin` equivalent: `space-y-3` → `style={{ gap: 'min(12px, 3cqmin)' }}` on a flex-col parent; `mb-1` → `style={{ marginBottom: 'min(4px, 1cqmin)' }}`; `px-3 py-2` on inputs → `style={{ padding: 'min(8px, 2cqmin) min(12px, 3cqmin)' }}`; `gap-2` → `style={{ gap: 'min(8px, 2cqmin)' }}`; etc. Reference: header (:1272) and save-button (:1474) in the same file already use this pattern correctly.
+
+### LOW ClockWidget AM/PM badge has hardcoded ml-2 margin
+
+- **Detected:** 2026-07-18
+- **File:** components/widgets/ClockWidget/Widget.tsx:115
+- **Detail:** `<span className="opacity-70 ml-2 uppercase" style={{ fontSize: '0.25em' }}>` — the AM/PM badge uses `ml-2` (8px fixed left margin) to separate from the clock digits. The font size uses `em` (relative to the parent's `40cqmin`/`50cqmin` hero size, so it does scale), but the 8px margin is fixed.
+- **Fix:** Move `ml-2` to inline style using em to stay proportional to the badge's own text: `style={{ fontSize: '0.25em', marginLeft: '0.1em' }}`.
+
+### LOW MathTools tab nav row container has hardcoded px-2 gap-1
+
+- **Detected:** 2026-07-18
+- **File:** components/widgets/MathTools/Widget.tsx:169
+- **Detail:** `<div className="flex px-2 gap-1 overflow-x-auto no-scrollbar">` — the tab navigation row has `px-2` (8px side padding) and `gap-1` (4px between tabs) hardcoded. Individual tab buttons inside it correctly use inline `style={{ padding: 'min(6px, 1.2cqmin) min(12px, 2.5cqmin)', fontSize: 'min(10px, 3.8cqmin)' }}`, but the outer container spacing is not scaled.
+- **Fix:** `style={{ paddingLeft: 'min(8px, 2cqmin)', paddingRight: 'min(8px, 2cqmin)', gap: 'min(4px, 1cqmin)' }}` on the row div.
+
+### LOW Onboarding widget Header.tsx has hardcoded gap-2 in header flex row
+
+- **Detected:** 2026-07-18
+- **File:** components/widgets/Onboarding/components/Header.tsx:14
+- **Detail:** `<div className="flex items-center gap-2 bg-brand-blue-primary shrink-0">` — header flex row uses `gap-2` (8px) between the Rocket icon (correctly sized with `min(18px, 5cqmin)`) and the title span (correctly sized with `min(11px, 3.5cqmin)`). Container padding IS correctly scaled via inline style.
+- **Fix:** Add `style={{ gap: 'min(8px, 2cqmin)' }}` to the header div, alongside the existing `padding: 'min(10px, 2.5cqmin) min(14px, 3cqmin)'`.
 
 ### LOW EmbedWidget zoom toolbar uses hardcoded sizes — portaled outside container query context
 
