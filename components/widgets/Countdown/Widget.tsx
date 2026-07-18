@@ -20,14 +20,7 @@ const normalizeDate = (value: Date): Date => {
 
 const BARE_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-// `config.startDate`/`config.eventDate` are written two different ways: a bare
-// "YYYY-MM-DD" string (raw admin building-config JSON, hand-edited dashboard
-// imports, older data) or a full ISO timestamp anchored at local noon (the
-// Settings picker, via parseLocalDateInput). `new Date('YYYY-MM-DD')` parses
-// as UTC midnight per spec — normalizeDate's local getters then read that as
-// the PRIOR calendar day in any negative-UTC-offset timezone (all US zones).
-// Parsing bare dates as local noon (matching Settings) keeps both forms
-// resolving to the same intended calendar day everywhere.
+// Bare "YYYY-MM-DD" values parse as UTC midnight, which normalizeDate's local getters then read as the prior calendar day in negative-UTC-offset zones.
 const parseConfigDate = (value: string): Date => {
   const match = BARE_DATE_RE.exec(value);
   if (match) {

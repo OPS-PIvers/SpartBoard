@@ -107,13 +107,7 @@ describe('CountdownWidget', () => {
 });
 
 describe('CountdownWidget bare-date config (UTC-midnight parsing regression)', () => {
-  // config.startDate/eventDate can arrive as a bare "YYYY-MM-DD" string (raw
-  // admin building-config JSON, hand-edited dashboard imports) rather than the
-  // full-ISO-at-local-noon string the Settings picker writes. `new
-  // Date('YYYY-MM-DD')` parses as UTC midnight, which normalizeDate's local
-  // getters read as the PRIOR calendar day in any negative-UTC-offset
-  // timezone — so this only reproduces with a real non-UTC zone, not under
-  // the suite's global TZ=UTC pin (see tests/setTz.ts).
+  // Overrides the suite's global TZ=UTC pin (tests/setTz.ts) — this bug only reproduces in a real non-UTC zone.
   const originalTz = process.env.TZ;
 
   beforeEach(() => {
@@ -145,9 +139,6 @@ describe('CountdownWidget bare-date config (UTC-midnight parsing regression)', (
     );
 
     // Dec 20 (today, CST) through Dec 24 counted, event lands on Dec 25 → 5.
-    // Before the fix, the bare "2026-12-25" parsed as UTC midnight reads as
-    // Dec 24, 6:00 PM CST — normalizeDate then floors it to Dec 24 local,
-    // one day early, so the widget showed 4.
     expect(screen.getByText('5')).toBeInTheDocument();
   });
 });
