@@ -3,6 +3,7 @@ import { WidgetData, CountdownConfig } from '@/types';
 import { WidgetLayout } from '../WidgetLayout';
 import { getFontClass, hexToRgba } from '@/utils/styles';
 import { useGlobalStyle } from '@/context/dashboardCanvasStore';
+import { parseConfigDate } from './utils';
 
 interface CountdownDay {
   date: Date;
@@ -60,8 +61,8 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
   }, []);
 
   const calculatedDays = useMemo(() => {
-    const start = normalizeDate(new Date(startDate));
-    const event = normalizeDate(new Date(eventDate));
+    const start = normalizeDate(parseConfigDate(startDate));
+    const event = normalizeDate(parseConfigDate(eventDate));
     const todayAtMidnight = new Date(todayMidnightMs);
 
     const countStart = new Date(
@@ -91,8 +92,8 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
   }, [startDate, eventDate, includeWeekends, countToday, todayMidnightMs]);
 
   const gridData = useMemo(() => {
-    const start = normalizeDate(new Date(startDate));
-    const event = normalizeDate(new Date(eventDate));
+    const start = normalizeDate(parseConfigDate(startDate));
+    const event = normalizeDate(parseConfigDate(eventDate));
     const today = new Date(todayMidnightMs);
     const countStart = new Date(Math.max(today.getTime(), start.getTime()));
 
