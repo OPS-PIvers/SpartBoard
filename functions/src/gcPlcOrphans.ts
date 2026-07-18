@@ -272,6 +272,11 @@ async function sweepEmptyGroups(db: Firestore): Promise<number> {
       lastDoc = page.docs[page.docs.length - 1];
       if (page.size < GROUP_PAGE_SIZE) break;
     }
+    if (visited >= MAX_GROUPS_PER_RUN) {
+      console.warn(
+        `[gcPlcOrphans] hit MAX_GROUPS_PER_RUN ceiling (${MAX_GROUPS_PER_RUN}) on ${collection} — raise it or shard the sweep`
+      );
+    }
   }
   return total;
 }
@@ -395,6 +400,11 @@ export async function runGcPlcOrphans(
 
       lastGroupDoc = page.docs[page.docs.length - 1];
       if (page.size < GROUP_PAGE_SIZE) break;
+    }
+    if (groupsVisited >= MAX_GROUPS_PER_RUN) {
+      console.warn(
+        `[gcPlcOrphans] hit MAX_GROUPS_PER_RUN ceiling (${MAX_GROUPS_PER_RUN}) on ${collection} — raise it or shard the sweep`
+      );
     }
   }
 
