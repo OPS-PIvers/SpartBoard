@@ -4,6 +4,31 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-07-19
+
+- PRs reviewed: 7 (all open PRs, all targeting `dev-paul`)
+  - #2242 — fix(rules): gate `shared_activity_walls` read on revoked/expiresAt (head `nightly/build-tooling-2026-07-19`)
+  - #2241 — fix(i18n): ES plcRoute/plcDirectory + FR sidebar.nav.plcs PLC-acronym drift (head `nightly/admin-config-2026-07-19`)
+  - #2240 — fix(RemoteControlMenu): clear stale copy-link timer on rapid re-click (head `nightly/dashboard-layout-2026-07-19`)
+  - #2239 — fix(TimeTool): re-enable "+" once a ceiling-started run decays below it (head `nightly/widgets-2026-07-19`)
+  - #2238 — action(admin-config): GraphicOrganizer building-default appearance config (head `scheduled-tasks`)
+  - #2237 — docs(unifier): log nightly run 37 (head `nightly/unifier-log-2026-07-19`)
+  - #2236 — a11y: convert RandomSettings "Operation Mode" label to group heading (head `nightly/unify-settings-labels-2026-07-19`)
+- Comments processed: 2 total — 0 newly fixed, 2 explained/resolved.
+  - #2240 inline nit (claude[bot]): reorder `clearTimeout` before `setCopied(true)` in `handleCopyLink`. Already addressed on-branch by commit `789c102`; replied and resolved the thread. No code change needed.
+  - #2238 inline nit (claude[bot], outdated): export a runtime `GRAPHIC_ORGANIZER_LAYOUT_TYPES` array from `types.ts` to remove manual-copy drift. Already addressed on-branch by commit `c906e67` (derives the type from the shared const and validates against it); replied and resolved the thread. No code change needed.
+- Fixes pushed: 0 (both actionable comments were already resolved by later commits on their branches).
+- Reviews posted: 5 (structured reviews on the PRs without a prior review)
+  - #2242: Ready with minor notes — correct server-side revoke/expiry gating mirroring `/shared_boards`; flagged the `expiresAt`-stored-as-millis assumption to confirm on the write path.
+  - #2241: Ready — data-only locale fix with correctly-scoped regression tests.
+  - #2239: Ready — stale `config.elapsedTime` term removed; write-storm still guarded by `adjustTime`'s no-op check; test updated.
+  - #2237: Ready — documentation-only run log.
+  - #2236: Ready — mechanical a11y group-heading retrofit, zero visual delta.
+  - #2240, #2238: skipped a duplicate review — both already carry a `claude[bot]` structured review; only the comment follow-ups above were handled.
+- Notes:
+  - Branch safety: all 7 heads are non-`main`/non-`dev-*` (nightly/\* and `scheduled-tasks`) → pushable, but no fixes were required this run.
+  - Env runs Node 22 (repo wants 24); no local fix-verification was needed since nothing was pushed to a PR branch. CI on Node 24 remains the authoritative gate.
+
 ## 2026-07-14
 
 - PRs reviewed: 1 (all open PRs)
