@@ -235,6 +235,18 @@ describe('shared_activity_walls — read gating (expiresAt / revoked)', () => {
     );
   });
 
+  it('viewer can read a permanent share (expiresAt null / unset)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `shared_activity_walls/${SHARE_ID}`),
+        sharedDocPayload()
+      );
+    });
+    await assertSucceeds(
+      getDoc(doc(asViewer(), `shared_activity_walls/${SHARE_ID}`))
+    );
+  });
+
   it('viewer cannot read a revoked share', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
