@@ -153,6 +153,43 @@ describe('ActivityWallGalleryView', () => {
     ]);
   });
 
+  it('shows the "no longer available" state when the share read is permission-denied', async () => {
+    // A revoked/expired share is now rejected by the Firestore rules, so the
+    // client sees `permission-denied` instead of a readable doc. Verify we
+    // surface the turned-off/expired copy rather than the generic
+    // malformed-link message.
+    mockGetDoc.mockRejectedValueOnce(
+      Object.assign(new Error('Missing or insufficient permissions.'), {
+        code: 'permission-denied',
+      })
+    );
+
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/this gallery is no longer available/i)
+      ).toBeInTheDocument()
+    );
+    expect(
+      screen.queryByText(/the link may be incorrect or has been removed/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the generic not-found state for a non-permission read error', async () => {
+    mockGetDoc.mockRejectedValueOnce(
+      Object.assign(new Error('network'), { code: 'unavailable' })
+    );
+
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/the link may be incorrect or has been removed/i)
+      ).toBeInTheDocument()
+    );
+  });
+
   it('shows the empty state when every submission is pending', async () => {
     render(<ActivityWallGalleryView />);
 

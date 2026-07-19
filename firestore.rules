@@ -1162,7 +1162,21 @@ service cloud.firestore {
         function parentShare() {
           return get(/databases/$(database)/documents/shared_activity_walls/$(shareId)).data;
         }
-        allow read: if request.auth != null;
+        // READ mirrors the parent-doc gate: the share owner and admins can
+        // always read (moderation/cleanup), but everyone else only while the
+        // parent share is live. Without this, a caller that already holds the
+        // shareId could keep enumerating every comment (content +
+        // participantLabel) on a revoked or expired share indefinitely, even
+        // though the parent doc read is now closed.
+        allow read: if request.auth != null && (
+          parentShare().get('originalAuthor', null) == request.auth.uid
+          || isAdmin()
+          || (
+            parentShare().get('revoked', false) != true
+            && (parentShare().get('expiresAt', null) == null
+                || parentShare().get('expiresAt', 0) > request.time.toMillis())
+          )
+        );
         allow create: if request.auth != null &&
           parentShare().get('revoked', false) == false &&
           parentShare().get('allowComments', false) == true &&
@@ -1199,7 +1213,17 @@ service cloud.firestore {
         function parentShare() {
           return get(/databases/$(database)/documents/shared_activity_walls/$(shareId)).data;
         }
-        allow read: if request.auth != null;
+        // Same live-share gate as comments: owner/admin always, everyone else
+        // only while the parent share is neither revoked nor past expiresAt.
+        allow read: if request.auth != null && (
+          parentShare().get('originalAuthor', null) == request.auth.uid
+          || isAdmin()
+          || (
+            parentShare().get('revoked', false) != true
+            && (parentShare().get('expiresAt', null) == null
+                || parentShare().get('expiresAt', 0) > request.time.toMillis())
+          )
+        );
         allow create: if request.auth != null &&
           parentShare().get('revoked', false) == false &&
           parentShare().get('allowLikes', false) == true &&

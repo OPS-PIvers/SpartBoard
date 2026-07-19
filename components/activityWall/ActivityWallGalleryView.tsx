@@ -43,7 +43,18 @@ type LoadState =
   | { kind: 'expired' }
   | { kind: 'revoked' }
   | { kind: 'not-found' }
+  // Firestore now denies reads on revoked/expired shares at the rules layer,
+  // so the client can no longer inspect the doc to tell revoked from expired
+  // from wrong-link — all three surface as `permission-denied`. We collapse
+  // them into a single honest "no longer available" state rather than
+  // mislabelling every denied read as a malformed/incorrect link.
+  | { kind: 'unavailable' }
   | { kind: 'ready'; share: SharedActivityWall };
+
+const isPermissionDenied = (err: unknown): boolean =>
+  typeof err === 'object' &&
+  err !== null &&
+  (err as { code?: unknown }).code === 'permission-denied';
 
 const isShareDoc = (raw: unknown): raw is SharedActivityWall => {
   if (typeof raw !== 'object' || raw === null) return false;
@@ -165,7 +176,13 @@ export const ActivityWallGalleryView: React.FC = () => {
       } catch (err) {
         console.error('[ActivityWallGallery] Failed to load share doc:', err);
         if (cancelled) return;
-        setState({ kind: 'not-found' });
+        // A revoked/expired share (or a bad shareId) is rejected by the
+        // Firestore rules as `permission-denied`. Surface the "no longer
+        // available" copy for that case instead of the generic
+        // malformed-link message.
+        setState({
+          kind: isPermissionDenied(err) ? 'unavailable' : 'not-found',
+        });
       }
     })();
     return () => {
@@ -353,6 +370,15 @@ export const ActivityWallGalleryView: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-6 text-center">
         This gallery link has been turned off by the teacher.
+      </div>
+    );
+  }
+
+  if (state.kind === 'unavailable') {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-6 text-center">
+        This gallery is no longer available. The teacher may have turned it off
+        or the link may have expired.
       </div>
     );
   }
