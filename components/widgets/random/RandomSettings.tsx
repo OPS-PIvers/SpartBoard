@@ -40,6 +40,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
   const firstNamesId = useId();
   const lastNamesId = useId();
   const animationStyleId = useId();
+  const operationModeId = useId();
 
   const stationsWidget = activeDashboard?.widgets.find(
     (w) => w.type === 'stations'
@@ -360,8 +361,14 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
       )}
 
       <div>
-        <SettingsLabel>Operation Mode</SettingsLabel>
-        <div className="grid grid-cols-4 gap-2">
+        <SettingsLabel as="span" id={operationModeId}>
+          Operation Mode
+        </SettingsLabel>
+        <div
+          role="group"
+          aria-labelledby={operationModeId}
+          className="grid grid-cols-4 gap-2"
+        >
           {modes.map((m) => (
             <button
               key={m.id}
