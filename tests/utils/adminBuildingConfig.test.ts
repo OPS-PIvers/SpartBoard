@@ -611,6 +611,67 @@ describe('getAdminBuildingConfig', () => {
     });
   });
 
+  describe('graphic-organizer', () => {
+    it('passes through built-in templateType, prefixed font family, card colour, and opacity', () => {
+      const perm = makePerm('graphic-organizer', {
+        high: {
+          templateType: 'venn',
+          fontFamily: 'font-handwritten',
+          cardColor: '#eef2ff',
+          cardOpacity: 0.8,
+        },
+      });
+      expect(
+        getAdminBuildingConfig('graphic-organizer', [perm], ['high'])
+      ).toEqual({
+        templateType: 'venn',
+        fontFamily: 'font-handwritten',
+        cardColor: '#eef2ff',
+        cardOpacity: 0.8,
+      });
+    });
+
+    it('rejects a custom template id as templateType — only built-in layouts allowed', () => {
+      const perm = makePerm('graphic-organizer', {
+        high: { templateType: 'template-abc123' },
+      });
+      expect(
+        getAdminBuildingConfig('graphic-organizer', [perm], ['high'])
+      ).toEqual({});
+    });
+
+    it('rejects bare GlobalFontFamily ids — uses the prefixed space', () => {
+      const perm = makePerm('graphic-organizer', {
+        high: { fontFamily: 'handwritten' },
+      });
+      expect(
+        getAdminBuildingConfig('graphic-organizer', [perm], ['high'])
+      ).toEqual({});
+    });
+
+    it('rejects invalid colour and out-of-range opacity, and never seeds fontColor', () => {
+      const perm = makePerm('graphic-organizer', {
+        high: {
+          cardColor: 'rgb(0,0,0)',
+          cardOpacity: 1.5,
+          fontColor: '#111111',
+        },
+      });
+      expect(
+        getAdminBuildingConfig('graphic-organizer', [perm], ['high'])
+      ).toEqual({});
+    });
+
+    it('seeds only the provided fields', () => {
+      const perm = makePerm('graphic-organizer', {
+        high: { templateType: 'kwl' },
+      });
+      expect(
+        getAdminBuildingConfig('graphic-organizer', [perm], ['high'])
+      ).toEqual({ templateType: 'kwl' });
+    });
+  });
+
   describe('work-symbols', () => {
     it('passes through the prefixed font family, text colour, text size preset, and title position', () => {
       const perm = makePerm('work-symbols', {

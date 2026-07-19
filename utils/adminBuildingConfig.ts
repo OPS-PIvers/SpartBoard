@@ -1,5 +1,6 @@
 import {
   FeaturePermission,
+  GRAPHIC_ORGANIZER_LAYOUT_TYPES,
   MaterialsGlobalConfig,
   NextUpConfig,
   NumberLineJump,
@@ -698,6 +699,31 @@ export const getAdminBuildingConfig = (
         (raw.titlePosition === 'bottom' || raw.titlePosition === 'top')
       )
         out.titlePosition = raw.titlePosition;
+      break;
+    }
+    case 'graphic-organizer': {
+      // GraphicOrganizer's Appearance tab uses the shared TypographySettings /
+      // SurfaceColorSettings primitives, so `fontFamily` lives in the prefixed
+      // `FONTS`-id space (validated by `isWidgetFontFamily`, like
+      // stations/need-do-put-then/work-symbols). `templateType` is restricted to
+      // the five built-in layouts — per-building custom template ids live under
+      // a separate `config.buildings[id].templates` path and are not
+      // admin-defaultable here. Derived from the same `GRAPHIC_ORGANIZER_LAYOUT_TYPES`
+      // const the `GraphicOrganizerLayoutType` union is built from, so adding a
+      // sixth layout can't silently drift this validator out of sync.
+      if (
+        typeof raw.templateType === 'string' &&
+        (GRAPHIC_ORGANIZER_LAYOUT_TYPES as readonly string[]).includes(
+          raw.templateType
+        )
+      )
+        out.templateType = raw.templateType;
+      if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
+      if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
+      if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;
+      // No `fontColor` default: the Appearance tab renders a fontColor picker,
+      // but GraphicOrganizer/Widget.tsx hardcodes node text colors and never
+      // reads config.fontColor (dead control, same as ConceptWeb).
       break;
     }
     default:
