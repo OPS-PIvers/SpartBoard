@@ -560,10 +560,7 @@ describe('TimeToolWidget', () => {
     });
 
     it('re-enables the "+" button once a run started at the ceiling decays below it', () => {
-      // Regression: the run-start baseline (config.elapsedTime) never updates
-      // while running, so gating `disabled` on it (in addition to the live
-      // displayTime) kept "+" disabled for the timer's entire remaining run
-      // even once the countdown had visibly dropped well below the ceiling.
+      // Regression: disabled must gate on the live displayTime, not the frozen run-start baseline.
       const widget = createWidget({
         mode: 'timer',
         isRunning: true,
