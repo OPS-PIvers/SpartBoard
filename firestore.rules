@@ -1097,7 +1097,23 @@ service cloud.firestore {
     // doc for the sessionId + toggles (allowComments/allowCommentResponses/
     // allowLikes). Readable by any signed-in caller (incl. anonymous students).
     match /shared_activity_walls/{shareId} {
-      allow read: if request.auth != null;
+      // READ: any authed caller (incl. anonymous gallery viewers) may read a
+      // live share; host and admin can still read past revoke/expiry for
+      // management/cleanup. Mirrors the expiresAt cutoff already enforced on
+      // /shared_boards and /shared_collections — without this, the
+      // "Available until X" / revoke UX in ActivityWallGalleryView is
+      // cosmetic only, since a caller that bypasses the client UI can keep
+      // reading a gallery's title/prompt/sessionId/identificationMode
+      // forever after the teacher revokes it or its expiresAt passes.
+      allow read: if request.auth != null && (
+        resource.data.get('originalAuthor', null) == request.auth.uid
+        || isAdmin()
+        || (
+          resource.data.get('revoked', false) != true
+          && (resource.data.get('expiresAt', null) == null
+              || resource.data.get('expiresAt', 0) > request.time.toMillis())
+        )
+      );
 
       // Identity fields + the sessionId-ownership check force the doc to be
       // created by the teacher who owns the underlying session (can't publish
