@@ -17,6 +17,7 @@ const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
   const { remoteControlEnabled: enabled, updateAccountPreferences } = useAuth();
   const menuRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+  const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const remoteUrlObject = new URL('/remote', window.location.origin);
   if (activeDashboard) {
     remoteUrlObject.searchParams.set('boardId', activeDashboard.id);
@@ -30,11 +31,21 @@ const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
     try {
       await navigator.clipboard.writeText(remoteUrl);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
+      copiedTimeoutRef.current = setTimeout(() => {
+        setCopied(false);
+        copiedTimeoutRef.current = null;
+      }, 2000);
     } catch (err) {
       console.error('Failed to copy text: ', err);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
