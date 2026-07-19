@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-07-12_
+_Last audited: 2026-07-19_
 _Last action: never_
 
 ---
@@ -54,6 +54,19 @@ _Nothing currently in progress._
 ---
 
 ## Clean (no issues found)
+
+Migration code + dead exports + console.log audit (2026-07-19, re-verified):
+
+- Old type strings 'timer', 'stopwatch': Only in `utils/migration.ts:71-80` — correct.
+- Old type string 'workSymbols': Only in `utils/migration.ts:93` — correct.
+- `migrateLocalStorageToFirestore()`: Still actively called in `context/DashboardContext.tsx:2046`. Still needed. Existing MEDIUM open item still valid.
+- New dev-paul commits since 2026-07-12: fix(Countdown), fix(FolderTree), fix(i18n), fix(gcPlcOrphans), plus docs — all UI/logic/docs; no new utility files introduced; no new dead exports, commented-out code, or console.log calls.
+- Commented-out code: Zero in components/, context/, hooks/, utils/. One line in a test file (`ScheduleWidget.test.tsx:57` — stale `vi.mock('@/hooks/useScaledFont')`, already tracked as part of the useScaledFont LOW open item).
+- console.log(): Zero in components/, context/, hooks/, utils/.
+- `useScaledFont.ts`: Still dead. Existing LOW open item still valid.
+- `videoActivityDriveService.ts`: Still no production imports. Existing LOW open item still valid.
+- `scripts/tools/`: Still present with 9 Python/Playwright scripts. Existing MEDIUM open item still valid.
+- `utils/imageProcessing.ts:109`: `console.warn` on success still present. Existing LOW open item still valid.
 
 Migration code + dead exports + console.log audit (2026-07-05, re-verified):
 
