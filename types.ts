@@ -5039,12 +5039,16 @@ export interface OrganizerNode {
   text: string;
 }
 
+export const GRAPHIC_ORGANIZER_LAYOUT_TYPES = [
+  'frayer',
+  't-chart',
+  'venn',
+  'kwl',
+  'cause-effect',
+] as const;
+
 export type GraphicOrganizerLayoutType =
-  | 'frayer'
-  | 't-chart'
-  | 'venn'
-  | 'kwl'
-  | 'cause-effect';
+  (typeof GRAPHIC_ORGANIZER_LAYOUT_TYPES)[number];
 
 export interface GraphicOrganizerTemplate {
   id: string;

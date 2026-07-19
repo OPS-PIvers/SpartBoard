@@ -1,5 +1,6 @@
 import {
   FeaturePermission,
+  GRAPHIC_ORGANIZER_LAYOUT_TYPES,
   MaterialsGlobalConfig,
   NextUpConfig,
   NumberLineJump,
@@ -707,17 +708,14 @@ export const getAdminBuildingConfig = (
       // stations/need-do-put-then/work-symbols). `templateType` is restricted to
       // the five built-in layouts — per-building custom template ids live under
       // a separate `config.buildings[id].templates` path and are not
-      // admin-defaultable here.
-      const validLayouts = [
-        'frayer',
-        't-chart',
-        'venn',
-        'kwl',
-        'cause-effect',
-      ] as const;
+      // admin-defaultable here. Derived from the same `GRAPHIC_ORGANIZER_LAYOUT_TYPES`
+      // const the `GraphicOrganizerLayoutType` union is built from, so adding a
+      // sixth layout can't silently drift this validator out of sync.
       if (
         typeof raw.templateType === 'string' &&
-        (validLayouts as readonly string[]).includes(raw.templateType)
+        (GRAPHIC_ORGANIZER_LAYOUT_TYPES as readonly string[]).includes(
+          raw.templateType
+        )
       )
         out.templateType = raw.templateType;
       if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
