@@ -1716,28 +1716,28 @@
     }
   },
   "plcRoute": {
-    "loading": "Cargando PLC…",
-    "notFoundTitle": "PLC no encontrada",
-    "notFoundBody": "Esta PLC no existe o ya no eres miembro de ella.",
+    "loading": "Cargando Comunidad…",
+    "notFoundTitle": "Comunidad no encontrada",
+    "notFoundBody": "Esta Comunidad no existe o ya no eres miembro de ella.",
     "backToBoard": "Volver a mi tablero",
-    "hubTitle": "Mis PLC",
+    "hubTitle": "Mis Comunidades",
     "hubSubtitle": "Abre una Comunidad de Aprendizaje Profesional para colaborar con tu equipo.",
-    "hubEmptyTitle": "Aún no hay PLC",
-    "hubEmptySubtitle": "Crea una PLC desde la barra lateral e invita a tus colegas.",
+    "hubEmptyTitle": "Aún no hay Comunidades",
+    "hubEmptySubtitle": "Crea una Comunidad desde la barra lateral e invita a tus colegas.",
     "leadBadge": "Líder",
     "memberCount": "{{count}} miembro",
     "memberCount_other": "{{count}} miembros"
   },
   "plcDirectory": {
-    "heading": "PLC en mi edificio",
+    "heading": "Comunidades en mi edificio",
     "subtitle": "Equipos de tu edificio a los que puedes pedir unirte.",
     "memberCount": "{{count}} miembro",
     "memberCount_other": "{{count}} miembros",
     "requestToJoin": "Pedir unirse",
     "requestHint": "Pide a un miembro que invite a {{email}}.",
-    "emptyTitle": "No hay otras PLC para mostrar",
-    "emptySubtitle": "Ahora mismo no hay otras PLC en tu edificio.",
+    "emptyTitle": "No hay otras Comunidades para mostrar",
+    "emptySubtitle": "Ahora mismo no hay otras Comunidades en tu edificio.",
     "noOrgTitle": "Directorio del edificio no disponible",
-    "noOrgSubtitle": "Tu cuenta aún no está vinculada a una escuela, por lo que no podemos mostrar PLC cercanas."
+    "noOrgSubtitle": "Tu cuenta aún no está vinculada a una escuela, por lo que no podemos mostrar Comunidades cercanas."
   }
 }
