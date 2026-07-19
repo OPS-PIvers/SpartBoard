@@ -602,10 +602,7 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                       <AdjustButton
                         sign={1}
                         step={effectiveAdjustStep}
-                        disabled={
-                          displayTime >= TIME_TOOL_MAX_DURATION_SECONDS ||
-                          config.elapsedTime >= TIME_TOOL_MAX_DURATION_SECONDS
-                        }
+                        disabled={displayTime >= TIME_TOOL_MAX_DURATION_SECONDS}
                         ariaLabel={t('widgets.timeTool.addTime')}
                         onAdjust={adjustTime}
                       />
