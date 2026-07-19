@@ -367,15 +367,24 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                       Default Template
                     </label>
                     <select
-                      value={currentAppearanceDefaults.templateType ?? 'frayer'}
-                      onChange={(e) =>
+                      value={currentAppearanceDefaults.templateType ?? ''}
+                      onChange={(e) => {
+                        const selected = e.target.value;
                         updateAppearanceDefaults({
-                          templateType: e.target
-                            .value as GraphicOrganizerLayoutType,
-                        })
-                      }
+                          // Empty = "no override"; persist as undefined so the
+                          // widget's own default (frayer) applies rather than
+                          // implying a stored value (mirrors the font sentinel).
+                          templateType:
+                            selected === ''
+                              ? undefined
+                              : (selected as GraphicOrganizerLayoutType),
+                        });
+                      }}
                       className="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                     >
+                      <option value="">
+                        Widget default (no override — Frayer)
+                      </option>
                       {LAYOUT_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
                           {opt.label}
