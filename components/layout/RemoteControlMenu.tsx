@@ -30,8 +30,8 @@ const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(remoteUrl);
-      setCopied(true);
       if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
+      setCopied(true);
       copiedTimeoutRef.current = setTimeout(() => {
         setCopied(false);
         copiedTimeoutRef.current = null;
