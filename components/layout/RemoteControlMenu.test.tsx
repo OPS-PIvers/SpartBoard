@@ -92,8 +92,7 @@ describe('RemoteControlMenu', () => {
       });
       expect(copyButton.className).toContain('bg-green-500');
 
-      // Re-click 1s later, before the first timer would fire — this should
-      // restart the 2s countdown from this second click.
+      // Re-click 1s later, before the first timer fires; this should restart the 2s countdown.
       act(() => {
         vi.advanceTimersByTime(1000);
       });
@@ -103,14 +102,13 @@ describe('RemoteControlMenu', () => {
       });
       expect(copyButton.className).toContain('bg-green-500');
 
-      // 2s after the FIRST click (only 1s after the second) — the stale
-      // first timer must not clear the indicator early.
+      // 2s after the first click, but only 1s after the second — must still be showing.
       act(() => {
         vi.advanceTimersByTime(1000);
       });
       expect(copyButton.className).toContain('bg-green-500');
 
-      // 2s after the second (most recent) click — now it should clear.
+      // 2s after the second (most recent) click — now it clears.
       act(() => {
         vi.advanceTimersByTime(1000);
       });
