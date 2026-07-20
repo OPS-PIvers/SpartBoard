@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-18_
+_Last audited: 2026-07-19_
 _Last action: 2026-07-08 — LOW TalkingTool `Scaffolding` label pixel cap raised `min(9px, 2.2cqmin)` → `min(10px, 2.2cqmin)`; 9px was below the 10px tertiary-text floor_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-19: Full scan (Sunday). New dev-paul commits since 2026-07-18: fix(Countdown), fix(FolderTree), fix(i18n), fix(gcPlcOrphans), plus docs — none touching widget front-face content. Sub-agent scan of widget files: 12 findings across 10 widgets cross-checked against journal guidance and prior entries. Countdown cqh/cqw mix: WON'T FIX per audit guidance (fill-better formula). MusicWidget cqh: WON'T FIX. InstructionalRoutines cqh/cqw: WON'T FIX. LunchCount cqh/cqw: WON'T FIX. Weather compact cqh/cqw: WON'T FIX. SyntaxFramer cqh/cqw: WON'T FIX. TrafficLight cqh/cqw: WON'T FIX. Checklist cqh: WON'T FIX. RevealGrid text-xs/gap-4: already tracked open item. GuidedLearning w-8 h-8 Loader2: already tracked in group open item. ActivityWall library list item spacing: variant of the tracked ActivityWall open item. All four pre-existing LOW open items (ActivityWall spacing, ClockWidget ml-2, MathTools px-2/gap-1, Onboarding gap-2) confirmed still unresolved. Zero new anti-patterns._
 
 _2026-07-18: Full scan (Saturday). New dev-paul commits since 2026-07-17: none touching widget front-face content (only BuildingSelector a11y/admin refactor, MusicWidget Settings back-face SettingsLabel group-heading unification, TeacherDiscoveryRoute guard fix). 47 Widget.tsx front-face files scanned + 8 sub-component files. FOUR new LOW anti-patterns found (all hardcoded Tailwind spacing in skipScaling:true widget front-face content): (1) ActivityWall/Widget.tsx — space-y-3/px-3 py-2/gap-2/mb-1/mt-1 in three front-face view branches (editor draft, library, submission list); font sizes are already scaled but layout spacings are not; (2) ClockWidget/Widget.tsx:115 — ml-2 on AM/PM badge span; (3) MathTools/Widget.tsx:169 — px-2 gap-1 on tab nav row container; (4) Onboarding/components/Header.tsx:14 — gap-2 between icon and title in header flex row. See new open items below._
 

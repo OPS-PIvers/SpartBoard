@@ -1097,7 +1097,23 @@ service cloud.firestore {
     // doc for the sessionId + toggles (allowComments/allowCommentResponses/
     // allowLikes). Readable by any signed-in caller (incl. anonymous students).
     match /shared_activity_walls/{shareId} {
-      allow read: if request.auth != null;
+      // READ: any authed caller (incl. anonymous gallery viewers) may read a
+      // live share; host and admin can still read past revoke/expiry for
+      // management/cleanup. Mirrors the expiresAt cutoff already enforced on
+      // /shared_boards and /shared_collections — without this, the
+      // "Available until X" / revoke UX in ActivityWallGalleryView is
+      // cosmetic only, since a caller that bypasses the client UI can keep
+      // reading a gallery's title/prompt/sessionId/identificationMode
+      // forever after the teacher revokes it or its expiresAt passes.
+      allow read: if request.auth != null && (
+        resource.data.get('originalAuthor', null) == request.auth.uid
+        || isAdmin()
+        || (
+          resource.data.get('revoked', false) != true
+          && (resource.data.get('expiresAt', null) == null
+              || resource.data.get('expiresAt', 0) > request.time.toMillis())
+        )
+      );
 
       // Identity fields + the sessionId-ownership check force the doc to be
       // created by the teacher who owns the underlying session (can't publish
@@ -1146,7 +1162,21 @@ service cloud.firestore {
         function parentShare() {
           return get(/databases/$(database)/documents/shared_activity_walls/$(shareId)).data;
         }
-        allow read: if request.auth != null;
+        // READ mirrors the parent-doc gate: the share owner and admins can
+        // always read (moderation/cleanup), but everyone else only while the
+        // parent share is live. Without this, a caller that already holds the
+        // shareId could keep enumerating every comment (content +
+        // participantLabel) on a revoked or expired share indefinitely, even
+        // though the parent doc read is now closed.
+        allow read: if request.auth != null && (
+          parentShare().get('originalAuthor', null) == request.auth.uid
+          || isAdmin()
+          || (
+            parentShare().get('revoked', false) != true
+            && (parentShare().get('expiresAt', null) == null
+                || parentShare().get('expiresAt', 0) > request.time.toMillis())
+          )
+        );
         allow create: if request.auth != null &&
           parentShare().get('revoked', false) == false &&
           parentShare().get('allowComments', false) == true &&
@@ -1183,7 +1213,17 @@ service cloud.firestore {
         function parentShare() {
           return get(/databases/$(database)/documents/shared_activity_walls/$(shareId)).data;
         }
-        allow read: if request.auth != null;
+        // Same live-share gate as comments: owner/admin always, everyone else
+        // only while the parent share is neither revoked nor past expiresAt.
+        allow read: if request.auth != null && (
+          parentShare().get('originalAuthor', null) == request.auth.uid
+          || isAdmin()
+          || (
+            parentShare().get('revoked', false) != true
+            && (parentShare().get('expiresAt', null) == null
+                || parentShare().get('expiresAt', 0) > request.time.toMillis())
+          )
+        );
         allow create: if request.auth != null &&
           parentShare().get('revoked', false) == false &&
           parentShare().get('allowLikes', false) == true &&

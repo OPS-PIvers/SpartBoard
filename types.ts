@@ -5039,12 +5039,16 @@ export interface OrganizerNode {
   text: string;
 }
 
+export const GRAPHIC_ORGANIZER_LAYOUT_TYPES = [
+  'frayer',
+  't-chart',
+  'venn',
+  'kwl',
+  'cause-effect',
+] as const;
+
 export type GraphicOrganizerLayoutType =
-  | 'frayer'
-  | 't-chart'
-  | 'venn'
-  | 'kwl'
-  | 'cause-effect';
+  (typeof GRAPHIC_ORGANIZER_LAYOUT_TYPES)[number];
 
 export interface GraphicOrganizerTemplate {
   id: string;
@@ -5058,9 +5062,41 @@ export interface GraphicOrganizerBuildingConfig {
   templates: GraphicOrganizerTemplate[];
 }
 
+/**
+ * Per-building appearance/content defaults that pre-seed a new GraphicOrganizer
+ * instance for a teacher in that building. Distinct from `buildings` above,
+ * which stores admin-authored custom templates. Applied by
+ * `getAdminBuildingConfig()` between the widget defaults and explicit overrides.
+ */
+export interface BuildingGraphicOrganizerDefaults {
+  buildingId: string;
+  /**
+   * Built-in layout to pre-select as the default template. Only the five
+   * built-in layouts are admin-defaultable; per-building custom template ids
+   * are intentionally excluded (the admin validator restricts to this enum).
+   */
+  templateType?: GraphicOrganizerLayoutType;
+  /**
+   * Stored in the shared `TypographySettings` value space — a `FONTS` id such
+   * as `'font-sans'` / `'font-mono'`. The `'global'` sentinel (inherit from the
+   * dashboard) is represented by absence/`undefined`, never the literal string.
+   * Seeds `GraphicOrganizerConfig.fontFamily`, decoded at render via
+   * `getFontClass()` (same prefixed space Stations / Need-Do-Put-Then use).
+   */
+  fontFamily?: string;
+  cardColor?: string;
+  cardOpacity?: number;
+  // NOTE: no `fontColor` — GraphicOrganizer's Appearance tab exposes a
+  // fontColor picker via the shared TypographySettings primitive, but
+  // GraphicOrganizer/Widget.tsx renders node text with hardcoded slate colors
+  // and never reads `config.fontColor`. Seeding it here would set a value the
+  // widget never consumes (same dead-control situation handled for ConceptWeb).
+}
+
 export interface GraphicOrganizerGlobalConfig {
   buildings: Record<string, GraphicOrganizerBuildingConfig>;
   dockDefaults?: Record<string, boolean>;
+  buildingDefaults?: Record<string, BuildingGraphicOrganizerDefaults>;
 }
 
 export type GraphicOrganizerTemplateId = `template-${string}`;

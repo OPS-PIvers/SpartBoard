@@ -559,8 +559,8 @@ describe('TimeToolWidget', () => {
       expect(mockUpdateWidget).not.toHaveBeenCalled();
     });
 
-    it('keeps the "+" button disabled while running at the ceiling, even after the display decays below it', () => {
-      // Regression: displayTime alone re-enables the button once it decays below the ceiling; config.elapsedTime must also gate it.
+    it('re-enables the "+" button once a run started at the ceiling decays below it', () => {
+      // Regression: disabled must gate on the live displayTime, not the frozen run-start baseline.
       const widget = createWidget({
         mode: 'timer',
         isRunning: true,
@@ -571,11 +571,13 @@ describe('TimeToolWidget', () => {
       });
       renderWidget(widget);
 
+      expect(screen.getByLabelText('Add time')).toBeDisabled();
+
       act(() => {
         vi.advanceTimersByTime(1000);
       });
 
-      expect(screen.getByLabelText('Add time')).toBeDisabled();
+      expect(screen.getByLabelText('Add time')).not.toBeDisabled();
     });
 
     it('adjustTime is a no-op when running at the ceiling, avoiding a write-storm/startTime-reset loop', () => {

@@ -16,13 +16,16 @@ import {
   GraphicOrganizerBuildingConfig,
   GraphicOrganizerTemplate,
   GraphicOrganizerLayoutType,
+  BuildingGraphicOrganizerDefaults,
   GlobalFontFamily,
   FeaturePermission,
 } from '@/types';
+import { FONTS } from '@/config/fonts';
 import { Toast } from '@/components/common/Toast';
 import { Button } from '@/components/common/Button';
 import { ConfirmDialog } from '@/components/widgets/InstructionalRoutines/ConfirmDialog';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
+import { HexColorField } from './HexColorField';
 
 interface GraphicOrganizerConfigurationModalProps {
   isOpen: boolean;
@@ -152,6 +155,33 @@ export const GraphicOrganizerConfigurationModal: React.FC<
     },
     []
   );
+
+  // Per-building appearance defaults (seed new widget instances). Stored under
+  // `buildingDefaults`, separate from the custom-template `buildings` map above.
+  const currentAppearanceDefaults: BuildingGraphicOrganizerDefaults =
+    globalConfig.buildingDefaults?.[selectedBuilding] ?? {
+      buildingId: selectedBuilding,
+    };
+
+  const updateAppearanceDefaults = useCallback(
+    (updates: Partial<BuildingGraphicOrganizerDefaults>) => {
+      setGlobalConfig((prev) => ({
+        ...prev,
+        buildingDefaults: {
+          ...(prev.buildingDefaults ?? {}),
+          [selectedBuilding]: {
+            ...(prev.buildingDefaults?.[selectedBuilding] ?? {
+              buildingId: selectedBuilding,
+            }),
+            ...updates,
+          },
+        },
+      }));
+    },
+    [selectedBuilding]
+  );
+
+  const appearanceCardOpacity = currentAppearanceDefaults.cardOpacity ?? 1;
 
   // Template Management
   const currentTemplates = useMemo(() => {
@@ -315,6 +345,122 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                 }}
               />
             </div>
+
+            {!editingTemplateId && (
+              <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+                <h3 className="text-lg font-bold text-slate-800 mb-1">
+                  Appearance Defaults
+                </h3>
+                <p className="text-sm text-slate-500 mb-4">
+                  Pre-fill new Graphic Organizer widgets added by teachers in{' '}
+                  <b>
+                    {BUILDINGS.find((b) => b.id === selectedBuilding)?.name ??
+                      'this building'}
+                  </b>
+                  . Teachers can still override these per-instance from the
+                  widget&apos;s Appearance tab.
+                </p>
+                <div className="space-y-4 max-w-2xl">
+                  {/* Default Template */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">
+                      Default Template
+                    </label>
+                    <select
+                      value={currentAppearanceDefaults.templateType ?? ''}
+                      onChange={(e) => {
+                        const selected = e.target.value;
+                        updateAppearanceDefaults({
+                          // Empty = "no override"; persist as undefined so the
+                          // widget's own default (frayer) applies rather than
+                          // implying a stored value (mirrors the font sentinel).
+                          templateType:
+                            selected === ''
+                              ? undefined
+                              : (selected as GraphicOrganizerLayoutType),
+                        });
+                      }}
+                      className="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    >
+                      <option value="">
+                        Widget default (no override — Frayer)
+                      </option>
+                      {LAYOUT_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Default Font Family */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">
+                      Default Font Family
+                    </label>
+                    <select
+                      value={currentAppearanceDefaults.fontFamily ?? 'global'}
+                      onChange={(e) => {
+                        const selected = e.target.value;
+                        updateAppearanceDefaults({
+                          // 'global' = inherit the dashboard font; persist as
+                          // undefined so saved configs only hold a concrete
+                          // FONTS id (mirrors TypographySettings behaviour).
+                          fontFamily:
+                            selected === 'global' ? undefined : selected,
+                        });
+                      }}
+                      className="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    >
+                      {FONTS.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.id === 'global'
+                            ? 'Global (Dashboard default)'
+                            : `${f.label} (${f.icon})`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Default Surface Colour */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">
+                      Default Surface Colour
+                    </label>
+                    <HexColorField
+                      value={currentAppearanceDefaults.cardColor}
+                      onChange={(cardColor) =>
+                        updateAppearanceDefaults({ cardColor })
+                      }
+                      fallback="#ffffff"
+                      ariaLabel="Pick default Graphic Organizer surface colour"
+                    />
+                  </div>
+
+                  {/* Default Surface Opacity */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">
+                      Default Surface Opacity (
+                      {Math.round(appearanceCardOpacity * 100)}%)
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={appearanceCardOpacity}
+                      onChange={(e) =>
+                        updateAppearanceDefaults({
+                          cardOpacity: parseFloat(e.target.value),
+                        })
+                      }
+                      className="w-full accent-indigo-500"
+                      aria-label="Default Graphic Organizer surface opacity"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               {!editingTemplateId ? (

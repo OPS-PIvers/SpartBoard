@@ -17,7 +17,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { setDoc, updateDoc, deleteDoc, doc, getDoc } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-shared-activity-walls';
 const TEACHER_UID = 'teacher-uid';
@@ -189,6 +189,203 @@ describe('shared_activity_walls — teacher create', () => {
         sharedDocPayload({ revoked: false })
       )
     );
+  });
+});
+
+// Root cause: the READ rule was `if request.auth != null` with no reference
+// to `revoked` / `expiresAt` at all, even though those fields exist
+// specifically so ActivityWallGalleryView can show a "revoked" / "expired"
+// state. The client-side check is purely cosmetic — any direct Firestore
+// SDK/REST caller can keep reading a gallery's title/prompt/sessionId/
+// identificationMode forever after the teacher revokes or the link expires.
+// Sibling collections /shared_boards and /shared_collections already gate
+// their substitute-mode reads on expiresAt; this collection was the
+// asymmetric one that never got the same treatment.
+describe('shared_activity_walls — read gating (expiresAt / revoked)', () => {
+  const asViewer = () =>
+    testEnv
+      .authenticatedContext('viewer-uid', {
+        firebase: { sign_in_provider: 'anonymous' },
+      })
+      .firestore();
+
+  const asAdminUser = () =>
+    testEnv
+      .authenticatedContext('admin-uid', {
+        email: 'admin@example.com',
+        firebase: { sign_in_provider: 'google.com' },
+      })
+      .firestore();
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'admins/admin@example.com'), {});
+    });
+  });
+
+  it('viewer can read a live (non-revoked, non-expired) share', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `shared_activity_walls/${SHARE_ID}`),
+        sharedDocPayload({ expiresAt: Date.now() + 1_000_000 })
+      );
+    });
+    await assertSucceeds(
+      getDoc(doc(asViewer(), `shared_activity_walls/${SHARE_ID}`))
+    );
+  });
+
+  it('viewer can read a permanent share (expiresAt null / unset)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `shared_activity_walls/${SHARE_ID}`),
+        sharedDocPayload()
+      );
+    });
+    await assertSucceeds(
+      getDoc(doc(asViewer(), `shared_activity_walls/${SHARE_ID}`))
+    );
+  });
+
+  it('viewer cannot read a revoked share', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `shared_activity_walls/${SHARE_ID}`),
+        sharedDocPayload({ revoked: true })
+      );
+    });
+    await assertFails(
+      getDoc(doc(asViewer(), `shared_activity_walls/${SHARE_ID}`))
+    );
+  });
+
+  it('viewer cannot read a share past its expiresAt', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `shared_activity_walls/${SHARE_ID}`),
+        sharedDocPayload({ expiresAt: Date.now() - 1_000 })
+      );
+    });
+    await assertFails(
+      getDoc(doc(asViewer(), `shared_activity_walls/${SHARE_ID}`))
+    );
+  });
+
+  it('original author can still read their own revoked share (cleanup/management)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `shared_activity_walls/${SHARE_ID}`),
+        sharedDocPayload({ revoked: true })
+      );
+    });
+    await assertSucceeds(
+      getDoc(doc(asTeacher(), `shared_activity_walls/${SHARE_ID}`))
+    );
+  });
+
+  it('admin can still read an expired share', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `shared_activity_walls/${SHARE_ID}`),
+        sharedDocPayload({ expiresAt: Date.now() - 1_000 })
+      );
+    });
+    await assertSucceeds(
+      getDoc(doc(asAdminUser(), `shared_activity_walls/${SHARE_ID}`))
+    );
+  });
+});
+
+// The parent-doc read is gated on revoked/expiresAt above, but the
+// `comments` / `likes` subcollections previously kept `allow read: if
+// request.auth != null`. A caller that already holds the shareId could
+// therefore keep enumerating every comment (content + participantLabel) and
+// like on a revoked/expired share long after the parent doc was closed. These
+// mirror the parent gate: owner/admin always, everyone else only while live.
+describe('shared_activity_walls/{comments,likes} — read gating', () => {
+  const asViewer = () =>
+    testEnv
+      .authenticatedContext('viewer-uid', {
+        firebase: { sign_in_provider: 'anonymous' },
+      })
+      .firestore();
+
+  const asAdminUser = () =>
+    testEnv
+      .authenticatedContext('admin-uid', {
+        email: 'admin@example.com',
+        firebase: { sign_in_provider: 'google.com' },
+      })
+      .firestore();
+
+  const likeId = `${SUBMISSION_ID}__viewer-uid`;
+
+  const seedShareWithChildren = async (
+    shareOverrides: Record<string, unknown> = {}
+  ) => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const fs = ctx.firestore();
+      await setDoc(doc(fs, 'admins/admin@example.com'), {});
+      await setDoc(
+        doc(fs, `shared_activity_walls/${SHARE_ID}`),
+        sharedDocPayload(shareOverrides)
+      );
+      await setDoc(
+        doc(fs, `shared_activity_walls/${SHARE_ID}/comments/${COMMENT_ID}`),
+        {
+          id: COMMENT_ID,
+          submissionId: SUBMISSION_ID,
+          content: 'Looks great!',
+          participantLabel: 'Viewer',
+          authorUid: 'someone',
+          createdAt: 1_500_000,
+        }
+      );
+      await setDoc(
+        doc(fs, `shared_activity_walls/${SHARE_ID}/likes/${likeId}`),
+        {
+          id: likeId,
+          submissionId: SUBMISSION_ID,
+          authorUid: 'viewer-uid',
+          createdAt: 1_600_000,
+        }
+      );
+    });
+  };
+
+  const commentRef = (db: ReturnType<typeof asViewer>) =>
+    doc(db, `shared_activity_walls/${SHARE_ID}/comments/${COMMENT_ID}`);
+  const likeRef = (db: ReturnType<typeof asViewer>) =>
+    doc(db, `shared_activity_walls/${SHARE_ID}/likes/${likeId}`);
+
+  it('viewer can read comments/likes on a live share', async () => {
+    await seedShareWithChildren();
+    await assertSucceeds(getDoc(commentRef(asViewer())));
+    await assertSucceeds(getDoc(likeRef(asViewer())));
+  });
+
+  it('viewer cannot read comments/likes on a revoked share', async () => {
+    await seedShareWithChildren({ revoked: true });
+    await assertFails(getDoc(commentRef(asViewer())));
+    await assertFails(getDoc(likeRef(asViewer())));
+  });
+
+  it('viewer cannot read comments/likes on an expired share', async () => {
+    await seedShareWithChildren({ expiresAt: Date.now() - 1_000 });
+    await assertFails(getDoc(commentRef(asViewer())));
+    await assertFails(getDoc(likeRef(asViewer())));
+  });
+
+  it('original author can still read comments/likes on a revoked share', async () => {
+    await seedShareWithChildren({ revoked: true });
+    await assertSucceeds(getDoc(commentRef(asTeacher())));
+    await assertSucceeds(getDoc(likeRef(asTeacher())));
+  });
+
+  it('admin can still read comments/likes on an expired share', async () => {
+    await seedShareWithChildren({ expiresAt: Date.now() - 1_000 });
+    await assertSucceeds(getDoc(commentRef(asAdminUser())));
+    await assertSucceeds(getDoc(likeRef(asAdminUser())));
   });
 });
 
