@@ -1970,7 +1970,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                   style={{
                     gap: 'min(6px, 1.8cqmin)',
                     gridTemplateColumns: `repeat(${photoGridLayout.columns}, minmax(0, 1fr))`,
-                    gridAutoRows: 'clamp(120px, 45cqmin, 320px)',
+                    gridAutoRows: 'minmax(clamp(120px, 45cqmin, 320px), 1fr)',
                     gridAutoFlow: 'dense',
                     alignContent: 'stretch',
                     minHeight: '100%',
