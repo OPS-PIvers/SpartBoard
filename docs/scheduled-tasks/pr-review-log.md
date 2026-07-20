@@ -4,6 +4,39 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-07-20
+
+- PRs reviewed: 11 (all open PRs)
+  - #2253 — fix(activity-wall): photo-grid rowHeight resize-continuous via cqmin (head `scheduled-tasks`, base `dev-paul`, draft)
+  - #2252 — docs(routines): log nightly debugger run 31 (head `nightly/debugger-log-2026-07-20`)
+  - #2251 — fix(functions): SECURITY — relock `activity_wall_sessions` after gallery share expires/revokes (head `nightly/build-tooling-2026-07-20`)
+  - #2250 — fix(config): replace non-existent `Football` lucide icon in instructional icon picker (head `nightly/admin-config-2026-07-20`)
+  - #2249 — fix(rosters): `assignPins` no longer collides with manually-set PINs (head `nightly/state-data-2026-07-20`)
+  - #2248 — fix(DraggableWindow): cancel touch long-press timers on unmount (head `nightly/dashboard-layout-2026-07-20`)
+  - #2247 — fix(LunchCount): key assignments by roster student id, not display name (head `nightly/widgets-2026-07-20`)
+  - #2246 — docs(routines): log nightly unifier run 38 (head `nightly/unifier-log-2026-07-20`)
+  - #2245 — fix(RevealGrid): unify "Game Mode" settings label to `SettingsLabel as="span"` (head `nightly/unify-settings-labels-2026-07-20`)
+  - #2244 — Enhance GraphicOrganizer config and fix various issues (head `dev-paul`, base `main` — release PR)
+- Comments processed: 7 total inline threads — 0 newly fixed, 7 explained & resolved. (Two further PRs, #2253 and #2244, had only already-resolved threads — no action needed.)
+  - #2251 (3 threads): redundant-write guard (line 137) and its paired test assertion — both already addressed on-branch in `2395fe1`; replied and resolved. Serialized-loop perf note (line 111) — flagged non-blocking at current scale by the reviewer; replied acknowledging, resolved, no change.
+  - #2250 (2 threads, both outdated): Ghost/Goal alphabetical ordering already fixed in `be9ce16`; single-line test comment already trimmed in `010ab49`. Replied and resolved both.
+  - #2247 (2 threads): stuck legacy-name unassign (line 359) already fixed in `a18490a`; orphaned legacy-key on reassignment (line 390) already fixed in `a6a4e96`. Replied and resolved both.
+- Fixes pushed: 0 — every actionable review comment across all open PRs had already been resolved by later commits on its own branch (the nightly orchestrator applied the fixes but never closed the threads). No code fix was required this run.
+- Reviews posted: 11 (a structured review on every open PR)
+  - #2249: Ready — correct `assignPins` extraction with collision-avoidance Set + advancing counter; behavior preserved for all-blank rosters; 5 regression tests.
+  - #2248: Ready — write-once `isUnmountedRef` unmount guard on both long-press timers; targeted regression test; legit external-sync `useEffect`.
+  - #2245: Ready — pure a11y `SettingsLabel as="span"` + `role="group"` retrofit, zero visual delta.
+  - #2247: Ready — id-keyed assignments with legacy-name fallback + eviction; both inline threads resolved.
+  - #2250: Ready — `Football`→`Goal` swap + all-entries-resolve test; both nits resolved.
+  - #2251: Ready — new hourly relock sweep closes a real submissions/photo data-exposure hole; strong test coverage; redundant-write guard resolved.
+  - #2253: Ready — JS-px `gridAutoRows` → `minmax(clamp(...cqmin...), 1fr)`, resize-continuous and container-fitting; reviewer note adopted in `c7332e95`.
+  - #2252, #2246: Ready — documentation-only nightly run logs, no source changes.
+  - #2244: Ready with human sign-off — `dev-paul`→`main` release PR; the security-sensitive `shared_activity_walls` read-gating gaps were closed in `5fb0649` with rules + component tests; warrants a final human review of the aggregate diff since it targets `main`.
+- Notes:
+  - Branch safety: no code fixes were pushed to any PR branch this run. `main` untouched; no push to `dev-paul` (#2244) was needed. This log is committed to `scheduled-tasks` per the routine convention.
+  - Every open PR was authored by the automated nightly system and its actionable comments were self-resolved on-branch, so this run's work was thread cleanup (reply + resolve) plus independent review sign-off, not code repair.
+  - Env runs Node 22 (repo wants 24); no local fix-verification was needed since nothing was pushed to a PR branch. CI on Node 24 remains the authoritative gate.
+
 ## 2026-07-19
 
 - PRs reviewed: 7 (all open PRs, all targeting `dev-paul`)

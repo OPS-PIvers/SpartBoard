@@ -1656,12 +1656,11 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     const width = submissionsGridSize.width;
     const height = submissionsGridSize.height;
     if (count === 0 || width <= 0 || height <= 0) {
-      return { columns: 2, rowHeight: 180 };
+      return { columns: 2 };
     }
 
     const minTileWidth = 140;
     const maxTileWidth = 360;
-    const minTileHeight = 120;
     const preferredTileWidth = 220;
     const maxColumns = Math.min(count, 8);
 
@@ -1694,14 +1693,8 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     );
     const columns =
       bestScore === Number.NEGATIVE_INFINITY ? fallbackColumns : bestColumns;
-    const rows = Math.ceil(count / columns);
-    const rawRowHeight = height / rows;
-    const maxTileHeight = count <= 6 ? height : 320;
 
-    return {
-      columns,
-      rowHeight: Math.max(minTileHeight, Math.min(maxTileHeight, rawRowHeight)),
-    };
+    return { columns };
   })();
 
   const wordCloudData =
@@ -1977,7 +1970,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                   style={{
                     gap: 'min(6px, 1.8cqmin)',
                     gridTemplateColumns: `repeat(${photoGridLayout.columns}, minmax(0, 1fr))`,
-                    gridAutoRows: `${photoGridLayout.rowHeight}px`,
+                    gridAutoRows: 'minmax(clamp(120px, 45cqmin, 320px), 1fr)',
                     gridAutoFlow: 'dense',
                     alignContent: 'stretch',
                     minHeight: '100%',

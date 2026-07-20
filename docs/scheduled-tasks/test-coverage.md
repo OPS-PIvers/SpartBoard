@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-07-13_
+_Last audited: 2026-07-20_
 _Last action: 2026-07-13_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-20: Full test run. pnpm test exit 0 — 573 files / 6986 tests, all passing (up from 561/6808 on 2026-07-13 — 12 new test files, 178 new tests). New dev-paul commits since 2026-07-13 (absorbed via rebase): pr-review 7 PRs (docs only), refactor(types) GraphicOrganizerLayoutType (types.ts interface refactor — no new utils/hooks/functions files), fix(admin-config) GraphicOrganizer template override (DashboardContext/admin panel only), feat(admin-config) GraphicOrganizer building appearance defaults (admin panel only). No new untested utils/, hooks/, or functions/ files introduced by these commits. New gap identified this audit: `functions/src/spotifyOAuth.ts` — exports `exchangeSpotifyAuthCode`, `refreshSpotifyAccessToken`, and `revokeSpotifyAuth`, three Cloud Functions with no test coverage. Added to MEDIUM Cloud Functions item below. All other existing open items remain valid._
 
 _2026-07-13 (Monday, action): Added `tests/utils/quizAudio.test.ts` (13 tests) — Priority 2 of the MEDIUM "utils/ files with complex logic" item. Covers `utils/quizAudio.ts`: the six synthesized sound effects (`playCorrectChime`, `playIncorrectBuzz`, `playCountdownTick`, `playPodiumFanfare`, `playQuizCompleteCelebration`, `playStreakSound`) asserting per-effect oscillator counts and gain/destination wiring; AudioContext lifecycle (resume on suspended, no-resume on running, single-instance singleton reuse, `webkitAudioContext` Safari fallback); and graceful degradation (no throw when no AudioContext implementation exists and when the constructor throws). Tests use `vi.resetModules()` + dynamic import to reset the module-level singleton per case. `pnpm exec vitest run tests/utils/quizAudio.test.ts` → 13 passing; `pnpm run type-check`, `pnpm exec eslint --max-warnings 0`, and `pnpm exec prettier --check` all clean. Progress note added to the MEDIUM utils/ complex-logic item; `quizAudio.ts` removed from its untested File list. Remaining Priority 1 (`spotifyAuth.ts`) and Priority 3 (`plcActivity.ts`) still open._
 
@@ -48,6 +50,9 @@ _2026-06-22: Full audit. Test suite: 516 files / 5697 tests, all passing (up fro
   - `getStudentClassDirectoryV1` — Student list fetch with names/pseudonyms. Roster sync, privacy masking untested.
   - `commitRosterPinIndexV1` — Per-student PIN persistence. Transaction safety, duplicate detection untested.
   - `pinLoginV1` — PIN-based student login. PIN validation, failed-attempt throttling, session creation untested.
+  - `exchangeSpotifyAuthCode` — Spotify PKCE code exchange (security-critical OAuth step). Untested.
+  - `refreshSpotifyAccessToken` — Spotify token refresh. Expiry handling, error paths untested.
+  - `revokeSpotifyAuth` — Spotify token revocation. Firestore cleanup, revocation API call untested.
   - Note: `classroomAddonAuth.ts` functions have a separate colocated test file (`classroomAddonAuth.test.ts`) and are NOT a gap.
 - **Fix:** Priority 1 — `generateWithAI` execution paths (rate limit enforcement, per-type output schema validation, admin vs. non-admin quota paths). Priority 2 — `generateVideoActivity` + `transcribeVideoWithGemini` (security-critical: feature permission gating, dual rate limit). Priority 3 — student auth functions (`studentLoginV1`, `pinLoginV1`, `getAssignmentPseudonymV1`). Use the existing `index.test.ts` mock patterns (`vi.mock('@google-cloud/firestore')`, `vi.mock('firebase-admin')`) as reference.
 
