@@ -132,6 +132,11 @@ function makeStubDb(seed: {
       if (name === 'activity_wall_sessions') {
         return {
           doc: (sessionId: string) => ({
+            get: () =>
+              Promise.resolve({
+                exists: sessionId in sessions,
+                data: () => sessions[sessionId],
+              }),
             update: (data: Record<string, unknown>) => {
               if (!(sessionId in sessions)) {
                 const err = new Error('no such document') as Error & {
@@ -252,7 +257,7 @@ describe('runExpireActivityWallShares', () => {
     expect(sessions.teacher1_act1.publiclyShared).toBe(false);
 
     const second = await runExpireActivityWallShares(db, NOW);
-    expect(second).toEqual({ lapsedShares: 1, sessionsRelocked: 1 });
+    expect(second).toEqual({ lapsedShares: 1, sessionsRelocked: 0 });
     expect(sessions.teacher1_act1.publiclyShared).toBe(false);
   });
 

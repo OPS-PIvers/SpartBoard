@@ -118,6 +118,17 @@ export async function runExpireActivityWallShares(
     );
     if (stillLive) continue;
 
+    // Expired share docs are never deleted, so every subsequent run
+    // re-finds the same lapsed shares — skip the write once a session is
+    // already relocked, or the write count grows forever with no bound.
+    const sessionSnap = await db
+      .collection('activity_wall_sessions')
+      .doc(sessionId)
+      .get();
+    if (!sessionSnap.exists || sessionSnap.data()?.publiclyShared !== true) {
+      continue;
+    }
+
     try {
       await db
         .collection('activity_wall_sessions')
