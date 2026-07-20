@@ -311,8 +311,14 @@ export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
 
       {/* Game Mode */}
       <div>
-        <SettingsLabel>Game Mode</SettingsLabel>
-        <div className="flex bg-slate-100 p-1 rounded-xl">
+        <SettingsLabel as="span" id={`revealgrid-gamemode-label-${widget.id}`}>
+          Game Mode
+        </SettingsLabel>
+        <div
+          role="group"
+          aria-labelledby={`revealgrid-gamemode-label-${widget.id}`}
+          className="flex bg-slate-100 p-1 rounded-xl"
+        >
           <button
             type="button"
             onClick={() =>
