@@ -170,6 +170,22 @@ describe('LunchCountWidget', () => {
     expect(screen.queryByText('Assign 2 More Students')).toBeNull();
   });
 
+  it('still honors a legacy name-keyed assignment saved before the id-keying fix', async () => {
+    // Regression test: dashboards saved before assignments were keyed by
+    // student id stored them under the display name instead (e.g.
+    // "John Doe": "hot"). Switching the read path to id-only would silently
+    // reset every pre-existing assignment to "unassigned" on load. The
+    // widget must still honor a name-keyed entry when no id-keyed one exists.
+    const widget = createWidget({
+      assignments: { 'John Doe': 'home' },
+    });
+
+    render(<LunchCountWidget widget={widget} />);
+
+    const homeZone = screen.getByTestId('home-zone');
+    expect(await within(homeZone).findByText('John Doe')).toBeInTheDocument();
+  });
+
   it('renders correctly for middle school without interactive DND', () => {
     const widget = createWidget({
       schoolSite: 'orono-middle-school',

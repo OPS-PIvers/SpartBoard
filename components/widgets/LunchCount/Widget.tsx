@@ -354,7 +354,9 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     const unassigned: { id: string; name: string }[] = [];
 
     activeRoster.forEach((student) => {
-      const assignment = assignments[student.id];
+      // Falls back to a legacy name-keyed entry when no id-keyed one exists,
+      // so dashboards saved before this fix don't lose their assignments.
+      const assignment = assignments[student.id] ?? assignments[student.name];
       if (assignment === 'hot') hot.push(student);
       else if (assignment === 'bento') bento.push(student);
       else if (assignment === 'home') home.push(student);
@@ -895,6 +897,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
               {/* Home Lunch Drop Zone */}
               <DroppableZone
                 id="home"
+                data-testid="home-zone"
                 className="bg-brand-blue-lighter/20 border-2 border-dashed border-brand-blue-lighter rounded-2xl flex flex-col transition-all group"
                 style={{ padding: 'min(10px, 2cqmin)' }}
                 activeClassName="border-solid border-brand-blue-primary bg-brand-blue-lighter/40 scale-[1.02]"
