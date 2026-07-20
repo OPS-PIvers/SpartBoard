@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-07-13_
+_Last audited: 2026-07-20_
 _Last action: 2026-05-18 (admin_audit_log immutability hardening)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-20: Full collection audit. Scanned components/, context/, hooks/, utils/, and functions/src/ for all Firestore collection() and collectionGroup() calls. Cross-referenced against firestore.rules match blocks. Default-deny catch-all confirmed present. New dev-paul commits since 2026-07-13 (absorbed via rebase): pr-review 7 PRs (docs only), refactor(types) GraphicOrganizerLayoutType (types.ts only), fix(admin-config) GraphicOrganizer template override (admin panel), feat(admin-config) GraphicOrganizer building appearance defaults (admin panel), fix(a11y) RandomSettings label (no Firestore), fix(TimeTool) re-enable button (no Firestore), fix(RemoteControlMenu) stale timer (no Firestore), fix(i18n) ES/FR PLC copy (no Firestore), fix(rules) SECURITY gate shared_activity_walls read on revoked/expiresAt (#2242 — `a55c9566`), fix(activity-wall) gate comments/likes subcollection reads + gallery error copy (`5fb06496`). SECURITY NOTE: Two rules improvements landed since 2026-07-13 — (1) `shared_activity_walls` read was gated on `revoked`/`expiresAt` to match the sibling `/shared_boards` and `/shared_collections` pattern; (2) the `comments` and `likes` subcollections were also gated. Both were caught and fixed by dev-paul outside the audit cycle — good. No new Firestore collections introduced by any of these commits. Result: 100% collection coverage — all client-facing collections have explicit match blocks. Security posture improved. All existing open items (pollVotes unrestricted write, sessions broad read, admin_settings/user_roles redundant rule, classroom_grade_links no explicit rule, ai_usage no explicit write denial, custom_widgets.buildings) remain valid and unchanged. Zero new gaps._
 
 _2026-07-13: Full collection audit. Scanned components/, context/, hooks/, utils/, and functions/src/ for all Firestore collection() and collectionGroup() calls. Cross-referenced against firestore.rules match blocks. Default-deny catch-all confirmed present at `match /{document=**}` (line 3831). Result: 100% collection coverage — all client-facing collections confirmed to have explicit match blocks. No new collections introduced since 2026-07-01 (docs-only commits only). All existing open items (pollVotes unrestricted write, sessions broad read, admin_settings/user_roles redundant rule, classroom_grade_links no explicit rule, ai_usage implicit write denial) confirmed present and valid. Zero new items._
 

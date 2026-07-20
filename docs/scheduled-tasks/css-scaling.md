@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-19_
+_Last audited: 2026-07-20_
 _Last action: 2026-07-08 — LOW TalkingTool `Scaffolding` label pixel cap raised `min(9px, 2.2cqmin)` → `min(10px, 2.2cqmin)`; 9px was below the 10px tertiary-text floor_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-20: Full scan (Monday). New dev-paul commits since 2026-07-19: refactor(types) GraphicOrganizerLayoutType, fix/feat(admin-config) GraphicOrganizer defaults — none touching widget front-face content. Agent scan of 27 widget files. Findings reviewed: (1) ActivityWall/Widget.tsx photo grid `gridAutoRows: ${photoGridLayout.rowHeight}px` — NEW MEDIUM item (rows use JS-measured px, stale during continuous resize); see new open item below. (2) RevealGrid text-xs/gap-4 — already tracked. (3) MusicWidget cqh-only — WON'T FIX per journal guidance (fill-better formula, documented multiple times). (4) LunchCount maxHeight:45cqh — WON'T FIX per journal guidance (intentional sub-section cap, per 2026-06-17 analysis). (5) GuidedLearning w-8 h-8 Loader2 — already tracked in group item. (6) NextUp gap-2/mb-2/px-1 — already tracked in group item. 21 other widget files confirmed clean. Pre-existing open items (ActivityWall spacing, ClockWidget ml-2, MathTools px-2/gap-1, Onboarding gap-2, EmbedWidget portaled toolbar, RevealGrid spacing, group item inc. GuidedLearning/NextUp/InstructionalRoutines etc.) all confirmed unresolved._
 
 _2026-07-19: Full scan (Sunday). New dev-paul commits since 2026-07-18: fix(Countdown), fix(FolderTree), fix(i18n), fix(gcPlcOrphans), plus docs — none touching widget front-face content. Sub-agent scan of widget files: 12 findings across 10 widgets cross-checked against journal guidance and prior entries. Countdown cqh/cqw mix: WON'T FIX per audit guidance (fill-better formula). MusicWidget cqh: WON'T FIX. InstructionalRoutines cqh/cqw: WON'T FIX. LunchCount cqh/cqw: WON'T FIX. Weather compact cqh/cqw: WON'T FIX. SyntaxFramer cqh/cqw: WON'T FIX. TrafficLight cqh/cqw: WON'T FIX. Checklist cqh: WON'T FIX. RevealGrid text-xs/gap-4: already tracked open item. GuidedLearning w-8 h-8 Loader2: already tracked in group open item. ActivityWall library list item spacing: variant of the tracked ActivityWall open item. All four pre-existing LOW open items (ActivityWall spacing, ClockWidget ml-2, MathTools px-2/gap-1, Onboarding gap-2) confirmed still unresolved. Zero new anti-patterns._
 
@@ -157,6 +159,13 @@ _2026-05-13: Scanned all 50 Widget.tsx files for hardcoded text-size classes, fi
 _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size classes and Tailwind pixel-cap violations. No new issues since 2026-05-06. `CatalystInstructionWidget.tsx:48` (`text-xs`) confirmed to be in the Settings component (back-face), not the front-face widget content — not a violation. All existing open items remain valid._
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
+
+### MEDIUM ActivityWall photo grid uses JS-measured px for gridAutoRows
+
+- **Detected:** 2026-07-20
+- **File:** components/widgets/ActivityWall/Widget.tsx
+- **Detail:** Widget has `skipScaling: true`. The photo-submission grid view computes `photoGridLayout.rowHeight` by measuring the container's raw pixel dimensions (clamped to 120–320px via JS) and re-applies that value as `gridAutoRows: \`${photoGridLayout.rowHeight}px\``. Because the row height is derived from a one-shot measurement and stored in state, photo grid rows stay at the last-measured px value during continuous widget resize and only reflow when the ResizeObserver fires a new measurement — typically after the pointer is released. This means rows can appear too large or too small during interactive resize.
+- **Fix:** Replace the JS-measured gridAutoRows with a cq-relative value: `gridAutoRows: 'min(280px, 45cqmin)'` (or equivalent using the existing 120–320px bounds as the `min()` cap). Remove the `photoGridLayout.rowHeight` JS measurement path if no other consumer uses it, or at minimum use cqmin as the steady-state value and use the JS measurement only as a fallback initial value.
 
 ### LOW ActivityWall three front-face view branches have hardcoded Tailwind spacing
 
