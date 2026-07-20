@@ -381,6 +381,10 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       const newAssignments = { ...assignments };
       if (type === null) {
         delete newAssignments[student];
+        // Also clear a legacy name-keyed entry for this student, or the
+        // read-path fallback keeps re-surfacing it as still assigned.
+        const legacyName = activeRoster.find((s) => s.id === student)?.name;
+        if (legacyName) delete newAssignments[legacyName];
       } else {
         newAssignments[student] = type;
       }
@@ -388,7 +392,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
         config: { ...config, assignments: newAssignments },
       });
     },
-    [widget.id, config, assignments, updateWidget]
+    [widget.id, config, assignments, updateWidget, activeRoster]
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -403,15 +407,18 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       setActiveId(null);
 
       const student = active.id as string;
+      const legacyName = activeRoster.find((s) => s.id === student)?.name;
+      const isCurrentlyAssigned =
+        !!assignments[student] || (!!legacyName && !!assignments[legacyName]);
 
       if (over?.id === 'hot' || over?.id === 'bento' || over?.id === 'home') {
         updateAssignment(student, over.id);
-      } else if (assignments[student]) {
+      } else if (isCurrentlyAssigned) {
         // Dropped in 'unassigned' zone or outside all zones — only write if currently assigned
         updateAssignment(student, null);
       }
     },
-    [assignments, updateAssignment]
+    [assignments, activeRoster, updateAssignment]
   );
 
   const handleDragCancel = useCallback(() => {

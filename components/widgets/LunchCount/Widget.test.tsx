@@ -186,6 +186,27 @@ describe('LunchCountWidget', () => {
     expect(await within(homeZone).findByText('John Doe')).toBeInTheDocument();
   });
 
+  it('can unassign a student whose assignment only exists under the legacy name key', async () => {
+    // Regression test: the read-path fallback (previous test) kept legacy
+    // assignments visible, but the write path originally only ever deleted
+    // `assignments[id]` — a no-op when the entry lives under the name key —
+    // so a legacy-keyed student could never actually be unassigned by click.
+    const widget = createWidget({
+      assignments: { 'John Doe': 'home' },
+    });
+
+    render(<LunchCountWidget widget={widget} />);
+
+    const homeZone = screen.getByTestId('home-zone');
+    const chip = await within(homeZone).findByText('John Doe');
+    chip.click();
+
+    const [, updatePayload] = mockDashboardContext.updateWidget.mock.calls.at(
+      -1
+    ) as [string, { config: LunchCountConfig }];
+    expect(updatePayload.config.assignments).not.toHaveProperty('John Doe');
+  });
+
   it('renders correctly for middle school without interactive DND', () => {
     const widget = createWidget({
       schoolSite: 'orono-middle-school',
