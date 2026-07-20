@@ -327,25 +327,34 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     })
   );
 
-  const activeRoster = useMemo((): string[] => {
-    if (rosterMode === 'custom') return roster;
+  // Each entry pairs a stable identity (`id`) with the display `name`.
+  // `assignments` is keyed by `id` — class-roster students use their roster
+  // `id` so two students who share a display name (e.g. two "Emma Smith"s)
+  // get independent assignments instead of colliding on the same key.
+  // Custom-list mode has no backing student record, so the typed name is the
+  // only identity available there.
+  const activeRoster = useMemo((): { id: string; name: string }[] => {
+    if (rosterMode === 'custom') {
+      return roster.map((name) => ({ id: name, name }));
+    }
     const currentRoster =
       rosters.find((r) => r.id === activeRosterId) ?? rosters[0];
     return (
-      currentRoster?.students.map((s) =>
-        `${s.firstName} ${s.lastName}`.trim()
-      ) ?? []
+      currentRoster?.students.map((s) => ({
+        id: s.id,
+        name: `${s.firstName} ${s.lastName}`.trim(),
+      })) ?? []
     );
   }, [rosterMode, roster, rosters, activeRosterId]);
 
   const groupedStudents = useMemo(() => {
-    const hot: string[] = [];
-    const bento: string[] = [];
-    const home: string[] = [];
-    const unassigned: string[] = [];
+    const hot: { id: string; name: string }[] = [];
+    const bento: { id: string; name: string }[] = [];
+    const home: { id: string; name: string }[] = [];
+    const unassigned: { id: string; name: string }[] = [];
 
     activeRoster.forEach((student) => {
-      const assignment = assignments[student];
+      const assignment = assignments[student.id];
       if (assignment === 'hot') hot.push(student);
       else if (assignment === 'bento') bento.push(student);
       else if (assignment === 'home') home.push(student);
@@ -808,10 +817,10 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                 >
                   {groupedStudents.hot.map((student) => (
                     <DraggableStudent
-                      key={student}
-                      id={student}
-                      name={student}
-                      onClick={() => updateAssignment(student, null)}
+                      key={student.id}
+                      id={student.id}
+                      name={student.name}
+                      onClick={() => updateAssignment(student.id, null)}
                       className={studentItemClass}
                       style={studentItemStyle}
                     />
@@ -822,6 +831,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
               {/* Bento Box Drop Zone */}
               <DroppableZone
                 id="bento"
+                data-testid="bento-zone"
                 className="bg-emerald-50 border-2 border-dashed border-emerald-300 rounded-2xl flex flex-col transition-all group"
                 style={{ padding: 'min(10px, 2cqmin)' }}
                 activeClassName="border-solid border-emerald-500 bg-emerald-100/50 scale-[1.02]"
@@ -871,10 +881,10 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                 >
                   {groupedStudents.bento.map((student) => (
                     <DraggableStudent
-                      key={student}
-                      id={student}
-                      name={student}
-                      onClick={() => updateAssignment(student, null)}
+                      key={student.id}
+                      id={student.id}
+                      name={student.name}
+                      onClick={() => updateAssignment(student.id, null)}
                       className={studentItemClass}
                       style={studentItemStyle}
                     />
@@ -936,10 +946,10 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                 >
                   {groupedStudents.home.map((student) => (
                     <DraggableStudent
-                      key={student}
-                      id={student}
-                      name={student}
-                      onClick={() => updateAssignment(student, null)}
+                      key={student.id}
+                      id={student.id}
+                      name={student.name}
+                      onClick={() => updateAssignment(student.id, null)}
                       className={studentItemClass}
                       style={studentItemStyle}
                     />
@@ -995,9 +1005,9 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                   >
                     {groupedStudents.unassigned.map((student) => (
                       <DraggableStudent
-                        key={student}
-                        id={student}
-                        name={student}
+                        key={student.id}
+                        id={student.id}
+                        name={student.name}
                         className={studentItemClass}
                         style={studentItemStyle}
                       />

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { LunchCountWidget } from './Widget';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -132,6 +132,42 @@ describe('LunchCountWidget', () => {
     expect(chip).toBeInTheDocument();
     // We can't easily simulate the full dnd-kit drag-and-drop in jsdom
     // without more setup, but we've verified the refactor structure.
+  });
+
+  it('keeps two same-name students independently assigned (no name-collision)', async () => {
+    // Regression test: assignments must be keyed by the roster student `id`,
+    // not the display name. Two students who share a name (e.g. two "Emma
+    // Smith"s) previously collided on the same `assignments` key, so
+    // assigning one silently moved/overwrote the other's assignment.
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      rosters: [
+        {
+          id: 'roster-1',
+          name: 'Class 1A',
+          students: [
+            { id: 's1', firstName: 'Emma', lastName: 'Smith' },
+            { id: 's2', firstName: 'Emma', lastName: 'Smith' },
+          ],
+        },
+      ],
+    });
+
+    const widget = createWidget({
+      assignments: { s1: 'hot', s2: 'bento' },
+    });
+
+    render(<LunchCountWidget widget={widget} />);
+
+    const chips = await screen.findAllByText('Emma Smith');
+    expect(chips).toHaveLength(2);
+
+    const hotZone = screen.getByTestId('hot-zone');
+    const bentoZone = screen.getByTestId('bento-zone');
+
+    expect(within(hotZone).getAllByText('Emma Smith')).toHaveLength(1);
+    expect(within(bentoZone).getAllByText('Emma Smith')).toHaveLength(1);
+    expect(screen.queryByText('Assign 2 More Students')).toBeNull();
   });
 
   it('renders correctly for middle school without interactive DND', () => {
