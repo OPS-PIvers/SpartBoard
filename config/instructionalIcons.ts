@@ -171,7 +171,7 @@ export const COMMON_INSTRUCTIONAL_ICONS = [
   'Drum',
   'Dumbbell',
   'Egg',
-  'Football',
+  'Goal',
   'Ghost',
   'Grape',
   'Guitar',
