@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-07-20_
-_Last action: 2026-07-08 — LOW TalkingTool `Scaffolding` label pixel cap raised `min(9px, 2.2cqmin)` → `min(10px, 2.2cqmin)`; 9px was below the 10px tertiary-text floor_
+_Last action: 2026-07-20 — MEDIUM ActivityWall photo grid `gridAutoRows` switched from JS-measured px to `clamp(120px, 45cqmin, 320px)`; removed the dead `rowHeight` measurement path so rows track resize continuously_
 
 ---
 
@@ -160,13 +160,6 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### MEDIUM ActivityWall photo grid uses JS-measured px for gridAutoRows
-
-- **Detected:** 2026-07-20
-- **File:** components/widgets/ActivityWall/Widget.tsx
-- **Detail:** Widget has `skipScaling: true`. The photo-submission grid view computes `photoGridLayout.rowHeight` by measuring the container's raw pixel dimensions (clamped to 120–320px via JS) and re-applies that value as `gridAutoRows: \`${photoGridLayout.rowHeight}px\``. Because the row height is derived from a one-shot measurement and stored in state, photo grid rows stay at the last-measured px value during continuous widget resize and only reflow when the ResizeObserver fires a new measurement — typically after the pointer is released. This means rows can appear too large or too small during interactive resize.
-- **Fix:** Replace the JS-measured gridAutoRows with a cq-relative value: `gridAutoRows: 'min(280px, 45cqmin)'` (or equivalent using the existing 120–320px bounds as the `min()` cap). Remove the `photoGridLayout.rowHeight` JS measurement path if no other consumer uses it, or at minimum use cqmin as the steady-state value and use the JS measurement only as a fallback initial value.
-
 ### LOW ActivityWall three front-face view branches have hardcoded Tailwind spacing
 
 - **Detected:** 2026-07-18
@@ -252,6 +245,15 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### MEDIUM ActivityWall photo grid uses JS-measured px for gridAutoRows
+
+- **Detected:** 2026-07-20
+- **Completed:** 2026-07-20
+- **File:** components/widgets/ActivityWall/Widget.tsx
+- **Detail:** Widget has `skipScaling: true`. The photo-submission grid view computed `photoGridLayout.rowHeight` by measuring the container's raw pixel dimensions (clamped to 120–320px via JS) and re-applied that value as `gridAutoRows: \`${photoGridLayout.rowHeight}px\``. Because the row height derived from a one-shot ResizeObserver measurement stored in state, photo grid rows stayed at the last-measured px value during continuous widget resize and only reflowed after the pointer was released, so rows could appear too large or too small mid-drag.
+- **Selection rationale:** Monday run. Reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + Monday weeklies (firestore-rules, test-coverage). Nothing In Progress anywhere. All HIGH items across the list are in Completed sections; the highest Open severity is MEDIUM. widget-registry (daily order 1) has no open items, so css-scaling (daily order 2) wins the daily-before-weekly tiebreak, and this MEDIUM is its only non-LOW open item (top of the Open section in document order). File-recency check passed: `components/widgets/ActivityWall/Widget.tsx` last touched at `874793f7` (#2219), outside the last 5 branch commits (570d5efc, 732ec9b0, 5fb06496, 9a29ccbf, a55c9566 — 5fb06496 fix(activity-wall) touched comments/likes read paths, not this file).
+- **Resolution:** Replaced the JS-measured `gridAutoRows: \`${photoGridLayout.rowHeight}px\``with a container-query value`gridAutoRows: 'clamp(120px, 45cqmin, 320px)'`— the`clamp()`min/max reproduces the prior 120–320px bounds exactly, and`45cqmin`yields ~180px at the previous default container size while now tracking widget resize continuously instead of snapping only on pointer-release.`rowHeight`had a single consumer (the`gridAutoRows`template literal), so the whole measurement path was removed from the`photoGridLayout`IIFE: dropped the`rowHeight` field from both the early-return (`{ columns: 2, rowHeight: 180 }`→`{ columns: 2 }`) and the main return, and deleted the now-unused `minTileHeight`/`rows`/`rawRowHeight`/`maxTileHeight`locals. The`columns`bin-packing (which still needs the JS width/height measurement and the ResizeObserver) is unchanged; column count still reflows on resize-release, which was never the flagged issue.`pnpm run type-check`(exit 0),`eslint --max-warnings 0`on the changed file (exit 0),`prettier --check` (clean), all 16 ActivityWall tests pass (Widget/Settings/ShareModal).
 
 ### LOW QuizResults period-filter `<select>` uses hardcoded `text-sm`
 
