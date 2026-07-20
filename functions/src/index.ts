@@ -104,6 +104,7 @@ export { mirrorPlcIndex } from './mirrorPlcIndex';
 export { migratePlcs } from './migratePlcs';
 export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 export { expireSubShares } from './expireSubShares';
+export { expireActivityWallShares } from './expireActivityWallShares';
 export { finalizeIdleQuizAttempts } from './finalizeIdleQuizAttempts';
 export {
   exchangeGoogleAuthCode,
