@@ -17,6 +17,7 @@ import { db, functions, isAuthBypass } from '@/config/firebase';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { mapWithConcurrency } from '@/utils/mapWithConcurrency';
+import { assignPins } from '@/utils/rosterPins';
 
 /**
  * Phase 3 — rebuild the per-roster pin_index sidecar after a roster save.
@@ -81,17 +82,6 @@ async function syncRosterPinIndex(
   } catch (err) {
     console.warn('[useRosters] commitRosterPinIndexV1 failed:', err);
   }
-}
-
-/**
- * Assigns zero-padded sequential PINs to students that don't have one yet.
- * Returns a new array — does not mutate the input.
- */
-function assignPins(students: Student[]): Student[] {
-  return students.map((s, i) => ({
-    ...s,
-    pin: s.pin || String(i + 1).padStart(2, '0'),
-  }));
 }
 
 /**
