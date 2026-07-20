@@ -379,12 +379,13 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   const updateAssignment = useCallback(
     (student: string, type: 'hot' | 'bento' | 'home' | null) => {
       const newAssignments = { ...assignments };
+      // Always clear a legacy name-keyed entry for this student — otherwise
+      // it either keeps re-surfacing via the read-path fallback after an
+      // unassign, or lingers as orphaned data after a direct reassignment.
+      const legacyName = activeRoster.find((s) => s.id === student)?.name;
+      if (legacyName) delete newAssignments[legacyName];
       if (type === null) {
         delete newAssignments[student];
-        // Also clear a legacy name-keyed entry for this student, or the
-        // read-path fallback keeps re-surfacing it as still assigned.
-        const legacyName = activeRoster.find((s) => s.id === student)?.name;
-        if (legacyName) delete newAssignments[legacyName];
       } else {
         newAssignments[student] = type;
       }
