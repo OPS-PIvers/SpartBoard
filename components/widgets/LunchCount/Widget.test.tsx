@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, fireEvent } from '@testing-library/react';
 import { LunchCountWidget } from './Widget';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -199,7 +199,7 @@ describe('LunchCountWidget', () => {
 
     const homeZone = screen.getByTestId('home-zone');
     const chip = await within(homeZone).findByText('John Doe');
-    chip.click();
+    fireEvent.click(chip);
 
     const [, updatePayload] = mockDashboardContext.updateWidget.mock.calls.at(
       -1
