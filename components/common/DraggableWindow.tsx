@@ -1995,6 +1995,23 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const longPressMoved = useRef(0);
   const activeTouchCount = useRef(0);
 
+  // Guards the two long-press setTimeouts below: if the widget is removed
+  // (Firestore-driven delete, dashboard switch, admin force-remove) while a
+  // touch is still held down, onPointerUp never runs — the host node has
+  // already detached — so nothing clears the pending timer. Without this
+  // flag the stale callback later fires takeScreenshot()/setIsAnnotating()
+  // and closes tools (setSelectedWidgetId(null)) against whatever the app
+  // is doing by the time it fires. This ref is only ever written here (by
+  // the unmount effect) and only ever read in the timer callbacks below, so
+  // it doesn't need the activeGestureCleanupRef-style indirection those
+  // gestures use.
+  const isUnmountedRef = useRef(false);
+  useEffect(() => {
+    return () => {
+      isUnmountedRef.current = true;
+    };
+  }, []);
+
   const handleWidgetPointerDown = (e: React.PointerEvent) => {
     // Same portal-events guard as `handlePointerDown` — see the comment
     // there. A modal click bubbling through the React tree should not
@@ -2014,6 +2031,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         // Start a 2-finger long press timer
         twoFingerLongPressTimer.current = setTimeout(() => {
           twoFingerLongPressTimer.current = null;
+          if (isUnmountedRef.current) return;
           if (activeTouchCount.current >= 2) {
             setIsAnnotating((prev) => !prev);
             handleCloseTools();
@@ -2027,6 +2045,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         longPressMoved.current = 0;
         longPressTimer.current = setTimeout(() => {
           longPressTimer.current = null;
+          if (isUnmountedRef.current) return;
           const LONG_PRESS_MOVE_TOLERANCE_PX = 15;
           if (
             activeTouchCount.current === 1 &&
