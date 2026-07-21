@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
 _Last audited: 2026-07-21_
-_Last action: 2026-07-16_
+_Last action: 2026-07-21_
 
 ---
 
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-21 (action): Resolved the MEDIUM `ws` uninitialized-memory-disclosure item. Selection: today is Tuesday; reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + Tuesday weeklies dependency-audit / skill-freshness. widget-registry and typescript-eslint have no open items; css-scaling and skill-freshness open items are all LOW. The MEDIUM/HIGH items today are all dependency-audit MEDIUMs, so this weekly wins the severity tiebreak (severity outranks daily-before-weekly). In document order the first MEDIUM is the `pnpm audit` 410 tooling item — **skipped as not a safe unattended auto-fix**: its own 2026-07-21 update note records that audit is working again this run, and the residual "fix" is an open-ended policy call (confirm-in-CI / switch scanner / adopt Dependabot) that targets repo automation, not a mechanical override. The next actionable MEDIUM in document order is `ws`. File-recency check on `package.json` passed (no touch in the last 5 branch commits). Applied a **scoped** override — `"ws@8": "^8.20.1"` — after first confirming that a bare `"ws"` override also (unnecessarily) forced firebase-tools' non-vulnerable `ws@7.5.x` up to 8.x; the `ws@8` selector (matching the file's existing `path-to-regexp@8` convention) bumps only the vulnerable 8.x line to `ws@8.21.1` and leaves `ws@7.5.13` alone. After `pnpm install`, `pnpm why ws` = `ws@8.21.1` + `ws@7.5.13` (8.19.0/8.20.0 gone; zero residual matches in the lockfile); `pnpm audit` reports no `ws` advisory. Dev-only (jsdom/vitest) — no production runtime impact. Verified clean: `prettier --check package.json` (clean), `pnpm run type-check` (0 errors), `pnpm run test` (575 files / 6997 tests all pass). Moved item to Completed. PR #2257 opened against dev-paul (draft). Remaining MEDIUM items (pnpm-audit-410, yaml, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash) and the LOW items all still active._
 
 _2026-07-21: `pnpm audit` IS working in this environment — returned full vulnerability data (139 root / 71 functions) after the 2026-07-16 HTTP 410 outage. NOTE: may be proxy-specific; status in CI or other environments is unknown. Root: **139 vulnerabilities** (8 low | 60 moderate | 67 high | 4 critical) — UP from 118 on 2026-07-09 (last successful data). Functions: **71 vulnerabilities** (5 low | 31 moderate | 33 high | 2 critical) — UP from 58 on 2026-07-09. Count increase is from new CVE advisories published during the 12-day gap (2026-07-09 to 2026-07-21). CRITICAL changes (root now 4 criticals, was 2): NEW `websocket-driver` CRITICAL (message corruption via `firebase-admin>@firebase/database-compat>@firebase/...` — added to MEDIUM firebase-admin item below); NEW `tar` CRITICAL (node-tar unlimited-input DoS, <=7.5.18, patched >=7.5.19 — added to MEDIUM firebase-tools item below; the existing override `"tar": ">=7.5.11"` is now also insufficient for this CRITICAL). MEDIUM axios item updated: 2 new CVEs now require >=1.18.0 (previously >=1.16.0 was sufficient; latest is now 1.18.1 not 1.16.0). MEDIUM pnpm-audit-410 status: situationally working this run (see note in that item — not marking Completed until confirmed in CI). `pnpm outdated` (root): @google/genai 1.51.0→2.12.0 (MAJOR), firebase 12.8.0→12.16.0, react/react-dom 19.2.4→19.2.7, axios (dev) 1.15.0→1.18.1, @eslint/js 9→10 (MAJOR), @testing-library/jest-dom 6→7 (MAJOR). `pnpm outdated` (functions): @google/genai 1.51.0→2.12.0 (MAJOR), firebase-admin 13.6.0→14.2.0 (MAJOR), jose 4.15.9→6.2.3 (2 majors), typescript (dev) 5.9.3→7.0.2 (2 majors). LOW major-versions item updated to reflect current latest versions. All other existing items (ws, yaml, hono, firebase-tools, firebase-admin, MCP SDK, lodash, @types/tesseract.js, jose, major-versions) remain valid._
 
@@ -45,16 +47,6 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 - **File:** package.json / functions/package.json (tooling)
 - **Detail:** `pnpm audit` (both root and functions) returned HTTP 410 on 2026-07-16 with: `"This endpoint is being retired. Use the bulk advisory endpoint instead."` Both endpoints (`/-/npm/v1/security/audits/quick` and `/-/npm/v1/security/audits`) were unavailable. Exit code was 0, so CI did not fail — but no vulnerability data was returned. 2026-07-21 run shows audit working again in this environment; gap data (2026-07-09 to 2026-07-21) captured in the run note above.
 - **Fix:** Confirm audit works in CI. If still broken in CI, switch to an alternative: (a) `npm audit` via Node's own npm CLI; (b) `pnpm audit --use-node-fetch` or newer pnpm; (c) `osv-scanner` against lock files; (d) GitHub Dependabot security alerts. Option (d) is lowest friction.
-
-### MEDIUM `ws@8.19.0` + `ws@8.20.0` uninitialized memory disclosure — via jsdom/vitest
-
-- **Detected:** 2026-05-19
-- **File:** package.json (devDependencies via `jsdom@27.4.0` and `vitest@4.0.18`)
-- **Detail:** `ws` >=8.0.0 <8.20.1 has an uninitialized memory disclosure vulnerability. Two vulnerable versions are installed:
-  - `ws@8.19.0` — via `jsdom@27.4.0` and `vitest@4.0.18 > @vitest/mocker`
-  - `ws@8.20.0` — via another dev dep chain
-    Both are in the vulnerable range (fix is >=8.20.1). `ws@7.5.10` (via firebase-tools) is NOT in the vulnerable range. Dev-only — not shipped to users.
-- **Fix:** Add `"ws": ">=8.20.1"` to `pnpm.overrides` in `package.json`. Alternatively, update `jsdom` and `vitest` to versions that pull in ws@8.20.1+. The `vitest` major version update (4.x → latest) is tracked in the LOW major versions item and would naturally resolve this.
 
 ### MEDIUM `yaml@2.8.2` stack overflow via deeply nested input — via dev toolchain
 
@@ -184,6 +176,14 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 ---
 
 ## Completed
+
+### MEDIUM `ws@8.19.0` + `ws@8.20.0` uninitialized memory disclosure — via jsdom/vitest
+
+- **Detected:** 2026-05-19
+- **Completed:** 2026-07-21
+- **File:** package.json (`pnpm.overrides`; devDependencies via `jsdom@27.4.0` and `vitest > @vitest/mocker`), pnpm-lock.yaml
+- **Detail:** `ws` >=8.0.0 <8.20.1 has an uninitialized memory disclosure vulnerability. Two vulnerable versions were installed: `ws@8.19.0` (via `jsdom@27.4.0` and `vitest > @vitest/mocker`) and `ws@8.20.0` (another dev-dep chain). Both in the vulnerable range (fix >=8.20.1). `ws@7.5.x` (via `firebase-tools`) is NOT in the vulnerable range. Dev-only — not shipped to users.
+- **Resolution:** Applied a **scoped** override — added `"ws@8": "^8.20.1"` to `pnpm.overrides` in `package.json` rather than the journal's originally-suggested bare `"ws": ">=8.20.1"`. A bare `"ws"` override was tried first and confirmed to also force the non-vulnerable `ws@7.5.x` path (firebase-tools) up to 8.x — an unnecessary major bump of a dev tool's transitive dep. Scoping to the `8` major (matching the file's existing `path-to-regexp@8` / `path-to-regexp@0.1` scoped-selector convention) bumps only the vulnerable 8.x line to `ws@8.21.1` while leaving `ws@7.5.13` untouched. After `pnpm install`, `pnpm why ws` reports `ws@8.21.1` + `ws@7.5.13` (both 8.19.0 and 8.20.0 gone; zero residual `ws@8.19.0`/`ws@8.20.0` matches in `pnpm-lock.yaml`); `pnpm audit` no longer reports a `ws` advisory (`"module_name":"ws"` absent from audit JSON). File-recency check on `package.json` passed (no touch in the last 5 branch commits). Verified clean: `prettier --check package.json` (clean), `pnpm run type-check` (0 errors), full unit suite `pnpm run test` (575 files / **6997 tests all pass** — exercises the jsdom/vitest chains that consume `ws`). Lockfile diff minimal (net simplification — dedupe). PR #2257 opened against dev-paul (draft; diff = `package.json` + `pnpm-lock.yaml`; this journal record lives on scheduled-tasks). Remaining MEDIUM items (pnpm-audit-410, yaml, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash) and the LOW items all still active.
 
 ### MEDIUM `flatted@3.3.3` has unbounded recursion DoS + prototype pollution — via eslint chain
 
