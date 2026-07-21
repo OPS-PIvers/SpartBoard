@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-20_
+_Last audited: 2026-07-21_
 _Last action: 2026-07-20 — MEDIUM ActivityWall photo grid `gridAutoRows` switched from JS-measured px to `minmax(clamp(120px, 45cqmin, 320px), 1fr)`; removed the dead `rowHeight` measurement path so rows track resize continuously while still filling tall widgets at low photo counts_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-21: Targeted scan (Tuesday). New dev-paul commits since 2026-07-20 (absorbed via rebase): fix(activity-wall) photo-grid rowHeight cqmin fix (#2253 — Widget.tsx front-face changed). Verified ActivityWall/Widget.tsx front-face post-fix: `gridAutoRows` now uses `minmax(clamp(120px, 45cqmin, 320px), 1fr)` — clean, no anti-patterns (MEDIUM open item resolved by dev-paul, moved to Completed below). Sub-agent scan of 12 target widget files (BloomsTaxonomy, BloomsDetail, Stations, NeedDoPutThen, ActivityWall, WorkSymbols, First5, ConceptWeb, SyntaxFramer, GraphicOrganizer, NumberLine, RevealGrid). ONE widget with violations: RevealGrid/Widget.tsx :157 (header title "Vocabulary Review" — no font-size class, inherits browser default 16px), :162 (text-xs on "Start Over" button), :168 (text-xs on "Show Answers" label) — all already tracked in existing LOW open item "LOW RevealGrid has additional hardcoded spacing". All other 11 files CLEAN. All pre-existing open items confirmed; no new anti-patterns._
 
 _2026-07-20: Full scan (Monday). New dev-paul commits since 2026-07-19: refactor(types) GraphicOrganizerLayoutType, fix/feat(admin-config) GraphicOrganizer defaults — none touching widget front-face content. Agent scan of 27 widget files. Findings reviewed: (1) ActivityWall/Widget.tsx photo grid `gridAutoRows: ${photoGridLayout.rowHeight}px` — NEW MEDIUM item (rows use JS-measured px, stale during continuous resize); see new open item below. (2) RevealGrid text-xs/gap-4 — already tracked. (3) MusicWidget cqh-only — WON'T FIX per journal guidance (fill-better formula, documented multiple times). (4) LunchCount maxHeight:45cqh — WON'T FIX per journal guidance (intentional sub-section cap, per 2026-06-17 analysis). (5) GuidedLearning w-8 h-8 Loader2 — already tracked in group item. (6) NextUp gap-2/mb-2/px-1 — already tracked in group item. 21 other widget files confirmed clean. Pre-existing open items (ActivityWall spacing, ClockWidget ml-2, MathTools px-2/gap-1, Onboarding gap-2, EmbedWidget portaled toolbar, RevealGrid spacing, group item inc. GuidedLearning/NextUp/InstructionalRoutines etc.) all confirmed unresolved._
 
