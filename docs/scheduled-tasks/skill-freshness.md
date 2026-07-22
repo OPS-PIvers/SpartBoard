@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-07-16_
+_Last audited: 2026-07-21_
 _Last action: 2026-07-09 — MEDIUM SpecialistSchedule Appearance.tsx/co-located-Settings pattern documented + stale `.agents/` reference row corrected in new-widget skill (both mirrors)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-21: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — consistent with all prior runs). Codebase-side verification via sub-agent: new dev-paul commits since 2026-07-20 (absorbed via rebase): fix(activity-wall) photo-grid rowHeight cqmin fix (#2253 — Widget.tsx only, no skill-relevant files). Full checklist verification: all 8 required files (types.ts, config/tools.ts, config/widgetDefaults.ts, config/widgetGradeLevels.ts, components/widgets/WidgetRegistry.ts, components/admin/, components/admin/FeaturePermissionsManager.tsx) confirmed present. `SpecialistSchedule/` still has `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts`, `utils.ts` — reference note from 2026-07-09 accurate. `lazyNamed()` convention correct in WidgetRegistry.ts. All 6 reference widget implementations confirmed present. ONE NEW LOW item: `spart-widget-admin-config` Path B example list references `ScheduleConfigurationPanel.tsx` — no file by that name exists in `components/admin/` (directory scan confirms only `ClockConfigurationPanel.tsx` and `DiceConfigurationPanel.tsx` among the examples; `ScheduleConfigurationPanel.tsx` is absent). All 4 pre-existing LOW items remain valid. Total open: 5 LOW._
 
 _2026-07-16: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — consistent with all prior runs). Codebase-side verifications performed against new dev-paul commits since 2026-07-09: fix(rules) moderation-bypass (#2215 — firestore.rules + test), fix(i18n) ES Comunidad (#2214 — locales), fix(classroomAddon) dedup question ids (#2213 — classroomAddon component), perf(Sidebar) code-split AdminSettings (#2212 — Sidebar.tsx), fix(GuidedLearning) folder badge (#2211 — GuidedLearningManager.tsx), docs(unifier) run 34 (#2209 — docs), D4 ESLint regex widen (#2208 — eslint.config.js), Retrofit RandomSettings SettingsLabel (#2207 — RandomSettings.tsx back-face), QuizManager unify-empty-states (#2206 — QuizManager.tsx). None of these touch FeaturePermissionsManager.tsx, FeatureConfigurationPanel.tsx, SpecialistSchedule/, WidgetRegistry.ts, types.ts, or any skill file. Verified: (1) `SpecialistSchedule/` still contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts`, `utils.ts` — no `Appearance.tsx`; reference note added 2026-07-09 in both skill mirrors remains accurate. (2) `FeaturePermissionsManager.tsx` exclusion array still 13 hardcoded types — LOW item about exclusion array example remains valid. (3) `FeatureConfigurationPanel.tsx` `BUILDING_CONFIG_PANELS` (line 92) still present and growing — LOW secondary-exclusion-gate item remains valid. (4) `lazyNamed()` convention confirmed correct across WidgetRegistry.ts. (5) RandomSettings SettingsLabel retrofit is consistent with the `SettingsLabel` group-heading pattern documented in the skill — no discrepancy. All 5 pre-existing LOW items remain valid. Zero new items._
 
@@ -47,6 +49,13 @@ _2026-05-12: Skill files not accessible at `/mnt/skills/user/` in this audit env
 _2026-05-05: Skill files not accessible at `/mnt/skills/user/` in this audit environment. Codebase-side verifications performed: `SpecialistSchedule/SpecialistScheduleWidget.tsx` still exists (Widget.tsx does not); `FeaturePermissionsManager.tsx` exclusion list still omits the 7 types noted in the LOW item below; `FeatureConfigurationPanel.tsx` secondary exclusion gate still undocumented in skill. `blending-board` was added to `BUILDING_CONFIG_PANELS` in `FeatureConfigurationPanel.tsx` this week — the exclusion-list LOW item is now more stale. All four open items remain valid._
 
 _2026-06-23 action: Fixed MEDIUM `admin-widget-config` reference to non-existent `SpecialistScheduleSettings.tsx`. Both skill copies (`.claude/skills/admin-widget-config/SKILL.md:222` and `.agents/skills/admin-widget-config/SKILL.md:185`) updated to reference the correct path `components/widgets/SpecialistSchedule/Settings.tsx`. Verified the target file exists and reads `featurePermissions` (Settings.tsx:48). File-recency check passed: skill files last touched at 19b6ae40 — outside the last 5 branch commits. Documentation-only change; PR opened against dev-paul. Item moved to Completed. 2 LOW open items remain._
+
+### LOW `spart-widget-admin-config` Path B example references non-existent `ScheduleConfigurationPanel.tsx`
+
+- **Detected:** 2026-07-21
+- **File:** `.claude/skills/admin-widget-config/SKILL.md` — Path B example list
+- **Detail:** The skill's Path B section mentions `ScheduleConfigurationPanel.tsx` as an example of an existing panel alongside `ClockConfigurationPanel.tsx` and `DiceConfigurationPanel.tsx`. No file named `ScheduleConfigurationPanel.tsx` exists in `components/admin/` — a full directory scan confirms its absence. The schedule widget's admin configuration is handled differently (likely via `SpecialistScheduleConfigurationModal.tsx` which does exist). A developer following the example literally cannot find the referenced file. Both `ClockConfigurationPanel.tsx` and `DiceConfigurationPanel.tsx` do exist and are valid examples; only the schedule entry is stale.
+- **Fix:** Replace `ScheduleConfigurationPanel.tsx` in the Path B example list with a panel that exists — e.g., `SoundboardConfigurationPanel.tsx` or `CountdownConfigurationPanel.tsx` — or remove the stale entry and reference `SpecialistScheduleConfigurationModal.tsx` (which does exist) with a note that complex widgets use a modal pattern.
 
 ### LOW `spart-new-widget` admin config step understates the number of code changes required
 

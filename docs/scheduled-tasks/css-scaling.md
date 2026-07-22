@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-20_
+_Last audited: 2026-07-22_
 _Last action: 2026-07-20 — MEDIUM ActivityWall photo grid `gridAutoRows` switched from JS-measured px to `minmax(clamp(120px, 45cqmin, 320px), 1fr)`; removed the dead `rowHeight` measurement path so rows track resize continuously while still filling tall widgets at low photo counts_
 
 ---
@@ -21,6 +21,10 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-22: Targeted scan (Wednesday). No new dev-paul commits absorbed (rebase not performed — dev-paul diverged). Agent scan of recently-active widget files. ONE new MEDIUM finding: `SoundWidget/Widget.tsx:301` — `<PopcornBallsView height={h - 60} ... />` where `h` is the raw JS-measured pixel height of the widget container (obtained via `useMeasure`). This passes a hard pixel value into `PopcornBallsView` instead of letting CSS container queries govern layout, bypassing the CQ system entirely. The `- 60` subtracts a fixed header offset, so any change to the header height silently breaks the calculation. This is a CSS anti-pattern distinct from the existing SoundWidget spacing items in the group LOW item. Also re-confirmed: RevealGrid `gap-4` at line 183 (already tracked in the LOW RevealGrid open item — note: line 185 in the detail text is stale, actual line is 183 per 2026-07-12 confirmation). Zero other new anti-patterns._
+
+_2026-07-21: Targeted scan (Tuesday). New dev-paul commits since 2026-07-20 (absorbed via rebase): fix(activity-wall) photo-grid rowHeight cqmin fix (#2253 — Widget.tsx front-face changed). Verified ActivityWall/Widget.tsx front-face post-fix: `gridAutoRows` now uses `minmax(clamp(120px, 45cqmin, 320px), 1fr)` — clean, no anti-patterns (MEDIUM open item resolved by dev-paul, moved to Completed below). Sub-agent scan of 12 target widget files (BloomsTaxonomy, BloomsDetail, Stations, NeedDoPutThen, ActivityWall, WorkSymbols, First5, ConceptWeb, SyntaxFramer, GraphicOrganizer, NumberLine, RevealGrid). ONE widget with violations: RevealGrid/Widget.tsx :157 (header title "Vocabulary Review" — no font-size class, inherits browser default 16px), :162 (text-xs on "Start Over" button), :168 (text-xs on "Show Answers" label) — all already tracked in existing LOW open item "LOW RevealGrid has additional hardcoded spacing". All other 11 files CLEAN. All pre-existing open items confirmed; no new anti-patterns._
 
 _2026-07-20: Full scan (Monday). New dev-paul commits since 2026-07-19: refactor(types) GraphicOrganizerLayoutType, fix/feat(admin-config) GraphicOrganizer defaults — none touching widget front-face content. Agent scan of 27 widget files. Findings reviewed: (1) ActivityWall/Widget.tsx photo grid `gridAutoRows: ${photoGridLayout.rowHeight}px` — NEW MEDIUM item (rows use JS-measured px, stale during continuous resize); see new open item below. (2) RevealGrid text-xs/gap-4 — already tracked. (3) MusicWidget cqh-only — WON'T FIX per journal guidance (fill-better formula, documented multiple times). (4) LunchCount maxHeight:45cqh — WON'T FIX per journal guidance (intentional sub-section cap, per 2026-06-17 analysis). (5) GuidedLearning w-8 h-8 Loader2 — already tracked in group item. (6) NextUp gap-2/mb-2/px-1 — already tracked in group item. 21 other widget files confirmed clean. Pre-existing open items (ActivityWall spacing, ClockWidget ml-2, MathTools px-2/gap-1, Onboarding gap-2, EmbedWidget portaled toolbar, RevealGrid spacing, group item inc. GuidedLearning/NextUp/InstructionalRoutines etc.) all confirmed unresolved._
 
@@ -160,6 +164,13 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
+### MEDIUM SoundWidget passes raw JS-measured pixel height to PopcornBallsView, bypassing container queries
+
+- **Detected:** 2026-07-22
+- **File:** components/widgets/SoundWidget/Widget.tsx:301
+- **Detail:** `<PopcornBallsView height={h - 60} ... />` where `h` is the measured pixel height of the widget container (obtained from `useMeasure`). The `- 60` constant is a hardcoded estimate of the header height. This bypasses the CSS container query system entirely: the component receives a raw pixel number rather than responding to the container's CQ context. Consequences: (1) Any header height change silently breaks the calculation. (2) The layout cannot be tested in jsdom (no layout engine). (3) It creates a hard coupling between the outer widget measurement and `PopcornBallsView`'s internal sizing. Widget has `skipScaling: true`.
+- **Fix:** Remove the `height` prop from `PopcornBallsView` and replace its internal height-dependent sizing with `cqh`-based CSS (`height: 100%` fill plus `cqmin` for inner elements). The widget content area is a CSS container (`container-type: size`), so `100cqh` inside `PopcornBallsView` accurately tracks the available height without any JS measurement. If `PopcornBallsView` needs to know the exact header height for layout, express it as a CSS variable or a `cqh`-relative calculation rather than a raw pixel subtraction.
+
 ### LOW ActivityWall three front-face view branches have hardcoded Tailwind spacing
 
 - **Detected:** 2026-07-18
@@ -199,7 +210,7 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 
 - **Detected:** 2026-04-12 (expanded 2026-04-14)
 - **File:** components/widgets/RevealGrid/Widget.tsx:158, :162, :168, :183 (lines confirmed 2026-07-12; shifted from :159/:164/:170/:185)
-- **Detail:** In addition to the previously noted `text-xs` on control labels (lines 164, 170), the widget also has: `gap-2` on the header controls row (line 159), `py-1 px-3` on the "Start Over" button (line 164), and `gap-4` on the main card grid (line 185). Widget has `skipScaling: true`.
+- **Detail:** In addition to the previously noted `text-xs` on control labels (lines 162, 168), the widget also has: `gap-2` on the header controls row (line 158), `py-1 px-3` on the "Start Over" button (line 162), and `gap-4` on the main vocabulary card grid (line 183). Widget has `skipScaling: true`.
 - **Fix:** Convert all noted Tailwind sizing classes to inline `cqmin` equivalents per project pattern. See prior entry for text-xs fix guidance.
 
 ### LOW Multiple widgets with hardcoded gap/padding/icon-size spacing (group)

@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-07-17_
+_Last audited: 2026-07-22_
 _Last action: 2026-05-01_
 
 ---
 
 ## Audit Log
+
+_2026-07-22: Full audit (Audit E1 — Wednesday weekly). No new dev-paul commits absorbed (rebase not performed — dev-paul diverged). (1) Type assertions: 7 new LOW cast clusters found — TimeTool 6 partial-update casts, RandomWidget 13 casts (highest density in codebase), widgetConfigPersistence Object.assign cast, adminBuildingConfig double-cast for WIDGET_DEFAULTS, AnnouncementOverlay widgetConfig double-cast. 5 new LOW items added below. (2) Heavy hooks: NEW LOW — `hooks/usePlcTrash.ts` has 9 useState calls fanning out over 6 parallel collection subscriptions; `hooks/usePlcResources.ts` has 9 useState calls with 3 parallel resource-loading pairs that could consolidate to `{ loading, error, data }` tuples. 2 new LOW items added below. (3) Prop drilling: existing LOW item detail updated — MountedBoardsLayer passthrough count is 13 props (not 6 as originally noted; 6 was the live-session callback count within the broader set). (4) Existing casts all re-confirmed: useFirestore.ts MEDIUM, ai_security.ts MEDIUM, dashboardPII/smartPaste LOW, BlockRenderer LOW, icon registry LOW, FeatureConfigurationPanel LOW, QuizWidget LOW. 7 new LOW open items total._
 
 _2026-07-17: Full audit (Audit E1 — Friday weekly). (1) Type assertion density: all existing cast items re-confirmed valid — useFirestore.ts `as unknown as Dashboard` (MEDIUM), ai_security.ts structuredClone casts (MEDIUM), smartPaste.ts/dashboardPII.ts single-casts (LOW), BlockRenderer.tsx 18 casts (LOW), icon registry 3-file cast (LOW), FeatureConfigurationPanel.tsx BuildingConfigPanel cast (LOW), QuizWidget state density (LOW). (2) Heavy hooks: useQuizSession.ts (22 useState/useRef), useVideoActivitySession.ts (18) — unchanged, existing LOW item. (3) Prop drilling: NEW LOW — 6 live-session event callbacks threaded through DashboardView → MountedBoardsLayer → BoardCanvas → WidgetRenderer as passthrough props; intermediate layers forward without consuming. (4) Nested ternaries: NEW LOW — `val === 'all' ? 'All' : val === 'on' ? 'On' : 'Off'` repeated verbatim in GlobalPermissionsManager.tsx:724, BackgroundManager/index.tsx:657, FeaturePermissionsManager.tsx:376; DraggableWindow.tsx has a 4-deep nested ternary for corner-position assignment repeated twice in the same component. 2 new LOW open items added._
 
@@ -26,12 +28,13 @@ _Nothing currently in progress._
 
 ## Open
 
-### LOW Prop drilling — 6 live-session event callbacks threaded through 3 intermediate layers as passthrough props
+### LOW Prop drilling — 13 passthrough props (including 6 live-session callbacks) threaded through 3 intermediate layers
 
 - **Detected:** 2026-07-17
+- **Updated:** 2026-07-22 — count corrected to 13 total passthrough props through MountedBoardsLayer (6 live-session callbacks + 7 additional props). The original entry noted only the 6 callbacks.
 - **Files:** components/layout/DashboardView.tsx, components/layout/MountedBoardsLayer.tsx, components/layout/BoardCanvas.tsx, components/widgets/WidgetRenderer.tsx
-- **Detail:** Six live-session event callbacks are passed as props from `DashboardView` down through `MountedBoardsLayer` → `BoardCanvas` → `WidgetRenderer`, with intermediate layers forwarding them without consuming. The intermediate components' prop types inflate to include all 6 callbacks. These callbacks originate from `useLiveSession` which is already available in context or could be. The pattern creates brittle prop chains that must be updated if the callback set changes.
-- **Fix:** Either (a) expose the live-session callbacks via a `LiveSessionContext` (or extend `DashboardContext`) so `WidgetRenderer` can consume them directly without threading through intermediate layers; or (b) consolidate the 6 callbacks into a single `sessionCallbacks` object prop to reduce the spread of changes when the set evolves.
+- **Detail:** Thirteen props are passed from `DashboardView` down through `MountedBoardsLayer` → `BoardCanvas` → `WidgetRenderer`, with intermediate layers forwarding them without consuming. Six of these are live-session event callbacks originating from `useLiveSession` (which is already available in context or could be); the remaining 7 are additional forwarding props. The intermediate components' prop types inflate to include all 13 props, creating brittle chains that must be updated when the prop set changes.
+- **Fix:** Either (a) expose the live-session callbacks via a `LiveSessionContext` (or extend `DashboardContext`) so `WidgetRenderer` can consume them directly without threading through intermediate layers; or (b) consolidate callbacks into a single `sessionCallbacks` object prop. For non-callback forwarded props, evaluate whether they can also be moved to context or are genuinely best passed as props.
 
 ### LOW Triple-duplicated `val === 'all' ? 'All' : val === 'on' ? 'On' : 'Off'` ternary and multi-level DraggableWindow corner ternary
 
@@ -39,6 +42,55 @@ _Nothing currently in progress._
 - **Files:** components/admin/GlobalPermissionsManager.tsx:724, components/admin/BackgroundManager/index.tsx:657, components/admin/FeaturePermissionsManager.tsx:376, components/common/DraggableWindow.tsx
 - **Detail:** The ternary `val === 'all' ? 'All' : val === 'on' ? 'On' : 'Off'` appears verbatim in three separate admin files. Each is a standalone expression with no shared helper. Separately, `DraggableWindow.tsx` contains a 4-deep nested ternary for corner-position CSS assignment that is duplicated in two places within the same component.
 - **Fix:** For the three-file ternary, extract to a shared `formatPermissionValue` (or `displayAccessLevel`) utility and import from a common location. For the `DraggableWindow` corner ternary, extract to a local `getCornerClass(position)` helper within the file. Both are mechanical extractions with no behavior change.
+
+### LOW `TimeTool/useTimeTool.ts` uses 6 `as WidgetConfig` casts on partial update objects
+
+- **Detected:** 2026-07-22
+- **File:** components/widgets/TimeTool/useTimeTool.ts (lines 47, 223, 237, 255, 273, 291)
+- **Detail:** Six call sites pass partial objects to `updateWidget` with `as WidgetConfig` casts: e.g. `updateWidget(id, { config: { ...widget.config, someField: value } as WidgetConfig })`. The partial object omits required `WidgetConfig` fields, so the cast masks a shape mismatch. Class (b): if `WidgetConfig` gains new required fields, all six sites will silently pass incomplete configs. This is the same pattern tracked for `useVideoActivitySession` and `RandomWidget` — systemic across session hooks.
+- **Fix:** Either (a) type the partial update as `Partial<WidgetConfig>` and update `updateWidget`'s signature to accept it; or (b) define a `makeTimerConfig(partial: Partial<TimerConfig>): WidgetConfig` helper that spreads over the default config and returns a fully-typed object. Option (a) is the lower-effort systemic fix if `updateWidget` is updated to accept `Partial<WidgetConfig>`.
+
+### LOW `RandomWidget.tsx` has 13 `as WidgetConfig` partial-update casts — highest cast density in the codebase
+
+- **Detected:** 2026-07-22
+- **File:** components/widgets/random/RandomWidget.tsx (lines 294, 381, 386, 391, 454, 480, 581, 590, 602, 775, 984, 1004, 1279)
+- **Detail:** Thirteen `updateWidget` call sites all cast partial config objects with `as WidgetConfig`. This is the highest concentration of this pattern in the codebase (vs. 6 in `useTimeTool.ts`, 8 in `useVideoActivity.ts`). Each cast hides the fact that the partial object is not a complete `WidgetConfig`. Class (b): any new required field on `WidgetConfig` will silently propagate as `undefined` through all 13 sites.
+- **Fix:** Same systemic fix as `useTimeTool.ts` — either update `updateWidget` to accept `Partial<WidgetConfig>` or introduce a `RandomWidget`-scoped `makeRandomConfig(partial)` helper. Given the count (13 sites in one file), the systemic `Partial<WidgetConfig>` approach is strongly preferred.
+
+### LOW `utils/widgetConfigPersistence.ts:114` — `Object.assign` merge result cast to `WidgetConfig` masks generic absence
+
+- **Detected:** 2026-07-22
+- **File:** utils/widgetConfigPersistence.ts:114
+- **Detail:** `return Object.assign({}, defaults, saved) as WidgetConfig` — `Object.assign` returns `WidgetConfig & SavedConfig` (or similar), but since `mergeWidgetConfig` is not generic over the specific config subtype, the result is cast to the base `WidgetConfig`. If the caller expects a `TimerConfig` (for example), they receive a `WidgetConfig` that may or may not have `TimerConfig` fields. Class (c): the function lacks a generic type parameter that would preserve subtype information through the merge.
+- **Fix:** Make `mergeWidgetConfig<T extends WidgetConfig>(defaults: T, saved: Partial<T>): T` generic. Replace the cast with `return Object.assign({}, defaults, saved) as T`. All 2 call sites in `DashboardContext.tsx` pass typed defaults and will benefit from the stricter return type.
+
+### LOW `utils/adminBuildingConfig.ts:539` — `as unknown as NextUpConfig | undefined` cast on `WIDGET_DEFAULTS` lookup
+
+- **Detected:** 2026-07-22
+- **File:** utils/adminBuildingConfig.ts:539
+- **Detail:** `WIDGET_DEFAULTS['next-up']?.config as unknown as NextUpConfig | undefined` — `WIDGET_DEFAULTS` values have `config: WidgetConfig` (base type), so the specific `NextUpConfig` subtype requires a double-cast. Class (c): the WIDGET_DEFAULTS map lacks a generic record type (`Record<WidgetType, { config: SpecificConfig }>`) that would preserve subtype information. This is the same root cause as the `widgetConfigPersistence.ts` item above.
+- **Fix:** Either (a) introduce a typed `getWidgetDefaultConfig<T extends WidgetConfig>(type: WidgetType): T` helper that encapsulates the cast in one place; or (b) type the `WIDGET_DEFAULTS` map as a mapped type `{ [K in WidgetType]: { ..., config: WidgetConfigMap[K] } }` where `WidgetConfigMap` maps each `WidgetType` to its concrete config type. Option (a) is lower effort for isolated fixes; option (b) eliminates the root cause systemically.
+
+### LOW `AnnouncementOverlay.tsx:154-155` — double-cast to extract widgetConfig from saved widget data
+
+- **Detected:** 2026-07-22
+- **File:** components/announcements/AnnouncementOverlay.tsx:154-155
+- **Detail:** A double-cast is used to extract a widget config from saved widget data: the intermediate type is `unknown` before narrowing to the target config type. Class (a) or (b): the outer container type does not expose the inner config type parameter, forcing the cast. If the outer type changes its config field type, this cast will silently succeed.
+- **Fix:** Either (a) expose the config type parameter on the outer container type so it can be accessed without casting; or (b) add a runtime type guard that validates the shape of the config before narrowing. If this follows the `WIDGET_DEFAULTS` pattern, the same `getWidgetDefaultConfig<T>` helper from the `adminBuildingConfig` fix above would eliminate this cast.
+
+### LOW `hooks/usePlcTrash.ts` has 9 useState calls fanning out over 6 parallel collection subscriptions
+
+- **Detected:** 2026-07-22
+- **File:** hooks/usePlcTrash.ts
+- **Detail:** The hook declares 9 `useState` calls to manage 6 parallel Firestore collection subscriptions (trashed items per collection type). Each subscription gets its own `items` + `loading` state pair, plus shared error state. This follows the same pattern that was flagged for `useQuizSession`/`useVideoActivitySession` — high state count driven by repeated similar patterns rather than a unified abstraction.
+- **Fix:** Consolidate each per-collection state pair into a `{ items: T[], loading: boolean }` tuple type and manage them in a single `Record<CollectionKey, CollectionState>` state object, or use `useReducer` with a `CollectionKey` action discriminant. This reduces 9 `useState` calls to 1–2 and makes adding a new collection type a one-line change.
+
+### LOW `hooks/usePlcResources.ts` has 9 useState calls with 3 parallel resource-loading pairs
+
+- **Detected:** 2026-07-22
+- **File:** hooks/usePlcResources.ts
+- **Detail:** The hook declares 9 `useState` calls managing 3 parallel resource-loading pairs (each with `data`, `loading`, and optionally `error` state) plus additional orchestration state. Each pair follows the same `[items, setItems]` / `[loading, setLoading]` pattern without a shared abstraction.
+- **Fix:** Extract a `useAsyncResource<T>()` hook that returns `{ data: T | null, loading: boolean, error: Error | null }` and manages the fetch lifecycle. Replace each of the 3 load-pair groups with a single `useAsyncResource` call. This reduces the hook to ~3 hook calls for the resource pairs and eliminates ~6 `useState` declarations.
 
 ### MEDIUM `hooks/useFirestore.ts` uses `as unknown as Dashboard` double-cast masking Firestore snapshot shape mismatch
 
