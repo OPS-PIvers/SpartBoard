@@ -4,22 +4,25 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
-## 2026-07-21
+## 2026-07-22
 
-- PRs reviewed: 4 (all open PRs, all targeting `dev-paul`, all draft, all authored by the automated nightly system)
-  - #2257 — fix(deps): SECURITY force `ws@8` to `>=8.20.1` (uninitialized memory disclosure) (head `deps/ws-uninitialized-memory`)
-  - #2256 — audit(tuesday): daily/weekly scheduled-audit journals (head `scheduled-tasks`)
+- PRs reviewed: 7 (all open PRs, all targeting `dev-paul`, all draft, all authored by the automated nightly system)
+  - #2260 — docs(routines): log nightly unifier run 40 (head `nightly/unifier-log-2026-07-22`)
+  - #2259 — refactor(syntax-framer): unify "Mode" settings label to group-heading pattern (head `nightly/unify-settings-labels-2026-07-22`)
+  - #2258 — pr-review: nightly PR review log 2026-07-21 (head `claude/compassionate-shannon-rir4oc`)
+  - #2257 — fix(deps): SECURITY force `ws@8` to `>=8.20.1` (head `deps/ws-uninitialized-memory`)
+  - #2256 — audit(wednesday): daily/weekly scheduled-audit journals + 5 new test files (head `scheduled-tasks`)
   - #2255 — docs(routines): log nightly unifier run 39 (head `nightly/unifier-log-2026-07-21`)
   - #2254 — refactor(reveal-grid): unify "Reveal Mode" settings label to group-heading pattern (head `nightly/unify-settings-labels-2026-07-21`)
-- Comments processed: 2 total — 0 fixed, 0 change-requests. Zero unresolved inline review threads on any PR (`get_review_comments` empty on all 4). The two existing top-level comments are both approving `claude[bot]` reviews (#2257 "No issues found ✅ Approved"; #2254 "LGTM, no concerns") — neither requests a change, so no reply and no code fix was needed.
+- Comments processed: 0 change-requests — 0 fixed, 0 required a fix. Zero unresolved inline review threads on any of the 7 PRs (`get_review_comments` empty on all). The only top-level comments are approving/LGTM `claude[bot]` reviews and informational follow-ups (#2256 carries a fresh 2026-07-22 `claude[bot]` LGTM plus an earlier docs review + a dependency-prioritisation note); none requests a change, so no reply and no code fix was needed.
 - Fixes pushed: 0 — no comment required a code change and no diff-level defect was found in any PR.
-- Reviews posted: 2 (on the two PRs that had no prior review — #2256, #2255).
-  - #2256 — Ready. Docs-only Tuesday audit-journal update across 5 `docs/scheduled-tasks/` files. Flagged (as human follow-up, not a PR defect) the real security signal the journal itself records: 2 new CRITICALs (`websocket-driver <0.7.5`, `tar <=7.5.18`), axios fix target raised to `>=1.18.0`, and the existing `"tar": ">=7.5.11"` override now insufficient (needs `>=7.5.19`) — these are open items for a dedicated dependency PR.
-  - #2255 — Ready. Docs-only unifier run-39 memory log; the code it describes (RevealGrid "Reveal Mode" label retrofit) ships separately in #2254.
-  - #2257 and #2254 were NOT re-reviewed — both already carry a fresh, thorough approving `claude[bot]` review posted hours earlier; a duplicate structured review would be pure noise. Both diffs were still independently inspected: #2257 is a correctly-scoped `ws@8` `pnpm.overrides` entry (leaves the non-vulnerable `ws@7.5.x` firebase-tools chain untouched; lockfile confirms `8.19.0`/`8.20.0` → `8.21.1`); #2254 is a mechanical `as="span"` + `role="group"`/`aria-labelledby` group-heading a11y retrofit with correct per-instance `${widget.id}` id scoping. Both confirmed clean.
+- Reviews posted: 3 (on the three PRs that had no prior review — #2258, #2259, #2260).
+  - #2259 — Ready. Mechanical a11y retrofit of the `SyntaxFramer/Settings.tsx` "Mode" label to the group-heading `SettingsLabel` shape (`as="span"` + `id` + `role="group"`/`aria-labelledby`). Verified against `components/common/SettingsLabel.tsx` source directly: both `as` branches compute an identical `combinedClasses` and this call site has no `htmlFor`, so the rendered output is byte-identical — zero visual delta. `id` correctly scoped to `${widget.id}` (per-instance render via `DraggableWindow`).
+  - #2260 — Ready. Docs-only unifier run-40 memory log; the code it describes ships in #2259. Stacked on the still-open #2255 branch, so its diff carries run-39 content until #2255 merges (noted in the PR).
+  - #2258 — Ready. Docs-only 2026-07-21 review-log entry, consistent with the file's format.
+  - #2254, #2255, #2256, #2257 were NOT re-reviewed — each already carries a fresh, thorough approving/LGTM `claude[bot]` review (#2256's dated today, 2026-07-22); a duplicate structured review would be pure noise. All four diffs were still independently inspected and confirmed clean: #2259/#2254 are the same mechanical group-heading a11y pattern; #2257 is a correctly-scoped `ws@8` `pnpm.overrides` entry; #2256 is docs-only audit journals plus 5 new well-structured test files.
 - Notes:
-  - Branch safety: no push to `main` or any `dev-*` head. No code fixes were pushed to any PR branch this run (nothing was actionable). This review-log commit is on the designated `claude/compassionate-shannon-rir4oc` branch — rebuilt from the latest `origin/dev-paul` (it previously carried only already-merged `dev-paul`→`main` merge commits, no unique work) so the log PR is a clean single-file diff. Kept off `scheduled-tasks` deliberately: that branch is the head of the unrelated open audit PR #2256 (a different routine's session), matching the run-18/run-19 precedent of not polluting an in-flight PR and honoring the branch-safety directive.
-  - All 4 open PRs are automated nightly output whose comments (where any exist) are approvals, so this run's work was independent review sign-off on the 2 un-reviewed PRs plus diff verification of the 2 already-approved ones — no thread cleanup or code repair required.
+  - Branch safety: no push to `main` or any `dev-*` head. No code fixes were pushed to any PR branch this run (nothing was actionable). This review-log commit is on the designated `claude/compassionate-shannon-vh8le5` branch — rebuilt from the latest `origin/dev-paul` (it previously carried only already-merged `dev-paul`→`main` merge commits, no unique work) so the log PR is a clean single-file diff. Kept off `scheduled-tasks` deliberately: that branch is the head of the unrelated open audit PR #2256 (a different routine's session), matching the run-18/run-19/run-21 precedent of not polluting an in-flight PR.
   - Env runs Node 22 (repo pins 24, "Unsupported engine" warning); no local fix-verification was needed since nothing was pushed to a PR branch. CI on Node 24 remains the authoritative gate.
 
 ## 2026-07-20
