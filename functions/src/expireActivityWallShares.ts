@@ -129,6 +129,17 @@ export async function runExpireActivityWallShares(
       continue;
     }
 
+    // Known, accepted trade-off: the `allSharesSnap` read above and this
+    // write are not wrapped in a transaction, so there is a millisecond-wide
+    // TOCTOU window in which a teacher could create a fresh live share for
+    // this session after `allSharesSnap` was captured. If that happens, this
+    // sweep would relock a session that is once again legitimately shared, and
+    // it would stay locked until the next hourly run re-evaluates it (it will
+    // find the new live share and leave `publiclyShared` alone). Given the
+    // hourly cadence and the sub-millisecond window, this self-heals within
+    // one cycle and is intentionally left non-transactional for simplicity —
+    // wrap the read+write in a Firestore transaction if this ever needs to be
+    // airtight.
     try {
       await db
         .collection('activity_wall_sessions')

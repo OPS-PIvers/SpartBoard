@@ -332,7 +332,12 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   // `id` so two students who share a display name (e.g. two "Emma Smith"s)
   // get independent assignments instead of colliding on the same key.
   // Custom-list mode has no backing student record, so the typed name is the
-  // only identity available there.
+  // only identity available there — meaning two identical custom-list entries
+  // (e.g. two hand-typed "Emma"s) still collide on the same `id`, exactly as
+  // they did before this fix. This is intentional: the legacy name-keyed
+  // fallback in `groupedStudents` below therefore also stays load-bearing for
+  // custom-list mode, not just for pre-fix roster dashboards — don't remove it
+  // assuming every entry now has a unique id.
   const activeRoster = useMemo((): { id: string; name: string }[] => {
     if (rosterMode === 'custom') {
       return roster.map((name) => ({ id: name, name }));
