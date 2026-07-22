@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-07-20_
+_Last audited: 2026-07-22_
 _Last action: 2026-05-18 (admin_audit_log immutability hardening)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-22: Weekly rules audit (Wednesday). No new dev-paul commits absorbed (rebase not performed — dev-paul diverged; auditing current branch state). Default-deny catch-all confirmed present. No new Firestore collections introduced since 2026-07-20. All existing LOW items (pollVotes unrestricted write, sessions broad read, organizations/analytics dead rule, lti_course_links dead rule, plc_layouts possibly retired, admin_settings/user_roles redundant, classroom_grade_links no explicit rule, ai_usage write denial absent) confirmed present and unchanged. Zero new items. Security posture unchanged._
 
 _2026-07-20: Full collection audit. Scanned components/, context/, hooks/, utils/, and functions/src/ for all Firestore collection() and collectionGroup() calls. Cross-referenced against firestore.rules match blocks. Default-deny catch-all confirmed present. New dev-paul commits since 2026-07-13 (absorbed via rebase): pr-review 7 PRs (docs only), refactor(types) GraphicOrganizerLayoutType (types.ts only), fix(admin-config) GraphicOrganizer template override (admin panel), feat(admin-config) GraphicOrganizer building appearance defaults (admin panel), fix(a11y) RandomSettings label (no Firestore), fix(TimeTool) re-enable button (no Firestore), fix(RemoteControlMenu) stale timer (no Firestore), fix(i18n) ES/FR PLC copy (no Firestore), fix(rules) SECURITY gate shared_activity_walls read on revoked/expiresAt (#2242 — `a55c9566`), fix(activity-wall) gate comments/likes subcollection reads + gallery error copy (`5fb06496`). SECURITY NOTE: Two rules improvements landed since 2026-07-13 — (1) `shared_activity_walls` read was gated on `revoked`/`expiresAt` to match the sibling `/shared_boards` and `/shared_collections` pattern; (2) the `comments` and `likes` subcollections were also gated. Both were caught and fixed by dev-paul outside the audit cycle — good. No new Firestore collections introduced by any of these commits. Result: 100% collection coverage — all client-facing collections have explicit match blocks. Security posture improved. Zero new collection coverage gaps. Agent audit also identified 3 new LOW dead-allow-rule items (rules that permit reads/writes which no client code currently performs): `/organizations/{orgId}/analytics/{document}` (admin read — client uses HTTP endpoint instead), `/lti_course_links/{contextId}` (teacher/admin read — only a code comment references it; CF handles all access), `/users/{userId}/plc_layouts/{plcId}` (owner read/write — no production code accesses it; possibly a retired feature). All 3 added as LOW items below. The existing LOW ai_usage item is updated to note that the admin READ allow is also a dead rule. All previously tracked items remain valid._
 

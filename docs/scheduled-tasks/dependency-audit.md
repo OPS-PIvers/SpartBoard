@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-07-16_
-_Last action: 2026-07-16_
+_Last audited: 2026-07-21_
+_Last action: 2026-07-21_
 
 ---
 
@@ -15,6 +15,10 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-21 (action): Resolved the MEDIUM `ws` uninitialized-memory-disclosure item. Selection: today is Tuesday; reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + Tuesday weeklies dependency-audit / skill-freshness. widget-registry and typescript-eslint have no open items; css-scaling and skill-freshness open items are all LOW. The MEDIUM/HIGH items today are all dependency-audit MEDIUMs, so this weekly wins the severity tiebreak (severity outranks daily-before-weekly). In document order the first MEDIUM is the `pnpm audit` 410 tooling item — **skipped as not a safe unattended auto-fix**: its own 2026-07-21 update note records that audit is working again this run, and the residual "fix" is an open-ended policy call (confirm-in-CI / switch scanner / adopt Dependabot) that targets repo automation, not a mechanical override. The next actionable MEDIUM in document order is `ws`. File-recency check on `package.json` passed (no touch in the last 5 branch commits). Applied a **scoped** override — `"ws@8": "^8.20.1"` — after first confirming that a bare `"ws"` override also (unnecessarily) forced firebase-tools' non-vulnerable `ws@7.5.x` up to 8.x; the `ws@8` selector (matching the file's existing `path-to-regexp@8` convention) bumps only the vulnerable 8.x line to `ws@8.21.1` and leaves `ws@7.5.13` alone. After `pnpm install`, `pnpm why ws` = `ws@8.21.1` + `ws@7.5.13` (8.19.0/8.20.0 gone; zero residual matches in the lockfile); `pnpm audit` reports no `ws` advisory. Dev-only (jsdom/vitest) — no production runtime impact. Verified clean: `prettier --check package.json` (clean), `pnpm run type-check` (0 errors), `pnpm run test` (575 files / 6997 tests all pass). Moved item to Completed. PR #2257 opened against dev-paul (draft). Remaining MEDIUM items (pnpm-audit-410, yaml, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash) and the LOW items all still active._
+
+_2026-07-21: `pnpm audit` IS working in this environment — returned full vulnerability data (139 root / 71 functions) after the 2026-07-16 HTTP 410 outage. NOTE: may be proxy-specific; status in CI or other environments is unknown. Root: **139 vulnerabilities** (8 low | 60 moderate | 67 high | 4 critical) — UP from 118 on 2026-07-09 (last successful data). Functions: **71 vulnerabilities** (5 low | 31 moderate | 33 high | 2 critical) — UP from 58 on 2026-07-09. Count increase is from new CVE advisories published during the 12-day gap (2026-07-09 to 2026-07-21). CRITICAL changes (root now 4 criticals, was 2): NEW `websocket-driver` CRITICAL (message corruption via `firebase-admin>@firebase/database-compat>@firebase/...` — added to MEDIUM firebase-admin item below); NEW `tar` CRITICAL (node-tar unlimited-input DoS, <=7.5.18, patched >=7.5.19 — added to MEDIUM firebase-tools item below; the existing override `"tar": ">=7.5.11"` is now also insufficient for this CRITICAL). MEDIUM axios item updated: 2 new CVEs now require >=1.18.0 (previously >=1.16.0 was sufficient; latest is now 1.18.1 not 1.16.0). MEDIUM pnpm-audit-410 status: situationally working this run (see note in that item — not marking Completed until confirmed in CI). `pnpm outdated` (root): @google/genai 1.51.0→2.12.0 (MAJOR), firebase 12.8.0→12.16.0, react/react-dom 19.2.4→19.2.7, axios (dev) 1.15.0→1.18.1, @eslint/js 9→10 (MAJOR), @testing-library/jest-dom 6→7 (MAJOR). `pnpm outdated` (functions): @google/genai 1.51.0→2.12.0 (MAJOR), firebase-admin 13.6.0→14.2.0 (MAJOR), jose 4.15.9→6.2.3 (2 majors), typescript (dev) 5.9.3→7.0.2 (2 majors). LOW major-versions item updated to reflect current latest versions. All other existing items (ws, yaml, hono, firebase-tools, firebase-admin, MCP SDK, lodash, @types/tesseract.js, jose, major-versions) remain valid._
 
 _2026-07-16 (action): Resolved the MEDIUM `flatted@3.3.3` DoS + prototype-pollution item. Selection: today is Thursday; reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + weeklies B1 skill-freshness / B2 dependency-audit. widget-registry and typescript-eslint report no open items; css-scaling's open items are all LOW; skill-freshness open items are all LOW. The only MEDIUM/HIGH items today are the dependency-audit MEDIUMs, so this weekly journal wins the severity tiebreak. In document order the first MEDIUM is the `pnpm audit` 410 tooling item — **skipped as not a safe unattended auto-fix**: its fix is an open-ended scanner/automation decision (switch scanner, adopt Dependabot via `.github/dependabot.yml`, or bump the pinned pnpm) that changes repo automation policy and targets a protected branch; that is a maintainer decision, not a mechanical override. (Confirmed still broken: `pnpm audit` returns HTTP 410, exit 0.) The next actionable MEDIUM in document order is `flatted`. File-recency check on `package.json`/`pnpm-lock.yaml` passed (last touched at 2666838b `#2194`, outside the last 5 branch commits). Confirmed `pnpm why flatted` resolved to the vulnerable `flatted@3.3.3` via `eslint@9.39.2 > file-entry-cache@8.0.0 > flat-cache@4.0.1`. Applied the journal fix: added `"flatted": "^3.4.2"` to `pnpm.overrides` in `package.json` (caret matches the file's existing override convention; latest flatted is 3.4.2, the patched version, so `^3.4.2` resolves to 3.4.2 and stays within 3.x). After `pnpm install`, `pnpm why flatted` reports a single `flatted@3.4.2`. Lockfile diff minimal (5 add / 4 del — override declaration + flatted 3.3.3→3.4.2). Dev/CI tooling only (ESLint file-entry cache) — no production runtime impact. Verified clean: `prettier --check package.json pnpm-lock.yaml` (clean), `pnpm run type-check` (0 errors), `pnpm run lint` (root + functions, `--max-warnings 0`, exit 0 — exercises ESLint's flatted-backed cache). Moved item to Completed. PR opened against dev-paul. Remaining MEDIUM items (pnpm-audit-410, ws, yaml, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash) and the LOW items all still active._
 
@@ -39,19 +43,10 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 ### MEDIUM `pnpm audit` is broken — npm retired both security audit API endpoints (HTTP 410)
 
 - **Detected:** 2026-07-16
+- **Updated:** 2026-07-21 — `pnpm audit` returned full vulnerability data in this run (139 root / 71 functions). The outage may have been temporary or environment-specific (agent proxy routing may resolve differently than direct npm registry calls). Status in CI pipelines is unknown — not marking Completed until a CI run confirms the audit passes there too.
 - **File:** package.json / functions/package.json (tooling)
-- **Detail:** `pnpm audit` (both root and functions) now returns HTTP 410 with: `"This endpoint is being retired. Use the bulk advisory endpoint instead."` Both endpoints (`/-/npm/v1/security/audits/quick` and `/-/npm/v1/security/audits`) are gone. Exit code is 0, so CI does not fail — but no vulnerability data is returned. The last successful audit data is from the 2026-07-09 run (118 vulns root / 58 vulns functions). Without a working audit command, new CVEs in direct or transitive dependencies will not be detected by this scheduled workflow.
-- **Fix:** Switch to an alternative vulnerability scanner. Options: (a) `npm audit` via Node's own npm CLI (uses different endpoints — confirm working); (b) `pnpm audit --use-node-fetch` or newer pnpm version that supports the bulk advisory endpoint; (c) install and run `osv-scanner` against `pnpm-lock.yaml` and `functions/pnpm-lock.yaml`; (d) enable GitHub Dependabot security alerts on the repository (declarative, no CLI dependency). Option (d) is lowest friction and complements the scheduled journal. Update the journal to reflect the new scanning method once adopted.
-
-### MEDIUM `ws@8.19.0` + `ws@8.20.0` uninitialized memory disclosure — via jsdom/vitest
-
-- **Detected:** 2026-05-19
-- **File:** package.json (devDependencies via `jsdom@27.4.0` and `vitest@4.0.18`)
-- **Detail:** `ws` >=8.0.0 <8.20.1 has an uninitialized memory disclosure vulnerability. Two vulnerable versions are installed:
-  - `ws@8.19.0` — via `jsdom@27.4.0` and `vitest@4.0.18 > @vitest/mocker`
-  - `ws@8.20.0` — via another dev dep chain
-    Both are in the vulnerable range (fix is >=8.20.1). `ws@7.5.10` (via firebase-tools) is NOT in the vulnerable range. Dev-only — not shipped to users.
-- **Fix:** Add `"ws": ">=8.20.1"` to `pnpm.overrides` in `package.json`. Alternatively, update `jsdom` and `vitest` to versions that pull in ws@8.20.1+. The `vitest` major version update (4.x → latest) is tracked in the LOW major versions item and would naturally resolve this.
+- **Detail:** `pnpm audit` (both root and functions) returned HTTP 410 on 2026-07-16 with: `"This endpoint is being retired. Use the bulk advisory endpoint instead."` Both endpoints (`/-/npm/v1/security/audits/quick` and `/-/npm/v1/security/audits`) were unavailable. Exit code was 0, so CI did not fail — but no vulnerability data was returned. 2026-07-21 run shows audit working again in this environment; gap data (2026-07-09 to 2026-07-21) captured in the run note above.
+- **Fix:** Confirm audit works in CI. If still broken in CI, switch to an alternative: (a) `npm audit` via Node's own npm CLI; (b) `pnpm audit --use-node-fetch` or newer pnpm; (c) `osv-scanner` against lock files; (d) GitHub Dependabot security alerts. Option (d) is lowest friction.
 
 ### MEDIUM `yaml@2.8.2` stack overflow via deeply nested input — via dev toolchain
 
@@ -72,40 +67,44 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
     All three CVEs require >=4.12.25 to be fully resolved. Current latest is 4.12.28. The `pnpm.overrides.hono` entry pins this across the dep graph.
 - **Fix:** In `package.json`, update both `devDependencies.hono` and `pnpm.overrides.hono` to `^4.12.28` (or `>=4.12.25`), then run `pnpm install`. Verify `pnpm audit` no longer reports any hono advisories. Run `pnpm type-check`, `pnpm lint`, and `pnpm test` to confirm no regressions.
 
-### MEDIUM `axios@1.15.0` has multiple CVEs — several require >=1.15.2, full fix in >=1.16.0
+### MEDIUM `axios@1.15.0` has multiple CVEs — full fix now requires >=1.18.0 (latest 1.18.1)
 
 - **Detected:** 2026-05-05
-- **Updated:** 2026-05-19
+- **Updated:** 2026-07-21 — two new CVEs detected requiring >=1.18.0; fix target raised from 1.16.0 to 1.18.0; latest is now 1.18.1
 - **File:** package.json (direct devDependency), functions/package.json (direct dependency)
-- **Detail:** Six CVEs now appear in `pnpm audit` against the current `axios@1.15.0` (root and functions/):
+- **Detail:** Eight CVEs now appear in `pnpm audit` against the current `axios@1.15.0` (root and functions/):
   - **GHSA-vf2m-468p-8v99** (moderate): HTTP adapter streamed responses bypass `maxContentLength`. Patched >=1.15.1.
   - **GHSA-xx6v-rp6x-q39c** (moderate): XSRF Token Cross-Origin Leakage via Prototype Pollution. Patched >=1.15.1.
   - **NO_PROXY bypass** (high): Incomplete fix for CVE-2025-62718 — `NO_PROXY` hostname normalization bypass via SSRF. Patched >=1.15.1.
   - **Prototype Pollution Gadgets - Response** (high): Response object prototype pollution allowing manipulation of subsequent requests. Patched >=1.15.1.
   - **Header Injection via Prototype Pollution** (high): Header values can be injected via prototype-polluted objects. Patched >=1.15.1.
   - **Prototype pollution read-side gadgets** (high): Read-side prototype pollution in response parsing. Patched **>=1.15.2**.
-    The last CVE requires >=1.15.2 — upgrading to 1.15.1 would not be sufficient. `pnpm outdated` shows latest is `1.16.0`.
-- **Fix:** `pnpm up axios@^1.16.0` in root and `pnpm -C functions up axios@^1.16.0` in functions/. All 6 CVEs are patched in `>=1.15.2`; upgrading to `1.16.0` (latest) addresses all. Verify `pnpm type-check`, `pnpm lint`, and `pnpm test` pass after upgrade.
+    - **GHSA-7q8q-rj6j-mhjq** (moderate, NEW 2026-07-21): Nested axios option objects can consume polluted prototype values. Patched **>=1.18.0**.
+  - **GHSA-mwf2-3pr3-8698** (moderate, NEW 2026-07-21): HTTP/2 streamed uploads bypass `maxBodyLength`. Patched **>=1.18.0**.
+    The two newest CVEs require >=1.18.0 — upgrading to the previously-recommended 1.16.0 would not be sufficient. `pnpm outdated` shows latest is `1.18.1`.
+- **Fix:** `pnpm up axios@^1.18.1` in root and `pnpm -C functions up axios@^1.18.1` in functions/. All 8 CVEs are patched in `>=1.18.0`; upgrading to `1.18.1` (latest) addresses all. Verify `pnpm type-check`, `pnpm lint`, and `pnpm test` pass after upgrade.
 
 ### MEDIUM `firebase-tools` brings in multiple vulnerable transitive deps
 
 - **Detected:** 2026-04-14
-- **Updated:** 2026-05-19
+- **Updated:** 2026-07-21 — `tar` DoS escalated to CRITICAL; existing override `"tar": ">=7.5.11"` is now insufficient
 - **File:** package.json (devDependency `firebase-tools`)
 - **Detail:** firebase-tools pulls in several vulnerable transitive packages:
   - `basic-ftp` <5.2.0: CRITICAL path traversal in `downloadToDir()` (via proxy-agent). Additional: incomplete CRLF injection protection (<=5.2.1), DoS (<=5.2.2), malicious FTP server RCE (<=5.3.0) — needs >=5.3.1.
-  - `tar` (via superstatic > re2 > node-gyp): The `pnpm.overrides` entry `"tar": "^7.5.4"` resolves to `tar@7.5.6`. Four HIGH CVEs are now published requiring progressively higher versions: path traversal via hardlink (<7.5.7), file read/write via hardlink target escape (<7.5.8), hardlink path traversal via drive-relative (<=7.5.9, fix >=7.5.10), and symlink path traversal via drive-relative (<=7.5.10, fix **>=7.5.11**). The current override resolves to 7.5.6 — insufficient. The override must be updated to `"tar": ">=7.5.11"`.
+  - `tar` (via superstatic > re2 > node-gyp): Four HIGH CVEs require >=7.5.11 (path traversal via hardlink, file read/write via hardlink target escape, hardlink path traversal via drive-relative, symlink path traversal via drive-relative). **NEW 2026-07-21 — CRITICAL**: node-tar unlimited-input DoS via specially crafted tar archives (affected <=7.5.18, patched **>=7.5.19**). The prior override `"tar": ">=7.5.11"` (previously updated from `^7.5.4`) is now insufficient — it still resolves within the vulnerable range. The override must be updated to `"tar": ">=7.5.19"` to clear both the four HIGH CVEs and this new CRITICAL.
   - `minimatch` (multiple versions): HIGH ReDoS via repeated wildcards and extglobs.
   - `@isaacs/brace-expansion` <=5.0.0: HIGH uncontrolled resource consumption.
     All via firebase-tools devDependency chain. These do not affect production runtime.
-    Current: 15.8.0, Latest: 15.17.0 — updating may resolve several transitively.
-- **Fix:** (1) Update `pnpm.overrides.tar` from `"^7.5.4"` to `">=7.5.11"` to address all four tar CVEs. (2) `pnpm up firebase-tools@^15.17.0` in dev dependencies and check that firebase deploy commands still work.
+    Current: 15.8.0, Latest: 15.24.0 — updating may resolve several transitively.
+- **Fix:** (1) Update `pnpm.overrides.tar` to `">=7.5.19"` to address all five tar CVEs (four HIGH + new CRITICAL). Verify with `pnpm why tar` after install. (2) `pnpm up firebase-tools@^15.24.0` in dev dependencies and check that firebase deploy commands still work.
 
-### MEDIUM `firebase-admin` (root + functions) brings in `fast-xml-parser` and `node-forge` CVEs
+### MEDIUM `firebase-admin` (root + functions) brings in `fast-xml-parser`, `node-forge`, and `websocket-driver` CVEs
 
 - **Detected:** 2026-04-14
+- **Updated:** 2026-07-21 — new CRITICAL `websocket-driver` CVE detected via firebase-admin chain
 - **File:** package.json (firebase, firebase-admin transitive), functions/package.json (firebase-admin@13.6.0)
 - **Detail:**
+  - **`websocket-driver` CRITICAL (NEW 2026-07-21)**: Message corruption via abuse of per-frame masking in `websocket-driver` <0.7.5, via `firebase-admin>@firebase/database-compat>@firebase/...`. Patched >=0.7.5. This is a production transitive dep of firebase-admin.
   - `fast-xml-parser` via `firebase-admin > @google-cloud/storage`:
     - **CRITICAL** entity encoding bypass via regex injection in DOCTYPE entity names (>=4.1.3 <4.5.4)
     - **HIGH** DoS through entity expansion
@@ -150,32 +149,41 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 ### LOW Major version updates available — require planned migration
 
 - **Detected:** 2026-04-14
-- **Updated:** 2026-07-07
+- **Updated:** 2026-07-21
 - **File:** package.json
 - **Detail:** Several packages have major version releases available that require migration planning (breaking changes):
   - `tailwindcss`: 3.4.19 → **4.3.2** (major — config format changed completely)
-  - `vite`: 6.4.2 → **8.1.3** (2 majors ahead; focus on patching within v6 first)
-  - `eslint`: 9.39.2 → **10.6.0** (major — verify flat config compatibility)
-  - `@eslint/js`: 9.39.2 → **10.0.1** (paired with eslint)
-  - `typescript`: 5.9.3 → **7.0.2** (2 majors ahead now — strict mode + decorator changes; also affects functions/; was 6.0.3 as of 2026-07-07, jumped again to 7.0.2 as of 2026-07-16)
-  - `i18next`: 25.8.13 → **26.3.4** (major — API changes)
-  - `react-i18next`: 16.5.4 → **17.0.8** (paired with i18next)
-  - `lucide-react`: 0.563.0 → **1.23.0** (first stable major — icon API changes possible)
+  - `vite`: 6.4.2 → **8.1.4** (2 majors ahead; focus on patching within v6 first)
+  - `eslint`: 9.39.2 → **10.7.0** (major — verify flat config compatibility)
+  - `@eslint/js`: 9.39.2 → **10.7.0** (paired with eslint; updated 2026-07-21)
+  - `typescript`: 5.9.3 → **7.0.2** (2 majors ahead — strict mode + decorator changes; also affects functions/)
+  - `i18next`: 25.8.13 → **26.3.5** (major — API changes)
+  - `react-i18next`: 16.5.4 → **17.0.10** (paired with i18next)
+  - `lucide-react`: 0.563.0 → **1.24.0** (first stable major — icon API changes possible)
   - `@vitejs/plugin-react`: 5.1.2 → **6.0.3** (major)
-  - `@types/node`: 24.12.2 → **26.1.0** (2 major versions behind — verify Node 24 compat)
+  - `@types/node`: 24.12.2 → **26.1.1** (2 major versions behind — verify Node 24 compat)
   - `jsdom`: 27.4.0 → **29.1.1** (2 majors ahead — test environment only; also resolves ws CVE)
   - `lint-staged`: 16.2.7 → **17.0.8** (major — check husky integration compatibility)
-  - `@google/genai`: 1.51.0 → **2.10.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade; also affects functions/)
-  - `firebase`: 12.8.0 → **12.16.0** (latest as of 2026-07-16; update to resolve fast-xml-parser and node-forge transitive CVEs)
-  - `firebase-admin` (functions): 13.6.0 → **14.1.0** (1 major — review migration guide for breaking changes)
+  - `@google/genai`: 1.51.0 → **2.12.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade; also affects functions/; updated 2026-07-21)
+  - `firebase`: 12.8.0 → **12.16.0** (latest as of 2026-07-21; update to resolve fast-xml-parser and node-forge transitive CVEs)
+  - `firebase-admin` (functions): 13.6.0 → **14.2.0** (1 major — review migration guide for breaking changes; updated 2026-07-21)
   - `jose` (functions): 4.15.9 → **6.2.3** (2 majors — separate LOW item above for JWT security context)
-    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → **19.2.7**, `firebase-tools` 15.8.0 → **15.22.1+** (check latest), `firebase` 12.8.0 → **12.15.0**, `@playwright/test` 1.58.0 → **1.61.1**, `@typescript-eslint/*` 8.54.0 → **8.62.1**, `vitest` (root) 4.1.8 → **4.1.9**, `hono` 4.12.15 → **4.12.27** (also has active MEDIUM CVE — see separate item), `dompurify` 3.4.2 → **3.4.11** (also has active MEDIUM CVE — see separate item), `postcss` 8.5.6 → **8.5.16**, `prettier` 3.8.1 → **3.9.4**, `eslint-plugin-prettier` 5.5.5 → **5.5.6**, `eslint-plugin-react-hooks` 7.0.1 → **7.1.1**, `globals` 17.2.0 → **17.7.0**, `@firebase/rules-unit-testing` 5.0.0 → 5.0.1, `google-auth-library` (functions) 10.5.0 → **10.9.0**, `lucide-react` 0.563.0 → **1.18.0** (major; first stable), `react-i18next` 16.5.4 → **17.0.8** (major), `@google/genai` (root+functions) 1.51.0 → **2.10.0** (major — all AI generation flows need testing after upgrade), functions `axios` 1.15.0 → **1.18.1**, functions `@google-cloud/functions-framework` 5.0.0 → **5.0.2**, `axios` (root) 1.15.0 → **1.18.1** (also active separate MEDIUM CVE — upgrade resolves), `recharts` 3.8.1 → **3.9.0**. (Updated 2026-06-30)
+  - `@testing-library/jest-dom`: 6.x → **7.x** (major — NEW 2026-07-21; check matcher API changes)
+    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → **19.2.7**, `firebase-tools` 15.8.0 → **15.24.0** (latest 2026-07-21), `@playwright/test` 1.58.0 → **1.61.1**, `@typescript-eslint/*` 8.54.0 → **8.62.1**, `vitest` (root) 4.1.8 → **4.1.10**, `hono` 4.12.15 → **4.12.30** (also has active MEDIUM CVE — see separate item), `dompurify` 3.4.2 → **3.4.12**, `postcss` 8.5.6 → **8.5.19**, `prettier` 3.8.1 → **3.9.4**, `eslint-plugin-prettier` 5.5.5 → **5.5.6**, `eslint-plugin-react-hooks` 7.0.1 → **7.1.1**, `globals` 17.2.0 → **17.7.0**, `@firebase/rules-unit-testing` 5.0.0 → **5.0.1**, `google-auth-library` (functions) 10.5.0 → **10.9.0**, functions `axios` 1.15.0 → **1.18.1**, functions `@google-cloud/functions-framework` 5.0.0 → **5.0.5**, `axios` (root) 1.15.0 → **1.18.1** (also active separate MEDIUM CVE — upgrade resolves), `recharts` 3.8.1 → **3.9.2**, `react-i18next` 16.5.4 → **17.0.10** (major).
     These should not be done in a single commit — each needs its own migration PR with testing.
-- **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 6 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix. `@google/genai` major bump warrants dedicated testing of all AI generation flows (quiz, mini-app, widget builder, OCR, etc.). jsdom update to v29 also resolves the ws CVE tracked separately.
+- **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 7 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix. `@google/genai` major bump warrants dedicated testing of all AI generation flows (quiz, mini-app, widget builder, OCR, etc.). jsdom update to v29 also resolves the ws CVE tracked separately.
 
 ---
 
 ## Completed
+
+### MEDIUM `ws@8.19.0` + `ws@8.20.0` uninitialized memory disclosure — via jsdom/vitest
+
+- **Detected:** 2026-05-19
+- **Completed:** 2026-07-21
+- **File:** package.json (`pnpm.overrides`; devDependencies via `jsdom@27.4.0` and `vitest > @vitest/mocker`), pnpm-lock.yaml
+- **Detail:** `ws` >=8.0.0 <8.20.1 has an uninitialized memory disclosure vulnerability. Two vulnerable versions were installed: `ws@8.19.0` (via `jsdom@27.4.0` and `vitest > @vitest/mocker`) and `ws@8.20.0` (another dev-dep chain). Both in the vulnerable range (fix >=8.20.1). `ws@7.5.x` (via `firebase-tools`) is NOT in the vulnerable range. Dev-only — not shipped to users.
+- **Resolution:** Applied a **scoped** override — added `"ws@8": "^8.20.1"` to `pnpm.overrides` in `package.json` rather than the journal's originally-suggested bare `"ws": ">=8.20.1"`. A bare `"ws"` override was tried first and confirmed to also force the non-vulnerable `ws@7.5.x` path (firebase-tools) up to 8.x — an unnecessary major bump of a dev tool's transitive dep. Scoping to the `8` major (matching the file's existing `path-to-regexp@8` / `path-to-regexp@0.1` scoped-selector convention) bumps only the vulnerable 8.x line to `ws@8.21.1` while leaving `ws@7.5.13` untouched. After `pnpm install`, `pnpm why ws` reports `ws@8.21.1` + `ws@7.5.13` (both 8.19.0 and 8.20.0 gone; zero residual `ws@8.19.0`/`ws@8.20.0` matches in `pnpm-lock.yaml`); `pnpm audit` no longer reports a `ws` advisory (`"module_name":"ws"` absent from audit JSON). File-recency check on `package.json` passed (no touch in the last 5 branch commits). Verified clean: `prettier --check package.json` (clean), `pnpm run type-check` (0 errors), full unit suite `pnpm run test` (575 files / **6997 tests all pass** — exercises the jsdom/vitest chains that consume `ws`). Lockfile diff minimal (net simplification — dedupe). PR #2257 opened against dev-paul (draft; diff = `package.json` + `pnpm-lock.yaml`; this journal record lives on scheduled-tasks). Remaining MEDIUM items (pnpm-audit-410, yaml, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash) and the LOW items all still active.
 
 ### MEDIUM `flatted@3.3.3` has unbounded recursion DoS + prototype pollution — via eslint chain
 
