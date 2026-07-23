@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-22_
+_Last audited: 2026-07-23_
 _Last action: 2026-07-20 — MEDIUM ActivityWall photo grid `gridAutoRows` switched from JS-measured px to `minmax(clamp(120px, 45cqmin, 320px), 1fr)`; removed the dead `rowHeight` measurement path so rows track resize continuously while still filling tall widgets at low photo counts_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-23: Targeted scan (Thursday). No new dev-paul commits absorbed (rebase not performed — dev-paul diverged). Agent scan of all widget front-face files. ZERO new anti-patterns found. All existing open items confirmed present and unresolved._
 
 _2026-07-22: Targeted scan (Wednesday). No new dev-paul commits absorbed (rebase not performed — dev-paul diverged). Agent scan of recently-active widget files. ONE new MEDIUM finding: `SoundWidget/Widget.tsx:301` — `<PopcornBallsView height={h - 60} ... />` where `h` is the raw JS-measured pixel height of the widget container (obtained via `useMeasure`). This passes a hard pixel value into `PopcornBallsView` instead of letting CSS container queries govern layout, bypassing the CQ system entirely. The `- 60` subtracts a fixed header offset, so any change to the header height silently breaks the calculation. This is a CSS anti-pattern distinct from the existing SoundWidget spacing items in the group LOW item. Also re-confirmed: RevealGrid `gap-4` at line 183 (already tracked in the LOW RevealGrid open item — note: line 185 in the detail text is stale, actual line is 183 per 2026-07-12 confirmation). Zero other new anti-patterns._
 

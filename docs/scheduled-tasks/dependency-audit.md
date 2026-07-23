@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-07-21_
+_Last audited: 2026-07-23_
 _Last action: 2026-07-21_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-23: `pnpm audit` IS working — returned full vulnerability data. Root: **141 vulnerabilities** (9 low | 62 moderate | 66 high | 4 critical) — up from 139 on 2026-07-21. Functions: **73 vulnerabilities** — up from 71 on 2026-07-21. THREE NEW items detected: (1) NEW MEDIUM `protobufjs` GHSA-wcpc-wj8m-hjx6 HIGH — DoS via unbounded recursive expansion of `Any` fields (affected <=7.6.0, patched >=7.6.1); via `@google/genai>protobufjs` in both root and functions; existing `"protobufjs": "^7.5.6"` override is insufficient — must be updated to `"^7.6.1"` in both `package.json` and `functions/package.json`. (2) NEW MEDIUM `ws` HIGH in functions — via `@google/genai>ws` chain; root's `"ws@8": "^8.21.1"` scoped override does not cover functions/; need identical scoped override in `functions/package.json`. (3) NEW LOW `fast-uri` HIGH in functions — new advisory in functions/ audit output. `pnpm outdated` updates since 2026-07-21: `@google/genai` latest → 2.13.0 (was 2.12.0); `jose` (functions) latest → 6.2.4 (was 6.2.3); `react`/`react-dom` → 19.2.8. LOW major-versions item updated. All other existing items remain valid._
 
 _2026-07-21 (action): Resolved the MEDIUM `ws` uninitialized-memory-disclosure item. Selection: today is Tuesday; reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + Tuesday weeklies dependency-audit / skill-freshness. widget-registry and typescript-eslint have no open items; css-scaling and skill-freshness open items are all LOW. The MEDIUM/HIGH items today are all dependency-audit MEDIUMs, so this weekly wins the severity tiebreak (severity outranks daily-before-weekly). In document order the first MEDIUM is the `pnpm audit` 410 tooling item — **skipped as not a safe unattended auto-fix**: its own 2026-07-21 update note records that audit is working again this run, and the residual "fix" is an open-ended policy call (confirm-in-CI / switch scanner / adopt Dependabot) that targets repo automation, not a mechanical override. The next actionable MEDIUM in document order is `ws`. File-recency check on `package.json` passed (no touch in the last 5 branch commits). Applied a **scoped** override — `"ws@8": "^8.20.1"` — after first confirming that a bare `"ws"` override also (unnecessarily) forced firebase-tools' non-vulnerable `ws@7.5.x` up to 8.x; the `ws@8` selector (matching the file's existing `path-to-regexp@8` convention) bumps only the vulnerable 8.x line to `ws@8.21.1` and leaves `ws@7.5.13` alone. After `pnpm install`, `pnpm why ws` = `ws@8.21.1` + `ws@7.5.13` (8.19.0/8.20.0 gone; zero residual matches in the lockfile); `pnpm audit` reports no `ws` advisory. Dev-only (jsdom/vitest) — no production runtime impact. Verified clean: `prettier --check package.json` (clean), `pnpm run type-check` (0 errors), `pnpm run test` (575 files / 6997 tests all pass). Moved item to Completed. PR #2257 opened against dev-paul (draft). Remaining MEDIUM items (pnpm-audit-410, yaml, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash) and the LOW items all still active._
 
@@ -132,6 +134,27 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 - **Detail:** HIGH — lodash >=4.0.0 <=4.17.23 vulnerable to code injection via `_.template`. This comes via `firebase-functions-test > lodash`. Only in test infrastructure, not production runtime.
 - **Fix:** Update `firebase-functions-test` from 3.4.1 to latest — check if newer version depends on a patched lodash. This is a test-only devDependency.
 
+### MEDIUM `protobufjs@7.5.6` has new HIGH DoS via `Any` field expansion — override must be updated to >=7.6.1
+
+- **Detected:** 2026-07-23
+- **File:** package.json, functions/package.json (`pnpm.overrides.protobufjs`)
+- **Detail:** GHSA-wcpc-wj8m-hjx6 (HIGH): DoS via unbounded recursive expansion of `Any` fields in `protobufjs` <=7.6.0. Patched in >=7.6.1. Via `@google/genai > protobufjs` in both root and functions. The existing `"protobufjs": "^7.5.6"` override was added to address CRITICAL GHSA-xq3m-2v4x-88gg but resolves within the new HIGH's affected range (<=7.6.0). Must be tightened to `"^7.6.1"`.
+- **Fix:** Update `"protobufjs": "^7.5.6"` → `"protobufjs": "^7.6.1"` in BOTH root `package.json` and `functions/package.json` pnpm.overrides. Run `pnpm install && pnpm -C functions install`, verify `pnpm why protobufjs` reports >=7.6.1 in both. Verify `pnpm audit` clears GHSA-wcpc-wj8m-hjx6. Run type-check, lint, and tests.
+
+### MEDIUM `ws` HIGH in `functions/` — scoped override from root does not cover functions workspace
+
+- **Detected:** 2026-07-23
+- **File:** functions/package.json (`pnpm.overrides`)
+- **Detail:** HIGH `ws` advisory via `@google/genai > ws` chain in functions/. Root `package.json` has `"ws@8": "^8.21.1"` (added 2026-07-21 for the root `ws` advisory) but pnpm.overrides in root does NOT propagate to the functions/ workspace — each workspace needs its own overrides block.
+- **Fix:** Add `"ws@8": "^8.21.1"` to `pnpm.overrides` in `functions/package.json`. Run `pnpm -C functions install`, verify `pnpm -C functions why ws` reports >=8.21.1 for the 8.x line, and run type-check and tests.
+
+### LOW `fast-uri` HIGH in `functions/` — new advisory in functions audit
+
+- **Detected:** 2026-07-23
+- **File:** functions/package.json (transitive dependency)
+- **Detail:** `fast-uri` has a new HIGH advisory in the 2026-07-23 `pnpm audit` output for functions/. The specific GHSA identifier and patched version will be confirmed on next detailed audit run.
+- **Fix:** Confirm GHSA and fix version, then add pnpm.overrides entry for `fast-uri` in `functions/package.json`.
+
 ### LOW `@types/tesseract.js@2.0.0` is deprecated — may become a resolution problem
 
 - **Detected:** 2026-06-30
@@ -143,13 +166,13 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 
 - **Detected:** 2026-07-07
 - **File:** functions/package.json (direct dependency `jose@4.15.9`)
-- **Detail:** `jose` is the JWT/JWK library used in Firebase Cloud Functions for LTI and student auth token verification. Current installed version is 4.15.9; latest is 6.2.3 (2 major versions ahead). No active CVE on jose 4.x is currently reported by `pnpm audit`, but being 2 major versions behind on a security-sensitive JWT library is a maintenance risk. jose 5.x and 6.x include important security-relevant changes (e.g., stricter algorithm validation, updated algorithm support). This is a production dependency (not dev-only), unlike most other outdated packages.
-- **Fix:** Review the jose 5.x and 6.x migration guides for breaking API changes. Update `functions/package.json` `jose` to `^6.2.3` and run `pnpm -C functions type-check`, `pnpm -C functions test` to catch any breaking changes. Priority: plan migration within the next 2-4 weeks before a CVE is published against jose 4.x.
+- **Detail:** `jose` is the JWT/JWK library used in Firebase Cloud Functions for LTI and student auth token verification. Current installed version is 4.15.9; latest is 6.2.4 (2 major versions ahead; updated 2026-07-23). No active CVE on jose 4.x is currently reported by `pnpm audit`, but being 2 major versions behind on a security-sensitive JWT library is a maintenance risk. jose 5.x and 6.x include important security-relevant changes (e.g., stricter algorithm validation, updated algorithm support). This is a production dependency (not dev-only), unlike most other outdated packages.
+- **Fix:** Review the jose 5.x and 6.x migration guides for breaking API changes. Update `functions/package.json` `jose` to `^6.2.4` and run `pnpm -C functions type-check`, `pnpm -C functions test` to catch any breaking changes. Priority: plan migration within the next 2-4 weeks before a CVE is published against jose 4.x.
 
 ### LOW Major version updates available — require planned migration
 
 - **Detected:** 2026-04-14
-- **Updated:** 2026-07-21
+- **Updated:** 2026-07-23
 - **File:** package.json
 - **Detail:** Several packages have major version releases available that require migration planning (breaking changes):
   - `tailwindcss`: 3.4.19 → **4.3.2** (major — config format changed completely)
@@ -164,12 +187,12 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
   - `@types/node`: 24.12.2 → **26.1.1** (2 major versions behind — verify Node 24 compat)
   - `jsdom`: 27.4.0 → **29.1.1** (2 majors ahead — test environment only; also resolves ws CVE)
   - `lint-staged`: 16.2.7 → **17.0.8** (major — check husky integration compatibility)
-  - `@google/genai`: 1.51.0 → **2.12.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade; also affects functions/; updated 2026-07-21)
+  - `@google/genai`: 1.51.0 → **2.13.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade; also affects functions/; updated 2026-07-23)
   - `firebase`: 12.8.0 → **12.16.0** (latest as of 2026-07-21; update to resolve fast-xml-parser and node-forge transitive CVEs)
   - `firebase-admin` (functions): 13.6.0 → **14.2.0** (1 major — review migration guide for breaking changes; updated 2026-07-21)
-  - `jose` (functions): 4.15.9 → **6.2.3** (2 majors — separate LOW item above for JWT security context)
+  - `jose` (functions): 4.15.9 → **6.2.4** (2 majors — separate LOW item above for JWT security context; updated 2026-07-23)
   - `@testing-library/jest-dom`: 6.x → **7.x** (major — NEW 2026-07-21; check matcher API changes)
-    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → **19.2.7**, `firebase-tools` 15.8.0 → **15.24.0** (latest 2026-07-21), `@playwright/test` 1.58.0 → **1.61.1**, `@typescript-eslint/*` 8.54.0 → **8.62.1**, `vitest` (root) 4.1.8 → **4.1.10**, `hono` 4.12.15 → **4.12.30** (also has active MEDIUM CVE — see separate item), `dompurify` 3.4.2 → **3.4.12**, `postcss` 8.5.6 → **8.5.19**, `prettier` 3.8.1 → **3.9.4**, `eslint-plugin-prettier` 5.5.5 → **5.5.6**, `eslint-plugin-react-hooks` 7.0.1 → **7.1.1**, `globals` 17.2.0 → **17.7.0**, `@firebase/rules-unit-testing` 5.0.0 → **5.0.1**, `google-auth-library` (functions) 10.5.0 → **10.9.0**, functions `axios` 1.15.0 → **1.18.1**, functions `@google-cloud/functions-framework` 5.0.0 → **5.0.5**, `axios` (root) 1.15.0 → **1.18.1** (also active separate MEDIUM CVE — upgrade resolves), `recharts` 3.8.1 → **3.9.2**, `react-i18next` 16.5.4 → **17.0.10** (major).
+    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → **19.2.8** (updated 2026-07-23), `firebase-tools` 15.8.0 → **15.24.0** (latest 2026-07-21), `@playwright/test` 1.58.0 → **1.61.1**, `@typescript-eslint/*` 8.54.0 → **8.62.1**, `vitest` (root) 4.1.8 → **4.1.10**, `hono` 4.12.15 → **4.12.30** (also has active MEDIUM CVE — see separate item), `dompurify` 3.4.2 → **3.4.12**, `postcss` 8.5.6 → **8.5.19**, `prettier` 3.8.1 → **3.9.4**, `eslint-plugin-prettier` 5.5.5 → **5.5.6**, `eslint-plugin-react-hooks` 7.0.1 → **7.1.1**, `globals` 17.2.0 → **17.7.0**, `@firebase/rules-unit-testing` 5.0.0 → **5.0.1**, `google-auth-library` (functions) 10.5.0 → **10.9.0**, functions `axios` 1.15.0 → **1.18.1**, functions `@google-cloud/functions-framework` 5.0.0 → **5.0.5**, `axios` (root) 1.15.0 → **1.18.1** (also active separate MEDIUM CVE — upgrade resolves), `recharts` 3.8.1 → **3.9.2**, `react-i18next` 16.5.4 → **17.0.10** (major).
     These should not be done in a single commit — each needs its own migration PR with testing.
 - **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 7 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix. `@google/genai` major bump warrants dedicated testing of all AI generation flows (quiz, mini-app, widget builder, OCR, etc.). jsdom update to v29 also resolves the ws CVE tracked separately.
 
