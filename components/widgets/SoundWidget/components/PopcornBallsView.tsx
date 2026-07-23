@@ -22,8 +22,9 @@ export const PopcornBallsView: React.FC<{
   // Mirror volume into a ref so the rAF render loop below (keyed only on
   // width/height) always reads the latest value without being torn down and
   // recreated on every volume change. Synced via an effect rather than a
-  // bare render-body write because the `react-hooks/refs` lint rule forbids
-  // mutating a ref during render.
+  // bare render-body write because this repo's enabled `react-hooks/refs`
+  // lint rule rejects mutating a ref during render. Matches the sibling
+  // `sensitivityRef` pattern in SoundWidget/Widget.tsx.
   const volumeRef = useRef(volume);
   useEffect(() => {
     volumeRef.current = volume;
