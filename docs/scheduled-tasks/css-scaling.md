@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-22_
-_Last action: 2026-07-20 — MEDIUM ActivityWall photo grid `gridAutoRows` switched from JS-measured px to `minmax(clamp(120px, 45cqmin, 320px), 1fr)`; removed the dead `rowHeight` measurement path so rows track resize continuously while still filling tall widgets at low photo counts_
+_Last audited: 2026-07-23_
+_Last action: 2026-07-23 — MEDIUM SoundWidget `PopcornBallsView` no longer receives `width={w} height={h - 60}` (stored widget dims minus a magic header offset); the canvas component now self-measures its own container via `ResizeObserver`, matching the NumberLine idiom, so the draw buffer tracks the actual rendered area with no hard-coded pixel subtraction_
 
 ---
 
@@ -21,6 +21,10 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-23 (action): Resolved the MEDIUM `SoundWidget PopcornBallsView` item — the highest-severity Open across today's reading list. Selection: today is Thursday; reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + the weeklies audited last night (skill-freshness, dependency-audit). widget-registry and typescript-eslint have no open items; skill-freshness open items are all LOW; dependency-audit's open items are all headed MEDIUM (weekly). css-scaling (daily) also has exactly one MEDIUM, so the daily-before-weekly tiebreak among equal MEDIUM severity selects it, and it is first among the dailies with an open MEDIUM. File-recency check passed: `SoundWidget/Widget.tsx` last touched at `5cff8b93` (#1907) and `PopcornBallsView.tsx` at `24df0289` (#1846) — both far outside the last 5 branch commits. Fix note: the journal's suggested "replace with `cqh` CSS" does not fit a `<canvas>` (its 2D draw buffer requires concrete pixel dimensions), so the anti-pattern was instead removed at its root — `PopcornBallsView` no longer receives `width={w} height={h - 60}` (where `w`/`h` were the widget's **stored** dimensions, not `useMeasure` as the 2026-07-22 note assumed, minus a hard-coded 60px header estimate). It now self-measures its own container with a `ResizeObserver` (SSR-guarded, `Math.round`ed `contentRect`), matching the existing `NumberLine/Widget.tsx` idiom, so the canvas resolution tracks the actual rendered content area (which already excludes header/footer chrome) with zero magic offsets. Removed the now-unused `const { w, h } = widget;` destructure from `Widget.tsx`. Updated the existing `PopcornBallsView.test.tsx` to the new self-measuring API (mocked `ResizeObserver`, driving a synthetic resize; 2 tests green). `pnpm type-check` (0 errors), `eslint --max-warnings 0` on all three changed files (exit 0), `prettier --check` (clean), SoundWidget + PopcornBallsView suites green (10 tests). Moved item to Completed. PR opened against dev-paul._
+
+_2026-07-23: Targeted scan (Thursday). No new dev-paul commits absorbed (rebase not performed — dev-paul diverged). Agent scan of all widget front-face files. ZERO new anti-patterns found. All existing open items confirmed present and unresolved._
 
 _2026-07-22: Targeted scan (Wednesday). No new dev-paul commits absorbed (rebase not performed — dev-paul diverged). Agent scan of recently-active widget files. ONE new MEDIUM finding: `SoundWidget/Widget.tsx:301` — `<PopcornBallsView height={h - 60} ... />` where `h` is the raw JS-measured pixel height of the widget container (obtained via `useMeasure`). This passes a hard pixel value into `PopcornBallsView` instead of letting CSS container queries govern layout, bypassing the CQ system entirely. The `- 60` subtracts a fixed header offset, so any change to the header height silently breaks the calculation. This is a CSS anti-pattern distinct from the existing SoundWidget spacing items in the group LOW item. Also re-confirmed: RevealGrid `gap-4` at line 183 (already tracked in the LOW RevealGrid open item — note: line 185 in the detail text is stale, actual line is 183 per 2026-07-12 confirmation). Zero other new anti-patterns._
 
@@ -164,13 +168,6 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### MEDIUM SoundWidget passes raw JS-measured pixel height to PopcornBallsView, bypassing container queries
-
-- **Detected:** 2026-07-22
-- **File:** components/widgets/SoundWidget/Widget.tsx:301
-- **Detail:** `<PopcornBallsView height={h - 60} ... />` where `h` is the measured pixel height of the widget container (obtained from `useMeasure`). The `- 60` constant is a hardcoded estimate of the header height. This bypasses the CSS container query system entirely: the component receives a raw pixel number rather than responding to the container's CQ context. Consequences: (1) Any header height change silently breaks the calculation. (2) The layout cannot be tested in jsdom (no layout engine). (3) It creates a hard coupling between the outer widget measurement and `PopcornBallsView`'s internal sizing. Widget has `skipScaling: true`.
-- **Fix:** Remove the `height` prop from `PopcornBallsView` and replace its internal height-dependent sizing with `cqh`-based CSS (`height: 100%` fill plus `cqmin` for inner elements). The widget content area is a CSS container (`container-type: size`), so `100cqh` inside `PopcornBallsView` accurately tracks the available height without any JS measurement. If `PopcornBallsView` needs to know the exact header height for layout, express it as a CSS variable or a `cqh`-relative calculation rather than a raw pixel subtraction.
-
 ### LOW ActivityWall three front-face view branches have hardcoded Tailwind spacing
 
 - **Detected:** 2026-07-18
@@ -256,6 +253,17 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### MEDIUM SoundWidget passes raw JS-measured pixel height to PopcornBallsView, bypassing container queries
+
+- **Detected:** 2026-07-22
+- **Completed:** 2026-07-23
+- **File:** components/widgets/SoundWidget/Widget.tsx:301, components/widgets/SoundWidget/components/PopcornBallsView.tsx
+- **Detail:** `<PopcornBallsView volume={volume} width={w} height={h - 60} />` passed the widget's **stored** dimensions (`const { w, h } = widget;` — not `useMeasure` as the 2026-07-22 detection note assumed) minus a hard-coded 60px header estimate into the canvas visualizer. This bypassed the CSS container query system: the component received a raw pixel number rather than tracking the container's actual rendered area, so any header/footer height change silently broke the calculation, and the sizing was untestable in jsdom (no layout engine). Widget has `skipScaling: true`.
+- **Fix applied:** The journal's suggested `cqh`-CSS conversion does not fit a `<canvas>` (its 2D draw buffer requires concrete pixel dimensions), so the anti-pattern was removed at its root instead. `PopcornBallsView` dropped its `width`/`height` props and now self-measures its own container with a `ResizeObserver` (SSR-guarded via `typeof ResizeObserver === 'undefined'`, `Math.round`ed `contentRect`), matching the `NumberLine/Widget.tsx` idiom. The container fills the widget content region, which already excludes header/footer chrome, so the canvas resolution tracks the real available area with zero magic offsets. The ball-init and animation effects gate on non-zero measured size. Removed the now-unused `const { w, h } = widget;` destructure from `Widget.tsx`.
+- **Selection rationale:** Thursday run. Reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + the weeklies audited last night (skill-freshness, dependency-audit). Nothing In Progress anywhere. No heading-level HIGH open items across the list; highest Open severity is MEDIUM. widget-registry and typescript-eslint have no open items; skill-freshness open items are all LOW; dependency-audit's open items are headed MEDIUM but it is a weekly journal — the daily-before-weekly tiebreak among equal MEDIUM severity selects css-scaling's single MEDIUM. File-recency check passed: `SoundWidget/Widget.tsx` last touched at `5cff8b93` (#1907), `PopcornBallsView.tsx` at `24df0289` (#1846) — both outside the last 5 branch commits.
+- **Verification:** `pnpm type-check` (0 errors); `eslint --max-warnings 0` on the three changed files (exit 0); `prettier --check` (clean); `PopcornBallsView.test.tsx` rewritten to the self-measuring API (mocked `ResizeObserver` + synthetic resize) and `SoundWidget/Widget.test.tsx` — 10 tests green.
+- **PR:** opened against dev-paul.
 
 ### MEDIUM ActivityWall photo grid uses JS-measured px for gridAutoRows
 
