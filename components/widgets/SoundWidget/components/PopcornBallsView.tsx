@@ -19,7 +19,11 @@ export const PopcornBallsView: React.FC<{
     []
   );
 
-  // ⚡ Bolt Optimization: Use ref for volume to prevent loop recreation on every frame
+  // Mirror volume into a ref so the rAF render loop below (keyed only on
+  // width/height) always reads the latest value without being torn down and
+  // recreated on every volume change. Synced via an effect rather than a
+  // bare render-body write because the `react-hooks/refs` lint rule forbids
+  // mutating a ref during render.
   const volumeRef = useRef(volume);
   useEffect(() => {
     volumeRef.current = volume;

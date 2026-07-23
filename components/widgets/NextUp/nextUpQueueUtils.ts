@@ -36,7 +36,10 @@ export function shouldExpireNextUpQueue(
   createdAt: number | undefined,
   now: Date
 ): boolean {
-  if (!isActive || !createdAt) return false;
+  // Guard only on a genuinely missing timestamp — not `!createdAt`, which
+  // would also swallow createdAt === 0 (the Unix epoch, a valid prior-day
+  // timestamp that should expire).
+  if (!isActive || createdAt == null) return false;
   const createdDate = new Date(createdAt).toDateString();
   const today = now.toDateString();
   return createdDate !== today;
