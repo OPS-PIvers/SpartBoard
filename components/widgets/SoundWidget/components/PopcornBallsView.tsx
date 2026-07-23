@@ -1,12 +1,20 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { POSTER_LEVELS } from '../constants';
 
+/**
+ * Bouncing-balls noise visualizer. Renders to a `<canvas>`, whose 2D drawing
+ * buffer requires concrete pixel dimensions, so this component measures its own
+ * container with a `ResizeObserver` rather than receiving pre-computed pixel
+ * props. This keeps the canvas resolution in lock-step with the actual rendered
+ * area (which the parent's `container-type: size` context governs) instead of
+ * relying on the widget's stored dimensions minus a hard-coded header offset.
+ */
 export const PopcornBallsView: React.FC<{
   volume: number;
-  width: number;
-  height: number;
-}> = ({ volume, width, height }) => {
+}> = ({ volume }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [{ width, height }, setSize] = useState({ width: 0, height: 0 });
   const balls = useRef<{ x: number; y: number; vy: number; color: string }[]>(
     []
   );
@@ -17,8 +25,25 @@ export const PopcornBallsView: React.FC<{
     volumeRef.current = volume;
   }, [volume]);
 
+  // Measure the actual rendered canvas area. The container fills the widget
+  // content region, so its size already excludes header/footer chrome — no
+  // magic pixel subtraction required.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width: w, height: h } = entry.contentRect;
+        setSize({ width: Math.round(w), height: Math.round(h) });
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   // Handle resizing and ball re-initialization
   useEffect(() => {
+    if (width === 0 || height === 0) return;
     balls.current = []; // Reset balls on resize to reposition them
     for (let i = 0; i < 30; i++) {
       balls.current.push({
@@ -32,6 +57,7 @@ export const PopcornBallsView: React.FC<{
   }, [width, height]);
 
   useEffect(() => {
+    if (width === 0 || height === 0) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -67,11 +93,13 @@ export const PopcornBallsView: React.FC<{
   }, [width, height]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="w-full h-full"
-      width={width}
-      height={height}
-    />
+    <div ref={containerRef} className="w-full h-full">
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full"
+        width={width}
+        height={height}
+      />
+    </div>
   );
 };
