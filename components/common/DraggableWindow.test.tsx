@@ -51,6 +51,10 @@ interface GlassCardProps {
   children: React.ReactNode;
   className?: string;
   onPointerDown?: (e: React.PointerEvent) => void;
+  onPointerDownCapture?: (e: React.PointerEvent) => void;
+  onPointerMoveCapture?: (e: React.PointerEvent) => void;
+  onPointerUpCapture?: (e: React.PointerEvent) => void;
+  onPointerCancelCapture?: (e: React.PointerEvent) => void;
   onClick?: (e: React.MouseEvent) => void;
   onKeyDown?: (e: React.KeyboardEvent) => void;
   onTouchStart?: (e: React.TouchEvent) => void;
@@ -76,6 +80,10 @@ vi.mock('./GlassCard', () => {
         children,
         className,
         onPointerDown,
+        onPointerDownCapture,
+        onPointerMoveCapture,
+        onPointerUpCapture,
+        onPointerCancelCapture,
         onClick,
         onKeyDown,
         onTouchStart,
@@ -92,6 +100,10 @@ vi.mock('./GlassCard', () => {
         data-testid="draggable-window"
         className={className}
         onPointerDown={onPointerDown}
+        onPointerDownCapture={onPointerDownCapture}
+        onPointerMoveCapture={onPointerMoveCapture}
+        onPointerUpCapture={onPointerUpCapture}
+        onPointerCancelCapture={onPointerCancelCapture}
         onClick={onClick}
         onKeyDown={onKeyDown}
         onTouchStart={onTouchStart}
@@ -524,6 +536,37 @@ describe('DraggableWindow', () => {
     unmount();
 
     expect(document.body.classList.contains('is-dragging-widget')).toBe(false);
+  });
+
+  // Regression: a 1-finger touch long-press (screenshot gesture) starts a
+  // 600ms setTimeout. If the widget is removed (Firestore-driven delete,
+  // dashboard switch, admin force-remove) while the finger is still down,
+  // onPointerUp never runs because the host node already detached, so
+  // nothing clears the timer. The stale callback then fires after unmount,
+  // calling takeScreenshot() and closing tools (setSelectedWidgetId(null))
+  // against whatever the app is doing by the time it fires.
+  it('cancels the pending long-press screenshot timer when the widget unmounts mid-press', () => {
+    vi.useFakeTimers();
+    try {
+      const { unmount } = renderComponent();
+      const windowEl = screen.getByTestId('draggable-window');
+
+      fireEvent.pointerDown(windowEl, {
+        clientX: 110,
+        clientY: 110,
+        pointerId: 1,
+        pointerType: 'touch',
+      });
+
+      unmount();
+
+      vi.advanceTimersByTime(700);
+
+      expect(mockTakeScreenshot).not.toHaveBeenCalled();
+      expect(mockSetSelectedWidgetId).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   // Regression: pointer capture can be silently dropped mid-gesture (browser-

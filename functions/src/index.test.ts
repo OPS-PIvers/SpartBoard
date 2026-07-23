@@ -2995,6 +2995,7 @@ describe('index barrel — deployed export set', () => {
     // Admin analytics snapshot + maintenance
     'recomputeAdminAnalytics',
     'expireSubShares',
+    'expireActivityWallShares',
     'finalizeIdleQuizAttempts',
     // Google / Spotify OAuth
     'exchangeGoogleAuthCode',

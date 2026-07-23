@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within, fireEvent } from '@testing-library/react';
 import { LunchCountWidget } from './Widget';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -132,6 +132,79 @@ describe('LunchCountWidget', () => {
     expect(chip).toBeInTheDocument();
     // We can't easily simulate the full dnd-kit drag-and-drop in jsdom
     // without more setup, but we've verified the refactor structure.
+  });
+
+  it('keeps two same-name students independently assigned (no name-collision)', async () => {
+    // Regression test: assignments must be keyed by the roster student `id`,
+    // not the display name. Two students who share a name (e.g. two "Emma
+    // Smith"s) previously collided on the same `assignments` key, so
+    // assigning one silently moved/overwrote the other's assignment.
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      rosters: [
+        {
+          id: 'roster-1',
+          name: 'Class 1A',
+          students: [
+            { id: 's1', firstName: 'Emma', lastName: 'Smith' },
+            { id: 's2', firstName: 'Emma', lastName: 'Smith' },
+          ],
+        },
+      ],
+    });
+
+    const widget = createWidget({
+      assignments: { s1: 'hot', s2: 'bento' },
+    });
+
+    render(<LunchCountWidget widget={widget} />);
+
+    const chips = await screen.findAllByText('Emma Smith');
+    expect(chips).toHaveLength(2);
+
+    const hotZone = screen.getByTestId('hot-zone');
+    const bentoZone = screen.getByTestId('bento-zone');
+
+    expect(within(hotZone).getAllByText('Emma Smith')).toHaveLength(1);
+    expect(within(bentoZone).getAllByText('Emma Smith')).toHaveLength(1);
+    expect(screen.queryByText('Assign 2 More Students')).toBeNull();
+  });
+
+  it('still honors a legacy name-keyed assignment saved before the id-keying fix', async () => {
+    // Regression test: dashboards saved before assignments were keyed by
+    // student id stored them under the display name instead (e.g.
+    // "John Doe": "hot"). Switching the read path to id-only would silently
+    // reset every pre-existing assignment to "unassigned" on load. The
+    // widget must still honor a name-keyed entry when no id-keyed one exists.
+    const widget = createWidget({
+      assignments: { 'John Doe': 'home' },
+    });
+
+    render(<LunchCountWidget widget={widget} />);
+
+    const homeZone = screen.getByTestId('home-zone');
+    expect(await within(homeZone).findByText('John Doe')).toBeInTheDocument();
+  });
+
+  it('can unassign a student whose assignment only exists under the legacy name key', async () => {
+    // Regression test: the read-path fallback (previous test) kept legacy
+    // assignments visible, but the write path originally only ever deleted
+    // `assignments[id]` — a no-op when the entry lives under the name key —
+    // so a legacy-keyed student could never actually be unassigned by click.
+    const widget = createWidget({
+      assignments: { 'John Doe': 'home' },
+    });
+
+    render(<LunchCountWidget widget={widget} />);
+
+    const homeZone = screen.getByTestId('home-zone');
+    const chip = await within(homeZone).findByText('John Doe');
+    fireEvent.click(chip);
+
+    const [, updatePayload] = mockDashboardContext.updateWidget.mock.calls.at(
+      -1
+    ) as [string, { config: LunchCountConfig }];
+    expect(updatePayload.config.assignments).not.toHaveProperty('John Doe');
   });
 
   it('renders correctly for middle school without interactive DND', () => {

@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-07-17_
+_Last audited: 2026-07-22_
 _Last action: 2026-07-10 — MEDIUM `guided-learning` stale-entry resolved: documented admin-only + deliberate no-rate-limit design intent in `generateGuidedLearning` docblock (option b)_
 
 ---
@@ -35,6 +35,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-22: Full AI integration audit (Audit E2 — Wednesday weekly). No new dev-paul commits absorbed (rebase not performed — dev-paul diverged). Confirmed: `RevealGrid/Settings.tsx` "Reveal Grid Set Generator" button still has **no onClick handler** (MEDIUM — broken affordance, confirmed again). Confirmed: `transcribeVideoWithGemini` at functions/src/aiGeneration.ts:1963 still hardcodes `'gemini-3.1-flash-lite-preview'` string instead of `DEFAULT_STANDARD_MODEL` constant (LOW). NEW LOW: `generateVideoActivity` uses the standard model (`DEFAULT_STANDARD_MODEL = 'gemini-3.1-flash-lite-preview'`) despite video generation being at least as computationally intensive as `generateGuidedLearning` which explicitly uses `DEFAULT_ADVANCED_MODEL` — model selection is inconsistent. NEW LOW: `generateVideoActivity` Cloud Function writes to the global `ai_usage/{uid}\_global_{today}`doc for rate-limiting but has no per-feature`ai*usage/{uid}\_video-activity*{today}`bucket — admins cannot see per-feature video-activity AI usage in analytics. Three LOW items added. Also noted AI-opportunity sites (not open items):`ConceptWeb`widget could generate concept nodes/edges from a topic prompt (no AI path exists today);`SyntaxFramer`could pre-fill example sentences/equations;`GraphicOrganizer`could pre-populate organizer cells from a template + topic;`Checklist`could generate steps from a learning objective. All four would fit the`generateWithAI`+`canAccessFeature`pattern already established for`poll`and`blooms-ai`. All existing open items confirmed valid.\_
 
 _2026-07-17: Full AI integration audit (Audit E2 — Friday weekly). All existing open items confirmed valid: RevealGrid generate button still has no onClick handler (MEDIUM), instructional-routine missing client gate (LOW), hardcoded model string (LOW), plain JSON mode (LOW). NEW MEDIUM: `BloomsTaxonomyWidget.tsx` line ~47 reads only `buildingConfig.aiEnabled` without `canAccessFeature('gemini-functions')` check — bypasses the global AI permission gate for any building with aiEnabled:true; all other AI features check canAccessFeature. Disabling global gemini-functions permission does NOT disable Blooms AI for such buildings. NEW LOW: `VideoActivityWidget/components/Creator.tsx` line ~86 — video-activity-recommend tab always visible if gemini-functions is on; no independent `canAccessFeature('video-activity-recommend')` check; admins cannot disable independently. NEW LOW: `components/admin/WidgetBuilder/GeminiPanel.tsx` lines 31–40 — ad-hoc regex strips markdown fences instead of using shared `parseGeminiJson` helper; creates a second divergent JSON parsing path. blooms-ai table row updated to note global gate bypass. 3 new open items added (1 MEDIUM, 2 LOW)._
 
@@ -76,6 +78,20 @@ _2026-07-01: Full AI integration audit (Audit E2 — Wednesday). Reviewed utils/
 - **File:** functions/src/index.ts:2513 (line number shifts with function additions — confirmed at 2513 as of 2026-06-03)
 - **Detail:** The `transcribeVideoWithGemini` function selects a model with `perm.config?.model ?? 'gemini-3.1-flash-lite-preview'`. This duplicates the literal string defined by the `DEFAULT_STANDARD_MODEL` constant at line 124. If the default model is updated, this line will not automatically follow.
 - **Fix:** Replace the hardcoded string with `DEFAULT_STANDARD_MODEL`: `perm.config?.model ?? DEFAULT_STANDARD_MODEL`.
+
+### LOW `generateVideoActivity` uses standard model despite being more intensive than `generateGuidedLearning` which uses advanced model
+
+- **Detected:** 2026-07-22
+- **File:** functions/src/aiGeneration.ts (`generateVideoActivity` function)
+- **Detail:** `generateVideoActivity` selects `DEFAULT_STANDARD_MODEL` (`gemini-3.1-flash-lite-preview`) for video transcript question generation. `generateGuidedLearning`, which performs a similar structured content generation task, explicitly uses `DEFAULT_ADVANCED_MODEL` (`gemini-3-flash-preview`). Video activity generation parses YouTube transcripts and produces multi-type bucketed question sets — at least as demanding as guided learning content. The model choice appears to be an oversight rather than a deliberate quality trade-off (no comment explains the downgrade). Users may see lower-quality video questions as a result.
+- **Fix:** Change `generateVideoActivity` to use `DEFAULT_ADVANCED_MODEL` (or at minimum `getGeminiModelConfig()` with an explicit model tier parameter) to match `generateGuidedLearning`. Add a comment if the standard model is intentionally chosen for latency/cost reasons.
+
+### LOW `generateVideoActivity` has no per-feature `ai_usage` bucket — feature-level usage invisible to admin analytics
+
+- **Detected:** 2026-07-22
+- **File:** functions/src/aiGeneration.ts (`generateVideoActivity` function)
+- **Detail:** `generateVideoActivity` writes usage to the global `ai_usage/{uid}_global_{today}` rate-limit document but does not write a per-feature `ai_usage/{uid}_video-activity_{today}` bucket. Other AI features (e.g., `transcribeVideoWithGemini` with `specificFeatureId = 'transcription'`) write both global and per-feature buckets so admins can see per-feature usage in AnalyticsManager. Video activity generation is invisible at the feature granularity — an admin cannot tell how much of the AI quota is consumed by video activity generation vs. other features.
+- **Fix:** Add a `specificFeatureId = 'video-activity'` write path in `generateVideoActivity` (following the `transcribeVideoWithGemini` pattern). This writes to `ai_usage/{uid}_video-activity_{today}` in addition to the global doc, enabling per-feature analytics without changing rate-limit behavior.
 
 ### LOW Most AI generation types use plain JSON mode — only `quiz` uses Gemini structured output (`responseSchema`)
 

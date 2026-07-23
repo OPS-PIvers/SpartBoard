@@ -13,6 +13,7 @@ export const SyntaxFramerSettings: React.FC<SyntaxFramerSettingsProps> = ({
 }) => {
   const { updateWidget } = useDashboard();
   const config = widget.config as SyntaxFramerConfig;
+  const syntaxFramerModeLabelId = `syntaxframer-mode-label-${widget.id}`;
 
   // Derive initial input from existing tokens
   const initialInput = config.tokens
@@ -101,8 +102,14 @@ export const SyntaxFramerSettings: React.FC<SyntaxFramerSettingsProps> = ({
       </div>
 
       <div>
-        <SettingsLabel icon={Calculator}>Mode</SettingsLabel>
-        <div className="flex gap-2 mb-4">
+        <SettingsLabel as="span" id={syntaxFramerModeLabelId} icon={Calculator}>
+          Mode
+        </SettingsLabel>
+        <div
+          className="flex gap-2 mb-4"
+          role="group"
+          aria-labelledby={syntaxFramerModeLabelId}
+        >
           <button
             className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
               config.mode === 'text'

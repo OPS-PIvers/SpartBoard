@@ -4,6 +4,60 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-07-22
+
+- PRs reviewed: 7 (all open PRs, all targeting `dev-paul`, all draft, all authored by the automated nightly system)
+  - #2260 — docs(routines): log nightly unifier run 40 (head `nightly/unifier-log-2026-07-22`)
+  - #2259 — refactor(syntax-framer): unify "Mode" settings label to group-heading pattern (head `nightly/unify-settings-labels-2026-07-22`)
+  - #2258 — pr-review: nightly PR review log 2026-07-21 (head `claude/compassionate-shannon-rir4oc`)
+  - #2257 — fix(deps): SECURITY force `ws@8` to `>=8.20.1` (head `deps/ws-uninitialized-memory`)
+  - #2256 — audit(wednesday): daily/weekly scheduled-audit journals + 5 new test files (head `scheduled-tasks`)
+  - #2255 — docs(routines): log nightly unifier run 39 (head `nightly/unifier-log-2026-07-21`)
+  - #2254 — refactor(reveal-grid): unify "Reveal Mode" settings label to group-heading pattern (head `nightly/unify-settings-labels-2026-07-21`)
+- Comments processed: 0 change-requests — 0 fixed, 0 required a fix. Zero unresolved inline review threads on any of the 7 PRs (`get_review_comments` empty on all). The only top-level comments are approving/LGTM `claude[bot]` reviews and informational follow-ups (#2256 carries a fresh 2026-07-22 `claude[bot]` LGTM plus an earlier docs review + a dependency-prioritisation note); none requests a change, so no reply and no code fix was needed.
+- Fixes pushed: 0 — no comment required a code change and no diff-level defect was found in any PR.
+- Reviews posted: 3 (on the three PRs that had no prior review — #2258, #2259, #2260).
+  - #2259 — Ready. Mechanical a11y retrofit of the `SyntaxFramer/Settings.tsx` "Mode" label to the group-heading `SettingsLabel` shape (`as="span"` + `id` + `role="group"`/`aria-labelledby`). Verified against `components/common/SettingsLabel.tsx` source directly: both `as` branches compute an identical `combinedClasses` and this call site has no `htmlFor`, so the rendered output is byte-identical — zero visual delta. `id` correctly scoped to `${widget.id}` (per-instance render via `DraggableWindow`).
+  - #2260 — Ready. Docs-only unifier run-40 memory log; the code it describes ships in #2259. Stacked on the still-open #2255 branch, so its diff carries run-39 content until #2255 merges (noted in the PR).
+  - #2258 — Ready. Docs-only 2026-07-21 review-log entry, consistent with the file's format.
+  - #2254, #2255, #2256, #2257 were NOT re-reviewed — each already carries a fresh, thorough approving/LGTM `claude[bot]` review (#2256's dated today, 2026-07-22); a duplicate structured review would be pure noise. All four diffs were still independently inspected and confirmed clean: #2259/#2254 are the same mechanical group-heading a11y pattern; #2257 is a correctly-scoped `ws@8` `pnpm.overrides` entry; #2256 is docs-only audit journals plus 5 new well-structured test files.
+- Notes:
+  - Branch safety: no push to `main` or any `dev-*` head. No code fixes were pushed to any PR branch this run (nothing was actionable). This review-log commit is on the designated `claude/compassionate-shannon-vh8le5` branch — rebuilt from the latest `origin/dev-paul` (it previously carried only already-merged `dev-paul`→`main` merge commits, no unique work) so the log PR is a clean single-file diff. Kept off `scheduled-tasks` deliberately: that branch is the head of the unrelated open audit PR #2256 (a different routine's session), matching the run-18/run-19/run-21 precedent of not polluting an in-flight PR.
+  - Env runs Node 22 (repo pins 24, "Unsupported engine" warning); no local fix-verification was needed since nothing was pushed to a PR branch. CI on Node 24 remains the authoritative gate.
+
+## 2026-07-20
+
+- PRs reviewed: 11 (all open PRs)
+  - #2253 — fix(activity-wall): photo-grid rowHeight resize-continuous via cqmin (head `scheduled-tasks`, base `dev-paul`, draft)
+  - #2252 — docs(routines): log nightly debugger run 31 (head `nightly/debugger-log-2026-07-20`)
+  - #2251 — fix(functions): SECURITY — relock `activity_wall_sessions` after gallery share expires/revokes (head `nightly/build-tooling-2026-07-20`)
+  - #2250 — fix(config): replace non-existent `Football` lucide icon in instructional icon picker (head `nightly/admin-config-2026-07-20`)
+  - #2249 — fix(rosters): `assignPins` no longer collides with manually-set PINs (head `nightly/state-data-2026-07-20`)
+  - #2248 — fix(DraggableWindow): cancel touch long-press timers on unmount (head `nightly/dashboard-layout-2026-07-20`)
+  - #2247 — fix(LunchCount): key assignments by roster student id, not display name (head `nightly/widgets-2026-07-20`)
+  - #2246 — docs(routines): log nightly unifier run 38 (head `nightly/unifier-log-2026-07-20`)
+  - #2245 — fix(RevealGrid): unify "Game Mode" settings label to `SettingsLabel as="span"` (head `nightly/unify-settings-labels-2026-07-20`)
+  - #2244 — Enhance GraphicOrganizer config and fix various issues (head `dev-paul`, base `main` — release PR)
+- Comments processed: 7 total inline threads — 0 newly fixed, 7 explained & resolved. (Two further PRs, #2253 and #2244, had only already-resolved threads — no action needed.)
+  - #2251 (3 threads): redundant-write guard (line 137) and its paired test assertion — both already addressed on-branch in `2395fe1`; replied and resolved. Serialized-loop perf note (line 111) — flagged non-blocking at current scale by the reviewer; replied acknowledging, resolved, no change.
+  - #2250 (2 threads, both outdated): Ghost/Goal alphabetical ordering already fixed in `be9ce16`; single-line test comment already trimmed in `010ab49`. Replied and resolved both.
+  - #2247 (2 threads): stuck legacy-name unassign (line 359) already fixed in `a18490a`; orphaned legacy-key on reassignment (line 390) already fixed in `a6a4e96`. Replied and resolved both.
+- Fixes pushed: 0 — every actionable review comment across all open PRs had already been resolved by later commits on its own branch (the nightly orchestrator applied the fixes but never closed the threads). No code fix was required this run.
+- Reviews posted: 11 (a structured review on every open PR)
+  - #2249: Ready — correct `assignPins` extraction with collision-avoidance Set + advancing counter; behavior preserved for all-blank rosters; 5 regression tests.
+  - #2248: Ready — write-once `isUnmountedRef` unmount guard on both long-press timers; targeted regression test; legit external-sync `useEffect`.
+  - #2245: Ready — pure a11y `SettingsLabel as="span"` + `role="group"` retrofit, zero visual delta.
+  - #2247: Ready — id-keyed assignments with legacy-name fallback + eviction; both inline threads resolved.
+  - #2250: Ready — `Football`→`Goal` swap + all-entries-resolve test; both nits resolved.
+  - #2251: Ready — new hourly relock sweep closes a real submissions/photo data-exposure hole; strong test coverage; redundant-write guard resolved.
+  - #2253: Ready — JS-px `gridAutoRows` → `minmax(clamp(...cqmin...), 1fr)`, resize-continuous and container-fitting; reviewer note adopted in `c7332e95`.
+  - #2252, #2246: Ready — documentation-only nightly run logs, no source changes.
+  - #2244: Ready with human sign-off — `dev-paul`→`main` release PR; the security-sensitive `shared_activity_walls` read-gating gaps were closed in `5fb0649` with rules + component tests; warrants a final human review of the aggregate diff since it targets `main`.
+- Notes:
+  - Branch safety: no code fixes were pushed to any PR branch this run. `main` untouched; no push to `dev-paul` (#2244) was needed. This log is committed to `scheduled-tasks` per the routine convention.
+  - Every open PR was authored by the automated nightly system and its actionable comments were self-resolved on-branch, so this run's work was thread cleanup (reply + resolve) plus independent review sign-off, not code repair.
+  - Env runs Node 22 (repo wants 24); no local fix-verification was needed since nothing was pushed to a PR branch. CI on Node 24 remains the authoritative gate.
+
 ## 2026-07-19
 
 - PRs reviewed: 7 (all open PRs, all targeting `dev-paul`)

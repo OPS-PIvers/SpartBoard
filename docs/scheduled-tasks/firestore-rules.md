@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-07-13_
+_Last audited: 2026-07-22_
 _Last action: 2026-05-18 (admin_audit_log immutability hardening)_
 
 ---
@@ -15,6 +15,10 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-22: Weekly rules audit (Wednesday). No new dev-paul commits absorbed (rebase not performed — dev-paul diverged; auditing current branch state). Default-deny catch-all confirmed present. No new Firestore collections introduced since 2026-07-20. All existing LOW items (pollVotes unrestricted write, sessions broad read, organizations/analytics dead rule, lti_course_links dead rule, plc_layouts possibly retired, admin_settings/user_roles redundant, classroom_grade_links no explicit rule, ai_usage write denial absent) confirmed present and unchanged. Zero new items. Security posture unchanged._
+
+_2026-07-20: Full collection audit. Scanned components/, context/, hooks/, utils/, and functions/src/ for all Firestore collection() and collectionGroup() calls. Cross-referenced against firestore.rules match blocks. Default-deny catch-all confirmed present. New dev-paul commits since 2026-07-13 (absorbed via rebase): pr-review 7 PRs (docs only), refactor(types) GraphicOrganizerLayoutType (types.ts only), fix(admin-config) GraphicOrganizer template override (admin panel), feat(admin-config) GraphicOrganizer building appearance defaults (admin panel), fix(a11y) RandomSettings label (no Firestore), fix(TimeTool) re-enable button (no Firestore), fix(RemoteControlMenu) stale timer (no Firestore), fix(i18n) ES/FR PLC copy (no Firestore), fix(rules) SECURITY gate shared_activity_walls read on revoked/expiresAt (#2242 — `a55c9566`), fix(activity-wall) gate comments/likes subcollection reads + gallery error copy (`5fb06496`). SECURITY NOTE: Two rules improvements landed since 2026-07-13 — (1) `shared_activity_walls` read was gated on `revoked`/`expiresAt` to match the sibling `/shared_boards` and `/shared_collections` pattern; (2) the `comments` and `likes` subcollections were also gated. Both were caught and fixed by dev-paul outside the audit cycle — good. No new Firestore collections introduced by any of these commits. Result: 100% collection coverage — all client-facing collections have explicit match blocks. Security posture improved. Zero new collection coverage gaps. Agent audit also identified 3 new LOW dead-allow-rule items (rules that permit reads/writes which no client code currently performs): `/organizations/{orgId}/analytics/{document}` (admin read — client uses HTTP endpoint instead), `/lti_course_links/{contextId}` (teacher/admin read — only a code comment references it; CF handles all access), `/users/{userId}/plc_layouts/{plcId}` (owner read/write — no production code accesses it; possibly a retired feature). All 3 added as LOW items below. The existing LOW ai_usage item is updated to note that the admin READ allow is also a dead rule. All previously tracked items remain valid._
 
 _2026-07-13: Full collection audit. Scanned components/, context/, hooks/, utils/, and functions/src/ for all Firestore collection() and collectionGroup() calls. Cross-referenced against firestore.rules match blocks. Default-deny catch-all confirmed present at `match /{document=**}` (line 3831). Result: 100% collection coverage — all client-facing collections confirmed to have explicit match blocks. No new collections introduced since 2026-07-01 (docs-only commits only). All existing open items (pollVotes unrestricted write, sessions broad read, admin_settings/user_roles redundant rule, classroom_grade_links no explicit rule, ai_usage implicit write denial) confirmed present and valid. Zero new items._
 
@@ -46,6 +50,27 @@ _2026-05-27: Audited all collection() and collectionGroup() calls in components/
 - **Detail:** The rules comment acknowledges that listing all sessions is intentionally permitted for Phase 2 (to allow students to look up a teacher's session by PIN). This is mitigated by PIN validation in app logic, but any authenticated user can enumerate all active classroom sessions. A future Cloud Function join-code validation approach would eliminate the need for this broad read permission.
 - **Fix:** Implement PIN/join-code validation via a Cloud Function and tighten the list permission. This is a known planned improvement (referenced in the rules themselves). Track against any future Cloud Function session-join work.
 
+### LOW `/organizations/{orgId}/analytics/{document}` allow rule is dead — no client reads this collection
+
+- **Detected:** 2026-07-20
+- **File:** firestore.rules (line ~437, `organizations/{orgId}/analytics/{document}`)
+- **Detail:** The rule grants `allow read: if isAdmin()` but no client component, hook, or utility reads from `organizations/{orgId}/analytics` directly. `AnalyticsManager.tsx` fetches analytics data via `fetch('/api/admin-analytics', ...)` (an HTTP Cloud Function endpoint), not a Firestore subscription. The allow rule is currently unreachable by any client code path. This is not a security hole (an admin-read-only rule cannot be exploited by non-admins), but the rule adds maintenance surface: a future developer could infer that direct Firestore reads are the expected pattern, leading to confusion.
+- **Fix (LOW):** Either remove the dead allow rule and add a comment `// analytics written by adminAnalytics CF; client reads via HTTP endpoint only`, or — if a future UI that subscribes directly to this path is planned — note that in a comment. Low priority; no security impact.
+
+### LOW `/lti_course_links/{contextId}` allow rule has no corresponding client read path
+
+- **Detected:** 2026-07-20
+- **File:** firestore.rules (`lti_course_links/{contextId}`)
+- **Detail:** The rule allows limited reads for the originating teacher and admins. However, the only code reference is a comment in `hooks/useRosters.ts` explaining the data model — no hook or component calls `collection(db, 'lti_course_links')`. Writes flow through the `linkLtiCourseV1` Cloud Function callable. The teacher/admin read allow is thus unreachable by current client code.
+- **Fix (LOW):** If client-side reads of `lti_course_links` are not planned, add an inline comment documenting that all access flows via CF, and optionally tighten to deny-all or remove the allow. No security impact.
+
+### LOW `/users/{userId}/plc_layouts/{plcId}` rule may cover a retired feature
+
+- **Detected:** 2026-07-20
+- **File:** firestore.rules (`users/{userId}/plc_layouts/{plcId}`)
+- **Detail:** The rule grants owner read/write, but no production component, hook, context, or utility reads or writes `plc_layouts` directly. The only references are in `tests/rules/plcOverviewAndContent.test.ts` — a test-only file. This rule either covers a feature not yet shipped or a feature that was removed without retiring its rule. Noted in the 2026-07-01 audit as "pre-landing feature, informational only" but not tracked as an open item at that time.
+- **Fix (LOW):** Confirm with dev-paul whether `plc_layouts` is a future-planned or retired feature. If retired, remove both the rule and the associated test coverage. If planned, add a comment `// pre-landing: plc_layouts feature` to explain why the rule exists without live code.
+
 ### LOW `admin_settings/user_roles` rule is redundant — shadowed by wildcard
 
 - **Detected:** 2026-06-10
@@ -63,9 +88,10 @@ _2026-05-27: Audited all collection() and collectionGroup() calls in components/
 ### LOW `ai_usage` collection has no explicit write denial — relies solely on catch-all
 
 - **Detected:** 2026-06-10
+- **Updated:** 2026-07-20 — agent audit also confirmed the READ allow is a dead rule (no client code reads `ai_usage`; it is written exclusively by Cloud Functions via Admin SDK and never subscribed to by any component, hook, or utility).
 - **File:** firestore.rules (approx. lines 3065–3073)
-- **Detail:** The `ai_usage` match block explicitly grants a read permission (owner-scoped UID prefix range scan) but omits any `allow write` rule, relying on the bottom-of-file catch-all `allow read, write: if false` to block client writes. An inline comment notes "No client write — quota increments are performed server-side via Admin SDK only." Relying on a global catch-all for security-sensitive intent (rate-limit quota) is fragile: if rules are ever reorganized and the catch-all moves or is accidentally removed, client write access would silently open. The intent is also invisible to reviewers reading just the `ai_usage` block.
-- **Fix:** Add `allow write: if false;` explicitly inside the `ai_usage` match block, with a brief comment matching the existing "server-side via Admin SDK only" note. This makes the denial self-documenting and resilient to rule reordering.
+- **Detail:** The `ai_usage` match block explicitly grants a read permission (owner-scoped UID prefix range scan) but omits any `allow write` rule, relying on the bottom-of-file catch-all `allow read, write: if false` to block client writes. An inline comment notes "No client write — quota increments are performed server-side via Admin SDK only." Relying on a global catch-all for security-sensitive intent (rate-limit quota) is fragile: if rules are ever reorganized and the catch-all moves or is accidentally removed, client write access would silently open. The intent is also invisible to reviewers reading just the `ai_usage` block. Additionally: the explicit `allow read` is also dead — no client code reads this collection.
+- **Fix:** Add `allow write: if false;` explicitly inside the `ai_usage` match block. Also consider converting the read allow to `allow read: if false; // Admin SDK only` to make both sides self-documenting and resilient to rule reordering.
 
 ### LOW `custom_widgets.buildings` field not enforced by Firestore rules
 

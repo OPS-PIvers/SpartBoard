@@ -327,25 +327,41 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     })
   );
 
-  const activeRoster = useMemo((): string[] => {
-    if (rosterMode === 'custom') return roster;
+  // Each entry pairs a stable identity (`id`) with the display `name`.
+  // `assignments` is keyed by `id` — class-roster students use their roster
+  // `id` so two students who share a display name (e.g. two "Emma Smith"s)
+  // get independent assignments instead of colliding on the same key.
+  // Custom-list mode has no backing student record, so the typed name is the
+  // only identity available there — meaning two identical custom-list entries
+  // (e.g. two hand-typed "Emma"s) still collide on the same `id`, exactly as
+  // they did before this fix. This is intentional: the legacy name-keyed
+  // fallback in `groupedStudents` below therefore also stays load-bearing for
+  // custom-list mode, not just for pre-fix roster dashboards — don't remove it
+  // assuming every entry now has a unique id.
+  const activeRoster = useMemo((): { id: string; name: string }[] => {
+    if (rosterMode === 'custom') {
+      return roster.map((name) => ({ id: name, name }));
+    }
     const currentRoster =
       rosters.find((r) => r.id === activeRosterId) ?? rosters[0];
     return (
-      currentRoster?.students.map((s) =>
-        `${s.firstName} ${s.lastName}`.trim()
-      ) ?? []
+      currentRoster?.students.map((s) => ({
+        id: s.id,
+        name: `${s.firstName} ${s.lastName}`.trim(),
+      })) ?? []
     );
   }, [rosterMode, roster, rosters, activeRosterId]);
 
   const groupedStudents = useMemo(() => {
-    const hot: string[] = [];
-    const bento: string[] = [];
-    const home: string[] = [];
-    const unassigned: string[] = [];
+    const hot: { id: string; name: string }[] = [];
+    const bento: { id: string; name: string }[] = [];
+    const home: { id: string; name: string }[] = [];
+    const unassigned: { id: string; name: string }[] = [];
 
     activeRoster.forEach((student) => {
-      const assignment = assignments[student];
+      // Falls back to a legacy name-keyed entry when no id-keyed one exists,
+      // so dashboards saved before this fix don't lose their assignments.
+      const assignment = assignments[student.id] ?? assignments[student.name];
       if (assignment === 'hot') hot.push(student);
       else if (assignment === 'bento') bento.push(student);
       else if (assignment === 'home') home.push(student);
@@ -368,6 +384,11 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   const updateAssignment = useCallback(
     (student: string, type: 'hot' | 'bento' | 'home' | null) => {
       const newAssignments = { ...assignments };
+      // Always clear a legacy name-keyed entry for this student — otherwise
+      // it either keeps re-surfacing via the read-path fallback after an
+      // unassign, or lingers as orphaned data after a direct reassignment.
+      const legacyName = activeRoster.find((s) => s.id === student)?.name;
+      if (legacyName) delete newAssignments[legacyName];
       if (type === null) {
         delete newAssignments[student];
       } else {
@@ -377,7 +398,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
         config: { ...config, assignments: newAssignments },
       });
     },
-    [widget.id, config, assignments, updateWidget]
+    [widget.id, config, assignments, updateWidget, activeRoster]
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -392,15 +413,18 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       setActiveId(null);
 
       const student = active.id as string;
+      const legacyName = activeRoster.find((s) => s.id === student)?.name;
+      const isCurrentlyAssigned =
+        !!assignments[student] || (!!legacyName && !!assignments[legacyName]);
 
       if (over?.id === 'hot' || over?.id === 'bento' || over?.id === 'home') {
         updateAssignment(student, over.id);
-      } else if (assignments[student]) {
+      } else if (isCurrentlyAssigned) {
         // Dropped in 'unassigned' zone or outside all zones — only write if currently assigned
         updateAssignment(student, null);
       }
     },
-    [assignments, updateAssignment]
+    [assignments, activeRoster, updateAssignment]
   );
 
   const handleDragCancel = useCallback(() => {
@@ -808,10 +832,10 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                 >
                   {groupedStudents.hot.map((student) => (
                     <DraggableStudent
-                      key={student}
-                      id={student}
-                      name={student}
-                      onClick={() => updateAssignment(student, null)}
+                      key={student.id}
+                      id={student.id}
+                      name={student.name}
+                      onClick={() => updateAssignment(student.id, null)}
                       className={studentItemClass}
                       style={studentItemStyle}
                     />
@@ -822,6 +846,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
               {/* Bento Box Drop Zone */}
               <DroppableZone
                 id="bento"
+                data-testid="bento-zone"
                 className="bg-emerald-50 border-2 border-dashed border-emerald-300 rounded-2xl flex flex-col transition-all group"
                 style={{ padding: 'min(10px, 2cqmin)' }}
                 activeClassName="border-solid border-emerald-500 bg-emerald-100/50 scale-[1.02]"
@@ -871,10 +896,10 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                 >
                   {groupedStudents.bento.map((student) => (
                     <DraggableStudent
-                      key={student}
-                      id={student}
-                      name={student}
-                      onClick={() => updateAssignment(student, null)}
+                      key={student.id}
+                      id={student.id}
+                      name={student.name}
+                      onClick={() => updateAssignment(student.id, null)}
                       className={studentItemClass}
                       style={studentItemStyle}
                     />
@@ -885,6 +910,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
               {/* Home Lunch Drop Zone */}
               <DroppableZone
                 id="home"
+                data-testid="home-zone"
                 className="bg-brand-blue-lighter/20 border-2 border-dashed border-brand-blue-lighter rounded-2xl flex flex-col transition-all group"
                 style={{ padding: 'min(10px, 2cqmin)' }}
                 activeClassName="border-solid border-brand-blue-primary bg-brand-blue-lighter/40 scale-[1.02]"
@@ -936,10 +962,10 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                 >
                   {groupedStudents.home.map((student) => (
                     <DraggableStudent
-                      key={student}
-                      id={student}
-                      name={student}
-                      onClick={() => updateAssignment(student, null)}
+                      key={student.id}
+                      id={student.id}
+                      name={student.name}
+                      onClick={() => updateAssignment(student.id, null)}
                       className={studentItemClass}
                       style={studentItemStyle}
                     />
@@ -995,9 +1021,9 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                   >
                     {groupedStudents.unassigned.map((student) => (
                       <DraggableStudent
-                        key={student}
-                        id={student}
-                        name={student}
+                        key={student.id}
+                        id={student.id}
+                        name={student.name}
                         className={studentItemClass}
                         style={studentItemStyle}
                       />

@@ -311,8 +311,14 @@ export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
 
       {/* Game Mode */}
       <div>
-        <SettingsLabel>Game Mode</SettingsLabel>
-        <div className="flex bg-slate-100 p-1 rounded-xl">
+        <SettingsLabel as="span" id={`revealgrid-gamemode-label-${widget.id}`}>
+          Game Mode
+        </SettingsLabel>
+        <div
+          role="group"
+          aria-labelledby={`revealgrid-gamemode-label-${widget.id}`}
+          className="flex bg-slate-100 p-1 rounded-xl"
+        >
           <button
             type="button"
             onClick={() =>
@@ -354,8 +360,17 @@ export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
 
       {/* Reveal Mode */}
       <div>
-        <SettingsLabel>Reveal Mode</SettingsLabel>
-        <div className="flex bg-slate-100 p-1 rounded-xl">
+        <SettingsLabel
+          as="span"
+          id={`revealgrid-revealmode-label-${widget.id}`}
+        >
+          Reveal Mode
+        </SettingsLabel>
+        <div
+          role="group"
+          aria-labelledby={`revealgrid-revealmode-label-${widget.id}`}
+          className="flex bg-slate-100 p-1 rounded-xl"
+        >
           {(['flip', 'fade'] as const).map((mode) => (
             <button
               key={mode}
