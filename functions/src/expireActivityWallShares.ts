@@ -116,6 +116,11 @@ async function fetchLapsedSharesPaginated(
     if (page.size < LAPSED_SHARE_PAGE_SIZE) break;
   }
   if (visited >= MAX_LAPSED_SHARES_PER_RUN) {
+    // Fires when the loop exited on the ceiling rather than because pages ran
+    // out. If exactly MAX docs existed and the final page was full, every doc
+    // was in fact processed this run — but we can't distinguish that from
+    // "more remain" without another query, so we warn conservatively. Oncall:
+    // this means the ceiling was reached, not necessarily that docs were missed.
     console.warn(
       `[expireActivityWallShares] hit MAX_LAPSED_SHARES_PER_RUN ceiling (${MAX_LAPSED_SHARES_PER_RUN}) — raise it or shard the sweep`
     );
