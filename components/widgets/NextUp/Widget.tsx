@@ -73,14 +73,10 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     ) {
       updateWidget(widget.id, { config: { ...config, isActive: false } });
     }
-  }, [
-    config.isActive,
-    config.createdAt,
-    widget.id,
-    updateWidget,
-    config,
-    nowTick,
-  ]);
+    // config.isActive / config.createdAt are read above but are subsumed by
+    // the whole-object `config` dep (the update spreads `...config`), so
+    // listing them separately is redundant.
+  }, [config, widget.id, updateWidget, nowTick]);
 
   // Sync from Drive when triggered by Firestore
   useEffect(() => {
