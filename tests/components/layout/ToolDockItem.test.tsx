@@ -114,6 +114,21 @@ describe('ToolDockItem — restore popover Escape dismissal', () => {
     expect(screen.queryByText('Restorable')).not.toBeInTheDocument();
   });
 
+  it('restores keyboard focus to the dock button after Escape closes the popover', () => {
+    renderPopover();
+    // The dock trigger and the popover's restore entry both label as "Timer";
+    // target the dock button by its stable data attribute.
+    const button = document.querySelector('[data-tool-id="time-tool"]');
+    expect(screen.getByText('Restorable')).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape', bubbles: true });
+
+    // Keyboard-only teachers rely on focus returning to the dock button so
+    // they can continue sequential dock navigation after dismissing the
+    // popover. The handler calls buttonRef.current?.focus() — assert it lands.
+    expect(document.activeElement).toBe(button);
+  });
+
   it('does not leak the Escape keydown to window-level listeners (would otherwise let DashboardView minimize an unrelated widget)', () => {
     renderPopover();
     expect(screen.getByText('Restorable')).toBeInTheDocument();
