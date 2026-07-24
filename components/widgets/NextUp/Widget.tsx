@@ -10,7 +10,10 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { WidgetLayout } from '../WidgetLayout';
 import { resumeAudio } from '@/utils/timeToolAudio';
-import { advanceNextUpQueue } from './nextUpQueueUtils';
+import {
+  advanceNextUpQueue,
+  shouldExpireNextUpQueue,
+} from './nextUpQueueUtils';
 import {
   collection,
   onSnapshot,
@@ -45,16 +48,39 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     return `${user.uid}_${safeWidgetId}`;
   }, [user, widget.id]);
 
+  // Tick every minute so the auto-expiry check below re-evaluates across a
+  // midnight boundary even when `config` never changes (e.g. a queue with no
+  // student activity left open on a classroom display overnight). Without
+  // this ticker the effect only re-runs when config.isActive/createdAt
+  // change identity, so a session active before midnight would stay
+  // "active" indefinitely until some unrelated config write happened to
+  // occur — same class of bug as CountdownWidget (#1774) and CalendarWidget
+  // (#1955).
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   // Auto-expiry check: Deactivate session if it's from a previous day
   useEffect(() => {
-    if (config.isActive && config.createdAt) {
-      const createdDate = new Date(config.createdAt).toDateString();
-      const today = new Date().toDateString();
-      if (createdDate !== today) {
-        updateWidget(widget.id, { config: { ...config, isActive: false } });
-      }
+    if (
+      shouldExpireNextUpQueue(
+        config.isActive,
+        config.createdAt,
+        new Date(nowTick)
+      )
+    ) {
+      updateWidget(widget.id, { config: { ...config, isActive: false } });
     }
-  }, [config.isActive, config.createdAt, widget.id, updateWidget, config]);
+  }, [
+    config.isActive,
+    config.createdAt,
+    widget.id,
+    updateWidget,
+    config,
+    nowTick,
+  ]);
 
   // Sync from Drive when triggered by Firestore
   useEffect(() => {
