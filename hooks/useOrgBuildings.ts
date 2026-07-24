@@ -26,19 +26,31 @@ export const useOrgBuildings = (orgId: string | null) => {
   // and let the consumer fall back to seed data.
   const auth = useContext(AuthContext);
   const user = auth?.user ?? null;
-  const [buildings, setBuildings] = useState<BuildingRecord[]>([]);
+
+  // AuthContext already runs a live onSnapshot on
+  // `/organizations/{orgId}/buildings` for the user's active org (grade-level
+  // resolution depends on it). When this hook is asked for that SAME org,
+  // reuse AuthContext's `orgBuildings` instead of opening a second listener on
+  // the identical path — otherwise every admin session that opens the
+  // Organization panel pays doubled Firestore reads on this collection. Super
+  // admins inspecting a DIFFERENT org (orgId !== auth.orgId) still fall through
+  // to their own subscription below.
+  const reuseAuthBuildings = Boolean(orgId) && auth?.orgId === orgId;
+
+  const [ownBuildings, setOwnBuildings] = useState<BuildingRecord[]>([]);
   const [error, setError] = useState<Error | null>(null);
 
-  const shouldSubscribe = !isAuthBypass && Boolean(user) && Boolean(orgId);
-  const [loading, setLoading] = useState<boolean>(shouldSubscribe);
+  const shouldSubscribe =
+    !isAuthBypass && Boolean(user) && Boolean(orgId) && !reuseAuthBuildings;
+  const [ownLoading, setOwnLoading] = useState<boolean>(shouldSubscribe);
 
   const [prevKey, setPrevKey] = useState(`${shouldSubscribe}:${orgId ?? ''}`);
   const nextKey = `${shouldSubscribe}:${orgId ?? ''}`;
   if (prevKey !== nextKey) {
     setPrevKey(nextKey);
-    setLoading(shouldSubscribe);
+    setOwnLoading(shouldSubscribe);
     if (!shouldSubscribe) {
-      setBuildings([]);
+      setOwnBuildings([]);
       setError(null);
     }
   }
@@ -52,18 +64,28 @@ export const useOrgBuildings = (orgId: string | null) => {
         const items: BuildingRecord[] = snapshot.docs.map(
           (d) => ({ id: d.id, ...d.data() }) as BuildingRecord
         );
-        setBuildings(items);
+        setOwnBuildings(items);
         setError(null);
-        setLoading(false);
+        setOwnLoading(false);
       },
       (err) => {
         console.error(`[useOrgBuildings:${orgId}] snapshot error:`, err);
         setError(err);
-        setLoading(false);
+        setOwnLoading(false);
       }
     );
     return unsub;
   }, [shouldSubscribe, orgId]);
+
+  // Prefer AuthContext's already-subscribed data for the active org; fall back
+  // to this hook's own subscription for other orgs (or when no AuthProvider is
+  // present, e.g. a test harness).
+  const buildings = reuseAuthBuildings
+    ? (auth?.orgBuildings ?? [])
+    : ownBuildings;
+  const loading = reuseAuthBuildings
+    ? !(auth?.orgBuildingsLoaded ?? false)
+    : ownLoading;
 
   const addBuilding = async (
     building: Partial<BuildingRecord>

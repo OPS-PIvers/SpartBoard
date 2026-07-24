@@ -28,11 +28,14 @@ vi.mock('@/config/firebase', () => ({
   isAuthBypass: false,
 }));
 
-const makeAuthWrapper = (user: Partial<User> | null) => {
+const makeAuthWrapper = (
+  user: Partial<User> | null,
+  extra: Partial<AuthContextType> = {}
+) => {
   const Wrapper = ({ children }: { children: React.ReactNode }) =>
     React.createElement(
       AuthContext.Provider,
-      { value: { user } as unknown as AuthContextType },
+      { value: { user, ...extra } as unknown as AuthContextType },
       children
     );
   Wrapper.displayName = 'AuthContextTestWrapper';
@@ -104,6 +107,65 @@ describe('useOrgBuildings', () => {
       expect(result.current.buildings).toHaveLength(1);
       expect(result.current.buildings[0].id).toBe('schumann');
     });
+  });
+
+  it('reuses AuthContext.orgBuildings for the active org without a second listener', () => {
+    const authBuilding: BuildingRecord = {
+      ...mockBuilding,
+      id: 'auth-provided',
+    };
+    const wrapper = makeAuthWrapper(
+      { uid: 'u' },
+      {
+        orgId: 'orono',
+        orgBuildings: [authBuilding],
+        orgBuildingsLoaded: true,
+      }
+    );
+
+    const { result } = renderHook(() => useOrgBuildings('orono'), { wrapper });
+
+    // No redundant subscription on the path AuthContext already watches.
+    expect(mockOnSnapshot).not.toHaveBeenCalled();
+    expect(result.current.loading).toBe(false);
+    expect(result.current.buildings).toEqual([authBuilding]);
+  });
+
+  it('reflects AuthContext loading state while its buildings snapshot is pending', () => {
+    const wrapper = makeAuthWrapper(
+      { uid: 'u' },
+      { orgId: 'orono', orgBuildings: [], orgBuildingsLoaded: false }
+    );
+
+    const { result } = renderHook(() => useOrgBuildings('orono'), { wrapper });
+
+    expect(mockOnSnapshot).not.toHaveBeenCalled();
+    expect(result.current.loading).toBe(true);
+    expect(result.current.buildings).toEqual([]);
+  });
+
+  it('opens its own subscription when inspecting a different org than the active one', () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const wrapper = makeAuthWrapper(
+      { uid: 'u' },
+      {
+        orgId: 'orono',
+        orgBuildings: [mockBuilding],
+        orgBuildingsLoaded: true,
+      }
+    );
+
+    // Super admin inspecting a different org must not receive the active org's
+    // buildings — it falls through to a dedicated listener.
+    renderHook(() => useOrgBuildings('other-district'), { wrapper });
+
+    expect(mockOnSnapshot).toHaveBeenCalledTimes(1);
+    expect(mockCollection).toHaveBeenCalledWith(
+      expect.anything(),
+      'organizations',
+      'other-district',
+      'buildings'
+    );
   });
 
   it('addBuilding writes a new doc with a derived id', async () => {
