@@ -1,10 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { RefreshCcw, Trash2, Plus, X } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useLongPress } from '@/hooks/useLongPress';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { GlassCard } from '@/components/common/GlassCard';
 import { DockIcon } from './DockIcon';
 import { DockLabel } from './DockLabel';
@@ -83,6 +84,29 @@ export const ToolDockItem = React.memo(
 
     // Close popover when clicking outside
     useClickOutside(popoverRef, () => setShowPopover(false), [buttonRef]);
+
+    // Close popover on Escape, matching every other click-to-dismiss popover
+    // in the dock/library (e.g. SidebarPlcs's PlcRow, FolderTree's overflow
+    // menu). Critically, this ALSO calls stopPropagation(): the popover
+    // trigger button lives outside any `.widget` DraggableWindow, so without
+    // stopping propagation an unhandled Escape here bubbles all the way to
+    // DashboardView's global window-level Escape handler, which (finding no
+    // typing field and no widget ancestor for the dock button) falls back to
+    // targeting the topmost z-index widget and minimizes it — a completely
+    // unrelated widget disappearing just because the user pressed Escape to
+    // dismiss this popover.
+    useEffect(() => {
+      if (!showPopover) return undefined;
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key !== 'Escape') return;
+        if (isEscapeFromWidgetInput(e)) return;
+        e.stopPropagation();
+        setShowPopover(false);
+        buttonRef.current?.focus();
+      };
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [showPopover, buttonRef]);
 
     const handleClick = (e: React.MouseEvent) => {
       if (isEditMode) {

@@ -69,6 +69,12 @@ const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (isEscapeFromWidgetInput(event)) return;
+      // This menu is portalled outside any `.widget` DraggableWindow, so
+      // without stopping propagation an Escape here also bubbles up to
+      // DashboardView's global window-level Escape handler, which falls
+      // back to minimizing the topmost widget on the board — a completely
+      // unrelated widget disappearing just because the menu was dismissed.
+      event.stopPropagation();
       onClose();
     };
 

@@ -37,8 +37,6 @@ export const SoundWidget: React.FC<{
   // Timer that releases the mic + AudioContext after a long hide (see effect below).
   const releaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { w, h } = widget;
-
   const {
     sensitivity = 1,
     visual = 'thermometer',
@@ -297,9 +295,7 @@ export const SoundWidget: React.FC<{
         <div className="flex-1 min-h-0 relative w-full h-full p-2">
           {visual === 'thermometer' && <ThermometerView volume={volume} />}
           {visual === 'speedometer' && <SpeedometerView volume={volume} />}
-          {visual === 'balls' && (
-            <PopcornBallsView volume={volume} width={w} height={h - 60} />
-          )}
+          {visual === 'balls' && <PopcornBallsView volume={volume} />}
           {visual === 'line' && (
             <div className="w-full h-full bg-black/20 rounded-2xl p-2">
               <svg

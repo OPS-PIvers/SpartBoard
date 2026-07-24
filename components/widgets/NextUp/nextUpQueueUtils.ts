@@ -21,3 +21,26 @@ export function advanceNextUpQueue(
     return item;
   });
 }
+
+/**
+ * Determine whether an active NextUp session should be auto-expired because
+ * it was created on a previous calendar day (local time).
+ *
+ * Pure so it can be driven by an explicit `now`, independent of a live
+ * ticking clock — the caller is responsible for re-invoking this on a
+ * periodic tick (see Widget.tsx) so day-rollover is detected even when
+ * `config` hasn't otherwise changed since before midnight.
+ */
+export function shouldExpireNextUpQueue(
+  isActive: boolean | undefined,
+  createdAt: number | undefined,
+  now: Date
+): boolean {
+  // Guard only on a genuinely missing timestamp — not `!createdAt`, which
+  // would also swallow createdAt === 0 (the Unix epoch, a valid prior-day
+  // timestamp that should expire).
+  if (!isActive || createdAt == null) return false;
+  const createdDate = new Date(createdAt).toDateString();
+  const today = now.toDateString();
+  return createdDate !== today;
+}

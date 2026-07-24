@@ -29,14 +29,32 @@
  * sweeps, this one does NOT delete the share doc — the owner/admin can still
  * read a lapsed share for management (mirrors the sibling rule), so only the
  * session-level unlock flag is corrected.
+ *
+ * Both `shared_activity_walls` lookups (expired-by-date, revoked) are
+ * PAGINATED (startAfter cursor on `orderBy(FieldPath.documentId())`, mirrors
+ * `gcPlcOrphans.ts`'s fix for the identical bug) so every lapsed share up to
+ * `MAX_LAPSED_SHARES_PER_RUN` is visited every run — not just the first
+ * `LAPSED_SHARE_PAGE_SIZE`. Share docs are never deleted (see above), so a
+ * single un-paginated `.limit()` page meant that once more than one page of
+ * lapsed shares accumulated, the same top page (by document-ID order) was
+ * reprocessed every run and any session whose only lapsed share sorted past
+ * the cap was NEVER relocked, forever.
  */
 
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as admin from 'firebase-admin';
 import './functionsInit';
 
-/** Cap per-run lapsed-share lookups to keep one slow sweep from monopolising. */
-export const MAX_LAPSED_SHARES_PER_RUN = 500;
+/**
+ * Overall safety ceiling on lapsed shares visited per run (per query) — a
+ * runaway guard, NOT an expected limit. The sweep paginates (see
+ * `LAPSED_SHARE_PAGE_SIZE`), so every lapsed share up to this ceiling is
+ * covered every run; set far above any realistic accumulation.
+ */
+export const MAX_LAPSED_SHARES_PER_RUN = 5000;
+
+/** Page size for the paginated lapsed-share sweeps (startAfter cursor on document id). */
+export const LAPSED_SHARE_PAGE_SIZE = 500;
 
 type Firestore = admin.firestore.Firestore;
 type QueryDocSnap = admin.firestore.QueryDocumentSnapshot;
@@ -68,11 +86,56 @@ function sessionIdOf(data: SharedActivityWallData): string | null {
 }
 
 /**
+ * Paginates a `shared_activity_walls` query up to `MAX_LAPSED_SHARES_PER_RUN`
+ * using a `startAfter` cursor, `LAPSED_SHARE_PAGE_SIZE` docs at a time. The
+ * inequality query (expired-by-date) must `orderBy` the filtered field before
+ * any tiebreaker (a Firestore requirement for range queries), so the caller
+ * supplies the ordering; the equality query (revoked) orders by document id
+ * alone. Either way, `startAfter` takes the cursor's ordering-field values
+ * from the last doc of the previous page, so pagination is correct regardless
+ * of which fields are ordered on.
+ */
+async function fetchLapsedSharesPaginated(
+  db: Firestore,
+  buildQuery: (page: admin.firestore.Query) => admin.firestore.Query
+): Promise<QueryDocSnap[]> {
+  const results: QueryDocSnap[] = [];
+  let lastDoc: QueryDocSnap | undefined;
+  let visited = 0;
+  while (visited < MAX_LAPSED_SHARES_PER_RUN) {
+    let query = buildQuery(db.collection('shared_activity_walls')).limit(
+      LAPSED_SHARE_PAGE_SIZE
+    );
+    if (lastDoc) query = query.startAfter(lastDoc);
+    const page = await query.get();
+    if (page.size === 0) break;
+
+    results.push(...page.docs);
+    visited += page.size;
+    lastDoc = page.docs[page.docs.length - 1];
+    if (page.size < LAPSED_SHARE_PAGE_SIZE) break;
+  }
+  if (visited >= MAX_LAPSED_SHARES_PER_RUN) {
+    // Fires when the loop exited on the ceiling rather than because pages ran
+    // out. If exactly MAX docs existed and the final page was full, every doc
+    // was in fact processed this run — but we can't distinguish that from
+    // "more remain" without another query, so we warn conservatively. Oncall:
+    // this means the ceiling was reached, not necessarily that docs were missed.
+    console.warn(
+      `[expireActivityWallShares] hit MAX_LAPSED_SHARES_PER_RUN ceiling (${MAX_LAPSED_SHARES_PER_RUN}) — raise it or shard the sweep`
+    );
+  }
+  return results;
+}
+
+/**
  * Core sweep, extracted from the scheduler wrapper so it can be exercised
  * against a stub Firestore in tests (mirrors `runGcPlcOrphans`).
  *
  * 1. Find every `shared_activity_walls` doc that is revoked OR past its
- *    `expiresAt` (two single-field queries — no composite index needed).
+ *    `expiresAt` (two single-field queries — no composite index needed),
+ *    each PAGINATED (startAfter cursor) so every lapsed share up to
+ *    `MAX_LAPSED_SHARES_PER_RUN` is found, not just the first page.
  * 2. Group the lapsed docs by `sessionId` (a session can have been shared
  *    more than once — teachers re-share rather than edit an existing link).
  * 3. For each affected session, re-check ALL its shares (not just the lapsed
@@ -83,21 +146,22 @@ export async function runExpireActivityWallShares(
   db: Firestore,
   now: number = Date.now()
 ): Promise<{ lapsedShares: number; sessionsRelocked: number }> {
-  const [expiredSnap, revokedSnap] = await Promise.all([
-    db
-      .collection('shared_activity_walls')
-      .where('expiresAt', '<=', now)
-      .limit(MAX_LAPSED_SHARES_PER_RUN)
-      .get(),
-    db
-      .collection('shared_activity_walls')
-      .where('revoked', '==', true)
-      .limit(MAX_LAPSED_SHARES_PER_RUN)
-      .get(),
+  const [expiredDocs, revokedDocs] = await Promise.all([
+    fetchLapsedSharesPaginated(db, (q) =>
+      q
+        .where('expiresAt', '<=', now)
+        .orderBy('expiresAt')
+        .orderBy(admin.firestore.FieldPath.documentId())
+    ),
+    fetchLapsedSharesPaginated(db, (q) =>
+      q
+        .where('revoked', '==', true)
+        .orderBy(admin.firestore.FieldPath.documentId())
+    ),
   ]);
 
   const lapsedById = new Map<string, QueryDocSnap>();
-  for (const doc of [...expiredSnap.docs, ...revokedSnap.docs]) {
+  for (const doc of [...expiredDocs, ...revokedDocs]) {
     lapsedById.set(doc.id, doc);
   }
 

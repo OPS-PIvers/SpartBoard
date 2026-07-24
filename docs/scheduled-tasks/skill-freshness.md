@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-07-21_
+_Last audited: 2026-07-23_
 _Last action: 2026-07-09 — MEDIUM SpecialistSchedule Appearance.tsx/co-located-Settings pattern documented + stale `.agents/` reference row corrected in new-widget skill (both mirrors)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-23: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — consistent with all prior runs). Codebase-side verification via sub-agent. No new dev-paul commits since 2026-07-21 (rebase not performed). Key findings: (1) `ScheduleConfigurationPanel.tsx` — direct bash verification confirmed the file EXISTS at `components/admin/ScheduleConfigurationPanel.tsx` (and its test `ScheduleConfigurationPanel.test.tsx`). The 2026-07-21 directory scan was incorrect. LOW item moved to Completed (file is present; skill reference is valid). (2) NEW LOW: `spart-new-widget` skill cites `QRWidget/Widget.tsx` as a "Good empty state usage" reference, but QRWidget/Widget.tsx does NOT use `ScaledEmptyState` — it uses hand-rolled empty-state markup. Better reference implementations include `UrlWidget/Widget.tsx`, `Checklist/Widget.tsx`, and `RecessGear/Widget.tsx`. Remaining open: 6 LOWs._
 
 _2026-07-21: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — consistent with all prior runs). Codebase-side verification via sub-agent: new dev-paul commits since 2026-07-20 (absorbed via rebase): fix(activity-wall) photo-grid rowHeight cqmin fix (#2253 — Widget.tsx only, no skill-relevant files). Full checklist verification: all 8 required files (types.ts, config/tools.ts, config/widgetDefaults.ts, config/widgetGradeLevels.ts, components/widgets/WidgetRegistry.ts, components/admin/, components/admin/FeaturePermissionsManager.tsx) confirmed present. `SpecialistSchedule/` still has `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts`, `utils.ts` — reference note from 2026-07-09 accurate. `lazyNamed()` convention correct in WidgetRegistry.ts. All 6 reference widget implementations confirmed present. ONE NEW LOW item: `spart-widget-admin-config` Path B example list references `ScheduleConfigurationPanel.tsx` — no file by that name exists in `components/admin/` (directory scan confirms only `ClockConfigurationPanel.tsx` and `DiceConfigurationPanel.tsx` among the examples; `ScheduleConfigurationPanel.tsx` is absent). All 4 pre-existing LOW items remain valid. Total open: 5 LOW._
 
@@ -50,12 +52,12 @@ _2026-05-05: Skill files not accessible at `/mnt/skills/user/` in this audit env
 
 _2026-06-23 action: Fixed MEDIUM `admin-widget-config` reference to non-existent `SpecialistScheduleSettings.tsx`. Both skill copies (`.claude/skills/admin-widget-config/SKILL.md:222` and `.agents/skills/admin-widget-config/SKILL.md:185`) updated to reference the correct path `components/widgets/SpecialistSchedule/Settings.tsx`. Verified the target file exists and reads `featurePermissions` (Settings.tsx:48). File-recency check passed: skill files last touched at 19b6ae40 — outside the last 5 branch commits. Documentation-only change; PR opened against dev-paul. Item moved to Completed. 2 LOW open items remain._
 
-### LOW `spart-widget-admin-config` Path B example references non-existent `ScheduleConfigurationPanel.tsx`
+### LOW `spart-new-widget` cites `QRWidget/Widget.tsx` as a "Good empty state usage" reference — but it uses hand-rolled markup, not `ScaledEmptyState`
 
-- **Detected:** 2026-07-21
-- **File:** `.claude/skills/admin-widget-config/SKILL.md` — Path B example list
-- **Detail:** The skill's Path B section mentions `ScheduleConfigurationPanel.tsx` as an example of an existing panel alongside `ClockConfigurationPanel.tsx` and `DiceConfigurationPanel.tsx`. No file named `ScheduleConfigurationPanel.tsx` exists in `components/admin/` — a full directory scan confirms its absence. The schedule widget's admin configuration is handled differently (likely via `SpecialistScheduleConfigurationModal.tsx` which does exist). A developer following the example literally cannot find the referenced file. Both `ClockConfigurationPanel.tsx` and `DiceConfigurationPanel.tsx` do exist and are valid examples; only the schedule entry is stale.
-- **Fix:** Replace `ScheduleConfigurationPanel.tsx` in the Path B example list with a panel that exists — e.g., `SoundboardConfigurationPanel.tsx` or `CountdownConfigurationPanel.tsx` — or remove the stale entry and reference `SpecialistScheduleConfigurationModal.tsx` (which does exist) with a note that complex widgets use a modal pattern.
+- **Detected:** 2026-07-23
+- **File:** `.claude/skills/new-widget/SKILL.md` — "Reference Implementations" section
+- **Detail:** The skill's Reference Implementations table lists `QRWidget/Widget.tsx` under "Good empty state usage." However, `QRWidget/Widget.tsx` does not use the shared `ScaledEmptyState` component — it uses hand-rolled empty-state markup (a custom `div` with inline icon and text). This contradicts CLAUDE.md guidance that widgets should use `ScaledEmptyState`. Better reference implementations for empty state usage include `UrlWidget/Widget.tsx`, `Checklist/Widget.tsx`, and `RecessGear/Widget.tsx`, all of which use `ScaledEmptyState` correctly.
+- **Fix:** Update the Reference Implementations table in the skill to replace `QRWidget/Widget.tsx` with a widget that genuinely uses `ScaledEmptyState` — e.g., `UrlWidget/Widget.tsx` or `RecessGear/Widget.tsx`.
 
 ### LOW `spart-new-widget` admin config step understates the number of code changes required
 
@@ -99,6 +101,14 @@ _2026-06-23 action: Fixed MEDIUM `admin-widget-config` reference to non-existent
 ---
 
 ## Completed
+
+### LOW `spart-widget-admin-config` Path B example references `ScheduleConfigurationPanel.tsx`
+
+- **Detected:** 2026-07-21
+- **Completed:** 2026-07-23
+- **File:** `.claude/skills/admin-widget-config/SKILL.md` — Path B example list
+- **Detail:** The 2026-07-21 directory scan reported no file named `ScheduleConfigurationPanel.tsx` in `components/admin/`, concluding the skill reference was stale. Bash verification on 2026-07-23 confirmed the file DOES exist at `components/admin/ScheduleConfigurationPanel.tsx` (and its test `components/admin/ScheduleConfigurationPanel.test.tsx`). The 2026-07-21 scan result was incorrect.
+- **Resolution (2026-07-23):** `components/admin/ScheduleConfigurationPanel.tsx` confirmed to exist — skill reference is valid. No fix needed.
 
 ### MEDIUM `spart-new-widget` documents SpecialistSchedule as having a separate `Appearance.tsx` — actual pattern co-locates appearance in `Settings.tsx`
 
