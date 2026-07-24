@@ -164,6 +164,14 @@ describe('shouldExpireNextUpQueue', () => {
     expect(shouldExpireNextUpQueue(true, undefined, now)).toBe(false);
   });
 
+  it('expires when createdAt is 0 (Unix epoch — a valid prior-day timestamp, not "missing")', () => {
+    // Guarding on `!createdAt` would treat 0 as absent and skip expiry; the
+    // guard is `createdAt == null`, so epoch 0 correctly reads as a past day.
+    const now = new Date('2026-07-24T00:01:00');
+
+    expect(shouldExpireNextUpQueue(true, 0, now)).toBe(true);
+  });
+
   it('models the reported gap: an idle overnight session stays expired-detectable only once `now` ticks past midnight', () => {
     // A session created at 11:50pm, still active. With `now` frozen at
     // 11:55pm (matching the un-ticked bug — the widget's `nowTick` state
