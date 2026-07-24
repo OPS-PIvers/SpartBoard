@@ -152,6 +152,7 @@ export const SyntaxFramerAppearanceSettings: React.FC<
 > = ({ widget }) => {
   const { updateWidget } = useDashboard();
   const config = widget.config as SyntaxFramerConfig;
+  const syntaxFramerAlignmentLabelId = `syntaxframer-alignment-label-${widget.id}`;
 
   const handleUpdate = (updates: Partial<SyntaxFramerConfig>) => {
     updateWidget(widget.id, {
@@ -162,8 +163,18 @@ export const SyntaxFramerAppearanceSettings: React.FC<
   return (
     <div className="space-y-4">
       <div>
-        <SettingsLabel icon={AlignLeft}>Alignment</SettingsLabel>
-        <div className="flex gap-2">
+        <SettingsLabel
+          as="span"
+          id={syntaxFramerAlignmentLabelId}
+          icon={AlignLeft}
+        >
+          Alignment
+        </SettingsLabel>
+        <div
+          className="flex gap-2"
+          role="group"
+          aria-labelledby={syntaxFramerAlignmentLabelId}
+        >
           <button
             className={`flex-1 flex items-center justify-center py-2 px-3 rounded-lg border transition-colors ${
               config.alignment === 'left'
