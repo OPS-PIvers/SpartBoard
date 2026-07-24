@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
 _Last audited: 2026-07-24_
-_Last action: 2026-06-12 — MEDIUM cardOpacity range-check extracted into shared `isCardOpacity` guard in adminBuildingConfig.ts_
+_Last action: 2026-07-24 — HIGH `organizations/{orgId}/buildings` double-subscription resolved: `useOrgBuildings` reuses AuthContext's `orgBuildings` for the active org instead of opening a second listener_
 
 ---
 
@@ -68,13 +68,6 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
 - **File:** utils/videoActivityDriveService.ts
 - **Detail:** The file exports `buildVideoActivityResultsSheetData` (a wrapper around `buildResultsSheetData` from `utils/assignmentExportShared.ts` using `gradeVideoActivityAnswer` to correctly grade MA/FIB-with-variants). It was extracted to fix a grading gap for the VA export flow (the comment references "the TODO PR2a left at Results.tsx:170"). However, zero production files import it — only `tests/utils/videoActivityDriveService.test.ts` does. The function has no hook, component, or context consumer; teachers cannot reach the VA results export that uses the corrected grader.
 - **Fix:** Wire `buildVideoActivityResultsSheetData` into the video-activity results export path. Locate the VA results export trigger (likely in `components/widgets/VideoActivityWidget/components/VideoActivityManager.tsx` or a hook) and replace the call to `buildResultsSheetData` (which misses MA/FIB-with-variants) with `buildVideoActivityResultsSheetData` from `@/utils/videoActivityDriveService`. Alternatively, if the PR2a fix was superseded by other changes, verify `buildResultsSheetData` now handles MA/FIB correctly and delete `videoActivityDriveService.ts` as dead code.
-
-### HIGH `organizations/{orgId}/buildings` double-subscription — AuthContext and Organization panel open concurrent listeners
-
-- **Detected:** 2026-07-24
-- **Files:** context/AuthContext.tsx (line 1443), hooks/useOrgBuildings.ts (line 49)
-- **Detail:** `AuthContext.tsx` opens an `onSnapshot` listener on `collection(db, 'organizations', orgId, 'buildings')` at line 1443 and stores the result in `orgBuildings` state (drives the `buildingId → display name` mapping for feature gates). `hooks/useOrgBuildings.ts` opens a SEPARATE `onSnapshot` on the exact same path at line 49 — used by `components/admin/Organization/OrganizationPanel.tsx` line 243. When a super-admin user views the Organization panel, there are two concurrent live subscriptions to the same Firestore path. The data is identical; only the consumer differs. The duplication results in doubled Firestore read operations and doubled network cost for every admin session that opens the Organization panel.
-- **Fix:** `AuthContext` could expose its `orgBuildings` array via context (as part of the `useAuth()` hook return value). `useOrgBuildings.ts` could then check whether an `orgBuildings` value is already available from `useAuth()` for the same `orgId` and return it directly instead of opening a redundant listener — falling back to its own subscription only when the org IDs differ or the context is unavailable. Alternatively, promote `useOrgBuildings` to a top-level hook invoked once at the `AuthProvider` level and distribute via context. This change requires AuthContext and OrganizationPanel to coordinate on the buildings data source — a supervised change.
 
 ### HIGH `DashboardContext.tsx` grew 1262 lines since May 13 extraction — now 5596 lines
 
@@ -213,6 +206,14 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
 ---
 
 ## Completed
+
+### HIGH `organizations/{orgId}/buildings` double-subscription — AuthContext and Organization panel open concurrent listeners
+
+- **Detected:** 2026-07-24
+- **Completed:** 2026-07-24
+- **Files:** hooks/useOrgBuildings.ts, hooks/useOrgBuildings.test.ts
+- **Detail:** `AuthContext.tsx` runs a live `onSnapshot` on `collection(db, 'organizations', orgId, 'buildings')` (~line 1443) into `orgBuildings` state (drives grade-level resolution / feature gates). `hooks/useOrgBuildings.ts` opened a SEPARATE `onSnapshot` on the exact same path (~line 49), consumed by `OrganizationPanel.tsx` line 243. Every admin who opened the Organization panel on their own org therefore held two concurrent live listeners on identical data — doubled Firestore reads and network cost per session.
+- **Resolution:** `AuthContext` already exposes `orgId`, `orgBuildings`, and `orgBuildingsLoaded` through the `useAuth()` context value, so no context-surface change was needed. `useOrgBuildings` now derives `reuseAuthBuildings = Boolean(orgId) && auth?.orgId === orgId`; when the requested org matches the active org it returns AuthContext's `orgBuildings` (and derives `loading` from `orgBuildingsLoaded`) instead of opening a second listener. The dedicated subscription now fires only when the org IDs differ (super admin inspecting another org via the orgs list, where `orgScopedOrgId !== authOrgId`), when `isAuthBypass` is set, or when no `AuthProvider` is present (test harness) — preserving the existing fallback behavior. Write actions (`addBuilding`/`updateBuilding`/`removeBuilding`) and the returned `error` field are unchanged; `OrganizationPanel` never consumed `error`. Added 3 tests: reuse-without-second-listener, reuse loading passthrough, and different-org fallback still opens its own listener. `pnpm type-check` (exit 0), `eslint --max-warnings 0` (exit 0), `prettier --check` clean; all 9 tests in `hooks/useOrgBuildings.test.ts` pass. The other HIGH item in this journal (`DashboardContext.tsx` extraction) remains BLOCKED.
 
 ### MEDIUM `functions/src/index.ts` is 3525 lines — single file for all Cloud Functions (growth stalled)
 
