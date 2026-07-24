@@ -249,7 +249,7 @@ const getErrorContent = (
       return {
         title: 'Something went wrong',
         message:
-          'We couldn&rsquo;t accept this invitation. Try again, or contact your admin.',
+          "We couldn't accept this invitation. Try again, or contact your admin.",
       };
   }
 };
