@@ -7,14 +7,18 @@ import React from 'react';
 // jsdom has no layout engine, so the component's own-container measurement
 // must be simulated by invoking the observer callback with a contentRect.
 let resizeCallback: ResizeObserverCallback | null = null;
+let disconnectSpy: ReturnType<typeof vi.fn> | null = null;
 
 class MockResizeObserver {
-  constructor(cb: ResizeObserverCallback) {
-    resizeCallback = cb;
-  }
   observe = vi.fn();
   unobserve = vi.fn();
   disconnect = vi.fn();
+  constructor(cb: ResizeObserverCallback) {
+    resizeCallback = cb;
+    // Capture this instance's disconnect spy (a property, not `this`) so the
+    // unmount teardown can be asserted.
+    disconnectSpy = this.disconnect;
+  }
 }
 
 function emitResize(target: Element, width: number, height: number): void {
@@ -34,6 +38,7 @@ function emitResize(target: Element, width: number, height: number): void {
 describe('PopcornBallsView', () => {
   beforeEach(() => {
     resizeCallback = null;
+    disconnectSpy = null;
     vi.stubGlobal('ResizeObserver', MockResizeObserver);
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 1);
     // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -71,5 +76,8 @@ describe('PopcornBallsView', () => {
     expect(window.requestAnimationFrame).toHaveBeenCalled();
     unmount();
     expect(window.cancelAnimationFrame).toHaveBeenCalled();
+    // Pin the ResizeObserver teardown contract: the effect cleanup must
+    // disconnect the observer so it stops firing after unmount.
+    expect(disconnectSpy).toHaveBeenCalled();
   });
 });
