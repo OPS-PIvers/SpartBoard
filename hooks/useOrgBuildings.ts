@@ -47,9 +47,19 @@ export const useOrgBuildings = (orgId: string | null) => {
   const [prevKey, setPrevKey] = useState(`${shouldSubscribe}:${orgId ?? ''}`);
   const nextKey = `${shouldSubscribe}:${orgId ?? ''}`;
   if (prevKey !== nextKey) {
+    // Parse the orgId back out of the previous key. Use indexOf/slice rather
+    // than split(':') so an orgId that ever contained a colon can't be
+    // truncated.
+    const prevOrgId = prevKey.slice(prevKey.indexOf(':') + 1);
     setPrevKey(nextKey);
     setOwnLoading(shouldSubscribe);
-    if (!shouldSubscribe) {
+    // Clear stale own-subscription data both when leaving own-subscription
+    // mode AND when switching to a *different* foreign org (a super admin
+    // hopping between two orgs, neither of which is their own — both keys have
+    // shouldSubscribe=true but different orgIds). Without the orgId comparison,
+    // org-A's buildings would flash under org-B's heading until B's first
+    // snapshot lands.
+    if (!shouldSubscribe || orgId !== prevOrgId) {
       setOwnBuildings([]);
       setError(null);
     }

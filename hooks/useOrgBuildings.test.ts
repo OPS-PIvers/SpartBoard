@@ -168,6 +168,152 @@ describe('useOrgBuildings', () => {
     );
   });
 
+  it('clears stale buildings and tears down its listener when switching from a foreign org to the active org', async () => {
+    const foreignBuilding: BuildingRecord = {
+      ...mockBuilding,
+      id: 'foreign-only',
+    };
+    const authBuilding: BuildingRecord = { ...mockBuilding, id: 'auth-active' };
+    const unsub = vi.fn();
+    mockOnSnapshot.mockImplementation(
+      (
+        _ref: unknown,
+        onNext: (snap: {
+          docs: { id: string; data: () => BuildingRecord }[];
+        }) => void
+      ) => {
+        queueMicrotask(() =>
+          onNext({
+            docs: [{ id: 'foreign-only', data: () => foreignBuilding }],
+          })
+        );
+        return unsub;
+      }
+    );
+
+    const wrapper = makeAuthWrapper(
+      { uid: 'u' },
+      {
+        orgId: 'orono',
+        orgBuildings: [authBuilding],
+        orgBuildingsLoaded: true,
+      }
+    );
+
+    // Start inspecting a foreign org — hook opens its own listener.
+    const { result, rerender } = renderHook(
+      ({ orgId }: { orgId: string }) => useOrgBuildings(orgId),
+      { wrapper, initialProps: { orgId: 'other-district' } }
+    );
+    await waitFor(() => {
+      expect(result.current.buildings).toEqual([foreignBuilding]);
+    });
+
+    // Switch to the active org — must reuse AuthContext data, tear down the own
+    // listener, and never surface the stale foreign buildings.
+    rerender({ orgId: 'orono' });
+    expect(unsub).toHaveBeenCalledTimes(1);
+    expect(result.current.buildings).toEqual([authBuilding]);
+  });
+
+  it('opens a fresh listener when switching from the active org to a foreign org', async () => {
+    const authBuilding: BuildingRecord = { ...mockBuilding, id: 'auth-active' };
+    const foreignBuilding: BuildingRecord = {
+      ...mockBuilding,
+      id: 'foreign-only',
+    };
+    mockOnSnapshot.mockImplementation(
+      (
+        _ref: unknown,
+        onNext: (snap: {
+          docs: { id: string; data: () => BuildingRecord }[];
+        }) => void
+      ) => {
+        queueMicrotask(() =>
+          onNext({
+            docs: [{ id: 'foreign-only', data: () => foreignBuilding }],
+          })
+        );
+        return () => undefined;
+      }
+    );
+
+    const wrapper = makeAuthWrapper(
+      { uid: 'u' },
+      {
+        orgId: 'orono',
+        orgBuildings: [authBuilding],
+        orgBuildingsLoaded: true,
+      }
+    );
+
+    // Start on the active org — reuse path, no listener.
+    const { result, rerender } = renderHook(
+      ({ orgId }: { orgId: string }) => useOrgBuildings(orgId),
+      { wrapper, initialProps: { orgId: 'orono' } }
+    );
+    expect(mockOnSnapshot).not.toHaveBeenCalled();
+    expect(result.current.buildings).toEqual([authBuilding]);
+
+    // Switch to a foreign org — opens a dedicated listener and returns its data.
+    rerender({ orgId: 'other-district' });
+    expect(mockOnSnapshot).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(result.current.buildings).toEqual([foreignBuilding]);
+    });
+  });
+
+  it('clears stale buildings when switching between two foreign orgs', async () => {
+    const orgABuilding: BuildingRecord = { ...mockBuilding, id: 'org-a-only' };
+    const orgBBuilding: BuildingRecord = { ...mockBuilding, id: 'org-b-only' };
+    const byOrg: Record<string, BuildingRecord> = {
+      'org-a': orgABuilding,
+      'org-b': orgBBuilding,
+    };
+    // collection() is called with (db, 'organizations', orgId, 'buildings');
+    // return the orgId so the snapshot mock can serve org-specific data.
+    mockCollection.mockImplementation(
+      (_db: unknown, _orgs: string, orgId: string) => orgId
+    );
+    mockOnSnapshot.mockImplementation(
+      (
+        ref: string,
+        onNext: (snap: {
+          docs: { id: string; data: () => BuildingRecord }[];
+        }) => void
+      ) => {
+        const building = byOrg[ref];
+        queueMicrotask(() =>
+          onNext({ docs: [{ id: building.id, data: () => building }] })
+        );
+        return () => undefined;
+      }
+    );
+
+    // Super admin whose own org is neither foreign org, so both keys keep
+    // shouldSubscribe=true across the switch.
+    const wrapper = makeAuthWrapper(
+      { uid: 'u' },
+      { orgId: 'home-org', orgBuildings: [], orgBuildingsLoaded: true }
+    );
+
+    const { result, rerender } = renderHook(
+      ({ orgId }: { orgId: string }) => useOrgBuildings(orgId),
+      { wrapper, initialProps: { orgId: 'org-a' } }
+    );
+    await waitFor(() => {
+      expect(result.current.buildings).toEqual([orgABuilding]);
+    });
+
+    // Switch to org-b: org-a's buildings must be cleared immediately (not
+    // flashed) before org-b's snapshot lands.
+    rerender({ orgId: 'org-b' });
+    expect(result.current.buildings).toEqual([]);
+    await waitFor(() => {
+      expect(result.current.buildings).toEqual([orgBBuilding]);
+    });
+  });
+
   it('addBuilding writes a new doc with a derived id', async () => {
     mockOnSnapshot.mockReturnValue(() => undefined);
 
