@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-07-18_
+_Last audited: 2026-07-24_
 _Last action: 2026-06-12 — MEDIUM cardOpacity range-check extracted into shared `isCardOpacity` guard in adminBuildingConfig.ts_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-24: Friday audit pass (weekly C1). New dev-paul commits since 2026-07-23 absorbed: NextUp fix, Escape popover leak, InviteAcceptance HTML entity, expireActivityWallShares pagination, PR #2272 review fixes — none touch context/DashboardContext.tsx, utils/adminBuildingConfig.ts, or functions/src/. DashboardContext.tsx confirmed still at 5,865 lines (BLOCKED — unchanged). Comprehensive agent scan of large files, Cloud Functions, cross-context data fetching, deep relative imports, and single-consumer utils. ONE NEW HIGH: context/AuthContext.tsx line 1443 opens onSnapshot on organizations/{orgId}/buildings and hooks/useOrgBuildings.ts line 49 opens a SEPARATE onSnapshot on the same path — two concurrent live listeners for every admin who visits the Organization panel, doubling Firestore reads and network cost (see new HIGH item below). TWO new entries in LOW single-consumer-utils item: utils/rosterPins.ts (36 lines, consumer: hooks/useRosters.ts) and utils/notebookConverter.ts (263 lines, consumer: components/converter/ConverterPage.tsx). ONE NEW LOW: 17 Cloud Functions lack explicit memory setting and rely on the global 256 MiB default from functionsInit.ts; the sync-group join/leave hot-path functions warrant explicit pinning for cost audit visibility. Deep relative imports: zero (3+ levels ../) in non-test source files — clean. All other existing open items re-confirmed valid. 1 new HIGH, 2 existing items extended, 1 new LOW added._
 
 _2026-07-18: Saturday audit pass (full comprehensive scan). New dev-paul commits since 2026-07-17: none. DashboardContext.tsx confirmed 5,865 lines (unchanged — BLOCKED). All previously open items re-confirmed valid. Full large-file rescan surfaced **19 files exceeding 1,000 lines** not listed in the existing MEDIUM large-files item — added to that item. Single-consumer utils rescan found **13 new single-consumer files** not listed in the existing LOW single-consumer-utils item — added. No deep relative imports (3+ levels) found in non-test source files. No new cross-context collection duplication. functions/src/index.ts confirmed 144 lines (thin barrel — still resolved). v1 logger in finalizeIdleQuizAttempts.ts and OAuth timeoutSeconds gap both still open. 0 new open items; 2 existing items extended with new data._
 
@@ -66,6 +68,13 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
 - **File:** utils/videoActivityDriveService.ts
 - **Detail:** The file exports `buildVideoActivityResultsSheetData` (a wrapper around `buildResultsSheetData` from `utils/assignmentExportShared.ts` using `gradeVideoActivityAnswer` to correctly grade MA/FIB-with-variants). It was extracted to fix a grading gap for the VA export flow (the comment references "the TODO PR2a left at Results.tsx:170"). However, zero production files import it — only `tests/utils/videoActivityDriveService.test.ts` does. The function has no hook, component, or context consumer; teachers cannot reach the VA results export that uses the corrected grader.
 - **Fix:** Wire `buildVideoActivityResultsSheetData` into the video-activity results export path. Locate the VA results export trigger (likely in `components/widgets/VideoActivityWidget/components/VideoActivityManager.tsx` or a hook) and replace the call to `buildResultsSheetData` (which misses MA/FIB-with-variants) with `buildVideoActivityResultsSheetData` from `@/utils/videoActivityDriveService`. Alternatively, if the PR2a fix was superseded by other changes, verify `buildResultsSheetData` now handles MA/FIB correctly and delete `videoActivityDriveService.ts` as dead code.
+
+### HIGH `organizations/{orgId}/buildings` double-subscription — AuthContext and Organization panel open concurrent listeners
+
+- **Detected:** 2026-07-24
+- **Files:** context/AuthContext.tsx (line 1443), hooks/useOrgBuildings.ts (line 49)
+- **Detail:** `AuthContext.tsx` opens an `onSnapshot` listener on `collection(db, 'organizations', orgId, 'buildings')` at line 1443 and stores the result in `orgBuildings` state (drives the `buildingId → display name` mapping for feature gates). `hooks/useOrgBuildings.ts` opens a SEPARATE `onSnapshot` on the exact same path at line 49 — used by `components/admin/Organization/OrganizationPanel.tsx` line 243. When a super-admin user views the Organization panel, there are two concurrent live subscriptions to the same Firestore path. The data is identical; only the consumer differs. The duplication results in doubled Firestore read operations and doubled network cost for every admin session that opens the Organization panel.
+- **Fix:** `AuthContext` could expose its `orgBuildings` array via context (as part of the `useAuth()` hook return value). `useOrgBuildings.ts` could then check whether an `orgBuildings` value is already available from `useAuth()` for the same `orgId` and return it directly instead of opening a redundant listener — falling back to its own subscription only when the org IDs differ or the context is unavailable. Alternatively, promote `useOrgBuildings` to a top-level hook invoked once at the `AuthProvider` level and distribute via context. This change requires AuthContext and OrganizationPanel to coordinate on the buildings data source — a supervised change.
 
 ### HIGH `DashboardContext.tsx` grew 1262 lines since May 13 extraction — now 5596 lines
 
@@ -175,8 +184,17 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
   - `utils/spotifyPlaybackSdk.ts` — 1 consumer (`hooks/useSpotifyWebPlayback.ts`) (2026-07-18; SDK wrapper, appropriate in utils/)
   - `utils/testClassAccess.ts` — 1 consumer (`components/classes/ClassLinkImportDialog.tsx`) (2026-07-18)
   - `utils/youtubeSearch.ts` — 1 consumer (`components/widgets/VideoActivityWidget/components/Creator.tsx`) (2026-07-18; API wrapper, appropriate in utils/)
+  - `utils/rosterPins.ts` — 1 consumer (`hooks/useRosters.ts`) (2026-07-24; 36 lines, roster-pin index helpers)
+  - `utils/notebookConverter.ts` — 1 consumer (`components/converter/ConverterPage.tsx`) (2026-07-24; 263 lines, SMART Notebook conversion logic — feature-local, candidate for co-location under `components/converter/`)
     Single-consumer utils are not necessarily wrong — domain separation is valid — but warrant a quick sanity check that they are not duplicating logic that already exists elsewhere, and that they are documented or self-explanatory.
 - **Fix:** Verify each file's consumer. For `migration.ts` (owned entirely by DashboardContext), consider whether inlining or consolidating the migration logic into the context would reduce indirection. No action required if each file's scope is intentionally bounded.
+
+### LOW 17 Cloud Functions lack explicit `memory` setting — rely on global 256 MiB default
+
+- **Detected:** 2026-07-24
+- **File:** functions/src/ (googleOAuth.ts, spotifyOAuth.ts, syncedQuizGroups.ts, syncedVideoActivityGroups.ts, plcQuizSyncJoin.ts, plcAssignmentSyncJoin.ts, plcVideoActivitySyncJoin.ts, organizationMembersSync.ts, organizationMemberCounters.ts, organizationBuildingCounters.ts, plcInvitationEmail.ts, rolloutRequestEmail.ts, lti/ modules, resolveOrgForUser.ts, getOrgUserActivity.ts)
+- **Detail:** `functionsInit.ts` calls `setGlobalOptions({ region: 'us-central1' })` but does NOT set a global `memory` default. 17 functions rely on the implicit 256 MiB platform default. The sync-group join/leave functions (`joinSyncedQuizGroup`, `leaveSyncedQuizGroup`, `joinSyncedVideoActivityGroup`, `leaveSyncedVideoActivityGroup`) are on the hot path during live sessions. Without explicit memory settings, cost anomaly detection and per-function billing audits must infer configuration from the platform default rather than reading the code. The OAuth functions already have an open LOW item about missing `timeoutSeconds` — adding `memory: '256MiB'` there would address 6 overlap cases.
+- **Fix:** Add `memory: '256MiB'` to each function's `onCall` options object. No-op at runtime (confirms existing implicit default) but makes the resource tier explicit. Address alongside the existing OAuth `timeoutSeconds: 30` pass. Prioritize sync-group and LTI hot-path functions.
 
 ### LOW `adminBuildingConfig.ts` — duplicate local constants: `validRevealFonts` and `validTextSizePresets`
 
