@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-24_
+_Last audited: 2026-07-25_
 _Last action: 2026-07-23 — MEDIUM SoundWidget `PopcornBallsView` no longer receives `width={w} height={h - 60}` (stored widget dims minus a magic header offset); the canvas component now self-measures its own container via `ResizeObserver`, matching the NumberLine idiom, so the draw buffer tracks the actual rendered area with no hard-coded pixel subtraction_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-25: Targeted scan (Saturday). New dev-paul commits since 2026-07-24 absorbed via rebase — no widget front-face content changes. Direct grep scan of all Widget.tsx files for hardcoded text-size classes, max-h/max-w pixel caps, and fixed icon sizes. Findings: (1) ActivityWall/Widget.tsx max-h-[75vh] lines 2144/2150/2153 — WON'T FIX per standing precedent (viewport-bounded Modal via createPortal, outside CQ context); (2) RevealGrid/Widget.tsx :162/:168 text-xs in header — existing LOW open item (unchanged); (3) MiniApp/Widget.tsx fixed text/icon sizes — existing open item (unchanged, all in portaled MiniAppAssignModal or Save App overlay outside CQ context); (4) Embed/Widget.tsx w-4 h-4 toolbar icons — WON'T FIX: portaled to document.body, outside CQ context; (5) GuidedLearning/Widget.tsx :618 w-8 h-8 Loader2 — existing group open item (unchanged); (6) LunchCount/Widget.tsx max-w-[min(60vmin,560px)] — WON'T FIX: uses vmin units (container-relative), not hardcoded pixels. Newer widgets (Stations, BloomsTaxonomy, NeedDoPutThen) confirmed fully clean — zero hardcoded text sizes, fixed icons, or pixel caps in any Widget.tsx. All pre-existing open items confirmed present and unresolved. Zero new anti-patterns._
 
 _2026-07-24: Targeted scan (Friday). New dev-paul commits since 2026-07-23 absorbed: NextUp fix, Escape popover leak, InviteAcceptance HTML entity, expireActivityWallShares pagination, PR #2272 review fixes — none touch widget front-face content. Comprehensive agent scan of all Widget.tsx front-face files. Seven candidate findings reviewed: (1) RevealGrid/Widget.tsx :162/:168 text-xs — already tracked in existing LOW open item (unchanged); (2–4) MiniApp/Widget.tsx MiniAppAssignModal text/icon sizes and Save App overlay — already tracked in existing open items (unchanged); (5) GuidedLearning/Widget.tsx :618 w-8 h-8 Loader2 — already tracked in multi-widget group open item (unchanged); (6) SoundboardWidget/Widget.tsx :444 w-2 h-2 active-indicator dot — WON'T FIX: decorative 8px indicator dot, excluded per 2026-07-07 precedent (same rationale as the Webcam capture-indicator dot); (7) Webcam/Widget.tsx :469 w-2 h-2 capture-indicator dot — WON'T FIX: same decorative-dot reasoning as Finding 6, excluded per 2026-07-07 precedent. Zero new anti-patterns. All pre-existing open items confirmed present and unresolved._
 
