@@ -475,10 +475,6 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
     () => import('./RevealGrid'),
     'RevealGridAppearanceSettings'
   ),
-  'syntax-framer': lazyNamed(
-    () => import('./SyntaxFramer'),
-    'SyntaxFramerAppearanceSettings'
-  ),
   'specialist-schedule': lazyNamed(
     () => import('./SpecialistSchedule'),
     'SpecialistScheduleAppearanceSettings'
