@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-23_
+_Last audited: 2026-07-24_
 _Last action: 2026-06-25_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-24: Full audit. New dev-paul commits since 2026-07-23 (absorbed via rebase): fix(widgets) NextUp auto-expiry day rollover fix (#2265), fix(dock) Escape leaking from popovers into global widget-minimize handler (#2266), fix(auth) decode raw HTML entity in InviteAcceptance default error message (#2267), fix(functions) paginate expireActivityWallShares lapsed-share lookup (#2268), docs(routines) debugger run 32 + unifier run 41 (#2264/#2269), PR #2272 review fixes (NextUp deps, PopcornBalls comment, ResizeObserver teardown). None of these add, remove, or rename any WidgetType. VERIFIED COUNT: 63 WidgetType members (unchanged). Comprehensive sub-agent scan confirmed all 63 WidgetTypes correctly registered across all 5 locations (sticker intentional WidgetRenderer special-case per JSDoc; catalyst-instruction, catalyst-visual, blooms-detail, mathTool, custom-widget, onboarding documented omissions from TOOLS; 3 InternalToolType entries documented). Full lazyNamed() export-name verification pass — ZERO mismatches across WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS. RevealGrid barrel aliases ('Widget'/'Settings' via index.ts re-export) confirmed intentional. pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
 _2026-07-23: Full audit. No new dev-paul commits since 2026-07-22 (rebase not performed — dev-paul diverged; auditing current branch state). VERIFIED COUNT: 63 WidgetType members (unchanged). All registrations across WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, config/tools.ts, config/widgetDefaults.ts, and config/widgetGradeLevels.ts verified correct. pnpm type-check (exit 0), pnpm lint (exit 0). Zero new gaps._
 
