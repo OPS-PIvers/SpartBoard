@@ -14,6 +14,7 @@ export const SyntaxFramerSettings: React.FC<SyntaxFramerSettingsProps> = ({
   const { updateWidget } = useDashboard();
   const config = widget.config as SyntaxFramerConfig;
   const syntaxFramerModeLabelId = `syntaxframer-mode-label-${widget.id}`;
+  const syntaxFramerAlignmentLabelId = `syntaxframer-alignment-label-${widget.id}`;
 
   // Derive initial input from existing tokens
   const initialInput = config.tokens
@@ -135,33 +136,6 @@ export const SyntaxFramerSettings: React.FC<SyntaxFramerSettingsProps> = ({
         </div>
       </div>
 
-      <div className="p-3 bg-blue-50 text-blue-800 text-xs rounded-lg flex gap-2">
-        <div className="flex-1">
-          <strong>Tip:</strong> Shift+Click a token on the board to change its
-          color. Click normally to mask it with blanks.
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default SyntaxFramerSettings;
-
-export const SyntaxFramerAppearanceSettings: React.FC<
-  SyntaxFramerSettingsProps
-> = ({ widget }) => {
-  const { updateWidget } = useDashboard();
-  const config = widget.config as SyntaxFramerConfig;
-  const syntaxFramerAlignmentLabelId = `syntaxframer-alignment-label-${widget.id}`;
-
-  const handleUpdate = (updates: Partial<SyntaxFramerConfig>) => {
-    updateWidget(widget.id, {
-      config: { ...config, ...updates },
-    });
-  };
-
-  return (
-    <div className="space-y-4">
       <div>
         <SettingsLabel
           as="span"
@@ -171,7 +145,7 @@ export const SyntaxFramerAppearanceSettings: React.FC<
           Alignment
         </SettingsLabel>
         <div
-          className="flex gap-2"
+          className="flex gap-2 mb-4"
           role="group"
           aria-labelledby={syntaxFramerAlignmentLabelId}
         >
@@ -197,6 +171,15 @@ export const SyntaxFramerAppearanceSettings: React.FC<
           </button>
         </div>
       </div>
+
+      <div className="p-3 bg-blue-50 text-blue-800 text-xs rounded-lg flex gap-2">
+        <div className="flex-1">
+          <strong>Tip:</strong> Shift+Click a token on the board to change its
+          color. Click normally to mask it with blanks.
+        </div>
+      </div>
     </div>
   );
 };
+
+export default SyntaxFramerSettings;
