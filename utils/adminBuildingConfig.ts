@@ -648,7 +648,7 @@ export const getAdminBuildingConfig = (
       // Appearance defaults — all consumed by ScheduleWidget/ScheduleRow.
       // `fontFamily` uses the prefixed `FONTS`-id space (shared
       // TypographySettings primitive), like stations/work-symbols.
-      const validScheduleTextSizePresets = [
+      const validTextSizePresets = [
         'small',
         'medium',
         'large',
@@ -658,9 +658,7 @@ export const getAdminBuildingConfig = (
       if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
       if (
         typeof raw.textSizePreset === 'string' &&
-        (validScheduleTextSizePresets as readonly string[]).includes(
-          raw.textSizePreset
-        )
+        (validTextSizePresets as readonly string[]).includes(raw.textSizePreset)
       )
         out.textSizePreset = raw.textSizePreset;
       if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
