@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CollectionSwitcherMenu } from '@/components/layout/CollectionSwitcherMenu';
 import type { Collection } from '@/types';
@@ -102,5 +102,36 @@ describe('CollectionSwitcherMenu', () => {
       screen.getByRole('menuitem', { name: /no collection/i })
     );
     expect(onSelect).toHaveBeenCalledWith(null);
+  });
+
+  // Regression test: this menu lives outside any `.widget` DraggableWindow.
+  // Pressing Escape while a menu item has focus previously bubbled the
+  // keydown past the menu, all the way to DashboardView's global
+  // window-level Escape handler — which finds no typing field and no
+  // `.widget` ancestor for the focused item, so it falls back to minimizing
+  // the topmost widget on the board. Simulates that window-level listener
+  // directly rather than mounting the full DashboardView, mirroring the
+  // pattern in ToolDockItem.test.tsx (#2266).
+  it('does not leak the Escape keydown to window-level listeners', () => {
+    render(
+      <CollectionSwitcherMenu
+        collections={[coll('a', null, 0, 'A')]}
+        activeCollectionId={null}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    const item = screen.getByRole('menuitem', { name: 'A' });
+    item.focus();
+    expect(document.activeElement).toBe(item);
+
+    const windowKeydownSpy = vi.fn();
+    window.addEventListener('keydown', windowKeydownSpy);
+    try {
+      fireEvent.keyDown(item, { key: 'Escape', bubbles: true });
+      expect(windowKeydownSpy).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('keydown', windowKeydownSpy);
+    }
   });
 });

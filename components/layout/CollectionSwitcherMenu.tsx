@@ -87,6 +87,12 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
     switch (e.key) {
       case 'Escape':
         e.preventDefault();
+        // This menu lives outside any `.widget` DraggableWindow, so without
+        // stopping propagation an unhandled Escape here also bubbles up to
+        // DashboardView's global window-level Escape handler, which falls
+        // back to minimizing the topmost widget on the board — a completely
+        // unrelated widget disappearing just because this menu was dismissed.
+        e.stopPropagation();
         onClose();
         break;
       case 'ArrowDown':
