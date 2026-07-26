@@ -92,7 +92,7 @@ export const generateStudentsList = (
     else byName.set(key, [s]);
   }
 
-  const matched = new Array<Student | undefined>(parsed.length);
+  const matched = new Array<Student | undefined>(parsed.length).fill(undefined);
   const consumed = new Set<Student>();
   parsed.forEach((entry, idx) => {
     const key = `${entry.first} ${entry.last}`;
