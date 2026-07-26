@@ -2082,14 +2082,7 @@ export interface BuildingScheduleDefaults {
   buildingId: string;
   items: ScheduleItem[];
   schedules?: DailySchedule[];
-  /**
-   * Appearance defaults seeded into a new Schedule widget instance. All five
-   * fields are actively consumed by ScheduleWidget/ScheduleRow (fontFamily via
-   * getFontClass, fontColor as row text colour, textSizePreset via
-   * resolveTextPresetMultiplier, cardColor/cardOpacity as the row surface).
-   * `fontFamily` lives in the prefixed `FONTS`-id space (the widget's Appearance
-   * tab uses the shared TypographySettings primitive), like stations/work-symbols.
-   */
+  /** Appearance defaults for new Schedule widget instances; fontFamily uses the prefixed FONTS-id space (shared TypographySettings). */
   fontFamily?: string;
   fontColor?: string;
   textSizePreset?: TextSizePreset;

@@ -645,9 +645,7 @@ export const getAdminBuildingConfig = (
           })
         );
       }
-      // Appearance defaults — all consumed by ScheduleWidget/ScheduleRow.
-      // `fontFamily` uses the prefixed `FONTS`-id space (shared
-      // TypographySettings primitive), like stations/work-symbols.
+      // Appearance defaults — fontFamily uses the prefixed FONTS-id space.
       const validTextSizePresets = [
         'small',
         'medium',
