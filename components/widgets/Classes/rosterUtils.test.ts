@@ -195,6 +195,9 @@ describe('rosterUtils', () => {
       const alice = result.find((s) => s.firstName === 'Alice');
       const bob = result.find((s) => s.firstName === 'Bob');
 
+      expect(zoe).toBeDefined();
+      expect(alice).toBeDefined();
+      expect(bob).toBeDefined();
       expect(alice?.id).toBe('a1');
       expect(alice?.pin).toBe('11');
       expect(bob?.id).toBe('b2');
