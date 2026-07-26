@@ -147,19 +147,23 @@ async function fetchStaleResponsesPaginated(
   const results: QueryDocSnap[] = [];
   let lastDoc: QueryDocSnap | undefined;
   while (results.length < MAX_READ_PER_RUN) {
+    const pageLimit = Math.min(
+      RESPONSE_PAGE_SIZE,
+      MAX_READ_PER_RUN - results.length
+    );
     let query = db
       .collectionGroup('responses')
       .where('status', 'in', ['joined', 'in-progress'])
       .where('lastWriteAt', '<', cutoff)
       .orderBy('lastWriteAt', 'asc')
       .orderBy(admin.firestore.FieldPath.documentId())
-      .limit(Math.min(RESPONSE_PAGE_SIZE, MAX_READ_PER_RUN - results.length));
+      .limit(pageLimit);
     if (lastDoc) query = query.startAfter(lastDoc);
     const page = await query.get();
     if (page.empty) break;
     results.push(...page.docs);
     lastDoc = page.docs[page.docs.length - 1];
-    if (page.size < RESPONSE_PAGE_SIZE) break;
+    if (page.size < pageLimit) break;
   }
   if (results.length >= MAX_READ_PER_RUN) {
     console.warn(
