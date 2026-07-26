@@ -83,9 +83,24 @@ function buildContributionResponse(
   pinToName: Record<string, string>,
   byStudentUid?: Map<string, { givenName: string; familyName: string }>
 ): PlcContributionResponse {
-  const answerByQuestionId = new Map(
-    response.answers.map((a) => [a.questionId, a.answer])
+  // Credit only the chronologically-first (earliest `answeredAt`) answer per
+  // question, mirroring `getEarnedPoints` (the Scoreboard/gradebook's
+  // canonical scoring source, `components/widgets/QuizWidget/utils/
+  // quizScoreboard.ts`). A naive `new Map(response.answers.map(...))` keeps
+  // whichever entry is LAST in array order instead — if a response ever
+  // carries two answers for the same question (a stale read-modify-write
+  // race overwriting `answers` mid-edit, or a legacy/migrated doc), the PLC
+  // Shared Data view could score a different answer than the teacher's own
+  // Results/Scoreboard, silently disagreeing on the same student's grade.
+  const sortedAnswers = [...response.answers].sort(
+    (a, b) => (a.answeredAt ?? 0) - (b.answeredAt ?? 0)
   );
+  const answerByQuestionId = new Map<string, string>();
+  for (const a of sortedAnswers) {
+    if (!answerByQuestionId.has(a.questionId)) {
+      answerByQuestionId.set(a.questionId, a.answer);
+    }
+  }
 
   const pointsByQuestionId: Record<string, number> = {};
   let pointsEarned = 0;
