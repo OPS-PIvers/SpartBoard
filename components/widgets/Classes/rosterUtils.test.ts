@@ -153,6 +153,56 @@ describe('rosterUtils', () => {
       expect(result[0].pin).toBe('05');
     });
 
+    it("keeps each student's identity attached to their own name when the list is reordered", () => {
+      // Regression for a bug where matching was done by raw array index:
+      // alphabetizing (or any reorder) of an existing roster silently
+      // swapped which ID/pin/ClassLink link attached to which student.
+      const existing = [
+        { id: 'a1', firstName: 'Bob', lastName: 'Baker', pin: '01' },
+        { id: 'b2', firstName: 'Alice', lastName: 'Ackerman', pin: '02' },
+      ];
+      // Same two students, now alphabetized (Alice first).
+      const result = generateStudentsList(
+        'Alice\nBob',
+        'Ackerman\nBaker',
+        existing
+      );
+
+      expect(result[0].firstName).toBe('Alice');
+      expect(result[0].id).toBe('b2');
+      expect(result[0].pin).toBe('02');
+
+      expect(result[1].firstName).toBe('Bob');
+      expect(result[1].id).toBe('a1');
+      expect(result[1].pin).toBe('01');
+    });
+
+    it("does not reattach an existing student's ID to a different student inserted above them", () => {
+      // Regression: inserting a new name above existing rows used to shift
+      // every subsequent existing[i] lookup by one, reassigning IDs/pins to
+      // the wrong students.
+      const existing = [
+        { id: 'a1', firstName: 'Alice', lastName: 'Ann', pin: '11' },
+        { id: 'b2', firstName: 'Bob', lastName: 'Ben', pin: '22' },
+      ];
+      const result = generateStudentsList(
+        'Zoe\nAlice\nBob',
+        'Zed\nAnn\nBen',
+        existing
+      );
+
+      const zoe = result.find((s) => s.firstName === 'Zoe');
+      const alice = result.find((s) => s.firstName === 'Alice');
+      const bob = result.find((s) => s.firstName === 'Bob');
+
+      expect(alice?.id).toBe('a1');
+      expect(alice?.pin).toBe('11');
+      expect(bob?.id).toBe('b2');
+      expect(bob?.pin).toBe('22');
+      expect(zoe?.id).not.toBe('a1');
+      expect(zoe?.id).not.toBe('b2');
+    });
+
     it('preserves classLinkSourcedId on existing rows so re-sync stays stable', () => {
       const existing = [
         {

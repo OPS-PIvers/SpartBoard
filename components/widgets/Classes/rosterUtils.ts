@@ -57,6 +57,14 @@ export const mergeNames = (firsts: string, lasts: string): string[] => {
 /**
  * Generates a list of Student objects from first and last names,
  * preserving IDs (and `classLinkSourcedId`) from an existing list if possible.
+ *
+ * Matching is two-phase, not raw array-index lookup: (1) an unchanged name
+ * is matched to the existing student with that exact name first, so
+ * reordering/inserting lines above it can't reattach its ID to someone else;
+ * (2) any names left over (a genuine rename) are paired with any existing
+ * students left over, in the order each side appears, so a same-position
+ * rename still keeps its ID/pin/ClassLink link — matching the previous
+ * position-based behavior for that case only.
  */
 export const generateStudentsList = (
   firsts: string,
@@ -68,27 +76,59 @@ export const generateStudentsList = (
   const lList = lasts.split('\n');
   const pList = pins?.split('\n');
 
-  return fList
-    .map((f, i) => {
+  const parsed = fList
+    .map((f, lineIndex) => {
       const first = f.trim();
-      const last = lList[i] ? lList[i].trim() : '';
-      if (!first && !last) return null;
-
-      // Try to find an existing student at this position to preserve ID,
-      // pin, and ClassLink link (keeps re-sync stable after manual edits).
-      const existing = existingStudents[i];
-      const id = existing ? existing.id : crypto.randomUUID();
-      const pin = pList
-        ? (pList[i]?.trim() ?? existing?.pin ?? '')
-        : (existing?.pin ?? '');
-
-      const student: Student = { id, firstName: first, lastName: last, pin };
-      if (existing?.classLinkSourcedId !== undefined) {
-        student.classLinkSourcedId = existing.classLinkSourcedId;
-      }
-      return student;
+      const last = lList[lineIndex] ? lList[lineIndex].trim() : '';
+      return { first, last, lineIndex };
     })
-    .filter((s): s is Student => s !== null);
+    .filter((entry) => entry.first || entry.last);
+
+  const byName = new Map<string, Student[]>();
+  for (const s of existingStudents) {
+    const key = `${s.firstName} ${s.lastName}`;
+    const bucket = byName.get(key);
+    if (bucket) bucket.push(s);
+    else byName.set(key, [s]);
+  }
+
+  const matched = new Array<Student | undefined>(parsed.length);
+  const consumed = new Set<Student>();
+  parsed.forEach((entry, idx) => {
+    const key = `${entry.first} ${entry.last}`;
+    const candidate = byName.get(key)?.shift();
+    if (candidate) {
+      matched[idx] = candidate;
+      consumed.add(candidate);
+    }
+  });
+
+  const leftoverExisting = existingStudents.filter((s) => !consumed.has(s));
+  let leftoverCursor = 0;
+  parsed.forEach((entry, idx) => {
+    if (matched[idx] !== undefined) return;
+    matched[idx] = leftoverExisting[leftoverCursor];
+    leftoverCursor++;
+  });
+
+  return parsed.map((entry, idx) => {
+    const existing = matched[idx];
+    const id = existing ? existing.id : crypto.randomUUID();
+    const pin = pList
+      ? (pList[entry.lineIndex]?.trim() ?? existing?.pin ?? '')
+      : (existing?.pin ?? '');
+
+    const student: Student = {
+      id,
+      firstName: entry.first,
+      lastName: entry.last,
+      pin,
+    };
+    if (existing?.classLinkSourcedId !== undefined) {
+      student.classLinkSourcedId = existing.classLinkSourcedId;
+    }
+    return student;
+  });
 };
 
 /**
