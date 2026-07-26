@@ -92,11 +92,7 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({
   const handlePopupKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Escape') {
       e.preventDefault();
-      // This popup lives outside any `.widget` DraggableWindow, so without
-      // stopping propagation an unhandled Escape here also bubbles up to
-      // DashboardView's global window-level Escape handler, which falls
-      // back to minimizing the topmost widget on the board — a completely
-      // unrelated widget disappearing just because this popup was dismissed.
+      // Stop the bubble to DashboardView's global Escape handler, which would otherwise minimize an unrelated widget.
       e.stopPropagation();
       closeSlider();
       return;
