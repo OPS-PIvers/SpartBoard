@@ -2082,6 +2082,23 @@ export interface BuildingScheduleDefaults {
   buildingId: string;
   items: ScheduleItem[];
   schedules?: DailySchedule[];
+  /**
+   * Appearance defaults seeded into a new Schedule widget instance. All five
+   * fields are actively consumed by ScheduleWidget/ScheduleRow (fontFamily via
+   * getFontClass, fontColor as row text colour, textSizePreset via
+   * resolveTextPresetMultiplier, cardColor/cardOpacity as the row surface).
+   * `fontFamily` lives in the prefixed `FONTS`-id space (the widget's Appearance
+   * tab uses the shared TypographySettings primitive), like stations/work-symbols.
+   */
+  fontFamily?: string;
+  fontColor?: string;
+  textSizePreset?: TextSizePreset;
+  cardColor?: string;
+  cardOpacity?: number;
+  /** Behaviour defaults — auto-advance items when their time elapses. */
+  autoProgress?: boolean;
+  /** Behaviour defaults — keep the active item centred as the day progresses. */
+  autoScroll?: boolean;
 }
 
 export interface ScheduleGlobalConfig {

@@ -645,6 +645,30 @@ export const getAdminBuildingConfig = (
           })
         );
       }
+      // Appearance defaults — all consumed by ScheduleWidget/ScheduleRow.
+      // `fontFamily` uses the prefixed `FONTS`-id space (shared
+      // TypographySettings primitive), like stations/work-symbols.
+      const validScheduleTextSizePresets = [
+        'small',
+        'medium',
+        'large',
+        'x-large',
+      ] as const;
+      if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
+      if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
+      if (
+        typeof raw.textSizePreset === 'string' &&
+        (validScheduleTextSizePresets as readonly string[]).includes(
+          raw.textSizePreset
+        )
+      )
+        out.textSizePreset = raw.textSizePreset;
+      if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
+      if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;
+      // Behaviour defaults — auto-advance / auto-scroll toggles.
+      if (typeof raw.autoProgress === 'boolean')
+        out.autoProgress = raw.autoProgress;
+      if (typeof raw.autoScroll === 'boolean') out.autoScroll = raw.autoScroll;
       break;
     }
     case 'embed':
