@@ -266,12 +266,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
         {/* Add Marker Form */}
         <div className="flex gap-2 items-end mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
           <div className="flex-1">
-            <label
-              htmlFor={markerValueId}
-              className="block text-xxs font-bold uppercase text-slate-400 mb-1"
-            >
-              Value
-            </label>
+            <SettingsLabel htmlFor={markerValueId}>Value</SettingsLabel>
             <input
               id={markerValueId}
               type="number"
@@ -281,12 +276,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             />
           </div>
           <div className="flex-1">
-            <label
-              htmlFor={markerLabelId}
-              className="block text-xxs font-bold uppercase text-slate-400 mb-1"
-            >
-              Label
-            </label>
+            <SettingsLabel htmlFor={markerLabelId}>Label</SettingsLabel>
             <input
               id={markerLabelId}
               type="text"
@@ -357,12 +347,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
         {/* Add Jump Form */}
         <div className="flex gap-2 items-end mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
           <div className="w-16">
-            <label
-              htmlFor={jumpStartId}
-              className="block text-xxs font-bold uppercase text-slate-400 mb-1"
-            >
-              Start
-            </label>
+            <SettingsLabel htmlFor={jumpStartId}>Start</SettingsLabel>
             <input
               id={jumpStartId}
               type="number"
@@ -372,12 +357,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             />
           </div>
           <div className="w-16">
-            <label
-              htmlFor={jumpEndId}
-              className="block text-xxs font-bold uppercase text-slate-400 mb-1"
-            >
-              End
-            </label>
+            <SettingsLabel htmlFor={jumpEndId}>End</SettingsLabel>
             <input
               id={jumpEndId}
               type="number"
@@ -387,12 +367,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             />
           </div>
           <div className="flex-1">
-            <label
-              htmlFor={jumpLabelId}
-              className="block text-xxs font-bold uppercase text-slate-400 mb-1"
-            >
-              Label
-            </label>
+            <SettingsLabel htmlFor={jumpLabelId}>Label</SettingsLabel>
             <input
               id={jumpLabelId}
               type="text"

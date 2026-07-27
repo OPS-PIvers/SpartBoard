@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-07-24_
+_Last audited: 2026-07-25_
 _Last action: 2026-07-24 — HIGH `organizations/{orgId}/buildings` double-subscription resolved: `useOrgBuildings` reuses AuthContext's `orgBuildings` for the active org instead of opening a second listener_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-25: Saturday audit pass (weekly C1 — Saturday run). New dev-paul commits since 2026-07-24 (absorbed via rebase): NextUp auto-expiry fix (#2265), Escape popover leak fix (#2266), InviteAcceptance HTML entity fix (#2267), expireActivityWallShares pagination (#2268), PR #2272 review fixes — none touch context/DashboardContext.tsx, utils/adminBuildingConfig.ts, functions/src/, or any other structure-relevant files. DashboardContext.tsx confirmed still at **5,865 lines** (unchanged — BLOCKED status unchanged). Comprehensive pass over all open items: LOW duplicate constants (`validRevealFonts`/`validTextSizePresets` in adminBuildingConfig.ts) re-confirmed open; LOW Cloud Functions 17-without-explicit-memory re-confirmed open; LOW single-consumer utils list unchanged from 2026-07-24; LOW gen1 logger import (`finalizeIdleQuizAttempts.ts:30`) re-confirmed open; LOW OAuth `timeoutSeconds` gap re-confirmed open; LOW double-getDoc on `userProfile/profile` re-confirmed open; LOW `videoActivityDriveService.ts` zero-production-imports re-confirmed open; LOW `mockGuidedLearningDriveService.ts` in wrong directory re-confirmed open. MEDIUM large-files item: no new files crossed 1,000 lines this cycle. Zero new open items. All existing open items re-confirmed valid. 0 new open items._
 
 _2026-07-24: Friday audit pass (weekly C1). New dev-paul commits since 2026-07-23 absorbed: NextUp fix, Escape popover leak, InviteAcceptance HTML entity, expireActivityWallShares pagination, PR #2272 review fixes — none touch context/DashboardContext.tsx, utils/adminBuildingConfig.ts, or functions/src/. DashboardContext.tsx confirmed still at 5,865 lines (BLOCKED — unchanged). Comprehensive agent scan of large files, Cloud Functions, cross-context data fetching, deep relative imports, and single-consumer utils. ONE NEW HIGH: context/AuthContext.tsx line 1443 opens onSnapshot on organizations/{orgId}/buildings and hooks/useOrgBuildings.ts line 49 opens a SEPARATE onSnapshot on the same path — two concurrent live listeners for every admin who visits the Organization panel, doubling Firestore reads and network cost (see new HIGH item below). TWO new entries in LOW single-consumer-utils item: utils/rosterPins.ts (36 lines, consumer: hooks/useRosters.ts) and utils/notebookConverter.ts (263 lines, consumer: components/converter/ConverterPage.tsx). ONE NEW LOW: 17 Cloud Functions lack explicit memory setting and rely on the global 256 MiB default from functionsInit.ts; the sync-group join/leave hot-path functions warrant explicit pinning for cost audit visibility. Deep relative imports: zero (3+ levels ../) in non-test source files — clean. All other existing open items re-confirmed valid. 1 new HIGH, 2 existing items extended, 1 new LOW added._
 
