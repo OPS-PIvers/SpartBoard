@@ -1,5 +1,14 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type Mock,
+  type MockInstance,
+} from 'vitest';
 
 import {
   collection,
@@ -67,6 +76,18 @@ const adminUser = {
   user: { uid: 'admin-1', email: 'admin@school.org' },
   isAdmin: true,
 };
+
+// Tests that pin `Date.now` register their spy here so it is torn down even if
+// an assertion throws mid-test. A leaked `Date.now` spy would otherwise return
+// a frozen timestamp for every subsequent test in the file. (We restore only
+// this spy rather than calling `vi.restoreAllMocks()`, which would also wipe
+// the inline implementations the `vi.mock('firebase/firestore')` factory sets
+// on `doc`/`collection`/etc.)
+let nowSpy: MockInstance<typeof Date.now> | undefined;
+afterEach(() => {
+  nowSpy?.mockRestore();
+  nowSpy = undefined;
+});
 
 /**
  * Drive `createShortLinkAtomic` (which runs the real transaction body) by
@@ -178,7 +199,7 @@ describe('useCreateShortLink', () => {
   it('creates a link with a valid custom slug and full metadata', async () => {
     mockUseAuth.mockReturnValue(adminUser);
     const set = configureTransaction(0);
-    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(555);
+    nowSpy = vi.spyOn(Date, 'now').mockReturnValue(555);
     const { result } = renderHook(() => useCreateShortLink());
 
     const res = await result.current.createShortLink({
@@ -209,7 +230,6 @@ describe('useCreateShortLink', () => {
       { __ref: 'short_links/my-lesson' },
       expectedLink
     );
-    nowSpy.mockRestore();
   });
 
   it('omits an empty label', async () => {
@@ -451,7 +471,7 @@ describe('useShortLinks', () => {
         data: () => existing,
       });
       mockUpdateDoc.mockResolvedValue(undefined);
-      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(999);
+      nowSpy = vi.spyOn(Date, 'now').mockReturnValue(999);
       const { result } = renderHook(() => useShortLinks());
 
       const res = await result.current.updateShortLink('abc', {
@@ -470,7 +490,6 @@ describe('useShortLinks', () => {
       ];
       expect(updates.destination).toBe('https://new.example.com/');
       expect(updates.updatedAt).toBe(999);
-      nowSpy.mockRestore();
     });
 
     it('clears a blank label with deleteField and drops it from the result', async () => {
