@@ -70,11 +70,15 @@ const adminUser = {
 
 /**
  * Drive `createShortLinkAtomic` (which runs the real transaction body) by
- * controlling whether the doc "exists" for each successive attempt. `taken`
- * counts how many leading attempts should collide before the write succeeds.
+ * controlling whether the doc "exists" for each successive attempt.
+ * `takenAttempts` counts how many leading attempts should collide before the
+ * write succeeds. Returns the shared `set` spy so callers can assert that the
+ * successful attempt actually wrote the link (guards against a regression that
+ * drops `transaction.set(ref, link)` — the transaction would still not throw).
  */
-const configureTransaction = (takenAttempts: number) => {
+const configureTransaction = (takenAttempts: number): Mock => {
   let call = 0;
+  const set = vi.fn();
   mockRunTransaction.mockImplementation(
     async (
       _db: unknown,
@@ -85,7 +89,6 @@ const configureTransaction = (takenAttempts: number) => {
     ) => {
       const exists = call < takenAttempts;
       call += 1;
-      const set = vi.fn();
       await updateFn({
         get: () => Promise.resolve({ exists: () => exists }),
         set,
@@ -93,6 +96,7 @@ const configureTransaction = (takenAttempts: number) => {
       return undefined;
     }
   );
+  return set;
 };
 
 describe('useCreateShortLink', () => {
@@ -173,7 +177,7 @@ describe('useCreateShortLink', () => {
 
   it('creates a link with a valid custom slug and full metadata', async () => {
     mockUseAuth.mockReturnValue(adminUser);
-    configureTransaction(0);
+    const set = configureTransaction(0);
     const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(555);
     const { result } = renderHook(() => useCreateShortLink());
 
@@ -183,20 +187,28 @@ describe('useCreateShortLink', () => {
       label: '  Fractions  ',
     });
 
+    const expectedLink: ShortLink = {
+      code: 'my-lesson',
+      destination: 'https://example.com/lesson',
+      createdBy: 'admin-1',
+      createdByEmail: 'admin@school.org',
+      createdAt: 555,
+      updatedAt: 555,
+      clicks: 0,
+      lastClickedAt: null,
+      label: 'Fractions',
+    };
+
     expect(res.ok).toBe(true);
     if (res.ok) {
-      expect(res.link).toEqual<ShortLink>({
-        code: 'my-lesson',
-        destination: 'https://example.com/lesson',
-        createdBy: 'admin-1',
-        createdByEmail: 'admin@school.org',
-        createdAt: 555,
-        updatedAt: 555,
-        clicks: 0,
-        lastClickedAt: null,
-        label: 'Fractions',
-      });
+      expect(res.link).toEqual<ShortLink>(expectedLink);
     }
+    // The write must actually happen — not just "the transaction didn't throw".
+    expect(set).toHaveBeenCalledTimes(1);
+    expect(set).toHaveBeenCalledWith(
+      { __ref: 'short_links/my-lesson' },
+      expectedLink
+    );
     nowSpy.mockRestore();
   });
 
@@ -217,7 +229,7 @@ describe('useCreateShortLink', () => {
 
   it('retries random-code generation past collisions until one is free', async () => {
     mockUseAuth.mockReturnValue(adminUser);
-    configureTransaction(2); // first two random codes collide, third wins
+    const set = configureTransaction(2); // first two random codes collide, third wins
     const { result } = renderHook(() => useCreateShortLink());
 
     const res = await result.current.createShortLink({
@@ -226,12 +238,14 @@ describe('useCreateShortLink', () => {
 
     expect(res.ok).toBe(true);
     expect(mockRunTransaction).toHaveBeenCalledTimes(3);
+    // Only the winning (non-colliding) attempt writes.
+    expect(set).toHaveBeenCalledTimes(1);
     if (res.ok) expect(res.link.code).toHaveLength(8);
   });
 
   it('gives up after exhausting the retry budget', async () => {
     mockUseAuth.mockReturnValue(adminUser);
-    configureTransaction(99); // every attempt collides
+    const set = configureTransaction(99); // every attempt collides
     const { result } = renderHook(() => useCreateShortLink());
 
     const res = await result.current.createShortLink({
@@ -245,6 +259,8 @@ describe('useCreateShortLink', () => {
     expect(mockRunTransaction).toHaveBeenCalledTimes(
       MAX_CODE_GENERATION_RETRIES
     );
+    // A collision must never write.
+    expect(set).not.toHaveBeenCalled();
   });
 
   it('logs and returns a generic error on an unexpected failure', async () => {
