@@ -83,9 +83,16 @@ function buildContributionResponse(
   pinToName: Record<string, string>,
   byStudentUid?: Map<string, { givenName: string; familyName: string }>
 ): PlcContributionResponse {
-  const answerByQuestionId = new Map(
-    response.answers.map((a) => [a.questionId, a.answer])
+  // Sort by answeredAt asc, keep first occurrence per questionId — matches getEarnedPoints.
+  const sortedAnswers = [...response.answers].sort(
+    (a, b) => (a.answeredAt ?? 0) - (b.answeredAt ?? 0)
   );
+  const answerByQuestionId = new Map<string, string>();
+  for (const a of sortedAnswers) {
+    if (!answerByQuestionId.has(a.questionId)) {
+      answerByQuestionId.set(a.questionId, a.answer);
+    }
+  }
 
   const pointsByQuestionId: Record<string, number> = {};
   let pointsEarned = 0;
