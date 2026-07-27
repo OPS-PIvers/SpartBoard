@@ -38,7 +38,9 @@ import {
 export { resolveShortLink, recordShortLinkClick } from '@/utils/shortLinksApi';
 
 const COLLECTION = SHORT_LINKS_COLLECTION;
-const MAX_CODE_GENERATION_RETRIES = 5;
+// Exported so tests can assert the random-code retry budget against the
+// source of truth rather than a hardcoded literal.
+export const MAX_CODE_GENERATION_RETRIES = 5;
 // Cap admin listings — keeps the read quota predictable and the table
 // responsive once a district has hundreds of links. Pagination/search UI
 // for larger sets is a phase 2 concern. Exported so analytics surfaces can
