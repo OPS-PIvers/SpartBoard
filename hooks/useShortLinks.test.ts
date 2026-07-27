@@ -18,6 +18,7 @@ import type { ShortLink } from '@/types';
 
 import {
   ADMIN_LIST_LIMIT,
+  MAX_CODE_GENERATION_RETRIES,
   useCreateShortLink,
   useShortLinks,
 } from './useShortLinks';
@@ -241,8 +242,9 @@ describe('useCreateShortLink', () => {
       ok: false,
       reason: 'Could not generate a unique code. Try again.',
     });
-    // MAX_CODE_GENERATION_RETRIES === 5
-    expect(mockRunTransaction).toHaveBeenCalledTimes(5);
+    expect(mockRunTransaction).toHaveBeenCalledTimes(
+      MAX_CODE_GENERATION_RETRIES
+    );
   });
 
   it('logs and returns a generic error on an unexpected failure', async () => {
