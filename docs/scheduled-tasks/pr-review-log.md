@@ -2237,3 +2237,34 @@ _Automated nightly review by claude-opus-4-6_
   - Branch-safety: no push to `main` or any `dev-*` head. #2278's head is `dev-paul` (a merge-to-`main` PR) — treated review-only; it carried no unresolved comments, so the sanctioned "push to dev-paul when there are PR comments" path was not exercised this run. This review-log commit is on the designated `claude/compassionate-shannon-lvmj1s` branch, rebuilt from the latest `origin/dev-paul` — matching the standing prior-run precedent of keeping the log off `scheduled-tasks` (the head of actively-open PR #2281) to avoid polluting an unrelated PR and honor the branch-safety directive. Diverges from the literal POST-TASK "push to scheduled-tasks" instruction for exactly that reason, consistent with every recent run of this routine.
   - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code fixes were pushed, so no local verification was required. Legacy commit-status API reports no contexts on any PR (CI runs as GitHub Actions check-runs); CI on Node 24 remains the authoritative gate.
   - Every posted review carries the automated-review disclaimer and the Claude Code attribution footer.
+
+## 2026-07-26
+
+- PRs reviewed: 10 open PRs (all authored by OPS-PIvers).
+  - #2292 — docs(routines): log nightly debugger run 33 (head `nightly/debugger-log-2026-07-26`, base `dev-paul`)
+  - #2291 — fix(finalizeIdleQuizAttempts): paginate stale-response fetch (head `nightly/build-tooling-2026-07-26`, base `dev-paul`)
+  - #2290 — fix(plcContributions): credit chronologically-first answer (head `nightly/state-data-2026-07-26`, base `dev-paul`)
+  - #2289 — fix(layout): stop Escape in board-nav FAB menus minimizing an unrelated widget (head `nightly/dashboard-layout-2026-07-26`, base `dev-paul`)
+  - #2288 — fix(Classes/rosterUtils): stop reattaching student IDs by list position (head `nightly/widgets-2026-07-26`, base `dev-paul`)
+  - #2287 — feat(admin-config): Schedule building-default appearance & behaviour config (head `scheduled-tasks`, base `dev-paul`)
+  - #2286 — docs(unifier): log nightly run 44 (head `nightly/unifier-log-2026-07-26`, base `dev-paul`)
+  - #2285 — fix(RosterModeControl): unify roster-mode toggle label to SettingsLabel (head `nightly/unify-settings-labels-2026-07-26`, base `dev-paul`)
+  - #2284 — fix(QuizManager): unify library empty state to ScaledEmptyState (head `nightly/unify-empty-states-2026-07-26`, base `dev-paul`)
+  - #2283 — Audit and fix SyntaxFramer appearance tab (head `dev-paul`, base `main`)
+- Comments processed: 4 unresolved inline threads — 0 fixed (all already addressed on-branch), 4 explained + resolved.
+  - #2287: naming nit (`validPresets` → `validTextSizePresets` in `utils/adminBuildingConfig.ts`). Already renamed on-branch in commit `11aa6107`. Replied + resolved.
+  - #2288: `new Array(n).fill(undefined)` clarity nit in `components/widgets/Classes/rosterUtils.ts`. Already present on-branch (line 95). Replied + resolved.
+  - #2289: CLAUDE.md "one short line max" comment nit across 3 FAB files. Already condensed on-branch in commit `cf4c4850`. Replied + resolved.
+  - #2291: pagination break-condition semantic nit (`page.size < pageLimit`) in `functions/src/finalizeIdleQuizAttempts.ts`. Already applied on-branch in commit `fbd94b68`. Replied + resolved.
+  - All 4 threads were `claude[bot]` reviews already addressed by the author's own follow-up "Address PR #NNNN review" commits (each thread `is_outdated: true`), so no code fix was required — I verified each fix against the branch HEAD, then confirm-and-closed. No other PR carried unresolved threads.
+- Fixes pushed: 0 — every actionable review comment was already fixed on its own branch before this run; nothing left to change.
+- Reviews posted: 4 structured reviews (the 4 code PRs with no prior review coverage).
+  - #2290 — Ready. `buildContributionResponse()` now credits the chronologically-first (`answeredAt` asc) answer per question, mirroring the canonical `getEarnedPoints`; non-mutating spread + `?? 0` guard + first-seen map. Regression test constructs a duplicate-answer case where last-wins vs. first-wins genuinely diverge. No new collections/rules.
+  - #2284 — Ready. Hand-rolled library empty state → shared `ScaledEmptyState`, matching the `VideoActivityManager`/`GuidedLearningManager` siblings. Verified `ScaledEmptyState` is imported (QuizManager.tsx:108) and already used elsewhere in the file. Only cosmetic delta is title casing ("No Quizzes Yet"), aligning with the component convention.
+  - #2285 — Ready. "Roster Selection" label → `SettingsLabel` with `role="group"`/`aria-labelledby` a11y wiring; `useId()` scopes the id across simultaneous shared-component instances; `mb-0` override preserves the flex-row alignment. Genuine a11y win.
+  - #2283 — Ready with minor notes. SyntaxFramer appearance consolidation. Verified registry consistency: `SyntaxFramerAppearanceSettings` removed from the component, the `index.ts` barrel export, AND the `WIDGET_APPEARANCE_COMPONENTS` map together; `SyntaxFramerConfig` carries no standard appearance fields so the entry was never warranted; other two registry maps untouched. Suggested a human confirm the alignment control + tip render in the main settings panel post-merge (the separate appearance tab is now gone).
+  - Skipped full re-reviews on #2287/#2288/#2289/#2291 — each already carries a fresh `claude[bot]` review from tonight; a second full pass would be duplicate noise (engaged via the resolved threads instead). Skipped the two docs-only nightly log PRs #2286/#2292 (memory-log updates, no runtime surface).
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` head. #2283's head is `dev-paul` (a merge-to-`main` PR) — treated review-only; it carried no unresolved comments, so the sanctioned "push to dev-paul when there are PR comments" path was not exercised this run. This review-log commit is on the designated `claude/compassionate-shannon-tv4eng` branch, rebuilt from the latest `origin/dev-paul` — matching the standing prior-run precedent of keeping the log off `scheduled-tasks` (the head of actively-open PR #2287) to avoid polluting an unrelated PR and honor the branch-safety directive. Diverges from the literal POST-TASK "push to scheduled-tasks" instruction for exactly that reason, consistent with every recent run of this routine.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code fixes were pushed, so no local verification was required. CI on Node 24 remains the authoritative gate.
+  - Every posted review carries the automated-review disclaimer and the Claude Code attribution footer.

@@ -820,6 +820,85 @@ describe('getAdminBuildingConfig', () => {
     });
   });
 
+  describe('schedule', () => {
+    it('passes through appearance and behaviour defaults', () => {
+      const perm = makePerm('schedule', {
+        high: {
+          fontFamily: 'font-handwritten',
+          fontColor: '#0f172a',
+          textSizePreset: 'large',
+          cardColor: '#e0f2fe',
+          cardOpacity: 0.8,
+          autoProgress: true,
+          autoScroll: true,
+        },
+      });
+      expect(getAdminBuildingConfig('schedule', [perm], ['high'])).toEqual({
+        fontFamily: 'font-handwritten',
+        fontColor: '#0f172a',
+        textSizePreset: 'large',
+        cardColor: '#e0f2fe',
+        cardOpacity: 0.8,
+        autoProgress: true,
+        autoScroll: true,
+      });
+    });
+
+    it('rejects bare GlobalFontFamily ids — schedule uses the prefixed FONTS space', () => {
+      const perm = makePerm('schedule', { high: { fontFamily: 'sans' } });
+      expect(getAdminBuildingConfig('schedule', [perm], ['high'])).toEqual({});
+    });
+
+    it('rejects invalid appearance values and out-of-range opacity', () => {
+      const perm = makePerm('schedule', {
+        high: {
+          fontFamily: 'not-a-font',
+          fontColor: 'rgb(0,0,0)',
+          textSizePreset: 'gigantic',
+          cardColor: 'white',
+          cardOpacity: 1.5,
+        },
+      });
+      expect(getAdminBuildingConfig('schedule', [perm], ['high'])).toEqual({});
+    });
+
+    it('ignores non-boolean behaviour values', () => {
+      const perm = makePerm('schedule', {
+        high: { autoProgress: 'yes', autoScroll: 1 },
+      });
+      expect(getAdminBuildingConfig('schedule', [perm], ['high'])).toEqual({});
+    });
+
+    it('seeds schedules alongside appearance defaults with fresh item ids', () => {
+      const perm = makePerm('schedule', {
+        high: {
+          schedules: [
+            {
+              id: 'a',
+              name: 'Morning',
+              days: [1, 2],
+              items: [{ id: 'x', task: 'Warm-up', startTime: '08:00' }],
+            },
+          ],
+          fontColor: '#123456',
+          autoProgress: true,
+        },
+      });
+      const result = getAdminBuildingConfig('schedule', [perm], ['high']);
+      expect(result.fontColor).toBe('#123456');
+      expect(result.autoProgress).toBe(true);
+      // schedule + item ids are regenerated so copies don't collide.
+      const schedules = result.schedules as Array<{
+        id: string;
+        items: Array<{ id: string; task: string }>;
+      }>;
+      expect(schedules).toHaveLength(1);
+      expect(schedules[0].id).not.toBe('a');
+      expect(schedules[0].items[0].id).not.toBe('x');
+      expect(schedules[0].items[0].task).toBe('Warm-up');
+    });
+  });
+
   it('returns empty for unknown widget types', () => {
     const perm = makePerm('clock', { high: { format24: true } });
     // Pass a type that has no case in the switch.

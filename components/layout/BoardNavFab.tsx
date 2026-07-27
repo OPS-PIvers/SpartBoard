@@ -156,6 +156,8 @@ export const BoardNavFab: FC = () => {
     switch (e.key) {
       case 'Escape':
         e.preventDefault();
+        // Stop the bubble to DashboardView's global Escape handler, which would otherwise minimize an unrelated widget.
+        e.stopPropagation();
         closeBoardsMenu();
         break;
       case 'ArrowDown':

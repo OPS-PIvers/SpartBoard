@@ -95,4 +95,31 @@ describe('BoardActionsFab', () => {
     expect(root?.className).toContain('right-4');
     expect(root?.className).not.toContain('left-14');
   });
+
+  // Regression test: the zoom popup lives outside any `.widget`
+  // DraggableWindow. Pressing Escape while a preset chip (not the range
+  // input) has focus previously bubbled the keydown past the popup, all the
+  // way to DashboardView's global window-level Escape handler — which finds
+  // no typing field and no `.widget` ancestor for the focused chip, so it
+  // falls back to minimizing the topmost widget on the board. Simulates that
+  // window-level listener directly rather than mounting the full
+  // DashboardView, mirroring the pattern in ToolDockItem.test.tsx (#2266).
+  it('does not leak the Escape keydown to window-level listeners when a preset chip has focus', () => {
+    setupContexts(2);
+    render(<BoardActionsFab onOpenCheatSheet={noop} />);
+    fireEvent.click(screen.getByLabelText('Zoom level'));
+    const presetButton = screen.getByRole('button', { name: '200%' });
+    presetButton.focus();
+    expect(document.activeElement).toBe(presetButton);
+
+    const windowKeydownSpy = vi.fn();
+    window.addEventListener('keydown', windowKeydownSpy);
+    try {
+      fireEvent.keyDown(presetButton, { key: 'Escape', bubbles: true });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(windowKeydownSpy).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('keydown', windowKeydownSpy);
+    }
+  });
 });

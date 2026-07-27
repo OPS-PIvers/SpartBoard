@@ -23,6 +23,11 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ ensureGoogleScope: ensureGoogleScopeMock }),
 }));
 
+const mockAddToast = vi.fn();
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({ addToast: mockAddToast }),
+}));
+
 const STABLE_BUILDINGS = [{ id: 'b1', name: 'Building One' }];
 vi.mock('@/hooks/useAdminBuildings', () => ({
   useAdminBuildings: () => STABLE_BUILDINGS,
@@ -52,6 +57,7 @@ function getSyncButton(): HTMLButtonElement {
 
 beforeEach(() => {
   ensureGoogleScopeMock.mockClear();
+  mockAddToast.mockClear();
   resolveProbe = () => undefined;
 });
 

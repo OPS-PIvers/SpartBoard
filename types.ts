@@ -2082,6 +2082,16 @@ export interface BuildingScheduleDefaults {
   buildingId: string;
   items: ScheduleItem[];
   schedules?: DailySchedule[];
+  /** Appearance defaults for new Schedule widget instances; fontFamily uses the prefixed FONTS-id space (shared TypographySettings). */
+  fontFamily?: string;
+  fontColor?: string;
+  textSizePreset?: TextSizePreset;
+  cardColor?: string;
+  cardOpacity?: number;
+  /** Behaviour defaults — auto-advance items when their time elapses. */
+  autoProgress?: boolean;
+  /** Behaviour defaults — keep the active item centred as the day progresses. */
+  autoScroll?: boolean;
 }
 
 export interface ScheduleGlobalConfig {
