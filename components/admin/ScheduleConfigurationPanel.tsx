@@ -8,7 +8,10 @@ import {
   BuildingScheduleDefaults,
   ScheduleItem,
   DailySchedule,
+  TextSizePreset,
 } from '@/types';
+import { FONTS } from '@/config/fonts';
+import { HexColorField } from './HexColorField';
 import {
   Plus,
   Trash2,
@@ -44,6 +47,13 @@ interface ScheduleConfigurationPanelProps {
   config: ScheduleGlobalConfig;
   onChange: (newConfig: ScheduleGlobalConfig) => void;
 }
+
+const TEXT_SIZE_PRESET_OPTIONS: { value: TextSizePreset; label: string }[] = [
+  { value: 'small', label: 'Small' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'large', label: 'Large' },
+  { value: 'x-large', label: 'Extra Large' },
+];
 
 const DAYS = [
   { id: 0, label: 'Su', fullName: 'Sunday' },
@@ -534,6 +544,192 @@ export const ScheduleConfigurationPanel: React.FC<
           </div>
         )}
       </Card>
+
+      {/* Appearance & Behaviour Defaults — only shown in the building overview,
+          not while editing a specific schedule's items. */}
+      {!activeScheduleId && (
+        <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-4">
+          <div>
+            <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2 mb-1">
+              <LayoutGrid className="w-3.5 h-3.5" /> Appearance &amp; Behaviour
+            </h5>
+            <p className="text-xxs text-slate-500 leading-tight">
+              These defaults pre-populate the Schedule widget when a teacher in{' '}
+              <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b>{' '}
+              adds it to their dashboard. Teachers can still override them
+              per-instance from the widget&apos;s Appearance and Options tabs.
+            </p>
+          </div>
+
+          {/* Default Font Family */}
+          <div>
+            <label
+              htmlFor={`sched-font-${selectedBuildingId}`}
+              className="text-xxs font-bold text-slate-500 uppercase mb-1 block"
+            >
+              Default Font Family
+            </label>
+            <select
+              id={`sched-font-${selectedBuildingId}`}
+              value={currentBuildingConfig.fontFamily ?? 'global'}
+              onChange={(e) => {
+                const selected = e.target.value;
+                handleUpdateBuilding({
+                  // 'global' is the sentinel for "inherit the dashboard font" —
+                  // persist it as undefined so saved configs only ever hold a
+                  // concrete FONTS id (mirrors TypographySettings behaviour).
+                  fontFamily: selected === 'global' ? undefined : selected,
+                });
+              }}
+              className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+            >
+              {FONTS.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.id === 'global'
+                    ? 'Global (Dashboard default)'
+                    : `${f.label} (${f.icon})`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Default Text Size */}
+          <div>
+            <label
+              htmlFor={`sched-size-${selectedBuildingId}`}
+              className="text-xxs font-bold text-slate-500 uppercase mb-1 block"
+            >
+              Default Text Size
+            </label>
+            <select
+              id={`sched-size-${selectedBuildingId}`}
+              value={currentBuildingConfig.textSizePreset ?? 'medium'}
+              onChange={(e) =>
+                handleUpdateBuilding({
+                  textSizePreset: e.target.value as TextSizePreset,
+                })
+              }
+              className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+            >
+              {TEXT_SIZE_PRESET_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Default Text Colour */}
+          <div>
+            <label
+              htmlFor={`sched-color-${selectedBuildingId}`}
+              className="text-xxs font-bold text-slate-500 uppercase mb-1 block"
+            >
+              Default Text Colour
+            </label>
+            <HexColorField
+              id={`sched-color-${selectedBuildingId}`}
+              value={currentBuildingConfig.fontColor}
+              onChange={(fontColor) => handleUpdateBuilding({ fontColor })}
+              fallback="#334155"
+              ariaLabel="Pick default schedule text colour"
+            />
+          </div>
+
+          {/* Default Surface Colour */}
+          <div>
+            <label
+              htmlFor={`sched-card-${selectedBuildingId}`}
+              className="text-xxs font-bold text-slate-500 uppercase mb-1 block"
+            >
+              Default Surface Colour
+            </label>
+            <HexColorField
+              id={`sched-card-${selectedBuildingId}`}
+              value={currentBuildingConfig.cardColor}
+              onChange={(cardColor) => handleUpdateBuilding({ cardColor })}
+              fallback="#ffffff"
+              ariaLabel="Pick default schedule surface colour"
+            />
+          </div>
+
+          {/* Default Surface Opacity */}
+          <div>
+            <label
+              htmlFor={`sched-opacity-${selectedBuildingId}`}
+              className="text-xxs font-bold text-slate-500 uppercase mb-1 block"
+            >
+              Default Surface Opacity (
+              {Math.round((currentBuildingConfig.cardOpacity ?? 1) * 100)}%)
+            </label>
+            <input
+              id={`sched-opacity-${selectedBuildingId}`}
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={currentBuildingConfig.cardOpacity ?? 1}
+              onChange={(e) =>
+                handleUpdateBuilding({
+                  cardOpacity: parseFloat(e.target.value),
+                })
+              }
+              className="w-full accent-brand-blue-primary"
+              aria-label="Default schedule surface opacity"
+            />
+          </div>
+
+          <hr className="border-slate-200" />
+
+          {/* Auto-Complete Items */}
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <label
+                htmlFor={`sched-autoprogress-${selectedBuildingId}`}
+                className="text-xxs font-bold text-slate-500 uppercase block"
+              >
+                Auto-Complete Items
+              </label>
+              <p className="text-xxs text-slate-500 leading-tight mt-0.5">
+                Check off items automatically when their time passes.
+              </p>
+            </div>
+            <input
+              id={`sched-autoprogress-${selectedBuildingId}`}
+              type="checkbox"
+              checked={currentBuildingConfig.autoProgress ?? false}
+              onChange={(e) =>
+                handleUpdateBuilding({ autoProgress: e.target.checked })
+              }
+              className="w-4 h-4 accent-brand-blue-primary shrink-0"
+            />
+          </div>
+
+          {/* Auto-Scroll View */}
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <label
+                htmlFor={`sched-autoscroll-${selectedBuildingId}`}
+                className="text-xxs font-bold text-slate-500 uppercase block"
+              >
+                Auto-Scroll View
+              </label>
+              <p className="text-xxs text-slate-500 leading-tight mt-0.5">
+                Keep the active item centred as the day progresses.
+              </p>
+            </div>
+            <input
+              id={`sched-autoscroll-${selectedBuildingId}`}
+              type="checkbox"
+              checked={currentBuildingConfig.autoScroll ?? false}
+              onChange={(e) =>
+                handleUpdateBuilding({ autoScroll: e.target.checked })
+              }
+              className="w-4 h-4 accent-brand-blue-primary shrink-0"
+            />
+          </div>
+        </Card>
+      )}
     </div>
   );
 };

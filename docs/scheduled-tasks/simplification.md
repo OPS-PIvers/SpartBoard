@@ -28,6 +28,13 @@ _Nothing currently in progress._
 
 ## Open
 
+### LOW `validTextSizePresets` array defined identically three times in `adminBuildingConfig.ts`
+
+- **Detected:** 2026-07-27
+- **File:** utils/adminBuildingConfig.ts (~line 423 need-do-put-then case, ~line 656 schedule case, and work-symbols case)
+- **Detail:** The four-element array `['small', 'medium', 'large', 'x-large'] as const` is defined as a local `const validTextSizePresets` inside three separate braced `case` blocks. Raised by automated code review on PR #2287. Each copy is in its own scope so there's no naming collision, but the duplication will grow as more widgets receive textSizePreset support.
+- **Fix:** Hoist to a module-level constant: `const VALID_TEXT_SIZE_PRESETS = ['small', 'medium', 'large', 'x-large'] as const satisfies readonly TextSizePreset[];` and replace all three local declarations with a reference to it.
+
 ### LOW Prop drilling — 13 passthrough props (including 6 live-session callbacks) threaded through 3 intermediate layers
 
 - **Detected:** 2026-07-17

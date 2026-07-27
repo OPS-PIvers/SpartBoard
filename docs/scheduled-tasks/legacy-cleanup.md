@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-07-19_
+_Last audited: 2026-07-26_
 _Last action: never_
 
 ---
@@ -23,12 +23,19 @@ _Nothing currently in progress._
 - **Detail:** `migrateLocalStorageToFirestore()` is called unconditionally on every authenticated sign-in in `DashboardContext.tsx`. The function short-circuits immediately when `localStorage.getItem('classroom_dashboards')` is `null`, making it a no-op for the vast majority of users — but the call still runs on every sign-in. If the localStorage-to-Firestore migration window has definitively closed (no active users retain pre-Firestore dashboard data), this is live dead overhead in the hot sign-in path. Prior audits noted "still needed" without assessing whether the migration window has closed. The `timer`/`stopwatch`/`workSymbols` branches in `migrateWidget()` are related but separate (they guard against old Firestore-stored widget types, not localStorage data).
 - **Fix:** Audit Firestore data or user activity logs to determine whether any `classroom_dashboards` localStorage keys remain in the wild. If migration is complete, remove the `migrateLocalStorageToFirestore()` call from `DashboardContext.tsx` and delete or archive the export. If uncertainty remains, add a short-circuit at the call site gated on a Firestore document flag to skip the localStorage check after the user has migrated at least once.
 
+### LOW `utils/periodCompat.ts` — `buildPeriodFields` export with no production call site
+
+- **Detected:** 2026-07-26
+- **File:** utils/periodCompat.ts (export `buildPeriodFields`)
+- **Detail:** `utils/periodCompat.ts` exports `buildPeriodFields` — a helper that constructs period-compatibility field structures. A search of `components/`, `hooks/`, `utils/` (excluding the file itself) finds zero production imports. The file also has no test file of its own. It may be a compatibility shim that was never wired in, or was made redundant by a refactor that didn't clean it up.
+- **Fix:** Verify no production import exists (confirmed by audit), then delete the export or the file. Run `pnpm type-check` and `pnpm lint` to verify clean.
+
 ### MEDIUM scripts/tools/\*.py — 9 stale dev-session scripts including one that writes to source files
 
 - **Detected:** 2026-04-16 (severity upgraded 2026-07-12)
 - **File:** scripts/tools/ (verify_routines_manager.py, verify_dock_icons.py, verify_routines.py, verify_lunch_count.py, refactor_manager.py, fix_buttons.py, inspect_buttons.py, debug_admin_settings.py, debug_landing.py)
-- **Detail:** The `scripts/tools/` directory contains 9 Python/Playwright scripts. All are stale dev-session artifacts. `fix_buttons.py` directly writes to `components/widgets/Breathing/BreathingWidget.tsx` — the fix was presumably applied long ago, but the script could accidentally re-apply it. `refactor_manager.py` reads from `FeaturePermissionsManager.tsx.bak`, a backup file that likely no longer exists; running it would silently fail or corrupt state. None are wired into any CI pipeline. Severity upgraded from LOW: a script that modifies source files in the working tree is a confusion/safety risk.
-- **Fix:** Delete `scripts/tools/` directory entirely. Ongoing E2E testing is handled by `tests/e2e/` via Playwright and pnpm test:e2e.
+- **Detail:** The `scripts/tools/` directory contains 9 Python/Playwright scripts. All are stale dev-session artifacts. `fix_buttons.py` directly writes to `components/widgets/Breathing/BreathingWidget.tsx` — the fix was presumably applied long ago, but the script could accidentally re-apply it. `refactor_manager.py` reads from `FeaturePermissionsManager.tsx.bak`, a backup file that likely no longer exists; running it would silently fail or corrupt state. None are wired into any CI pipeline. Severity upgraded from LOW: a script that modifies source files in the working tree is a confusion/safety risk. **2026-07-26 supplement:** The root `scripts/` directory (distinct from `scripts/tools/`) also contains approximately 10 one-shot backfill/utility `.js` scripts beyond the CI helpers (`checkTestCounts.mjs`, `checkTestCounts.test.ts`, `test-count-baseline.json`) classified as ONGOING CI HELPER in 2026-07-05. These appear to be historical one-off data-migration and setup scripts. They lack the source-file-modification risk of `fix_buttons.py` but share the same stale-artifact pattern. Scope the eventual cleanup to cover both `scripts/tools/` and the root `scripts/` one-off `.js` files simultaneously.
+- **Fix:** Delete `scripts/tools/` directory entirely. Audit root `scripts/*.js` files (excluding CI helpers `checkTestCounts.mjs`, `setup-admins.js`, and `generate-version.mjs` which are wired into pnpm scripts) and delete stale one-shot backfill scripts. Ongoing E2E testing is handled by `tests/e2e/` via Playwright and pnpm test:e2e.
 
 ### LOW `hooks/useScaledFont.ts` — dead hook with no production imports
 
@@ -54,6 +61,21 @@ _Nothing currently in progress._
 ---
 
 ## Clean (no issues found)
+
+Migration code + dead exports + console.log audit (2026-07-26, re-verified):
+
+- Old type strings 'timer', 'stopwatch': Only in `utils/migration.ts:71-80` — correct.
+- Old type string 'workSymbols': Only in `utils/migration.ts:93` — correct.
+- `migrateLocalStorageToFirestore()`: Still actively called in `context/DashboardContext.tsx:2046`. Still needed. Existing MEDIUM open item still valid.
+- New dev-paul commits since 2026-07-19: fix(Countdown), fix(FolderTree), fix(i18n), fix(gcPlcOrphans), fix(NextUp auto-expiry), fix(dock Escape leak), fix(auth InviteAcceptance), fix(functions expireActivityWallShares), PR #2272 review fixes — all UI/logic/fixes; no new utility files introduced; no new dead exports, commented-out code, or console.log calls.
+- Commented-out code: Zero in components/, context/, hooks/, utils/.
+- console.log(): Zero in components/, context/, hooks/, utils/.
+- `useScaledFont.ts`: Still dead. Existing LOW open item still valid.
+- `videoActivityDriveService.ts`: Still no production imports. Existing LOW open item still valid.
+- `scripts/tools/`: Still present with 9 Python/Playwright scripts. Existing MEDIUM open item still valid (supplement note added about root scripts/ .js files).
+- `utils/imageProcessing.ts:109`: `console.warn` on success still present. Existing LOW open item still valid.
+- NEW: `utils/periodCompat.ts` exports `buildPeriodFields` — zero production imports found in components/, hooks/, utils/ (excluding the file itself). See new LOW open item.
+- NEW: `scripts/` root directory contains ~10 one-shot backfill/utility `.js` scripts beyond the CI helpers. These are stale dev-session artifacts distinct from `scripts/tools/`. See supplement note on existing MEDIUM open item.
 
 Migration code + dead exports + console.log audit (2026-07-19, re-verified):
 
