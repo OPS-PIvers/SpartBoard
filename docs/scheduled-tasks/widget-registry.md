@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-26_
+_Last audited: 2026-07-27_
 _Last action: 2026-06-25_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-27: Full audit. New dev-paul commits since 2026-07-26 absorbed via rebase: docs(schedule-config) condense multi-line comments in types.ts and utils/adminBuildingConfig.ts (#2 commits) — types.ts changes are comment cleanup only (no WidgetType union changes); refactor(adminBuildingConfig) rename schedule preset const; feat(admin-config) add Schedule building-default appearance & behaviour config (ScheduleConfigurationPanel.tsx + types.ts interface extension + adminBuildingConfig.ts case 'schedule' extension + 5 new tests). None of these add, remove, or rename any WidgetType. VERIFIED COUNT: 63 WidgetType members (unchanged). Comprehensive cross-reference confirmed: all 63 WidgetTypes correctly registered across all 5 locations (WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, config/tools.ts, config/widgetDefaults.ts, config/widgetGradeLevels.ts). sticker intentional WidgetRenderer special-case per JSDoc; 7 intentional tools.ts omissions (catalyst-instruction, catalyst-visual, blooms-detail, mathTool, custom-widget, onboarding, sticker); 3 InternalToolType entries (magic, record, remote) documented. pnpm type-check (exit 0). Zero new gaps._
 
 _2026-07-26: Full audit. New dev-paul commits since 2026-07-25 absorbed via rebase (NextUp auto-expiry day rollover fix #2265, Escape popover leak fix #2266, InviteAcceptance HTML entity fix #2267, expireActivityWallShares pagination fix #2268, PR #2272 review fixes). None of these add, remove, or rename any WidgetType. VERIFIED COUNT: 63 WidgetType members (unchanged). Comprehensive cross-reference: all 63 WidgetTypes correctly registered across all 5 locations (WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, config/tools.ts, config/widgetDefaults.ts, config/widgetGradeLevels.ts). sticker intentional WidgetRenderer special-case per JSDoc; 7 intentional tools.ts omissions (catalyst-instruction, catalyst-visual, blooms-detail, mathTool, custom-widget, onboarding, sticker); 3 InternalToolType entries (magic, record, remote) documented. pnpm type-check (exit 0). Zero new gaps._
 
