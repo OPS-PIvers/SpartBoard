@@ -1828,27 +1828,24 @@ const LibraryTabContent: React.FC<{
 }) => {
   const emptyState =
     totalCount === 0 ? (
-      <div className="flex flex-col items-center justify-center h-full text-brand-blue-primary/40 py-12 gap-4">
-        <div className="bg-brand-blue-lighter/50 rounded-full border-2 border-dashed border-brand-blue-primary/20 p-6">
-          <FileUp className="w-12 h-12" />
-        </div>
-        <div className="text-center">
-          <p className="font-bold text-brand-blue-primary text-base">
-            No quizzes yet
-          </p>
-          <p className="text-brand-blue-primary/60 font-medium text-sm mt-1 max-w-[220px]">
-            Import a CSV or Google Sheet to build your library.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onImport}
-          className="flex items-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl transition-all shadow-md active:scale-95 px-5 py-2.5 text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Start Importing
-        </button>
-      </div>
+      <ScaledEmptyState
+        icon={FileUp}
+        title="No Quizzes Yet"
+        subtitle="Import a CSV or Google Sheet to build your library."
+        iconClassName="text-brand-blue-primary"
+        titleClassName="text-brand-blue-primary"
+        subtitleClassName="text-brand-blue-primary/60"
+        action={
+          <button
+            type="button"
+            onClick={onImport}
+            className="flex items-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl transition-all shadow-md active:scale-95 px-5 py-2.5 text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Start Importing
+          </button>
+        }
+      />
     ) : (
       <div className="text-sm font-medium text-slate-500 py-8 text-center">
         No quizzes match your search.

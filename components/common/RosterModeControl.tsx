@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { useDashboard } from '@/context/useDashboard';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 
 interface RosterModeControlProps {
   rosterMode: 'class' | 'custom';
@@ -12,14 +13,19 @@ export const RosterModeControl: React.FC<RosterModeControlProps> = ({
 }) => {
   const { activeRosterId, rosters } = useDashboard();
   const activeRoster = rosters.find((r) => r.id === activeRosterId);
+  const rosterModeLabelId = useId();
 
   return (
     <div className="space-y-2 mb-4">
       <div className="flex items-center justify-between p-2 bg-slate-50 rounded-xl border border-slate-100">
-        <span className="text-xxs font-black text-slate-400 uppercase tracking-widest">
+        <SettingsLabel as="span" id={rosterModeLabelId} className="mb-0">
           Roster Selection
-        </span>
-        <div className="flex bg-slate-200/50 p-0.5 rounded-lg">
+        </SettingsLabel>
+        <div
+          role="group"
+          aria-labelledby={rosterModeLabelId}
+          className="flex bg-slate-200/50 p-0.5 rounded-lg"
+        >
           <button
             type="button"
             onClick={() => onModeChange('class')}

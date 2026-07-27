@@ -235,4 +235,41 @@ describe('buildContributionDoc', () => {
     expect(docA.questionsSnapshot).toHaveLength(2);
     expect(docA.questionsSnapshot.map((q) => q.id)).toEqual(['q1', 'q2']);
   });
+
+  it('credits the chronologically-first answer when a response carries two entries for the same question (matches getEarnedPoints)', () => {
+    // A stale read-modify-write race (or a legacy/migrated doc) can leave a
+    // response's `answers` array with two entries for the same questionId.
+    // The Scoreboard/gradebook's canonical `getEarnedPoints`
+    // (components/widgets/QuizWidget/utils/quizScoreboard.ts) sorts by
+    // `answeredAt` ascending and credits the FIRST (earliest) one. The PLC
+    // contribution builder must agree, or the PLC Shared Data view can show
+    // a different score for the same student than the teacher's own Results.
+    const quiz = makeQuiz([makeMcQuestion('q1', 'Q1', 'a', 2)]);
+    const response = {
+      studentUid: 'uid-1',
+      pin: '1111',
+      classPeriod: 'Period 1',
+      answers: [
+        { questionId: 'q1', answer: 'a', answeredAt: 100 }, // correct, EARLIEST — this one should win
+        { questionId: 'q1', answer: 'x', answeredAt: 200 }, // wrong, but LAST in array order
+      ],
+      status: 'completed',
+      submittedAt: 300,
+      tabSwitchWarnings: 0,
+    } as unknown as QuizResponse;
+
+    const doc = buildContributionDoc({
+      plcId: 'plc-A',
+      teacherUid: 'teacher-1',
+      teacherName: 'Teacher One',
+      quiz,
+      responses: [response],
+    });
+
+    // Earliest answer (answeredAt: 100) is correct -> 2 points, even though a
+    // later duplicate entry in the array is wrong and naive array-order
+    // (last-wins) logic would otherwise credit that one instead.
+    expect(doc.responses[0].pointsByQuestionId.q1).toBe(2);
+    expect(doc.responses[0].pointsEarned).toBe(2);
+  });
 });

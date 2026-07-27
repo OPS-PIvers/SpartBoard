@@ -87,6 +87,8 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
     switch (e.key) {
       case 'Escape':
         e.preventDefault();
+        // Stop the bubble to DashboardView's global Escape handler, which would otherwise minimize an unrelated widget.
+        e.stopPropagation();
         onClose();
         break;
       case 'ArrowDown':
