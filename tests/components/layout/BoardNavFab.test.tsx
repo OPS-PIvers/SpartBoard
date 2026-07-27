@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BoardNavFab } from '@/components/layout/BoardNavFab';
 import type { useDashboard } from '@/context/useDashboard';
@@ -242,6 +242,36 @@ describe('BoardNavFab', () => {
       await userEvent.keyboard('{Escape}');
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
       expect(document.activeElement).toBe(trigger);
+    });
+
+    // Regression test: this menu lives outside any `.widget` DraggableWindow.
+    // Pressing Escape while a board item has focus previously bubbled the
+    // keydown past the menu, all the way to DashboardView's global
+    // window-level Escape handler — which finds no typing field and no
+    // `.widget` ancestor for the focused item, so it falls back to
+    // minimizing the topmost widget on the board. Simulates that
+    // window-level listener directly rather than mounting the full
+    // DashboardView, mirroring the pattern in ToolDockItem.test.tsx (#2266).
+    it('does not leak the Escape keydown to window-level listeners', async () => {
+      mockContext({
+        dashboards: [dashboard('d1', 'A'), dashboard('d2', 'B')],
+        collections: [],
+      });
+      render(<BoardNavFab />);
+      await userEvent.click(
+        screen.getByRole('button', { name: /select board/i })
+      );
+      const item = screen.getByRole('menuitem', { name: /A/ });
+      expect(document.activeElement).toBe(item);
+
+      const windowKeydownSpy = vi.fn();
+      window.addEventListener('keydown', windowKeydownSpy);
+      try {
+        fireEvent.keyDown(item, { key: 'Escape', bubbles: true });
+        expect(windowKeydownSpy).not.toHaveBeenCalled();
+      } finally {
+        window.removeEventListener('keydown', windowKeydownSpy);
+      }
     });
   });
 

@@ -92,6 +92,8 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({
   const handlePopupKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Escape') {
       e.preventDefault();
+      // Stop the bubble to DashboardView's global Escape handler, which would otherwise minimize an unrelated widget.
+      e.stopPropagation();
       closeSlider();
       return;
     }
