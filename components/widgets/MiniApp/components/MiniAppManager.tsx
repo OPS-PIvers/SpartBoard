@@ -856,7 +856,6 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       icon={Box}
       title="No apps saved yet"
       subtitle="Import a file or create your first mini-app."
-      iconClassName="text-slate-300"
       titleClassName="text-slate-500"
       subtitleClassName="text-slate-400"
     />
@@ -867,7 +866,6 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       icon={Globe}
       title="No shared apps yet"
       subtitle="Your admin has not published any apps yet."
-      iconClassName="text-slate-300"
       titleClassName="text-slate-500"
       subtitleClassName="text-slate-400"
     />
