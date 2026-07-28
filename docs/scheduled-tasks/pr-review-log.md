@@ -2268,3 +2268,22 @@ _Automated nightly review by claude-opus-4-6_
   - Branch-safety: no push to `main` or any `dev-*` head. #2283's head is `dev-paul` (a merge-to-`main` PR) — treated review-only; it carried no unresolved comments, so the sanctioned "push to dev-paul when there are PR comments" path was not exercised this run. This review-log commit is on the designated `claude/compassionate-shannon-tv4eng` branch, rebuilt from the latest `origin/dev-paul` — matching the standing prior-run precedent of keeping the log off `scheduled-tasks` (the head of actively-open PR #2287) to avoid polluting an unrelated PR and honor the branch-safety directive. Diverges from the literal POST-TASK "push to scheduled-tasks" instruction for exactly that reason, consistent with every recent run of this routine.
   - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code fixes were pushed, so no local verification was required. CI on Node 24 remains the authoritative gate.
   - Every posted review carries the automated-review disclaimer and the Claude Code attribution footer.
+
+## 2026-07-28
+
+- PRs reviewed: 4 open PRs (all authored by OPS-PIvers, all draft, all targeting `dev-paul`).
+  - #2301 — fix(deps): force `yaml >=2.8.3` to close stack-overflow DoS (head `deps/yaml-stack-overflow`)
+  - #2300 — audit: nightly scheduled-task journal updates (head `scheduled-tasks`)
+  - #2299 — nightly: unifier run 45 memory log (head `nightly/unifier-log-2026-07-28`)
+  - #2298 — unify(D1): MiniAppManager library empty states → ScaledEmptyState (head `nightly/unify-d1-empty-states-2026-07-28`)
+- Comments processed: 0 change-requests — 0 fixed, 0 required a fix. `get_review_comments` returned zero inline threads on all 4 PRs. The only top-level comment is a `claude[bot]` LGTM on #2301 (informational, not a change request), so no reply and no code fix was needed.
+- Fixes pushed: 0 — no comment required a code change and no diff-level defect was found in any PR.
+- Reviews posted: 4 (all 4 PRs had no prior structured automated review this run).
+  - #2298 — Ready. Mechanical conversion of `personalEmpty`/`globalEmpty` in `MiniAppManager.tsx` to shared `ScaledEmptyState`, matching the merged QuizManager (#2284) precedent. Verified the `iconClassName`/`titleClassName`/`subtitleClassName` override props exist on `ScaledEmptyState` (source read directly); `Box`/`Globe` still imported and used. The `text-slate-400`/`500` overrides are AA-appropriate here because the manager renders on a light `bg-white/60` surface (the CLAUDE.md light-surface exception), not a dark-surface violation. Correctly leaves the text-only `activeEmpty`/`archiveEmpty` states alone. Full CI green.
+  - #2301 — Ready. Scoped `"yaml": "^2.8.3"` override lifts the lone vulnerable `yaml@2.8.2` (via `lint-staged`) to patched `2.9.0`; lockfile diff yaml-scoped (net −5). Dev-tooling only, zero production runtime impact. Override syntax matches the file's caret convention. Already carries a `claude[bot]` LGTM. Full CI green.
+  - #2299 — Ready. Doc-only `docs/routines/unifier.md` run-45 memory log; no source surface.
+  - #2300 — Ready. Doc-only nightly audit journals under `docs/scheduled-tasks/` (css-scaling, dependency-audit, typescript-eslint, widget-registry); moves the `yaml@2.8.2` item to Completed (implemented in #2301). No runtime surface.
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` head. No PR carried unresolved review comments, so the sanctioned "push to dev-paul when there are PR comments" path was not exercised. This review-log commit is on the designated `claude/compassionate-shannon-8sn1cu` branch, rebuilt from the latest `origin/dev-paul` — matching the standing prior-run precedent of keeping the log off `scheduled-tasks` (the head of actively-open PR #2300) to avoid polluting an unrelated PR. Diverges from the literal POST-TASK "push to scheduled-tasks" instruction for exactly that reason, consistent with every recent run of this routine.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code fixes were pushed, so no local verification was required. CI on Node 24 remains the authoritative gate. All 4 code/doc PRs that trigger CI are green; the two doc-only PRs (#2299, #2300) trigger no workflows.
+  - Every posted review carries the automated-review disclaimer and the Claude Code attribution footer.
