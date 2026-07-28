@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-27_
+_Last audited: 2026-07-28_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-07-28. TypeScript: 0 errors (exit 0). ESLint: 0 errors, 0 warnings (`--max-warnings 0`, both root and functions, exit 0). New dev-paul commits since 2026-07-27 (absorbed via rebase): merge reconcile main into dev-paul after accidental squash-merge; test(short-links); unify(D5) CalendarConfigurationModal; pr-review; fix(finalizeIdleQuizAttempts); fix(plcContributions); fix(layout) Escape FAB; fix(Classes/rosterUtils); feat(admin-config) Schedule appearance; docs(unifier); fix(RosterModeControl); D1 QuizManager ScaledEmptyState; SyntaxFramer appearance audit. All new and modified code type-safe and lint-clean. Codebase remains fully type-safe and lint-clean._
 
 _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-07-27. TypeScript: 0 errors (exit 0). ESLint: 0 errors, 0 warnings (`--max-warnings 0`, exit 0). New dev-paul commits since 2026-07-26 (absorbed via rebase): docs(schedule-config) condense multi-line JSDoc comments in types.ts and utils/adminBuildingConfig.ts (pure whitespace/comment change); refactor(adminBuildingConfig) rename validScheduleTextSizePresets → validTextSizePresets; feat(admin-config) add Schedule building-default appearance & behaviour config (new ScheduleConfigurationPanel.tsx, 5 new adminBuildingConfig tests, types.ts BuildingScheduleDefaults interface extension). All new and modified code type-safe and lint-clean. Codebase remains fully type-safe and lint-clean._
 

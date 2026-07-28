@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-27_
+_Last audited: 2026-07-28_
 _Last action: 2026-07-23 — MEDIUM SoundWidget `PopcornBallsView` no longer receives `width={w} height={h - 60}` (stored widget dims minus a magic header offset); the canvas component now self-measures its own container via `ResizeObserver`, matching the NumberLine idiom, so the draw buffer tracks the actual rendered area with no hard-coded pixel subtraction_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-28: Targeted scan (Tuesday). New dev-paul commits since 2026-07-27 absorbed via rebase: merge reconcile, test(short-links), unify(D5) CalendarConfigurationModal, pr-review, fix(finalizeIdleQuizAttempts), fix(plcContributions), fix(layout) Escape FAB, fix(Classes/rosterUtils), feat(admin-config) Schedule appearance, docs(unifier), fix(RosterModeControl), D1 QuizManager ScaledEmptyState, SyntaxFramer appearance audit. None of these touch widget front-face Widget.tsx content. Agent scan of recently-active widget files: SyntaxFramer — CLEAN (intentional fill-better formula per standing WON'T FIX precedent); QuizManager — back-face manager component, CQ rules do not apply; CalendarConfigurationModal — admin panel component, not widget front-face. All 10 pre-existing LOW open items confirmed present and unresolved. Zero new anti-patterns detected._
 
 _2026-07-27: Targeted scan (Monday). New dev-paul commits since 2026-07-26 absorbed via rebase: docs(schedule-config) comment condensation in types.ts/adminBuildingConfig.ts — no widget front-face content; feat(admin-config) add Schedule building-default appearance & behaviour config — changes are in ScheduleConfigurationPanel.tsx (admin panel, back-face), utils/adminBuildingConfig.ts, and types.ts interface extension; none touch widget Widget.tsx front-face content. Agent scan of recently-active widget files (Stations, BloomsTaxonomy/Widget, BloomsTaxonomy/DetailWidget, NeedDoPutThen, NumberLine, RevealGrid, SyntaxFramer): (1) Stations — CLEAN, all cqmin with px caps throughout; (2) BloomsTaxonomy/Widget — CLEAN, thin orchestrator with no sizing; (3) BloomsTaxonomy/DetailWidget — CLEAN, min(Npx, Xcqmin) throughout; (4) NeedDoPutThen — CLEAN, sizeMultiplier pattern throughout, fixed-px resize-handle chrome excluded; (5) NumberLine — CLEAN, SVG with ResizeObserver + cqmin labels; (6) RevealGrid — lines 162/168 text-xs and line 183 gap-4 already tracked in existing LOW open item (unchanged); (7) SyntaxFramer — CLEAN, intentional fill-better hero-text formula per WON'T FIX precedent. All pre-existing open items confirmed present and unresolved. Zero new anti-patterns._
 
