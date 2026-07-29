@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-07-22_
+_Last audited: 2026-07-29_
 _Last action: 2026-07-13_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-29: Weekly coverage audit (Wednesday). pnpm test: exit 0, 587 files / 7108 tests all passing (up from 573/6986 on 2026-07-22 — net +14 files, +122 tests, accounting for 2026-07-27 action adding shortLinksApi + useShortLinks tests plus MiniAppManager refactor on 2026-07-28). No failing tests. New dev-paul commits since 2026-07-22 absorbed via rebase: refactor(MiniAppManager) drop redundant iconClassName (back-face manager, 2-line deletion, no new source files); pr-review docs only; deps/yaml-stack-overflow (dependency patch); unifier log; b4b1f504 Unify MiniAppManager empty states (back-face). None of these introduce new untested source files. `functions/src/studentIdentity.ts` remains the lone remaining sub-target of the resolved HIGH item (5 Cloud Functions, PIN validation + auth session paths). All existing MEDIUM/LOW items confirmed unchanged. Zero new gaps detected._
 
 _2026-07-27 (Monday, action): Selected the lone HIGH item — highest-severity Open across today's reading list (daily journals: widget-registry no open items, css-scaling only LOW, typescript-eslint none; the other Monday weekly firestore-rules tops out at MEDIUM). HIGH beats all, so this item wins outright. File-recency check passed: `utils/shortLinksApi.ts`, `hooks/useShortLinks.ts`, and `functions/src/studentIdentity.ts` were all last touched at `b778aac2` (#2092) — far outside the last 5 branch commits (6b78f79b, 8bf9feb2, 44b711a3, 58049fb8, 3117643d). Closed 2 of the 3 remaining sub-targets: added `tests/utils/shortLinksApi.test.ts` (9 tests — `resolveShortLink` null-on-missing / data-on-hit / correct doc ref / read-error propagation; `recordShortLinkClick` atomic `increment(1)` + `lastClickedAt` payload / correct ref / write-error propagation; collection-name constant) and `hooks/useShortLinks.test.ts` (23 tests covering `useCreateShortLink` — signed-out/non-admin fast-fail, destination & slug validation, taken-slug collision, full-metadata create, empty-label omission, the 5-retry random-code loop past collisions, retry-budget exhaustion, and generic error+`logError` fallback — and `useShortLinks` — non-admin no-subscribe, snapshot hydrate/error/unsubscribe, `updateShortLink` non-admin/missing-doc/invalid-destination/success/blank-label-`deleteField`/error paths, `deleteShortLink` non-admin-throw/admin-delete, and `refresh` no-op/hydrate/error). The transaction body of `createShortLinkAtomic` runs for real via a controllable `runTransaction` mock; the pure `shortLinkValidation` helpers (already covered) are used unmocked. All 32 new tests pass; `pnpm run type-check`, `pnpm exec eslint --max-warnings 0`, and `pnpm exec prettier --check` all clean. **Remaining sub-target:** `functions/src/studentIdentity.ts` (5 Cloud Functions, 1307 lines) — needs a `firebase-admin` mock harness and is a substantial standalone effort; left open below. All other existing open items remain valid._
 

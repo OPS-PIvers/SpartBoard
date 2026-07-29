@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-07-22_
+_Last audited: 2026-07-29_
 _Last action: 2026-05-01_
 
 ---
 
 ## Audit Log
+
+_2026-07-29: Full audit (Audit E1 — Wednesday weekly). New dev-paul commits since 2026-07-22 absorbed via rebase: refactor(MiniAppManager) drop redundant iconClassName (2 lines deleted from back-face manager — no cast or state impact); pr-review docs; deps/yaml-stack-overflow (dep patch); unifier log; b4b1f504 Unify MiniAppManager empty states (back-face). (1) Type assertions: all existing items re-confirmed — useFirestore.ts MEDIUM, ai_security.ts MEDIUM, dashboardPII/smartPaste LOW, BlockRenderer LOW, icon registry LOW, FeatureConfigurationPanel LOW, TimeTool 6-cast LOW, RandomWidget 13-cast LOW, widgetConfigPersistence LOW, adminBuildingConfig double-cast LOW. `validTextSizePresets` local const tripled at lines 423/649/704 in adminBuildingConfig.ts confirmed still present (existing LOW open item). (2) Heavy hooks: usePlcTrash.ts (9 useState) and usePlcResources.ts (9 useState) — both existing LOW items, unchanged. (3) Prop drilling: MountedBoardsLayer 13-prop passthrough — existing LOW item, unchanged. (4) Nested ternaries: val triple and DraggableWindow corner ternary — existing LOW items, unchanged. Zero new items. All 9 existing open items remain valid._
 
 _2026-07-22: Full audit (Audit E1 — Wednesday weekly). No new dev-paul commits absorbed (rebase not performed — dev-paul diverged). (1) Type assertions: 7 new LOW cast clusters found — TimeTool 6 partial-update casts, RandomWidget 13 casts (highest density in codebase), widgetConfigPersistence Object.assign cast, adminBuildingConfig double-cast for WIDGET_DEFAULTS, AnnouncementOverlay widgetConfig double-cast. 5 new LOW items added below. (2) Heavy hooks: NEW LOW — `hooks/usePlcTrash.ts` has 9 useState calls fanning out over 6 parallel collection subscriptions; `hooks/usePlcResources.ts` has 9 useState calls with 3 parallel resource-loading pairs that could consolidate to `{ loading, error, data }` tuples. 2 new LOW items added below. (3) Prop drilling: existing LOW item detail updated — MountedBoardsLayer passthrough count is 13 props (not 6 as originally noted; 6 was the live-session callback count within the broader set). (4) Existing casts all re-confirmed: useFirestore.ts MEDIUM, ai_security.ts MEDIUM, dashboardPII/smartPaste LOW, BlockRenderer LOW, icon registry LOW, FeatureConfigurationPanel LOW, QuizWidget LOW. 7 new LOW open items total._
 
