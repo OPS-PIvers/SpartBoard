@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
 _Last audited: 2026-07-23_
-_Last action: 2026-07-21_
+_Last action: 2026-07-28_
 
 ---
 
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-28 (action): Resolved the MEDIUM `yaml@2.8.2` stack-overflow DoS item. Selection: today is Tuesday; reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + Tuesday weeklies skill-freshness / dependency-audit. No In Progress items anywhere. widget-registry and typescript-eslint have no open items; css-scaling and skill-freshness open items are all LOW. The MEDIUM/HIGH items today are all dependency-audit MEDIUMs, so this weekly wins the severity tiebreak. In document order the first MEDIUM is the `pnpm audit` 410 tooling item — **skipped as not a safe unattended auto-fix** per standing precedent (its residual fix is an open-ended scanner/automation policy call — confirm-in-CI / switch scanner / adopt Dependabot — not a mechanical override; audit is in fact working again in this environment). The next actionable MEDIUM in document order is `yaml`. File-recency check on `package.json` passed (last touched at caf460bd `#2257`, outside the last 5 branch commits). `pnpm why yaml` before fix showed two resolutions — `yaml@2.8.2` (vulnerable, <2.8.3) via the `lint-staged@16.2.7` dev toolchain, and `yaml@2.9.0` (patched) on all other paths (firebase-tools, postcss-load-config/tailwindcss, vite/vitest). Added `"yaml": "^2.8.3"` to `pnpm.overrides` in `package.json` (caret matches the file's existing override convention; latest yaml 2.x is 2.9.0 so `^2.8.3` resolves to the patched 2.9.0 and stays within 2.x). After `pnpm install`, `pnpm why yaml` reports a single `yaml@2.9.0` (2.8.2 gone); `pnpm audit` no longer reports the `yaml` package advisory (remaining matches are the separate `js-yaml` package). Lockfile diff is minimal and yaml-scoped (14 lines, net -5 — override declaration + lint-staged path 2.8.2→2.9.0 + removal of the `yaml@2.8.2` entry). Dev-tooling only (lint-staged) — no production runtime impact. Verified clean: `prettier --check package.json pnpm-lock.yaml` (clean), `pnpm run type-check` (exit 0), `pnpm run lint` (root + functions, `--max-warnings 0`, exit 0), `pnpm install --frozen-lockfile` (consistent against dev-paul base). Moved item to Completed. PR #2301 opened against dev-paul (draft, branch `deps/yaml-stack-overflow`, rebased directly on dev-paul so the diff is exactly `package.json` + `pnpm-lock.yaml` — the code change does NOT carry this journal update; the journal record lives here on scheduled-tasks). Remaining MEDIUM items (pnpm-audit-410, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash, protobufjs, ws-in-functions) and the LOW items all still active._
 
 _2026-07-23: `pnpm audit` IS working — returned full vulnerability data. Root: **141 vulnerabilities** (9 low | 62 moderate | 66 high | 4 critical) — up from 139 on 2026-07-21. Functions: **73 vulnerabilities** — up from 71 on 2026-07-21. THREE NEW items detected: (1) NEW MEDIUM `protobufjs` GHSA-wcpc-wj8m-hjx6 HIGH — DoS via unbounded recursive expansion of `Any` fields (affected <=7.6.0, patched >=7.6.1); via `@google/genai>protobufjs` in both root and functions; existing `"protobufjs": "^7.5.6"` override is insufficient — must be updated to `"^7.6.1"` in both `package.json` and `functions/package.json`. (2) NEW MEDIUM `ws` HIGH in functions — via `@google/genai>ws` chain; root's `"ws@8": "^8.21.1"` scoped override does not cover functions/; need identical scoped override in `functions/package.json`. (3) NEW LOW `fast-uri` HIGH in functions — new advisory in functions/ audit output. `pnpm outdated` updates since 2026-07-21: `@google/genai` latest → 2.13.0 (was 2.12.0); `jose` (functions) latest → 6.2.4 (was 6.2.3); `react`/`react-dom` → 19.2.8. LOW major-versions item updated. All other existing items remain valid._
 
@@ -49,13 +51,6 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 - **File:** package.json / functions/package.json (tooling)
 - **Detail:** `pnpm audit` (both root and functions) returned HTTP 410 on 2026-07-16 with: `"This endpoint is being retired. Use the bulk advisory endpoint instead."` Both endpoints (`/-/npm/v1/security/audits/quick` and `/-/npm/v1/security/audits`) were unavailable. Exit code was 0, so CI did not fail — but no vulnerability data was returned. 2026-07-21 run shows audit working again in this environment; gap data (2026-07-09 to 2026-07-21) captured in the run note above.
 - **Fix:** Confirm audit works in CI. If still broken in CI, switch to an alternative: (a) `npm audit` via Node's own npm CLI; (b) `pnpm audit --use-node-fetch` or newer pnpm; (c) `osv-scanner` against lock files; (d) GitHub Dependabot security alerts. Option (d) is lowest friction.
-
-### MEDIUM `yaml@2.8.2` stack overflow via deeply nested input — via dev toolchain
-
-- **Detected:** 2026-05-19
-- **File:** package.json (devDependencies via `firebase-tools`, `lint-staged`, `tailwindcss`, `vite`)
-- **Detail:** `yaml` >=2.0.0 <2.8.3 has a stack overflow DoS vulnerability. Installed version is `yaml@2.8.2` (fix requires >=2.8.3). Reaches the codebase via multiple dev tool chains: `firebase-tools@15.8.0`, `lint-staged@16.2.7`, `tailwindcss@3.4.19 > postcss-load-config`, and `vite@6.4.2`. All are dev-only.
-- **Fix:** Add `"yaml": ">=2.8.3"` to `pnpm.overrides` in `package.json`. This is a safe override since yaml 2.x has a stable API. Verify with `pnpm why yaml` after install. No production impact.
 
 ### MEDIUM `hono@4.12.15` has three MODERATE CVEs — patched in >=4.12.25 (latest 4.12.28)
 
@@ -199,6 +194,14 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 ---
 
 ## Completed
+
+### MEDIUM `yaml@2.8.2` stack overflow via deeply nested input — via dev toolchain
+
+- **Detected:** 2026-05-19
+- **Completed:** 2026-07-28
+- **File:** package.json (`pnpm.overrides`; devDependencies via `lint-staged`), pnpm-lock.yaml
+- **Detail:** `yaml` >=2.0.0 <2.8.3 has a stack-overflow DoS vulnerability. Installed version was `yaml@2.8.2` (fix requires >=2.8.3). Although most dev chains (`firebase-tools`, `tailwindcss > postcss-load-config`, `vite`/`vitest`) had already deduped to the patched `yaml@2.9.0`, the tree still resolved a vulnerable `yaml@2.8.2` through the `lint-staged@16.2.7` dev toolchain. All dev-only.
+- **Resolution:** Added `"yaml": "^2.8.3"` to `pnpm.overrides` in `package.json` (caret matches the file's existing override convention; latest yaml 2.x is 2.9.0, so `^2.8.3` resolves to the patched 2.9.0 and stays within 2.x — the journal's originally-suggested `">=2.8.3"` would resolve identically). After `pnpm install`, `pnpm why yaml` reports a single `yaml@2.9.0` (2.8.2 gone); `pnpm audit` no longer reports the `yaml` package advisory (remaining `yaml` matches in audit output are the separate `js-yaml` package, tracked independently). File-recency check on `package.json` passed (last touched at caf460bd `#2257`, outside the last 5 branch commits). Verified clean: `prettier --check package.json pnpm-lock.yaml` (clean), `pnpm run type-check` (exit 0), `pnpm run lint` (root + functions, `--max-warnings 0`, exit 0), `pnpm install --frozen-lockfile` (consistent against dev-paul base). Lockfile diff minimal and yaml-scoped (14 lines, net -5). Dev-tooling only (lint-staged) — no production runtime impact. PR #2301 opened against dev-paul (draft; branch `deps/yaml-stack-overflow`; diff = `package.json` + `pnpm-lock.yaml`; this journal record lives on scheduled-tasks).
 
 ### MEDIUM `ws@8.19.0` + `ws@8.20.0` uninitialized memory disclosure — via jsdom/vitest
 

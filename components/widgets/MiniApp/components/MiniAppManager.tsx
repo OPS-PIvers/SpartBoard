@@ -51,6 +51,7 @@ import type {
   GlobalMiniAppItem,
   MiniAppAssignment,
 } from '@/types';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { LibraryShell } from '@/components/common/library/LibraryShell';
 import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
@@ -851,35 +852,23 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   /* ── Empty states ─────────────────────────────────────────────────────── */
 
   const personalEmpty = (
-    <div className="flex flex-col items-center justify-center gap-3 text-center py-10 text-slate-400">
-      <div className="rounded-2xl border border-dashed border-slate-300/70 bg-white/60 backdrop-blur-sm p-5">
-        <Box className="h-8 w-8 stroke-slate-300" />
-      </div>
-      <div>
-        <p className="text-sm font-black uppercase tracking-widest text-slate-500">
-          No apps saved yet
-        </p>
-        <p className="text-xs font-medium text-slate-400">
-          Import a file or create your first mini-app.
-        </p>
-      </div>
-    </div>
+    <ScaledEmptyState
+      icon={Box}
+      title="No apps saved yet"
+      subtitle="Import a file or create your first mini-app."
+      titleClassName="text-slate-500"
+      subtitleClassName="text-slate-400"
+    />
   );
 
   const globalEmpty = (
-    <div className="flex flex-col items-center justify-center gap-3 text-center py-10 text-slate-400">
-      <div className="rounded-2xl border border-dashed border-slate-300/70 bg-white/60 backdrop-blur-sm p-5">
-        <Globe className="h-8 w-8 stroke-slate-300" />
-      </div>
-      <div>
-        <p className="text-sm font-black uppercase tracking-widest text-slate-500">
-          No shared apps yet
-        </p>
-        <p className="text-xs font-medium text-slate-400">
-          Your admin has not published any apps yet.
-        </p>
-      </div>
-    </div>
+    <ScaledEmptyState
+      icon={Globe}
+      title="No shared apps yet"
+      subtitle="Your admin has not published any apps yet."
+      titleClassName="text-slate-500"
+      subtitleClassName="text-slate-400"
+    />
   );
 
   const activeEmpty = (
