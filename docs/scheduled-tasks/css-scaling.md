@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-28_
+_Last audited: 2026-07-29_
 _Last action: 2026-07-23 — MEDIUM SoundWidget `PopcornBallsView` no longer receives `width={w} height={h - 60}` (stored widget dims minus a magic header offset); the canvas component now self-measures its own container via `ResizeObserver`, matching the NumberLine idiom, so the draw buffer tracks the actual rendered area with no hard-coded pixel subtraction_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-29: Targeted scan (Wednesday). New dev-paul commits since 2026-07-28 absorbed via rebase: refactor(MiniAppManager) drop redundant iconClassName (33e2cf0e — MiniApp/components/MiniAppManager.tsx, back-face manager; CQ rules do not apply); pr-review docs only; deps/yaml-stack-overflow (dependency patch); unifier run 45 log (docs); b4b1f504 Unify MiniAppManager empty states (also back-face manager — CQ rules do not apply). None of these touch widget front-face Widget.tsx content. Direct verification: MiniApp/Widget.tsx unchanged (last modified before 2026-07-28). All 10 pre-existing LOW open items confirmed present and unresolved. Zero new anti-patterns detected._
 
 _2026-07-28: Targeted scan (Tuesday). New dev-paul commits since 2026-07-27 absorbed via rebase: merge reconcile, test(short-links), unify(D5) CalendarConfigurationModal, pr-review, fix(finalizeIdleQuizAttempts), fix(plcContributions), fix(layout) Escape FAB, fix(Classes/rosterUtils), feat(admin-config) Schedule appearance, docs(unifier), fix(RosterModeControl), D1 QuizManager ScaledEmptyState, SyntaxFramer appearance audit. None of these touch widget front-face Widget.tsx content. Agent scan of recently-active widget files: SyntaxFramer — CLEAN (intentional fill-better formula per standing WON'T FIX precedent); QuizManager — back-face manager component, CQ rules do not apply; CalendarConfigurationModal — admin panel component, not widget front-face. All 10 pre-existing LOW open items confirmed present and unresolved. Zero new anti-patterns detected._
 

@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-07-22_
+_Last audited: 2026-07-29_
 _Last action: 2026-07-10 — MEDIUM `guided-learning` stale-entry resolved: documented admin-only + deliberate no-rate-limit design intent in `generateGuidedLearning` docblock (option b)_
 
 ---
@@ -35,6 +35,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-29: Full AI integration audit (Audit E2 — Wednesday weekly). New dev-paul commits since 2026-07-22 absorbed via rebase: refactor(MiniAppManager) back-face only; pr-review docs; deps/yaml-stack-overflow (yaml dep, no AI changes); unifier log; b4b1f504 Unify MiniAppManager empty states (back-face). None of these touch AI code. Confirmed: `RevealGrid/Settings.tsx` "Reveal Grid Set Generator" button at lines 490–496 still has **no onClick handler** — button renders `<Sparkles className="w-4 h-4" /> Reveal Grid Set Generator` with no click action (MEDIUM confirmed). Confirmed: `BloomsTaxonomyWidget.tsx` still gates only on `buildingConfig.aiEnabled` without `canAccessFeature('gemini-functions')` — lines ~46, ~80, ~95, ~191 (MEDIUM confirmed). Confirmed: `transcribeVideoWithGemini` at functions/src/aiGeneration.ts:1963 still hardcodes `'gemini-3.1-flash-lite-preview'` string instead of `DEFAULT_STANDARD_MODEL` constant (LOW confirmed). All other existing LOW items (video-activity-recommend no independent gate, GeminiPanel ad-hoc regex, instructional-routine missing client gate, generateVideoActivity standard vs advanced model, generateVideoActivity no per-feature ai_usage bucket) confirmed present and unchanged. Zero new items._
 
 _2026-07-22: Full AI integration audit (Audit E2 — Wednesday weekly). No new dev-paul commits absorbed (rebase not performed — dev-paul diverged). Confirmed: `RevealGrid/Settings.tsx` "Reveal Grid Set Generator" button still has **no onClick handler** (MEDIUM — broken affordance, confirmed again). Confirmed: `transcribeVideoWithGemini` at functions/src/aiGeneration.ts:1963 still hardcodes `'gemini-3.1-flash-lite-preview'` string instead of `DEFAULT_STANDARD_MODEL` constant (LOW). NEW LOW: `generateVideoActivity` uses the standard model (`DEFAULT_STANDARD_MODEL = 'gemini-3.1-flash-lite-preview'`) despite video generation being at least as computationally intensive as `generateGuidedLearning` which explicitly uses `DEFAULT_ADVANCED_MODEL` — model selection is inconsistent. NEW LOW: `generateVideoActivity` Cloud Function writes to the global `ai_usage/{uid}\_global_{today}`doc for rate-limiting but has no per-feature`ai*usage/{uid}\_video-activity*{today}`bucket — admins cannot see per-feature video-activity AI usage in analytics. Three LOW items added. Also noted AI-opportunity sites (not open items):`ConceptWeb`widget could generate concept nodes/edges from a topic prompt (no AI path exists today);`SyntaxFramer`could pre-fill example sentences/equations;`GraphicOrganizer`could pre-populate organizer cells from a template + topic;`Checklist`could generate steps from a learning objective. All four would fit the`generateWithAI`+`canAccessFeature`pattern already established for`poll`and`blooms-ai`. All existing open items confirmed valid.\_
 
