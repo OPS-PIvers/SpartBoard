@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
 _Last audited: 2026-07-26_
-_Last action: 2026-07-12 — HIGH WorkSymbols admin building config added (work-symbols case + BuildingWorkSymbolsDefaults + WorkSymbolsConfigurationPanel embedded in modal)_
+_Last action: 2026-07-30 — MEDIUM RevealGrid `isMemoryMode` added to admin building config (BuildingRevealGridDefaults field + case 'reveal-grid' boolean guard + Game Mode toggle in RevealGridConfigurationPanel)_
 
 ---
 
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-30 action notes (Thursday): Selected the MEDIUM `RevealGrid isMemoryMode` item — highest-priority Open across today's reading list. The three dailies (widget-registry had no open items, css-scaling only LOW, typescript-eslint none) and the other Thursday weekly (legacy-cleanup, MEDIUM top) are outranked by this journal's three MEDIUMs (severity ties broken by daily-before-weekly, then reading-list order → admin-settings-alignment before legacy-cleanup). Of the three same-severity MEDIUMs here, `RevealGrid isMemoryMode` is first in document order. File-recency check passed: types.ts and utils/adminBuildingConfig.ts last touched at 59cfb3db, components/admin/RevealGridConfigurationPanel.tsx at 54ddc727 — all outside the last 5 branch commits (1ca97940, 4e49d47b, 464d39dd, 9d3ba000, 59e520b8, all audit/pr-review/test with no source changes). Implemented: (1) types.ts — added `isMemoryMode?: boolean` to `BuildingRevealGridDefaults`. (2) utils/adminBuildingConfig.ts — added `typeof raw.isMemoryMode === 'boolean'` guard to `case 'reveal-grid':` (seeds both `true` and explicit `false`, drops non-boolean). (3) RevealGridConfigurationPanel.tsx — added a "Game Mode" Review/Memory toggle (mirroring the user-level `RevealGrid/Settings.tsx` Game Mode control) writing `isMemoryMode` via `updateBuildingDefaults`, defaulting to Review (false). Confirmed `isMemoryMode` is a LIVE field (not a dead control): `RevealGrid/Settings.tsx:311-351` reads/writes it and the widget flips to matching-game behaviour when true. 3 new unit tests in adminBuildingConfig.test.ts (boolean true pass-through, explicit false pass-through, non-boolean rejected) — 66 pass total. `pnpm type-check` / `eslint --max-warnings 0` / `prettier --check` all clean on the four changed files. Moved the item to Completed. PR opened to dev-paul._
 
 _2026-07-26 action notes (Sunday): Selected the HIGH `Schedule appearance/behavior` item — highest-severity Open across today's reading list. The three dailies (widget-registry had no open items, css-scaling only LOW, typescript-eslint none) and the other Sunday weekly (legacy-cleanup, MEDIUM top) are all outranked by this journal's lone HIGH (severity beats daily-before-weekly). File-recency check passed: none of the target files are in the last 5 branch commits (19b02f00, a5339d40, a2a3222b, aa0abafc, 4706fe25) — utils/adminBuildingConfig.ts last touched at c906e67d, types.ts at c906e67d, components/widgets/Schedule/ at 0ac9c753, and the existing ScheduleConfigurationPanel.tsx well outside the window. Implemented: extended `BuildingScheduleDefaults` (7 new optional fields), extended the `case 'schedule':` handler with shared validators (`isWidgetFontFamily`/`isHexColor`/`isCardOpacity` + enum/boolean checks), and added an "Appearance & Behaviour" card to the existing `ScheduleConfigurationPanel.tsx` (already wired in `FeatureConfigurationPanel`) rendered in the building-overview view. Confirmed all five appearance fields are live (not dead controls like GraphicOrganizer/ConceptWeb): `ScheduleWidget`/`ScheduleRow` consume `fontColor` as row text colour, so it was correctly seeded. 5 new unit tests (63 pass total); existing ScheduleConfigurationPanel.test.tsx still green. `pnpm type-check`/`eslint --max-warnings 0`/`prettier` all clean. Moved the item to Completed. PR opened to dev-paul._
 
@@ -49,13 +51,6 @@ _2026-06-04 action notes: Selected the MEDIUM appearance-settings group (highest
 _2026-05-31 audit notes: Reviewed all changes since 2026-05-24. (1) Scoreboard gained `layout?: 'cards' | 'rows'` in `ScoreboardConfig` (commit 4f5d2bb6) — added as a user-configurable toggle in Settings.tsx. `BuildingScoreboardDefaults` does not include `layout`; `ScoreboardConfigurationPanel.tsx` exposes only team defaults; `case 'scoreboard':` in `adminBuildingConfig.ts` passes through only `teams`. New LOW gap added. (2) Classroom-addon commits (VA grade push, grade passback, assignment settings, PLC parity) added `ClassroomAddonContext`, `ClassroomCourseWork`, and session types to types.ts — none are widget-config fields; no building defaults impact. (3) Notebook fix (#1759) and Spotify fix (#1758) are logic-only; no config changes. (4) NumberLine ConfigurationPanel fix already captured in Completed. No new HIGH or MEDIUM items._
 
 _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget gained `source` (curated/personal/curated-spotify), `layout`, and `personalSpotify*` fields in MusicConfig — these are user-level preferences; personal-spotify access is gated via `canAccessFeature('personal-spotify')` (GlobalFeaturePermission + `buildings?:string[]`), not through building defaults. No building-defaults admin config needed for music. (2) QuizBehaviorSettings added new behavior fields to QuizConfig and VideoActivityConfig — quiz behavior is set per-quiz in the quiz editor, not per-building. No building defaults needed. (3) `refactor(admin)` commit (31e46ad3) removed magic/record/remote panels — already captured in Completed item. (4) SmartNotebook continues to accumulate features but its existing open item (appearance fields gap) covers the new work. No new MEDIUM or HIGH items. One new LOW item added (guided-learning stub panel)._
-
-### MEDIUM RevealGrid: `isMemoryMode` not in admin building config
-
-- **Detected:** 2026-07-05
-- **File:** types.ts (RevealGridConfig), utils/adminBuildingConfig.ts (case 'reveal-grid'), components/widgets/RevealGrid/Settings.tsx:311-351
-- **Detail:** RevealGrid/Settings.tsx exposes `isMemoryMode` (flips revealed cards face-down after viewing, creating a memory/concentration game mode) as a user-configurable field (lines 311-351). The existing `case 'reveal-grid':` handler in adminBuildingConfig.ts does not extract or seed `isMemoryMode`. A building admin cannot pre-configure whether new RevealGrid widgets default to memory mode — a meaningful pedagogical default for assessment activities.
-- **Fix:** Add `isMemoryMode?: boolean` to `BuildingRevealGridDefaults` in types.ts. Add `typeof === 'boolean'` validation to the `case 'reveal-grid':` handler. Add a "Memory Mode" toggle to the RevealGrid admin panel (or create a minimal panel if one does not exist).
 
 ### MEDIUM GraphicOrganizer: user-level `fontColor` picker in Settings.tsx is a dead control
 
@@ -221,6 +216,16 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 ---
 
 ## Completed
+
+### MEDIUM RevealGrid: `isMemoryMode` not in admin building config
+
+- **Detected:** 2026-07-05
+- **Completed:** 2026-07-30
+- **File:** types.ts (`BuildingRevealGridDefaults`), utils/adminBuildingConfig.ts (`case 'reveal-grid'`), components/admin/RevealGridConfigurationPanel.tsx, tests/utils/adminBuildingConfig.test.ts
+- **Detail:** `RevealGrid/Settings.tsx:311-351` exposes a "Game Mode" Review/Memory toggle writing `config.isMemoryMode` (Memory mode turns the grid into a matching game with cards hidden and shuffled). The `case 'reveal-grid':` handler in `getAdminBuildingConfig()` extracted `columns`/`revealMode`/`fontFamily`/`defaultCardColor`/`defaultCardBackColor` but not `isMemoryMode`, so a building admin could not pre-configure whether new RevealGrid widgets default to memory mode.
+- **Resolution:** (1) types.ts — added `isMemoryMode?: boolean` to `BuildingRevealGridDefaults` (between `revealMode` and `fontFamily`). (2) utils/adminBuildingConfig.ts — added `typeof raw.isMemoryMode === 'boolean'` guard to `case 'reveal-grid':` that seeds `out.isMemoryMode` for both `true` and explicit `false` (a deliberate building-level "force Review mode" default), dropping non-boolean values. (3) RevealGridConfigurationPanel.tsx — added a "Game Mode" Review/Memory segmented toggle (placed after Reveal Mode, before Font Family) mirroring the user-level Settings control, writing via the existing `updateBuildingDefaults`, defaulting the display to Review (false).
+- **Verification against dead-control anti-pattern:** `isMemoryMode` is a live field — `RevealGrid/Settings.tsx` reads/writes it and the widget switches to matching-game behaviour when true (unlike the GraphicOrganizer/ConceptWeb `fontColor` dead controls), so seeding it is correct.
+- **Verification:** 3 new unit tests in `tests/utils/adminBuildingConfig.test.ts` (boolean `true` pass-through, explicit `false` pass-through, non-boolean `'yes'` rejected) — `vitest run tests/utils/adminBuildingConfig.test.ts` → 66 passed. `pnpm type-check`, `eslint --max-warnings 0`, and `prettier --check` all clean on the four changed files. PR opened to dev-paul.
 
 ### HIGH Schedule: appearance and behavior fields absent from admin building config
 
