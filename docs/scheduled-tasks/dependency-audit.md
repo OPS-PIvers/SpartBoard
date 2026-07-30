@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-07-23_
+_Last audited: 2026-07-30_
 _Last action: 2026-07-28_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-30: `pnpm audit` returned full vulnerability data. Root: **146 vulnerabilities** (up from 141 on 2026-07-23). Functions: **76 vulnerabilities** (up from 73 on 2026-07-23). Five additional CVEs since 2026-07-23, all distributed across already-tracked categories (firebase-tools/tar chain, firebase-admin chains, axios). No entirely new vulnerability categories. `pnpm outdated` version drift vs 2026-07-23: notable updates — `@google/genai` latest **2.14.0** (was 2.13.0; also functions), `axios` (root + functions) latest **1.19.0** (was 1.18.1), `lucide-react` latest **1.27.0** (was 1.24.0), `vite` latest **8.1.5** (was 8.1.4), `hono` latest **4.12.32** (was 4.12.30), `jose` (functions) latest **6.2.5** (was 6.2.4), `jsdom` latest **30.0.1** (was 29.1.1; now 3 majors ahead of installed 27.x), `firebase-tools` latest **15.25.0** (was 15.24.0), `firebase-functions` latest **7.3.2** (both root dev + functions), `postcss` latest **8.5.25** (was 8.5.19), `@typescript-eslint/*` latest **8.65.0** (was 8.62.1), `tailwindcss` latest **4.3.3** (was 4.3.2), `eslint` latest **10.8.0** (was 10.7.0), `@vitejs/plugin-react` latest **6.0.4** (was 6.0.3), `recharts` latest **3.10.1** (was 3.9.2), `prettier` latest **3.9.6** (was 3.9.4), `globals` latest **17.8.0** (was 17.7.0), `react-i18next` latest **17.0.11** (was 17.0.10). LOW major-versions item updated. All existing open items (pnpm-audit-410, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash, protobufjs, ws-in-functions, fast-uri, @types/tesseract.js, jose, major-versions) remain valid._
 
 _2026-07-28 (action): Resolved the MEDIUM `yaml@2.8.2` stack-overflow DoS item. Selection: today is Tuesday; reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + Tuesday weeklies skill-freshness / dependency-audit. No In Progress items anywhere. widget-registry and typescript-eslint have no open items; css-scaling and skill-freshness open items are all LOW. The MEDIUM/HIGH items today are all dependency-audit MEDIUMs, so this weekly wins the severity tiebreak. In document order the first MEDIUM is the `pnpm audit` 410 tooling item — **skipped as not a safe unattended auto-fix** per standing precedent (its residual fix is an open-ended scanner/automation policy call — confirm-in-CI / switch scanner / adopt Dependabot — not a mechanical override; audit is in fact working again in this environment). The next actionable MEDIUM in document order is `yaml`. File-recency check on `package.json` passed (last touched at caf460bd `#2257`, outside the last 5 branch commits). `pnpm why yaml` before fix showed two resolutions — `yaml@2.8.2` (vulnerable, <2.8.3) via the `lint-staged@16.2.7` dev toolchain, and `yaml@2.9.0` (patched) on all other paths (firebase-tools, postcss-load-config/tailwindcss, vite/vitest). Added `"yaml": "^2.8.3"` to `pnpm.overrides` in `package.json` (caret matches the file's existing override convention; latest yaml 2.x is 2.9.0 so `^2.8.3` resolves to the patched 2.9.0 and stays within 2.x). After `pnpm install`, `pnpm why yaml` reports a single `yaml@2.9.0` (2.8.2 gone); `pnpm audit` no longer reports the `yaml` package advisory (remaining matches are the separate `js-yaml` package). Lockfile diff is minimal and yaml-scoped (14 lines, net -5 — override declaration + lint-staged path 2.8.2→2.9.0 + removal of the `yaml@2.8.2` entry). Dev-tooling only (lint-staged) — no production runtime impact. Verified clean: `prettier --check package.json pnpm-lock.yaml` (clean), `pnpm run type-check` (exit 0), `pnpm run lint` (root + functions, `--max-warnings 0`, exit 0), `pnpm install --frozen-lockfile` (consistent against dev-paul base). Moved item to Completed. PR #2301 opened against dev-paul (draft, branch `deps/yaml-stack-overflow`, rebased directly on dev-paul so the diff is exactly `package.json` + `pnpm-lock.yaml` — the code change does NOT carry this journal update; the journal record lives here on scheduled-tasks). Remaining MEDIUM items (pnpm-audit-410, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash, protobufjs, ws-in-functions) and the LOW items all still active._
 
@@ -167,29 +169,29 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 ### LOW Major version updates available — require planned migration
 
 - **Detected:** 2026-04-14
-- **Updated:** 2026-07-23
+- **Updated:** 2026-07-30
 - **File:** package.json
 - **Detail:** Several packages have major version releases available that require migration planning (breaking changes):
-  - `tailwindcss`: 3.4.19 → **4.3.2** (major — config format changed completely)
-  - `vite`: 6.4.2 → **8.1.4** (2 majors ahead; focus on patching within v6 first)
-  - `eslint`: 9.39.2 → **10.7.0** (major — verify flat config compatibility)
-  - `@eslint/js`: 9.39.2 → **10.7.0** (paired with eslint; updated 2026-07-21)
+  - `tailwindcss`: 3.4.19 → **4.3.3** (major — config format changed completely)
+  - `vite`: 6.4.2 → **8.1.5** (2 majors ahead; focus on patching within v6 first)
+  - `eslint`: 9.39.2 → **10.8.0** (major — verify flat config compatibility)
+  - `@eslint/js`: 9.39.2 → **10.0.1** (paired with eslint; updated 2026-07-21)
   - `typescript`: 5.9.3 → **7.0.2** (2 majors ahead — strict mode + decorator changes; also affects functions/)
-  - `i18next`: 25.8.13 → **26.3.5** (major — API changes)
-  - `react-i18next`: 16.5.4 → **17.0.10** (paired with i18next)
-  - `lucide-react`: 0.563.0 → **1.24.0** (first stable major — icon API changes possible)
-  - `@vitejs/plugin-react`: 5.1.2 → **6.0.3** (major)
-  - `@types/node`: 24.12.2 → **26.1.1** (2 major versions behind — verify Node 24 compat)
-  - `jsdom`: 27.4.0 → **29.1.1** (2 majors ahead — test environment only; also resolves ws CVE)
-  - `lint-staged`: 16.2.7 → **17.0.8** (major — check husky integration compatibility)
-  - `@google/genai`: 1.51.0 → **2.13.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade; also affects functions/; updated 2026-07-23)
+  - `i18next`: 25.8.13 → **26.3.6** (major — API changes)
+  - `react-i18next`: 16.5.4 → **17.0.11** (paired with i18next)
+  - `lucide-react`: 0.563.0 → **1.27.0** (first stable major — icon API changes possible)
+  - `@vitejs/plugin-react`: 5.1.2 → **6.0.4** (major)
+  - `@types/node`: 24.12.2 → **26.1.2** (2 major versions behind — verify Node 24 compat)
+  - `jsdom`: 27.4.0 → **30.0.1** (3 majors ahead — test environment only; also resolves ws CVE)
+  - `lint-staged`: 16.2.7 → **17.2.0** (major — check husky integration compatibility)
+  - `@google/genai`: 1.51.0 → **2.14.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade; also affects functions/; updated 2026-07-30)
   - `firebase`: 12.8.0 → **12.16.0** (latest as of 2026-07-21; update to resolve fast-xml-parser and node-forge transitive CVEs)
   - `firebase-admin` (functions): 13.6.0 → **14.2.0** (1 major — review migration guide for breaking changes; updated 2026-07-21)
-  - `jose` (functions): 4.15.9 → **6.2.4** (2 majors — separate LOW item above for JWT security context; updated 2026-07-23)
-  - `@testing-library/jest-dom`: 6.x → **7.x** (major — NEW 2026-07-21; check matcher API changes)
-    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → **19.2.8** (updated 2026-07-23), `firebase-tools` 15.8.0 → **15.24.0** (latest 2026-07-21), `@playwright/test` 1.58.0 → **1.61.1**, `@typescript-eslint/*` 8.54.0 → **8.62.1**, `vitest` (root) 4.1.8 → **4.1.10**, `hono` 4.12.15 → **4.12.30** (also has active MEDIUM CVE — see separate item), `dompurify` 3.4.2 → **3.4.12**, `postcss` 8.5.6 → **8.5.19**, `prettier` 3.8.1 → **3.9.4**, `eslint-plugin-prettier` 5.5.5 → **5.5.6**, `eslint-plugin-react-hooks` 7.0.1 → **7.1.1**, `globals` 17.2.0 → **17.7.0**, `@firebase/rules-unit-testing` 5.0.0 → **5.0.1**, `google-auth-library` (functions) 10.5.0 → **10.9.0**, functions `axios` 1.15.0 → **1.18.1**, functions `@google-cloud/functions-framework` 5.0.0 → **5.0.5**, `axios` (root) 1.15.0 → **1.18.1** (also active separate MEDIUM CVE — upgrade resolves), `recharts` 3.8.1 → **3.9.2**, `react-i18next` 16.5.4 → **17.0.10** (major).
+  - `jose` (functions): 4.15.9 → **6.2.5** (2 majors — separate LOW item above for JWT security context; updated 2026-07-30)
+  - `@testing-library/jest-dom`: 6.x → **7.0.0** (major — NEW 2026-07-21; check matcher API changes)
+    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → **19.2.8** (updated 2026-07-23), `firebase-tools` 15.8.0 → **15.25.0** (latest 2026-07-30), `@playwright/test` 1.58.0 → **1.62.0**, `@typescript-eslint/*` 8.54.0 → **8.65.0**, `vitest` (root) 4.1.8 → **4.1.10**, `hono` 4.12.15 → **4.12.32** (also has active MEDIUM CVE — see separate item), `dompurify` 3.4.2 → **3.4.12**, `postcss` 8.5.6 → **8.5.25**, `prettier` 3.8.1 → **3.9.6**, `eslint-plugin-prettier` 5.5.5 → **5.5.6**, `eslint-plugin-react-hooks` 7.0.1 → **7.1.1**, `globals` 17.2.0 → **17.8.0**, `@firebase/rules-unit-testing` 5.0.0 → **5.0.1**, `google-auth-library` (functions) 10.5.0 → **10.9.1**, functions `axios` 1.15.0 → **1.19.0**, functions `@google-cloud/functions-framework` 5.0.0 → **5.0.5**, `axios` (root) 1.15.0 → **1.19.0** (also active separate MEDIUM CVE — upgrade resolves), `recharts` 3.8.1 → **3.10.1**, `react-i18next` 16.5.4 → **17.0.11** (major), `firebase-functions` 7.2.5 → **7.3.2**.
     These should not be done in a single commit — each needs its own migration PR with testing.
-- **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 7 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix. `@google/genai` major bump warrants dedicated testing of all AI generation flows (quiz, mini-app, widget builder, OCR, etc.). jsdom update to v29 also resolves the ws CVE tracked separately.
+- **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 7 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix. `@google/genai` major bump warrants dedicated testing of all AI generation flows (quiz, mini-app, widget builder, OCR, etc.). jsdom update to v30 also resolves the ws CVE tracked separately.
 
 ---
 
