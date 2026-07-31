@@ -3,9 +3,9 @@
 // Comunidad", sidebar.plcs.title: "Mis Comunidades", and plc.errors.plcNotFound: "Comunidad no
 // encontrada." — fixed in esPlcErrorsComunidadTerminologyLocales.test.ts / #2229). These are
 // sibling namespaces to plcDashboard/plc.errors/sidebar.plcs (not covered by their scoped
-// recursive scans), so they need their own scoped scan to avoid conflicting with legitimately-
-// scoped "PLC" usage elsewhere in es.json (e.g. admin.plc.recovery, an admin-only namespace that
-// intentionally keeps "PLC").
+// recursive scans), so they need their own scoped scan. (admin.plc.recovery was previously —
+// wrongly — cited as an "intentional PLC" precedent; that namespace had the same drift and was
+// fixed too, see adminLocales.test.ts.)
 
 import { describe, it, expect } from 'vitest';
 import en from '@/locales/en.json';

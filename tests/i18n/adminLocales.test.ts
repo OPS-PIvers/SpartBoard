@@ -160,3 +160,75 @@ describe.each([
     }
   });
 });
+
+// ─── admin.plc.recovery terminology (DE/ES PLC->PLG/Comunidad drift) ────────
+
+/**
+ * DE and ES left the literal English acronym "PLC" untranslated across every
+ * string in `admin.plc.recovery` (title/subtitle/explainer/empty/dissolve/
+ * confirmDissolve), while FR correctly used its established term ("CAP") for
+ * the same namespace. Two prior PRs (#2162, #2214) explicitly left DE/ES
+ * alone here on the theory that `admin.plc.recovery` "intentionally keeps
+ * PLC" as an admin-only acronym distinct from the teacher-facing PLC UI.
+ *
+ * That theory doesn't hold up: `PlcRecoveryPanel.tsx` — the very component
+ * that renders this namespace — also renders `plcDashboard.resources.*`
+ * strings on the same screen (its loading/error states), and those already
+ * use the real DE/ES terms ("PLGs werden geladen…" / "Cargando
+ * Comunidades…"). So the "admin-only acronym" distinction isn't just
+ * unproven, it's directly contradicted by the same screen mixing "PLG"/
+ * "Comunidad" and untranslated "PLC" for the identical concept. DE's
+ * established term is "PLG" (used 700+ times elsewhere, e.g.
+ * plcDashboard.subtitle, sidebar.plcs.*, plc.errors.*); ES's is "Comunidad"
+ * (same pattern). This is the DE/ES sibling of the FR "CAP" translation
+ * already present in this namespace — fixed by using the same real terms,
+ * not by inventing a new admin-only convention.
+ *
+ * Scoped strictly to `admin.plc.recovery` (not a whole-locale-file scan) so
+ * it doesn't false-positive on legitimately different/untranslated "PLC"
+ * uses elsewhere (there are none left, but the scope keeps this test's
+ * intent narrow and its failure message precise).
+ */
+describe('admin.plc.recovery terminology — DE uses "PLG", ES uses "Comunidad", not raw "PLC"', () => {
+  it('DE: no admin.plc.recovery value contains the untranslated acronym "PLC"', () => {
+    const recovery = de.admin.plc.recovery as Record<string, string>;
+    for (const [key, value] of Object.entries(recovery)) {
+      expect(
+        value,
+        `de.admin.plc.recovery.${key} still says "PLC"`
+      ).not.toMatch(/\bPLC\b/);
+    }
+  });
+
+  it('ES: no admin.plc.recovery value contains the untranslated acronym "PLC"', () => {
+    const recovery = es.admin.plc.recovery as Record<string, string>;
+    for (const [key, value] of Object.entries(recovery)) {
+      expect(
+        value,
+        `es.admin.plc.recovery.${key} still says "PLC"`
+      ).not.toMatch(/\bPLC\b/);
+    }
+  });
+
+  it('DE: admin.plc.recovery uses the established "PLG" term where EN says "PLC"', () => {
+    const recovery = de.admin.plc.recovery as Record<string, string>;
+    const enRecovery = en.admin.plc.recovery as Record<string, string>;
+    for (const key of ['title', 'empty', 'dissolve'] as const) {
+      if (/\bPLCs?\b/.test(enRecovery[key])) {
+        expect(recovery[key], `de.admin.plc.recovery.${key}`).toMatch(/PLGs?/);
+      }
+    }
+  });
+
+  it('ES: admin.plc.recovery uses the established "Comunidad" term where EN says "PLC"', () => {
+    const recovery = es.admin.plc.recovery as Record<string, string>;
+    const enRecovery = en.admin.plc.recovery as Record<string, string>;
+    for (const key of ['title', 'empty', 'dissolve'] as const) {
+      if (/\bPLCs?\b/.test(enRecovery[key])) {
+        expect(recovery[key], `es.admin.plc.recovery.${key}`).toMatch(
+          /Comunidad(es)?/
+        );
+      }
+    }
+  });
+});

@@ -53,8 +53,10 @@ const EXPECTED_COGNATE_MATCHES: Record<string, string[]> = {
   // precedent). That was wrong: the DE locale's own established term for PLC
   // is "PLG" (see plcDashboard.subtitle: "PLG-Dashboard", plcDashboard.members.*,
   // sidebar.plcs.*, plcDirectory.*), used 45+ times across plcDashboard. The
-  // admin.plc.recovery panel is a separate, admin-only namespace and is not a
-  // valid precedent for the teacher-facing plcDashboard. Fixed in
+  // admin.plc.recovery panel was also cited as precedent for keeping "PLC" as an
+  // admin-only acronym, but it had the exact same untranslated-drift bug and has
+  // since been fixed to "PLG"/"Comunidad" too (see adminLocales.test.ts) — it was
+  // never a valid precedent for anything. Fixed in
   // deDashboardPlgTerminologyLocales.test.ts; do not re-add "PLC" here.
   // ES's established term is "Comunidad" (same mistake as de above). Fixed in esDashboardComunidadTerminologyLocales.test.ts.
   de: ['kindBadge.quiz'],
