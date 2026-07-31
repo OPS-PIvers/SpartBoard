@@ -90,6 +90,10 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
 
   const onMenuKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
     if (e.key === 'Escape') {
+      // Stop the bubble: the menu is portalled to <body>, outside any `.widget`
+      // ancestor, so an unstopped Escape reaches DashboardView's global
+      // window-level Escape handler and minimizes the topmost widget instead.
+      e.stopPropagation();
       setOpen(false);
       triggerRef.current?.focus();
       return;

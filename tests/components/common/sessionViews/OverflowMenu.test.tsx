@@ -42,6 +42,37 @@ describe('OverflowMenu', () => {
     expect(trigger).toHaveFocus();
   });
 
+  // Regression test for a missing-stopPropagation bug: the menu is portalled
+  // to document.body (outside any `.widget` DraggableWindow ancestor), so an
+  // unstopped Escape here bubbles all the way to DashboardView's global
+  // window-level Escape handler. That handler finds no `.widget` ancestor for
+  // the portalled menu item and falls back to targeting the topmost z-index
+  // widget on the board, silently minimizing an unrelated widget (e.g. a
+  // running timer) just because the user dismissed this menu. This mirrors
+  // the same bug class already fixed in ToolDockItem/RemoteControlMenu/
+  // ClassRosterMenu (#2266) and BoardNavFab/CollectionSwitcherMenu/
+  // BoardActionsFab (#2289) — see tests/components/layout/ToolDockItem.test.tsx.
+  it('does not leak the Escape keydown to window-level listeners (would otherwise let DashboardView minimize an unrelated widget)', () => {
+    render(<OverflowMenu items={[{ label: 'Export', onClick: vi.fn() }]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+
+    // Stand-in for DashboardView's `window.addEventListener('keydown', ...)`
+    // global handler.
+    const windowKeydownSpy = vi.fn();
+    window.addEventListener('keydown', windowKeydownSpy);
+
+    try {
+      fireEvent.keyDown(screen.getByRole('menu'), {
+        key: 'Escape',
+        bubbles: true,
+      });
+      expect(windowKeydownSpy).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('keydown', windowKeydownSpy);
+    }
+  });
+
   it('focuses the first item on open and navigates with Arrow keys', () => {
     render(
       <OverflowMenu
