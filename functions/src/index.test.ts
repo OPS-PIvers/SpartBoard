@@ -85,6 +85,15 @@ const geminiConfigDocGet = vi.fn(() =>
   })
 );
 
+// Hoisted mock for `@google/genai`'s `Models.generateContent`. Any handler
+// that reaches the actual Gemini call (e.g. an admin caller who clears every
+// permission gate) must hit this stub, never the real network — a unit test
+// must never depend on live network reachability to pass. Defaults to a fast
+// rejection; tests that need a specific response call `mockResolvedValueOnce`.
+const generateContentMock = vi.fn(() =>
+  Promise.reject(new Error('generateContentMock: no response configured'))
+);
+
 // Storage mocks for archiveActivityWallPhoto size-guard tests. Each
 // stub is independently resettable so tests can install different
 // metadata responses without rebuilding the whole storage tree.
@@ -373,6 +382,32 @@ vi.mock('firebase-functions/params', () => ({
 
 // Mock axios
 vi.mock('axios');
+
+// Mock `@google/genai` so any code path that reaches the real Gemini call
+// (e.g. an admin caller bypassing every permission gate in
+// `generateVideoActivity`) hits a deterministic, network-free stub instead
+// of the live Generative Language API. Without this, `GEMINI_API_KEY.value()`
+// resolves to the truthy `mock-GEMINI_API_KEY` string (see the
+// `firebase-functions/params` mock above), so the real SDK is constructed
+// and makes a real HTTP round-trip — usually rejected fast by Google with an
+// invalid-key error, but under CPU/network contention that round-trip can
+// exceed the test timeout, making the test flaky rather than deterministic.
+vi.mock('@google/genai', async (importOriginal) => {
+  // Keep every real export (e.g. the `Type` enum used at runtime to build
+  // response schemas) — only the network-calling `GoogleGenAI` class itself
+  // needs to be replaced.
+  const actual = await importOriginal<typeof import('@google/genai')>();
+  return {
+    ...actual,
+    // `GoogleGenAI` is invoked with `new` in aiGeneration.ts — the mock
+    // implementation must be an ordinary function (not an arrow function),
+    // since arrow functions have no [[Construct]] and throw "is not a
+    // constructor" when called via `new`.
+    GoogleGenAI: vi.fn().mockImplementation(function GoogleGenAIMock() {
+      return { models: { generateContent: generateContentMock } };
+    }),
+  };
+});
 
 // Import the function under test
 import {
@@ -3104,6 +3139,8 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
     await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
       'Gemini functions are currently restricted to administrators.'
     );
+    // The permission gate must short-circuit before the AI call.
+    expect(generateContentMock).not.toHaveBeenCalled();
   });
 
   it('throws permission-denied for non-beta user when accessLevel is "beta"', async () => {
@@ -3122,14 +3159,16 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
     await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
       'You do not have access to Gemini beta functions.'
     );
+    // The permission gate must short-circuit before the AI call.
+    expect(generateContentMock).not.toHaveBeenCalled();
   });
 
   it('does not throw for a beta user when accessLevel is "beta"', async () => {
     // Arrange: caller is in betaUsers — should pass the accessLevel gate.
-    // runTransaction mock won't call its callback, so the function will
-    // resolve (no Gemini API call needed — the function throws from the
-    // try/catch wrapper when the transaction is a no-op). We just need to
-    // confirm it does NOT throw a permission-denied error.
+    // `runTransaction` is a no-op mock (doesn't invoke its callback), so the
+    // usage-counter step is skipped and the handler proceeds to the (mocked)
+    // Gemini call. We just need to confirm it does NOT throw a
+    // permission-denied error.
     geminiConfigDocGet.mockResolvedValue({
       exists: true,
       data: () =>
@@ -3140,10 +3179,10 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
         }) as Record<string, unknown>,
     });
 
-    // The function will reach runTransaction (which is a no-op mock) and
-    // then proceed; it will eventually fail because GEMINI_API_KEY is a
-    // mock secret and the AI client is not configured, but it must NOT
-    // throw the permission-denied error from the accessLevel check.
+    // The function proceeds past the accessLevel gate into the usage-limit
+    // path and eventually rejects for unrelated Firestore-mock reasons
+    // (this mock's `ai_usage` collection doesn't stub `.doc()`); we only need
+    // to confirm it does NOT throw a permission-denied error.
     const result = handler(VALID_DATA, { auth: NON_ADMIN_AUTH });
     await expect(result).rejects.not.toThrow(
       'You do not have access to Gemini beta functions.'
@@ -3171,5 +3210,15 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
     await expect(result).rejects.not.toThrow(
       'Gemini functions are currently restricted to administrators.'
     );
+    // Regression guard: an admin caller reaches the real `ai.models
+    // .generateContent(...)` call in `generateVideoActivity` (aiGeneration.ts)
+    // with no gates in between. Without mocking `@google/genai`, this test
+    // makes a REAL network call to the Generative Language API — normally
+    // rejected fast with an invalid-key error, but under CPU/network
+    // contention that round-trip can exceed the test timeout, producing
+    // flaky failures. Asserting the mock was invoked (once) proves the
+    // handler took the code path that used to hit the network, without ever
+    // actually reaching it.
+    expect(generateContentMock).toHaveBeenCalledTimes(1);
   });
 });
