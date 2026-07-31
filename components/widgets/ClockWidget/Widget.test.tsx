@@ -204,4 +204,17 @@ describe('ClockWidget', () => {
     expect(fontSize).not.toMatch(/cqw/);
     expect(fontSize).toMatch(/cqmin/);
   });
+
+  // Regression: the date label must use the muted-text-on-dark-surface classes
+  // from CLAUDE.md (text-slate-300 body / text-slate-200 heading), never a
+  // near-black literal like text-slate-900 which is dark-on-dark on the app's
+  // slate-900 dashboard background and fails WCAG AA.
+  it('date label uses a WCAG-AA-safe muted text class on the dark dashboard surface', () => {
+    renderWidget(createWidget());
+
+    const dateLabel = screen.getByTestId('clock-date');
+    expect(dateLabel.className).not.toContain('text-slate-900');
+    expect(dateLabel.className).not.toContain('text-slate-800');
+    expect(dateLabel.className).toMatch(/text-slate-(200|300)/);
+  });
 });

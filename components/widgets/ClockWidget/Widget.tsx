@@ -122,7 +122,7 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
           <div
             data-testid="clock-date"
-            className={`opacity-80 uppercase tracking-[0.2em] text-slate-900 ${getFontClass()}`}
+            className={`opacity-80 uppercase tracking-[0.2em] text-slate-300 ${getFontClass()}`}
             style={{ fontSize: '12cqmin', fontWeight: 900 }}
           >
             {time.toLocaleDateString(i18n.language, {
