@@ -4,6 +4,24 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-07-31
+
+- PRs reviewed: 6 open PRs (all authored by OPS-PIvers, all draft, all base `dev-paul`).
+  - #2311 — pr-review: nightly run log — 2026-07-30 (head `claude/compassionate-shannon-f10kc7`)
+  - #2310 — feat(admin-config): RevealGrid `isMemoryMode` building-default + Thursday audit (head `scheduled-tasks`)
+  - #2309 — docs(unifier): nightly run log — 2026-07-30 (head `nightly/unifier-log-2026-07-30`)
+  - #2308 — unifier(D3): SettingsLabel group-heading retrofits — Checklist, MathToolInstance (head `nightly/unify-settings-labels-2026-07-30`)
+  - #2307 — unifier(D5): Toast architecture — StarterPackConfigurationModal (head `nightly/unify-toast-arch-2026-07-30`)
+  - #2306 — pr-review: nightly run log — 2026-07-29 (head `claude/focused-bardeen-t0rcj2`)
+- Comments processed: 0 requiring a fix — 0 fixed, 0 explained. `get_review_comments` was empty on all 6 PRs — no unresolved inline review threads anywhere. The only top-level comments/reviews present were pre-existing approving structured reviews (the 2026-07-30 "Automated Code Review" entries from this routine, plus `claude[bot]` LGTM reviews on #2307 and #2310) — all informational, none a change request — so nothing required a fix or a reply.
+- Fixes pushed: 0 — no comment required a code change and no diff-level defect was found in any PR.
+- Reviews posted: 1 (on #2311, the only open PR with no prior review).
+  - #2311 — Ready. Docs-only 21-line append of the 2026-07-30 run to `pr-review-log.md`; entry independently confirmed against live PR state; branch-safety note correct.
+  - #2306–#2310 were NOT re-reviewed — each already carries a thorough "Ready" review from the 2026-07-30 run and none has been updated since (all `updated_at` = 2026-07-30). A duplicate structured review would be pure noise. All five diffs were still re-inspected today and confirmed unchanged and clean.
+- Notes:
+  - Branch safety: no push to `main` or any `dev-*` head. No PR carried change-requesting comments, so the sanctioned "push to dev-paul when there are PR comments" path was not exercised. This review-log commit is on the designated `claude/compassionate-shannon-hq5n9i` branch, rebuilt from the latest `origin/dev-paul` — kept off `scheduled-tasks` (the head of actively-open PR #2310) to avoid polluting an unrelated in-flight PR, matching the standing prior-run precedent and this session's designated-branch requirement. Diverges from the literal POST-TASK "push to scheduled-tasks" instruction for exactly that reason.
+  - Env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code fixes were pushed, so no local verification was required. CI on Node 24 remains the authoritative gate.
+
 ## 2026-07-22
 
 - PRs reviewed: 7 (all open PRs, all targeting `dev-paul`, all draft, all authored by the automated nightly system)
