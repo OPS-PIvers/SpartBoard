@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-07-25_
+_Last audited: 2026-07-31_
 _Last action: 2026-07-24 — HIGH `organizations/{orgId}/buildings` double-subscription resolved: `useOrgBuildings` reuses AuthContext's `orgBuildings` for the active org instead of opening a second listener_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-31: Friday audit pass (weekly C1). New dev-paul commits since 2026-07-25 (absorbed via rebase): fix(blooms-taxonomy) gate AI on global gemini-functions permission (a02eefc7 — BloomsTaxonomy/Widget.tsx logic-only AI gate; adminBuildingConfig.ts + types.ts additions for blooms-taxonomy building defaults; no structural file impact); feat(admin-config) add RevealGrid isMemoryMode building-default (0256fd98 — RevealGridConfigurationPanel.tsx addition of isMemoryMode toggle UI; types.ts BuildingRevealGridDefaults extension; adminBuildingConfig.ts 'reveal-grid' case extension + tests). Neither commit introduces a new file exceeding 1,000 lines or touches context/DashboardContext.tsx. DashboardContext.tsx re-confirmed at **5,865 lines** (unchanged — HIGH still BLOCKED, unattended extraction not safe). All pre-existing open items re-confirmed: HIGH DashboardContext extraction BLOCKED; MEDIUM 34 files >1000 lines BLOCKED; all LOWs (duplicate constants, 17 Cloud Functions lack explicit memory, single-consumer utils, gen1 logger import, OAuth timeoutSeconds gap, double-getDoc on userProfile/profile, getAdminBuildingConfig simple switch cases, feature_permissions double-read, mockGuidedLearningDriveService wrong directory, videoActivityDriveService zero imports) confirmed open and valid. Zero new open items._
 
 _2026-07-25: Saturday audit pass (weekly C1 — Saturday run). New dev-paul commits since 2026-07-24 (absorbed via rebase): NextUp auto-expiry fix (#2265), Escape popover leak fix (#2266), InviteAcceptance HTML entity fix (#2267), expireActivityWallShares pagination (#2268), PR #2272 review fixes — none touch context/DashboardContext.tsx, utils/adminBuildingConfig.ts, functions/src/, or any other structure-relevant files. DashboardContext.tsx confirmed still at **5,865 lines** (unchanged — BLOCKED status unchanged). Comprehensive pass over all open items: LOW duplicate constants (`validRevealFonts`/`validTextSizePresets` in adminBuildingConfig.ts) re-confirmed open; LOW Cloud Functions 17-without-explicit-memory re-confirmed open; LOW single-consumer utils list unchanged from 2026-07-24; LOW gen1 logger import (`finalizeIdleQuizAttempts.ts:30`) re-confirmed open; LOW OAuth `timeoutSeconds` gap re-confirmed open; LOW double-getDoc on `userProfile/profile` re-confirmed open; LOW `videoActivityDriveService.ts` zero-production-imports re-confirmed open; LOW `mockGuidedLearningDriveService.ts` in wrong directory re-confirmed open. MEDIUM large-files item: no new files crossed 1,000 lines this cycle. Zero new open items. All existing open items re-confirmed valid. 0 new open items._
 
