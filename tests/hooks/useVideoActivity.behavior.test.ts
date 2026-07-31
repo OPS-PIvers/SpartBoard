@@ -337,6 +337,54 @@ describe('saveActivity — preserve-on-omit semantics', () => {
 });
 
 // ---------------------------------------------------------------------------
+// (d2) duplicateActivity preserves the source's behavior settings on the copy
+// ---------------------------------------------------------------------------
+
+describe('duplicateActivity — preserves behavior on the copy', () => {
+  it('carries source.behavior onto the duplicated metadata', async () => {
+    const payloads = captureSetDocPayloads();
+
+    const { result } = renderHook(() => useVideoActivity(UID));
+
+    // Seed the mock Drive store with the source activity content, then
+    // build a source meta (as a manager component would hold) carrying
+    // `behavior`.
+    let saved!: VideoActivityMetadata;
+    await act(async () => {
+      saved = await result.current.saveActivity(ACTIVITY_DATA);
+    });
+    const sourceMeta: VideoActivityMetadata = { ...saved, behavior: BEHAVIOR };
+
+    let duplicated!: VideoActivityMetadata;
+    await act(async () => {
+      duplicated = await result.current.duplicateActivity(sourceMeta);
+    });
+
+    expect(duplicated.behavior).toEqual(BEHAVIOR);
+    expect(payloads[payloads.length - 1]).toMatchObject({ behavior: BEHAVIOR });
+  });
+
+  it('does NOT write a behavior key when the source has none', async () => {
+    const payloads = captureSetDocPayloads();
+
+    const { result } = renderHook(() => useVideoActivity(UID));
+
+    let saved!: VideoActivityMetadata;
+    await act(async () => {
+      saved = await result.current.saveActivity(ACTIVITY_DATA);
+    });
+
+    let duplicated!: VideoActivityMetadata;
+    await act(async () => {
+      duplicated = await result.current.duplicateActivity(saved);
+    });
+
+    expect(duplicated).not.toHaveProperty('behavior');
+    expect(payloads[payloads.length - 1]).not.toHaveProperty('behavior');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // (d) pullSyncedVideoActivity writes pulled behavior to the local metadata doc
 // ---------------------------------------------------------------------------
 

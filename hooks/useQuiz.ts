@@ -527,11 +527,13 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
   /**
    * Duplicate a quiz. Loads canonical content from the source's Drive
    * file, then writes a fresh quiz (new id, new Drive file, new title
-   * suffix). Preserves `folderId` when the source carries one — so a
-   * teacher who duplicates a quiz inside a folder sees the copy land
-   * in the same folder, matching their mental model. Does NOT inherit
-   * `sync` linkage (duplicates are private forks; PLC sharing is a
-   * separate explicit step).
+   * suffix). Preserves `folderId` AND `behavior` when the source carries
+   * them — so a teacher who duplicates a quiz inside a folder, or one
+   * with custom Behavior Settings (tab warnings, shuffle, result
+   * visibility, etc.), gets a copy that matches their mental model of
+   * "an independent copy of what I had," not a copy reset to defaults.
+   * Does NOT inherit `sync` linkage (duplicates are private forks; PLC
+   * sharing is a separate explicit step).
    *
    * The write is hand-rolled (not via `saveQuiz`) so we can observe the
    * freshly-created `driveFileId` and roll it back if the Firestore
@@ -569,6 +571,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           // field); reading it back yields the same shape.
           ...(sourceMeta.folderId !== undefined
             ? { folderId: sourceMeta.folderId }
+            : {}),
+          ...(sourceMeta.behavior !== undefined
+            ? { behavior: sourceMeta.behavior }
             : {}),
         };
         await setDoc(
