@@ -396,8 +396,6 @@ export const useVideoActivity = (
           ...(source.folderId !== undefined
             ? { folderId: source.folderId }
             : {}),
-          // Preserve authored Behavior Settings on duplicate — see the
-          // function doc comment above.
           ...(source.behavior !== undefined
             ? { behavior: source.behavior }
             : {}),
