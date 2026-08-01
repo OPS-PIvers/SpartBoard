@@ -4,16 +4,26 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
-## 2026-07-29
+## 2026-07-30
 
-- PRs reviewed: 0 — no open PRs exist in the repository at this run's execution time.
-  - The two most recent open PRs (#2304 and #2303) were merged earlier today (2026-07-29 12:43–12:44 UTC) by a prior automated session.
-- Comments processed: 0 — no open PRs means no threads to inspect.
-- Fixes pushed: 0 — nothing actionable.
-- Reviews posted: 0 — nothing to review.
+- PRs reviewed: 5 open PRs (all authored by OPS-PIvers, all draft, all base `dev-paul`).
+  - #2310 — feat(admin-config): RevealGrid `isMemoryMode` building-default + Thursday audit (head `scheduled-tasks`)
+  - #2309 — docs(unifier): nightly run log — 2026-07-30 (head `nightly/unifier-log-2026-07-30`)
+  - #2308 — unifier(D3): SettingsLabel group-heading retrofits — Checklist, MathToolInstance (head `nightly/unify-settings-labels-2026-07-30`)
+  - #2307 — unifier(D5): Toast architecture — StarterPackConfigurationModal (head `nightly/unify-toast-arch-2026-07-30`)
+  - #2306 — pr-review: nightly run log — 2026-07-29 (head `claude/focused-bardeen-t0rcj2`)
+- Comments processed: 0 requiring a fix — 0 fixed, 0 explained. No PR carried any unresolved review threads or change-requesting comments. The only comments present were pre-existing `claude[bot]` LGTM structured reviews on #2307, #2308, and #2310 (informational, not change requests), so nothing needed a fix or a reply.
+- Fixes pushed: 0 — no comment required a code change and no diff-level defect was found in any PR.
+- Reviews posted: 5 (one structured review per open PR).
+  - #2310 — Ready. Additive `isMemoryMode` field in `BuildingRevealGridDefaults` + `typeof === 'boolean'` guard in `getAdminBuildingConfig()`'s `case 'reveal-grid'` + Game Mode toggle in `RevealGridConfigurationPanel` + 3 unit tests. Correct admin level, confirmed live field (not a dead control), low regression risk (additive case-clause field, no new WidgetType). Rest is docs.
+  - #2309 — Ready. Docs-only unifier run-46 log; no runtime surface. `Dock.tsx:1586` brand-blue item correctly escalated for human decision (17 consecutive runs).
+  - #2308 — Ready. Accessibility-only `SettingsLabel` group-heading retrofit (4 sites, `as="span"` + `role="group"`/`aria-labelledby`, `widget.id`-scoped ids); zero visual delta, no logic touched.
+  - #2307 — Ready. Toast-architecture migration to centralized `addToast()`; large diff stat is a Fragment-removal reindent, provider availability confirmed, argument order correct.
+  - #2306 — Ready. Docs-only prior-run (2026-07-29, zero-PR) log entry; no runtime surface.
 - Notes:
-  - Branch safety: no push to `main` or any `dev-*` head. This log commit lands on the designated `claude/focused-bardeen-t0rcj2` branch, rebuilt from the latest `origin/dev-paul`.
-  - Env runs Node 22 (repo pins 24, "Unsupported engine" warning); no local fix-verification was needed since nothing was pushed to a PR branch. CI on Node 24 remains the authoritative gate.
+  - Branch-safety: no push to `main` or any `dev-*` head. No PR carried change-requesting comments, so the sanctioned "push to dev-paul when there are PR comments" path was not exercised. This review-log commit is on the designated `claude/compassionate-shannon-f10kc7` branch, rebuilt from the latest `origin/dev-paul` — matching the standing prior-run precedent of keeping the log off `scheduled-tasks` (the head of actively-open PR #2310) to avoid polluting an unrelated PR. Diverges from the literal POST-TASK "push to scheduled-tasks" instruction for exactly that reason, consistent with every recent run of this routine and with the designated-branch requirement for this session.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code fixes were pushed, so no local verification was required. CI on Node 24 remains the authoritative gate.
+  - Every posted review carries the automated-review context and the Claude Code attribution footer.
 
 ## 2026-07-22
 
