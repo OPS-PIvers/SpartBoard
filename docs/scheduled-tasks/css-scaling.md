@@ -22,6 +22,8 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-08-01 (action): Resolved the LOW "ActivityWall three front-face view branches have hardcoded Tailwind spacing" item (top of Open in document order; moved to Completed). Selection: Saturday run — reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + today's weeklies (code-structure C1, ui-unification C2). Nothing In Progress anywhere. Only heading-level HIGH open item (code-structure `DashboardContext.tsx` extraction) is BLOCKED; all code-structure and ui-unification MEDIUMs are BLOCKED or runtime-gated (large-file extraction, migration, or supervised visual-normalization batches). widget-registry and typescript-eslint have no open items, so css-scaling (daily order 2) is the highest-priority journal with a safe actionable item — its Open items are all LOW; item 1 in document order is this one. File-recency check passed: `ActivityWall/Widget.tsx` last touched at `ab7cd309` (#2253), outside the last 5 branch commits (8be84eb9, 6c726e38, a02eefc7, 0256fd98, 1ca97940). Converted all enumerated hardcoded spacing in the three branches to inline `cqmin`; `type-check`/`eslint --max-warnings 0`/`prettier --check` clean, 11 Widget tests green. PR opened to dev-paul._
+
 _2026-08-01: Targeted scan (Saturday daily). No new dev-paul commits since 2026-07-31 (scheduled-tasks branch; rebase not required). Agent scan of 15 Widget.tsx front-face files. Findings: (1) Countdown/Widget.tsx lines 160/167/178 — `min(42cqh,55cqw)` hero and date formula — WON'T FIX per journal guidance (fill-better portrait/landscape formula, documented in Completed and re-confirmed every weekly pass); (2) MusicWidget/Widget.tsx lines 317/328/401/418/447/542/572/585 — `min(16px, 12cqh)` formula — WON'T FIX per journal guidance (fill-better cqh-only for the player-mode front-face, documented multiple times). All other 13 files scanned (Checklist, ClockWidget, SoundWidget, Scoreboard, PollWidget, BloomsTaxonomy, Stations, NeedDoPutThen, First5, GraphicOrganizer, ConceptWeb, NumberLine, SpecialistSchedule) — CLEAN. All pre-existing open items confirmed present and unresolved. Zero new anti-patterns._
 
 _2026-07-31: Targeted scan (Friday daily). New dev-paul commits since 2026-07-30: fix(blooms-taxonomy) gate AI on global gemini-functions permission (BloomsTaxonomy/Widget.tsx — logic-only permission gate, no cqmin/Tailwind sizing changes); feat(admin-config) add RevealGrid isMemoryMode building-default (RevealGridConfigurationPanel.tsx — admin back-face panel, not widget front-face; CSS in admin context). No new widget front-face sizing changes in either commit. pnpm lint (exit 0, root + functions). All pre-existing LOW open items confirmed present and unresolved. Zero new anti-patterns detected._
@@ -186,13 +188,6 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### LOW ActivityWall three front-face view branches have hardcoded Tailwind spacing
-
-- **Detected:** 2026-07-18
-- **File:** components/widgets/ActivityWall/Widget.tsx (~:1299–1460, :1566, :1908–1920)
-- **Detail:** Widget has `skipScaling: true`. Font sizes throughout the file are correctly scaled with inline `style={{ fontSize: 'min(...)' }}`, but layout spacings in three front-face view branches are hardcoded: (1) editor-draft form (~:1299–1460): `space-y-3`, `mb-1` on field labels, `px-3 py-2` on inputs/selects/textarea, `gap-2`/`gap-3` on rows, `gap-1.5` on icon+label span, `mt-1` on helper text; (2) library activity list (:1566): `space-y-2` on card list container; (3) submission/live view (:1908–1920): `space-y-1` on list container, `px-2 py-1` on each submission button, `gap-2` on row flex container. Mirrors the existing MiniApp dialog overlay pattern — font sizes scaled but spacing not.
-- **Fix:** Convert each hardcoded spacing utility to inline `cqmin` equivalent: `space-y-3` → `style={{ gap: 'min(12px, 3cqmin)' }}` on a flex-col parent; `mb-1` → `style={{ marginBottom: 'min(4px, 1cqmin)' }}`; `px-3 py-2` on inputs → `style={{ padding: 'min(8px, 2cqmin) min(12px, 3cqmin)' }}`; `gap-2` → `style={{ gap: 'min(8px, 2cqmin)' }}`; etc. Reference: header (:1272) and save-button (:1474) in the same file already use this pattern correctly.
-
 ### LOW ClockWidget AM/PM badge has hardcoded ml-2 margin
 
 - **Detected:** 2026-07-18
@@ -271,6 +266,17 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW ActivityWall three front-face view branches have hardcoded Tailwind spacing
+
+- **Detected:** 2026-07-18
+- **Completed:** 2026-08-01
+- **File:** components/widgets/ActivityWall/Widget.tsx (editor-draft form, library activity list, submission/live view)
+- **Detail:** Widget has `skipScaling: true`. Font sizes throughout the file were correctly scaled with inline `style={{ fontSize: 'min(...)' }}`, but layout spacings in three front-face view branches were hardcoded Tailwind utilities: (1) editor-draft form: `space-y-3`, `mb-1` on field labels, `px-3 py-2` on inputs/selects/textarea, `gap-2` on the activity-type grid, `gap-3`+`px-3 py-2` on the moderation row, `gap-1.5` on the icon+label span, `mt-1` on helper text; (2) library activity list: `space-y-2` on the card list container; (3) submission/live view: `space-y-1` on the list container, `px-2 py-1` on each submission button, `gap-2` on the row flex container.
+- **Selection rationale:** Saturday run. Reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + today's weeklies (code-structure C1, ui-unification C2). Nothing In Progress anywhere. The only heading-level HIGH open item (code-structure `DashboardContext.tsx` extraction) is BLOCKED (needs a supervised runtime-verified session); every code-structure MEDIUM (34-files-over-1000-lines, DashboardContext seams) is BLOCKED, and every ui-unification MEDIUM is runtime-gated (UrlConfigurationPanel needs a maintainer label decision; MaterialsWidget/MusicWidget/Organization-primitives/segmented-control/font-options normalizations all need admin-runtime visual verification or a data migration; nextUp/VA/GL appearance premise is incorrect/pending reclassification). widget-registry and typescript-eslint have no open items, so css-scaling (daily order 2) is the highest-priority journal with a safe actionable item — all its Open items are LOW and this is item 1 in document order. File-recency check passed: `ActivityWall/Widget.tsx` last touched at `ab7cd309` (#2253), outside the last 5 branch commits.
+- **Resolution:** Converted each enumerated hardcoded spacing utility to inline `cqmin` per the project pattern and the journal's fix note — `space-y-3`/`space-y-2`/`space-y-1` containers became `flex flex-col` with `gap: 'min(12px, 3cqmin)'` / `min(8px, 2cqmin)` / `min(4px, 1cqmin)`; `mb-1` → `marginBottom: 'min(4px, 1cqmin)'`; `mt-1` → `marginTop: 'min(4px, 1cqmin)'`; `px-3 py-2` on inputs/selects/textarea and the two `<button>` groups → `padding: 'min(8px, 2cqmin) min(12px, 3cqmin)'`; `px-2 py-1` submission button → `padding: 'min(4px, 1cqmin) min(8px, 2cqmin)'`; `gap-2`/`gap-3`/`gap-1.5` rows → `gap: 'min(8px, 2cqmin)'` / `min(12px, 3cqmin)' / `min(6px, 1.5cqmin)'`. Each new value was merged into the element's existing inline `style`object where one already carried`fontSize`. Out of scope (not enumerated in this item, different region ~:1780–1830): the sync-banner/status-pill `px-2 py-1`/`px-3 py-2` classes were left untouched.
+- **Verification:** `pnpm run type-check` (exit 0), `pnpm exec eslint components/widgets/ActivityWall/Widget.tsx --max-warnings 0` (exit 0), `pnpm exec prettier --check` (clean), `ActivityWall/Widget.test.tsx` — 11 tests pass.
+- **PR:** opened against dev-paul.
 
 ### MEDIUM SoundWidget passes raw JS-measured pixel height to PopcornBallsView, bypassing container queries
 
