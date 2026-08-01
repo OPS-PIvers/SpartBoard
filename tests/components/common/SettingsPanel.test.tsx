@@ -287,6 +287,81 @@ describe('SettingsPanel', () => {
     }
   });
 
+  it('stays open when the user clicks inside a dialog the panel itself opened', () => {
+    // Regression: dialogs (confirm/alert/prompt) render in a portal on
+    // document.body, so pressing a button inside one read as a "click outside"
+    // and closed the settings panel underneath. Deleting a schedule item, for
+    // example, made the whole settings window vanish the moment the user
+    // confirmed. DialogContainer's overlay now carries data-settings-exclude,
+    // which this handler must honour.
+    vi.useFakeTimers();
+    try {
+      const onClose = vi.fn();
+
+      const HarnessWithClose = () => {
+        const widgetRef = useRef<HTMLDivElement>(null);
+        return (
+          <>
+            <div ref={widgetRef} data-testid="fake-widget" />
+            <SettingsPanel
+              widget={MOCK_WIDGET}
+              widgetRef={widgetRef}
+              settings={<div data-testid="settings-content">Settings</div>}
+              shouldRenderSettings
+              onClose={onClose}
+              updateWidget={vi.fn()}
+              globalStyle={MOCK_GLOBAL_STYLE}
+              title="Test Widget"
+            />
+          </>
+        );
+      };
+
+      act(() => {
+        render(<HarnessWithClose />);
+      });
+      // Let the 50ms arm-the-listener timer elapse.
+      act(() => {
+        vi.advanceTimersByTime(60);
+      });
+
+      // Stand in for DialogContainer's portaled overlay + its confirm button.
+      const overlay = document.createElement('div');
+      overlay.setAttribute('data-settings-exclude', '');
+      const confirmButton = document.createElement('button');
+      overlay.appendChild(confirmButton);
+      document.body.appendChild(overlay);
+
+      try {
+        act(() => {
+          confirmButton.dispatchEvent(
+            new PointerEvent('pointerdown', { bubbles: true })
+          );
+        });
+        expect(onClose).not.toHaveBeenCalled();
+      } finally {
+        document.body.removeChild(overlay);
+      }
+
+      // Sanity check: an equivalent click with no exclusion marker still closes,
+      // so the assertion above is testing the marker, not a dead listener.
+      const plainEl = document.createElement('div');
+      document.body.appendChild(plainEl);
+      try {
+        act(() => {
+          plainEl.dispatchEvent(
+            new PointerEvent('pointerdown', { bubbles: true })
+          );
+        });
+        expect(onClose).toHaveBeenCalledTimes(1);
+      } finally {
+        document.body.removeChild(plainEl);
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('positions the panel using getBoundingClientRect, not world coordinates', () => {
     // Mock getBoundingClientRect to return a screen rect that DIFFERS from the
     // widget's world coordinates — simulating a zoom/pan transform on the canvas.

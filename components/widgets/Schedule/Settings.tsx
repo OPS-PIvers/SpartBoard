@@ -1,4 +1,10 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  useRef,
+} from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
@@ -23,6 +29,7 @@ import {
   ChevronDown,
   Copy,
   ArrowUpDown,
+  FolderPlus,
 } from 'lucide-react';
 import {
   DndContext,
@@ -125,6 +132,10 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
   const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(
     new Set()
   );
+  // Id of the row whose task field should take focus on mount, so a freshly
+  // added event is immediately typeable (and scrolled into view) without the
+  // user hunting for the new row.
+  const [autoFocusItemId, setAutoFocusItemId] = useState<string | null>(null);
 
   // Effective selected schedule: honor user's pick, fall back to today's active schedule
   const effectiveSelectedId = useMemo(() => {
@@ -305,9 +316,16 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     [config, schedules, widget.id, updateWidget]
   );
 
+  // Latest item read/write helpers, for callbacks that outlive their render
+  // (the Undo toast action). Both are recreated whenever `config` changes, so a
+  // captured copy would write a stale config back to Firestore.
+  const itemOpsRef = useRef({ getScheduleItems, saveScheduleItems });
+  itemOpsRef.current = { getScheduleItems, saveScheduleItems };
+
   const handleAddItem = (scheduleId: string) => {
+    const id = crypto.randomUUID();
     const newItem: ScheduleItem = {
-      id: crypto.randomUUID(),
+      id,
       task: '',
       startTime: '',
       endTime: '',
@@ -315,11 +333,13 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
       linkedWidgets: [],
     };
     saveScheduleItems(scheduleId, [...getScheduleItems(scheduleId), newItem]);
+    setAutoFocusItemId(id);
   };
 
   const handleAddOneOffItem = (scheduleId: string) => {
+    const id = crypto.randomUUID();
     const newItem: ScheduleItem = {
-      id: crypto.randomUUID(),
+      id,
       task: '',
       startTime: '',
       endTime: '',
@@ -328,6 +348,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
       oneOffDate: getTodayStr(),
     };
     saveScheduleItems(scheduleId, [...getScheduleItems(scheduleId), newItem]);
+    setAutoFocusItemId(id);
   };
 
   const handleUpdateItem = (
@@ -341,17 +362,42 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     saveScheduleItems(scheduleId, newItems);
   };
 
-  const handleDeleteItem = async (scheduleId: string, itemId: string) => {
-    const confirmed = await showConfirm(
-      'Are you sure you want to delete this event?',
-      { title: 'Delete Event', variant: 'danger', confirmLabel: 'Delete' }
+  // Deleting a single event is low-stakes and reversible, so it happens
+  // immediately — no confirmation dialog. An "Undo" toast covers mistakes.
+  // Blank rows (nothing typed yet) delete silently: there is nothing to restore
+  // and a toast for an empty row is pure noise while building a schedule.
+  const handleDeleteItem = (scheduleId: string, itemId: string) => {
+    const items = getScheduleItems(scheduleId);
+    const index = items.findIndex((i) => i.id === itemId);
+    if (index === -1) return;
+    const removed = items[index];
+
+    saveScheduleItems(
+      scheduleId,
+      items.filter((i) => i.id !== itemId)
     );
-    if (confirmed) {
-      saveScheduleItems(
-        scheduleId,
-        getScheduleItems(scheduleId).filter((i) => i.id !== itemId)
-      );
-    }
+
+    const label = removed.task?.trim();
+    const isBlank =
+      !label && !removed.startTime && !removed.endTime && !removed.time;
+    if (isBlank) return;
+
+    addToast(label ? `Deleted "${label}"` : 'Event deleted', 'info', {
+      label: 'Undo',
+      onClick: () => {
+        // Re-insert into the *current* list rather than restoring a snapshot,
+        // so any edits made between the delete and the undo survive. Reads the
+        // live helpers via ref because this closure outlives the render that
+        // created it (the toast lingers for 10s).
+        const { getScheduleItems: getLive, saveScheduleItems: saveLive } =
+          itemOpsRef.current;
+        const current = getLive(scheduleId);
+        if (current.some((i) => i.id === removed.id)) return;
+        const restored = [...current];
+        restored.splice(Math.min(index, restored.length), 0, removed);
+        saveLive(scheduleId, restored);
+      },
+    });
   };
 
   const handleSortByTime = (scheduleId: string) => {
@@ -461,7 +507,12 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
             <>
               {/* ── Selected schedule header ──────────────────────── */}
               <div>
-                {/* Name + delete */}
+                {/* Name + schedule-level actions. Both the "add another
+                    schedule" and "delete this schedule" affordances live on
+                    this row — the one place in the panel that is about the
+                    schedule rather than its events. Nothing below the event
+                    list operates on schedules, so no control down there can be
+                    mistaken for an event action. */}
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
@@ -474,6 +525,15 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                     className="flex-1 font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 outline-none text-sm"
                     placeholder="Schedule Name"
                   />
+                  <button
+                    type="button"
+                    onClick={handleAddSchedule}
+                    className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors shrink-0"
+                    aria-label="New schedule"
+                    title="New schedule (e.g. an early-release day)"
+                  >
+                    <FolderPlus className="w-3.5 h-3.5" />
+                  </button>
                   <button
                     type="button"
                     onClick={() =>
@@ -523,6 +583,9 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
               </div>
 
               {/* ── Items toolbar ─────────────────────────────────── */}
+              {/* Whole-list operations only. The actions that *append* an event
+                  live directly below the list, where the new row appears — so
+                  adding several events in a row never means scrolling back up. */}
               <div className="flex items-center justify-between border-t border-slate-100 pt-2">
                 <button
                   type="button"
@@ -532,34 +595,14 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                 >
                   <ArrowUpDown className="w-3 h-3" /> Sort
                 </button>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handleAddItem(selectedSchedule.id)}
-                    aria-label="Add event"
-                    className="text-xxs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    <Plus className="w-3 h-3" /> Add
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAddOneOffItem(selectedSchedule.id)}
-                    className="text-xxs flex items-center gap-1 text-amber-600 hover:text-amber-700 font-medium"
-                    title="Add a one-time event for today only"
-                  >
-                    <CalendarPlus className="w-3 h-3" /> Today Only
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleImportFromCalendar(selectedSchedule.id)
-                    }
-                    className="text-xxs flex items-center gap-1 text-indigo-500 hover:text-indigo-700 font-medium"
-                    title="Import today's events from Calendar widget"
-                  >
-                    <CalendarDays className="w-3 h-3" /> Import
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => handleImportFromCalendar(selectedSchedule.id)}
+                  className="text-xxs flex items-center gap-1 text-indigo-500 hover:text-indigo-700 font-medium"
+                  title="Import today's events from Calendar widget"
+                >
+                  <CalendarDays className="w-3 h-3" /> Import
+                </button>
               </div>
 
               {/* ── Items list ────────────────────────────────────── */}
@@ -587,11 +630,13 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                         }
                         isExpanded={expandedItemIds.has(item.id ?? '')}
                         onToggleExpand={toggleItemExpanded}
+                        autoFocus={item.id === autoFocusItemId}
                       />
                     ))}
                   </SortableContext>
                 </DndContext>
-                {selectedSchedule.items.length === 0 && (
+
+                {selectedSchedule.items.length === 0 ? (
                   <div className="text-center py-6 text-slate-400 border-2 border-dashed rounded-xl bg-slate-50">
                     <p className="text-xs">No events scheduled.</p>
                     <button
@@ -601,19 +646,31 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                       Add your first event
                     </button>
                   </div>
+                ) : (
+                  /* Add actions sit at the end of the list so the next row
+                     appears right where the button is — no scrolling back up
+                     between events. */
+                  <div className="flex items-stretch gap-2 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => handleAddItem(selectedSchedule.id)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 text-xs font-semibold transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add Event
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddOneOffItem(selectedSchedule.id)}
+                      className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-amber-200 text-amber-600 hover:bg-amber-50 hover:border-amber-300 text-xxs font-semibold transition-colors"
+                      title="Add a one-time event for today only"
+                    >
+                      <CalendarPlus className="w-3.5 h-3.5" /> Today Only
+                    </button>
+                  </div>
                 )}
               </div>
             </>
           )}
-
-          {/* Add new schedule button */}
-          <button
-            type="button"
-            onClick={handleAddSchedule}
-            className="w-full text-xxs flex items-center justify-center gap-1 text-slate-400 hover:text-blue-600 font-medium py-1.5 border border-dashed border-slate-200 rounded-lg hover:border-blue-300 transition-colors"
-          >
-            <Plus className="w-3 h-3" /> New Schedule
-          </button>
         </>
       )}
 

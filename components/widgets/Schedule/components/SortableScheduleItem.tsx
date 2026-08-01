@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ScheduleItem, WidgetType } from '@/types';
 import { GripVertical, Trash2, Timer, Link, CheckCircle2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
@@ -41,10 +41,13 @@ interface SortableScheduleItemProps {
   onDelete: (itemId: string) => void;
   isExpanded: boolean;
   onToggleExpand: (itemId: string) => void;
+  /** Focus this row's task field on mount — set for a just-added event. */
+  autoFocus?: boolean;
 }
 
 export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
-  React.memo(({ item, onUpdate, onDelete, isExpanded, onToggleExpand }) => {
+  React.memo((props) => {
+    const { item, onUpdate, onDelete, isExpanded, onToggleExpand } = props;
     const {
       attributes,
       listeners,
@@ -53,6 +56,20 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
       transition,
       isDragging,
     } = useSortable({ id: item.id });
+
+    // Move keyboard focus into a freshly added row and pull it into view, so a
+    // just-added event is immediately typeable. Focusing an element is DOM
+    // synchronization, so an effect is the right tool; it runs on the mount of
+    // a newly added item.
+    const autoFocus = props.autoFocus ?? false;
+    const taskInputRef = useRef<HTMLInputElement>(null);
+    useEffect(() => {
+      if (!autoFocus) return;
+      const el = taskInputRef.current;
+      if (!el) return;
+      el.focus({ preventScroll: true });
+      el.scrollIntoView({ block: 'nearest' });
+    }, [autoFocus]);
 
     const style = {
       transform: CSS.Transform.toString(transform),
@@ -87,6 +104,7 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
             <GripVertical className="w-4 h-4" />
           </div>
           <input
+            ref={taskInputRef}
             type="text"
             value={item.task}
             onChange={(e) => onUpdate(item.id, { task: e.target.value })}

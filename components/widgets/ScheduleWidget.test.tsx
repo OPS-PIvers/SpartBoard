@@ -83,11 +83,20 @@ vi.mock('lucide-react', () => ({
   Link: () => <div>Link Icon</div>,
   ArrowUpDown: () => <div>ArrowUpDown Icon</div>,
   CalendarPlus: () => <div>CalendarPlus Icon</div>,
+  FolderPlus: () => <div>FolderPlus Icon</div>,
   Ban: () => <div>Ban Icon</div>,
 }));
 
 const mockUpdateWidget = vi.fn();
 const mockAddWidget = vi.fn();
+const mockAddToast =
+  vi.fn<
+    (
+      message: string,
+      type?: string,
+      action?: { label: string; onClick: () => void }
+    ) => void
+  >();
 
 const mockDashboardContext = {
   activeDashboard: {
@@ -96,6 +105,7 @@ const mockDashboardContext = {
   },
   updateWidget: mockUpdateWidget,
   addWidget: mockAddWidget,
+  addToast: mockAddToast,
 };
 
 describe('ScheduleWidget', () => {
@@ -665,6 +675,7 @@ describe('ScheduleSettings', () => {
       subscribeToPermission: vi.fn(),
     });
     mockUpdateWidget.mockClear();
+    mockAddToast.mockClear();
   });
 
   const createWidget = (config: Partial<ScheduleConfig> = {}): WidgetData => {
@@ -853,5 +864,159 @@ describe('ScheduleSettings', () => {
         }),
       })
     );
+  });
+
+  describe('event add/delete ergonomics', () => {
+    const threeItems = [
+      {
+        id: 'a',
+        startTime: '09:00',
+        task: 'Math',
+        done: false,
+        mode: 'clock' as const,
+        linkedWidgets: [],
+      },
+      {
+        id: 'b',
+        startTime: '10:00',
+        task: 'Reading',
+        done: false,
+        mode: 'clock' as const,
+        linkedWidgets: [],
+      },
+      {
+        id: 'c',
+        startTime: '11:00',
+        task: 'Recess',
+        done: false,
+        mode: 'clock' as const,
+        linkedWidgets: [],
+      },
+    ];
+
+    it('renders the Add Event button AFTER the last event row, so adding never needs a scroll back up', () => {
+      render(<ScheduleSettings widget={createWidget({ items: threeItems })} />);
+
+      const addButton = screen.getByRole('button', { name: /add event/i });
+      const lastRowInput = screen.getByDisplayValue('Recess');
+
+      // Node.DOCUMENT_POSITION_FOLLOWING === 4: addButton comes after the row.
+      expect(
+        lastRowInput.compareDocumentPosition(addButton) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    });
+
+    it('puts the schedule-level "New Schedule" action up in the name row, never below the event list', () => {
+      render(<ScheduleSettings widget={createWidget({ items: threeItems })} />);
+
+      const newSchedule = screen.getByRole('button', { name: /new schedule/i });
+      const firstRowInput = screen.getByDisplayValue('Math');
+
+      // It sits ABOVE the first event row (in the schedule-name header), so no
+      // control under the event list can be mistaken for an event action.
+      expect(
+        firstRowInput.compareDocumentPosition(newSchedule) &
+          Node.DOCUMENT_POSITION_PRECEDING
+      ).toBeTruthy();
+
+      // It shares the header row with the delete-schedule button.
+      const deleteSchedule = screen.getByRole('button', {
+        name: /delete schedule/i,
+      });
+      expect(newSchedule.parentElement).toBe(deleteSchedule.parentElement);
+    });
+
+    it('deletes an event immediately with no confirmation dialog, offering Undo instead', () => {
+      render(<ScheduleSettings widget={createWidget({ items: threeItems })} />);
+
+      fireEvent.click(
+        screen.getAllByRole('button', { name: /delete event/i })[1]
+      );
+
+      // Removed straight away — no awaiting a confirm dialog.
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'schedule-1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            items: [
+              expect.objectContaining({ id: 'a' }),
+              expect.objectContaining({ id: 'c' }),
+            ],
+          }),
+        })
+      );
+
+      // ...and the safety net is an Undo toast naming the deleted event.
+      expect(mockAddToast).toHaveBeenCalledWith(
+        'Deleted "Reading"',
+        'info',
+        expect.objectContaining({ label: 'Undo' })
+      );
+    });
+
+    it('restores the event at its original index when Undo is clicked', () => {
+      const { rerender } = render(
+        <ScheduleSettings widget={createWidget({ items: threeItems })} />
+      );
+
+      fireEvent.click(
+        screen.getAllByRole('button', { name: /delete event/i })[1]
+      );
+      const action = mockAddToast.mock.calls[0][2];
+
+      // Simulate the config round-trip the real app performs: updateWidget is
+      // mocked, so the component must be re-rendered with the post-delete
+      // config for the Undo handler to see the live (2-item) list.
+      rerender(
+        <ScheduleSettings
+          widget={createWidget({ items: [threeItems[0], threeItems[2]] })}
+        />
+      );
+      mockUpdateWidget.mockClear();
+
+      act(() => action?.onClick());
+
+      // 'Reading' goes back between 'Math' and 'Recess', not onto the end.
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'schedule-1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            items: [
+              expect.objectContaining({ id: 'a' }),
+              expect.objectContaining({ id: 'b', task: 'Reading' }),
+              expect.objectContaining({ id: 'c' }),
+            ],
+          }),
+        })
+      );
+    });
+
+    it('deletes a blank, never-filled row silently (no Undo toast noise)', () => {
+      const widget = createWidget({
+        items: [
+          {
+            id: 'blank',
+            task: '',
+            startTime: '',
+            endTime: '',
+            done: false,
+            mode: 'clock' as const,
+            linkedWidgets: [],
+          },
+        ],
+      });
+      render(<ScheduleSettings widget={widget} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /delete event/i }));
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'schedule-1',
+        expect.objectContaining({
+          config: expect.objectContaining({ items: [] }),
+        })
+      );
+      expect(mockAddToast).not.toHaveBeenCalled();
+    });
   });
 });
