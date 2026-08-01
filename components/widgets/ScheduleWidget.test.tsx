@@ -53,6 +53,14 @@ Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
   value: vi.fn(),
 });
 
+// Likewise scrollIntoView, which the settings panel calls when focusing a
+// newly added event row.
+Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+  configurable: true,
+  writable: true,
+  value: vi.fn(),
+});
+
 // Mock useScaledFont to return a fixed size
 vi.mock('@/hooks/useScaledFont', () => ({
   useScaledFont: () => 16,
@@ -989,6 +997,71 @@ describe('ScheduleSettings', () => {
             ],
           }),
         })
+      );
+    });
+
+    it('does not re-focus a previously added row after switching schedules and back', () => {
+      // Regression: autoFocusItemId was set on add but never cleared. Rows
+      // unmount when the schedule selection changes, so returning to the
+      // original schedule re-mounted the last-added row with autoFocus still
+      // true and yanked focus to an event added minutes earlier.
+      const scheduleA = {
+        id: 'sched-a',
+        name: 'A',
+        days: [],
+        items: threeItems,
+      };
+      const scheduleB = { id: 'sched-b', name: 'B', days: [], items: [] };
+      const build = (selected: string) =>
+        ({
+          id: 'schedule-1',
+          type: 'schedule',
+          config: {
+            items: [],
+            schedules: [scheduleA, scheduleB],
+            settingsSelectedScheduleId: selected,
+          },
+        }) as unknown as WidgetData;
+
+      const { rerender } = render(
+        <ScheduleSettings widget={build('sched-a')} />
+      );
+
+      // Add an event to schedule A — its row takes focus.
+      fireEvent.click(screen.getByRole('button', { name: /add event/i }));
+      const added = mockUpdateWidget.mock.calls.at(-1)?.[1] as {
+        config: { schedules: { id: string; items: { id: string }[] }[] };
+      };
+      const newItemId = added.config.schedules[0].items.at(-1)?.id;
+      expect(newItemId).toBeTruthy();
+
+      const withNewItem = {
+        ...scheduleA,
+        items: [...threeItems, { id: newItemId, task: '', mode: 'clock' }],
+      };
+      const widgetWith = (selected: string) =>
+        ({
+          id: 'schedule-1',
+          type: 'schedule',
+          config: {
+            items: [],
+            schedules: [withNewItem, scheduleB],
+            settingsSelectedScheduleId: selected,
+          },
+        }) as unknown as WidgetData;
+
+      // Switch to schedule B (rows unmount)...
+      rerender(<ScheduleSettings widget={widgetWith('sched-b')} />);
+      fireEvent.click(screen.getByRole('button', { name: 'B' }));
+
+      // ...then back to A, re-mounting the row that was focused on add.
+      rerender(<ScheduleSettings widget={widgetWith('sched-a')} />);
+      fireEvent.click(screen.getByRole('button', { name: 'A' }));
+
+      // Focus must NOT have been stolen by the stale autofocus.
+      const taskInputs = screen.getAllByPlaceholderText('Task name');
+      expect(taskInputs.some((el) => el === document.activeElement)).toBe(
+        false
       );
     });
 

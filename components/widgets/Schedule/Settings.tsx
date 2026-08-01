@@ -132,10 +132,14 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
   const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(
     new Set()
   );
-  // Id of the row whose task field should take focus on mount, so a freshly
-  // added event is immediately typeable (and scrolled into view) without the
-  // user hunting for the new row.
-  const [autoFocusItemId, setAutoFocusItemId] = useState<string | null>(null);
+  // The row whose task field should take focus on mount, so a freshly added
+  // event is immediately typeable (and scrolled into view) without the user
+  // hunting for the new row. Tagged with the schedule it belongs to — see the
+  // reset below.
+  const [autoFocusItem, setAutoFocusItem] = useState<{
+    scheduleId: string;
+    itemId: string;
+  } | null>(null);
 
   // Effective selected schedule: honor user's pick, fall back to today's active schedule
   const effectiveSelectedId = useMemo(() => {
@@ -149,6 +153,20 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     const today = new Date().getDay();
     return schedules.find((s) => s.days.includes(today))?.id ?? schedules[0].id;
   }, [selectedScheduleId, schedules]);
+
+  // Drop a pending autofocus as soon as the visible schedule changes. Rows
+  // unmount when the selection moves, so without this, switching to another
+  // schedule and back would re-mount the last-added row with autoFocus still
+  // true and yank focus to an event added minutes ago.
+  //
+  // Comparing during render (rather than resetting inside each of the five
+  // handlers that move the selection) means no call site can forget to do it,
+  // and no future one can regress it. This is React's "adjusting state while
+  // rendering" pattern: the setter runs before paint, so the stale value is
+  // never handed to a child.
+  if (autoFocusItem && autoFocusItem.scheduleId !== effectiveSelectedId) {
+    setAutoFocusItem(null);
+  }
 
   const selectedSchedule =
     schedules.find((s) => s.id === effectiveSelectedId) ?? null;
@@ -333,7 +351,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
       linkedWidgets: [],
     };
     saveScheduleItems(scheduleId, [...getScheduleItems(scheduleId), newItem]);
-    setAutoFocusItemId(id);
+    setAutoFocusItem({ scheduleId, itemId: id });
   };
 
   const handleAddOneOffItem = (scheduleId: string) => {
@@ -348,7 +366,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
       oneOffDate: getTodayStr(),
     };
     saveScheduleItems(scheduleId, [...getScheduleItems(scheduleId), newItem]);
-    setAutoFocusItemId(id);
+    setAutoFocusItem({ scheduleId, itemId: id });
   };
 
   const handleUpdateItem = (
@@ -630,7 +648,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                         }
                         isExpanded={expandedItemIds.has(item.id ?? '')}
                         onToggleExpand={toggleItemExpanded}
-                        autoFocus={item.id === autoFocusItemId}
+                        autoFocus={item.id === autoFocusItem?.itemId}
                       />
                     ))}
                   </SortableContext>
