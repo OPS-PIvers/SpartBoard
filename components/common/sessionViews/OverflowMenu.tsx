@@ -90,6 +90,8 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
 
   const onMenuKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
     if (e.key === 'Escape') {
+      // Portalled to <body> — stop Escape reaching DashboardView's global handler (see #2266 pattern).
+      e.stopPropagation();
       setOpen(false);
       triggerRef.current?.focus();
       return;

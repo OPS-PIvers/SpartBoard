@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-07-22_
+_Last audited: 2026-07-29_
 _Last action: 2026-05-18 (admin_audit_log immutability hardening)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-29: Weekly rules audit (Wednesday). New dev-paul commits since 2026-07-22 absorbed via rebase: refactor(MiniAppManager) back-face UI only; pr-review docs only; deps/yaml-stack-overflow (yaml dep patch, no Firestore changes); unifier log; Unify MiniAppManager empty states (UI only). Git diff of recent commits confirms zero new Firestore collection() or collectionGroup() calls introduced. Default-deny catch-all confirmed still present. All 7 existing items (MEDIUM pollVotes unrestricted write, MEDIUM sessions broad read, LOW organizations/analytics dead rule, LOW lti_course_links dead rule, LOW plc_layouts possibly retired, LOW admin_settings/user_roles redundant, LOW classroom_grade_links no explicit rule, LOW ai_usage write denial absent) confirmed present and unchanged. Security posture unchanged. Zero new items._
 
 _2026-07-22: Weekly rules audit (Wednesday). No new dev-paul commits absorbed (rebase not performed — dev-paul diverged; auditing current branch state). Default-deny catch-all confirmed present. No new Firestore collections introduced since 2026-07-20. All existing LOW items (pollVotes unrestricted write, sessions broad read, organizations/analytics dead rule, lti_course_links dead rule, plc_layouts possibly retired, admin_settings/user_roles redundant, classroom_grade_links no explicit rule, ai_usage write denial absent) confirmed present and unchanged. Zero new items. Security posture unchanged._
 

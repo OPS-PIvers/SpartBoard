@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-07-23_
+_Last audited: 2026-07-30_
 _Last action: 2026-07-09 — MEDIUM SpecialistSchedule Appearance.tsx/co-located-Settings pattern documented + stale `.agents/` reference row corrected in new-widget skill (both mirrors)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-07-30: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — consistent with all prior runs). Codebase-side verification via sub-agent. No new dev-paul commits since 2026-07-29. Key findings: (1) `spart-new-widget` — FULLY ACCURATE. All referenced file paths confirmed present; `lazyNamed()` pattern and all 8-location registration table verified correct. `WidgetRegistry.ts` matches skill documentation exactly. (2) `spart-widget-admin-config` — ONE NEW LOW item: `BUILDING_CONFIG_PANELS` type annotation in the skill shows `Partial<Record<WidgetType | InternalToolType, BuildingConfigPanel>>` but `components/admin/FeatureConfigurationPanel.tsx:92` declares `Partial<Record<string, BuildingConfigPanel>>`. The exclusion array missing-7-types issue is already tracked as an existing LOW open item (confirmed still valid). All 6 pre-existing LOW open items remain valid. Total open: 7 LOW._
 
 _2026-07-23: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — consistent with all prior runs). Codebase-side verification via sub-agent. No new dev-paul commits since 2026-07-21 (rebase not performed). Key findings: (1) `ScheduleConfigurationPanel.tsx` — direct bash verification confirmed the file EXISTS at `components/admin/ScheduleConfigurationPanel.tsx` (and its test `ScheduleConfigurationPanel.test.tsx`). The 2026-07-21 directory scan was incorrect. LOW item moved to Completed (file is present; skill reference is valid). (2) NEW LOW: `spart-new-widget` skill cites `QRWidget/Widget.tsx` as a "Good empty state usage" reference, but QRWidget/Widget.tsx does NOT use `ScaledEmptyState` — it uses hand-rolled empty-state markup. Better reference implementations include `UrlWidget/Widget.tsx`, `Checklist/Widget.tsx`, and `RecessGear/Widget.tsx`. Remaining open: 6 LOWs._
 
@@ -51,6 +53,13 @@ _2026-05-12: Skill files not accessible at `/mnt/skills/user/` in this audit env
 _2026-05-05: Skill files not accessible at `/mnt/skills/user/` in this audit environment. Codebase-side verifications performed: `SpecialistSchedule/SpecialistScheduleWidget.tsx` still exists (Widget.tsx does not); `FeaturePermissionsManager.tsx` exclusion list still omits the 7 types noted in the LOW item below; `FeatureConfigurationPanel.tsx` secondary exclusion gate still undocumented in skill. `blending-board` was added to `BUILDING_CONFIG_PANELS` in `FeatureConfigurationPanel.tsx` this week — the exclusion-list LOW item is now more stale. All four open items remain valid._
 
 _2026-06-23 action: Fixed MEDIUM `admin-widget-config` reference to non-existent `SpecialistScheduleSettings.tsx`. Both skill copies (`.claude/skills/admin-widget-config/SKILL.md:222` and `.agents/skills/admin-widget-config/SKILL.md:185`) updated to reference the correct path `components/widgets/SpecialistSchedule/Settings.tsx`. Verified the target file exists and reads `featurePermissions` (Settings.tsx:48). File-recency check passed: skill files last touched at 19b6ae40 — outside the last 5 branch commits. Documentation-only change; PR opened against dev-paul. Item moved to Completed. 2 LOW open items remain._
+
+### LOW `spart-widget-admin-config` `BUILDING_CONFIG_PANELS` type annotation in skill uses `WidgetType | InternalToolType` but actual code uses `string`
+
+- **Detected:** 2026-07-30
+- **File:** `.claude/skills/admin-widget-config/SKILL.md` — `BUILDING_CONFIG_PANELS` type annotation
+- **Detail:** The skill shows `BUILDING_CONFIG_PANELS` typed as `Partial<Record<WidgetType | InternalToolType, BuildingConfigPanel>>`, but the actual declaration in `components/admin/FeatureConfigurationPanel.tsx:92` uses `Partial<Record<string, BuildingConfigPanel>>`. The code uses `string` (a broader type allowing any string key) rather than the union of specific widget type literals. A developer using the skill to add a new widget type to `BUILDING_CONFIG_PANELS` would infer the map is typed to enforce `WidgetType | InternalToolType` membership, when in fact any string key is accepted. The minor discrepancy does not cause a runtime issue, but the skill's type annotation misrepresents the actual interface.
+- **Fix:** Update the skill's `BUILDING_CONFIG_PANELS` type annotation from `Partial<Record<WidgetType | InternalToolType, BuildingConfigPanel>>` to `Partial<Record<string, BuildingConfigPanel>>` to match the actual code.
 
 ### LOW `spart-new-widget` cites `QRWidget/Widget.tsx` as a "Good empty state usage" reference — but it uses hand-rolled markup, not `ScaledEmptyState`
 

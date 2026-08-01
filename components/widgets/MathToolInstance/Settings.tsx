@@ -31,8 +31,17 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
     <div className="space-y-5 p-1">
       {/* Tool type selector */}
       <div className="space-y-2">
-        <SettingsLabel>Tool Type</SettingsLabel>
-        <div className="grid grid-cols-2 gap-1">
+        <SettingsLabel
+          as="span"
+          id={`mathtoolinstance-tooltype-label-${widget.id}`}
+        >
+          Tool Type
+        </SettingsLabel>
+        <div
+          className="grid grid-cols-2 gap-1"
+          role="group"
+          aria-labelledby={`mathtoolinstance-tooltype-label-${widget.id}`}
+        >
           {TOOL_TYPES.map(({ type, label, emoji }) => (
             <button
               key={type}
@@ -105,8 +114,17 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
       {config.toolType === 'number-line' && (
         <div className="space-y-3">
           <div className="space-y-1">
-            <SettingsLabel>Mode</SettingsLabel>
-            <div className="flex gap-1">
+            <SettingsLabel
+              as="span"
+              id={`mathtoolinstance-mode-label-${widget.id}`}
+            >
+              Mode
+            </SettingsLabel>
+            <div
+              className="flex gap-1"
+              role="group"
+              aria-labelledby={`mathtoolinstance-mode-label-${widget.id}`}
+            >
               {numberLineModes.map((m) => (
                 <button
                   key={m}
@@ -172,8 +190,17 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
       {/* Ruler units (for ruler types) */}
       {(config.toolType === 'ruler-in' || config.toolType === 'ruler-cm') && (
         <div className="space-y-1">
-          <SettingsLabel>Units Displayed</SettingsLabel>
-          <div className="flex gap-1">
+          <SettingsLabel
+            as="span"
+            id={`mathtoolinstance-units-label-${widget.id}`}
+          >
+            Units Displayed
+          </SettingsLabel>
+          <div
+            className="flex gap-1"
+            role="group"
+            aria-labelledby={`mathtoolinstance-units-label-${widget.id}`}
+          >
             {(['in', 'cm', 'both'] as const).map((u) => (
               <button
                 key={u}

@@ -215,6 +215,8 @@ export const getAdminBuildingConfig = (
         (validRevealModes as readonly string[]).includes(raw.revealMode)
       )
         out.revealMode = raw.revealMode;
+      if (typeof raw.isMemoryMode === 'boolean')
+        out.isMemoryMode = raw.isMemoryMode;
       if (
         typeof raw.fontFamily === 'string' &&
         (validRevealFonts as readonly string[]).includes(raw.fontFamily)

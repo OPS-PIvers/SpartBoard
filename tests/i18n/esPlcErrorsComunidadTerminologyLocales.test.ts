@@ -4,8 +4,9 @@
 // "Tus Comunidades" — and plcDashboard.members.*). This is the ES sibling of the DE PLC->PLG
 // drift fixed in dePlcErrorsPlgTerminologyLocales.test.ts (#2193): a separate namespace from
 // plcDashboard (covered by esPlcDashboardComunidadLocales.test.ts / #2214), so it needs its own
-// scoped recursive scan to avoid conflicting with legitimately-scoped "PLC" usage elsewhere in
-// es.json (e.g. admin.plc.recovery, an admin-only namespace that intentionally keeps "PLC").
+// scoped recursive scan so it doesn't overlap with other PLC-terminology namespaces covered by
+// their own tests. (admin.plc.recovery was previously — wrongly — cited as an "intentional PLC"
+// precedent; that namespace had the same drift and was fixed too, see adminLocales.test.ts.)
 
 import { describe, it, expect } from 'vitest';
 import en from '@/locales/en.json';

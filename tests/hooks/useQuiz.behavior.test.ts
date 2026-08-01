@@ -302,6 +302,53 @@ describe('saveQuiz — preserve-on-omit semantics', () => {
 });
 
 // ---------------------------------------------------------------------------
+// (d2) duplicateQuiz preserves the source's behavior settings on the copy
+// ---------------------------------------------------------------------------
+
+describe('duplicateQuiz — preserves behavior on the copy', () => {
+  it('carries source.behavior onto the duplicated metadata', async () => {
+    const payloads = captureSetDocPayloads();
+
+    const { result } = renderHook(() => useQuiz(UID));
+
+    // Seed the mock Drive store with the source quiz content, then build
+    // a sourceMeta (as a manager component would hold) carrying `behavior`.
+    let saved!: QuizMetadata;
+    await act(async () => {
+      saved = await result.current.saveQuiz(QUIZ_DATA);
+    });
+    const sourceMeta: QuizMetadata = { ...saved, behavior: BEHAVIOR };
+
+    let duplicated!: QuizMetadata;
+    await act(async () => {
+      duplicated = await result.current.duplicateQuiz(sourceMeta);
+    });
+
+    expect(duplicated.behavior).toEqual(BEHAVIOR);
+    expect(payloads[payloads.length - 1]).toMatchObject({ behavior: BEHAVIOR });
+  });
+
+  it('does NOT write a behavior key when the source has none', async () => {
+    const payloads = captureSetDocPayloads();
+
+    const { result } = renderHook(() => useQuiz(UID));
+
+    let saved!: QuizMetadata;
+    await act(async () => {
+      saved = await result.current.saveQuiz(QUIZ_DATA);
+    });
+
+    let duplicated!: QuizMetadata;
+    await act(async () => {
+      duplicated = await result.current.duplicateQuiz(saved);
+    });
+
+    expect(duplicated).not.toHaveProperty('behavior');
+    expect(payloads[payloads.length - 1]).not.toHaveProperty('behavior');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // (d) pullSyncedQuiz writes pulled behavior to the local metadata doc
 // ---------------------------------------------------------------------------
 
