@@ -6,13 +6,35 @@ _Automated nightly review by claude-opus-4-6_
 
 ## 2026-07-31
 
-- PRs reviewed: 6 open PRs (all authored by OPS-PIvers, all draft, all base `dev-paul`).
+- PRs reviewed: 15 (all open PRs, all draft, all targeting `dev-paul` except `claude/compassionate-shannon-hq5n9i` and `claude/compassionate-shannon-f10kc7`)
+  - #2320 — nightly: unifier run 46 memory log — 2026-07-31 (head `nightly/unifier-log-2026-07-31`)
+  - #2319 — nightly: unify D5 toast architecture — BloomsTaxonomyConfigurationModal (head `nightly/unify-d5-toast-architecture-2026-07-31`)
+  - #2318 — docs(routines): nightly debugger run 34 — log & backlog update (head `nightly/debugger-log-2026-07-31`)
+  - #2317 — nightly(admin-config): translate admin.plc.recovery PLC terminology in DE/ES (head `nightly/admin-config-2026-07-31`)
+  - #2316 — nightly(state-data): duplicateQuiz/duplicateActivity drop authored Behavior Settings (head `nightly/state-data-2026-07-31`)
+  - #2315 — nightly(build-tooling): stop generateVideoActivity tests from hitting the real Gemini API (head `nightly/build-tooling-2026-07-31`)
+  - #2314 — nightly(dashboard-layout): stop OverflowMenu's Escape from minimizing an unrelated widget (head `nightly/dashboard-layout-2026-07-31`)
+  - #2313 — nightly(widgets): fix ClockWidget date label dark-on-dark contrast (head `nightly/widgets-2026-07-31`)
+  - #2312 — pr-review: nightly run log — 2026-07-31 (head `claude/compassionate-shannon-hq5n9i`)
   - #2311 — pr-review: nightly run log — 2026-07-30 (head `claude/compassionate-shannon-f10kc7`)
-  - #2310 — feat(admin-config): RevealGrid `isMemoryMode` building-default + Thursday audit (head `scheduled-tasks`)
+  - #2310 — feat(admin-config): RevealGrid isMemoryMode building-default + Thursday audit — 2026-07-30 (head `scheduled-tasks`)
   - #2309 — docs(unifier): nightly run log — 2026-07-30 (head `nightly/unifier-log-2026-07-30`)
   - #2308 — unifier(D3): SettingsLabel group-heading retrofits — Checklist, MathToolInstance (head `nightly/unify-settings-labels-2026-07-30`)
   - #2307 — unifier(D5): Toast architecture — StarterPackConfigurationModal (head `nightly/unify-toast-arch-2026-07-30`)
   - #2306 — pr-review: nightly run log — 2026-07-29 (head `claude/focused-bardeen-t0rcj2`)
+- Comments processed: 2 existing threads — both resolved (0 unresolved on any PR). No reply needed.
+  - #2314 (resolved, outdated): inline comment style nit (single-line comment suggestion). Already applied on-branch. Thread resolved.
+  - #2317 (resolved): ES plural form question (`Recuperación de Comunidades` vs singular). Author replied with codebase evidence justifying the plural form — accepted, thread resolved.
+- Fixes pushed: 0 — no unresolved comment required a code change.
+- Reviews posted: 2 (inline comments on PRs with genuine new issues)
+  - #2315 — nit: `generateContentMock` is module-scoped and never cleared between `it()` calls; `toHaveBeenCalledTimes(1)` is fragile without a `beforeEach(() => generateContentMock.mockClear())` in the describe block.
+  - #2316 — style: redundant inline comment in `hooks/useVideoActivity.ts` (`// Preserve authored Behavior Settings on duplicate — see the function doc comment above.`) duplicates the updated JSDoc and creates asymmetry with `useQuiz.ts`, which adds the same spread without one. Per project conventions, remove.
+- Notes:
+  - #2310 already has a thorough "Ready" review from 2026-07-30 — not re-reviewed to avoid noise.
+  - Docs-only PRs (#2320, #2318, #2312, #2311, #2309, #2306) have no code issues; no new comments added.
+  - Code PRs #2319, #2313, #2308, #2307 reviewed and found clean — no issues to flag.
+  - Branch safety: no push to `main` or any `dev-*` head. This log commit is on the designated `claude/focused-bardeen-a0y2og` branch, rebuilt from `origin/dev-paul`.
+  - Env runs Node 22 (repo wants 24); no local fix-verification was needed since nothing was pushed to a PR branch. CI on Node 24 remains the authoritative gate.
 - Comments processed: 0 requiring a fix — 0 fixed, 0 explained. `get_review_comments` was empty on all 6 PRs — no unresolved inline review threads anywhere. The only top-level comments/reviews present were pre-existing approving structured reviews (the 2026-07-30 "Automated Code Review" entries from this routine, plus `claude[bot]` LGTM reviews on #2307 and #2310) — all informational, none a change request — so nothing required a fix or a reply.
 - Fixes pushed: 0 — no comment required a code change and no diff-level defect was found in any PR.
 - Reviews posted: 1 (on #2311, the only open PR with no prior review).
