@@ -487,6 +487,12 @@ export const DialogContainer: React.FC = () => {
 
   return createPortal(
     <div
+      // Dialogs render in a portal on document.body, so a pointerdown on this
+      // overlay reads as a "click outside" to any open widget SettingsPanel and
+      // would close it out from under the dialog that it opened. Marking the
+      // overlay excludes it from that check, so confirming/cancelling a dialog
+      // leaves the settings panel underneath exactly as it was.
+      data-settings-exclude
       className="fixed inset-0 z-dialog flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150"
       onClick={() => {
         // Clicking the backdrop dismisses alerts, cancels confirms/prompts
