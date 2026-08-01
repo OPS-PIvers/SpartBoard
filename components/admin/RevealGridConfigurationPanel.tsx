@@ -99,6 +99,38 @@ export const RevealGridConfigurationPanel: React.FC<
           </div>
         </div>
 
+        {/* Game Mode */}
+        <div>
+          <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+            Game Mode
+          </label>
+          <div className="flex bg-white p-1 rounded-xl border border-slate-200">
+            {(
+              [
+                { value: false, label: 'Review' },
+                { value: true, label: 'Memory' },
+              ] as const
+            ).map(({ value, label }) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => updateBuildingDefaults({ isMemoryMode: value })}
+                className={`flex-1 py-1.5 text-xs font-black uppercase rounded-lg transition-all ${
+                  (currentDefaults.isMemoryMode ?? false) === value
+                    ? 'bg-brand-blue-primary shadow-sm text-white'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            Memory mode turns new grids into a matching game with cards hidden
+            and shuffled.
+          </p>
+        </div>
+
         {/* Font Family */}
         <div>
           <label className="block text-xs font-bold text-slate-500 uppercase mb-2">

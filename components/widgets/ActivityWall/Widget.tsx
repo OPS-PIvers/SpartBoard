@@ -1296,11 +1296,17 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
               className="flex-1 min-h-0 overflow-auto"
               style={{ padding: 'min(10px, 2.8cqmin)' }}
             >
-              <div className="space-y-3">
+              <div
+                className="flex flex-col"
+                style={{ gap: 'min(12px, 3cqmin)' }}
+              >
                 <label className="block">
                   <span
-                    className="block font-black uppercase tracking-wider text-slate-600 mb-1"
-                    style={{ fontSize: 'min(10px, 3.2cqmin)' }}
+                    className="block font-black uppercase tracking-wider text-slate-600"
+                    style={{
+                      fontSize: 'min(10px, 3.2cqmin)',
+                      marginBottom: 'min(4px, 1cqmin)',
+                    }}
                   >
                     Activity title
                   </span>
@@ -1312,16 +1318,22 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                         title: event.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
-                    style={{ fontSize: 'min(12px, 3.8cqmin)' }}
+                    className="w-full border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+                    style={{
+                      fontSize: 'min(12px, 3.8cqmin)',
+                      padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                    }}
                     placeholder="Warm-up word cloud"
                   />
                 </label>
 
                 <label className="block">
                   <span
-                    className="block font-black uppercase tracking-wider text-slate-600 mb-1"
-                    style={{ fontSize: 'min(10px, 3.2cqmin)' }}
+                    className="block font-black uppercase tracking-wider text-slate-600"
+                    style={{
+                      fontSize: 'min(10px, 3.2cqmin)',
+                      marginBottom: 'min(4px, 1cqmin)',
+                    }}
                   >
                     Prompt / directions
                   </span>
@@ -1334,31 +1346,43 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                       })
                     }
                     rows={3}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
-                    style={{ fontSize: 'min(12px, 3.8cqmin)' }}
+                    className="w-full border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+                    style={{
+                      fontSize: 'min(12px, 3.8cqmin)',
+                      padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                    }}
                     placeholder="How are you feeling about today's lesson?"
                   />
                 </label>
 
                 <div>
                   <p
-                    className="block font-black uppercase tracking-wider text-slate-600 mb-1"
-                    style={{ fontSize: 'min(10px, 3.2cqmin)' }}
+                    className="block font-black uppercase tracking-wider text-slate-600"
+                    style={{
+                      fontSize: 'min(10px, 3.2cqmin)',
+                      marginBottom: 'min(4px, 1cqmin)',
+                    }}
                   >
                     Activity type
                   </p>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div
+                    className="grid grid-cols-2"
+                    style={{ gap: 'min(8px, 2cqmin)' }}
+                  >
                     {(['text', 'photo'] as const).map((mode) => (
                       <button
                         key={mode}
                         type="button"
                         onClick={() => setEditorDraft({ ...editorDraft, mode })}
-                        className={`rounded-xl border px-3 py-2 font-semibold ${
+                        className={`rounded-xl border font-semibold ${
                           editorDraft.mode === mode
                             ? 'bg-brand-blue-primary border-brand-blue-primary text-white'
                             : 'bg-white border-slate-200 text-slate-700'
                         }`}
-                        style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+                        style={{
+                          padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                          fontSize: 'min(11px, 3.5cqmin)',
+                        }}
                       >
                         {mode === 'text'
                           ? 'Text (Word Cloud)'
@@ -1368,7 +1392,13 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                   </div>
                 </div>
 
-                <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2">
+                <label
+                  className="flex items-center justify-between rounded-xl border border-slate-200"
+                  style={{
+                    gap: 'min(12px, 3cqmin)',
+                    padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                  }}
+                >
                   <span
                     className="font-semibold text-slate-700"
                     style={{ fontSize: 'min(12px, 3.8cqmin)' }}
@@ -1394,8 +1424,11 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
 
                 <label className="block">
                   <span
-                    className="block font-black uppercase tracking-wider text-slate-600 mb-1"
-                    style={{ fontSize: 'min(10px, 3.2cqmin)' }}
+                    className="block font-black uppercase tracking-wider text-slate-600"
+                    style={{
+                      fontSize: 'min(10px, 3.2cqmin)',
+                      marginBottom: 'min(4px, 1cqmin)',
+                    }}
                   >
                     Participant identification
                   </span>
@@ -1408,8 +1441,11 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                           .value as ActivityWallActivity['identificationMode'],
                       })
                     }
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
-                    style={{ fontSize: 'min(12px, 3.8cqmin)' }}
+                    className="w-full border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+                    style={{
+                      fontSize: 'min(12px, 3.8cqmin)',
+                      padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                    }}
                   >
                     <option value="anonymous">Anonymous</option>
                     <option value="name">Name</option>
@@ -1421,8 +1457,12 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                 {classLinkClasses.length > 0 && (
                   <label className="block">
                     <span
-                      className="flex items-center gap-1.5 font-black uppercase tracking-wider text-slate-600 mb-1"
-                      style={{ fontSize: 'min(10px, 3.2cqmin)' }}
+                      className="flex items-center font-black uppercase tracking-wider text-slate-600"
+                      style={{
+                        fontSize: 'min(10px, 3.2cqmin)',
+                        gap: 'min(6px, 1.5cqmin)',
+                        marginBottom: 'min(4px, 1cqmin)',
+                      }}
                     >
                       <Users
                         className="text-brand-blue-primary"
@@ -1441,8 +1481,11 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                           classId: event.target.value || undefined,
                         })
                       }
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
-                      style={{ fontSize: 'min(12px, 3.8cqmin)' }}
+                      className="w-full border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+                      style={{
+                        fontSize: 'min(12px, 3.8cqmin)',
+                        padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                      }}
                     >
                       <option value="">No class (use link only)</option>
                       {classLinkClasses.map((cls) => (
@@ -1452,8 +1495,11 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                       ))}
                     </select>
                     <p
-                      className="text-slate-500 mt-1"
-                      style={{ fontSize: 'min(9px, 2.9cqmin)' }}
+                      className="text-slate-500"
+                      style={{
+                        fontSize: 'min(9px, 2.9cqmin)',
+                        marginTop: 'min(4px, 1cqmin)',
+                      }}
                     >
                       Students in this class will see this activity in their
                       assignments list. Leave blank to use a shareable link.
@@ -1563,7 +1609,10 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                   />
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div
+                  className="flex flex-col"
+                  style={{ gap: 'min(8px, 2cqmin)' }}
+                >
                   {activities.map((activity) => (
                     <div
                       key={activity.id}
@@ -1898,7 +1947,10 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                       </span>
                     ))}
                   </div>
-                  <div className="space-y-1">
+                  <div
+                    className="flex flex-col"
+                    style={{ gap: 'min(4px, 1cqmin)' }}
+                  >
                     {visibleSubmissions.map((submission) => (
                       <button
                         key={submission.id}
@@ -1908,9 +1960,13 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                             prev === submission.id ? null : submission.id
                           )
                         }
-                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-left"
+                        className="w-full rounded-lg border border-slate-200 bg-white text-left"
+                        style={{ padding: 'min(4px, 1cqmin) min(8px, 2cqmin)' }}
                       >
-                        <div className="flex items-center justify-between gap-2">
+                        <div
+                          className="flex items-center justify-between"
+                          style={{ gap: 'min(8px, 2cqmin)' }}
+                        >
                           <p
                             className="truncate text-slate-700"
                             style={{ fontSize: 'min(10px, 3.2cqmin)' }}
