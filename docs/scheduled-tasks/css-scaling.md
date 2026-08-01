@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-07-31_
+_Last audited: 2026-08-01_
 _Last action: 2026-07-23 — MEDIUM SoundWidget `PopcornBallsView` no longer receives `width={w} height={h - 60}` (stored widget dims minus a magic header offset); the canvas component now self-measures its own container via `ResizeObserver`, matching the NumberLine idiom, so the draw buffer tracks the actual rendered area with no hard-coded pixel subtraction_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-01: Targeted scan (Saturday daily). No new dev-paul commits since 2026-07-31 (scheduled-tasks branch; rebase not required). Agent scan of 15 Widget.tsx front-face files. Findings: (1) Countdown/Widget.tsx lines 160/167/178 — `min(42cqh,55cqw)` hero and date formula — WON'T FIX per journal guidance (fill-better portrait/landscape formula, documented in Completed and re-confirmed every weekly pass); (2) MusicWidget/Widget.tsx lines 317/328/401/418/447/542/572/585 — `min(16px, 12cqh)` formula — WON'T FIX per journal guidance (fill-better cqh-only for the player-mode front-face, documented multiple times). All other 13 files scanned (Checklist, ClockWidget, SoundWidget, Scoreboard, PollWidget, BloomsTaxonomy, Stations, NeedDoPutThen, First5, GraphicOrganizer, ConceptWeb, NumberLine, SpecialistSchedule) — CLEAN. All pre-existing open items confirmed present and unresolved. Zero new anti-patterns._
 
 _2026-07-31: Targeted scan (Friday daily). New dev-paul commits since 2026-07-30: fix(blooms-taxonomy) gate AI on global gemini-functions permission (BloomsTaxonomy/Widget.tsx — logic-only permission gate, no cqmin/Tailwind sizing changes); feat(admin-config) add RevealGrid isMemoryMode building-default (RevealGridConfigurationPanel.tsx — admin back-face panel, not widget front-face; CSS in admin context). No new widget front-face sizing changes in either commit. pnpm lint (exit 0, root + functions). All pre-existing LOW open items confirmed present and unresolved. Zero new anti-patterns detected._
 
