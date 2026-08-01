@@ -244,8 +244,17 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
 
       {/* Mode Toggle */}
       <div>
-        <SettingsLabel>List Source</SettingsLabel>
-        <div className="flex bg-slate-100 p-1 rounded-xl">
+        <SettingsLabel
+          as="span"
+          id={`checklist-list-source-label-${widget.id}`}
+        >
+          List Source
+        </SettingsLabel>
+        <div
+          className="flex bg-slate-100 p-1 rounded-xl"
+          role="group"
+          aria-labelledby={`checklist-list-source-label-${widget.id}`}
+        >
           <button
             onClick={() =>
               updateWidget(widget.id, { config: { ...config, mode: 'manual' } })
