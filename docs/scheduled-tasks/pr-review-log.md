@@ -4,26 +4,23 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
-## 2026-07-30
+## 2026-07-31
 
-- PRs reviewed: 5 open PRs (all authored by OPS-PIvers, all draft, all base `dev-paul`).
+- PRs reviewed: 6 open PRs (all authored by OPS-PIvers, all draft, all base `dev-paul`).
+  - #2311 — pr-review: nightly run log — 2026-07-30 (head `claude/compassionate-shannon-f10kc7`)
   - #2310 — feat(admin-config): RevealGrid `isMemoryMode` building-default + Thursday audit (head `scheduled-tasks`)
   - #2309 — docs(unifier): nightly run log — 2026-07-30 (head `nightly/unifier-log-2026-07-30`)
   - #2308 — unifier(D3): SettingsLabel group-heading retrofits — Checklist, MathToolInstance (head `nightly/unify-settings-labels-2026-07-30`)
   - #2307 — unifier(D5): Toast architecture — StarterPackConfigurationModal (head `nightly/unify-toast-arch-2026-07-30`)
   - #2306 — pr-review: nightly run log — 2026-07-29 (head `claude/focused-bardeen-t0rcj2`)
-- Comments processed: 0 requiring a fix — 0 fixed, 0 explained. No PR carried any unresolved review threads or change-requesting comments. The only comments present were pre-existing `claude[bot]` LGTM structured reviews on #2307, #2308, and #2310 (informational, not change requests), so nothing needed a fix or a reply.
+- Comments processed: 0 requiring a fix — 0 fixed, 0 explained. `get_review_comments` was empty on all 6 PRs — no unresolved inline review threads anywhere. The only top-level comments/reviews present were pre-existing approving structured reviews (the 2026-07-30 "Automated Code Review" entries from this routine, plus `claude[bot]` LGTM reviews on #2307 and #2310) — all informational, none a change request — so nothing required a fix or a reply.
 - Fixes pushed: 0 — no comment required a code change and no diff-level defect was found in any PR.
-- Reviews posted: 5 (one structured review per open PR).
-  - #2310 — Ready. Additive `isMemoryMode` field in `BuildingRevealGridDefaults` + `typeof === 'boolean'` guard in `getAdminBuildingConfig()`'s `case 'reveal-grid'` + Game Mode toggle in `RevealGridConfigurationPanel` + 3 unit tests. Correct admin level, confirmed live field (not a dead control), low regression risk (additive case-clause field, no new WidgetType). Rest is docs.
-  - #2309 — Ready. Docs-only unifier run-46 log; no runtime surface. `Dock.tsx:1586` brand-blue item correctly escalated for human decision (17 consecutive runs).
-  - #2308 — Ready. Accessibility-only `SettingsLabel` group-heading retrofit (4 sites, `as="span"` + `role="group"`/`aria-labelledby`, `widget.id`-scoped ids); zero visual delta, no logic touched.
-  - #2307 — Ready. Toast-architecture migration to centralized `addToast()`; large diff stat is a Fragment-removal reindent, provider availability confirmed, argument order correct.
-  - #2306 — Ready. Docs-only prior-run (2026-07-29, zero-PR) log entry; no runtime surface.
+- Reviews posted: 1 (on #2311, the only open PR with no prior review).
+  - #2311 — Ready. Docs-only 21-line append of the 2026-07-30 run to `pr-review-log.md`; entry independently confirmed against live PR state; branch-safety note correct.
+  - #2306–#2310 were NOT re-reviewed — each already carries a thorough "Ready" review from the 2026-07-30 run and none has been updated since (all `updated_at` = 2026-07-30). A duplicate structured review would be pure noise. All five diffs were still re-inspected today and confirmed unchanged and clean.
 - Notes:
-  - Branch-safety: no push to `main` or any `dev-*` head. No PR carried change-requesting comments, so the sanctioned "push to dev-paul when there are PR comments" path was not exercised. This review-log commit is on the designated `claude/compassionate-shannon-f10kc7` branch, rebuilt from the latest `origin/dev-paul` — matching the standing prior-run precedent of keeping the log off `scheduled-tasks` (the head of actively-open PR #2310) to avoid polluting an unrelated PR. Diverges from the literal POST-TASK "push to scheduled-tasks" instruction for exactly that reason, consistent with every recent run of this routine and with the designated-branch requirement for this session.
-  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code fixes were pushed, so no local verification was required. CI on Node 24 remains the authoritative gate.
-  - Every posted review carries the automated-review context and the Claude Code attribution footer.
+  - Branch safety: no push to `main` or any `dev-*` head. No PR carried change-requesting comments, so the sanctioned "push to dev-paul when there are PR comments" path was not exercised. This review-log commit is on the designated `claude/compassionate-shannon-hq5n9i` branch, rebuilt from the latest `origin/dev-paul` — kept off `scheduled-tasks` (the head of actively-open PR #2310) to avoid polluting an unrelated in-flight PR, matching the standing prior-run precedent and this session's designated-branch requirement. Diverges from the literal POST-TASK "push to scheduled-tasks" instruction for exactly that reason.
+  - Env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code fixes were pushed, so no local verification was required. CI on Node 24 remains the authoritative gate.
 
 ## 2026-07-22
 
