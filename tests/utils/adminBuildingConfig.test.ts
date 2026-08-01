@@ -76,6 +76,34 @@ describe('getAdminBuildingConfig', () => {
         defaultCardColor: '#abc',
       });
     });
+
+    it('seeds isMemoryMode when set to a boolean', () => {
+      const perm = makePerm('reveal-grid', {
+        high: { columns: 3, isMemoryMode: true },
+      });
+      expect(getAdminBuildingConfig('reveal-grid', [perm], ['high'])).toEqual({
+        columns: 3,
+        isMemoryMode: true,
+      });
+    });
+
+    it('seeds isMemoryMode: false explicitly', () => {
+      const perm = makePerm('reveal-grid', {
+        high: { isMemoryMode: false },
+      });
+      expect(getAdminBuildingConfig('reveal-grid', [perm], ['high'])).toEqual({
+        isMemoryMode: false,
+      });
+    });
+
+    it('rejects a non-boolean isMemoryMode value', () => {
+      const perm = makePerm('reveal-grid', {
+        high: { columns: 2, isMemoryMode: 'yes' },
+      });
+      expect(getAdminBuildingConfig('reveal-grid', [perm], ['high'])).toEqual({
+        columns: 2,
+      });
+    });
   });
 
   describe('drawing', () => {

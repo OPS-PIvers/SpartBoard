@@ -2114,6 +2114,7 @@ export interface BuildingRevealGridDefaults {
   buildingId: string;
   columns?: 2 | 3 | 4 | 5;
   revealMode?: 'flip' | 'fade';
+  isMemoryMode?: boolean;
   fontFamily?: GlobalFontFamily;
   defaultCardColor?: string;
   defaultCardBackColor?: string;

@@ -362,7 +362,9 @@ export const useVideoActivity = (
    * freshly-created Drive file id and roll it back on Firestore failure
    * — `saveActivity` only surfaces the id on success and would leak an
    * orphan Drive file otherwise. Mirrors the rollback path in
-   * `useQuiz.duplicateQuiz`. Reviewer flag from PR #1587.
+   * `useQuiz.duplicateQuiz`. Preserves `folderId` AND `behavior` from the
+   * source, same rationale as `useQuiz.duplicateQuiz`. Reviewer flag from
+   * PR #1587.
    */
   const duplicateActivity = useCallback(
     async (source: VideoActivityMetadata): Promise<VideoActivityMetadata> => {
@@ -393,6 +395,9 @@ export const useVideoActivity = (
           // Preserve folder placement on duplicate.
           ...(source.folderId !== undefined
             ? { folderId: source.folderId }
+            : {}),
+          ...(source.behavior !== undefined
+            ? { behavior: source.behavior }
             : {}),
         };
         await setDoc(
