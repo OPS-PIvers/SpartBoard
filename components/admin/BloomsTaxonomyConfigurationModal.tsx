@@ -45,6 +45,11 @@ interface BloomsTaxonomyConfigurationModalProps {
 export const BloomsTaxonomyConfigurationModal: React.FC<
   BloomsTaxonomyConfigurationModalProps
 > = ({ isOpen, onClose, permission, onSave }) => {
+  // Relies on DashboardProvider being mounted in the tree. Today this modal is
+  // always rendered under AdminSettings → DashboardView, so the provider is
+  // present. If this modal is ever hosted from an admin-only route that does
+  // not mount DashboardProvider, useDashboard() will throw — mount the provider
+  // there or lift addToast to a provider that is always available.
   const { addToast } = useDashboard();
   const BUILDINGS = useAdminBuildings();
   const [config, setConfig] = useState<BloomsTaxonomyGlobalConfig>(() =>

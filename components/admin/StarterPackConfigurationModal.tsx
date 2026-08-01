@@ -257,6 +257,11 @@ const SnapZonePicker: React.FC<SnapZonePickerProps> = ({
 export const StarterPackConfigurationModal: React.FC<
   StarterPackConfigurationModalProps
 > = ({ isOpen, onClose, permission, onSave }) => {
+  // Relies on DashboardProvider being mounted in the tree. Today this modal is
+  // always rendered under AdminSettings → DashboardView, so the provider is
+  // present. If this modal is ever hosted from an admin-only route that does
+  // not mount DashboardProvider, useDashboard() will throw — mount the provider
+  // there or lift addToast to a provider that is always available.
   const { activeDashboard, addToast } = useDashboard();
   const { showConfirm } = useDialog();
 
