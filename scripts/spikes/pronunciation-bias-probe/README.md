@@ -50,7 +50,7 @@ whole design is "hold the audio constant, vary only the prompt" — so the bytes
 have to be fixed, or a changed verdict can't be attributed to the model rather
 than to the audio.
 
-### The trill fixtures are human; the tap is still synthetic
+### All active fixtures are human recordings; the synthetic tap is retired
 
 | file                      | used by   | provenance                       | md5 (12)       |
 | ------------------------- | --------- | -------------------------------- | -------------- |
