@@ -178,7 +178,7 @@ E  ANGLO-r aud, told "perro"  ->  {"ɾ":9,"r":1}
 
 --- VERDICT ---            NO BIAS DETECTED (B 10/10 vs D 8/10)
 --- DISCRIMINATION ---     DISCRIMINATES (A 9/10 trill vs B 0/10)
---- FALSE PASS ---         E reported a trill 1/10; reported ɹ honestly 0/10
+--- FALSE PASS ---         E reported a trill 1/10; a non-trill rhotic 0/10
 ```
 
 **The false-positive cell passes on the Spanish tap.** Told the student was
@@ -213,12 +213,19 @@ onto `ɾ` (or occasionally `r`) and reports it as Spanish phonology.
 
 Removing the language framing partly restores it:
 
-| Prompt framing                                                                       | reported `ɹ` |
-| ------------------------------------------------------------------------------------ | ------------ |
-| `Transcribe this audio into IPA phonemes.` (no language)                             | **4/10**     |
-| ...plus "speaker may be non-native, include sounds from outside the target language" | 0/10         |
-| `This is a recording of a single Spanish word.`                                      | 0/10         |
-| `A Spanish student was asked to say "perro"...`                                      | 0/20         |
+| Prompt framing                                                                       | non-trill rhotic reported |
+| ------------------------------------------------------------------------------------ | ------------------------- |
+| `Transcribe this audio into IPA phonemes.` (no language)                             | **4/10**                  |
+| ...plus "speaker may be non-native, include sounds from outside the target language" | 0/10                      |
+| `This is a recording of a single Spanish word.`                                      | 0/10                      |
+| `A Spanish student was asked to say "perro"...`                                      | 0/20                      |
+
+The column counts the classifier's `other` bucket — any rhotic that is neither
+the tap nor the trill. It is not a dedicated `ɹ` counter, so read the 4/10 as
+"a non-Spanish rhotic was reported", corroborated by `ɹ` appearing in the
+printed samples (e.g. `[p ɛ ɹ o]`) rather than by the count alone. **The zeros
+are exact either way**: no `ɹ` can hide in a bucket of zero, so "never reported
+the retroflex under a Spanish-framed prompt" holds without qualification.
 
 Note the middle row: **explicitly asking for out-of-language sounds did not
 help** — it still names "the target language", which appears to anchor the
