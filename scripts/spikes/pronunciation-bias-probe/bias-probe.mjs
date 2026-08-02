@@ -266,11 +266,16 @@ const NON_OBSERVATIONS = new Set(['ERR', 'none']);
 const results = {};
 
 // Warn BEFORE spending anything. The same caveat repeats at the verdict, but
-// by then all 4 x RUNS calls are gone and the only thing left to decide is
-// whether to distrust a result you already paid for.
+// by then all CONDITIONS.length x RUNS calls are gone and the only thing left
+// to decide is whether to distrust a result you already paid for.
+//
+// Derive the count from CONDITIONS rather than hardcoding it. This said 4 when
+// there were four conditions and silently under-quoted by 20% the moment E was
+// added — in the one message whose entire job is letting you abort before
+// spending.
 if (RUNS < 10) {
   console.log(
-    `! UNDER-POWERED RUN — about to spend ${4 * RUNS} API calls on a result\n` +
+    `! UNDER-POWERED RUN — about to spend ${CONDITIONS.length * RUNS} API calls on a result\n` +
       `  that cannot separate bias from noise. At --runs ${RUNS}, the verdict\n` +
       `  threshold can fire on an ordinary sampling split. Ctrl-C now and\n` +
       `  re-run with --runs 10 (the default) unless you are just smoke-testing.\n`
