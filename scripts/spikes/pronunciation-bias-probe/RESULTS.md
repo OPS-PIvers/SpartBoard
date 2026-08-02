@@ -10,11 +10,22 @@ committing this spike was that D1 should not rest on a screenshot.
 - **Key source:** `GEMINI_API_KEY (shell)`
 - **Ticket:** [Run the D1 bias probe and record the verdict](https://github.com/OPS-PIvers/SpartBoard/issues/2332)
 
-> **Fixture provenance is undocumented, and that is a known accepted gap.** The
-> five `*_human*.wav` clips are one adult speaker; who recorded them, when, and
-> under what consent is not recorded here, and this repository is public. Raised
-> in review on [#2343](https://github.com/OPS-PIvers/SpartBoard/pull/2343) and
-> accepted as-is for now rather than fixed.
+> **Fixture provenance is undocumented. That gap was knowingly accepted by
+> @OPS-PIvers on 2026-08-02 — it is a decision, not an oversight or a pending
+> item.** The five `*_human*.wav` clips are one adult speaker; who recorded them,
+> when, and under what consent is not recorded here, and this repository is
+> public. Raised by four reviewers on
+> [#2343](https://github.com/OPS-PIvers/SpartBoard/pull/2343), two of whom asked
+> for the files to be removed before merge. They stay.
+>
+> **Note on why removal was not the remedy.** The clips were pushed to a public
+> repository before the objection was raised, so the exposure had already
+> happened. Deleting them in a later commit would leave them fully retrievable
+> from this branch's pushed history — it would have signalled intent without
+> changing who can reach the bytes. Actually purging them would have required
+> rewriting a branch that several sessions were pushing to concurrently, and
+> even then unreachable objects can remain fetchable by SHA. Given that, the
+> honest option was to keep them and label the gap loudly.
 >
 > It is written down because the feature this spike serves is about **capturing
 > student audio** — so "how are voice fixtures sourced, consented, and retained"
@@ -31,13 +42,19 @@ committing this spike was that D1 should not rest on a screenshot.
 > none of that can be arranged retroactively once the file is committed to a
 > public repository.
 >
-> The standing recommendation, raised independently by three reviewers on
-> [#2343](https://github.com/OPS-PIvers/SpartBoard/pull/2343): **no learner-audio
-> collection should begin until D2 is answered** — not until the feature ships,
-> but before the first recording is made. That recommendation is not yet a
-> ratified project policy; it is awaiting a decision from @OPS-PIvers. Treat it
-> as binding until told otherwise, because the failure is irreversible and the
-> cost of waiting is not.
+> So: **no learner-audio collection begins until D2 is answered** — not until the
+> feature ships, but before the first recording is made. Raised independently by
+> four reviewers on
+> [#2343](https://github.com/OPS-PIvers/SpartBoard/pull/2343), and the reason it
+> is stated flatly here rather than as a suggestion is that the failure is
+> irreversible and the cost of waiting is not.
+>
+> This is not the same call as the one above. Accepting an undocumented adult
+> fixture that is already public costs little; recording a **minor** without
+> settling consent first cannot be walked back at all. Anyone who wants to relax
+> this should say so on
+> [#2344](https://github.com/OPS-PIvers/SpartBoard/issues/2344) explicitly, so
+> that becomes a decision someone made rather than a step nobody noticed.
 >
 > **Do not treat this file's precedent as the project's answer.** "We committed
 > undocumented voice recordings once" is the working norm this note exists to
