@@ -481,17 +481,27 @@ const eValid = validCount('E');
 console.log(
   '\n--- FALSE PASS (Anglo-r audio, told the target was "perro") ---'
 );
-console.log(`E reported a trill (a WRONG pass):       ${eTrill}/${eValid}`);
-// 'other' is the residual non-tap non-trill rhotic bucket (see the classifier
-// docs above), not a dedicated ɹ counter. It is ɹ in every recorded run, but
-// the label must not claim more than the bucket measures — a uvular ʁ would
-// land here too and would not be "the retroflex reported honestly".
-console.log(
-  `E reported a non-trill rhotic, usually ɹ: ${countOf('E', 'other')}/${eValid}`
-);
-if (eValid > 0 && eTrill / eValid > 0.1) {
+// Mirror the DISCRIMINATION block: say "no samples" rather than printing 0/0,
+// which reads as a measured zero-rate false pass — the most reassuring possible
+// result — when in fact nothing was measured at all.
+if (eValid === 0) {
   console.log(
-    'WARNING: this rate is a per-attempt chance of marking an untrilled\n' +
-      'answer correct. Judge it against how much a wrong pass costs a learner.'
+    'No usable samples in E — no false-pass rate can be computed. This is not\n' +
+      'a clean bill of health; the costliest error is simply untested here.'
   );
+} else {
+  console.log(`E reported a trill (a WRONG pass):       ${eTrill}/${eValid}`);
+  // 'other' is the residual non-tap non-trill rhotic bucket (see the classifier
+  // docs above), not a dedicated ɹ counter. It is ɹ in every recorded run, but
+  // the label must not claim more than the bucket measures — a uvular ʁ would
+  // land here too and would not be "the retroflex reported honestly".
+  console.log(
+    `E reported a non-trill rhotic, usually ɹ: ${countOf('E', 'other')}/${eValid}`
+  );
+  if (eTrill / eValid > 0.1) {
+    console.log(
+      'WARNING: this rate is a per-attempt chance of marking an untrilled\n' +
+        'answer correct. Judge it against how much a wrong pass costs a learner.'
+    );
+  }
 }
