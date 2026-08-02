@@ -206,11 +206,13 @@ the `/p/` onset. Same on the trill clip (_arrow, aerial, hello_). On
 `gemini-3.5-flash-lite` condition D needs no repair: it returns `[p e ɾ o]`
 unprompted.
 
-Two notes from that run that remain worth acting on:
+Two notes from that run:
 
-- Its `NO RESULT` message says "every call errored". That is wrong — **zero**
-  API errors occurred; every D slot was `none`. The message sends a reader to
-  debug the wrong thing, and is worth fixing if the script is kept.
-- The probe prints only `samples[0]` per condition, which was not enough to
-  diagnose the collapse; four throwaway replays were needed. Printing a tally
-  of distinct outputs would have made the cause visible immediately.
+- **Fixed.** Its `NO RESULT` message said "every call errored". That was wrong —
+  **zero** API errors occurred; every D slot was `none`. The message sent a
+  reader to debug the wrong thing. It now counts `ERR` and `none` separately and
+  names whichever actually caused the collapse, matching the exclusion
+  breakdown `line()` already printed.
+- **Still open.** The probe prints only `samples[0]` per condition, which was not
+  enough to diagnose the collapse; four throwaway replays were needed. Printing
+  a tally of distinct outputs would have made the cause visible immediately.

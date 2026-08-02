@@ -340,11 +340,26 @@ console.log(line('D', 'D (unprimed)       reported the true tap:'));
 
 // A condition with no usable samples has no rate, so no comparison is possible.
 if (Number.isNaN(bTap) || Number.isNaN(dTap)) {
+  // Name the actual cause rather than asserting one. A collapse made of 'none'
+  // is a stimulus/prompt problem; a collapse made of 'ERR' is a wiring problem.
+  // They have different fixes, and this message previously claimed "every call
+  // errored" unconditionally — which sent the reader to debug API errors that
+  // had not occurred. Same reasoning as the exclusion breakdown in line().
+  const dead = ['B', 'D'].filter((id) => validCount(id) === 0);
+  const errs = dead.reduce((n, id) => n + countOf(id, 'ERR'), 0);
+  const nones = dead.reduce((n, id) => n + countOf(id, 'none'), 0);
   console.log(
-    '\nNO RESULT. At least one condition produced zero usable samples — every\n' +
-      'call errored. Fix the API errors above and re-run; there is nothing to\n' +
-      'interpret here.'
+    `\nNO RESULT. Condition${dead.length > 1 ? 's' : ''} ${dead.join(' and ')} produced zero usable samples.\n` +
+      `Breakdown: ${errs} API error${errs === 1 ? '' : 's'}, ${nones} with no rhotic reported.`
   );
+  console.log(
+    nones > errs
+      ? 'Most calls returned a transcription with no rhotic in it at all. That is\n' +
+          'a stimulus or prompt problem, not an API problem — look at what the model\n' +
+          'actually transcribed before touching the API wiring.'
+      : 'Fix the API errors above and re-run.'
+  );
+  console.log('There is nothing to interpret here.');
   process.exit(1);
 }
 
