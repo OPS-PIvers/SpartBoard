@@ -308,7 +308,26 @@ None of this is invalidated by either D1 outcome:
    accuracy scoring. A pure function with zero dependencies, identical whether
    phonemes arrive from a CTC model or an API. Fully unit-testable today,
    including the spec's own `El perro` worked example.
+
+   The four review notes recorded against the reference implementation
+   (spec doc §4) are the natural first tests, since each is a behavioural
+   claim with a concrete input: insertions never reaching `alignment[]`,
+   PER exceeding 1 under heavy insertion, the silent `THRESHOLDS` fallback
+   on a typo'd `matchLevel`, and substitution-over-deletion tie-breaking.
+   Write them as tests before deciding how to fix them — three of the four
+   are arguably behaviour changes, not bugs.
+
 2. **Spanish and German G2P rule tables**, plus the dialect field from §5.
+   Dialect is a **type-surface** constraint, not a G2P implementation detail:
+   it has to reach the `'Speak'` question shape in D4 before any teacher-facing
+   authoring UI exists, or retrofitting it means migrating authored questions.
+   A flat 2-letter `languageCode` is the thing to avoid shipping.
+
+   Note the sequencing hazard: this item is independent of D1 but **not** of
+   the GPL-3 question in §5. Settle the licensing read before committing
+   espeak-derived rule tables, or the work may need to be redone from
+   independent sources.
+
 3. **Type surface** — `'Speak'` on `QuizQuestionType`, the graded/ungraded flag
    on `QuizAssignmentSettings`, the `GlobalFeature` member and its
    `FEATURE_DEFAULTS` entry.

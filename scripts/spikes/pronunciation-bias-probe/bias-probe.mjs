@@ -236,27 +236,64 @@ for (const cond of CONDITIONS) {
 // precisely so this call does not have to be taken on trust.
 const BIAS_DELTA = 0.4;
 
-const tapRate = (id) =>
-  results[id].rhotics.filter((r) => r === 'ɾ').length / RUNS;
-
 const tapCount = (id) => results[id].rhotics.filter((r) => r === 'ɾ').length;
+
+// Rates are over SAMPLES THAT PRODUCED A MEASUREMENT, not over RUNS. An 'ERR'
+// slot contains no observation, so counting it in the denominator silently
+// deflates that condition's rate and can suppress a true BIASED verdict:
+// D with 5/5 taps and 5 errors reads as 0.5 instead of 1.0, which can pull
+// (dTap - bTap) under the threshold on a model that is in fact fully biased.
+// Errors must shrink confidence, never masquerade as negative observations.
+const validCount = (id) =>
+  results[id].rhotics.filter((r) => r !== 'ERR').length;
+
+const tapRate = (id) => {
+  const valid = validCount(id);
+  return valid === 0 ? NaN : tapCount(id) / valid;
+};
 
 const bTap = tapRate('B'); // told to expect a trill
 const dTap = tapRate('D'); // told nothing
 
-console.log('\n--- VERDICT ---');
-console.log(
-  `B (primed "perro") reported the true tap: ${tapCount('B')}/${RUNS} (${(bTap * 100).toFixed(0)}%)`
-);
-console.log(
-  `D (unprimed)       reported the true tap: ${tapCount('D')}/${RUNS} (${(dTap * 100).toFixed(0)}%)`
-);
+const line = (id, label) => {
+  const valid = validCount(id);
+  const errs = RUNS - valid;
+  const pct = valid === 0 ? 'n/a' : `${(tapRate(id) * 100).toFixed(0)}%`;
+  const errNote = errs
+    ? `  [${errs} error${errs > 1 ? 's' : ''} excluded]`
+    : '';
+  return `${label} ${tapCount(id)}/${valid} (${pct})${errNote}`;
+};
 
-if (RUNS < 10) {
+console.log('\n--- VERDICT ---');
+console.log(line('B', 'B (primed "perro") reported the true tap:'));
+console.log(line('D', 'D (unprimed)       reported the true tap:'));
+
+// A condition with no usable samples has no rate, so no comparison is possible.
+if (Number.isNaN(bTap) || Number.isNaN(dTap)) {
   console.log(
-    `\n! UNDER-POWERED (--runs ${RUNS}, warned at start): the verdict below can\n` +
-      `  fire on an ordinary sampling split. Re-run with --runs 10+ before\n` +
-      `  acting on it.`
+    '\nNO RESULT. At least one condition produced zero usable samples — every\n' +
+      'call errored. Fix the API errors above and re-run; there is nothing to\n' +
+      'interpret here.'
+  );
+  process.exit(1);
+}
+
+// Errors shrink the effective sample size, so the power caveat has to key off
+// the worst condition's valid count rather than the requested --runs.
+const effectiveN = Math.min(validCount('B'), validCount('D'));
+if (effectiveN < RUNS) {
+  console.log(
+    `\n! DEGRADED: ${effectiveN} usable samples in the smallest compared condition\n` +
+      `  (of ${RUNS} requested). Rates above are over usable samples only.`
+  );
+}
+
+if (effectiveN < 10) {
+  console.log(
+    `\n! UNDER-POWERED (${effectiveN} usable samples): the verdict below can fire\n` +
+      `  on an ordinary sampling split. Re-run with --runs 10+ (and no API\n` +
+      `  errors) before acting on it.`
   );
 }
 
