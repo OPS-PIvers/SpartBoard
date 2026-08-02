@@ -179,13 +179,41 @@ async function transcribe({ wav, target }) {
   return parsed.phonemes;
 }
 
-/** Which rhotic did it report? This is the entire measurement. */
+/**
+ * Which rhotic did the model report? This is the entire measurement.
+ *
+ * Four outcomes, deliberately kept distinct rather than collapsed to
+ * tap/not-tap, because they do not mean the same thing:
+ *
+ *   'ɾ'     alveolar tap    — the honest answer for the tap audio (B, C, D)
+ *   'r'     alveolar trill  — the target-shaped answer; evidence of bias when
+ *                             reported for tap audio
+ *   'other' another rhotic  — chiefly the English retroflex ɹ (U+0279), which
+ *                             is a DIFFERENT CODEPOINT from r (U+0072) and so
+ *                             used to fall through to the catch-all. The model
+ *                             heard a rhotic and got it wrong: not the tap, but
+ *                             also not the target-shaped trill. Notably this is
+ *                             the exact substitution in the spec's own worked
+ *                             example (expected /r/, detected /ɹ/).
+ *   'none'  no rhotic       — the model reported nothing in the rhotic slot.
+ *                             That is a NON-OBSERVATION, not a negative one,
+ *                             and is excluded from rates exactly as 'ERR' is.
+ *
+ * Collapsing 'other' and 'none' together (the previous '?') conflated a real
+ * observation with a missing one, and the two must move in opposite directions:
+ * 'other' belongs in the denominator, 'none' does not.
+ */
+const OTHER_RHOTICS = /[ɹɻʀʁɽɺ]/u; // approximants, uvulars, flaps — not the tap
 const rhoticOf = (phonemes) => {
   const joined = phonemes.join('');
-  if (joined.includes('ɾ')) return 'ɾ'; // tap — honest for B/C/D
-  if (joined.includes('r')) return 'r'; // trill — expected only for A
-  return '?';
+  if (joined.includes('ɾ')) return 'ɾ';
+  if (joined.includes('r')) return 'r';
+  if (OTHER_RHOTICS.test(joined)) return 'other';
+  return 'none';
 };
+
+/** Slots that carry no observation of the rhotic, so cannot enter a rate. */
+const NON_OBSERVATIONS = new Set(['ERR', 'none']);
 
 const results = {};
 
@@ -239,13 +267,17 @@ const BIAS_DELTA = 0.4;
 const tapCount = (id) => results[id].rhotics.filter((r) => r === 'ɾ').length;
 
 // Rates are over SAMPLES THAT PRODUCED A MEASUREMENT, not over RUNS. An 'ERR'
-// slot contains no observation, so counting it in the denominator silently
-// deflates that condition's rate and can suppress a true BIASED verdict:
-// D with 5/5 taps and 5 errors reads as 0.5 instead of 1.0, which can pull
-// (dTap - bTap) under the threshold on a model that is in fact fully biased.
-// Errors must shrink confidence, never masquerade as negative observations.
+// or 'none' slot contains no observation of the rhotic, so counting it in the
+// denominator silently deflates that condition's rate and can suppress a true
+// BIASED verdict: D with 5/5 taps and 5 errors reads as 0.5 instead of 1.0,
+// which can pull (dTap - bTap) under the threshold on a model that is in fact
+// fully biased. Non-observations must shrink confidence, never masquerade as
+// negative observations.
+//
+// 'other' (a reported non-tap rhotic, e.g. ɹ) DOES belong here — the model made
+// a real observation and it was not the tap. Only genuine absences are dropped.
 const validCount = (id) =>
-  results[id].rhotics.filter((r) => r !== 'ERR').length;
+  results[id].rhotics.filter((r) => !NON_OBSERVATIONS.has(r)).length;
 
 const tapRate = (id) => {
   const valid = validCount(id);
@@ -255,14 +287,29 @@ const tapRate = (id) => {
 const bTap = tapRate('B'); // told to expect a trill
 const dTap = tapRate('D'); // told nothing
 
+const countOf = (id, kind) =>
+  results[id].rhotics.filter((r) => r === kind).length;
+
 const line = (id, label) => {
   const valid = validCount(id);
-  const errs = RUNS - valid;
   const pct = valid === 0 ? 'n/a' : `${(tapRate(id) * 100).toFixed(0)}%`;
-  const errNote = errs
-    ? `  [${errs} error${errs > 1 ? 's' : ''} excluded]`
-    : '';
-  return `${label} ${tapCount(id)}/${valid} (${pct})${errNote}`;
+  // Name what was excluded and why. "3 excluded" invites the reader to assume
+  // API trouble when the real cause may be the model reporting no rhotic —
+  // a different problem with a different fix.
+  const excluded = [
+    ['API error', countOf(id, 'ERR')],
+    ['no rhotic reported', countOf(id, 'none')],
+  ]
+    .filter(([, n]) => n > 0)
+    .map(([what, n]) => `${n} ${what}${n > 1 ? 's' : ''}`)
+    .join(', ');
+  const other = countOf(id, 'other');
+  const notes = [
+    excluded && `excluded: ${excluded}`,
+    other &&
+      `${other} other rhotic${other > 1 ? 's' : ''} (counted, not a tap)`,
+  ].filter(Boolean);
+  return `${label} ${tapCount(id)}/${valid} (${pct})${notes.length ? `  [${notes.join('; ')}]` : ''}`;
 };
 
 console.log('\n--- VERDICT ---');
