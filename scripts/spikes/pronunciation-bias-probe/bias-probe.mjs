@@ -165,7 +165,18 @@ async function transcribe({ wav, target }) {
     },
   });
   const parsed = JSON.parse(result.text);
-  return parsed.phonemes ?? [];
+  // Fail loudly rather than returning []. An empty array would be tallied as
+  // '?' — indistinguishable from "the model reported no rhotic" — whereas a
+  // throw lands in the caller's catch and is tallied as 'ERR'. In a script
+  // whose only output is a measurement, a non-answer must never be able to
+  // look like an answer. (JSON.parse('null') returns null, which the previous
+  // `parsed.phonemes ?? []` would have silently swallowed.)
+  if (!parsed || !Array.isArray(parsed.phonemes)) {
+    throw new Error(
+      `Malformed response: expected {phonemes: string[]}, got ${JSON.stringify(parsed)?.slice(0, 60)}`
+    );
+  }
+  return parsed.phonemes;
 }
 
 /** Which rhotic did it report? This is the entire measurement. */

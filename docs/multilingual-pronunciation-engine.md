@@ -55,7 +55,9 @@ Anchors, not speculation:
   (`types.ts:3980`) already carries `attemptLimit`, `dueAt`, `sessionOptions`,
   and is surfaced by the existing assignment settings modal.
 - **Sub-widget feature gating** — `GlobalFeature` (`types.ts:6341`) +
-  `global_permissions/{featureId}`, resolved in `AuthContext.tsx:2464`, with
+  `global_permissions/{featureId}`. The public entry point is
+  `canAccessFeature` (`AuthContext.tsx:2493`); the access-level decision itself
+  lives in the shared `resolvePermissionAccess` helper (`:2457`), with
   `accessLevel: 'beta'` + `betaUsers[]` for per-user visibility, plus
   `buildings[]` and `minTier`. Defaults are declared in
   `config/featureDefaults.ts` (typed `Record<GlobalFeature, …>`, so the compiler
@@ -229,7 +231,7 @@ read it as "the hook for types that skip the standard auto-grader" and add
 `'Speak'` to it. Do not. Its actual contract (`types.ts:3009`) is _"requires
 manual teacher grading — there is no auto-grader for student responses,"_ and
 callers depend on that literally: `QuizStudentApp.tsx:3235` defines the
-auto-graded set as `!isWrittenQuestionType(q.type)`, and `:3430` uses the same
+auto-graded set as `!isWrittenQuestionType(q.type)`, and `:3429` uses the same
 predicate to decide whether to read a manually-entered grade out of
 `myResponse.grading[q.id]`.
 
