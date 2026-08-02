@@ -25,11 +25,16 @@
  * told nothing. If B reports /r/ while D reports /ɾ/, the model is answering
  * from the prompt rather than the waveform. That is disqualifying.
  *
- * Each condition runs N times (default 5) because a single sample cannot
- * distinguish bias from sampling noise.
+ * Each condition runs N times (default 10) because a single sample cannot
+ * distinguish bias from sampling noise. See BIAS_DELTA near the verdict for
+ * how to read a result.
  *
  * USAGE
- *   GEMINI_API_KEY=... node bias-probe.mjs [--model gemini-2.5-flash] [--runs 5]
+ *   node bias-probe.mjs [--model gemini-2.5-flash] [--runs 10]
+ *
+ * The key is read from GEMINI_API_KEY or VITE_GEMINI_API_KEY, in the shell or
+ * in the repo-root `.env.local`. The script prints which source it used (name
+ * only, never the value).
  *
  * CAVEAT ON THE AUDIO
  * These clips are espeak-ng synthesis, not real learner speech. That makes
@@ -56,12 +61,62 @@ const MODEL = arg('--model', 'gemini-2.5-flash');
 // 4/5 split, which is a routine noise outcome (Fisher exact p ~= 0.5) — the
 // run counts are printed alongside the verdict so the split stays inspectable.
 const RUNS = Number(arg('--runs', '10'));
-const API_KEY = process.env.GEMINI_API_KEY ?? process.env.VITE_GEMINI_API_KEY;
+
+/**
+ * Resolve the key from the shell first, then from `.env.local`.
+ *
+ * The `.env.local` read is not a nicety: it is this repo's documented way of
+ * holding VITE_GEMINI_API_KEY (see CLAUDE.md), and Vite only injects those
+ * into the browser bundle — a plain `node` process gets nothing. Without this
+ * fallback, the developer most likely to run this script (one who already has
+ * the app working locally) is the one for whom it silently fails.
+ *
+ * Deliberately minimal: KEY=VALUE lines, `export ` prefix and surrounding
+ * quotes stripped, everything else ignored. Not a general dotenv parser.
+ */
+const readEnvLocal = () => {
+  for (const p of [
+    join(HERE, '../../../.env.local'), // repo root, from scripts/spikes/<name>/
+    join(process.cwd(), '.env.local'),
+  ]) {
+    let raw;
+    try {
+      raw = readFileSync(p, 'utf8');
+    } catch {
+      continue; // absent is the normal case — keep looking
+    }
+    const found = {};
+    for (const line of raw.split('\n')) {
+      const m = line.match(/^\s*(?:export\s+)?([A-Z0-9_]+)\s*=\s*(.*)$/);
+      if (m) found[m[1]] = m[2].trim().replace(/^['"]|['"]$/g, '');
+    }
+    return found;
+  }
+  return {};
+};
+
+const fileEnv = readEnvLocal();
+const SOURCES = [
+  ['GEMINI_API_KEY (shell)', process.env.GEMINI_API_KEY],
+  ['VITE_GEMINI_API_KEY (shell)', process.env.VITE_GEMINI_API_KEY],
+  ['GEMINI_API_KEY (.env.local)', fileEnv.GEMINI_API_KEY],
+  ['VITE_GEMINI_API_KEY (.env.local)', fileEnv.VITE_GEMINI_API_KEY],
+];
+const [KEY_SOURCE, API_KEY] = SOURCES.find(([, v]) => v) ?? [null, undefined];
 
 if (!API_KEY) {
-  console.error('Set GEMINI_API_KEY (or VITE_GEMINI_API_KEY) and re-run.');
+  console.error(
+    'No API key found. Checked, in order:\n' +
+      SOURCES.map(([name]) => `  - ${name}`).join('\n') +
+      "\n\nSet one and re-run. If you set it in a hosted environment's settings,\n" +
+      'use separate name and value fields — pasting "GEMINI_API_KEY=AIza..." into\n' +
+      'the value field yields a key with the name baked into it.'
+  );
   process.exit(1);
 }
+
+// Name only, never the value — this output belongs in PR comments.
+console.log(`key source: ${KEY_SOURCE}\nmodel: ${MODEL}   runs: ${RUNS}\n`);
 
 const audio = (name) =>
   readFileSync(join(HERE, 'audio', name)).toString('base64');
@@ -144,6 +199,20 @@ for (const cond of CONDITIONS) {
 }
 
 // ---- Verdict -------------------------------------------------------------
+//
+// BIAS_DELTA is a screening heuristic, NOT a significance test. 0.4 was chosen
+// as "large enough that it is unlikely to be noise at n=10, small enough to
+// catch partial bias" — it is a judgement call, not a derived value, and
+// nothing downstream depends on the exact number.
+//
+// Calibration, so a cold reader can judge the verdict themselves:
+//   - 9/10 vs 5/10 clears the threshold but is Fisher p ~= 0.14. Suggestive.
+//   - 10/10 vs 2/10 is p < 0.01. Decisive.
+// Treat a bare threshold pass as "investigate further", and only treat a
+// lopsided split as settling D1. The raw counts print above the verdict
+// precisely so this call does not have to be taken on trust.
+const BIAS_DELTA = 0.4;
+
 const tapRate = (id) =>
   results[id].rhotics.filter((r) => r === 'ɾ').length / RUNS;
 
@@ -168,7 +237,7 @@ if (RUNS < 10) {
   );
 }
 
-if (dTap - bTap >= 0.4) {
+if (dTap - bTap >= BIAS_DELTA) {
   console.log(
     '\nBIASED. Priming the model with the target text measurably suppressed\n' +
       'the real error. Server-side Gemini is DISQUALIFIED as the acoustic layer.\n' +
