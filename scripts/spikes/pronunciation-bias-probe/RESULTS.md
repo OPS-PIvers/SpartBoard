@@ -22,7 +22,26 @@ committing this spike was that D1 should not rest on a screenshot.
 > Carried to [#2344](https://github.com/OPS-PIvers/SpartBoard/issues/2344), and
 > it belongs to D2 (voice data: privacy, retention, COPPA) on the
 > [wayfinder map](https://github.com/OPS-PIvers/SpartBoard/issues/2331).
-> **Do not treat this file's precedent as the project's answer.**
+>
+> ### If you are here to collect more audio, stop and read this
+>
+> These fixtures are **one consenting-by-assumption adult**. Every reason this
+> gap was tolerable stops applying the moment the recording is a **student's**:
+> a minor's voice engages COPPA, district agreements, and parental consent, and
+> none of that can be arranged retroactively once the file is committed to a
+> public repository.
+>
+> The standing recommendation, raised independently by three reviewers on
+> [#2343](https://github.com/OPS-PIvers/SpartBoard/pull/2343): **no learner-audio
+> collection should begin until D2 is answered** — not until the feature ships,
+> but before the first recording is made. That recommendation is not yet a
+> ratified project policy; it is awaiting a decision from @OPS-PIvers. Treat it
+> as binding until told otherwise, because the failure is irreversible and the
+> cost of waiting is not.
+>
+> **Do not treat this file's precedent as the project's answer.** "We committed
+> undocumented voice recordings once" is the working norm this note exists to
+> stop from forming.
 
 > **Read this first.** The probe was first run on `gemini-2.5-flash` — the
 > script's then-default, which is long superseded. That run returned
