@@ -376,6 +376,14 @@ if (Number.isNaN(bTap) || Number.isNaN(dTap)) {
   // They have different fixes, and this message previously claimed "every call
   // errored" unconditionally — which sent the reader to debug API errors that
   // had not occurred. Same reasoning as the exclusion breakdown in line().
+  // ['B','D'] is hardcoded on purpose, and deliberately NOT derived from
+  // CONDITIONS the way the pre-spend estimate above is. That estimate counts
+  // every condition because every condition costs API calls; this list is the
+  // two conditions the BIAS VERDICT is computed from, which is a fixed property
+  // of the experiment's design rather than of the CONDITIONS array. A/C/E can
+  // collapse without making the bias verdict uncomputable — they have their own
+  // guards further down — so widening this to CONDITIONS would abort runs that
+  // still had an answer to give.
   const dead = ['B', 'D'].filter((id) => validCount(id) === 0);
   const errs = dead.reduce((n, id) => n + countOf(id, 'ERR'), 0);
   const nones = dead.reduce((n, id) => n + countOf(id, 'none'), 0);
