@@ -481,9 +481,13 @@ const eValid = validCount('E');
 console.log(
   '\n--- FALSE PASS (Anglo-r audio, told the target was "perro") ---'
 );
-console.log(`E reported a trill (a WRONG pass): ${eTrill}/${eValid}`);
+console.log(`E reported a trill (a WRONG pass):       ${eTrill}/${eValid}`);
+// 'other' is the residual non-tap non-trill rhotic bucket (see the classifier
+// docs above), not a dedicated ɹ counter. It is ɹ in every recorded run, but
+// the label must not claim more than the bucket measures — a uvular ʁ would
+// land here too and would not be "the retroflex reported honestly".
 console.log(
-  `E reported the retroflex ɹ honestly:  ${countOf('E', 'other')}/${eValid}`
+  `E reported a non-trill rhotic, usually ɹ: ${countOf('E', 'other')}/${eValid}`
 );
 if (eValid > 0 && eTrill / eValid > 0.1) {
   console.log(
