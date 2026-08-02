@@ -1,6 +1,16 @@
 # Multilingual Pronunciation Engine — Exploration Map
 
-**Status:** Exploration — one blocking decision unresolved (D1)
+> **⚠️ Superseded as a work queue.** The live plan is
+> **[Wayfinder Map: Multilingual Pronunciation Engine](https://github.com/OPS-PIvers/SpartBoard/issues/2331)**
+> — decisions D1–D7 have been charted into tracked decision tickets there, and
+> that map is where claiming, blocking, and resolution now happen. Do **not**
+> pick up work from §10 below; see the mapping in that section instead.
+>
+> This document remains the **grounding reference**: §2 (what was verified in
+> the codebase), §4 (the bias-probe design), and §5 (the espeak-ng findings) are
+> the evidence the tickets cite, and none of it is superseded.
+
+**Status:** Superseded as a work queue — retained as grounding reference
 **Author:** ops-pivers + Claude
 **Branch:** `claude/multilingual-pronunciation-engine-whug9x`
 **Source spec:** [`multilingual-pronunciation-engine-spec.md`](./multilingual-pronunciation-engine-spec.md)
@@ -259,8 +269,13 @@ D1.
 
 ## 8. Spike status
 
-Built and syntax-verified, **not yet run** — this container has no
-`GEMINI_API_KEY`. The key lives in Secret Manager via Firebase `defineSecret`
+Built and syntax-verified, **not yet run**. It was blocked on a missing
+`GEMINI_API_KEY`; **that is now resolved** — the key is present in the Claude
+Code web container (verified 2026-08-02), so the probe is runnable. Tracked as
+[Run the D1 bias probe and record the verdict](https://github.com/OPS-PIvers/SpartBoard/issues/2332).
+The setup notes below are retained for other environments.
+
+The key lives in Secret Manager via Firebase `defineSecret`
 (`functions/src/secrets.ts`, consumed at `aiGeneration.ts:548`) and is only
 materialized inside deployed functions; the container has no gcloud, no ADC,
 and no firebase login.
@@ -338,11 +353,36 @@ rather than a design.
 
 ---
 
-## 10. Next actions
+## 10. Next actions — moved to the wayfinder map
 
-1. Set `GEMINI_API_KEY` in environment settings; start a fresh session.
-2. Run the bias probe; record the verdict in §4.
-3. Resolve D1, which unblocks D2 and D7.
-4. Get a legal read on the espeak-ng GPL-3 question (§5) if any espeak-derived
-   code is to be shipped rather than used as reference data.
-5. Begin §9 in parallel at any time.
+**This section is no longer the work queue.** Everything below now lives as a
+tracked decision ticket under
+[Wayfinder Map: Multilingual Pronunciation Engine](https://github.com/OPS-PIvers/SpartBoard/issues/2331).
+Take work from the map's frontier, not from here.
+
+Where each decision in this document went:
+
+| This doc                   | Ticket                                                                                                                           |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| §8 spike, §4 verdict       | [Run the D1 bias probe and record the verdict](https://github.com/OPS-PIvers/SpartBoard/issues/2332)                             |
+| D1 (§4)                    | [D1 — Where does acoustic inference run?](https://github.com/OPS-PIvers/SpartBoard/issues/2333)                                  |
+| D4 (§7)                    | [D4 — 'Speak' as a QuizQuestionType, or a separate activity type?](https://github.com/OPS-PIvers/SpartBoard/issues/2334)         |
+| §9.1 review notes          | [Define correct alignment & scoring behaviour](https://github.com/OPS-PIvers/SpartBoard/issues/2335)                             |
+| §5 English finding         | [Does English G2P need CMUDict + a neural fallback, or do rules suffice?](https://github.com/OPS-PIvers/SpartBoard/issues/2336)  |
+| §5 GPL-3 finding           | [espeak-ng is GPL-3 — what can we actually ship?](https://github.com/OPS-PIvers/SpartBoard/issues/2337)                          |
+| §5 dialect finding, §9.2   | [Dialect on the question type surface — es vs es-419 and beyond](https://github.com/OPS-PIvers/SpartBoard/issues/2338)           |
+| §9.2 rule tables           | [Spanish and German G2P rule tables — design and source](https://github.com/OPS-PIvers/SpartBoard/issues/2339)                   |
+| D6 interaction detail (§6) | [Ungraded spoken items, quizMaxPoints, and grade push](https://github.com/OPS-PIvers/SpartBoard/issues/2340)                     |
+| — (new)                    | [Teacher authoring UX for Speak items](https://github.com/OPS-PIvers/SpartBoard/issues/2341)                                     |
+| Spec §5.2 thresholds       | [Threshold configurability, and the never-penalize-a-correct-dialect rule](https://github.com/OPS-PIvers/SpartBoard/issues/2342) |
+
+**D2** (voice data), **D7** (concurrency), student recording UX, and the teacher
+results UI are deliberately _not_ ticketed yet — they are fogged by D1 or by the
+alignment decision, and sit in the map's **Not yet specified** section until
+those resolve.
+
+**D3** and **D6** were already resolved in §6 before the map was charted; they
+are recorded in the map's **Notes** as context rather than as route.
+
+**Mandarin is now out of scope** for that map, per §5's recommendation, and
+returns only as a fresh effort.
