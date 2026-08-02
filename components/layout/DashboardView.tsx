@@ -104,6 +104,10 @@ const ToastContainer: React.FC = () => {
   // unpredictably or drop entirely.
   return (
     <div
+      // Toasts sit outside every widget's DOM subtree, so clicking one (e.g. an
+      // "Undo" action) would otherwise register as a click outside an open
+      // SettingsPanel and close it. Exclude the whole stack from that check.
+      data-settings-exclude
       className="fixed z-toast space-y-3 pointer-events-none"
       style={{
         top: 'calc(1.5rem + env(safe-area-inset-top, 0px))',

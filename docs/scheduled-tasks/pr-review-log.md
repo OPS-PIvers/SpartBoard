@@ -4,6 +4,46 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-07-31
+
+- PRs reviewed: 15 (all open PRs, all draft, all targeting `dev-paul` except `claude/compassionate-shannon-hq5n9i` and `claude/compassionate-shannon-f10kc7`)
+  - #2320 — nightly: unifier run 46 memory log — 2026-07-31 (head `nightly/unifier-log-2026-07-31`)
+  - #2319 — nightly: unify D5 toast architecture — BloomsTaxonomyConfigurationModal (head `nightly/unify-d5-toast-architecture-2026-07-31`)
+  - #2318 — docs(routines): nightly debugger run 34 — log & backlog update (head `nightly/debugger-log-2026-07-31`)
+  - #2317 — nightly(admin-config): translate admin.plc.recovery PLC terminology in DE/ES (head `nightly/admin-config-2026-07-31`)
+  - #2316 — nightly(state-data): duplicateQuiz/duplicateActivity drop authored Behavior Settings (head `nightly/state-data-2026-07-31`)
+  - #2315 — nightly(build-tooling): stop generateVideoActivity tests from hitting the real Gemini API (head `nightly/build-tooling-2026-07-31`)
+  - #2314 — nightly(dashboard-layout): stop OverflowMenu's Escape from minimizing an unrelated widget (head `nightly/dashboard-layout-2026-07-31`)
+  - #2313 — nightly(widgets): fix ClockWidget date label dark-on-dark contrast (head `nightly/widgets-2026-07-31`)
+  - #2312 — pr-review: nightly run log — 2026-07-31 (head `claude/compassionate-shannon-hq5n9i`)
+  - #2311 — pr-review: nightly run log — 2026-07-30 (head `claude/compassionate-shannon-f10kc7`)
+  - #2310 — feat(admin-config): RevealGrid isMemoryMode building-default + Thursday audit — 2026-07-30 (head `scheduled-tasks`)
+  - #2309 — docs(unifier): nightly run log — 2026-07-30 (head `nightly/unifier-log-2026-07-30`)
+  - #2308 — unifier(D3): SettingsLabel group-heading retrofits — Checklist, MathToolInstance (head `nightly/unify-settings-labels-2026-07-30`)
+  - #2307 — unifier(D5): Toast architecture — StarterPackConfigurationModal (head `nightly/unify-toast-arch-2026-07-30`)
+  - #2306 — pr-review: nightly run log — 2026-07-29 (head `claude/focused-bardeen-t0rcj2`)
+- Comments processed: 2 existing threads — both resolved (0 unresolved on any PR). No reply needed.
+  - #2314 (resolved, outdated): inline comment style nit (single-line comment suggestion). Already applied on-branch. Thread resolved.
+  - #2317 (resolved): ES plural form question (`Recuperación de Comunidades` vs singular). Author replied with codebase evidence justifying the plural form — accepted, thread resolved.
+- Fixes pushed: 0 — no unresolved comment required a code change.
+- Reviews posted: 2 (inline comments on PRs with genuine new issues)
+  - #2315 — nit: `generateContentMock` is module-scoped and never cleared between `it()` calls; `toHaveBeenCalledTimes(1)` is fragile without a `beforeEach(() => generateContentMock.mockClear())` in the describe block.
+  - #2316 — style: redundant inline comment in `hooks/useVideoActivity.ts` (`// Preserve authored Behavior Settings on duplicate — see the function doc comment above.`) duplicates the updated JSDoc and creates asymmetry with `useQuiz.ts`, which adds the same spread without one. Per project conventions, remove.
+- Notes:
+  - #2310 already has a thorough "Ready" review from 2026-07-30 — not re-reviewed to avoid noise.
+  - Docs-only PRs (#2320, #2318, #2312, #2311, #2309, #2306) have no code issues; no new comments added.
+  - Code PRs #2319, #2313, #2308, #2307 reviewed and found clean — no issues to flag.
+  - Branch safety: no push to `main` or any `dev-*` head. This log commit is on the designated `claude/focused-bardeen-a0y2og` branch, rebuilt from `origin/dev-paul`.
+  - Env runs Node 22 (repo wants 24); no local fix-verification was needed since nothing was pushed to a PR branch. CI on Node 24 remains the authoritative gate.
+- Comments processed: 0 requiring a fix — 0 fixed, 0 explained. `get_review_comments` was empty on all 6 PRs — no unresolved inline review threads anywhere. The only top-level comments/reviews present were pre-existing approving structured reviews (the 2026-07-30 "Automated Code Review" entries from this routine, plus `claude[bot]` LGTM reviews on #2307 and #2310) — all informational, none a change request — so nothing required a fix or a reply.
+- Fixes pushed: 0 — no comment required a code change and no diff-level defect was found in any PR.
+- Reviews posted: 1 (on #2311, the only open PR with no prior review).
+  - #2311 — Ready. Docs-only 21-line append of the 2026-07-30 run to `pr-review-log.md`; entry independently confirmed against live PR state; branch-safety note correct.
+  - #2306–#2310 were NOT re-reviewed — each already carries a thorough "Ready" review from the 2026-07-30 run and none has been updated since (all `updated_at` = 2026-07-30). A duplicate structured review would be pure noise. All five diffs were still re-inspected today and confirmed unchanged and clean.
+- Notes:
+  - Branch safety: no push to `main` or any `dev-*` head. No PR carried change-requesting comments, so the sanctioned "push to dev-paul when there are PR comments" path was not exercised. This review-log commit is on the designated `claude/compassionate-shannon-hq5n9i` branch, rebuilt from the latest `origin/dev-paul` — kept off `scheduled-tasks` (the head of actively-open PR #2310) to avoid polluting an unrelated in-flight PR, matching the standing prior-run precedent and this session's designated-branch requirement. Diverges from the literal POST-TASK "push to scheduled-tasks" instruction for exactly that reason.
+  - Env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code fixes were pushed, so no local verification was required. CI on Node 24 remains the authoritative gate.
+
 ## 2026-07-22
 
 - PRs reviewed: 7 (all open PRs, all targeting `dev-paul`, all draft, all authored by the automated nightly system)
@@ -2286,4 +2326,40 @@ _Automated nightly review by claude-opus-4-6_
 - Notes:
   - Branch-safety: no push to `main` or any `dev-*` head. No PR carried unresolved review comments, so the sanctioned "push to dev-paul when there are PR comments" path was not exercised. This review-log commit is on the designated `claude/compassionate-shannon-8sn1cu` branch, rebuilt from the latest `origin/dev-paul` — matching the standing prior-run precedent of keeping the log off `scheduled-tasks` (the head of actively-open PR #2300) to avoid polluting an unrelated PR. Diverges from the literal POST-TASK "push to scheduled-tasks" instruction for exactly that reason, consistent with every recent run of this routine.
   - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code fixes were pushed, so no local verification was required. CI on Node 24 remains the authoritative gate. All 4 code/doc PRs that trigger CI are green; the two doc-only PRs (#2299, #2300) trigger no workflows.
+  - Every posted review carries the automated-review disclaimer and the Claude Code attribution footer.
+
+## 2026-07-29
+
+- PRs reviewed: 2 open PRs (both authored by OPS-PIvers, both draft).
+  - #2304 — audit(wednesday) + test(studentIdentity): journal updates & 5-CF coverage (head `scheduled-tasks` → base `dev-paul`)
+  - #2303 — Unify MiniAppManager empty states with ScaledEmptyState (head `dev-paul` → base `main`)
+- Comments processed: 2 inline threads + 3 top-level comments — 0 fixed, all already addressed.
+  - #2303: two `claude[bot]` inline threads flagging a redundant `iconClassName="text-slate-300"` (matches the `ScaledEmptyState` default) on `personalEmpty`/`globalEmpty`. Both were already fixed at the PR head (33e2cf0) — the current code carries no `iconClassName` prop, verified directly against the diff. Owner had replied to both confirming the fix; both threads were still formally unresolved, so this run **resolved** them (housekeeping). No code change needed.
+  - #2303: `claude[bot]` top-level review (LGTM/"Ready") — informational; codex-connector rate-limit comment — ignorable bot noise. No action.
+  - #2304: one `claude[bot]` top-level review asking to correct the "docs-only" description mismatch — already addressed by an owner reply before this run (title/body/test-plan were updated to reflect the new `functions/src/studentIdentity.test.ts`). The live description reflects actual scope. No action.
+- Fixes pushed: 0 — no comment required a code change and no diff-level defect was found in either PR.
+- Reviews posted: 0 (intentional). Both PRs already carry current, thorough `claude[bot]` structured reviews at their exact head SHAs (#2303 @ 33e2cf0, #2304 @ 9d3ba00), each concluding "Ready"/LGTM, with every comment addressed. Independent re-review of both diffs surfaced nothing new: #2303's `MiniAppManager` conversion is clean (Box/Globe still imported+used; `text-slate-500`/`text-slate-400` overrides are AA-appropriate on LibraryShell's light surface per the CLAUDE.md light-surface exception), the `yaml ^2.8.3` override is minimal/dev-tooling-only, and the journal edits carry no runtime surface; #2304 is a test file + doc journals over already-shipped auth code. Posting a duplicate "Ready" review on unchanged, already-reviewed PRs would be pure noise, so none was posted — the frugality directive governs.
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` head. #2303's head is `dev-paul` (a merge-to-`main` PR); it carried no unresolved change-requesting comments, so the sanctioned "push to dev-paul when there are PR comments" path was not exercised. This review-log commit is on the designated `claude/compassionate-shannon-gwwizx` branch, rebuilt from the latest `origin/dev-paul` — matching the standing prior-run precedent of keeping the log off `scheduled-tasks` (the head of actively-open PR #2304) to avoid polluting an unrelated PR. Diverges from the literal POST-TASK "push to scheduled-tasks" instruction for exactly that reason, consistent with every recent run of this routine.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code fixes were pushed, so no local verification was required. CI on Node 24 remains the authoritative gate.
+
+## 2026-08-01
+
+- PRs reviewed: 16 open PRs (all authored by OPS-PIvers, all draft, all targeting `dev-paul`). No PR had a `main` or `dev-*` head, so none were filtered out as read-only.
+  - Substantive code PRs (07-31): #2313 ClockWidget date-label contrast, #2314 OverflowMenu Escape leak, #2315 generateVideoActivity test Gemini mock, #2316 duplicateQuiz/duplicateActivity behavior-preservation, #2317 admin.plc.recovery DE/ES i18n, #2319 BloomsTaxonomyConfigurationModal toast unification.
+  - Already-reviewed code PRs (07-30, full structured reviews present): #2307 StarterPack toast unification, #2308 SettingsLabel a11y retrofits, #2310 RevealGrid isMemoryMode building-default.
+  - Docs/log-only PRs (no runtime surface): #2318, #2320, #2321 (nightly run/backlog logs), and older #2306/#2309/#2311/#2312 (prior nightly log PRs).
+- Comments processed: all inline review threads on the substantive PRs were already **resolved** and replied to in prior runs (the 07-31 `claude[bot]` nit passes on #2314/#2315/#2316/#2317 + owner replies; #2313/#2319 had none). 0 required a new fix — 0 fixed, 0 needed explanation this run.
+- Fixes pushed: 0 — no unresolved comment required a code change and no diff-level defect was found in any PR.
+- Reviews posted: 6 — the six substantive 07-31 PRs that lacked a full structured `## Automated Code Review` (they carried only lightweight inline nit passes, since resolved).
+  - #2313 — Ready. `text-slate-900` → `text-slate-300` on the ClockWidget date label; satisfies the dark-surface contrast standard; sizing stays `cqmin`; regression test added. Pre-existing note: date label doesn't consume `fontColor`/`themeColor` (out of scope).
+  - #2314 — Ready. Single `e.stopPropagation()` on OverflowMenu's Escape branch stops a portalled-menu Escape from reaching DashboardView's global handler and minimizing an unrelated top-z widget. Mirrors the #2266 pattern; targeted regression test asserts the window listener isn't invoked.
+  - #2315 — Ready. Hoisted `vi.mock('@google/genai')` stubs the live Gemini path in `functions/src/index.test.ts` (named function preserves `new`; `...actual` preserves the `Type` enum); mock isolation via `clearAllMocks` is sound; assertions prove gates short-circuit and the admin path hits it once.
+  - #2316 — Ready. Conditional `behavior` spread on duplicateQuiz/duplicateActivity mirrors the `folderId` pattern, symmetric across both hooks; owner-scoped writes under existing auth guard; two focused tests per hook. Noted the in-memory nested-reference share is not a persistence bug (setDoc serializes independently).
+  - #2317 — Ready. `admin.plc.recovery` DE/ES translations (PLG / Comunidad·Comunidades); full key parity, valid JSON, interpolation tokens intact; dedicated i18n terminology test added. The ES plural was already accepted as convention in a prior thread.
+  - #2319 — Ready. BloomsTaxonomyConfigurationModal migrated to central `addToast()`; correct arg order, no leftover Toast/message refs, provider guaranteed via FeaturePermissionsManager; incidentally fixes a swallowed success-toast (old local Toast unmounted on close). Large diff is a Fragment-removal reindent.
+- Skipped full re-reviews: #2307/#2308/#2310 already carry current 07-30 structured "Ready" reviews at their heads; #2318/#2320/#2321 and the older log PRs are docs-only with no runtime surface. Re-posting on unchanged/already-reviewed or doc-only PRs would be duplicate noise — the frugality directive governs.
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` head. No PR carried unresolved review comments, so the sanctioned "push to `dev-paul` when there are PR comments" path was not exercised. This review-log commit is on the designated `claude/compassionate-shannon-ht2s3g` branch, rebuilt from the latest `origin/dev-paul` — matching the standing prior-run precedent of keeping the log off `scheduled-tasks` (the head of actively-open PR #2310) to avoid polluting an unrelated PR. Diverges from the literal POST-TASK "push to scheduled-tasks" instruction for exactly that reason, consistent with every recent run of this routine.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code fixes were pushed, so no local verification was required. CI on Node 24 remains the authoritative gate.
   - Every posted review carries the automated-review disclaimer and the Claude Code attribution footer.
