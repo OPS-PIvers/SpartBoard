@@ -3,6 +3,10 @@
 **Status:** Exploration — one blocking decision unresolved (D1)
 **Author:** ops-pivers + Claude
 **Branch:** `claude/multilingual-pronunciation-engine-whug9x`
+**Source spec:** [`multilingual-pronunciation-engine-spec.md`](./multilingual-pronunciation-engine-spec.md)
+— the original specification this document evaluates, including the product
+rationale, the `PhonemeAlignmentEngine` reference implementation, threshold
+profiles, and I/O schemas. References to "the spec" below point there.
 
 Adds spoken-response items to the SpartBoard quiz: a student records audio on
 their own device, and the response is scored by comparing the phonemes they
@@ -234,25 +238,37 @@ Built and syntax-verified, **not yet run** — this container has no
 materialized inside deployed functions; the container has no gcloud, no ADC,
 and no firebase login.
 
-**To run it:** set `GEMINI_API_KEY` in the Claude Code environment settings
-(not in chat — it would be persisted in the transcript). Environment variable
-changes apply to **new** sessions. Then:
+**To run it:** set `GEMINI_API_KEY` in the Claude Code environment settings —
+as a **name/value pair**, not as a single `NAME=value` string pasted into the
+value field, which produces a value that literally begins with
+`GEMINI_API_KEY=`. Do not paste the key into chat; it would be persisted in the
+transcript. Environment variable changes apply to **new** sessions. Then:
 
 ```
-GEMINI_API_KEY=... node bias-probe.mjs --runs 5
+cd scripts/spikes/pronunciation-bias-probe
+node bias-probe.mjs --runs 5
 ```
 
-Artifacts currently live in the session scratchpad, not in the repo:
+Sanity-check the variable first — a Gemini key is ~39 characters:
+
+```
+echo ${#GEMINI_API_KEY}
+```
+
+Artifacts are committed at `scripts/spikes/pronunciation-bias-probe/`:
 
 - `bias-probe.mjs` — the four-condition harness, with verdict logic
 - `audio/perro_trill.wav` — espeak-ng `es-419`, correct trilled `perro`
 - `audio/perro_tap.wav` — espeak-ng `es-419`, untrilled `pero` (the L1-English error)
 
-Regenerate the clips with:
+The script resolves `@google/genai` from the repo's own `node_modules`, so run
+it from within the repo after `pnpm run install:all`.
+
+Regenerate the clips with (`sudo apt-get install -y espeak-ng`):
 
 ```
-espeak-ng -v es-419 -s 130 -w perro_trill.wav "perro"
-espeak-ng -v es-419 -s 130 -w perro_tap.wav   "pero"
+espeak-ng -v es-419 -s 130 -w audio/perro_trill.wav "perro"
+espeak-ng -v es-419 -s 130 -w audio/perro_tap.wav   "pero"
 ```
 
 ---
