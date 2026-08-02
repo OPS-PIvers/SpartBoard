@@ -450,12 +450,21 @@ if (dTap - bTap >= BIAS_DELTA) {
 const trillCount = (id) => results[id].rhotics.filter((r) => r === 'r').length;
 const aTrill = trillCount('A');
 const bTrill = trillCount('B');
+// Minimum gap between A's and B's trill rates to call the model discriminating.
+// Like BIAS_DELTA this is a screening heuristic, not a significance test —
+// but unlike BIAS_DELTA it has no recorded calibration. Whoever set it did not
+// write down why 0.5, so this constant names WHAT it gates, not why that value.
+// Do not read it as derived.
+const DISCRIMINATION_DELTA = 0.5;
 console.log('\n--- DISCRIMINATION (does the report follow the audio?) ---');
 console.log(`A (trill audio) reported a trill: ${aTrill}/${validCount('A')}`);
 console.log(`B (tap audio)   reported a trill: ${bTrill}/${validCount('B')}`);
 if (validCount('A') === 0 || validCount('B') === 0) {
   console.log('No usable samples in one condition — no comparison possible.');
-} else if (aTrill / validCount('A') - bTrill / validCount('B') >= 0.5) {
+} else if (
+  aTrill / validCount('A') - bTrill / validCount('B') >=
+  DISCRIMINATION_DELTA
+) {
   console.log(
     'DISCRIMINATES. The reported rhotic tracks the waveform, so the bias pass\n' +
       'above is a real observation rather than a constant output.'
@@ -478,6 +487,11 @@ if (validCount('A') === 0 || validCount('B') === 0) {
 // Anglo r are not interchangeable — the model handles them differently.
 const eTrill = trillCount('E');
 const eValid = validCount('E');
+// False-pass rate above which the run prints a warning. Same caveat as
+// DISCRIMINATION_DELTA: no recorded calibration, so this names what it gates
+// rather than why 0.1. Note it is a WARN line, not a verdict — the rate prints
+// either way, so a reader who disagrees with the cutoff still sees the number.
+const FALSE_PASS_WARN_RATE = 0.1;
 console.log(
   '\n--- FALSE PASS (Anglo-r audio, told the target was "perro") ---'
 );
@@ -498,7 +512,7 @@ if (eValid === 0) {
   console.log(
     `E reported a non-trill rhotic, usually ɹ: ${countOf('E', 'other')}/${eValid}`
   );
-  if (eTrill / eValid > 0.1) {
+  if (eTrill / eValid > FALSE_PASS_WARN_RATE) {
     console.log(
       'WARNING: this rate is a per-attempt chance of marking an untrilled\n' +
         'answer correct. Judge it against how much a wrong pass costs a learner.'

@@ -10,6 +10,20 @@ committing this spike was that D1 should not rest on a screenshot.
 - **Key source:** `GEMINI_API_KEY (shell)`
 - **Ticket:** [Run the D1 bias probe and record the verdict](https://github.com/OPS-PIvers/SpartBoard/issues/2332)
 
+> **Fixture provenance is undocumented, and that is a known accepted gap.** The
+> five `*_human*.wav` clips are one adult speaker; who recorded them, when, and
+> under what consent is not recorded here, and this repository is public. Raised
+> in review on [#2343](https://github.com/OPS-PIvers/SpartBoard/pull/2343) and
+> accepted as-is for now rather than fixed.
+>
+> It is written down because the feature this spike serves is about **capturing
+> student audio** — so "how are voice fixtures sourced, consented, and retained"
+> is a question this project has to answer properly, not a spike-grade detail.
+> Carried to [#2344](https://github.com/OPS-PIvers/SpartBoard/issues/2344), and
+> it belongs to D2 (voice data: privacy, retention, COPPA) on the
+> [wayfinder map](https://github.com/OPS-PIvers/SpartBoard/issues/2331).
+> **Do not treat this file's precedent as the project's answer.**
+
 > **Read this first.** The probe was first run on `gemini-2.5-flash` — the
 > script's then-default, which is long superseded. That run returned
 > `NO RESULT`, and the `NO RESULT` was **an artifact of the model, not a fact
