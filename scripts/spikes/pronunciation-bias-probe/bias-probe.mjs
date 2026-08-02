@@ -52,7 +52,10 @@ const arg = (flag, fallback) => {
 };
 
 const MODEL = arg('--model', 'gemini-2.5-flash');
-const RUNS = Number(arg('--runs', '5'));
+// Default 10, not 5. At n=5 the verdict threshold below can fire on a 2/5 vs
+// 4/5 split, which is a routine noise outcome (Fisher exact p ~= 0.5) — the
+// run counts are printed alongside the verdict so the split stays inspectable.
+const RUNS = Number(arg('--runs', '10'));
 const API_KEY = process.env.GEMINI_API_KEY ?? process.env.VITE_GEMINI_API_KEY;
 
 if (!API_KEY) {
@@ -144,16 +147,26 @@ for (const cond of CONDITIONS) {
 const tapRate = (id) =>
   results[id].rhotics.filter((r) => r === 'ɾ').length / RUNS;
 
+const tapCount = (id) => results[id].rhotics.filter((r) => r === 'ɾ').length;
+
 const bTap = tapRate('B'); // told to expect a trill
 const dTap = tapRate('D'); // told nothing
 
 console.log('\n--- VERDICT ---');
 console.log(
-  `B (primed "perro") reported the true tap: ${(bTap * 100).toFixed(0)}%`
+  `B (primed "perro") reported the true tap: ${tapCount('B')}/${RUNS} (${(bTap * 100).toFixed(0)}%)`
 );
 console.log(
-  `D (unprimed)       reported the true tap: ${(dTap * 100).toFixed(0)}%`
+  `D (unprimed)       reported the true tap: ${tapCount('D')}/${RUNS} (${(dTap * 100).toFixed(0)}%)`
 );
+
+if (RUNS < 10) {
+  console.log(
+    `\n! UNDER-POWERED: --runs ${RUNS}. The threshold below can fire on splits\n` +
+      `  that are indistinguishable from sampling noise. Re-run with --runs 10+\n` +
+      `  before acting on this verdict.`
+  );
+}
 
 if (dTap - bTap >= 0.4) {
   console.log(

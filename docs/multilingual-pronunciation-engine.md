@@ -222,6 +222,29 @@ student renderers). A separate activity type isolates the blast radius but
 duplicates all that machinery. Lean: extend the union — the compiler will
 enumerate the work.
 
+**`isWrittenQuestionType()` is a trap here, not a template.** It is tempting to
+read it as "the hook for types that skip the standard auto-grader" and add
+`'Speak'` to it. Do not. Its actual contract (`types.ts:3009`) is _"requires
+manual teacher grading — there is no auto-grader for student responses,"_ and
+callers depend on that literally: `QuizStudentApp.tsx:3235` defines the
+auto-graded set as `!isWrittenQuestionType(q.type)`, and `:3430` uses the same
+predicate to decide whether to read a manually-entered grade out of
+`myResponse.grading[q.id]`.
+
+`'Speak'` is a **third category** the current two-way split cannot express: it
+_is_ auto-graded, just by the pronunciation engine rather than by string
+comparison. Adding it to this predicate would drop spoken items out of the
+auto-graded count and route them to the manual grading UI, where no teacher
+entry will ever arrive. D6 adds a fourth state on top (ungraded-by-teacher-
+choice), which is not "manually graded" either.
+
+So D4 carries a sub-decision: keep the boolean and add a parallel one (further
+drift of the kind `config/featureDefaults.ts` was written to stop), or replace
+it with a single grading-strategy lookup keyed by question type
+(`'auto-string' | 'auto-phonetic' | 'manual' | 'ungraded'`). The lookup is the
+better shape, but it touches every existing call site, so it is a real cost to
+weigh — not a free refactor.
+
 **D7 — concurrency.** 30 students recording simultaneously. Client-side: 30
 parallel model downloads on one AP is the risk, and caching behavior across
 managed Chromebook profiles needs testing. Server-side: 30 concurrent 1GiB
