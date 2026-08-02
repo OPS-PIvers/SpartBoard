@@ -5,7 +5,7 @@ committing this spike was that D1 should not rest on a screenshot.
 
 - **Date:** 2026-08-02
 - **Model:** `gemini-3.5-flash-lite` (version `3.5-flash-lite-07-2026`)
-- **Audio:** espeak-ng tap + **human trill recording** (the synthetic trill was discarded — see below)
+- **Audio:** all-human fixtures, one speaker (the synthetic trill was discarded; the synthetic tap retired after human audio corroborated it)
 - **Runs:** 10 per condition, then 30 per condition
 - **Key source:** `GEMINI_API_KEY (shell)`
 - **Ticket:** [Run the D1 bias probe and record the verdict](https://github.com/OPS-PIvers/SpartBoard/issues/2332)
@@ -18,22 +18,28 @@ committing this spike was that D1 should not rest on a screenshot.
 > experiment's outcome is strongly model-dependent, so a run that does not
 > name its model is worthless. The script default has since been updated.
 
-## Verdict — PROVISIONAL PASS on bias, in both directions
+## Verdict — PROVISIONAL PASS on bias; one real defect found
 
-**`NO BIAS DETECTED`.** Priming the model with the wrong target text did not
-move what it reported — tested both ways round:
+All fixtures are now human, one speaker. Three separate questions, three
+answers:
 
-| Audio           | Told       | Honest answer | Reported        |
-| --------------- | ---------- | ------------- | --------------- |
-| synthetic tap   | "perro"    | tap `ɾ`       | tap **40/40**   |
-| **human trill** | **"pero"** | **trill `r`** | **trill 27/30** |
+| Question                                                      | Result                                               |
+| ------------------------------------------------------------- | ---------------------------------------------------- |
+| **Bias** — does the stated target move the report?            | **No.** `NO BIAS DETECTED`, both directions          |
+| **Discrimination** — does the report follow the audio?        | **Yes.** trill clip 24/30 trill vs tap clip 0/30     |
+| **False pass** — does it invent the trill on untrilled audio? | **Spanish tap: never (0/20). Anglo `ɹ`: 3/20 (15%)** |
 
-The second row is the direction that matters most for grading — a student who
-trilled correctly being marked as having tapped — and the original probe never
-tested it. It came from the real-audio extension below.
+Bias was the question this ticket was built to answer, and it passes. The
+defect worth carrying forward is the third row, which the probe was never
+designed to look for.
 
-**Still provisional**: neither clip is real _learner_ speech, and the untrilled
-error has only ever been tested on synthetic audio. See
+**And a fourth finding that affects the spec more than any of them: the model
+never reports the English retroflex `ɹ` once it knows the language is Spanish
+(0/40).** See [The retroflex is invisible](#the-retroflex-is-invisible).
+
+**Still provisional**: no clip is real _learner_ speech — a speaker
+deliberately producing an error is not a student failing to avoid one — and
+German final-devoicing is untested. See
 [What is still missing](#what-is-still-missing).
 
 ## Run at `--runs 30`
@@ -156,20 +162,103 @@ prompts and rhotic classifier as the probe, 10 runs per cell.
 (3/10 under P). At 10 samples per cell that is noise, and it is recorded here
 rather than smoothed over precisely so nobody reads a trend into it later.
 
+## All-human run — the error direction, at last
+
+Two more clips from the same speaker: "pero" with the Spanish tap, and "pero"
+with the English retroflex `ɹ` (the actual L1-English learner error, and the
+substitution in the spec's own worked example). The synthetic tap is retired;
+every condition below is human audio.
+
+```
+A  TRILL audio, told "perro"  ->  {"ɾ":1,"r":9}
+B  tap audio,   told "perro"  ->  {"ɾ":10}
+C  tap audio,   told "pero"   ->  {"ɾ":10}
+D  tap audio,   told nothing  ->  {"ɾ":8,"r":2}
+E  ANGLO-r aud, told "perro"  ->  {"ɾ":9,"r":1}
+
+--- VERDICT ---            NO BIAS DETECTED (B 10/10 vs D 8/10)
+--- DISCRIMINATION ---     DISCRIMINATES (A 9/10 trill vs B 0/10)
+--- FALSE PASS ---         E reported a trill 1/10; reported ɹ honestly 0/10
+```
+
+**The false-positive cell passes on the Spanish tap.** Told the student was
+asked to say "perro", on audio containing a plain tap, the model reported the
+tap — **20/20 across runs, never once inventing the trill.** This was the last
+thing standing between D1 and a decision, and it holds.
+
+**The synthetic tap was vindicated.** It gave 40/40; the human tap gives 20/20.
+Unlike the trill, espeak's tap was a faithful stimulus — which is the only
+reason any synthetic audio in this spike retains any credibility.
+
+### The one real defect: the Anglo `ɹ` sometimes passes
+
+On the retroflex clip, told the target was "perro", the model reported a trill
+**3/20 (15%)** — marking as correct a student who did not trill.
+
+That is small but it is not nothing, and it lands on the **most common error in
+a US Spanish classroom**. The Spanish tap and the Anglo r are not
+interchangeable stand-ins for "the untrilled error": the model handles the tap
+perfectly and the retroflex imperfectly. A probe that only tested the tap —
+as this one did for its entire life until now — would have reported a clean
+pass and missed this.
+
+Whether 15% is acceptable is a product decision, not a spike finding. It is a
+per-attempt chance of telling a student they rolled an r they did not roll.
+
+### The retroflex is invisible
+
+Bigger than the false-pass rate: **the model never reported `ɹ` at all under any
+Spanish-framed prompt — 0 out of 40 samples.** It maps the English retroflex
+onto `ɾ` (or occasionally `r`) and reports it as Spanish phonology.
+
+Removing the language framing partly restores it:
+
+| Prompt framing                                                                       | reported `ɹ` |
+| ------------------------------------------------------------------------------------ | ------------ |
+| `Transcribe this audio into IPA phonemes.` (no language)                             | **4/10**     |
+| ...plus "speaker may be non-native, include sounds from outside the target language" | 0/10         |
+| `This is a recording of a single Spanish word.`                                      | 0/10         |
+| `A Spanish student was asked to say "perro"...`                                      | 0/20         |
+
+Note the middle row: **explicitly asking for out-of-language sounds did not
+help** — it still names "the target language", which appears to anchor the
+model just as hard. Only dropping the language entirely recovered the
+retroflex, and only 4/10 even then.
+
+This is normalization, but not the kind the probe was built to catch. It is
+conditioned on the **language**, not on the target word — which is why the bias
+verdict is clean and this still happens.
+
+**Consequences:**
+
+- **Scoring outcomes mostly survive.** `ɾ` ≠ target `r`, so the student is
+  still marked wrong — the right outcome, 85% of the time.
+- **Diagnostic feedback does not.** The engine would tell that student "you
+  produced a tap" when they produced an English r. Those need different
+  corrective instruction.
+- **The spec's worked example is not reproducible through this path.** It
+  assumes expected `/r/`, detected `/ɹ/`. Via server-side Gemini with a
+  language-framed prompt, `/ɹ/` is never detected. Anything in the design that
+  keys off L1-interference phonemes appearing in `alignment[]` needs revisiting
+  — which makes this a live input to
+  [Define correct alignment & scoring behaviour](https://github.com/OPS-PIvers/SpartBoard/issues/2335).
+- Dropping the language from the prompt is **not** an obvious fix: it recovers
+  the retroflex only 4/10, and on `gemini-2.5-flash` the same unframed prompt
+  made the model hallucinate English words entirely.
+
 ## What is still missing
 
-- **Real audio of the error.** Every test of the untrilled case — the
-  false-positive direction, where a scorer wrongly passes a student who did not
-  trill — has used the synthetic tap clip. Given that the synthetic _trill_ was
-  a broken stimulus, the synthetic tap deserves the same suspicion until a human
-  "pero" is tested. This is the single biggest open gap.
-- **A and B no longer share a recording chain** (human iPhone capture vs espeak
-  synthesis), so an A-vs-B difference can no longer be attributed to the rhotic
-  alone. Fixed by the same human tap recording.
-- **Real _learner_ speech.** A speaker deliberately trilling is cleaner than a
-  student struggling to. The original caveat is softened, not discharged.
-- **German final-devoicing**, and one speaker / one word / one language
-  throughout.
+- **Real _learner_ speech.** Every clip is one adult speaker deliberately
+  producing a target sound. A student failing to trill is not the same signal —
+  it is likelier to be an unstable in-between articulation than a clean
+  retroflex or a clean tap. The caveat this ticket insisted on is softened, not
+  discharged.
+- **One speaker, one word, one language.** German final-devoicing untested;
+  no per-dialect check.
+- **The 15% false pass needs a power run** — 3/20 has a wide confidence
+  interval, and the number matters for the product decision.
+- **Whether the retroflex blindness generalises** to other L1-interference
+  substitutions (Spanish `b`/`v`, German `ü`), or is specific to rhotics.
 
 ## Appendix — the superseded `gemini-2.5-flash` run
 

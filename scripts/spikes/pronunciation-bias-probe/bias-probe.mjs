@@ -20,10 +20,21 @@
  *   B  PROBE    tap   (pero)     "perro"          ɾ   <-- if it says r, biased
  *   C  control  tap   (pero)     "pero"           ɾ
  *   D  blind    tap   (pero)     (none given)     ɾ
+ *   E  FALSE-PASS  Anglo ɹ       "perro"          ɹ   <-- if it says r, it
+ *                                                        passed a student who
+ *                                                        did not trill
  *
  * VERDICT: compare B against D. Same audio, one told to expect a trill and one
  * told nothing. If B reports /r/ while D reports /ɾ/, the model is answering
  * from the prompt rather than the waveform. That is disqualifying.
+ *
+ * TWO MORE CHECKS, both added after the bias verdict alone proved misleading:
+ *   - DISCRIMINATION (A vs B): does the report follow the AUDIO? A model that
+ *     ignores the audio passes the bias test trivially, because an output that
+ *     never moves cannot be moved by priming.
+ *   - FALSE PASS (E): the tap is not a sufficient stand-in for "the untrilled
+ *     error". The model reports the tap honestly every time but reports a trill
+ *     for the English retroflex ~15% of the time. Only E catches that.
  *
  * Each condition runs N times (default 10) because a single sample cannot
  * distinguish bias from sampling noise. See BIAS_DELTA near the verdict for
@@ -37,18 +48,26 @@
  * only, never the value).
  *
  * CAVEAT ON THE AUDIO
- * The clips are MIXED provenance, and that asymmetry matters:
- *   - trill: a human recording (one adult speaker, deliberate trill)
- *   - tap:   still espeak-ng synthesis
- * The trill was originally synthetic too, and it was a BROKEN stimulus — models
- * reported a tap in it 36/40, which looked like a discrimination failure until
- * the same models scored 82/90 trills on the human recording. That is the whole
- * reason to distrust synthesized rhotics here.
+ * Every active clip is a HUMAN recording from one speaker, so all conditions
+ * share a recording chain and a difference between them is attributable to the
+ * phoneme rather than the microphone. They started out synthetic, and the
+ * synthetic trill was a BROKEN stimulus: models reported a tap in it 36/40,
+ * which read as "this model cannot hear trills" until the same model scored
+ * 82/90 trills on the human recording. Do not reintroduce synthesized rhotics.
  *
- * Neither clip is real LEARNER speech: a speaker deliberately trilling is
- * cleaner than a student struggling to. A PASS remains necessary but NOT
- * sufficient — follow up with actual learner recordings, and with German
- * final-devoicing, before trusting the server-side path.
+ * Still not real LEARNER speech: a speaker deliberately producing an error is
+ * not a student failing to avoid one, and is likelier to be a clean exemplar
+ * than the unstable in-between articulation a struggling learner produces. A
+ * PASS remains necessary but NOT sufficient — follow up with actual learner
+ * recordings, and with German final-devoicing, before trusting the server-side
+ * path.
+ *
+ * KNOWN LIMIT OF THE OUTPUT, not of the model's hearing: once the prompt names
+ * Spanish, the model reports within Spanish phonology and the English retroflex
+ * becomes invisible — 0/40 samples, versus 4/10 under a prompt naming no
+ * language at all. Scoring outcomes mostly survive (ɾ still != r, so the student
+ * is still marked wrong) but DIAGNOSTIC feedback does not: it will say "you
+ * produced a tap" to a student who produced an English r.
  */
 
 import { readFileSync } from 'node:fs';
@@ -139,12 +158,18 @@ const audio = (name) =>
 // models scored 82/90 trills on this recording. Do not reintroduce a synthesized
 // trill — espeak's Spanish /r/ is not convincingly trilled.
 const TRILL = audio('perro_trill_human_3.wav'); // "perro" -> /pˈero/, trilled
-// STILL SYNTHETIC, and now the odd one out. Because A and B no longer share a
-// recording chain (human iPhone capture vs espeak synthesis, different noise
-// floor and spectral character), an A-vs-B difference can no longer be cleanly
-// attributed to the rhotic alone. Replace this with a human "pero" from the same
-// speaker and session before reading A vs B as a discrimination result.
-const TAP = audio('perro_tap.wav'); // "pero" = the untrilled error -> /pˈeɾo/
+// Human too, same speaker — so A vs B is now a clean discrimination test:
+// same recording chain, one phoneme different. The espeak tap it replaced is
+// kept in audio/ but no longer used; human and synthetic agreed on it (40/40
+// vs 30/30), which is the only reason to still trust any synthetic stimulus
+// here at all.
+const TAP = audio('pero_tap_human.wav'); // "pero" tapped -> /pˈeɾo/
+// The English retroflex ɹ — the actual L1-English learner error in a US
+// classroom, and the substitution in the spec's own worked example (expected
+// /r/, detected /ɹ/). Worth its own condition because the tap and the Anglo r
+// are NOT interchangeable stand-ins: the model reports the tap honestly but
+// reports /r/ for this clip some of the time, which is a false pass.
+const ANGLO = audio('pero_anglo_r_human.wav'); // "pero" with English r -> /pˈeɹo/
 
 /** Prompt mirrors how the real feature would call it: target text supplied. */
 const promptFor = (target) =>
@@ -153,10 +178,11 @@ const promptFor = (target) =>
     : `Transcribe this audio into IPA phonemes. Return one phoneme per array element, no stress marks.`;
 
 const CONDITIONS = [
-  { id: 'A', label: 'trill audio, told "perro"', wav: TRILL, target: 'perro' },
-  { id: 'B', label: 'TAP audio,   told "perro"', wav: TAP, target: 'perro' },
-  { id: 'C', label: 'TAP audio,   told "pero" ', wav: TAP, target: 'pero' },
-  { id: 'D', label: 'TAP audio,   told nothing', wav: TAP, target: null },
+  { id: 'A', label: 'TRILL audio, told "perro"', wav: TRILL, target: 'perro' },
+  { id: 'B', label: 'tap audio,   told "perro"', wav: TAP, target: 'perro' },
+  { id: 'C', label: 'tap audio,   told "pero" ', wav: TAP, target: 'pero' },
+  { id: 'D', label: 'tap audio,   told nothing', wav: TAP, target: null },
+  { id: 'E', label: 'ANGLO-r aud, told "perro"', wav: ANGLO, target: 'perro' },
 ];
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
@@ -390,14 +416,67 @@ if (dTap - bTap >= BIAS_DELTA) {
 } else if (bTap >= 0.8) {
   console.log(
     '\nNO BIAS DETECTED on this contrast. Gemini reported the true tap even when\n' +
-      'primed to expect a trill. Server-side stays viable — but this is synthetic\n' +
-      'audio and ONE contrast. Re-run with real learner recordings and add German\n' +
-      'final-devoicing + Mandarin tone contrasts before committing.'
+      'primed to expect a trill. Necessary, not sufficient: see the two checks\n' +
+      'below, and note no clip here is real LEARNER speech. German\n' +
+      'final-devoicing is still untested.'
   );
 } else {
   console.log(
     '\nINCONCLUSIVE / UNRELIABLE. Neither condition reported the tap consistently,\n' +
       'so the model is not a dependable phoneme transcriber here regardless of bias.\n' +
       '=> Treat this as a failure for the server-side path.'
+  );
+}
+
+// ---- Check 2: discrimination (A vs B) ------------------------------------
+//
+// The bias verdict above can be passed by a model that IGNORES the audio: an
+// output that never moves cannot be moved by priming. This is the comparison
+// that catches that — same prompt, different audio. It exists because an
+// earlier run passed the bias test while reporting a tap for BOTH clips, and
+// only a human recording revealed the stimulus was at fault rather than the
+// model. Do not read the bias verdict without reading this one.
+const trillCount = (id) => results[id].rhotics.filter((r) => r === 'r').length;
+const aTrill = trillCount('A');
+const bTrill = trillCount('B');
+console.log('\n--- DISCRIMINATION (does the report follow the audio?) ---');
+console.log(`A (trill audio) reported a trill: ${aTrill}/${validCount('A')}`);
+console.log(`B (tap audio)   reported a trill: ${bTrill}/${validCount('B')}`);
+if (validCount('A') === 0 || validCount('B') === 0) {
+  console.log('No usable samples in one condition — no comparison possible.');
+} else if (aTrill / validCount('A') - bTrill / validCount('B') >= 0.5) {
+  console.log(
+    'DISCRIMINATES. The reported rhotic tracks the waveform, so the bias pass\n' +
+      'above is a real observation rather than a constant output.'
+  );
+} else {
+  console.log(
+    'DOES NOT DISCRIMINATE. The model reports much the same thing for both\n' +
+      'clips, so the bias verdict above is UNINTERPRETABLE — a model ignoring\n' +
+      'the audio passes it too. Before blaming the model, verify the stimulus:\n' +
+      'a synthesized trill already produced exactly this false alarm once.'
+  );
+}
+
+// ---- Check 3: the false pass (E) -----------------------------------------
+//
+// The costliest classroom error: a student produces an English retroflex
+// instead of a trill and is told they got it right. Reporting /r/ here means
+// the model supplied the target it was told to expect on audio that does not
+// contain it. Kept separate from the bias verdict because the tap and the
+// Anglo r are not interchangeable — the model handles them differently.
+const eTrill = trillCount('E');
+const eValid = validCount('E');
+console.log(
+  '\n--- FALSE PASS (Anglo-r audio, told the target was "perro") ---'
+);
+console.log(`E reported a trill (a WRONG pass): ${eTrill}/${eValid}`);
+console.log(
+  `E reported the retroflex ɹ honestly:  ${countOf('E', 'other')}/${eValid}`
+);
+if (eValid > 0 && eTrill / eValid > 0.1) {
+  console.log(
+    'WARNING: this rate is a per-attempt chance of marking an untrilled\n' +
+      'answer correct. Judge it against how much a wrong pass costs a learner.'
   );
 }

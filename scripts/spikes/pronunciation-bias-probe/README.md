@@ -31,12 +31,23 @@ than to the audio.
 
 ### The trill fixtures are human; the tap is still synthetic
 
-| file                      | provenance                          | md5 (12)       |
-| ------------------------- | ----------------------------------- | -------------- |
-| `perro_trill_human_1.wav` | human, weakest trill of three       | `00335dd8dba3` |
-| `perro_trill_human_2.wav` | human, middle                       | `cc884eb4bf87` |
-| `perro_trill_human_3.wav` | human, strongest — **condition A**  | `0d8f91b136fe` |
-| `perro_tap.wav`           | espeak-ng 1.51 — **to be replaced** | `20edab1676c3` |
+| file                      | used by   | provenance                       | md5 (12)       |
+| ------------------------- | --------- | -------------------------------- | -------------- |
+| `perro_trill_human_3.wav` | **A**     | human, strongest of three trills | `0d8f91b136fe` |
+| `perro_trill_human_1.wav` | —         | human, weakest trill             | `00335dd8dba3` |
+| `perro_trill_human_2.wav` | —         | human, middle trill              | `cc884eb4bf87` |
+| `pero_tap_human.wav`      | **B/C/D** | human, Spanish tap               | `9a42165305d0` |
+| `pero_anglo_r_human.wav`  | **E**     | human, English retroflex ɹ       | `ab74e6ea281a` |
+| `perro_tap.wav`           | retired   | espeak-ng 1.51 — see below       | `20edab1676c3` |
+
+All active fixtures are **human, one speaker**, so every condition shares a
+recording chain and a difference between conditions is attributable to the
+phoneme rather than to the microphone.
+
+`perro_tap.wav` is kept but unused. It is the one synthetic stimulus that human
+audio corroborated — 40/40 synthetic against 20/20 human — and that agreement is
+the only reason any synthetic audio in this spike retains credibility. Deleting
+it would remove the evidence for that claim.
 
 **A synthesized trill was a broken stimulus and had to be thrown out.** The
 original `perro_trill.wav` (espeak-ng `-v es-419 -s 130`) drew tap reports from
@@ -49,12 +60,12 @@ speaker, trill strength increasing across them by the speaker's own account.
 Condition A uses utterance 3 on that stated ground — not because it scored best
 (it did not; utterance 2 did).
 
-**Known defect: A and B no longer share a recording chain.** One is iPhone
-capture at 48 kHz AAC downmixed to 22.05 kHz mono; the other is espeak
-synthesis. They differ in noise floor and spectral character as well as in the
-rhotic, so an A-vs-B difference can no longer be attributed to the tap/trill
-contrast alone. Replace `perro_tap.wav` with a human "pero" from the same
-speaker and session before reading A vs B as a discrimination result.
+**Condition E is not optional.** The tap and the English retroflex are NOT
+interchangeable stand-ins for "the untrilled error": the model reports the tap
+honestly every time, but reports a trill for the retroflex ~15% of the time —
+passing a student who did not trill. A probe testing only the tap reports a
+clean pass and misses this, which is exactly what happened for this probe's
+entire life until human audio arrived.
 
 The old espeak note on regeneration fragility still applies to the tap clip: a
 one-unit speed typo produces different audio, and dropping `-419` yields
