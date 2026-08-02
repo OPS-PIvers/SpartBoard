@@ -29,20 +29,39 @@ whole design is "hold the audio constant, vary only the prompt" — so the bytes
 have to be fixed, or a changed verdict can't be attributed to the model rather
 than to the audio.
 
-Regeneration is not byte-stable against small mistakes. On espeak-ng 1.51, the
-documented commands reproduce the committed files exactly, but:
+### The trill fixtures are human; the tap is still synthetic
 
-| command                        | md5 (12)       | size    |
-| ------------------------------ | -------------- | ------- |
-| `-v es-419 -s 130` (committed) | `20edab1676c3` | 41772 B |
-| `-v es-419 -s 131`             | `ff4521508724` | 40926 B |
-| `-v es -s 130`                 | `eaceaaa1650a` | 38556 B |
+| file                      | provenance                          | md5 (12)       |
+| ------------------------- | ----------------------------------- | -------------- |
+| `perro_trill_human_1.wav` | human, weakest trill of three       | `00335dd8dba3` |
+| `perro_trill_human_2.wav` | human, middle                       | `cc884eb4bf87` |
+| `perro_trill_human_3.wav` | human, strongest — **condition A**  | `0d8f91b136fe` |
+| `perro_tap.wav`           | espeak-ng 1.51 — **to be replaced** | `20edab1676c3` |
 
-A one-unit speed typo produces different audio. Worse, dropping `-419` yields
+**A synthesized trill was a broken stimulus and had to be thrown out.** The
+original `perro_trill.wav` (espeak-ng `-v es-419 -s 130`) drew tap reports from
+models 36/40 — which read as "the model cannot hear trills" until the same model
+scored 82/90 trills on the human recording. espeak's Spanish `/r/` is simply not
+convincingly trilled. Do not reintroduce one.
+
+The human clips are utterances 1–3 of a single continuous recording, one adult
+speaker, trill strength increasing across them by the speaker's own account.
+Condition A uses utterance 3 on that stated ground — not because it scored best
+(it did not; utterance 2 did).
+
+**Known defect: A and B no longer share a recording chain.** One is iPhone
+capture at 48 kHz AAC downmixed to 22.05 kHz mono; the other is espeak
+synthesis. They differ in noise floor and spectral character as well as in the
+rhotic, so an A-vs-B difference can no longer be attributed to the tap/trill
+contrast alone. Replace `perro_tap.wav` with a human "pero" from the same
+speaker and session before reading A vs B as a discrimination result.
+
+The old espeak note on regeneration fragility still applies to the tap clip: a
+one-unit speed typo produces different audio, and dropping `-419` yields
 **Castilian** rather than Latin American Spanish — a different dialect, which
 per §5 of the doc changes what counts as a correct pronunciation. That failure
 is silent: the script would run happily and return a verdict about the wrong
-stimulus. Cross-version drift in espeak-ng itself is an additional unknown.
+stimulus.
 
 Committing the bytes removes that whole class of error, and removes espeak-ng
 (plus root access to install it) from the requirements for anyone re-running
@@ -58,9 +77,17 @@ regenerate deliberately and commit the new bytes rather than leaving them to be
 produced at run time:
 
 ```
-sudo apt-get install -y espeak-ng          # 1.51 produced the committed files
-espeak-ng -v es-419 -s 130 -w audio/perro_trill.wav "perro"   # /pˈero/  trilled
+sudo apt-get install -y espeak-ng          # 1.51 produced the committed tap
 espeak-ng -v es-419 -s 130 -w audio/perro_tap.wav   "pero"    # /pˈeɾo/  tapped
+```
+
+**Do not regenerate the trill this way** — see above; the synthetic trill is
+what this spike had to discard. Human clips were cut from a single recording
+with:
+
+```
+ffmpeg -i recording.MOV -map 0:1 -ac 1 -ar 22050 -c:a pcm_s16le full.wav
+ffmpeg -i full.wav -ss <start> -t <dur> -c:a pcm_s16le audio/perro_trill_human_N.wav
 ```
 
 `perro` vs `pero` is the minimal pair the probe turns on: the trill is the

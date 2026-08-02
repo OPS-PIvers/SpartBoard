@@ -37,12 +37,18 @@
  * only, never the value).
  *
  * CAVEAT ON THE AUDIO
- * These clips are espeak-ng synthesis, not real learner speech. That makes
- * this a CONSERVATIVE test of bias: the tap/trill contrast here is clean and
- * unambiguous. A model that cannot report an unambiguous tap honestly will
- * certainly not do better on messy classroom recordings. A PASS here is
- * therefore necessary but NOT sufficient — follow up with real learner audio
- * before trusting the server-side path.
+ * The clips are MIXED provenance, and that asymmetry matters:
+ *   - trill: a human recording (one adult speaker, deliberate trill)
+ *   - tap:   still espeak-ng synthesis
+ * The trill was originally synthetic too, and it was a BROKEN stimulus — models
+ * reported a tap in it 36/40, which looked like a discrimination failure until
+ * the same models scored 82/90 trills on the human recording. That is the whole
+ * reason to distrust synthesized rhotics here.
+ *
+ * Neither clip is real LEARNER speech: a speaker deliberately trilling is
+ * cleaner than a student struggling to. A PASS remains necessary but NOT
+ * sufficient — follow up with actual learner recordings, and with German
+ * final-devoicing, before trusting the server-side path.
  */
 
 import { readFileSync } from 'node:fs';
@@ -126,7 +132,18 @@ console.log(`key source: ${KEY_SOURCE}\nmodel: ${MODEL}   runs: ${RUNS}\n`);
 const audio = (name) =>
   readFileSync(join(HERE, 'audio', name)).toString('base64');
 
-const TRILL = audio('perro_trill.wav'); // correct Spanish "perro" -> /pˈero/
+// HUMAN recording, utterance 3 of 3 (the speaker's strongest trill — chosen on
+// that stated ground, not by which clip scored best). It REPLACED an espeak-ng
+// synthetic trill, which turned out to be a broken stimulus: models reported a
+// tap in it 36/40, which read as "the model can't hear trills" until the same
+// models scored 82/90 trills on this recording. Do not reintroduce a synthesized
+// trill — espeak's Spanish /r/ is not convincingly trilled.
+const TRILL = audio('perro_trill_human_3.wav'); // "perro" -> /pˈero/, trilled
+// STILL SYNTHETIC, and now the odd one out. Because A and B no longer share a
+// recording chain (human iPhone capture vs espeak synthesis, different noise
+// floor and spectral character), an A-vs-B difference can no longer be cleanly
+// attributed to the rhotic alone. Replace this with a human "pero" from the same
+// speaker and session before reading A vs B as a discrimination result.
 const TAP = audio('perro_tap.wav'); // "pero" = the untrilled error -> /pˈeɾo/
 
 /** Prompt mirrors how the real feature would call it: target text supplied. */
