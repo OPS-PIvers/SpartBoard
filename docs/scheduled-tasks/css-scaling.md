@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-01_
+_Last audited: 2026-08-02_
 _Last action: 2026-07-23 — MEDIUM SoundWidget `PopcornBallsView` no longer receives `width={w} height={h - 60}` (stored widget dims minus a magic header offset); the canvas component now self-measures its own container via `ResizeObserver`, matching the NumberLine idiom, so the draw buffer tracks the actual rendered area with no hard-coded pixel subtraction_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-02: Targeted scan (Sunday daily). New dev-paul commits since 2026-08-01 already on branch: docs(admin) DashboardProvider note (4cacab05 — docs only); fix(schedule) events below list (0bda0ed1 — Schedule/Settings.tsx back-face settings panel only; CQ scaling rules do not apply to back-face). No widget front-face Widget.tsx content changes in either commit. Direct verification: Schedule/Widget.tsx unchanged. All pre-existing LOW open items confirmed present and unresolved. Zero new anti-patterns detected._
 
 _2026-08-01 (action): Resolved the LOW "ActivityWall three front-face view branches have hardcoded Tailwind spacing" item (top of Open in document order; moved to Completed). Selection: Saturday run — reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + today's weeklies (code-structure C1, ui-unification C2). Nothing In Progress anywhere. Only heading-level HIGH open item (code-structure `DashboardContext.tsx` extraction) is BLOCKED; all code-structure and ui-unification MEDIUMs are BLOCKED or runtime-gated (large-file extraction, migration, or supervised visual-normalization batches). widget-registry and typescript-eslint have no open items, so css-scaling (daily order 2) is the highest-priority journal with a safe actionable item — its Open items are all LOW; item 1 in document order is this one. File-recency check passed: `ActivityWall/Widget.tsx` last touched at `ab7cd309` (#2253), outside the last 5 branch commits (8be84eb9, 6c726e38, a02eefc7, 0256fd98, 1ca97940). Converted all enumerated hardcoded spacing in the three branches to inline `cqmin`; `type-check`/`eslint --max-warnings 0`/`prettier --check` clean, 11 Widget tests green. PR opened to dev-paul._
 
