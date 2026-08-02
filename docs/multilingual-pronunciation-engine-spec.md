@@ -3,6 +3,8 @@
 **Status:** Source material — captured verbatim, not yet accepted
 **Author:** ops-pivers (original spec) — transcribed by Claude
 **Companion to:** [`multilingual-pronunciation-engine.md`](./multilingual-pronunciation-engine.md)
+**Live plan:** [Wayfinder Map: Multilingual Pronunciation Engine](https://github.com/OPS-PIvers/SpartBoard/issues/2331)
+— where the open decisions about this spec are tracked and resolved.
 
 This document preserves the original technical specification as authored, so
 the decision map beside it has something concrete to refer to. It is **source
