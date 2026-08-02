@@ -22,6 +22,27 @@ only, never the value) so a misconfiguration cannot be mistaken for a result.
 Paste the output into the PR or into §4 of the doc. It is safe to share — no
 key material, no user data.
 
+### The model cannot be pinned, so runs are not comparable across time
+
+`gemini-3.5-flash-lite` is a **moving alias**, and there is no way to pin it.
+Checked directly against the API on 2026-08-02:
+
+- `models.list` exposes exactly one matching identifier — `models/gemini-3.5-flash-lite`. No dated variant is offered.
+- Requesting a dated form anyway fails: `gemini-3.5-flash-lite-07-2026` returns **404 not found for API version v1beta**.
+- The response's own `modelVersion` field echoes the bare alias, so a run cannot capture which checkpoint actually answered it.
+
+This is the same failure that already cost this spike one entire run — a stale
+`gemini-2.5-flash` default produced a `NO RESULT` that was an artifact of the
+model rather than of the audio. Pinning would be the obvious fix and it is
+simply not available.
+
+**What follows for [#2344](https://github.com/OPS-PIvers/SpartBoard/issues/2344)
+and any later re-run:** re-run **every** condition in one sitting. Do not
+compare fresh cells against numbers recorded here, and do not treat a changed
+result as a finding about the audio — there is no way to assert the same
+checkpoint produced both. Record the date with the results, since that is the
+only version handle available.
+
 ## Why the .wav files are committed
 
 They are the **stimulus of a controlled experiment**, not build output. The
