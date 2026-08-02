@@ -456,10 +456,23 @@ const trillCount = (id) => results[id].rhotics.filter((r) => r === 'r').length;
 const aTrill = trillCount('A');
 const bTrill = trillCount('B');
 // Minimum gap between A's and B's trill rates to call the model discriminating.
-// Like BIAS_DELTA this is a screening heuristic, not a significance test —
-// but unlike BIAS_DELTA it has no recorded calibration. Whoever set it did not
-// write down why 0.5, so this constant names WHAT it gates, not why that value.
-// Do not read it as derived.
+// Like BIAS_DELTA, a screening heuristic and not a significance test. 0.5 was
+// picked by judgement when this check was added, with no derivation behind it.
+//
+// Calibration, computed after the fact so a cold reader can judge a bare pass
+// (two-tailed Fisher exact, n=10 per condition, splits that exactly clear 0.5):
+//   - 10/10 vs 5/10  p ~= 0.033
+//   -  9/10 vs 4/10  p ~= 0.057
+//   -  8/10 vs 3/10  p ~= 0.070   <- weakest qualifying splits sit mid-range
+//   -  7/10 vs 2/10  p ~= 0.070
+//   -  5/10 vs  0/10 p ~= 0.033
+// So a bare pass here lands around p ~= 0.03-0.07 — meaningfully stronger than
+// a bare BIAS_DELTA pass (p ~= 0.14), still short of decisive. Treat it as
+// "probably real, worth confirming", not as settled.
+//
+// Nothing on record depends on the exact cutoff: the recorded run cleared it by
+// a wide margin (24/30 vs 0/30, gap 0.80, p ~= 3e-11). Raw counts print above
+// the verdict so this call never has to be taken on trust.
 const DISCRIMINATION_DELTA = 0.5;
 console.log('\n--- DISCRIMINATION (does the report follow the audio?) ---');
 console.log(`A (trill audio) reported a trill: ${aTrill}/${validCount('A')}`);
@@ -492,10 +505,16 @@ if (validCount('A') === 0 || validCount('B') === 0) {
 // Anglo r are not interchangeable — the model handles them differently.
 const eTrill = trillCount('E');
 const eValid = validCount('E');
-// False-pass rate above which the run prints a warning. Same caveat as
-// DISCRIMINATION_DELTA: no recorded calibration, so this names what it gates
-// rather than why 0.1. Note it is a WARN line, not a verdict — the rate prints
-// either way, so a reader who disagrees with the cutoff still sees the number.
+// False-pass rate above which the run prints a warning. Picked by judgement
+// when this check was added, with no derivation — and deliberately left that
+// way, because unlike the two deltas this is not a comparison between
+// conditions, so there is no two-sample test to calibrate it against. What
+// counts as an intolerable rate of passing a student who did not trill is a
+// pedagogical judgement, not a statistical one; 0.1 is a placeholder for a
+// teacher's answer, not a substitute for it.
+//
+// It is a WARN line, not a verdict — the rate prints either way, so a reader
+// who disagrees with the cutoff still sees the number.
 const FALSE_PASS_WARN_RATE = 0.1;
 console.log(
   '\n--- FALSE PASS (Anglo-r audio, told the target was "perro") ---'
