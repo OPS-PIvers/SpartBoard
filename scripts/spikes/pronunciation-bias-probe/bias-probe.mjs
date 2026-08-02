@@ -378,12 +378,23 @@ if (Number.isNaN(bTap) || Number.isNaN(dTap)) {
     `\nNO RESULT. Condition${dead.length > 1 ? 's' : ''} ${dead.join(' and ')} produced zero usable samples.\n` +
       `Breakdown: ${errs} API error${errs === 1 ? '' : 's'}, ${nones} with no rhotic reported.`
   );
+  // Only name a single cause when the other count is genuinely zero. Keying off
+  // whichever is LARGER would assert one cause on a mixed collapse — and on an
+  // exact tie would assert the API-error remedy while half the failures were
+  // 'none', which is the same "confidently wrong cause" this block exists to
+  // stop.
+  const stimulus =
+    'Calls returned a transcription with no rhotic in it at all. That is a\n' +
+    'stimulus or prompt problem, not an API problem — look at what the model\n' +
+    'actually transcribed before touching the API wiring.';
   console.log(
-    nones > errs
-      ? 'Most calls returned a transcription with no rhotic in it at all. That is\n' +
-          'a stimulus or prompt problem, not an API problem — look at what the model\n' +
-          'actually transcribed before touching the API wiring.'
-      : 'Fix the API errors above and re-run.'
+    nones === 0
+      ? 'Fix the API errors above and re-run.'
+      : errs === 0
+        ? stimulus
+        : `Both causes are in play and they have different fixes.\n${stimulus}\n` +
+          'Then fix the API errors above. Addressing only one will not restore\n' +
+          'the condition.'
   );
   console.log('There is nothing to interpret here.');
   process.exit(1);
