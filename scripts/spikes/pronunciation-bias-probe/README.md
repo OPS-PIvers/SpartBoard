@@ -12,7 +12,7 @@ See [`docs/multilingual-pronunciation-engine.md`](../../../docs/multilingual-pro
 ## Running it
 
 ```
-node bias-probe.mjs [--model gemini-2.5-flash] [--runs 10]
+node bias-probe.mjs [--model gemini-3.5-flash-lite] [--runs 10]
 ```
 
 The key is read from `GEMINI_API_KEY` or `VITE_GEMINI_API_KEY`, in the shell or

@@ -30,7 +30,7 @@
  * how to read a result.
  *
  * USAGE
- *   node bias-probe.mjs [--model gemini-2.5-flash] [--runs 10]
+ *   node bias-probe.mjs [--model gemini-3.5-flash-lite] [--runs 10]
  *
  * The key is read from GEMINI_API_KEY or VITE_GEMINI_API_KEY, in the shell or
  * in the repo-root `.env.local`. The script prints which source it used (name
@@ -56,7 +56,12 @@ const arg = (flag, fallback) => {
   return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 };
 
-const MODEL = arg('--model', 'gemini-2.5-flash');
+// Keep this current. The first run of this probe used a stale default
+// (gemini-2.5-flash) and produced a NO RESULT that was an artifact of the
+// model, not of the audio or the design: that model does not transcribe the
+// clips as Spanish unprompted, so the control condition held no measurement.
+// A stale default here silently invalidates the whole experiment.
+const MODEL = arg('--model', 'gemini-3.5-flash-lite');
 // Default 10, not 5. At n=5 the verdict threshold below can fire on a 2/5 vs
 // 4/5 split, which is a routine noise outcome (Fisher exact p ~= 0.5) — the
 // run counts are printed alongside the verdict so the split stays inspectable.
