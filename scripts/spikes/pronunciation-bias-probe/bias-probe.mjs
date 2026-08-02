@@ -178,6 +178,18 @@ const rhoticOf = (phonemes) => {
 
 const results = {};
 
+// Warn BEFORE spending anything. The same caveat repeats at the verdict, but
+// by then all 4 x RUNS calls are gone and the only thing left to decide is
+// whether to distrust a result you already paid for.
+if (RUNS < 10) {
+  console.log(
+    `! UNDER-POWERED RUN — about to spend ${4 * RUNS} API calls on a result\n` +
+      `  that cannot separate bias from noise. At --runs ${RUNS}, the verdict\n` +
+      `  threshold can fire on an ordinary sampling split. Ctrl-C now and\n` +
+      `  re-run with --runs 10 (the default) unless you are just smoke-testing.\n`
+  );
+}
+
 for (const cond of CONDITIONS) {
   const rhotics = [];
   const samples = [];
@@ -231,9 +243,9 @@ console.log(
 
 if (RUNS < 10) {
   console.log(
-    `\n! UNDER-POWERED: --runs ${RUNS}. The threshold below can fire on splits\n` +
-      `  that are indistinguishable from sampling noise. Re-run with --runs 10+\n` +
-      `  before acting on this verdict.`
+    `\n! UNDER-POWERED (--runs ${RUNS}, warned at start): the verdict below can\n` +
+      `  fire on an ordinary sampling split. Re-run with --runs 10+ before\n` +
+      `  acting on it.`
   );
 }
 

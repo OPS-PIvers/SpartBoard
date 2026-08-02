@@ -130,8 +130,10 @@ shift _is_ the bias.
 **Verdict rule:** compare B against D — identical bytes, one primed to expect a
 trill, one unprimed. If B reports `/r/` where D reports `/ɾ/`, the model is
 answering from the prompt rather than the waveform, and the server-side path is
-disqualified. Each condition runs 5× so a single sample cannot be mistaken for
-a trend.
+disqualified. Each condition runs 10× (the script's default) so a single sample
+cannot be mistaken for a trend. Fewer than 10 is under-powered — a 2/5 vs 4/5
+split clears the threshold at Fisher p ≈ 0.5, i.e. pure noise — and the script
+warns before spending any API calls so an under-powered run can be aborted.
 
 **Caveat, load-bearing:** the clips are espeak-ng synthesis, not real learner
 speech. The tap/trill contrast is unambiguously clean, which makes this a
@@ -269,7 +271,7 @@ transcript. Environment variable changes apply to **new** sessions. Then:
 
 ```
 cd scripts/spikes/pronunciation-bias-probe
-node bias-probe.mjs --runs 5
+node bias-probe.mjs
 ```
 
 Sanity-check the variable first — a Gemini key is ~39 characters:
