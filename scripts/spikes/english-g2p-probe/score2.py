@@ -28,6 +28,13 @@ def cmu_phones(ph):
     out=[]
     for p in ph:
         m=re.match(r'([A-Z]+)(\d)?$',p)
+        # Never fires on real CMUDict -- 0 of 799,783 tokens -- but a named error beats
+        # `AttributeError: 'NoneType' object has no attribute 'group'` if this is ever
+        # pointed at another lexicon. Reports the whole entry, not just the token:
+        # cmu_phones() receives only the phone list, so that is as close as it can get
+        # to naming the offending word.
+        if m is None:
+            raise ValueError(f"Unrecognised CMUDict phoneme {p!r} in entry {ph!r}")
         out.append((m.group(1), int(m.group(2)) if m.group(2) else 0))
     return out
 
