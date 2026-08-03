@@ -1,0 +1,8 @@
+# Generated / downloaded data — regenerate with the steps in RESULTS.md (~19 MB)
+cmudict.dict
+g10k.txt
+words.txt
+*.json
+*.pdf
+*.txt
+!RESULTS.md
