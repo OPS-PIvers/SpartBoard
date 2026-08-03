@@ -1,5 +1,5 @@
 import json
-exec(open('score2.py').read().split("cmu=json.load")[0])
+from score2 import esp_phones, cmu_phones
 cmu=json.load(open('cmu.json')); esp=json.load(open('espeak.json'))
 CMUP={w:[cmu_phones(v) for v in vs] for w,vs in cmu.items()}
 RED={'AH','IH','IY','UH','ER'}

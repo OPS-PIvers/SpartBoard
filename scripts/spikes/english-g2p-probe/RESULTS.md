@@ -246,9 +246,11 @@ python3 split.py        # accuracy broken down by resolution path
 python3 teacher.py      # K-12 practice corpus + CMUDict cross-check flag rate
 ```
 
-`score2.py` holds the shared ARPAbet/IPA helpers (`esp_phones`, `cmu_phones`, `ed`, `VOW`);
-the other scorers `exec` its header. `score.py` and `score3.py` are earlier iterations kept
-for provenance.
+`score2.py` holds the shared ARPAbet/IPA helpers (`esp_phones`, `cmu_phones`, `ed`, `VOW`)
+and the other scorers import them directly; its own analysis is behind an
+`if __name__ == "__main__":` guard, so importing it does not require `cmu.json` or
+`espeak.json` to exist. `score.py` and `score3.py` are earlier iterations kept for
+provenance.
 
 ## Sources
 

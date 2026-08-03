@@ -57,39 +57,43 @@ def ed(a,b):
         prev=cur
     return prev[n]
 
-cmu=json.load(open('cmu.json')); esp=json.load(open('espeak.json'))
-CMUP={w:[cmu_phones(v) for v in vs] for w,vs in cmu.items()}
+# Everything below runs only when this file is executed directly. The other
+# scorers do `from score2 import esp_phones, cmu_phones, VOW, ed`, so importing
+# must not touch cmu.json / espeak.json — they may not exist yet.
+if __name__ == "__main__":
+    cmu=json.load(open('cmu.json')); esp=json.load(open('espeak.json'))
+    CMUP={w:[cmu_phones(v) for v in vs] for w,vs in cmu.items()}
 
-def ev(words,label,collect=False):
-    n=ex=pr=stx=0; pe=pt=0; wrong=[]
-    for w in words:
-        if w not in CMUP or w not in esp: continue
-        n+=1
-        h=esp_phones(esp[w]); refs=CMUP[w]
-        okx=any(plain(h)==plain(r) for r in refs)
-        okp=any(practice(h)==practice(r) for r in refs)
-        oks=any(stresspat(h)==stresspat(r) for r in refs)
-        ex+=okx; pr+=okp; stx+=oks
-        if collect and not okp: wrong.append((w,' '.join(plain(h)),' '.join(plain(refs[0]))))
-        b=min((ed(plain(h),plain(r)),len(r)) for r in refs)
-        pe+=b[0]; pt+=b[1]
-    print(f"{label:44s} n={n:7d}  exact={ex/n*100:5.1f}%  practice={pr/n*100:5.1f}%  stress={stx/n*100:5.1f}%  PER={pe/pt*100:4.1f}%")
-    return wrong
+    def ev(words,label,collect=False):
+        n=ex=pr=stx=0; pe=pt=0; wrong=[]
+        for w in words:
+            if w not in CMUP or w not in esp: continue
+            n+=1
+            h=esp_phones(esp[w]); refs=CMUP[w]
+            okx=any(plain(h)==plain(r) for r in refs)
+            okp=any(practice(h)==practice(r) for r in refs)
+            oks=any(stresspat(h)==stresspat(r) for r in refs)
+            ex+=okx; pr+=okp; stx+=oks
+            if collect and not okp: wrong.append((w,' '.join(plain(h)),' '.join(plain(refs[0]))))
+            b=min((ed(plain(h),plain(r)),len(r)) for r in refs)
+            pe+=b[0]; pt+=b[1]
+        print(f"{label:44s} n={n:7d}  exact={ex/n*100:5.1f}%  practice={pr/n*100:5.1f}%  stress={stx/n*100:5.1f}%  PER={pe/pt*100:4.1f}%")
+        return wrong
 
-allw=sorted(CMUP)
-freq=[w.strip() for w in open('g10k.txt') if w.strip()]
-freq=[w for w in freq if w in CMUP]
-print("METRIC KEY: exact = exact ARPAbet phone match ignoring stress; practice = unstressed vowels")
-print("collapsed + T/D flap collapsed + cot-caught merged; stress = stress pattern match; PER = phone edit rate\n")
-ev(allw,'ALL CMUDict headwords (117k, name-heavy)')
-ev(freq[:1000],'Top 1000 frequency words')
-ev(freq[:2000],'Top 2000 frequency words')
-ev(freq[:5000],'Top 5000 frequency words')
-w=ev(freq[:10000],'Top ~10000 frequency words',collect=True)
-tail=[x for x in allw if x not in set(freq)]
-ev(tail,'CMUDict MINUS top-10k (rare words + surnames)')
-print("\n--- mismatches (practice metric) inside top-10k frequency band, sample 45 ---")
-random.seed(3)
-for a,b,c in random.sample(w,45): print(f'  {a:18s} espeak={b:34s} cmu={c}')
-print(f'\ntotal practice-metric mismatches in top-10k band: {len(w)}')
-json.dump(w,open('wrong_freq.json','w'))
+    allw=sorted(CMUP)
+    freq=[w.strip() for w in open('g10k.txt') if w.strip()]
+    freq=[w for w in freq if w in CMUP]
+    print("METRIC KEY: exact = exact ARPAbet phone match ignoring stress; practice = unstressed vowels")
+    print("collapsed + T/D flap collapsed + cot-caught merged; stress = stress pattern match; PER = phone edit rate\n")
+    ev(allw,'ALL CMUDict headwords (117k, name-heavy)')
+    ev(freq[:1000],'Top 1000 frequency words')
+    ev(freq[:2000],'Top 2000 frequency words')
+    ev(freq[:5000],'Top 5000 frequency words')
+    w=ev(freq[:10000],'Top ~10000 frequency words',collect=True)
+    tail=[x for x in allw if x not in set(freq)]
+    ev(tail,'CMUDict MINUS top-10k (rare words + surnames)')
+    print("\n--- mismatches (practice metric) inside top-10k frequency band, sample 45 ---")
+    random.seed(3)
+    for a,b,c in random.sample(w,45): print(f'  {a:18s} espeak={b:34s} cmu={c}')
+    print(f'\ntotal practice-metric mismatches in top-10k band: {len(w)}')
+    json.dump(w,open('wrong_freq.json','w'))

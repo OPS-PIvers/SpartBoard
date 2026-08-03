@@ -1,5 +1,5 @@
 import json, re, collections, random
-exec(open('score2.py').read().split("cmu=json.load")[0])   # reuse esp_phones/cmu_phones/VOW/ed
+from score2 import esp_phones, cmu_phones, VOW, ed
 
 cmu=json.load(open('cmu.json')); esp=json.load(open('espeak.json'))
 CMUP={w:[cmu_phones(v) for v in vs] for w,vs in cmu.items()}
