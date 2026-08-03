@@ -190,6 +190,13 @@ never score every student 0.
 
 ### A10 — Any accepted stress variant scores full credit
 
+> **Narrowed by [#2359](https://github.com/OPS-PIvers/SpartBoard/issues/2359).**
+> The rule itself survives unchanged, but the encoding does not: `accepted` is
+> a list of acceptable **syllable indices** (`number[]`), not a list of
+> per-syllable patterns (`number[][]`), and partial per-syllable agreement is
+> gone — stress scores 100 or 0. See
+> [`../stress-detection/DECISIONS.md`](../stress-detection/DECISIONS.md) §S1.
+
 A question stores **every regionally acceptable stress pattern**, and matching
 any one of them scores 100 on the stress dimension. Partial agreement scores
 the best per-syllable match across the variants.
@@ -217,6 +224,17 @@ it is the state **every** question is in until the accepted-variant reference
 exists, which is why A9's weight defaults to 0 in the meantime.
 
 #### A10b — A syllable-count mismatch counts against the score
+
+> **SUPERSEDED by [#2359](https://github.com/OPS-PIvers/SpartBoard/issues/2359)
+> — see [`../stress-detection/DECISIONS.md`](../stress-detection/DECISIONS.md)
+> §S3.** The stress stage reports a single stressed-syllable index rather than
+> a per-syllable pattern, and the engine maps it onto the target syllable
+> through the alignment it already computes. There is no longer any comparison
+> of syllable counts, so the mismatch this decision priced does not arise. The
+> risk recorded below — noisy segmentation manufacturing errors — is now
+> structurally absent rather than bounded by a low weight. The tests below
+> stay green because this spike is the accepted record of #2335 and is
+> imported by nothing; **feature code takes the #2359 shape.**
 
 Agreement is measured over the **longer** of the two patterns. Detected
 `[1,1,0,1]` against an accepted `[1,0]` scores 1/4, not 1/2 — producing the
