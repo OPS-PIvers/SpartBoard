@@ -7,7 +7,7 @@ a decision ticket on the [Wayfinder Map: Multilingual Pronunciation Engine](http
 (S1–S5) and supplies the reference that lets **A9's stress weight leave 0**.
 
 **Contents.** `reference.ts` is a reference implementation, `reference.test.ts`
-the executable form of every decision below (49 tests), `measure/` the
+the executable form of every decision below (50 tests), `measure/` the
 harnesses that produced every number quoted here. Neither is wired into the
 app nor imported by feature code — a spike directory, like its four
 siblings. It runs under `pnpm test`, so a later change that violates one of
@@ -181,7 +181,13 @@ That is the same category error S5 closed: a value meaning "we do not know"
 must not be spelled as a value that means something else.
 
 Consequently `confirmReference` **requires the true count as an argument** when
-the stored one is `null`. The obligation is in the type rather than left as an
+the stored one is `null` — and **throws if one is supplied when the stored
+count is already known.** A known count is not overridable: it is in the
+model's nucleus space, so "correcting" it toward a human's count would store
+an index the detector can never emit, scoring 0 forever against a reference
+that looks right. `camera → kˈæmɹə` genuinely has two nuclei there. Overriding
+is not a repair, it is a way to make the reference unreachable, so it fails
+loudly at authoring time rather than silently in a grade. The obligation is in the type rather than left as an
 implicit contract, because [#2341](https://github.com/OPS-PIvers/SpartBoard/issues/2341)
 is the code that has to satisfy it: **rescuing an unrenderable word means the
 authoring UI supplying the syllable count from outside this reference.**

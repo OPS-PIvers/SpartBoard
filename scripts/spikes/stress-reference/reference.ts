@@ -106,6 +106,10 @@ export type ReferenceSource =
  * words**, zero in Spanish and English. It is the `UR` phoneme — `durch` is
  * `d'URC` in espeak's own scheme and `dˈ??ç` in IPA — and it hits a common
  * word class: `wurde durch kurz geburt sturm urteil ursache`.
+ *
+ * Plain ASCII `?`, and an **espeak-specific sentinel rather than a phoneme**:
+ * it is not a valid IPA glyph and cannot occur in a real transcription, which
+ * is why substring-matching it is safe rather than a heuristic.
  */
 export const UNRENDERABLE_MARK = '?';
 
@@ -326,12 +330,32 @@ export function needsAuthoringPrompt(ref: StressReference): boolean {
  * authoring UI supplying it. The parameter is required rather than defaulted
  * so the obligation is visible in the type instead of being an implicit
  * contract a caller can miss.
+ *
+ * **When `ref.syllableCount` is already known, passing `syllableCount` throws.**
+ * A known count is not overridable: it is in the MODEL's nucleus space, which
+ * is the space the detector ranks in, so "correcting" it toward a human's
+ * count would store an index the detector can never emit — scoring 0 forever
+ * against a reference that looks correct. It throws rather than being ignored
+ * so a caller who believes espeak miscounted finds out here, not in a grade.
  */
 export function confirmReference(
   ref: StressReference,
   chosen: number[],
   syllableCount?: number
 ): StressReference {
+  if (ref.syllableCount !== null && syllableCount !== undefined) {
+    // A KNOWN count may not be overridden, and silently ignoring the argument
+    // would hide that. The count is in the MODEL's nucleus space, which is the
+    // space the detector ranks in — not a teacher's. `camera → kˈæmɹə` really
+    // does have two nuclei there, so "correcting" it to a human's three would
+    // let an index the detector can never emit be stored, scoring 0 forever
+    // against a reference that looks right. Overriding is not a repair, it is
+    // a way to make the reference unreachable.
+    throw new RangeError(
+      `syllableCount may only be supplied when the stored count is unknown; ` +
+        `this reference already has ${ref.syllableCount}`
+    );
+  }
   const count = ref.syllableCount ?? syllableCount;
   if (count === undefined) {
     throw new RangeError(

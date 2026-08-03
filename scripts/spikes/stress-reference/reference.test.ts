@@ -294,6 +294,20 @@ describe('R1b — an unrenderable espeak symbol yields no reference', () => {
     const r = deriveReference({ lang: 'de', espeakIpa: 'ɡəbˈ??t' });
     expect(() => confirmReference(r, [3], 2)).toThrow(RangeError);
   });
+
+  it('refuses to override a count that is already KNOWN', () => {
+    // Not a repair — a way to make the reference unreachable. `camera` really
+    // does have two nuclei in the model's space (kˈæmɹə), so "correcting" it
+    // to a human's three would store an index the detector can never emit,
+    // scoring 0 forever against a reference that looks right. Throws rather
+    // than being ignored so a caller who believes espeak miscounted finds out
+    // here instead of in a grade.
+    const r = deriveReference({ lang: 'en', espeakIpa: 'kˈæmɹə' });
+    expect(r.syllableCount).toBe(2);
+    expect(() => confirmReference(r, [1], 3)).toThrow(RangeError);
+    expect(() => confirmReference(r, [1], 2)).toThrow(RangeError); // even if it agrees
+    expect(confirmReference(r, [1]).syllableCount).toBe(2); // the supported call
+  });
 });
 
 describe('no derived reference may contain an out-of-range index', () => {
@@ -352,6 +366,12 @@ describe('no derived reference may contain an out-of-range index', () => {
     // one, an empty one, and a malformed out-of-range one. The first version
     // of this sweep only did the first, which is how the cross-check bounds
     // hole survived it.
+    //
+    // Read for what it is: a BOUNDS invariant, not decision coverage. The
+    // monosyllabic fixtures short-circuit before the R1a count guard, so this
+    // sweep does not exercise R1a for them — the `camera` case in the R1 block
+    // is what covers that. A sweep this wide looks like it proves more than it
+    // does.
     const crossChecks: Array<StressReading | undefined> = [
       undefined,
       reading(1, [1]),
