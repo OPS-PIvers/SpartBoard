@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
 _Last audited: 2026-08-03_
-_Last action: 2026-07-29_
+_Last action: 2026-08-03_
 
 ---
 
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-03 (Monday, action): Closed Priority 1 of the MEDIUM "utils/ files with complex logic have no test coverage" item — `utils/spotifyAuth.ts`, the highest-priority Open across today's reading list (daily journals: widget-registry no open items, css-scaling only LOW, typescript-eslint none; Monday weeklies top out at MEDIUM, and test-coverage is first in the reading order so its first MEDIUM wins). File-recency check passed: `utils/spotifyAuth.ts` was last touched at `c185cd6b` (2026-06-27), far outside the last 5 branch commits (f7d341fa, 598cc13f, d0cef414, 67bad4cc, ee5509fc). Added `tests/utils/spotifyAuth.test.ts` (37 tests) covering: the PKCE authorize-URL construction + popup messaging protocol (`runSpotifyAuthPopup` — auth-bypass short-circuit, missing `VITE_SPOTIFY_CLIENT_ID`, popup-blocked, the S256 `code_challenge`/`state`/`show_dialog` URL params, code capture via postMessage, wrong-origin + mismatched-state rejection, `access_denied`→cancelled, non-cancel error passthrough, `callback-missing-code`, and user-closed-popup detection via the 500ms closed-poll interval under fake timers); the in-memory access-token cache with its 60s skew, inflight-dedup, and cache-generation guard (`getValidAccessToken`/`getValidAccessTokenOrNull` — cache hit, near-expiry refresh, empty-cache refresh-then-serve, needs-consent `FunctionsError`, transient generic error, concurrent-dedup, mid-flight cache-clear `no-cache-bump`, auth-bypass); and the callable wrappers (`exchangeSpotifyCode` success/needs-consent/error, `disconnectSpotify` ok/failure/auth-bypass with cache-clear verification). Built on a partial `firebase/functions` mock (per-function-name handler registry via `httpsCallable`, REAL `FunctionsError` kept via `importOriginal` so `err instanceof FunctionsError` + `err.details` branches run faithfully) and a `@/config/firebase` mock with a live-getter `isAuthBypass`. `pnpm exec vitest run tests/utils/spotifyAuth.test.ts` → 37 passing; `pnpm run type-check`, `pnpm exec eslint --max-warnings 0`, and `pnpm exec prettier --check` all clean. Progress note added to the MEDIUM utils/ complex-logic item; `spotifyAuth.ts` removed from its untested File list. Remaining Priority 3 (`plcActivity.ts`) still open. All other existing open items remain valid._
 
 _2026-08-03: Weekly coverage audit (Monday). pnpm test: exit 0, 588 files / 7129 tests all passing (up from 587/7108 on the 2026-07-29 audit run — net +1 file, +21 tests from the 2026-07-29 action adding `functions/src/studentIdentity.test.ts`). New dev-paul commits since 2026-07-29 absorbed via rebase: docs(spike) multilingual pronunciation plan (#2343 — spike-doc commits only; no new source files). fix(GraphicOrganizer) hide dead fontColor picker in appearance settings (12f86641 — appearance settings panel UI change; no new untested source files). No HIGH items remain in this journal (hooks/ session coverage closed 2026-07-06; security-critical utils/hooks HIGH closed 2026-07-29). All existing MEDIUM/LOW items confirmed unchanged (MEDIUM utils/ complex-logic gaps — spotifyAuth, imageProcessing, plcActivity etc.; MEDIUM Cloud Function execution paths — generateWithAI, generateVideoActivity, Spotify OAuth funcs; MEDIUM utils/ coverage untested files; LOW widget coverage ~17 remaining). Zero new gaps detected._
 
@@ -41,10 +43,11 @@ _2026-06-22: Full audit. Test suite: 516 files / 5697 tests, all passing (up fro
 ### MEDIUM utils/ files with complex logic have no test coverage
 
 - **Detected:** 2026-06-22
+- **Progress (2026-08-03, action):** `spotifyAuth.ts` now covered by `tests/utils/spotifyAuth.test.ts` (37 tests) — Priority 1 done. Removed from the File list below. Remaining Priority 3 `plcActivity.ts` still open (Priority 2 `quizAudio.ts` closed 2026-07-13).
 - **Progress (2026-07-13, action):** `quizAudio.ts` now covered by `tests/utils/quizAudio.test.ts` (13 tests) — Priority 2 done. Removed from the File list below. Remaining Priority 1 `spotifyAuth.ts` and Priority 3 `plcActivity.ts` still open.
-- **File:** utils/spotifyAuth.ts, utils/imageProcessing.ts, utils/plcActivity.ts, utils/guidedLearningDriveService.ts, utils/shortLinksApi.ts, utils/pexelsService.ts, utils/previewMode.ts, utils/lastActiveThrottle.ts, utils/classroomCourses.ts
+- **File:** utils/imageProcessing.ts, utils/plcActivity.ts, utils/guidedLearningDriveService.ts, utils/shortLinksApi.ts, utils/pexelsService.ts, utils/previewMode.ts, utils/lastActiveThrottle.ts, utils/classroomCourses.ts
 - **Detail:** 30 of 152 utils/ files (19.7%) have no test coverage. The highest-risk untested files: `spotifyAuth.ts` — PKCE challenge generation, popup window management, in-memory token caching (security-critical OAuth flow); `imageProcessing.ts` — web worker lifecycle, canvas trim algorithm, error handling; `plcActivity.ts` — fire-and-forget Firestore writer with error suppression, isForeignMentionEvent classification; `quizAudio.ts` — AudioContext singleton management, Safari fallback, oscillator synthesis; `guidedLearningDriveService.ts` — Google Drive JSON read/write, permission/404 error paths; `lastActiveThrottle.ts` — throttle window calculation, write suppression on rapid events; `classroomCourses.ts` — Google Classroom course pagination and metadata normalization.
-- **Fix:** Priority 1 — `spotifyAuth.ts` (PKCE generation, token cache, popup messaging protocol). ~~Priority 2 — `quizAudio.ts`~~ ✓ done 2026-07-13. Priority 3 — `plcActivity.ts` (isForeignMentionEvent logic, Firestore error suppression). Use `vi.mock('firebase/firestore')` and `vi.stubGlobal('AudioContext', ...)` patterns from existing test files as reference.
+- **Fix:** ~~Priority 1 — `spotifyAuth.ts`~~ ✓ done 2026-08-03. ~~Priority 2 — `quizAudio.ts`~~ ✓ done 2026-07-13. Priority 3 — `plcActivity.ts` (isForeignMentionEvent logic, Firestore error suppression). Use `vi.mock('firebase/firestore')` and `vi.stubGlobal('AudioContext', ...)` patterns from existing test files as reference.
 
 ### MEDIUM functions/src/ Cloud Function execution paths lack test coverage
 
