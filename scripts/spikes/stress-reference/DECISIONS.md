@@ -7,7 +7,7 @@ a decision ticket on the [Wayfinder Map: Multilingual Pronunciation Engine](http
 (S1–S5) and supplies the reference that lets **A9's stress weight leave 0**.
 
 **Contents.** `reference.ts` is a reference implementation, `reference.test.ts`
-the executable form of every decision below (44 tests), `measure/` the
+the executable form of every decision below (46 tests), `measure/` the
 harnesses that produced every number quoted here. Neither is wired into the
 app nor imported by feature code — a spike directory, like its four
 siblings. It runs under `pnpm test`, so a later change that violates one of
@@ -194,6 +194,13 @@ therefore never degrades. `confirmReference` already rejected such indices on
 the teacher path; **the derivation path must not be able to produce what
 confirmation forbids**, so out-of-range marks are dropped and a test asserts
 the invariant across every fixture in the suite.
+
+The same bound applies to the **cross-check's** indices, which are
+caller-supplied. An out-of-range one is not a disagreement but a malformed
+cross-check, so it is dropped and, if nothing survives, routed to R1a's
+no-opinion path rather than raising a flag. Neither CMUDict nor R3's rule can
+produce one; `deriveReference` enforces it because feature code will call it
+with data neither of those produced.
 
 _Surfaced in review of [PR #2365](https://github.com/OPS-PIvers/SpartBoard/pull/2365),
 where the reported risk was a trailing bare mark and was judged academic

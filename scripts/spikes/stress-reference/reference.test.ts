@@ -306,6 +306,32 @@ describe('no derived reference may contain an out-of-range index', () => {
     expect(parseEspeak('bˈɛtɚˈ')).toEqual({ syllableCount: 2, primary: [1] });
   });
 
+  it('drops an out-of-range CROSS-CHECK index instead of storing it', () => {
+    // The sweep below originally missed this because it only exercised
+    // fixtures with no cross-check. Neither CMUDict nor R3 can produce an
+    // out-of-range index, but deriveReference takes caller-supplied data.
+    const r = deriveReference({
+      lang: 'en',
+      espeakIpa: 'ɐdɹˈɛs',
+      crossCheck: reading(2, [3]),
+    });
+    expect(r.accepted).toEqual([2]);
+    expect(r.accepted).not.toContain(3);
+  });
+
+  it('treats a wholly out-of-range cross-check as no opinion, not disagreement', () => {
+    // A malformed cross-check is not evidence of a second reading, so it must
+    // not raise the R1 flag — that is R1a's reasoning applied to a different
+    // way of being incomparable.
+    const r = deriveReference({
+      lang: 'en',
+      espeakIpa: 'ɐdɹˈɛs',
+      crossCheck: reading(2, [3]),
+    });
+    expect(r.flagged).toBe(false);
+    expect(r.source).toBe('espeak');
+  });
+
   it('holds across every fixture in this suite', () => {
     const fixtures: Array<[Lang, string]> = [
       ['en', 'wˈiːkɛnd'],
@@ -322,7 +348,31 @@ describe('no derived reference may contain an out-of-range index', () => {
       ['de', 'fɪlˈaɪçt'],
       ['de', 'dˈ??ç'],
     ];
+    // Sweep each fixture with NO cross-check, an agreeing one, a disagreeing
+    // one, an empty one, and a malformed out-of-range one. The first version
+    // of this sweep only did the first, which is how the cross-check bounds
+    // hole survived it.
+    const crossChecks: Array<StressReading | undefined> = [
+      undefined,
+      reading(1, [1]),
+      reading(2, [1]),
+      reading(2, [2]),
+      reading(2, []),
+      reading(2, [3]),
+      reading(3, [9]),
+    ];
     for (const [lang, ipa] of fixtures) {
+      for (const crossCheck of crossChecks) {
+        const rr = deriveReference({ lang, espeakIpa: ipa, crossCheck });
+        if (rr.syllableCount === null) {
+          expect(rr.accepted).toEqual([]);
+          continue;
+        }
+        for (const i of rr.accepted) {
+          expect(i).toBeGreaterThanOrEqual(1);
+          expect(i).toBeLessThanOrEqual(rr.syllableCount);
+        }
+      }
       const r = deriveReference({ lang, espeakIpa: ipa });
       if (r.syllableCount === null) {
         // An unknown count can bound nothing, so the only safe accepted list

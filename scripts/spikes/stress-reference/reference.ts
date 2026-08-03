@@ -229,7 +229,15 @@ export function deriveReference(input: DeriveInput): StressReference {
     };
   }
 
-  const cc = dedupe(crossCheck.primary);
+  // An out-of-range cross-check index is not a disagreement, it is a
+  // malformed cross-check — so it is dropped here rather than flagged, which
+  // routes it to R1a's no-opinion path below if nothing survives. Neither
+  // CMUDict nor R3's orthographic rule can produce one, but `deriveReference`
+  // takes caller-supplied data and must enforce the same bounds invariant
+  // `confirmReference` already enforces on the teacher path.
+  const cc = dedupe(crossCheck.primary).filter(
+    (i) => i >= 1 && i <= esp.syllableCount
+  );
   if (cc.length === 0) {
     return {
       ...base,
