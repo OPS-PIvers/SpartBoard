@@ -13,7 +13,7 @@ def norm(seq, reduce_vowels):
         if ph=='NG' and nxt in ('K','G'): ph='N'          # velar nasal assimilation
         if ph in ('T','D'): ph='TD'                        # flapping
         if ph in ('AA','AO'): ph='LOT'                     # cot-caught
-        if ph in ('OW','AO','LOT') and nxt=='R': ph='OHR'  # north/force merger
+        if ph in ('OW','LOT') and nxt=='R': ph='OHR'       # north/force merger
         o.append(ph); os_.append(s)
     # collapse ER R -> ER, R R -> R, and any doubled identical phone
     o2=[];s2=[]
