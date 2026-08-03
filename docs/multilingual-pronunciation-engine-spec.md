@@ -368,6 +368,17 @@ of the alignment engine.
 > generates (`Expected /r/, detected /ɹ/`). Human-readable phoneme names are an
 > additional lookup table the code does not yet have.
 
+> **Correction — this example's numbers are wrong** (found while writing it as
+> a test, resolving #2335). `score: 75, passed: false` is not reachable from
+> the stated inputs. One substitution in six target phonemes gives
+> `PER = 1/6 = 0.167`, and §5.1's formula
+> `Accuracy = max(0, round((1 - PER) × 100))` yields **83**, which clears the
+> Close threshold of 80 — so this utterance **passes** at Close, and only fails
+> at Exact. A score of 75 would require `PER = 0.25`, i.e. two errors in eight
+> phonemes. Do not calibrate thresholds against the 75. The corrected example
+> is pinned as a test in
+> `scripts/spikes/alignment-engine/engine.test.ts`.
+
 ---
 
 ## 7. Visual UI annotation component
