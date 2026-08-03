@@ -19,12 +19,11 @@ src={}
 for f in ['src_top-1000.json','src_rank_1000-3000.json','src_rank_5000-10000.json']:
     src.update(json.load(open(f)))
 for kind in ['letter-to-sound rules','dictionary entry']:
-    for lab,sel in [('all sampled',None)]:
-        ws=[w for w,k in src.items() if k==kind]
-        n=a=b=0
-        for w in ws:
-            if w not in CMUP: continue
-            n+=1; h=esp_phones(esp[w]); R=CMUP[w]
-            a+=any(conv(h)==conv(r) for r in R)
-            b+=any(redu(conv(h))==redu(conv(r)) for r in R)
-        print(f"{kind:24s} n={n:5d}  segments={a/n*100:5.1f}%  segments+reduction={b/n*100:5.1f}%")
+    ws=[w for w,k in src.items() if k==kind]
+    n=a=b=0
+    for w in ws:
+        if w not in CMUP: continue
+        n+=1; h=esp_phones(esp[w]); R=CMUP[w]
+        a+=any(conv(h)==conv(r) for r in R)
+        b+=any(redu(conv(h))==redu(conv(r)) for r in R)
+    print(f"{kind:24s} n={n:5d}  segments={a/n*100:5.1f}%  segments+reduction={b/n*100:5.1f}%")

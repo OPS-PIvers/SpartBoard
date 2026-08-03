@@ -5,4 +5,3 @@ words.txt
 *.json
 *.pdf
 *.txt
-!RESULTS.md

@@ -68,6 +68,20 @@ years apart, agreeing to within a point is good evidence the mapping and scoring
 Spot-checks confirm it: _island, choir, yacht, colonel, one, said, friend, subtle, women,
 busy, laughter, daughter, through, though, thought_ all come out correct.
 
+### Independent reproduction
+
+The whole pipeline was later re-run from scratch — fresh `cmudict.dict` and
+`google-10000-english` downloads, corpora rebuilt, espeak re-run over all 117k words — in a
+different session from the one that produced the table above. Every rate reproduced
+identically, including the practice corpus (94.1% / 97.1% / 91.5%, 340/341 CMUDict coverage
+with _piñata_ the sole miss) and the rules-vs-dictionary split (77.1%/22.9% at top-1000).
+
+Two cells drifted, from re-downloading upstream data rather than from the harness: the
+top-10k band matched **9,425** words against CMUDict rather than 9,428 (and its stress
+figure 87.7% rather than 87.8%), and the complement band 108,068 rather than 108,076. All
+accuracy rates were unchanged to 0.1pp. Worth knowing that these corpora are not pinned —
+anyone re-running should expect single-digit membership drift and record the download date.
+
 ### Rules are not the weak part
 
 Split by espeak's own resolution path:
