@@ -37,6 +37,9 @@ def ev(words,label):
         if not okR: resid.append((w,' '.join(x for x,_ in h),' '.join(x for x,_ in refs[0])))
         H=norm(h,False); b=min((ed(H,norm(r,False)),len(norm(r,False))) for r in refs)
         pe+=b[0]; pt+=b[1]
+    if n==0:
+        print(f"{label:42s} n=      0 | no words matched. Are cmu.json and espeak.json built?")
+        return resid
     print(f"{label:42s} n={n:7d} | raw={raw/n*100:5.1f}% | +conventions={nseg/n*100:5.1f}% | +vowel-reduction={nred/n*100:5.1f}% | PER={pe/pt*100:4.1f}%")
     return resid
 
@@ -55,5 +58,5 @@ ev([x for x in allw if x not in fs],'CMUDict minus top-10k (rare + surnames)')
 print(f"\nresidual errors in top-5000 band: {len(r5)}; in top-10k band: {len(r10)}")
 print("\n--- residual sample (top-5000 band), 50 ---")
 random.seed(7)
-for a,b,c in random.sample(r5,50): print(f'  {a:18s} espeak={b:32s} cmu={c}')
+for a,b,c in random.sample(r5,min(50,len(r5))): print(f'  {a:18s} espeak={b:32s} cmu={c}')
 json.dump(r10,open('resid10.json','w')); json.dump(r5,open('resid5.json','w'))

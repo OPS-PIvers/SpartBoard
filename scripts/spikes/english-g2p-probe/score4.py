@@ -29,6 +29,9 @@ def ev(words,label,keep=False):
         d+= any(stresspat(h)==stresspat(r) for r in R)
         if keep and not okr: res.append((w,' '.join(x for x,_ in h),' '.join(x for x,_ in R[0])))
         H=conv(h); m=min((ed(H,conv(r)),len(conv(r))) for r in R); pe+=m[0]; pt+=m[1]
+    if n==0:
+        print(f"{label:40s} n=     0 | no words matched. Are cmu.json and espeak.json built?")
+        return res
     print(f"{label:40s} n={n:6d} | literal {a/n*100:5.1f}% | segments {b/n*100:5.1f}% | segments+reduction {c/n*100:5.1f}% | stress {d/n*100:5.1f}% | PER {pe/pt*100:4.1f}%")
     return res
 
@@ -46,5 +49,5 @@ ev([x for x in allw if x not in fs],'CMUDict minus top-10k')
 print(f"\nresidual (segments+reduction failures) in top-5000: {len(r)}")
 print("--- residual sample 60 ---")
 random.seed(11)
-for x in random.sample(r,60): print(f'  {x[0]:18s} espeak={x[1]:32s} cmu={x[2]}')
+for x in random.sample(r,min(60,len(r))): print(f'  {x[0]:18s} espeak={x[1]:32s} cmu={x[2]}')
 json.dump(r,open('resid_final.json','w'))

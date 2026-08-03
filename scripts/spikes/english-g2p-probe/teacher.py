@@ -52,8 +52,9 @@ inc=[w for w in words if w in CMUP]; miss=[w for w in words if w not in CMUP]
 print(f"corpus size {len(words)}; in CMUDict {len(inc)} ({len(inc)/len(words)*100:.1f}%); MISSING {len(miss)}: {miss}\n")
 n=a=b=st=0; res=[]
 for w in inc:
-    n+=1; h=esp_phones(esp[w]) if w in esp else None
-    if h is None: continue
+    h=esp_phones(esp[w]) if w in esp else None
+    if h is None: continue   # count only words we actually scored, else a partial
+    n+=1                     # espeak.json silently deflates every rate below
     R=CMUP[w]
     lit=any([x for x,_ in h]==[x for x,_ in r] for r in R)
     okc=any(conv(h)==conv(r) for r in R)
@@ -61,6 +62,9 @@ for w in inc:
     ss=any([s for p,s in h if p in VOW]==[s for p,s in r if p in VOW] for r in R)
     a+=okc; b+=okr; st+=ss
     if not okr: res.append((w,' '.join(x for x,_ in h),' | '.join(' '.join(x for x,_ in r) for r in R)))
+if n==0:
+    raise SystemExit("No corpus word was found in BOTH cmu.json and espeak.json — "
+                     "run prep.py and run_espeak.py first.")
 print(f"espeak-ng vs CMUDict on this corpus (n={n}):")
 print(f"  segment match (conventions normalised, stress ignored): {a/n*100:.1f}%")
 print(f"  + vowel-reduction tolerance:                            {b/n*100:.1f}%")

@@ -52,6 +52,9 @@ def evaluate(words, label):
         else: wrong.append((w,' '.join(hyp),' '.join(refs[0])))
         best=min((ed(hyp,r),len(r)) for r in refs)
         pe+=best[0]; pt+=best[1]
+    if n==0:
+        print(f"\n=== {label} — 0 words matched. Are cmu.json and espeak.json built? ===")
+        return wrong
     print(f"\n=== {label} (n={n}) ===")
     print(f"  word accuracy, exact ARPAbet match (no stress): {exact/n*100:.1f}%   WER {100-exact/n*100:.1f}%")
     print(f"  word accuracy, lenient (T/D flap, AH~IH reduction, AA~AO merger, UH~UW): {lenient/n*100:.1f}%   WER {100-lenient/n*100:.1f}%")
@@ -63,5 +66,5 @@ wrong=evaluate(allw,'FULL CMUDict headwords (alphabetic)')
 print('\nunmapped espeak chars:', dict(unmapped))
 print('\nsample of 40 mismatches:')
 import random; random.seed(1)
-for w,h,r in random.sample(wrong,40): print(f'  {w:22s} espeak={h:38s} cmu={r}')
+for w,h,r in random.sample(wrong,min(40,len(wrong))): print(f'  {w:22s} espeak={h:38s} cmu={r}')
 json.dump(wrong, open('wrong_all.json','w'))

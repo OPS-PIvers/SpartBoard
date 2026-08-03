@@ -26,4 +26,7 @@ for kind in ['letter-to-sound rules','dictionary entry']:
         n+=1; h=esp_phones(esp[w]); R=CMUP[w]
         a+=any(conv(h)==conv(r) for r in R)
         b+=any(redu(conv(h))==redu(conv(r)) for r in R)
+    if n==0:
+        print(f"{kind:24s} n=    0  no words matched. Are cmu.json, espeak.json and src_*.json built?")
+        continue
     print(f"{kind:24s} n={n:5d}  segments={a/n*100:5.1f}%  segments+reduction={b/n*100:5.1f}%")

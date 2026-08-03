@@ -77,6 +77,9 @@ if __name__ == "__main__":
             if collect and not okp: wrong.append((w,' '.join(plain(h)),' '.join(plain(refs[0]))))
             b=min((ed(plain(h),plain(r)),len(r)) for r in refs)
             pe+=b[0]; pt+=b[1]
+        if n==0:
+            print(f"{label:44s} n=      0  -- no words matched. Are cmu.json and espeak.json built?")
+            return wrong
         print(f"{label:44s} n={n:7d}  exact={ex/n*100:5.1f}%  practice={pr/n*100:5.1f}%  stress={stx/n*100:5.1f}%  PER={pe/pt*100:4.1f}%")
         return wrong
 
@@ -94,6 +97,6 @@ if __name__ == "__main__":
     ev(tail,'CMUDict MINUS top-10k (rare words + surnames)')
     print("\n--- mismatches (practice metric) inside top-10k frequency band, sample 45 ---")
     random.seed(3)
-    for a,b,c in random.sample(w,45): print(f'  {a:18s} espeak={b:34s} cmu={c}')
+    for a,b,c in random.sample(w,min(45,len(w))): print(f'  {a:18s} espeak={b:34s} cmu={c}')
     print(f'\ntotal practice-metric mismatches in top-10k band: {len(w)}')
     json.dump(w,open('wrong_freq.json','w'))
