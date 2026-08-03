@@ -19,6 +19,13 @@ for i in range(0,len(words),CH):
         for w in chunk:
             q=subprocess.run(['espeak-ng','-v','en-us','-q','--ipa'],input=w,capture_output=True,text=True)
             t=q.stdout.split()
+            # Joined with '' rather than ' ' when espeak splits a word into several
+            # tokens. The separator is irrelevant downstream: esp_phones() segments by
+            # character/digraph and falls through anything unrecognised, so ' ' is
+            # discarded anyway -- esp_phones('ˈɛspɪk') == esp_phones('ˈɛ spɪk'). Worth
+            # knowing if this output is ever consumed by something expecting space-
+            # delimited phones. (4 of ~294 chunks took this path; 0 values in the
+            # resulting espeak.json contain a space and 0 are empty.)
             ipa=t[0] if len(t)==1 else ''.join(t)
             if not ipa:
                 raise RuntimeError(f"espeak-ng produced no output for {w!r} (rc={q.returncode}): {q.stderr.strip()[:200]!r}")
