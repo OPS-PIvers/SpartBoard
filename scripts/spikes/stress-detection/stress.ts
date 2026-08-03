@@ -232,6 +232,11 @@ export function mapToTargetSyllable(
   alignment: readonly AlignmentEntryLike[],
   targetPhonemes: readonly string[]
 ): number | null {
+  // Precondition, inherited from the #2335 engine: alignment entries with a
+  // non-null `spokenIPA` stand 1-to-1 with `spokenPhonemes`, in the same
+  // order — exactly one entry per spoken sound, never collapsed or expanded.
+  // If that contract ever changes, this walk misaligns silently rather than
+  // failing, so it is stated here where the assumption is actually made.
   // Entries carrying a spoken sound enumerate the spoken stream in order.
   let spokenCursor = -1;
   let entry: AlignmentEntryLike | undefined;

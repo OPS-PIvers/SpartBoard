@@ -154,6 +154,16 @@ degradation path (S5), not a zero.
 _Decided without asking_ — it follows from S3 but was not raised in the
 session. Flagged for review.
 
+#### A one-syllable word skips the ranking, not the mapping
+
+With a single nucleus there is no runner-up, so the S5 confidence margin has
+nothing to compare and is bypassed — prominence is not a meaningful judgement
+about a word with one syllable. The mapping still runs, so S3a and S3b apply
+unchanged and an unmappable single nucleus still degrades.
+
+This falls out of S1–S3 rather than being decided separately, and is recorded
+only so the path is not mistaken for a missing guard.
+
 #### S3b — A nucleus substituted over a target consonant is absent evidence
 
 When the winning nucleus aligns to a target **consonant**, no target nucleus
