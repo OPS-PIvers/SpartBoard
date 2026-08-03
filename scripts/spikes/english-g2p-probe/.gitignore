@@ -1,0 +1,9 @@
+# Pipeline data — downloaded or generated. Regenerate with the steps in RESULTS.md (~19 MB).
+cmudict.dict
+words.txt
+g10k.txt
+*.json
+
+# Ad-hoc reference material pulled while researching (papers, wordlists) is deliberately
+# NOT ignored — it shows up as untracked. Don't commit it, but better visible than silently
+# swallowed, which is what a blanket *.txt / *.pdf rule did here before.
