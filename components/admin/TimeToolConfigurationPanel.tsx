@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { BuildingSelector } from './BuildingSelector';
@@ -81,6 +81,8 @@ export const TimeToolConfigurationPanel: React.FC<
   const BUILDINGS = useAdminBuildings();
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
+  const accentColorLabelId = useId();
+  const trafficLightColorLabelId = useId();
 
   const buildingDefaults = config.buildingDefaults ?? {};
   const currentBuildingConfig: BuildingTimeToolDefaults = buildingDefaults[
@@ -285,8 +287,14 @@ export const TimeToolConfigurationPanel: React.FC<
         {/* Theme Color & Glow */}
         <div className="flex items-end justify-between gap-4">
           <div className="flex-1">
-            <SettingsLabel className="mb-1">Accent Color</SettingsLabel>
-            <div className="flex gap-1.5">
+            <SettingsLabel as="span" id={accentColorLabelId} className="mb-1">
+              Accent Color
+            </SettingsLabel>
+            <div
+              className="flex gap-1.5"
+              role="group"
+              aria-labelledby={accentColorLabelId}
+            >
               {WIDGET_PALETTE.map((color) => (
                 <button
                   key={color}
@@ -349,14 +357,22 @@ export const TimeToolConfigurationPanel: React.FC<
 
         {/* Timer End Traffic Light Color */}
         <div>
-          <SettingsLabel className="mb-1">
+          <SettingsLabel
+            as="span"
+            id={trafficLightColorLabelId}
+            className="mb-1"
+          >
             Timer-End Traffic Light Color
           </SettingsLabel>
           <p className="text-xxs text-slate-400 mb-2 leading-tight">
             Automatically sets the traffic light widget to this color when the
             timer reaches zero.
           </p>
-          <div className="flex gap-1.5">
+          <div
+            className="flex gap-1.5"
+            role="group"
+            aria-labelledby={trafficLightColorLabelId}
+          >
             {TRAFFIC_COLORS.map(({ value, label }) => (
               <button
                 key={String(value)}
