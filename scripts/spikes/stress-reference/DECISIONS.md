@@ -7,7 +7,7 @@ a decision ticket on the [Wayfinder Map: Multilingual Pronunciation Engine](http
 (S1–S5) and supplies the reference that lets **A9's stress weight leave 0**.
 
 **Contents.** `reference.ts` is a reference implementation, `reference.test.ts`
-the executable form of every decision below (35 tests), `measure/` the
+the executable form of every decision below (41 tests), `measure/` the
 harnesses that produced every number quoted here. Neither is wired into the
 app nor imported by feature code — a spike directory, like its four
 siblings. It runs under `pnpm test`, so a later change that violates one of
@@ -137,6 +137,53 @@ nuclei.
 
 _Decided without asking_ — it follows from R1 but was not raised in the
 session. Flagged for review, as S3a and S3b were.
+
+#### R1b — An unrenderable espeak symbol yields no reference at all
+
+**espeak writes a literal `?` where one of its internal phonemes has no entry
+in its IPA translation table.** Measured across the same corpora as everything
+else above:
+
+|        | words whose espeak IPA contains `?` |
+| ------ | ----------------------------------- |
+| **de** | **117 / 12,000 — 0.97%**            |
+| es     | 0 / 12,000                          |
+| en     | 0 / 9,974                           |
+
+It is the `UR` phoneme — `durch` is `d'URC` in espeak's own scheme and
+**`dˈ??ç`** in IPA — and it hits a common word class: _wurde, durch, kurz,
+geburt, sturm, urteil, ursache, geburtstag, verurteilt_.
+
+When this happens **both the syllable count and every index derived from it
+are untrustworthy**, so the derivation returns nothing and flags. Dropping
+just the bad index is not enough: `geburt → ɡəbˈ??t` scans as **one** nucleus,
+which would take the monosyllable path and assert stress on syllable 1 of a
+word whose vowel was never rendered.
+
+It **flags** rather than silently degrading, so R2's affordance surfaces it.
+Note this is **the only flag German can ever raise**, since R4 leaves it
+without a cross-check — and it is a German-only defect, which is a second
+independent reason German is the weakest of the three languages here.
+
+> **Does this contaminate R4's 86.24%?** No. Only **1 of the 9,365** scored
+> German words contains a `?`: losing a vowel changes the syllable count, so
+> R1a's count guard already excluded 46 of the 47 that reached scoring range.
+> Maximum swing **0.01pp**, against a 13-point gap. Worth checking rather than
+> assuming — the defect was found _after_ the decision was made.
+
+**Related invariant, same cause:** `parseEspeak` encodes a mark as "the next
+nucleus is primary", so a trailing bare `ˈ` would yield an index one past the
+end. Out-of-range is the worst value available — it can never match a detected
+syllable, so it scores every student 0 while `accepted` stays non-empty and
+therefore never degrades. `confirmReference` already rejected such indices on
+the teacher path; **the derivation path must not be able to produce what
+confirmation forbids**, so out-of-range marks are dropped and a test asserts
+the invariant across every fixture in the suite.
+
+_Surfaced in review of [PR #2365](https://github.com/OPS-PIvers/SpartBoard/pull/2365),
+where the reported risk was a trailing bare mark and was judged academic
+because "espeak never does this." Measuring it found a different, real cause
+producing the same bad value — see the map's rule 4._
 
 ### R2 — An unconfirmed flag degrades, and says so on the item
 

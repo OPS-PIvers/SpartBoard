@@ -228,6 +228,82 @@ describe('R2 — the flag has teeth: unconfirmed means unscored', () => {
   });
 });
 
+describe('R1b — an unrenderable espeak symbol yields no reference', () => {
+  // espeak writes a literal `?` where an internal phoneme has no IPA mapping.
+  // Real, measured, and German-only: 0.97% of the top-12k German words,
+  // 0/12000 Spanish and 0/9974 English. All strings below are real output.
+
+  it('refuses when the syllable count itself is untrustworthy', () => {
+    // `durch` -> d'URC in espeak's own scheme. The whole vowel vanishes.
+    const r = deriveReference({ lang: 'de', espeakIpa: 'dˈ??ç' });
+    expect(r.accepted).toEqual([]);
+    expect(r.source).toBe('unrenderable');
+    expect(scoreStress(r, 1)).toBeNull();
+  });
+
+  it('does NOT let a mis-parsed word fall through the monosyllable path', () => {
+    // The reason filtering the bad index is not enough on its own: `geburt`
+    // scans as ONE nucleus, so without this guard it would take the
+    // monosyllable branch and assert stress on syllable 1 of a word whose
+    // vowel espeak never rendered.
+    const r = deriveReference({ lang: 'de', espeakIpa: 'ɡəbˈ??t' });
+    expect(r.accepted).not.toEqual([1]);
+    expect(r.accepted).toEqual([]);
+  });
+
+  it('flags rather than silently degrading, so a teacher can see it', () => {
+    // For German this is the only flag source there is — R4 leaves it with
+    // no cross-check, so nothing else can ever raise one.
+    const r = deriveReference({ lang: 'de', espeakIpa: 'ɡəbˈ??tstɑːk' });
+    expect(r.flagged).toBe(true);
+    expect(needsAuthoringPrompt(r)).toBe(true);
+    expect(effectiveAccepted(r)).toEqual([]);
+  });
+
+  it('lets a teacher rescue the word by hand', () => {
+    const r = deriveReference({ lang: 'de', espeakIpa: 'dˈ??çaɪnˌandɜ' });
+    const c = confirmReference({ ...r, syllableCount: 5 }, [1]);
+    expect(c.confirmed).toBe(true);
+    expect(scoreStress(c, 1)).toBe(100);
+  });
+});
+
+describe('no derived reference may contain an out-of-range index', () => {
+  it('drops a dangling primary mark rather than emitting index n+1', () => {
+    // An out-of-range index is the worst value available: it never matches,
+    // so it scores every student 0 while `accepted` stays non-empty and so
+    // never degrades. confirmReference already forbids it on the teacher
+    // path; derivation must not be able to produce it either.
+    expect(parseEspeak('bɛtɚˈ')).toEqual({ syllableCount: 2, primary: [] });
+    expect(parseEspeak('bˈɛtɚˈ')).toEqual({ syllableCount: 2, primary: [1] });
+  });
+
+  it('holds across every fixture in this suite', () => {
+    const fixtures: Array<[Lang, string]> = [
+      ['en', 'wˈiːkɛnd'],
+      ['en', 'ɐdɹˈɛs'],
+      ['en', 'aʊtsˈaɪd'],
+      ['en', 'kˈæmɹə'],
+      ['en', 'dʒˈeɪpˈɛɡ'],
+      ['en', 'lˈaɪən'],
+      ['en', 'ɐkɹˈɛdɪt'],
+      ['es', 'rˈapiðamˈente'],
+      ['es', 'tɾaβˈaxo'],
+      ['es', 'ˌinmeðjˈatamˈente'],
+      ['de', 'ˈvaːɡn̩'],
+      ['de', 'fɪlˈaɪçt'],
+      ['de', 'dˈ??ç'],
+    ];
+    for (const [lang, ipa] of fixtures) {
+      const r = deriveReference({ lang, espeakIpa: ipa });
+      for (const i of r.accepted) {
+        expect(i).toBeGreaterThanOrEqual(1);
+        expect(i).toBeLessThanOrEqual(r.syllableCount);
+      }
+    }
+  });
+});
+
 describe('R3 — Spanish cross-checks against its orthography, not a lexicon', () => {
   it('agrees with espeak on ordinary vocabulary and stores one index', () => {
     // `trabajo` — llana, stress on the penultimate, which is what espeak says.

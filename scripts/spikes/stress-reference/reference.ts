@@ -81,7 +81,14 @@ export function parseEspeak(ipa: string): StressReading {
       i += 1;
     }
   }
-  return { syllableCount: n, primary };
+  // `n + 1` above encodes "the NEXT nucleus is primary", which espeak's own
+  // output always satisfies. A trailing bare `ˈ` would leave an index one past
+  // the end, and an out-of-range index is the worst possible value to store:
+  // it can never match a detected syllable, so it scores every student 0 while
+  // `accepted` stays non-empty and therefore never degrades. `confirmReference`
+  // already rejects out-of-range indices on the teacher path; the derivation
+  // path must not be able to produce what confirmation forbids.
+  return { syllableCount: n, primary: primary.filter((p) => p <= n) };
 }
 
 /** Why an `accepted` list has the members it has — stored for auditability. */
@@ -90,7 +97,17 @@ export type ReferenceSource =
   | 'espeak+crosscheck' // two sources, agreed
   | 'disagreement' // two sources, disagreed — both kept (R1)
   | 'multi-mark' // one source, two primary marks (R5)
+  | 'unrenderable' // espeak emitted a `?` placeholder — R1b
   | 'teacher'; // a human set it
+
+/**
+ * espeak writes a literal `?` where one of its internal phonemes has no entry
+ * in its IPA translation table. Measured: **0.97% of the top-12k German
+ * words**, zero in Spanish and English. It is the `UR` phoneme — `durch` is
+ * `d'URC` in espeak's own scheme and `dˈ??ç` in IPA — and it hits a common
+ * word class: `wurde durch kurz geburt sturm urteil ursache`.
+ */
+export const UNRENDERABLE_MARK = '?';
 
 export interface StressReference {
   /** 1-based syllable indices that may carry primary stress. NEVER number[][]. */
@@ -124,6 +141,19 @@ export function deriveReference(input: DeriveInput): StressReference {
   const { lang, espeakIpa, crossCheck } = input;
   const esp = parseEspeak(espeakIpa);
   const base = { syllableCount: esp.syllableCount, confirmed: false };
+
+  // R1b — a `?` means espeak could not render a phoneme, so BOTH the syllable
+  // count and every index derived from it are untrustworthy. Filtering the
+  // out-of-range index alone is not enough: `geburt` -> `ɡəbˈ??t` scans as
+  // ONE nucleus, which would take the monosyllable path below and assert
+  // stress on syllable 1 of a word we mis-parsed. Refuse instead.
+  //
+  // Flagged rather than silently degraded, so R2's affordance surfaces it —
+  // for German this is the only flag source that exists, since R4 leaves it
+  // without a cross-check.
+  if (espeakIpa.includes(UNRENDERABLE_MARK)) {
+    return { ...base, accepted: [], flagged: true, source: 'unrenderable' };
+  }
 
   // A monosyllable has nothing to place. #2359's one-syllable path already
   // bypasses ranking; storing [1] keeps `accepted.includes(detected)` true
