@@ -13,7 +13,10 @@ CMUDict's syllable counts. A stress INDEX is meaningless if the count is wrong.
 """
 import json, re, subprocess, sys, collections
 
-N = json.load(open('/home/user/SpartBoard/scripts/spikes/stress-detection/nuclei.json'))
+import pathlib
+N = json.load(
+    open(pathlib.Path(__file__).parent.parent.parent / 'stress-detection/nuclei.json')
+)
 NUCLEI = sorted(N['nuclei'], key=len, reverse=True)   # longest match first
 ZWJ = '‍'
 

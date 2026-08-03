@@ -4,7 +4,10 @@ Batched espeak (one word per input line -> one output line), validated by the
 exception dictionary or its letter-to-sound rules."""
 import json, re, subprocess, collections
 
-N = json.load(open('/home/user/SpartBoard/scripts/spikes/stress-detection/nuclei.json'))
+import pathlib
+N = json.load(
+    open(pathlib.Path(__file__).parent.parent.parent / 'stress-detection/nuclei.json')
+)
 NUCLEI = sorted(N['nuclei'], key=len, reverse=True)
 ZWJ = '‍'
 

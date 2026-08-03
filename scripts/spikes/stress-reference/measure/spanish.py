@@ -13,7 +13,10 @@ Scored against espeak's own `ˈ`, counted in the model's nucleus space.
 """
 import json, re, subprocess, collections, unicodedata
 
-N = json.load(open('/home/user/SpartBoard/scripts/spikes/stress-detection/nuclei.json'))
+import pathlib
+N = json.load(
+    open(pathlib.Path(__file__).parent.parent.parent / 'stress-detection/nuclei.json')
+)
 NUCLEI = sorted(N['nuclei'], key=len, reverse=True)
 ZWJ = '‍'
 

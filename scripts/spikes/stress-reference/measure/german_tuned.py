@@ -14,7 +14,10 @@ scored.
 """
 import subprocess, re, collections, json
 
-N = json.load(open('/home/user/SpartBoard/scripts/spikes/stress-detection/nuclei.json'))
+import pathlib
+N = json.load(
+    open(pathlib.Path(__file__).parent.parent.parent / 'stress-detection/nuclei.json')
+)
 NUCLEI = sorted(N['nuclei'], key=len, reverse=True)
 ZWJ = '‍'
 
@@ -52,9 +55,9 @@ SEPARABLE = ['durch','wieder','zurück','herunter','zusammen','auseinander',
              'über','unter','gegen','zwischen','voran','vorbei','hinaus','heraus',
              'auf','aus','ein','mit','ab','an','vor','nach','zu','her','hin','um','bei','fest','frei','los','statt','teil','weg','zurecht']
 # suffixes that pull primary stress onto themselves (loanword morphology)
-SUF_STRESS = ['ieren','ierung','ität','tion','sion','ismus','istik','istisch','ent','ant',
-              'anz','enz','ur','eur','ös','ös','iv','al','ell','abel','ibel','ade','age',
-              'ei','ie','ist','at','ät','on','ar','är','esk','ent']
+SUF_STRESS = ['ieren', 'ierung', 'ität', 'tion', 'sion', 'ismus', 'istik', 'istisch',
+              'ent', 'ant', 'anz', 'enz', 'ur', 'eur', 'ös', 'iv', 'al', 'ell', 'abel',
+              'ibel', 'ade', 'age', 'ei', 'ie', 'ist', 'at', 'ät', 'on', 'ar', 'är', 'esk']
 # suffixes that are unstressed and must NOT attract (native derivation)
 SUF_NEUTRAL = ['chen','lein','heit','keit','ung','schaft','bar','lich','sam','los','nis','tum','haft','er','en','e','s','n']
 
@@ -84,13 +87,6 @@ def rule_stress(w):
             after = [k for k, pos in enumerate(nuc) if pos >= len(p)]
             if len(after) >= 2:                      # <-- the stem/prefix heuristic
                 return after[0] + 1, len(nuc)
-    return 1, len(nuc)
-    # 3. unstressed prefix pushes stress to the stem's first syllable
-    for p in sorted(UNSTRESSED_PREFIX, key=len, reverse=True):
-        if w.startswith(p) and len(w) > len(p) + 2:
-            for k, pos in enumerate(nuc):
-                if pos >= len(p): return k + 1, len(nuc)
-    # 4. default: stem-initial
     return 1, len(nuc)
 
 words = []
