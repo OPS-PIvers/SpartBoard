@@ -164,6 +164,25 @@ describe('R2 — the flag has teeth: unconfirmed means unscored', () => {
     expect(scoreStress(c, 2)).toBe(100);
   });
 
+  it('rejects an EMPTY confirmation, which would silently unscore forever', () => {
+    // The nastiest shape available: it sets confirmed=true and flagged=false,
+    // so needsAuthoringPrompt() goes false and the affordance vanishes, while
+    // stress scores null for good. From the outside it is indistinguishable
+    // from a question nobody ever flagged.
+    expect(() => confirmReference(flagged, [])).toThrow(RangeError);
+  });
+
+  it('holds the invariant: a confirmed reference always scores something', () => {
+    // The property the empty-confirmation guard exists to protect. If a
+    // reference reports itself confirmed, the grader must have a non-empty
+    // set to compare against — otherwise "confirmed" and "unassessable" are
+    // the same state wearing different labels.
+    const c = confirmReference(flagged, [1, 2]);
+    expect(c.confirmed).toBe(true);
+    expect(effectiveAccepted(c).length).toBeGreaterThan(0);
+    expect(scoreStress(c, 1)).not.toBeNull();
+  });
+
   it('rejects a confirmation index outside the word', () => {
     // An out-of-range index can never match a detected value, so it would
     // score 0 forever with nothing to show why.

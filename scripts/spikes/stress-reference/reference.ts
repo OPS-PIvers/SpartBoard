@@ -243,6 +243,23 @@ export function confirmReference(
   chosen: number[]
 ): StressReference {
   const accepted = dedupe(chosen);
+  if (accepted.length === 0) {
+    // Worse than the out-of-range case below, because it does not look wrong.
+    // An empty confirmation sets `confirmed: true, flagged: false`, so
+    // `needsAuthoringPrompt()` goes false and the affordance R2 relies on
+    // disappears — permanently. The question then reads as settled while
+    // scoring `null` for stress forever, which is indistinguishable from a
+    // question nobody flagged. That is A13's failure mode: nobody
+    // investigates a question that looks finished.
+    //
+    // There is deliberately no "confirm that stress should not be scored
+    // here" path. If teachers turn out to want one it is an authoring
+    // decision for #2341, and it needs a state of its own — not an empty
+    // list that mimics absent evidence.
+    throw new RangeError(
+      'a stress confirmation must name at least one accepted syllable index'
+    );
+  }
   if (accepted.some((i) => i < 1 || i > ref.syllableCount)) {
     // A10's accepted list is indices into THIS word; an out-of-range index
     // could never match a detected value and would silently score 0 forever.

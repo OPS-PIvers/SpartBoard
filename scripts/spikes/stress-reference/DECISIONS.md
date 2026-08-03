@@ -7,7 +7,7 @@ a decision ticket on the [Wayfinder Map: Multilingual Pronunciation Engine](http
 (S1–S5) and supplies the reference that lets **A9's stress weight leave 0**.
 
 **Contents.** `reference.ts` is a reference implementation, `reference.test.ts`
-the executable form of every decision below (31 tests), `measure/` the
+the executable form of every decision below (33 tests), `measure/` the
 harnesses that produced every number quoted here. Neither is wired into the
 app nor imported by feature code — a spike directory, like its three
 siblings. It runs under `pnpm test`, so a later change that violates one of
@@ -161,6 +161,26 @@ items altogether).
 [#2341](https://github.com/OPS-PIvers/SpartBoard/issues/2341):** an inline,
 per-question stress affordance showing the syllables and which are accepted —
 not a badge, and not a queue entry.
+
+#### R2a — A confirmation must name at least one syllable
+
+`confirmReference(ref, [])` throws. An empty confirmation sets
+`confirmed: true, flagged: false`, which turns `needsAuthoringPrompt()` off
+and **removes the affordance R2 depends on, permanently** — the question then
+reads as settled while scoring `null` for stress forever, indistinguishable
+from a question nobody flagged. This is A13's failure mode exactly: nobody
+investigates a question that looks finished. It is strictly worse than the
+out-of-range index the reference already rejected, because it does not look
+wrong.
+
+There is deliberately **no "confirm that stress should not be scored here"
+path.** If teachers want one it is an authoring decision for #2341, and it
+needs a state of its own rather than an empty list that mimics absent
+evidence — the same collision S5 closed between an empty `accepted` and an
+empty `detected`.
+
+_Surfaced in review of [PR #2365](https://github.com/OPS-PIvers/SpartBoard/pull/2365)
+as reachable but unguarded._
 
 ### R3 — Spanish cross-checks against its own orthography, with no data file
 
