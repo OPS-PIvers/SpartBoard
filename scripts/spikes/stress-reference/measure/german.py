@@ -58,8 +58,6 @@ SEPARABLE = ['durch','wieder','zurück','herunter','zusammen','auseinander',
 SUF_STRESS = ['ieren', 'ierung', 'ität', 'tion', 'sion', 'ismus', 'istik', 'istisch',
               'ent', 'ant', 'anz', 'enz', 'ur', 'eur', 'ös', 'iv', 'al', 'ell', 'abel',
               'ibel', 'ade', 'age', 'ei', 'ie', 'ist', 'at', 'ät', 'on', 'ar', 'är', 'esk']
-# suffixes that are unstressed and must NOT attract (native derivation)
-SUF_NEUTRAL = ['chen','lein','heit','keit','ung','schaft','bar','lich','sam','los','nis','tum','haft','er','en','e','s','n']
 
 def rule_stress(w):
     nuc = nuclei_of(w)

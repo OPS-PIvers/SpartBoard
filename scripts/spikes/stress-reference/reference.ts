@@ -112,8 +112,18 @@ export const UNRENDERABLE_MARK = '?';
 export interface StressReference {
   /** 1-based syllable indices that may carry primary stress. NEVER number[][]. */
   accepted: number[];
-  /** Syllable count in the model's nucleus space, for the authoring UI. */
-  syllableCount: number;
+  /**
+   * Syllable count in the model's nucleus space, for the authoring UI.
+   *
+   * **`null` means UNKNOWN, not zero** — R1b, where espeak emitted a `?` and
+   * the count cannot be trusted. Storing the surviving-nuclei count instead
+   * would be actively misleading: `geburt → ɡəbˈ??t` leaves ONE nucleus for a
+   * two-syllable word, so a teacher who correctly wants syllable 2 would be
+   * rejected as out of range. Same category error S5 closed — a value that
+   * means "we don't know" must not be spelled as a value that means something
+   * else.
+   */
+  syllableCount: number | null;
   /** R1: sources disagreed, or a language-specific multi-mark case (R5). */
   flagged: boolean;
   /** R2: a human has confirmed this reference. */
@@ -152,7 +162,13 @@ export function deriveReference(input: DeriveInput): StressReference {
   // for German this is the only flag source that exists, since R4 leaves it
   // without a cross-check.
   if (espeakIpa.includes(UNRENDERABLE_MARK)) {
-    return { ...base, accepted: [], flagged: true, source: 'unrenderable' };
+    return {
+      ...base,
+      syllableCount: null, // UNKNOWN — see the field doc. Not 0, not the survivors.
+      accepted: [],
+      flagged: true,
+      source: 'unrenderable',
+    };
   }
 
   // A monosyllable has nothing to place. #2359's one-syllable path already
@@ -274,11 +290,27 @@ export function needsAuthoringPrompt(ref: StressReference): boolean {
  * nothing requires a flag to exist first. That is the only way a German
  * reference is ever corrected, since R4 leaves German with no cross-check and
  * therefore no flag to raise.
+ *
+ * **When `ref.syllableCount` is `null` (R1b), the caller MUST pass
+ * `syllableCount`.** espeak could not render the word, so the true count has
+ * to come from outside this reference — for
+ * [#2341](https://github.com/OPS-PIvers/SpartBoard/issues/2341) that means the
+ * authoring UI supplying it. The parameter is required rather than defaulted
+ * so the obligation is visible in the type instead of being an implicit
+ * contract a caller can miss.
  */
 export function confirmReference(
   ref: StressReference,
-  chosen: number[]
+  chosen: number[],
+  syllableCount?: number
 ): StressReference {
+  const count = ref.syllableCount ?? syllableCount;
+  if (count === undefined) {
+    throw new RangeError(
+      'this reference has an unknown syllable count (espeak could not render the word); ' +
+        'pass the true count as the third argument to confirm it'
+    );
+  }
   const accepted = dedupe(chosen);
   if (accepted.length === 0) {
     // Worse than the out-of-range case below, because it does not look wrong.
@@ -297,15 +329,16 @@ export function confirmReference(
       'a stress confirmation must name at least one accepted syllable index'
     );
   }
-  if (accepted.some((i) => i < 1 || i > ref.syllableCount)) {
+  if (accepted.some((i) => i < 1 || i > count)) {
     // A10's accepted list is indices into THIS word; an out-of-range index
     // could never match a detected value and would silently score 0 forever.
     throw new RangeError(
-      `stress index out of range: got ${JSON.stringify(chosen)} for a ${ref.syllableCount}-syllable word`
+      `stress index out of range: got ${JSON.stringify(chosen)} for a ${count}-syllable word`
     );
   }
   return {
     ...ref,
+    syllableCount: count,
     accepted,
     flagged: false,
     confirmed: true,

@@ -7,7 +7,7 @@ a decision ticket on the [Wayfinder Map: Multilingual Pronunciation Engine](http
 (S1–S5) and supplies the reference that lets **A9's stress weight leave 0**.
 
 **Contents.** `reference.ts` is a reference implementation, `reference.test.ts`
-the executable form of every decision below (41 tests), `measure/` the
+the executable form of every decision below (44 tests), `measure/` the
 harnesses that produced every number quoted here. Neither is wired into the
 app nor imported by feature code — a spike directory, like its four
 siblings. It runs under `pnpm test`, so a later change that violates one of
@@ -170,6 +170,21 @@ independent reason German is the weakest of the three languages here.
 > R1a's count guard already excluded 46 of the 47 that reached scoring range.
 > Maximum swing **0.01pp**, against a 13-point gap. Worth checking rather than
 > assuming — the defect was found _after_ the decision was made.
+
+**The syllable count is UNKNOWN, not zero.** An unrenderable reference stores
+`syllableCount: null`. Storing the surviving-nuclei count would be actively
+misleading rather than merely wrong: `durch → dˈ??ç` leaves **zero** nuclei, so
+no index could ever be confirmed, and `geburt → ɡəbˈ??t` leaves **one** for a
+two-syllable word, so a teacher who correctly wants syllable 2 would be
+rejected as out of range — against a reference that looks perfectly valid.
+That is the same category error S5 closed: a value meaning "we do not know"
+must not be spelled as a value that means something else.
+
+Consequently `confirmReference` **requires the true count as an argument** when
+the stored one is `null`. The obligation is in the type rather than left as an
+implicit contract, because [#2341](https://github.com/OPS-PIvers/SpartBoard/issues/2341)
+is the code that has to satisfy it: **rescuing an unrenderable word means the
+authoring UI supplying the syllable count from outside this reference.**
 
 **Related invariant, same cause:** `parseEspeak` encodes a mark as "the next
 nucleus is primary", so a trailing bare `ˈ` would yield an index one past the

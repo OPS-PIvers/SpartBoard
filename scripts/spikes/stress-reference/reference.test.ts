@@ -260,11 +260,39 @@ describe('R1b — an unrenderable espeak symbol yields no reference', () => {
     expect(effectiveAccepted(r)).toEqual([]);
   });
 
-  it('lets a teacher rescue the word by hand', () => {
-    const r = deriveReference({ lang: 'de', espeakIpa: 'dˈ??çaɪnˌandɜ' });
-    const c = confirmReference({ ...r, syllableCount: 5 }, [1]);
+  it('reports the syllable count as UNKNOWN, not as the surviving nuclei', () => {
+    // The trap this closes. `durch` leaves ZERO nuclei and `geburt` leaves
+    // ONE for a two-syllable word — so storing the survivor count would let a
+    // teacher who correctly wants syllable 2 of `geburt` be rejected as out
+    // of range, with the reference looking perfectly valid. null means "we
+    // do not know", which is the only honest value here.
+    expect(
+      deriveReference({ lang: 'de', espeakIpa: 'dˈ??ç' }).syllableCount
+    ).toBeNull();
+    expect(
+      deriveReference({ lang: 'de', espeakIpa: 'ɡəbˈ??t' }).syllableCount
+    ).toBeNull();
+  });
+
+  it('refuses to be confirmed without the true count supplied from outside', () => {
+    const r = deriveReference({ lang: 'de', espeakIpa: 'ɡəbˈ??t' });
+    expect(() => confirmReference(r, [2])).toThrow(RangeError);
+  });
+
+  it('lets a teacher rescue the word by supplying the count', () => {
+    // geburt is ge-burt: two syllables, stress on the second. espeak rendered
+    // one nucleus. #2341's UI has to pass the real count for this to work.
+    const r = deriveReference({ lang: 'de', espeakIpa: 'ɡəbˈ??t' });
+    const c = confirmReference(r, [2], 2);
     expect(c.confirmed).toBe(true);
-    expect(scoreStress(c, 1)).toBe(100);
+    expect(c.syllableCount).toBe(2);
+    expect(scoreStress(c, 2)).toBe(100);
+    expect(scoreStress(c, 1)).toBe(0);
+  });
+
+  it('still bounds-checks against the supplied count', () => {
+    const r = deriveReference({ lang: 'de', espeakIpa: 'ɡəbˈ??t' });
+    expect(() => confirmReference(r, [3], 2)).toThrow(RangeError);
   });
 });
 
@@ -296,6 +324,12 @@ describe('no derived reference may contain an out-of-range index', () => {
     ];
     for (const [lang, ipa] of fixtures) {
       const r = deriveReference({ lang, espeakIpa: ipa });
+      if (r.syllableCount === null) {
+        // An unknown count can bound nothing, so the only safe accepted list
+        // is an empty one. R1b guarantees it.
+        expect(r.accepted).toEqual([]);
+        continue;
+      }
       for (const i of r.accepted) {
         expect(i).toBeGreaterThanOrEqual(1);
         expect(i).toBeLessThanOrEqual(r.syllableCount);
