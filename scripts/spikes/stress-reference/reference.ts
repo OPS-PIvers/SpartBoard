@@ -237,7 +237,14 @@ export function needsAuthoringPrompt(ref: StressReference): boolean {
   return ref.flagged && !ref.confirmed;
 }
 
-/** A teacher's confirmation replaces the reference and clears the flag. */
+/**
+ * A teacher's confirmation replaces the reference and clears the flag.
+ *
+ * Also valid on an **unflagged** reference, as a plain teacher override —
+ * nothing requires a flag to exist first. That is the only way a German
+ * reference is ever corrected, since R4 leaves German with no cross-check and
+ * therefore no flag to raise.
+ */
 export function confirmReference(
   ref: StressReference,
   chosen: number[]

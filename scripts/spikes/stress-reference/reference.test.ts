@@ -120,6 +120,23 @@ describe('R1 — two sources, and disagreement is accepted-plus-flagged', () => 
     expect(r.accepted.every((x) => typeof x === 'number')).toBe(true);
   });
 
+  it('falls back to espeak when the cross-check supplies no primary index at all', () => {
+    // Real and rare: 55 polysyllabic CMUDict headwords carry secondary stress
+    // but no primary in any variant. `accredit` is one — AH0 K R EH2 D AH0 T.
+    // Its 3 syllables match espeak's 3 nuclei, so R1a's count guard does NOT
+    // fire and this lands squarely on the empty-primary path. A cross-check
+    // with no opinion must not be read as disagreement.
+    const r = deriveReference({
+      lang: 'en',
+      espeakIpa: 'ɐkɹˈɛdɪt',
+      crossCheck: reading(3, []),
+    });
+    expect(r.syllableCount).toBe(3);
+    expect(r.accepted).toEqual([2]);
+    expect(r.flagged).toBe(false);
+    expect(r.source).toBe('espeak');
+  });
+
   it('does not manufacture a disagreement when the sources disagree on syllable COUNT', () => {
     // espeak syncopates `camera` to 2 nuclei; CMUDict has 3. The indices are
     // not comparable, so the cross-check yields no opinion. Measured at
