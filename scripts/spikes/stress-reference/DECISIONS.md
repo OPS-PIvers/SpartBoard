@@ -7,7 +7,7 @@ a decision ticket on the [Wayfinder Map: Multilingual Pronunciation Engine](http
 (S1–S5) and supplies the reference that lets **A9's stress weight leave 0**.
 
 **Contents.** `reference.ts` is a reference implementation, `reference.test.ts`
-the executable form of every decision below (47 tests), `measure/` the
+the executable form of every decision below (49 tests), `measure/` the
 harnesses that produced every number quoted here. Neither is wired into the
 app nor imported by feature code — a spike directory, like its four
 siblings. It runs under `pnpm test`, so a later change that violates one of
@@ -287,6 +287,15 @@ always the rule being wrong — so flagging on it would flag 1 in 7 German
 words, degrade each to unscored under R2, and flood the affordance with noise.
 That is "teacher confirms every German item" arrived at by accident, and worse
 than admitting German has one source.
+
+> **R4 is a fact about available data, not a ban in the code.**
+> `deriveReference` deliberately does **not** special-case `de`: if German ever
+> gets a cross-check, passing it is precisely how R4 is superseded, and a
+> `lang === 'de'` guard would silently discard it while appearing to work —
+> a worse failure than the one it prevents, and one that would have to be
+> ripped out to do the very thing this section names as the next move. The R4
+> guarantee holds today because there is nothing to pass, not because the
+> function refuses it. Both halves are pinned by tests.
 
 **Accepted cost, taken knowingly: when espeak is wrong in German, it is
 silently wrong,** and no accepted-variant list protects a German student. This

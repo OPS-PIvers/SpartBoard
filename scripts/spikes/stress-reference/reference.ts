@@ -139,7 +139,15 @@ export interface DeriveInput {
    * The independent cross-check's reading, if this language has one.
    *   en → CMUDict (measured: espeak agrees on 94.9% of comparable words)
    *   es → the orthographic rule in `measure/spanish.py` (99.65%)
-   *   de → NONE. R4 — no usable second source exists.
+   *   de → NONE. R4 — no usable second source exists *today*.
+   *
+   * R4 is a fact about available DATA, not a ban in this function, so `de` is
+   * deliberately NOT special-cased below. If German ever gets a cross-check —
+   * the map records re-scraping Wiktionary with stress preserved as the move
+   * if German stress proves a real classroom problem — passing it here is
+   * precisely how R4 is superseded, and a `lang === 'de'` guard would silently
+   * discard it while appearing to work. Supplying one is a supersession, not
+   * an error.
    */
   crossCheck?: StressReading;
 }

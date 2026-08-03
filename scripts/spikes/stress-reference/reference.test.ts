@@ -427,6 +427,30 @@ describe('R4 — German has one source, and says so', () => {
     expect(needsAuthoringPrompt(r)).toBe(false);
   });
 
+  it('is NOT special-cased: a German cross-check, if one ever exists, is used', () => {
+    // R4 is a fact about available data, not a ban in the function. The map
+    // records re-scraping Wiktionary with stress preserved as the move if
+    // German stress proves a real classroom problem — supplying a cross-check
+    // here is how R4 gets superseded, so `de` behaves like any two-source
+    // language rather than silently discarding it.
+    const r = deriveReference({
+      lang: 'de',
+      espeakIpa: 'fɪlˈaɪçt',
+      crossCheck: reading(2, [1]),
+    });
+    expect(r.accepted).toEqual([1, 2]);
+    expect(r.flagged).toBe(true);
+    expect(r.source).toBe('disagreement');
+  });
+
+  it('flags nothing today, because nothing is ever passed', () => {
+    // The R4 guarantee as it actually holds: it follows from there being no
+    // German cross-check to pass, not from a guard.
+    const r = deriveReference({ lang: 'de', espeakIpa: 'fɪlˈaɪçt' });
+    expect(r.flagged).toBe(false);
+    expect(needsAuthoringPrompt(r)).toBe(false);
+  });
+
   it('a teacher can still override a German reference by hand', () => {
     const r = confirmReference(
       deriveReference({ lang: 'de', espeakIpa: 'ɡˈeːbən' }),
