@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-02_
+_Last audited: 2026-08-03_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-08-03. TypeScript: 0 errors (exit 0). ESLint: 0 errors, 0 warnings (`--max-warnings 0`, both root and functions, exit 0). New dev-paul commits since 2026-08-02 absorbed via rebase: docs(spike) multilingual pronunciation plan (#2343 — 20 spike-doc commits; no source code changes, no type or lint impact). Codebase remains fully type-safe and lint-clean._
 
 _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-08-02. TypeScript: 0 errors (exit 0). ESLint: 0 errors, 0 warnings (`--max-warnings 0`, both root and functions, exit 0). New dev-paul commits since 2026-08-01 already on branch: docs(admin) DashboardProvider note (4cacab05 — docs only); fix(schedule) events below list (0bda0ed1 — Schedule/Settings.tsx back-face change; new `isBuildingSyncEnabled` toggle confirmed type-safe via type-check pass). Codebase remains fully type-safe and lint-clean._
 

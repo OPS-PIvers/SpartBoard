@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-07-29_
+_Last audited: 2026-08-03_
 _Last action: 2026-05-18 (admin_audit_log immutability hardening)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-03: Weekly rules audit (Monday). New dev-paul commits since 2026-07-29 absorbed via rebase: docs(spike) multilingual pronunciation plan (#2343 — spike-doc commits only; no Firestore collection additions). fix(GraphicOrganizer) hide dead fontColor picker in appearance settings (12f86641 — admin panel UI change; no Firestore rules impact). Default-deny catch-all confirmed still present. No new Firestore collection() or collectionGroup() calls introduced by any rebased commit. All 7 existing open items (MEDIUM pollVotes unrestricted write, MEDIUM sessions broad read, LOW organizations/analytics dead rule, LOW lti_course_links dead rule, LOW plc_layouts possibly retired, LOW admin_settings/user_roles redundant, LOW classroom_grade_links no explicit rule, LOW ai_usage write denial absent) confirmed present and unchanged. Security posture unchanged. Zero new items._
 
 _2026-07-29: Weekly rules audit (Wednesday). New dev-paul commits since 2026-07-22 absorbed via rebase: refactor(MiniAppManager) back-face UI only; pr-review docs only; deps/yaml-stack-overflow (yaml dep patch, no Firestore changes); unifier log; Unify MiniAppManager empty states (UI only). Git diff of recent commits confirms zero new Firestore collection() or collectionGroup() calls introduced. Default-deny catch-all confirmed still present. All 7 existing items (MEDIUM pollVotes unrestricted write, MEDIUM sessions broad read, LOW organizations/analytics dead rule, LOW lti_course_links dead rule, LOW plc_layouts possibly retired, LOW admin_settings/user_roles redundant, LOW classroom_grade_links no explicit rule, LOW ai_usage write denial absent) confirmed present and unchanged. Security posture unchanged. Zero new items._
 
