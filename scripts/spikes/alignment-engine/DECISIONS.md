@@ -203,6 +203,31 @@ every strictness level.
 > sourced. Tracked as its own ticket. Until that reference exists, A9's weight
 > should default to 0.
 
+#### A10a — An empty accepted list is absent evidence, not a failed match
+
+When a question carries **no** accepted stress variants, stress scoring takes
+A9's degradation path: `stressScore: null`, applied weight `0`, sounds-only.
+It does **not** score 0.
+
+Scoring 0 would be silent class-wide failure. No score persists — D4 recomputes
+points on every read — so an admin who cleared the accepted variants after
+authoring would retroactively drag down every historical response on that
+question, with nothing to indicate why. And this is not a hypothetical state:
+it is the state **every** question is in until the accepted-variant reference
+exists, which is why A9's weight defaults to 0 in the meantime.
+
+#### A10b — A syllable-count mismatch counts against the score
+
+Agreement is measured over the **longer** of the two patterns. Detected
+`[1,1,0,1]` against an accepted `[1,0]` scores 1/4, not 1/2 — producing the
+wrong number of syllables is a real difference in what the student said, not a
+free pass. The same applies in reverse: `[1]` against `[1,0]` scores 1/2.
+
+The risk is noisy syllable segmentation manufacturing errors the student did
+not make. That is bounded by A9's low default weight, and syllable-boundary
+reliability is explicitly part of the stress stage's own ticket rather than
+something the alignment contract can fix.
+
 ### A11 — Human-readable sound names are in scope, but do not gate the spec
 
 The spec's example shows _"Expected trilled /r/, detected English retroflex

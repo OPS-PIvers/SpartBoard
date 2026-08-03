@@ -150,9 +150,26 @@ export class InvalidStressWeightError extends Error {
  *
  * Returns the best per-syllable agreement across all variants, 0–100.
  * An exact match with any variant returns 100 (A10).
+ *
+ * Returns `null` when there are no accepted variants to compare against.
+ * A10a: an empty `accepted` list is *absent evidence*, not a failed match, so
+ * it takes A9's degradation path (sounds-only) rather than scoring 0. Scoring
+ * 0 would be class-wide silent failure: no score persists (D4 recomputes on
+ * every read), so an admin clearing the accepted variants after authoring
+ * would retroactively drag down every historical response on this question.
+ * This state is not hypothetical — it is the state every question is in until
+ * the accepted-variant reference exists.
+ *
+ * A10b: a syllable-count mismatch counts against the score. The denominator is
+ * the LONGER of the two patterns, so detected `[1,1,0,1]` against an accepted
+ * `[1,0]` scores 1/4, not 1/2 — producing the wrong number of syllables is a
+ * real difference in what the student said, not a free pass. The risk is that
+ * noisy syllable segmentation manufactures errors, which is why A9's weight
+ * defaults low and why syllable-boundary reliability belongs to the stress
+ * stage's own ticket.
  */
-function scoreStress(stress: StressInput): number {
-  if (stress.accepted.length === 0) return 0;
+function scoreStress(stress: StressInput): number | null {
+  if (stress.accepted.length === 0) return null;
 
   let best = 0;
   for (const variant of stress.accepted) {

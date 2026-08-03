@@ -345,6 +345,55 @@ describe('A10 — any accepted stress variant scores full credit (#2342)', () =>
     expect(result.score).toBe(100);
   });
 
+  it('degrades to sounds-only when no accepted variants are configured', () => {
+    const result = evaluatePronunciation({
+      targetPhonemes: EL_PERRO,
+      spokenPhonemes: [...EL_PERRO],
+      matchLevel: 'Close',
+      thresholds: THRESHOLDS,
+      stress: { detected: [1, 0], accepted: [] },
+      stressWeight: 0.5,
+    });
+
+    // A10a: absent evidence, not a failed match. Scoring 0 here would be a
+    // silent class-wide failure, since no score persists and points are
+    // recomputed on every read (D4) — an admin clearing the variants after
+    // authoring would retroactively drag down every historical response.
+    expect(result.stressScore).toBeNull();
+    expect(result.appliedStressWeight).toBe(0);
+    expect(result.score).toBe(result.segmentScore);
+    expect(result.score).toBe(100);
+  });
+
+  it('counts extra detected syllables against the score', () => {
+    const result = evaluatePronunciation({
+      targetPhonemes: EL_PERRO,
+      spokenPhonemes: [...EL_PERRO],
+      matchLevel: 'Close',
+      thresholds: THRESHOLDS,
+      stress: { detected: [1, 1, 0, 1], accepted: [[1, 0]] },
+      stressWeight: 0.2,
+    });
+
+    // A10b: the denominator is the LONGER pattern, so this is 1/4 rather than
+    // 1/2 — producing the wrong number of syllables is a real difference.
+    expect(result.stressScore).toBe(25);
+    expect(result.score).toBe(85);
+  });
+
+  it('counts missing detected syllables against the score too', () => {
+    const result = evaluatePronunciation({
+      targetPhonemes: EL_PERRO,
+      spokenPhonemes: [...EL_PERRO],
+      matchLevel: 'Close',
+      thresholds: THRESHOLDS,
+      stress: { detected: [1], accepted: [[1, 0]] },
+      stressWeight: 0.2,
+    });
+
+    expect(result.stressScore).toBe(50);
+  });
+
   it('gives partial credit for a partly-correct pattern', () => {
     const result = evaluatePronunciation({
       targetPhonemes: EL_PERRO,
