@@ -30,11 +30,21 @@ const reading = (syllableCount: number, primary: number[]): StressReading => ({
 });
 
 describe('the index space is the model’s, not a human’s', () => {
-  it('counts an English aɪə as ONE nucleus — lion is one syllable here, two to a teacher', () => {
+  it('counts English aɪə as ONE nucleus — lion is one syllable here, two to a teacher', () => {
     // Real espeak output. `aɪə` is a single token in the model's vocabulary.
     expect(parseEspeak('lˈaɪən').syllableCount).toBe(1);
+    expect(nucleiData.nuclei).toContain('aɪə'); // a + ɪ + ə (U+0259)
+  });
+
+  it('counts English aɪɚ as ONE nucleus too — a DIFFERENT token from aɪə', () => {
+    // `tired` collapses for the same reason as `lion` but via a separate
+    // vocabulary entry: `aɪɚ` ends in the r-coloured schwa U+025A, not the
+    // plain schwa U+0259. Asserted separately so that dropping either token
+    // fails with an obvious message instead of leaving one word's count
+    // unexplained.
     expect(parseEspeak('tˈaɪɚd').syllableCount).toBe(1);
-    expect(nucleiData.nuclei).toContain('aɪə');
+    expect(nucleiData.nuclei).toContain('aɪɚ'); // a + ɪ + ɚ (U+025A)
+    expect('aɪə').not.toBe('aɪɚ');
   });
 
   it('counts a Spanish ue as TWO nuclei — luego is three here, two to a teacher', () => {
