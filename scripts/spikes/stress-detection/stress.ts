@@ -13,7 +13,7 @@
 
 import nucleiData from './nuclei.json';
 
-/** The 239 nucleus-bearing tokens, derived from the model's own vocabulary. */
+/** The 244 nucleus-bearing tokens, derived from the model's own vocabulary. */
 const NUCLEUS_TOKENS: ReadonlySet<string> = new Set(nucleiData.nuclei);
 
 /**
@@ -216,9 +216,16 @@ export interface AlignmentEntryLike {
  * nucleus to its target counterpart, and a differing syllable count has
  * nothing left to mismatch.
  *
- * Returns `null` when the prominent nucleus is an INSERTION — a sound with no
- * target counterpart at all (S3a). There is no target syllable to have
- * stressed, so this is absent evidence, not a wrong answer.
+ * Returns `null` in two cases, both of them absent evidence rather than a
+ * wrong answer:
+ *
+ * - The prominent nucleus is an INSERTION — a sound with no target
+ *   counterpart at all (S3a).
+ * - The prominent nucleus aligns to a target CONSONANT, so no target nucleus
+ *   has been reached yet and the prefix contains no syllable (S3b). A student
+ *   saying `a` where the target has `p` has produced a vowel in the onset; it
+ *   is not the first target syllable's nucleus, and guessing that it is would
+ *   assert a stress placement the student never made.
  */
 export function mapToTargetSyllable(
   nucleus: Nucleus,

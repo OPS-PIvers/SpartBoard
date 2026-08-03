@@ -204,6 +204,29 @@ describe('S3 — the count mismatch A10b penalised no longer exists', () => {
     expect(result).toBeNull();
   });
 
+  it('S3b — a nucleus substituted over a target CONSONANT is absent evidence', () => {
+    // The student says `a` where the target has `p`: a vowel in the onset,
+    // before the first target nucleus. No target syllable has been reached,
+    // so there is nothing to have stressed. Mapping it to syllable 1 anyway
+    // would assert a stress placement the student never made.
+    const nuclei = extractNuclei([
+      tp('a', 0, 4),
+      tp('e', 4, 8),
+      tp('r', 8, 10),
+      tp('o', 10, 14),
+    ]);
+    const substitutedOnset: AlignmentEntryLike[] = [
+      { position: 1, targetIPA: 'p', spokenIPA: 'a', status: 'substituted' },
+      { position: 2, targetIPA: 'e', spokenIPA: 'e', status: 'correct' },
+      { position: 3, targetIPA: 'r', spokenIPA: 'r', status: 'correct' },
+      { position: 4, targetIPA: 'o', spokenIPA: 'o', status: 'correct' },
+    ];
+    expect(mapToTargetSyllable(nuclei[0], substitutedOnset, target)).toBeNull();
+    // The genuine nuclei after it still map normally.
+    expect(mapToTargetSyllable(nuclei[1], substitutedOnset, target)).toBe(1);
+    expect(mapToTargetSyllable(nuclei[2], substitutedOnset, target)).toBe(2);
+  });
+
   it('maps each nucleus to the target syllable that contains it', () => {
     const nuclei = extractNuclei([
       tp('p', 0, 2),

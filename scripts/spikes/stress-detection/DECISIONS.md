@@ -154,6 +154,22 @@ degradation path (S5), not a zero.
 _Decided without asking_ — it follows from S3 but was not raised in the
 session. Flagged for review.
 
+#### S3b — A nucleus substituted over a target consonant is absent evidence
+
+When the winning nucleus aligns to a target **consonant**, no target nucleus
+has been reached, so the target prefix contains no syllable. Degradation path
+again, not a zero.
+
+A student saying `a` where the target has `p` has produced a vowel in the
+onset. It is not the first target syllable's nucleus — that is the `e` after
+it — so mapping the prominence to syllable 1 would assert a stress placement
+the student never made. Nuclei later in the word still map normally; only the
+one sitting ahead of every target nucleus is unmappable.
+
+_Also decided without asking_, surfaced in review of
+[PR #2363](https://github.com/OPS-PIvers/SpartBoard/pull/2363) as reachable
+but unrecorded. Same flag as S3a.
+
 ### S4 — Four cues, all compared within the word
 
 | Cue                          | Source                          | Cost                                 |
