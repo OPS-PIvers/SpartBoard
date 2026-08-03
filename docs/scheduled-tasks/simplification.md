@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-07-29_
+_Last audited: 2026-08-03_
 _Last action: 2026-05-01_
 
 ---
 
 ## Audit Log
+
+_2026-08-03: Full audit (Audit E1 — Monday weekly). New dev-paul commits since 2026-07-29 absorbed via rebase: docs(spike) multilingual pronunciation plan (#2343 — spike-doc commits only; no source files changed). fix(GraphicOrganizer) hide dead fontColor picker in appearance settings (12f86641 — settings panel UI change; no new type assertions, hooks, or prop drilling). (1) Type assertions: all existing items re-confirmed — useFirestore.ts MEDIUM, ai_security.ts MEDIUM, dashboardPII/smartPaste LOW, BlockRenderer LOW, icon registry LOW, FeatureConfigurationPanel LOW, TimeTool 6-cast LOW, RandomWidget 13-cast LOW, widgetConfigPersistence LOW, adminBuildingConfig double-cast LOW, AnnouncementOverlay LOW, validTextSizePresets triple LOW. (2) Heavy hooks: usePlcTrash.ts (9 useState) and usePlcResources.ts (9 useState) — both existing LOW items, unchanged. (3) Prop drilling: MountedBoardsLayer 13-prop passthrough — existing LOW item, unchanged. (4) Nested ternaries: val triple and DraggableWindow corner ternary — existing LOW items, unchanged. Zero new items. All 11 existing open items remain valid._
 
 _2026-07-29: Full audit (Audit E1 — Wednesday weekly). New dev-paul commits since 2026-07-22 absorbed via rebase: refactor(MiniAppManager) drop redundant iconClassName (2 lines deleted from back-face manager — no cast or state impact); pr-review docs; deps/yaml-stack-overflow (dep patch); unifier log; b4b1f504 Unify MiniAppManager empty states (back-face). (1) Type assertions: all existing items re-confirmed — useFirestore.ts MEDIUM, ai_security.ts MEDIUM, dashboardPII/smartPaste LOW, BlockRenderer LOW, icon registry LOW, FeatureConfigurationPanel LOW, TimeTool 6-cast LOW, RandomWidget 13-cast LOW, widgetConfigPersistence LOW, adminBuildingConfig double-cast LOW. `validTextSizePresets` local const tripled at lines 423/649/704 in adminBuildingConfig.ts confirmed still present (existing LOW open item). (2) Heavy hooks: usePlcTrash.ts (9 useState) and usePlcResources.ts (9 useState) — both existing LOW items, unchanged. (3) Prop drilling: MountedBoardsLayer 13-prop passthrough — existing LOW item, unchanged. (4) Nested ternaries: val triple and DraggableWindow corner ternary — existing LOW items, unchanged. Zero new items. All 9 existing open items remain valid._
 

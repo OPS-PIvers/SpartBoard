@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-07-29_
+_Last audited: 2026-08-03_
 _Last action: 2026-07-31 — MEDIUM `blooms-taxonomy` global gate bypass resolved: `Widget.tsx` now gates its effective `aiEnabled` on BOTH `buildingConfig.aiEnabled` AND `canAccessFeature('gemini-functions')`, so the global AI kill-switch fully disables Blooms AI_
 
 ---
@@ -35,6 +35,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-03: Full AI integration audit (Audit E2 — Monday weekly). New dev-paul commits since 2026-07-29 absorbed via rebase: docs(spike) multilingual pronunciation plan (#2343 — spike-doc commits only; no AI function, widget, or utils/ai.ts source changes). fix(GraphicOrganizer) hide dead fontColor picker in appearance settings (12f86641 — settings panel UI change; no AI impact). Generation type map confirmed unchanged (14 types, all present in table above). All existing open items re-confirmed: MEDIUM RevealGrid "Generate" button still has no onClick handler (Settings.tsx:473–478 area, button renders with Sparkles icon but no click action); LOW video-activity-recommend no independent feature gate; LOW GeminiPanel ad-hoc regex instead of parseGeminiJson; LOW instructional-routine missing client canAccessFeature() gate; LOW hardcoded model string in transcribeVideoWithGemini; LOW generateVideoActivity standard vs advanced model; LOW generateVideoActivity no per-feature ai_usage bucket; LOW plain JSON mode for most gen types (no responseSchema). Zero new items._
 
 _2026-07-31 (action — Friday): Resolved the MEDIUM `blooms-taxonomy` global-gate bypass. File-recency check passed — `components/widgets/BloomsTaxonomy/Widget.tsx` (the journal's `BloomsTaxonomyWidget.tsx` ref was stale; the component lives at `BloomsTaxonomy/Widget.tsx`) had no commits in the last 10 branch commits. Fix: destructured the building-config flag as `aiEnabledSetting` and computed an effective `const aiEnabled = aiEnabledSetting && canAccessFeature('gemini-functions')` (pulled `canAccessFeature` from `useAuth()`). This single derived value already flows into all three AI gates in the widget — `tryAiGeneration` guard (`if (!aiEnabled …) return false`), the empty-state branch (`activeCategories.length === 0 && !aiEnabled`), and the `{aiEnabled && <AiPanel/>}` render — so disabling the global `gemini-functions` permission now fully disables Blooms AI, matching every other AI feature. `pnpm type-check` (exit 0), `pnpm lint` root+functions (exit 0, `--max-warnings 0`), `prettier --check` clean. MEDIUM item moved to Completed; table row updated. PR opened to dev-paul._
 

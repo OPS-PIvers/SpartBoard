@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-02_
+_Last audited: 2026-08-03_
 _Last action: 2026-06-25_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-03: Full audit (Monday daily). New dev-paul commits since 2026-08-02 absorbed via rebase: docs(spike) multilingual pronunciation plan (#2343 — 20 spike-doc commits; no widget, WidgetType, or WidgetRegistry source changes). VERIFIED COUNT: 63 WidgetType members (unchanged). Comprehensive cross-reference confirmed: all 63 WidgetTypes correctly registered across all 7 locations (WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, config/tools.ts, config/widgetDefaults.ts, config/widgetGradeLevels.ts). All intentional omissions and special-cases re-confirmed: sticker intentional WidgetRenderer special-case per JSDoc; 7 intentional tools.ts omissions (catalyst-instruction, catalyst-visual, blooms-detail, mathTool, custom-widget, onboarding, sticker); 3 InternalToolType entries (magic, record, remote) documented. pnpm type-check (exit 0). pnpm lint (exit 0). Zero new gaps._
 
 _2026-08-02: Full audit (Sunday daily). New dev-paul commits since 2026-08-01 already on branch: docs(admin) note DashboardProvider dependency in config modals (4cacab05 — docs only, no source impact); fix(schedule) add events below the list, drop delete confirm, keep settings open (0bda0ed1 — Schedule/Settings.tsx back-face settings panel only; no WidgetType changes, no WidgetRegistry impact). VERIFIED COUNT: 63 WidgetType members (unchanged). Comprehensive cross-reference confirmed: all 63 WidgetTypes correctly registered across all 7 locations (WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, config/tools.ts, config/widgetDefaults.ts, config/widgetGradeLevels.ts). All intentional omissions and special-cases re-confirmed: sticker intentional WidgetRenderer special-case per JSDoc; 7 intentional tools.ts omissions (catalyst-instruction, catalyst-visual, blooms-detail, mathTool, custom-widget, onboarding, sticker); 3 InternalToolType entries (magic, record, remote) documented. pnpm type-check (exit 0). pnpm lint (exit 0). Zero new gaps._
 
