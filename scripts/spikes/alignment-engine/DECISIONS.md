@@ -251,6 +251,30 @@ response shape
 recording UX ([#2351](https://github.com/OPS-PIvers/SpartBoard/issues/2351))
 are all still open.
 
+### A13 — An empty reference is rejected, not scored
+
+`targetPhonemes: []` throws `EmptyReferenceError`. A question with no reference
+phonemes is broken, not gradeable.
+
+Left ungrarded this was **silent grade inflation**. With `n = 0` the
+divide-by-zero guard short-circuits PER to 0, so `segmentScore` is 100 and the
+student passes — while `insertionCount` faithfully reports every sound they
+produced. Measured on the pre-fix engine: `[]` against `['p','e','r','o']`
+returned `score: 100, passed: true, insertionCount: 4`.
+
+It is the mirror image of the D4 catch-all's silent zero, and the more
+dangerous of the two, because **nobody investigates a pass**.
+
+Reachability is the same argument as A7, and no weaker: there is no runtime
+schema validation, Firestore reads are bare `as` casts, and G2P is precomputed
+at authoring time — so a question whose G2P failed, or which was authored
+before confirmation, carries an empty array and passes an entire class. The
+empty-and-empty case throws too: the defect is the missing reference, not the
+mismatch, so it gets no special case that would report a bogus 100.
+
+Same handling rule as A7 — this must surface, not be swallowed by
+`gradeAnswer()`'s catch-all.
+
 ---
 
 ## Findings from writing the tests
@@ -290,11 +314,12 @@ rendering is the UI's business.
 
 ## What this hands to other tickets
 
-| Ticket                                                                                     | What it inherits                                                                                                                                                                                                     |
-| ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Teacher results UI (map fog)                                                               | Four statuses to render, including insertions (A5). Must render in array order, not by `position` (A5). Must not name the detected sound until #2355 (A3). Composes all text via i18n (A4). Never displays PER (A6). |
-| [#2342 — thresholds & dialect](https://github.com/OPS-PIvers/SpartBoard/issues/2342)       | The stress weight `w` joins the tunable set (A9). Stress inherits the never-penalize rule via accepted variants (A10).                                                                                               |
-| [#2354 — Firestore response shape](https://github.com/OPS-PIvers/SpartBoard/issues/2354)   | Accepted stress variants and the narrow reference string are per-question stored fields (A2, A10).                                                                                                                   |
-| [#2341 — teacher authoring UX](https://github.com/OPS-PIvers/SpartBoard/issues/2341)       | Strictness is a picker, and the value is validated before save (A7). Accepted stress variants need a confirmation affordance (A10).                                                                                  |
-| [#2355 — retroflex confusion matrix](https://github.com/OPS-PIvers/SpartBoard/issues/2355) | Now gates a UI affordance rather than the engine contract (A3).                                                                                                                                                      |
-| Server-side symbol normalization (map fog)                                                 | Must project G2P output into the model's 392-symbol set, narrow rather than broad (A2).                                                                                                                              |
+| Ticket                                                                                     | What it inherits                                                                                                                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Teacher results UI (map fog)                                                               | Four statuses to render, including insertions (A5). Must render in array order, not by `position` (A5). Must not name the detected sound until #2355 (A3). Composes all text via i18n (A4). Never displays PER (A6).                                                                                                          |
+| [#2342 — thresholds & dialect](https://github.com/OPS-PIvers/SpartBoard/issues/2342)       | The stress weight `w` joins the tunable set (A9). Stress inherits the never-penalize rule via accepted variants (A10).                                                                                                                                                                                                        |
+| [#2354 — Firestore response shape](https://github.com/OPS-PIvers/SpartBoard/issues/2354)   | Accepted stress variants and the narrow reference string are per-question stored fields (A2, A10).                                                                                                                                                                                                                            |
+| [#2341 — teacher authoring UX](https://github.com/OPS-PIvers/SpartBoard/issues/2341)       | Strictness is a picker, and the value is validated before save (A7). Accepted stress variants need a confirmation affordance (A10). A question must not be saveable with empty `referencePhonemes` — A13 makes that a hard grading error, so authoring is where it has to be caught.                                          |
+| Feature implementation (post-spec)                                                         | **Two errors must reach a human, not `gradeAnswer()`'s catch-all**: `InvalidMatchLevelError` (A7) and `EmptyReferenceError` (A13). That catch-all returns zero, so swallowing either turns a loud, fixable fault into a permanent silent misgrade — a class-wide 0 for A7, and for A13 an inflated pass nobody will question. |
+| [#2355 — retroflex confusion matrix](https://github.com/OPS-PIvers/SpartBoard/issues/2355) | Now gates a UI affordance rather than the engine contract (A3).                                                                                                                                                                                                                                                               |
+| Server-side symbol normalization (map fog)                                                 | Must project G2P output into the model's 392-symbol set, narrow rather than broad (A2).                                                                                                                                                                                                                                       |

@@ -137,6 +137,24 @@ export class InvalidMatchLevelError extends Error {
   }
 }
 
+/**
+ * Thrown when `targetPhonemes` is empty (A13).
+ *
+ * A question with no reference phonemes cannot be graded at all. Left
+ * ungrarded, `n = 0` short-circuits PER to 0 and every student scores 100 and
+ * passes — with insertions still counted — which is silent grade inflation and
+ * the mirror image of the D4 catch-all's silent zero. Same rule as A7: reject
+ * loudly rather than guess, and do not let a caller swallow it.
+ */
+export class EmptyReferenceError extends Error {
+  constructor() {
+    super(
+      'targetPhonemes is empty — a question with no reference phonemes cannot be graded'
+    );
+    this.name = 'EmptyReferenceError';
+  }
+}
+
 /** Thrown when `stressWeight` is outside 0–1. */
 export class InvalidStressWeightError extends Error {
   constructor(weight: number) {
@@ -208,6 +226,11 @@ export function evaluatePronunciation(input: EvaluateInput): EvaluateResult {
   const stressWeight = input.stressWeight ?? 0;
   if (!Number.isFinite(stressWeight) || stressWeight < 0 || stressWeight > 1) {
     throw new InvalidStressWeightError(stressWeight);
+  }
+
+  // A13: an empty reference is a broken question, not a gradeable one.
+  if (targetPhonemes.length === 0) {
+    throw new EmptyReferenceError();
   }
 
   const n = targetPhonemes.length;

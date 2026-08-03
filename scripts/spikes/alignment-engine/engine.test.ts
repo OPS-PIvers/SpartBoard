@@ -8,6 +8,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
+  EmptyReferenceError,
   evaluatePronunciation,
   InvalidMatchLevelError,
   InvalidStressWeightError,
@@ -426,16 +427,43 @@ describe('A2 — the engine is alphabet-agnostic', () => {
     expect(result.metrics.substitutionCount).toBe(1);
     expect(result.score).toBe(75);
   });
+});
 
-  it('handles an empty target without dividing by zero', () => {
-    const result = evaluatePronunciation({
-      targetPhonemes: [],
-      spokenPhonemes: [],
-      matchLevel: 'Close',
-      thresholds: THRESHOLDS,
-    });
+describe('A13 — an empty reference is rejected, not scored', () => {
+  /**
+   * Before A13 this was silent grade inflation. With `n = 0` the PER guard
+   * short-circuits to 0, so `segmentScore` is 100 and the student PASSES —
+   * while `insertionCount` still reports every sound they produced. Measured
+   * on the pre-fix engine: `[]` against `['p','e','r','o']` returned
+   * `score: 100, passed: true, insertionCount: 4`.
+   *
+   * It is the mirror of the D4 catch-all's silent zero, and more dangerous,
+   * because nobody investigates a pass. A7's reasoning applies unchanged: no
+   * runtime schema validation, Firestore reads are bare casts, and G2P is
+   * precomputed at authoring time — so a question whose G2P failed or was
+   * never confirmed carries an empty array and passes an entire class.
+   */
+  it('throws when the student produced sounds against an empty reference', () => {
+    expect(() =>
+      evaluatePronunciation({
+        targetPhonemes: [],
+        spokenPhonemes: ['p', 'e', 'r', 'o'],
+        matchLevel: 'Close',
+        thresholds: THRESHOLDS,
+      })
+    ).toThrow(EmptyReferenceError);
+  });
 
-    expect(result.metrics.per).toBe(0);
-    expect(result.score).toBe(100);
+  it('throws on an empty reference even when nothing was spoken', () => {
+    // The defect is the missing reference, not the mismatch — so this does
+    // not get a special case that would report a bogus 100.
+    expect(() =>
+      evaluatePronunciation({
+        targetPhonemes: [],
+        spokenPhonemes: [],
+        matchLevel: 'Close',
+        thresholds: THRESHOLDS,
+      })
+    ).toThrow(EmptyReferenceError);
   });
 });
