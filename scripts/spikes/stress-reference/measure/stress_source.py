@@ -61,7 +61,7 @@ def cmu_prim(ph):
         if p[-1] == '1': return i + 1
     return None
 
-CORPUS = open('corpus.txt').read().split()
+CORPUS = open('corpus.txt', encoding='utf-8').read().split()
 words = [w for w in CORPUS if w in ent]
 ipas = esp(words, 'en-us')
 

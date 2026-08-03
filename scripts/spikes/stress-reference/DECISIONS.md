@@ -7,7 +7,7 @@ a decision ticket on the [Wayfinder Map: Multilingual Pronunciation Engine](http
 (S1–S5) and supplies the reference that lets **A9's stress weight leave 0**.
 
 **Contents.** `reference.ts` is a reference implementation, `reference.test.ts`
-the executable form of every decision below (46 tests), `measure/` the
+the executable form of every decision below (47 tests), `measure/` the
 harnesses that produced every number quoted here. Neither is wired into the
 app nor imported by feature code — a spike directory, like its four
 siblings. It runs under `pnpm test`, so a later change that violates one of

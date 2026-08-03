@@ -197,8 +197,20 @@ export function deriveReference(input: DeriveInput): StressReference {
   }
 
   if (esp.primary.length === 0) {
-    // No mark at all: nothing to assert. A10a treats an empty accepted list as
-    // absent evidence and degrades — which is the honest reading here.
+    // No mark at all: nothing to assert, so degrade. A10a treats an empty
+    // accepted list as absent evidence.
+    //
+    // This DELIBERATELY ignores any cross-check, and the reason is measured:
+    // espeak emits a primary mark on every polysyllabic word it renders —
+    // **0 exceptions in 33,974 words** across es, de and en. So reaching here
+    // means the input is not espeak output any more; something upstream
+    // (the normalization step, a truncation) has mangled it. The syllable
+    // COUNT is then just as suspect as the missing mark, and a cross-check
+    // index is only meaningful relative to a count we can trust — the same
+    // reasoning as R1b. Falling back to the cross-check would assert a
+    // position in an index space we can no longer validate.
+    //
+    // Unreachable from espeak today; kept as a guard, not a live path.
     return { ...base, accepted: [], flagged: false, source: 'espeak' };
   }
 

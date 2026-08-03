@@ -72,7 +72,7 @@ def rule_stress(w):
             if any(rest.startswith(pp) or rest == pp for pp in PREPS) or len(rest) <= 4:
                 for k, p in enumerate(nuc):
                     if p >= len(pa): return k + 1, len(nuc)
-    for s in sorted(SUF_STRESS + ['ik','ee','ismus','age','ade','ur','eur','ent','abel'],
+    for s in sorted(SUF_STRESS + ['ik','ee'],  # the only two not already in SUF_STRESS
                     key=len, reverse=True):
         if w.endswith(s) and len(w) > len(s) + 2:
             start = len(w) - len(s)

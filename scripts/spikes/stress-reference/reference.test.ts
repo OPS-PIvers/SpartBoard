@@ -486,6 +486,22 @@ describe('edges that would otherwise fail silently', () => {
     expect(scoreStress(r, 1)).toBeNull();
   });
 
+  it('degrades even when a cross-check HAS a reading — deliberately', () => {
+    // Measured: espeak marks primary stress on every polysyllabic word it
+    // renders, 0 exceptions in 33,974 across es/de/en. So reaching this path
+    // means the input is no longer espeak output, which makes the syllable
+    // COUNT as suspect as the missing mark — and a cross-check index is only
+    // meaningful against a count we can trust. Same reasoning as R1b.
+    const r = deriveReference({
+      lang: 'en',
+      espeakIpa: 'kətəm',
+      crossCheck: reading(2, [2]),
+    });
+    expect(r.accepted).toEqual([]);
+    expect(r.source).toBe('espeak');
+    expect(scoreStress(r, 2)).toBeNull();
+  });
+
   it('a null detection degrades even against a confirmed reference (S5)', () => {
     const ok = deriveReference({
       lang: 'en',
