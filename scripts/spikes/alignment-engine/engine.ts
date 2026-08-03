@@ -315,7 +315,10 @@ export function evaluatePronunciation(input: EvaluateInput): EvaluateResult {
 
   // 3. Scores.
   const totalEdits = substitutions + omissions + insertions;
-  const per = n > 0 ? totalEdits / n : 0;
+  // No divide-by-zero guard: A13 rejects an empty reference above, so n >= 1
+  // here. A guard would be dead code AND misleading — the short-circuit it
+  // used to perform is exactly the silent-100 defect A13 exists to prevent.
+  const per = totalEdits / n;
   const segmentScore = Math.max(0, Math.round((1 - per) * 100));
 
   // A9: stress folds into a single combined score at a tunable weight. With

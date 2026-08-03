@@ -616,10 +616,14 @@ describe('runSpotifyAuthPopup', () => {
     const { spy } = stubOpen(popup);
     const pending = runSpotifyAuthPopup();
 
-    // Flush the async S256 digest + executor so window.open runs and the
-    // 500ms closed-check interval is registered.
-    await vi.advanceTimersByTimeAsync(0);
-    expect(spy).toHaveBeenCalled();
+    // Wait for the async S256 digest + executor so window.open runs and the
+    // 500ms closed-check interval is registered. This must be a waitFor, not
+    // a fixed `advanceTimersByTimeAsync(0)`: the digest is a real
+    // SubtleCrypto call that settles on Node's threadpool rather than the
+    // timer queue, so a single micro-flush races it — it wins on an idle
+    // machine and loses under CI load. vi.waitFor advances fake timers on
+    // each poll, so it works while timers are mocked.
+    await vi.waitFor(() => expect(spy).toHaveBeenCalled());
 
     popup.closed = true;
     await vi.advanceTimersByTimeAsync(500);
