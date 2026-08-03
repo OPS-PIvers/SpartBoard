@@ -50,9 +50,15 @@ export interface NucleusMeasurement {
 }
 
 export interface Nucleus {
-  /** 1-based index among the nuclei of the utterance. */
-  syllableIndex: number;
-  /** Index into the spoken phoneme array this nucleus came from. */
+  /**
+   * Index into the spoken phoneme array this nucleus came from.
+   *
+   * Deliberately the ONLY index carried. A nucleus's position among the
+   * *spoken* syllables and its position among the *target* syllables are
+   * different numbers that look identical, and only the target one is ever a
+   * valid answer. `mapToTargetSyllable` is the sole way to obtain it, so
+   * there is no spoken-syllable index lying around to be mistaken for one.
+   */
   phonemeIndex: number;
   symbol: string;
   durationFrames: number;
@@ -92,8 +98,25 @@ export interface StressEvidence {
   accepted: readonly number[];
 }
 
-/** Vowels that are reduced by definition, and so cannot carry stress (S4). */
-const REDUCED_VOWELS: ReadonlySet<string> = new Set(['ə', 'ɐ', 'ɪ̈', 'ɵ']);
+/**
+ * Vowels that are reduced by definition, and so cannot carry stress (S4).
+ *
+ * Every member is verified present in the model's vocabulary by
+ * `stress.test.ts` — a symbol the model can never emit is a rule that can
+ * never fire, and it fails silently. An earlier draft carried `ɪ̈` (ɪ plus a
+ * combining diaeresis), which is absent from the vocabulary and was dead.
+ *
+ * Plain `ɪ` is deliberately NOT here: it is a full KIT vowel that carries
+ * stress in `bit`, so treating it as reduced would rule out stress on every
+ * syllable containing it. `ɚ` is, being the r-coloured schwa of `better`, and
+ * so is `ᵻ` — espeak's own reduced high vowel, as in `roses` and `wanted`.
+ */
+export const REDUCED_VOWELS: ReadonlySet<string> = new Set([
+  'ə',
+  'ɐ',
+  'ɚ',
+  'ᵻ',
+]);
 
 /** A token is a syllable nucleus iff it appears in the derived set. */
 export function isNucleus(symbol: string): boolean {
@@ -111,7 +134,6 @@ export function extractNuclei(phonemes: readonly TimedPhoneme[]): Nucleus[] {
   phonemes.forEach((p, phonemeIndex) => {
     if (!isNucleus(p.symbol)) return;
     nuclei.push({
-      syllableIndex: nuclei.length + 1,
       phonemeIndex,
       symbol: p.symbol,
       durationFrames: p.endFrame - p.startFrame,
@@ -205,11 +227,15 @@ export function mapToTargetSyllable(
 ): number | null {
   // Entries carrying a spoken sound enumerate the spoken stream in order.
   let spokenCursor = -1;
-  const entry = alignment.find((e) => {
-    if (e.spokenIPA === null) return false;
+  let entry: AlignmentEntryLike | undefined;
+  for (const candidate of alignment) {
+    if (candidate.spokenIPA === null) continue;
     spokenCursor += 1;
-    return spokenCursor === nucleus.phonemeIndex;
-  });
+    if (spokenCursor === nucleus.phonemeIndex) {
+      entry = candidate;
+      break;
+    }
+  }
 
   if (!entry || entry.status === 'inserted') return null;
 

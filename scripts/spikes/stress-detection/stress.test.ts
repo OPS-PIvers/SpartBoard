@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 
 import nucleiData from './nuclei.json';
+import vocabData from './vocab.json';
 import {
   type AlignmentEntryLike,
   type NucleusMeasurement,
@@ -16,6 +17,7 @@ import {
   countSyllables,
   detectStress,
   extractNuclei,
+  REDUCED_VOWELS,
   isNucleus,
   mapToTargetSyllable,
   prominenceScores,
@@ -57,13 +59,13 @@ const allCorrect = (phonemes: readonly string[]): AlignmentEntryLike[] =>
   }));
 
 describe('the nucleus set is derived from the model, not from memory', () => {
-  it('matches the committed vocabulary — 239 of 387 sound tokens', () => {
+  it('matches the committed vocabulary — 244 of 387 sound tokens', () => {
     expect(nucleiData.vocabSize).toBe(392);
     expect(nucleiData.counts).toEqual({
-      vowelHeaded: 234,
+      vowelHeaded: 239,
       syllabicConsonants: 3,
       glideInitial: 2,
-      total: 239,
+      total: 244,
     });
   });
 
@@ -88,6 +90,43 @@ describe('the nucleus set is derived from the model, not from memory', () => {
     expect(isNucleus('aɪ')).toBe(true);
     // English `time` /taɪm/ — one syllable, not two.
     expect(countSyllables(['t', 'aɪ', 'm'])).toBe(1);
+  });
+
+  it('every reduced vowel the English cue looks for is a symbol the model can emit', () => {
+    // A rule keyed on a symbol outside the vocabulary can never fire, and it
+    // fails silently. An earlier draft carried `ɪ̈` (ɪ + combining diaeresis),
+    // which is absent from vocab.json — caught only by checking. This pins
+    // the whole set rather than the one symbol.
+    const vocab = vocabData as Record<string, number>;
+    for (const symbol of REDUCED_VOWELS) {
+      expect(Object.hasOwn(vocab, symbol)).toBe(true);
+      expect(isNucleus(symbol)).toBe(true);
+    }
+  });
+
+  it('counts the vowels a textbook IPA list omits — ɚ and ᵻ are English syllables', () => {
+    // Found by auditing the heads of the tokens the rule REJECTED, not by
+    // trusting the vowel list. `better` /bɛtɚ/ and `roses` /ɹoʊzᵻz/ each lose
+    // a syllable without these — and a lost syllable shifts every stress
+    // index after it.
+    for (const symbol of ['ɚ', 'ᵻ', 'ä', 'ũ']) {
+      expect(isNucleus(symbol)).toBe(true);
+    }
+    expect(countSyllables(['b', 'ɛ', 't', 'ɚ'])).toBe(2);
+    expect(countSyllables(['ɹ', 'oʊ', 'z', 'ᵻ', 'z'])).toBe(2);
+  });
+
+  it('still excludes the consonant look-alikes', () => {
+    // `ʲ` is a palatalization modifier and `ɫ` is dark l — neither carries a
+    // syllable. The syllabic form of l is the separate token `l̩`.
+    expect(isNucleus('ʲ')).toBe(false);
+    expect(isNucleus('ɫ')).toBe(false);
+  });
+
+  it('does not treat the full KIT vowel as reduced', () => {
+    // `ɪ` is stressed in `bit`. Marking it reduced would rule out stress on
+    // every syllable containing it.
+    expect([...REDUCED_VOWELS]).not.toContain('ɪ');
   });
 
   it('does not count consonants', () => {
@@ -204,6 +243,22 @@ describe('S5 — absence is signalled by reporting nothing, never by an empty va
       detectStress({
         spokenPhonemes: [tp('p', 0, 2), tp('r', 2, 4)],
         measurements: [],
+        alignment: allCorrect(target),
+        targetPhonemes: target,
+        accepted: [2],
+        config: CONFIG,
+      })
+    ).toBeNull();
+  });
+
+  it('reports nothing when the measurement count does not match the nucleus count', () => {
+    // A distinct guard from the one above: there ARE nuclei here, but the
+    // caller supplied the wrong number of measurements, so the two arrays
+    // cannot be zipped and any ranking would be against the wrong syllable.
+    expect(
+      detectStress({
+        spokenPhonemes: spoken, // two nuclei
+        measurements: [measure(0.5)], // one measurement
         alignment: allCorrect(target),
         targetPhonemes: target,
         accepted: [2],

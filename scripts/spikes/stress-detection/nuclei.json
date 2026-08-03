@@ -3,10 +3,10 @@
   "vocabSize": 392,
   "soundTokens": 387,
   "counts": {
-    "vowelHeaded": 234,
+    "vowelHeaded": 239,
     "syllabicConsonants": 3,
     "glideInitial": 2,
-    "total": 239
+    "total": 244
   },
   "syllabicConsonants": ["n̩", "l̩", "r̩"],
   "glideInitial": ["ja", "ju"],
@@ -169,6 +169,8 @@
     "yɛɜ",
     "yɜ",
     "yː",
+    "ä",
+    "ää",
     "æ",
     "æi",
     "æiː",
@@ -179,6 +181,7 @@
     "œ",
     "œː",
     "œ̃",
+    "ũ",
     "ɐ",
     "ɐɐ",
     "ɐ̃",
@@ -221,6 +224,7 @@
     "əɪ",
     "əʊ",
     "əː1",
+    "ɚ",
     "ɛ",
     "ɛɪ",
     "ɛɹ",
@@ -249,6 +253,7 @@
     "ʊə",
     "ʊɹ",
     "ʊː",
-    "ʌ"
+    "ʌ",
+    "ᵻ"
   ]
 }

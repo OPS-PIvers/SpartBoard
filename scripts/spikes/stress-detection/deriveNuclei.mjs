@@ -24,6 +24,16 @@ const here = dirname(fileURLToPath(import.meta.url));
 const VOWEL_HEADS = new Set([
   ...'aeiouy',
   ...'æɑɐɒɔəɘɛɜɞɤɨɪɯɵøœɶʊʉʌʏ',
+  // Vowels a textbook IPA list omits but this vocabulary actually uses. Every
+  // one was found by auditing the heads of the tokens the rule REJECTED,
+  // rather than by trusting the list — and two of them are load-bearing for
+  // English:
+  //   ɚ  r-coloured schwa — `better`, `water`, `teacher`
+  //   ᵻ  espeak's reduced high vowel — `roses`, `wanted`
+  //   ä  centralized [a]      ũ  nasalized [u]
+  // Dropping ɚ and ᵻ costs those words a syllable outright, which shifts
+  // every stress index after it.
+  ...'ɚᵻäũ',
 ]);
 
 /**

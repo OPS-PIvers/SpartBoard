@@ -46,21 +46,34 @@ served from_ can be struck.
 ### The vocabulary decides what a syllable is
 
 `nuclei.json` is derived from the chosen model's own `vocab.json` (committed
-here) by `deriveNuclei.mjs`. Of 387 sound tokens, **239 can carry a syllable**:
+here) by `deriveNuclei.mjs`. Of 387 sound tokens, **244 can carry a syllable**:
 
 | Class               | Count | Why it matters                                                                 |
 | ------------------- | ----- | ------------------------------------------------------------------------------ |
-| Vowel-headed        | 234   | Includes diphthongs as **single tokens** — `aɪ`, `aʊ`, `eɪ`, `ɔɪ`, `əʊ`, `eə`. |
+| Vowel-headed        | 239   | Includes diphthongs as **single tokens** — `aɪ`, `aʊ`, `eɪ`, `ɔɪ`, `əʊ`, `eə`. |
 | Syllabic consonants | 3     | `n̩`, `l̩`, `r̩` — nuclei with no vowel in them.                                  |
 | Glide-initial       | 2     | `ja`, `ju` — whole syllables that begin with a consonant.                      |
 
-Two traps a hand-written rule falls into:
+Three traps a hand-written rule falls into:
 
 - **"Count the vowels" undercounts German systematically.** `n̩`, `l̩`, `r̩` are
   syllable nuclei containing no vowel, and German's reducing `-en` ending
   (`gehen`, `Wagen`, `haben`) is full of them.
 - **"The first character is a vowel" drops `ja` and `ju`** — both ordinary
   German words, so the loss would be frequent and silent.
+
+- **A textbook IPA vowel list is not this vocabulary's vowel list.** Four
+  vowels sit outside the familiar inventory, and two of them are load-bearing
+  for English: **`ɚ`** (r-coloured schwa — `better`, `water`, `teacher`) and
+  **`ᵻ`** (espeak's own reduced high vowel — `roses`, `wanted`), plus `ä` and
+  `ũ`. Omitting `ɚ` and `ᵻ` costs those words a syllable outright, **which
+  shifts every stress index after it.**
+
+  These were found by auditing the heads of the tokens the rule _rejected_ —
+  not by re-reading the list. That audit is the check worth repeating if the
+  label set ever changes; `ʲ` (palatalization modifier) and `ɫ` (dark l) look
+  similar in that listing and are correctly excluded, the syllabic form of l
+  being the separate token `l̩`.
 
 Because diphthongs are single tokens, English `time` is `t aɪ m`: one nucleus,
 one syllable. No diphthong-merging rule is needed.
@@ -100,7 +113,7 @@ question, not a list of vectors.
 
 ### S2 — Syllables come from the phoneme stream, not a separate stage
 
-A syllable nucleus is any token in the derived 239-token set. Its extent is
+A syllable nucleus is any token in the derived 244-token set. Its extent is
 the token's frame span, from the CTC decode.
 
 No forced alignment, no second model, no extra download. See
@@ -254,7 +267,7 @@ A9, A10 and A10a are unaffected:
 | Ticket                                                                                   | What it inherits                                                                                                                                                                                                                                        |
 | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [#2360 — accepted stress patterns](https://github.com/OPS-PIvers/SpartBoard/issues/2360) | The reference is **a list of acceptable syllable indices per question**, not vectors (S1). espeak's `ˈ`/`ˌ` marks remain a viable source — take the primary mark's syllable position and discard the secondary. Once it lands, A9's weight can leave 0. |
-| [#2341 — teacher authoring UX](https://github.com/OPS-PIvers/SpartBoard/issues/2341)     | Accepted stress indices need a confirmation affordance, and syllable count is derivable from the stored reference phonemes via the 239-token nucleus set — so the picker can show real syllables rather than asking a teacher to count.                 |
+| [#2341 — teacher authoring UX](https://github.com/OPS-PIvers/SpartBoard/issues/2341)     | Accepted stress indices need a confirmation affordance, and syllable count is derivable from the stored reference phonemes via the 244-token nucleus set — so the picker can show real syllables rather than asking a teacher to count.                 |
 | [#2354 — Firestore response shape](https://github.com/OPS-PIvers/SpartBoard/issues/2354) | Accepted stress indices are a per-question stored field: `number[]`, not `number[][]`.                                                                                                                                                                  |
 | [#2342 — thresholds & dialect](https://github.com/OPS-PIvers/SpartBoard/issues/2342)     | Two more tunables join the set: the three cue weights (S4) and the prominence margin (S5).                                                                                                                                                              |
 | [#2362 — teacher results UI](https://github.com/OPS-PIvers/SpartBoard/issues/2362)       | Stress is present, absent, or wrong — never partially right (S1, S5). "Stress not assessed" is a normal, frequent state and needs a real presentation, not an error.                                                                                    |
