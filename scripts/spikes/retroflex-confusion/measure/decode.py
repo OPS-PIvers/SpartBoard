@@ -54,6 +54,10 @@ def decode(session, vocab_inv, audio):
 
     tokens is a list of (symbol, start_frame, end_frame) after the CTC
     collapse: merge runs of the same id, then drop <pad>.
+
+    The returned logits are the batch element, shape [frames, 392] — the
+    session output is [1, frames, 392] and the leading axis is dropped here so
+    callers can index frames directly.
     """
     x = normalize(audio)[None, :]
     feeds = {session.get_inputs()[0].name: x}

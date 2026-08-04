@@ -285,7 +285,7 @@ MODEL_DIR=./model ./venv/bin/python measure/decode.py model_q4.onnx \
 ```
 
 The four `.onnx` files total ~2.3 GB and are **not committed** — see
-`measure/.gitignore`.
+`.gitignore`.
 
 ## Scope
 
