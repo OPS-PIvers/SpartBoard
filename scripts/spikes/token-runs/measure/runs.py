@@ -94,12 +94,26 @@ def tokenize(ipa):
 
 
 def phonemize(voice, words):
+    """One IPA line per input word, or raise.
+
+    Batching is one word per input line -> one output line, and every caller
+    then does `zip(words, lines)`. `zip` truncates silently to the shorter
+    sequence, so a single word espeak declined to render would misalign every
+    (word, ipa) pair after it and quietly poison the counts. Raising beats
+    skipping the language: a dropped language leaves a console line and an
+    otherwise complete-looking summary table.
+    """
     p = subprocess.run(
         ['espeak-ng', '-v', voice, '-q', '--ipa=3'],
         input='\n'.join(words), capture_output=True, text=True, check=True,
     )
-    lines = [ln.strip() for ln in p.stdout.split('\n')]
-    return [ln for ln in lines if ln]
+    lines = [ln.strip() for ln in p.stdout.split('\n') if ln.strip()]
+    if len(lines) != len(words):
+        raise AssertionError(
+            f'espeak batching desync for {voice}: '
+            f'{len(lines)} lines for {len(words)} words'
+        )
+    return lines
 
 
 def main():
@@ -107,9 +121,6 @@ def main():
     for label, voice, path, pat, n in CASES:
         words = load(path, pat, n)
         lines = phonemize(voice, words)
-        if len(lines) != len(words):
-            print(f'{label}: DESYNC {len(lines)} vs {len(words)} -- skipping')
-            continue
 
         repeats = collections.Counter()   # token -> how many words repeat it
         examples = collections.defaultdict(list)

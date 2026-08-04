@@ -63,7 +63,8 @@ def phonemize(voice, words):
     shorter sequence, so a single word espeak declines to render would
     misalign every (word, ipa) pair after it and quietly poison the counts.
     runs.py guards this at the call site; guarding it here covers all six
-    call sites in this file at once.
+    call sites in this file at once. runs.py guards identically, in the same
+    place and with the same behaviour.
     """
     p = subprocess.run(
         ['espeak-ng', '-v', voice, '-q', '--ipa=3'],

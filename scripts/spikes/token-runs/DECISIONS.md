@@ -4,8 +4,13 @@ Resolves [#2380 — _A held trill emits several `r` tokens where the reference
 holds one — does the scorer dock it?_](https://github.com/OPS-PIvers/SpartBoard/issues/2380).
 
 Authoritative over [`alignment-engine/DECISIONS.md`](../alignment-engine/DECISIONS.md)
-A5/A6 **where they conflict**, which is in exactly one place: the cost of an
-insertion that repeats its neighbour. Everything else in A5/A6 stands.
+A5/A6 **where they conflict**, in **two** places: the cost of an insertion that
+repeats its neighbour (T1), and the status set, which grows from four members
+to five (T2). Everything else in A5/A6 stands.
+
+Both are reflected in that document's "What this hands to other tickets" table,
+so whoever picks up [#2362](https://github.com/OPS-PIvers/SpartBoard/issues/2362)
+reads the right status count from either doc.
 
 ---
 
