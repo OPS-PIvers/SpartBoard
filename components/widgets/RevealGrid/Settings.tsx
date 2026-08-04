@@ -22,7 +22,7 @@ import { TypographySettings } from '@/components/common/TypographySettings';
 export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget } = useDashboard();
+  const { updateWidget, addToast } = useDashboard();
   const { driveService } = useGoogleDrive();
   const { showAlert } = useDialog();
   const [isLoadingDrive, setIsLoadingDrive] = useState(false);
@@ -489,6 +489,9 @@ export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
 
           <button
             type="button"
+            onClick={() =>
+              addToast('AI set generation is coming soon!', 'info')
+            }
             className="col-span-2 flex items-center justify-center gap-2 py-2 bg-purple-50 text-purple-600 rounded-xl hover:bg-purple-100 transition-colors text-xs font-bold"
           >
             <Sparkles className="w-4 h-4" /> Reveal Grid Set Generator
