@@ -56,11 +56,26 @@ def load(path, pat, n):
 
 
 def phonemize(voice, words):
+    """One IPA line per input word, or raise.
+
+    The batching is one word per input line -> one output line, and every
+    caller then does `zip(words, lines)`. `zip` truncates silently to the
+    shorter sequence, so a single word espeak declines to render would
+    misalign every (word, ipa) pair after it and quietly poison the counts.
+    runs.py guards this at the call site; guarding it here covers all six
+    call sites in this file at once.
+    """
     p = subprocess.run(
         ['espeak-ng', '-v', voice, '-q', '--ipa=3'],
         input='\n'.join(words), capture_output=True, text=True, check=True,
     )
-    return [ln.strip() for ln in p.stdout.split('\n') if ln.strip()]
+    lines = [ln.strip() for ln in p.stdout.split('\n') if ln.strip()]
+    if len(lines) != len(words):
+        raise AssertionError(
+            f'espeak batching desync for {voice}: '
+            f'{len(lines)} lines for {len(words)} words'
+        )
+    return lines
 
 
 def tokenize(ipa):
@@ -129,7 +144,7 @@ for label, voice, path, pat, n in [
                     ex[before].append((w, ipa))
     tot = sum(prev.values())
     print(f'  {label}: {tot} orphan length marks in {len(ws)} words')
-    for v, c in prex if (prex := prev.most_common()) else []:
+    for v, c in prev.most_common():
         combined = (v or '') + 'ː'
         inv = combined in VOCAB
         s = ', '.join(f'{w} /{ipa}/' for w, ipa in ex[v][:2])
