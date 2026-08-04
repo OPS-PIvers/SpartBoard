@@ -62,6 +62,7 @@ import {
   SOFT_DELETE_SUBCOLLECTIONS,
   PLC_PAGE_SIZE,
   GROUP_PAGE_SIZE,
+  CATEGORY_PAGE_SIZE,
 } from './gcPlcOrphans';
 
 // ===========================================================================
@@ -603,18 +604,14 @@ describe('runGcPlcOrphans — per-PLC category pagination past the first page', 
   // This is the identical bug class already fixed for cross-PLC iteration
   // (PLC_PAGE_SIZE) and the synced-group sweep (GROUP_PAGE_SIZE), one level
   // deeper: inside a single PLC's own subcollections.
-  const CATEGORY_PAGE_SIZE_UNDER_TEST = 500;
 
   it('sweeps stale activity beyond the first category page, not just the first 500 docs', async () => {
     // 500 fresh docs with doc ids sorting BEFORE the stale one, so they fill
     // the entire first page and push the genuinely-stale doc out of it.
-    const fresh = Array.from(
-      { length: CATEGORY_PAGE_SIZE_UNDER_TEST },
-      (_, i) => ({
-        id: `fresh-${String(i).padStart(6, '0')}`,
-        data: { createdAt: NOW - 1 * day },
-      })
-    );
+    const fresh = Array.from({ length: CATEGORY_PAGE_SIZE }, (_, i) => ({
+      id: `fresh-${String(i).padStart(6, '0')}`,
+      data: { createdAt: NOW - 1 * day },
+    }));
     const stale = { id: 'zzz-stale', data: { createdAt: NOW - 120 * day } };
     const { db, root } = makeStubDb({
       plcs: [{ id: 'plc-1', data: {}, sub: { activity: [...fresh, stale] } }],
@@ -628,13 +625,10 @@ describe('runGcPlcOrphans — per-PLC category pagination past the first page', 
   });
 
   it('sweeps stale presence beyond the first category page, not just the first 500 docs', async () => {
-    const fresh = Array.from(
-      { length: CATEGORY_PAGE_SIZE_UNDER_TEST },
-      (_, i) => ({
-        id: `fresh-${String(i).padStart(6, '0')}`,
-        data: { lastActiveAt: NOW - 60 * 1000 },
-      })
-    );
+    const fresh = Array.from({ length: CATEGORY_PAGE_SIZE }, (_, i) => ({
+      id: `fresh-${String(i).padStart(6, '0')}`,
+      data: { lastActiveAt: NOW - 60 * 1000 },
+    }));
     const stale = {
       id: 'zzz-stale',
       data: { lastActiveAt: NOW - 10 * 60 * 1000 },
@@ -651,13 +645,10 @@ describe('runGcPlcOrphans — per-PLC category pagination past the first page', 
   });
 
   it('hard-deletes an expired tombstone beyond the first category page, not just the first 500 docs', async () => {
-    const fresh = Array.from(
-      { length: CATEGORY_PAGE_SIZE_UNDER_TEST },
-      (_, i) => ({
-        id: `fresh-${String(i).padStart(6, '0')}`,
-        data: { deletedAt: null },
-      })
-    );
+    const fresh = Array.from({ length: CATEGORY_PAGE_SIZE }, (_, i) => ({
+      id: `fresh-${String(i).padStart(6, '0')}`,
+      data: { deletedAt: null },
+    }));
     const expired = { id: 'zzz-stale', data: { deletedAt: NOW - 40 * day } };
     const { db, root } = makeStubDb({
       plcs: [{ id: 'plc-1', data: {}, sub: { notes: [...fresh, expired] } }],

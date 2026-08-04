@@ -351,6 +351,11 @@ async function fetchCategoryPaginated(
     lastDoc = page.docs[page.docs.length - 1];
     if (page.size < pageLimit) break;
   }
+  if (results.length >= MAX_CATEGORY_SCAN_PER_PLC) {
+    console.warn(
+      `[gcPlcOrphans] hit MAX_CATEGORY_SCAN_PER_PLC ceiling (${MAX_CATEGORY_SCAN_PER_PLC}) on ${collectionRef.path} — raise it or shard the sweep`
+    );
+  }
   return results;
 }
 
