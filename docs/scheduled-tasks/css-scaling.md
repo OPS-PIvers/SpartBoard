@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-03_
+_Last audited: 2026-08-04_
 _Last action: 2026-07-23 — MEDIUM SoundWidget `PopcornBallsView` no longer receives `width={w} height={h - 60}` (stored widget dims minus a magic header offset); the canvas component now self-measures its own container via `ResizeObserver`, matching the NumberLine idiom, so the draw buffer tracks the actual rendered area with no hard-coded pixel subtraction_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-04: Targeted scan (Tuesday daily). New dev-paul commits since 2026-08-03: spike(pronunciation) #2363 and #2365 (spike docs only — no widget front-face content changes). All pre-existing LOW open items confirmed present and unresolved (ClockWidget AM/PM ml-2, MathTools tab row px-2 gap-1, Onboarding header gap-2, EmbedWidget portaled toolbar, RevealGrid spacing, multi-widget group, MiniApp overlay text sizes, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown). Zero new anti-patterns detected._
 
 _2026-08-03: Targeted scan (Monday daily). New dev-paul commits since 2026-08-02 absorbed via rebase: docs(spike) multilingual pronunciation plan (#2343 — 20 spike-doc commits; no widget source changes). No widget Widget.tsx front-face content changes in any of these commits. All pre-existing LOW open items confirmed present and unresolved (ClockWidget AM/PM ml-2, MathTools tab row px-2 gap-1, Onboarding header gap-2, EmbedWidget portaled toolbar, RevealGrid spacing, multi-widget group, MiniApp overlay text sizes, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown). Zero new anti-patterns detected._
 
