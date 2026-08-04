@@ -1,0 +1,5 @@
+# Frequency wordlists — downloaded, not committed (~3 MB). Regenerate with the
+# commands in ../RESULTS.md ("Reproducing the measurements").
+es_50k.txt
+de_50k.txt
+g10k.txt
