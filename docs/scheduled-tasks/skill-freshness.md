@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-07-30_
+_Last audited: 2026-08-04_
 _Last action: 2026-07-09 — MEDIUM SpecialistSchedule Appearance.tsx/co-located-Settings pattern documented + stale `.agents/` reference row corrected in new-widget skill (both mirrors)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-04: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — consistent with all prior runs). Codebase-side verification. New dev-paul commits since 2026-08-03: spike(pronunciation) #2363 and #2365 (spike docs only — no FeaturePermissionsManager.tsx, FeatureConfigurationPanel.tsx, WidgetRegistry.ts, types.ts, or skill file changes). `spart-new-widget` skill re-confirmed fully accurate — all 8 registered locations verified correct, all referenced files confirmed present. `spart-widget-admin-config` skill: `BUILDING_CONFIG_PANELS` declared as `Partial<Record<string, BuildingConfigPanel>>` (FeatureConfigurationPanel.tsx:92) — skill's `WidgetType | InternalToolType` annotation mismatch LOW item still valid. Exclusion array example still missing 7 types (blooms-taxonomy, catalyst, graphic-organizer, music, pdf, video-activity, work-symbols) — LOW item still valid. Secondary exclusion gate undocumented — LOW item still valid. All 7 LOW open items remain valid. Zero new findings._
 
 _2026-07-30: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — consistent with all prior runs). Codebase-side verification via sub-agent. No new dev-paul commits since 2026-07-29. Key findings: (1) `spart-new-widget` — FULLY ACCURATE. All referenced file paths confirmed present; `lazyNamed()` pattern and all 8-location registration table verified correct. `WidgetRegistry.ts` matches skill documentation exactly. (2) `spart-widget-admin-config` — ONE NEW LOW item: `BUILDING_CONFIG_PANELS` type annotation in the skill shows `Partial<Record<WidgetType | InternalToolType, BuildingConfigPanel>>` but `components/admin/FeatureConfigurationPanel.tsx:92` declares `Partial<Record<string, BuildingConfigPanel>>`. The exclusion array missing-7-types issue is already tracked as an existing LOW open item (confirmed still valid). All 6 pre-existing LOW open items remain valid. Total open: 7 LOW._
 

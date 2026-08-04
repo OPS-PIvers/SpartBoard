@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-07-30_
+_Last audited: 2026-08-04_
 _Last action: 2026-07-28_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-04: `pnpm audit` returned full vulnerability data. Root: **155 vulnerabilities** (9 low | 66 moderate | 76 high | 4 critical) — up from 146 on 2026-07-30 (+9). Functions: **80 vulnerabilities** (5 low | 32 moderate | 41 high | 2 critical) — up from 76 on 2026-07-30 (+4). TWO NEW items detected: (1) NEW MEDIUM `hono` CORS ReDoS — GHSA-8j4g-w8fx-2239 (moderate): ReDoS in CORS middleware via `Access-Control-Request-Headers` header; patched in >=4.12.34. Current latest is **4.13.0**. Hono MEDIUM item updated — fix target raised from `^4.12.28` to `>=4.12.34`. (2) NEW MEDIUM `postcss@8.5.6` — GHSA-fxqj-rqcc-2cmp (moderate): Incomplete fix of GHSA-6g55-p6wh-862q — attacker-controlled `sourceMappingURL` reads arbitrary `.map` files when `from` is unset. Vulnerable <=8.5.22, patched >=8.5.23. Via `vitest>vite>postcss` in root (also in functions audit). postcss is a direct devDependency in root at 8.5.6. Also confirmed details on LOW `fast-uri` item: 5 HIGH advisories now fully identified (GHSA-q3j6-qgpj-74h6, GHSA-v39h-62p7-jpjc, GHSA-4c8g-83qw-93j6, GHSA-v2hh-gcrm-f6hx, GHSA-7p8r-x3mc-p8w7), all requiring >=3.1.5, in both root and functions. `pnpm outdated` version drift vs 2026-07-30: `hono` latest **4.13.0** (minor version jump; was 4.12.32); `firebase` latest **12.17.0** (was 12.16.0); `@typescript-eslint/*` latest **8.66.0** (was 8.65.0); `jose` (functions) latest **6.2.8** (was 6.2.5); `@google/genai` (functions) latest **2.15.0** (was 2.14.0); `google-auth-library` (functions) latest **11.0.0** (MAJOR — was 10.9.1); `globals` latest **17.9.0** (was 17.8.0); `firebase-tools` latest **15.25.1** (was 15.25.0); `@playwright/test` latest **1.62.1** (was 1.62.0). LOW major-versions item updated. All other existing MEDIUM and LOW open items (pnpm-audit-410, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash, protobufjs, ws-in-functions, fast-uri, @types/tesseract.js, jose, major-versions) remain valid._
 
 _2026-07-30: `pnpm audit` returned full vulnerability data. Root: **146 vulnerabilities** (up from 141 on 2026-07-23). Functions: **76 vulnerabilities** (up from 73 on 2026-07-23). Five additional CVEs since 2026-07-23, all distributed across already-tracked categories (firebase-tools/tar chain, firebase-admin chains, axios). No entirely new vulnerability categories. `pnpm outdated` version drift vs 2026-07-23: notable updates — `@google/genai` latest **2.14.0** (was 2.13.0; also functions), `axios` (root + functions) latest **1.19.0** (was 1.18.1), `lucide-react` latest **1.27.0** (was 1.24.0), `vite` latest **8.1.5** (was 8.1.4), `hono` latest **4.12.32** (was 4.12.30), `jose` (functions) latest **6.2.5** (was 6.2.4), `jsdom` latest **30.0.1** (was 29.1.1; now 3 majors ahead of installed 27.x), `firebase-tools` latest **15.25.0** (was 15.24.0), `firebase-functions` latest **7.3.2** (both root dev + functions), `postcss` latest **8.5.25** (was 8.5.19), `@typescript-eslint/*` latest **8.65.0** (was 8.62.1), `tailwindcss` latest **4.3.3** (was 4.3.2), `eslint` latest **10.8.0** (was 10.7.0), `@vitejs/plugin-react` latest **6.0.4** (was 6.0.3), `recharts` latest **3.10.1** (was 3.9.2), `prettier` latest **3.9.6** (was 3.9.4), `globals` latest **17.8.0** (was 17.7.0), `react-i18next` latest **17.0.11** (was 17.0.10). LOW major-versions item updated. All existing open items (pnpm-audit-410, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash, protobufjs, ws-in-functions, fast-uri, @types/tesseract.js, jose, major-versions) remain valid._
 
@@ -54,17 +56,28 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 - **Detail:** `pnpm audit` (both root and functions) returned HTTP 410 on 2026-07-16 with: `"This endpoint is being retired. Use the bulk advisory endpoint instead."` Both endpoints (`/-/npm/v1/security/audits/quick` and `/-/npm/v1/security/audits`) were unavailable. Exit code was 0, so CI did not fail — but no vulnerability data was returned. 2026-07-21 run shows audit working again in this environment; gap data (2026-07-09 to 2026-07-21) captured in the run note above.
 - **Fix:** Confirm audit works in CI. If still broken in CI, switch to an alternative: (a) `npm audit` via Node's own npm CLI; (b) `pnpm audit --use-node-fetch` or newer pnpm; (c) `osv-scanner` against lock files; (d) GitHub Dependabot security alerts. Option (d) is lowest friction.
 
-### MEDIUM `hono@4.12.15` has three MODERATE CVEs — patched in >=4.12.25 (latest 4.12.28)
+### MEDIUM `hono@4.12.15` has four MODERATE CVEs — patched in >=4.12.34 (latest 4.13.0)
 
 - **Detected:** 2026-05-12
-- **Updated:** 2026-07-07
+- **Updated:** 2026-08-04 — NEW CVE GHSA-8j4g-w8fx-2239 detected; fix target raised from >=4.12.25 to >=4.12.34; latest is now 4.13.0
 - **File:** package.json (devDependency + pnpm.overrides)
-- **Detail:** Three moderate CVEs affect `hono` at the installed version 4.12.15:
+- **Detail:** Four moderate CVEs affect `hono` at the installed version 4.12.15:
   - **GHSA-qp7p-654g-cw7p** (moderate): CSS Declaration Injection via Style Object Values in JSX SSR — unsafe CSS values can leak from attacker-controlled object properties when using `hono/jsx` SSR with style objects. Patched >=4.12.18.
   - **GHSA-p77w-8qqv-26rm** (moderate): Cache Middleware ignores `Vary: Authorization` / `Vary: Cookie` headers, leading to cross-user cache leakage. Patched >=4.12.18.
   - **GHSA-wgpf-jwqj-8h8p** (moderate, detected 2026-07-07): Lambda@Edge adapter keeps only the last value of a repeated request header, dropping the rest. Patched >=4.12.25.
-    All three CVEs require >=4.12.25 to be fully resolved. Current latest is 4.12.28. The `pnpm.overrides.hono` entry pins this across the dep graph.
-- **Fix:** In `package.json`, update both `devDependencies.hono` and `pnpm.overrides.hono` to `^4.12.28` (or `>=4.12.25`), then run `pnpm install`. Verify `pnpm audit` no longer reports any hono advisories. Run `pnpm type-check`, `pnpm lint`, and `pnpm test` to confirm no regressions.
+  - **GHSA-8j4g-w8fx-2239** (moderate, NEW 2026-08-04): ReDoS in CORS middleware via `Access-Control-Request-Headers` header — crafted header value causes unbounded regex backtracking. Patched >=4.12.34.
+    All four CVEs require >=4.12.34 to be fully resolved. Current latest is 4.13.0. The `pnpm.overrides.hono` entry pins this across the dep graph.
+- **Fix:** In `package.json`, update both `devDependencies.hono` and `pnpm.overrides.hono` to `>=4.12.34` (or `^4.13.0` to track latest), then run `pnpm install`. Verify `pnpm audit` no longer reports any hono advisories. Run `pnpm type-check`, `pnpm lint`, and `pnpm test` to confirm no regressions.
+
+### MEDIUM `postcss@8.5.6` has two CVEs — patched in >=8.5.23 (latest 8.5.25)
+
+- **Detected:** 2026-08-04
+- **File:** package.json (direct devDependency `postcss@8.5.6`)
+- **Detail:** Two CVEs affect `postcss` at the installed version 8.5.6:
+  - **GHSA-6g55-p6wh-862q** (high): Arbitrary file read via `sourceMappingURL` when `from` option is unset. Patched >=8.5.12.
+  - **GHSA-fxqj-rqcc-2cmp** (moderate, NEW 2026-08-04): Incomplete fix of GHSA-6g55-p6wh-862q — attacker-controlled `sourceMappingURL` still reads arbitrary `.map` files when `from` is unset even after the 8.5.12 patch. Patched >=8.5.23.
+    Both CVEs require >=8.5.23 to be fully resolved. Via `vitest>vite>postcss` in root (also in functions audit). dev-only build tool — no production runtime impact. Latest postcss is 8.5.25.
+- **Fix:** Update `postcss` direct devDependency in root `package.json` from `^8.5.6` to `^8.5.25`, then run `pnpm install`. Verify `pnpm audit` no longer reports either postcss GHSA. Run `pnpm type-check`, `pnpm lint`, and `pnpm build` to confirm no regressions.
 
 ### MEDIUM `axios@1.15.0` has multiple CVEs — full fix now requires >=1.18.0 (latest 1.18.1)
 
@@ -145,12 +158,19 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 - **Detail:** HIGH `ws` advisory via `@google/genai > ws` chain in functions/. Root `package.json` has `"ws@8": "^8.21.1"` (added 2026-07-21 for the root `ws` advisory) but pnpm.overrides in root does NOT propagate to the functions/ workspace — each workspace needs its own overrides block.
 - **Fix:** Add `"ws@8": "^8.21.1"` to `pnpm.overrides` in `functions/package.json`. Run `pnpm -C functions install`, verify `pnpm -C functions why ws` reports >=8.21.1 for the 8.x line, and run type-check and tests.
 
-### LOW `fast-uri` HIGH in `functions/` — new advisory in functions audit
+### LOW `fast-uri` has five HIGH advisories — patched in >=3.1.5 (root + functions)
 
 - **Detected:** 2026-07-23
-- **File:** functions/package.json (transitive dependency)
-- **Detail:** `fast-uri` has a new HIGH advisory in the 2026-07-23 `pnpm audit` output for functions/. The specific GHSA identifier and patched version will be confirmed on next detailed audit run.
-- **Fix:** Confirm GHSA and fix version, then add pnpm.overrides entry for `fast-uri` in `functions/package.json`.
+- **Updated:** 2026-08-04 — all five GHSA IDs and fix version confirmed; advisory present in root as well as functions
+- **File:** package.json, functions/package.json (transitive via `@google/genai>@modelcontextprotocol/sdk>ajv>fast-uri`)
+- **Detail:** Five HIGH advisories affect `fast-uri` in both root and functions audits:
+  - **GHSA-q3j6-qgpj-74h6** (high): path traversal via percent-encoded dot segments (<=3.1.0, patched >=3.1.1).
+  - **GHSA-v39h-62p7-jpjc** (high): host confusion via percent-encoded authority delimiters (<=3.1.1, patched >=3.1.2).
+  - **GHSA-4c8g-83qw-93j6** (high): host confusion via failed IDN normalization (>=3.0.0 <3.1.3, patched >=3.1.3).
+  - **GHSA-v2hh-gcrm-f6hx** (high): host confusion via literal backslash authority delimiter (>=3.0.0 <=3.1.3, patched >=3.1.4).
+  - **GHSA-7p8r-x3mc-p8w7** (high): host confusion via backslash authority introducer (>=3.0.0 <3.1.5, patched >=3.1.5).
+    All five patched by >=3.1.5. Via `@google/genai>@modelcontextprotocol/sdk>ajv>fast-uri` in both workspaces.
+- **Fix:** Add `"fast-uri": ">=3.1.5"` to `pnpm.overrides` in both `package.json` (root) and `functions/package.json`. Run `pnpm install && pnpm -C functions install`, verify `pnpm why fast-uri` reports >=3.1.5 in both workspaces. Run type-check and tests.
 
 ### LOW `@types/tesseract.js@2.0.0` is deprecated — may become a resolution problem
 
@@ -169,7 +189,7 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 ### LOW Major version updates available — require planned migration
 
 - **Detected:** 2026-04-14
-- **Updated:** 2026-07-30
+- **Updated:** 2026-08-04
 - **File:** package.json
 - **Detail:** Several packages have major version releases available that require migration planning (breaking changes):
   - `tailwindcss`: 3.4.19 → **4.3.3** (major — config format changed completely)
@@ -184,12 +204,13 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
   - `@types/node`: 24.12.2 → **26.1.2** (2 major versions behind — verify Node 24 compat)
   - `jsdom`: 27.4.0 → **30.0.1** (3 majors ahead — test environment only; also resolves ws CVE)
   - `lint-staged`: 16.2.7 → **17.2.0** (major — check husky integration compatibility)
-  - `@google/genai`: 1.51.0 → **2.14.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade; also affects functions/; updated 2026-07-30)
-  - `firebase`: 12.8.0 → **12.16.0** (latest as of 2026-07-21; update to resolve fast-xml-parser and node-forge transitive CVEs)
+  - `@google/genai`: 1.51.0 → **2.15.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade; also affects functions/; updated 2026-08-04)
+  - `firebase`: 12.8.0 → **12.17.0** (latest 2026-08-04; update to resolve fast-xml-parser and node-forge transitive CVEs)
   - `firebase-admin` (functions): 13.6.0 → **14.2.0** (1 major — review migration guide for breaking changes; updated 2026-07-21)
-  - `jose` (functions): 4.15.9 → **6.2.5** (2 majors — separate LOW item above for JWT security context; updated 2026-07-30)
+  - `jose` (functions): 4.15.9 → **6.2.8** (2 majors — separate LOW item above for JWT security context; updated 2026-08-04)
   - `@testing-library/jest-dom`: 6.x → **7.0.0** (major — NEW 2026-07-21; check matcher API changes)
-    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → **19.2.8** (updated 2026-07-23), `firebase-tools` 15.8.0 → **15.25.0** (latest 2026-07-30), `@playwright/test` 1.58.0 → **1.62.0**, `@typescript-eslint/*` 8.54.0 → **8.65.0**, `vitest` (root) 4.1.8 → **4.1.10**, `hono` 4.12.15 → **4.12.32** (also has active MEDIUM CVE — see separate item), `dompurify` 3.4.2 → **3.4.12**, `postcss` 8.5.6 → **8.5.25**, `prettier` 3.8.1 → **3.9.6**, `eslint-plugin-prettier` 5.5.5 → **5.5.6**, `eslint-plugin-react-hooks` 7.0.1 → **7.1.1**, `globals` 17.2.0 → **17.8.0**, `@firebase/rules-unit-testing` 5.0.0 → **5.0.1**, `google-auth-library` (functions) 10.5.0 → **10.9.1**, functions `axios` 1.15.0 → **1.19.0**, functions `@google-cloud/functions-framework` 5.0.0 → **5.0.5**, `axios` (root) 1.15.0 → **1.19.0** (also active separate MEDIUM CVE — upgrade resolves), `recharts` 3.8.1 → **3.10.1**, `react-i18next` 16.5.4 → **17.0.11** (major), `firebase-functions` 7.2.5 → **7.3.2**.
+  - `google-auth-library` (functions): 10.5.0 → **11.0.0** (NEW MAJOR 2026-08-04 — used in functions for LTI + student auth; review migration guide before upgrading)
+    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → **19.2.8** (updated 2026-07-23), `firebase-tools` 15.8.0 → **15.25.1** (latest 2026-08-04), `@playwright/test` 1.58.0 → **1.62.1** (updated 2026-08-04), `@typescript-eslint/*` 8.54.0 → **8.66.0** (updated 2026-08-04), `vitest` (root) 4.1.8 → **4.1.10**, `hono` 4.12.15 → **4.13.0** (also has active MEDIUM CVE — see separate item; updated 2026-08-04), `dompurify` 3.4.2 → **3.4.13**, `postcss` 8.5.6 → **8.5.25** (also active separate MEDIUM CVE — upgrade resolves), `prettier` 3.8.1 → **3.9.6**, `eslint-plugin-prettier` 5.5.5 → **5.5.6**, `eslint-plugin-react-hooks` 7.0.1 → **7.1.1**, `globals` 17.2.0 → **17.9.0** (updated 2026-08-04), `@firebase/rules-unit-testing` 5.0.0 → **5.0.1**, functions `axios` 1.15.0 → **1.19.0**, functions `@google-cloud/functions-framework` 5.0.0 → **5.0.5**, `axios` (root) 1.15.0 → **1.19.0** (also active separate MEDIUM CVE — upgrade resolves), `recharts` 3.8.1 → **3.10.1**, `react-i18next` 16.5.4 → **17.0.11** (major), `firebase-functions` 7.2.5 → **7.3.2`**.
     These should not be done in a single commit — each needs its own migration PR with testing.
 - **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 7 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix. `@google/genai` major bump warrants dedicated testing of all AI generation flows (quiz, mini-app, widget builder, OCR, etc.). jsdom update to v30 also resolves the ws CVE tracked separately.
 
