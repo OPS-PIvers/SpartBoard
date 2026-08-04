@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
 _Last audited: 2026-08-04_
-_Last action: 2026-07-28_
+_Last action: 2026-08-04_
 
 ---
 
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-04 (action): Resolved the MEDIUM `hono` four-CVE item. Selection: today is Tuesday; reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + Tuesday weeklies skill-freshness / dependency-audit. No In Progress items anywhere. widget-registry and typescript-eslint have no open items; css-scaling and skill-freshness open items are all LOW; the only MEDIUM/HIGH items today are dependency-audit MEDIUMs, so this weekly wins the severity tiebreak. In document order the first MEDIUM is the `pnpm audit` 410 tooling item — **skipped as not a safe unattended auto-fix** per standing precedent (open-ended scanner/automation policy call, and audit is in fact working in this environment). The next actionable MEDIUM in document order is `hono`. File-recency check on `package.json` passed (last touched at edff9339 `#2301`, outside the last 5 branch commits). `hono` is a root-only direct devDependency + `pnpm.overrides` pin at `^4.12.14`, resolving to 4.12.15; it is NOT imported by any application source (dev/tooling only, also pulled transitively via `@modelcontextprotocol/sdk`), so no production runtime impact. Bumped both `devDependencies.hono` and `pnpm.overrides.hono` to `^4.13.0` (matches the file's caret convention; latest patched, stays within 4.x). After `pnpm install`, `pnpm why hono` reports a single `hono@4.13.0` (4.12.15 gone); all four tracked GHSAs (GHSA-qp7p-654g-cw7p, GHSA-p77w-8qqv-26rm, GHSA-wgpf-jwqj-8h8p, GHSA-8j4g-w8fx-2239) are gone from `pnpm audit`. Lockfile diff is hono-scoped only (version bump + peer-context re-keys, 19 lines net 0). Verified clean: `prettier --check package.json pnpm-lock.yaml` (clean), `pnpm run type-check` (exit 0), `pnpm run lint` (root + functions, `--max-warnings 0`, exit 0), `pnpm install --frozen-lockfile` (consistent against dev-paul base). Moved item to Completed. PR #2370 opened against dev-paul (draft, branch `deps/hono-cors-redos`, rebased directly on dev-paul so the diff is exactly `package.json` + `pnpm-lock.yaml` — the code change does NOT carry this journal update; the journal record lives here on scheduled-tasks). **NEW finding (separate package):** `pnpm audit` still reports advisories on `@hono/node-server` (distinct from `hono`, transitive via `@modelcontextprotocol/sdk>@hono/node-server`) — a HIGH authorization bypass + two moderates (middleware bypass via repeated headers; path traversal). This is NOT part of the hono item and is captured below as a new MEDIUM open item. Remaining MEDIUM items (pnpm-audit-410, postcss, axios, firebase-tools, firebase-admin, MCP SDK, lodash, protobufjs, ws-in-functions, @hono/node-server) and the LOW items all still active._
 
 _2026-08-04: `pnpm audit` returned full vulnerability data. Root: **155 vulnerabilities** (9 low | 66 moderate | 76 high | 4 critical) — up from 146 on 2026-07-30 (+9). Functions: **80 vulnerabilities** (5 low | 32 moderate | 41 high | 2 critical) — up from 76 on 2026-07-30 (+4). TWO NEW items detected: (1) NEW MEDIUM `hono` CORS ReDoS — GHSA-8j4g-w8fx-2239 (moderate): ReDoS in CORS middleware via `Access-Control-Request-Headers` header; patched in >=4.12.34. Current latest is **4.13.0**. Hono MEDIUM item updated — fix target raised from `^4.12.28` to `>=4.12.34`. (2) NEW MEDIUM `postcss@8.5.6` — GHSA-fxqj-rqcc-2cmp (moderate): Incomplete fix of GHSA-6g55-p6wh-862q — attacker-controlled `sourceMappingURL` reads arbitrary `.map` files when `from` is unset. Vulnerable <=8.5.22, patched >=8.5.23. Via `vitest>vite>postcss` in root (also in functions audit). postcss is a direct devDependency in root at 8.5.6. Also confirmed details on LOW `fast-uri` item: 5 HIGH advisories now fully identified (GHSA-q3j6-qgpj-74h6, GHSA-v39h-62p7-jpjc, GHSA-4c8g-83qw-93j6, GHSA-v2hh-gcrm-f6hx, GHSA-7p8r-x3mc-p8w7), all requiring >=3.1.5, in both root and functions. `pnpm outdated` version drift vs 2026-07-30: `hono` latest **4.13.0** (minor version jump; was 4.12.32); `firebase` latest **12.17.0** (was 12.16.0); `@typescript-eslint/*` latest **8.66.0** (was 8.65.0); `jose` (functions) latest **6.2.8** (was 6.2.5); `@google/genai` (functions) latest **2.15.0** (was 2.14.0); `google-auth-library` (functions) latest **11.0.0** (MAJOR — was 10.9.1); `globals` latest **17.9.0** (was 17.8.0); `firebase-tools` latest **15.25.1** (was 15.25.0); `@playwright/test` latest **1.62.1** (was 1.62.0). LOW major-versions item updated. All other existing MEDIUM and LOW open items (pnpm-audit-410, hono, axios, firebase-tools, firebase-admin, MCP SDK, lodash, protobufjs, ws-in-functions, fast-uri, @types/tesseract.js, jose, major-versions) remain valid._
 
@@ -56,18 +58,16 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 - **Detail:** `pnpm audit` (both root and functions) returned HTTP 410 on 2026-07-16 with: `"This endpoint is being retired. Use the bulk advisory endpoint instead."` Both endpoints (`/-/npm/v1/security/audits/quick` and `/-/npm/v1/security/audits`) were unavailable. Exit code was 0, so CI did not fail — but no vulnerability data was returned. 2026-07-21 run shows audit working again in this environment; gap data (2026-07-09 to 2026-07-21) captured in the run note above.
 - **Fix:** Confirm audit works in CI. If still broken in CI, switch to an alternative: (a) `npm audit` via Node's own npm CLI; (b) `pnpm audit --use-node-fetch` or newer pnpm; (c) `osv-scanner` against lock files; (d) GitHub Dependabot security alerts. Option (d) is lowest friction.
 
-### MEDIUM `hono@4.12.15` has four MODERATE CVEs — patched in >=4.12.34 (latest 4.13.0)
+### MEDIUM `@hono/node-server` (transitive via `@modelcontextprotocol/sdk`) has HIGH auth bypass + two moderates
 
-- **Detected:** 2026-05-12
-- **Updated:** 2026-08-04 — NEW CVE GHSA-8j4g-w8fx-2239 detected; fix target raised from >=4.12.25 to >=4.12.34; latest is now 4.13.0
-- **File:** package.json (devDependency + pnpm.overrides)
-- **Detail:** Four moderate CVEs affect `hono` at the installed version 4.12.15:
-  - **GHSA-qp7p-654g-cw7p** (moderate): CSS Declaration Injection via Style Object Values in JSX SSR — unsafe CSS values can leak from attacker-controlled object properties when using `hono/jsx` SSR with style objects. Patched >=4.12.18.
-  - **GHSA-p77w-8qqv-26rm** (moderate): Cache Middleware ignores `Vary: Authorization` / `Vary: Cookie` headers, leading to cross-user cache leakage. Patched >=4.12.18.
-  - **GHSA-wgpf-jwqj-8h8p** (moderate, detected 2026-07-07): Lambda@Edge adapter keeps only the last value of a repeated request header, dropping the rest. Patched >=4.12.25.
-  - **GHSA-8j4g-w8fx-2239** (moderate, NEW 2026-08-04): ReDoS in CORS middleware via `Access-Control-Request-Headers` header — crafted header value causes unbounded regex backtracking. Patched >=4.12.34.
-    All four CVEs require >=4.12.34 to be fully resolved. Current latest is 4.13.0. The `pnpm.overrides.hono` entry pins this across the dep graph.
-- **Fix:** In `package.json`, update both `devDependencies.hono` and `pnpm.overrides.hono` to `>=4.12.34` (or `^4.13.0` to track latest), then run `pnpm install`. Verify `pnpm audit` no longer reports any hono advisories. Run `pnpm type-check`, `pnpm lint`, and `pnpm test` to confirm no regressions.
+- **Detected:** 2026-08-04
+- **File:** package.json (transitive `@google/genai>@modelcontextprotocol/sdk>@hono/node-server`, also via `firebase-tools`)
+- **Detail:** Distinct from the `hono` package (resolved 2026-08-04). After the hono bump to 4.13.0, `pnpm audit` still reports advisories against the separate `@hono/node-server@1.19.9` package:
+  - **HIGH**: authorization bypass in `@hono/node-server`.
+  - **moderate**: middleware bypass via repeated headers.
+  - **moderate**: Node.js adapter for Hono — path traversal.
+    All reached via `.>@google/genai>@modelcontextprotocol/sdk>@hono/node-server` (dev/tooling chain; `@modelcontextprotocol/sdk` also comes via `firebase-tools`). Not imported by application source. `@hono/node-server` is NOT currently pinned in `pnpm.overrides` — the existing `hono` override does not cover it (different package name).
+- **Fix:** Determine the patched `@hono/node-server` version for each advisory (`pnpm audit` / GHSA lookup), then add a `pnpm.overrides."@hono/node-server"` entry pinning to the patched range in root `package.json`. Verify with `pnpm why @hono/node-server` and confirm `pnpm audit` clears the three advisories. Confirm `@modelcontextprotocol/sdk`'s peer/runtime expectations still resolve. Run type-check + lint.
 
 ### MEDIUM `postcss@8.5.6` has two CVEs — patched in >=8.5.23 (latest 8.5.25)
 
@@ -217,6 +217,19 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 ---
 
 ## Completed
+
+### MEDIUM `hono@4.12.15` has four MODERATE CVEs — patched in >=4.12.34 (latest 4.13.0)
+
+- **Detected:** 2026-05-12
+- **Completed:** 2026-08-04
+- **File:** package.json (`pnpm.overrides.hono` + `devDependencies.hono`), pnpm-lock.yaml
+- **Detail:** Four moderate CVEs affected `hono` at the installed version 4.12.15:
+  - **GHSA-qp7p-654g-cw7p** (moderate): CSS declaration injection via style-object values in JSX SSR. Patched >=4.12.18.
+  - **GHSA-p77w-8qqv-26rm** (moderate): cache middleware ignores `Vary: Authorization`/`Vary: Cookie`, causing cross-user cache leakage. Patched >=4.12.18.
+  - **GHSA-wgpf-jwqj-8h8p** (moderate): Lambda@Edge adapter keeps only the last value of a repeated request header. Patched >=4.12.25.
+  - **GHSA-8j4g-w8fx-2239** (moderate, NEW 2026-08-04): ReDoS in CORS middleware via `Access-Control-Request-Headers`. Patched >=4.12.34.
+    All four require >=4.12.34. `hono` was a root-only direct devDependency + `pnpm.overrides` pin at `^4.12.14`; it is NOT imported by any application source (dev/tooling only, also pulled transitively via `@modelcontextprotocol/sdk`), so no production runtime impact.
+- **Resolution:** Bumped both `devDependencies.hono` and `pnpm.overrides.hono` from `^4.12.14` to `^4.13.0` (matches the file's caret convention; latest patched, stays within 4.x). After `pnpm install`, `pnpm why hono` reports a single `hono@4.13.0` (4.12.15 gone); all four tracked GHSAs are gone from `pnpm audit`. File-recency check on `package.json` passed (last touched at edff9339 `#2301`, outside the last 5 branch commits). Verified clean: `prettier --check package.json pnpm-lock.yaml` (clean), `pnpm run type-check` (exit 0), `pnpm run lint` (root + functions, `--max-warnings 0`, exit 0), `pnpm install --frozen-lockfile` (consistent against dev-paul base). Lockfile diff minimal and hono-scoped (19 lines, net 0). PR #2370 opened against dev-paul (draft; branch `deps/hono-cors-redos`; diff = `package.json` + `pnpm-lock.yaml`; this journal record lives on scheduled-tasks). NOTE: the separate `@hono/node-server` package still has advisories (distinct package) — logged as a new MEDIUM open item.
 
 ### MEDIUM `yaml@2.8.2` stack overflow via deeply nested input — via dev toolchain
 
