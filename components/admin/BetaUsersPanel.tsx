@@ -29,7 +29,7 @@ export const BetaUsersPanel: React.FC<BetaUsersPanelProps> = ({
     widgetType: WidgetType | InternalToolType,
     email: string
   ) => {
-    const trimmedEmail = email.trim();
+    const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail) return;
 
     // Basic email format validation
