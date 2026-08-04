@@ -16,7 +16,7 @@
 > **Paul:** each ticket has an empty `Paul's notes` slot. Write in them freely —
 > agents should read them as the highest-authority input on that ticket.
 
-**Status:** Charted 2026-08-04 · **3 of 21 tickets resolved** — RR-01, RR-B1, RR-A4 closed 2026-08-04; their resolutions opened RR-08, RR-B4, RR-A5, RR-A6. RR-04's research half is running.
+**Status:** Charted 2026-08-04 · **3 of 22 resolved, plus RR-04's research half** — RR-01, RR-B1, RR-A4 closed and RR-04's research done 2026-08-04. Their resolutions opened RR-08, RR-B4, RR-A5, RR-A6, RR-09.
 **Related efforts:** pronunciation quiz question type (tracked in GitHub issues),
 [`docs/multilingual-pronunciation-engine-spec.md`](multilingual-pronunciation-engine-spec.md),
 [`docs/written-response-quiz-questions.md`](written-response-quiz-questions.md)
@@ -93,6 +93,8 @@ These are load-bearing. Several tickets are really "should we reuse this or not?
 - **[RR-B1 — Can `DrawingWidget` be the student whiteboard substrate?](#rr-b1--can-drawingwidget-be-the-student-whiteboard-substrate)** — **Partly. Read-only already works; writable is blocked by a Firestore rule, not by React.** No timestamps exist anywhere, the command stack is never persisted, and undo destroys history — so timed replay needs a **new capture layer**. But ordered-untimed replay is **free today** from `z` ordering.
 - **[RR-A4 — What do district Chromebooks produce, and what survives to Drive?](#rr-a4--what-do-district-chromebooks-actually-produce-and-what-survives-to-drive)** — **⛔ webm does not survive to Drive** — the mismatch is Opus audio, and audio-only webm isn't previewable at all. **The archive step must transcode** (MP4/H.264+AAC, or MP3/`.opus`). Video costs **~80× audio** and takes longer to upload than to record on school wifi. Nothing in the repo has ever recorded a mic or camera.
 
+- **[RR-04 — privacy and consent posture](#rr-04--whats-the-privacy-and-consent-posture-for-student-voice-and-video) — RESEARCH HALF ONLY** — **Pseudonymity buys nothing regulatory**: COPPA § 312.2(8), Illinois SOPPA and California SOPIPA name audio/video files as personal information directly. Storage is defensible; **template extraction (voiceprints, speaker ID, diarization) is not**. The dominant obligation is **notice, not consent** — but the real risk is **redaction capacity**, which argues for audio-first. **The decision half is still open and needs Paul.**
+
 **Destination confirmed** 2026-08-04 (not a ticket, recorded here so it isn't re-litigated): the spec covers all three tracks; narrower, wider, and spec-plus-build were considered and rejected. See the ✅ note under **Destination**.
 
 ---
@@ -114,16 +116,19 @@ _Rebuilt 2026-08-04 after RR-01, RR-B1 and RR-A4 closed._
 - **RR-C1** — Which stimulus formats are in, and are they rendered in-app or handed off? _(grilling)_
 - **RR-C3** — Does a stimulus attach to a question or to an assignment? _(grilling)_ — small, sharp, independent; still the best warm-up
 
-**In flight:**
+- **RR-04 (decision half)** — **research is done and written up**; what remains is your call on retention promise, named-vs-pseudonymous treatment, and the AI boundary. Blocks RR-05 and RR-06.
+- **RR-09** — task: the four questions only district counsel and Google can answer _(unclaimed)_
 
-- **RR-04** — privacy/consent posture. **Research half running as an AFK subagent**; the decision half needs Paul and is what RR-05 and RR-06 wait on.
-
-**Still blocked:** RR-03 (RR-02) · RR-05 (RR-04) · RR-06 (RR-02/03/04/05) ·
+**Still blocked:** RR-03 (RR-02) · RR-05 (RR-04, RR-09) · RR-06 (RR-02/03/04/05) ·
 RR-08 (RR-02) · RR-B3 (RR-B2, RR-06) · RR-B4 (RR-B2) · RR-A6 (RR-03, RR-A3, RR-A5) ·
 RR-C2 (RR-03).
 
-**RR-02 is the keystone.** Four tickets are blocked on it alone, and it's the only
-open ticket blocking the entire persistence and grading half of the map.
+**Two keystones now.** **RR-02** blocks four tickets alone and gates the entire
+persistence and grading half of the map. **RR-04's decision half** gates the AI
+half. They're independent — either can go next.
+
+⚡ **RR-A5 and RR-09 are both cheap, unblock real assumptions, and don't need a
+grilling session.** Worth firing off before the next decision ticket.
 
 ---
 
@@ -240,7 +245,7 @@ where it breaks:
 
 ### RR-04 — What's the privacy and consent posture for student voice and video?
 
-**Type:** research (AFK) → grilling (HITL) · **Status:** Open · **research half claimed + running 2026-08-04**; decision half still needs Paul · **Blocks:** RR-05, RR-06
+**Type:** research (AFK) → grilling (HITL) · **Status:** 🟡 **Research half closed 2026-08-04 — decision half OPEN and needs Paul** · **Blocks:** RR-05, RR-06
 
 **Question**
 
@@ -268,9 +273,335 @@ that. Decide the posture before anything touches student audio:
 - Does pseudonymity still buy anything once the payload is identifying, or should media responses be treated as named data end-to-end — with whatever that implies for Firestore, Storage paths, and the teacher-side name resolution?
 - What's the teacher-visible retention promise, and who can delete a recording?
 
-The research half is AFK and can start immediately. The decision half needs you.
+**Research findings** — AFK research, 2026-08-04. **Not legal advice**; this is a
+compilation of primary sources to inform a product decision, and several items
+below genuinely need district counsel. The **decision half is still open.**
 
-**Resolution:** _(unresolved)_
+> ## 🔴 The pseudonymous architecture does not help here — three statutes say so in plain text.
+>
+> The framing in this ticket was right, and it's worse than "a recording is
+> identifying content." These laws don't regulate the _identifier_ — they
+> regulate the **payload**, directly and by name:
+>
+> - **COPPA, 16 CFR § 312.2(8)** — personal information includes _"a photograph, video, or audio file where such file contains a child's image or voice."_ No name required. No identifier required. **The file itself is the personal information.**
+> - **Illinois SOPPA** (105 ILCS 85) enumerates _"photos, voice recordings"_ in covered information — listed **separately from** biometric information.
+> - **California SOPIPA** (Cal. B&P § 22584) does the same.
+>
+> The HMAC'd uid controls the identifier. **Adding voice/video moves SpartBoard
+> from "we hold pseudonymous keys" to "we hold per-se regulated personal
+> information about children," and no amount of identifier hygiene reverses
+> that.** Answering the third bullet above: pseudonymity buys **operational**
+> protection (a leaked Firestore export is still not a roster), but **zero
+> regulatory** protection. Design as if media responses are named data.
+
+**1. FERPA — yes, a stored recording is an education record.** The test is
+(a) directly related to a student and (b) **maintained** by the school or a party
+acting for it ([SPPO FAQ](https://studentprivacy.ed.gov/faq/faqs-photos-and-videos-under-ferpa)).
+A student recording themselves as an assignment answer is definitionally
+"directly related"; storing it in your cloud under a district contract is
+"maintained." _Owasso v. Falvo_ (2002) — papers aren't records until the grade is
+recorded — **only helps for transient, never-persisted content**. Note it's
+**retention** that triggers classification, **not grading or sharing**: a
+recording is an education record from the moment of upload, whether or not a
+teacher ever opens it.
+
+⚠️ **The school-official exception forbids vendor self-use.** 34 CFR
+§ 99.31(a)(1)(i)(B) requires direct district control and no redisclosure, and ED's
+guidance holds that providers may not repurpose student data for their own
+ends — including **product improvement** — and that **click-wrap ToS alone does
+not satisfy the exception**. This collides head-on with finding 3 below.
+
+⚠️ **Multi-student recordings.** 34 CFR § 99.12(a) plus
+[Letter to Wachter](https://studentprivacy.ed.gov/resources/letter-wachter-regarding-surveillance-video-multiple-students)
+require redacting or segregating other students' portions on an access request —
+**and if that's infeasible, every affected student's parents may access the entire
+record.** ED's guidance is written for video; **there is no audio-specific
+standard for isolating one speaker from overlapping voices.** This is a live
+problem for the whiteboard+audio track and for any classroom recording with
+background voices.
+
+**2. ✅ The biometric distinction holds — but only for storage, and only if you
+never build the other thing.** Five statutes exclude raw recordings **by name**,
+all keyed to identification purpose or template generation. Minnesota's is
+explicit:
+
+> **Minn. Stat. § 325M.11(d):** _"Biometric data **does not include**: (1) a
+> digital or physical photograph; (2) an audio or video recording; or (3) any
+> data generated from a digital or physical photograph, or an audio or video
+> recording, **unless the data is generated to identify a specific individual**."_
+
+Washington RCW 19.375.010, Texas Gov't Code § 560.001, Colorado § 6-1-1303(2.4)
+and Virginia's VCDPA use near-identical language, and both FERPA (34 CFR § 99.3)
+and COPPA (§ 312.2(10)) qualify "voiceprint" with _automated recognition_.
+**Storing and playing back a submission generates no template and serves no
+identification purpose.**
+
+🔴 **The line is template extraction, not the recording — so these are out of
+scope and should stay out:** speaker identification, speaker verification, voice
+enrollment, **speaker diarization** (attributing who said what), face matching,
+and emotion/biometric inference. Diarization specifically is the theory behind a
+2025-26 BIPA class-action wave against AI transcription tools (_Brewer v.
+Otter.ai_, _Cruz v. Fireflies.AI_, _Basich v. Microsoft_ — all pending, no
+holdings).
+
+⚠️ **Where the position is thin: Illinois BIPA has no audio carve-out.** It
+excludes photographs but never mentions audio recordings, so the defence rests on
+the meaning of "voiceprint." _Rivera v. Google_ supports the parity argument (the
+line is the geometry scan, not the image) — but **_Delgado v. Meta Platforms_
+expressly refused to "precisely delineate at what point voice data transforms
+from a 'mere voice recording' into a 'voiceprint'"** and adopted a **"capable of
+identifying"** standard rather than an actual-use one. Summary judgment denied.
+BIPA reaches out-of-state vendors on a conduct basis, so a Minnesota HQ is no
+defence — though **§ 25(e) exempts contractors of a unit of government**, which
+argues for keeping any Illinois usage contract-gated rather than free/direct-to-teacher.
+
+**Highest-leverage cheap artifact:** an affirmative representation in the DPA
+that _SpartBoard does not derive voiceprints or perform speaker recognition_.
+
+**3. 🔴 LIVE ISSUE, and it is not about recordings — the Gemini Developer API
+terms already conflict with what SpartBoard does today.** The
+[Gemini API Additional Terms](https://ai.google.dev/gemini-api/terms) (effective
+2026-03-23) say, under a heading applying to **both paid and unpaid** tiers:
+
+> _"You must be 18 years of age or older to use the APIs. You also will not use
+> the Services as part of a website, application, or other service … that is
+> **directed towards or is likely to be accessed by individuals under the age of
+> 18**."_
+
+And on the **free tier**: Google _"uses the content you submit … to provide,
+improve, and develop Google products,"_ _"human reviewers may read, annotate, and
+process your API input and output,"_ and verbatim — **"Do not submit sensitive,
+confidential, or personal information to the Unpaid Services."**
+
+**Answering the ticket's vendor question directly: no, the Gemini Developer API
+is _not_ inside any Google for Education agreement.** They are separate contracts:
+
+|                         | Workspace for Education    | **Gemini Developer API** (AI Studio key)     | Vertex AI / Google Cloud                                                 |
+| ----------------------- | -------------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
+| FERPA "School Official" | ✅ ToS § 7.3, explicit     | ❌ never mentions FERPA, COPPA, or education | ⚠️ Cloud publishes a FERPA page; **Vertex/Firebase coverage UNVERIFIED** |
+| Under-18 end users      | ✅ supported               | ⛔ **prohibited**                            | no age restriction found in GCP ToS                                      |
+| Trains on inputs        | ❌ not without instruction | **free tier: yes, + human review**; paid: no | ❌ SST § 17 training restriction                                         |
+
+**The indicated path is to move Gemini calls to paid Vertex AI / Google Cloud
+rather than the AI Studio Developer API** — one change that addresses the 18+
+clause, training-on-inputs, and human review, and puts the work under the Cloud
+Data Processing Addendum. **Confirm scope with Google in writing rather than
+relying on this reading.**
+
+⚠️ **Also unverified and directly material: whether Firebase (Firestore, Cloud
+Storage) is inside Google's FERPA-covered services.** That's where the recordings
+would live. → **RR-09.**
+
+**Design option worth a prototype:** the Web Speech API now supports on-device
+recognition via `SpeechRecognition.processLocally = true`, which would sidestep
+vendor transmission entirely. MDN marks it experimental and — importantly —
+**does not guarantee audio never leaves the device**, only that recognition is
+local. Also note the trap in the default path: **Chrome's standard Web Speech API
+sends audio to Google's servers**, so "we just use the browser's speech
+recognition" is not a privacy answer without that flag.
+
+**4. Consent: school consent is the norm — but its legal footing is softer than
+assumed.** The FTC **proposed** a school-authorization exception in its Jan 2024
+NPRM and **declined to finalize it**; 16 CFR §§ 312.2 and 312.5 contain no
+mention of "school" or "education." School consent therefore rests on non-binding
+FTC FAQ guidance, on two conditions: the service must be **for the school's use
+and benefit and no other commercial purpose** (which the free-tier Gemini training
+term violates), and **if the operator doesn't give the school the ability to
+review and delete, the school cannot validly consent.**
+
+**→ An LEA-facing review-and-delete admin tool is a compliance precondition, not
+a feature.**
+
+Do **not** build on COPPA § 312.5(c)(9)'s audio exception — it requires deleting
+the audio immediately after responding, which is the opposite of a graded,
+retained submission.
+
+**Minnesota specifics:** no consent requirement to record as such, and one-party
+consent under § 626A.02 makes wiretap law largely irrelevant (the student is a
+party). But **§ 13.04 subd. 2 (Tennessen warning)** is triggered by asking a
+student to supply private data about themselves — purpose, whether they may
+refuse, consequences, and who else may receive it. **That notice has to live
+somewhere in the product UI**, since collection happens there. And **§ 13.32
+subd. 14(b)(1)**'s instructional-purpose exception is conditioned on **advance
+notice** — relevant to auto-start capture and always-on preview.
+
+**5. Retention — no general deletion right, but indefinite retention is already
+unlawful.** Neither FERPA (amendment ≠ erasure; the remedy is a statement of
+disagreement) nor the MGDPA (challenge ≠ erasure) gives a parent a delete right.
+But **COPPA § 312.10 has been fully in force since 2026-04-22**: _"Personal
+information collected online from a child may not be retained indefinitely,"_ and
+the operator must maintain **and publish in its privacy notice** a written
+retention policy with purposes, business need, and a deletion timeframe.
+
+⏱️ **Two clocks are tighter than expected — build to the shortest:**
+
+| Obligation                                                                                             | Clock                          |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------ |
+| **MGDPA § 13.04 subd. 3 — provide _copies_** (FERPA only requires inspection)                          | **10 business days** ← binding |
+| SDPC NDPA § 2.2 — parent review/delete via LEA                                                         | 30 days                        |
+| FERPA § 99.10(b) — inspect and review                                                                  | 45 days                        |
+| NDPA § 4.6 — disposal on LEA request or termination                                                    | 60 days                        |
+| **Minn. Stat. § 13.32 subd. 13(d)** — destroy or return **all** educational data after contract expiry | **90 days**                    |
+
+Also **§ 13.32 subd. 13(f): educational data must not be used for _any commercial
+purpose_** — broader than typical student-privacy law, with a carve-out only for
+deidentified aggregate data used to improve the service. **Whether model training
+on student recordings survives that carve-out is unresolved and is the single
+most important contract term to nail down** — voice and face data resist
+deidentification.
+
+⚠️ **COPPA § 312.2 defines "delete" demandingly** — _"not maintained in
+retrievable form and cannot be retrieved in the normal course of business"_ —
+reaching backups, CDN caches, **transcodes, transcripts, thumbnails, and waveform
+data**. Against a media pipeline (and RR-A4 established there _will_ be
+transcodes), that standard is where compliance actually breaks. **Derived
+artifacts need a deletion story, not just source media.**
+
+**§ 99.10(e): records under an outstanding access request may not be destroyed** —
+a TTL sweep has to know about pending requests.
+
+**Minnesota's records schedule is silent, and that's the finding.** The
+controlling _General Records Retention Schedule for Minnesota School Districts_
+(No. 00-43, **approved 2000**) has **no line item for coursework, assignments, or
+student work product** — it predates student media submission entirely. Districts
+can't dispose without a Panel-approved schedule (§ 138.17 subd. 7).
+
+**6. Industry practice: the bar is low, and nobody has solved this.** Almost no
+vendor publishes a specific retention period for student media — the norm is "we
+keep it until the district tells us to delete it." Seesaw is the only one found
+with a proactive number (18 months of account inactivity) and the strongest AI
+statement (_"never used to develop, train or fine tune third party AI models"_) —
+though that lives in help-center content, not the privacy policy. Padlet is the
+only one with **automatic** deletion on termination (30 days) rather than
+on-request. **No vendor's published policy addresses transcription of student
+audio and where transcripts go, biometric treatment, or retention of derived
+artifacts separately from source media.**
+
+🔴 **The Flip/Flipgrid cautionary tale — the most instructive item.** Microsoft
+retired it in 2024: the export window was **~3 months, self-service per user with
+no bulk district export**, nothing migrated to Teams despite the framing, and all
+remaining content was deleted unconditionally across 20M+ students. **A retention
+promise is only as durable as the product.** Any commitment here should pair with
+a **bulk, district-admin-executable export path** and a sunset window well beyond
+90 days.
+
+🔴 **The Student Privacy Pledge is dead** — retired by the Future of Privacy Forum
+2025-04-25. Vendors still citing signatory status are citing a defunct program.
+**Do not add it to SpartBoard.**
+
+**What still needs Paul (the decision half):**
+
+- Retention promise and its clock — teacher-visible, and who can delete.
+- Whether media responses are treated as named data end-to-end (the research says pseudonymity buys nothing regulatory here), and what that implies for Storage paths and teacher-side name resolution.
+- Whether to accept the AI boundary the research implies → feeds **RR-05**.
+- Whether the export/deletion admin surface is in scope for this effort or a separate one.
+
+**Requires district counsel, not more research:** whether school consent under
+non-codified FTC guidance is a sound COPPA basis; **whether Orono's existing
+media-release language covers student-_created_ coursework recordings or only
+district-created media** (these are different, and enrollment forms usually
+address only the latter — the research flagged this as the highest-value question
+to ask); whether SpartBoard is a "technology provider" under Minn. Stat. § 13.32
+subd. 1 (a conjunctive definition that gates both § 13.32 and the MCDPA); and the
+IDEA § 300.624(b) vs. § 138.17 collision when a special-ed parent requests
+destruction.
+
+---
+
+**Second research pass — consent specifically.** A deeper follow-up came back with
+corrections and several findings the first pass missed. Where the two conflict,
+this one is more specific.
+
+**🟢 The headline is more permissive than expected: the dominant obligation is
+NOTICE, not CONSENT.** Federally the school authorizes; in Minnesota, both
+§ 13.04 subd. 2 (Tennessen) and § 13.32 subd. 14(b)(1) require **notice** and
+neither requires consent. Corroborating evidence: **HF 22** (2025-26), a
+"Parent's Bill of Rights" that _would_ have required written parental consent to
+record a minor, **expressly exempted** "a purpose related to regular classroom
+instruction" — and it didn't pass anyway. The most parent-protective bill
+Minnesota has entertained carved out exactly this use case.
+
+**⚠️ But § 13.32 subd. 14 binds the district itself.** It applies to "a government
+entity **or** technology provider," and "school-issued device" expressly includes
+**software** "provided to an individual student for that student's dedicated
+personal use." **Being first-party buys no safety.** The escape is
+14(b)(1) — noncommercial instructional purpose **with advance notice** — so the
+notice isn't optional decoration, it's the thing that makes this lawful.
+
+**🔴 The real risk is redaction capacity, not permission.** Two Minnesota Data
+Practices advisory opinions reframe the question entirely:
+
+- **AO 17-010** — an entity must have "the policies, procedures, and capacities to respond to any data practices requests," including, if it creates an audio recording, **"the capability to redact that recording appropriately."**
+- **AO 19-004** — where a video contains two students, the school must segregate; **and where segregation is not possible, it must provide the unredacted video.**
+
+**Translation: if Student A's video captures Student B in frame and B's parent
+files a data request, the district may have to hand over A's assignment.** The
+legal question was never "may we record" — it's whether the district can service
+the access requests recordings generate. **This is a concrete argument for
+defaulting to audio-only and making video opt-in per assignment.**
+
+**🔴 Three COPPA provisions that hit shipped SpartBoard surfaces:**
+
+- **§ 312.3(d)** — may not condition participation on disclosing more personal information than reasonably necessary. **This makes RR-07's alternate-format path arguably a legal requirement, not only a pedagogical one.** Noted there.
+- **§ 312.2 "Disclosure"** covers making personal information publicly available "through the internet… a message board." **The `/activity-wall/gallery` route is a public posting surface.** A child's recording posted there is a disclosure, and it is not "solely for the use and benefit of the school" — so **school consent likely does not reach it.** → surfaced as a separate concern below.
+- **§ 312.5(a)(2)** — parents must be able to consent to collection **without** consenting to third-party disclosure unless integral. Commentary treats **disclosure for AI training** as requiring separate consent. Bears directly on the Gemini finding above.
+- **§ 312.8** additionally requires a written children's-information security program with a named coordinator, annual risk assessment, and **written assurances from service providers**.
+
+**Nuance worth keeping straight on biometrics:** the FTC **removed** the NPRM's
+broader phrase "data derived from voice data, gait data, or facial data" from the
+final rule as overbroad. So a raw recording is personal information under
+**§ 312.2(8)** always; a **voiceprint or facial template** is _additionally_
+covered under **(10)**. That's the same storage-vs-template line the state
+statutes draw — federal law agrees.
+
+**📋 Industry practice — zero counterexamples.** Two independent search strategies
+found **no** K-12 school-channel product that shows students an in-app parental
+consent dialog. In-product verifiable parental consent is a **direct-to-consumer**
+pattern. What vendors build instead is **admin/teacher toggles plus a notice
+artifact**:
+
+- **Seesaw** publishes a standalone **"COPPA Direct Notice to Schools"** page — **this is the template to copy**; FTC FAQ N.1/N.2 require giving the school the same direct notice you'd give a parent, and that page _is_ the artifact district reviewers look for.
+- **Amplify** (mCLASS/DIBELS oral reading recordings) is the closest analog to graded student voice — school-as-agent, FERPA school official, **zero in-product parental consent**.
+- **Microsoft Reading Progress** — no parental dialog; the consent-adjacent surface is a **per-assignment video-required vs. audio-only teacher toggle**.
+- **Google Workspace for Education** is the best precedent: Additional Services require the **admin** to obtain consent offline and flip a toggle, and Google supplies the district a **parent-notice template** — the vendor never touches a parent.
+- ⛔ **Padlet is the anti-pattern.** _"You (or Your school) assumes the responsibility for complying with COPPA"_ is exactly the construction **FTC FAQ N.1 tells operators not to use**. Never write that.
+
+**⚠️ The NDPA won't cover you here.** NDPA v2.2 STANDARD contains **no LEA
+representation that it obtained parental consent or has authority to provide
+student data** — LEA duties are four short sections. It also has **no video
+checkbox, no biometric category, and no AI clause**; Exhibit "B" has exactly one
+recording row (Assessment → Voice recordings), and video is reached only through
+Exhibit "C"'s Student Generated Content definition. **A vendor-specific rider is
+the gap most likely to matter.**
+
+**🏫 Orono specifics** (its board-policy domain migrated, so the first pass 404'd):
+
+- Orono's [Annual Notice / Student Privacy](https://www.oronoschools.org/about/technology/annual-notice-student-privacy) uses **opt-out via ParentVUE**, bundled into the directory-information notice. **No separate media-release form found.**
+- Directory info includes **"photograph" — and nothing about video, audio, recordings, or classroom/instructional use**, and no internal-vs-external distinction. **No Minnesota district checked designates audio or video as directory information.**
+- **Orono does not follow MSBA numbering** — its AUP is **Board Policy 518** (MSBA's 518 is DNR-DNI orders; MSBA's AUP is 524). **Don't hardcode "Policy 515" anywhere user-facing.**
+- Ed-tech vetting runs through **LearnPlatform** — likely the real approval gate.
+- Shakopee is the most useful comparison: its media opt-out is scoped **explicitly to external publication** and names instructional platforms in the carve-out.
+
+**Direct answer to "does existing enrollment paperwork already cover this?" —
+no, not via the directory-information opt-out.** That opt-out governs _release of
+directory information to the public_; it designates "photograph," not audio or
+video, and says nothing about _creating_ recordings. **The exception doing the
+actual work is the FERPA school-official pathway, not parental consent.**
+
+**Also worth tracking:** **COPPA 2.0 (S.836)** passed the **Senate unanimously
+2026-03-05** and would extend protections to ages 13-16 **and finally put the
+school-agreement exception in statute**. The House has not acted. Not law.
+
+**What the research recommends** (product direction, for the decision half — not
+decisions):
+
+1. **Don't build an in-product parental consent dialog.** No comparable product does; it would signal to district privacy officers that the school-consent pathway isn't understood, and it wouldn't discharge the obligation anyway.
+2. **Do build a standalone COPPA Direct Notice to Schools page**, Seesaw-style.
+3. **Give the district in-product review + delete.** FAQ N.5 makes this load-bearing for the entire legal basis.
+4. **Ship the Tennessen warning as a product surface, not a policy PDF** — four required elements, district-configurable, rendered at the record button. Element (b) requires telling students whether they may **refuse**, which converges with § 312.3(d) → **a non-recorded alternative for every recorded assignment.**
+5. **Default audio-only; video opt-in per assignment** (AO 17-010 redaction capacity; mirrors Reading Progress).
+6. **Default recordings private-to-teacher** — no cross-class visibility, no public gallery, no public short links.
+7. A **district-managed per-student "recording allowed" flag synced from the roster** would be ahead of the market — no verified vendor consumes a media-release attribute over Clever/ClassLink/OneRoster today.
 
 **Paul's notes:**
 
@@ -344,7 +675,16 @@ contrast ratio.
 **set**, and a student picks from it. So the question is no longer "how would we
 express an alternate" but "what's the **policy floor** on that set."
 
-- Is there a floor at all — must `['audio']` always be wideneable, or may a teacher legitimately author a set of one and exclude a student who can't speak? (A speaking assessment arguably _must_ be able to require speech, or it isn't measuring speech.)
+🔴 **RR-04 may have removed the teacher's freedom to say no.** COPPA
+**§ 312.3(d)** bars conditioning participation on disclosing more personal
+information than reasonably necessary, and Minnesota's Tennessen warning
+(§ 13.04 subd. 2) requires telling the student **whether they may refuse**.
+Together those point at **a non-recorded alternative being required for every
+recorded assignment** — which would decide this ticket's first bullet by law
+rather than by pedagogy. Worth confirming with counsel before designing around a
+teacher-configurable floor.
+
+- Is there a floor at all — must `['audio']` always be wideneable, or may a teacher legitimately author a set of one and exclude a student who can't speak? (A speaking assessment arguably _must_ be able to require speech, or it isn't measuring speech — **but see the § 312.3(d) point above; this may not be a free choice**.)
 - If a student elects the alternate, does the teacher see that they did?
 - Does a no-microphone / denied-permission device get a graceful path, or a dead end? **RR-A4 turned this from hypothetical into certain:** districts routinely park students in restricted Chrome OUs with mic/camera disabled by policy, and ChromeOS hardware kill-switches sit below the browser permission layer. **A subset of any class may have capture hard-blocked through no fault of the teacher or the student** — so an alternate path is a functional requirement, not only an accessibility one.
 - **New from RR-01:** the addendum can be **required**, so it needs its own answer here. A required spoken justification on an MC question excludes the same students a required spoken _primary_ does — and it's easier for a teacher to add without noticing, because the question still looks like multiple choice.
@@ -370,6 +710,39 @@ independently, and nothing in the shipped model expects that.
 - The scheduled idle **auto-submit sweep** finalizes stale responses. What does it do with a question whose text is done and whose required recording was never started? Submitting it silently scores a zero on an artifact the student may not have known was required.
 - Does the progress indicator ("4 of 10 answered") count a half-done question?
 - Does a required addendum interact with per-question `timeLimit` — one clock for both artifacts, or one each? (Overlaps RR-A1; resolve there if RR-A1 lands first.)
+
+**Resolution:** _(unresolved)_
+
+**Paul's notes:**
+
+---
+
+### RR-09 — Get the four answers that only the district and Google can give
+
+**Type:** task (HITL — district counsel, records officer, and Google) · **Status:** Open · unclaimed · **Blocks:** RR-05 · _Opened 2026-08-04 by RR-04's research_
+
+**Question**
+
+Nothing to decide — **manual work that unblocks decisions.** RR-04's research
+closed with a short list of questions that no amount of further research can
+answer, because they depend on Orono's own documents and on Google's written
+commitments. Several downstream tickets are currently resting on assumptions
+about them.
+
+**Ask Google (in writing):**
+
+1. **Is Firebase — Firestore and Cloud Storage — inside Google's FERPA-covered services?** That's where recordings would live. The research couldn't verify it and flagged it as directly material.
+2. **Confirm the Vertex AI path.** If Gemini calls move to paid Vertex AI / Google Cloud, does that carry a FERPA School Official commitment and the Cloud DPA for this use? Don't rely on a reading of the terms page.
+
+**Ask district counsel:**
+
+3. **Does Orono's existing media-release / directory-information language cover student-_created_ coursework recordings, or only district-created media?** The research called this the highest-value question. Orono's annual notice designates "photograph" and says nothing about audio or video, and there's no separate media-release form. **Also pull Orono Board Policy 518** (its AUP — Orono doesn't follow MSBA numbering) — the most likely place a real obligation is hiding.
+4. **Can the district actually redact?** Per AO 17-010 / AO 19-004: if a recording captures another student and that student's parent files a data request, the district must segregate — **and if it can't, it must hand over the whole recording**. If the district has no redaction capacity, that is a concrete argument against shipping video at all.
+5. **Is SpartBoard a "technology provider" under Minn. Stat. § 13.32 subd. 1?** The definition is conjunctive and gates both § 13.32 and the MCDPA.
+
+**Also worth doing while you're there:** an NDPA rider covering the parental-consent
+representation the STANDARD omits, and adding video to Exhibit "B" (there's no
+video row).
 
 **Resolution:** _(unresolved)_
 
@@ -979,7 +1352,9 @@ meaningless if shuffling scatters the group.
 In scope, but not yet sharp enough to ticket. These graduate as the frontier
 advances — most are waiting on RR-01 and RR-04.
 
-- **Moderation.** A student records something inappropriate, or another student's face is in frame. Who sees it first, can a teacher delete before archival, is there a report path? Probably becomes two or three tickets once RR-04 lands.
+- **Moderation.** A student records something inappropriate, or another student's face is in frame. Who sees it first, can a teacher delete before archival, is there a report path? **RR-04 sharpened the second half considerably** — another student in frame isn't only a moderation question, it's a data-request question (AO 19-004: if you can't segregate, you hand over the whole recording). Waiting on RR-04's decision half and RR-09's redaction-capacity answer.
+- **The `/activity-wall/gallery` public-posting surface.** RR-04 found that COPPA § 312.2 treats public posting as a _disclosure_ that school consent likely doesn't reach, and no district designates audio/video as directory information. Whether media responses may ever reach a public surface — and whether the existing gallery route needs revisiting independently of this map — isn't sharp until RR-04's decision half lands.
+- **The district-managed "recording allowed" roster flag.** RR-04 flagged that no vendor consumes a media-release attribute over Clever/ClassLink/OneRoster today, so this would be ahead of the market. Not sharp until the consent posture is decided.
 - **Storage cost at district scale.** Waiting on RR-03's retention answer before the arithmetic means anything — though RR-A4 supplied the per-assignment inputs (36 MB audio vs 2.85 GB video per class assignment).
 - **Where transcoding runs, and what it costs.** RR-A4 established that the Drive archive step must transcode (Cloud Function + ffmpeg? Google's Transcoder API?) — but only if RR-A5's manual Drive test confirms it. Not sharp until then, and the cost/latency shape depends on RR-03's archival trigger.
 - **Duration metadata.** Chrome-recorded webm reports `Infinity` duration. RR-A4's advice is to record duration client-side and store it as metadata, but where that lives depends on RR-02's serialization.
