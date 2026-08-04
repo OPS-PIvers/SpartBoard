@@ -164,6 +164,7 @@ export const useOrgMembers = (orgId: string | null) => {
 
   useOrgSubscriptionReset(shouldSubscribe, orgId, (shouldClear) => {
     setLoading(shouldSubscribe);
+    // Unconditional (not gated by shouldClear): activity data is per-org and must be refetched on any key change.
     setActivityMs(new Map());
     setActivityPartial({ partial: false, failedBatchCount: 0 });
     if (shouldClear) {
