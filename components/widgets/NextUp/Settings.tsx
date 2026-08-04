@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useId, useState, useEffect } from 'react';
 import {
   WidgetData,
   NextUpConfig,
@@ -31,6 +31,7 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
   >([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [copied, setCopy] = useState(false);
+  const visualStyleLabelId = useId();
 
   // Load existing queue files
   useEffect(() => {
@@ -391,9 +392,15 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
 
         {/* Visual Styling */}
         <section className="space-y-4">
-          <SettingsLabel>Visual Style</SettingsLabel>
+          <SettingsLabel as="span" id={visualStyleLabelId}>
+            Visual Style
+          </SettingsLabel>
 
-          <div className="grid grid-cols-5 gap-2">
+          <div
+            className="grid grid-cols-5 gap-2"
+            role="group"
+            aria-labelledby={visualStyleLabelId}
+          >
             {[
               '#2d3f89',
               '#ad2122',

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useId, useRef } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import {
   WidgetData,
@@ -370,6 +370,7 @@ export const HotspotImageAppearanceSettings: React.FC<{
 }> = ({ widget }) => {
   const { updateWidget } = useDashboard();
   const config = widget.config as HotspotImageConfig;
+  const popoverThemeLabelId = useId();
 
   if (!config.baseImageUrl) {
     return (
@@ -382,8 +383,14 @@ export const HotspotImageAppearanceSettings: React.FC<{
   return (
     <div className="space-y-4">
       <div>
-        <SettingsLabel>Popover Theme</SettingsLabel>
-        <div className="flex gap-2">
+        <SettingsLabel as="span" id={popoverThemeLabelId}>
+          Popover Theme
+        </SettingsLabel>
+        <div
+          className="flex gap-2"
+          role="group"
+          aria-labelledby={popoverThemeLabelId}
+        >
           {[
             { value: 'light', label: 'Light' },
             { value: 'dark', label: 'Dark' },

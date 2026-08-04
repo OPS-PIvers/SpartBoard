@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { BreathingConfig, WidgetData } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { WIDGET_PALETTE } from '@/config/colors';
@@ -12,6 +12,7 @@ export const BreathingSettings: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { updateWidget } = useDashboard();
   const config = widget.config as BreathingConfig;
+  const patternLabelId = useId();
 
   const patterns = [
     { id: '4-4-4-4', label: 'Box Breathing' },
@@ -23,8 +24,14 @@ export const BreathingSettings: React.FC<{ widget: WidgetData }> = ({
     <div className="space-y-6 p-1">
       {/* Pattern Selection */}
       <div>
-        <SettingsLabel icon={Activity}>Pattern</SettingsLabel>
-        <div className="grid grid-cols-1 gap-2">
+        <SettingsLabel as="span" id={patternLabelId} icon={Activity}>
+          Pattern
+        </SettingsLabel>
+        <div
+          className="grid grid-cols-1 gap-2"
+          role="group"
+          aria-labelledby={patternLabelId}
+        >
           {patterns.map((p) => (
             <button
               key={p.id}
@@ -58,6 +65,8 @@ export const BreathingAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { updateWidget } = useDashboard();
   const config = widget.config as BreathingConfig;
+  const visualLabelId = useId();
+  const colorLabelId = useId();
 
   const visuals = [
     { id: 'circle', label: 'Sphere' },
@@ -71,8 +80,14 @@ export const BreathingAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
     <div className="space-y-6 p-1">
       {/* Visual Selection */}
       <div>
-        <SettingsLabel icon={Eye}>Visual Style</SettingsLabel>
-        <div className="grid grid-cols-3 gap-2">
+        <SettingsLabel as="span" id={visualLabelId} icon={Eye}>
+          Visual Style
+        </SettingsLabel>
+        <div
+          className="grid grid-cols-3 gap-2"
+          role="group"
+          aria-labelledby={visualLabelId}
+        >
           {visuals.map((v) => (
             <button
               key={v.id}
@@ -95,8 +110,14 @@ export const BreathingAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
 
       {/* Color Selection */}
       <div>
-        <SettingsLabel icon={Palette}>Color Theme</SettingsLabel>
-        <div className="flex flex-wrap gap-2">
+        <SettingsLabel as="span" id={colorLabelId} icon={Palette}>
+          Color Theme
+        </SettingsLabel>
+        <div
+          className="flex flex-wrap gap-2"
+          role="group"
+          aria-labelledby={colorLabelId}
+        >
           {colors.map((c) => (
             <button
               key={c}

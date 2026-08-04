@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { BuildingSelector } from './BuildingSelector';
@@ -42,6 +42,9 @@ export const BreathingConfigurationPanel: React.FC<
   const BUILDINGS = useAdminBuildings();
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
+  const patternLabelId = useId();
+  const visualLabelId = useId();
+  const colorLabelId = useId();
 
   const buildingDefaults = config.buildingDefaults ?? {};
   const currentBuildingConfig: BuildingBreathingDefaults = buildingDefaults[
@@ -85,8 +88,14 @@ export const BreathingConfigurationPanel: React.FC<
 
         {/* Pattern Selection */}
         <div>
-          <SettingsLabel className="mb-1">Default Pattern</SettingsLabel>
-          <div className="flex flex-wrap bg-white rounded-lg border border-slate-200 p-1 gap-1">
+          <SettingsLabel as="span" id={patternLabelId} className="mb-1">
+            Default Pattern
+          </SettingsLabel>
+          <div
+            className="flex flex-wrap bg-white rounded-lg border border-slate-200 p-1 gap-1"
+            role="group"
+            aria-labelledby={patternLabelId}
+          >
             {PATTERNS.map((opt) => (
               <button
                 key={opt.value}
@@ -109,8 +118,14 @@ export const BreathingConfigurationPanel: React.FC<
 
         {/* Visual Selection */}
         <div>
-          <SettingsLabel className="mb-1">Default Visual Style</SettingsLabel>
-          <div className="flex flex-wrap bg-white rounded-lg border border-slate-200 p-1 gap-1">
+          <SettingsLabel as="span" id={visualLabelId} className="mb-1">
+            Default Visual Style
+          </SettingsLabel>
+          <div
+            className="flex flex-wrap bg-white rounded-lg border border-slate-200 p-1 gap-1"
+            role="group"
+            aria-labelledby={visualLabelId}
+          >
             {VISUALS.map((opt) => (
               <button
                 key={opt.value}
@@ -134,7 +149,9 @@ export const BreathingConfigurationPanel: React.FC<
         {/* Color Theme */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <SettingsLabel className="mb-0">Default Color Theme</SettingsLabel>
+            <SettingsLabel as="span" id={colorLabelId} className="mb-0">
+              Default Color Theme
+            </SettingsLabel>
             {!currentBuildingConfig.color ? (
               <span className="text-xxs text-slate-400 italic">
                 Inherit (Default)
@@ -148,7 +165,11 @@ export const BreathingConfigurationPanel: React.FC<
               </button>
             )}
           </div>
-          <div className="flex flex-wrap gap-2 p-2 bg-white rounded-lg border border-slate-200">
+          <div
+            className="flex flex-wrap gap-2 p-2 bg-white rounded-lg border border-slate-200"
+            role="group"
+            aria-labelledby={colorLabelId}
+          >
             {WIDGET_PALETTE.map((color) => (
               <button
                 key={color}
