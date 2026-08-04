@@ -115,7 +115,8 @@ def edits(ref, hyp):
 
 def main():
     import json
-    vocab = json.load(open(f"{MODEL_DIR}/vocab.json"))
+    with open(f"{MODEL_DIR}/vocab.json") as f:
+        vocab = json.load(f)
     vocab_inv = {v: k for k, v in vocab.items()}
     grid = {}
 

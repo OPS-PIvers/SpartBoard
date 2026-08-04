@@ -83,7 +83,8 @@ def softmax(logits):
 
 
 def load(model_file):
-    vocab = json.load(open(f"{MODEL_DIR}/vocab.json"))
+    with open(f"{MODEL_DIR}/vocab.json") as f:
+        vocab = json.load(f)
     session = ort.InferenceSession(
         f"{MODEL_DIR}/{model_file}", providers=["CPUExecutionProvider"]
     )
