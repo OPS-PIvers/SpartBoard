@@ -182,6 +182,45 @@ export const computeEffectiveTimes = (
   return result;
 };
 
+/**
+ * Fraction of the widget's content height an expanded row may occupy before
+ * its title starts scrolling inside the row. Keeps a pathologically long title
+ * from pushing every other event out of view.
+ */
+export const EXPANDED_ROW_MAX_HEIGHT_CQH = 40;
+
+/**
+ * Derive which row should render its title in full.
+ *
+ * This is deliberately separate from `activeIndex`: `activeIndex` drives the
+ * "Now" badge, auto-scroll targeting, auto-progress, and linked-widget
+ * auto-launch, so redefining it would change behavior well beyond display.
+ * Focus is display-only.
+ *
+ * Resolution order:
+ *  1. The time-based active item, when it is not already checked off.
+ *  2. Otherwise the first not-done item — this covers both "the teacher
+ *     finished early and checked it off" and "no event is active yet"
+ *     (before the first event, or between gaps in the schedule).
+ *  3. `-1` when every item is done, or there are no items at all.
+ */
+export const computeFocusIndex = (
+  items: ScheduleItem[],
+  activeIndex: number
+): number => {
+  if (items.length === 0) return -1;
+
+  if (
+    activeIndex >= 0 &&
+    activeIndex < items.length &&
+    !items[activeIndex].done
+  ) {
+    return activeIndex;
+  }
+
+  return items.findIndex((item) => !item.done);
+};
+
 /** Formats a total-seconds value into M:SS or H:MM:SS. */
 export const formatCountdown = (totalSeconds: number): string => {
   const s = Math.max(0, Math.round(totalSeconds));

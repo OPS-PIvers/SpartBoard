@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ScheduleItem } from '@/types';
 import { Circle, CheckCircle2, Timer } from 'lucide-react';
 import {
+  EXPANDED_ROW_MAX_HEIGHT_CQH,
   formatCountdown,
   formatScheduleTime,
   scheduleSize,
@@ -86,6 +87,13 @@ export interface ScheduleRowProps {
   isIdle: boolean;
   /** Duration in seconds for timer-mode items (ignored for clock-mode items). */
   durationSeconds: number;
+  /**
+   * When true, this row renders its full title wrapped over multiple lines
+   * instead of a single truncated line. Font size is unchanged — only the row's
+   * height grows. Derived from `computeFocusIndex`, which is intentionally
+   * distinct from `isActive`.
+   */
+  isExpanded?: boolean;
   textScale?: number;
   fontColor?: string;
 }
@@ -97,6 +105,7 @@ const areScheduleRowPropsEqual = (
   // Check primitive/stable props equality
   if (prev.index !== next.index) return false;
   if (prev.isActive !== next.isActive) return false;
+  if (prev.isExpanded !== next.isExpanded) return false;
   if (prev.onToggle !== next.onToggle) return false;
   if (prev.onStartTimer !== next.onStartTimer) return false;
   if (prev.cardOpacity !== next.cardOpacity) return false;
@@ -173,6 +182,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
   effectiveEndSec,
   isIdle,
   durationSeconds,
+  isExpanded = false,
   textScale = 1,
   fontColor = '#334155',
 }) {
@@ -286,7 +296,22 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
             }}
           />
         )}
-        <div className="flex flex-col items-start justify-center min-w-0 flex-1 min-h-0">
+        <div
+          className="flex flex-col items-start justify-center min-w-0 flex-1 min-h-0"
+          style={{
+            // Reserve room for the absolutely-positioned "Now" badge so wrapped
+            // title lines don't run underneath it. Only needed when BOTH are
+            // true: the badge is present (isActive) and the title wraps
+            // (isExpanded) — they are not always the same row. A truncated
+            // title ends in an ellipsis well before the badge anyway, so
+            // leaving it unpadded keeps non-expanded rows pixel-identical to
+            // their previous rendering.
+            paddingRight:
+              isActive && isExpanded
+                ? scheduleSize(9 * textScale, 44 * textScale)
+                : undefined,
+          }}
+        >
           {showCountdown ? (
             <CountdownDisplay
               remainingSeconds={countdownRemaining}
@@ -305,10 +330,19 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
             </span>
           )}
           <span
-            className={`font-black leading-tight truncate w-full text-left ${item.done ? 'text-slate-400 line-through' : 'text-slate-700'}`}
+            className={`font-black leading-tight w-full text-left ${
+              isExpanded
+                ? 'break-words overflow-y-auto no-scrollbar'
+                : 'truncate'
+            } ${item.done ? 'text-slate-400 line-through' : 'text-slate-700'}`}
             style={{
               fontSize: scheduleSize(10 * textScale, 36 * textScale),
               color: !item.done ? fontColor : undefined,
+              // Cap the expanded row so a pathologically long title scrolls
+              // inside the row rather than pushing every other event off-screen.
+              maxHeight: isExpanded
+                ? `${EXPANDED_ROW_MAX_HEIGHT_CQH}cqh`
+                : undefined,
             }}
           >
             {item.task}

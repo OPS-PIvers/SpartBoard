@@ -173,6 +173,92 @@ describe('ScheduleWidget', () => {
     expect(screen.getByText('Reading')).toBeInTheDocument();
   });
 
+  describe('expanded current event', () => {
+    /** Sets the clock to 08:30, which makes the 08:00 "Math" item active. */
+    const setTimeTo = (h: number, m: number) => {
+      const date = new Date();
+      date.setHours(h, m, 0, 0);
+      vi.setSystemTime(date);
+    };
+
+    it('wraps the active item title and truncates every other row', () => {
+      setTimeTo(8, 30);
+      render(<ScheduleWidget widget={createWidget()} />);
+
+      expect(screen.getByText('Math')).toHaveClass('break-words');
+      expect(screen.getByText('Math')).not.toHaveClass('truncate');
+      expect(screen.getByText('Reading')).toHaveClass('truncate');
+      expect(screen.getByText('Recess')).toHaveClass('truncate');
+    });
+
+    // NOTE: font-size parity between expanded and truncated rows (the core
+    // promise of this feature) is not asserted here — jsdom's CSS parser drops
+    // `clamp()`/`min()` values entirely, so every `style.fontSize` reads back as
+    // an empty string and any such assertion would pass vacuously. It is
+    // guaranteed structurally instead: both branches read the same single
+    // `scheduleSize(10 * textScale, 36 * textScale)` expression in ScheduleRow,
+    // which `isExpanded` does not participate in.
+    //
+    // The badge-space reservation (`paddingRight`) is untestable here for the
+    // same reason.
+
+    it('caps the expanded row height so a long title cannot fill the widget', () => {
+      setTimeTo(8, 30);
+      render(<ScheduleWidget widget={createWidget()} />);
+
+      expect(screen.getByText('Math').style.maxHeight).toBe('40cqh');
+      expect(screen.getByText('Reading').style.maxHeight).toBe('');
+    });
+
+    it('moves focus to the next not-done item when the active one is checked off', () => {
+      setTimeTo(8, 30);
+      const widget = createWidget({
+        items: [
+          { time: '08:00', task: 'Math', done: true },
+          { time: '09:00', task: 'Reading', done: false },
+          { time: '10:00', task: 'Recess', done: false },
+        ],
+      });
+      render(<ScheduleWidget widget={widget} />);
+
+      expect(screen.getByText('Math')).toHaveClass('truncate');
+      expect(screen.getByText('Reading')).toHaveClass('break-words');
+    });
+
+    it('expands the first upcoming item before the school day starts', () => {
+      // 07:00 — no item is active yet, so nothing carries the "Now" badge.
+      setTimeTo(7, 0);
+      render(<ScheduleWidget widget={createWidget()} />);
+
+      expect(screen.getByText('Math')).toHaveClass('break-words');
+      expect(screen.getByText('Reading')).toHaveClass('truncate');
+    });
+
+    it('expands nothing once every item is done', () => {
+      setTimeTo(8, 30);
+      const widget = createWidget({
+        items: [
+          { time: '08:00', task: 'Math', done: true },
+          { time: '09:00', task: 'Reading', done: true },
+        ],
+      });
+      render(<ScheduleWidget widget={widget} />);
+
+      expect(screen.getByText('Math')).toHaveClass('truncate');
+      expect(screen.getByText('Reading')).toHaveClass('truncate');
+    });
+
+    it('truncates every row when expandActiveItem is turned off', () => {
+      setTimeTo(8, 30);
+      render(
+        <ScheduleWidget widget={createWidget({ expandActiveItem: false })} />
+      );
+
+      expect(screen.getByText('Math')).toHaveClass('truncate');
+      expect(screen.getByText('Math')).not.toHaveClass('break-words');
+    });
+  });
+
   it('renders times in 24-hour format when clock widget has format24:true', () => {
     (useDashboard as unknown as Mock).mockReturnValue({
       ...mockDashboardContext,
