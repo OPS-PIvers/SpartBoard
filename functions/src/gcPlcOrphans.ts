@@ -346,7 +346,7 @@ async function fetchCategoryPaginated(
       .limit(pageLimit);
     if (lastDoc) query = query.startAfter(lastDoc);
     const page = await query.get();
-    if (page.empty) break;
+    if (page.size === 0) break;
     results.push(...page.docs);
     lastDoc = page.docs[page.docs.length - 1];
     if (page.size < pageLimit) break;
