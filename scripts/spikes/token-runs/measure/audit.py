@@ -80,6 +80,15 @@ def phonemize(voice, words):
 
 
 def tokenize(ipa):
+    """(tokens, orphans) where each orphan is (char, token_it_follows).
+
+    NOT interchangeable with runs.py's `tokenize`, which returns bare
+    unmatched characters. Part 2 needs to know which token each stranded
+    character followed -- that is the whole finding, since the orphan `ː`
+    is only interpretable once you see it lands after `ju`. Same matching
+    logic, deliberately different second element; do not factor them together
+    without picking one shape.
+    """
     ipa = ipa.replace(ZWJ, '').replace('ˈ', '').replace('ˌ', '')
     toks, orphans, i = [], [], 0
     while i < len(ipa):
