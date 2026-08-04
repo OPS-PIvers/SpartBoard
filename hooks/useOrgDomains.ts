@@ -14,6 +14,7 @@ import type {
   DomainRole,
 } from '@/types/organization';
 import { slugOrFallback } from '@/utils/slug';
+import { useOrgSubscriptionReset } from '@/hooks/useOrgSubscriptionReset';
 
 /**
  * Subscribes to `/organizations/{orgId}/domains`. Reads allowed for org
@@ -29,16 +30,13 @@ export const useOrgDomains = (orgId: string | null) => {
   const shouldSubscribe = !isAuthBypass && Boolean(user) && Boolean(orgId);
   const [loading, setLoading] = useState<boolean>(shouldSubscribe);
 
-  const [prevKey, setPrevKey] = useState(`${shouldSubscribe}:${orgId ?? ''}`);
-  const nextKey = `${shouldSubscribe}:${orgId ?? ''}`;
-  if (prevKey !== nextKey) {
-    setPrevKey(nextKey);
+  useOrgSubscriptionReset(shouldSubscribe, orgId, (shouldClear) => {
     setLoading(shouldSubscribe);
-    if (!shouldSubscribe) {
+    if (shouldClear) {
       setDomains([]);
       setError(null);
     }
-  }
+  });
 
   useEffect(() => {
     if (!shouldSubscribe || !orgId) return;

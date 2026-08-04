@@ -9,6 +9,7 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { db, functions, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
+import { useOrgSubscriptionReset } from '@/hooks/useOrgSubscriptionReset';
 import type { MemberRecord, UserRecord } from '@/types/organization';
 
 // Response shape returned by the `createOrganizationInvites` callable
@@ -161,18 +162,15 @@ export const useOrgMembers = (orgId: string | null) => {
   const shouldSubscribe = !isAuthBypass && Boolean(user) && Boolean(orgId);
   const [loading, setLoading] = useState<boolean>(shouldSubscribe);
 
-  const [prevKey, setPrevKey] = useState(`${shouldSubscribe}:${orgId ?? ''}`);
-  const nextKey = `${shouldSubscribe}:${orgId ?? ''}`;
-  if (prevKey !== nextKey) {
-    setPrevKey(nextKey);
+  useOrgSubscriptionReset(shouldSubscribe, orgId, (shouldClear) => {
     setLoading(shouldSubscribe);
     setActivityMs(new Map());
     setActivityPartial({ partial: false, failedBatchCount: 0 });
-    if (!shouldSubscribe) {
+    if (shouldClear) {
       setMembers([]);
       setError(null);
     }
-  }
+  });
 
   useEffect(() => {
     if (!shouldSubscribe || !orgId) return;

@@ -89,6 +89,51 @@ describe('useOrgDomains', () => {
     });
   });
 
+  it('clears stale domains when switching between two foreign orgs', async () => {
+    mockUseAuth.mockReturnValue({ user: { uid: 'super-admin' } });
+    const orgADomain: DomainRecord = { ...mockDomain, id: 'org-a-only' };
+    const orgBDomain: DomainRecord = { ...mockDomain, id: 'org-b-only' };
+    const byOrg: Record<string, DomainRecord> = {
+      'org-a': orgADomain,
+      'org-b': orgBDomain,
+    };
+    // collection() is called with (db, 'organizations', orgId, 'domains');
+    // return the orgId so the snapshot mock can serve org-specific data.
+    mockCollection.mockImplementation(
+      (_db: unknown, _orgs: string, orgId: string) => orgId
+    );
+    mockOnSnapshot.mockImplementation(
+      (
+        ref: string,
+        onNext: (snap: {
+          docs: { id: string; data: () => DomainRecord }[];
+        }) => void
+      ) => {
+        const domain = byOrg[ref];
+        queueMicrotask(() =>
+          onNext({ docs: [{ id: domain.id, data: () => domain }] })
+        );
+        return () => undefined;
+      }
+    );
+
+    const { result, rerender } = renderHook(
+      ({ orgId }: { orgId: string }) => useOrgDomains(orgId),
+      { initialProps: { orgId: 'org-a' } }
+    );
+    await waitFor(() => {
+      expect(result.current.domains).toEqual([orgADomain]);
+    });
+
+    // Switch to org-b: org-a's domains must be cleared immediately (not
+    // flashed under org-b's heading) before org-b's snapshot lands.
+    rerender({ orgId: 'org-b' });
+    expect(result.current.domains).toEqual([]);
+    await waitFor(() => {
+      expect(result.current.domains).toEqual([orgBDomain]);
+    });
+  });
+
   it('addDomain writes a new doc with a derived id', async () => {
     mockUseAuth.mockReturnValue({ user: { uid: 'u' } });
     mockOnSnapshot.mockReturnValue(() => undefined);
