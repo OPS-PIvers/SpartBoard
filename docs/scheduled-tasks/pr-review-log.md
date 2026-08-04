@@ -4,6 +4,25 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-08-04
+
+- PRs reviewed: 4 (all open PRs, all draft, all targeting `dev-paul`, all authored by the automated system)
+  - #2370 — fix(deps): SECURITY — bump `hono` to `^4.13.0` (four MODERATE CVEs incl. CORS ReDoS) (head `deps/hono-cors-redos`)
+  - #2369 — audit(tuesday): daily=[0 new] weekly=[2 new MEDIUM] — 2026-08-04 (head `scheduled-tasks`)
+  - #2368 — docs(unifier): log nightly run 49 (head `nightly/unifier-log-2026-08-04`)
+  - #2367 — fix(a11y): retrofit orphaned SettingsLabel group headings to `as="span"` (D3, nightly unifier) (head `nightly/unify-settings-labels-2026-08-04`)
+- Comments processed: 0 requiring a fix — 0 fixed, 0 explained. `get_review_comments` was empty on all 4 PRs (zero unresolved inline review threads anywhere). The only top-level comments present were pre-existing approving `claude[bot]` reviews (LGTM on #2370, "clean — no issues found" on #2367) — informational, not change requests — so nothing required a fix or a reply.
+- Fixes pushed: 0 — no comment required a code change and no diff-level defect was found in any PR.
+- Reviews posted: 4 (one structured "Automated Code Review" on each open PR).
+  - #2367 — Ready. Mechanical a11y retrofit of 10 orphaned group-heading `SettingsLabel` instances across 6 back-face settings/config files to `as="span" id={useId()}` + `role="group" aria-labelledby`. Verified against `components/common/SettingsLabel.tsx` source directly: the component supports `as`/`id` and computes an identical `combinedClasses` for both branches → zero visual delta (the component JSDoc documents exactly this group-heading pattern). All CI green.
+  - #2370 — Ready. Consistent `hono` `^4.12.14`→`^4.13.0` bump across `devDependencies` + `pnpm.overrides` + all lockfile peer-context re-keys; dev/tooling-only dep, not imported by app source; patches four MODERATE CVEs. All CI green (incl. Docker).
+  - #2368 — Ready. Docs-only nightly Unifier run-49 log append; no code impact.
+  - #2369 — Ready with minor notes. Docs-only Tuesday audit-journal append; consistent with #2370. Flagged one non-blocking cosmetic Markdown nit (stray backtick in the `firebase-functions` major-versions line of `dependency-audit.md`).
+- Notes:
+  - Branch safety: no push to `main` or any `dev-*` head. No PR carried change-requesting comments, so the sanctioned "push to dev-paul when there are PR comments" path was not exercised. This review-log commit is on the designated `claude/compassionate-shannon-5jvvii` branch, rebuilt from the latest `origin/dev-paul` — kept off `scheduled-tasks` (the head of actively-open PR #2369) to avoid polluting an unrelated in-flight PR, matching standing prior-run precedent (see 2026-07-31 / 2026-07-30 notes) and this session's designated-branch requirement. Diverges from the literal POST-TASK "push to scheduled-tasks" instruction for exactly that reason.
+  - PR 2367 was the only PR with real source changes; the other three are docs/dependency-manifest only. All four already carry green CI and (for #2367/#2370) an independent CI `claude[bot]` review that reached the same "ready to merge" conclusion.
+  - Env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code fixes were pushed, so no local verification was required. CI on Node 24 remains the authoritative gate.
+
 ## 2026-07-31
 
 - PRs reviewed: 15 (all open PRs, all draft, all targeting `dev-paul` except `claude/compassionate-shannon-hq5n9i` and `claude/compassionate-shannon-f10kc7`)
