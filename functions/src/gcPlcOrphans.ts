@@ -98,8 +98,26 @@ export const MAX_GROUPS_PER_RUN = 5000;
 /** Page size for the paginated synced-group sweeps (startAfter cursor on document id). */
 export const GROUP_PAGE_SIZE = 500;
 
-/** Max doc deletes per category per PLC per run (defensive batching). */
-export const MAX_DELETES_PER_CATEGORY = 500;
+/**
+ * Overall safety ceiling on docs scanned PER CATEGORY PER PLC PER RUN — a
+ * runaway guard, NOT an expected limit. Each of the three per-PLC sweeps
+ * (activity / presence / each soft-delete subcollection) PAGINATES
+ * (startAfter cursor on document id, CATEGORY_PAGE_SIZE per page) up to this
+ * ceiling, so every doc in the subcollection is visited every run — not just
+ * a single arbitrary first page. Without pagination here, a subcollection
+ * that grew past one page would strand any doc outside it forever: with no
+ * `orderBy`, the fetched page is implicitly ordered by doc id, which is
+ * unrelated to `createdAt`/`lastActiveAt`/`deletedAt` age, so nothing
+ * guarantees the genuinely-stale docs fall inside that first slice, and no
+ * cursor ever advanced across runs to reach the rest. Same bug class already
+ * fixed for cross-PLC iteration (`MAX_PLCS_PER_RUN`) and the synced-group
+ * sweep (`MAX_GROUPS_PER_RUN`) — just missed one level deeper, inside a
+ * single PLC's own subcollections.
+ */
+export const MAX_CATEGORY_SCAN_PER_PLC = 5000;
+
+/** Page size for the paginated per-PLC category sweeps (startAfter cursor on document id). */
+export const CATEGORY_PAGE_SIZE = 500;
 
 /** Firestore caps a batch at 500 ops; chunk below that defensively. */
 const BATCH_CHUNK = 250;
@@ -307,6 +325,41 @@ async function sweepVersionOverflow(
 }
 
 /**
+ * Paginates an arbitrary subcollection up to `MAX_CATEGORY_SCAN_PER_PLC`,
+ * `CATEGORY_PAGE_SIZE` docs at a time, via a `startAfter` cursor on
+ * `orderBy(FieldPath.documentId())`. See `MAX_CATEGORY_SCAN_PER_PLC` for why
+ * a single un-paginated page silently stranded docs outside an
+ * effectively-arbitrary doc-id window once a subcollection grew past one page.
+ */
+async function fetchCategoryPaginated(
+  collectionRef: admin.firestore.CollectionReference
+): Promise<QueryDocSnap[]> {
+  const results: QueryDocSnap[] = [];
+  let lastDoc: QueryDocSnap | undefined;
+  while (results.length < MAX_CATEGORY_SCAN_PER_PLC) {
+    const pageLimit = Math.min(
+      CATEGORY_PAGE_SIZE,
+      MAX_CATEGORY_SCAN_PER_PLC - results.length
+    );
+    let query = collectionRef
+      .orderBy(admin.firestore.FieldPath.documentId())
+      .limit(pageLimit);
+    if (lastDoc) query = query.startAfter(lastDoc);
+    const page = await query.get();
+    if (page.size === 0) break;
+    results.push(...page.docs);
+    lastDoc = page.docs[page.docs.length - 1];
+    if (page.size < pageLimit) break;
+  }
+  if (results.length >= MAX_CATEGORY_SCAN_PER_PLC) {
+    console.warn(
+      `[gcPlcOrphans] hit MAX_CATEGORY_SCAN_PER_PLC ceiling (${MAX_CATEGORY_SCAN_PER_PLC}) on ${collectionRef.path} — raise it or shard the sweep`
+    );
+  }
+  return results;
+}
+
+/**
  * Per-PLC sweep: activity-event trim, stale-presence prune, expired-tombstone
  * hard-delete across every soft-deletable subcollection. Returns the per-PLC
  * deletion counts. Each category is independently bounded.
@@ -319,31 +372,26 @@ async function sweepPlc(
   // (b) Activity events older than ~90 days. Query by createdAt where the
   // index allows; fall back to a bounded scan + client filter so the sweep
   // works even before a composite index exists.
-  const activitySnap = await plcRef
-    .collection('activity')
-    .limit(MAX_DELETES_PER_CATEGORY)
-    .get();
-  const staleActivity = activitySnap.docs
+  const activityDocs = await fetchCategoryPaginated(
+    plcRef.collection('activity')
+  );
+  const staleActivity = activityDocs
     .filter((d: QueryDocSnap) => isStaleActivity(d.data().createdAt, now))
     .map((d: QueryDocSnap) => d.ref);
 
   // (c) Presence docs whose lastActiveAt is older than ~5 min.
-  const presenceSnap = await plcRef
-    .collection('presence')
-    .limit(MAX_DELETES_PER_CATEGORY)
-    .get();
-  const stalePresence = presenceSnap.docs
+  const presenceDocs = await fetchCategoryPaginated(
+    plcRef.collection('presence')
+  );
+  const stalePresence = presenceDocs
     .filter((d: QueryDocSnap) => isStalePresence(d.data().lastActiveAt, now))
     .map((d: QueryDocSnap) => d.ref);
 
   // (d) Expired soft-delete tombstones across every soft-deletable subcollection.
   const expiredTombstones: admin.firestore.DocumentReference[] = [];
   for (const sub of SOFT_DELETE_SUBCOLLECTIONS) {
-    const subSnap = await plcRef
-      .collection(sub)
-      .limit(MAX_DELETES_PER_CATEGORY)
-      .get();
-    for (const d of subSnap.docs) {
+    const subDocs = await fetchCategoryPaginated(plcRef.collection(sub));
+    for (const d of subDocs) {
       if (isExpiredTombstone(d.data().deletedAt, now)) {
         expiredTombstones.push(d.ref);
       }
