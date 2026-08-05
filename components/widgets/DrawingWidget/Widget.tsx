@@ -726,14 +726,7 @@ export const DrawingWidget: React.FC<{
     return `Whiteboard-${timestamp}`;
   };
 
-  // Pages to hand the export pipeline, with `objects[]` guaranteed populated.
-  //
-  // Post-migration (PR 2.6) the dashboard doc's `pages[].objects` is emptied
-  // on purpose — it's a denormalized `{ id, background }` cache, and the real
-  // objects live in the page-nested subcollection. Handing `pages` straight
-  // to the exporter would therefore paint the background template and nothing
-  // else. The active page is covered by the live `objects` array; every OTHER
-  // page has no live subscription, so we read it from Firestore here.
+  // Post-migration pages[].objects is empty; the active page uses live objects, every other page is read from Firestore.
   const resolveExportPages = useCallback(async (): Promise<DrawingPage[]> => {
     if (!config.subcollectionMigrated) {
       // Pre-migration the dashboard doc is still the source of truth and
