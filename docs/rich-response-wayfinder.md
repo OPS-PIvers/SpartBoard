@@ -16,7 +16,7 @@
 > **Paul:** each ticket has an empty `Paul's notes` slot. Write in them freely —
 > agents should read them as the highest-authority input on that ticket.
 
-**Status:** Charted 2026-08-04 · **3 of 22 resolved, plus RR-04's research half** — RR-01, RR-B1, RR-A4 closed and RR-04's research done 2026-08-04. Their resolutions opened RR-08, RR-B4, RR-A5, RR-A6, RR-09.
+**Status:** Charted 2026-08-04 · **4 of 22 resolved, plus RR-04's research half** — RR-01, RR-B1, RR-A4 closed and RR-04's research done 2026-08-04; **RR-02 closed 2026-08-05**. Their resolutions opened RR-08, RR-B4, RR-A5, RR-A6, RR-09 and unblocked RR-03 + RR-08.
 
 > **Correction, 2026-08-05:** RR-04's finding 3 claimed a live Gemini ToS violation. **It was wrong on both halves** — no student can reach Gemini (enforced by an email guard on every callable), and SpartBoard is on Gemini's _Paid_ Services via its Workspace account and Blaze billing, so nothing is trained on. The finding, the retraction, and the one question that genuinely survives are all recorded in place. **The "move to Vertex AI" recommendation is withdrawn.**
 > **Related efforts:** pronunciation quiz question type (tracked in GitHub issues),
@@ -95,6 +95,8 @@ These are load-bearing. Several tickets are really "should we reuse this or not?
 - **[RR-B1 — Can `DrawingWidget` be the student whiteboard substrate?](#rr-b1--can-drawingwidget-be-the-student-whiteboard-substrate)** — **Partly. Read-only already works; writable is blocked by a Firestore rule, not by React.** No timestamps exist anywhere, the command stack is never persisted, and undo destroys history — so timed replay needs a **new capture layer**. But ordered-untimed replay is **free today** from `z` ordering.
 - **[RR-A4 — What do district Chromebooks produce, and what survives to Drive?](#rr-a4--what-do-district-chromebooks-actually-produce-and-what-survives-to-drive)** — **⛔ webm does not survive to Drive** — the mismatch is Opus audio, and audio-only webm isn't previewable at all. **The archive step must transcode** (MP4/H.264+AAC, or MP3/`.opus`). Video costs **~80× audio** and takes longer to upload than to record on school wifi. Nothing in the repo has ever recorded a mic or camera.
 
+- **[RR-02 — How does a media response serialize into a `QuizResponseAnswer`?](#rr-02--how-does-a-media-response-serialize-into-a-quizresponseanswer)** — **A sibling `artifacts?: ResponseArtifact[]` field; `answer: string` untouched.** An artifact has a stable `id` with location as mutable metadata (Firebase path → `driveFileId`), an explicit stored `slot` and `kind` (text included — an MC question's required written justification has nowhere else to go), and its own `uploadState` axis **written before the bytes finish** so "recorded, never arrived" is visible. **Bulk payloads are always files**, which removes the 1 MB ceiling as a constraint entirely. Rules **cannot** validate arrays, so path integrity rides on a `{sessionId}/{studentUid}/` upload convention plus a reader-side prefix check.
+
 - **[RR-04 — privacy and consent posture](#rr-04--whats-the-privacy-and-consent-posture-for-student-voice-and-video) — RESEARCH HALF ONLY** — **Pseudonymity buys nothing regulatory**: COPPA § 312.2(8), Illinois SOPPA and California SOPIPA name audio/video files as personal information directly. Storage is defensible; **template extraction (voiceprints, speaker ID, diarization) is not**. The dominant obligation is **notice, not consent** — but the real risk is **redaction capacity**, which argues for audio-first. **The decision half is still open and needs Paul.**
 
 **Destination confirmed** 2026-08-04 (not a ticket, recorded here so it isn't re-litigated): the spec covers all three tracks; narrower, wider, and spec-plus-build were considered and rejected. See the ✅ note under **Destination**.
@@ -105,11 +107,12 @@ These are load-bearing. Several tickets are really "should we reuse this or not?
 
 Open, unblocked, unclaimed — takeable right now:
 
-_Rebuilt 2026-08-04 after RR-01, RR-B1 and RR-A4 closed._
+_Rebuilt 2026-08-05 after RR-02 closed._
 
 **Takeable now:**
 
-- **RR-02** — How does a media response serialize into a `QuizResponseAnswer`? _(grilling + domain-modeling)_ — **the natural next one**; RR-03, RR-06 and RR-08 all wait on it, and it's the last thing standing between this map and the whole persistence track
+- **RR-03** — Where does student-submitted media live, for how long, and who owns it? _(grilling)_ — **the natural next one**, newly unblocked by RR-02, and the last blocker on RR-C2 and one of four on RR-06. RR-02 handed it three inputs: a fixed path shape, an archive step that writes into student-owned payload, and an artifact lifecycle already shaped like `ActivityWallSubmission`
+- **RR-08** — What counts as "answered" when a question has a required addendum? _(grilling + domain-modeling)_ — **newly unblocked**; RR-02 sharpened it considerably by making `answer: ''` a legitimate state
 - **RR-A5** — Verify format round-trip and capture policy on district hardware _(task, HITL)_ — **cheap and unblocks real assumptions**; ~15 min of the Drive test settles whether transcoding is needed at all
 - **RR-B2** — Is the audio synchronized to the strokes, or attached alongside? _(grilling)_ — now a **three-way** fork thanks to RR-B1
 - **RR-07** — Alternate-format policy _(grilling)_ — now also covers addendum modes, and RR-A4 made it a functional requirement, not only an accessibility one
@@ -121,13 +124,14 @@ _Rebuilt 2026-08-04 after RR-01, RR-B1 and RR-A4 closed._
 - **RR-04 (decision half)** — **research is done and written up**; what remains is your call on retention promise, named-vs-pseudonymous treatment, and the AI boundary. Blocks RR-05 and RR-06.
 - **RR-09** — task: the four questions only district counsel and Google can answer _(unclaimed)_
 
-**Still blocked:** RR-03 (RR-02) · RR-05 (RR-04, RR-09) · RR-06 (RR-02/03/04/05) ·
-RR-08 (RR-02) · RR-B3 (RR-B2, RR-06) · RR-B4 (RR-B2) · RR-A6 (RR-03, RR-A3, RR-A5) ·
+**Still blocked:** RR-05 (RR-04, RR-09) · RR-06 (RR-03, RR-04, RR-05) ·
+RR-B3 (RR-B2, RR-06) · RR-B4 (RR-B2) · RR-A6 (RR-03, RR-A3, RR-A5) ·
 RR-C2 (RR-03).
 
-**Two keystones now.** **RR-02** blocks four tickets alone and gates the entire
-persistence and grading half of the map. **RR-04's decision half** gates the AI
-half. They're independent — either can go next.
+**One keystone left.** RR-02 is closed, so the persistence track is open at
+**RR-03** — which now blocks three tickets and is the only thing standing between
+this map and RR-06. **RR-04's decision half** still gates the AI half
+independently. Either can go next.
 
 ⚡ **RR-A5 and RR-09 are both cheap, unblock real assumptions, and don't need a
 grilling session.** Worth firing off before the next decision ticket.
@@ -199,7 +203,7 @@ its own member).
 
 ### RR-02 — How does a media response serialize into a `QuizResponseAnswer`?
 
-**Type:** grilling + domain-modeling (HITL) · **Status:** Open · **Blocked by:** RR-01 · **Blocks:** RR-03, RR-06
+**Type:** grilling + domain-modeling (HITL) · **Status:** ✅ **Closed 2026-08-05** · **Blocked by:** RR-01 · **Blocks (now unblocked):** RR-03, RR-08
 
 **Question**
 
@@ -210,11 +214,179 @@ and for whiteboard+audio, possibly two artifacts plus a stroke timeline.
 
 Decide: overload `answer` with an encoded reference, or add a sibling field, or
 make `answer` a discriminated union. Consider that `QuizResponse.answers` is an
-**array on a single Firestore document** — 30 students × N questions × media
+**array on a single Firestore document** — ~~30 students ×~~ N questions × media
 metadata has a 1 MB doc ceiling to respect. Also decide what a `'draft'` status
 means for a recording that was started but never finished.
 
-**Resolution:** _(unresolved)_
+> ⚠️ **The framing above was wrong about the doc-size risk** — corrected during
+> the resolution. `QuizResponse` is **one doc per student**
+> (`/quiz_sessions/{sessionId}/responses/{responseKey}`, key = the student's uid,
+> `types.ts:3503`). There is no 30× multiplier. At ~250 bytes of artifact metadata
+> × 20 questions × 2 artifacts you sit around 10 KB against a 1 MB ceiling. **A/V
+> metadata cannot threaten the doc.** The only genuine exposure was an inline
+> whiteboard stroke timeline, which sub-decision 5 rules out permanently.
+
+**Resolution** — grilled with Paul 2026-08-05, five sub-decisions.
+
+**1. A sibling `artifacts[]` field. `answer: string` is untouched.**
+
+```ts
+interface QuizResponseAnswer {
+  questionId: string;
+  answer: string; // unchanged meaning: the primary answer, for every shipped type
+  artifacts?: ResponseArtifact[]; // new, optional
+  // ... answeredAt, isCorrect, speedBonus, status unchanged
+}
+```
+
+Chosen over three alternatives. **Encoding a reference into `answer`** was killed
+by RR-01: a separately-pointed addendum means one question owns two artifacts,
+which a delimiter scheme encodes badly in a codebase that already carries four
+ad-hoc delimiter formats. A **discriminated union on `answer`** was killed by
+blast radius — the ~16 copy-pasted type-branch sites RR-01 catalogued would each
+need to narrow, Firestore rules can't validate a union shape, and every read of a
+legacy doc needs a runtime guard, all to buy correctness an optional field gets
+for free. A **subcollection** (`/responses/{key}/artifacts/{id}`, like the
+existing `history/`) was killed by the doc-size correction above: it turns the
+student's single `onSnapshot` into two listeners and the teacher's results read
+into 1+N, to solve a size problem that doesn't exist.
+
+The decisive precedent is in-repo and already shipped: **`grading` deliberately
+sits outside `answers[]`** so teacher writes don't rewrite the student payload and
+the rules whitelist can lock students out of it (`firestore.rules:3006-3023`), and
+**`ActivityWallSubmission`** (`types.ts:1625`) already pairs `content` with
+`storagePath` plus an archival lifecycle. Sibling-not-overload is the established
+pattern here.
+
+**2. An artifact has a stable `id`; its location is mutable metadata.**
+
+```ts
+interface ResponseArtifact {
+  id: string; // minted client-side at record-stop; never changes
+  slot: 'primary' | 'addendum';
+  kind: 'text' | 'audio' | 'video' | 'whiteboard';
+  text?: string; // inline, `kind: 'text'` only
+  storagePath?: string; // Firebase Storage; nulled after archival
+  driveFileId?: string; // set by the archive step
+  archiveStatus?: /* mirrors ActivityWallArchiveStatus */ string;
+  archivedAt?: number;
+  mimeType?: string;
+  bytes?: number;
+  durationMs?: number; // recorded client-side — Chrome webm reports Infinity
+  uploadState: 'pending' | 'uploaded' | 'failed';
+}
+```
+
+The `id` is the identity; `storagePath` and `driveFileId` are facts about where
+the bytes currently are, which RR-03's archive step rewrites. **Making the path
+the identity was rejected** because archival changes it — the reference would
+either dangle or force the archive step to rewrite student-owned data — and
+because a failed upload would then have no identity at all, so a recording that
+happened couldn't be recorded as having happened. **Storing a resolved
+`getDownloadURL()` was rejected on privacy grounds independent of the rest**: a
+Firebase download URL is an unguessable but permanent bearer token to a child's
+voice recording sitting in a Firestore doc, and RR-04 established these files are
+per-se regulated personal information. Paths force an authenticated fetch; URLs
+don't.
+
+**3. One array, any `kind`, with an explicit stored `slot` — text included.**
+
+This was forced, not chosen. RR-01 allows **an MC question with a required
+written justification**; `answer` already holds the MC selection, so the
+justification text has nowhere else to go. A text addendum is therefore an
+artifact with inline `text` and no `storagePath`.
+
+`slot` is **stored on the response, never derived from the question config at read
+time.** A quiz can be re-synced mid-flight — that's exactly why `preSyncVersion`
+exists — so a stored response and its current question definition can legitimately
+disagree, and anything the response's meaning depends on has to travel with the
+response. Rejected: a media-only array plus a separate `addendumText` field, which
+splits the addendum across two locations by mode and gives RR-06's grading key and
+RR-08's completeness check two code paths each. Also rejected: promoting the
+primary text into `artifacts[]` too — most uniform, but it dual-writes on every
+autosave and converts a purely additive change into a migration across every
+quiz-reading surface.
+
+**4. Upload state is its own axis, and metadata is written _before_ the bytes
+finish transferring.**
+
+`answer.status` keeps its exact current meaning — **student intent** —
+so `isAnswerSubmitted` and the rules' status-transition gate are untouched. Each
+artifact carries `uploadState` separately, because an upload is a **system process
+that can fail after the student is finished and gone**: RR-A4 measured a 720p
+minute at ~75 s of uplink against ~1 s for the same answer in audio. The two axes
+fail differently — intent-draft is "I'm not done," `uploadState: 'failed'` is "I'm
+done and it didn't arrive." Overloading `status` with `'recording' | 'uploading'`
+was rejected outright: `status` lives on the _answer_, and one answer can hold two
+artifacts in different upload states, so it structurally cannot represent the real
+state.
+
+**The write-first ordering is the substance of this sub-decision.** Metadata lands
+in Firestore at record-stop, `uploadState: 'pending'`, and is patched to
+`'uploaded'` when the transfer completes. A student who closes the Chromebook
+mid-upload leaves a durable record, so the teacher sees "recorded, never arrived"
+rather than "never answered," and a retry has something to resume against.
+Rejected: writing metadata only on success — strongest consistency, least code,
+and it makes a failed upload indistinguishable from never having recorded. On the
+district-wifi floor this map assumes, that isn't an edge case, and it's precisely
+the case where a student did the work and has no evidence of it.
+
+_Note on the ticket's literal question — a recording **started but never
+stopped** writes nothing, and that's correct. The student is still present and
+mid-question; the failure the write-first ordering defends against is the student
+being **gone**._
+
+**5. Bulk payloads are always files. Nothing large is ever inline.**
+
+A whiteboard stroke timeline is an artifact with a `storagePath`, exactly like
+audio. The response doc therefore holds metadata only and its size is bounded by
+question count regardless of what a student draws — **the 1 MB ceiling stops being
+a design constraint at all.** The inline `text` field from sub-decision 3 is the
+sole exception, already capped by the existing `maxWords`.
+
+The second reason is privacy, not size: RR-04 established media responses are
+per-se regulated personal information and RR-03 will define a deletion path. **All
+student content in files means one deletion path.** Inline content would mean two,
+and the Firestore one is the one people forget. Rejected: a size threshold with
+inline-below / file-above, which buys speed on trivial payloads at the cost of two
+read paths and two deletion paths forever, and doesn't help in the case that
+matters — the student who drew a lot. Rejected: deferring to RR-B2, which would
+have closed this keystone with its one production-breaking question still open.
+
+**6. `artifacts[]` is untrusted data. A path-prefix convention plus a reader-side
+check carries the integrity.**
+
+⚠️ **Hard constraint discovered during the grilling: Firestore rules cannot
+iterate arrays.** `answers` is already on the student write whitelist
+(`firestore.rules:3023`) and `artifacts[]` nests inside it, so **every field
+defined above is unvalidatable by security rules.** That's harmless for `answer`
+(a student writing nonsense into their own answer is just a wrong answer) and not
+harmless for `storagePath` — a student who writes a path pointing at a classmate's
+recording gets it rendered in the teacher's results view under their own name.
+
+The resolution: **Storage rules gate uploads by path** — extend the activity-wall
+pattern so a student may only write under `.../{sessionId}/{studentUid}/...` — and
+**Firestore treats `storagePath` as untrusted**, with the teacher's results view
+refusing to render any artifact whose path prefix doesn't match that response's
+`studentUid`. One comparison at a single render site; forging a path yields a
+broken tile, not a misattributed recording. **Server-minted artifacts** (a
+callable returns the only path the student may upload to) is strictly stronger and
+composes with RR-05's server-side gating, but it costs a Cloud Function round-trip
+before every recording begins on the flaky-wifi floor, and adds a failure mode
+where a student can't start recording because the mint call timed out. Rejected as
+disproportionate — but it is the escalation path if the prefix check proves
+insufficient. **Accepting the forgery risk** was rejected because RR-04 makes the
+failure mode "one student causes another student's voice to surface under the
+wrong name," not "a wrong grade."
+
+**Consequences, and where they land:**
+
+- **`answer` is now legitimately `''` for a pure-audio response**, so "answered" can no longer be inferred from a non-empty string. Anything checking truthiness of `answer` to mean answered is now wrong. → **RR-08**, which this resolution unblocks.
+- **The archive step writes `driveFileId` into the student's `answers[]`** — a teacher/server write into student-owned payload. Rules permit it (the teacher branch is unrestricted), but archival and a student's in-flight answer write **both rewrite the entire array** (`useQuizSession.ts:2359-2376`), so they can clobber each other. → **RR-03**.
+- **The Storage path shape is now fixed** at `.../{sessionId}/{studentUid}/...` by sub-decision 6, which constrains RR-03's storage layout before it starts.
+- **A `'pending'` artifact needs an owner.** The student is gone; nobody retries. Service worker, a prompt on next `/my-assignments` login, or a teacher-visible "ask them to redo it"? → **RR-A6**.
+- **Duration is recorded client-side as `durationMs`** on the artifact — closes the "Duration metadata" fog patch, which was explicitly waiting on this ticket.
+- **`ResponseArtifact` is deliberately shaped like `ActivityWallSubmission`.** If RR-03 concludes the archival lifecycle generalizes, the two should converge on a shared type rather than drift.
 
 **Paul's notes:**
 
@@ -222,7 +394,7 @@ means for a recording that was started but never finished.
 
 ### RR-03 — Where does student-submitted media live, for how long, and who owns it?
 
-**Type:** grilling (HITL) · **Status:** Open · **Blocked by:** RR-01, RR-02 · **Blocks:** RR-C2, RR-06
+**Type:** grilling (HITL) · **Status:** Open — **unblocked 2026-08-05** · **Blocked by:** ~~RR-01, RR-02~~ (both closed) · **Blocks:** RR-C2, RR-06, RR-A6
 
 **Question**
 
@@ -238,6 +410,14 @@ where it breaks:
 - Archival is **teacher-triggered** today. With 30 students × 5 questions of video, is archival still a button someone presses? What happens to media that's never archived — TTL sweep, orphan?
 - Whose Drive, and what happens when the teacher leaves the district, or a PLC co-teacher needs access?
 - Does a student have any right to retrieve or review their own submission afterward — via `/my-assignments`, or not at all? SSO makes this answerable (there's a durable uid to scope it to), where the PIN model made it awkward. Decide whether that's a feature you want.
+
+**Sharpened by RR-02 (2026-08-05) — three inputs this ticket now inherits rather
+than decides:**
+
+- **The Storage path shape is already fixed** at `.../{sessionId}/{studentUid}/...`. RR-02's integrity model depends on it (Storage rules gate uploads by prefix; the results view refuses to render a mismatched prefix), so this ticket's layout decision starts from that constraint rather than a blank page.
+- 🔴 **The archive step and the student both rewrite the whole `answers` array.** Archival sets `driveFileId` and clears `storagePath` _inside_ the student's `answers[]`, and `submitAnswer` rewrites that entire array on every write (`useQuizSession.ts:2359-2376`). A student answering question 7 while archival is patching question 3 clobbers one or the other. **This is a new, concrete decision for this ticket** — archive only after `status: 'completed'`, use dotted field paths / a transaction, or move the archival fields out of `answers[]` entirely (the `grading`-sibling trick, which exists for exactly this reason).
+- **The artifact lifecycle is already shaped like `ActivityWallSubmission`** (`archiveStatus`, `driveFileId`, `archiveError`, `archivedAt`). If the archival flow generalizes, decide here whether the two converge on a shared type or are allowed to drift.
+- **An artifact stuck in `uploadState: 'pending'` needs a retention answer too** — it has metadata and no bytes. Does the TTL sweep treat it as an orphan?
 
 **Resolution:** _(unresolved)_
 
@@ -738,7 +918,7 @@ teacher-configurable floor.
 
 ### RR-08 — What counts as "answered" when a question has a required addendum?
 
-**Type:** grilling + domain-modeling (HITL) · **Status:** Open · **Blocked by:** RR-02 · _Opened 2026-08-04 by RR-01's resolution_
+**Type:** grilling + domain-modeling (HITL) · **Status:** Open — **unblocked 2026-08-05** · **Blocked by:** ~~RR-02~~ (closed) · _Opened 2026-08-04 by RR-01's resolution_
 
 **Question**
 
@@ -747,7 +927,8 @@ addendum**. That splits a single question into two artifacts that can complete
 independently, and nothing in the shipped model expects that.
 
 - A student answers the MC and skips the required recording. Is the question answered, partially answered, or unanswered? What does the submit button do — block, warn, or allow?
-- `QuizResponseAnswer.status` is `'draft' | 'submitted'` on **one** answer object. Two artifacts can be in different states (text submitted, recording still draft). Does status move to the artifact, or does the question hold a composite state? This is why the ticket is blocked by RR-02 — it can't be answered before the serialization is decided.
+- ~~`QuizResponseAnswer.status` is `'draft' | 'submitted'` on **one** answer object. Two artifacts can be in different states…~~ **Answered by RR-02:** `status` stays on the answer and keeps meaning **student intent**; each artifact carries only a separate `uploadState`. So the two artifacts can't be in different _intent_ states — the question is atomic with respect to submission. What this ticket must still decide is what intent-submit **means** when one artifact is `uploadState: 'pending'` or `'failed'`.
+- 🔴 **New from RR-02, and the sharpest thing on this ticket: `answer: ''` is now a legitimate, complete response.** A pure-audio answer stores an empty `answer` string and puts everything in `artifacts[]`. Every existing check that infers "answered" from a non-empty `answer` is now wrong — including the progress indicator, the `alreadyAnswered` gate, and `isUnsafeBlankDraft` (`useQuizSession.ts:2277`), whose entire purpose is refusing to let `''` clobber a saved answer. Deciding "answered" here is therefore not just a UX call; it's a correctness fix to shipped guards.
 - The scheduled idle **auto-submit sweep** finalizes stale responses. What does it do with a question whose text is done and whose required recording was never started? Submitting it silently scores a zero on an artifact the student may not have known was required.
 - Does the progress indicator ("4 of 10 answered") count a half-done question?
 - Does a required addendum interact with per-question `timeLimit` — one clock for both artifacts, or one each? (Overlaps RR-A1; resolve there if RR-A1 lands first.)
@@ -1090,6 +1271,7 @@ as audio is **~1 second**. That gap is the whole ticket.
 - Local buffering (IndexedDB) so a dropped connection never loses a take — RR-A2 will have opinions about whether a lost take is acceptable, and RR-A1 about whether a partial take is recoverable at all.
 - Explicit bitrate caps: `videoBitsPerSecond: 1_000_000` cuts upload 60% for negligible quality loss on a talking head; `audioBitsPerSecond: 32000` should be set rather than trusting Chrome's unpublished adaptive default. Are these product settings or hardcoded constants?
 - What happens when 30 students submit simultaneously at the end of a period — is there any staggering, or does the last student wait?
+- **New from RR-02: a `'pending'` artifact needs an owner.** RR-02 decided artifact metadata is written at record-stop, _before_ the bytes finish, so a student who closes the Chromebook mid-upload leaves a durable "recorded, never arrived" record with something to resume against. Nobody has been assigned the resume. Service worker? A prompt on next `/my-assignments` login (SSO makes this possible — the uid is durable)? IndexedDB-buffered retry? Or no automatic retry at all, and the teacher just sees the failed state and asks for a redo? **The write-first design only pays off if something acts on `'pending'`.**
 
 **Resolution:** _(unresolved)_
 
@@ -1398,7 +1580,6 @@ advances — most are waiting on RR-01 and RR-04.
 - **The district-managed "recording allowed" roster flag.** RR-04 flagged that no vendor consumes a media-release attribute over Clever/ClassLink/OneRoster today, so this would be ahead of the market. Not sharp until the consent posture is decided.
 - **Storage cost at district scale.** Waiting on RR-03's retention answer before the arithmetic means anything — though RR-A4 supplied the per-assignment inputs (36 MB audio vs 2.85 GB video per class assignment).
 - **Where transcoding runs, and what it costs.** RR-A4 established that the Drive archive step must transcode (Cloud Function + ffmpeg? Google's Transcoder API?) — but only if RR-A5's manual Drive test confirms it. Not sharp until then, and the cost/latency shape depends on RR-03's archival trigger.
-- **Duration metadata.** Chrome-recorded webm reports `Infinity` duration. RR-A4's advice is to record duration client-side and store it as metadata, but where that lives depends on RR-02's serialization.
 - **Interaction with attempt limits.** _(The idle auto-submit half of this patch graduated into **RR-08** on 2026-08-04; what remains here is retakes vs. whole-assignment attempt limits, which needs RR-A2 first.)_
 - **Authoring guardrails against accidental complexity.** RR-01 makes a set-of-modes plus a required addendum expressible on every question. Nothing yet stops a teacher building a 10-question quiz where each question allows three modes and requires a recording. Whether the product warns, caps, or simply permits it is a real decision — waiting on RR-A1 and RR-06 to know what the costs actually are.
 - **Which surfaces beyond quiz get these modes** — video activity, guided learning, mini-apps, activity wall. Deliberately deferred: decide it for quiz first, generalize second.
