@@ -9,6 +9,7 @@ import {
   useSpotifyLibrary,
   __resetCacheForTests,
 } from '@/hooks/useSpotifyLibrary';
+import { SpotifyScopeError } from '@/utils/spotifyAuth';
 
 const mockGetAccessToken = vi.fn();
 vi.mock('@/hooks/useSpotifyAuth', () => ({
@@ -149,6 +150,24 @@ describe('useSpotifyLibrary', () => {
     // Only one network round trip for both instances.
     expect(mockFetchPlaylists).toHaveBeenCalledTimes(1);
     expect(mockFetchRecents).toHaveBeenCalledTimes(1);
+  });
+
+  // Same concurrent-mount setup as above, but the shared fetch rejects — the follower's
+  // try/catch/finally must surface `error` and clear `isLoading`, not just the leader's.
+  it('settles error and isLoading=false on follower instances when the shared fetch fails', async () => {
+    mockFetchPlaylists.mockRejectedValue(
+      new SpotifyScopeError('insufficient scope')
+    );
+
+    const first = renderHook(() => useSpotifyLibrary());
+    const second = renderHook(() => useSpotifyLibrary());
+
+    await waitFor(() => expect(first.result.current.isLoading).toBe(false));
+    await waitFor(() => expect(second.result.current.isLoading).toBe(false));
+
+    expect(first.result.current.error).toEqual({ kind: 'scope' });
+    expect(second.result.current.error).toEqual({ kind: 'scope' });
+    expect(mockFetchPlaylists).toHaveBeenCalledTimes(1);
   });
 
   it('refetches after TTL expiry (cache-reset proxy)', async () => {
