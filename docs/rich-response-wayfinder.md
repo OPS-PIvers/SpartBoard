@@ -16,7 +16,7 @@
 > **Paul:** each ticket has an empty `Paul's notes` slot. Write in them freely —
 > agents should read them as the highest-authority input on that ticket.
 
-**Status:** Charted 2026-08-04 · **4 of 22 resolved, plus RR-04's research half** — RR-01, RR-B1, RR-A4 closed and RR-04's research done 2026-08-04; **RR-02 closed 2026-08-05**. Their resolutions opened RR-08, RR-B4, RR-A5, RR-A6, RR-09 and unblocked RR-03 + RR-08.
+**Status:** Charted 2026-08-04 · **5 of 22 resolved, plus RR-04's research half** — RR-01, RR-B1, RR-A4 closed and RR-04's research done 2026-08-04; **RR-02 and RR-03 closed 2026-08-05**. Their resolutions opened RR-08, RR-B4, RR-A5, RR-A6, RR-09 and unblocked RR-08 + RR-C2. **The persistence track is complete** — the response model (RR-01), its serialization (RR-02) and its lifecycle (RR-03) are locked.
 
 > **Correction, 2026-08-05:** RR-04's finding 3 claimed a live Gemini ToS violation. **It was wrong on both halves** — no student can reach Gemini (enforced by an email guard on every callable), and SpartBoard is on Gemini's _Paid_ Services via its Workspace account and Blaze billing, so nothing is trained on. The finding, the retraction, and the one question that genuinely survives are all recorded in place. **The "move to Vertex AI" recommendation is withdrawn.**
 > **Related efforts:** pronunciation quiz question type (tracked in GitHub issues),
@@ -97,6 +97,8 @@ These are load-bearing. Several tickets are really "should we reuse this or not?
 
 - **[RR-02 — How does a media response serialize into a `QuizResponseAnswer`?](#rr-02--how-does-a-media-response-serialize-into-a-quizresponseanswer)** — **A sibling `artifacts?: ResponseArtifact[]` field; `answer: string` untouched.** An artifact has a stable `id` with location as mutable metadata (Firebase path → `driveFileId`), an explicit stored `slot` and `kind` (text included — an MC question's required written justification has nowhere else to go), and its own `uploadState` axis **written before the bytes finish** so "recorded, never arrived" is visible. **Bulk payloads are always files**, which removes the 1 MB ceiling as a constraint entirely. Rules **cannot** validate arrays, so path integrity rides on a `{sessionId}/{studentUid}/` upload convention plus a reader-side prefix check.
 
+- **[RR-03 — Where does student-submitted media live, for how long, and who owns it?](#rr-03--where-does-student-submitted-media-live-for-how-long-and-who-owns-it)** — **Drive is the durable home; Firebase Storage is a transit buffer.** Decided on cost: audio on Firebase is free at any plausible scale, **video is free nowhere**, and Drive is $0 durably plus Workspace-DPA covered. Archival fires **immediately per upload** via the already-stored server-side refresh token (teacher need not be present) — which forced an **amendment to RR-02**: server-written archival fields move out of `answers[]` into a sibling `artifactArchive` map. Firebase copy dies on successful archive, un-archived media swept at ~7 days (**risk accepted**; requires out-of-band failure email). Teacher's own Drive — **retention is district-lifecycle-bound**. Students get playback on the **published-results** screen only, uid- and publish-gated.
+
 - **[RR-04 — privacy and consent posture](#rr-04--whats-the-privacy-and-consent-posture-for-student-voice-and-video) — RESEARCH HALF ONLY** — **Pseudonymity buys nothing regulatory**: COPPA § 312.2(8), Illinois SOPPA and California SOPIPA name audio/video files as personal information directly. Storage is defensible; **template extraction (voiceprints, speaker ID, diarization) is not**. The dominant obligation is **notice, not consent** — but the real risk is **redaction capacity**, which argues for audio-first. **The decision half is still open and needs Paul.**
 
 **Destination confirmed** 2026-08-04 (not a ticket, recorded here so it isn't re-litigated): the spec covers all three tracks; narrower, wider, and spec-plus-build were considered and rejected. See the ✅ note under **Destination**.
@@ -107,34 +109,34 @@ These are load-bearing. Several tickets are really "should we reuse this or not?
 
 Open, unblocked, unclaimed — takeable right now:
 
-_Rebuilt 2026-08-05 after RR-02 closed._
+_Rebuilt 2026-08-05 after RR-02 and RR-03 closed._
 
 **Takeable now:**
 
-- **RR-03** — Where does student-submitted media live, for how long, and who owns it? _(grilling)_ — **the natural next one**, newly unblocked by RR-02, and the last blocker on RR-C2 and one of four on RR-06. RR-02 handed it three inputs: a fixed path shape, an archive step that writes into student-owned payload, and an artifact lifecycle already shaped like `ActivityWallSubmission`
-- **RR-08** — What counts as "answered" when a question has a required addendum? _(grilling + domain-modeling)_ — **newly unblocked**; RR-02 sharpened it considerably by making `answer: ''` a legitimate state
-- **RR-A5** — Verify format round-trip and capture policy on district hardware _(task, HITL)_ — **cheap and unblocks real assumptions**; ~15 min of the Drive test settles whether transcoding is needed at all
+- 🔥 **RR-A5** — Verify format round-trip and capture policy on district hardware _(task, HITL)_ — **now the highest-leverage thing on the board.** RR-03 put transcoding on the synchronous critical path of every upload, so whether transcoding is needed at all is no longer a background question — it decides the cost and latency of the whole archival design. ~15 minutes of Drive testing
+- **RR-08** — What counts as "answered" when a question has a required addendum? _(grilling + domain-modeling)_ — **unblocked by RR-02**, which sharpened it considerably by making `answer: ''` a legitimate state
+- **RR-A3** — Video as a separate mode, or one mode with a camera toggle? _(grilling)_ — **sharpened hard by RR-03**: video is now known to be free on _neither_ path (Firebase egress or Drive transcode compute), where audio is free on both
 - **RR-B2** — Is the audio synchronized to the strokes, or attached alongside? _(grilling)_ — now a **three-way** fork thanks to RR-B1
 - **RR-07** — Alternate-format policy _(grilling)_ — now also covers addendum modes, and RR-A4 made it a functional requirement, not only an accessibility one
 - **RR-A1** — Timing model for prep time and recording limits _(prototype)_
-- **RR-A3** — Video as a separate mode, or one mode with a camera toggle? _(grilling)_ — RR-A4 supplied the ~80× cost gap this turns on
+- **RR-C2** — How does a student get access to a file in the teacher's Drive? _(grilling)_ — **newly unblocked by RR-03**, which also handed it a working precedent: the uid- and publish-gated proxy callable decided for student playback is the same problem in the other direction
 - **RR-C1** — Which stimulus formats are in, and are they rendered in-app or handed off? _(grilling)_
 - **RR-C3** — Does a stimulus attach to a question or to an assignment? _(grilling)_ — small, sharp, independent; still the best warm-up
 
-- **RR-04 (decision half)** — **research is done and written up**; what remains is your call on retention promise, named-vs-pseudonymous treatment, and the AI boundary. Blocks RR-05 and RR-06.
-- **RR-09** — task: the four questions only district counsel and Google can answer _(unclaimed)_
+- **RR-04 (decision half)** — **research is done and written up**; what remains is your call on named-vs-pseudonymous treatment and the AI boundary. **RR-03 has now answered the retention half for it** (district-lifecycle-bound in Drive, ~7 days in Firebase). Blocks RR-05 and RR-06.
+- **RR-09** — task: the questions only district counsel and Google can answer _(unclaimed)_ — **question 1 got more load-bearing**: RR-03 chose Drive partly _because_ Firebase's FERPA coverage is unverified, so confirming it either validates that choice or reopens it
 
-**Still blocked:** RR-05 (RR-04, RR-09) · RR-06 (RR-03, RR-04, RR-05) ·
-RR-B3 (RR-B2, RR-06) · RR-B4 (RR-B2) · RR-A6 (RR-03, RR-A3, RR-A5) ·
-RR-C2 (RR-03).
+**Still blocked:** RR-05 (RR-04, RR-09) · RR-06 (RR-04, RR-05) ·
+RR-B3 (RR-B2, RR-06) · RR-B4 (RR-B2) · RR-A6 (RR-A3, RR-A5) · RR-A2 (RR-A1).
 
-**One keystone left.** RR-02 is closed, so the persistence track is open at
-**RR-03** — which now blocks three tickets and is the only thing standing between
-this map and RR-06. **RR-04's decision half** still gates the AI half
-independently. Either can go next.
+**One keystone left — RR-04's decision half**, which now gates RR-05 and RR-06
+alone. The persistence track is fully resolved: RR-01 → RR-02 → RR-03 are closed
+and the response model, its serialization, and its lifecycle are all locked.
 
-⚡ **RR-A5 and RR-09 are both cheap, unblock real assumptions, and don't need a
-grilling session.** Worth firing off before the next decision ticket.
+⚡ **RR-A5 is now the single highest-leverage item on the board** and needs no
+grilling session — RR-03 made transcoding synchronous on every upload, so
+confirming whether it's needed at all decides the cost shape of the whole archival
+design. **RR-09** remains cheap and unclaimed.
 
 ---
 
@@ -267,9 +269,17 @@ interface ResponseArtifact {
   kind: 'text' | 'audio' | 'video' | 'whiteboard';
   text?: string; // inline, `kind: 'text'` only
   storagePath?: string; // Firebase Storage; nulled after archival
-  driveFileId?: string; // set by the archive step
-  archiveStatus?: /* mirrors ActivityWallArchiveStatus */ string;
-  archivedAt?: number;
+  // ⚠️ AMENDED BY RR-03 (2026-08-05) — the four server-written archival fields
+  // below MOVED OFF this interface into a sibling `artifactArchive` map keyed
+  // by artifact id. RR-03 chose immediate per-upload archival, so a server
+  // write lands while the student is still answering, and Firestore cannot
+  // address array elements by field path (`answers[3].driveFileId` is not
+  // expressible). Same reason `grading` sits outside `answers[]`. Student owns
+  // `answers[]`; server owns `artifactArchive`. See RR-03 sub-decision 3.
+  //   driveFileId?: string;
+  //   archiveStatus?: string;
+  //   archivedAt?: number;
+  //   archiveError?: string;
   mimeType?: string;
   bytes?: number;
   durationMs?: number; // recorded client-side — Chrome webm reports Infinity
@@ -394,7 +404,7 @@ wrong name," not "a wrong grade."
 
 ### RR-03 — Where does student-submitted media live, for how long, and who owns it?
 
-**Type:** grilling (HITL) · **Status:** Open — **unblocked 2026-08-05** · **Blocked by:** ~~RR-01, RR-02~~ (both closed) · **Blocks:** RR-C2, RR-06, RR-A6
+**Type:** grilling (HITL) · **Status:** ✅ **Closed 2026-08-05** · **Blocked by:** ~~RR-01, RR-02~~ (both closed) · **Blocks (now unblocked):** RR-C2
 
 **Question**
 
@@ -419,7 +429,174 @@ than decides:**
 - **The artifact lifecycle is already shaped like `ActivityWallSubmission`** (`archiveStatus`, `driveFileId`, `archiveError`, `archivedAt`). If the archival flow generalizes, decide here whether the two converge on a shared type or are allowed to drift.
 - **An artifact stuck in `uploadState: 'pending'` needs a retention answer too** — it has metadata and no bytes. Does the TTL sweep treat it as an orphan?
 
-**Resolution:** _(unresolved)_
+**Resolution** — grilled with Paul 2026-08-05, six sub-decisions. **Cost was the
+governing constraint throughout**, stated by Paul as the primary criterion, and it
+reversed the opening recommendation.
+
+**1. Drive is the durable home. Firebase Storage is demoted to a transit buffer.**
+
+Student records → Firebase Storage → transcode + archive to the teacher's Drive →
+Firebase copy deleted. The Drive copy is the record; the Firebase copy is
+in-flight state.
+
+_This reverses the recommendation this session opened with_ ("Firebase home with a
+retention clock, Drive archival opt-in"), which was argued on deletion control and
+lost on cost and on FERPA posture. The verified arithmetic, against RR-A4's
+measured 36 MB audio / 2.85 GB video per class assignment and Cloud Storage for
+Firebase's published no-cost tier (**5 GB-months stored, 100 GB/month egress, 5K/month
+upload ops** — [firebase.google.com/pricing](https://firebase.google.com/pricing)):
+
+| Firebase-as-home         | Audio                            | Video                                        |
+| ------------------------ | -------------------------------- | -------------------------------------------- |
+| Storage, 60-day clock    | ~140 concurrent assignments free | **1.75 assignments** fills the tier          |
+| Egress, one grading pass | ~2,800 passes/month free         | ~35 passes/month free                        |
+| Beyond the free tier     | pennies (~$0.026/GB-mo)          | ~$0.12/GB egress — tens of $/mo per district |
+
+So **audio on Firebase is genuinely free at any plausible scale; video is not free
+anywhere.** The binding free-tier constraint is actually upload ops (150 recordings
+per assignment ≈ 33 assignments/month project-wide), but overage there is
+~$0.005/1K — cents. Drive, by contrast, is **$0 durably** and consumes the
+district's own pooled Workspace storage rather than SpartBoard's bill.
+
+**On the PII half of the question — Paul's instinct is well-founded and the
+converse is genuinely unresolved.** Drive inside Workspace for Education is covered
+by the Workspace DPA and Google's FERPA commitments; that is precisely why the
+Drive-as-source-of-truth pattern exists in this codebase. Whether **Firebase**
+carries an equivalent commitment is **literally RR-09's first open question** and
+was deliberately not answered here by assertion. Two things that _are_ established:
+SpartBoard **already** stores children's photos in Firebase Storage
+(`activity_wall_photos/`) and every quiz response in Firestore, so whatever RR-09
+returns, that exposure is already live and is not created by this ticket — and
+activity-wall photos today have **no TTL at all**, so any clock is a strict
+reduction.
+
+The deletion-control objection that motivated the original recommendation turned
+out to be **wrong on the facts**: SpartBoard holds the `drive.file` scope
+(`functions/src/googleOAuth.ts:63`), so it _created_ these files and can delete
+them through the API. A real deletion story exists on the Drive path.
+
+**Honest costs accepted:** every archived artifact must transcode (RR-A4), which
+moves cost from storage to Cloud Function compute — cheap for audio, genuinely
+expensive for video; and the durable copy lives in an individual teacher's account.
+
+**2. Archival fires immediately, per artifact, on upload.** _(Paul chose this over
+the recommended scheduled sweep over completed responses.)_
+
+Unattended archival is possible because teacher refresh tokens are already stored
+server-side, AES-encrypted at `/users/{uid}/private/googleAuth`, Admin-SDK-only
+(`functions/src/googleOAuth.ts`). **The teacher does not need to be present or
+awake** — which is what makes immediate archival viable for take-home work.
+
+Rejected: a **scheduled sweep over `status: 'completed'` responses** (the
+recommendation — it would have dissolved RR-02's clobber race by construction and
+avoided transcoding takes that get retaken, at the cost of a delay during which
+the transit buffer is the only copy). Rejected: **teacher closes the assignment**,
+which is a manual step that would be skipped indefinitely, making "never closed"
+the most common path to an orphan.
+
+**Two consequences follow directly and are accepted:**
+
+- **A retaken artifact leaves an already-archived Drive file that must be deleted.** `drive.file` permits it (SpartBoard created it). → recorded on **RR-A2**.
+- **Transcode compute is spent on takes that don't survive.** Wasted, and unavoidable under immediate archival.
+
+**3. ⚠️ Amendment to RR-02: the server-written archival fields move out of
+`answers[]`.**
+
+Immediate archival means a server write lands while the student is still
+answering, and **Firestore cannot address array elements by field path** —
+`answers[3].driveFileId` is not expressible — so a server write into `answers[]`
+racing `submitAnswer`'s wholesale array rewrite needs a transaction.
+
+The fix is the pattern this codebase already invented for exactly this problem:
+`grading` lives outside `answers[]` so teacher writes never touch the student
+payload (`firestore.rules:3006-3023`). So **`driveFileId`, `archiveStatus`,
+`archivedAt` and `archiveError` move off `ResponseArtifact` into a sibling
+`artifactArchive` map keyed by artifact id.** Student owns `answers[]`; server owns
+`artifactArchive`; no transaction, no race, and the rules whitelist stays truthful.
+`storagePath` and `uploadState` stay on the artifact — those are student-written.
+
+**RR-02's sub-decision 2 is amended accordingly**; its `id`-as-identity choice is
+what makes the sibling map keyable at all.
+
+**4. The Firebase copy dies on successful archive; un-archived media is swept
+aggressively (~7 days).** _(Paul chose this over the recommended retry-then-hard-
+delete-at-30-days.)_
+
+Minimum exposure, minimum storage, and the transit buffer stays genuinely
+transient. A metadata-only artifact stuck at `uploadState: 'pending'` whose bytes
+never arrived is swept on the same clock — it is an orphan by definition.
+
+🔴 **Risk accepted, recorded rather than smoothed over:** a week is short against a
+school calendar. **A Google grant that breaks over a break week destroys a class
+set of recordings before anyone is back at work to notice.** Two things make it
+defensible rather than reckless, and both are requirements, not nice-to-haves:
+
+- **Immediate archival surfaces failures within minutes**, not at the end of a scheduled cycle — the detection window is the whole reason 7 days is survivable where it wouldn't be under sub-decision 2's rejected alternative.
+- **Failure must reach the teacher out-of-band.** The `/mail` outbound queue already exists (it sends org invite emails), so a failed archive can be emailed rather than left as a badge in a UI nobody has open. A silent failure state plus a 7-day sweep is data loss with extra steps.
+
+**5. The teacher's own Drive, at `SpartBoard/Quiz Responses/{quiz}/`.**
+
+Consistent with where the quiz file itself already lives (`QuizMetadata.driveFileId`) —
+responses landing elsewhere would split one assignment across two ownership
+models. Needs no provisioning, works identically for Orono and for any external
+district, and requires nothing beyond the already-granted `drive.file` scope.
+Rejected: a **district-designated shared drive** (survives departures cleanly and
+matches how districts think about custody, but needs per-org provisioning and an
+admin who knows what a shared drive is — too heavy for the external-availability
+path, and shared drives aren't on every Education tier). Rejected: **auto-sharing
+to PLC co-teachers**, which widens the disclosure surface by default exactly where
+RR-04 counsels narrowing it.
+
+**Teacher departure is explicitly the district's offboarding process, not a
+product feature** (Paul: "the teacher loses access to their account when leaving
+anyway so it gets cleaned up"). **This is a real answer to the ticket's "for how
+long": archived media is district-lifecycle-bound, not SpartBoard-bound** — and
+that is a retention promise SpartBoard can actually keep, which RR-04's decision
+half needs. Accepted cost: `driveFileId` references dangle once an account is
+suspended, with no warning.
+
+**6. No student access before publish; playback on the published-results screen,
+gated on the teacher publishing.**
+
+The ticket asked whether a student may retrieve their own submission. The answer
+splits on a distinction the ticket didn't draw:
+
+- **Before submit**, review is local and free — the blob is still in the browser. That's RR-A2's UX territory and costs nothing.
+- **After submit and before publish**, no access. The Firebase copy is gone within minutes and the Drive copy is teacher-owned.
+- **After the teacher publishes results**, the recording plays back for its owner.
+
+Published results are **already a shipped surface** (`scoreVisibility`,
+`revealedAnswers`, and the results-protection layer `resultsTabWarnings` /
+`resultsLockedOut`), so "no student access" would have contradicted working
+behavior. The grading data itself — rubric scores, points, margin comments —
+already lives in Firestore under `grading` and renders at zero cost regardless.
+**Only the artifact needs a new path**, via a callable that proxies the Drive file
+after verifying (a) the requester's uid equals the response's `studentUid` and (b)
+results are published for that assignment.
+
+Bounded three ways — published assignments only, owning student only, on demand
+only — and the gate is **an explicit teacher act**, which under RR-04 makes it a
+school official's disclosure decision rather than a standing exposure. It inherits
+the existing results-protection posture for free. Rejected: **grade and comments
+without playback** — feedback on a 90-second spoken answer the student cannot hear
+is close to unusable, since they can't tell which part of their answer a comment
+refers to. Rejected: **playback on demand regardless of publish state**, which
+makes SpartBoard a standing access path to regulated media with no teacher act
+gating it.
+
+**Deliberately not decided here — and why:**
+
+- **Storage size caps and the `contentType` allowlist for the new path.** The existing activity-wall rule is 10 MB / `image/.*`; RR-A4 measured 19 MB for a 60 s video at Chrome's default bitrate, so a cap must follow the bitrate policy rather than lead it. → **RR-A6**, which sets explicit bitrate caps.
+- **What hitting a cap looks like to a student mid-recording.** → **RR-A1** / **RR-A6**.
+
+**Consequences, and where they land:**
+
+- **RR-02's `ResponseArtifact` shape is amended** (sub-decision 3) — archival fields move to a sibling `artifactArchive` map. RR-02's own resolution now carries a pointer to this.
+- **The transcode step is now on the critical path of every upload**, synchronously, per artifact — not a batch job. That sharpens the "where transcoding runs" fog patch considerably; it still waits on RR-A5 to confirm transcoding is needed at all.
+- **Superseded takes must be deleted from Drive on retake.** → **RR-A2**.
+- **Archive failure needs an out-of-band notification path** (`/mail`), and it's a requirement of sub-decision 4, not a polish item. → **RR-A6**.
+- **Video's cost problem is now quantified on both paths** — Firebase egress or Drive transcode compute, no free option either way. → another input to **RR-A3**.
+- **RR-04's decision half inherits a retention answer**: district-lifecycle-bound in Drive, ~7 days maximum in Firebase.
 
 **Paul's notes:**
 
@@ -1018,7 +1195,12 @@ assessment question underneath it isn't.
 - Unlimited retakes turn a speaking assessment into a rehearsal — which is _exactly right_ for building confidence and _wrong_ for measuring fluency. Is the retake budget a number, a boolean, or tied to a purpose setting? (Speakable's four leniency levels are a comparable "same feature, different pedagogical intent" dial — see the competitor findings in memory.)
 - Does pause-and-resume produce one continuous file or a stitched one? Stitching is a real implementation cost and an integrity question both.
 - Does the teacher see that a student took 6 attempts, and is that signal or noise?
-- Can a student review a take before committing it, and does reviewing count as using it?
+- Can a student review a take before committing it, and does reviewing count as using it? **RR-03 leaned on this**: it decided student review happens _before_ submit from the local blob (free), and after submit only on the published-results screen. So the pre-commit review UX is this ticket's to design, and it's the only free review window there is.
+
+**Sharpened by RR-03 (2026-08-05):**
+
+- 🔴 **A retake now has to clean up after itself in Drive.** RR-03 archives **immediately on each upload**, so take 1 is already transcoded and sitting in the teacher's Drive by the time a student records take 2. The superseded Drive file must be deleted (`drive.file` permits it — SpartBoard created it), or every retake leaves a duplicate in the teacher's folder. Decide whether the teacher ever sees superseded takes or whether they vanish silently.
+- **Retakes cost transcode compute that gets thrown away.** Immediate archival means every take is transcoded, not just the surviving one. That's a real argument for a retake budget being a number rather than unlimited — a cost input this ticket didn't have before.
 
 **Resolution:** _(unresolved)_
 
@@ -1049,6 +1231,23 @@ than it took to record**, versus ~1 second for the same answer as audio. That is
 strong argument for shipping audio first and treating video as a separately
 budgeted feature — but it's your call whether that's a scope decision or a
 sequencing one.
+
+**💰 RR-03 (2026-08-05) turned the ~80× ratio into dollars, and the finding is
+that video is free on _neither_ storage path while audio is free on both.**
+
+Against Cloud Storage for Firebase's published no-cost tier (5 GB-months stored,
+100 GB/month egress, 5K/month upload ops):
+
+| Path                    | Audio                                             | Video                                                       |
+| ----------------------- | ------------------------------------------------- | ----------------------------------------------------------- |
+| Firebase Storage        | free to ~140 concurrent assignments; then pennies | **1.75 assignments** fills the tier; ~$0.12/GB egress after |
+| Drive (chosen by RR-03) | $0 storage, cheap transcode                       | $0 storage, **expensive transcode compute** per artifact    |
+
+RR-03 chose Drive, so video's cost moved from egress to **Cloud Function transcode
+compute** — but it did not disappear, and RR-03 made transcode **synchronous on
+every upload**, so video also costs the student wall-clock time at record-stop on
+top of RR-A4's ~75 s upload. **This ticket is now the one place where "does video
+ship at all" can be answered, and it has a real budget line on both sides.**
 
 **Resolution:** _(unresolved)_
 
@@ -1254,7 +1453,7 @@ assumptions.
 
 ### RR-A6 — What's the upload strategy on the school-wifi floor?
 
-**Type:** grilling (HITL) · **Status:** Open · **Blocked by:** RR-03, RR-A3, RR-A5 · _Graduated from fog 2026-08-04 by RR-A4's resolution_
+**Type:** grilling (HITL) · **Status:** Open · **Blocked by:** ~~RR-03~~ (closed), RR-A3, RR-A5 · _Graduated from fog 2026-08-04 by RR-A4's resolution_
 
 **Question**
 
@@ -1271,7 +1470,14 @@ as audio is **~1 second**. That gap is the whole ticket.
 - Local buffering (IndexedDB) so a dropped connection never loses a take — RR-A2 will have opinions about whether a lost take is acceptable, and RR-A1 about whether a partial take is recoverable at all.
 - Explicit bitrate caps: `videoBitsPerSecond: 1_000_000` cuts upload 60% for negligible quality loss on a talking head; `audioBitsPerSecond: 32000` should be set rather than trusting Chrome's unpublished adaptive default. Are these product settings or hardcoded constants?
 - What happens when 30 students submit simultaneously at the end of a period — is there any staggering, or does the last student wait?
-- **New from RR-02: a `'pending'` artifact needs an owner.** RR-02 decided artifact metadata is written at record-stop, _before_ the bytes finish, so a student who closes the Chromebook mid-upload leaves a durable "recorded, never arrived" record with something to resume against. Nobody has been assigned the resume. Service worker? A prompt on next `/my-assignments` login (SSO makes this possible — the uid is durable)? IndexedDB-buffered retry? Or no automatic retry at all, and the teacher just sees the failed state and asks for a redo? **The write-first design only pays off if something acts on `'pending'`.**
+- **New from RR-02: a `'pending'` artifact needs an owner.** RR-02 decided artifact metadata is written at record-stop, _before_ the bytes finish, so a student who closes the Chromebook mid-upload leaves a durable "recorded, never arrived" record with something to resume against. Nobody has been assigned the resume. Service worker? A prompt on next `/my-assignments` login (SSO makes this possible — the uid is durable)? IndexedDB-buffered retry? Or no automatic retry at all, and the teacher just sees the failed state and asks for a redo? **The write-first design only pays off if something acts on `'pending'`.** RR-03 put a clock on it: a `'pending'` artifact whose bytes never arrived is swept at ~7 days, so whatever resumes it has that long.
+
+**Sharpened by RR-03 (2026-08-05) — two of this ticket's items are now
+requirements rather than options:**
+
+- 🔴 **The out-of-band archive-failure notification is a hard requirement, not polish.** RR-03 chose to sweep un-archived media aggressively (~7 days) over the recommended 30-day hard-delete, accepting the risk that a Google grant breaking over a break week destroys a class set. That risk is only survivable if failure reaches the teacher **by email** (the `/mail` outbound queue already exists for org invites) rather than sitting as a badge in a UI nobody has open. Decide the message, the trigger threshold, and whether students are told anything.
+- **Storage size caps and the `contentType` allowlist land here.** RR-03 deliberately declined to set them, because a cap has to follow the bitrate policy rather than lead it. Inputs: the shipped activity-wall rule is 10 MB / `image/.*`; RR-A4 measured **19 MB for a 60 s video at Chrome's default** and 240 KB for the same answer as audio. Set the bitrate caps first, then the size cap follows.
+- **Transcode is now synchronous on the upload path.** RR-03 archives immediately per artifact, so transcode latency is user-visible, not batch. That changes what "upload strategy" even means — the student is waiting on transcode + Drive round-trip, not just the upload.
 
 **Resolution:** _(unresolved)_
 
@@ -1519,7 +1725,7 @@ assessment-design lever, not a UI detail.
 
 ### RR-C2 — How does a student get access to a file in the teacher's Drive?
 
-**Type:** grilling + domain-modeling (HITL) · **Status:** Open · **Blocked by:** RR-01, RR-03
+**Type:** grilling + domain-modeling (HITL) · **Status:** Open — **unblocked 2026-08-05** · **Blocked by:** ~~RR-01, RR-03~~ (both closed)
 
 **Question**
 
@@ -1539,6 +1745,23 @@ question still has to reach them somehow:
 
 The direction here also constrains RR-C1: a Drive-preview iframe for docx is only
 on the table if students can reach Drive at all.
+
+**✅ RR-03 (2026-08-05) already chose the second option, for the mirror-image
+problem — so this ticket now starts from a decided precedent rather than a blank
+three-way fork.** For student playback of their _own_ archived recording, RR-03
+settled on **a Cloud Function that proxies from Drive using the teacher's stored
+refresh token**, gated on (a) requester uid == the response's `studentUid` and
+(b) the teacher having published results. The token-lifetime objection above is
+answered: refresh tokens are stored server-side, encrypted, at
+`/users/{uid}/private/googleAuth` (`functions/src/googleOAuth.ts`), so the proxy
+does not depend on a live hourly client token.
+
+What remains genuinely open here is **the gate, not the mechanism** — a stimulus
+has no `studentUid` to match against and no publish event to key on, so the
+authorization predicate is session/class membership instead. Also open: whether
+the hot-path cost of proxying a stimulus that _every_ student in a class fetches
+simultaneously behaves like the once-per-student playback case RR-03 sized, or
+whether stimuli want the copy-into-Storage option after all.
 
 **Resolution:** _(unresolved)_
 
@@ -1578,8 +1801,8 @@ advances — most are waiting on RR-01 and RR-04.
 - **Moderation.** A student records something inappropriate, or another student's face is in frame. Who sees it first, can a teacher delete before archival, is there a report path? **RR-04 sharpened the second half considerably** — another student in frame isn't only a moderation question, it's a data-request question (AO 19-004: if you can't segregate, you hand over the whole recording). Waiting on RR-04's decision half and RR-09's redaction-capacity answer.
 - **The `/activity-wall/gallery` public-posting surface.** RR-04 found that COPPA § 312.2 treats public posting as a _disclosure_ that school consent likely doesn't reach, and no district designates audio/video as directory information. Whether media responses may ever reach a public surface — and whether the existing gallery route needs revisiting independently of this map — isn't sharp until RR-04's decision half lands.
 - **The district-managed "recording allowed" roster flag.** RR-04 flagged that no vendor consumes a media-release attribute over Clever/ClassLink/OneRoster today, so this would be ahead of the market. Not sharp until the consent posture is decided.
-- **Storage cost at district scale.** Waiting on RR-03's retention answer before the arithmetic means anything — though RR-A4 supplied the per-assignment inputs (36 MB audio vs 2.85 GB video per class assignment).
-- **Where transcoding runs, and what it costs.** RR-A4 established that the Drive archive step must transcode (Cloud Function + ffmpeg? Google's Transcoder API?) — but only if RR-A5's manual Drive test confirms it. Not sharp until then, and the cost/latency shape depends on RR-03's archival trigger.
+- ~~**Storage cost at district scale.**~~ **Resolved by RR-03** — Drive is the durable home, so SpartBoard's durable storage cost is $0 and the arithmetic lives in RR-03's resolution. What survives is narrower and belongs to RR-A3: **transcode compute** at district scale, which is trivial for audio and unbounded for video.
+- **Where transcoding runs, and what it costs.** RR-A4 established that the Drive archive step must transcode (Cloud Function + ffmpeg? Google's Transcoder API?) — but only if RR-A5's manual Drive test confirms it. **RR-03 sharpened this considerably without closing it:** the archival trigger is now decided (immediate, per artifact, server-side), which makes transcode **synchronous on the upload path and user-visible** rather than a batch job — so latency is now a product constraint, not just a cost one. A 512 MiB / 120 s callable of the `archiveActivityWallPhoto` shape cannot transcode video at all, so the runtime choice (Cloud Run? Transcoder API?) is forced if video ships. Still waiting on RR-A5.
 - **Interaction with attempt limits.** _(The idle auto-submit half of this patch graduated into **RR-08** on 2026-08-04; what remains here is retakes vs. whole-assignment attempt limits, which needs RR-A2 first.)_
 - **Authoring guardrails against accidental complexity.** RR-01 makes a set-of-modes plus a required addendum expressible on every question. Nothing yet stops a teacher building a 10-question quiz where each question allows three modes and requires a recording. Whether the product warns, caps, or simply permits it is a real decision — waiting on RR-A1 and RR-06 to know what the costs actually are.
 - **Which surfaces beyond quiz get these modes** — video activity, guided learning, mini-apps, activity wall. Deliberately deferred: decide it for quiz first, generalize second.
