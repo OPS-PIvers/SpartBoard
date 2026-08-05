@@ -159,11 +159,17 @@ const BuildingPresetEditor: React.FC<{ buildingId: string }> = ({
       setError('Must end with @orono.k12.mn.us');
       return;
     }
-    if (draftEmails.includes(trimmed)) {
+    // Lowercase before dedup/store, matching every other "add an email" call
+    // site in the app (BetaUsersPanel, GlobalPermissionsManager,
+    // BackgroundManager) — Firestore array membership and downstream
+    // `.includes()` checks are case-sensitive, so an un-normalized email can
+    // silently duplicate a preset that only differs by case.
+    const normalized = trimmed.toLowerCase();
+    if (draftEmails.includes(normalized)) {
       setEmailInput('');
       return;
     }
-    setDraftEmails((prev) => [...prev, trimmed]);
+    setDraftEmails((prev) => [...prev, normalized]);
     setEmailInput('');
     setError(null);
   };
