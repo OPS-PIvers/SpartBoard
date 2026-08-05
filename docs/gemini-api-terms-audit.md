@@ -159,17 +159,17 @@ differently and the distinction is easy to collapse:
 
 The Workspace-enterprise-account carve-out is written against _AI Studio_ access. SpartBoard does
 not use AI Studio — it calls the Gemini API server-side from Cloud Functions, where the operative
-test is the **API key's owning Cloud project having active billing**. That test is almost certainly
-satisfied: `spartboard` (`.firebaserc`) must be on Blaze to run Functions v2 and Secret Manager at
-all, so a key minted in that project is Paid on the API's own terms, independently of Workspace.
+test is the **API key's owning Cloud project having active billing**. **Paul confirmed (2026-08-05)
+that the key's project is connected to a billing account**, which satisfies the Gemini API's own
+Paid test directly — independently of the Workspace relationship, and consistent with `spartboard`
+(`.firebaserc`) necessarily being on Blaze to run Functions v2 and Secret Manager at all.
 
-The one configuration that would break this is a key minted in **AI Studio's default Google-managed
-project** rather than in `spartboard` — being on Workspace for Education would not make _API_ calls
-Paid in that case. Worth a one-time confirmation (2 min, read-only): Google Cloud Console → APIs &
-Services → Credentials → confirm the key stored in `GEMINI_API_KEY` is owned by `spartboard`. Cross-
-check in AI Studio → _Get API key_, which labels each project's plan Free or Paid.
+The failure mode this rules out is a key minted in **AI Studio's default Google-managed project**,
+where Workspace for Education alone would not have made _API_ calls Paid. Not the case here. No open
+verification items remain on the tier question.
 
-I did not retrieve the secret value or inspect billing, per the audit constraints.
+I did not retrieve the secret value or inspect billing directly, per the audit constraints — the
+tier is established by the owner's confirmation, not by anything I read.
 
 **This resolves the data-handling exposure. It does not touch the age-clause exposure**, which
 applies on both tiers — see §3.
@@ -459,12 +459,11 @@ the deployed function. Staged rollout via a `dev-*` preview URL is the natural p
 
 **Migrate to Vertex AI — as planned compliance work, not as an incident.** In priority order:
 
-1. **The data-handling question is closed.** Paid tier is confirmed (§1), so nothing submitted to
-   Gemini is trained on or read by human reviewers, and Google is acting as a data processor. No
-   urgent action, no remediation, nothing to disclose. Optionally spend two read-only minutes
-   confirming the `GEMINI_API_KEY` key is owned by the `spartboard` project rather than an AI Studio
-   default project — the Workspace-for-Education carve-out in the terms is written against AI Studio
-   access, while the Gemini API's own Paid test is billing on the key's Cloud project (§1).
+1. **The data-handling question is closed — no action required.** Paid tier is confirmed, and the
+   key's Cloud project is confirmed connected to a billing account, which is precisely the test the
+   Gemini API's own Paid definition applies (§1). Nothing submitted to Gemini is trained on or read
+   by human reviewers; Google is acting as a data processor. No urgent action, no remediation,
+   nothing to disclose, and no outstanding verification.
 
 2. **Migrate anyway, because the age clause survives the paid tier.** It is a top-level section
    above the Unpaid/Paid split, so no billing change touches it. Only leaving these Additional Terms
@@ -497,15 +496,15 @@ deleted. This document is the sole addition.
 
 ## Verification appendix
 
-| Claim                                     | How verified                                                                                                                                                                                                      |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Developer API, not Vertex                 | SDK type docs `genai.d.ts:5391-5425`; compiled default base URL `dist/node/index.mjs:12974`; no `vertexai`/`project`/`location` passed; corroborated by `docs/routines/debugger.md:439`                           |
-| Only one file calls Gemini                | Repo-wide grep for `@google/genai`, `GoogleGenAI`, `generativelanguage`, `aiplatform` outside `node_modules`                                                                                                      |
-| Gemini key absent from client bundle      | Production build with sentinel env values; grep of `dist/` — 0 matches for the Gemini sentinel, 1 for the YouTube sentinel                                                                                        |
-| No AI in student routes                   | Grep of 8 student-facing component directories for `utils/ai`, `generateWithAI`, `gemini` — 0 matches                                                                                                             |
-| Student tokens carry no email             | All four `createCustomToken` claim sets (`studentIdentity.ts:204,291,1295`; `lti/launchEndpoints.ts:284`); `signInAnonymously` call sites; invariant stated at `studentIdentity.ts:606-609`                       |
-| All AI callables require an email claim   | `aiGeneration.ts:354-369, 1487-1501, 1771-1785, 2110-2133`                                                                                                                                                        |
-| Terms language + section placement        | Raw HTML fetch of <https://ai.google.dev/gemini-api/terms>, stripped to text and read directly (not summarizer output). Effective 2026-03-23, last updated 2026-04-28 UTC                                         |
-| Functions region                          | `functions/src/functionsInit.ts:18`                                                                                                                                                                               |
-| No `serviceAccount` override on functions | `firebase.json` functions block                                                                                                                                                                                   |
-| Paid tier (no training / no human review) | Confirmed out-of-band by Paul Ivers, 2026-08-05 (paid tier under Google Workspace for Education). Not verifiable from the repository — the terms key off the API key's owning Cloud project having active billing |
+| Claim                                     | How verified                                                                                                                                                                                                                                                     |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Developer API, not Vertex                 | SDK type docs `genai.d.ts:5391-5425`; compiled default base URL `dist/node/index.mjs:12974`; no `vertexai`/`project`/`location` passed; corroborated by `docs/routines/debugger.md:439`                                                                          |
+| Only one file calls Gemini                | Repo-wide grep for `@google/genai`, `GoogleGenAI`, `generativelanguage`, `aiplatform` outside `node_modules`                                                                                                                                                     |
+| Gemini key absent from client bundle      | Production build with sentinel env values; grep of `dist/` — 0 matches for the Gemini sentinel, 1 for the YouTube sentinel                                                                                                                                       |
+| No AI in student routes                   | Grep of 8 student-facing component directories for `utils/ai`, `generateWithAI`, `gemini` — 0 matches                                                                                                                                                            |
+| Student tokens carry no email             | All four `createCustomToken` claim sets (`studentIdentity.ts:204,291,1295`; `lti/launchEndpoints.ts:284`); `signInAnonymously` call sites; invariant stated at `studentIdentity.ts:606-609`                                                                      |
+| All AI callables require an email claim   | `aiGeneration.ts:354-369, 1487-1501, 1771-1785, 2110-2133`                                                                                                                                                                                                       |
+| Terms language + section placement        | Raw HTML fetch of <https://ai.google.dev/gemini-api/terms>, stripped to text and read directly (not summarizer output). Effective 2026-03-23, last updated 2026-04-28 UTC                                                                                        |
+| Functions region                          | `functions/src/functionsInit.ts:18`                                                                                                                                                                                                                              |
+| No `serviceAccount` override on functions | `firebase.json` functions block                                                                                                                                                                                                                                  |
+| Paid tier (no training / no human review) | Confirmed out-of-band by Paul Ivers, 2026-08-05: paid tier under Google Workspace for Education, and the API key's Cloud project is connected to a billing account — the exact test the Gemini API's Paid definition applies. Not verifiable from the repository |
