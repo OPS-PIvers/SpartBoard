@@ -60,26 +60,10 @@ export const Modal: React.FC<ModalProps> = ({
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      // Guard first: if focus is inside a widget portal, let the portal's
-      // own handler run (don't touch propagation — that Escape belongs to
-      // the widget, not this modal).
+      // Let a focused widget-input's own Escape handler run instead of this modal's.
       if (isEscapeFromWidgetInput(e)) return;
-      // Capture phase + stopPropagation (not stopImmediatePropagation) is
-      // required here, unconditionally — not opt-in. Modal is portalled
-      // straight onto document.body via createPortal, so its content is
-      // never a descendant of `.widget`. DashboardView's global Escape
-      // handler (a window, bubble-phase listener mounted at teacher-app
-      // start, well before any Modal opens) falls back to acting on the
-      // dashboard's topmost widget whenever it can't resolve a `.widget`
-      // ancestor for the focused element — exactly the case here. Without
-      // capturing and stopping the event first, dismissing a Modal with
-      // Escape also silently minimizes an unrelated widget (e.g. a running
-      // Timer) behind it. stopPropagation (rather than
-      // stopImmediatePropagation) still lets a second, already-open Modal's
-      // own capture listener on window fire, preserving nested-modal
-      // Escape behavior. Mirrors the established pattern already used by
-      // DraggableWindow's maximized-menu Escape handler and
-      // DialogContainer's Alert/Confirm/Prompt dialogs.
+      // Capture + stopPropagation (not Immediate, to preserve nested-modal Escape) stops this
+      // portalled-to-body Escape from reaching DashboardView's widget-minimize fallback.
       e.stopPropagation();
       // Read from ref so we always call the current onClose even though
       // onClose is not in the effect deps array.

@@ -81,20 +81,8 @@ describe('Modal Component', () => {
     expect(defaultProps.onClose).not.toHaveBeenCalled();
   });
 
-  // Regression: Modal is portalled straight onto document.body via
-  // createPortal, so its content is never a descendant of `.widget`.
-  // DashboardView's global Escape handler (window, bubble-phase, mounted at
-  // teacher-app start — well before any Modal opens) falls back to acting on
-  // the dashboard's topmost widget whenever it can't resolve a `.widget`
-  // ancestor for the focused element (see components/layout/DashboardView.tsx).
-  // Modal's own Escape handler must intercept and stop the event before it
-  // ever reaches that pre-existing bubble-phase listener, or dismissing a
-  // Modal with Escape also silently minimizes an unrelated widget (e.g. a
-  // running Timer) behind it. Dispatching from a real element inside the
-  // modal (not directly on `window`) is required to exercise capture vs.
-  // bubble ordering — dispatching straight on `window` collapses capture and
-  // bubble into a single "at target" phase and would pass regardless of the
-  // bug.
+  // Dispatches from a real element inside the modal (not `window` directly) so capture/bubble
+  // order is actually exercised — see DashboardView's widget-minimize fallback this guards against.
   it('stops Escape from reaching a pre-existing global window keydown listener', () => {
     const globalFallback = vi.fn();
     const listener = (e: KeyboardEvent) => {
