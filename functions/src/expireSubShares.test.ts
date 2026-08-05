@@ -246,6 +246,28 @@ describe('runExpireSubShares', () => {
     expect(stores.shared_boards.has('share-1')).toBe(false);
   });
 
+  // The two sweeps run independently (Promise.allSettled) with different hostField/
+  // deleteBoardsSubcollection args — assert on result.collections too, not just result.boards.
+  it('deletes an expired shared_collections share with no driveGrants immediately', async () => {
+    const { db, stores } = makeStubDb({
+      shared_collections: [
+        {
+          id: 'collection-1',
+          data: { intendedMode: 'substitute', expiresAt: NOW - DAY },
+        },
+      ],
+    });
+
+    const result = await runExpireSubShares(db, NOW);
+
+    expect(result.collections).toEqual({
+      deleted: 1,
+      inGrace: 0,
+      orphanedGrants: 0,
+    });
+    expect(stores.shared_collections.has('collection-1')).toBe(false);
+  });
+
   it('leaves a share with driveGrants in the 7-day grace window untouched', async () => {
     const { db, stores } = makeStubDb({
       shared_boards: [
