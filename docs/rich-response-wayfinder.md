@@ -17,9 +17,11 @@
 > agents should read them as the highest-authority input on that ticket.
 
 **Status:** Charted 2026-08-04 · **3 of 22 resolved, plus RR-04's research half** — RR-01, RR-B1, RR-A4 closed and RR-04's research done 2026-08-04. Their resolutions opened RR-08, RR-B4, RR-A5, RR-A6, RR-09.
-**Related efforts:** pronunciation quiz question type (tracked in GitHub issues),
-[`docs/multilingual-pronunciation-engine-spec.md`](multilingual-pronunciation-engine-spec.md),
-[`docs/written-response-quiz-questions.md`](written-response-quiz-questions.md)
+
+> **Correction, 2026-08-05:** RR-04's finding 3 claimed a live Gemini ToS violation. **It was wrong on both halves** — no student can reach Gemini (enforced by an email guard on every callable), and SpartBoard is on Gemini's _Paid_ Services via its Workspace account and Blaze billing, so nothing is trained on. The finding, the retraction, and the one question that genuinely survives are all recorded in place. **The "move to Vertex AI" recommendation is withdrawn.**
+> **Related efforts:** pronunciation quiz question type (tracked in GitHub issues),
+> [`docs/multilingual-pronunciation-engine-spec.md`](multilingual-pronunciation-engine-spec.md),
+> [`docs/written-response-quiz-questions.md`](written-response-quiz-questions.md)
 
 ---
 
@@ -358,35 +360,71 @@ argues for keeping any Illinois usage contract-gated rather than free/direct-to-
 **Highest-leverage cheap artifact:** an affirmative representation in the DPA
 that _SpartBoard does not derive voiceprints or perform speaker recognition_.
 
-**3. 🔴 LIVE ISSUE, and it is not about recordings — the Gemini Developer API
-terms already conflict with what SpartBoard does today.** The
-[Gemini API Additional Terms](https://ai.google.dev/gemini-api/terms) (effective
-2026-03-23) say, under a heading applying to **both paid and unpaid** tiers:
+**3. ⚠️ CORRECTED 2026-08-05 — the "live Gemini ToS violation" recorded here was
+wrong on both halves.** Paul caught it. Both errors were mine: I read the terms
+page without checking either the codebase or the account tier. The retraction is
+kept in place rather than deleted, because the corrected reading is load-bearing
+for RR-05 and because the shape of the mistake is worth not repeating.
 
-> _"You must be 18 years of age or older to use the APIs. You also will not use
-> the Services as part of a website, application, or other service … that is
-> **directed towards or is likely to be accessed by individuals under the age of
-> 18**."_
+**Error 1 — "under-18 end users."** _No student ever reaches Gemini._ Not by
+convention or by policy — it is structurally impossible:
 
-And on the **free tier**: Google _"uses the content you submit … to provide,
-improve, and develop Google products,"_ _"human reviewers may read, annotate, and
-process your API input and output,"_ and verbatim — **"Do not submit sensitive,
-confidential, or personal information to the Unpaid Services."**
+- All four callables (`generateWithAI:346`, `generateVideoActivity:1478`,
+  `transcribeVideoWithGemini:1762`, `generateGuidedLearning:2094` in
+  `functions/src/aiGeneration.ts`) reject any request whose token carries no email.
+- **Student tokens never carry an email.** `functions/src/studentIdentity.ts:42` —
+  "the Firebase Auth user record never receives email/displayName/photoURL" — and
+  `:606` states the invariant outright: _"Teachers authenticate with standard
+  Firebase Auth (email present on token). Students never have email on their
+  token."_
+- Every client call site — the 13 importers of `utils/ai.ts` plus
+  `admin/WidgetBuilder/GeminiPanel.tsx` — sits under `components/widgets/`,
+  `components/layout/`, or `components/admin/`. **Zero** under
+  `components/student/`, `components/quiz/`, `components/activityWall/`, or
+  `components/miniApp/`.
 
-**Answering the ticket's vendor question directly: no, the Gemini Developer API
-is _not_ inside any Google for Education agreement.** They are separate contracts:
+Sentence one of the age clause — _"You must be 18 years of age or older to use
+the APIs"_ — is satisfied. The API's users are teachers and admins.
 
-|                         | Workspace for Education    | **Gemini Developer API** (AI Studio key)     | Vertex AI / Google Cloud                                                 |
-| ----------------------- | -------------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
-| FERPA "School Official" | ✅ ToS § 7.3, explicit     | ❌ never mentions FERPA, COPPA, or education | ⚠️ Cloud publishes a FERPA page; **Vertex/Firebase coverage UNVERIFIED** |
-| Under-18 end users      | ✅ supported               | ⛔ **prohibited**                            | no age restriction found in GCP ToS                                      |
-| Trains on inputs        | ❌ not without instruction | **free tier: yes, + human review**; paid: no | ❌ SST § 17 training restriction                                         |
+**Error 2 — the free tier.** The terms tier on **account type, not on price**,
+and I quoted only the price half:
 
-**The indicated path is to move Gemini calls to paid Vertex AI / Google Cloud
-rather than the AI Studio Developer API** — one change that addresses the 18+
-clause, training-on-inputs, and human review, and puts the work under the Cloud
-Data Processing Addendum. **Confirm scope with Google in writing rather than
-relying on this reading.**
+> _"Your access to Google AI Studio is a 'Paid Service' **even when it is offered
+> free of charge**, as long as the account you are using to access Google AI
+> Studio has access to a Cloud Project with an associated and active Cloud
+> Billing account **or is a Workspace enterprise account**."_
+
+SpartBoard clears this bar twice over: the key is minted under a Workspace for
+Education account, **and** its project is necessarily on Blaze — v2 Cloud
+Functions and Secret Manager (`secrets: [GEMINI_API_KEY]`) each require an active
+Cloud Billing account. So SpartBoard is on **Paid Services**, where Google
+_"doesn't use your prompts or responses to improve our products"_ and processes
+them under the Data Processing Addendum. **No training on inputs, no human
+review.** The "do not submit sensitive, confidential, or personal information to
+the Unpaid Services" line never applied to us.
+
+|                         | Workspace for Education    | **Gemini Developer API** — as SpartBoard uses it                       | Vertex AI / Google Cloud                                                 |
+| ----------------------- | -------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| FERPA "School Official" | ✅ ToS § 7.3, explicit     | ⚠️ DPA governs, but the terms never mention FERPA, COPPA, or education | ⚠️ Cloud publishes a FERPA page; **Vertex/Firebase coverage UNVERIFIED** |
+| Under-18 clause         | ✅ supported               | ✅ API users are teachers/admins only, enforced by the email guard     | no age restriction found in GCP ToS                                      |
+| Trains on inputs        | ❌ not without instruction | ❌ **Paid Service** via Workspace account + Blaze billing              | ❌ SST § 17 training restriction                                         |
+
+**No move to Vertex AI is indicated.** That recommendation existed only as a fix
+for the two errors above.
+
+**What actually survives — one thread, and it is a question for counsel, not a
+finding.** Sentence _two_ of the age clause is scoped to the application, not the
+user: _"you will not use the Services as part of a website, application, or other
+service … that is **directed towards or is likely to be accessed by** individuals
+under the age of 18."_ Whether the "API Client" is _SpartBoard entire_ (which has
+student routes) or _the teacher authoring surface_ (which students structurally
+cannot reach) is a reading, not a fact. The email guard is a strong argument for
+the narrow reading. → folded into **RR-09**.
+
+**One cheap check, because it is the single input above taken on trust:** confirm
+the `GEMINI_API_KEY` secret holds a key minted in the SpartBoard Firebase/GCP
+project rather than in a personal or unbilled project. Paid-Service status rides
+on the key's owning project.
 
 ⚠️ **Also unverified and directly material: whether Firebase (Firestore, Cloud
 Storage) is inside Google's FERPA-covered services.** That's where the recordings
@@ -405,9 +443,12 @@ assumed.** The FTC **proposed** a school-authorization exception in its Jan 2024
 NPRM and **declined to finalize it**; 16 CFR §§ 312.2 and 312.5 contain no
 mention of "school" or "education." School consent therefore rests on non-binding
 FTC FAQ guidance, on two conditions: the service must be **for the school's use
-and benefit and no other commercial purpose** (which the free-tier Gemini training
-term violates), and **if the operator doesn't give the school the ability to
-review and delete, the school cannot validly consent.**
+and benefit and no other commercial purpose** (which SpartBoard **satisfies** —
+see the correction in finding 3; nothing submitted to Gemini is trained on), and
+**if the operator doesn't give the school the ability to review and delete, the
+school cannot validly consent.**
+
+Only the second condition is open, and it is the one SpartBoard controls outright.
 
 **→ An LEA-facing review-and-delete admin tool is a compliance precondition, not
 a feature.**
@@ -544,7 +585,7 @@ defaulting to audio-only and making video opt-in per assignment.**
 
 - **§ 312.3(d)** — may not condition participation on disclosing more personal information than reasonably necessary. **This makes RR-07's alternate-format path arguably a legal requirement, not only a pedagogical one.** Noted there.
 - **§ 312.2 "Disclosure"** covers making personal information publicly available "through the internet… a message board." **The `/activity-wall/gallery` route is a public posting surface.** A child's recording posted there is a disclosure, and it is not "solely for the use and benefit of the school" — so **school consent likely does not reach it.** → surfaced as a separate concern below.
-- **§ 312.5(a)(2)** — parents must be able to consent to collection **without** consenting to third-party disclosure unless integral. Commentary treats **disclosure for AI training** as requiring separate consent. Bears directly on the Gemini finding above.
+- **§ 312.5(a)(2)** — parents must be able to consent to collection **without** consenting to third-party disclosure unless integral. Commentary treats **disclosure for AI training** as requiring separate consent. **Not triggered** — per the correction in finding 3, SpartBoard is on Gemini's Paid Services and nothing it submits is used for training. The clause stays relevant only as a constraint on any _future_ vendor.
 - **§ 312.8** additionally requires a written children's-information security program with a named coordinator, annual risk assessment, and **written assurances from service providers**.
 
 **Nuance worth keeping straight on biometrics:** the FTC **removed** the NPRM's
@@ -732,7 +773,7 @@ about them.
 **Ask Google (in writing):**
 
 1. **Is Firebase — Firestore and Cloud Storage — inside Google's FERPA-covered services?** That's where recordings would live. The research couldn't verify it and flagged it as directly material.
-2. **Confirm the Vertex AI path.** If Gemini calls move to paid Vertex AI / Google Cloud, does that carry a FERPA School Official commitment and the Cloud DPA for this use? Don't rely on a reading of the terms page.
+2. **Does the application-scope sentence of the Gemini age clause bite?** _Superseded question_ — the original "move to Vertex AI" item was retracted 2026-08-05 (finding 3). What remains: the terms say you will not use the Services as part of an application _"likely to be accessed by individuals under the age of 18."_ SpartBoard's Gemini calls are teacher-only and enforced as such by an email guard on every callable, but SpartBoard as a product does serve student routes. Get Google's reading in writing rather than relying on ours. **Lower urgency than it looks** — this is a scoping question, not a live violation.
 
 **Ask district counsel:**
 
