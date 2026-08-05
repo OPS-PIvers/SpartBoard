@@ -6,6 +6,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { Z_INDEX } from '@/config/zIndex';
 import type { ClassRoster } from '@/types';
 import { getLocalIsoDate } from '@/utils/localDate';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 interface RandomClassContextButtonProps {
   /**
@@ -80,7 +81,20 @@ export const RandomClassContextButton: React.FC<
       closeMenu();
     };
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeMenu();
+      if (event.key !== 'Escape') return;
+      // This is a document-level listener, so it sees every Escape press on
+      // the page, not just ones aimed at this popover — bail if it actually
+      // belongs to a widget's text input (e.g. cancelling a title rename in
+      // another widget while this popover happens to be open).
+      if (isEscapeFromWidgetInput(event)) return;
+      // Portalled to <body>, outside any `.widget` ancestor — without
+      // stopping propagation an Escape here also bubbles up to
+      // DashboardView's global window-level Escape handler, which falls
+      // back to minimizing the topmost widget (same bug class already
+      // fixed for ToolDockItem, RemoteControlMenu, ClassRosterMenu,
+      // OverflowMenu, ActiveClassChip, and FolderPickerPopover).
+      event.stopPropagation();
+      closeMenu();
     };
     let animationFrameId = 0;
     const handleReposition = () => {
