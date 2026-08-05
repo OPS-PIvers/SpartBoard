@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-08-05_
-_Last action: 2026-07-23 — MEDIUM SoundWidget `PopcornBallsView` no longer receives `width={w} height={h - 60}` (stored widget dims minus a magic header offset); the canvas component now self-measures its own container via `ResizeObserver`, matching the NumberLine idiom, so the draw buffer tracks the actual rendered area with no hard-coded pixel subtraction_
+_Last action: 2026-08-05 — LOW ClockWidget AM/PM badge hardcoded `ml-2` (8px fixed left margin) replaced with proportional inline `marginLeft: '0.1em'`, so the badge separation scales with the clock hero size instead of staying pinned at 8px on large/projected displays_
 
 ---
 
@@ -196,13 +196,6 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### LOW ClockWidget AM/PM badge has hardcoded ml-2 margin
-
-- **Detected:** 2026-07-18
-- **File:** components/widgets/ClockWidget/Widget.tsx:115
-- **Detail:** `<span className="opacity-70 ml-2 uppercase" style={{ fontSize: '0.25em' }}>` — the AM/PM badge uses `ml-2` (8px fixed left margin) to separate from the clock digits. The font size uses `em` (relative to the parent's `40cqmin`/`50cqmin` hero size, so it does scale), but the 8px margin is fixed.
-- **Fix:** Move `ml-2` to inline style using em to stay proportional to the badge's own text: `style={{ fontSize: '0.25em', marginLeft: '0.1em' }}`.
-
 ### LOW MathTools tab nav row container has hardcoded px-2 gap-1
 
 - **Detected:** 2026-07-18
@@ -274,6 +267,17 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW ClockWidget AM/PM badge has hardcoded ml-2 margin
+
+- **Detected:** 2026-07-18
+- **Completed:** 2026-08-05
+- **File:** components/widgets/ClockWidget/Widget.tsx:115
+- **Detail:** `<span className="opacity-70 ml-2 uppercase" style={{ fontSize: '0.25em' }}>` — the AM/PM badge used `ml-2` (8px fixed left margin) to separate from the clock digits. The font size already scaled via `em` (relative to the parent's `40cqmin`/`50cqmin` hero size), but the 8px margin stayed fixed, so on large/projected clock faces the badge sat proportionally too close to the digits.
+- **Selection rationale:** Wednesday run. Reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + today's weeklies (code-structure, ui-unification). Nothing In Progress anywhere. The only heading-level HIGH (code-structure `DashboardContext.tsx` extraction) is BLOCKED — needs a supervised runtime-verified session; every code-structure MEDIUM (34-files-over-1000-lines, DashboardContext seams) is BLOCKED, and the ui-unification MEDIUM (UrlConfigurationPanel) is runtime/maintainer-gated (needs a `gradeLabel` vs `name` label decision). widget-registry and typescript-eslint have no open items, so css-scaling (daily order 2) is the highest-priority journal with a safe actionable item — all its Open items are LOW and this is item 1 in document order. File-recency check passed: `ClockWidget/Widget.tsx` last touched at `81717cbf` (#2313), outside the last 5 branch commits.
+- **Resolution:** Moved `ml-2` off the className and onto the element's existing inline `style` as `marginLeft: '0.1em'` (per the journal's fix note), so the gap is proportional to the badge's own text size and scales with the clock hero. Font size (`0.25em`) unchanged; no other markup touched.
+- **Verification:** `pnpm run type-check` (exit 0), `pnpm exec eslint components/widgets/ClockWidget/Widget.tsx --max-warnings 0` (exit 0), `pnpm exec prettier --check` (clean), `ClockWidget/Widget.test.tsx` — 15 tests pass.
+- **PR:** opened against dev-paul.
 
 ### LOW ActivityWall three front-face view branches have hardcoded Tailwind spacing
 
