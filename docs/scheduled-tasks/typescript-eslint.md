@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-04_
+_Last audited: 2026-08-05_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-05: Checked (Wednesday daily). pnpm type-check exit 0 (0 TypeScript errors). pnpm lint exit 0 (0 ESLint errors, 0 warnings, --max-warnings 0, root + functions). New dev-paul commits since 2026-08-04: docs(routines) nightly debugger run 35 (#2377 — docs only); nightly(build-tooling) paginate gcPlcOrphans (#2376 — functions/src only; confirmed clean by lint:functions pass); fix(admin) lowercase beta-user emails in FeaturePermissionsManager (#2375 — admin component; string transform, no new types or ESLint suppressions); nightly(state-data) clear stale data on org switch (#2374 — context/state; no new TS complexity); fix(common) stop Escape propagation in ActiveClassChip & FolderPickerPopover (#2373 — common components; event handler, type-safe); fix(RevealGrid) wire up dead "Set Generator" button (#2372 — RevealGrid/Settings.tsx back-face only; no front-face impact); pr-review 4 PRs (#2371 — docs only); deps/hono-cors-redos (#2370 — dependency patch; no TS surface changes); docs(unifier) run 49 (#2368 — docs only); fix(a11y) retrofit orphaned SettingsLabel group headings (#2367 — Settings.tsx back-face files only: Breathing, DiceWidget, HotspotImage, MaterialsWidget, NextUp). All new and modified code type-safe and lint-clean. Codebase remains fully type-safe and lint-clean._
 
 _2026-08-04: Checked (Tuesday daily). pnpm type-check exit 0 (0 TypeScript errors). pnpm lint exit 0 (0 ESLint errors, 0 warnings, --max-warnings 0, root + functions). New dev-paul commits since 2026-08-03: spike(pronunciation) #2363 and #2365 (spike docs only — no source code changes, no type or lint impact). Codebase remains fully type-safe and lint-clean._
 

@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-04_
+_Last audited: 2026-08-05_
 _Last action: 2026-06-25_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-05: Full audit (Wednesday daily). New dev-paul commits since 2026-08-04 absorbed via rebase: docs(routines) nightly debugger run 35 (#2377 — docs only); nightly(build-tooling) paginate gcPlcOrphans (#2376 — functions/src only); fix(admin) lowercase beta-user emails in FeaturePermissionsManager (#2375 — admin component, no WidgetType changes); nightly(state-data) clear stale data on org switch (#2374 — context/state, no WidgetType changes); fix(common) stop Escape propagation in ActiveClassChip & FolderPickerPopover (#2373 — common components); fix(RevealGrid) wire up dead "Set Generator" button (#2372 — RevealGrid/Settings.tsx back-face only); pr-review 4 PRs (#2371 — docs only); deps/hono-cors-redos (#2370 — dependency patch); docs(unifier) run 49 (#2368 — docs only); fix(a11y) retrofit orphaned SettingsLabel group headings (#2367 — Settings.tsx back-face files only: Breathing, DiceWidget, HotspotImage, MaterialsWidget, NextUp). None of these commits add, remove, or rename any WidgetType. VERIFIED COUNT: 63 WidgetType members (unchanged — confirmed by comprehensive sub-agent scan). All 63 WidgetTypes correctly registered across all 7 locations (WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, config/tools.ts, config/widgetDefaults.ts, config/widgetGradeLevels.ts). All intentional omissions re-confirmed: sticker intentional WidgetRenderer special-case per JSDoc; 7 intentional tools.ts omissions (catalyst-instruction, catalyst-visual, blooms-detail, mathTool, custom-widget, onboarding, sticker); 3 InternalToolType entries (magic, record, remote) documented. Full lazyNamed() export-name verification: 41 calls spot-checked — zero mismatches. pnpm type-check (exit 0). pnpm lint (exit 0). Zero new gaps._
 
 _2026-08-04: Full audit (Tuesday daily). New dev-paul commits since 2026-08-03: spike(pronunciation) #2363 and #2365 (spike docs only — no widget, WidgetType, or WidgetRegistry source changes). VERIFIED COUNT: 63 WidgetType members (unchanged). All 7-location cross-reference stable. pnpm type-check exit 0. pnpm lint exit 0. Zero new gaps._
 
