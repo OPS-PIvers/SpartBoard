@@ -386,12 +386,13 @@ vi.mock('axios');
 // Mock `@google/genai` so any code path that reaches the real Gemini call
 // (e.g. an admin caller bypassing every permission gate in
 // `generateVideoActivity`) hits a deterministic, network-free stub instead
-// of the live Generative Language API. Without this, `GEMINI_API_KEY.value()`
-// resolves to the truthy `mock-GEMINI_API_KEY` string (see the
-// `firebase-functions/params` mock above), so the real SDK is constructed
-// and makes a real HTTP round-trip — usually rejected fast by Google with an
-// invalid-key error, but under CPU/network contention that round-trip can
-// exceed the test timeout, making the test flaky rather than deterministic.
+// of live Vertex AI. Without this the real SDK is constructed and attempts a
+// real HTTP round-trip — under CPU/network contention that can exceed the test
+// timeout, making the test flaky rather than deterministic.
+//
+// This mock is independent of how the client authenticates: it replaces the
+// `GoogleGenAI` class itself, so it kept working unchanged when the call sites
+// moved from an API key to Vertex AI + Application Default Credentials.
 vi.mock('@google/genai', async (importOriginal) => {
   // Keep every real export (e.g. the `Type` enum used at runtime to build
   // response schemas) — only the network-calling `GoogleGenAI` class itself

@@ -1,12 +1,20 @@
 # Gemini API surface audit — terms exposure and Vertex AI migration scope
 
 **Date:** 2026-08-05
-**Scope:** Investigation and reporting only. No application code, keys, or billing configuration were changed.
 **Repo state audited:** `claude/quirky-ritchie-wghdl3` off `main` @ `e1e7a6d`
+
+**Status: audit complete, migration implemented.** Sections 1–3 are the original investigation and
+remain as written except where corrected inline. Section 4 was the migration plan; it has since been
+carried out in this same PR at Paul's direction, and is annotated where reality differed from the
+plan. No keys were rotated and no billing configuration was altered — the deploy-time steps in §4.3
+(enable `aiplatform.googleapis.com`, grant `roles/aiplatform.user`) remain for a human to perform.
 
 ---
 
 ## Bottom line
+
+_(State at time of audit. The migration described in §4 has since been implemented in this PR — see
+the status note above.)_
 
 **SpartBoard is NOT on Vertex AI.** All four Gemini call sites use the **Gemini Developer API**
 (`generativelanguage.googleapis.com`) authenticated with a raw API key held in Secret Manager as
@@ -35,10 +43,12 @@ Two findings cut the other way on the data question, and together they retire it
 
 What remains is a **terms-of-use / eligibility** problem, not a data-handling one.
 
-**Recommendation: migrate to Vertex AI.** The code change is small (four constructor calls plus an
-IAM grant), and Vertex is governed by the Google Cloud Terms of Service — which these Additional
-Terms explicitly disclaim: _"For clarity, these Terms do not govern your direct use of any Google
-Cloud Platform service."_ Details in §4 and §5.
+**Recommendation: migrate to Vertex AI — since implemented.** The code change is small (four
+constructor calls plus an IAM grant), and Vertex is governed by the Google Cloud Terms of Service —
+which these Additional Terms explicitly disclaim: _"For clarity, these Terms do not govern your
+direct use of any Google Cloud Platform service."_ I separately confirmed the Google Cloud Platform
+ToS contains **no** age or minors clause, so the exit is real rather than an optimistic reading.
+Details in §4 and §5.
 
 ---
 
@@ -353,11 +363,7 @@ in either `package.json`. The diff is four constructor calls:
 ```ts
 // functions/src/aiGeneration.ts — lines 559, 1650, 1964, 2189
 - const ai = new GoogleGenAI({ apiKey });
-+ const ai = new GoogleGenAI({
-+   vertexai: true,          // (SDK 1.51 also accepts the newer `enterprise: true`)
-+   project: 'spartboard',
-+   location: 'us-central1',
-+ });
++ const ai = new GoogleGenAI(vertexClientOptions());   // { vertexai: true, project, location: 'global' }
 ```
 
 `generateContent`, `responseSchema`, the `Type` enum, `Content`/`Schema` types, `inlineData`, and
@@ -393,20 +399,41 @@ be enabled on the project. Both are console/CLI operations, not code.
 anything; worth a smoke test in the emulator regardless, since Firebase's dependency hoisting has
 bitten this repo before.
 
-### 4.4 Region
+### 4.4 Region — `global`, not `us-central1`
 
-Functions are pinned to `us-central1` (`functions/src/functionsInit.ts:18`). Setting the Vertex
-`location` to `us-central1` keeps inference in-region — better latency, and a cleaner data-residency
-story for a district than the Developer API's unspecified routing.
+**Corrected from an earlier draft of this document, which said `us-central1`.** That would have
+broken every AI call on deploy. `gemini-3-flash-preview` is served only from Vertex's **global**
+endpoint; regional endpoints such as `us-central1` return model-not-found for it, and the GA models
+this codebase now uses follow the same pattern. `location: 'global'` is required.
+
+Global is also the price-parity path — regional endpoints can carry a small uplift. The trade-off is
+that "in-region inference" is not available for these models on Vertex, so the data-residency
+argument for migrating is weaker than first stated; the contractual argument (§3, §5) is the real
+one. Cloud Functions remain pinned to `us-central1` (`functions/src/functionsInit.ts:18`); only the
+Vertex endpoint is global.
 
 ### 4.5 The two real risks
 
-**(a) Model IDs.** Defaults are `gemini-3-flash-preview` and `gemini-3.1-flash-lite-preview`
-(`aiGeneration.ts:41-42`), with admin overrides stored in `global_permissions/gemini-functions` and
-filtered by `normalizeModelName` (`functions/src/shared.ts:34`). Preview-tier model IDs and their
-regional availability differ between the Developer API and Vertex. **Every configured model must be
-verified against Vertex `us-central1` before cutover**, and the admin-facing model picker may need
-its allow-list updated. This is the most likely source of a broken deploy.
+**(a) Model IDs — largely resolved by moving to GA models.** The original defaults were
+`gemini-3-flash-preview` and `gemini-3.1-flash-lite-preview`, and preview-tier IDs were the single
+likeliest source of a broken deploy. They have been replaced with **`gemini-3.6-flash`** (advanced)
+and **`gemini-3.5-flash-lite`** (standard), both GA on Vertex since 2026-07-21. GA status also
+retires the preview-deprecation exposure the codebase was carrying.
+
+Three residual notes:
+
+- A **fifth hardcoded model ID** existed at `aiGeneration.ts:1963` — a duplicated
+  `'gemini-3.1-flash-lite-preview'` literal in `transcribeVideoWithGemini`, missed in the first pass
+  of this audit. It now references `DEFAULT_STANDARD_MODEL` so it cannot drift again.
+- The **admin model picker** (`components/admin/GlobalPermissionsManager.tsx`) carries its own copy
+  of the model list and defaults, and is what writes `global_permissions/gemini-functions`. Updated
+  alongside the server defaults; a code-only change would have left admins selecting dead preview IDs.
+- **Existing Firestore overrides are not covered by any code change.** If an admin has already
+  written a preview model ID into `global_permissions/gemini-functions`, it still wins over the new
+  defaults. That needs a one-time Firestore check, not a deploy.
+
+`normalizeModelName` (`functions/src/shared.ts:34`) is a regex (`^gemini-[\w.-]+$`), not an
+allow-list, so both new IDs pass unchanged.
 
 **(b) YouTube video ingestion.** `generateVideoActivity` and `transcribeVideoWithGemini` pass a bare
 YouTube watch URL as `fileData.fileUri` (`:1668-1669`, `:1982-1983`). Vertex does support YouTube
@@ -489,10 +516,16 @@ the deployed function. Staged rollout via a `dev-*` preview URL is the natural p
 
 ## What was NOT done
 
-Per the audit constraints: no application code changed, no keys rotated or read, no billing or IAM
-configuration altered, no migration performed. The only side effect was a local production build
-with sentinel environment values to test bundle leakage (§1); its `dist/` and `dist-ssr/` output was
-deleted. This document is the sole addition.
+The audit phase changed no application code. The migration phase that followed (same PR, at Paul's
+direction) changed application code only — **no keys were rotated or read, and no billing or IAM
+configuration was altered.** Two deploy-time steps remain for a human, since they are console
+operations this audit deliberately did not perform:
+
+1. Enable `aiplatform.googleapis.com` on the `spartboard` project.
+2. Grant `roles/aiplatform.user` to the Cloud Functions runtime service account.
+
+**Until both are done, every AI call will fail on deploy.** Deleting the now-unused `GEMINI_API_KEY`
+secret from Secret Manager is a separate, optional cleanup — do it only after the deploy is verified.
 
 ## Verification appendix
 
