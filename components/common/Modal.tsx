@@ -21,6 +21,7 @@ interface ModalProps {
   className?: string; // For additional styling on the content container
   contentClassName?: string; // For additional styling on the body/content wrapper
   footerClassName?: string; // For additional styling on the footer wrapper
+  captureEscape?: boolean; // Whether to use capture phase for Escape key
   ariaLabel?: string;
   ariaLabelledby?: string;
 }
@@ -38,6 +39,7 @@ export const Modal: React.FC<ModalProps> = ({
   contentClassName = 'px-6',
   footerClassName = 'p-6 pt-4 mt-auto shrink-0 border-t border-slate-100',
   variant = 'default',
+  captureEscape = false,
   ariaLabel,
   ariaLabelledby,
 }) => {
@@ -60,11 +62,10 @@ export const Modal: React.FC<ModalProps> = ({
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      // Let a focused widget-input's own Escape handler run instead of this modal's.
+      // Guard first: if focus is inside a widget portal, let the portal's
+      // own handler run (don't kill it with stopImmediatePropagation).
       if (isEscapeFromWidgetInput(e)) return;
-      // Capture + stopPropagation (not Immediate, to preserve nested-modal Escape) stops this
-      // portalled-to-body Escape from reaching DashboardView's widget-minimize fallback.
-      e.stopPropagation();
+      if (captureEscape) e.stopImmediatePropagation();
       // Read from ref so we always call the current onClose even though
       // onClose is not in the effect deps array.
       onCloseRef.current();
@@ -74,20 +75,28 @@ export const Modal: React.FC<ModalProps> = ({
       document.body.style.overflow = 'hidden';
     }
     incrementOpenModalCount();
-    window.addEventListener('keydown', handleEscape, { capture: true });
+    window.addEventListener(
+      'keydown',
+      handleEscape,
+      captureEscape ? { capture: true } : undefined
+    );
 
     return () => {
       const remaining = decrementOpenModalCount();
       if (remaining === 0) {
         document.body.style.overflow = 'unset';
       }
-      window.removeEventListener('keydown', handleEscape, { capture: true });
+      window.removeEventListener(
+        'keydown',
+        handleEscape,
+        captureEscape ? { capture: true } : undefined
+      );
     };
     // onClose is intentionally omitted from deps — it is read via onCloseRef so
     // a new inline arrow from the parent never triggers a cleanup + re-run that
-    // would momentarily release the body scroll-lock. Only isOpen needs to
-    // re-subscribe the listener.
-  }, [isOpen]);
+    // would momentarily release the body scroll-lock. Only isOpen and
+    // captureEscape need to re-subscribe the listener.
+  }, [isOpen, captureEscape]);
 
   if (!isOpen) return null;
 

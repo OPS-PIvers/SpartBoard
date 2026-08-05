@@ -25,6 +25,7 @@ import { BoardNavFab } from './BoardNavFab';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
 import { MountedBoardsLayer } from './MountedBoardsLayer';
 import { CheatSheetModal } from '@/components/common/CheatSheetModal';
+import { useHasOpenModal } from '@/components/common/modalStore';
 import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
 import { BoardActionsFab } from './BoardActionsFab';
 import { clampZoom, ZOOM_DEFAULT } from '@/utils/zoomMapping';
@@ -414,6 +415,8 @@ export const DashboardView: React.FC = () => {
   rescueWidgetsRef.current = activeDashboard?.widgets;
   const updateWidgetRef = React.useRef(updateWidget);
   updateWidgetRef.current = updateWidget;
+  const hasOpenModalRef = React.useRef(false);
+  hasOpenModalRef.current = useHasOpenModal();
 
   // Stable callback — reads fresh values via refs, never recreated.
   // Pulls every widget into the world rectangle (the area visible at
@@ -907,6 +910,10 @@ export const DashboardView: React.FC = () => {
 
       // Escape: Close top-most widget or blur input
       if (e.key === 'Escape') {
+        // A portalled Modal (or anything nested inside one — a confirm/prompt
+        // dialog, an in-modal dropdown) owns this Escape instead; bail before
+        // touching any widget so the modal's own handler runs unaffected.
+        if (hasOpenModalRef.current) return;
         if (isTypingFieldActive()) {
           (document.activeElement as HTMLElement | null)?.blur();
           return;

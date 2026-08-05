@@ -1065,6 +1065,91 @@ describe('DashboardView Gestures & Navigation', () => {
     });
   });
 
+  // Regression: the global Escape handler's widget-minimize fallback fired
+  // even when a portalled `Modal` (or anything nested inside one — a
+  // confirm/prompt dialog, an in-modal dropdown) was open. `Modal` and
+  // `DashboardView` both register plain bubble-phase `keydown` listeners on
+  // `window`; since `DashboardView`'s listener mounts once at teacher-app
+  // start (always first) and `Modal`'s mounts later (whenever a modal opens),
+  // same-phase-same-target listeners fire in registration order — so
+  // `DashboardView`'s fallback always ran BEFORE the modal's own Escape
+  // handler had a chance to run, minimizing the topmost widget on every
+  // Escape press meant to dismiss (or interact with something inside) a
+  // modal. Fix: `DashboardView` now bails via `useHasOpenModal()` (the
+  // `Modal` component's own open-count tracker in
+  // `components/common/modalStore.ts`) before touching any widget.
+  describe('global Escape defers to an open Modal', () => {
+    beforeEach(() => {
+      // A widget must exist for the dispatch branch to have a target at all
+      // (mirrors the "widget-keyboard-action dispatches..." describe above).
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        activeDashboard: {
+          ...mockDashboards[1],
+          widgets: [
+            {
+              id: 'widget-1',
+              type: 'clock',
+              x: 100,
+              y: 100,
+              w: 200,
+              h: 200,
+              z: 1,
+              flipped: false,
+              config: {},
+            },
+          ],
+        },
+        dashboards: mockDashboards,
+        toasts: [],
+        minimizeAllWidgets: vi.fn(),
+        restoreAllWidgets: vi.fn(),
+        loadDashboard: mockLoadDashboard,
+        zoom: 1,
+        setZoom: vi.fn(),
+        collectionsApi: {
+          collections: [],
+          loading: false,
+          error: null,
+          createCollection: vi.fn(),
+          renameCollection: vi.fn(),
+          moveCollection: vi.fn(),
+          deleteCollection: vi.fn(),
+          reorderSiblings: vi.fn(),
+          setCollectionMetadata: vi.fn(),
+          setCollectionDefaultBoard: vi.fn(),
+        },
+      });
+    });
+
+    it('does not dispatch a widget-keyboard-action Escape while a Modal is open', async () => {
+      const { incrementOpenModalCount, decrementOpenModalCount } =
+        await import('@/components/common/modalStore');
+      const handler = vi.fn();
+      window.addEventListener('widget-keyboard-action', handler);
+      incrementOpenModalCount();
+      try {
+        renderView();
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(handler).not.toHaveBeenCalled();
+      } finally {
+        decrementOpenModalCount();
+        window.removeEventListener('widget-keyboard-action', handler);
+      }
+    });
+
+    it('still dispatches a widget-keyboard-action Escape when no Modal is open', () => {
+      const handler = vi.fn();
+      window.addEventListener('widget-keyboard-action', handler);
+      try {
+        renderView();
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(handler).toHaveBeenCalled();
+      } finally {
+        window.removeEventListener('widget-keyboard-action', handler);
+      }
+    });
+  });
+
   // Regression: Ctrl+/ (Open Cheat Sheet) lacked a typing-field guard.
   //
   // Bug: the `if ((e.ctrlKey || e.metaKey) && e.key === '/')` branch in the

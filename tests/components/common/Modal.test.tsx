@@ -81,22 +81,18 @@ describe('Modal Component', () => {
     expect(defaultProps.onClose).not.toHaveBeenCalled();
   });
 
-  // Dispatches from a real element inside the modal (not `window` directly) so capture/bubble
-  // order is actually exercised — see DashboardView's widget-minimize fallback this guards against.
-  it('stops Escape from reaching a pre-existing global window keydown listener', () => {
-    const globalFallback = vi.fn();
-    const listener = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') globalFallback();
-    };
-    window.addEventListener('keydown', listener);
+  it('stops immediate propagation when captureEscape is true and Escape is pressed', () => {
+    const stopImmediatePropagationMock = vi.fn();
+    render(<Modal {...defaultProps} captureEscape={true} />);
 
-    render(<Modal {...defaultProps} />);
-    fireEvent.keyDown(screen.getByLabelText('Close'), { key: 'Escape' });
+    // We dispatch a custom KeyboardEvent to mock stopImmediatePropagation
+    const event = new KeyboardEvent('keydown', { key: 'Escape' });
+    event.stopImmediatePropagation = stopImmediatePropagationMock;
 
-    window.removeEventListener('keydown', listener);
+    window.dispatchEvent(event);
 
     expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
-    expect(globalFallback).not.toHaveBeenCalled();
+    expect(stopImmediatePropagationMock).toHaveBeenCalledTimes(1);
   });
 
   it('renders customHeader if provided', () => {
@@ -175,11 +171,11 @@ describe('Modal Component', () => {
   // (setup), which briefly drops the count to 0 and sets body overflow to 'unset',
   // breaking the scroll-lock while the modal is still open.
   //
-  // Root cause: useEffect(() => { ... }, [isOpen, onClose]) — onClose in
-  // deps means every new function reference triggers cleanup + re-run.
+  // Root cause: useEffect(() => { ... }, [isOpen, onClose, captureEscape]) —
+  // onClose in deps means every new function reference triggers cleanup + re-run.
   //
   // Fix: move onClose into a ref (same pattern as SettingsPanel.tsx) and remove
-  // it from the deps array. Only isOpen needs to be a dep.
+  // it from the deps array. Only isOpen and captureEscape need to be deps.
   //
   // How we detect this in JSDOM: because act() runs effects synchronously,
   // the intermediate count-0 state is invisible after act() completes. Instead
