@@ -81,18 +81,34 @@ describe('Modal Component', () => {
     expect(defaultProps.onClose).not.toHaveBeenCalled();
   });
 
-  it('stops immediate propagation when captureEscape is true and Escape is pressed', () => {
-    const stopImmediatePropagationMock = vi.fn();
-    render(<Modal {...defaultProps} captureEscape={true} />);
+  // Regression: Modal is portalled straight onto document.body via
+  // createPortal, so its content is never a descendant of `.widget`.
+  // DashboardView's global Escape handler (window, bubble-phase, mounted at
+  // teacher-app start — well before any Modal opens) falls back to acting on
+  // the dashboard's topmost widget whenever it can't resolve a `.widget`
+  // ancestor for the focused element (see components/layout/DashboardView.tsx).
+  // Modal's own Escape handler must intercept and stop the event before it
+  // ever reaches that pre-existing bubble-phase listener, or dismissing a
+  // Modal with Escape also silently minimizes an unrelated widget (e.g. a
+  // running Timer) behind it. Dispatching from a real element inside the
+  // modal (not directly on `window`) is required to exercise capture vs.
+  // bubble ordering — dispatching straight on `window` collapses capture and
+  // bubble into a single "at target" phase and would pass regardless of the
+  // bug.
+  it('stops Escape from reaching a pre-existing global window keydown listener', () => {
+    const globalFallback = vi.fn();
+    const listener = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') globalFallback();
+    };
+    window.addEventListener('keydown', listener);
 
-    // We dispatch a custom KeyboardEvent to mock stopImmediatePropagation
-    const event = new KeyboardEvent('keydown', { key: 'Escape' });
-    event.stopImmediatePropagation = stopImmediatePropagationMock;
+    render(<Modal {...defaultProps} />);
+    fireEvent.keyDown(screen.getByLabelText('Close'), { key: 'Escape' });
 
-    window.dispatchEvent(event);
+    window.removeEventListener('keydown', listener);
 
     expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
-    expect(stopImmediatePropagationMock).toHaveBeenCalledTimes(1);
+    expect(globalFallback).not.toHaveBeenCalled();
   });
 
   it('renders customHeader if provided', () => {
@@ -171,11 +187,11 @@ describe('Modal Component', () => {
   // (setup), which briefly drops the count to 0 and sets body overflow to 'unset',
   // breaking the scroll-lock while the modal is still open.
   //
-  // Root cause: useEffect(() => { ... }, [isOpen, onClose, captureEscape]) —
-  // onClose in deps means every new function reference triggers cleanup + re-run.
+  // Root cause: useEffect(() => { ... }, [isOpen, onClose]) — onClose in
+  // deps means every new function reference triggers cleanup + re-run.
   //
   // Fix: move onClose into a ref (same pattern as SettingsPanel.tsx) and remove
-  // it from the deps array. Only isOpen and captureEscape need to be deps.
+  // it from the deps array. Only isOpen needs to be a dep.
   //
   // How we detect this in JSDOM: because act() runs effects synchronously,
   // the intermediate count-0 state is invisible after act() completes. Instead

@@ -21,7 +21,6 @@ interface ModalProps {
   className?: string; // For additional styling on the content container
   contentClassName?: string; // For additional styling on the body/content wrapper
   footerClassName?: string; // For additional styling on the footer wrapper
-  captureEscape?: boolean; // Whether to use capture phase for Escape key
   ariaLabel?: string;
   ariaLabelledby?: string;
 }
@@ -39,7 +38,6 @@ export const Modal: React.FC<ModalProps> = ({
   contentClassName = 'px-6',
   footerClassName = 'p-6 pt-4 mt-auto shrink-0 border-t border-slate-100',
   variant = 'default',
-  captureEscape = false,
   ariaLabel,
   ariaLabelledby,
 }) => {
@@ -63,9 +61,26 @@ export const Modal: React.FC<ModalProps> = ({
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       // Guard first: if focus is inside a widget portal, let the portal's
-      // own handler run (don't kill it with stopImmediatePropagation).
+      // own handler run (don't touch propagation — that Escape belongs to
+      // the widget, not this modal).
       if (isEscapeFromWidgetInput(e)) return;
-      if (captureEscape) e.stopImmediatePropagation();
+      // Capture phase + stopPropagation (not stopImmediatePropagation) is
+      // required here, unconditionally — not opt-in. Modal is portalled
+      // straight onto document.body via createPortal, so its content is
+      // never a descendant of `.widget`. DashboardView's global Escape
+      // handler (a window, bubble-phase listener mounted at teacher-app
+      // start, well before any Modal opens) falls back to acting on the
+      // dashboard's topmost widget whenever it can't resolve a `.widget`
+      // ancestor for the focused element — exactly the case here. Without
+      // capturing and stopping the event first, dismissing a Modal with
+      // Escape also silently minimizes an unrelated widget (e.g. a running
+      // Timer) behind it. stopPropagation (rather than
+      // stopImmediatePropagation) still lets a second, already-open Modal's
+      // own capture listener on window fire, preserving nested-modal
+      // Escape behavior. Mirrors the established pattern already used by
+      // DraggableWindow's maximized-menu Escape handler and
+      // DialogContainer's Alert/Confirm/Prompt dialogs.
+      e.stopPropagation();
       // Read from ref so we always call the current onClose even though
       // onClose is not in the effect deps array.
       onCloseRef.current();
@@ -75,28 +90,20 @@ export const Modal: React.FC<ModalProps> = ({
       document.body.style.overflow = 'hidden';
     }
     incrementOpenModalCount();
-    window.addEventListener(
-      'keydown',
-      handleEscape,
-      captureEscape ? { capture: true } : undefined
-    );
+    window.addEventListener('keydown', handleEscape, { capture: true });
 
     return () => {
       const remaining = decrementOpenModalCount();
       if (remaining === 0) {
         document.body.style.overflow = 'unset';
       }
-      window.removeEventListener(
-        'keydown',
-        handleEscape,
-        captureEscape ? { capture: true } : undefined
-      );
+      window.removeEventListener('keydown', handleEscape, { capture: true });
     };
     // onClose is intentionally omitted from deps — it is read via onCloseRef so
     // a new inline arrow from the parent never triggers a cleanup + re-run that
-    // would momentarily release the body scroll-lock. Only isOpen and
-    // captureEscape need to re-subscribe the listener.
-  }, [isOpen, captureEscape]);
+    // would momentarily release the body scroll-lock. Only isOpen needs to
+    // re-subscribe the listener.
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
