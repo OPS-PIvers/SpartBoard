@@ -119,6 +119,38 @@ describe('useSpotifyLibrary', () => {
     });
   });
 
+  it('settles isLoading=false on every concurrently-mounted instance sharing one in-flight fetch', async () => {
+    // Two Music-widget sub-components (e.g. PersonalSpotifyAdaptiveLayout's
+    // recents list + playlists list) both call useSpotifyLibrary() on the
+    // same render pass while the module-level cache is still empty. The
+    // second ("follower") instance piggybacks on the first's in-flight
+    // fetch rather than issuing a duplicate one — but each instance owns
+    // its OWN isLoading state, and the follower's must still settle to
+    // false once the shared fetch resolves.
+    const first = renderHook(() => useSpotifyLibrary());
+    const second = renderHook(() => useSpotifyLibrary());
+
+    expect(first.result.current.isLoading).toBe(true);
+    expect(second.result.current.isLoading).toBe(true);
+
+    await waitFor(() => {
+      expect(first.result.current.isLoading).toBe(false);
+    });
+
+    // The leader settles correctly; the follower must too — it must not be
+    // stuck at isLoading=true forever just because it never created its own
+    // `inflight` promise.
+    await waitFor(() => {
+      expect(second.result.current.isLoading).toBe(false);
+    });
+
+    expect(second.result.current.playlists).toHaveLength(1);
+    expect(second.result.current.recents).toHaveLength(1);
+    // Only one network round trip for both instances.
+    expect(mockFetchPlaylists).toHaveBeenCalledTimes(1);
+    expect(mockFetchRecents).toHaveBeenCalledTimes(1);
+  });
+
   it('refetches after TTL expiry (cache-reset proxy)', async () => {
     // First mount — populates the cache.
     const first = renderHook(() => useSpotifyLibrary());

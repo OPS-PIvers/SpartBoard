@@ -31,6 +31,15 @@ export function __resetCacheForTests() {
   subscribers.clear();
 }
 
+/** Map a thrown fetch error to the hook's public error shape. */
+function toLibraryError(err: unknown): SpotifyLibraryError {
+  if (err instanceof SpotifyScopeError) return { kind: 'scope' };
+  return {
+    kind: 'generic',
+    message: err instanceof Error ? err.message : 'Unknown error',
+  };
+}
+
 export type SpotifyLibraryError =
   | { kind: 'scope' }
   | { kind: 'generic'; message: string };
@@ -57,7 +66,21 @@ export function useSpotifyLibrary(): UseSpotifyLibraryReturn {
     setError(null);
     setIsLoading(true);
     if (inflight) {
-      await inflight;
+      // Piggyback on another mounted instance's in-flight fetch (e.g. two
+      // Music-widget sub-components mounting on the same render pass) rather
+      // than issuing a duplicate network round trip. This instance did NOT
+      // create `inflight`, so it must still settle ITS OWN isLoading/error
+      // state when the shared promise resolves — the leader's `finally`
+      // block below only resets the leader's own state. Without this
+      // try/finally, a follower's `isLoading` would stay `true` forever,
+      // even after `fresh` data is available.
+      try {
+        await inflight;
+      } catch (err) {
+        setError(toLibraryError(err));
+      } finally {
+        setIsLoading(false);
+      }
       return;
     }
     inflight = (async () => {
@@ -79,14 +102,7 @@ export function useSpotifyLibrary(): UseSpotifyLibraryReturn {
       await inflight;
       notifySubscribers();
     } catch (err) {
-      if (err instanceof SpotifyScopeError) {
-        setError({ kind: 'scope' });
-      } else {
-        setError({
-          kind: 'generic',
-          message: err instanceof Error ? err.message : 'Unknown error',
-        });
-      }
+      setError(toLibraryError(err));
     } finally {
       inflight = null;
       setIsLoading(false);
