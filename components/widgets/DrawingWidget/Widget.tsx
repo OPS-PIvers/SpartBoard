@@ -736,12 +736,11 @@ export const DrawingWidget: React.FC<{
   // page has no live subscription, so we read it from Firestore here.
   const resolveExportPages = useCallback(async (): Promise<DrawingPage[]> => {
     if (!config.subcollectionMigrated) {
-      // Pre-migration the dashboard doc is still the source of truth, but the
-      // active page's array can lag `objects` by a render, so prefer the live
-      // slice for it and take the rest verbatim.
-      return pages.map((p) =>
-        p.id === activePage.id ? { ...p, objects } : { ...p }
-      );
+      // Pre-migration the dashboard doc is still the source of truth and
+      // `objects` IS `activePage.objects` (see the assignment above), so
+      // every page already carries its content. `renderPageToPng` copies
+      // before sorting, so handing it these arrays directly is safe.
+      return pages;
     }
     const uid = user?.uid;
     if (!uid || !dashboardId) {
