@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { WidgetData, LunchCountConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { RosterModeControl } from '@/components/common/RosterModeControl';
@@ -72,6 +72,7 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
   const schoolSite: LunchCountConfig['schoolSite'] =
     toLunchCountSchoolSite(rawSchoolSite ?? '') ?? 'schumann-elementary';
   const gradeOptions = GRADE_OPTIONS[schoolSite];
+  const gradeLevelLabelId = useId();
 
   /** When the school site changes, clear the grade selection if it's no longer valid */
   const handleSiteChange = (newSite: LunchCountConfig['schoolSite']) => {
@@ -189,8 +190,14 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
 
         {/* Grade Level */}
         <div>
-          <SettingsLabel icon={GraduationCap}>Grade Level</SettingsLabel>
-          <div className="flex gap-2 flex-wrap">
+          <SettingsLabel as="span" id={gradeLevelLabelId} icon={GraduationCap}>
+            Grade Level
+          </SettingsLabel>
+          <div
+            className="flex gap-2 flex-wrap"
+            role="group"
+            aria-labelledby={gradeLevelLabelId}
+          >
             {gradeOptions.map((opt) => (
               <button
                 key={opt.value}

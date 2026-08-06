@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, CountdownConfig } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
@@ -177,13 +177,20 @@ export const CountdownAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
     updateWidget(widget.id, { config: { ...config, ...updates } });
 
   const eventColor = config.eventColor ?? '#2d3f89';
+  const eventTitleColorLabelId = useId();
 
   return (
     <div className="space-y-6">
       <TypographySettings config={config} updateConfig={updateConfig} />
       <div>
-        <SettingsLabel icon={Palette}>Event Title Color</SettingsLabel>
-        <div className="flex flex-wrap gap-2 px-1 mb-2">
+        <SettingsLabel as="span" id={eventTitleColorLabelId} icon={Palette}>
+          Event Title Color
+        </SettingsLabel>
+        <div
+          className="flex flex-wrap gap-2 px-1 mb-2"
+          role="group"
+          aria-labelledby={eventTitleColorLabelId}
+        >
           {TEXT_COLOR_PRESETS.map((color) => (
             <button
               key={color}

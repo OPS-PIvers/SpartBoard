@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TimeToolConfig, WidgetData } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
@@ -74,14 +74,22 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
     (w) => w.type === 'stations'
   );
 
+  const modeLabelId = useId();
+  const displayStyleLabelId = useId();
+  const alertSoundLabelId = useId();
+
   return (
     <div className="space-y-6 p-1">
       {/* Mode Selection */}
       <div>
-        <SettingsLabel icon={TimerIcon}>
+        <SettingsLabel as="span" id={modeLabelId} icon={TimerIcon}>
           {t('widgets.timeTool.mode')}
         </SettingsLabel>
-        <div className="grid grid-cols-2 gap-2">
+        <div
+          className="grid grid-cols-2 gap-2"
+          role="group"
+          aria-labelledby={modeLabelId}
+        >
           {TIME_TOOL_MODES.map((m) => (
             <button
               key={m}
@@ -130,10 +138,14 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
 
       {/* Display Style */}
       <div>
-        <SettingsLabel icon={Sparkles}>
+        <SettingsLabel as="span" id={displayStyleLabelId} icon={Sparkles}>
           {t('widgets.clock.displayStyle')}
         </SettingsLabel>
-        <div className="grid grid-cols-2 gap-2">
+        <div
+          className="grid grid-cols-2 gap-2"
+          role="group"
+          aria-labelledby={displayStyleLabelId}
+        >
           {TIME_TOOL_VISUAL_TYPES.map((v) => (
             <button
               key={v}
@@ -158,10 +170,14 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
 
       {/* Sound Selector */}
       <div>
-        <SettingsLabel icon={Bell}>
+        <SettingsLabel as="span" id={alertSoundLabelId} icon={Bell}>
           {t('widgets.timeTool.alertSound')}
         </SettingsLabel>
-        <div className="grid grid-cols-4 gap-2">
+        <div
+          className="grid grid-cols-4 gap-2"
+          role="group"
+          aria-labelledby={alertSoundLabelId}
+        >
           {SOUNDS.map((s) => (
             <button
               key={s}
@@ -472,6 +488,9 @@ export const TimeToolAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
 
   const colors = WIDGET_PALETTE;
 
+  const numberStyleLabelId = useId();
+  const colorPaletteLabelId = useId();
+
   return (
     <div className="space-y-6 p-1">
       {/* Font Family — shared picker (TimeTool manages color via themeColor below) */}
@@ -485,10 +504,14 @@ export const TimeToolAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
 
       {/* Clock Style */}
       <div>
-        <SettingsLabel icon={Sparkles}>
+        <SettingsLabel as="span" id={numberStyleLabelId} icon={Sparkles}>
           {t('widgets.timeTool.numberStyle')}
         </SettingsLabel>
-        <div className="flex bg-slate-100 p-1 rounded-xl">
+        <div
+          className="flex bg-slate-100 p-1 rounded-xl"
+          role="group"
+          aria-labelledby={numberStyleLabelId}
+        >
           {styles.map((s) => (
             <button
               key={s.id}
@@ -508,10 +531,14 @@ export const TimeToolAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
       {/* Color & Glow */}
       <div className="flex items-end justify-between gap-4">
         <div className="flex-1">
-          <SettingsLabel icon={Palette}>
+          <SettingsLabel as="span" id={colorPaletteLabelId} icon={Palette}>
             {t('widgets.clock.colorPalette')}
           </SettingsLabel>
-          <div className="flex gap-1.5">
+          <div
+            className="flex gap-1.5"
+            role="group"
+            aria-labelledby={colorPaletteLabelId}
+          >
             {colors.map((c) => (
               <button
                 key={c}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { Type } from 'lucide-react';
 import { SettingsLabel } from './SettingsLabel';
 import { TEXT_SIZE_PRESETS } from '@/config/widgetAppearance';
@@ -40,10 +40,18 @@ export const TextSizePresetSettings: React.FC<TextSizePresetSettingsProps> = ({
         ? scaleToPreset(fallbackScale)
         : 'medium');
 
+  const textSizeLabelId = useId();
+
   return (
     <div>
-      <SettingsLabel icon={Type}>Text Size</SettingsLabel>
-      <div className="grid grid-cols-2 gap-2">
+      <SettingsLabel as="span" id={textSizeLabelId} icon={Type}>
+        Text Size
+      </SettingsLabel>
+      <div
+        className="grid grid-cols-2 gap-2"
+        role="group"
+        aria-labelledby={textSizeLabelId}
+      >
         {TEXT_SIZE_PRESETS.map((preset) => (
           <button
             type="button"

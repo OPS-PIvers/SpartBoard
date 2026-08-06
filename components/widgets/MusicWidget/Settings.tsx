@@ -349,11 +349,20 @@ export const MusicAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
 
   const textColors = [...WIDGET_PALETTE, '#ffffff'];
 
+  const backgroundLabelId = useId();
+  const textColorLabelId = useId();
+
   return (
     <div className="grid grid-cols-2 gap-4">
       <div>
-        <SettingsLabel icon={Palette}>Background</SettingsLabel>
-        <div className="flex flex-wrap gap-1.5 mt-1">
+        <SettingsLabel as="span" id={backgroundLabelId} icon={Palette}>
+          Background
+        </SettingsLabel>
+        <div
+          className="flex flex-wrap gap-1.5 mt-1"
+          role="group"
+          aria-labelledby={backgroundLabelId}
+        >
           {bgColors.map((c) => (
             <button
               key={c.hex}
@@ -378,8 +387,14 @@ export const MusicAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
         </div>
       </div>
       <div>
-        <SettingsLabel icon={Palette}>Text Color</SettingsLabel>
-        <div className="flex flex-wrap gap-1.5 mt-1">
+        <SettingsLabel as="span" id={textColorLabelId} icon={Palette}>
+          Text Color
+        </SettingsLabel>
+        <div
+          className="flex flex-wrap gap-1.5 mt-1"
+          role="group"
+          aria-labelledby={textColorLabelId}
+        >
           {textColors.map((c) => (
             <button
               key={c}

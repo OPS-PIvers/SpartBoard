@@ -16,6 +16,8 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
   const buildingId = useWidgetBuildingId(widget);
   const config = widget.config as MaterialsConfig;
   const availableMaterialsLabelId = useId();
+  const typographyLabelId = useId();
+  const titleColorLabelId = useId();
   const {
     selectedItems = [],
     activeItems = [],
@@ -111,8 +113,14 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
         </div>
 
         <div>
-          <SettingsLabel icon={Type}>Typography</SettingsLabel>
-          <div className="grid grid-cols-4 gap-2">
+          <SettingsLabel as="span" id={typographyLabelId} icon={Type}>
+            Typography
+          </SettingsLabel>
+          <div
+            className="grid grid-cols-4 gap-2"
+            role="group"
+            aria-labelledby={typographyLabelId}
+          >
             {fonts.map((f) => (
               <button
                 key={f.id}
@@ -139,8 +147,14 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
         </div>
 
         <div>
-          <SettingsLabel icon={Palette}>Title Color</SettingsLabel>
-          <div className="flex flex-wrap gap-2">
+          <SettingsLabel as="span" id={titleColorLabelId} icon={Palette}>
+            Title Color
+          </SettingsLabel>
+          <div
+            className="flex flex-wrap gap-2"
+            role="group"
+            aria-labelledby={titleColorLabelId}
+          >
             {WIDGET_PALETTE.map((c) => (
               <button
                 key={c}

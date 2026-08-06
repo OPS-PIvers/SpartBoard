@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { Video, Pencil, Check, X, Tag, Plus, Trash2, Star } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
@@ -31,6 +31,8 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
 }) => {
   const BUILDINGS = useAdminBuildings();
   const isVideo = Boolean(extractYouTubeId(preset.url));
+  const accessLevelLabelId = useId();
+  const buildingsLabelId = useId();
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-brand-blue-light transition-all flex flex-col h-auto">
@@ -149,8 +151,14 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
 
         {/* Access Level */}
         <div className="shrink-0">
-          <SettingsLabel>Access Level</SettingsLabel>
-          <div className="flex gap-1">
+          <SettingsLabel as="span" id={accessLevelLabelId}>
+            Access Level
+          </SettingsLabel>
+          <div
+            className="flex gap-1"
+            role="group"
+            aria-labelledby={accessLevelLabelId}
+          >
             {(['admin', 'beta', 'public'] as AccessLevel[]).map((level) => (
               <button
                 key={level}
@@ -235,8 +243,14 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
 
         {/* Building Assignment */}
         <div className="shrink-0">
-          <SettingsLabel>Buildings</SettingsLabel>
-          <div className="flex flex-wrap gap-1">
+          <SettingsLabel as="span" id={buildingsLabelId}>
+            Buildings
+          </SettingsLabel>
+          <div
+            className="flex flex-wrap gap-1"
+            role="group"
+            aria-labelledby={buildingsLabelId}
+          >
             {BUILDINGS.map((b) => {
               const assigned = (preset.buildingIds ?? []).includes(b.id);
               return (
