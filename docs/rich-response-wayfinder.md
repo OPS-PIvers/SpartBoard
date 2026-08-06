@@ -16,9 +16,10 @@
 > **Paul:** each ticket has an empty `Paul's notes` slot. Write in them freely —
 > agents should read them as the highest-authority input on that ticket.
 
-**Status:** Charted 2026-08-04 · **6 of 22 resolved** — RR-01, RR-B1, RR-A4 closed and RR-04's research half done 2026-08-04; **RR-02, RR-03 and RR-04 closed 2026-08-05**. Their resolutions opened RR-08, RR-B4, RR-A5, RR-A6, RR-09 and unblocked RR-05, RR-06, RR-08, RR-C2. **Two tracks are complete and no keystones remain** — the response model (RR-01), its serialization (RR-02) and its lifecycle (RR-03) are locked, and RR-04 locks who may hold student media, under what name, for how long, and what may never be derived from it. **The board has re-centered on a single open question: does video ship at all?** (RR-A5 → RR-A3.)
+**Status:** Charted 2026-08-04 · **8 of 22 resolved** — RR-01, RR-B1, RR-A4 closed and RR-04's research half done 2026-08-04; **RR-02, RR-03 and RR-04 closed 2026-08-05**; **RR-A3 and RR-A1 closed 2026-08-06**. **The whole A-track spine is now settled** — video ships gated as a peer mode (RR-A3), and the capture experience, its timing model, its data model and video's byte ceiling are locked (RR-A1). The response model (RR-01), its serialization (RR-02) and its lifecycle (RR-03) were already locked, and RR-04 governs who may hold student media, under what name, and for how long. **No keystones remain.**
 
 > **Correction, 2026-08-05:** RR-04's finding 3 claimed a live Gemini ToS violation. **It was wrong on both halves** — no student can reach Gemini (enforced by an email guard on every callable), and SpartBoard is on Gemini's _Paid_ Services via its Workspace account and Blaze billing, so nothing is trained on. The finding, the retraction, and the one question that genuinely survives are all recorded in place. **The "move to Vertex AI" recommendation is withdrawn.**
+> **Correction, 2026-08-06:** RR-04 sub-decision 5 recorded that auto-start capture was **"dead — not by preference but by statute."** That overstated its own research, which called § 13.32 subd. 14(b)(1) merely _"relevant to"_ auto-start. With the institution consenting (RR-04 research finding 4) and the notice already rendered in advance, **the statutory bar does not hold and auto-start is a live design option** — it is now a per-question teacher setting (RR-A1 sub-decision 1). The **non-recorded alternative remains mandatory**, but on **RR-A4 finding 5** (ChromeOS policy hard-blocks capture for some students) rather than on § 312.3(d). The notice, the framing check and the always-on-preview kill are all undisturbed.
 > **Related efforts:** pronunciation quiz question type (tracked in GitHub issues),
 > [`docs/multilingual-pronunciation-engine-spec.md`](multilingual-pronunciation-engine-spec.md),
 > [`docs/written-response-quiz-questions.md`](written-response-quiz-questions.md)
@@ -103,6 +104,8 @@ These are load-bearing. Several tickets are really "should we reuse this or not?
 
 - **[RR-A3 — Is video a separate mode from audio, or one mode with a camera toggle?](#rr-a3--is-video-a-separate-mode-from-audio-or-one-mode-with-a-camera-toggle)** — **Video ships, dark by default, with the district holding the switch** (`global_permissions`, server-side, the shipped `defaultMinTier: 'org'` pattern). `'audio'` and `'video'` are **peer modes** in RR-01's set — so the gate is **pure set subtraction**, and require-vs-permit falls out of the set with no new flag. A gated-off mode is filtered at runtime; an emptied set falls to **RR-04's already-mandated non-recorded alternative**. Video adds a **framing check before arming** (a mirror and a sentence — no detection, which RR-04 forbids by contract), which is compatible with RR-04's preview kill because that kill targeted notice given _in advance_. Cost is bounded by a **quality ceiling, not a shorter clock** — RR-A4's 2.85 GB was measured at Chrome's default bitrate. ⚠️ Provisional in one direction only: RR-A5 and RR-09 q4 can still argue video down, never up.
 
+- **[RR-A1 — What's the timing model for prep time and recording limits?](#rr-a1--whats-the-timing-model-for-prep-time-and-recording-limits)** — **The prep-expiry branch is a per-question teacher setting** (`auto-start` / `auto-advance` / `armed` / `unanswered`), not one product-wide behaviour. ⚠️ **Amends RR-04:** the auto-start kill **does not hold** — the § 13.32 citation was a research flag, not a finding, and institutional consent plus the already-rendered notice discharge the objection. The mandatory alternative **survives on RR-A4 finding 5** (ChromeOS policy blocks capture for some students) rather than on law. Timing lives in a new `recording` block because `timeLimit` feeds **speed-bonus scoring**, which is now unavailable on recording questions by design. Video's ceiling is **480p / 500 kbps** — 4.0 MB a take, **599 MB an assignment (was 2.85 GB)**, 16 s to upload. **Hard stop with a wrap-up warning**, no grace tail, because a grace tail is a longer limit told dishonestly. Framing check **once per assignment** with a **continuous self-view** during capture. **A lost take is lost** — nothing is written until the student commits, which forecloses streaming upload and binds RR-A6. Defaults prep 30 s / limit 60 s; max 300 s audio, **120 s video** because assignment totals aren't duration-independent.
+
 **Destination confirmed** 2026-08-04 (not a ticket, recorded here so it isn't re-litigated): the spec covers all three tracks; narrower, wider, and spec-plus-build were considered and rejected. See the ✅ note under **Destination**.
 
 ---
@@ -111,35 +114,37 @@ These are load-bearing. Several tickets are really "should we reuse this or not?
 
 Open, unblocked, unclaimed — takeable right now:
 
-_Rebuilt 2026-08-06 after RR-A3 closed. **No keystones remain** — every open
-ticket is blocked only by other open tickets, not by a decision nobody has made._
+_Rebuilt 2026-08-06 after RR-A1 closed. **No keystones remain**, and the A-track's
+design spine is finished — what's left there is verification and one downstream
+ticket._
 
 **Takeable now:**
 
-- 🔥 **RR-A5** — Verify format round-trip and capture policy on district hardware _(task, HITL)_ — **the highest-leverage thing on the board, and the only physical blocker left.** RR-03 put transcoding on the synchronous critical path of every upload, and RR-A3 has now committed to shipping video, which makes the transcode runtime question load-bearing rather than hypothetical. **Needs district hardware — not takeable from mobile.** Harness is committed: `docs/rich-response/rr-a5-capture-harness.html`
-- 🔥 **RR-A1** — Timing model for prep time and recording limits _(prototype)_ — **the biggest mover on the board.** RR-04 killed auto-start and always-on preview by statute; RR-A3 has now added a **required framing-check step** before arming, handed it **video's resolution and bitrate ceiling** to set, and told it the clock is **mode-agnostic**. ⚠️ The committed prototype asset predates all three and needs a revision before it's reacted to
-- **RR-05** — Where is the AI boundary, and what exactly is admin-gated? _(grilling)_ — RR-04 drew the hard outer line (no template extraction, ever, by contract); this decides the menu inside it. Two items are pre-killed (speaker-attributed transcripts, participation analytics), and RR-A3 adds that anything touching video now sits under **two** gates, not one
-- **RR-07** — Alternate-format policy _(grilling)_ — **its stakes just went up.** RR-04 made a non-recorded alternative legally mandatory and not teacher-configurable; RR-A3 sub-decision 3 then made it the **degradation floor** when a district's video gate is off. It is now load-bearing twice over, which raises what it has to be
-- **RR-08** — What counts as "answered" when a question has a required addendum? _(grilling + domain-modeling)_ — unblocked by RR-02, which made `answer: ''` a legitimate state. **Best-prepared ticket on the map**: a verified landmine and two structural findings are already on the table in `docs/rich-response/rr-08-answered-state-grounding.md`
+- 🔥 **RR-08** — What counts as "answered" when a question has a required addendum? _(grilling + domain-modeling)_ — **promoted to the front, because RR-A1 handed it a live bug rather than a design question.** `'auto'` session mode advances on `r.answers.some(a => a.questionId === currentQId)` (`hooks/useQuizSession.ts:1313`), and two of RR-A1's four prep-expiry values write no record at expiry — so one student can stall a whole class. **Best-prepared ticket on the map**: a verified landmine and two structural findings are already in `docs/rich-response/rr-08-answered-state-grounding.md`
+- 🔥 **RR-A5** — Verify format round-trip and capture policy on district hardware _(task, HITL)_ — **still the only thing on the board no agent can do**, and now it has a specific target: does district hardware encode **480p / 500 kbps** (RR-A1 sub-decision 4). RR-03 put transcoding on the synchronous critical path of every upload and RR-A3 committed to shipping video, so the transcode runtime question is load-bearing. **Needs a student Chromebook.** Harness: `docs/rich-response/rr-a5-capture-harness.html`
+- **RR-A2** — Recording controls and what a retake means for validity _(grilling)_ — **newly unblocked.** RR-A1 changed its subject matter before it opened: the discard is no longer a UX nicety but the **refusal mechanism** the auto-start branch depends on, so a retake budget that limits discards limits refusal. Also inherits RR-A1's no-streaming constraint and a much smaller transcode-per-take cost
+- **RR-07** — Alternate-format policy _(grilling)_ — **three jobs now, and one of its legs moved.** Its legal necessity weakened when RR-A1 amended RR-04, but its functional necessity (RR-A4 finding 5 — ChromeOS policy hard-blocks capture for some students) is untouched and is now the load-bearing one
+- **RR-05** — Where is the AI boundary, and what exactly is admin-gated? _(grilling)_ — RR-04 drew the hard outer line by contract; this decides the menu inside it. Two items are pre-killed, RR-A3 adds that anything touching video sits under **two** gates, and RR-A1 adds that speed-based scoring is unavailable on recording questions
 - **RR-B2** — Is the audio synchronized to the strokes, or attached alongside? _(grilling)_ — a **three-way** fork thanks to RR-B1
 - **RR-C2** — How does a student get access to a file in the teacher's Drive? _(grilling)_ — unblocked by RR-03, which handed it a working precedent: the uid- and publish-gated proxy callable is the same problem in the other direction
 - **RR-C1** — Which stimulus formats are in, and are they rendered in-app or handed off? _(grilling)_
 - **RR-C3** — Does a stimulus attach to a question or to an assignment? _(grilling)_ — small, sharp, independent; still the best warm-up
-- **RR-09** — task: the questions only district counsel and Google can answer _(unclaimed)_ — **question 4 changed character.** It no longer decides whether SpartBoard ships video (RR-A3 shipped it, gated); it now informs **whether a given district should flip its own gate**. That makes it district guidance rather than a product blocker — lower urgency, same content
+- **RR-09** — task: the questions only district counsel and Google can answer _(unclaimed)_ — **two items softened in two days.** Question 4 became district guidance rather than a product blocker (RR-A3), and RR-A1 adds institutional-consent-and-timer-capture as a **confirmation**, not a gate. Lowest urgency it has had
 
 **Still blocked:** RR-06 (RR-05) · RR-B3 (RR-B2, RR-06) · RR-B4 (RR-B2) ·
-RR-A6 (RR-A5 only — RR-A3 cleared) · RR-A2 (RR-A1).
+RR-A6 (RR-A5 only).
 
-**Three tracks are now complete.** RR-01 → RR-02 → RR-03 lock the response model,
-its serialization and its lifecycle; RR-04 locks who may hold student media, under
-what name, for how long, and what may never be derived from it; **RR-A3 closes the
-A-track's scope question** — video is in, gated, quality-capped, and shaped as a
-peer mode rather than a flag.
+**The A-track's design is done.** RR-A3 settled its scope — video in, gated,
+quality-capped, a peer mode rather than a flag — and RR-A1 settled what capture
+actually feels like, what it costs in bytes, and where its settings live. RR-A2 is
+the only A-track design ticket left, and RR-A5 / RR-A6 are verification and
+plumbing.
 
-⚡ **The board's centre has moved from "does video ship?" to "what does capture
-actually feel like?"** That is RR-A1, which absorbed three separate constraints
-today and is now the ticket carrying the most undischarged design. RR-A5 remains
-the only thing on the board that no agent can do.
+⚡ **The board's centre has moved out of the A-track entirely.** What's left is
+mostly _state and semantics_ — what counts as answered (RR-08), what a retake means
+(RR-A2), what the alternative has to be (RR-07) — plus two untouched tracks, B and
+C. **RR-08 is where the next session should go**: it is the best-prepared ticket on
+the map and it now holds a stall that RR-A1 can see but cannot fix.
 
 ---
 
@@ -1164,8 +1169,21 @@ point, and reduces the "may they refuse" element to decoration.
 
 Two consequences that land outside this ticket:
 
-- ⛔ **Auto-start capture and always-on preview are dead** — not by preference but by statute. § 13.32 subd. 14(b)(1)'s instructional-purpose exception is conditioned on **advance** notice, and that exception is what makes the whole collection lawful. → **RR-A1**, which owns the timing model.
-- 🔴 **"May they refuse" has to be a true statement**, which means a non-recorded alternative must actually exist. Combined with **COPPA § 312.3(d)** (no conditioning participation on more disclosure than necessary), this **decides RR-07's first bullet by law rather than by pedagogy**: a teacher may not author a mode set of one that a student cannot satisfy. → **RR-07.**
+- ~~⛔ **Auto-start capture and always-on preview are dead** — not by preference but by statute.~~ **↯ Half of this was overturned by RR-A1 (2026-08-06) — see below.**
+- 🔴 **"May they refuse" has to be a true statement**, which means a non-recorded alternative must actually exist. Combined with **COPPA § 312.3(d)** (no conditioning participation on more disclosure than necessary), this **decides RR-07's first bullet by law rather than by pedagogy**: a teacher may not author a mode set of one that a student cannot satisfy. → **RR-07.** **↯ The reasoning was amended by RR-A1; the conclusion survives on other grounds — see below.**
+
+🔵 **RR-A1 (2026-08-06) overturned the auto-start half of this sub-decision and
+re-grounded the other half. Both corrections are worth reading before citing this
+ticket.**
+
+1. ⛔→✅ **Auto-start is not barred by statute.** This ticket's own research half says § 13.32 subd. 14(b)(1) is _"relevant to"_ auto-start — a flag, not a finding — and the decision half hardened it into a bar. The interstitial **is** advance notice, so the advance-notice test passes. Add **research finding 4** (the institution validly consents, on conditions SpartBoard satisfies and has committed to) and the objection is discharged. **Auto-start is now one of four per-question prep-expiry values** (RR-A1 sub-decision 2).
+2. ✅ **Always-on preview stays dead, and the framing check stays alive.** Both rest on the notice duty, which is undisturbed. RR-A3's framing check runs _after_ the notice; RR-A1 extended it to a continuous self-view during capture, which is a strengthening.
+3. 🔴 **The non-recorded alternative is still mandatory — on a different basis.** § 312.3(d) is weak here, because on a speaking assessment the recording **is** the data reasonably necessary. The load-bearing ground is now **RR-A4 finding 5**: districts park students in restricted OUs with mic and camera disabled by ChromeOS policy, so a subset of any class has capture hard-blocked. The alternative was always a functional requirement; this ticket reached it by a route that has partly given way. → **RR-07** owns the consequence.
+
+⚠️ **Nothing else in this ticket is affected.** Sub-decisions 1–4 and 6 — real-name
+archival, the contractual no to voiceprints and diarization, the unenforceable
+single-speaker policy, the admin console, end-of-school-year retention — all stand
+exactly as written.
 
 **6. ⚠️ Amends RR-03 — archived media is deleted at the end of the current school
 year.** Paul chose the tighter bound over the recommended end-of-_following_-year
@@ -1277,6 +1295,11 @@ question, and one new stacking problem.**
 - **Precedent:** RR-A3 sub-decision 1 gates video itself with exactly the mechanism this ticket is weighing — a `global_permissions` doc checked server-side, `defaultMinTier: 'org'`, district-level on/off with a per-assignment teacher opt-in beneath it. That is now a second use of the pattern for this feature area, which argues for consistency rather than a bespoke AI gating shape.
 - **New problem:** any AI capability that operates on **video** now sits under **two** independent district gates — video's and the AI capability's — and they can disagree. Decide what an admin sees when transcription is on but video is off, and whether the AI gate is expressed per-capability or per-capability-per-mode. The last bullet above ("hidden, or visible-and-disabled") gets harder when the reason for being disabled lives in a different admin screen.
 
+🔵 **RR-A1 (2026-08-06) adds a small constraint and one input:**
+
+- **Speed-based scoring is unavailable on recording questions by design** (sub-decision 3): `timeLimit` is forced to 0 there because it feeds `(remaining / timeLimit) * 50`, and rewarding a student for speaking quickly measures the opposite of fluency. **Any AI-assisted scoring on this map inherits that principle** — latency, hesitation and pause length are not proxies for quality, and a model that treats them as such reintroduces through the back door what the question editor now refuses.
+- **The input:** video is capped at 480p / 500 kbps, so any AI capability operating on video is operating on 480p. Whatever the menu ends up containing, it should be viable at that quality rather than assuming source fidelity.
+
 **Resolution:** _(unresolved)_
 
 **Paul's notes:**
@@ -1354,6 +1377,26 @@ must score equivalently**, at least on the degradation path. Whatever this ticke
 decides, it should decide it for both jobs explicitly rather than answering for
 the refusal case and inheriting the other by accident.
 
+🔵 **RR-A1 (2026-08-06) moved one of this ticket's legs, and it is the leg the
+first bullet stands on.** RR-04's "decided by law rather than by pedagogy" rested
+on § 312.3(d) plus the Tennessen refusal element. RR-A1 sub-decision 1 found that
+reasoning weaker than stated: with the institution consenting, element two only
+requires **stating** whether refusal is permitted, and on a speaking assessment the
+recording **is** the data reasonably necessary — so § 312.3(d) does not obviously
+bite.
+
+**The conclusion survives; its basis changed.** The mandatory floor now rests on
+the **third bullet above** — RR-A4 finding 5, ChromeOS policy hard-blocking capture
+for a subset of any class. That was already written here as "a functional
+requirement, not only an accessibility one." It is now the **primary** ground, not
+a supporting one.
+
+**What that changes for this ticket:**
+
+- 🔴 **The alternative now has three jobs, not two** — refusal (one student, knowingly), degradation (a whole class, by district policy, per RR-A3), and **device-blocked** (a subset of a class, by OU policy, silently). The third is the one that is _certain_ to occur in every district.
+- **The "may it score differently" question gets harder, not easier.** Grounding the floor in device policy means the students landing on it are disproportionately those in restricted OUs — which correlates with exactly the populations an equity review will look at first.
+- **A new sub-question RR-A1 surfaced and did not own:** RR-A1 gives the recorded path a prep clock, a limit and four expiry behaviours. **The written alternative still has no clock at all.** If the recorded path is timed and the alternative isn't, they are not equivalent in either direction. → still fog, now sharper.
+
 **Resolution:** _(unresolved)_
 
 **Paul's notes:**
@@ -1375,7 +1418,33 @@ independently, and nothing in the shipped model expects that.
 - 🔴 **New from RR-02, and the sharpest thing on this ticket: `answer: ''` is now a legitimate, complete response.** A pure-audio answer stores an empty `answer` string and puts everything in `artifacts[]`. Every existing check that infers "answered" from a non-empty `answer` is now wrong — including the progress indicator, the `alreadyAnswered` gate, and `isUnsafeBlankDraft` (`useQuizSession.ts:2277`), whose entire purpose is refusing to let `''` clobber a saved answer. Deciding "answered" here is therefore not just a UX call; it's a correctness fix to shipped guards.
 - The scheduled idle **auto-submit sweep** finalizes stale responses. What does it do with a question whose text is done and whose required recording was never started? Submitting it silently scores a zero on an artifact the student may not have known was required.
 - Does the progress indicator ("4 of 10 answered") count a half-done question?
-- Does a required addendum interact with per-question `timeLimit` — one clock for both artifacts, or one each? (Overlaps RR-A1; resolve there if RR-A1 lands first.)
+- ~~Does a required addendum interact with per-question `timeLimit` — one clock for both artifacts, or one each?~~ **Partly answered by RR-A1:** `timeLimit` is untouched and forced to 0 on recording questions (it feeds speed-bonus scoring), and recording timing lives in its own `recording` block. What's left here is whether the addendum gets its own clock or shares the primary's.
+
+🔵 **RR-A1 (2026-08-06) handed this ticket a live stall in shipped code, and it is
+the reason RR-08 is now the front of the frontier.**
+
+RR-A1 made the prep-expiry behaviour a **per-question teacher setting** with four
+values. Two of them — `auto-advance` and `armed` — pass over a question **without
+writing anything to `answers[]`.**
+
+🔴 **`'auto'` session mode advances only when every student has answered**, tested
+as `r.answers.some(a => a.questionId === currentQId)` at
+`hooks/useQuizSession.ts:1313`. So a single student who lets prep expire on an
+`armed` question — or who is auto-advanced past one — **holds the entire class
+indefinitely.** Nobody is stuck on a screen; the session simply never progresses,
+which is the worst shape of failure to diagnose live in a classroom.
+
+This is the same question as the `answer: ''` bullet above, arriving from the
+opposite direction: that one asks whether an entry with an empty string counts as
+answered, this one asks whether a **passed-over question should produce an entry at
+all**. A `status: 'passed'` or `'skipped'` entry would answer both at once — but it
+also decides what the auto-submit sweep, the progress indicator and the gradebook
+see, which is why it belongs here and not in RR-A1.
+
+⚠️ **Note the interaction with RR-A1's `unanswered` value**, which closes a question
+permanently. If "unanswered" writes a record and "armed at expiry" doesn't, then the
+harshest branch is the one that keeps the class moving — an incentive nobody
+intended.
 
 📎 **Grounding asset (2026-08-06):**
 [`docs/rich-response/rr-08-answered-state-grounding.md`](rich-response/rr-08-answered-state-grounding.md)
@@ -1452,6 +1521,10 @@ about them.
 
 5. **Is SpartBoard a "technology provider" under Minn. Stat. § 13.32 subd. 1?** The definition is conjunctive and gates both § 13.32 and the MCDPA.
 
+6. 🔵 **New 2026-08-06 from RR-A1 — confirmation, not a gate.** RR-A1 sub-decision 1 found that RR-04's statutory bar on timer-initiated capture **does not hold**: the Tennessen interstitial is itself advance notice, the institution validly consents (RR-04 research finding 4), and element two of § 13.04 subd. 2 requires _stating_ whether a student may refuse rather than permitting refusal. Auto-start therefore shipped as a per-question teacher setting. **Ask counsel to confirm two things:** (a) that institutional consent plus in-product advance notice supports capture that begins on a timer the student did not press, and (b) that on a speaking assessment the recording is "reasonably necessary" for COPPA § 312.3(d) purposes, so a mandatory alternative is not compelled by that provision specifically.
+
+   ⚠️ **A "no" on either does not unship anything.** The alternative is already mandatory on independent functional grounds (RR-A4 finding 5 — ChromeOS policy hard-blocks capture for a subset of any class), and auto-start is one of four values a teacher chooses among rather than the only path. A "no" narrows the menu; it does not break the design. **Lowest-urgency item on this list.**
+
 **Also worth doing while you're there:** an NDPA rider covering the parental-consent
 representation the STANDARD omits, and adding video to Exhibit "B" (there's no
 video row).
@@ -1466,7 +1539,7 @@ video row).
 
 ### RR-A1 — What's the timing model for prep time and recording limits?
 
-**Type:** prototype (HITL) · **Status:** Open · **Blocked by:** RR-01
+**Type:** prototype (HITL) · **Status:** ✅ **Closed 2026-08-06** · **Blocked by:** RR-01 · **Blocks (now unblocked):** RR-A2
 
 **Question**
 
@@ -1489,6 +1562,11 @@ discover later:** Chrome-recorded webm reports **`Infinity` duration**, so any
 countdown or progress bar must be driven by a client-side timer, not by the media
 element. And **Google Classroom's own recorder caps at 5 minutes** — a useful
 sanity benchmark for what a limit should look like.
+
+> ↯ **The ⛔ block below was overturned by this ticket's own resolution
+> (2026-08-06). Auto-start is back, as one of four per-question values.** It is
+> kept unedited because the reasoning that produced it, and where that reasoning
+> failed, are both worth being able to read. See sub-decision 1.
 
 ⛔ **RR-04 (2026-08-05) removed auto-start from the option set — by statute, not
 by preference.** Sub-decision 5 renders the Tennessen warning (Minn. Stat. § 13.04
@@ -1547,12 +1625,210 @@ several of this ticket's open questions from audio-shaped into two-mode-shaped:
 2. **This ticket sets video's resolution and bitrate ceiling.** RR-A3 chose the quality axis over the duration axis to bound cost, explicitly on the grounds that RR-A4's 2.85 GB was measured at Chrome's _default_ bitrate. 480p / ~500 kbps is the shape RR-A3 named; the numbers are this ticket's to pick, and RR-A6 is waiting on them because its ~75 s upload figure carries the same defaulted assumption.
 3. **The clock is mode-agnostic — that is settled, not open.** RR-A3 rejected a shorter ceiling for video, so this ticket should not re-derive per-mode durations. Whatever prep/limit/grace model wins applies to audio and video alike.
 
-⚠️ **Consequence for the asset:** the committed prototype has no framing-check
-state, no mode switch, and no notion of video at all. Reacting to it as-is will
-produce a decision about a flow that RR-A3 has already changed. **Revise it before
-the live session**, or run the session knowing the build is one decision stale.
+✅ **The asset was revised to rev 2 before the session** (mode switch, framing
+check, live cost table) and gained a fourth branch during it. See
+[`docs/rich-response/README.md`](rich-response/README.md).
 
-**Resolution:** _(unresolved)_
+**Resolution** — prototype revised and grilled with Paul 2026-08-06, eight
+sub-decisions. The first one reverses a closed ticket, so it comes first.
+
+**1. ⚠️ Amends RR-04 — the auto-start kill does not hold, and auto-start is
+back.**
+
+RR-04 sub-decision 5 recorded that "auto-start capture and always-on preview are
+dead — **not by preference but by statute**," citing § 13.32 subd. 14(b)(1)'s
+advance-notice condition. **That citation does not carry that weight.** RR-04's
+own research half says only that the provision is _"relevant to auto-start capture
+and always-on preview"_ — a flag, not a finding. The interstitial **is** advance
+notice: once per assignment, before the first recording, acknowledged. On the
+advance-notice test, auto-start passes.
+
+Paul then supplied the argument that closes it: **the institution consents.**
+RR-04 research finding 4 already establishes this — school consent rests on FTC
+FAQ guidance under two conditions, of which SpartBoard **satisfies** the first
+(school's use and benefit, no other commercial purpose) and **committed to** the
+second (review-and-delete, made a compliance precondition). Stack that with the
+notice already given and the chain is:
+
+| Obligation                      | Discharged by                                                                |
+| ------------------------------- | ---------------------------------------------------------------------------- |
+| Consent (COPPA / FERPA)         | The institution                                                              |
+| Notice (§ 13.04 subd. 2)        | The interstitial, in advance, acknowledged                                   |
+| "Whether they may refuse"       | Element two requires **stating** the answer, not permitting refusal          |
+| § 312.3(d) — no over-collection | On a speaking assessment the recording **is** the thing reasonably necessary |
+
+**So the statutory case against timer-initiated capture largely collapses**, and
+what remained was a product judgment about student anxiety — which is what this
+ticket exists to make.
+
+🔴 **What survives, and this containment matters:** the **non-recorded alternative
+is still mandatory**, but on **RR-A4 finding 5** rather than on law — districts
+routinely park students in restricted OUs with mic and camera disabled by ChromeOS
+policy, so a subset of any class has capture hard-blocked through nobody's fault.
+The alternative was always a functional requirement; RR-04 reached the right answer
+by a route that has now partly given way. **The notice itself and the framing check
+are untouched** — both rest on the notice duty, which is undisturbed.
+
+**Rejected: proceed under the kill anyway**, amending only its stated rationale to
+"refusal must stay exercisable" — coherent, and it was my recommendation before
+Paul's point, but it declines a capability on a reason that no longer applies.
+**Rejected: park it for RR-09** — it would have left the ticket's central fork
+provisional against a counsel timeline nobody controls. RR-09 gains it as a
+**confirmation** item instead.
+
+**2. The prep-expiry branch is a per-question teacher setting, not a product
+decision.**
+
+The prototype's three branches were built as a fork for _us_ to resolve. Paul's
+answer is that all of them are legitimate and the teacher picks, per question,
+because the right behaviour is a property of the assessment: _"this is good for
+speaking assessments to assure students have only X amount of time before
+performing."_
+
+Four authored values:
+
+| Value          | At prep expiry                                                   |
+| -------------- | ---------------------------------------------------------------- |
+| `auto-start`   | Capture begins. The record button becomes an early "start now"   |
+| `auto-advance` | Move on; the question stays open and returnable from the summary |
+| `armed`        | Nothing happens; the button stays ready indefinitely             |
+| `unanswered`   | The question closes and scores as unanswered                     |
+
+🔴 **A stall was found in the shipped code while resolving this.** `'auto'` session
+mode advances when every student has answered — `r.answers.some(a => a.questionId
+=== currentQId)` at `hooks/useQuizSession.ts:1313`. **`auto-advance` and `armed`
+write no answer record at expiry, so one student who never presses record holds the
+entire class indefinitely.** `auto-start` cannot stall it; every student produces a
+take. Whether a passed-over question should write a record at all is **RR-08's**
+question, not this one's. → injected there.
+
+**Rejected: one product-wide branch** (my recommendation was `auto-start` alone).
+**Rejected: off-state fixed at `armed`** — clean pairing, but it decides for the
+teacher on the one axis they have the most context about.
+
+**3. Timing lives in a new block. `timeLimit` is untouched, and speed bonus is off
+for recording questions.**
+
+`QuizQuestion.timeLimit` looks free but is not: it feeds **speed-bonus scoring** —
+`(remaining / currentQuestion.timeLimit) * 50` at
+`components/quiz/QuizStudentApp.tsx:1909`. Anything landing in that field is wired
+into points-for-being-fast.
+
+So prep, limit and the expiry value go in a new `recording` config object, and
+`timeLimit` is forced to 0 on recording questions. **Speed bonus is unavailable on
+them by design** — rewarding a student for speaking quickly measures the opposite
+of fluency, and penalises a hesitant speaker twice.
+
+**Rejected: keep speed bonus available as a teacher option** — it is the kind of
+default that gets switched on without thinking, on exactly the assessments where
+it does most harm. **Rejected: reuse `timeLimit` as the recording limit** — speed
+bonus would then reward stopping early, and every existing consumer would have to
+learn the field means something different here.
+
+**4. Video's ceiling is 480p / 500 kbps.** The two numbers RR-A3 handed this
+ticket.
+
+| At 480p / 500 kbps | Value                          |
+| ------------------ | ------------------------------ |
+| One 60 s take      | **4.0 MB**                     |
+| Per assignment     | **599 MB** (was 2.85 GB)       |
+| Upload @ 2 Mbps    | **16 s — 0.27× the recording** |
+
+That is RR-A4's figure cut by **79%**, and the student is never waiting on the
+network. **Accepted cost, already accepted by RR-A3:** fine motor detail will not
+survive 480p.
+
+📐 **A property worth recording because it is counter-intuitive:** the upload
+_ratio_ is duration-independent — bytes scale linearly with time, so 0.27× holds at
+any length. The **assignment total** does not, which is what makes sub-decision 8's
+video cap necessary rather than decorative.
+
+**Rejected: 480p/800k and 720p/1000k** — both defensible, both buy quality this
+assessment doesn't need. **Rejected: an org-admin-selectable ladder** — RR-A3 said
+policy ceiling, not lever, and support can no longer predict what a recording
+weighs.
+
+**5. Hard stop at the stated limit, with a wrap-up warning before it. No grace
+tail.**
+
+The prototype's second tension was that a grace tail makes the stated limit a lie —
+the real ceiling is `limit + grace`. The resolution is that **a grace tail is just a
+longer limit with a warning zone, relabelled dishonestly.** State the honest number
+and put the wrap-up signal in the stretch before it: the student gets the same
+chance to land the sentence, and the number they were told is the number that
+happens.
+
+**Not teacher-configurable** — unlike the expiry branch, there is no pedagogy in it,
+so a teacher choosing would be guessing.
+
+**Rejected: grace tail with the round number told** — the interface would say one
+thing and do another. **Rejected: grace tail with both numbers told** — the second
+number instantly becomes the real limit in the student's head anyway.
+
+**6. The framing check runs once per assignment, and the self-view is present
+whenever the camera is live.**
+
+RR-A3 specified "before arming," which reads as per-take. Sub-decision 2 makes that
+impossible to hold uniformly: an assignment can now mix `auto-start` questions —
+where there is no click to interpose a check on — with click-to-start ones. So the
+_confirmation_ happens once, after the notice; the _self-view_ then simply stays up
+during every video capture, including auto-start prep.
+
+This is a **strengthening** of RR-A3's mitigation, not a dilution: a continuous
+mirror catches someone sitting down at Q3, which a single confirm before Q1 cannot.
+It remains a mirror and a sentence — **no detection of any kind**, per RR-04
+sub-decision 2. The prototype's bystander toggle exists to make that limit visible:
+it draws a second person and says nothing about them.
+
+**Rejected: before every take** — an extra screen at the most anxious moment of
+every take, and inapplicable to auto-start questions, so a mixed assignment would
+behave two ways. **Rejected: self-view only during auto-start prep** — leaves
+click-to-start video takes with no mirror at all.
+
+**7. A lost take is lost. Nothing is written anywhere until the student commits.**
+
+Bytes stay in memory. A crash at 55 seconds costs the answer, and the written
+effort's draft-autosave has no analog here.
+
+🔴 **This is a constraint, not just a preference, and it binds RR-A6.** Streaming
+chunks to Storage during capture would fix crash recovery _and_ RR-A6's upload
+window at once — but **it breaks the refusal path sub-decision 1 depends on.** Once
+chunks are on the server, "don't keep this" degrades from a guarantee into a delete
+request, which is a materially weaker promise to make a twelve-year-old. → injected
+into RR-A6 as a constraint on its solution space.
+
+**Rejected: IndexedDB chunking with a recovery prompt** — keeps the discard honest
+and was the better engineering answer, but costs real weight plus orphaned blobs on
+shared Chromebooks needing their own sweep. Reconsider if lost takes turn out to be
+common.
+
+**8. Defaults: prep 30 s, limit 60 s. Maximum 300 s for audio, 120 s for video.**
+
+300 s matches Google Classroom's cap (RR-A4 finding 4), so SpartBoard is not the
+strict one. **Video caps lower because the assignment total is not
+duration-independent:** 300 s of video at the chosen ceiling is ~3 GB per
+assignment — precisely the number sub-decision 4 was chosen to escape. 120 s puts
+the worst case at ~1.2 GB.
+
+The clock **stays mode-agnostic** as RR-A3 settled it: prep, limit and the expiry
+branch are identical across modes. Only the outer bound differs, and it differs
+because bytes do.
+
+**Rejected: 300 s for both modes** — keeps "mode-agnostic" literally rather than
+nearly true, at the cost of recreating the problem further out. **Rejected: no hard
+max, warn instead** — most honest, but nothing then stops a twenty-minute video
+question in a district that trusted the gate.
+
+**Consequences, and where they land:**
+
+- **RR-04** — sub-decision 5's auto-start consequence is amended (see 1). Its mandatory-alternative conclusion **survives on RR-A4 finding 5**, not on § 312.3(d).
+- **RR-07** — the alternative's _legal_ necessity weakens; its _functional_ necessity is unchanged. It now has **three** jobs, not two.
+- **RR-08** — inherits the `'auto'`-mode stall: does a passed-over question write an answer record?
+- **RR-A6** — gains a hard constraint (no streaming during capture) and loses a scare figure: ~75 s becomes **16 s** at the chosen ceiling.
+- **RR-A2** — the discard is now a **refusal mechanism**, not a UX nicety, which changes what a retake budget may do to it.
+- **RR-A5** — gains a specific target: does district hardware encode 480p/500 kbps.
+- **RR-09** — gains a confirmation item (institutional consent and timer-initiated capture), not a blocker.
+- **RR-05** — speed bonus is unavailable on recording questions; any AI scoring inherits that.
 
 **Paul's notes:**
 
@@ -1560,7 +1836,7 @@ the live session**, or run the session knowing the build is one decision stale.
 
 ### RR-A2 — What recording controls exist, and what does a retake mean for validity?
 
-**Type:** grilling (HITL) · **Status:** Open · **Blocked by:** RR-A1
+**Type:** grilling (HITL) · **Status:** Open — **unblocked 2026-08-06** · **Blocked by:** ~~RR-A1~~ (closed)
 
 **Question**
 
@@ -1576,6 +1852,17 @@ assessment question underneath it isn't.
 
 - 🔴 **A retake now has to clean up after itself in Drive.** RR-03 archives **immediately on each upload**, so take 1 is already transcoded and sitting in the teacher's Drive by the time a student records take 2. The superseded Drive file must be deleted (`drive.file` permits it — SpartBoard created it), or every retake leaves a duplicate in the teacher's folder. Decide whether the teacher ever sees superseded takes or whether they vanish silently.
 - **Retakes cost transcode compute that gets thrown away.** Immediate archival means every take is transcoded, not just the surviving one. That's a real argument for a retake budget being a number rather than unlimited — a cost input this ticket didn't have before.
+
+🔵 **RR-A1 (2026-08-06) unblocked this ticket and changed what it is about before it
+opened.** Three inputs, one of which is a constraint rather than context:
+
+1. 🔴 **The discard is a refusal mechanism, not a UX nicety.** RR-A1 sub-decision 1 restored auto-start; with capture beginning on a timer, **"stop — don't keep this" is where the student's ability to refuse now lives.** That makes a retake budget dangerous in a way it wasn't: a budget of _n_ that counts discards is a cap on how many times a student may decline to be recorded. **Discards and retakes may have to be counted separately, or not counted at all.** This is the ticket's new first question.
+2. **Pre-commit review is cheaper than RR-03 assumed, and the redo cost fell with it.** At RR-A1's ceiling (480p / 500 kbps) a 60 s video take is **4.0 MB**, not 19 MB, so a discarded take costs ~1/5 the transcode compute the bullet above was written against. The argument for a numeric budget weakens accordingly.
+3. **Nothing is written until the student commits** (RR-A1 sub-decision 7), so a discarded take never reaches Storage or Drive at all. **The superseded-Drive-file cleanup problem in the first bullet above applies only to _submitted_ takes that are then re-recorded** — a narrower problem than it looked.
+
+**Also inherited:** the recording clock, its four prep-expiry values and the
+hard-stop-with-warning behaviour are settled — this ticket should take them as
+given and decide only what happens _to a take_ once it exists.
 
 **Resolution:** _(unresolved)_
 
@@ -1924,11 +2211,12 @@ accessibility one.
 
 Per class assignment (30 students × 5 questions = 150 recordings), 60 s each:
 
-| Mode                                      | Per recording | Per class assignment |
-| ----------------------------------------- | ------------- | -------------------- |
-| Audio, Opus @ 32 kbps                     | **240 KB**    | **36 MB**            |
-| Video, 720p @ 1 Mbps _(explicit)_         | 7.7 MB        | 1.16 GB              |
-| Video, 720p @ 2.5 Mbps _(Chrome default)_ | 19 MB         | **2.85 GB**          |
+| Mode                                           | Per recording | Per class assignment |
+| ---------------------------------------------- | ------------- | -------------------- |
+| Audio, Opus @ 32 kbps                          | **240 KB**    | **36 MB**            |
+| **Video, 480p @ 500 kbps** _(chosen by RR-A1)_ | **4.0 MB**    | **599 MB**           |
+| Video, 720p @ 1 Mbps _(explicit)_              | 7.7 MB        | 1.16 GB              |
+| Video, 720p @ 2.5 Mbps _(Chrome default)_      | 19 MB         | **2.85 GB**          |
 
 **The decisive number isn't storage, it's upload time on the wifi floor this map
 assumes.** At ~2 Mbps effective per-student uplink on a congested AP, a 60-second
@@ -1941,6 +2229,15 @@ be set explicitly rather than trusting an adaptive default Chrome doesn't publis
 **This asymmetry is a strong argument for shipping audio first and treating video
 as a separately-budgeted feature** — which is RR-A3's decision to make, now with
 numbers.
+
+🔵 **Resolved downstream (2026-08-06).** RR-A3 shipped video gated rather than
+cutting it, choosing the **quality** lever over the duration one specifically
+because the 2.85 GB above was measured at a bitrate nobody had chosen. RR-A1 then
+set the numbers: **480p / 500 kbps**, added as the second row above. That takes the
+upload figure from **~75 s to 16 s — 0.27× the recording** — and the assignment
+total from 2.85 GB to 599 MB. Finding 5's hazard half also got promoted: it is now
+the **primary** ground for RR-07's mandatory alternative, since RR-A1 found RR-04's
+legal grounding weaker than recorded.
 
 **⚠️ Two UNVERIFIED items of high consequence** — both are real-world tests, not
 research, and both are now **RR-A5**:
@@ -1959,7 +2256,7 @@ actual numeric default `audioBitsPerSecond`.
 
 ### RR-A5 — Verify format round-trip and capture policy on real district hardware
 
-**Type:** task (HITL — needs a person on district hardware and a district Chrome admin) · **Status:** Open · unclaimed · **Blocks:** RR-A3, RR-A6 · _Opened 2026-08-04 by RR-A4's resolution_
+**Type:** task (HITL — needs a person on district hardware and a district Chrome admin) · **Status:** Open · unclaimed · **Blocks:** RR-A6 (~~RR-A3~~ closed) · _Opened 2026-08-04 by RR-A4's resolution_
 
 **Question**
 
@@ -2006,6 +2303,13 @@ as lacking a hardware H.264 encoder remain entirely untested.
 Items 1, 3, 4 and 5 are untouched. Item 1 could not be run from the agent
 environment at all — microphone capture is blocked there, so `getUserMedia`
 returns `NotAllowedError` with no permission prompt available.
+
+🔵 **RR-A1 (2026-08-06) gave items 2 and 5 a specific target.** Video's ceiling is
+now **480p / 500 kbps**, so the questions are no longer open-ended:
+
+- **Item 2** should test encoding at the chosen ceiling, not just format support. A device that advertises `video/mp4;codecs=avc1` but cannot hold 500 kbps at 480p in software is a different failure from one that can't produce MP4 at all. _(The committed harness records at `videoBitsPerSecond: 1_000_000`; adjust it to 500 000 before the run, or note the discrepancy.)_
+- **Item 5**'s expected answer is now **~16 s for a 60 s take**, not ~75 s. That is a prediction this ticket can falsify — and falsifying it is more valuable than confirming it, because RR-A1's whole cost model rests on bytes scaling as arithmetic says they do.
+- **Item 4's second half is now load-bearing.** "Whether any student OU has capture disabled outright" was a side note; RR-A1 made that population the **primary** justification for RR-07's mandatory alternative. Get a real number if one is available.
 
 **Resolution:** _(unresolved)_
 
@@ -2058,6 +2362,24 @@ consequences land here:
 - **"Are these product settings or hardcoded constants?" is answered: neither.** They are set by RR-A1 as a **policy ceiling**, not exposed to teachers — a teacher who could raise the bitrate could re-create the cost problem the district gate was built to bound.
 
 Unblocking note: this ticket now waits on **RR-A5 alone**.
+
+🔵 **RR-A1 (2026-08-06) supplied the numbers and, more importantly, removed an
+option from this ticket's solution space.**
+
+🔴 **Streaming chunks to Storage during capture is foreclosed.** It is the
+strongest answer this ticket could give — by stop time most bytes have already
+landed, which fixes both the upload window and crash recovery — and **RR-A1
+sub-decision 7 rules it out**, because RR-A1 sub-decision 1 restored auto-start and
+made the **discard** the mechanism by which a student refuses. Once chunks are on
+the server, "don't keep this" degrades from a guarantee into a delete request. That
+is a materially weaker promise, made to a child, in exchange for an engineering
+convenience. **Bytes may not leave the device until the student commits.**
+
+Everything else got easier:
+
+- **The headline number is now 16 s, not ~75 s** — 4.0 MB per 60 s take at 480p / 500 kbps, **0.27× the recording time**. "Upload takes longer than the recording" is no longer true, so this ticket is about resumption and failure handling rather than about hiding a latency the student would otherwise feel. _(Prediction, not measurement — RR-A5 item 5 can falsify it.)_
+- **The size cap can now be set**, which RR-03 deliberately deferred pending the bitrate policy: 4.0 MB at the 60 s default, ~8 MB at the 120 s video maximum, ~1.2 MB for a 300 s audio take. The shipped activity-wall rule's 10 MB is coincidentally about right for video and wildly generous for audio.
+- **Crash recovery is out of scope by decision, not omission.** A lost take is lost (RR-A1 sub-decision 7); IndexedDB buffering was considered and rejected there. It can be reconsidered here **only** in a form that keeps bytes local — which also keeps RR-04's derived-artifact sweep problem in the bullet above tractable.
 
 **Resolution:** _(unresolved)_
 
@@ -2380,15 +2702,16 @@ advances. _**RR-01 and RR-04 — the two tickets most of these were waiting on �
 now both closed.** Several patches below were narrowed or answered in place by
 those resolutions rather than graduating whole; each says so and what survives._
 
-- **Moderation.** A student records something inappropriate, or another student's face is in frame. Who sees it first, can a teacher delete before archival, is there a report path? **RR-04 closed the second half by decision, and the answer is uncomfortable:** SpartBoard commits to having **no automated segregation capacity at all** (sub-decision 2 rules out diarization; sub-decision 3 accepts § 99.12(a)'s fallback), so "another student in frame" has no _corrective_ product remedy — only the capture policy and the access-request consequence. **RR-A3 (2026-08-06) added the one _preventive_ remedy available without a forbidden capability** — a framing check before the recorder arms, which is a mirror and a sentence rather than any form of detection. It reduces the incidence; it does nothing about a recording that already contains a classmate. What's left here is genuinely just moderation: **who sees a recording first, and can a teacher delete before archival fires?** ⚠️ RR-03 made archival **immediate on upload**, so "delete before archival" may be a window that doesn't exist — that tension is the sharp question, and it's close to ticketable.
+- **Moderation.** A student records something inappropriate, or another student's face is in frame. Who sees it first, can a teacher delete before archival, is there a report path? **RR-04 closed the second half by decision, and the answer is uncomfortable:** SpartBoard commits to having **no automated segregation capacity at all** (sub-decision 2 rules out diarization; sub-decision 3 accepts § 99.12(a)'s fallback), so "another student in frame" has no _corrective_ product remedy — only the capture policy and the access-request consequence. **RR-A3 (2026-08-06) added the one _preventive_ remedy available without a forbidden capability** — a framing check before the recorder arms, which is a mirror and a sentence rather than any form of detection. **RR-A1 strengthened it the same day** into one confirmation plus a **continuous self-view during capture**, which catches a classmate who sits down mid-assignment rather than only one who was already there at Q1. It reduces the incidence; it still does nothing about a recording that already contains a classmate. What's left here is genuinely just moderation: **who sees a recording first, and can a teacher delete before archival fires?** ⚠️ RR-03 made archival **immediate on upload**, so "delete before archival" may be a window that doesn't exist — that tension is the sharp question, and it's close to ticketable.
 - **The `/activity-wall/gallery` public-posting surface.** RR-04 found that COPPA § 312.2 treats public posting as a _disclosure_ that school consent likely doesn't reach, and no district designates audio/video as directory information. **RR-04's decision half settles the forward-looking half:** media responses reach **no public surface** — sub-decision 1 keeps names in the district's own Drive, and RR-03 gated student playback to publish-time on the results screen. What survives is a **question about already-shipped code**, not about this design: whether the existing gallery route needs revisiting on its own account. It should graduate out of this map into its own issue.
 - **The district-managed "recording allowed" roster flag.** RR-04 flagged that no vendor consumes a media-release attribute over Clever/ClassLink/OneRoster today, so this would be ahead of the market. **Still not ticketed, but now for a better reason:** RR-04's consent posture is decided (notice, not consent — the district authorizes), so this flag is no longer load-bearing for compliance. It's a **district-convenience feature** now, and can wait for a district to ask.
-- ~~**Storage cost at district scale.**~~ **Resolved by RR-03** — Drive is the durable home, so SpartBoard's durable storage cost is $0 and the arithmetic lives in RR-03's resolution. What survived was **transcode compute** at district scale, trivial for audio and unbounded for video — and **RR-A3 (2026-08-06) bounded the unbounded half**: sub-decision 5 caps video's resolution and bitrate rather than its duration, so transcode compute now has a ceiling per artifact instead of scaling with whatever Chrome felt like emitting. It is no longer open-ended, just unmeasured; the measurement waits on RR-A1's numbers.
-- **Where transcoding runs, and what it costs.** RR-A4 established that the Drive archive step must transcode (Cloud Function + ffmpeg? Google's Transcoder API?) — but only if RR-A5's manual Drive test confirms it. **RR-03 sharpened this considerably without closing it:** the archival trigger is now decided (immediate, per artifact, server-side), which makes transcode **synchronous on the upload path and user-visible** rather than a batch job — so latency is now a product constraint, not just a cost one. A 512 MiB / 120 s callable of the `archiveActivityWallPhoto` shape cannot transcode video at all, so the runtime choice (Cloud Run? Transcoder API?) is forced. ⚠️ **RR-A3 removed this patch's escape hatch** — "if video ships" is no longer a conditional, so a video-capable transcode runtime has to exist even though it will be dark in most districts. Still waiting on RR-A5.
+- ~~**Storage cost at district scale.**~~ **Resolved by RR-03** — Drive is the durable home, so SpartBoard's durable storage cost is $0 and the arithmetic lives in RR-03's resolution. What survived was **transcode compute** at district scale, trivial for audio and unbounded for video — and **RR-A3 (2026-08-06) bounded the unbounded half**: sub-decision 5 caps video's resolution and bitrate rather than its duration, so transcode compute now has a ceiling per artifact instead of scaling with whatever Chrome felt like emitting. **RR-A1 (2026-08-06) supplied the numbers, so it is now measurable rather than merely bounded:** 480p / 500 kbps, **4.0 MB per 60 s take**, ~8 MB at the 120 s video maximum. Transcode compute per artifact is a known quantity; what remains unmeasured is only its unit cost on whatever runtime the next patch picks.
+- **Where transcoding runs, and what it costs.** RR-A4 established that the Drive archive step must transcode (Cloud Function + ffmpeg? Google's Transcoder API?) — but only if RR-A5's manual Drive test confirms it. **RR-03 sharpened this considerably without closing it:** the archival trigger is now decided (immediate, per artifact, server-side), which makes transcode **synchronous on the upload path and user-visible** rather than a batch job — so latency is now a product constraint, not just a cost one. A 512 MiB / 120 s callable of the `archiveActivityWallPhoto` shape cannot transcode video at all, so the runtime choice (Cloud Run? Transcoder API?) is forced. ⚠️ **RR-A3 removed this patch's escape hatch** — "if video ships" is no longer a conditional, so a video-capable transcode runtime has to exist even though it will be dark in most districts. **RR-A1 then made the sizing concrete: 4.0 MB per take, ~8 MB worst case.** That is small enough that the 512 MiB / 120 s callable objection may not survive re-examination — worth re-testing rather than assuming, since a Cloud Run migration is real work to avoid if a callable can carry it. Still waiting on RR-A5.
 - **What an org admin is shown, and agrees to, at the video gate.** _(Surfaced 2026-08-06 by RR-A3.)_ Sub-decision 1 puts video behind a district switch on the deliberate reasoning that the § 99.12(a) obligation is the district's — which only works if the district is actually told what it is taking on when it flips it. **Not ticketable yet, because its content is RR-09's**: question 4 was reframed the same day from a product blocker into exactly this guidance. Adjacent to, but distinct from, RR-04's org-admin review-and-delete console. Revisit when RR-09 returns.
-- **Does the non-recorded alternative run on the same clock as the recorded one?** _(Surfaced 2026-08-06 by RR-A1's prototype, and it currently belongs to no ticket.)_ RR-04 sub-decision 5 makes a non-recorded alternative **legally mandatory** — "may they refuse" has to be a true statement. But RR-A1 owns prep time and recording limits for the _recorded_ path only, and RR-07 owns _what the alternative is_, not how long a student gets to do it. So an alternative with no clock is non-equivalent to a timed spoken response, and an alternative on the _same_ clock may be unfair in the opposite direction — typing is slower than speaking. **Not ticketable yet** because it can't be phrased sharply until RR-07 says what the alternative actually is; revisit the moment RR-07 closes.
+- **Does the non-recorded alternative run on the same clock as the recorded one?** _(Surfaced 2026-08-06 by RR-A1's prototype, and it currently belongs to no ticket.)_ A non-recorded alternative is **mandatory** — on RR-A4 finding 5's functional grounds since RR-A1 amended RR-04's legal reasoning. But RR-A1 owns prep time and recording limits for the _recorded_ path only, and RR-07 owns _what the alternative is_, not how long a student gets to do it. So an alternative with no clock is non-equivalent to a timed spoken response, and an alternative on the _same_ clock may be unfair in the opposite direction — typing is slower than speaking. **Sharper after RR-A1 and closer to ticketable:** the recorded path now has four distinct expiry behaviours a teacher picks per question, so "the same clock" is no longer even a single thing to match — an alternative would have to decide what `auto-start` means when there is nothing to start. Still can't be phrased finally until RR-07 says what the alternative is; revisit the moment RR-07 closes.
+- **What the question editor looks like once timing is authored per question.** _(Surfaced 2026-08-06 by RR-A1.)_ RR-A1 sub-decision 2 puts a four-value expiry setting, prep, and a limit on every recording question, and sub-decision 3 hides `timeLimit` when a recording mode is present. Combined with RR-01's mode set and optional required addendum, a single question now carries a lot of authorable surface — and `CLAUDE.md`'s anti-reference is Canva-style overload. **Not ticketable separately yet**: it is the same problem as the "authoring guardrails" and "teacher authoring ergonomics" patches below, and the three should probably graduate together as one authoring ticket once RR-06 says what grading needs.
 - **Interaction with attempt limits.** _(The idle auto-submit half of this patch graduated into **RR-08** on 2026-08-04; what remains here is retakes vs. whole-assignment attempt limits, which needs RR-A2 first.)_
-- **Authoring guardrails against accidental complexity.** RR-01 makes a set-of-modes plus a required addendum expressible on every question. Nothing yet stops a teacher building a 10-question quiz where each question allows three modes and requires a recording. Whether the product warns, caps, or simply permits it is a real decision — waiting on RR-A1 and RR-06 to know what the costs actually are.
+- **Authoring guardrails against accidental complexity.** RR-01 makes a set-of-modes plus a required addendum expressible on every question. Nothing yet stops a teacher building a 10-question quiz where each question allows three modes and requires a recording. Whether the product warns, caps, or simply permits it is a real decision — **RR-A1 supplied half the missing costs** (a 10-question video quiz at the 120 s maximum is ~8 MB × 10 × 30 students ≈ 2.4 GB, which is the runaway case), and the other half still waits on RR-06's grading wall-clock.
 - **Which surfaces beyond quiz get these modes** — video activity, guided learning, mini-apps, activity wall. Deliberately deferred: decide it for quiz first, generalize second.
 - **Server-side enforcement of recording limits.** Client-side timers are advisory; whether that matters depends on RR-A2's integrity posture.
 - **Student-facing review-before-submit.** Partly covered by RR-A2, but the whiteboard and multi-artifact cases may need their own.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>RR-A1 — Prep &amp; recording timing prototype</title>
+<title>RR-A1 — Prep &amp; recording timing prototype (rev 2, post-RR-A3)</title>
 <style>
   :root{
     --bg:#0f172a;
@@ -35,7 +35,7 @@
     min-height:100vh;
   }
   button{font-family:inherit}
-  .wrap{max-width:1400px;margin:0 auto;padding:28px 24px 64px}
+  .wrap{max-width:1440px;margin:0 auto;padding:28px 24px 64px}
 
   header.top{
     display:flex;flex-wrap:wrap;align-items:baseline;gap:14px;
@@ -47,10 +47,11 @@
     color:var(--txt-mute);border:1px solid var(--line-strong);
     padding:3px 9px;border-radius:999px;
   }
+  header.top .tag.rev{color:#cfd8ff;border-color:rgba(67,86,160,.7);background:rgba(67,86,160,.22)}
   header.top p{margin:0;color:var(--txt-dim);font-size:14px;flex:1 1 340px;min-width:280px}
 
-  .layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:24px;align-items:start}
-  @media (max-width:1040px){.layout{grid-template-columns:1fr}}
+  .layout{display:grid;grid-template-columns:360px minmax(0,1fr);gap:24px;align-items:start}
+  @media (max-width:1080px){.layout{grid-template-columns:1fr}}
 
   .card{
     background:linear-gradient(180deg,rgba(30,41,59,.92),rgba(23,32,51,.92));
@@ -85,7 +86,7 @@
     font-size:11px;font-weight:700;color:#0f172a;background:var(--txt-dim);
     width:19px;height:19px;border-radius:5px;display:grid;place-items:center;flex:none;
   }
-  .branch label.on .key{background:var(--blue-light,#7c8ede);color:#0f172a}
+  .branch label.on .key{background:#7c8ede;color:#0f172a}
   .branch .bs{margin-top:5px;font-size:12.5px;color:var(--txt-dim);line-height:1.42}
 
   .seg{display:flex;border:1px solid var(--line-strong);border-radius:10px;overflow:hidden}
@@ -93,12 +94,14 @@
   .seg label:hover{background:rgba(255,255,255,.05)}
   .seg label.on{background:rgba(67,86,160,.34);color:#fff;font-weight:600}
   .seg input{position:absolute;opacity:0;pointer-events:none}
+  .seg.tight label{padding:8px 4px;font-size:12.5px}
 
   .rows{display:flex;flex-direction:column;gap:11px}
   .row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13.5px;color:var(--txt-dim)}
   .row input[type=range]{flex:1;min-width:0;accent-color:var(--blue)}
-  .row .val{font-variant-numeric:tabular-nums;font-size:13px;color:var(--txt);min-width:46px;text-align:right}
-  .chk{display:flex;align-items:flex-start;gap:9px;font-size:13.5px;color:var(--txt-dim);cursor:pointer}
+  .row .val{font-variant-numeric:tabular-nums;font-size:13px;color:var(--txt);min-width:60px;text-align:right}
+  .chk{display:flex;align-items:flex-start;gap:9px;font-size:13.5px;color:var(--txt-dim);cursor:pointer;margin-top:10px}
+  .chk:first-child{margin-top:0}
   .chk input{margin-top:3px;accent-color:var(--red-light)}
 
   .btn{
@@ -123,9 +126,27 @@
     border-left:2px solid var(--line-strong);padding-left:11px;
   }
   .note b{color:var(--txt-dim);font-weight:600}
+  .note.warn{border-left-color:rgba(245,158,11,.6);color:#f0cd9a}
+  .note.bad{border-left-color:rgba(193,52,53,.65);color:#f0b4b4}
+
+  /* ---- cost readout ---- */
+  .cost{margin-top:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .cost .ch{
+    padding:8px 12px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--txt-mute);background:rgba(255,255,255,.03);border-bottom:1px solid var(--line);
+  }
+  .cost table{width:100%;border-collapse:collapse;font-size:12.5px}
+  .cost td{padding:7px 12px;border-bottom:1px solid rgba(255,255,255,.05);color:var(--txt-dim)}
+  .cost td.n{text-align:right;font-variant-numeric:tabular-nums;color:var(--txt);white-space:nowrap}
+  .cost td.n.hot{color:#ff9d9d;font-weight:600}
+  .cost td.n.cool{color:#a7f3c4}
+  .cost tr:last-child td{border-bottom:0}
+  .cost .verdict{padding:9px 12px;font-size:12px;line-height:1.45;border-top:1px solid var(--line)}
+  .cost .verdict.ok{color:#a7f3c4;background:rgba(21,128,61,.14)}
+  .cost .verdict.bad{color:#ffbcbc;background:rgba(173,33,34,.18)}
 
   /* ---- stage ---- */
-  .stage{min-height:560px;display:flex;flex-direction:column}
+  .stage{min-height:580px;display:flex;flex-direction:column}
   .rail{display:flex;gap:8px;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--line)}
   .chip{
     display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--txt-mute);
@@ -206,6 +227,48 @@
   .ackrow{display:flex;align-items:flex-start;gap:10px;margin:20px 0 4px;font-size:14.5px;color:var(--txt-dim)}
   .ackrow input{margin-top:4px;width:17px;height:17px;accent-color:var(--green)}
 
+  /* framing check */
+  .framing{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:28px;align-items:start}
+  @media (max-width:900px){.framing{grid-template-columns:1fr}}
+  .viewfinder{
+    position:relative;aspect-ratio:4/3;border-radius:12px;overflow:hidden;
+    border:1px solid var(--line-strong);
+    background:radial-gradient(120% 90% at 50% 8%,#33415c 0%,#1b2436 55%,#111a2b 100%);
+  }
+  .viewfinder .person{position:absolute;bottom:0;display:flex;flex-direction:column;align-items:center}
+  .viewfinder .person .head{border-radius:50%;background:#0b1220;opacity:.92}
+  .viewfinder .person .body{background:#0b1220;opacity:.92;border-radius:44% 44% 0 0}
+  .viewfinder .me{left:50%;transform:translateX(-50%)}
+  .viewfinder .me .head{width:88px;height:88px;margin-bottom:8px}
+  .viewfinder .me .body{width:186px;height:132px}
+  .viewfinder .other{right:7%;opacity:.62}
+  .viewfinder .other .head{width:56px;height:56px;margin-bottom:6px;background:#0d1526}
+  .viewfinder .other .body{width:116px;height:86px;background:#0d1526}
+  .viewfinder .livedot{
+    position:absolute;top:12px;left:12px;display:flex;align-items:center;gap:7px;
+    font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#ffd4d4;
+    background:rgba(15,23,42,.72);border:1px solid rgba(193,52,53,.5);border-radius:999px;padding:4px 10px;
+  }
+  .viewfinder .livedot span{width:7px;height:7px;border-radius:50%;background:var(--red-light)}
+  .viewfinder .mirror{
+    position:absolute;bottom:10px;right:12px;font-size:11px;color:var(--txt-mute);
+    background:rgba(15,23,42,.72);border-radius:6px;padding:3px 8px;
+  }
+  .minivf{display:flex;gap:18px;align-items:center;margin:0 0 14px;flex-wrap:wrap}
+  .minivf .viewfinder{width:260px;flex:none}
+  .minivf .viewfinder .me .head{width:56px;height:56px;margin-bottom:5px}
+  .minivf .viewfinder .me .body{width:118px;height:84px}
+  .minivf .viewfinder .other .head{width:36px;height:36px;margin-bottom:4px}
+  .minivf .viewfinder .other .body{width:74px;height:56px}
+  .minivf .viewfinder .livedot{font-size:10px;padding:3px 8px;top:9px;left:9px}
+  .minivf .viewfinder .mirror{font-size:10px;bottom:7px;right:8px}
+  .minivf-note{flex:1;min-width:220px;font-size:13px;color:var(--txt-dim);line-height:1.5}
+  .minivf-note b{color:var(--txt)}
+
+  .framing h2{font-size:24px;margin:0 0 8px;font-weight:600;letter-spacing:-.3px}
+  .framing .oneline{font-size:19px;color:var(--txt);margin:0 0 16px;font-weight:500}
+  .framing p{color:var(--txt-dim);font-size:14.5px;margin:0 0 14px;max-width:52ch}
+
   textarea{
     width:100%;min-height:150px;background:rgba(15,23,42,.7);color:var(--txt);
     border:1px solid var(--line-strong);border-radius:10px;padding:14px;font-family:inherit;font-size:15px;resize:vertical;
@@ -227,6 +290,7 @@
   .log div b{color:var(--txt-dim);font-weight:600}
   .log .t{color:#7c8ede;margin-right:8px}
   .log .law{color:#ffb4b4}
+  .log .cost{color:#fcd9a5}
 
   .legalstrip{
     margin-top:22px;padding:14px 18px;border:1px dashed var(--line-strong);border-radius:10px;
@@ -243,9 +307,10 @@
   <header class="top">
     <h1>RR-A1 — prep &amp; recording timing</h1>
     <span class="tag">throwaway prototype · fake recorder</span>
-    <p>No <code>getUserMedia</code>, no real media element. Every clock here is a client-side
+    <span class="tag rev">rev 2 · post-RR-A3</span>
+    <p>No <code>getUserMedia</code>, no real media element. Every clock is a client-side
       <code>performance.now()</code> timer, because Chrome-recorded webm reports <code>Infinity</code> duration.
-      Recording only ever starts on a click — a timer is structurally incapable of starting it in this build.</p>
+      Recording only ever starts on a click — no timer path reaches it, in either mode.</p>
   </header>
 
   <div class="layout">
@@ -253,6 +318,56 @@
     <!-- ============ CONTROL RAIL ============ -->
     <div>
       <section class="card">
+        <div class="hd">Response mode <span style="text-transform:none;letter-spacing:0">(RR-A3: peers, not a flag)</span></div>
+        <div class="bd">
+          <div class="ctrl">
+            <div class="seg" id="modeGroup">
+              <label data-mode="audio"><input type="radio" name="mode" value="audio" checked />Audio</label>
+              <label data-mode="video"><input type="radio" name="mode" value="video" />Video</label>
+            </div>
+            <div class="note" id="modeNote"></div>
+          </div>
+
+          <div class="ctrl" id="ctrlFraming">
+            <span class="lbl">Framing check happens…</span>
+            <div class="seg tight" id="framingGroup">
+              <label data-framing="once"><input type="radio" name="framing" value="once" checked />Once per assignment</label>
+              <label data-framing="take"><input type="radio" name="framing" value="take" />Before every take</label>
+            </div>
+            <div class="note" id="framingNote"></div>
+          </div>
+
+          <div class="ctrl" id="ctrlVideoGate">
+            <label class="chk"><input type="checkbox" id="gateOff" />
+              <span>District has video <b>off</b> at the <code>global_permissions</code> gate. Runtime strikes <code>'video'</code> from the set; a set of one empties and falls to RR-04's alternative.</span></label>
+            <label class="chk"><input type="checkbox" id="bystander" />
+              <span>Put a second person in frame during the framing check.</span></label>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" style="margin-top:22px" id="cardCeiling">
+        <div class="hd">Video ceiling — this ticket sets these</div>
+        <div class="bd">
+          <div class="ctrl">
+            <span class="lbl">Resolution</span>
+            <div class="seg tight" id="resGroup">
+              <label data-res="360"><input type="radio" name="res" value="360" />360p</label>
+              <label data-res="480"><input type="radio" name="res" value="480" checked />480p</label>
+              <label data-res="720"><input type="radio" name="res" value="720" />720p</label>
+            </div>
+          </div>
+          <div class="ctrl">
+            <div class="rows">
+              <div class="row"><span>Bitrate</span><input type="range" id="brR" min="150" max="2500" step="50" value="500" /><span class="val" id="brV">500k</span></div>
+            </div>
+            <div class="cost" id="costBox"></div>
+            <div class="note">RR-A4's published figures are the <b>2500k / 720p / 60s</b> corner of this table: 19 MB a take, 2.85 GB an assignment, ~76 s to upload. Drag back to 500k and watch all three move together — that is sub-decision 5 in one gesture.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" style="margin-top:22px">
         <div class="hd">The fork under test</div>
         <div class="bd">
           <div class="ctrl">
@@ -273,7 +388,13 @@
                 <span class="bt"><span class="key">C</span>Mark unanswered, move on</span>
                 <span class="bs">Question is closed and scored as unanswered. No return path. The clock is the authority.</span>
               </label>
+              <label data-branch="autostart">
+                <input type="radio" name="branch" value="autostart" />
+                <span class="bt"><span class="key">D</span>Start recording</span>
+                <span class="bs">The original spec. Capture begins on the timer, with a discard that deletes the take unsent so refusal stays live. On the video path the self-view runs during prep, because there is no click to hang a framing check on.</span>
+              </label>
             </div>
+            <div class="note" id="branchNote"></div>
           </div>
 
           <div class="ctrl">
@@ -292,7 +413,8 @@
               <div class="row"><span>Limit</span><input type="range" id="limR" min="15" max="300" step="15" value="60" /><span class="val" id="limV">60s</span></div>
               <div class="row"><span>Grace</span><input type="range" id="graceR" min="3" max="20" step="1" value="8" /><span class="val" id="graceV">8s</span></div>
             </div>
-            <div class="note">Google Classroom's own recorder caps at <b>5:00</b> — drag Limit to 300 to feel that ceiling.</div>
+            <div class="note">Google Classroom's own recorder caps at <b>5:00</b> — drag Limit to 300 to feel that ceiling.
+              <br /><br />RR-A3 settled that <b>this clock is mode-agnostic</b>. Switching mode above does not change these three numbers, and shouldn't.</div>
           </div>
 
           <div class="ctrl">
@@ -323,24 +445,24 @@
           <h2>Before you record</h2>
           <div class="stat">Shown once per assignment, before any capture. Minn. Stat. § 13.04 subd. 2 (Tennessen warning).</div>
 
-          <div class="elem"><div class="k">Why we're asking</div><div class="v">Ms. Rivera is collecting a voice recording of your spoken answers for <b>Spanish 2 — Unit 4 speaking check</b>, to grade your pronunciation and fluency.</div></div>
+          <div class="elem"><div class="k">Why we're asking</div><div class="v" id="nWhy"></div></div>
           <div class="elem"><div class="k">Do you have to?</div><div class="v">No. You may decline and answer these questions in writing instead. Declining does not affect your grade on this assignment.</div></div>
           <div class="elem"><div class="k">If you decline</div><div class="v">You'll get the same questions as a written response. Your teacher will see that you chose the written option.</div></div>
-          <div class="elem"><div class="k">Who else may hear it</div><div class="v">Your teacher; school staff with a legitimate educational interest; your parent or guardian on request. Recordings are deleted at the end of this school year.</div></div>
+          <div class="elem"><div class="k">Who else may see it</div><div class="v" id="nWho"></div></div>
 
           <label class="ackrow"><input type="checkbox" id="ackBox" /><span>I've read this and I understand I can say no.</span></label>
           <div class="actions">
-            <button class="btn primary" id="ackBtn" disabled>Continue to mic check</button>
+            <button class="btn primary" id="ackBtn" disabled>Continue</button>
             <button class="btn ghost" id="refuseBtn">Answer in writing instead</button>
           </div>
           <div class="legalstrip">
             <b>Why nothing is live yet:</b> a camera or mic preview running behind this card would be collection before notice.
-            The mic check sits <b>after</b> this screen, never before it.
+            Both the device check and the framing check sit <b>after</b> this screen, never before it.
           </div>
         </div>
       </div>
 
-      <!-- mic check -->
+      <!-- device check -->
       <div class="pane hidden" id="paneMic">
         <div style="max-width:56ch">
           <h2 style="font-size:23px;margin:0 0 8px;font-weight:600">Mic check</h2>
@@ -349,7 +471,32 @@
           <div class="signal" id="micSignal">Tap start, then talk.</div>
           <div class="actions">
             <button class="btn primary" id="micStart">Start mic check</button>
-            <button class="btn" id="micSkip">Skip — go to question 1</button>
+            <button class="btn" id="micSkip">Skip</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- framing check (video only) -->
+      <div class="pane hidden" id="paneFraming">
+        <div class="framing">
+          <div>
+            <div class="viewfinder" id="viewfinder">
+              <div class="livedot"><span></span>Your camera</div>
+              <div class="person me"><div class="head"></div><div class="body"></div></div>
+              <div class="person other hidden" id="otherPerson"><div class="head"></div><div class="body"></div></div>
+              <div class="mirror">mirrored, like a selfie</div>
+            </div>
+          </div>
+          <div>
+            <h2 id="framingHd">Check your frame</h2>
+            <p class="oneline">Only you should be in frame.</p>
+            <p id="framingBody"></p>
+            <div class="signal" id="framingSignal"></div>
+            <div class="actions">
+              <button class="btn primary" id="frameOk">Looks good</button>
+              <button class="btn ghost" id="frameWrite">Answer in writing instead</button>
+            </div>
+            <div class="legalstrip" id="framingStrip"></div>
           </div>
         </div>
       </div>
@@ -375,6 +522,16 @@
           </div>
         </div>
 
+        <div class="minivf hidden" id="miniVf">
+          <div class="viewfinder">
+            <div class="livedot"><span></span><span id="miniVfLbl">Your camera</span></div>
+            <div class="person me"><div class="head"></div><div class="body"></div></div>
+            <div class="person other hidden" id="miniOther"><div class="head"></div><div class="body"></div></div>
+            <div class="mirror">mirrored, like a selfie</div>
+          </div>
+          <div class="minivf-note" id="miniVfNote"></div>
+        </div>
+
         <div class="meter" id="recMeter"></div>
         <div class="signal" id="recSignal">Recorder idle.</div>
 
@@ -390,14 +547,14 @@
         </div></div>
         <textarea id="wText" placeholder="Type your answer…"></textarea>
         <div class="actions"><button class="btn primary" id="wSubmit">Submit written answer</button></div>
-        <div class="legalstrip">The written path has <b>no clock at all</b> in this build. That is itself a design question: if the recorded path is timed and the alternative isn't, the alternative is not equivalent.</div>
+        <div class="legalstrip" id="wStrip"></div>
       </div>
 
       <!-- summary -->
       <div class="pane hidden" id="paneSum">
         <h2 style="font-size:23px;margin:0 0 4px;font-weight:600">Assignment complete</h2>
         <div style="color:var(--txt-mute);font-size:13px;margin-bottom:20px" id="sumMode"></div>
-        <table class="sum"><thead><tr><th>Question</th><th>Outcome</th><th>Take length</th><th>How it ended</th></tr></thead><tbody id="sumBody"></tbody></table>
+        <table class="sum"><thead><tr><th>Question</th><th>Outcome</th><th>Take length</th><th>Payload</th><th>How it ended</th></tr></thead><tbody id="sumBody"></tbody></table>
         <div class="actions" id="sumActions"></div>
         <div class="legalstrip" id="sumNote"></div>
       </div>
@@ -416,10 +573,21 @@
     { prompt: 'Explain how you solved problem 4 — talk through each step out loud.' }
   ];
 
-  var cfg = { branch: 'advance', tail: 'hard', prep: 20, limit: 60, grace: 8, deadMic: false };
+  // RR-A4's model, reproduced exactly: audio Opus @32 kbps, ~2 Mbps effective
+  // per-student uplink on a congested AP, 30 students x 5 questions per assignment.
+  var AUDIO_KBPS = 32;
+  var UPLINK_BPS = 2000000;
+  var TAKES_PER_ASSIGNMENT = 150;
+
+  var cfg = {
+    mode: 'audio', branch: 'advance', tail: 'hard',
+    prep: 20, limit: 60, grace: 8,
+    deadMic: false, gateOff: false, bystander: false,
+    framing: 'once', res: '480', vbr: 500
+  };
 
   var S = {
-    phase: 'notice',       // notice | mic | prep | armed | recording | grace | review | written | summary
+    phase: 'notice',       // notice | mic | framing | prep | armed | recording | grace | review | written | summary
     mode: 'record',        // record | written
     qi: 0,
     q: [],
@@ -427,17 +595,22 @@
     recStart: 0,
     recElapsed: 0,         // seconds, CLIENT-TIMED
     lastTake: null,
-    flash: null,           // {text, kind, until}
+    flash: null,
     micChecking: false,
     micStart: 0,
     signalSeenAt: 0,
     signalWarned: false,
+    framedOnce: false,     // assignment-level framing check done
+    framingReturn: 'flow', // 'flow' = continue to Q1 | 'record' = start the take on confirm
     t0: performance.now()
   };
 
+  function isVideo() { return cfg.mode === 'video' && !cfg.gateOff; }
+  function videoBlocked() { return cfg.mode === 'video' && cfg.gateOff; }
+
   function resetQuestions() {
     S.q = QUESTIONS.map(function (q) {
-      return { prompt: q.prompt, status: 'pending', dur: null, ended: '', text: '' };
+      return { prompt: q.prompt, status: 'pending', dur: null, ended: '', text: '', bytes: null, mode: null };
     });
   }
   resetQuestions();
@@ -445,8 +618,8 @@
   // ---------------------------------------------------------------- dom
   function $(id) { return document.getElementById(id); }
   var panes = {
-    notice: $('paneNotice'), mic: $('paneMic'), rec: $('paneRec'),
-    written: $('paneWritten'), summary: $('paneSum')
+    notice: $('paneNotice'), mic: $('paneMic'), framing: $('paneFraming'),
+    rec: $('paneRec'), written: $('paneWritten'), summary: $('paneSum')
   };
 
   function showPane(name) {
@@ -474,53 +647,149 @@
     S.flash = { text: text, kind: kind || '', until: performance.now() + (ms || 3200) };
   }
 
+  // ---------------------------------------------------------------- bytes
+  function bytesFor(seconds, mode) {
+    var kbps = mode === 'video' ? (cfg.vbr + AUDIO_KBPS) : AUDIO_KBPS;
+    return kbps * 1000 * seconds / 8;
+  }
+  // Decimal MB/GB, not MiB — RR-A4's published figures (240 KB, 19 MB, 2.85 GB)
+  // are decimal, and this table has to reproduce them exactly to be trusted.
+  function fmtBytes(b) {
+    if (b >= 1e9) return (b / 1e9).toFixed(2) + ' GB';
+    if (b >= 1e6) return (b / 1e6).toFixed(b >= 1e7 ? 0 : 1) + ' MB';
+    return Math.round(b / 1e3) + ' KB';
+  }
+  function uploadSec(b) { return b * 8 / UPLINK_BPS; }
+
+  function renderCost() {
+    var vTake = bytesFor(cfg.limit, 'video');
+    var aTake = bytesFor(cfg.limit, 'audio');
+    var vUp = uploadSec(vTake), aUp = uploadSec(aTake);
+    var ratio = vUp / cfg.limit;
+    var slower = vUp > cfg.limit;
+    $('costBox').innerHTML =
+      '<div class="ch">At ' + cfg.res + 'p · ' + cfg.vbr + ' kbps · ' + cfg.limit + 's takes</div>' +
+      '<table><tbody>' +
+      '<tr><td>One video take</td><td class="n">' + fmtBytes(vTake) + '</td></tr>' +
+      '<tr><td>One class assignment (30 × 5)</td><td class="n' + (vTake * TAKES_PER_ASSIGNMENT > 1073741824 ? ' hot' : '') + '">' + fmtBytes(vTake * TAKES_PER_ASSIGNMENT) + '</td></tr>' +
+      '<tr><td>Upload, one take @ 2 Mbps</td><td class="n' + (slower ? ' hot' : ' cool') + '">' + vUp.toFixed(0) + 's · ' + ratio.toFixed(2) + '×</td></tr>' +
+      '<tr><td>Same answer as audio</td><td class="n cool">' + fmtBytes(aTake) + ' · ' + aUp.toFixed(1) + 's</td></tr>' +
+      '</tbody></table>' +
+      '<div class="verdict ' + (slower ? 'bad' : 'ok') + '">' +
+      (slower
+        ? 'Uploading takes <b>longer than recording did</b>. The student is waiting on the network, not on themselves — with 29 classmates doing the same thing.'
+        : 'Uploads in <b>' + ratio.toFixed(2) + '×</b> the recording time. Finishes inside the gap before the next question.') +
+      '</div>';
+  }
+
   // ---------------------------------------------------------------- controls
-  function syncBranchUI() {
-    Array.prototype.forEach.call(document.querySelectorAll('#branchGroup label'), function (l) {
-      l.classList.toggle('on', l.getAttribute('data-branch') === cfg.branch);
+  function syncUI() {
+    ['branchGroup:data-branch:branch', 'tailGroup:data-tail:tail', 'modeGroup:data-mode:mode',
+     'framingGroup:data-framing:framing', 'resGroup:data-res:res'].forEach(function (spec) {
+      var p = spec.split(':');
+      Array.prototype.forEach.call(document.querySelectorAll('#' + p[0] + ' label'), function (l) {
+        l.classList.toggle('on', l.getAttribute(p[1]) === String(cfg[p[2]]));
+      });
     });
-    Array.prototype.forEach.call(document.querySelectorAll('#tailGroup label'), function (l) {
-      l.classList.toggle('on', l.getAttribute('data-tail') === cfg.tail);
-    });
+
     $('tailNote').innerHTML = cfg.tail === 'hard'
       ? 'Recorder cuts at the limit, mid-word if that is where the student is. The take is still kept.'
       : 'At the limit the student gets <b>' + cfg.grace + 's</b> of shaded tail to finish the sentence, then it cuts. The limit stops being the real limit.';
+
+    var vid = cfg.mode === 'video';
+    $('ctrlFraming').classList.toggle('hidden', !vid);
+    $('ctrlVideoGate').classList.toggle('hidden', !vid);
+    $('cardCeiling').classList.toggle('hidden', !vid);
+
+    $('modeNote').className = 'note' + (videoBlocked() ? ' bad' : '');
+    $('modeNote').innerHTML = !vid
+      ? 'Audio is the mode that ships on by default. The flow below is notice → mic check → prep → click → record.'
+      : videoBlocked()
+        ? '<b>Gate is off.</b> Runtime strikes <code>\'video\'</code>, the set empties, and every question resolves to the written alternative. The student is told nothing unusual — watch whether that reads as respectful or as broken.'
+        : 'Video is dark by default and lit by an org admin. It inserts a <b>fourth state</b> the audio path does not have.';
+
+    $('framingNote').className = 'note' + (cfg.branch === 'autostart' ? ' warn' : '');
+    $('framingNote').innerHTML = cfg.branch === 'autostart'
+      ? '<b>Branch D overrides this.</b> There is no record click to interpose a check on, so the self-view runs during prep and capture follows it. Neither option above applies.'
+      : cfg.framing === 'once'
+        ? 'Cheapest, and it matches where the notice sits. But the student confirms their frame before Q1 and records Q3 twenty minutes later — <b>the confirmation is stale by then</b>.'
+        : 'Honest — the frame is checked when it matters. Cost: an interstitial between the record click and capture, at the <b>highest-anxiety moment in the flow</b>, on every take.';
+
+    $('branchNote').className = 'note' + (cfg.branch === 'autostart' ? ' warn' : '');
+    $('branchNote').innerHTML = cfg.branch === 'autostart'
+      ? 'The only branch where a <b>timer</b> reaches the recorder. Lawful once the institution has consented and the notice has rendered — but the discard has to be real, or "you may refuse" stops being true.'
+      : 'No timer path reaches capture in this branch. The record button is the only way in.';
+
+    $('brV').textContent = cfg.vbr + 'k';
+    renderCost();
   }
 
-  document.querySelectorAll('input[name=branch]').forEach(function (r) {
-    r.addEventListener('change', function () {
-      cfg.branch = r.value;
-      syncBranchUI();
-      log('branch → <b>' + r.value + '</b>' + (S.phase === 'prep' ? ' (applies at this prep expiry)' : ''));
+  function bindRadios(name, key, after) {
+    document.querySelectorAll('input[name=' + name + ']').forEach(function (r) {
+      r.addEventListener('change', function () {
+        cfg[key] = r.value;
+        syncUI();
+        if (after) after(r.value);
+      });
     });
+  }
+  bindRadios('branch', 'branch', function (v) {
+    log('branch → <b>' + v + '</b>' + (S.phase === 'prep' ? ' (applies at this prep expiry)' : ''));
   });
-  document.querySelectorAll('input[name=tail]').forEach(function (r) {
-    r.addEventListener('change', function () { cfg.tail = r.value; syncBranchUI(); log('limit behaviour → <b>' + r.value + '</b>'); });
+  bindRadios('tail', 'tail', function (v) { log('limit behaviour → <b>' + v + '</b>'); });
+  bindRadios('framing', 'framing', function (v) {
+    log('framing check → <b>' + (v === 'once' ? 'once per assignment' : 'before every take') + '</b>');
+  });
+  bindRadios('res', 'res', function (v) { log('video ceiling → <b>' + v + 'p</b>', 'cost'); });
+  bindRadios('mode', 'mode', function (v) {
+    log('response mode → <b>' + v + '</b> (peer modes, RR-A3 sub-decision 2)');
+    $('restart').click();
   });
 
-  function bindRange(rid, vid, key, suffix) {
+  function bindRange(rid, vid, key, suffix, onDone) {
     var r = $(rid), v = $(vid);
     r.addEventListener('input', function () {
       cfg[key] = parseInt(r.value, 10);
       v.textContent = cfg[key] + suffix;
-      syncBranchUI();
+      syncUI();
+      if (onDone) onDone();
     });
   }
   bindRange('prepR', 'prepV', 'prep', 's');
   bindRange('limR', 'limV', 'limit', 's');
   bindRange('graceR', 'graceV', 'grace', 's');
+  bindRange('brR', 'brV', 'vbr', 'k');
 
   $('deadMic').addEventListener('change', function () {
     cfg.deadMic = this.checked;
     log(cfg.deadMic ? 'fault injected: <b>no signal from mic</b>' : 'mic signal restored');
   });
+  $('gateOff').addEventListener('change', function () {
+    cfg.gateOff = this.checked;
+    log(cfg.gateOff
+      ? 'district <b>video gate off</b> — set subtraction leaves an empty set → RR-04 alternative'
+      : 'district video gate on', 'law');
+    syncUI();
+    $('restart').click();
+  });
+  $('bystander').addEventListener('change', function () {
+    cfg.bystander = this.checked;
+    if (cfg.bystander) log('second person placed in frame — <b>the software does not and will not detect this</b> (RR-04 sub-decision 2)', 'law');
+    render();
+  });
 
   $('restart').addEventListener('click', function () {
     resetQuestions();
     S.phase = 'notice'; S.mode = 'record'; S.qi = 0; S.lastTake = null; S.flash = null;
-    S.micChecking = false; S.signalWarned = false;
+    S.micChecking = false; S.signalWarned = false; S.framedOnce = false; S.framingReturn = 'flow';
     $('ackBox').checked = false; $('ackBtn').disabled = true;
     log('— restart —');
+    // Set subtraction empties the set before the student sees anything, so
+    // there is no capture to give notice about. The interstitial never renders.
+    if (videoBlocked()) {
+      S.mode = 'written'; S.phase = 'written';
+      log('every question resolved to the alternative — <b>the Tennessen interstitial never renders</b>, because nothing is being collected', 'law');
+    }
     render();
   });
 
@@ -539,12 +808,38 @@
     log('opened persistent "why we’re asking" from the recorder');
   });
 
-  // ---------------------------------------------------------------- mic check
+  // ---------------------------------------------------------------- device check
   $('micStart').addEventListener('click', function () {
     S.micChecking = true; S.micStart = performance.now(); S.signalWarned = false;
     log('mic check started (after notice, never before)');
   });
-  $('micSkip').addEventListener('click', function () { S.micChecking = false; startQuestion(0); });
+  $('micSkip').addEventListener('click', function () {
+    S.micChecking = false;
+    // Branch D has no click to attach a check to, so the self-view moves into
+    // prep and this standalone screen is skipped entirely.
+    if (isVideo() && cfg.framing === 'once' && cfg.branch !== 'autostart') {
+      S.framingReturn = 'flow'; S.phase = 'framing'; render(); return;
+    }
+    startQuestion(0);
+  });
+
+  // ---------------------------------------------------------------- framing check
+  $('frameOk').addEventListener('click', function () {
+    if (S.framingReturn === 'record') {
+      log('frame confirmed → <b>student proceeds into the take</b> (still a click; no timer path)', 'law');
+      startRecording();
+      render();
+      return;
+    }
+    S.framedOnce = true;
+    log('frame confirmed <b>once for the assignment</b> — not re-checked before later takes', 'law');
+    startQuestion(0);
+  });
+  $('frameWrite').addEventListener('click', function () {
+    S.mode = 'written'; S.phase = 'written';
+    log('student left the framing check for the written alternative', 'law');
+    render();
+  });
 
   // ---------------------------------------------------------------- flow
   function startQuestion(i) {
@@ -567,6 +862,16 @@
 
   function onPrepExpiry() {
     var q = S.q[S.qi];
+    if (cfg.branch === 'autostart') {
+      // The one deliberate timer path. Restored 2026-08-06 after the statutory
+      // bar was found not to hold: the institution consents, the notice has
+      // already rendered, and refusal survives as the discard rather than as
+      // a click the student has to find while nervous.
+      log('Q' + (S.qi + 1) + ' prep expired → <b>capture started by the timer</b>. Refusal now lives in the discard, not in the entry.', 'law');
+      startRecording(true);
+      render();
+      return;
+    }
     if (cfg.branch === 'armed') {
       S.phase = 'armed';
       log('Q' + (S.qi + 1) + ' prep expired → <b>armed indefinitely</b>. Nothing started. Flow waits on the student.');
@@ -585,21 +890,42 @@
     nextQuestion();
   }
 
-  function startRecording() {
-    // Only ever reached from a click handler. No timer path calls this.
+  // The record button. On the video path with per-take framing this does NOT
+  // start capture — it opens the framing check, and the confirm click does.
+  function onRecordPressed() {
+    if (isVideo() && cfg.framing === 'take' && cfg.branch !== 'autostart') {
+      S.framingReturn = 'record';
+      S.phase = 'framing';
+      log('Q' + (S.qi + 1) + ' — record pressed → <b>framing check interposed</b>, capture not started');
+      render();
+      return;
+    }
+    startRecording();
+    render();
+  }
+
+  function startRecording(fromTimer) {
+    // Reached from a click in branches A/B/C; branch D adds the one timer path,
+    // and says so rather than pretending otherwise.
     S.phase = 'recording';
     S.recStart = performance.now();
     S.recElapsed = 0;
     S.signalSeenAt = performance.now();
     S.signalWarned = false;
-    log('Q' + (S.qi + 1) + ' — <b>student clicked record</b> (explicit act; timer cannot reach this)');
+    if (!fromTimer) {
+      log('Q' + (S.qi + 1) + ' — <b>student clicked record</b> (explicit act)' +
+        (cfg.branch === 'autostart' ? ' — started early, before the clock would have' : '; no timer path reaches this branch'));
+    }
   }
 
   function stopRecording(reason) {
     S.recElapsed = (performance.now() - S.recStart) / 1000;
-    S.lastTake = { dur: S.recElapsed, ended: reason };
+    var m = isVideo() ? 'video' : 'audio';
+    var b = bytesFor(S.recElapsed, m);
+    S.lastTake = { dur: S.recElapsed, ended: reason, bytes: b, mode: m };
     S.phase = 'review';
     log('Q' + (S.qi + 1) + ' stopped — <b>' + reason + '</b> at ' + S.recElapsed.toFixed(1) + 's (client timer; media element would say Infinity)');
+    log('payload ' + fmtBytes(b) + ' → <b>' + uploadSec(b).toFixed(1) + 's</b> to upload at 2 Mbps', 'cost');
     render();
   }
 
@@ -608,20 +934,21 @@
     q.status = 'answered';
     q.dur = S.lastTake.dur;
     q.ended = S.lastTake.ended;
+    q.bytes = S.lastTake.bytes;
+    q.mode = S.lastTake.mode;
     log('Q' + (S.qi + 1) + ' submitted (' + q.dur.toFixed(1) + 's)');
     nextQuestion();
   }
 
   $('wSubmit').addEventListener('click', function () {
     var q = S.q[S.qi];
-    q.status = 'answered'; q.ended = 'written'; q.text = $('wText').value;
+    q.status = 'answered'; q.ended = 'written'; q.text = $('wText').value; q.mode = 'written';
     $('wText').value = '';
     log('Q' + (S.qi + 1) + ' answered in writing');
     nextQuestion();
   });
 
   // ---------------------------------------------------------------- tick
-  var lastLevels = [];
   function levelAt(i, live) {
     if (!live) return 4;
     var t = performance.now() / 1000;
@@ -676,6 +1003,11 @@
     return m + ':' + (r < 10 ? '0' : '') + r;
   }
 
+  function modeLabel() {
+    if (S.mode === 'written') return videoBlocked() ? 'written — video gated off' : 'written alternative';
+    return (isVideo() ? 'video' : 'audio') + ' · branch ' + cfg.branch.toUpperCase() + ' · ' + cfg.tail;
+  }
+
   function renderRail() {
     var rail = $('rail');
     rail.innerHTML = '';
@@ -685,29 +1017,54 @@
       else if (q.status === 'answered') cls += ' ok';
       else if (q.status === 'skipped') cls += ' skip';
       else if (q.status === 'locked') cls += ' lock';
-      var label = 'Q' + (i + 1);
       var suffix = q.status === 'answered' ? ' · answered'
         : q.status === 'skipped' ? ' · open, can return'
         : q.status === 'locked' ? ' · unanswered' : '';
       var d = document.createElement('div');
       d.className = cls;
-      d.innerHTML = '<span class="dot"></span>' + label + suffix;
+      d.innerHTML = '<span class="dot"></span>Q' + (i + 1) + suffix;
       rail.appendChild(d);
     });
     var m = document.createElement('div');
     m.className = 'chip';
-    m.innerHTML = '<span class="dot"></span>' + (S.mode === 'written' ? 'written alternative' : 'voice · branch ' + cfg.branch.toUpperCase() + ' · ' + cfg.tail);
+    m.innerHTML = '<span class="dot"></span>' + modeLabel();
     rail.appendChild(m);
   }
 
   function chip(cls, text) { return '<span class="phasechip ' + cls + '">' + text + '</span>'; }
 
+  function renderNotice() {
+    var vid = isVideo();
+    $('nWhy').innerHTML = 'Ms. Rivera is collecting a <b>' + (vid ? 'video recording of you speaking' : 'voice recording of your spoken answers') +
+      '</b> for <b>Spanish 2 — Unit 4 speaking check</b>, to grade your pronunciation and fluency.';
+    $('nWho').innerHTML = 'Your teacher; school staff with a legitimate educational interest; your parent or guardian on request.' +
+      (vid ? ' <b>If someone else appears in your video, their family may be able to see the whole recording.</b>' : '') +
+      ' Recordings are deleted at the end of this school year.';
+    $('ackBtn').textContent = vid ? 'Continue to device check' : 'Continue to mic check';
+  }
+
+  function renderFraming() {
+    $('otherPerson').classList.toggle('hidden', !cfg.bystander);
+    var perTake = S.framingReturn === 'record';
+    $('framingHd').textContent = perTake ? 'Before this take' : 'Check your frame';
+    $('framingBody').innerHTML = perTake
+      ? 'You pressed record. Nothing is being captured yet — this is the last screen before it starts. Take a second to look at what the camera can see.'
+      : 'This is your camera, shown back to you. Nothing is being captured yet. Take a second to look at what the camera can see behind you.';
+    $('framingSignal').className = 'signal' + (cfg.bystander ? ' bad' : '');
+    $('framingSignal').innerHTML = cfg.bystander
+      ? 'Someone else is in your frame — and <b>nothing here noticed that</b>. Only you can.'
+      : 'Nothing here is watching the frame. It is a mirror.';
+    $('framingStrip').innerHTML = '<b>No face detection, no analysis of any kind</b> — RR-04 sub-decision 2 forbids it by contract, so this screen cannot verify what it asks for. ' +
+      'It is compatible with RR-04\'s preview kill because that kill targeted preview running <b>before</b> the notice; this one runs after it.';
+    $('frameOk').textContent = perTake ? 'Looks good — start recording' : 'Looks good';
+  }
+
   function renderRecorder() {
     var q = S.q[S.qi];
+    var vid = isVideo();
     $('qNum').textContent = 'Question ' + (S.qi + 1) + ' of ' + S.q.length;
     $('qPrompt').textContent = q.prompt;
 
-    // flash
     var fs = $('flashSlot');
     if (S.flash && performance.now() < S.flash.until) {
       fs.innerHTML = '<div class="flash ' + S.flash.kind + '">' + S.flash.text + '</div>';
@@ -718,6 +1075,20 @@
     var live = (S.phase === 'recording' || S.phase === 'grace') && !cfg.deadMic;
     paintMeter($('recMeter'), live);
 
+    // Self-view: during capture on any video branch, and during prep on D only,
+    // where it is the framing check because there is no click to attach one to.
+    var vfPrep = vid && cfg.branch === 'autostart' && S.phase === 'prep';
+    var vfRec = vid && (S.phase === 'recording' || S.phase === 'grace');
+    $('miniVf').classList.toggle('hidden', !(vfPrep || vfRec));
+    $('miniOther').classList.toggle('hidden', !cfg.bystander);
+    if (vfPrep || vfRec) {
+      $('miniVfLbl').textContent = vfPrep ? 'Not recording yet' : 'Recording';
+      $('miniVfNote').innerHTML = vfPrep
+        ? '<b>Only you should be in frame.</b> This is the framing check under branch D — it runs during prep, because capture starts on the clock and there is no confirm step to put it behind. Nothing is watching the frame; only you can.'
+        : 'Your own view while recording. Still no detection of any kind.';
+    }
+
+    var recLabel = vid ? '●  Start recording video' : '●  Start recording';
     var remaining, pct, total;
 
     if (S.phase === 'prep') {
@@ -732,16 +1103,24 @@
             ? 'When this hits zero <b>nothing happens</b> — the button just stays ready.'
             : cfg.branch === 'advance'
               ? 'When this hits zero we <b>move on</b>. You can come back later.'
-              : 'When this hits zero this question is <b>marked unanswered</b>.')
-        : 'Nothing is being captured. The recorder does not exist until you press the button.';
-      total = cfg.prep;
+              : cfg.branch === 'autostart'
+                ? 'Recording starts in <b>' + Math.ceil(Math.max(0, remaining)) + '</b>…'
+                : 'When this hits zero this question is <b>marked unanswered</b>.')
+        : (cfg.branch === 'autostart'
+            ? 'Nothing is being captured yet. When this reaches zero, <b>recording starts on its own</b> — you can throw the take away afterwards.'
+            : 'Nothing is being captured. The ' + (vid ? 'camera and recorder do' : 'recorder does') + ' not exist until you press the button.');
       pct = 100 * (1 - remaining / cfg.prep);
       fill.className = 'fill prep'; fill.style.width = Math.max(0, Math.min(100, pct)) + '%';
       mark.classList.add('hidden');
       $('barL').textContent = 'prep 0s'; $('barR').textContent = cfg.prep + 's';
-      $('recSignal').textContent = 'Recorder not created.';
+      $('recSignal').textContent = vid && cfg.framing === 'take'
+        ? 'Recorder not created. Pressing record opens the framing check first.'
+        : 'Recorder not created.';
       $('recSignal').className = 'signal';
-      actions.innerHTML = '<button class="btn rec" id="btnRec">●  Start recording</button>' +
+      // Under D the button is the ticket's original "I'm ready, start now"
+      // escape — un-struck along with auto-start itself.
+      actions.innerHTML = '<button class="btn rec" id="btnRec">' +
+        (cfg.branch === 'autostart' ? '●  I’m ready — start now' : recLabel) + '</button>' +
         '<button class="btn ghost" id="btnWrite">Answer in writing instead</button>';
 
     } else if (S.phase === 'armed') {
@@ -755,7 +1134,7 @@
       $('barL').textContent = 'prep spent'; $('barR').textContent = 'waiting on student';
       $('recSignal').textContent = 'Recorder armed, not started.';
       $('recSignal').className = 'signal';
-      actions.innerHTML = '<button class="btn rec" id="btnRec">●  Start recording</button>' +
+      actions.innerHTML = '<button class="btn rec" id="btnRec">' + recLabel + '</button>' +
         '<button class="btn ghost" id="btnWrite">Answer in writing instead</button>' +
         '<button class="btn ghost" id="btnSkipQ">Skip this question</button>';
 
@@ -782,13 +1161,14 @@
       if (cfg.deadMic) {
         $('recSignal').className = 'signal bad';
         $('recSignal').textContent = S.recElapsed > 3
-          ? 'No sound is reaching us. Check the mic switch on your Chromebook — we don’t want you recording 60s of silence.'
+          ? 'No sound is reaching us. Check the mic switch on your Chromebook — we don’t want you recording ' + cfg.limit + 's of silence.'
           : 'Listening…';
       } else {
         $('recSignal').className = 'signal';
-        $('recSignal').textContent = 'Sound detected.';
+        $('recSignal').textContent = 'Sound detected. ' + fmtBytes(bytesFor(S.recElapsed, vid ? 'video' : 'audio')) + ' so far.';
       }
-      actions.innerHTML = '<button class="btn stop" id="btnStop">■  Stop &amp; keep this take</button>';
+      actions.innerHTML = '<button class="btn stop" id="btnStop">■  Stop &amp; keep this take</button>' +
+        '<button class="btn ghost" id="btnKill">Stop — don’t keep this</button>';
 
     } else if (S.phase === 'review') {
       $('phaseChipSlot').innerHTML = chip('armed', 'Take saved');
@@ -800,7 +1180,8 @@
       fill.className = 'fill'; fill.style.width = '100%'; mark.classList.add('hidden');
       $('barL').textContent = 'take complete'; $('barR').textContent = S.lastTake.dur.toFixed(1) + 's';
       $('recSignal').className = 'signal';
-      $('recSignal').textContent = 'Playback stub — nothing was actually captured.';
+      $('recSignal').innerHTML = 'Playback stub — nothing was actually captured. Payload would be <b>' + fmtBytes(S.lastTake.bytes) +
+        '</b>, about <b>' + uploadSec(S.lastTake.bytes).toFixed(1) + 's</b> of upload before the next question can start.';
       paintMeter($('recMeter'), false);
       actions.innerHTML = '<button class="btn primary" id="btnSubmit">Submit this answer</button>' +
         '<button class="btn" id="btnRedo">Discard &amp; record again</button>';
@@ -811,8 +1192,14 @@
 
   function wireRecButtons() {
     var b;
-    if ((b = $('btnRec'))) b.onclick = function () { startRecording(); render(); };
+    if ((b = $('btnRec'))) b.onclick = onRecordPressed;
     if ((b = $('btnStop'))) b.onclick = function () { stopRecording('student stopped'); };
+    if ((b = $('btnKill'))) b.onclick = function () {
+      var d = ((performance.now() - S.recStart) / 1000).toFixed(1);
+      S.phase = 'armed'; S.lastTake = null;
+      log('Q' + (S.qi + 1) + ' — <b>discarded ' + d + 's unsent</b>. This is where refusal lives under branch D; nothing left the device.', 'law');
+      render();
+    };
     if ((b = $('btnSubmit'))) b.onclick = submitTake;
     if ((b = $('btnRedo'))) b.onclick = function () { S.phase = 'armed'; S.lastTake = null; log('Q' + (S.qi + 1) + ' take discarded'); render(); };
     if ((b = $('btnWrite'))) b.onclick = function () {
@@ -826,16 +1213,21 @@
   }
 
   function renderSummary() {
-    $('sumMode').textContent = 'Branch ' + cfg.branch.toUpperCase() + ' · ' + (cfg.tail === 'hard' ? 'hard stop' : 'grace tail') +
-      ' · prep ' + cfg.prep + 's · limit ' + cfg.limit + 's';
+    $('sumMode').textContent = (isVideo() ? 'Video' : videoBlocked() ? 'Video (gated off → written)' : 'Audio') +
+      ' · branch ' + cfg.branch.toUpperCase() + ' · ' + (cfg.tail === 'hard' ? 'hard stop' : 'grace tail') +
+      ' · prep ' + cfg.prep + 's · limit ' + cfg.limit + 's' +
+      (cfg.mode === 'video' ? ' · ' + cfg.res + 'p/' + cfg.vbr + 'k' : '');
     var body = $('sumBody');
     body.innerHTML = '';
+    var totalBytes = 0;
     S.q.forEach(function (q, i) {
+      if (q.bytes) totalBytes += q.bytes;
       var tr = document.createElement('tr');
       var oc = q.status === 'answered' ? 'o-ok' : q.status === 'skipped' ? 'o-skip' : q.status === 'locked' ? 'o-lock' : '';
       var otext = q.status === 'answered' ? 'Answered' : q.status === 'skipped' ? 'Still open' : q.status === 'locked' ? 'Unanswered (locked)' : 'Not reached';
       tr.innerHTML = '<td>Q' + (i + 1) + '</td><td class="' + oc + '">' + otext + '</td>' +
         '<td>' + (q.dur != null ? q.dur.toFixed(1) + 's' : '—') + '</td>' +
+        '<td>' + (q.bytes ? fmtBytes(q.bytes) : q.mode === 'written' ? 'text' : '—') + '</td>' +
         '<td>' + (q.ended || '—') + '</td>';
       body.appendChild(tr);
     });
@@ -844,31 +1236,36 @@
     S.q.forEach(function (q, i) { if (q.status === 'skipped') open.push(i); });
     var acts = $('sumActions');
     acts.innerHTML = '';
-    if (open.length) {
-      open.forEach(function (i) {
-        var b = document.createElement('button');
-        b.className = 'btn primary';
-        b.textContent = 'Go back to Q' + (i + 1);
-        b.onclick = function () { log('student returned to Q' + (i + 1)); startQuestion(i); };
-        acts.appendChild(b);
-      });
-    }
+    open.forEach(function (i) {
+      var b = document.createElement('button');
+      b.className = 'btn primary';
+      b.textContent = 'Go back to Q' + (i + 1);
+      b.onclick = function () { log('student returned to Q' + (i + 1)); startQuestion(i); };
+      acts.appendChild(b);
+    });
     var r = document.createElement('button');
     r.className = 'btn';
     r.textContent = 'Run it again with a different branch';
     r.onclick = function () { $('restart').click(); };
     acts.appendChild(r);
 
-    $('sumNote').innerHTML = cfg.branch === 'advance'
+    var branchNote = cfg.branch === 'advance'
       ? '<b>Branch A</b> ends with a return path, so a slow start costs order, not credit — but the student ends the session still owing work and may not notice.'
       : cfg.branch === 'armed'
         ? '<b>Branch B</b> can only end when the student ends it. Nothing above was decided by a clock. The cost sits with the teacher: a class-wide session has no floor on how long it runs.'
-        : '<b>Branch C</b> lets the clock score the assignment. Every locked row above is a decision the software made on the student’s behalf.';
+        : cfg.branch === 'autostart'
+          ? '<b>Branch D</b> is the only one where every row above got a take without the student choosing to begin one. That is the point — nobody had to find a button while nervous — and it is also the whole risk. Judge it on whether the discard felt like a real way out.'
+          : '<b>Branch C</b> lets the clock score the assignment. Every locked row above is a decision the software made on the student’s behalf.';
+    if (totalBytes) {
+      branchNote += '<br /><br /><b>One student produced ' + fmtBytes(totalBytes) + '.</b> Thirty of them, five questions each, is ' +
+        fmtBytes(bytesFor(cfg.limit, isVideo() ? 'video' : 'audio') * TAKES_PER_ASSIGNMENT) + ' per class assignment at the full limit.';
+    }
+    $('sumNote').innerHTML = branchNote;
   }
 
   function render() {
     renderRail();
-    if (S.phase === 'notice') { showPane('notice'); return; }
+    if (S.phase === 'notice') { renderNotice(); showPane('notice'); return; }
     if (S.phase === 'mic') {
       showPane('mic');
       paintMeter($('micMeter'), S.micChecking && !cfg.deadMic);
@@ -881,13 +1278,18 @@
         $('micSignal').textContent = 'Sounds good. You’re ready.';
       }
       $('micStart').textContent = S.micChecking ? 'Checking…' : 'Start mic check';
-      $('micSkip').textContent = S.micChecking ? 'Looks good — go to question 1' : 'Skip — go to question 1';
+      var nextLbl = isVideo() && cfg.framing === 'once' && cfg.branch !== 'autostart' ? 'framing check' : 'question 1';
+      $('micSkip').textContent = (S.micChecking ? 'Looks good — go to ' : 'Skip — go to ') + nextLbl;
       return;
     }
+    if (S.phase === 'framing') { renderFraming(); showPane('framing'); return; }
     if (S.phase === 'written') {
       showPane('written');
       $('wNum').textContent = 'Question ' + (S.qi + 1) + ' of ' + S.q.length + ' · written alternative';
       $('wPrompt').textContent = S.q[S.qi].prompt;
+      $('wStrip').innerHTML = videoBlocked()
+        ? '<b>This is the degradation floor, not a refusal.</b> The district turned video off, the mode set emptied, and every student in this class landed here — not by choosing it. RR-A3 says the student is told nothing unusual. Decide whether that silence is respectful or misleading.'
+        : 'The written path has <b>no clock at all</b> in this build. That is itself a design question: if the recorded path is timed and the alternative isn’t, the alternative is not equivalent.';
       return;
     }
     if (S.phase === 'summary') { showPane('summary'); renderSummary(); return; }
@@ -895,7 +1297,7 @@
     renderRecorder();
   }
 
-  syncBranchUI();
+  syncUI();
   log('session opened — notice not yet acknowledged, <b>no capture permitted</b>', 'law');
   render();
 })();
