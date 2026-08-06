@@ -16,7 +16,7 @@
 > **Paul:** each ticket has an empty `Paul's notes` slot. Write in them freely —
 > agents should read them as the highest-authority input on that ticket.
 
-**Status:** Charted 2026-08-04 · **5 of 22 resolved, plus RR-04's research half** — RR-01, RR-B1, RR-A4 closed and RR-04's research done 2026-08-04; **RR-02 and RR-03 closed 2026-08-05**. Their resolutions opened RR-08, RR-B4, RR-A5, RR-A6, RR-09 and unblocked RR-08 + RR-C2. **The persistence track is complete** — the response model (RR-01), its serialization (RR-02) and its lifecycle (RR-03) are locked.
+**Status:** Charted 2026-08-04 · **6 of 22 resolved** — RR-01, RR-B1, RR-A4 closed and RR-04's research half done 2026-08-04; **RR-02, RR-03 and RR-04 closed 2026-08-05**. Their resolutions opened RR-08, RR-B4, RR-A5, RR-A6, RR-09 and unblocked RR-05, RR-06, RR-08, RR-C2. **Two tracks are complete and no keystones remain** — the response model (RR-01), its serialization (RR-02) and its lifecycle (RR-03) are locked, and RR-04 locks who may hold student media, under what name, for how long, and what may never be derived from it. **The board has re-centered on a single open question: does video ship at all?** (RR-A5 → RR-A3.)
 
 > **Correction, 2026-08-05:** RR-04's finding 3 claimed a live Gemini ToS violation. **It was wrong on both halves** — no student can reach Gemini (enforced by an email guard on every callable), and SpartBoard is on Gemini's _Paid_ Services via its Workspace account and Blaze billing, so nothing is trained on. The finding, the retraction, and the one question that genuinely survives are all recorded in place. **The "move to Vertex AI" recommendation is withdrawn.**
 > **Related efforts:** pronunciation quiz question type (tracked in GitHub issues),
@@ -99,7 +99,7 @@ These are load-bearing. Several tickets are really "should we reuse this or not?
 
 - **[RR-03 — Where does student-submitted media live, for how long, and who owns it?](#rr-03--where-does-student-submitted-media-live-for-how-long-and-who-owns-it)** — **Drive is the durable home; Firebase Storage is a transit buffer.** Decided on cost: audio on Firebase is free at any plausible scale, **video is free nowhere**, and Drive is $0 durably plus Workspace-DPA covered. Archival fires **immediately per upload** via the already-stored server-side refresh token (teacher need not be present) — which forced an **amendment to RR-02**: server-written archival fields move out of `answers[]` into a sibling `artifactArchive` map. Firebase copy dies on successful archive, un-archived media swept at ~7 days (**risk accepted**; requires out-of-band failure email). Teacher's own Drive — **retention is district-lifecycle-bound**. Students get playback on the **published-results** screen only, uid- and publish-gated.
 
-- **[RR-04 — privacy and consent posture](#rr-04--whats-the-privacy-and-consent-posture-for-student-voice-and-video) — RESEARCH HALF ONLY** — **Pseudonymity buys nothing regulatory**: COPPA § 312.2(8), Illinois SOPPA and California SOPIPA name audio/video files as personal information directly. Storage is defensible; **template extraction (voiceprints, speaker ID, diarization) is not**. The dominant obligation is **notice, not consent** — but the real risk is **redaction capacity**, which argues for audio-first. **The decision half is still open and needs Paul.**
+- **[RR-04 — privacy and consent posture](#rr-04--whats-the-privacy-and-consent-posture-for-student-voice-and-video)** — **Research:** pseudonymity buys nothing regulatory (COPPA § 312.2(8), SOPPA, SOPIPA name audio/video files directly); storage is defensible, **template extraction is not**; the dominant obligation is **notice, not consent**. **Decision:** media crosses into the district's Drive **under the student's real name** (the pseudonym shields SpartBoard's infra, not the school from its own records) while Firebase transit stays pseudonymous. A **hard contractual no** to voiceprints, speaker ID and **diarization** — which costs the automated-redaction capacity, so the **single-speaker capture policy is stated honestly as unenforceable** and § 99.12(a)'s fallback is accepted. An **org-admin review-and-delete console is a compliance precondition**, reusing RR-03's stored refresh token. The **Tennessen warning renders once per assignment** — killing auto-start capture, and making a non-recorded alternative **legally mandatory** (decides RR-07). **⚠️ Amends RR-03:** COPPA § 312.10 forbids indefinite retention, so archived media dies at **end of the current school year**, not merely at district lifecycle.
 
 **Destination confirmed** 2026-08-04 (not a ticket, recorded here so it isn't re-litigated): the spec covers all three tracks; narrower, wider, and spec-plus-build were considered and rejected. See the ✅ note under **Destination**.
 
@@ -109,34 +109,37 @@ These are load-bearing. Several tickets are really "should we reuse this or not?
 
 Open, unblocked, unclaimed — takeable right now:
 
-_Rebuilt 2026-08-05 after RR-02 and RR-03 closed._
+_Rebuilt 2026-08-05 after RR-04's decision half closed. **No keystones remain** —
+every open ticket is now blocked only by other open tickets, not by a decision
+nobody has made._
 
 **Takeable now:**
 
-- 🔥 **RR-A5** — Verify format round-trip and capture policy on district hardware _(task, HITL)_ — **now the highest-leverage thing on the board.** RR-03 put transcoding on the synchronous critical path of every upload, so whether transcoding is needed at all is no longer a background question — it decides the cost and latency of the whole archival design. ~15 minutes of Drive testing
-- **RR-08** — What counts as "answered" when a question has a required addendum? _(grilling + domain-modeling)_ — **unblocked by RR-02**, which sharpened it considerably by making `answer: ''` a legitimate state
-- **RR-A3** — Video as a separate mode, or one mode with a camera toggle? _(grilling)_ — **sharpened hard by RR-03**: video is now known to be free on _neither_ path (Firebase egress or Drive transcode compute), where audio is free on both
-- **RR-B2** — Is the audio synchronized to the strokes, or attached alongside? _(grilling)_ — now a **three-way** fork thanks to RR-B1
-- **RR-07** — Alternate-format policy _(grilling)_ — now also covers addendum modes, and RR-A4 made it a functional requirement, not only an accessibility one
-- **RR-A1** — Timing model for prep time and recording limits _(prototype)_
-- **RR-C2** — How does a student get access to a file in the teacher's Drive? _(grilling)_ — **newly unblocked by RR-03**, which also handed it a working precedent: the uid- and publish-gated proxy callable decided for student playback is the same problem in the other direction
+- 🔥 **RR-A5** — Verify format round-trip and capture policy on district hardware _(task, HITL)_ — **still the highest-leverage thing on the board, and now the only physical blocker.** RR-03 put transcoding on the synchronous critical path of every upload; RR-04 sub-decision 3 handed RR-A3 a redaction argument that may kill video outright. Both converge on RR-A5's ~15 minutes of Drive testing. **Needs district hardware — not takeable from mobile.**
+- 🔥 **RR-A3** — Video as a separate mode, or one mode with a camera toggle? _(grilling)_ — **sharpened twice now.** RR-03: video is free on _neither_ storage path. RR-04: SpartBoard has committed to **zero automated redaction capacity**, and video is the mode where § 99.12(a) bites hardest. The honest question is no longer "how does video work" but **"does video ship at all"** — and this ticket owns it
+- **RR-05** — Where is the AI boundary, and what exactly is admin-gated? _(grilling)_ — **newly unblocked.** RR-04 drew the hard outer line (no template extraction, ever, by contract); this decides the menu inside it. Note two items are pre-killed: speaker-attributed transcripts and participation analytics
+- **RR-07** — Alternate-format policy _(grilling)_ — **substantially decided by RR-04**: a non-recorded alternative is now legally mandatory and not teacher-configurable. What's left is sharper and smaller — what the alternate _is_ per mode, who elects it, and whether it may legitimately score differently
+- **RR-08** — What counts as "answered" when a question has a required addendum? _(grilling + domain-modeling)_ — unblocked by RR-02, which made `answer: ''` a legitimate state
+- **RR-B2** — Is the audio synchronized to the strokes, or attached alongside? _(grilling)_ — a **three-way** fork thanks to RR-B1
+- **RR-A1** — Timing model for prep time and recording limits _(prototype)_ — **narrowed by RR-04**: auto-start capture and always-on preview are now ruled out by statute, not preference
+- **RR-C2** — How does a student get access to a file in the teacher's Drive? _(grilling)_ — unblocked by RR-03, which handed it a working precedent: the uid- and publish-gated proxy callable is the same problem in the other direction
 - **RR-C1** — Which stimulus formats are in, and are they rendered in-app or handed off? _(grilling)_
 - **RR-C3** — Does a stimulus attach to a question or to an assignment? _(grilling)_ — small, sharp, independent; still the best warm-up
+- **RR-09** — task: the questions only district counsel and Google can answer _(unclaimed)_ — **question 4 got more load-bearing.** RR-04 committed SpartBoard to having no redaction capacity; if Orono answers that it has none either, then **neither party to the contract can segregate**, which is a concrete argument against shipping video → feeds RR-A3
 
-- **RR-04 (decision half)** — **research is done and written up**; what remains is your call on named-vs-pseudonymous treatment and the AI boundary. **RR-03 has now answered the retention half for it** (district-lifecycle-bound in Drive, ~7 days in Firebase). Blocks RR-05 and RR-06.
-- **RR-09** — task: the questions only district counsel and Google can answer _(unclaimed)_ — **question 1 got more load-bearing**: RR-03 chose Drive partly _because_ Firebase's FERPA coverage is unverified, so confirming it either validates that choice or reopens it
+**Still blocked:** RR-06 (RR-05) · RR-B3 (RR-B2, RR-06) · RR-B4 (RR-B2) ·
+RR-A6 (RR-A3, RR-A5) · RR-A2 (RR-A1).
 
-**Still blocked:** RR-05 (RR-04, RR-09) · RR-06 (RR-04, RR-05) ·
-RR-B3 (RR-B2, RR-06) · RR-B4 (RR-B2) · RR-A6 (RR-A3, RR-A5) · RR-A2 (RR-A1).
+**The compliance track is now complete alongside the persistence track.**
+RR-01 → RR-02 → RR-03 lock the response model, its serialization and its lifecycle;
+RR-04 locks who may hold student media, under what name, for how long, and what may
+never be derived from it. **Nine of the eleven still-open tickets are takeable
+immediately**, and the two that aren't are waiting on RR-05 and RR-B2 respectively.
 
-**One keystone left — RR-04's decision half**, which now gates RR-05 and RR-06
-alone. The persistence track is fully resolved: RR-01 → RR-02 → RR-03 are closed
-and the response model, its serialization, and its lifecycle are all locked.
-
-⚡ **RR-A5 is now the single highest-leverage item on the board** and needs no
-grilling session — RR-03 made transcoding synchronous on every upload, so
-confirming whether it's needed at all decides the cost shape of the whole archival
-design. **RR-09** remains cheap and unclaimed.
+⚡ **The board has re-centered on one question: does video ship?** RR-A5 (hardware)
+and RR-A3 (decision) are now the pair that answers it, and RR-A6 sits behind both.
+Everything else on the frontier is independent of that answer and can proceed in
+any order.
 
 ---
 
@@ -598,13 +601,26 @@ gating it.
 - **Video's cost problem is now quantified on both paths** — Firebase egress or Drive transcode compute, no free option either way. → another input to **RR-A3**.
 - **RR-04's decision half inherits a retention answer**: district-lifecycle-bound in Drive, ~7 days maximum in Firebase.
 
+⚠️ **AMENDED by RR-04 (2026-08-05) — "district-lifecycle-bound" was not a complete
+answer.** COPPA § 312.10 requires a **published deletion timeframe**, and a teacher
+may stay in a district for decades. This resolution was right about _ownership_ and
+incomplete about _duration_. **Archived media now dies at the end of the current
+school year** (assumed: a July 1 annual sweep, per-org overridable — SpartBoard has
+no school-year concept today), preceded by a warning email. Sub-decision 5 above
+(teacher's own Drive) is otherwise unchanged. See **RR-04 sub-decision 6**.
+
+⚠️ **Also from RR-04:** the LEA review-and-delete obligation reaches media sitting
+in an individual teacher's Drive. It is satisfied without amending this ticket —
+by reusing the same stored-refresh-token mechanism this resolution established. See
+**RR-04 sub-decision 4**.
+
 **Paul's notes:**
 
 ---
 
 ### RR-04 — What's the privacy and consent posture for student voice and video?
 
-**Type:** research (AFK) → grilling (HITL) · **Status:** 🟡 **Research half closed 2026-08-04 — decision half OPEN and needs Paul** · **Blocks:** RR-05, RR-06
+**Type:** research (AFK) → grilling (HITL) · **Status:** ✅ **Closed 2026-08-05** — research half closed 2026-08-04, decision half resolved with Paul 2026-08-05 · **Blocks:** ~~RR-05, RR-06~~ (both unblocked)
 
 **Question**
 
@@ -1001,19 +1017,234 @@ decisions):
 6. **Default recordings private-to-teacher** — no cross-class visibility, no public gallery, no public short links.
 7. A **district-managed per-student "recording allowed" flag synced from the roster** would be ahead of the market — no verified vendor consumes a media-release attribute over Clever/ClassLink/OneRoster today.
 
+---
+
+**Resolution** — decision half, grilled with Paul 2026-08-05. Six sub-decisions.
+The research half above is unchanged; this is what Paul decided on top of it.
+
+**1. Student media carries the student's real name — but only once it crosses into
+the district's own Drive.** Firebase transit stays pseudonymous exactly as RR-02
+specified (`{sessionId}/{studentUid}/`, HMAC uid); the Drive filename is
+`Nguyen_Ava__Q3.mp4`.
+
+The principle that draws the line: **the pseudonym's job is shielding SpartBoard's
+infrastructure, not shielding the school from its own records.** A district's
+Workspace-for-Education Drive is where identified education records are _supposed_
+to live, under a DPA, in a system the district already controls. Opacity there
+protects nobody who needs protecting and costs a great deal.
+
+What it buys: the Drive folder is **self-sufficient**. It survives SpartBoard being
+down, sold, or unrenewed — which is the only way a district can meet **MGDPA
+§ 13.04 subd. 3's 10-business-day deadline to provide _copies_** (the tightest
+clock on the board, tighter than FERPA's 45 days) without SpartBoard in the loop.
+Set against the Flip/Flipgrid cautionary tale in the research above, this matters
+more than it first appears: readable filenames are what makes the residue useful
+after the vendor is gone.
+
+What it costs, accepted: names propagate into the teacher's personal Drive search,
+phone sync, and anything they later share carelessly. **Rejected: opaque ids
+in-Drive** (the shipped Activity Wall precedent — `{submissionId}.{ext}`,
+[driveArchive.ts:264](../functions/src/driveArchive.ts) — which works there only
+because those submissions are already anonymous; here it would make a records
+request depend on the app being alive and responsive inside ten business days).
+**Rejected: opaque ids plus a `roster.json` manifest** — a folder containing the
+mapping is just as identifying while being harder to use.
+
+**2. A hard, affirmative "we don't do this" — no voiceprints, no speaker
+identification or verification, no diarization, no face matching, no
+emotion/biometric inference.** Written into the DPA and the privacy notice as a
+representation, not merely omitted from the roadmap.
+
+This is the cheapest high-value artifact the research found, and it buys the one
+position that is genuinely thin: **Illinois BIPA has no audio carve-out**, and
+_Delgado v. Meta_ expressly refused to say where a recording becomes a voiceprint,
+adopting a **"capable of identifying"** test rather than an actual-use one. An
+affirmative representation is worth more against that standard than the statutory
+carve-outs alone.
+
+**Plain transcription/ASR is unaffected** — it is transcript-level, not
+template-level, and stays available to RR-05.
+
+Accepted cost, and it is real: this **forecloses a feature class**, not just a
+technique. Group-work attribution and speaking-time participation analytics are
+things teachers genuinely ask for, and they are now off the table by commitment
+rather than by backlog priority. **Rejected: leaving diarization open** — that is
+precisely the theory in the 2025-26 BIPA wave (_Brewer v. Otter.ai_, _Cruz v.
+Fireflies.AI_, _Basich v. Microsoft_, all pending), so it would keep SpartBoard
+inside the exact litigation frontier the commitment steps out of.
+
+⚠️ **This decision has a consequence sub-decision 3 has to absorb:** diarization
+was the only plausible route to _automated_ speaker segregation in an audio file.
+Ruling it out means SpartBoard will have **zero automated redaction capacity**,
+permanently and by choice.
+
+**3. A single-speaker capture policy, plus honest acceptance of § 99.12(a)'s
+fallback when it fails.** Recordings are stated — in the pre-record notice, in
+teacher guidance — to be meant to contain only the recording student. Headphone-mic
+and staggered-recording guidance ships with it.
+
+**The policy is unenforceable and the resolution says so.** Thirty Chromebooks
+recording in one room will capture neighbors; no wording changes that. So when a
+recording does catch another student and a parent files a request, the answer is
+**34 CFR § 99.12(a) / Letter to Wachter / AO 19-004 as written**: segregate if you
+can, and if you can't, every affected student's parents may access the whole
+recording. That is the accepted consequence, not a gap to be papered over.
+
+Why it's still worth stating a policy nobody can enforce: **"we set an expectation
+and it was exceeded" is a materially better posture than "we never mentioned it,"**
+and the notice surface that carries it is required by sub-decision 5 anyway — so
+the marginal cost is a sentence. **Rejected: build a trim/mute redaction tool
+first** — a waveform editor with re-encode-on-save and original-vs-redacted
+versioning, gating media responses on a track where RR-A5 hasn't yet confirmed the
+format even round-trips. **Rejected: accept silently with no policy.**
+
+🔴 **This makes RR-09's question 4 sharper, not softer.** If Orono answers that it
+has no redaction capacity either, then neither party to the contract can segregate —
+and that is a concrete argument against shipping video at all. → **RR-A3.**
+
+**4. An org-admin review-and-delete console, executing against Drive via the
+teacher's stored refresh token.**
+
+This resolves a collision between two already-closed decisions that was not visible
+until now: **COPPA's school-consent condition requires SpartBoard to give the
+_district_ review-and-delete ability, but RR-03 put the durable copy in the
+_individual teacher's_ Drive**, where an org admin has no standing and SpartBoard
+holds `drive.file` scope on the teacher's token only.
+
+The resolution reuses the mechanism RR-03 already established: refresh tokens are
+stored server-side, AES-encrypted, at `/users/{uid}/private/googleAuth`, which is
+why immediate archival works without the teacher present. **The same property lets
+an org admin's delete execute server-side against that teacher's Drive.** No new
+capability, no RR-03 amendment.
+
+Its one gap closes itself: a **departed** teacher's token is dead — and that is
+exactly the case RR-03 already routes through district offboarding.
+
+Note the legal footing honestly: the FTC **proposed** a school-authorization
+exception in the Jan 2024 NPRM and **declined to finalize it**, so school consent
+rests on non-binding FAQ guidance with two conditions. **Only the second — the
+operator giving the school review-and-delete — is within SpartBoard's control, and
+this decision is what satisfies it.** **Rejected: a shared org Drive** (reopens
+RR-03, needs a shared drive provisioned per org as a Workspace edition dependency,
+and forfeits the district-lifecycle-bound retention promise RR-03 supplied to this
+very ticket). **Rejected: an out-of-band support queue** — arguably literal
+compliance, but no audit trail, no scale, and a weak answer in the procurement
+conversation where it would actually be asked.
+
+**→ The admin console is a compliance precondition, not a feature.** It ships
+before the first media response does. That also answers the fourth open bullet
+above: **the export/deletion admin surface is in scope for this effort.**
+
+**5. The Tennessen warning renders once per assignment, before the first
+recording** — an interstitial carrying § 13.04 subd. 2's four required elements
+(purpose, whether they may refuse, consequences of refusing, who else may receive
+it), plus a persistent "why we're asking" link on the recorder itself.
+
+Per-assignment rather than annual because **the four elements are
+purpose-specific**: who receives a graded speaking assessment differs from who
+receives a whiteboard explainer, so a blanket September acknowledgment is the
+element most likely to be found insufficient — and it is the cheap one to get
+right. **Rejected: once per student per year** (near-zero friction, but doesn't
+satisfy "the purpose and intended use of the requested data" for a later,
+different collection). **Rejected: always-visible static text with no
+acknowledgment** — retains no evidence notice was received, which is the entire
+point, and reduces the "may they refuse" element to decoration.
+
+Two consequences that land outside this ticket:
+
+- ⛔ **Auto-start capture and always-on preview are dead** — not by preference but by statute. § 13.32 subd. 14(b)(1)'s instructional-purpose exception is conditioned on **advance** notice, and that exception is what makes the whole collection lawful. → **RR-A1**, which owns the timing model.
+- 🔴 **"May they refuse" has to be a true statement**, which means a non-recorded alternative must actually exist. Combined with **COPPA § 312.3(d)** (no conditioning participation on more disclosure than necessary), this **decides RR-07's first bullet by law rather than by pedagogy**: a teacher may not author a mode set of one that a student cannot satisfy. → **RR-07.**
+
+**6. ⚠️ Amends RR-03 — archived media is deleted at the end of the current school
+year.** Paul chose the tighter bound over the recommended end-of-_following_-year
+(~13 months).
+
+**Why RR-03's answer needed amending at all:** RR-03 closed retention as
+"district-lifecycle-bound." **COPPA § 312.10 — fully in force since
+2026-04-22 — says personal information collected from a child may not be retained
+indefinitely and requires a published deletion timeframe with its business need.**
+A teacher can stay in a district for twenty-five years, so "until they leave" is
+not a timeframe. RR-03's promise was correct about _ownership_ and incomplete about
+_duration_.
+
+The chosen bound means everything is gone before the next cohort arrives — the
+strongest defensible posture and the easiest to explain in procurement. **Accepted
+cost:** it forecloses year-over-year growth comparison, which is a genuine
+pedagogical use for exactly the speaking and reading-fluency assessments this
+feature exists to enable — a September-to-September sample pair is the most
+valuable artifact a speaking assessment produces. **Rejected: end of the following
+school year** on those grounds; **rejected: no product-enforced bound**, which
+leaves § 312.10 unanswered on the one data type where it is least likely to be read
+charitably.
+
+Deletion runs on the same scheduled-sweep + stored-refresh-token mechanism as
+sub-decision 4 and RR-03's ~7-day Firebase sweep, and **must be preceded by a
+warning email** on the existing `/mail` queue so a teacher can download anything
+they intend to keep. Because growth comparison is now foreclosed in-product, **a
+bulk teacher export path matters more than it did** — which is also what the
+Flip/Flipgrid lesson in the research argues for. → **RR-A6.**
+
+⚠️ **Derived artifacts are in scope of the sweep, not just source media.** COPPA
+§ 312.2 defines "delete" as _"not maintained in retrievable form"_, reaching
+transcodes, transcripts, thumbnails, and waveform data. RR-A4 established there
+**will** be transcodes. **And § 99.10(e) forbids destroying records under an
+outstanding access request — the sweep has to know about pending requests.**
+
+🟡 **Assumption recorded, because Paul's choice requires a concept SpartBoard does
+not have.** There is **no school-year concept anywhere in the codebase** — verified
+2026-08-05 against `types.ts`, the roster layer (`hooks/useRosters.ts`, no
+OneRoster academic-session or term handling), and `functions/src`. "End of the
+current school year" cannot be computed today. Assumed shape, flagged as
+revisitable: **a fixed July 1 annual sweep, overridable per organization.** It
+needs no district calendar integration to ship, and a May recording expiring in
+~2 months is the privacy-maximizing reading — consistent with why the tighter bound
+was chosen. **If that default is wrong, it is a one-field fix, not a redesign.**
+
+**Deliberately not decided here — and why:**
+
+- **Which AI capabilities are on the menu, and how they're gated.** Sub-decision 2 sets the _outer boundary_ (no template extraction, ever) and leaves everything inside it open. → **RR-05**, which is now unblocked.
+- **Whether video ships at all.** Sub-decision 3 hands RR-A3 a sharper input — zero redaction capacity by choice — but the mode question is RR-A3's to answer. → **RR-A3.**
+- **The COPPA Direct Notice to Schools page and the NDPA rider.** Both are research recommendations 2 and the "worth doing while you're there" item; they're documents, not product decisions, and they belong with **RR-09**'s counsel conversation.
+
+**Consequences, and where they land:**
+
+- **RR-05 and RR-06 are unblocked** — RR-04 was the last keystone.
+- **RR-03's retention promise is amended** (sub-decision 6). RR-03's resolution now carries a pointer to this.
+- **RR-07's first bullet is decided by law** (sub-decision 5) — a non-recorded alternative is mandatory, not teacher-configurable.
+- **RR-A1 loses auto-start capture** as a design option (sub-decision 5).
+- **RR-A6 gains three requirements**: the pre-deletion warning email, a bulk teacher export path, and derived-artifact coverage in the sweep.
+- **RR-A3 gains the redaction-capacity argument** against video (sub-decision 3).
+- **RR-09's question 4 becomes more load-bearing** — if the district also can't redact, neither party can.
+- **Three fog patches are now resolvable**: moderation, the `/activity-wall/gallery` posting surface, and the district-managed "recording allowed" roster flag were all explicitly waiting on this ticket.
+
 **Paul's notes:**
 
 ---
 
 ### RR-05 — Where is the AI boundary, and what exactly is admin-gated?
 
-**Type:** grilling (HITL) · **Status:** Open · **Blocked by:** RR-04 · **Blocks:** RR-06
+**Type:** grilling (HITL) · **Status:** Open — **unblocked 2026-08-05** · **Blocked by:** ~~RR-04~~ (closed) · **Blocks:** RR-06
 
 **Question**
 
 You said "how it could potentially get connected to AI (admin gated) and all
 that." Blocked by RR-04 deliberately — you can't decide what to send a vendor
 before deciding what may leave the district.
+
+🔴 **RR-04 drew the outer boundary; this ticket decides what lives inside it.**
+RR-04 sub-decision 2 is a **hard, contractual commitment** — no voiceprints, no
+speaker identification or verification, **no diarization**, no face matching, no
+emotion or biometric inference — written into the DPA and privacy notice as an
+affirmative representation. That is not a default to be revisited per capability;
+**nothing on this ticket's menu may cross it.** What survives untouched is
+**transcript-level ASR**, which is template-free.
+
+Two menu items are therefore already dead: **speaker-attributed transcripts for
+group or paired recordings**, and **speaking-time / participation analytics**.
+Don't re-propose them.
+
+Also settled by RR-04: SpartBoard is on Gemini's **Paid** Services (finding 3's
+correction), so nothing submitted is trained on and no vendor change is indicated.
 
 The mechanism is already established and should be reused, not reinvented:
 `transcribeVideoWithGemini` checks `global_permissions/video-activity-audio-transcription`
@@ -1036,7 +1267,7 @@ Open decisions:
 
 ### RR-06 — How do media responses grade, and how do they reach the gradebook?
 
-**Type:** grilling (HITL) · **Status:** Open · **Blocked by:** RR-02, RR-03, RR-04, RR-05
+**Type:** grilling (HITL) · **Status:** Open · **Blocked by:** ~~RR-02, RR-03, RR-04~~ (all closed), RR-05
 
 **Question**
 
@@ -1073,16 +1304,18 @@ contrast ratio.
 **set**, and a student picks from it. So the question is no longer "how would we
 express an alternate" but "what's the **policy floor** on that set."
 
-🔴 **RR-04 may have removed the teacher's freedom to say no.** COPPA
-**§ 312.3(d)** bars conditioning participation on disclosing more personal
-information than reasonably necessary, and Minnesota's Tennessen warning
-(§ 13.04 subd. 2) requires telling the student **whether they may refuse**.
-Together those point at **a non-recorded alternative being required for every
-recorded assignment** — which would decide this ticket's first bullet by law
-rather than by pedagogy. Worth confirming with counsel before designing around a
-teacher-configurable floor.
+🔴 **RR-04 DID remove the teacher's freedom to say no — resolved 2026-08-05, not
+merely flagged.** COPPA **§ 312.3(d)** bars conditioning participation on
+disclosing more personal information than reasonably necessary, and Minnesota's
+Tennessen warning (§ 13.04 subd. 2) requires telling the student **whether they may
+refuse**. RR-04 sub-decision 5 committed to rendering that warning as a real
+product surface once per assignment — **which makes "you may refuse" a statement
+SpartBoard has to keep true.** A non-recorded alternative is therefore
+**mandatory**, and **this ticket's first bullet is decided by law rather than by
+pedagogy.** Still worth confirming with counsel (→ RR-09), but design against it,
+not around it.
 
-- Is there a floor at all — must `['audio']` always be wideneable, or may a teacher legitimately author a set of one and exclude a student who can't speak? (A speaking assessment arguably _must_ be able to require speech, or it isn't measuring speech — **but see the § 312.3(d) point above; this may not be a free choice**.)
+- ~~Is there a floor at all~~ — **decided by RR-04: yes, and it is not teacher-configurable.** A mode set of one that a student cannot satisfy is not authorable. What remains open here is **what the alternate actually is** for each mode (typed text? teacher conference? a scribe?), **who chooses it** (student self-service, or teacher grant on request), and whether a speaking assessment can legitimately mark the alternate as not measuring the target construct — i.e. the alternate may exist and still score differently. That last question is the real one.
 - If a student elects the alternate, does the teacher see that they did?
 - Does a no-microphone / denied-permission device get a graceful path, or a dead end? **RR-A4 turned this from hypothetical into certain:** districts routinely park students in restricted Chrome OUs with mic/camera disabled by policy, and ChromeOS hardware kill-switches sit below the browser permission layer. **A subset of any class may have capture hard-blocked through no fault of the teacher or the student** — so an alternate path is a functional requirement, not only an accessibility one.
 - **New from RR-01:** the addendum can be **required**, so it needs its own answer here. A required spoken justification on an MC question excludes the same students a required spoken _primary_ does — and it's easier for a teacher to add without noticing, because the question still looks like multiple choice.
@@ -1798,9 +2031,9 @@ meaningless if shuffling scatters the group.
 In scope, but not yet sharp enough to ticket. These graduate as the frontier
 advances — most are waiting on RR-01 and RR-04.
 
-- **Moderation.** A student records something inappropriate, or another student's face is in frame. Who sees it first, can a teacher delete before archival, is there a report path? **RR-04 sharpened the second half considerably** — another student in frame isn't only a moderation question, it's a data-request question (AO 19-004: if you can't segregate, you hand over the whole recording). Waiting on RR-04's decision half and RR-09's redaction-capacity answer.
-- **The `/activity-wall/gallery` public-posting surface.** RR-04 found that COPPA § 312.2 treats public posting as a _disclosure_ that school consent likely doesn't reach, and no district designates audio/video as directory information. Whether media responses may ever reach a public surface — and whether the existing gallery route needs revisiting independently of this map — isn't sharp until RR-04's decision half lands.
-- **The district-managed "recording allowed" roster flag.** RR-04 flagged that no vendor consumes a media-release attribute over Clever/ClassLink/OneRoster today, so this would be ahead of the market. Not sharp until the consent posture is decided.
+- **Moderation.** A student records something inappropriate, or another student's face is in frame. Who sees it first, can a teacher delete before archival, is there a report path? **RR-04 closed the second half by decision, and the answer is uncomfortable:** SpartBoard commits to having **no automated segregation capacity at all** (sub-decision 2 rules out diarization; sub-decision 3 accepts § 99.12(a)'s fallback), so "another student in frame" has no product remedy — only the capture policy and the access-request consequence. What's left here is genuinely just moderation: **who sees a recording first, and can a teacher delete before archival fires?** ⚠️ RR-03 made archival **immediate on upload**, so "delete before archival" may be a window that doesn't exist — that tension is the sharp question, and it's close to ticketable.
+- **The `/activity-wall/gallery` public-posting surface.** RR-04 found that COPPA § 312.2 treats public posting as a _disclosure_ that school consent likely doesn't reach, and no district designates audio/video as directory information. **RR-04's decision half settles the forward-looking half:** media responses reach **no public surface** — sub-decision 1 keeps names in the district's own Drive, and RR-03 gated student playback to publish-time on the results screen. What survives is a **question about already-shipped code**, not about this design: whether the existing gallery route needs revisiting on its own account. It should graduate out of this map into its own issue.
+- **The district-managed "recording allowed" roster flag.** RR-04 flagged that no vendor consumes a media-release attribute over Clever/ClassLink/OneRoster today, so this would be ahead of the market. **Still not ticketed, but now for a better reason:** RR-04's consent posture is decided (notice, not consent — the district authorizes), so this flag is no longer load-bearing for compliance. It's a **district-convenience feature** now, and can wait for a district to ask.
 - ~~**Storage cost at district scale.**~~ **Resolved by RR-03** — Drive is the durable home, so SpartBoard's durable storage cost is $0 and the arithmetic lives in RR-03's resolution. What survives is narrower and belongs to RR-A3: **transcode compute** at district scale, which is trivial for audio and unbounded for video.
 - **Where transcoding runs, and what it costs.** RR-A4 established that the Drive archive step must transcode (Cloud Function + ffmpeg? Google's Transcoder API?) — but only if RR-A5's manual Drive test confirms it. **RR-03 sharpened this considerably without closing it:** the archival trigger is now decided (immediate, per artifact, server-side), which makes transcode **synchronous on the upload path and user-visible** rather than a batch job — so latency is now a product constraint, not just a cost one. A 512 MiB / 120 s callable of the `archiveActivityWallPhoto` shape cannot transcode video at all, so the runtime choice (Cloud Run? Transcoder API?) is forced if video ships. Still waiting on RR-A5.
 - **Interaction with attempt limits.** _(The idle auto-submit half of this patch graduated into **RR-08** on 2026-08-04; what remains here is retakes vs. whole-assignment attempt limits, which needs RR-A2 first.)_
