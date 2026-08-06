@@ -65,7 +65,10 @@ export const AIGeneratorOverlay: React.FC<AIGeneratorOverlayProps> = ({
       aria-label={title}
       className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200"
       onKeyDown={(e) => {
-        if (e.key === 'Escape') onClose();
+        if (e.key !== 'Escape') return;
+        // Stop the bubble to the ancestor Modal's window-level Escape handler, which would otherwise also close/discard the whole editor (same bug class as #2266/#2289/#2314).
+        e.stopPropagation();
+        onClose();
       }}
     >
       <div className="w-full max-w-sm space-y-4">
