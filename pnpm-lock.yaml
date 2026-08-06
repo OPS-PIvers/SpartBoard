@@ -18,6 +18,7 @@ overrides:
   protobufjs: ^7.5.6
   path-to-regexp@0.1: ^0.1.13
   path-to-regexp@8: ^8.4.0
+  '@hono/node-server': ^1.19.13
 
 importers:
 
@@ -1079,8 +1080,8 @@ packages:
     engines: {node: '>=6'}
     hasBin: true
 
-  '@hono/node-server@1.19.9':
-    resolution: {integrity: sha512-vHL6w3ecZsky+8P5MD+eFfaGTyCeOHUIFYMGpQGbrBTSmNNoxv0if69rEZ5giu36weC5saFuznL411gRX7bJDw==}
+  '@hono/node-server@1.19.17':
+    resolution: {integrity: sha512-dSneS5qhiauZWGDCeK4o695Xd9nUNjviSZCMQrj10eetr8Uln1ucn6bbphOM6UynAMMtNIzZNSpL9vnASJwrPQ==}
     engines: {node: '>=18.14.1'}
     peerDependencies:
       hono: ^4.13.0
@@ -7265,7 +7266,7 @@ snapshots:
       protobufjs: 7.5.6
       yargs: 17.7.2
 
-  '@hono/node-server@1.19.9(hono@4.13.0)':
+  '@hono/node-server@1.19.17(hono@4.13.0)':
     dependencies:
       hono: 4.13.0
 
@@ -7653,7 +7654,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.25.2(hono@4.13.0)(zod@4.3.6)':
     dependencies:
-      '@hono/node-server': 1.19.9(hono@4.13.0)
+      '@hono/node-server': 1.19.17(hono@4.13.0)
       ajv: 8.17.1
       ajv-formats: 3.0.1(ajv@8.17.1)
       content-type: 1.0.5

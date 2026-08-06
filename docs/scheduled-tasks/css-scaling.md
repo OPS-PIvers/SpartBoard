@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-05_
+_Last audited: 2026-08-06_
 _Last action: 2026-08-05 — LOW ClockWidget AM/PM badge hardcoded `ml-2` (8px fixed left margin) replaced with proportional inline `marginLeft: '0.1em'`, so the badge separation scales with the clock hero size instead of staying pinned at 8px on large/projected displays_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-06: Targeted scan (Thursday daily). No new widget front-face source changes since 2026-08-05 (scheduled-tasks branch carries only `package.json` + `pnpm-lock.yaml` changes from the @hono/node-server dependency override — no Widget.tsx front-face content changes). All pre-existing LOW open items confirmed present and unresolved (MathTools tab row px-2 gap-1, Onboarding header gap-2, EmbedWidget portaled toolbar, RevealGrid spacing, multi-widget group, MiniApp overlay text sizes, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown). Zero new anti-patterns detected._
 
 _2026-08-05: Targeted scan (Wednesday daily). New dev-paul commits since 2026-08-04: docs(routines) nightly debugger run 35 (#2377 — docs only); nightly(build-tooling) paginate gcPlcOrphans (#2376 — functions/src only); fix(admin) lowercase beta-user emails in FeaturePermissionsManager (#2375 — admin component, no widget front-face); nightly(state-data) clear stale data on org switch (#2374 — context/state, no widget front-face); fix(common) stop Escape propagation in ActiveClassChip & FolderPickerPopover (#2373 — common components, no widget front-face); fix(RevealGrid) wire up dead "Set Generator" button (#2372 — RevealGrid/Settings.tsx back-face only; confirmed: Widget.tsx front-face unchanged); pr-review 4 PRs (#2371 — docs only); deps/hono-cors-redos (#2370 — dependency patch); docs(unifier) run 49 (#2368 — docs only); fix(a11y) retrofit orphaned SettingsLabel group headings (#2367 — Settings.tsx back-face files only: Breathing, DiceWidget, HotspotImage, MaterialsWidget, NextUp; none touch Widget.tsx front-face). Zero new widget front-face content changes. All pre-existing LOW open items confirmed present and unresolved (ClockWidget AM/PM ml-2, MathTools tab row px-2 gap-1, Onboarding header gap-2, EmbedWidget portaled toolbar, RevealGrid spacing, multi-widget group, MiniApp overlay text sizes, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown). Zero new anti-patterns detected._
 
