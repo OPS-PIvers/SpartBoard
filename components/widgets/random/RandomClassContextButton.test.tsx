@@ -281,4 +281,41 @@ describe('RandomClassContextButton', () => {
     ).not.toBeInTheDocument();
     expect(container.firstChild).not.toBeNull();
   });
+
+  // Regression: the popover is portalled to document.body outside any
+  // `.widget` DraggableWindow ancestor and closed on Escape via a
+  // document-level keydown listener that never called stopPropagation().
+  // The unhandled keydown kept bubbling to DashboardView's global
+  // window-level Escape handler, which — finding no `.widget` ancestor for
+  // the portalled popover — falls back to minimizing the topmost z-index
+  // widget on the board. Same bug class already fixed for ActiveClassChip,
+  // ToolDockItem, RemoteControlMenu, ClassRosterMenu, and OverflowMenu.
+  it('closes the popover on Escape and stops propagation before it reaches window listeners', () => {
+    const r1 = makeRoster('r1', 'Period 1');
+    const r2 = makeRoster('r2', 'Period 2');
+    mockUseDashboard([r1, r2], 'r1');
+    render(
+      <RandomClassContextButton
+        roster={r1}
+        rosterMode="class"
+        onOpenAbsentModal={noop}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Active class: Period 1/i })
+    );
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+
+    const windowKeydownSpy = vi.fn();
+    window.addEventListener('keydown', windowKeydownSpy);
+
+    try {
+      fireEvent.keyDown(document, { key: 'Escape', bubbles: true });
+
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      expect(windowKeydownSpy).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('keydown', windowKeydownSpy);
+    }
+  });
 });

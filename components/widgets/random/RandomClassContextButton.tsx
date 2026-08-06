@@ -80,7 +80,13 @@ export const RandomClassContextButton: React.FC<
       closeMenu();
     };
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeMenu();
+      if (event.key !== 'Escape') return;
+      // Portalled to <body>, outside any `.widget` ancestor — without
+      // stopping propagation an Escape here also bubbles up to
+      // DashboardView's global window-level Escape handler, which falls
+      // back to minimizing the topmost widget (see #2266 pattern).
+      event.stopPropagation();
+      closeMenu();
     };
     let animationFrameId = 0;
     const handleReposition = () => {
