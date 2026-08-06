@@ -284,16 +284,21 @@ const AddDomainModal: React.FC<{
           <Btn
             variant="primary"
             disabled={!domain}
-            onClick={() =>
+            onClick={() => {
+              const normalized = domain.trim().toLowerCase();
               onAdd({
-                domain: domain.startsWith('@') ? domain : `@${domain}`,
+                // Lowercased so it exact-matches the lowercased email/hd
+                // candidate resolveOrgIdForDomain() queries against.
+                domain: normalized.startsWith('@')
+                  ? normalized
+                  : `@${normalized}`,
                 authMethod: method,
                 status: 'pending',
                 role: 'staff',
                 users: 0,
                 addedAt: new Date().toISOString().slice(0, 10),
-              })
-            }
+              });
+            }}
           >
             Send verification
           </Btn>
