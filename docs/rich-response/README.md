@@ -14,6 +14,7 @@ sessions.
 | [rr-08-answered-state-grounding.md](rr-08-answered-state-grounding.md) | **RR-08** | Read-only audit of how "answered" is computed in shipped code, and what breaks when `answer: ''` becomes legitimate                                                                                                           |
 | [rr-a1-timing-prototype.html](rr-a1-timing-prototype.html)             | **RR-A1** | Clickable prototype of the prep → armed → recording → limit flow, with **four** prep-expiry branches switchable. **Rev 2** adds the audio/video mode switch, the framing check, auto-start, and a live cost table — see below |
 | [rr-a5-capture-harness.html](rr-a5-capture-harness.html)               | **RR-A5** | Capture/codec harness that produces the real recordings the Drive round-trip test needs                                                                                                                                       |
+| [rr-a2-retake-grounding.md](rr-a2-retake-grounding.md)                 | **RR-A2** | Read-only audit of every overwrite path for a prior answer, what preserves attempt history (almost nothing), whether a teacher can see attempt counts (no), and whether `functions/` can delete a Drive file (no)             |
 
 ## Running the two HTML files
 
