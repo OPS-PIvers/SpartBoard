@@ -1370,6 +1370,9 @@ about them.
 
 3. **Does Orono's existing media-release / directory-information language cover student-_created_ coursework recordings, or only district-created media?** The research called this the highest-value question. Orono's annual notice designates "photograph" and says nothing about audio or video, and there's no separate media-release form. **Also pull Orono Board Policy 518** (its AUP — Orono doesn't follow MSBA numbering) — the most likely place a real obligation is hiding.
 4. **Can the district actually redact?** Per AO 17-010 / AO 19-004: if a recording captures another student and that student's parent files a data request, the district must segregate — **and if it can't, it must hand over the whole recording**. If the district has no redaction capacity, that is a concrete argument against shipping video at all.
+
+   🔴 **Upgraded 2026-08-05 by RR-04 sub-decision 3.** When this question was written, SpartBoard's own redaction capacity was an open possibility. It no longer is: sub-decision 2 rules out diarization contractually, and sub-decision 3 accepts the consequence — **SpartBoard will have zero automated segregation capacity, permanently and by choice.** That was a deliberate trade (it steps out of the 2025-26 BIPA litigation frontier), but it changes what this question _is_. It is no longer about the district's convenience; it is about **whether either party to the contract can segregate at all.** If Orono answers no, then nobody in the chain can, and **RR-A3 gets its answer on video without needing the cost argument.** Treat this as the second-highest-value item on this list, behind only #3.
+
 5. **Is SpartBoard a "technology provider" under Minn. Stat. § 13.32 subd. 1?** The definition is conjunctive and gates both § 13.32 and the MCDPA.
 
 **Also worth doing while you're there:** an NDPA rider covering the parental-consent
@@ -1395,7 +1398,7 @@ recording time limit, at which it **stops automatically**. Both auto-transitions
 are high-anxiety moments for a student, and a prototype will settle this faster
 than argument.
 
-- What does the student see in the last 5 seconds of prep? Is there an "I'm ready, start now" escape, or is auto-start the only path?
+- What does the student see in the last 5 seconds of prep? ~~Is there an "I'm ready, start now" escape, or is auto-start the only path?~~ **← settled by RR-04 below; see the ⛔ block.**
 - Does prep time extend or replace `QuizQuestion.timeLimit` (0 = none, already shipped)?
 - Hard stop at the limit, or a grace tail so a sentence in progress isn't guillotined?
 - What happens to a partial recording when the browser closes mid-take — does the draft/autosave model from written responses have an analog, or is a lost take just lost?
@@ -1409,6 +1412,28 @@ discover later:** Chrome-recorded webm reports **`Infinity` duration**, so any
 countdown or progress bar must be driven by a client-side timer, not by the media
 element. And **Google Classroom's own recorder caps at 5 minutes** — a useful
 sanity benchmark for what a limit should look like.
+
+⛔ **RR-04 (2026-08-05) removed auto-start from the option set — by statute, not
+by preference.** Sub-decision 5 renders the Tennessen warning (Minn. Stat. § 13.04
+subd. 2) once per assignment, **before the first recording**. And § 13.32
+subd. 14(b)(1)'s instructional-purpose exception — the provision that makes this
+collection lawful at all — is conditioned on **advance** notice. Capture that
+begins on a timer the student never triggered cannot carry that notice.
+
+**This invalidates the opening spec above**, which reads "prep/think time, after
+which **recording begins automatically**." That half is dead. An explicit student
+act is now the _only_ path into recording.
+
+**The prototype's question changes shape rather than disappearing.** It is no
+longer "auto-start or an escape hatch" — it's **what prep-time expiry does now
+that it can't start the recorder.** Auto-advance to the next question? Sit
+indefinitely on an armed record button? Mark the question unanswered and move on?
+That's a genuine design fork with real student-anxiety consequences, and it's
+exactly what a cheap stub answers faster than argument.
+
+⚠️ **Always-on camera/mic preview dies for the same reason** — a live preview
+running before the notice is acknowledged is collection without advance notice.
+Any "check your mic" affordance has to sit _after_ the interstitial.
 
 **Resolution:** _(unresolved)_
 
@@ -1481,6 +1506,30 @@ compute** — but it did not disappear, and RR-03 made transcode **synchronous o
 every upload**, so video also costs the student wall-clock time at record-stop on
 top of RR-A4's ~75 s upload. **This ticket is now the one place where "does video
 ship at all" can be answered, and it has a real budget line on both sides.**
+
+🔴 **RR-04 (2026-08-05) handed this ticket an argument that could settle it without
+reference to cost at all.** Sub-decision 2 commits SpartBoard **contractually** to
+no diarization, no speaker identification, no face matching — and sub-decision 3
+records the price of that commitment honestly: **zero automated redaction
+capacity, permanently and by choice.**
+
+Video is where that bites hardest, and the asymmetry with audio is not a matter of
+degree. A neighbor's voice bleeding into an audio take is ambiguous and often
+unintelligible; **a face in frame is unambiguously another student's education
+record.** 34 CFR § 99.12(a), _Letter to Wachter_, and AO 19-004 all land in the
+same place — segregate, and **where you cannot segregate, the whole recording
+becomes accessible to every affected student's parents.** So one student's video
+assignment can become disclosable to a classmate's family, and SpartBoard has now
+committed to holding no tool that would prevent it.
+
+**The ticket's question has been converted twice.** It began as "separate mode or
+a camera flag"; RR-03 made it "does video's cost justify it"; RR-04 makes it
+**"does video ship at all."** Note the strongest input arrives from outside this
+map: → **RR-09 question 4.** If Orono answers that _it_ has no redaction capacity
+either, then neither party to the contract can segregate, and shipping video means
+knowingly shipping an unserviceable access-request path. RR-04's research
+recommendation 5 was **audio-only by default, video opt-in per assignment** —
+which is also what Microsoft Reading Progress does.
 
 **Resolution:** _(unresolved)_
 
@@ -1711,6 +1760,13 @@ requirements rather than options:**
 - 🔴 **The out-of-band archive-failure notification is a hard requirement, not polish.** RR-03 chose to sweep un-archived media aggressively (~7 days) over the recommended 30-day hard-delete, accepting the risk that a Google grant breaking over a break week destroys a class set. That risk is only survivable if failure reaches the teacher **by email** (the `/mail` outbound queue already exists for org invites) rather than sitting as a badge in a UI nobody has open. Decide the message, the trigger threshold, and whether students are told anything.
 - **Storage size caps and the `contentType` allowlist land here.** RR-03 deliberately declined to set them, because a cap has to follow the bitrate policy rather than lead it. Inputs: the shipped activity-wall rule is 10 MB / `image/.*`; RR-A4 measured **19 MB for a 60 s video at Chrome's default** and 240 KB for the same answer as audio. Set the bitrate caps first, then the size cap follows.
 - **Transcode is now synchronous on the upload path.** RR-03 archives immediately per artifact, so transcode latency is user-visible, not batch. That changes what "upload strategy" even means — the student is waiting on transcode + Drive round-trip, not just the upload.
+
+**Three further requirements from RR-04 (2026-08-05), all falling out of its
+end-of-school-year retention bound (sub-decision 6):**
+
+- 🔴 **A pre-deletion warning email is mandatory, not courteous.** RR-04 amended RR-03's "district-lifecycle-bound" retention into a hard annual expiry (assumed **July 1**, overridable per organization) because COPPA § 312.10 — fully in force since 2026-04-22 — forbids retaining a child's personal information indefinitely and requires a published deletion timeframe. Media therefore dies on a clock the teacher never set, so the sweep **must** be preceded by a warning on the same `/mail` outbound queue as the archive-failure notification above. **Same mechanism, second trigger — decide them together rather than twice.**
+- 🔴 **A bulk teacher export path matters more than it did.** RR-04 accepted explicitly that the annual bound forecloses year-over-year growth comparison — and a September-to-September sample pair is the single most valuable artifact a speaking assessment produces. Export is what gives that back. The Flip/Flipgrid post-mortem in RR-04's research is the argument for its shape: **bulk and district-admin-executable**, not per-user self-service with a three-month window.
+- ⚠️ **Derived artifacts are in scope of every sweep, not just source media.** COPPA § 312.2 defines "delete" demandingly — _"not maintained in retrievable form and cannot be retrieved in the normal course of business"_ — reaching **transcodes, transcripts, thumbnails and waveform data**. RR-A4 established there **will** be transcodes. So whatever this ticket decides about buffering, resumption and retry must leave nothing behind that a sweep can't enumerate: an IndexedDB retry buffer and a service-worker cache are both places media can survive a deletion that believed it succeeded. **And § 99.10(e) forbids destroying records under an outstanding access request — the sweep has to know about pending requests.**
 
 **Resolution:** _(unresolved)_
 
@@ -2029,7 +2085,9 @@ meaningless if shuffling scatters the group.
 ## Not yet specified
 
 In scope, but not yet sharp enough to ticket. These graduate as the frontier
-advances — most are waiting on RR-01 and RR-04.
+advances. _**RR-01 and RR-04 — the two tickets most of these were waiting on — are
+now both closed.** Several patches below were narrowed or answered in place by
+those resolutions rather than graduating whole; each says so and what survives._
 
 - **Moderation.** A student records something inappropriate, or another student's face is in frame. Who sees it first, can a teacher delete before archival, is there a report path? **RR-04 closed the second half by decision, and the answer is uncomfortable:** SpartBoard commits to having **no automated segregation capacity at all** (sub-decision 2 rules out diarization; sub-decision 3 accepts § 99.12(a)'s fallback), so "another student in frame" has no product remedy — only the capture policy and the access-request consequence. What's left here is genuinely just moderation: **who sees a recording first, and can a teacher delete before archival fires?** ⚠️ RR-03 made archival **immediate on upload**, so "delete before archival" may be a window that doesn't exist — that tension is the sharp question, and it's close to ticketable.
 - **The `/activity-wall/gallery` public-posting surface.** RR-04 found that COPPA § 312.2 treats public posting as a _disclosure_ that school consent likely doesn't reach, and no district designates audio/video as directory information. **RR-04's decision half settles the forward-looking half:** media responses reach **no public surface** — sub-decision 1 keeps names in the district's own Drive, and RR-03 gated student playback to publish-time on the results screen. What survives is a **question about already-shipped code**, not about this design: whether the existing gallery route needs revisiting on its own account. It should graduate out of this map into its own issue.
