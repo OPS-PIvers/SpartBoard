@@ -1343,6 +1343,39 @@ independently, and nothing in the shipped model expects that.
 - Does the progress indicator ("4 of 10 answered") count a half-done question?
 - Does a required addendum interact with per-question `timeLimit` — one clock for both artifacts, or one each? (Overlaps RR-A1; resolve there if RR-A1 lands first.)
 
+📎 **Grounding asset (2026-08-06):**
+[`docs/rich-response/rr-08-answered-state-grounding.md`](rich-response/rr-08-answered-state-grounding.md)
+— a read-only audit of every place shipped code decides "answered." **Read it
+before the session**; it changes where the difficulty is.
+
+The reassuring half: shipped code almost never tests `answer` for emptiness. It
+tests whether an entry for the `questionId` **exists** in `answers[]`, so most
+progress counts, gates and sweeps survive `answer: ''` untouched.
+
+🔴 **The half that isn't reassuring — and it is not an emptiness check at all.**
+`submitAnswer` (`hooks/useQuizSession.ts:2349-2362`) rebuilds the
+`QuizResponseAnswer` as a **fresh object literal** — no `...priorEntry` spread —
+and then writes the whole `answers` array back. **Any sibling field on the prior
+entry is dropped**, which under RR-02 means `artifacts[]` is silently destroyed
+on the very next write to that question: a debounced draft autosave, a back-nav
+revisit, a timer-expiry write. Nothing catches it — the Firestore rules whitelist
+top-level keys only, and unlike video-activity responses
+(`firestore.rules:3470-3479`) quiz `answers` carries **no append-only guard**.
+Every other writer in the codebase spreads correctly; this one is the exception.
+**Verified against source 2026-08-06** (both halves — the missing spread and the
+rules asymmetry).
+
+It is **not a bug today** — `isCorrect` is documented as never-student-written
+and recomputed — so it needs no fix now. It becomes data loss the moment RR-02
+ships, which makes it this ticket's problem rather than a maintenance one. Note
+the irony: RR-02 chose a sibling field partly _because_ it needs no rule change
+to be written, and it needs none to be destroyed either.
+
+Two more things the audit surfaced that bear directly on the question:
+
+- **The written-response teacher-paced Submit button already implements the exact three-state model this ticket needs** — `null` (untouched / cache unseeded) vs `''` (deliberately empty) vs non-empty (`QuizStudentApp.tsx:2638-2649`). MC / FIB / Matching / Ordering all collapse `null` and `''` into a single falsy check, which is why they'd physically disable Submit on an artifact-only response. Generalizing the written branch is likely the smallest correct answer, and its rationale is already written down in-repo.
+- ⚠️ **There is no shipped concept of "partially answered" anywhere** — not in `GradeResult`, not in `QuizResponseAnswer`, not in the rules, not in any UI string. Whatever this ticket decides, it is **introducing a state**, not refining one.
+
 **Resolution:** _(unresolved)_
 
 **Paul's notes:**
@@ -1434,6 +1467,33 @@ exactly what a cheap stub answers faster than argument.
 ⚠️ **Always-on camera/mic preview dies for the same reason** — a live preview
 running before the notice is acknowledged is collection without advance notice.
 Any "check your mic" affordance has to sit _after_ the interstitial.
+
+📎 **Prototype asset (2026-08-06):**
+[`docs/rich-response/rr-a1-timing-prototype.html`](rich-response/rr-a1-timing-prototype.html)
+— open it in a real browser (not an in-app preview pane) and react to it. Fake
+recorder, no `getUserMedia`, all clocks on `performance.now()`. The statutory
+constraint holds structurally, not by convention: `startRecording()` has exactly
+one call site and it is a click handler — no timer path reaches it.
+
+Side controls switch the prep-expiry branch and the hard-stop / grace-tail toggle
+live, with prep / limit / grace sliders (the limit runs to 300 s so the Google
+Classroom 5-minute cap is feelable) and a dead-mic fault injector that surfaces
+through level polling rather than the unreliable `onmute` (RR-A4 finding 6).
+
+**The three branches, and one invented distinction to challenge first:** the
+prototype separates them by _reversibility_ — **(A) auto-advance** moves on but
+leaves the question open and returnable from the summary; **(B) armed
+indefinitely** stops the clock entirely, so nothing moves without the student;
+**(C) mark unanswered** closes the question permanently. Without that
+reversibility difference A and C render as the same screen, so it may be wrong —
+it is an assumption the prototype needed, not a finding.
+
+**Four tensions it exposed:**
+
+1. The last-5-seconds copy has to differ per branch, and under A and C it necessarily reads as a threat ("we're moving on") — **which is the exact anxiety this ticket was opened about.** B has no such moment but gives a teacher-paced session no floor on runtime, so the branch may have to vary by `QuizSessionMode`.
+2. A grace tail makes the stated limit a lie. The prototype draws the real ceiling as `limit + grace`; someone has to decide whether the student is told the honest number or the round one.
+3. 🔴 **The written alternative has no clock at all in this build** — which makes the legally-mandatory alternative (RR-04 sub-decision 5) non-equivalent to the timed path. **That question currently belongs to neither this ticket nor RR-07.** → flagged as fog below.
+4. Branch B never produces a terminal "skipped" state, so a student who simply stops interacting leaves the assignment in limbo with nothing the summary screen can represent.
 
 **Resolution:** _(unresolved)_
 
@@ -1726,6 +1786,35 @@ settle empirically. Guessing wrong on either one costs a redesign.
 
 Record the answers here; several downstream decisions are currently resting on
 assumptions.
+
+📎 **Harness asset (2026-08-06):**
+[`docs/rich-response/rr-a5-capture-harness.html`](rich-response/rr-a5-capture-harness.html)
+— prints the `MediaRecorder.isTypeSupported()` matrix for whatever browser opens
+it, then records a 5 s audio and a 5 s video clip at explicit bitrates
+(`audioBitsPerSecond: 32000`, `videoBitsPerSecond: 1_000_000`) and downloads
+both, so item 1's Drive test has real Chrome-recorded files to upload. It also
+reports the client-measured vs element-reported duration (RR-A4's `Infinity`
+bug) and peak amplitude, so a silent track is visible immediately. It uploads
+nothing anywhere.
+
+⚠️ **It must be run on the hardware being asked about.** Opening it on a Windows
+staff device answers a question this ticket did not ask. **Item 2 closes only
+when it runs on a student Chromebook.**
+
+**Partial result, 2026-08-06 — does NOT close item 2.** The matrix was run on a
+Windows x64 machine through an Electron 42 shell (Chrome 148 engine), which is
+neither ChromeOS nor Chrome proper, and Electron bundles its own codecs.
+Everything tested reported supported — including `video/mp4;codecs=avc1` and
+`audio/mp4` — except `audio/ogg;codecs=opus` and `audio/mpeg`, both false.
+**Treat this as a data point about staff Windows devices only.** It is
+suggestive rather than probative: if `audio/mp4` also holds on Chromebooks, the
+transcode step may be unnecessary for audio, which is the cheap path RR-A3 is
+likely to take anyway. The budget Celeron / MediaTek / ARM models RR-A4 flagged
+as lacking a hardware H.264 encoder remain entirely untested.
+
+Items 1, 3, 4 and 5 are untouched. Item 1 could not be run from the agent
+environment at all — microphone capture is blocked there, so `getUserMedia`
+returns `NotAllowedError` with no permission prompt available.
 
 **Resolution:** _(unresolved)_
 
@@ -2094,6 +2183,7 @@ those resolutions rather than graduating whole; each says so and what survives._
 - **The district-managed "recording allowed" roster flag.** RR-04 flagged that no vendor consumes a media-release attribute over Clever/ClassLink/OneRoster today, so this would be ahead of the market. **Still not ticketed, but now for a better reason:** RR-04's consent posture is decided (notice, not consent — the district authorizes), so this flag is no longer load-bearing for compliance. It's a **district-convenience feature** now, and can wait for a district to ask.
 - ~~**Storage cost at district scale.**~~ **Resolved by RR-03** — Drive is the durable home, so SpartBoard's durable storage cost is $0 and the arithmetic lives in RR-03's resolution. What survives is narrower and belongs to RR-A3: **transcode compute** at district scale, which is trivial for audio and unbounded for video.
 - **Where transcoding runs, and what it costs.** RR-A4 established that the Drive archive step must transcode (Cloud Function + ffmpeg? Google's Transcoder API?) — but only if RR-A5's manual Drive test confirms it. **RR-03 sharpened this considerably without closing it:** the archival trigger is now decided (immediate, per artifact, server-side), which makes transcode **synchronous on the upload path and user-visible** rather than a batch job — so latency is now a product constraint, not just a cost one. A 512 MiB / 120 s callable of the `archiveActivityWallPhoto` shape cannot transcode video at all, so the runtime choice (Cloud Run? Transcoder API?) is forced if video ships. Still waiting on RR-A5.
+- **Does the non-recorded alternative run on the same clock as the recorded one?** _(Surfaced 2026-08-06 by RR-A1's prototype, and it currently belongs to no ticket.)_ RR-04 sub-decision 5 makes a non-recorded alternative **legally mandatory** — "may they refuse" has to be a true statement. But RR-A1 owns prep time and recording limits for the _recorded_ path only, and RR-07 owns _what the alternative is_, not how long a student gets to do it. So an alternative with no clock is non-equivalent to a timed spoken response, and an alternative on the _same_ clock may be unfair in the opposite direction — typing is slower than speaking. **Not ticketable yet** because it can't be phrased sharply until RR-07 says what the alternative actually is; revisit the moment RR-07 closes.
 - **Interaction with attempt limits.** _(The idle auto-submit half of this patch graduated into **RR-08** on 2026-08-04; what remains here is retakes vs. whole-assignment attempt limits, which needs RR-A2 first.)_
 - **Authoring guardrails against accidental complexity.** RR-01 makes a set-of-modes plus a required addendum expressible on every question. Nothing yet stops a teacher building a 10-question quiz where each question allows three modes and requires a recording. Whether the product warns, caps, or simply permits it is a real decision — waiting on RR-A1 and RR-06 to know what the costs actually are.
 - **Which surfaces beyond quiz get these modes** — video activity, guided learning, mini-apps, activity wall. Deliberately deferred: decide it for quiz first, generalize second.
