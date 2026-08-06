@@ -11,7 +11,7 @@ sessions.
 
 | Asset                                                                  | Ticket    | What it is                                                                                                                                                                                                                    |
 | ---------------------------------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [rr-08-answered-state-grounding.md](rr-08-answered-state-grounding.md) | **RR-08** | Read-only audit of how "answered" is computed in shipped code, and what breaks when `answer: ''` becomes legitimate                                                                                                           |
+| [rr-08-answered-state-grounding.md](rr-08-answered-state-grounding.md) | **RR-08** | Read-only audit of how "answered" is computed in shipped code, and what breaks when `answer: ''` becomes legitimate. **RR-08 closed 2026-08-06** — the audit held up; see below                                               |
 | [rr-a1-timing-prototype.html](rr-a1-timing-prototype.html)             | **RR-A1** | Clickable prototype of the prep → armed → recording → limit flow, with **four** prep-expiry branches switchable. **Rev 2** adds the audio/video mode switch, the framing check, auto-start, and a live cost table — see below |
 | [rr-a5-capture-harness.html](rr-a5-capture-harness.html)               | **RR-A5** | Capture/codec harness that produces the real recordings the Drive round-trip test needs                                                                                                                                       |
 | [rr-a2-retake-grounding.md](rr-a2-retake-grounding.md)                 | **RR-A2** | Read-only audit of every overwrite path for a prior answer, what preserves attempt history (almost nothing), whether a teacher can see attempt counts (no), and whether `functions/` can delete a Drive file (no)             |
@@ -54,6 +54,17 @@ check while the **confirm** click starts capture. Branch D adds the single timer
 call site, takes a `fromTimer` flag so the event log says which path fired, and
 pairs it with the discard. If you are reading the build to check the statutory
 claim, that flag is where to look.
+
+## RR-08 closed 2026-08-06 — how the grounding brief held up
+
+Kept for the record, because a grounding asset is only worth producing again if it
+turns out to have been worth reading.
+
+- **The headline finding was right and was the session's most consequential item.** Landmine #1 — `submitAnswer` rebuilding the answer object with no `...priorEntry` spread — was re-verified against source at the top of the session and got its own resolution (sub-decision 9): a standalone implementation ticket landing **before** RR-02's build.
+- **One correction.** The brief implies a one-line fix. It isn't: a naive spread resurrects the prior entry's `speedBonus`, which is currently included _conditionally_. The fix must spread and then explicitly re-own every field the write owns.
+- **The brief's §0 verdict — "shipped code asks whether an entry exists, not whether `answer` is non-empty" — is what made sub-decision 1 possible.** Knowing that roughly ten consumers are presence-based is exactly what turned "fix the `'auto'` stall" into "make absence mean one thing," which fixes all ten at once.
+- **One cost assumption in the session was wrong and the code corrected it.** The instinct was to leave the idle sweep dumb because loading quiz definitions per response is expensive. But `publicQuestions` lives on the session doc and the sweep **already batch-reads it**. That reversed sub-decision 5. The brief didn't say this; it's the kind of thing only reading the function shows.
+- **§7's two carry-ins both landed.** The written-response three-state Submit gate is the shape sub-decision 7 generalized, and "there is no shipped concept of partially answered" is recorded in the resolution as an explicit warning that the ticket introduces a state rather than refining one.
 
 ## Verification status
 

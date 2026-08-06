@@ -22,6 +22,16 @@ answers.hasAll(resource.data.answers)`); the quiz-response update rule is a
 >
 > **This is grounding, not a resolution.** RR-08 is a HITL grilling ticket; nothing
 > here decides it.
+>
+> ✅ **RR-08 closed 2026-08-06.** This file is kept as-written — the decisions it fed
+> are in the ticket, not here. Two things a later reader should know before trusting
+> it: **landmine #1 is not the one-line fix §6 implies** (a naive `...priorEntry`
+> spread resurrects the prior entry's conditionally-included `speedBonus`), and
+> **§5.1 understates what the sweep can reach** — `publicQuestions` lives on the
+> session doc, which the sweep already batch-reads at `:252`, so it can see
+> per-question authored config at zero additional read cost. That reversed one of
+> the session's recommendations. See `docs/rich-response/README.md` for the full
+> retrospective.
 
 ---
 

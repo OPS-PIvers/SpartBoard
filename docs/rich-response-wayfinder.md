@@ -16,7 +16,7 @@
 > **Paul:** each ticket has an empty `Paul's notes` slot. Write in them freely —
 > agents should read them as the highest-authority input on that ticket.
 
-**Status:** Charted 2026-08-04 · **8 of 22 resolved** — RR-01, RR-B1, RR-A4 closed and RR-04's research half done 2026-08-04; **RR-02, RR-03 and RR-04 closed 2026-08-05**; **RR-A3 and RR-A1 closed 2026-08-06**. **The whole A-track spine is now settled** — video ships gated as a peer mode (RR-A3), and the capture experience, its timing model, its data model and video's byte ceiling are locked (RR-A1). The response model (RR-01), its serialization (RR-02) and its lifecycle (RR-03) were already locked, and RR-04 governs who may hold student media, under what name, and for how long. **No keystones remain.**
+**Status:** Charted 2026-08-04 · **9 of 22 resolved** — RR-01, RR-B1, RR-A4 closed and RR-04's research half done 2026-08-04; **RR-02, RR-03 and RR-04 closed 2026-08-05**; **RR-A3, RR-A1 and RR-08 closed 2026-08-06**. **The whole A-track spine is settled** — video ships gated as a peer mode (RR-A3), and the capture experience, its timing model, its data model and video's byte ceiling are locked (RR-A1). The response model (RR-01), its serialization (RR-02) and its lifecycle (RR-03) were already locked; RR-04 governs who may hold student media, under what name, and for how long; and **RR-08 settled what "answered" means now that a question can complete in parts** — including the shipped `'auto'`-mode stall RR-A1 found. **No keystones remain.** What's left is one A-track design ticket, two hardware/legal verifications, and the two untouched tracks.
 
 > **Correction, 2026-08-05:** RR-04's finding 3 claimed a live Gemini ToS violation. **It was wrong on both halves** — no student can reach Gemini (enforced by an email guard on every callable), and SpartBoard is on Gemini's _Paid_ Services via its Workspace account and Blaze billing, so nothing is trained on. The finding, the retraction, and the one question that genuinely survives are all recorded in place. **The "move to Vertex AI" recommendation is withdrawn.**
 > **Correction, 2026-08-06:** RR-04 sub-decision 5 recorded that auto-start capture was **"dead — not by preference but by statute."** That overstated its own research, which called § 13.32 subd. 14(b)(1) merely _"relevant to"_ auto-start. With the institution consenting (RR-04 research finding 4) and the notice already rendered in advance, **the statutory bar does not hold and auto-start is a live design option** — it is now a per-question teacher setting (RR-A1 sub-decision 1). The **non-recorded alternative remains mandatory**, but on **RR-A4 finding 5** (ChromeOS policy hard-blocks capture for some students) rather than on § 312.3(d). The notice, the framing check and the always-on-preview kill are all undisturbed.
@@ -106,6 +106,8 @@ These are load-bearing. Several tickets are really "should we reuse this or not?
 
 - **[RR-A1 — What's the timing model for prep time and recording limits?](#rr-a1--whats-the-timing-model-for-prep-time-and-recording-limits)** — **The prep-expiry branch is a per-question teacher setting** (`auto-start` / `auto-advance` / `armed` / `unanswered`), not one product-wide behaviour. ⚠️ **Amends RR-04:** the auto-start kill **does not hold** — the § 13.32 citation was a research flag, not a finding, and institutional consent plus the already-rendered notice discharge the objection. The mandatory alternative **survives on RR-A4 finding 5** (ChromeOS policy blocks capture for some students) rather than on law. Timing lives in a new `recording` block because `timeLimit` feeds **speed-bonus scoring**, which is now unavailable on recording questions by design. Video's ceiling is **480p / 500 kbps** — 4.0 MB a take, **599 MB an assignment (was 2.85 GB)**, 16 s to upload. **Hard stop with a wrap-up warning**, no grace tail, because a grace tail is a longer limit told dishonestly. Framing check **once per assignment** with a **continuous self-view** during capture. **A lost take is lost** — nothing is written until the student commits, which forecloses streaming upload and binds RR-A6. Defaults prep 30 s / limit 60 s; max 300 s audio, **120 s video** because assignment totals aren't duration-independent.
 
+- **[RR-08 — What counts as "answered" when a question has a required addendum?](#rr-08--what-counts-as-answered-when-a-question-has-a-required-addendum)** — **Every question the student leaves behind writes an entry**, so absence in `answers[]` means only "hasn't got there yet" — which fixes RR-A1's `'auto'` stall as a side effect of fixing the nine other presence-based consumers it couldn't see. **Two axes, two fields:** `status` keeps meaning finality, untouched; a new sibling `unresponded` says whether the student responded at all — because RR-A1's four expiry values disagree about finality, and one field can't say _"final, and never responded to."_ **Submit blocks on a missing required addendum** (Paul, against my recommendation), which obliged three payments: **nothing substitutes for a required mode** — no text fallback, the slot stays empty marked `capture-unavailable`, so the block only binds students for whom it was ever satisfiable; **the idle sweep marks empty required slots** at **zero extra read cost**, because `publicQuestions` is on the session doc it already batch-reads; and **the block on an in-flight upload is bounded**, because a lost take is lost and the tail is RR-A6's unknown. **One completeness predicate** drives both the progress count and the submit gate — they must agree or the student can't act on either — binary for students, three states for the teacher. **The recording clock governs the addendum slot only.** The `submitAnswer` spread fix gets **its own ticket ahead of RR-02**, and it is _not_ one line: a naive spread resurrects a stale `speedBonus`.
+
 **Destination confirmed** 2026-08-04 (not a ticket, recorded here so it isn't re-litigated): the spec covers all three tracks; narrower, wider, and spec-plus-build were considered and rejected. See the ✅ note under **Destination**.
 
 ---
@@ -114,17 +116,16 @@ These are load-bearing. Several tickets are really "should we reuse this or not?
 
 Open, unblocked, unclaimed — takeable right now:
 
-_Rebuilt 2026-08-06 after RR-A1 closed. **No keystones remain**, and the A-track's
-design spine is finished — what's left there is verification and one downstream
-ticket._
+_Rebuilt 2026-08-06 after RR-08 closed. **No keystones remain.** The A-track's
+design spine is finished, and the response lifecycle — model, serialization,
+persistence, timing, completeness — is now settled end to end._
 
 **Takeable now:**
 
-- 🔥 **RR-08** — What counts as "answered" when a question has a required addendum? _(grilling + domain-modeling)_ — **promoted to the front, because RR-A1 handed it a live bug rather than a design question.** `'auto'` session mode advances on `r.answers.some(a => a.questionId === currentQId)` (`hooks/useQuizSession.ts:1313`), and two of RR-A1's four prep-expiry values write no record at expiry — so one student can stall a whole class. **Best-prepared ticket on the map**: a verified landmine and two structural findings are already in `docs/rich-response/rr-08-answered-state-grounding.md`
-- 🔥 **RR-A5** — Verify format round-trip and capture policy on district hardware _(task, HITL)_ — **still the only thing on the board no agent can do**, and now it has a specific target: does district hardware encode **480p / 500 kbps** (RR-A1 sub-decision 4). RR-03 put transcoding on the synchronous critical path of every upload and RR-A3 committed to shipping video, so the transcode runtime question is load-bearing. **Needs a student Chromebook.** Harness: `docs/rich-response/rr-a5-capture-harness.html`
-- **RR-A2** — Recording controls and what a retake means for validity _(grilling)_ — **newly unblocked.** RR-A1 changed its subject matter before it opened: the discard is no longer a UX nicety but the **refusal mechanism** the auto-start branch depends on, so a retake budget that limits discards limits refusal. Also inherits RR-A1's no-streaming constraint and a much smaller transcode-per-take cost
-- **RR-07** — Alternate-format policy _(grilling)_ — **three jobs now, and one of its legs moved.** Its legal necessity weakened when RR-A1 amended RR-04, but its functional necessity (RR-A4 finding 5 — ChromeOS policy hard-blocks capture for some students) is untouched and is now the load-bearing one
-- **RR-05** — Where is the AI boundary, and what exactly is admin-gated? _(grilling)_ — RR-04 drew the hard outer line by contract; this decides the menu inside it. Two items are pre-killed, RR-A3 adds that anything touching video sits under **two** gates, and RR-A1 adds that speed-based scoring is unavailable on recording questions
+- 🔥 **RR-A2** — Recording controls and what a retake means for validity _(grilling)_ — **promoted to the front. Two closed tickets now point at it, and they point in opposite directions.** RR-A1 made the discard the **refusal mechanism**; RR-08 then chose a hard submit block on a required addendum — and a refusing student _can_ record, so the block binds them. **RR-08 derived that collision and deliberately did not resolve it**, because the fix is a UX question about the discard. Also holds the retake-budget-vs-refusal problem, a much smaller transcode-per-take cost, and RR-A1's no-streaming constraint
+- 🔥 **RR-A5** — Verify format round-trip and capture policy on district hardware _(task, HITL)_ — **still the only thing on the board no agent can do**, and its urgency rose: RR-08 sub-decision 6 blocks Submit on an in-flight upload and **explicitly refused to invent the threshold**, deferring to RR-A6, which is blocked on this. So a student-facing timeout is now waiting on a hardware measurement. Also: does district hardware encode **480p / 500 kbps** (RR-A1 sub-decision 4). **Needs a student Chromebook.** Harness: `docs/rich-response/rr-a5-capture-harness.html`
+- **RR-07** — Alternate-format policy _(grilling)_ — **narrowed by RR-08, which answered one of its bullets outright.** There is **no substitute for a required addendum** — no text fallback, ever. RR-07 keeps the **primary mode set**, where its floor is untouched, and its three jobs (refusal / degradation / device-blocked) are unchanged. Smaller ticket than it was this morning
+- **RR-05** — Where is the AI boundary, and what exactly is admin-gated? _(grilling)_ — RR-04 drew the hard outer line by contract; this decides the menu inside it. Two items are pre-killed, RR-A3 adds that anything touching video sits under **two** gates, RR-A1 adds that speed-based scoring is unavailable on recording questions, and RR-08 adds that an `unresponded` entry has no artifact to operate on at all. **Also the gate to RR-06**, which now has RR-08's new state waiting on it
 - **RR-B2** — Is the audio synchronized to the strokes, or attached alongside? _(grilling)_ — a **three-way** fork thanks to RR-B1
 - **RR-C2** — How does a student get access to a file in the teacher's Drive? _(grilling)_ — unblocked by RR-03, which handed it a working precedent: the uid- and publish-gated proxy callable is the same problem in the other direction
 - **RR-C1** — Which stimulus formats are in, and are they rendered in-app or handed off? _(grilling)_
@@ -134,17 +135,23 @@ ticket._
 **Still blocked:** RR-06 (RR-05) · RR-B3 (RR-B2, RR-06) · RR-B4 (RR-B2) ·
 RR-A6 (RR-A5 only).
 
-**The A-track's design is done.** RR-A3 settled its scope — video in, gated,
-quality-capped, a peer mode rather than a flag — and RR-A1 settled what capture
-actually feels like, what it costs in bytes, and where its settings live. RR-A2 is
-the only A-track design ticket left, and RR-A5 / RR-A6 are verification and
-plumbing.
+**Not a ticket, but scheduled work this map created:** the `submitAnswer` spread
+fix (RR-08 sub-decision 9) is an **implementation ticket to land before RR-02's
+build**, not a map decision. It is the one piece of building this effort has
+authorized, and it exists because the trap is provably harmless _today_ — which is
+the cheap moment to fix it.
 
-⚡ **The board's centre has moved out of the A-track entirely.** What's left is
-mostly _state and semantics_ — what counts as answered (RR-08), what a retake means
-(RR-A2), what the alternative has to be (RR-07) — plus two untouched tracks, B and
-C. **RR-08 is where the next session should go**: it is the best-prepared ticket on
-the map and it now holds a stall that RR-A1 can see but cannot fix.
+⚡ **The centre of the board has left the A-track and left the semantics layer
+too.** RR-08 was the last ticket about _what the model means_; everything now open
+is either **verification** (RR-A5, RR-09), **an untouched track** (B, C), or **one
+unresolved tension** (RR-A2). That tension is the interesting one: RR-A1 and RR-08
+each made a locally correct decision, and together they leave a student who refuses
+to be recorded parked on a question they cannot submit.
+
+**RR-A2 is where the next session should go.** It is the only place two closed
+tickets actively disagree, and RR-08 handed it the disagreement in writing rather
+than papering over it. **RR-A5 should be run in parallel by a human** — it is not
+agent work, and it is now the tail dependency of a student-facing timeout.
 
 ---
 
@@ -418,6 +425,14 @@ wrong name," not "a wrong grade."
 - **Duration is recorded client-side as `durationMs`** on the artifact — closes the "Duration metadata" fog patch, which was explicitly waiting on this ticket.
 - **`ResponseArtifact` is deliberately shaped like `ActivityWallSubmission`.** If RR-03 concludes the archival lifecycle generalizes, the two should converge on a shared type rather than drift.
 
+🔵 **Returned from RR-08 (2026-08-06) — one field added, and the second bullet
+above turned out to be worse than it read.**
+
+- **`QuizResponseAnswer` gains a second new field: `unresponded?: UnrespondedReason`.** A sibling to `artifacts?`, absent when the student responded. RR-08 sub-decision 2 chose it over a third `status` value because RR-A1's four prep-expiry behaviours disagree about finality, and one field cannot say _"final, and never responded to."_ `status` stays two-valued and keeps meaning intent.
+- 🔴 **The clobber risk in the second bullet is not just archival-vs-student. `submitAnswer` clobbers _itself_.** `newAnswer` at `useQuizSession.ts:2349-2357` is built as a **fresh object literal with no `...priorEntry` spread**, so `artifacts[]` is destroyed by the student's own next write to that question — a debounced draft autosave, a back-nav revisit, a timer-expiry write. Verified twice against source. **RR-08 sub-decision 9 gives it an owner**: a standalone implementation ticket with a regression test, landed **before** this ticket's build starts, while it is still provably harmless (`isCorrect` is recomputed).
+- 🔴 **And it is not a one-line fix.** A naive `...priorEntry` spread resurrects the prior entry's `speedBonus`, which is currently included **conditionally**. The fix has to spread and then explicitly re-own every field the write owns.
+- 🔴 **No Firestore rule can protect `artifacts[]`, and this is worth recording once so nobody goes looking for one.** The video-activity append-only guard (`firestore.rules:3470-3479`) works because those answers are appended — `hasAll(resource.data.answers)`. Quiz answers are **replaced** (filter-then-append at `:2359-2362`), so `hasAll` can never hold, and Firestore cannot validate array element shape at all. **The irony sub-decision 1 bought is now fully priced:** this field needs no rule change to be written, and none to be destroyed.
+
 **Paul's notes:**
 
 ---
@@ -630,6 +645,12 @@ no school-year concept today), preceded by a warning email. Sub-decision 5 above
 in an individual teacher's Drive. It is satisfied without amending this ticket —
 by reusing the same stored-refresh-token mechanism this resolution established. See
 **RR-04 sub-decision 4**.
+
+🔵 **RR-08 (2026-08-06) narrows the orphan population this ticket's 7-day sweep
+exists to catch, and adds a second server writer to `answers[]`.**
+
+- **Fewer `'pending'` orphans by construction.** Sub-decision 4 accepted a risk on the reasoning that _"a metadata-only artifact stuck at `uploadState: 'pending'` whose bytes never arrived is swept on the same clock — it is an orphan by definition."_ RR-08 sub-decision 6 now **blocks Submit while an upload is in flight**, bounded, with a retry offered on failure — so the common way an orphan was created (student submits and walks away mid-upload) is largely closed. The sweep still needs to exist, but it should be catching genuine infrastructure failures rather than ordinary student behaviour. **The 7-day risk this ticket accepted is smaller than when it was accepted.**
+- 🔴 **A second server-side writer touches `answers[]` now.** RR-08 sub-decision 5 has `finalizeIdleQuizAttempts` write an `unresponded` marker into required slots left empty at finalize — using `publicQuestions` off the session doc it already batch-reads, at zero additional read cost. That lands in **student-owned payload**, exactly like the archival write this ticket already flagged as a clobber risk, and on a document the student may still be writing to if they return. **The interaction is real**: the sweep only finalizes responses that are already idle past the cutoff and re-checks inside a transaction (`:415-428`), so the race is narrow — but "narrow" is what the archival clobber looked like too.
 
 **Paul's notes:**
 
@@ -1300,6 +1321,13 @@ question, and one new stacking problem.**
 - **Speed-based scoring is unavailable on recording questions by design** (sub-decision 3): `timeLimit` is forced to 0 there because it feeds `(remaining / timeLimit) * 50`, and rewarding a student for speaking quickly measures the opposite of fluency. **Any AI-assisted scoring on this map inherits that principle** — latency, hesitation and pause length are not proxies for quality, and a model that treats them as such reintroduces through the back door what the question editor now refuses.
 - **The input:** video is capped at 480p / 500 kbps, so any AI capability operating on video is operating on 480p. Whatever the menu ends up containing, it should be viable at that quality rather than assuming source fidelity.
 
+🔵 **RR-08 (2026-08-06) adds one guard and raises this ticket's urgency, because
+it is the gate to RR-06 and RR-06 now has a state waiting on it.**
+
+- **An `unresponded` entry has no artifact at all.** RR-08 makes a present, final, deliberately-empty answer a legitimate stored state with a stated reason. Whatever capabilities land on the menu must skip these rather than dispatch a job against a missing blob — and more sharply, an artifact stuck at `uploadState: 'pending'` or `'failed'` is a **different** kind of absent (the bytes were meant to exist) and should surface differently to the teacher than a slot that was never filled.
+- **The gating question inherits a third axis.** RR-A3 already left this ticket deciding what an admin sees when transcription is on but video is off. RR-08 adds: what a teacher sees when the gate is on, the mode is on, and the student simply has nothing to transcribe. The last bullet in "Open decisions" — hidden vs visible-and-disabled — now has three causes, not one, and they live in three different places.
+- 📐 **Urgency, not content:** RR-08 handed RR-06 a state it cannot price (`GradeResult` has no "unanswered" value), and **RR-06 is blocked on this ticket.** Closing RR-05 is now the only thing standing between the map and its largest open grading question.
+
 **Resolution:** _(unresolved)_
 
 **Paul's notes:**
@@ -1321,6 +1349,29 @@ span have no obvious analog over a 90-second audio clip.
 - Points and partial credit: does a media response participate in the existing `GradeResult` model? **Sharpened by RR-01:** a question may now carry a required, separately-pointed addendum, so one question id can own **two graded artifacts**. `GradeResult` is a flat `{ isCorrect, pointsEarned, pointsMax }` and grading is keyed by question id alone (`r.grading?.[q.id]`, `quizScoreboard.ts:79`). Decide whether that becomes a per-artifact sub-key or a composite.
 - **Also from RR-01:** with a required addendum, an MC question has a manual grading path — so "auto-graded" is no longer a property of the _type_. Does the teacher get warned at authoring time that they've just made a self-grading quiz manual? Does the scoreboard still show a live score before grading is done?
 - LMS passback — Classroom (`submitAssignmentToGoogleClassroomV2` analog) and LTI already exist for scores. Does anything change, or is a score just a score?
+
+🔴 **RR-08 (2026-08-06) created a state this ticket must price, and found that the
+vocabulary to price it does not exist.** RR-08 introduced **"complete iff every
+required slot is filled"** and a per-answer `unresponded` marker — so a response can
+now be present, final, and empty on purpose, with a stated reason.
+
+**`GradeResult` cannot express any of it.** It is a flat
+`{ isCorrect, pointsEarned, pointsMax }` with **no "unanswered" return value at
+all** (audit §4.1), so a blank and a wrong answer are indistinguishable to every
+consumer — the scoreboard, the export, the `% correct` denominator, LMS passback.
+Today that is merely blunt. Once a required addendum can be legitimately empty for a
+**stated** reason, scoring it identically to a wrong answer is a factual
+misstatement about the student, and it flows outward into the gradebook.
+
+Four things this ticket now owes an answer on:
+
+- **Does an `unresponded` slot score zero, score nothing, or score "not attempted"?** They are three different numbers in the `% correct` denominator and three different cells in the Sheets export, whose documented contract already says _"empty string → unanswered, '0' → answered incorrect"_ (`utils/quizDriveService.ts:816-821`).
+- **`capture-unavailable` is not the student's doing.** RR-08 sub-decision 4 guarantees this state exists in every district — RR-A4 finding 5 puts a subset of every class in a restricted OU. Scoring it as a zero penalises students for their device policy, which is the equity exposure RR-07 already flags on an adjacent question.
+- **`abandoned` vs `expired` vs `passed` may deserve different treatment**, and RR-08 deliberately left the reason vocabulary open partly so this ticket could say so.
+- **Does an incomplete question reach the gradebook at all before it's graded?** RR-01 already made MC-with-addendum a manual-grading path; RR-08 makes "incomplete" a state that can persist to finalization.
+
+📐 **A smaller gift:** RR-08's single completeness predicate is the natural place to
+hang "needs grading," which this ticket was going to have to invent anyway.
 
 **Resolution:** _(unresolved)_
 
@@ -1397,6 +1448,23 @@ a supporting one.
 - **The "may it score differently" question gets harder, not easier.** Grounding the floor in device policy means the students landing on it are disproportionately those in restricted OUs — which correlates with exactly the populations an equity review will look at first.
 - **A new sub-question RR-A1 surfaced and did not own:** RR-A1 gives the recorded path a prep clock, a limit and four expiry behaviours. **The written alternative still has no clock at all.** If the recorded path is timed and the alternative isn't, they are not equivalent in either direction. → still fog, now sharper.
 
+🔵 **RR-08 (2026-08-06) answered this ticket's last bullet outright and made the
+ticket smaller.** The bullet asked what a **required addendum** needs, since a
+required spoken justification excludes exactly the students a required spoken
+_primary_ does. RR-08 sub-decision 4 answers it: **nothing substitutes for a
+required mode.** No text fallback, ever — Paul's reasoning was that if the
+assessment is a video, text isn't a bypass, it's a different task. The slot stays
+empty carrying an `unresponded` marker with a stated reason, and RR-08's submit
+block therefore **only binds students for whom the requirement was satisfiable.**
+
+**What that leaves this ticket:** the **primary mode set**, where nothing has
+changed. The floor — "a mode set of one that a student cannot satisfy is not
+authorable" — is untouched, and all three jobs (refusal, degradation,
+device-blocked) still land here. Two consequences worth carrying in:
+
+- 🔴 **The two slots now behave differently on purpose, and the ticket should say so out loud.** An empty primary set falls to an alternative; an unsatisfiable addendum falls to a marked-empty slot. That asymmetry is defensible — the primary _is_ the answer, the addendum is a second demand on top of it — but it will look like an inconsistency to whoever implements it unless the rationale is written down.
+- **The "may it score differently" question got a concrete instance.** `capture-unavailable` is now a real, stored, per-student state that occurs in every district (RR-A4 finding 5), rather than a hypothetical. Whatever this ticket decides about equivalence, RR-06 has to turn into a number. → injected there too.
+
 **Resolution:** _(unresolved)_
 
 **Paul's notes:**
@@ -1405,7 +1473,7 @@ a supporting one.
 
 ### RR-08 — What counts as "answered" when a question has a required addendum?
 
-**Type:** grilling + domain-modeling (HITL) · **Status:** Open — **unblocked 2026-08-05** · **Blocked by:** ~~RR-02~~ (closed) · _Opened 2026-08-04 by RR-01's resolution_
+**Type:** grilling + domain-modeling (HITL) · **Status:** ✅ **Closed 2026-08-06** · **Blocked by:** ~~RR-02~~ (closed) · _Opened 2026-08-04 by RR-01's resolution_
 
 **Question**
 
@@ -1479,7 +1547,276 @@ Two more things the audit surfaced that bear directly on the question:
 - **The written-response teacher-paced Submit button already implements the exact three-state model this ticket needs** — `null` (untouched / cache unseeded) vs `''` (deliberately empty) vs non-empty (`QuizStudentApp.tsx:2638-2649`). MC / FIB / Matching / Ordering all collapse `null` and `''` into a single falsy check, which is why they'd physically disable Submit on an artifact-only response. Generalizing the written branch is likely the smallest correct answer, and its rationale is already written down in-repo.
 - ⚠️ **There is no shipped concept of "partially answered" anywhere** — not in `GradeResult`, not in `QuizResponseAnswer`, not in the rules, not in any UI string. Whatever this ticket decides, it is **introducing a state**, not refining one.
 
-**Resolution:** _(unresolved)_
+**Resolution** — grilled with Paul 2026-08-06, nine sub-decisions. Both landmines
+were re-verified against source before the session opened; both hold.
+
+**1. Every question the student leaves behind writes an entry to `answers[]`.**
+Absence now means exactly one thing: **the student hasn't got there yet.**
+
+The `'auto'`-mode stall RR-A1 found is a symptom, not the disease. The predicate at
+`hooks/useQuizSession.ts:1318` is one of roughly ten presence-based consumers — the
+"N of M answered" count, `QuizLiveMonitor`'s per-student chips, `QuizResults`'
+`qStats.answered`, `canScoreResponse`, the Sheets export. Patching only the
+predicate would leave the other nine unable to tell a passed-over question from one
+the student hasn't reached, and **absence is not transmissible**: it arrives at the
+teacher as silence either way. Only a write carries the fact.
+
+The codebase already depends on this being true — `types.ts:365-371` documents
+`pointsByQuestionId` as keyed by qid _"so a missing entry means unanswered
+unambiguously,"_ which only holds if nothing else can produce a missing entry.
+
+**Rejected: fix the predicate alone** (one call site, and nine consumers left
+lying). **Rejected: write an entry only for `auto-advance`**, the invisible case —
+it makes "is there an entry?" depend on which of four authored values the teacher
+picked, which is an invariant nobody can hold in a mixed assignment.
+
+**2. Two axes, two fields. `status` is untouched.**
+
+`status` already carries **finality** — `draft` = returnable, `submitted` = final,
+read by `isAnswerSubmitted` (`types.ts:3495`) — and RR-A1's four expiry values
+disagree about finality (`auto-advance` leaves the question returnable;
+`unanswered` closes it). So finality was already solved and must not be re-solved.
+What was missing is the second axis: **did the student respond at all.**
+
+```ts
+interface QuizResponseAnswer {
+  // ...unchanged
+  status?: 'draft' | 'submitted'; // finality — UNCHANGED, still two values
+  unresponded?: UnrespondedReason; // NEW — absent means the student responded
+}
+```
+
+Both RR-A1 branches become expressible: `auto-advance` writes
+`{ status: 'draft', unresponded: 'passed' }`, the `unanswered` value writes
+`{ status: 'submitted', unresponded: 'expired' }`. The reason vocabulary below is
+illustrative, not final — see "not decided."
+
+**Rejected: a third `status` value `'passed'`.** Blast radius points the right way
+(TypeScript exhaustiveness forces every reader to confront the new state), but it
+overloads finality with provenance: `isAnswerSubmitted` must rule on whether
+`'passed'` is submitted, and whichever way it rules, **the other RR-A1 branch
+becomes inexpressible.** One field cannot say "final, and never responded to."
+**Rejected: infer it from emptiness** (`answer === '' && !artifacts?.length`) —
+that shape is already reachable in shipped code, because written-response NEXT is
+deliberately ungated (`QuizStudentApp.tsx:2604-2619`), so a student can read an
+essay prompt, type nothing and submit. It conflates _chose to submit nothing_ with
+_never got the chance_, which is the distinction that matters most to a teacher.
+
+⚠️ **The cost, recorded rather than smoothed over:** an optional sibling field is
+invisible to every existing reader. Nothing forces the ten presence-based consumers
+to confront it — they will keep counting these entries as answered until each is
+visited deliberately. Sub-decision 7 is what makes that a finite list rather than a
+standing hazard.
+
+**3. Submit blocks when a required addendum is missing.**
+
+**Paul chose this against my recommendation** (I argued for warn-then-allow), so
+the reasoning on both sides is worth keeping. The case against blocking was that
+**any client-side block is bypassed by walking away** — `finalizeIdleQuizAttempts`
+promotes drafts with no notion of completeness and is the only function in
+`functions/src/` that touches `answers` at all, so a student who hits the block and
+closes the tab is finalized incomplete anyway. The case for it is simpler and won:
+_required_ that does not block is not required, it is a suggestion, and a teacher
+who marks a spoken justification required on a speaking assessment means it.
+
+The two objections became **obligations rather than arguments**, and sub-decisions
+4, 5 and 6 are where they are paid: nobody may be blocked from something they
+cannot do (4), the walk-away path must still record the truth (5), and the block
+must never wait on an unbounded network (6).
+
+**4. Nothing substitutes for a required mode. The slot stays empty, marked why.**
+
+There is **no text fallback for a required addendum.** Paul's objection killed my
+proposal outright: _"if it's supposed to be a video, a student shouldn't be able to
+bypass it with text."_ For a speaking assessment there is no text equivalent —
+offering one produces a response that isn't the assessment, and then obliges
+someone to rule on what it's worth.
+
+So the student who physically cannot record submits everything else, and the
+addendum slot carries sub-decision 2's marker with reason `capture-unavailable`.
+**The block therefore only binds students for whom the requirement was satisfiable.**
+It is not an escape hatch; it is that the requirement never applied.
+
+This also repairs the objection I had raised one question earlier and then had to
+withdraw. I argued that a capability-conditional block is self-releasing, because a
+student can deny the mic prompt on purpose and RR-A4 finding 5 says ChromeOS policy
+blocks sit below the permission layer, so the two are hard to tell apart.
+Sub-decision 2 had already answered it: the gaming does not disappear, but it stops
+being **invisible** — that student now shows up in the teacher's monitor as
+"capture unavailable" rather than as a silent blank.
+
+**5. The idle sweep marks empty required slots when it finalizes — at zero read cost.**
+
+My instinct here was to leave the sweep dumb and infer incompleteness at read time.
+That rested on a false cost assumption, found by reading the function: the sweep's
+local `QuizSessionDoc` shape is thin, but **`publicQuestions` lives on the session
+doc** (`types.ts:3262`), and the sweep **already batch-reads every parent session
+doc** (`finalizeIdleQuizAttempts.ts:252`) to skip paused and waiting ones. It is
+holding the requiredness data already and simply doesn't look at it.
+
+So on finalize it writes sub-decision 2's marker with reason `abandoned` into any
+required slot left empty. **One writer, one truth** — the incomplete state is a
+stored fact, not something five teacher surfaces each recompute. That matters
+because the audit's landmine #8 documents this exact drift already shipped:
+`QuizLiveMonitor:932` counts drafts as answered and the student gate at
+`QuizStudentApp.tsx:899-903` does not.
+
+📐 This requires the required-addendum flag to ride in `QuizPublicQuestion`, which
+it must anyway — the student client needs it to render sub-decision 3's block.
+
+⚠️ **Consequence:** the marker now has **two writers**, the client for the
+passed-over case and the server for the abandoned one. They must agree on the
+vocabulary, and nothing in Firestore can enforce that (see sub-decision 9).
+
+**Rejected: refuse to finalize incomplete responses** — the sweep is the only
+server-side writer of `answers`, so nothing else would ever finalize them; they
+would hold attempt slots forever and clutter the monitor with students who left
+days ago.
+
+**6. Submit blocks on an in-flight upload — bounded, with retry on failure.**
+
+RR-02 writes artifact metadata before the bytes finish, and RR-A1 fixed the take at
+4.0 MB / ~16 s, so "Submit pressed while `uploadState: 'pending'`" is not an edge
+case — it is the normal case for a student who records and submits immediately.
+
+What makes it sharp is RR-A1 sub-decision 7: **a lost take is lost.** Nothing is
+persisted before commit and nothing survives the tab closing, so a student who
+submits and walks away mid-upload leaves an artifact stuck at `'pending'` forever —
+the teacher sees "recorded, never arrived" and there is nothing anywhere to
+recover. Blocking keeps the student present during **the only window in which a
+failure is still recoverable.**
+
+**Bounded, because the tail is unknown.** RR-A1's 16 s assumes 2 Mbps; thirty
+students uploading at once on school wifi is RR-A6's problem and RR-A6 is blocked
+on RR-A5. So past a threshold — or on `'failed'`, after offering a retry — the
+block releases and the state is recorded honestly. **This ticket cannot pick the
+threshold and does not pretend to; RR-A6 owns it.**
+
+**Rejected: allow submit with a `beforeunload` guard** — dismissible, and ignored
+on mobile tab-switch, so the guarantee is softer than it looks. **Rejected: allow
+unconditionally** — it converts a recoverable failure into an unrecoverable one for
+every student who closes the tab.
+
+**7. One completeness predicate: a question is complete iff every required slot is
+filled. Binary for the student, three states for the teacher.**
+
+This is settled by a constraint rather than by taste. After sub-decision 3 a
+half-done question **cannot be submitted** — so if the progress indicator counted
+it, the student would read "8 of 10 answered" while Submit refuses them on three of
+those eight. **The indicator and the submit gate must be the same predicate**, or
+the student cannot act on what they are being told.
+
+That single predicate also absorbs sub-decision 1's bill for free: passed-over
+entries are not complete, so they don't inflate the count.
+
+The **teacher's monitor gets the richer view** — answered / started-but-incomplete /
+never-reached — because "stuck on the recording" and "hasn't got there" demand
+opposite interventions, and only the teacher can act on the difference.
+
+⚠️ **This is a new state, not a refinement.** The audit is explicit that
+"partially answered" exists nowhere in the codebase — not in `GradeResult`, not in
+`QuizResponseAnswer`, not in the rules, not in a single UI string.
+
+**Rejected: three states for students too** — most informative, and it would tell a
+student exactly where to go back to, but "incomplete" is a stressful word to read
+on a clocked assessment when the cause is a microphone that won't work. **Rejected:
+binary everywhere** — it throws away the one distinction the teacher most needs
+live.
+
+**8. The recording clock governs the addendum slot only. Prep starts on entering it.**
+
+One inference this ticket makes explicit: **an MC question with a recording
+addendum is a recording question** for RR-A1 sub-decision 3's purposes, so
+`timeLimit` is forced to 0 there too. Otherwise speed bonus —
+`(remaining / currentQuestion.timeLimit) * 50` at `QuizStudentApp.tsx:1909` — would
+still be paying points for speaking fast, which is the exact thing RR-A1 killed.
+The `recording` block therefore holds the only clock on the question.
+
+The student answers the primary at their own pace; **opening the recording starts
+prep**, then the limit. This preserves what prep is _for_: RR-A1's rationale was
+_"only X amount of time before performing,"_ and a clock started at question
+display would hand a student who read the stimulus carefully five seconds of prep —
+converting a thinking allowance into a penalty for reading.
+
+⚠️ **Accepted cost:** the primary is genuinely untimed, so on an `'auto'` session a
+student who never engages still holds the class. **That is true of every shipped
+question type today** — sub-decision 1 fixes the stall RR-A1 found, which is the
+_passed-over_ case, not the _never-engaged_ one. See "not decided."
+
+**Rejected: one clock over the whole question** — bounds total time, which is
+probably what a teacher picturing a timed speaking assessment imagines, but it
+spends prep on work that isn't preparation to speak and penalises careful reading
+hardest for the students who need the reading time. **Rejected: two independent
+clocks** — most expressive, but RR-A1 already rejected an org-admin quality ladder
+on the grounds that more levers make behaviour unpredictable to support, and the
+same argument applies to a second timing block on the same editor.
+
+**9. The `submitAnswer` spread fix gets its own implementation ticket, ahead of RR-02.**
+
+A standalone change with a regression test, landed **before** any RR-02 work
+starts. It is provably harmless today — `isCorrect` is documented as
+never-student-written and recomputed — which is precisely why now is the cheap
+moment: it can be verified in isolation instead of debugged inside a feature
+launch, and the surrounding semantics are already pinned by
+`tests/hooks/useQuizSession.test.ts:533-570`.
+
+🔴 **It is not the one-line fix the audit implies.** Adding `...priorEntry` at
+`useQuizSession.ts:2349` would also carry forward the prior entry's `speedBonus`,
+which is currently included **conditionally** — only when this write earns one. A
+naive spread makes a stale speed bonus survive a re-answer. The real fix is
+"spread, then explicitly re-own every field this write owns," and it needs a
+decision about `speedBonus` and `isCorrect` rather than a keystroke.
+
+🔴 **There is no rules-level backstop available, and this is worth recording once
+so nobody goes looking.** The video-activity guard (`firestore.rules:3470-3479`)
+works because those answers are **appended** — `answers.hasAll(resource.data.answers)`.
+Quiz answers are **replaced** (filter-then-append at `useQuizSession.ts:2359-2362`),
+so `hasAll` can never hold, and Firestore cannot validate array element shape at
+all. Whatever protects `artifacts[]` is client discipline plus a test. Nothing else
+is on offer.
+
+---
+
+**Two consequences this ticket derives but does not decide.**
+
+🔴 **Refusal now collides with the block, and RR-A2 owns the collision.** RR-A1
+sub-decision 1 put refusal in the discard — "stop, don't keep this." But a
+refusing student **can** record; they chose not to. So by sub-decision 4's own
+logic the block binds them, and on a self-paced quiz they are parked on that
+question until they record it, the session ends, or the sweep ages them out and
+marks it `abandoned`.
+
+That is arguably coherent — refusing a required assessment task means not
+completing it, exactly as refusing to write an essay does, and RR-A1's `armed`
+value already ships indefinite parking as an authored, accepted state. But it means
+**the refusal RR-A1 designed and the block RR-08 chose are in tension**, and the
+resolution is a UX question about the discard, which is RR-A2's. → injected there.
+**Do not read this paragraph as a decision.**
+
+📐 **`armed` still stalls an `'auto'` class, and that is now the correct
+behaviour.** Sub-decision 1 makes `auto-advance` and `unanswered` both write
+entries, so the incentive asymmetry RR-A1 flagged — where the harshest branch would
+have been the only one keeping the class moving — **is resolved.** `armed` writes
+nothing because nothing has been passed over: the student is still on the question,
+visibly, and the teacher can see them in `QuizLiveMonitor`. That is an ordinary
+slow-student case, not the invisible stall.
+
+**What this ticket did not decide:**
+
+- **The exact reason vocabulary.** `passed` / `expired` / `abandoned` /
+  `capture-unavailable` is illustrative. Two writers (client and sweep) must agree
+  on it and nothing can enforce that, so pinning it is an implementation concern
+  with a test attached, not a map decision.
+- **The pending-upload threshold in sub-decision 6.** → RR-A6, which is blocked on
+  RR-A5. Naming a number here without the hardware data would be inventing one.
+- **What an incomplete question is _worth_.** `GradeResult` has no "unanswered"
+  return value at all (audit §4.1), so a blank and a wrong answer are
+  indistinguishable to every consumer today. This ticket creates the state; **RR-06
+  must give it a grade semantics.**
+- **Whether a non-recorded alternative exists at the _mode_ level.** Sub-decision 4
+  is about the **addendum slot only**. RR-07 still owns the primary mode set, and
+  its floor — "a mode set of one that a student cannot satisfy is not authorable" —
+  is untouched by this ticket.
 
 **Paul's notes:**
 
@@ -1702,6 +2039,21 @@ entire class indefinitely.** `auto-start` cannot stall it; every student produce
 take. Whether a passed-over question should write a record at all is **RR-08's**
 question, not this one's. → injected there.
 
+🔵 **Answered by RR-08 (2026-08-06), and the incentive asymmetry this ticket
+worried about is gone.** RR-08 sub-decision 1: **every question the student leaves
+behind writes an entry.** So `auto-advance` and `unanswered` both write, and
+neither branch is rewarded for harshness. `armed` still writes nothing — but
+correctly, because nothing has been passed over: the student is visibly parked on
+the question and the teacher can see them in `QuizLiveMonitor`. That is an ordinary
+slow-student case, not the invisible stall. **The four values are undisturbed.**
+
+🔵 **RR-08 also extended sub-decision 3 by inference:** an MC question carrying a
+_recording addendum_ counts as a recording question, so `timeLimit` is forced to 0
+there too — otherwise speed bonus would still be paying points for speaking
+quickly on the addendum. And the `recording` block's clock governs **the addendum
+slot only**, starting when the student opens it, so the prep allowance isn't spent
+reading the stimulus.
+
 **Rejected: one product-wide branch** (my recommendation was `auto-start` alone).
 **Rejected: off-state fixed at `armed`** — clean pairing, but it decides for the
 teacher on the one axis they have the most context about.
@@ -1863,6 +2215,33 @@ opened.** Three inputs, one of which is a constraint rather than context:
 **Also inherited:** the recording clock, its four prep-expiry values and the
 hard-stop-with-warning behaviour are settled — this ticket should take them as
 given and decide only what happens _to a take_ once it exists.
+
+🔴 **RR-08 (2026-08-06) promoted this ticket to the front of the frontier by
+handing it a live contradiction between two closed tickets. This is now its first
+question, ahead of the retake budget.**
+
+RR-08 sub-decision 3 chose a **hard submit block** when a required addendum is
+missing. Sub-decision 4 contains that block honestly for students who _cannot_
+record: the slot stays empty, marked `capture-unavailable`, and the block never
+binds them. **But a refusing student can record — they chose not to.** So by that
+same logic the block binds them, and on a self-paced quiz they are parked on the
+question until they record it, the session ends, or the sweep ages them out.
+
+**RR-A1 put refusal in the discard; RR-08 put a block in front of the exit.** Both
+decisions are locally correct and RR-08 deliberately did not resolve the tension,
+because the resolution is a UX question about what the discard offers — which is
+this ticket's.
+
+Three things worth holding while deciding it:
+
+- **It may be coherent as-is.** Refusing a required assessment task means not completing it, exactly as refusing to write an essay does — and RR-A1's `armed` value already ships indefinite parking as an authored, accepted state. "The student is stuck" is not automatically a bug.
+- **But it is not the same as an essay**, because RR-04's Tennessen interstitial states whether the student may refuse, and a product that says "you may refuse" and then blocks the exit has made that statement false. This is the one place the collision could become a compliance problem rather than a UX one.
+- **The retake budget question inherits it.** If discards are how a student refuses _and_ the block means a discard leaves them stuck, then a budget that counts discards is a cap on refusal **and** a countdown to being trapped. RR-A1 already flagged the first half; RR-08 supplies the second.
+
+🔵 **One smaller input:** RR-08 sub-decision 2 gives this ticket the vocabulary it
+would need — an `unresponded` marker with a stated reason — if it decides refusal
+should be expressible as a distinct outcome rather than as absence. RR-08
+explicitly left the reason vocabulary open for exactly this kind of addition.
 
 **Resolution:** _(unresolved)_
 
@@ -2361,6 +2740,25 @@ consequences land here:
 - **The ~75 s upload figure overstates the problem this ticket must solve**, because it — like RR-A4's 2.85 GB — was measured at **Chrome's default bitrate**, which is now ruled out. Re-derive it against RR-A1's ceiling before designing around it: at the 480p / ~500 kbps shape RR-A3 named, the gap to audio narrows by roughly an order of magnitude, and "upload takes longer than the recording" may simply stop being true. **The 19 MB figure feeding the size cap carries the same defaulted assumption.**
 - **"Are these product settings or hardcoded constants?" is answered: neither.** They are set by RR-A1 as a **policy ceiling**, not exposed to teachers — a teacher who could raise the bitrate could re-create the cost problem the district gate was built to bound.
 
+🔴 **RR-08 (2026-08-06) handed this ticket a student-facing number to pick, and
+answered its "does upload block?" bullet in the process.**
+
+RR-08 sub-decision 6: **Submit blocks while an artifact is still
+`uploadState: 'pending'`** — bounded, with a retry offered on `'failed'`. The
+reasoning was RR-A1 sub-decision 7: a lost take is lost, nothing survives the tab
+closing, so blocking keeps the student present during **the only window in which a
+failure is still recoverable.** That settles the third and fourth bullets above:
+upload **blocks**, and local buffering does not rescue it because there is nothing
+buffered.
+
+**RR-08 explicitly refused to pick the threshold and deferred it here**, on the
+grounds that RR-A1's 16 s assumes 2 Mbps and thirty students on one AP is this
+ticket's question, not that one's. So:
+
+- 🔴 **This ticket now owns a number the student experiences directly** — how long Submit may wait before it gives up and records the failure honestly. Too short and recoverable uploads are abandoned; too long and a class ends with students staring at a spinner. **It cannot be picked without RR-A5's hardware measurement**, which is why RR-A5's urgency rose alongside this.
+- **The headline number is 16 s, not ~75 s.** RR-A1's 480p / 500 kbps ceiling means 4.0 MB a take and 0.27× real-time on the assumed uplink — but the assumed uplink is exactly what RR-A5 exists to check, and the last-student-of-thirty case in the final bullet above is untouched by a bitrate cut.
+- 📐 **The blocking decision makes the simultaneous-submit question worse, not better.** Thirty students who all block on Submit at the end of a period are thirty students waiting on the same AP at the same moment. Staggering is no longer a nicety.
+
 Unblocking note: this ticket now waits on **RR-A5 alone**.
 
 🔵 **RR-A1 (2026-08-06) supplied the numbers and, more importantly, removed an
@@ -2546,6 +2944,18 @@ teacher can open outside SpartBoard, which collides with the
 Drive-as-source-of-truth model in RR-03. **Both replay options have this problem;
 only "attached" avoids it.**
 
+🔵 **RR-08 (2026-08-06) adds a completeness question this fork decides the shape
+of.** RR-08's predicate is **"complete iff every required slot is filled."** On the
+**attached** option a whiteboard response is plainly two artifacts, so a student
+who draws but never narrates has an obviously half-filled question and the
+predicate applies unchanged. On either **replay** option the stroke record and the
+narration are arguably one artifact — and if they are, "complete" needs a
+definition this ticket supplies rather than inherits: **is a drawing with no
+narration incomplete, or is it a complete response that happens to be silent?**
+
+Worth deciding deliberately, because RR-08's block (sub-decision 3) means the
+answer determines whether a silent whiteboard response can be submitted at all.
+
 **Resolution:** _(unresolved)_
 
 **Paul's notes:**
@@ -2708,13 +3118,14 @@ those resolutions rather than graduating whole; each says so and what survives._
 - ~~**Storage cost at district scale.**~~ **Resolved by RR-03** — Drive is the durable home, so SpartBoard's durable storage cost is $0 and the arithmetic lives in RR-03's resolution. What survived was **transcode compute** at district scale, trivial for audio and unbounded for video — and **RR-A3 (2026-08-06) bounded the unbounded half**: sub-decision 5 caps video's resolution and bitrate rather than its duration, so transcode compute now has a ceiling per artifact instead of scaling with whatever Chrome felt like emitting. **RR-A1 (2026-08-06) supplied the numbers, so it is now measurable rather than merely bounded:** 480p / 500 kbps, **4.0 MB per 60 s take**, ~8 MB at the 120 s video maximum. Transcode compute per artifact is a known quantity; what remains unmeasured is only its unit cost on whatever runtime the next patch picks.
 - **Where transcoding runs, and what it costs.** RR-A4 established that the Drive archive step must transcode (Cloud Function + ffmpeg? Google's Transcoder API?) — but only if RR-A5's manual Drive test confirms it. **RR-03 sharpened this considerably without closing it:** the archival trigger is now decided (immediate, per artifact, server-side), which makes transcode **synchronous on the upload path and user-visible** rather than a batch job — so latency is now a product constraint, not just a cost one. A 512 MiB / 120 s callable of the `archiveActivityWallPhoto` shape cannot transcode video at all, so the runtime choice (Cloud Run? Transcoder API?) is forced. ⚠️ **RR-A3 removed this patch's escape hatch** — "if video ships" is no longer a conditional, so a video-capable transcode runtime has to exist even though it will be dark in most districts. **RR-A1 then made the sizing concrete: 4.0 MB per take, ~8 MB worst case.** That is small enough that the 512 MiB / 120 s callable objection may not survive re-examination — worth re-testing rather than assuming, since a Cloud Run migration is real work to avoid if a callable can carry it. Still waiting on RR-A5.
 - **What an org admin is shown, and agrees to, at the video gate.** _(Surfaced 2026-08-06 by RR-A3.)_ Sub-decision 1 puts video behind a district switch on the deliberate reasoning that the § 99.12(a) obligation is the district's — which only works if the district is actually told what it is taking on when it flips it. **Not ticketable yet, because its content is RR-09's**: question 4 was reframed the same day from a product blocker into exactly this guidance. Adjacent to, but distinct from, RR-04's org-admin review-and-delete console. Revisit when RR-09 returns.
-- **Does the non-recorded alternative run on the same clock as the recorded one?** _(Surfaced 2026-08-06 by RR-A1's prototype, and it currently belongs to no ticket.)_ A non-recorded alternative is **mandatory** — on RR-A4 finding 5's functional grounds since RR-A1 amended RR-04's legal reasoning. But RR-A1 owns prep time and recording limits for the _recorded_ path only, and RR-07 owns _what the alternative is_, not how long a student gets to do it. So an alternative with no clock is non-equivalent to a timed spoken response, and an alternative on the _same_ clock may be unfair in the opposite direction — typing is slower than speaking. **Sharper after RR-A1 and closer to ticketable:** the recorded path now has four distinct expiry behaviours a teacher picks per question, so "the same clock" is no longer even a single thing to match — an alternative would have to decide what `auto-start` means when there is nothing to start. Still can't be phrased finally until RR-07 says what the alternative is; revisit the moment RR-07 closes.
-- **What the question editor looks like once timing is authored per question.** _(Surfaced 2026-08-06 by RR-A1.)_ RR-A1 sub-decision 2 puts a four-value expiry setting, prep, and a limit on every recording question, and sub-decision 3 hides `timeLimit` when a recording mode is present. Combined with RR-01's mode set and optional required addendum, a single question now carries a lot of authorable surface — and `CLAUDE.md`'s anti-reference is Canva-style overload. **Not ticketable separately yet**: it is the same problem as the "authoring guardrails" and "teacher authoring ergonomics" patches below, and the three should probably graduate together as one authoring ticket once RR-06 says what grading needs.
-- **Interaction with attempt limits.** _(The idle auto-submit half of this patch graduated into **RR-08** on 2026-08-04; what remains here is retakes vs. whole-assignment attempt limits, which needs RR-A2 first.)_
-- **Authoring guardrails against accidental complexity.** RR-01 makes a set-of-modes plus a required addendum expressible on every question. Nothing yet stops a teacher building a 10-question quiz where each question allows three modes and requires a recording. Whether the product warns, caps, or simply permits it is a real decision — **RR-A1 supplied half the missing costs** (a 10-question video quiz at the 120 s maximum is ~8 MB × 10 × 30 students ≈ 2.4 GB, which is the runaway case), and the other half still waits on RR-06's grading wall-clock.
+- **Does the non-recorded alternative run on the same clock as the recorded one?** _(Surfaced 2026-08-06 by RR-A1's prototype, and it currently belongs to no ticket.)_ A non-recorded alternative is **mandatory** — on RR-A4 finding 5's functional grounds since RR-A1 amended RR-04's legal reasoning. But RR-A1 owns prep time and recording limits for the _recorded_ path only, and RR-07 owns _what the alternative is_, not how long a student gets to do it. So an alternative with no clock is non-equivalent to a timed spoken response, and an alternative on the _same_ clock may be unfair in the opposite direction — typing is slower than speaking. **Sharper after RR-A1 and closer to ticketable:** the recorded path now has four distinct expiry behaviours a teacher picks per question, so "the same clock" is no longer even a single thing to match — an alternative would have to decide what `auto-start` means when there is nothing to start. Still can't be phrased finally until RR-07 says what the alternative is; revisit the moment RR-07 closes. 🔵 **RR-08 (2026-08-06) halved this patch.** It applies to the **primary mode set only** — sub-decision 4 rules out any substitute for a required _addendum_, so there is no alternative there whose clock could disagree. And sub-decision 8 settles where the recorded clock starts (on entering the addendum slot, not at question display), which gives the surviving half a fixed thing to be compared against rather than a moving one.
+- **What the question editor looks like once timing is authored per question.** _(Surfaced 2026-08-06 by RR-A1.)_ RR-A1 sub-decision 2 puts a four-value expiry setting, prep, and a limit on every recording question, and sub-decision 3 hides `timeLimit` when a recording mode is present. Combined with RR-01's mode set and optional required addendum, a single question now carries a lot of authorable surface — and `CLAUDE.md`'s anti-reference is Canva-style overload. **Not ticketable separately yet**: it is the same problem as the "authoring guardrails" and "teacher authoring ergonomics" patches below, and the three should probably graduate together as one authoring ticket once RR-06 says what grading needs. 🔵 **RR-08 (2026-08-06) added two things this patch has to absorb.** First, the required-addendum flag must ride in **`QuizPublicQuestion`** (the student-safe projection), because both the client's submit block and the sweep's slot-marking read it from there — so authoring a required addendum writes into a student-visible structure, which no other authoring control on this list does. Second, marking an addendum required now **hard-blocks Submit**, so it is the first authoring toggle on this map that can leave a student unable to finish; the editor arguably has to say so at the moment of authoring rather than leaving it to be discovered in a classroom.
+- **Interaction with attempt limits.** _(The idle auto-submit half graduated into **RR-08** on 2026-08-04 and **closed with it on 2026-08-06** — the sweep now marks empty required slots at finalize rather than finalizing silently. What remains here is retakes vs. whole-assignment attempt limits, which needs RR-A2 first.)_ ⚠️ **RR-08 added a wrinkle worth carrying into that:** `finalizeIdleQuizAttempts` only increments `completedAttempts` when `finalAnswers.length > 0` (`:463-465`), deliberately, so a student who joined and never answered doesn't burn a slot. **RR-08 sub-decision 1 makes passed-over questions write entries** — so a student who is auto-advanced through an assignment without answering anything now has a non-empty `answers[]` and **will** consume an attempt. That may be correct, but it is a behaviour change nobody chose, and it lands in this patch rather than in RR-08.
+- **Authoring guardrails against accidental complexity.** RR-01 makes a set-of-modes plus a required addendum expressible on every question. Nothing yet stops a teacher building a 10-question quiz where each question allows three modes and requires a recording. Whether the product warns, caps, or simply permits it is a real decision — **RR-A1 supplied half the missing costs** (a 10-question video quiz at the 120 s maximum is ~8 MB × 10 × 30 students ≈ 2.4 GB, which is the runaway case), and the other half still waits on RR-06's grading wall-clock. 🔴 **RR-08 (2026-08-06) raised the stakes from cost to completability.** With a hard submit block on required addenda and **no substitute of any kind** (sub-decision 4), a teacher who marks every addendum required has built an assignment that a student in a restricted OU can start and never finish — each question individually blocked, each slot individually marked `capture-unavailable`. Nothing is lost and the teacher can see all of it, but the student's experience is ten consecutive walls. **The guardrail question is no longer "is this quiz expensive"; it is "can every student in the class complete this quiz."**
 - **Which surfaces beyond quiz get these modes** — video activity, guided learning, mini-apps, activity wall. Deliberately deferred: decide it for quiz first, generalize second.
-- **Server-side enforcement of recording limits.** Client-side timers are advisory; whether that matters depends on RR-A2's integrity posture.
-- **Student-facing review-before-submit.** Partly covered by RR-A2, but the whiteboard and multi-artifact cases may need their own.
+- **Server-side enforcement of recording limits.** Client-side timers are advisory; whether that matters depends on RR-A2's integrity posture. **RR-08 (2026-08-06) supplied a precedent that makes this cheaper than it looked:** sub-decision 5 has `finalizeIdleQuizAttempts` read `publicQuestions` off the session doc it already batch-reads, at **zero additional read cost** — so the server can already see per-question authored config without a new fetch. If limits ever need server-side checking, the data is in reach on a path that already runs.
+- **Student-facing review-before-submit.** Partly covered by RR-A2, but the whiteboard and multi-artifact cases may need their own. **Sharpened by RR-08 (2026-08-06):** Submit now blocks on a missing required addendum _and_ on an in-flight upload, so "review before submit" is no longer only a courtesy — it is the screen a student is held on, and it has to explain **which** of two very different reasons is holding them. RR-08's teacher-side three-state view has no student-side counterpart by deliberate choice (sub-decision 7 kept the student's view binary), which means this screen carries the entire burden of telling a student what to do next.
+- **What the teacher's three-state monitor shows, and how it reconciles with a pair that has already drifted.** _(Surfaced 2026-08-06 by RR-08.)_ Sub-decision 7 gives the teacher **answered / started-but-incomplete / never-reached**, because "stuck on the recording" and "hasn't got there" demand opposite interventions. But it lands on top of a documented inconsistency: `QuizLiveMonitor:932` counts drafts as answered and the student gate at `QuizStudentApp.tsx:899-903` does not (audit landmine #8). **Adding a third state to an already-disagreeing pair is the shape of problem that produces a fourth.** Not ticketable alone — it is really "what does the live monitor become once responses can be partial," which wants RR-06's grading view beside it.
 - **Teacher authoring ergonomics.** Once RR-01 settles the model, the authoring UI for "which modes are allowed here" is its own design problem, and the anti-reference is Canva-style overload.
 - **Offline / take-home use.** `/my-assignments` SSO students aren't necessarily on school wifi or a managed device.
 
