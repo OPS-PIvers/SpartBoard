@@ -16,7 +16,7 @@
 > **Paul:** each ticket has an empty `Paul's notes` slot. Write in them freely —
 > agents should read them as the highest-authority input on that ticket.
 
-**Status:** Charted 2026-08-04 · **13 of 22 resolved** — RR-01, RR-B1, RR-A4 closed and RR-04's research half done 2026-08-04; **RR-02, RR-03 and RR-04 closed 2026-08-05**; **RR-A3, RR-A1, RR-08, RR-A2 and RR-05 closed 2026-08-06**; **RR-06 and RR-B2 closed 2026-08-07**. **The entire quiz-side design is now settled — response model, capture, persistence, privacy, completeness, AI boundary, and grading — and RR-B2 turned the B track's keystone**, which came in far cheaper than three tickets had assumed and dissolved RR-B1's hard blocker outright. What remains on the quiz side is measurement and legal confirmation, not design. Video ships gated as a peer mode (RR-A3); the capture experience, its timing model and its data model are locked (RR-A1); RR-08 settled what "answered" means now that a question can complete in parts — including the shipped `'auto'`-mode stall RR-A1 found; and **RR-A2 settled what happens to a take once it exists**, dissolving the one live contradiction two closed tickets had left. The response model (RR-01), its serialization (RR-02) and its lifecycle (RR-03) were already locked, and RR-04 governs who may hold student media, under what name, and for how long. RR-05 then drew the AI boundary — one capability, two gates, and four wrong premises corrected against the codebase. **No keystones remain and no A-track design ticket is open.** What's left is two hardware/legal verifications, one upload-strategy ticket behind them, **the grading ticket RR-05 just unblocked**, and the two untouched tracks.
+**Status:** Charted 2026-08-04 · **14 of 22 resolved** — RR-01, RR-B1, RR-A4 closed and RR-04's research half done 2026-08-04; **RR-02, RR-03 and RR-04 closed 2026-08-05**; **RR-A3, RR-A1, RR-08, RR-A2 and RR-05 closed 2026-08-06**; **RR-06, RR-B2 and RR-B4 closed 2026-08-07**. **The entire quiz-side design is now settled — response model, capture, persistence, privacy, completeness, AI boundary, and grading — and RR-B2 turned the B track's keystone**, which came in far cheaper than three tickets had assumed and dissolved RR-B1's hard blocker outright. What remains on the quiz side is measurement and legal confirmation, not design. Video ships gated as a peer mode (RR-A3); the capture experience, its timing model and its data model are locked (RR-A1); RR-08 settled what "answered" means now that a question can complete in parts — including the shipped `'auto'`-mode stall RR-A1 found; and **RR-A2 settled what happens to a take once it exists**, dissolving the one live contradiction two closed tickets had left. The response model (RR-01), its serialization (RR-02) and its lifecycle (RR-03) were already locked, and RR-04 governs who may hold student media, under what name, and for how long. RR-05 then drew the AI boundary — one capability, two gates, and four wrong premises corrected against the codebase. **No keystones remain, and after RR-B4 the B track has no design questions left either** — what remains there is one prototype with a stopwatch. RR-B4 fixed the whiteboard's coordinate space at a **1600×1200 logical page rendered at 2×**, found that three of its four charted bullets were already answered by shipped code, and 🔴 **became the first decision on this map to change shipped teacher behaviour**: the same fixed page applies to the dashboard drawing widget, retiring the last absolute-pixel coordinate space in the app — one the codebase had already migrated away from a level up, for widget bounds. What's left is two hardware/legal verifications, one upload-strategy ticket behind them, one grading prototype, and **the C track, which nobody has touched since it was charted.**
 
 > ⚠️ **Open cost item, 2026-08-06.** RR-A2 defaulted `takeLimit` to unlimited and made takes append rather than replace, so **RR-A1's 599 MB-per-assignment ceiling no longer holds** — per-assignment media is now unbounded by default. Every closed ticket that priced storage, upload or retention (**RR-A1, RR-03, RR-04, RR-A6**) carries the consequence in place. This is a known, accepted trade, not an oversight.
 
@@ -120,6 +120,8 @@ These are load-bearing. Several tickets are really "should we reuse this or not?
 
 - **[RR-B2 — Is the audio synchronized to the strokes, or just attached alongside?](#rr-b2--is-the-audio-synchronized-to-the-strokes-or-just-attached-alongside)** — **Synchronized, and it is far cheaper than three tickets had assumed.** Paul took the expensive branch against my recommendation; the toolset answer then revealed the "new timestamped event log" RR-B1 priced as a subsystem is **`DrawingCommand` plus a timestamp**, with `applyCommand` — pure, bidirectional, documented for exactly this — already the replay engine. **One armed take on one clock, blank canvas, mic and strokes armed together**, so a whiteboard response is structurally an audio take and inherits RR-A1's timing and RR-A2's takes wholesale. **Undo is an event in the log**: retractions replay, which RR-B1 called the real diagnostic signal and which is free under append-only — at the knowingly accepted cost that it is **surveillance of thinking**, and RR-04's notice must now say so plainly. **A silent take is complete** (SpartBoard never inspects a recording to decide whether a child responded), which makes the **mic-denied student's silent canvas take need no exception at all**. Drive gets **three separate previewable files** per response, not a bundle — the `.spartnb` container exists and was declined, because an archive only SpartBoard can open is the dependency Drive was chosen to avoid. Pen/eraser/colour **plus text and shapes** (Paul, and it is what made the log cheap — edits are `update` commands already in the union); no images, one page. **180 s default / 600 s max**, whose cost is grading wall-clock rather than storage. ⚠️ **Two findings reshaped the fork before a question was asked:** whiteboard objects are **mutable in place**, so the "free" middle option would have replayed final geometry in creation order — a process record that isn't one; and 🔵 **RR-B1's ⛔ Firestore-rules blocker dissolves entirely** — a take is buffered in memory and written once at commit as a `ResponseArtifact`, so no new collection, no new rule, and no 200-write amplification. What it relocates rather than removes: **a lost take is now ten minutes of work.**
 
+- **[RR-B4 — What is a whiteboard response's canonical coordinate space and page size?](#rr-b4--what-is-a-whiteboard-responses-canonical-coordinate-space-and-page-size)** — **A fixed 1600×1200 logical page at a fixed 2× bitmap (3200×2400), everywhere, for everyone.** Chosen over per-artifact captured dimensions (a district record with no fixed size) and 0–1 normalization (no non-arbitrary rule for stroke width and font size once aspect varies). ⚠️ **Three of the four charted bullets were already answered by shipped code**: pointer input already divides by `canvas.width / rect.width` per axis and selection chrome already compensates, so the fixed page costs roughly _"stop feeding the ResizeObserver into `canvasSize`"_; `ScalableWidget`'s `canSpread: false` branch is already uniform-fit letterboxing in production; and `exportCanvas.ts` already renders a page to PNG at an arbitrary size. What the audit found instead is that **the failure is not student-only — the teacher's own widget already slides its artwork on every resize**, because objects are never rescaled. **Portrait is gated, not letterboxed** (Paul, against my recommendation): a phone held portrait gets a rotate-to-answer screen, because a viewport inside a _recorded_ take would force either archiving the student's camera as a second stream or showing a grader strokes appearing in a corner for no visible reason. **The gate is absolute and recorded** — a third value on the provenance field RR-B2 already owed RR-02, so a blocked student is never a bare blank. 🔴 **And the fix applies to the shipped teacher widget too** (Paul, against my recommendation) — **the first decision on this map to change existing behaviour** — which turned out to cost far less than I priced it: `migrateDrawingConfig` is a **read-time pure function** with no backfill, and the original canvas size is **derivable from persisted data** (`widget.w/h` through `computeWidgetPixelRect` against a constant `REFERENCE_VIEWPORT`) rather than guessed, exactly as the app already did once for widget bounds. 🔵 **The drawing widget's contents were the last absolute-pixel coordinate space left in SpartBoard.**
+
 **Destination confirmed** 2026-08-04 (not a ticket, recorded here so it isn't re-litigated): the spec covers all three tracks; narrower, wider, and spec-plus-build were considered and rejected. See the ✅ note under **Destination**.
 
 ---
@@ -128,41 +130,48 @@ These are load-bearing. Several tickets are really "should we reuse this or not?
 
 Open, unblocked, unclaimed — takeable right now:
 
-_Rebuilt 2026-08-07 after RR-B2 closed — the second rebuild today. **There are no
-keystones left on this map.** The quiz side has had no design questions since
-RR-06; RR-B2 has now turned the B track's, and it turned much more cheaply than
-three tickets had assumed. Everything still open is either **a human errand**
-(RR-A5, RR-09), **a downstream of RR-B2** (RR-B3, RR-B4), **a narrowed remnant**
-(RR-07), or **the C track, which nobody has touched since it was charted.**_
+_Rebuilt 2026-08-07 after RR-B4 closed — the **third** rebuild today (RR-06,
+RR-B2, RR-B4). **Every design ticket on the A and B tracks is now closed.** What
+is left is three human/empirical errands (RR-A5, RR-09, RR-B3), one narrowed
+remnant (RR-07), and **the C track, which nobody has touched since it was
+charted and which is now the only unexplored design work on the map.**_
 
-⚡ **RR-B2 removed scope rather than adding it, which has not happened before on
-this map.** It dissolved RR-B1's ⛔ hard blocker (a student whiteboard needs no
-new collection and no new Firestore rules — a take is written once, at commit, as
-a `ResponseArtifact`), dissolved RR-B1's write-amplification finding with it, and
-found that the "new timestamped capture layer" everyone had been pricing is
-`DrawingCommand` plus a timestamp over a replay engine that already ships. **The
-B track is smaller today than it was yesterday.**
+⚡ **Two tickets in a row came in cheaper than the map had priced them, for the
+same reason.** RR-B2 found the "new timestamped capture layer" was
+`DrawingCommand` plus a timestamp over a replay engine that already ships. RR-B4
+then found that three of its four charted bullets were **already answered by
+shipped code** — pointer input already decouples the bitmap from its CSS box,
+`ScalableWidget` already letterboxes a fixed base size, and `exportCanvas.ts`
+already renders a page to PNG at an arbitrary size. **The pattern is now
+explicit enough to state as a rule: on this map, tickets that read the type
+definitions over-price, and tickets that read the call sites under-price.**
+
+🔴 **RR-B4 is also the first ticket to change shipped teacher behaviour.** The
+fixed page applies to the dashboard drawing widget, not only to responses — so
+one item of scheduled work below touches code every existing user already has.
 
 **Takeable now:**
 
-- 🔥 **RR-A5** — Verify format round-trip and capture policy on district hardware _(task, HITL)_ — **the only thing on the board no agent can do, and the only thing still blocking anything.** Fifth session running as the tail dependency of a **student-facing number**: RR-08 sub-decision 6 blocks Submit on an in-flight upload and explicitly refused to invent the threshold, deferring to RR-A6, which waits on this. RR-A2 sharpened it — with takes appending and `takeLimit` unlimited, a student generates **back-to-back uploads on one connection**. 🔵 **RR-B2 added two things today**: test audio at the **600 s** ceiling, not 60 s, and confirm that a policy-blocked microphone fails `getUserMedia` **cleanly and distinguishably** — RR-B2's silent-take fallback for device-blocked students assumes it does, and RR-07's alternative comes back for whiteboard if it doesn't. Also still: does district hardware encode **480p / 500 kbps** (RR-A1 sub-decision 4). **Needs a student Chromebook.** Harness: `docs/rich-response/rr-a5-capture-harness.html`
+- 🔥 **RR-A5** — Verify format round-trip and capture policy on district hardware _(task, HITL)_ — **the only thing on the board no agent can do, and the only thing still blocking anything.** Fifth session running as the tail dependency of a **student-facing number**: RR-08 sub-decision 6 blocks Submit on an in-flight upload and explicitly refused to invent the threshold, deferring to RR-A6, which waits on this. RR-A2 sharpened it — with takes appending and `takeLimit` unlimited, a student generates **back-to-back uploads on one connection**. 🔵 **RR-B2 added two things today**: test audio at the **600 s** ceiling, not 60 s, and confirm that a policy-blocked microphone fails `getUserMedia` **cleanly and distinguishably** — RR-B2's silent-take fallback for device-blocked students assumes it does, and RR-07's alternative comes back for whiteboard if it doesn't. 🔵 **RR-B4 added a third today, and it is a different _kind_ of measurement** — allocate a **3200×2400** canvas on a district Chromebook and draw on it for ten minutes. RR-B4 sub-decision 5 accepted ~31 MB of backing store as "survivable on low-end hardware," which is a guess nobody has tested; if it isn't, the fix is a constant and the ticket says so. Also still: does district hardware encode **480p / 500 kbps** (RR-A1 sub-decision 4). **Needs a student Chromebook.** Harness: `docs/rich-response/rr-a5-capture-harness.html`
 - 🔥 **RR-09** — the questions only district counsel and Google can answer _(task, HITL, unclaimed)_ — **question 7 is still the one item on the map that can stop a capability from shipping**, and it is answered by sending an email. RR-06 added question 9 yesterday (does "excused" survive the LMS boundary). 🔴 **RR-B2 adds a tenth today and it is not small:** sub-decision 3 records **undo as an event**, so a whiteboard take replays work the student erased. That is a category of data no other mode captures — not what a child produced but what they decided not to produce — and RR-04's notice has to state it plainly. **Worth asking counsel in the same message as question 7**
-- **RR-B3** — What does grading 30 whiteboard-plus-audio responses look like? _(prototype)_ — **fully unblocked today, and it is now the most load-bearing open ticket on the map.** It is the only remaining empirical test of decisions two tickets made on reasoning alone (RR-06's question-major queue, RR-05's declined AI menu — this prototype is the only path that can reopen it), and RR-B2 handed it a **concrete number to beat**: 180 s default / 600 s max, accepted explicitly on the grounds that this is where the cost gets discovered. Five things now arrive pre-specified, so it tests rather than invents
-- **RR-B4** — Canonical coordinate space and page size _(grilling + domain-modeling)_ — **unblocked, narrowed, and now required.** RR-B2 killed the raster branch (a vector stream needs a coordinate space, not a resolution) and settled the page count at one — but it made `devicePixelRatio` the sharp bullet rather than the soft one, because the archived final-state PNG is one of the two files a district records request can actually open. **Nothing in the B track builds past RR-B3's prototype without it**
-- **RR-07** — Alternate-format policy _(grilling)_ — **narrowed four times in four days.** RR-08 removed substitution; RR-A2 removed refusal; RR-06 gave the device-blocked student a grading-side excuse; **RR-B2 removed the whiteboard mode from the problem entirely** — a mic-denied student gets a silent timed take, so the alternate-format question now applies only where the missing device _is_ the whole response. What survives is the **authoring-time** question: how a teacher learns, while building, that some of their class will hit a wall
+- **RR-B3** — What does grading 30 whiteboard-plus-audio responses look like? _(prototype)_ — **the most load-bearing open ticket on the map, and as of today the last B-track ticket of any kind.** It is the only remaining empirical test of decisions two tickets made on reasoning alone (RR-06's question-major queue, RR-05's declined AI menu — this prototype is the only path that can reopen it), and RR-B2 handed it a **concrete number to beat**: 180 s default / 600 s max, accepted explicitly on the grounds that this is where the cost gets discovered. 🔵 **RR-B4 removed the last unknown from its inputs**: the grading grid is uniform 4:3 thumbnails at a known 3200×2400, and replay geometry is the authoring geometry with no reprojection — so the prototype can be built against real numbers rather than placeholders. It now **tests rather than invents**, and it wants a person with a stopwatch more than it wants an agent
+- **RR-07** — Alternate-format policy _(grilling)_ — **narrowed five times in four days, and RR-B4 narrowed it in the unusual direction.** RR-08 removed substitution; RR-A2 removed refusal; RR-06 gave the device-blocked student a grading-side excuse; RR-B2 removed the whiteboard mode from the problem entirely. 🔴 **RR-B4 put one case back**: portrait is a hard gate, so a student on an orientation-locked device now _has_ a whiteboard wall — but a **recorded** one (sub-decision 4), which is exactly the authoring-time signal this ticket is about. What survives is still the authoring question: how a teacher learns, while building, that some of their class will hit a wall
+- **RR-C1** — Which stimulus formats are in, and are they rendered in-app or handed off? _(grilling)_ — **the C track's keystone, and the C track is now the only unexplored design work on the map.** It sets the format list every other C ticket assumes, and `components/widgets/PdfWidget/` is a shipped in-app renderer to argue from
 - **RR-C2** — How does a student get access to a file in the teacher's Drive? _(grilling)_ — unblocked by RR-03, which handed it a working precedent: the uid- and publish-gated proxy callable is the same problem in the other direction
-- **RR-C1** — Which stimulus formats are in, and are they rendered in-app or handed off? _(grilling)_
-- **RR-C3** — Does a stimulus attach to a question or to an assignment? _(grilling)_ — small, sharp, independent; still the best warm-up
+- **RR-C3** — Does a stimulus attach to a question or to an assignment? _(grilling)_ — small, sharp, independent; still the best warm-up, and now also the cheapest way into the only untouched track
 
 **Still blocked:** RR-A6 (RR-A5 only) — **and that is the entire list.** Every
 other ticket on this map is takeable today.
 
-**Not tickets, but scheduled work this map created — now three items, and two of
-them share a deadline:**
+**Not tickets, but scheduled work this map created — now four items, two of them
+share a deadline, and 🔴 the newest one is the first that touches code every
+existing user already has:**
 
 1. **The `submitAnswer` spread fix** (RR-08 sub-decision 9) — lands **before RR-02's build**. Cheap now precisely because the trap is provably harmless _today_. RR-A2 added a second field (`takeIndex`) to what it protects.
 2. 🔴 **The four-consumer `takeIndex` change** (RR-A2 sub-decision 5) — `quizScoreboard.ts:55-71`, `questionAccuracyStats.ts:1-35`, `useQuizAssignments.ts:2000-2035`, `useVideoActivityAssignments.ts:997,1028` must move from first-occurrence-wins to **highest-`takeIndex`-wins, ties broken by earliest `answeredAt`**. **It lands with the append change or before it, never after** — the window where two entries share a `questionId` and the scoreboard still credits the first is a silent mis-grade with no error anywhere.
 3. 🔴 **The "absent means unanswered" fix — four sites** (RR-06 finding 4). RR-08 makes every question write an entry, which inverts the contract everywhere it is read as absence: `assignmentExportShared.ts:170-178` (the `''` export cell, documented at `quizDriveService.ts:817-821` as distinct from `'0'`), `quizDriveService.readPlcSheet` (parses those cells back), `plcContributions.ts:99-114` (**the Firestore-native path, not the sheet** — contract documented at `types.ts:387-391`), and `quizDriveService.ts:718-741` (`answeredSet` becomes every question for every student). **Lands with RR-08's always-write change or before it, never after.** Same shape and same silence as item 2 — and note it is **wider**: item 2 mis-grades a student whose question has several takes, this one mis-reports every student on every question in every quiz.
+
+4. 🔴 **The drawing page-space migration** (RR-B4 sub-decision 6) — every existing drawing widget's objects rescale into the 1600×1200 page by `k = min(1600/srcW, 1200/srcH)` plus centering, behind a one-way `pageSpaceMigrated` flag mirroring `subcollectionMigrated`. **Read-time and pure**, like `migrateDrawingConfig` — no backfill job — and the source canvas is derived from `widget.w/h` through `computeWidgetPixelRect` against the constant `REFERENCE_VIEWPORT`, not guessed. **The trap is the scalars**: `width`, `strokeWidth` and `fontSize` must scale by the same `k` or every migrated drawing comes back as hairline strokes and tiny text over correctly-placed geometry. Unlike items 1–3 this has **no deadline against another change** — but it is the only item on this list that can visibly move a teacher's saved work, so it wants its own PR and its own before/after screenshots.
 
 📌 **Two shipped defects this map found and deliberately did not fix** — both belong in issues, not here: RR-05 finding 3 (`video-activity-audio-transcription` declares `missingDocPublic: true` against a fail-closed callable, inert only because of a hard-coded `isAdmin`), and 🔵 **new today** — RR-06 finding 2/3, that an **ungraded essay pushes a real 0 into Google Classroom** today, because `gradeAnswer` returns `pointsEarned: 0` for "not yet graded" and `canScoreResponse` guards only answer-key failures. RR-06 sub-decisions 1 and 2 fix it as a side effect; until they ship, it is live.
 
@@ -182,15 +191,22 @@ decided that a whiteboard replay shows work the student **erased**, which is a
 disclosure no other mode on this map makes and which RR-04's notice does not
 currently describe. Both are cheap to ask and slow to get.
 
-**The next agent session should take RR-B4.** It is the natural successor — small,
-sharply narrowed by RR-B2 (one page, vector not raster, `devicePixelRatio` now
-load-bearing because the archived PNG is a district record), and **it is the one
-thing the B track cannot build past.** **RR-B3 is the higher-value ticket** and it
-is fully unblocked, but it is a prototype rather than a grilling: it wants a
-person with a stopwatch more than it wants an agent, and it should follow RR-B4
-rather than precede it. **RR-C3 remains the best pick for a small, self-contained
-session** — it is independent of everything on this map and has been the
-recommended warm-up since the day it was charted.
+**The next agent session should take RR-C1**, and the reason is structural rather
+than a preference: with RR-B4 closed there is **no unexplored design work left
+outside the C track**, and RR-C1 is the ticket the other two C tickets assume. It
+is also the first ticket in four days that is not downstream of anything — the A
+and B tracks each spent their first session discovering that a charted premise
+was wrong, and the C track has not yet had that session. Expect it. **RR-C3
+remains the right pick for a short session** — small, sharp, independent of even
+RR-C1 — and it is now the cheapest way into the only untouched track.
+
+⚠️ **What an agent should _not_ take next is RR-B3**, despite it being the
+highest-value open ticket on the board. It is a prototype whose entire output is
+a measured wall-clock number, and RR-B4 has now removed the last reason to
+simulate one: the thumbnails, the resolution and the replay geometry are all
+fixed. It wants a person with a stopwatch. Running it as an agent session would
+produce a confident estimate of exactly the quantity two closed tickets already
+estimated confidently.
 
 ---
 
@@ -509,6 +525,7 @@ grading model is built on, and asked this schema for one field it may not have.*
 3. ✅ **The provenance ask above got stronger, not weaker.** RR-06 sub-decision 5 makes a transcript **replaceable in place** when the teacher re-pins a take. So a slot can hold a student-authored artifact and a machine-authored one that is not even stable — which is a second reason "who or what produced this" cannot be inferred from `kind` alone.
 
 4. 🔵 **RR-B2 (2026-08-07) gave the multi-artifact slot its first concrete inhabitant, and asked for one more field.** A committed whiteboard take is **three artifacts under one `takeIndex` in one slot** — audio, a `{ t, cmd }[]` command log, and a rendered final-state PNG — plus an optional `kind: 'text'` transcript, so the abstract case this ticket modelled now has a real shape and `kind` needs a value for a vector command log. 🔴 **The owed field is provenance on the _audio_, and it is the same ask as item 3 arriving from a new direction.** RR-B2 sub-decision 6 lets a student whose microphone is blocked by ChromeOS policy commit a **silent** take rather than losing the mode — and that artifact is byte-identical to one from a student who simply chose not to speak. Sub-decision 4 then says both are complete. **A teacher cannot distinguish them, and grading them identically is wrong**, so the distinction has to be carried in the model or it does not exist.
+5. 🔵 **RR-B4 (2026-08-07) gave that owed field a third value, and pinned the PNG artifact's dimensions.** Sub-decision 4 gates portrait devices out of the whiteboard entirely and **records why the slot is empty**, so the provenance field separates not two cases but three: silent by choice, silenced by policy (no microphone), and **never presented** (no landscape surface). The third is different in kind — the other two produced a take, this one produces nothing — so a reader must be able to tell "recorded silence" from "no recording was ever possible." Separately, the `kind: 'image'` artifact in a whiteboard slot now has **fixed dimensions, 3200×2400**, for every student on every device (sub-decisions 1, 2 and 5) — which is a property the model can rely on rather than a value it has to carry.
 
 **Paul's notes:**
 
@@ -753,6 +770,7 @@ it.**
 3. ⚠️ **The second trigger from item 1 above now fires more than once per slot.** Whatever entry point this ticket specifies for late transcript archival has to be **idempotent and re-runnable**, not a one-shot hung off first creation.
 
 4. 🔵 **RR-B2 (2026-08-07) triples the object count, and chose this ticket's model over a container the repo already ships.** Every whiteboard response archives as **three separate files in a per-response folder** — transcoded audio, a final-state PNG, and the event log as JSON. A single bundled `.spartwb` was the obvious alternative and it was **declined on this ticket's own reasoning**: `.spartnb` (a JSZip bundle with a manifest and inlined media) and `.spart` (dashboard JSON in a visible Drive folder, `googleDriveService.ts:333-343`) prove the container is already built, and nothing inside either previews. **A durable copy only SpartBoard can open is precisely the vendor dependency Drive-as-durable-home was chosen to avoid**, so audio and PNG go in previewable and the log rides along. ⚠️ **The cost lands on the folder convention this ticket owns:** it was designed for one file per question per student, and it now holds a **set per take** — ~450 objects for a thirty-student, five-question assignment. RR-04's review-and-delete console consequently deletes **sets**, not files.
+5. 🔵 **RR-B4 (2026-08-07) made one of those three files a known quantity.** The archived final-state PNG is **3200×2400 for every response** (sub-decision 5), so the whiteboard's raster contribution to Drive is estimable in advance rather than per-student — line art at that size compresses to a few hundred KB, which is negligible beside the audio track it ships with. This is the one number in this ticket's storage model that is now **fixed by decision rather than by device**, and it is fixed deliberately: RR-B4 declined `devicePixelRatio` scaling partly because per-student PNG dimensions would have made a district record's size a property of the child's hardware.
 
 **Paul's notes:**
 
@@ -1394,6 +1412,7 @@ them unstable.**
 
 4. 🔴 **RR-B2 (2026-08-07) created a category of data the notice does not currently describe, and closed off the option of describing it partially.** Sub-decision 3 records **undo as an event in the log**, so a whiteboard take replays what a student drew _and retracted_. Every other mode on this map records what a child produced; this one records **what they decided not to produce.** RR-B2 considered logging retractions but replaying them only on teacher opt-in and rejected it on exactly this ticket's grounds — _"we record your mistakes but usually don't show them"_ is a worse sentence in a privacy notice than either clean answer. **So the notice has to say plainly that erased work is recorded and replayed to the teacher**, and it is the first line in it that a student might reasonably change their behaviour over. RR-B2 accepted that knowingly; what it did not do is write the sentence.
 5. 🔵 **A smaller one, in the opposite direction.** Sub-decision 6 lets a policy-blocked microphone produce a **silent take** rather than blocking the mode — so a student can be recorded-with-no-audio with nothing in the flow telling them the microphone never engaged. Consistent with sub-decision 2's refusal to infer, and it means the notice's account of "what is recorded" is now conditional on the device.
+6. 🔵 **RR-B4 (2026-08-07) adds a second device-conditional case, and this one records a refusal the student did not make.** Sub-decision 4 gates portrait-only devices out of the whiteboard and **writes the reason into the response**. That is a new class of data for this ticket: not content the student produced, and not silence they chose, but **a stored assertion about the student's hardware**. It is defensible and almost certainly the right call — a bare blank slot would read as "didn't try" — but it is a fact about a child recorded by the system without their action, so it belongs in the notice's inventory alongside the erased-work disclosure sub-decision 3 already forced. ⚠️ It also raises an accessibility question this map has not asked anywhere: **a hard orientation gate on a mounted or orientation-locked device is a barrier**, and whether that needs a 504/IEP-side answer is not something RR-04 has scoped. Recorded here rather than invented into a decision.
 
 **Paul's notes:**
 
@@ -1620,6 +1639,8 @@ premise outright.
 
 - 🔵 **RR-B2 (2026-08-07) resolved this ticket's riskiest rider in its favour, on both halves.** Sub-decision 6's millisecond anchors were flagged as landing on nothing in particular if a whiteboard had two timelines; **it has one**, so a time-anchored comment lands on a moment of the _work_ — the strongest version of whiteboard grading available, arriving free from a decision made for audio. And the immutability worry — that a command-stack whiteboard is the one artifact on this map that might not be immutable — **is answered rather than merely survived**: the take is buffered in memory and written **once at commit**, never mutated after. **`gradingSnapshot` stays dead for media, without an exception.**
 - ⚠️ **One number this ticket will care about:** RR-B2 set whiteboard takes at **180 s default / 600 s maximum**. Sub-decision 9's question-major queue is the reason that is affordable rather than alarming, and RR-B3 is where it gets counted.
+- 🔵 **RR-B4 (2026-08-07) made the grading surface uniform, which this ticket's queue design was quietly assuming.** Every whiteboard response is the same shape (4:3) at the same resolution, so a question-major queue of thirty responses is thirty identical tiles — no ragged grid, no per-student letterboxing, and a thumbnail strip that can be laid out without measuring anything. Under the per-artifact-dimensions option RR-B4 declined, sub-decision 9's queue would have been scrolling through thirty differently-shaped cards. **The assumption was never stated, and it is now true.**
+- 🔵 **And `not-attempted` gains a third reason.** RR-B4 sub-decision 4 produces a response that is empty because the device could not present the page. It joins `capture-unavailable` on the teacher-facing side of sub-decision 3's excuse decision — the teacher still calls it per response with the reason shown, exactly as decided, but the reason string is now one of three rather than one of two.
 
 **Paul's notes:**
 
@@ -1755,6 +1776,7 @@ days.**
 - ⚠️ **One thing not to absorb:** RR-06's excuse is discretionary. A teacher may decline to excuse, and nothing in the design prevents it. If this ticket wants the device-blocked student protected rather than merely visible, that is still this ticket's to say.
 
 - 🔵 **RR-B2 (2026-08-07) narrowed this ticket a fourth time, and in the most useful direction so far.** Sub-decision 6 gives a mic-denied student a **silent timed take** instead of a blocked mode — the canvas arms alone. So on the whiteboard mode the device-blocked student is **not blocked at all**: they need neither the mandatory alternative nor RR-06's discretionary excuse. **The alternate-format problem now applies only where the missing device _is_ the whole response** — audio and video — and not where it is half of one. What survives is unchanged and is still the authoring-time question: how a teacher learns, while building, that some of their class will hit a wall.
+- 🔴 **RR-B4 (2026-08-07) narrowed this ticket a fifth time — and it is the first amendment that puts a case _back_.** RR-B2 removed the whiteboard from the alternate-format problem on the grounds that a mic-denied student still gets a silent take. RR-B4 sub-decision 3 then made **portrait a hard gate**, so a student on an orientation-locked or mounted device has a whiteboard wall after all. Three things make it a smaller problem than the one RR-B2 removed: it is **recorded** rather than silent (sub-decision 4), so the teacher sees a reason; it is **knowable at authoring time** in a way a denied microphone is not, because device orientation policy is a property of the deployment rather than of the moment; and it is **the exact case this ticket's surviving half is about.** ⚠️ It also means the answer "there is no alternate format, only an authoring-time warning" now has to hold for a student who is blocked by hardware they cannot change — which is a harder sentence than the one RR-06 excused on the grading side.
 
 **Paul's notes:**
 
@@ -2132,6 +2154,7 @@ media.**
 4. ✅ **Sub-decision 7's single completeness predicate was used exactly as this ticket intended.** RR-06 hung "needs grading" on it, per the 📐 gift RR-05 flagged — and then sub-decision 10 sharpened the unit: the predicate answers per **slot**, so nine auto-graded MC slots and one `awaiting-grade` video slot coexist inside one question.
 
 5. ✅ **RR-B2 (2026-08-07) answered the completeness question this ticket handed the B track, and the predicate needed no amendment.** A narrated whiteboard is **one artifact in one slot** — audio and strokes arm together and commit together — so _"complete iff every required slot is filled"_ applies unchanged, and the fork's other branch (two artifacts, one plainly half-filled) never arose. 🔵 **Sub-decision 4 then answered the harder half:** a **silent** take is complete, because SpartBoard never inspects what a child recorded in order to decide whether they responded. So the whiteboard case adds **no third rule** — the block in sub-decision 3 binds on a missing take, never on a missing narration. **The two rejected options are the interesting part:** blocking on silence, and flagging it, both require automatically analysing a child's recording, which would have put a new processing claim in RR-04's notice and made a whispering student and a broken microphone the same signal.
+6. ✅ **RR-B4 (2026-08-07) exercised the second axis exactly as designed, and again needed no amendment.** A portrait-gated student's slot is **final and never responded to** — the sentence sub-decision 2 created the `unresponded` field to be able to say, and which `status` alone cannot express. It arrives with a reason attached (RR-B4 sub-decision 4), which rides on RR-02's provenance field rather than on anything here. **Two tickets in a row have now landed on this predicate without moving it**, which is the strongest evidence available that the two-axis split was the right shape.
 
 **Paul's notes:**
 
@@ -3249,6 +3272,18 @@ throwing something the page can't distinguish from a user denial. If it doesn't,
 the silent-take fallback doesn't work and RR-07's alternative comes back for
 whiteboard too.
 
+🔵 **RR-B4 (2026-08-07) added a fifth item, and it is a different _kind_ of
+measurement than the other four.** Everything this ticket tests today is about
+formats, codecs and the network. RR-B4 sub-decision 5 fixes the whiteboard bitmap
+at **3200×2400 — roughly 31 MB of canvas backing store** — and accepted that as
+"survivable on a low-end Chromebook" on **reasoning alone, with nothing measured.**
+So: allocate a 3200×2400 canvas on a district Chromebook, draw on it continuously
+for ten minutes with a tab load typical of a school day, and watch for allocation
+failure, paint-rate collapse, or the tab being killed. This is worth doing while
+the device is in hand precisely because the fix is trivial if it fails — the
+resolution is one constant — but the failure is **silent and total** if it ships
+unmeasured: a student loses a ten-minute take to a browser that reclaimed the tab.
+
 **Resolution:** _(unresolved)_
 
 **Paul's notes:**
@@ -3516,6 +3551,20 @@ this ticket relied on holds only because the `reorder` command kind
 (`commands.ts:22,89`) is **declared and never issued** — a layer-order affordance
 would have broken it silently. Moot now that replay reads the log.
 
+🔵 **RR-B4 (2026-08-07) closed this ticket's last open complaint, and found the
+coordinate finding was worse than reported.** RR-B1 recorded that geometry is
+stored in raw canvas-internal pixels and that `devicePixelRatio` is unhandled.
+Both are true — and RR-B4's audit found the consequence is **not confined to the
+student case this ticket framed it as.** `canvasSize` is the ResizeObserver'd
+wrapper box and objects are never rescaled when it changes, so **the teacher's own
+whiteboard already slides its artwork every time the widget is resized.** RR-B4
+sub-decision 6 fixes it for both. ⚠️ **And one of this ticket's framings was too
+pessimistic**: RR-B1 read the fixed-coordinate-space problem as a substrate-level
+obstacle, but pointer input, selection chrome and PNG export all already decouple
+the bitmap from its CSS box — so the fix is a constant, not a rewrite. That is the
+same failure mode RR-B2 found here: **this ticket read the types and the
+docblocks, and the call sites were more capable than either.**
+
 **Paul's notes:**
 
 ---
@@ -3645,6 +3694,20 @@ because the answers follow from the eight above.
 - **The provenance field that separates silent-by-choice from silenced-by-policy.** Named as a requirement, designed on RR-02.
 - **Any re-do workflow.** Option 3 of the clock question — an armed take over the student's own earlier work — was declined, so there is no "continue from my draft" path and nobody has asked for one.
 
+🔵 **RR-B4 (2026-08-07) specified the two artifacts this ticket described but did
+not dimension.** The archived final-state PNG is **3200×2400**, produced by
+`renderPageToPng` with the `ctx.scale(2, 2)` that RR-B4's audit found is missing —
+background baked, selection chrome never present. The command log's coordinates
+are absolute pixels in a **1600×1200 logical page**, identical on every device, so
+the log is portable without carrying a coordinate frame with it. ⚠️ **One
+sub-decision here got a new dependency**: sub-decision 6 gives a mic-denied
+student a silent canvas take, and RR-B4 sub-decision 3 now gates portrait devices
+out of the canvas entirely — so the two device-failure paths are no longer
+symmetric. A missing microphone degrades the take; a missing landscape surface
+**prevents** it. That asymmetry is deliberate (RR-B4 sub-decision 4 records it
+rather than papering over it) but it means "the whiteboard mode always has a
+fallback" is no longer true, and RR-07 has taken the case back.
+
 **Paul's notes:**
 
 ---
@@ -3679,6 +3742,21 @@ prototype now knows exactly what it is grading.** Five things arrive specified.
 4. **Undo replays.** RR-B2 sub-decision 3 keeps retractions in the log, so a teacher watching a replay sees false starts. That is the pedagogical payoff of the whole B track and it is also **the thing most likely to make a fast triage pass impossible** — a teacher who must watch the mistakes cannot skim. Worth testing as its own variable.
 5. **Grading is anchored in milliseconds into a single timeline** (RR-06 sub-decision 6), which lands on the _work_ rather than on the audio alone. This is the strongest grading affordance on the map and nobody has drawn it.
 
+🔵 **RR-B4 (2026-08-07) removed the last placeholder from this prototype's
+inputs — it can now be built at real dimensions rather than sketched.** Three
+things it would otherwise have had to invent are fixed: every response is
+**4:3**, so a thirty-response grid is thirty identical tiles and the ragged-grid
+problem this ticket's first bullet worried about **cannot occur**; the canvas is
+**1600×1200 logical at a 3200×2400 bitmap**, so a thumbnail's legibility is a
+question with one answer rather than one per student; and **replay geometry is
+authoring geometry** with no reprojection, so what the grader scrubs through is
+pixel-for-pixel what the student drew. ⚠️ **The consequence for this ticket is
+that its excuse is gone.** Every input is now specified, the number to beat is
+concrete (600 s × 30), and the two decisions it exists to test — RR-06's
+question-major queue and RR-05's declined AI menu — were both made on reasoning
+that only a stopwatch can check. It is the highest-value open ticket on the map
+and the one an agent is least suited to run.
+
 **Resolution:** _(unresolved)_
 
 **Paul's notes:**
@@ -3687,7 +3765,7 @@ prototype now knows exactly what it is grading.** Five things arrive specified.
 
 ### RR-B4 — What is a whiteboard response's canonical coordinate space and page size?
 
-**Type:** grilling + domain-modeling (HITL) · **Status:** Open — **unblocked 2026-08-07** · **Blocked by:** ~~RR-B2~~ (closed) · _Opened 2026-08-04 by RR-B1's resolution_
+**Type:** grilling + domain-modeling (HITL) · **Status:** ✅ **Closed 2026-08-07** · **Blocked by:** ~~RR-B2~~ (closed) · _Opened 2026-08-04 by RR-B1's resolution_
 
 **Question**
 
@@ -3717,7 +3795,142 @@ mandatory.** Three of the four bullets above are now answered or dead.
 - ⚠️ **`devicePixelRatio` (bullet 4) is now the sharpest of the four, not the softest.** RR-B2 sub-decision 5 archives a **rendered final-state PNG** to the district's Drive as one of the two files a records request can actually open, and sub-decision 7 admitted **typed text**. So the capture resolution decides both how legible handwriting is to a grader and what the durable district record looks like — it is no longer only a display-quality question.
 - 🔴 **And it is required rather than deferrable.** The replay surface and the PNG renderer both need the answer before either can be built, so nothing in the B track proceeds past RR-B3's prototype without it.
 
-**Resolution:** _(unresolved)_
+**Resolution — decided 2026-08-07.** **A fixed logical page — and the app already
+ran this exact migration once, one level up.**
+
+**Audit findings (recorded before the first question was asked).**
+
+1. **RR-B1's bullet is confirmed, and it is not a student-only problem.**
+   `canvasSize` is the ResizeObserver'd wrapper box
+   (`Widget.tsx:234-271`), and the resize effect only reassigns
+   `canvas.width` / `canvas.height` and repaints
+   (`useDrawingCanvas.ts:372-375`) — **objects are never rescaled.** So
+   "drawn at 375, opened at 1200" is **already the shipped teacher
+   behaviour** every time a drawing widget is resized: the artwork stays
+   pinned in absolute pixels while the frame moves around it.
+2. 🔵 **The PNG renderer already exists and already takes a page size.**
+   `exportPagePng(page, {w,h})` → `renderPageToPng` allocates an offscreen
+   canvas at _any_ size, bakes the background template into pixels, and
+   paints through the same dispatcher the live canvas uses
+   (`exportCanvas.ts:36-115`). RR-B2's archived final-state PNG is nearly
+   free. ⚠️ But it paints at **raw** coordinates — a larger `pageSize`
+   yields more blank canvas, not larger strokes. Export is correct today
+   only because `Widget.tsx:776-830` passes `canvasSize` itself.
+3. 🔵 **Pointer input already decouples the bitmap from its CSS box.**
+   `scaleX = canvas.width / rect.width`, per axis
+   (`useDrawingCanvas.ts:471-474`), and `getLiveScale()` does the same for
+   selection chrome (`:162-168`). **A fixed page therefore costs roughly
+   "stop feeding `wrapperSize` into `canvasSize`."** ⚠️ The same per-axis
+   math means **nothing enforces aspect**: a 4:3 bitmap in a 16:9 box
+   stretches, and the pointer math faithfully inverts the stretch — so
+   drawing keeps _working_ while circles render as ellipses. Letterboxing
+   is mandatory under a fixed page, not a nicety.
+4. 🔵 **The uniform-fit letterbox already ships.** `ScalableWidget` computes
+   `Math.min(scaleX, scaleY)` and its `canSpread: false` branch renders at
+   exactly `baseWidth × baseHeight` (`ScalableWidget.tsx:43-63`) — that _is_
+   fixed-logical-page behaviour, in production, used by seating-chart and
+   sticker. `drawing` opts out via `canSpread: true`
+   (`WidgetRegistry.ts:647-651`), which is precisely what hands it the
+   container's aspect ratio instead.
+5. **`devicePixelRatio` appears nowhere in any canvas path in this repo** —
+   the only two hits are comments in `mathToolUtils.ts:9-10` explaining it
+   is irrelevant to inch math. There is no house pattern to copy; whatever
+   this ticket picks is the first instance.
+6. 🔵 **The app has already done this migration, one level up.**
+   `utils/proportionalLayout.ts` + `migrateProportionalLayout.ts` converted
+   every widget's _bounds_ from absolute pixels to proportions of a
+   `REFERENCE_VIEWPORT = { w: 1920, h: 1080 }`, with `fitAspectInside`, an
+   `aspectRatio` field, and a defensive detector that re-derives whenever
+   the fields are missing or implausible (`widgetNeedsProportionalMigration`).
+   **The drawing widget's _contents_ are the last absolute-pixel coordinate
+   space left in the app; the frame around them was fixed long ago.**
+
+**Sub-decisions.**
+
+1. **A fixed logical page.** Coordinates are absolute pixels in one declared
+   space on every device. Chosen over **per-artifact captured dimensions** (a
+   district record with no fixed size, and ragged grading thumbnails) and over
+   **0–1 normalization** (no non-arbitrary rule for stroke width and font size
+   once aspect ratio varies — by width? height? diagonal? — and every renderer
+   in the dispatcher has to denormalize). Findings 3 and 4 are why this is the
+   **cheap** option rather than the expensive one.
+2. **1600×1200, 4:3 landscape.** Chromebook-native — the device most students
+   actually answer on — and it matches the whiteboard metaphor the widget is
+   already built around; `PageJumpMenu.tsx:111` already pins SmartNotebook page
+   thumbnails to `4 / 3`. Portrait (paper-shaped, best on a phone) and square
+   (least-bad everywhere, well-served nowhere) were both declined. ⚠️ Finding
+   6's `REFERENCE_VIEWPORT` is **16:9**, and 16:9 was not among the options
+   offered. The tension is defensible — the viewport is a projector, the page is
+   a document — but if page shape is ever revisited, that is the door.
+3. **Portrait is gated, not letterboxed** _(Paul, against my recommendation)._ A
+   phone held portrait gets a full-screen "rotate your device to answer" gate
+   and no drawing surface until it is landscape. Chosen over letterbox-plus-nudge
+   (a small finger target) and over pan/zoom — which RR-B2 makes worse than it
+   looks: a **recorded** take with a viewport forces a choice between archiving
+   the student's camera as a second synchronized stream, or showing a grader
+   strokes appearing in a corner with no indication the student was zoomed in.
+   ⚠️ Accepted cost: this is a hard block, not an annoyance.
+4. **The gate is absolute, and it is recorded.** A student whose device cannot
+   present the page gets no surface — and the slot records _why_ it is empty
+   rather than reading as an ordinary blank. This reuses the **provenance field
+   RR-B2 already owes RR-02**, which now carries a third value rather than two.
+   An "answer anyway" override and a per-student teacher waiver were both
+   declined — the waiver because it drags back RR-07's alternate-format problem
+   that RR-B2 had just removed the whiteboard from.
+5. **Fixed 2× — the bitmap is always 3200×2400**, live and archived. No dpr
+   branching, no per-device variance, and the archived PNG is exactly what the
+   student saw at twice the linear resolution. Chosen over **1×** (visibly soft
+   on any retina screen — RR-B1's complaint left unfixed) and over **page ×
+   `devicePixelRatio`** (~69 MB on a 3× phone; a `ctx.scale` that leaks into
+   stored coordinates silently corrupts every response; and per-student PNG
+   dimensions contradict sub-decision 1). ⚠️ ~31 MB of canvas backing store —
+   survivable on a low-end Chromebook, and a constant somebody will want to tune.
+6. **The teacher's dashboard widget is fixed too, not responses only** _(Paul,
+   against my recommendation)._ One coordinate space in the app, and finding 1's
+   shipped resize bug dies with it.
+
+**Derived, not asked.**
+
+1. 🔵 **Sub-decision 6 costs far less than I priced it, and the correction is
+   mine to make**: I told Paul the migration would have to guess at a canvas size
+   that was never recorded. Finding 6 says otherwise. The house pattern is a
+   **read-time pure migration** — `migrateDrawingConfig` is a pure function
+   called at three sites (`Widget.tsx:112`, `Settings.tsx:48`,
+   `DashboardContext.tsx:4272`), with **no backfill job and no batch write**. And
+   the source canvas is **derivable from persisted data**: `Widget.tsx:238`
+   already contains the formula (`{ width: widget.w, height: max(widget.h - 88,
+
+0) }`), which post-proportional-layout resolves through
+`computeWidgetPixelRect`against the **fixed**`REFERENCE_VIEWPORT` — a
+   constant, not a live viewport. It is wrong only for a widget resized since it
+   was drawn, which is wrong in exactly the way today's behaviour is already
+   wrong.
+
+2. The migration is a **uniform scale `k = min(1600/srcW, 1200/srcH)` plus
+   centering**, applied per kind over a bounded surface: `points[]` (path),
+   `x/y/w/h` (rect, ellipse, text, image), `x1/y1/x2/y2` (line, arrow) — all in
+   `types.ts:1135-1214`. 🔴 **The trap is the scalars**: `width`, `strokeWidth`
+   and `fontSize` must scale by the same `k`, or every migrated drawing returns
+   with hairline strokes and tiny text over correctly-placed geometry.
+3. ⚠️ **A mid-session claim of mine was too generous and is corrected here.** I
+   said a large fixed page dissolves the `devicePixelRatio` question. It does
+   not: at 1600 logical the bitmap is only ~1.2× a Chromebook's CSS box and
+   **below native** on a 2× iPad. It is **sub-decision 5's supersample**, not the
+   fixed page, that disposes of finding 5.
+4. RR-B2's archived PNG is now fully specified — **3200×2400**, from
+   `renderPageToPng` with the `ctx.scale(2, 2)` finding 2 says is missing,
+   background baked, and selection chrome never present (already guaranteed,
+   `exportCanvas.ts:70-72`).
+5. The live authoring surface and the replay surface are **the same canvas at the
+   same resolution**, so a grader watching a replay sees exactly the geometry the
+   student drew. There is no reprojection anywhere in the pipeline.
+6. ⚠️ **This is the first decision on the map to change shipped teacher
+   behaviour.** Everything before it added net-new response-capture surface. It
+   also makes the `isStudentView` fog patch RR-B2 opened _smaller_: with one
+   coordinate space, that flag no longer has to carry a sizing regime.
+7. `DrawingConfig` needs a one-way `pageSpaceMigrated`-style flag, mirroring
+   `subcollectionMigrated` (`types.ts:1544-1549`) — the shipped pattern for
+   exactly this.
 
 **Paul's notes:**
 
@@ -3838,12 +4051,14 @@ those resolutions rather than graduating whole; each says so and what survives._
 - **What several takes look like everywhere they are stored or shown.** _(Surfaced 2026-08-06 by RR-A2, which decided takes accumulate and explicitly declined all three of these.)_ A question may now hold many committed takes, kept deliberately and retained to end of school year. **Three surfaces inherit that and none has a shape yet.** (1) **The teacher's Drive folder** — siblings, versioned filenames, or a per-question folder? RR-03 owns the folder convention and never anticipated more than one file per question per student. (2) **RR-04's org-admin review-and-delete console**, which was scoped as a compliance precondition over responses and must now list takes and define what deleting one of six means. (3) **The results view**, which RR-A2 decided is where takes are playable — but "playable" was chosen as a posture, not designed. Not ticketable as one thing; it is the same decision landing in three places, and it wants RR-06 beside it, since grading is what makes an earlier take worth keeping open at all. 🔵 **RR-05 (2026-08-06) narrowed one of the three and added an inhabitant to another.** (3) is less open than it was: the results view is now specified as **where the transcribe button lives, on the winning take, with two distinct inline states for absent artifacts** (sub-decisions 2, 3 and 6) — so "playable" has acquired a surrounding design even though the take list itself still hasn't. (1) gains a text file to place next to the audio. 🔴 **RR-06 closed 2026-08-07 and this patch should now graduate whole — it is the most ticketable item on this list.** RR-06 supplied exactly what this patch said it was waiting for: an earlier take is worth keeping open because **a teacher may grade one** (sub-decision 4), and the results view is where they play them. Each of the three surfaces gained a specific new requirement rather than merely a reason. **(1)** must now hold audio + a transcript that is **replaced** rather than appended, so the folder convention has to survive a file being superseded. **(2)** must express deleting one of six takes _when one of them is the graded one_ — RR-06's `gradedTakeIndex` makes that a distinguishable and destructive case, where before all takes were interchangeable. **(3)** is nearly specified now: the results view holds the transcribe button, two inline absence states, a playable take list, a **pin** control, time-anchored comments and a provisional-score marker. **That is a screen, not a patch.** 🔴 **RR-B2 (2026-08-07) made surface (1) worse in exactly the dimension it was already weakest.** RR-03's folder convention was designed for one file per question per student; RR-06 made it hold a superseded transcript; **RR-B2 now makes a single take a set of three files**, so a five-take whiteboard question is fifteen Drive objects for one student on one question. Whatever naming and foldering scheme this patch eventually proposes has to survive that without a human being able to read it, and **surface (2) — the delete console — now deletes sets rather than files**, which is a different UI than the one it was scoped as.
 - **What a student sees on the published-results screen once a score can be provisional and a take can be pinned.** _(Surfaced 2026-08-07 by RR-06, and it belongs to no ticket.)_ RR-03 gated student playback to the **published-results screen** and nowhere else; RR-06 sub-decision 8 then decided a partially-graded score is shown **provisionally and always marked** — explicitly including the student's published view — and sub-decision 4 lets a teacher grade a take the student did not finish on. **Nobody has designed either sentence from the student's side.** A student reading _"82%, 1 still to grade"_ is being told something true and unfamiliar, and there is no shipped precedent for a score that is honestly incomplete. Sharper still: **is a student told which take was graded?** RR-06 recorded `gradedTakeIndex` to answer a grade appeal, which is the student's interest — and an appeal a student cannot see the grounds for is not much of an interest. **Not ticketable yet** because it is entangled with RR-04's notice posture (what a student is told, and when) rather than being purely a display question. Revisit alongside the takes-everywhere patch above; both are really "what does the results screen become." 🔵 **RR-B2 (2026-08-07) put a third unfamiliar thing on that screen.** RR-03 gates student playback to the published-results view, and a whiteboard response is not a clip to play but a **replay to scrub — including the student's own erased work**. A student watching their false starts play back to them is a genuinely new experience with no precedent in this product, and it lands on the same screen as the provisional score and the pinned take.
 - **What a student is doing for ten minutes with nothing on the server, and what happens when the tab dies.** _(Surfaced 2026-08-07 by RR-B2, and it belongs to no ticket.)_ RR-A1's "a lost take is lost" was decided when a take was a 60-second clip; RR-B2 set the whiteboard ceiling at **600 s** and kept the in-memory model, because that model is exactly what makes the event log cost one Firestore write instead of two hundred. **The rule earned its keep and the consequence got ten times worse at the same moment.** A tab crash, a Chromebook sleeping, or a student closing the wrong window now costs a ten-minute worked solution with nothing recoverable anywhere. RR-B2 accepted this explicitly and designed no mitigation. **Not ticketable yet because the honest options are all unattractive and none has been costed** — periodic local persistence (IndexedDB survives a tab crash but not a wipe, and it puts a child's unsubmitted work on a shared device), a mid-take checkpoint upload (which reintroduces the streaming-upload problem RR-A1 foreclosed), or simply telling the student and letting them bear it. It wants RR-A5's real-hardware behaviour beside it, since how often ChromeOS actually kills a tab under memory pressure is a measurement, not an argument.
-- **The third state `isStudentView` cannot express, now that something needs it.** _(Surfaced 2026-08-07 by RR-B2, promoting a finding RR-B1 recorded as an aside.)_ RR-B1 found that `isStudentView` is a **disable** flag, not a mode flag — it early-returns from every pointer handler and hides the toolbar — and noted that it "can't express _student, interactive, no teacher context_", calling that a cross-widget concept change rather than a DrawingWidget-local one (the same pattern appears in `ConceptWeb`, `MiniApp`, `StarterPack`, `WidgetRenderer`). **That was an observation with no consumer until today.** RR-B2's armed take is precisely a student drawing interactively with no teacher context, so the third state is now required by something rather than merely absent. **Not ticketable here** — it is a refactor with a blast radius across five widgets and it should graduate into its own issue rather than into this map, which designs responses and not the widget framework. Recorded so the next person to open `WidgetRenderer` knows why.
+- **The third state `isStudentView` cannot express, now that something needs it.** _(Surfaced 2026-08-07 by RR-B2, promoting a finding RR-B1 recorded as an aside.)_ RR-B1 found that `isStudentView` is a **disable** flag, not a mode flag — it early-returns from every pointer handler and hides the toolbar — and noted that it "can't express _student, interactive, no teacher context_", calling that a cross-widget concept change rather than a DrawingWidget-local one (the same pattern appears in `ConceptWeb`, `MiniApp`, `StarterPack`, `WidgetRenderer`). **That was an observation with no consumer until today.** RR-B2's armed take is precisely a student drawing interactively with no teacher context, so the third state is now required by something rather than merely absent. **Not ticketable here** — it is a refactor with a blast radius across five widgets and it should graduate into its own issue rather than into this map, which designs responses and not the widget framework. Recorded so the next person to open `WidgetRenderer` knows why. 🔵 **Amended 2026-08-07 by RR-B4, and it got _smaller_** — the one thing this flag was about to be handed is gone. Sub-decision 6 puts the teacher widget and the student response in the **same** coordinate space, so `isStudentView` never has to carry a sizing regime; `canvasSize`'s two-branch `useMemo` (`Widget.tsx:265-271`) collapses instead of forking further. The flag still conflates "no chrome," "not editable" and "not the owner's board," which is the original complaint — but this map has now stopped adding to it.
 - **Which surfaces beyond quiz get these modes** — video activity, guided learning, mini-apps, activity wall. Deliberately deferred: decide it for quiz first, generalize second.
 - **Server-side enforcement of recording limits.** Client-side timers are advisory; whether that matters depends on RR-A2's integrity posture. **RR-08 (2026-08-06) supplied a precedent that makes this cheaper than it looked:** sub-decision 5 has `finalizeIdleQuizAttempts` read `publicQuestions` off the session doc it already batch-reads, at **zero additional read cost** — so the server can already see per-question authored config without a new fetch. If limits ever need server-side checking, the data is in reach on a path that already runs. ✅ **RR-A2 (2026-08-06) largely answered this patch, and found the venue everyone assumed was wrong.** Sub-decision 9 established that **Firestore rules cannot enforce per-question anything** — they have no array filtering, so they cannot count entries per `questionId`, and quiz cannot even carry VA's append-only guard because `hasAll` demands prior elements byte-identical while quiz students promote their own drafts in place. **The venue is RR-03's per-upload archival callable**, which every recording commit already passes through with a stored refresh token. ⚠️ **What survives is narrower and worth naming:** the shipped client-side re-submission blocks (`QuizStudentApp.tsx:1889`, `:2017`) remain **enforced nowhere**, and RR-A2 routed around them for recordings rather than fixing them — so written responses still have advisory-only integrity, exactly as before.
 - **Student-facing review-before-submit.** Partly covered by RR-A2, but the whiteboard and multi-artifact cases may need their own. **Sharpened by RR-08 (2026-08-06):** Submit now blocks on a missing required addendum _and_ on an in-flight upload, so "review before submit" is no longer only a courtesy — it is the screen a student is held on, and it has to explain **which** of two very different reasons is holding them. RR-08's teacher-side three-state view has no student-side counterpart by deliberate choice (sub-decision 7 kept the student's view binary), which means this screen carries the entire burden of telling a student what to do next. ✅ **RR-A2 (2026-08-06) settled the recording case completely, so what's left here really is only whiteboard and multi-artifact.** Pre-commit review of a take is **free by construction** — RR-A1 keeps bytes local until commit, RR-03 granted the local-blob review window, and RR-A2 counts only commits — so the recording flow is **record → review → commit or discard**, at no cost and with no budget consequence. **The one thing that flow must now also show is the take budget**, since committing is the act that spends it and a student ought to know that before pressing it rather than after. ✅ **RR-B2 (2026-08-07) closed the whiteboard half this patch was explicitly holding open, and left a new multi-artifact wrinkle in its place.** Pre-commit review is free for a whiteboard take on exactly the recording flow's terms — the log and the audio are both local until commit — so **record → review → commit or discard** carries over unchanged. 🔵 **What is new is that a whiteboard commit uploads _three_ files as one transaction** (audio, event log, final-state PNG), so RR-08's in-flight Submit block has to mean all three, and a partial failure leaves a take that exists but cannot be replayed. **"Multi-artifact" stopped being hypothetical**, and the screen that has to explain _why_ a student is being held now has a third reason to explain.
 - **What the teacher's three-state monitor shows, and how it reconciles with a pair that has already drifted.** _(Surfaced 2026-08-06 by RR-08.)_ Sub-decision 7 gives the teacher **answered / started-but-incomplete / never-reached**, because "stuck on the recording" and "hasn't got there" demand opposite interventions. But it lands on top of a documented inconsistency: `QuizLiveMonitor:932` counts drafts as answered and the student gate at `QuizStudentApp.tsx:899-903` does not (audit landmine #8). **Adding a third state to an already-disagreeing pair is the shape of problem that produces a fourth.** Not ticketable alone — it is really "what does the live monitor become once responses can be partial," which wants RR-06's grading view beside it. 🔴 **RR-06 (2026-08-07) delivered that and produced the fourth state this patch predicted.** Sub-decision 8 says a partially-graded response shows a **provisional score, always marked**, in the live monitor as well as afterwards — so the monitor now carries RR-08's three completion states _and_ a scoring state (`scored` / `awaiting-grade` / `not-attempted`) on the same row, for the same student, meaning different things. **The prediction was right and the patch is now ticketable**: it is one screen holding two orthogonal three-valued axes, on top of a pair (`QuizLiveMonitor:932` vs `QuizStudentApp.tsx:899-903`) that already disagrees about the simplest one.
 - **Teacher authoring ergonomics.** Once RR-01 settles the model, the authoring UI for "which modes are allowed here" is its own design problem, and the anti-reference is Canva-style overload.
+- **What a teacher sees the first time a whiteboard widget opens after the page-space migration.** _(Surfaced 2026-08-07 by RR-B4, and it belongs to no ticket — it belongs to the PR.)_ Sub-decision 6 rescales every existing drawing into the 1600×1200 page. The arithmetic is sound and the source canvas is derived rather than guessed, but the outcome is still that **a teacher opens a board they made in March and the drawing has moved**. Whether that wants a one-time notice, a silent migration, or nothing at all is a product call nobody has made, and it is the only change this map produces that a current user can see without opting into anything. **This is the first user-visible consequence on the entire map** — everything else has been net-new surface.
+- **Whether a hardware gate needs an accommodations answer.** _(Surfaced 2026-08-07 by RR-B4, recorded in RR-04 rather than decided.)_ Sub-decision 3 blocks portrait devices from the whiteboard outright. For most students that is an instruction to rotate their Chromebook. For a student whose device is mounted, orientation-locked, or attached to an AAC rig, it is a wall — and this map has designed device-failure paths for microphones and cameras without ever asking whether a **504/IEP-side** answer is owed for any of them. RR-07 holds the authoring-time half; the accommodations half has no home.
 - **Offline / take-home use.** `/my-assignments` SSO students aren't necessarily on school wifi or a managed device.
 
 ---
