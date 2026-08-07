@@ -161,14 +161,7 @@ export const usePlcBuildingDirectory = (
   const [loading, setLoading] = useState<boolean>(shouldSubscribe);
   const [error, setError] = useState<Error | null>(null);
 
-  // Adjust state during render (not a `useEffect`) when the subscription
-  // scope changes — clears stale entries in the SAME render that observes a
-  // transition, so a consumer never sees the previous org/building's
-  // directory rendered under the new scope. Covers both turning the
-  // subscription off AND staying on while `orgId`/`buildingId` change (e.g.
-  // the user picks a different building, or an admin edits their building
-  // assignment while the PLC hub is open) — see
-  // `utils/plcDirectorySubscriptionKey.ts`.
+  // Adjust state during render on scope transitions — see utils/plcDirectorySubscriptionKey.ts.
   const scope = { shouldSubscribe, orgId, buildingId };
   const [prevScope, setPrevScope] = useState(scope);
   if (

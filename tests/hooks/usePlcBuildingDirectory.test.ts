@@ -351,16 +351,7 @@ describe('usePlcBuildingDirectory — result filtering', () => {
 });
 
 describe('usePlcBuildingDirectory — scope-change stale-data clear (regression)', () => {
-  /**
-   * Sibling-drift regression: `shouldSubscribe` never flips false when the
-   * user stays signed into the same org but the resolved `orgId` (or
-   * `buildingId`) switches out from under them (e.g. an admin edits the
-   * user's building assignment, or `selectedBuildings` changes) — a clear
-   * gated only on `!shouldSubscribe` (the pre-fix code) leaves the OLD
-   * scope's directory entries rendered under the NEW scope until its first
-   * snapshot lands. Mirrors the useOrgBuildings/#2374 fix for the
-   * single-orgId hook family.
-   */
+  // Sibling-drift regression: mirrors the useOrgBuildings/#2374 fix — staying subscribed while orgId/buildingId changes must still clear stale entries.
   it('clears stale entries when staying subscribed but the orgId changes', () => {
     const snapshot = captureSnapshot();
     const { result, rerender } = renderHook(() => usePlcBuildingDirectory());
