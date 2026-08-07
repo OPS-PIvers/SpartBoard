@@ -13,6 +13,34 @@
 > **This is grounding, not a resolution.** RR-A2 is a HITL grilling ticket. Nothing
 > here decides it, and nothing here was resolved or edited on the map.
 
+> ✅ **RR-A2 closed 2026-08-06.** This brief was read in full before the session
+> asked anything, and it changed the ticket's shape twice. **Two places it
+> misleads, both worth knowing before citing it:**
+>
+> 1. 🔴 **§2.3 and §7's item 1 imply VA's append-only rules guard is a model quiz could adopt** — _"the codebase already knows how to do this and simply hasn't at the question level."_ **It cannot.** `hasAll(resource.data.answers)` requires every prior element to survive byte-identical, and quiz students promote their **own** drafts from `'draft'` to `'submitted'` through `submitAnswer` — a student-side modification of an existing element. A blanket append-only guard on quiz's student branch would reject every written-response submit. VA affords the guard only because VA has no drafts. Compounding it: rules have **no array filtering**, so they cannot count entries per `questionId` under _any_ model. The session initially argued **for** appending on the strength of this availability, then corrected it and re-asked. The venue turned out to be RR-03's per-upload callable, which the brief does not consider.
+> 2. ⚠️ **§3.3 recommends the results-sheet `Warnings` row as "the cheapest place" a take count lands. The session rejected it** — on the brief's own observation. Adjacency to `tabSwitchWarnings` frames retakes as an integrity signal, which is the framing the same session had just refused when it declined to count discards. Cheapest is not the same as right, and §3.3 supplies the argument against its own suggestion in its final clause.
+>
+> **What held up, and it was most of the brief.** §0's three structural findings —
+> no concept of an attempt to a **question**, `completedAttempts` as a
+> teacher-decremented budget meter rather than a ledger, and **no Drive deletion
+> anywhere in `functions/`** — were all load-bearing and all correct. §5's framing
+> decided the ticket's second sub-decision almost verbatim: counting discards
+> means inventing a write whose sole content is a child's refusal. §5.1's
+> non-counting-attempt precedent is quoted in the resolution. §1.6's
+> first-occurrence-wins finding became the **payment** attached to the data-model
+> choice, and re-reading `quizScoreboard.ts:61-64` in session surfaced what the
+> table omits — the guards cite **shipped bugs #1728 and #1777**, which is what
+> made "flip them to latest-wins" obviously wrong and forced the explicit
+> `takeIndex` ordinal with a same-index tie-break.
+>
+> **One gap, not a fault.** The brief covers overwrite paths thoroughly and does
+> not touch pause/resume, which was one of the ticket's four charted bullets. The
+> session found the ticket's premise there was simply false —
+> `MediaRecorder.pause()`/`.resume()` are native and continue into the same blob,
+> so the "stitching cost" that made pause look expensive never existed. A grounding
+> pass aimed at a ticket's bullets rather than at its data model would have caught
+> it; this one was scoped to the data model and said so.
+
 ---
 
 ## 0. The one-sentence summary
