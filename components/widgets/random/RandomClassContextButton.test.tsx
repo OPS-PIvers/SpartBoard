@@ -281,4 +281,32 @@ describe('RandomClassContextButton', () => {
     ).not.toBeInTheDocument();
     expect(container.firstChild).not.toBeNull();
   });
+
+  it('closes on Escape and stops propagation before it reaches window listeners', () => {
+    const r1 = makeRoster('r1', 'Period 1');
+    const r2 = makeRoster('r2', 'Period 2');
+    mockUseDashboard([r1, r2], 'r1');
+    render(
+      <RandomClassContextButton
+        roster={r1}
+        rosterMode="class"
+        onOpenAbsentModal={noop}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Active class: Period 1/i })
+    );
+    expect(screen.getAllByRole('menuitemradio')).toHaveLength(2);
+
+    const windowKeydownSpy = vi.fn();
+    window.addEventListener('keydown', windowKeydownSpy);
+
+    try {
+      fireEvent.keyDown(document, { key: 'Escape', bubbles: true });
+      expect(screen.queryByRole('menuitemradio')).not.toBeInTheDocument();
+      expect(windowKeydownSpy).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('keydown', windowKeydownSpy);
+    }
+  });
 });

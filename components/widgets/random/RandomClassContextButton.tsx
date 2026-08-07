@@ -80,7 +80,16 @@ export const RandomClassContextButton: React.FC<
       closeMenu();
     };
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeMenu();
+      if (event.key !== 'Escape') return;
+      // This popover is portalled to document.body, outside any `.widget`
+      // DraggableWindow. Without stopping propagation, an unhandled Escape
+      // here bubbles up to DashboardView's global window-level Escape
+      // handler, which falls back to targeting the topmost z-index widget
+      // and minimizes it — an unrelated widget disappearing just because
+      // this popover was dismissed. Matches the same fix applied to
+      // ToolDockItem, RemoteControlMenu, and ClassRosterMenu.
+      event.stopPropagation();
+      closeMenu();
     };
     let animationFrameId = 0;
     const handleReposition = () => {
