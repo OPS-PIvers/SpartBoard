@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-08-04_
+_Last audited: 2026-08-06_
 _Last action: 2026-07-09 — MEDIUM SpecialistSchedule Appearance.tsx/co-located-Settings pattern documented + stale `.agents/` reference row corrected in new-widget skill (both mirrors)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-06: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — consistent with all prior runs). Codebase-side verification. No new dev-paul commits since 2026-08-05 affecting skill-relevant files (scheduled-tasks branch carries only `package.json` + `pnpm-lock.yaml` changes from the @hono/node-server dependency override — no FeaturePermissionsManager.tsx, FeatureConfigurationPanel.tsx, WidgetRegistry.ts, types.ts, or admin config panel changes). `SpecialistSchedule/` confirmed still present (SpecialistScheduleWidget.tsx, Settings.tsx, index.ts, utils.ts). `spart-new-widget` skill re-confirmed fully accurate — all 8 registered locations verified correct. `spart-widget-admin-config` skill: all 7 LOW open items remain valid (BUILDING_CONFIG_PANELS type annotation mismatch, exclusion array example missing 7 types, secondary exclusion gate undocumented, QRWidget empty-state reference stale, and 3 others from prior runs). Zero new findings._
 
 _2026-08-04: Skill files NOT accessible at `/mnt/skills/user/` in this environment (path does not exist — consistent with all prior runs). Codebase-side verification. New dev-paul commits since 2026-08-03: spike(pronunciation) #2363 and #2365 (spike docs only — no FeaturePermissionsManager.tsx, FeatureConfigurationPanel.tsx, WidgetRegistry.ts, types.ts, or skill file changes). `spart-new-widget` skill re-confirmed fully accurate — all 8 registered locations verified correct, all referenced files confirmed present. `spart-widget-admin-config` skill: `BUILDING_CONFIG_PANELS` declared as `Partial<Record<string, BuildingConfigPanel>>` (FeatureConfigurationPanel.tsx:92) — skill's `WidgetType | InternalToolType` annotation mismatch LOW item still valid. Exclusion array example still missing 7 types (blooms-taxonomy, catalyst, graphic-organizer, music, pdf, video-activity, work-symbols) — LOW item still valid. Secondary exclusion gate undocumented — LOW item still valid. All 7 LOW open items remain valid. Zero new findings._
 
