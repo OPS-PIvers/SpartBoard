@@ -79,6 +79,16 @@ bullet-by-bullet one, and it fails in a predictable place.
 - **One recommendation was declined on the brief's own evidence.** §3.3 offered the results sheet's `Warnings` column as the cheap home for take counts, then noted teachers read that column as an integrity signal. That second half won.
 - **One gap, honestly scoped.** It audits data paths and does not touch pause/resume, where the ticket's charted premise turned out to be simply false (`MediaRecorder.pause()` is native and continuous, so the "stitching cost" never existed). The brief said what it covered; the lesson is that a bullet the brief doesn't reach may be a bullet that dissolves.
 
+## RR-05 closed 2026-08-06 — the control case, run without a brief
+
+Recorded because the two sections above measure what a grounding brief is worth,
+and this session is the comparison they were missing: **RR-05 had no asset.** The
+audit happened live, inside the session, before the first question.
+
+- **It found four wrong premises, three of which changed an answer** — that no shipped AI call has ever consumed student-created content; that "the established mechanism" is four rival mechanisms; that the precedent is fail-open in the client and fail-closed in the callable; and that `global_permissions` is written by SpartBoard admins rather than districts, which corrected a **closed** ticket (RR-A3). A brief written the night before would plausibly have found the same four. Working live found them **in the order the questions needed them**, which a brief cannot do.
+- **The cost was concentrated and visible.** Roughly the first third of the session was reading rather than deciding, and the ticket's charted framing had to be dismantled before question one. On a ticket with more open decisions than RR-05's five, that overhead would have arrived at a worse moment.
+- **The honest conclusion is narrower than "briefs are unnecessary."** RR-05's questions were answerable from **five files**, all reachable by name from the ticket text itself (`aiGeneration.ts`, `featureDefaults.ts`, `firestore.rules`, `GlobalPermissionsManager.tsx`, `types.ts`). RR-08 and RR-A2 both needed a structural sweep across ten-plus consumers — which is exactly what a brief is good at and what a live session does badly under time pressure. **Write the brief when the question is "where does this pattern appear"; skip it when the question is "what does this specific mechanism actually do."**
+
 ## Verification status
 
 Claims in these files are **not** uniformly verified — each file states its own
