@@ -4,6 +4,29 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-08-07
+
+- PRs reviewed: 27 open PRs (all draft, all authored by OPS-PIvers). 14 had **no prior review** and were reviewed this run; the other 13 already carry a thorough review from a prior night's run and were **not** re-reviewed to avoid duplicate-review noise (diffs unchanged since).
+  - Newly reviewed (14): #2410, #2409, #2408, #2407, #2406, #2405, #2404, #2403, #2402, #2401, #2400, #2399, #2398, #2394.
+  - Already reviewed, skipped (13): #2396, #2395, #2393, #2392, #2391, #2390, #2389, #2388, #2387, #2386, #2385, #2381 (+ this run's own log PR).
+- Comments processed: 0 requiring a fix — 0 fixed, 0 explained. Every inline review thread across all PRs (#2396, #2395, #2391, #2390, #2389) was already owner-resolved with a fix commit or an accepted explanation. Re-replying to resolved threads would be pure noise, so no new replies were posted.
+- Fixes pushed: 0 — no unresolved comment required a code change, and no diff-level defect was found in any of the 14 reviewed diffs.
+- Reviews posted: 14 (one structured "Automated Code Review" per newly-reviewed open PR).
+- Notable findings:
+  - **No genuine bugs or blocking defects** in any reviewed diff. All 14 assessed Ready / Ready with minor notes (one duplicate, #2400, recommended for closure in favor of #2407).
+  - **Process issue — duplicate PR pile-up.** The nightly routine is re-creating the same fix on a fresh branch each night without the prior night's PR merging, so identical changes are accumulating as separate open PRs appending to the same files:
+    - debugger run-log: #2393 (08-05) / #2404 (08-06) / #2410 (08-07)
+    - unifier run-log: #2386 (08-05) / #2398 (08-06) / #2406 (08-07)
+    - RandomClassContextButton Escape fix: #2388 (08-05) / #2400 (08-06) / #2407 (08-07)
+    - expireSubShares pagination: #2391 (08-05) / #2403 (08-06)
+    - SettingsLabel a11y retrofit: #2385 (08-05) / #2397 (08-06) / #2405 (08-07)
+  - Recommendation for a human: merge the newest of each chain and close the older duplicates before the same-file appends start conflicting.
+  - #2403 / #2391: confirm the `expireSubShares` composite index still covers the added `orderBy(documentId())` tiebreaker in prod before merge.
+  - #2402: pre-existing mixed-case domain docs won't be retroactively normalized — consider a one-time backfill.
+- Notes:
+  - Branch safety: no push to `main` or any `dev-*` head. No PR carried unresolved change-requesting comments, so the sanctioned "push to `dev-paul` when there are PR comments" path was not exercised. This review-log commit is on the designated `claude/compassionate-shannon-if04xu` branch, rebuilt from the latest `origin/dev-paul` — kept off `scheduled-tasks` (head of actively-open PR #2387) to avoid polluting an unrelated in-flight PR, matching standing prior-run precedent.
+  - Env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code fixes were pushed, so no local verification was required. CI on Node 24 remains the authoritative gate.
+
 ## 2026-08-04
 
 - PRs reviewed: 4 (all open PRs, all draft, all targeting `dev-paul`, all authored by the automated system)
