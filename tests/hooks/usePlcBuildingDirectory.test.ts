@@ -349,3 +349,83 @@ describe('usePlcBuildingDirectory — result filtering', () => {
     expect(result.current.error).toBeNull();
   });
 });
+
+describe('usePlcBuildingDirectory — scope-change stale-data clear (regression)', () => {
+  /**
+   * Sibling-drift regression: `shouldSubscribe` never flips false when the
+   * user stays signed into the same org but the resolved `orgId` (or
+   * `buildingId`) switches out from under them (e.g. an admin edits the
+   * user's building assignment, or `selectedBuildings` changes) — a clear
+   * gated only on `!shouldSubscribe` (the pre-fix code) leaves the OLD
+   * scope's directory entries rendered under the NEW scope until its first
+   * snapshot lands. Mirrors the useOrgBuildings/#2374 fix for the
+   * single-orgId hook family.
+   */
+  it('clears stale entries when staying subscribed but the orgId changes', () => {
+    const snapshot = captureSnapshot();
+    const { result, rerender } = renderHook(() => usePlcBuildingDirectory());
+
+    act(() => {
+      snapshot.push(
+        fakeSnap([
+          {
+            id: 'plc-old-org',
+            data: {
+              name: 'Old Org PLC',
+              orgId: ORG_ID,
+              buildingId: BUILDING_ID,
+              memberUids: ['other-1'],
+            },
+          },
+        ])
+      );
+    });
+    expect(result.current.entries.map((e) => e.id)).toEqual(['plc-old-org']);
+
+    useAuthMock.mockReturnValue({
+      user: { uid: USER_UID, email: USER_EMAIL },
+      orgId: 'org-other',
+      selectedBuildings: [BUILDING_ID],
+      buildingIds: [],
+    });
+    rerender();
+
+    // Before org-other's first snapshot lands, the old org's entries must
+    // NOT still be showing under the new orgId.
+    expect(result.current.entries).toEqual([]);
+  });
+
+  it('clears stale entries when staying subscribed but the buildingId changes', () => {
+    const snapshot = captureSnapshot();
+    const { result, rerender } = renderHook(() => usePlcBuildingDirectory());
+
+    act(() => {
+      snapshot.push(
+        fakeSnap([
+          {
+            id: 'plc-old-building',
+            data: {
+              name: 'Old Building PLC',
+              orgId: ORG_ID,
+              buildingId: BUILDING_ID,
+              memberUids: ['other-1'],
+            },
+          },
+        ])
+      );
+    });
+    expect(result.current.entries.map((e) => e.id)).toEqual([
+      'plc-old-building',
+    ]);
+
+    useAuthMock.mockReturnValue({
+      user: { uid: USER_UID, email: USER_EMAIL },
+      orgId: ORG_ID,
+      selectedBuildings: ['bldg-other'],
+      buildingIds: [],
+    });
+    rerender();
+
+    expect(result.current.entries).toEqual([]);
+  });
+});

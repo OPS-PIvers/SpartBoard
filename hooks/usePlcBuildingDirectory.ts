@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
+import { shouldClearPlcDirectoryOnScopeChange } from '@/utils/plcDirectorySubscriptionKey';
 
 /**
  * `usePlcBuildingDirectory` — the "PLCs in my building" discovery feed behind
@@ -154,23 +155,38 @@ export const usePlcBuildingDirectory = (
   // Firestore read.
   const buildingId = selectedBuildings[0] ?? buildingIds[0] ?? null;
 
-  const [entries, setEntries] = useState<PlcDirectoryEntry[]>(EMPTY_ENTRIES);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
   const shouldSubscribe = enabled && !isAuthBypass && Boolean(user) && !!orgId;
 
-  useEffect(() => {
-    if (!shouldSubscribe || !orgId || !user) {
-      // Defer the reset so we don't trip react-hooks/set-state-in-effect on
-      // the signed-out / no-org branch (mirrors the usePlcs pattern).
-      const timer = setTimeout(() => {
-        setEntries(EMPTY_ENTRIES);
-        setLoading(false);
-        setError(null);
-      }, 0);
-      return () => clearTimeout(timer);
+  const [entries, setEntries] = useState<PlcDirectoryEntry[]>(EMPTY_ENTRIES);
+  const [loading, setLoading] = useState<boolean>(shouldSubscribe);
+  const [error, setError] = useState<Error | null>(null);
+
+  // Adjust state during render (not a `useEffect`) when the subscription
+  // scope changes — clears stale entries in the SAME render that observes a
+  // transition, so a consumer never sees the previous org/building's
+  // directory rendered under the new scope. Covers both turning the
+  // subscription off AND staying on while `orgId`/`buildingId` change (e.g.
+  // the user picks a different building, or an admin edits their building
+  // assignment while the PLC hub is open) — see
+  // `utils/plcDirectorySubscriptionKey.ts`.
+  const scope = { shouldSubscribe, orgId, buildingId };
+  const [prevScope, setPrevScope] = useState(scope);
+  if (
+    prevScope.shouldSubscribe !== scope.shouldSubscribe ||
+    prevScope.orgId !== scope.orgId ||
+    prevScope.buildingId !== scope.buildingId
+  ) {
+    const shouldClear = shouldClearPlcDirectoryOnScopeChange(scope, prevScope);
+    setPrevScope(scope);
+    setLoading(shouldSubscribe);
+    if (shouldClear) {
+      setEntries(EMPTY_ENTRIES);
+      setError(null);
     }
+  }
+
+  useEffect(() => {
+    if (!shouldSubscribe || !orgId || !user) return;
 
     const constraints: QueryConstraint[] = [where('orgId', '==', orgId)];
     if (buildingId) {
