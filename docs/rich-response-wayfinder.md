@@ -16,7 +16,7 @@
 > **Paul:** each ticket has an empty `Paul's notes` slot. Write in them freely —
 > agents should read them as the highest-authority input on that ticket.
 
-**Status:** Charted 2026-08-04 · **16 of 22 resolved** — RR-01, RR-B1, RR-A4 closed and RR-04's research half done 2026-08-04; **RR-02, RR-03 and RR-04 closed 2026-08-05**; **RR-A3, RR-A1, RR-08, RR-A2 and RR-05 closed 2026-08-06**; **RR-06, RR-B2, RR-B4, RR-C1 and RR-C2 closed 2026-08-07**, with **RR-C3's audit half landing the same day**. **The entire quiz-side design is now settled — response model, capture, persistence, privacy, completeness, AI boundary, and grading — and RR-B2 turned the B track's keystone**, which came in far cheaper than three tickets had assumed and dissolved RR-B1's hard blocker outright. What remains on the quiz side is measurement and legal confirmation, not design. Video ships gated as a peer mode (RR-A3); the capture experience, its timing model and its data model are locked (RR-A1); RR-08 settled what "answered" means now that a question can complete in parts — including the shipped `'auto'`-mode stall RR-A1 found; and **RR-A2 settled what happens to a take once it exists**, dissolving the one live contradiction two closed tickets had left. The response model (RR-01), its serialization (RR-02) and its lifecycle (RR-03) were already locked, and RR-04 governs who may hold student media, under what name, and for how long. RR-05 then drew the AI boundary — one capability, two gates, and four wrong premises corrected against the codebase. **No keystones remain, and after RR-B4 the B track has no design questions left either** — what remains there is one prototype with a stopwatch. RR-B4 fixed the whiteboard's coordinate space at a **1600×1200 logical page rendered at 2×**, found that three of its four charted bullets were already answered by shipped code, and 🔴 **became the first decision on this map to change shipped teacher behaviour**: the same fixed page applies to the dashboard drawing widget, retiring the last absolute-pixel coordinate space in the app — one the codebase had already migrated away from a level up, for widget bounds. **The C track ran the pattern the A and B tracks each ran on their opening day, and then ran a new one.** RR-C1 fixed the stimulus list at image/audio/video/YouTube/PDF with Office refused, and found the app had **already solved question-attached media once, in GuidedLearning**, while the quiz model carries no media field at all — and that its two shipped players disagree with each other about the very control policy the ticket was asking about. RR-C2's audit then landed the same day and was harsher still: **both of its load-bearing premises were wrong in opposite directions.** But RR-C2's grilling session inverted that again — **one more call-site read dissolved the expensive option instead of confirming it blocked** (`storage.rules:127-139` performs cross-service `firestore.get()`, which I had asserted was impossible), so the Cloud Function proxy the ticket was charted around is not merely unbuildable but **unnecessary**. RR-C2 gates image and PDF behind a Storage rule, leaves audio/video/YouTube on public URLs, moves **every stimulus byte out of Drive** — amending RR-03 on capability rather than cost grounds — and states plainly what its sub-decisions imply: **SpartBoard has decided not to protect copyrighted stimulus material.** What's left is two hardware/legal verifications, one upload-strategy ticket behind them, one grading prototype, and **exactly one design ticket — RR-C3, whose audit is already done and which found the app has built this ticket twice already.**
+**Status:** Charted 2026-08-04 · **17 of 22 resolved** — RR-01, RR-B1, RR-A4 closed and RR-04's research half done 2026-08-04; **RR-02, RR-03 and RR-04 closed 2026-08-05**; **RR-A3, RR-A1, RR-08, RR-A2 and RR-05 closed 2026-08-06**; **RR-06, RR-B2, RR-B4, RR-C1, RR-C2 and RR-C3 closed 2026-08-07** — six in one day, and RR-C3 ran its audit and its grilling as two separate sessions within it. 🔴 **The map has no design questions left on any track.** What remains is three errands that want a person rather than an agent (RR-A5, RR-09, RR-B3) and one narrowed authoring remnant (RR-07). **The entire quiz-side design is now settled — response model, capture, persistence, privacy, completeness, AI boundary, and grading — and RR-B2 turned the B track's keystone**, which came in far cheaper than three tickets had assumed and dissolved RR-B1's hard blocker outright. What remains on the quiz side is measurement and legal confirmation, not design. Video ships gated as a peer mode (RR-A3); the capture experience, its timing model and its data model are locked (RR-A1); RR-08 settled what "answered" means now that a question can complete in parts — including the shipped `'auto'`-mode stall RR-A1 found; and **RR-A2 settled what happens to a take once it exists**, dissolving the one live contradiction two closed tickets had left. The response model (RR-01), its serialization (RR-02) and its lifecycle (RR-03) were already locked, and RR-04 governs who may hold student media, under what name, and for how long. RR-05 then drew the AI boundary — one capability, two gates, and four wrong premises corrected against the codebase. **No keystones remain, and after RR-B4 the B track has no design questions left either** — what remains there is one prototype with a stopwatch. RR-B4 fixed the whiteboard's coordinate space at a **1600×1200 logical page rendered at 2×**, found that three of its four charted bullets were already answered by shipped code, and 🔴 **became the first decision on this map to change shipped teacher behaviour**: the same fixed page applies to the dashboard drawing widget, retiring the last absolute-pixel coordinate space in the app — one the codebase had already migrated away from a level up, for widget bounds. **The C track ran the pattern the A and B tracks each ran on their opening day, and then ran a new one.** RR-C1 fixed the stimulus list at image/audio/video/YouTube/PDF with Office refused, and found the app had **already solved question-attached media once, in GuidedLearning**, while the quiz model carries no media field at all — and that its two shipped players disagree with each other about the very control policy the ticket was asking about. RR-C2's audit then landed the same day and was harsher still: **both of its load-bearing premises were wrong in opposite directions.** But RR-C2's grilling session inverted that again — **one more call-site read dissolved the expensive option instead of confirming it blocked** (`storage.rules:127-139` performs cross-service `firestore.get()`, which I had asserted was impossible), so the Cloud Function proxy the ticket was charted around is not merely unbuildable but **unnecessary**. RR-C2 gates image and PDF behind a Storage rule, leaves audio/video/YouTube on public URLs, moves **every stimulus byte out of Drive** — amending RR-03 on capability rather than cost grounds — and states plainly what its sub-decisions imply: **SpartBoard has decided not to protect copyrighted stimulus material.** **RR-C3 then closed the same day and ended the design work on this map.** It followed the house pattern its audit found — a stimulus array on the quiz, a pointer on the question — but **explicitly not for the reason the precedent supplies**, since a VA question is located _in_ the video and a quiz stimulus has no positional relationship to anything; what transferred was that **the pointer is the grouping concept**, which is what shuffle needed and what nobody had to invent. It departed from the precedent in exactly one place — a stable id rather than GL's index — and that place is precisely where the precedent's ordering semantics stop applying, which is where the frontier had predicted the departure would fall. ⚠️ **Two premises the audit left standing failed verification before a question was asked**: the house pinning idiom is _don't key at all_, and `toPublicQuestion` is a hand-written allowlist — the second of which **dissolved RR-C2's two-shapes wrinkle outright**, since a parent array holds one copy of every reference. What's left on the whole map is two hardware/legal verifications, one upload-strategy ticket behind them, one grading prototype, and RR-07's authoring remnant.
 
 > ⚠️ **Open cost item, 2026-08-06.** RR-A2 defaulted `takeLimit` to unlimited and made takes append rather than replace, so **RR-A1's 599 MB-per-assignment ceiling no longer holds** — per-assignment media is now unbounded by default. Every closed ticket that priced storage, upload or retention (**RR-A1, RR-03, RR-04, RR-A6**) carries the consequence in place. This is a known, accepted trade, not an oversight.
 
@@ -126,6 +126,8 @@ These are load-bearing. Several tickets are really "should we reuse this or not?
 
 - **[RR-C2 — How does a student get access to a file in the teacher's Drive?](#rr-c2--how-does-a-student-get-access-to-a-file-in-the-teachers-drive)** — **Gate where gating is free, follow the house pattern where it isn't, and move every stimulus byte out of Drive.** Image and PDF go to Firebase Storage behind a rules gate; audio, video and YouTube stay on public URLs, because gating them costs streaming or is impossible. The gate is **`request.auth != null`** — the shipped `global_pdfs` shape — chosen over the response-doc-existence predicate the audit called the only _sound_ one, because rules can construct a path but cannot query, so a per-student gate would force `{sessionId}` into the Storage path and a stimulus is authored **once per quiz and assigned to many sessions**: session-keying reintroduces per-assignment copying plus a cleanup story, the exact cost this ticket charted against option 1. 🔴 **The Cloud Function proxy died twice** — the audit killed it on scope (`drive.file` cannot reach an arbitrary teacher file), and the session killed it on redundancy: **`storage.rules:127-139` already does cross-service `firestore.get()`**, which I had asserted was impossible before checking. So the grounding brief's entire §6 cost analysis — concurrency, the 512 MiB buffering `driveArchive.ts:249`, cold starts, absent caching — was the price of a proxy nobody needs. **Three of the audit's six questions dissolved unasked**: an auth-only gate has no join requirement (so previews and projector use are free), a gated reference is a Storage path rather than a credential, and AV-to-Storage follows by construction. ⚠️ **This reverses RR-03's "Drive is the durable home" for stimuli on capability grounds** — Drive has no rules engine, `lh3` serves images only, and the `/preview` iframe cannot carry RR-C1's replay toggle. `drive.readonly` stays **closed for v1 but explicitly revisitable**; it is declared-but-unrequested today and the in-flight OAuth verification wants it pruned. Teacher-facing disclosure is **deferred to RR-09 with a named trigger**, so v1 ships no notice. 🔴 **Stated plainly because no sub-decision says it: SpartBoard has decided not to protect copyrighted stimulus material.** ⚠️ And the map has its **first infrastructure requirement** — SDK byte reads need bucket CORS config, which does not exist, and the two shipped cross-origin consumers disagree about whether it already works.
 
+- **[RR-C3 — Does a stimulus attach to a question or to an assignment?](#rr-c3--does-a-stimulus-attach-to-a-question-or-to-an-assignment)** — **Follow the house pattern where it is load-bearing; depart from it exactly where its ordering semantics stop applying.** A stimulus array on `QuizData` (the quiz, not the assignment — content has always lived there, and `QuizAssignment` carries zero content fields), with each question holding a **pointer array** into it (Paul, against my recommendation, so one question can stack a shared passage and its own figure). **The pointer _is_ the grouping concept** — six questions pointing at one entry are a group, with no group object, no lifecycle, no orphan cleanup, and no `groupId` colliding with the six PLC-sync ones already in `types.ts`. ⚠️ **The precedent's own justification does not transfer** — a VA question is located _in_ the video, a GL step _on_ the image, and a quiz stimulus has no positional relationship to its questions — so the shape was adopted for a different reason than the one that produced it. 🔵 **The pointer is a stable id, not GL's `imageIndex`**, derived rather than asked because an index under a deletable array is silently **wrong-material** rather than missing-material: GL gets away with it because its array is a slide sequence where order is meaning, and a quiz stimulus array is a bag. The **replay policy moves onto the stimulus entry**, correcting RR-C1 sub-decision 2 in place — `allowSkipping` is session-level and structurally cannot be per-question — and it is the only home where "plays once" is coherent. **`shuffleQuestions` becomes component-aware** (connected components, because pointer arrays make sharing an overlapping-set graph rather than a partition) — one pure function, one call site, an order never persisted. Entries carry an **authoring-only label**. ⚠️ **Two premises the audit left standing failed verification**: GL's pinning idiom is _don't key at all_ (the one keyed element is keyed to force a **reload**, `GuidedLearningPlayer.tsx:722-727`), so pinning and attachment are separable; and `toPublicQuestion` is a hand-written **allowlist**, so nothing reaches a student by default — which **dissolves RR-C2's two-shapes wrinkle outright**, since a parent array holds exactly one copy of every reference. 🔴 **And the shuffle premise partly dissolved before it was asked**: each question renders its own stimulus, so scattering costs read-once **flow**, not validity. ⚠️ Sub-decision 3's price is the sharpest here — the array sits in `pullSyncedQuiz`'s rebuild path, so **a PLC peer's edit can replace a passage under a student mid-attempt**, the first content on this map that is neither snapshot-at-create nor append-only.
+
 **Destination confirmed** 2026-08-04 (not a ticket, recorded here so it isn't re-litigated): the spec covers all three tracks; narrower, wider, and spec-plus-build were considered and rejected. See the ✅ note under **Destination**.
 
 ---
@@ -134,51 +136,62 @@ These are load-bearing. Several tickets are really "should we reuse this or not?
 
 Open, unblocked, unclaimed — takeable right now:
 
-_Rebuilt 2026-08-07 after RR-C2 closed and RR-C3's audit landed — the **fifth**
-rebuild today (RR-06, RR-B2, RR-B4, RR-C1, RR-C2). **Exactly one design ticket
-remains open on the entire map, and its audit is already done.** What is left
-besides it is three human/empirical errands (RR-A5, RR-09, RR-B3) and one
-narrowed remnant (RR-07)._
+_Rebuilt 2026-08-07 after RR-C3 closed — the **sixth** rebuild today (RR-06,
+RR-B2, RR-B4, RR-C1, RR-C2, RR-C3), and **the last one that will end a design
+question.** 🔴 **The map has no design tickets left.** What remains is three
+errands that want a person rather than an agent (RR-A5, RR-09, RR-B3) and one
+narrowed authoring remnant (RR-07)._
 
-⚡ **The rule held four times, inverted once, and then inverted back.** RR-B2
-found the "new timestamped capture layer" was `DrawingCommand` plus a timestamp.
-RR-B4 found three of four charted bullets already answered by shipped code. RR-C1
-found the app had already built question-attached media in GuidedLearning.
-RR-C2's audit then made a ticket **harder** for the first time — the
-"disqualifying" option was the house style, and the RR-03 proxy precedent did not
-exist. **And then RR-C2's grilling session inverted it back**, because one more
-call-site read (`storage.rules:127-139` does cross-service `firestore.get()`)
-dissolved the expensive option rather than confirming it blocked. **Reading the
-call sites is not reliably good or bad news. It is reliably _different_ news,
-and the map has now been wrong in both directions in one day on one ticket.**
+⚡ **The rule that ran this whole map is now finished, and its last two runs
+disagreed with each other.** RR-B2 found the "new timestamped capture layer" was
+`DrawingCommand` plus a timestamp. RR-B4 found three of four charted bullets
+already answered by shipped code. RR-C1 found the app had already built
+question-attached media in GuidedLearning. RR-C2's audit then made a ticket
+**harder** for the first time — and RR-C2's grilling session inverted it back,
+because one more call-site read dissolved the expensive option rather than
+confirming it blocked. **RR-C3 ran it one final time and got a fourth result:
+the precedent was real, transferable, and _right for the wrong reason_.** VA and
+GL both put media on the parent because the media supplies the **ordering**; a
+quiz stimulus supplies none, so the precedent's own justification does not
+transfer. The shape was adopted anyway, on a reason neither precedent knows about
+— **the pointer is the grouping concept** — and departed from in the one place
+the ordering semantics actually mattered. **"The app has already built this" is
+not an answer. It is a candidate, and the reason it was built has to be checked
+separately from the shape.**
 
-🔴 **The sharpest thing on this board is a correction I had to make about my own
-assertion.** I told Paul that Storage rules cannot read Firestore, checked before
-building anything on it, and was wrong — five such lookups ship in
-`storage.rules`. That single check moved RR-C2 from "build a Cloud Function
-proxy or accept public URLs" to "the gate is four lines of rules and costs
-nothing." **Every cost the grounding brief carefully priced in its §6 —
-concurrency, 512 MiB buffering, cold starts, absent caching — was the price of a
-component that turned out to be unnecessary.** The standing rule from RR-C1's
-retrospective (_check whether the repo has already paid a cost before writing it
-into an option_) now has a sibling: **check whether the repo has already built a
-capability before ruling it out.**
+🔴 **The sharpest thing on this board is still a correction I had to make about
+my own assertion, and RR-C3 produced a second one of the same family.** In RR-C2
+I told Paul that Storage rules cannot read Firestore, checked before building
+anything on it, and was wrong — five such lookups ship in `storage.rules` — which
+moved that ticket from "build a proxy" to "the gate is four lines of rules." In
+RR-C3 the error was **inherited rather than mine**: the audit read
+`key={currentImageUrl}` as an idiom for making a shared asset persist, when the
+comment four lines above says it exists so the element **reloads**
+(`GuidedLearningPlayer.tsx:722-727`). Same shape, different owner. The standing
+rules now number three: _check whether the repo has already paid a cost before
+writing it into an option_ (RR-C1); _check whether the repo has already built a
+capability before ruling it out_ (RR-C2); and **_read the comment next to the
+mechanism before inferring what the mechanism is for_ (RR-C3).**
 
-🔴 **Three closed decisions now stand against my recommendation, and two of the
-three have since been vindicated by later tickets.** RR-C1's pdf.js renderer is
-the format that fits RR-C2's access model best, and the `<iframe>` I recommended
-could not have been gated at all. RR-B4's teacher-widget migration cost far less
-than I priced it. **The one that has not been vindicated is RR-C1's silent
-stimulus failure** — and RR-C2 widened it rather than softening it, by finding
-the same pattern already shipping in `DrawingWidget`.
+🔴 **Four closed decisions now stand against my recommendation, and three of the
+four have since been vindicated.** RR-C1's pdf.js renderer is the format that
+fits RR-C2's access model best, and the `<iframe>` I recommended could not have
+been gated at all. RR-B4's teacher-widget migration cost far less than I priced
+it. **RR-C3's pointer array is the newest and the verdict is genuinely open** —
+it created the overlapping-set problem that shaped the shuffle answer and the
+label cost, and RR-A5 is now the thing that will judge it, because two stacked
+stimuli on a 768px Chromebook is a measurement nobody has taken. **The one that
+has not been vindicated is RR-C1's silent stimulus failure** — RR-C2 widened it
+by finding the same pattern already shipping in `DrawingWidget`, and **RR-C3
+widened it again by multiplying its magnitude**: one failed load is now every
+question pointing at that stimulus, and it was accepted at a per-question size.
 
 **Takeable now:**
 
-- 🔥 **RR-A5** — Verify format round-trip and capture policy on district hardware _(task, HITL)_ — **the only thing on the board no agent can do, and the only thing still blocking anything.** Fifth session running as the tail dependency of a **student-facing number**: RR-08 sub-decision 6 blocks Submit on an in-flight upload and explicitly refused to invent the threshold, deferring to RR-A6, which waits on this. RR-A2 sharpened it — with takes appending and `takeLimit` unlimited, a student generates **back-to-back uploads on one connection**. 🔵 **RR-B2 added two things today**: test audio at the **600 s** ceiling, not 60 s, and confirm that a policy-blocked microphone fails `getUserMedia` **cleanly and distinguishably** — RR-B2's silent-take fallback for device-blocked students assumes it does, and RR-07's alternative comes back for whiteboard if it doesn't. 🔵 **RR-B4 added a third today, and it is a different _kind_ of measurement** — allocate a **3200×2400** canvas on a district Chromebook and draw on it for ten minutes. RR-B4 sub-decision 5 accepted ~31 MB of backing store as "survivable on low-end hardware," which is a guess nobody has tested; if it isn't, the fix is a constant and the ticket says so. 🔵 **RR-C1 added a fourth today and it is the cheapest of the lot** — open a multi-page PDF in **pdf.js** on the same Chromebook and page through it. RR-C1 chose an in-app renderer over the shipped iframe specifically for cross-device consistency; if it scrolls badly on low-end hardware the fallback already ships. Also still: does district hardware encode **480p / 500 kbps** (RR-A1 sub-decision 4). **Needs a student Chromebook.** Harness: `docs/rich-response/rr-a5-capture-harness.html`
+- 🔥 **RR-A5** — Verify format round-trip and capture policy on district hardware _(task, HITL)_ — **the only thing on the board no agent can do, and the only thing still blocking anything.** Fifth session running as the tail dependency of a **student-facing number**: RR-08 sub-decision 6 blocks Submit on an in-flight upload and explicitly refused to invent the threshold, deferring to RR-A6, which waits on this. RR-A2 sharpened it — with takes appending and `takeLimit` unlimited, a student generates **back-to-back uploads on one connection**. 🔵 **RR-B2 added two things today**: test audio at the **600 s** ceiling, not 60 s, and confirm that a policy-blocked microphone fails `getUserMedia` **cleanly and distinguishably** — RR-B2's silent-take fallback for device-blocked students assumes it does, and RR-07's alternative comes back for whiteboard if it doesn't. 🔵 **RR-B4 added a third today, and it is a different _kind_ of measurement** — allocate a **3200×2400** canvas on a district Chromebook and draw on it for ten minutes. RR-B4 sub-decision 5 accepted ~31 MB of backing store as "survivable on low-end hardware," which is a guess nobody has tested; if it isn't, the fix is a constant and the ticket says so. 🔵 **RR-C1 added a fourth today and it is the cheapest of the lot** — open a multi-page PDF in **pdf.js** on the same Chromebook and page through it. RR-C1 chose an in-app renderer over the shipped iframe specifically for cross-device consistency; if it scrolls badly on low-end hardware the fallback already ships. 🔵 **RR-C3 added a fifth today and it is the one that judges a decision rather than confirming one** — render **two** stimuli stacked above a multiple-choice answer area in landscape and see whether a student can reach the options without scrolling. RR-C3 sub-decision 2 allows a question to point at more than one stimulus, against my recommendation, and the layout cost was accepted without anybody looking at the screen it lands on. Also still: does district hardware encode **480p / 500 kbps** (RR-A1 sub-decision 4). **Needs a student Chromebook.** Harness: `docs/rich-response/rr-a5-capture-harness.html`
 - 🔥 **RR-09** — the questions only district counsel and Google can answer _(task, HITL, unclaimed)_ — **question 7 is still the one item on the map that can stop a capability from shipping**, and it is answered by sending an email. RR-06 added question 9 yesterday (does "excused" survive the LMS boundary). 🔴 **RR-B2 adds a tenth today and it is not small:** sub-decision 3 records **undo as an event**, so a whiteboard take replays work the student erased. That is a category of data no other mode captures — not what a child produced but what they decided not to produce — and RR-04's notice has to state it plainly. **Worth asking counsel in the same message as question 7**
 - **RR-B3** — What does grading 30 whiteboard-plus-audio responses look like? _(prototype)_ — **the most load-bearing open ticket on the map, and as of today the last B-track ticket of any kind.** It is the only remaining empirical test of decisions two tickets made on reasoning alone (RR-06's question-major queue, RR-05's declined AI menu — this prototype is the only path that can reopen it), and RR-B2 handed it a **concrete number to beat**: 180 s default / 600 s max, accepted explicitly on the grounds that this is where the cost gets discovered. 🔵 **RR-B4 removed the last unknown from its inputs**: the grading grid is uniform 4:3 thumbnails at a known 3200×2400, and replay geometry is the authoring geometry with no reprojection — so the prototype can be built against real numbers rather than placeholders. It now **tests rather than invents**, and it wants a person with a stopwatch more than it wants an agent
 - **RR-07** — Alternate-format policy _(grilling)_ — **narrowed five times in four days, and RR-B4 narrowed it in the unusual direction.** RR-08 removed substitution; RR-A2 removed refusal; RR-06 gave the device-blocked student a grading-side excuse; RR-B2 removed the whiteboard mode from the problem entirely. 🔴 **RR-B4 put one case back**: portrait is a hard gate, so a student on an orientation-locked device now _has_ a whiteboard wall — but a **recorded** one (sub-decision 4), which is exactly the authoring-time signal this ticket is about. What survives is still the authoring question: how a teacher learns, while building, that some of their class will hit a wall
-- 🔥 **RR-C3** — Does a stimulus attach to a question or to an assignment? _(grilling)_ — **the last design ticket on the map, and its audit is already done.** [`rr-c3-stimulus-attachment-grounding.md`](rich-response/rr-c3-stimulus-attachment-grounding.md) carries the findings with citations and **seven questions written to be asked verbatim**, so the session is grilling-only. 🔴 Its audit found the app has **already built this ticket twice**: `VideoActivityQuestion` is literally `Omit<QuizQuestion, …>` with the media on the parent, and GuidedLearning does the same with `imageUrls[]` + `imageIndex` — both keeping the media mounted and overlaying the question `absolute inset-0`. **In both, the media supplies the ordering**, which is why shuffle-scatter never arose — that is the one genuinely new part of this ticket. ⚠️ It also **refutes RR-C1's injection**: `allowSkipping` is session-level and cannot be per-question, so the replay toggle presumes the _opposite_ of what RR-C1 recorded. 🔵 RR-C2 added a wrinkle the audit could not see: a stimulus reference now has **two shapes** — a Storage path for gated formats, a bearer URL for public ones — and under a parent-pointer model the pointer is the thing that gets duplicated
 
 **Still blocked:** RR-A6 (RR-A5 only) — **and that is the entire list.** Every
 other ticket on this map is takeable today.
@@ -213,33 +226,39 @@ decided that a whiteboard replay shows work the student **erased**, which is a
 disclosure no other mode on this map makes and which RR-04's notice does not
 currently describe. Both are cheap to ask and slow to get.
 
-**The next agent session should take RR-C3, and it is the last one of its kind.**
-Its expensive half is already paid — the audit ran 2026-08-07 and left seven
-questions written to be asked verbatim — so the session is pure grilling against
-verified ground. When it closes, **the map has no design questions left on any
-track**: only RR-07's authoring remnant, which is small, and three errands that
-want a person rather than an agent.
+🔴 **There is no next agent session on this map, and that is the finding rather
+than a gap.** Every remaining item wants a human: two errands (RR-A5, RR-09), one
+prototype that wants a stopwatch (RR-B3), and RR-07 — the one genuine grilling
+ticket left, which has now been narrowed six times and is small enough that it
+should probably be folded into the authoring ticket rather than run on its own.
+**An agent taking anything else here would be manufacturing work.** The honest
+next step for this map is not another session; it is **graduating the authoring
+ticket** (see the three-patch cluster under _Not yet specified_, which RR-C3 gave
+its first non-per-question input) and **sending the two emails**.
 
-⚠️ **One caution for whoever takes RR-C3, and it is the opposite of the caution
-RR-C2 carried.** RR-C2's audit made its ticket harder and the risk was picking
-the cheapest path; RR-C3's audit makes its ticket look **already decided**, and
-the risk is treating "the app has built this twice" as the answer rather than as
-evidence. The two shipped precedents both have the media supplying the
-**ordering** — a video's timeline, a slide sequence — and a quiz stimulus does
-not. **That is precisely where the precedent stops applying**, and it is the
-part the session actually has to decide. ⚠️ Its audit also **refutes a claim
-this map already recorded as a constraint** (RR-C1's "the toggle presumes a
-per-question home"), so at least one injection on RR-C3 is now known-wrong and
-should not be reasoned from.
+⚠️ **The caution written here for RR-C3 held, and it is worth keeping as a
+record because it is the only prediction this map made about its own next
+session.** It said the risk was treating "the app has built this twice" as the
+answer rather than as evidence, and that the precedent would stop applying
+exactly where the media supplies the **ordering**. **That is precisely where it
+stopped.** RR-C3 adopted the parent-pointer shape on a reason the precedent does
+not supply, and departed from it on the single point — index versus stable id —
+where GL's ordering semantics were doing the work. The caution also flagged that
+one injection on the ticket was known-wrong (RR-C1's "the toggle presumes a
+per-question home"); that was not reasoned from, and RR-C1 now carries the
+correction in place.
 
 🔴 **Two findings from RR-C3's audit want issues rather than tickets, and one is
 a live exposure**: `video_activity_sessions` stores the **full answer key**
 (`types.ts:4559-4560`) under `allow read: if request.auth != null`
 (`firestore.rules:3373`) — the exact inverse of the `toPublicQuestion` stripping
-quiz does — on the very feature RR-C3 will cite as precedent. And VA's
+quiz does — on the very feature RR-C3 cited as precedent. And VA's
 `shuffleQuestions` / `shuffleAnswerOptions` are authored, persisted and
 summarized with **zero read sites**: dead controls a teacher can set that do
-nothing.
+nothing. 🔵 **RR-C3's own sub-decision 5 now has the same failure shape in its
+future** — a component-aware shuffle silently degrades to no-op when stimulus
+pointers overlap — which is the strongest argument on this board for the
+authoring ticket carrying a warning surface.
 
 ⚠️ **What an agent should _not_ take next is RR-B3**, despite it being the
 highest-value open ticket on the board. It is a prototype whose entire output is
@@ -1717,6 +1736,19 @@ premise outright.
 - 🔵 **RR-B4 (2026-08-07) made the grading surface uniform, which this ticket's queue design was quietly assuming.** Every whiteboard response is the same shape (4:3) at the same resolution, so a question-major queue of thirty responses is thirty identical tiles — no ragged grid, no per-student letterboxing, and a thumbnail strip that can be laid out without measuring anything. Under the per-artifact-dimensions option RR-B4 declined, sub-decision 9's queue would have been scrolling through thirty differently-shaped cards. **The assumption was never stated, and it is now true.**
 - 🔵 **And `not-attempted` gains a third reason.** RR-B4 sub-decision 4 produces a response that is empty because the device could not present the page. It joins `capture-unavailable` on the teacher-facing side of sub-decision 3's excuse decision — the teacher still calls it per response with the reason shown, exactly as decided, but the reason string is now one of three rather than one of two.
 
+- 🔵 **RR-C3 (2026-08-07) confirmed sub-decision 9 was already the right shape for
+  a shared stimulus, and then handed this ticket a hazard.** The confirmation:
+  question-major means a grader holds **one question for thirty responses**, so a
+  passage is stable across the whole batch and loads once — under a student-major
+  queue the same passage would reload thirty times in a different order. No change
+  needed; the property arrived free. 🔴 **The hazard is RR-C1 sub-decision 4
+  (silent stimulus failure) meeting this ticket's `state: 'scored'`.** A student
+  who never saw the passage produces a scored wrong answer indistinguishable from
+  not knowing — and under RR-C3's parent-level attachment **one failed load now
+  poisons every question pointing at that stimulus**, not one. That does not
+  reopen RR-C1's decision, which was taken deliberately, but it multiplies its
+  magnitude, and this ticket is where the wrong number lands.
+
 **Paul's notes:**
 
 ---
@@ -2230,6 +2262,8 @@ media.**
 
 5. ✅ **RR-B2 (2026-08-07) answered the completeness question this ticket handed the B track, and the predicate needed no amendment.** A narrated whiteboard is **one artifact in one slot** — audio and strokes arm together and commit together — so _"complete iff every required slot is filled"_ applies unchanged, and the fork's other branch (two artifacts, one plainly half-filled) never arose. 🔵 **Sub-decision 4 then answered the harder half:** a **silent** take is complete, because SpartBoard never inspects what a child recorded in order to decide whether they responded. So the whiteboard case adds **no third rule** — the block in sub-decision 3 binds on a missing take, never on a missing narration. **The two rejected options are the interesting part:** blocking on silence, and flagging it, both require automatically analysing a child's recording, which would have put a new processing claim in RR-04's notice and made a whispering student and a broken microphone the same signal.
 6. ✅ **RR-B4 (2026-08-07) exercised the second axis exactly as designed, and again needed no amendment.** A portrait-gated student's slot is **final and never responded to** — the sentence sub-decision 2 created the `unresponded` field to be able to say, and which `status` alone cannot express. It arrives with a reason attached (RR-B4 sub-decision 4), which rides on RR-02's provenance field rather than on anything here. **Two tickets in a row have now landed on this predicate without moving it**, which is the strongest evidence available that the two-axis split was the right shape.
+
+7. ✅ **RR-C3 (2026-08-07) resolved the read-cost question its audit raised in this ticket's favour, and the answer is "free."** The audit noted that sub-decision 5's zero-extra-read property depends on the sweep reading `publicQuestions` off the session document it already batch-reads — and that a stimulus placed on the **quiz** (Drive JSON) would sit outside that reach, needing a Drive fetch `finalizeIdleQuizAttempts` does not make. RR-C3 put the array on the quiz, **but the session gets a projected copy** (RR-C3's derived item 4 adds a new top-level field to `QuizSession` beside `publicQuestions`). So anything server-side that needs to know a stimulus exists reads it from a document already in hand. **Nothing in this ticket's decided behaviour needs it today**; what matters is that the option stayed free rather than being spent.
 
 **Paul's notes:**
 
@@ -2875,6 +2909,8 @@ one by asking Paul, one by construction.**
 
 4. ✅ **RR-B2 (2026-08-07) took the question this ticket declined, and the answer is the one predicted here.** Because audio and strokes arm together on one clock and commit as a single artifact, **a whiteboard take is a recording take** — `takeIndex`, `takeLimit` defaulting to unlimited, discards never counted and never written, no pause, playable in the results view and absent from the export: **all inherited unchanged**, with a retake starting from a blank board because RR-B2 chose a blank start. This ticket said the two concepts might not be the same and that if the audio synced to the strokes it would become _"a consequence of the sync decision rather than an independent one."_ It did, and it is.
 
+5. ✅ **RR-C3 (2026-08-07) touched the shuffle seed's neighbourhood and left it alone, which is worth recording because the seed was this ticket's sharpest argument.** RR-C3 sub-decision 5 makes `shuffleQuestions` **component-aware** — questions sharing a stimulus stay contiguous — but a partitioned shuffle **partitions the array; it does not change the seed**. `QuizStudentApp.tsx:1217-1220` is untouched, so this ticket's deliberate separation of `takeLimit` from `completedAttempts` stands exactly as decided, and the absurd coupling this ticket cited (folding takes into the attempt counter would reshuffle a student's question order when they re-record) is neither worsened nor mitigated. 🔵 **One small consequence to record:** with stimulus groups, a retake reshuffles **component positions** rather than individual questions, which is the intended behaviour and needs no new field.
+
 **Paul's notes:**
 
 ---
@@ -3386,6 +3422,20 @@ failure, paint-rate collapse, or the tab being killed. This is worth doing while
 the device is in hand precisely because the fix is trivial if it fails — the
 resolution is one constant — but the failure is **silent and total** if it ships
 unmeasured: a student loses a ten-minute take to a browser that reclaimed the tab.
+
+🔵 **RR-C3 (2026-08-07) changes the shape of the layout measurement its own audit
+proposed, and makes it worse.** The audit suggested rendering a pinned PDF
+stimulus above a multiple-choice answer area on a district Chromebook in
+landscape, and recording whether both fit without the student scrolling to see
+the options. **RR-C3 sub-decision 2 lets a question point at more than one
+stimulus**, so the honest test is a **stack of two** — a passage plus a figure —
+above the answer area, not one. Test both cases: one stimulus is the common case
+and two is the one nobody has looked at. VA and GL each pin media in a
+fixed-aspect box (`VideoActivityStudentApp.tsx:927`), and a portrait-ish document
+in that box on a 768px-tall screen is a layout question with a real answer. It
+sits directly beside RR-C1's pdf.js paging test and costs nothing extra to run
+while the file is already open. **If two stimuli plainly cannot fit, that is
+evidence for capping the stack — which sub-decision 2 deliberately did not do.**
 
 **Resolution:** _(unresolved)_
 
@@ -4161,6 +4211,20 @@ A stimulus that fails to load **retries silently with no fallback**.
    GuidedLearning's two players are deliberately left alone. Fixing them is not in
    this ticket's scope and is not scheduled work; it is an inconsistency now
    documented rather than inherited by accident.
+   🔴 **Corrected in place 2026-08-07 by RR-C3, in two steps.** First, the mirror
+   was wrong: `allowSkipping` is **not** per-question. It is
+   `VideoActivitySessionSettings` (`types.ts:4477-4488`), session-level end to end
+   — authored as a widget default, frozen onto the session at create
+   (`useVideoActivitySession.ts:200-204`), read once by the student app and handed
+   to the player as a single prop — and it **cannot** be per-question, because
+   `maxAllowedTime` is derived from _all_ questions and their answered state
+   (`VideoPlayer.tsx:68-70`). This ticket's own finding 5 recorded the correct
+   level before this sub-decision chose the other one. Second, RR-C3 then put the
+   toggle **neither** place: it lives on the **stimulus entry**, because a stimulus
+   is now parent-level and shared, and "plays once" is only coherent when there is
+   one of it. **The product intent of this sub-decision survives unchanged** —
+   default full controls, restriction available where the pedagogy lives — but its
+   structural home moved from the question to the material.
 3. 🔴 **PDF renders through pdf.js, in-app** _(Paul, against my recommendation —
    I recommended reusing the shipped iframe pattern)_. It buys full control of the
    surface: page navigation, no browser-supplied download button, no dependence on
@@ -4222,10 +4286,23 @@ A stimulus that fails to load **retries silently with no fallback**.
   connection mid-assessment is unknowable at authoring time, so it does not
   narrow or widen RR-07 in either direction. This is the first failure mode on the
   map that RR-07 cannot help with.
-- **A stimulus is a new field on `QuizQuestion`, and RR-C3 decides its shape.**
-  Sub-decision 2's toggle is written as _per-question_, which presumes a
-  per-question home for the stimulus. If RR-C3 lands on assignment-level or
-  group-level attachment, the toggle needs a home decided with it — flagged there.
+- ✅ **A stimulus is a new field on `QuizQuestion`, and RR-C3 decided its shape
+  the same day.** This bullet was written expecting the toggle to constrain the
+  attachment; the reverse happened. RR-C3 puts a **stimulus array on `QuizData`**
+  and a **pointer array of stable ids** on each question, and moved the toggle
+  onto the stimulus entry (corrected above). 🔵 **Two of this ticket's findings
+  were narrowed by RR-C3's audit and want reading alongside them.** Finding 1's
+  _"`QuizQuestion` has no media field, so there is no existing shape to be
+  constrained by"_ is true upstream and **false downstream**:
+  `VideoActivityQuestion = Omit<QuizQuestion, 'type' | 'matchingDistractors'>`
+  (`types.ts:4371-4374`), so the pointer array lands on Video Activity
+  automatically unless explicitly `Omit`ed — and VA already carries its own parent
+  media, so inheriting it silently gives a VA question two media concepts. And
+  finding 2 understates GuidedLearning: it models media at **both** levels with
+  distinct roles — set-level `imageUrls[]` as the thing you position against
+  (`types.ts:5387`), step-level `audioUrl`/`videoUrl` as the thing that plays
+  (`:5353-5360`) — which is a better precedent than "per-step media" for a ticket
+  that had to choose a level.
 
 **Paul's notes:**
 
@@ -4418,6 +4495,18 @@ it.
   credential**, so `publicQuestions` being world-readable
   (`firestore.rules:2876-2884`) leaks nothing for image and PDF. Q6 (does AV
   reverse RR-03?) — answered by construction above.
+- ✅ **The "two reference shapes" wrinkle this ticket handed RR-C3 dissolved the
+  same day.** It worried that a bearer URL duplicated across six questions is six
+  copies of a credential, while a Storage path duplicated six times is harmless.
+  **RR-C3 put the stimulus array on the parent**, so there is exactly **one copy
+  of every reference** and the pointers are what duplicate — the asymmetry
+  between the two shapes no longer has anything to act on. The wrinkle was an
+  artifact of per-question storage, and per-question storage is not what shipped.
+  🔵 RR-C3 also confirmed and sharpened Q5's conclusion above: `toPublicQuestion`
+  (`useQuizSession.ts:288-326`) is a **hand-written allowlist**, so nothing
+  reaches student reach by default at any attachment level — **exposure is decided
+  at the projection, not by the storage model**, which is a stronger version of
+  the same finding than "a Storage path is not a credential."
 - 🔵 **pdf.js turns out to be the gate-friendliest format on the list.** It wants
   bytes rather than a URL, which is exactly what an SDK read produces. RR-C1's
   sub-decision 3 was taken against my recommendation and is the one that fits
@@ -4451,7 +4540,7 @@ RR-A5, plus two fog patches. Recorded in each.
 
 ### RR-C3 — Does a stimulus attach to a question or to an assignment?
 
-**Type:** grilling (HITL) · **Status:** Open — **audit complete 2026-08-07, decision still open** · unclaimed
+**Type:** grilling (HITL) · **Status:** ✅ **Closed 2026-08-07** · _Audit and grilling ran as two separate sessions the same day_
 
 > 🔴 **The audit ran 2026-08-07 and found this ticket has already been built —
 > twice.** Full findings with citations in
@@ -4512,7 +4601,189 @@ Also: does the stimulus stay pinned on screen while the student answers, and how
 does that survive `shuffleQuestions` — a passage attached to a question group is
 meaningless if shuffling scatters the group.
 
-**Resolution:** _(unresolved)_
+**Resolution:** **Follow the house pattern where it is load-bearing, depart from
+it exactly where its ordering semantics stop applying.** A stimulus array lives on
+`QuizData`; every question carries a pointer array of stable ids into it; the
+pointer _is_ the grouping concept, so no group object is invented. The replay
+policy lives on the stimulus entry, `shuffleQuestions` becomes component-aware,
+and entries carry an authoring-only label.
+
+**Findings this session** — the audit ran as a separate session and left seven
+questions written to be asked verbatim. Two of them wanted verification before
+being asked, and the verification changed both.
+
+1. 🔴 **The house pinning idiom is _don't key the element_ — and the audit read
+   the one keyed element exactly backwards.** Q7 rested on
+   `GuidedLearningPlayer.tsx:727` (`key={currentImageUrl}`), read as a
+   "make a shared asset persist" idiom. The comment four lines above says the
+   opposite: video slides are _"keyed by URL so the element reloads when the
+   slide changes"_ (`:722-724`). It is a **force-remount** idiom, applied to the
+   branch React would otherwise reuse. The genuinely persistent element is the
+   `<img>` at `:761-770`, which is **unkeyed**, with `src` swapped in place —
+   and there is a **third** element the audit did not mention, a `previousImageUrl`
+   crossfade layer at `:776-789`, so GL's stimulus surface is three elements, not
+   one. Q7's inferred _consequence_ (a repeated URL does not remount) survives;
+   its _mechanism_ was inverted, and the real house answer is **simpler** than
+   the audit described. **Pinning and attachment are separable**, which is what
+   let the attachment question be decided on authoring grounds alone.
+2. 🔵 **The student projection is a hand-written allowlist, and the audit never
+   opened it.** `toPublicQuestion` (`useQuizSession.ts:288-326`) copies exactly
+   `id`, `type`, `text`, `timeLimit`, plus per-type fields — and its Matching
+   branch carries an explicit comment about **withholding** a field from student
+   reach (`:315-317`). **Nothing crosses into student reach by default.** So
+   _where a reference is stored_ and _how it reaches a student_ are two
+   decisions, not one — which is what dissolved RR-C2's wrinkle rather than
+   answering it (derived item 1). It also shows `QuizSession` has **no
+   parent-level content field at all**: `publicQuestions` is its only content,
+   so a projected stimulus array is a new top-level field on that document.
+3. 🔵 **The model states the audit's Q3 premise in its own words.**
+   `QuizSession.publicQuestions`' docblock (`types.ts:3264-3269`): teachers grade
+   using _"the full QuizData loaded from Drive, not from this field."_ The quiz
+   being the authoritative home for content is documented, not inferred.
+
+**Sub-decisions**
+
+1. **A stimulus array on the parent; a pointer on the question — following VA and
+   GL, but for a reason neither precedent supplies.** The precedent's own
+   justification is positional (a VA question is located _in_ the video, a GL step
+   _on_ the image) and a quiz stimulus has no positional relationship to its
+   questions, so that justification does not transfer. What does transfer is
+   cheaper and better: **the pointer is the grouping concept.** Six questions
+   pointing at one entry _are_ a group — no group object, no lifecycle, no orphan
+   cleanup, no `groupId` colliding with the six PLC-sync `groupId`s already in
+   `types.ts`. The replay policy then has exactly one home, so the drift RR-C3 was
+   really about becomes unrepresentable rather than merely discouraged. **Accepted
+   cost:** the simplest case — one image, one question — pays for a parent array
+   it does not need, and authoring becomes two acts where teachers expect one.
+   The editor can hide that, but it now has to.
+2. **A question carries a pointer _array_, not a single pointer** (Paul, against
+   my recommendation). One question can show two stimuli at once — a shared
+   passage and its own figure — without GL's two-fields-two-roles split. ⚠️ **Three
+   costs, all accepted:** "which questions share a stimulus" stops being a clean
+   partition and becomes **overlapping sets** (Q1→[a], Q2→[a,b], Q3→[b] is a graph),
+   which is what forced sub-decision 5's shape; nothing caps the stack; and the
+   layout lands on the 768px district Chromebook that **RR-A5 has not measured
+   yet**, now with two stimuli plus an answer area rather than one.
+3. **The array lives on `QuizData` — the quiz, not the assignment.** Every other
+   piece of content in this model lives there, and `QuizAssignment` carries
+   targeting, policy and bookkeeping with **zero** content fields; a stimulus
+   there would be the first. On the quiz it travels with PLC sharing, survives
+   re-assignment, and is edited once. ⚠️ **Accepted cost, and it is the sharpest
+   one in this resolution:** a teacher cannot swap a passage for one class without
+   editing the quiz for everyone, and the array sits inside the `pullSyncedQuiz`
+   rebuild path (`useQuizAssignments.ts:1772-1843`) — **so a PLC peer's edit can
+   replace a passage under a student who is mid-attempt.**
+4. **The replay policy lives on the stimulus entry** — not on the question, not on
+   the session. This **corrects RR-C1 sub-decision 2 in place**, which put the
+   toggle per-question "mirroring `allowSkipping`" when `allowSkipping` is
+   `VideoActivitySessionSettings` (`types.ts:4477-4488`) and _cannot_ be
+   per-question, because `maxAllowedTime` is derived from all questions
+   (`VideoPlayer.tsx:68-70`). On the entry, "plays once" is finally **coherent**:
+   one entry means once per attempt, where per-question storage would give three
+   questions sharing one clip three separate "onces" — a different product nobody
+   chose. Session-level was rejected as too coarse: a quiz holding a re-readable
+   passage _and_ a play-once listening clip has two materials with opposite
+   policies, and one flag can only be wrong about one of them. ⚠️ **Accepted
+   cost:** it breaks the `allowSkipping` mirror in the other direction, so a
+   teacher who learned the pattern in Video Activity looks in session settings and
+   does not find it; and it forecloses "same passage, restricted on question 3
+   only" without a second override field.
+5. **`shuffleQuestions` becomes component-aware.** Questions sharing any stimulus
+   form a connected component; components shuffle against each other and questions
+   shuffle within their component — the graph closure, which is what sub-decision
+   2's overlapping arrays require. It costs **one pure function with one call
+   site** (`utils/quizShuffle.ts:96-101`, called only at
+   `QuizStudentApp.tsx:1231`), already unit-tested, over an order that is **never
+   persisted** — no rules change, no server change, no migration. ⚠️ **Accepted
+   cost, created by sub-decision 2:** overlapping arrays merge components, so two
+   passages sharing one question produce a twelve-question block and shuffle
+   silently does almost nothing — **the same failure shape as the dead VA shuffle
+   toggles this ticket's own audit flagged** (§7.4). Nothing says so at authoring
+   time, and that belongs to the authoring ticket.
+6. **A stimulus entry carries an authoring-only label.** The teacher names each
+   entry; the student sees the material bare. The teacher needs it — a question
+   editor listing `image-2847.png` and `scan-3.pdf` is where mis-attached material
+   comes from, and a name is the one thing `NotebookSection` (`types.ts:2869-2876`)
+   added an object for. The student does not: under per-question pinned rendering
+   they meet one stimulus at a time and never have to disambiguate, so a
+   "Passage A" heading is a cross-reference device borrowed from paper booklets.
+   ⚠️ **Accepted cost, and sub-decision 2 creates it:** exactly when a question
+   stacks two stimuli, the student has two unlabeled things and no way to refer to
+   either — which is precisely when a label would have earned its place.
+7. **The pointer is a stable id, not an index — and this was derived, not asked,
+   because the alternative is dominated.** GL uses `imageIndex`, a bare number
+   into `imageUrls[]`. Under a **deletable, reorderable** array that is not merely
+   fragile but silently wrong: removing entry 2 re-points every later question at
+   material it was never attached to, which is a **wrong-material** bug rather
+   than a missing-material one, and RR-C1 sub-decision 4's silent failure would
+   not even surface it. GL gets away with an index because its array is a **slide
+   sequence where order is meaning**; a quiz stimulus array is a **bag**.
+   🔵 **This is the one place the resolution departs from the precedent, and it is
+   exactly where the precedent's ordering semantics stop applying** — which is the
+   caution the frontier recorded for this ticket, landing where it said it would.
+   Recorded here rather than asked so Paul can override it, but no honest option
+   set had two entries.
+
+**What follows from the answers**
+
+1. 🔵 **RR-C2's two-shapes wrinkle dissolves rather than being answered.** It
+   worried that a stimulus reference now has two shapes — a harmless Storage path
+   for gated formats, a bearer URL for public ones — and that "the pointer is the
+   thing that gets duplicated," so six copies of a bearer URL would be six copies
+   of a credential. Under a parent array there is **exactly one copy of every
+   reference**; the pointers duplicate, the references do not. The wrinkle was an
+   artifact of per-question storage and it no longer exists.
+2. 🔵 **The shuffle question partly dissolved before it was asked, and the
+   decision was taken on the surviving half.** The charted worry — _"a passage
+   attached to a group is meaningless if shuffling scatters the group"_ — assumed
+   the passage is displayed **once above a block** of questions. Under per-question
+   pinned rendering each question carries its own stimulus display, so a scattered
+   group costs **read-once flow**, not assessment validity. Sub-decision 5 was
+   chosen on flow grounds with that stated, not on the correctness grounds the
+   ticket charted. **The audit inherited the ticket's framing here even while
+   refuting its other premises** — which is the failure mode RR-C2's retrospective
+   named one ticket earlier.
+3. **Two new type surfaces, and one of them leaves the quiz by itself.**
+   `QuizData` gains the stimulus array; `QuizQuestion` gains the pointer array.
+   ⚠️ Because `VideoActivityQuestion = Omit<QuizQuestion, 'type' | 'matchingDistractors'>`
+   (`types.ts:4371-4374`), **the pointer array lands on Video Activity
+   automatically** unless explicitly `Omit`ed — and VA already carries parent
+   media of its own (`youtubeUrl`), so inheriting it silently gives a VA question
+   two media concepts. **That choice has to be made in the same PR**, not deferred.
+4. **The student projection needs two additions and they are not the same
+   addition.** `QuizPublicQuestion` gains the pointer array, copied explicitly in
+   `toPublicQuestion` — which is an allowlist, so this is a line somebody writes,
+   not a field that arrives. And `QuizSession` gains a **new top-level field** for
+   the projected stimulus array, because it has no parent-level content field at
+   all today.
+5. **The replay policy is client-advisory and cannot be otherwise.** RR-A2
+   sub-decision 9 established rules cannot do per-array anything, and RR-C2 put no
+   function on any path — so "plays once" is enforced by the same 250 ms poll
+   RR-C1 cited (`VideoPlayer.tsx:1-12`), and a student with devtools defeats it.
+   That is the status quo for the shipped lever, not a new weakness, but the
+   policy now sits on _material_ rather than on a question, which makes it read
+   more like a licence term than it can actually enforce.
+6. ⚠️ **A stimulus can change under a student mid-attempt, and nothing on this map
+   has had that property before.** Sub-decision 3 puts the array in
+   `pullSyncedQuiz`'s rebuild path, and `publicQuestions` is already rebuilt
+   wholesale on sync (`useQuizAssignments.ts:1840-1843`). Every other content
+   decision on this map has been snapshot-at-create or append-only. **New fog
+   patch**, below.
+7. 🔴 **Nothing checks that a pointer resolves.** Sub-decision 7 removes the
+   silent-wrong-material failure; it does not add referential integrity, and
+   deliberately so — this matches `WidgetData.groupId`'s shipped posture exactly
+   (no lifecycle, no orphan cleanup). A deleted entry leaves dangling pointers, and
+   under RR-C1 sub-decision 4 the student sees **nothing** and **no one is told**.
+   Sub-decision 1 multiplies that: one dangling pointer is one question, but one
+   **failed load** is now every question pointing at that entry.
+8. 🔵 **No group object, no new collection, no callable, no rules change, no
+   migration, and no function on any path.** For the second C-track ticket
+   running, the cheapest available option was also the one chosen — and here it
+   was cheapest because a decision the app had already made twice happened to be
+   right for a third reason.
+
+**Consequence injections** — RR-C1 (correction in place), RR-C2, RR-06, RR-08,
+RR-A2, RR-A5, plus three fog patches. Recorded in each.
 
 **Paul's notes:**
 
@@ -4527,7 +4798,7 @@ those resolutions rather than graduating whole; each says so and what survives._
 
 - 🔴 **Whether a handed-out stimulus can ever be taken back.** _(New 2026-08-07, RR-C2.)_ Audio, video and YouTube stimuli are served from **bearer URLs with no revocation story** — a URL that leaks stays good, and removing the stimulus from the question unpublishes nothing. Image and PDF are nominally better but the gate is `request.auth != null`, which any `signInAnonymously()` caller satisfies. **This is not an oversight; it is sub-decisions 2 and 3 working as chosen**, and it is the accepted price of a design with no function on any path. What is genuinely unspecified is what happens **the first time a teacher needs it undone** — a passage attached to the wrong class, a licensed excerpt attached by mistake, a district asking for proof that something is no longer reachable. There is no answer today and no ticket, because the only mechanisms that would provide one (signed URLs with expiry, a session-keyed path, a proxy) were all rejected for good reasons in the same session. **It graduates the first time somebody asks, and the honest expectation is that somebody will.**
 
-- 🔴 **Whether a silently-failed stimulus ever needs to become visible.** _(New 2026-08-07, RR-C1 sub-decision 4.)_ 🔵 **Widened 2026-08-07 by RR-C2.** The pattern is not new to this map and not confined to stimuli: `components/widgets/DrawingWidget/renderers/image.ts:57,116` already requests CORS-readable bytes on a `type:'domain'` `lh3` URL, already names CORS as an expected failure in its own docblock, and already paints **nothing** when it fails. So the question is not "should the C track introduce silent media failure" — it is **"how many places does this app already do it, and does any of them tell anyone?"** That is a wider and more answerable question than the one below, and it makes RR-A5's CORS check the cheapest place evidence could first appear for either. A stimulus that never loads produces a student who answers without seeing the material, and **nothing anywhere records it** — not on the response, not in the grading queue, not in the export. The decision was made deliberately and with the trade-off stated, so this is not a reopening. What is genuinely unspecified is the **downstream** question: if this happens at any real rate, the first signal will be a teacher saying _"my whole third period got that one wrong"_ with no way to tell why. There is no ticket for it because there is no evidence yet that the rate is non-zero — RR-A5's Chromebook session is the cheapest place that evidence could first appear. It graduates if it does.
+- 🔴 **Whether a silently-failed stimulus ever needs to become visible.** _(New 2026-08-07, RR-C1 sub-decision 4.)_ 🔵 **Widened 2026-08-07 by RR-C2.** The pattern is not new to this map and not confined to stimuli: `components/widgets/DrawingWidget/renderers/image.ts:57,116` already requests CORS-readable bytes on a `type:'domain'` `lh3` URL, already names CORS as an expected failure in its own docblock, and already paints **nothing** when it fails. So the question is not "should the C track introduce silent media failure" — it is **"how many places does this app already do it, and does any of them tell anyone?"** That is a wider and more answerable question than the one below, and it makes RR-A5's CORS check the cheapest place evidence could first appear for either. A stimulus that never loads produces a student who answers without seeing the material, and **nothing anywhere records it** — not on the response, not in the grading queue, not in the export. The decision was made deliberately and with the trade-off stated, so this is not a reopening. What is genuinely unspecified is the **downstream** question: if this happens at any real rate, the first signal will be a teacher saying _"my whole third period got that one wrong"_ with no way to tell why. There is no ticket for it because there is no evidence yet that the rate is non-zero — RR-A5's Chromebook session is the cheapest place that evidence could first appear. It graduates if it does. 🔴 **Widened again 2026-08-07 by RR-C3, and this time the magnitude changed rather than the scope.** With a stimulus attached to the parent and pointed at by many questions, **one failed load is no longer one wrong answer — it is every question pointing at that stimulus.** A six-question passage set fails as a block, silently, and lands in RR-06's grading queue as six scored wrong answers indistinguishable from six students who didn't know. **That does not reopen RR-C1 sub-decision 4**, which was taken deliberately with its trade-off stated at a per-question magnitude — but the magnitude it was accepted at is not the magnitude it now ships at, and nobody has been asked about the larger one. 🔵 RR-C3 also removed a **different** silent failure that would have compounded this: sub-decision 7 makes the pointer a stable id rather than GL's index, so a deleted entry produces a **missing** stimulus rather than a silently **wrong** one. Missing-and-silent is this patch's problem; wrong-and-silent would have been a worse one.
 
 - **Moderation.** A student records something inappropriate, or another student's face is in frame. Who sees it first, can a teacher delete before archival, is there a report path? **RR-04 closed the second half by decision, and the answer is uncomfortable:** SpartBoard commits to having **no automated segregation capacity at all** (sub-decision 2 rules out diarization; sub-decision 3 accepts § 99.12(a)'s fallback), so "another student in frame" has no _corrective_ product remedy — only the capture policy and the access-request consequence. **RR-A3 (2026-08-06) added the one _preventive_ remedy available without a forbidden capability** — a framing check before the recorder arms, which is a mirror and a sentence rather than any form of detection. **RR-A1 strengthened it the same day** into one confirmation plus a **continuous self-view during capture**, which catches a classmate who sits down mid-assignment rather than only one who was already there at Q1. It reduces the incidence; it still does nothing about a recording that already contains a classmate. What's left here is genuinely just moderation: **who sees a recording first, and can a teacher delete before archival fires?** ⚠️ RR-03 made archival **immediate on upload**, so "delete before archival" may be a window that doesn't exist — that tension is the sharp question, and it's close to ticketable. 🔴 **RR-A2 (2026-08-06) multiplied the object the question is about.** "Can a teacher delete before archival fires" now has to answer _delete **what**_ — a question may hold several committed takes, each archived the instant it was committed, and RR-A2 deliberately kept all of them. A classmate who wandered into frame is plausibly in **some** takes and not others. **The window this patch doubts exists is not just narrow; it now closes once per take.** 🔵 **RR-05 (2026-08-06) added a second object to delete and a second clock.** A transcript is a sibling artifact in the same slot (sub-decision 7), created by a teacher press that may land days after archival — so "delete this response" now has to mean the media **and** its transcript, and the transcript can come into existence _after_ someone has already decided to delete. Small next to the takes problem, and in the same direction: the thing being deleted keeps growing after the decision to delete it. 🔵 **RR-B2 (2026-08-07) changed the shape of the object again, and in one respect made this patch easier.** A whiteboard take archives as **three files** (audio, event log, final-state PNG), so "delete this take" now means deleting a **set** — but the mode carries **no camera**, so the classmate-in-frame problem that this patch cannot solve simply does not arise here. What survives for whiteboard is only the classmate's _voice_, which is the narrower and better-understood half. **The moderation question is genuinely smaller on this mode than on video**, and that is worth saying out loud, because everything else RR-B2 touched got bigger.
 - **The `/activity-wall/gallery` public-posting surface.** RR-04 found that COPPA § 312.2 treats public posting as a _disclosure_ that school consent likely doesn't reach, and no district designates audio/video as directory information. **RR-04's decision half settles the forward-looking half:** media responses reach **no public surface** — sub-decision 1 keeps names in the district's own Drive, and RR-03 gated student playback to publish-time on the results screen. What survives is a **question about already-shipped code**, not about this design: whether the existing gallery route needs revisiting on its own account. It should graduate out of this map into its own issue.
@@ -4537,14 +4808,16 @@ those resolutions rather than graduating whole; each says so and what survives._
 - **What an org admin is shown, and agrees to, at the video gate.** _(Surfaced 2026-08-06 by RR-A3.)_ Sub-decision 1 puts video behind a district switch on the deliberate reasoning that the § 99.12(a) obligation is the district's — which only works if the district is actually told what it is taking on when it flips it. **Not ticketable yet, because its content is RR-09's**: question 4 was reframed the same day from a product blocker into exactly this guidance. Adjacent to, but distinct from, RR-04's org-admin review-and-delete console. Revisit when RR-09 returns. 🔴 **RR-05 (2026-08-06) found the premise underneath this patch is false, and then doubled the patch.** There is currently **no video gate an org admin can be shown**, because `global_permissions` is written by SpartBoard admins only (`firestore.rules:749`) — the correction is recorded in RR-A3 in place. So this patch's real content is now: **what does a district-operable gate look like, for video and for AI transcription, on the same screen?** RR-05 sub-decision 5 already specified one of the two (a consent field on the organization doc, beneath SpartBoard's availability switch), which gives this patch a shape it didn't have. **It is closer to ticketable than any other item on this list**, and it wants RR-04's admin console beside it — three separate tickets now require that screen to exist.
 - **Whether a machine transcription is correctable, and by whom.** _(Surfaced 2026-08-06 by RR-05, which named it and declined it.)_ Sub-decision 7 puts a Gemini transcript of a child's speech into the district's Drive under the student's real name, retained to end of school year, with **no mechanism for the student, the teacher or a parent to amend it** — and sub-decision 1's whole justification for ASR over richer capabilities is that a teacher can verify it by listening, which presumes they can then _do_ something when it's wrong. That is a FERPA § 99.20 amendment-request surface and it belongs to no ticket. **Not sharp yet for a specific reason:** the cheapest answer may be that transcripts are simply editable by the teacher, in which case there is nothing to design and the field just needs a `provenance` value that survives editing (RR-02's injection 2). The expensive answer is a request-and-review flow. **Nobody has established which one a district would actually require** — which is a question for RR-09's counsel visit, not for this map. 🔴 **RR-06 (2026-08-07) changed this patch's premise in both directions at once.** Sub-decision 5 makes the transcript **replaceable in place** when a teacher re-pins a take — so it is no longer true that a wrong transcript is uncorrectable (re-press and it is gone), and it is newly true that a **right** transcript can vanish with no record that it existed. **The cheap answer this patch was hoping for is now half-built by accident**, which is the worst state to leave it in: a mutation path exists, nobody designed it as a correction path, and a § 99.20 amendment surface that works by accident is not one a district can be told about.
 - **Does the non-recorded alternative run on the same clock as the recorded one?** _(Surfaced 2026-08-06 by RR-A1's prototype, and it currently belongs to no ticket.)_ A non-recorded alternative is **mandatory** — on RR-A4 finding 5's functional grounds since RR-A1 amended RR-04's legal reasoning. But RR-A1 owns prep time and recording limits for the _recorded_ path only, and RR-07 owns _what the alternative is_, not how long a student gets to do it. So an alternative with no clock is non-equivalent to a timed spoken response, and an alternative on the _same_ clock may be unfair in the opposite direction — typing is slower than speaking. **Sharper after RR-A1 and closer to ticketable:** the recorded path now has four distinct expiry behaviours a teacher picks per question, so "the same clock" is no longer even a single thing to match — an alternative would have to decide what `auto-start` means when there is nothing to start. Still can't be phrased finally until RR-07 says what the alternative is; revisit the moment RR-07 closes. 🔵 **RR-08 (2026-08-06) halved this patch.** It applies to the **primary mode set only** — sub-decision 4 rules out any substitute for a required _addendum_, so there is no alternative there whose clock could disagree. And sub-decision 8 settles where the recorded clock starts (on entering the addendum slot, not at question display), which gives the surviving half a fixed thing to be compared against rather than a moving one.
-- **What the question editor looks like once timing is authored per question.** _(Surfaced 2026-08-06 by RR-A1.)_ RR-A1 sub-decision 2 puts a four-value expiry setting, prep, and a limit on every recording question, and sub-decision 3 hides `timeLimit` when a recording mode is present. Combined with RR-01's mode set and optional required addendum, a single question now carries a lot of authorable surface — and `CLAUDE.md`'s anti-reference is Canva-style overload. **Not ticketable separately yet**: it is the same problem as the "authoring guardrails" and "teacher authoring ergonomics" patches below, and the three should probably graduate together as one authoring ticket once RR-06 says what grading needs. ✅ **RR-06 closed 2026-08-07 and asked the editor for almost nothing** — which is the answer, not a deferral. Sub-decision 10 removed the charted authoring-warning question entirely (nothing is being turned manual, so there is nothing to warn about), and sub-decision 7's slot-keyed grades need no authoring surface at all. **The three patches can graduate as one authoring ticket now**, and grading contributes one optional item to it: whether a count of hand-graded slots appears anywhere, which RR-06 explicitly left undecided. 🔵 **RR-08 (2026-08-06) added two things this patch has to absorb.** First, the required-addendum flag must ride in **`QuizPublicQuestion`** (the student-safe projection), because both the client's submit block and the sweep's slot-marking read it from there — so authoring a required addendum writes into a student-visible structure, which no other authoring control on this list does. Second, marking an addendum required now **hard-blocks Submit**, so it is the first authoring toggle on this map that can leave a student unable to finish; the editor arguably has to say so at the moment of authoring rather than leaving it to be discovered in a classroom. 🔵 **RR-A2 (2026-08-06) added a fourth control to the same block** — `takeLimit`, alongside prep, limit and the four-value expiry setting. It is the mildest of the four to author and the only one whose **default** carries an unbounded storage consequence, which is an odd combination for an editor to communicate: the setting a teacher is least likely to think about is the one most worth surfacing. 🔵 **RR-B2 (2026-08-07) added a third numbers set to the same block** — 180 s / 600 s for whiteboard, distinct from audio's and video's — so the `recording` block is now **mode-dependent**, and the editor has to decide whether it shows one set of fields that change meaning with the mode or three. **That is the first genuinely new authoring problem this patch has acquired since it was written**, and it argues for the single authoring ticket graduating sooner rather than later.
+- **What the question editor looks like once timing is authored per question.** _(Surfaced 2026-08-06 by RR-A1.)_ RR-A1 sub-decision 2 puts a four-value expiry setting, prep, and a limit on every recording question, and sub-decision 3 hides `timeLimit` when a recording mode is present. Combined with RR-01's mode set and optional required addendum, a single question now carries a lot of authorable surface — and `CLAUDE.md`'s anti-reference is Canva-style overload. **Not ticketable separately yet**: it is the same problem as the "authoring guardrails" and "teacher authoring ergonomics" patches below, and the three should probably graduate together as one authoring ticket once RR-06 says what grading needs. ✅ **RR-06 closed 2026-08-07 and asked the editor for almost nothing** — which is the answer, not a deferral. Sub-decision 10 removed the charted authoring-warning question entirely (nothing is being turned manual, so there is nothing to warn about), and sub-decision 7's slot-keyed grades need no authoring surface at all. **The three patches can graduate as one authoring ticket now**, and grading contributes one optional item to it: whether a count of hand-graded slots appears anywhere, which RR-06 explicitly left undecided. 🔵 **RR-08 (2026-08-06) added two things this patch has to absorb.** First, the required-addendum flag must ride in **`QuizPublicQuestion`** (the student-safe projection), because both the client's submit block and the sweep's slot-marking read it from there — so authoring a required addendum writes into a student-visible structure, which no other authoring control on this list does. Second, marking an addendum required now **hard-blocks Submit**, so it is the first authoring toggle on this map that can leave a student unable to finish; the editor arguably has to say so at the moment of authoring rather than leaving it to be discovered in a classroom. 🔵 **RR-A2 (2026-08-06) added a fourth control to the same block** — `takeLimit`, alongside prep, limit and the four-value expiry setting. It is the mildest of the four to author and the only one whose **default** carries an unbounded storage consequence, which is an odd combination for an editor to communicate: the setting a teacher is least likely to think about is the one most worth surfacing. 🔵 **RR-B2 (2026-08-07) added a third numbers set to the same block** — 180 s / 600 s for whiteboard, distinct from audio's and video's — so the `recording` block is now **mode-dependent**, and the editor has to decide whether it shows one set of fields that change meaning with the mode or three. **That is the first genuinely new authoring problem this patch has acquired since it was written**, and it argues for the single authoring ticket graduating sooner rather than later. 🔴 **RR-C3 (2026-08-07) added the first input to this block that is not another per-question control, and it should be the thing that finally graduates it.** Every prior addition was another field inside the question. A parent-level stimulus array needs an editor surface **above** the question list — a library the teacher adds material to, names (RR-C3 sub-decision 6's authoring-only label), and sets a replay policy on — plus a **multi-select** pointer control per question, because sub-decision 2 lets a question point at more than one. **Nothing in this repo groups questions in any editor**: `QuizEditor.tsx:198` is a flat dnd-kit reorder list. The nearest shipped model is GuidedLearning's — a canvas with a step list beside it, an `imageIndex` dropdown per step (`GuidedLearningStepEditor.tsx:141-143`) and a slide badge in the list (`GuidedLearningEditor.tsx:1525`) — which is **a different editor, not another field in the same block.** ⚠️ And it arrives with a warning nobody has designed: sub-decision 5's component-aware shuffle can silently degrade to no-op when stimulus pointers overlap, which is exactly the class of dead-control failure RR-C3's own audit flagged in Video Activity. **The teacher should learn that at authoring time, and this is the only surface that could tell them.**
 - **Interaction with attempt limits.** _(The idle auto-submit half graduated into **RR-08** on 2026-08-04 and **closed with it on 2026-08-06** — the sweep now marks empty required slots at finalize rather than finalizing silently. What remains here is retakes vs. whole-assignment attempt limits, which needs RR-A2 first.)_ ⚠️ **RR-08 added a wrinkle worth carrying into that:** `finalizeIdleQuizAttempts` only increments `completedAttempts` when `finalAnswers.length > 0` (`:463-465`), deliberately, so a student who joined and never answered doesn't burn a slot. **RR-08 sub-decision 1 makes passed-over questions write entries** — so a student who is auto-advanced through an assignment without answering anything now has a non-empty `answers[]` and **will** consume an attempt. That may be correct, but it is a behaviour change nobody chose, and it lands in this patch rather than in RR-08. ✅ **RR-A2 (2026-08-06) closed the blocker and answered the retakes-vs-attempts half: they are separate counters that must never touch.** `takeLimit` is per-question, counts committed takes, and is enforced in RR-03's per-upload callable; `attemptLimit` is per-assignment, counts completed submissions, and is enforced in rules. 🔴 **Three findings from RR-A2's grounding audit say why keeping them apart is not merely tidy.** (1) `completedAttempts` is **decremented by teachers** on unlock (`useQuizSession.ts:1149-1180`; rules make the asymmetry explicit at `firestore.rules:3189-3198`) — it is a budget meter, not a ledger, so any "how many takes?" number built on that family of counter lies after the first unlock. (2) A new whole-assignment attempt clears `answers: []` wholesale with no archive (`useQuizSession.ts:1969-1979`), so **take history dies at the assignment boundary** regardless of what RR-A2 decided about takes within one. (3) 🔴 The **shuffle seed reads the attempt counter** (`QuizStudentApp.tsx:1205-1220`), so folding takes into it would reshuffle a student's question order when they re-record — an absurd coupling, and the sharpest argument for the separation RR-A2 chose. **What survives in this patch is only (2):** whether take history should survive a new attempt, which nobody has decided.
 - **Authoring guardrails against accidental complexity.** RR-01 makes a set-of-modes plus a required addendum expressible on every question. Nothing yet stops a teacher building a 10-question quiz where each question allows three modes and requires a recording. Whether the product warns, caps, or simply permits it is a real decision — **RR-A1 supplied half the missing costs** (a 10-question video quiz at the 120 s maximum is ~8 MB × 10 × 30 students ≈ 2.4 GB, which is the runaway case), and the other half still waits on RR-06's grading wall-clock. 🔴 **RR-08 (2026-08-06) raised the stakes from cost to completability.** With a hard submit block on required addenda and **no substitute of any kind** (sub-decision 4), a teacher who marks every addendum required has built an assignment that a student in a restricted OU can start and never finish — each question individually blocked, each slot individually marked `capture-unavailable`. Nothing is lost and the teacher can see all of it, but the student's experience is ten consecutive walls. **The guardrail question is no longer "is this quiz expensive"; it is "can every student in the class complete this quiz." 🔴 **RR-A2 (2026-08-06) put the cost half back and made it worse than the figure this patch quotes.** The ~2.4 GB runaway case assumed **one take per question**. With takes appending and `takeLimit` defaulting to **unlimited**, the runaway case has no number at all — and unlike every other item on this list, **it is reached by teachers who authored nothing unusual**, because it is the default. A guardrail that only fires on elaborate authoring will never see it.** ✅ **RR-06 (2026-08-07) paid the half this patch was still owed, and it came in smaller than expected.** The missing input was grading wall-clock. Sub-decision 10 supplies it: **auto-graded slots stay auto-graded**, so a ten-question quiz with one video response is **one** hand-graded item, not ten — the cost scales with **recording slots**, not with questions. Sub-decision 9's question-major queue then makes 30 responses to one question the cheap case rather than the expensive one. **So the grading-cost axis of this guardrail is real but mild, and the storage axis RR-A2 reopened is the one that actually needs a cap.** Two of the three inputs are now in; only completability (RR-08) remains open-ended. 🔵 **RR-B2 (2026-08-07) moved the cost axis again, and this time in the direction of the _teacher's_ hours rather than the district's bytes.** A whiteboard take runs to **600 s**, unlimited takes still apply, and RR-B2 accepted that explicitly on the grounds that RR-B3 is where the number gets discovered. So the storage cap RR-A2 reopened is now joined by a **wall-clock** cap nobody has proposed: a teacher who authors five whiteboard questions for thirty students has authored something nothing warns them about and RR-B3 may find unsurvivable. ✅ **On completability, RR-B2 helped** — a mic-denied student is no longer walled out of the whiteboard mode at all.
 - **What several takes look like everywhere they are stored or shown.** _(Surfaced 2026-08-06 by RR-A2, which decided takes accumulate and explicitly declined all three of these.)_ A question may now hold many committed takes, kept deliberately and retained to end of school year. **Three surfaces inherit that and none has a shape yet.** (1) **The teacher's Drive folder** — siblings, versioned filenames, or a per-question folder? RR-03 owns the folder convention and never anticipated more than one file per question per student. (2) **RR-04's org-admin review-and-delete console**, which was scoped as a compliance precondition over responses and must now list takes and define what deleting one of six means. (3) **The results view**, which RR-A2 decided is where takes are playable — but "playable" was chosen as a posture, not designed. Not ticketable as one thing; it is the same decision landing in three places, and it wants RR-06 beside it, since grading is what makes an earlier take worth keeping open at all. 🔵 **RR-05 (2026-08-06) narrowed one of the three and added an inhabitant to another.** (3) is less open than it was: the results view is now specified as **where the transcribe button lives, on the winning take, with two distinct inline states for absent artifacts** (sub-decisions 2, 3 and 6) — so "playable" has acquired a surrounding design even though the take list itself still hasn't. (1) gains a text file to place next to the audio. 🔴 **RR-06 closed 2026-08-07 and this patch should now graduate whole — it is the most ticketable item on this list.** RR-06 supplied exactly what this patch said it was waiting for: an earlier take is worth keeping open because **a teacher may grade one** (sub-decision 4), and the results view is where they play them. Each of the three surfaces gained a specific new requirement rather than merely a reason. **(1)** must now hold audio + a transcript that is **replaced** rather than appended, so the folder convention has to survive a file being superseded. **(2)** must express deleting one of six takes _when one of them is the graded one_ — RR-06's `gradedTakeIndex` makes that a distinguishable and destructive case, where before all takes were interchangeable. **(3)** is nearly specified now: the results view holds the transcribe button, two inline absence states, a playable take list, a **pin** control, time-anchored comments and a provisional-score marker. **That is a screen, not a patch.** 🔴 **RR-B2 (2026-08-07) made surface (1) worse in exactly the dimension it was already weakest.** RR-03's folder convention was designed for one file per question per student; RR-06 made it hold a superseded transcript; **RR-B2 now makes a single take a set of three files**, so a five-take whiteboard question is fifteen Drive objects for one student on one question. Whatever naming and foldering scheme this patch eventually proposes has to survive that without a human being able to read it, and **surface (2) — the delete console — now deletes sets rather than files**, which is a different UI than the one it was scoped as.
 - **What a student sees on the published-results screen once a score can be provisional and a take can be pinned.** _(Surfaced 2026-08-07 by RR-06, and it belongs to no ticket.)_ RR-03 gated student playback to the **published-results screen** and nowhere else; RR-06 sub-decision 8 then decided a partially-graded score is shown **provisionally and always marked** — explicitly including the student's published view — and sub-decision 4 lets a teacher grade a take the student did not finish on. **Nobody has designed either sentence from the student's side.** A student reading _"82%, 1 still to grade"_ is being told something true and unfamiliar, and there is no shipped precedent for a score that is honestly incomplete. Sharper still: **is a student told which take was graded?** RR-06 recorded `gradedTakeIndex` to answer a grade appeal, which is the student's interest — and an appeal a student cannot see the grounds for is not much of an interest. **Not ticketable yet** because it is entangled with RR-04's notice posture (what a student is told, and when) rather than being purely a display question. Revisit alongside the takes-everywhere patch above; both are really "what does the results screen become." 🔵 **RR-B2 (2026-08-07) put a third unfamiliar thing on that screen.** RR-03 gates student playback to the published-results view, and a whiteboard response is not a clip to play but a **replay to scrub — including the student's own erased work**. A student watching their false starts play back to them is a genuinely new experience with no precedent in this product, and it lands on the same screen as the provisional score and the pinned take.
 - **What a student is doing for ten minutes with nothing on the server, and what happens when the tab dies.** _(Surfaced 2026-08-07 by RR-B2, and it belongs to no ticket.)_ RR-A1's "a lost take is lost" was decided when a take was a 60-second clip; RR-B2 set the whiteboard ceiling at **600 s** and kept the in-memory model, because that model is exactly what makes the event log cost one Firestore write instead of two hundred. **The rule earned its keep and the consequence got ten times worse at the same moment.** A tab crash, a Chromebook sleeping, or a student closing the wrong window now costs a ten-minute worked solution with nothing recoverable anywhere. RR-B2 accepted this explicitly and designed no mitigation. **Not ticketable yet because the honest options are all unattractive and none has been costed** — periodic local persistence (IndexedDB survives a tab crash but not a wipe, and it puts a child's unsubmitted work on a shared device), a mid-take checkpoint upload (which reintroduces the streaming-upload problem RR-A1 foreclosed), or simply telling the student and letting them bear it. It wants RR-A5's real-hardware behaviour beside it, since how often ChromeOS actually kills a tab under memory pressure is a measurement, not an argument.
 - **The third state `isStudentView` cannot express, now that something needs it.** _(Surfaced 2026-08-07 by RR-B2, promoting a finding RR-B1 recorded as an aside.)_ RR-B1 found that `isStudentView` is a **disable** flag, not a mode flag — it early-returns from every pointer handler and hides the toolbar — and noted that it "can't express _student, interactive, no teacher context_", calling that a cross-widget concept change rather than a DrawingWidget-local one (the same pattern appears in `ConceptWeb`, `MiniApp`, `StarterPack`, `WidgetRenderer`). **That was an observation with no consumer until today.** RR-B2's armed take is precisely a student drawing interactively with no teacher context, so the third state is now required by something rather than merely absent. **Not ticketable here** — it is a refactor with a blast radius across five widgets and it should graduate into its own issue rather than into this map, which designs responses and not the widget framework. Recorded so the next person to open `WidgetRenderer` knows why. 🔵 **Amended 2026-08-07 by RR-B4, and it got _smaller_** — the one thing this flag was about to be handed is gone. Sub-decision 6 puts the teacher widget and the student response in the **same** coordinate space, so `isStudentView` never has to carry a sizing regime; `canvasSize`'s two-branch `useMemo` (`Widget.tsx:265-271`) collapses instead of forking further. The flag still conflates "no chrome," "not editable" and "not the owner's board," which is the original complaint — but this map has now stopped adding to it.
-- **Which surfaces beyond quiz get these modes** — video activity, guided learning, mini-apps, activity wall. Deliberately deferred: decide it for quiz first, generalize second.
+- **Which surfaces beyond quiz get these modes** — video activity, guided learning, mini-apps, activity wall. Deliberately deferred: decide it for quiz first, generalize second. 🔴 **Narrowed 2026-08-07 by RR-C3, and the deferral is no longer available for one of the four.** Video Activity does not _opt in_ to a `QuizQuestion` field; it **inherits** it — `VideoActivityQuestion = Omit<QuizQuestion, 'type' | 'matchingDistractors'>` (`types.ts:4371-4374`). So "decide it for quiz first, generalize second" cannot apply to anything added to `QuizQuestion`: the generalization happens at **compile time** unless the field is explicitly `Omit`ed, and that choice has to be made in the same PR that adds it. RR-C3's stimulus pointer array is the first field this bites on, and it bites awkwardly — **VA already carries parent-level media of its own** (`youtubeUrl`), so inheriting the pointer silently gives a VA question two media concepts that nothing reconciles.
+
+- 🔴 **What happens when a stimulus changes under a live assignment.** _(New 2026-08-07, RR-C3 sub-decision 3.)_ Every content decision on this map so far has been **snapshot-at-create** (the assignment's freeze-live semantics) or **append-only** (takes, event logs). The stimulus array is neither: it lives on `QuizData` in Drive, which means it sits inside the `pullSyncedQuiz` rebuild path (`useQuizAssignments.ts:1772-1843`), where `publicQuestions` is already rebuilt **wholesale** on sync (`:1840-1843`). **So a PLC peer editing a shared quiz can replace a passage under a student who is mid-attempt** — not a hypothetical, a straight consequence of two shipped mechanisms meeting a new field. It is not clear this is wrong: a teacher fixing a broken PDF mid-period probably _wants_ it to propagate. What is unspecified is everything around that: whether the student's in-flight attempt re-renders or keeps what it loaded, whether a grade recorded against material that no longer exists is traceable to it, and whether anyone is told. **Not ticketable yet because nobody has established that PLC-synced quizzes are assigned live often enough to matter** — that is a usage question, not a design one. It graduates the first time a teacher reports a question whose material changed while a class was working, and it wants the takes-everywhere patch beside it, since both are really "what is stable for the duration of one attempt."
 - **Server-side enforcement of recording limits.** Client-side timers are advisory; whether that matters depends on RR-A2's integrity posture. **RR-08 (2026-08-06) supplied a precedent that makes this cheaper than it looked:** sub-decision 5 has `finalizeIdleQuizAttempts` read `publicQuestions` off the session doc it already batch-reads, at **zero additional read cost** — so the server can already see per-question authored config without a new fetch. If limits ever need server-side checking, the data is in reach on a path that already runs. ✅ **RR-A2 (2026-08-06) largely answered this patch, and found the venue everyone assumed was wrong.** Sub-decision 9 established that **Firestore rules cannot enforce per-question anything** — they have no array filtering, so they cannot count entries per `questionId`, and quiz cannot even carry VA's append-only guard because `hasAll` demands prior elements byte-identical while quiz students promote their own drafts in place. **The venue is RR-03's per-upload archival callable**, which every recording commit already passes through with a stored refresh token. ⚠️ **What survives is narrower and worth naming:** the shipped client-side re-submission blocks (`QuizStudentApp.tsx:1889`, `:2017`) remain **enforced nowhere**, and RR-A2 routed around them for recordings rather than fixing them — so written responses still have advisory-only integrity, exactly as before.
 - **Student-facing review-before-submit.** Partly covered by RR-A2, but the whiteboard and multi-artifact cases may need their own. **Sharpened by RR-08 (2026-08-06):** Submit now blocks on a missing required addendum _and_ on an in-flight upload, so "review before submit" is no longer only a courtesy — it is the screen a student is held on, and it has to explain **which** of two very different reasons is holding them. RR-08's teacher-side three-state view has no student-side counterpart by deliberate choice (sub-decision 7 kept the student's view binary), which means this screen carries the entire burden of telling a student what to do next. ✅ **RR-A2 (2026-08-06) settled the recording case completely, so what's left here really is only whiteboard and multi-artifact.** Pre-commit review of a take is **free by construction** — RR-A1 keeps bytes local until commit, RR-03 granted the local-blob review window, and RR-A2 counts only commits — so the recording flow is **record → review → commit or discard**, at no cost and with no budget consequence. **The one thing that flow must now also show is the take budget**, since committing is the act that spends it and a student ought to know that before pressing it rather than after. ✅ **RR-B2 (2026-08-07) closed the whiteboard half this patch was explicitly holding open, and left a new multi-artifact wrinkle in its place.** Pre-commit review is free for a whiteboard take on exactly the recording flow's terms — the log and the audio are both local until commit — so **record → review → commit or discard** carries over unchanged. 🔵 **What is new is that a whiteboard commit uploads _three_ files as one transaction** (audio, event log, final-state PNG), so RR-08's in-flight Submit block has to mean all three, and a partial failure leaves a take that exists but cannot be replayed. **"Multi-artifact" stopped being hypothetical**, and the screen that has to explain _why_ a student is being held now has a third reason to explain.
 - **What the teacher's three-state monitor shows, and how it reconciles with a pair that has already drifted.** _(Surfaced 2026-08-06 by RR-08.)_ Sub-decision 7 gives the teacher **answered / started-but-incomplete / never-reached**, because "stuck on the recording" and "hasn't got there" demand opposite interventions. But it lands on top of a documented inconsistency: `QuizLiveMonitor:932` counts drafts as answered and the student gate at `QuizStudentApp.tsx:899-903` does not (audit landmine #8). **Adding a third state to an already-disagreeing pair is the shape of problem that produces a fourth.** Not ticketable alone — it is really "what does the live monitor become once responses can be partial," which wants RR-06's grading view beside it. 🔴 **RR-06 (2026-08-07) delivered that and produced the fourth state this patch predicted.** Sub-decision 8 says a partially-graded response shows a **provisional score, always marked**, in the live monitor as well as afterwards — so the monitor now carries RR-08's three completion states _and_ a scoring state (`scored` / `awaiting-grade` / `not-attempted`) on the same row, for the same student, meaning different things. **The prediction was right and the patch is now ticketable**: it is one screen holding two orthogonal three-valued axes, on top of a pair (`QuizLiveMonitor:932` vs `QuizStudentApp.tsx:899-903`) that already disagrees about the simplest one.
