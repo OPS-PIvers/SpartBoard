@@ -896,6 +896,14 @@ export const DashboardView: React.FC = () => {
   // Keyboard Navigation
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // A portalled Modal (or anything nested inside one — a confirm/prompt
+      // dialog, an in-modal dropdown) owns Escape. Bail before any widget- or
+      // group-build handling so the modal's own handler runs unaffected. This
+      // must run before the group-build branch below, which would otherwise
+      // consume Escape (exiting group-build mode) and swallow it while a modal
+      // is open, leaving the modal stuck.
+      if (e.key === 'Escape' && hasOpenModalRef.current) return;
+
       // Escape: Exit group-build mode first (highest priority modal state).
       // Guard: if focus is inside a typing field, let the second Escape branch
       // handle it (blur the field) — don't exit group-build mode unexpectedly.
@@ -910,10 +918,6 @@ export const DashboardView: React.FC = () => {
 
       // Escape: Close top-most widget or blur input
       if (e.key === 'Escape') {
-        // A portalled Modal (or anything nested inside one — a confirm/prompt
-        // dialog, an in-modal dropdown) owns this Escape instead; bail before
-        // touching any widget so the modal's own handler runs unaffected.
-        if (hasOpenModalRef.current) return;
         if (isTypingFieldActive()) {
           (document.activeElement as HTMLElement | null)?.blur();
           return;

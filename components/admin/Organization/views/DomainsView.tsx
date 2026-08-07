@@ -283,7 +283,7 @@ const AddDomainModal: React.FC<{
           </Btn>
           <Btn
             variant="primary"
-            disabled={!domain}
+            disabled={!domain.trim()}
             onClick={() => {
               const normalized = domain.trim().toLowerCase();
               onAdd({
