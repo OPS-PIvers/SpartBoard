@@ -840,6 +840,30 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
               Smoothly scrolls the schedule to keep the active event in view as
               the day progresses. Resets automatically at the start of each day.
             </p>
+
+            <hr className="border-slate-200" />
+
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-slate-700">
+                Expand Current Event
+              </span>
+              <Toggle
+                checked={config.expandActiveItem ?? true}
+                onChange={(checked) =>
+                  updateWidget(widget.id, {
+                    config: {
+                      ...config,
+                      expandActiveItem: checked,
+                    } as ScheduleConfig,
+                  })
+                }
+              />
+            </div>
+            <p className="text-xs text-slate-500">
+              Shows the current event&apos;s full name across multiple lines
+              instead of cutting it off. Other events stay on one line, and text
+              size is the same everywhere.
+            </p>
           </div>
         </div>
 
