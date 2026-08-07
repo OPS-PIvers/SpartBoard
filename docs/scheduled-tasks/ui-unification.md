@@ -56,13 +56,6 @@ _2026-06-12: Weekly audit pass. Scanned Settings.tsx files and admin Configurati
 
 _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widgets/ and all \*ConfigurationPanel.tsx under components/admin/. New findings: (1) TimeTool/Settings.tsx duplicates the identical custom 4-button font picker as ClockWidget — added as extension of the existing ClockWidget open item. (2) Segmented-control pill selector pattern (`flex bg-slate-100 p-1 rounded-xl`) duplicated 12× across settings panels with no shared component. (3) Font-options arrays (`{ value: 'global', label: 'Inherit' }` pattern) duplicated in 5+ admin panels. (4) 27 hardcoded hex instances across additional files not yet tracked. Existing open items (ClockWidget font picker, MusicWidget color picker, nextUp/video-activity/guided-learning missing appearance panels, ExpectationsWidget custom toggle, two hardcoded-hex LOW items, InstructionalRoutines, TextConfig) all re-confirmed valid. 4 new open items added._
 
-### MEDIUM `ConceptWebAppearanceSettings` renders a dead fontColor picker — `ConceptWebConfig.fontColor` is never read by the widget
-
-- **Detected:** 2026-08-07
-- **File:** components/widgets/ConceptWeb/Settings.tsx (line 116), components/widgets/ConceptWeb/Widget.tsx
-- **Detail:** `ConceptWebAppearanceSettings` passes `<TypographySettings config={config} updateConfig={updateConfig} />` without `showColorPicker={false}`. This renders a "Text Color" picker in the widget's Appearance tab that writes `config.fontColor`, but `ConceptWeb/Widget.tsx` never reads that field — node text is rendered with hardcoded `text-slate-800` classes throughout. The color picker appears functional (no error), silently saves a value that has no visual effect, and misleads teachers into thinking their color selection is applied. The building-config side is already addressed: `ConceptWebBuildingConfig` in `types.ts` (lines 5203–5206) carries an explicit comment omitting `fontColor` precisely because of this dead-control situation. Only the UI panel control remains live. This is the same pattern as the recently resolved GraphicOrganizer case (fixed 2026-08-02 by adding `showColorPicker={false}` at `GraphicOrganizer/Settings.tsx:84`).
-- **Fix:** In `ConceptWebAppearanceSettings`, change `<TypographySettings config={config} updateConfig={updateConfig} />` to `<TypographySettings config={config} updateConfig={updateConfig} showColorPicker={false} />`. One-line mechanical change; file-recency check `ConceptWeb/Settings.tsx` before acting. After the fix, `ConceptWebConfig.fontColor` values already persisted in Firestore are harmless dead fields (same disposition as the GraphicOrganizer resolution). Do not add `fontColor` consumption to the widget without a separate design decision — the canvas-graph node text color is intentionally controlled per-node, not globally.
-
 ### LOW `StarterPackAppearanceSettings` shows a placeholder message and suppresses the `UniversalStyleSettings` fallback — needs maintainer decision
 
 - **Detected:** 2026-08-07
@@ -252,6 +245,14 @@ _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widget
 ---
 
 ## Completed
+
+### MEDIUM `ConceptWebAppearanceSettings` renders a dead fontColor picker — `ConceptWebConfig.fontColor` is never read by the widget
+
+- **Detected:** 2026-08-07
+- **Completed:** 2026-08-07
+- **File:** components/widgets/ConceptWeb/Settings.tsx
+- **Detail:** `ConceptWebAppearanceSettings` passed `<TypographySettings config={config} updateConfig={updateConfig} />` without `showColorPicker={false}`. This rendered a "Text Color" picker in the widget's Appearance tab that wrote `config.fontColor`, but `ConceptWeb/Widget.tsx` never reads that field — node text is rendered with hardcoded `text-slate-800` classes throughout. The color picker appeared functional (no error), silently saved a value with no visual effect, and misled teachers into thinking their color selection was applied. Same pattern as the GraphicOrganizer case resolved 2026-08-02.
+- **Fix applied (2026-08-07 action, Friday):** Nothing In Progress in any Friday-reading journal (daily: widget-registry, css-scaling, typescript-eslint; weekly: code-structure C1, ui-unification C2). No open daily MEDIUM/HIGH items — widget-registry & typescript-eslint report no open items, css-scaling's open items are all LOW. Highest-severity Open item overall is the HIGH `DashboardContext.tsx` extraction (code-structure C1) — standing BLOCKED, as are both code-structure large-file MEDIUMs (BLOCKED/deferred, unattended-unsafe extractions). Per the established pattern, took the highest-priority **safe** MEDIUM in Friday weekly reading order (C1 code-structure → C2 ui-unification): this journal's ConceptWeb dead-picker item. Verified `ConceptWeb/Widget.tsx` contains zero `fontColor` references (dead field confirmed) and `TypographySettings` supports `showColorPicker` (defaults true, gated at line 63). File-recency check passed — `ConceptWeb/Settings.tsx` last touched at `c185cd6b` (2026-06-27), well outside the last 5 branch commits. Changed the single `<TypographySettings>` call to pass `showColorPicker={false}` (matching the GraphicOrganizer resolution at `GraphicOrganizer/Settings.tsx:84`). Already-persisted `ConceptWebConfig.fontColor` values are now harmless dead fields; no widget consumption added (per the item's guidance — node text color is intentionally per-node, not global). `pnpm run type-check` (exit 0), `eslint` on the file (exit 0), `prettier --check` clean. PR opened to dev-paul.
 
 ### MEDIUM `syntax-framer` had a `WIDGET_APPEARANCE_COMPONENTS` entry but no standard appearance fields — its "Appearance" tab held only a behavioral alignment toggle
 
