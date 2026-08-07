@@ -182,8 +182,18 @@ export const CountdownAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
     <div className="space-y-6">
       <TypographySettings config={config} updateConfig={updateConfig} />
       <div>
-        <SettingsLabel icon={Palette}>Event Title Color</SettingsLabel>
-        <div className="flex flex-wrap gap-2 px-1 mb-2">
+        <SettingsLabel
+          as="span"
+          icon={Palette}
+          id={`countdown-eventtitlecolor-label-${widget.id}`}
+        >
+          Event Title Color
+        </SettingsLabel>
+        <div
+          className="flex flex-wrap gap-2 px-1 mb-2"
+          role="group"
+          aria-labelledby={`countdown-eventtitlecolor-label-${widget.id}`}
+        >
           {TEXT_COLOR_PRESETS.map((color) => (
             <button
               key={color}
