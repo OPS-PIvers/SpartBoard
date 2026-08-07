@@ -189,18 +189,8 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
 
         {/* Grade Level */}
         <div>
-          <SettingsLabel
-            as="span"
-            icon={GraduationCap}
-            id={`lunchcount-gradelevel-label-${widget.id}`}
-          >
-            Grade Level
-          </SettingsLabel>
-          <div
-            className="flex gap-2 flex-wrap"
-            role="group"
-            aria-labelledby={`lunchcount-gradelevel-label-${widget.id}`}
-          >
+          <SettingsLabel icon={GraduationCap}>Grade Level</SettingsLabel>
+          <div className="flex gap-2 flex-wrap">
             {gradeOptions.map((opt) => (
               <button
                 key={opt.value}

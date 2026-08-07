@@ -149,17 +149,8 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
 
         {/* Access Level */}
         <div className="shrink-0">
-          <SettingsLabel
-            as="span"
-            id={`gridpresetcard-accesslevel-label-${preset.id}`}
-          >
-            Access Level
-          </SettingsLabel>
-          <div
-            className="flex gap-1"
-            role="group"
-            aria-labelledby={`gridpresetcard-accesslevel-label-${preset.id}`}
-          >
+          <SettingsLabel>Access Level</SettingsLabel>
+          <div className="flex gap-1">
             {(['admin', 'beta', 'public'] as AccessLevel[]).map((level) => (
               <button
                 key={level}
@@ -244,17 +235,8 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
 
         {/* Building Assignment */}
         <div className="shrink-0">
-          <SettingsLabel
-            as="span"
-            id={`gridpresetcard-buildings-label-${preset.id}`}
-          >
-            Buildings
-          </SettingsLabel>
-          <div
-            className="flex flex-wrap gap-1"
-            role="group"
-            aria-labelledby={`gridpresetcard-buildings-label-${preset.id}`}
-          >
+          <SettingsLabel>Buildings</SettingsLabel>
+          <div className="flex flex-wrap gap-1">
             {BUILDINGS.map((b) => {
               const assigned = (preset.buildingIds ?? []).includes(b.id);
               return (

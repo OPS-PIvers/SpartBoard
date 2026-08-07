@@ -69,18 +69,10 @@ export const ClockAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
 
       {/* Clock Style */}
       <div>
-        <SettingsLabel
-          as="span"
-          icon={Sparkles}
-          id={`clockwidget-displaystyle-label-${widget.id}`}
-        >
+        <SettingsLabel icon={Sparkles}>
           {t('widgets.clock.displayStyle')}
         </SettingsLabel>
-        <div
-          className="flex bg-slate-100 p-1 rounded-xl"
-          role="group"
-          aria-labelledby={`clockwidget-displaystyle-label-${widget.id}`}
-        >
+        <div className="flex bg-slate-100 p-1 rounded-xl">
           {styles.map((s) => (
             <button
               key={s.id}
@@ -100,18 +92,10 @@ export const ClockAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
       {/* Color & Glow */}
       <div className="flex items-end justify-between gap-4">
         <div className="flex-1">
-          <SettingsLabel
-            as="span"
-            icon={Palette}
-            id={`clockwidget-colorpalette-label-${widget.id}`}
-          >
+          <SettingsLabel icon={Palette}>
             {t('widgets.clock.colorPalette')}
           </SettingsLabel>
-          <div
-            className="flex gap-1.5"
-            role="group"
-            aria-labelledby={`clockwidget-colorpalette-label-${widget.id}`}
-          >
+          <div className="flex gap-1.5">
             {colors.map((c) => (
               <button
                 key={c}
