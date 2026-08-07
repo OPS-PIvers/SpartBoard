@@ -67,23 +67,31 @@ export const SeatingChartSettings: React.FC<{ widget: WidgetData }> = ({
       )}
 
       <div className="space-y-3">
-        <SettingsLabel>Actions</SettingsLabel>
+        <SettingsLabel as="span" id={`seatingchart-actions-label-${widget.id}`}>
+          Actions
+        </SettingsLabel>
 
-        <button
-          onClick={handleClearAssignments}
-          className="w-full flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors text-xs font-bold"
+        <div
+          className="space-y-3"
+          role="group"
+          aria-labelledby={`seatingchart-actions-label-${widget.id}`}
         >
-          <Eraser className="w-4 h-4" />
-          Clear Assignments Only
-        </button>
+          <button
+            onClick={handleClearAssignments}
+            className="w-full flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors text-xs font-bold"
+          >
+            <Eraser className="w-4 h-4" />
+            Clear Assignments Only
+          </button>
 
-        <button
-          onClick={handleClearFurniture}
-          className="w-full flex items-center gap-2 p-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors text-xs font-bold"
-        >
-          <Trash2 className="w-4 h-4" />
-          Clear All (Reset)
-        </button>
+          <button
+            onClick={handleClearFurniture}
+            className="w-full flex items-center gap-2 p-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors text-xs font-bold"
+          >
+            <Trash2 className="w-4 h-4" />
+            Clear All (Reset)
+          </button>
+        </div>
       </div>
     </div>
   );
