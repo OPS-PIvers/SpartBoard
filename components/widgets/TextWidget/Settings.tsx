@@ -19,8 +19,17 @@ export const TextSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   return (
     <div className="space-y-6">
       <div>
-        <SettingsLabel>Templates</SettingsLabel>
-        <div className="grid grid-cols-2 gap-2">
+        <SettingsLabel
+          as="span"
+          id={`text-widget-templates-label-${widget.id}`}
+        >
+          Templates
+        </SettingsLabel>
+        <div
+          className="grid grid-cols-2 gap-2"
+          role="group"
+          aria-labelledby={`text-widget-templates-label-${widget.id}`}
+        >
           {TEXT_WIDGET_TEMPLATES.map((t) => (
             <button
               key={t.name}

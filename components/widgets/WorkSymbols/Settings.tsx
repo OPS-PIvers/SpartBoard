@@ -25,10 +25,18 @@ export const WorkSymbolsAppearanceSettings: React.FC<{
       <TextSizePresetSettings config={config} updateConfig={updateConfig} />
 
       <div>
-        <SettingsLabel icon={AlignVerticalSpaceAround}>
+        <SettingsLabel
+          as="span"
+          id={`worksymbols-title-position-label-${widget.id}`}
+          icon={AlignVerticalSpaceAround}
+        >
           Title Position
         </SettingsLabel>
-        <div className="flex bg-slate-100 p-1 rounded-xl">
+        <div
+          className="flex bg-slate-100 p-1 rounded-xl"
+          role="group"
+          aria-labelledby={`worksymbols-title-position-label-${widget.id}`}
+        >
           <button
             onClick={() => updateConfig({ titlePosition: 'bottom' })}
             className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${

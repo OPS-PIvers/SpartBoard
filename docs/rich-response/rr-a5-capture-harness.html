@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RR-A5 — Capture &amp; Format Round-Trip Harness</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #0f172a;
+        color: #e2e8f0;
+        font:
+          15px/1.5 'Lexend',
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          sans-serif;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 15px;
+        margin: 28px 0 8px;
+        color: #cbd5e1;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .sub {
+        color: #94a3b8;
+        font-size: 13px;
+        margin-bottom: 8px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        max-width: 900px;
+        font-size: 13px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 6px 10px;
+        border-bottom: 1px solid #1e293b;
+      }
+      th {
+        color: #94a3b8;
+        font-weight: 500;
+      }
+      code {
+        font:
+          12px/1.4 'Roboto Mono',
+          ui-monospace,
+          Consolas,
+          monospace;
+        color: #cbd5e1;
+      }
+      .yes {
+        color: #4ade80;
+        font-weight: 600;
+      }
+      .no {
+        color: #f87171;
+        font-weight: 600;
+      }
+      button {
+        background: #2d3f89;
+        color: #fff;
+        border: 0;
+        border-radius: 6px;
+        padding: 10px 16px;
+        font-size: 14px;
+        cursor: pointer;
+        margin: 4px 6px 4px 0;
+      }
+      button:hover {
+        background: #4356a0;
+      }
+      button:disabled {
+        background: #334155;
+        color: #64748b;
+        cursor: not-allowed;
+      }
+      #log {
+        background: #020617;
+        border: 1px solid #1e293b;
+        border-radius: 6px;
+        padding: 12px;
+        margin-top: 12px;
+        max-width: 900px;
+        white-space: pre-wrap;
+        font:
+          12px/1.6 'Roboto Mono',
+          ui-monospace,
+          Consolas,
+          monospace;
+        color: #94a3b8;
+        min-height: 60px;
+      }
+      .meter {
+        height: 8px;
+        background: #1e293b;
+        border-radius: 4px;
+        overflow: hidden;
+        max-width: 900px;
+        margin: 8px 0;
+      }
+      .meter > i {
+        display: block;
+        height: 100%;
+        width: 0;
+        background: #4ade80;
+        transition: width 0.08s;
+      }
+      .files a {
+        color: #7dd3fc;
+        display: block;
+        margin: 4px 0;
+        font-size: 13px;
+      }
+      .warn {
+        color: #fbbf24;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>RR-A5 — Capture &amp; Format Round-Trip Harness</h1>
+    <div class="sub">
+      Answers checklist items 2 (codec support) and 1 (produce real
+      Chrome-recorded files for the Drive test). Nothing is uploaded anywhere by
+      this page.
+    </div>
+
+    <h2>Environment</h2>
+    <div id="env"></div>
+
+    <h2>Item 2 — <code>MediaRecorder.isTypeSupported()</code></h2>
+    <div id="codecs"></div>
+
+    <h2>Item 1 — Record real files for the Drive round-trip</h2>
+    <div class="sub">
+      Audio uses <code>audioBitsPerSecond: 32000</code> and video uses
+      <code>videoBitsPerSecond: 1_000_000</code>, per RR-A4's explicit-bitrate
+      recommendation. Duration is measured client-side.
+    </div>
+    <button id="recAudio">Record 5s audio</button>
+    <button id="recVideo">Record 5s video (720p)</button>
+    <div class="meter"><i id="level"></i></div>
+    <div id="log">Ready.</div>
+    <div class="files" id="files"></div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const log = (m) => {
+        $('log').textContent += '\n' + m;
+      };
+
+      // ---- Environment -------------------------------------------------
+      $('env').innerHTML =
+        '<table><tbody>' +
+        [
+          ['userAgent', navigator.userAgent],
+          ['platform', navigator.userAgentData?.platform || navigator.platform],
+          ['isSecureContext', String(window.isSecureContext)],
+          ['origin', location.origin || location.protocol],
+          ['hardwareConcurrency', navigator.hardwareConcurrency],
+        ]
+          .map(
+            ([k, v]) => `<tr><th>${k}</th><td><code>${v}</code></td></tr>`
+          )
+          .join('') +
+        '</tbody></table>';
+
+      // ---- Item 2: codec support matrix --------------------------------
+      const TYPES = [
+        'video/webm',
+        'video/webm;codecs=vp8',
+        'video/webm;codecs=vp8,opus',
+        'video/webm;codecs=vp9',
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=h264',
+        'video/mp4',
+        'video/mp4;codecs=avc1',
+        'video/mp4;codecs=avc1.42E01E',
+        'video/mp4;codecs=avc1,mp4a.40.2',
+        'audio/webm',
+        'audio/webm;codecs=opus',
+        'audio/mp4',
+        'audio/mp4;codecs=mp4a.40.2',
+        'audio/ogg;codecs=opus',
+        'audio/mpeg',
+      ];
+      $('codecs').innerHTML =
+        '<table><thead><tr><th>MIME type</th><th>isTypeSupported</th></tr></thead><tbody>' +
+        TYPES.map((t) => {
+          let ok = false;
+          try {
+            ok = MediaRecorder.isTypeSupported(t);
+          } catch (e) {
+            ok = false;
+          }
+          return `<tr><td><code>${t}</code></td><td class="${ok ? 'yes' : 'no'}">${ok ? 'YES' : 'no'}</td></tr>`;
+        }).join('') +
+        '</tbody></table>';
+
+      // Machine-readable copy for the agent to scrape.
+      window.__RR_A5 = {
+        env: {
+          ua: navigator.userAgent,
+          secure: window.isSecureContext,
+          origin: location.origin || location.protocol,
+        },
+        codecs: Object.fromEntries(
+          TYPES.map((t) => {
+            let ok = false;
+            try {
+              ok = MediaRecorder.isTypeSupported(t);
+            } catch (e) {}
+            return [t, ok];
+          })
+        ),
+        recordings: [],
+      };
+
+      // ---- Item 1: real recordings -------------------------------------
+      function pick(cands) {
+        for (const c of cands) {
+          try {
+            if (MediaRecorder.isTypeSupported(c)) return c;
+          } catch (e) {}
+        }
+        return '';
+      }
+
+      async function record(kind) {
+        const wantVideo = kind === 'video';
+        const mime = wantVideo
+          ? pick([
+              'video/mp4;codecs=avc1',
+              'video/webm;codecs=vp9,opus',
+              'video/webm;codecs=vp8,opus',
+              'video/webm',
+            ])
+          : pick([
+              'audio/mp4',
+              'audio/webm;codecs=opus',
+              'audio/webm',
+              'audio/ogg;codecs=opus',
+            ]);
+
+        log(`\n--- ${kind}: requesting getUserMedia ---`);
+        let stream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true },
+            video: wantVideo
+              ? { width: { ideal: 1280 }, height: { ideal: 720 } }
+              : false,
+          });
+        } catch (e) {
+          log(`getUserMedia FAILED: ${e.name} — ${e.message}`);
+          window.__RR_A5.recordings.push({ kind, error: `${e.name}: ${e.message}` });
+          return;
+        }
+
+        // RR-A4 finding 6: verify the track actually produces signal, since
+        // ChromeOS kill-switches sit below the permission layer.
+        const at = stream.getAudioTracks()[0];
+        const vt = stream.getVideoTracks()[0];
+        log(`audio track: ${at ? at.label : 'none'} muted=${at ? at.muted : '-'}`);
+        if (wantVideo)
+          log(`video track: ${vt ? vt.label : 'none'} muted=${vt ? vt.muted : '-'}`);
+        log(`chosen mimeType: ${mime || '(browser default)'}`);
+
+        // live level meter so a silent/black track is visible
+        const ac = new (window.AudioContext || window.webkitAudioContext)();
+        const an = ac.createAnalyser();
+        an.fftSize = 512;
+        ac.createMediaStreamSource(stream).connect(an);
+        const buf = new Uint8Array(an.frequencyBinCount);
+        let peak = 0;
+        const tick = setInterval(() => {
+          an.getByteTimeDomainData(buf);
+          let m = 0;
+          for (const v of buf) m = Math.max(m, Math.abs(v - 128));
+          peak = Math.max(peak, m);
+          $('level').style.width = Math.min(100, (m / 64) * 100) + '%';
+        }, 60);
+
+        const opts = { audioBitsPerSecond: 32000 };
+        if (mime) opts.mimeType = mime;
+        if (wantVideo) opts.videoBitsPerSecond = 1000000;
+
+        const rec = new MediaRecorder(stream, opts);
+        const chunks = [];
+        rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+
+        const t0 = performance.now();
+        rec.start();
+        log('recording 5s...');
+        await new Promise((r) => setTimeout(r, 5000));
+        await new Promise((r) => {
+          rec.onstop = r;
+          rec.stop();
+        });
+        const elapsedMs = Math.round(performance.now() - t0);
+
+        clearInterval(tick);
+        $('level').style.width = '0';
+        stream.getTracks().forEach((t) => t.stop());
+        ac.close();
+
+        const blob = new Blob(chunks, { type: rec.mimeType });
+        const ext = rec.mimeType.includes('mp4')
+          ? wantVideo
+            ? 'mp4'
+            : 'm4a'
+          : rec.mimeType.startsWith('audio')
+            ? 'weba'
+            : 'webm';
+        const name = `rr-a5-${kind}.${ext}`;
+
+        // Does the file report its own duration? RR-A4 says Chrome webm won't.
+        const el = document.createElement(wantVideo ? 'video' : 'audio');
+        el.preload = 'metadata';
+        const url = URL.createObjectURL(blob);
+        const reported = await new Promise((res) => {
+          el.onloadedmetadata = () => res(el.duration);
+          el.onerror = () => res('error');
+          setTimeout(() => res('timeout'), 3000);
+          el.src = url;
+        });
+
+        log(`actual rec.mimeType: ${rec.mimeType}`);
+        log(`size: ${(blob.size / 1024).toFixed(1)} KB`);
+        log(`client-measured duration: ${elapsedMs} ms`);
+        log(
+          `element-reported duration: ${reported}` +
+            (reported === Infinity ? '   <-- Infinity, as RR-A4 predicted' : '')
+        );
+        log(`audio peak amplitude: ${peak} ${peak < 3 ? '  <-- SILENT TRACK' : ''}`);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = name;
+        a.textContent = `download ${name} (${(blob.size / 1024).toFixed(1)} KB)`;
+        $('files').appendChild(a);
+        a.click(); // auto-save to the Downloads folder
+
+        window.__RR_A5.recordings.push({
+          kind,
+          requestedMime: mime,
+          actualMime: rec.mimeType,
+          bytes: blob.size,
+          clientMs: elapsedMs,
+          reportedDuration: String(reported),
+          audioPeak: peak,
+          file: name,
+        });
+      }
+
+      $('recAudio').onclick = async (e) => {
+        e.target.disabled = true;
+        await record('audio');
+        e.target.disabled = false;
+      };
+      $('recVideo').onclick = async (e) => {
+        e.target.disabled = true;
+        await record('video');
+        e.target.disabled = false;
+      };
+    </script>
+  </body>
+</html>

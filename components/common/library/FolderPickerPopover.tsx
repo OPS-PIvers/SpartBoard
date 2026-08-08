@@ -150,6 +150,11 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
     const handleKey = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return;
       if (isEscapeFromWidgetInput(event)) return;
+      // Portalled to <body>, outside any `.widget` ancestor — without
+      // stopping propagation an Escape here also bubbles up to
+      // DashboardView's global window-level Escape handler, which falls
+      // back to minimizing the topmost widget (see #2266 pattern).
+      event.stopPropagation();
       onClose();
     };
     document.addEventListener('mousedown', handlePointer);

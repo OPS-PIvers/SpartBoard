@@ -2378,6 +2378,13 @@ export interface ScheduleConfig {
    * Resets to the top each day as items re-activate based on the current time.
    */
   autoScroll?: boolean;
+  /**
+   * When true (default), the focused event renders its full title wrapped over
+   * multiple lines instead of truncating, while every other row keeps its
+   * single-line ellipsis. Font size is identical on all rows — only the focused
+   * row's height differs. See `computeFocusIndex` for how focus is derived.
+   */
+  expandActiveItem?: boolean;
   /** Card background color as a hex string, e.g. '#ffffff'. Default: '#ffffff'. */
   cardColor?: string;
   /** Card background opacity, 0 (fully transparent) to 1 (fully opaque). Default: 1. */

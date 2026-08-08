@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-01_
-_Last action: 2026-07-23 — MEDIUM SoundWidget `PopcornBallsView` no longer receives `width={w} height={h - 60}` (stored widget dims minus a magic header offset); the canvas component now self-measures its own container via `ResizeObserver`, matching the NumberLine idiom, so the draw buffer tracks the actual rendered area with no hard-coded pixel subtraction_
+_Last audited: 2026-08-07_
+_Last action: 2026-08-05 — LOW ClockWidget AM/PM badge hardcoded `ml-2` (8px fixed left margin) replaced with proportional inline `marginLeft: '0.1em'`, so the badge separation scales with the clock hero size instead of staying pinned at 8px on large/projected displays_
 
 ---
 
@@ -21,6 +21,18 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-07: Targeted scan (Friday daily). New dev-paul commits since 2026-08-06: docs(rich-response) series (7 commits — docs-only; no widget front-face content changes). All pre-existing LOW open items confirmed present and unresolved (MathTools tab row px-2 gap-1, Onboarding header gap-2, EmbedWidget portaled toolbar, RevealGrid spacing, multi-widget group, MiniApp overlay text sizes, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown). ClockWidget AM/PM ml-2 item remains Completed (resolved 2026-08-05, commit cb6e18d2). Zero new anti-patterns detected._
+
+_2026-08-06: Targeted scan (Thursday daily). No new widget front-face source changes since 2026-08-05 (scheduled-tasks branch carries only `package.json` + `pnpm-lock.yaml` changes from the @hono/node-server dependency override — no Widget.tsx front-face content changes). All pre-existing LOW open items confirmed present and unresolved (MathTools tab row px-2 gap-1, Onboarding header gap-2, EmbedWidget portaled toolbar, RevealGrid spacing, multi-widget group, MiniApp overlay text sizes, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown). Zero new anti-patterns detected._
+
+_2026-08-05: Targeted scan (Wednesday daily). New dev-paul commits since 2026-08-04: docs(routines) nightly debugger run 35 (#2377 — docs only); nightly(build-tooling) paginate gcPlcOrphans (#2376 — functions/src only); fix(admin) lowercase beta-user emails in FeaturePermissionsManager (#2375 — admin component, no widget front-face); nightly(state-data) clear stale data on org switch (#2374 — context/state, no widget front-face); fix(common) stop Escape propagation in ActiveClassChip & FolderPickerPopover (#2373 — common components, no widget front-face); fix(RevealGrid) wire up dead "Set Generator" button (#2372 — RevealGrid/Settings.tsx back-face only; confirmed: Widget.tsx front-face unchanged); pr-review 4 PRs (#2371 — docs only); deps/hono-cors-redos (#2370 — dependency patch); docs(unifier) run 49 (#2368 — docs only); fix(a11y) retrofit orphaned SettingsLabel group headings (#2367 — Settings.tsx back-face files only: Breathing, DiceWidget, HotspotImage, MaterialsWidget, NextUp; none touch Widget.tsx front-face). Zero new widget front-face content changes. All pre-existing LOW open items confirmed present and unresolved (ClockWidget AM/PM ml-2, MathTools tab row px-2 gap-1, Onboarding header gap-2, EmbedWidget portaled toolbar, RevealGrid spacing, multi-widget group, MiniApp overlay text sizes, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown). Zero new anti-patterns detected._
+
+_2026-08-04: Targeted scan (Tuesday daily). New dev-paul commits since 2026-08-03: spike(pronunciation) #2363 and #2365 (spike docs only — no widget front-face content changes). All pre-existing LOW open items confirmed present and unresolved (ClockWidget AM/PM ml-2, MathTools tab row px-2 gap-1, Onboarding header gap-2, EmbedWidget portaled toolbar, RevealGrid spacing, multi-widget group, MiniApp overlay text sizes, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown). Zero new anti-patterns detected._
+
+_2026-08-03: Targeted scan (Monday daily). New dev-paul commits since 2026-08-02 absorbed via rebase: docs(spike) multilingual pronunciation plan (#2343 — 20 spike-doc commits; no widget source changes). No widget Widget.tsx front-face content changes in any of these commits. All pre-existing LOW open items confirmed present and unresolved (ClockWidget AM/PM ml-2, MathTools tab row px-2 gap-1, Onboarding header gap-2, EmbedWidget portaled toolbar, RevealGrid spacing, multi-widget group, MiniApp overlay text sizes, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown). Zero new anti-patterns detected._
+
+_2026-08-02: Targeted scan (Sunday daily). New dev-paul commits since 2026-08-01 already on branch: docs(admin) DashboardProvider note (4cacab05 — docs only); fix(schedule) events below list (0bda0ed1 — Schedule/Settings.tsx back-face settings panel only; CQ scaling rules do not apply to back-face). No widget front-face Widget.tsx content changes in either commit. Direct verification: Schedule/Widget.tsx unchanged. All pre-existing LOW open items confirmed present and unresolved. Zero new anti-patterns detected._
 
 _2026-08-01 (action): Resolved the LOW "ActivityWall three front-face view branches have hardcoded Tailwind spacing" item (top of Open in document order; moved to Completed). Selection: Saturday run — reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + today's weeklies (code-structure C1, ui-unification C2). Nothing In Progress anywhere. Only heading-level HIGH open item (code-structure `DashboardContext.tsx` extraction) is BLOCKED; all code-structure and ui-unification MEDIUMs are BLOCKED or runtime-gated (large-file extraction, migration, or supervised visual-normalization batches). widget-registry and typescript-eslint have no open items, so css-scaling (daily order 2) is the highest-priority journal with a safe actionable item — its Open items are all LOW; item 1 in document order is this one. File-recency check passed: `ActivityWall/Widget.tsx` last touched at `ab7cd309` (#2253), outside the last 5 branch commits (8be84eb9, 6c726e38, a02eefc7, 0256fd98, 1ca97940). Converted all enumerated hardcoded spacing in the three branches to inline `cqmin`; `type-check`/`eslint --max-warnings 0`/`prettier --check` clean, 11 Widget tests green. PR opened to dev-paul._
 
@@ -188,13 +200,6 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### LOW ClockWidget AM/PM badge has hardcoded ml-2 margin
-
-- **Detected:** 2026-07-18
-- **File:** components/widgets/ClockWidget/Widget.tsx:115
-- **Detail:** `<span className="opacity-70 ml-2 uppercase" style={{ fontSize: '0.25em' }}>` — the AM/PM badge uses `ml-2` (8px fixed left margin) to separate from the clock digits. The font size uses `em` (relative to the parent's `40cqmin`/`50cqmin` hero size, so it does scale), but the 8px margin is fixed.
-- **Fix:** Move `ml-2` to inline style using em to stay proportional to the badge's own text: `style={{ fontSize: '0.25em', marginLeft: '0.1em' }}`.
-
 ### LOW MathTools tab nav row container has hardcoded px-2 gap-1
 
 - **Detected:** 2026-07-18
@@ -266,6 +271,17 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW ClockWidget AM/PM badge has hardcoded ml-2 margin
+
+- **Detected:** 2026-07-18
+- **Completed:** 2026-08-05
+- **File:** components/widgets/ClockWidget/Widget.tsx:115
+- **Detail:** `<span className="opacity-70 ml-2 uppercase" style={{ fontSize: '0.25em' }}>` — the AM/PM badge used `ml-2` (8px fixed left margin) to separate from the clock digits. The font size already scaled via `em` (relative to the parent's `40cqmin`/`50cqmin` hero size), but the 8px margin stayed fixed, so on large/projected clock faces the badge sat proportionally too close to the digits.
+- **Selection rationale:** Wednesday run. Reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + today's weeklies (code-structure, ui-unification). Nothing In Progress anywhere. The only heading-level HIGH (code-structure `DashboardContext.tsx` extraction) is BLOCKED — needs a supervised runtime-verified session; every code-structure MEDIUM (34-files-over-1000-lines, DashboardContext seams) is BLOCKED, and the ui-unification MEDIUM (UrlConfigurationPanel) is runtime/maintainer-gated (needs a `gradeLabel` vs `name` label decision). widget-registry and typescript-eslint have no open items, so css-scaling (daily order 2) is the highest-priority journal with a safe actionable item — all its Open items are LOW and this is item 1 in document order. File-recency check passed: `ClockWidget/Widget.tsx` last touched at `81717cbf` (#2313), outside the last 5 branch commits.
+- **Resolution:** Moved `ml-2` off the className and onto the element's existing inline `style` as `marginLeft: '0.1em'` (per the journal's fix note), so the gap is proportional to the badge's own text size and scales with the clock hero. Font size (`0.25em`) unchanged; no other markup touched.
+- **Verification:** `pnpm run type-check` (exit 0), `pnpm exec eslint components/widgets/ClockWidget/Widget.tsx --max-warnings 0` (exit 0), `pnpm exec prettier --check` (clean), `ClockWidget/Widget.test.tsx` — 15 tests pass.
+- **PR:** opened against dev-paul.
 
 ### LOW ActivityWall three front-face view branches have hardcoded Tailwind spacing
 

@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-07-26_
+_Last audited: 2026-08-02_
 _Last action: never_
 
 ---
@@ -61,6 +61,20 @@ _Nothing currently in progress._
 ---
 
 ## Clean (no issues found)
+
+Migration code + dead exports + console.log audit (2026-08-02, re-verified):
+
+- Old type strings 'timer', 'stopwatch': Only in `utils/migration.ts:71-80` — correct.
+- Old type string 'workSymbols': Only in `utils/migration.ts:93` — correct.
+- `migrateLocalStorageToFirestore()`: Still actively called in `context/DashboardContext.tsx:2046`. Existing MEDIUM open item still valid.
+- New dev-paul commits since 2026-07-26: docs(admin) DashboardProvider note (4cacab05 — docs only); fix(schedule) events below list + keep settings open (0bda0ed1 — Schedule/Settings.tsx; new `isBuildingSyncEnabled` toggle is a live config field, not a dead export); docs commits — all UI/logic/docs with no new utility files introduced.
+- Commented-out code: Zero in components/, context/, hooks/, utils/.
+- console.log(): Zero in components/, context/, hooks/, utils/.
+- `useScaledFont.ts`: Still dead. Existing LOW open item still valid.
+- `videoActivityDriveService.ts`: Still no production imports. Existing LOW open item still valid.
+- `scripts/tools/`: Still present with 9 Python/Playwright scripts. Existing MEDIUM open item still valid.
+- `utils/imageProcessing.ts:109`: `console.warn` on success still present. Existing LOW open item still valid.
+- `utils/periodCompat.ts` — `buildPeriodFields`: Still no production imports (`resolvePeriodNames` is imported at `hooks/useQuizSession.ts:49` but `buildPeriodFields` is not). Existing LOW open item still valid.
 
 Migration code + dead exports + console.log audit (2026-07-26, re-verified):
 

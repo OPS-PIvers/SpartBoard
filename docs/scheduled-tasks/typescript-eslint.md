@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-01_
+_Last audited: 2026-08-07_
 _Last action: never_
 
 ---
@@ -15,6 +15,18 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-07: Checked (Friday daily). pnpm type-check exit 0 (0 TypeScript errors). pnpm lint exit 0 (0 ESLint errors, 0 warnings, --max-warnings 0, root + functions). New dev-paul commits since 2026-08-06: docs(rich-response) series (7 commits — docs-only spike; no TypeScript source changes, no ESLint surface changes). Codebase remains fully type-safe and lint-clean._
+
+_2026-08-06: Checked (Thursday daily). pnpm type-check exit 0 (0 TypeScript errors). pnpm lint exit 0 (0 ESLint errors, 0 warnings, --max-warnings 0, root + functions). No new dev-paul source commits since 2026-08-05 (scheduled-tasks branch carries only `package.json` + `pnpm-lock.yaml` changes from the @hono/node-server dependency override — no TypeScript surface changes). Codebase remains fully type-safe and lint-clean._
+
+_2026-08-05: Checked (Wednesday daily). pnpm type-check exit 0 (0 TypeScript errors). pnpm lint exit 0 (0 ESLint errors, 0 warnings, --max-warnings 0, root + functions). New dev-paul commits since 2026-08-04: docs(routines) nightly debugger run 35 (#2377 — docs only); nightly(build-tooling) paginate gcPlcOrphans (#2376 — functions/src only; confirmed clean by lint:functions pass); fix(admin) lowercase beta-user emails in FeaturePermissionsManager (#2375 — admin component; string transform, no new types or ESLint suppressions); nightly(state-data) clear stale data on org switch (#2374 — context/state; no new TS complexity); fix(common) stop Escape propagation in ActiveClassChip & FolderPickerPopover (#2373 — common components; event handler, type-safe); fix(RevealGrid) wire up dead "Set Generator" button (#2372 — RevealGrid/Settings.tsx back-face only; no front-face impact); pr-review 4 PRs (#2371 — docs only); deps/hono-cors-redos (#2370 — dependency patch; no TS surface changes); docs(unifier) run 49 (#2368 — docs only); fix(a11y) retrofit orphaned SettingsLabel group headings (#2367 — Settings.tsx back-face files only: Breathing, DiceWidget, HotspotImage, MaterialsWidget, NextUp). All new and modified code type-safe and lint-clean. Codebase remains fully type-safe and lint-clean._
+
+_2026-08-04: Checked (Tuesday daily). pnpm type-check exit 0 (0 TypeScript errors). pnpm lint exit 0 (0 ESLint errors, 0 warnings, --max-warnings 0, root + functions). New dev-paul commits since 2026-08-03: spike(pronunciation) #2363 and #2365 (spike docs only — no source code changes, no type or lint impact). Codebase remains fully type-safe and lint-clean._
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-08-03. TypeScript: 0 errors (exit 0). ESLint: 0 errors, 0 warnings (`--max-warnings 0`, both root and functions, exit 0). New dev-paul commits since 2026-08-02 absorbed via rebase: docs(spike) multilingual pronunciation plan (#2343 — 20 spike-doc commits; no source code changes, no type or lint impact). Codebase remains fully type-safe and lint-clean._
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-08-02. TypeScript: 0 errors (exit 0). ESLint: 0 errors, 0 warnings (`--max-warnings 0`, both root and functions, exit 0). New dev-paul commits since 2026-08-01 already on branch: docs(admin) DashboardProvider note (4cacab05 — docs only); fix(schedule) events below list (0bda0ed1 — Schedule/Settings.tsx back-face change; new `isBuildingSyncEnabled` toggle confirmed type-safe via type-check pass). Codebase remains fully type-safe and lint-clean._
 
 _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-08-01. TypeScript: 0 errors (exit 0). ESLint: 0 errors, 0 warnings (`--max-warnings 0`, both root and functions, exit 0). No new dev-paul commits since 2026-07-31 (scheduled-tasks branch; rebase not required). Codebase remains fully type-safe and lint-clean._
 

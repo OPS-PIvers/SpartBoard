@@ -312,6 +312,52 @@ describe('useOrgMembers', () => {
     ).rejects.toThrow(/No organization/);
   });
 
+  it('clears stale members when switching between two foreign orgs', async () => {
+    mockUseAuth.mockReturnValue({ user: { uid: 'super-admin' } });
+    const orgAMember: MemberRecord = { ...mockMember, email: 'org-a-only' };
+    const orgBMember: MemberRecord = { ...mockMember, email: 'org-b-only' };
+    const byOrg: Record<string, MemberRecord> = {
+      'org-a': orgAMember,
+      'org-b': orgBMember,
+    };
+    // collection() is called with (db, 'organizations', orgId, 'members');
+    // return the orgId so the snapshot mock can serve org-specific data.
+    mockCollection.mockImplementation(
+      (_db: unknown, _orgs: string, orgId: string) => orgId
+    );
+    mockOnSnapshot.mockImplementation(
+      (
+        ref: string,
+        onNext: (snap: {
+          docs: { id: string; data: () => MemberRecord }[];
+        }) => void
+      ) => {
+        const member = byOrg[ref];
+        queueMicrotask(() =>
+          onNext({ docs: [{ id: member.email, data: () => member }] })
+        );
+        return () => undefined;
+      }
+    );
+
+    const { result, rerender } = renderHook(
+      ({ orgId }: { orgId: string }) => useOrgMembers(orgId),
+      { initialProps: { orgId: 'org-a' } }
+    );
+    await waitFor(() => {
+      expect(result.current.members).toEqual([orgAMember]);
+    });
+
+    // Switch to org-b: org-a's members must be cleared immediately (not
+    // flashed under org-b's heading) before org-b's snapshot lands.
+    rerender({ orgId: 'org-b' });
+    expect(result.current.members).toEqual([]);
+    expect(result.current.users).toEqual([]);
+    await waitFor(() => {
+      expect(result.current.members).toEqual([orgBMember]);
+    });
+  });
+
   it('writes reject when orgId is null', async () => {
     mockUseAuth.mockReturnValue({ user: null });
     const { result } = renderHook(() => useOrgMembers(null));

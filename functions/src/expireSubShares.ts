@@ -30,13 +30,38 @@
  * district hasn't enabled it, and the GCP docs flag DWD as a
  * privilege-escalation risk because it lets the service account
  * impersonate any user including super-admins).
+ *
+ * PAGINATION: the expired-doc lookup PAGINATES (`startAfter` cursor on
+ * `orderBy('expiresAt').orderBy(FieldPath.documentId())`, mirroring the
+ * identical fix already applied to `gcPlcOrphans.ts` /
+ * `expireActivityWallShares.ts` / `finalizeIdleQuizAttempts.ts`) up to
+ * `MAX_SWEEP_PER_RUN` — a safety ceiling, not a page size. Docs held in the
+ * 7-day Drive-grant grace window are matched by the query but deliberately
+ * NOT deleted yet, so without pagination a single un-paginated `.limit()`
+ * page would keep re-fetching the SAME arbitrary doc-id-ordered slice every
+ * hour (a query with no explicit `orderBy` is NOT implicitly sorted by the
+ * inequality field — it falls back to document-id order, confirmed by the
+ * identical bug already found/fixed in `expireActivityWallShares.ts`,
+ * #2268). Once the count of matching-but-still-in-grace docs exceeded one
+ * page, any genuinely-older expired share whose doc id happened to sort
+ * past that page would never be reached by this sweep — permanently
+ * stranding its `driveGrants` past the intended 7-day grace window with no
+ * warning ever logged for it.
  */
 
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as admin from 'firebase-admin';
 
-/** Cap per-run delete count to keep one slow sweep from monopolising. */
-const MAX_DELETES_PER_RUN = 500;
+/**
+ * Overall safety ceiling on expired docs visited per run (per collection) —
+ * a runaway guard, NOT an expected limit. The fetch PAGINATES
+ * (`SWEEP_PAGE_SIZE` pages, `startAfter` cursor), so every expired doc up to
+ * this ceiling is visited every run — not just the first page.
+ */
+export const MAX_SWEEP_PER_RUN = 5000;
+
+/** Page size for the paginated expired-doc fetch (`startAfter` cursor). */
+export const SWEEP_PAGE_SIZE = 500;
 
 /** Days a doc with unrevoked grants is left in place for the client revoker. */
 const ORPHAN_GRACE_DAYS = 7;
@@ -63,6 +88,53 @@ interface SweepResult {
 }
 
 /**
+ * Paginates the "expired substitute share" query for one collection up to
+ * `MAX_SWEEP_PER_RUN`, `SWEEP_PAGE_SIZE` docs at a time, via a `startAfter`
+ * cursor on `orderBy('expiresAt').orderBy(FieldPath.documentId())` (the
+ * doc-id tiebreaker keeps pagination correct when multiple docs share an
+ * identical `expiresAt`). Docs held in the Drive-grant grace window are
+ * matched but not deleted, so without this cursor a single un-paginated page
+ * would keep re-fetching the same doc-id-ordered slice forever once the
+ * backlog exceeded one page — see the module header for the full history.
+ */
+async function fetchExpiredDocsPaginated(
+  db: FirebaseFirestore.Firestore,
+  collectionName: string,
+  now: number
+): Promise<ExpiredDocSnap[]> {
+  const results: ExpiredDocSnap[] = [];
+  let lastDoc: ExpiredDocSnap | undefined;
+  while (results.length < MAX_SWEEP_PER_RUN) {
+    const pageLimit = Math.min(
+      SWEEP_PAGE_SIZE,
+      MAX_SWEEP_PER_RUN - results.length
+    );
+    // Equality on intendedMode + range on expiresAt — requires a composite
+    // index on (intendedMode ASC, expiresAt ASC); declared in
+    // firestore.indexes.json for both collections.
+    let query = db
+      .collection(collectionName)
+      .where('intendedMode', '==', 'substitute')
+      .where('expiresAt', '<=', now)
+      .orderBy('expiresAt', 'asc')
+      .orderBy(admin.firestore.FieldPath.documentId())
+      .limit(pageLimit);
+    if (lastDoc) query = query.startAfter(lastDoc);
+    const page = await query.get();
+    if (page.empty) break;
+    results.push(...page.docs);
+    lastDoc = page.docs[page.docs.length - 1];
+    if (page.size < pageLimit) break;
+  }
+  if (results.length >= MAX_SWEEP_PER_RUN) {
+    console.warn(
+      `[expireSubShares] hit MAX_SWEEP_PER_RUN ceiling (${MAX_SWEEP_PER_RUN}) for ${collectionName} — raise it or shard the sweep`
+    );
+  }
+  return results;
+}
+
+/**
  * Sweep one substitute-share collection. `hostField` is the doc field holding
  * the host uid (`originalAuthor` on /shared_boards, `hostUid` on
  * /shared_collections) — only used for logging. When `deleteBoardsSubcollection`
@@ -75,17 +147,9 @@ async function sweepCollection(
   hostField: 'originalAuthor' | 'hostUid',
   deleteBoardsSubcollection: boolean
 ): Promise<SweepResult> {
-  // Equality on intendedMode + range on expiresAt — requires a composite
-  // index on (intendedMode ASC, expiresAt ASC); declared in
-  // firestore.indexes.json for both collections.
-  const snap = await db
-    .collection(collectionName)
-    .where('intendedMode', '==', 'substitute')
-    .where('expiresAt', '<=', now)
-    .limit(MAX_DELETES_PER_RUN)
-    .get();
+  const expiredDocs = await fetchExpiredDocsPaginated(db, collectionName, now);
 
-  if (snap.empty) {
+  if (expiredDocs.length === 0) {
     console.log(`[expireSubShares] no expired substitute ${collectionName}`);
     return { deleted: 0, inGrace: 0, orphanedGrants: 0 };
   }
@@ -97,7 +161,7 @@ async function sweepCollection(
   let stillInGrace = 0;
   let orphanedGrantCount = 0;
 
-  for (const doc of snap.docs) {
+  for (const doc of expiredDocs) {
     const data = doc.data() as SubstituteShareData & { hostUid?: string };
     const grants = Array.isArray(data.driveGrants) ? data.driveGrants : [];
     const expiredAt = typeof data.expiresAt === 'number' ? data.expiresAt : 0;
@@ -141,7 +205,7 @@ async function sweepCollection(
     // Collection shares — each with its own get() + batch-commit chain —
     // doesn't serialize toward the function timeout. The cap keeps us well
     // under Firestore's per-client connection limits rather than fanning out
-    // all (up to MAX_DELETES_PER_RUN) parents at once.
+    // all (up to MAX_SWEEP_PER_RUN) parents at once.
     const BOARD_CLEANUP_CONCURRENCY = 10;
     const boardBatchSize = 250;
     for (let i = 0; i < readyToDelete.length; i += BOARD_CLEANUP_CONCURRENCY) {
@@ -162,8 +226,8 @@ async function sweepCollection(
     }
   }
 
-  // Batched delete of parents. Firestore caps each batch at 500 ops which
-  // lines up with MAX_DELETES_PER_RUN; we still chunk defensively.
+  // Batched delete of parents. Firestore caps each batch at 500 ops, so we
+  // chunk defensively (readyToDelete can hold up to MAX_SWEEP_PER_RUN docs).
   const batchSize = 250;
   let deleted = 0;
   for (let i = 0; i < readyToDelete.length; i += batchSize) {
@@ -182,6 +246,54 @@ async function sweepCollection(
   return { deleted, inGrace: stillInGrace, orphanedGrants: orphanedGrantCount };
 }
 
+/**
+ * Core sweep, extracted from the scheduler wrapper so it can be exercised
+ * against a stub Firestore in tests (mirrors `runGcPlcOrphans` /
+ * `runExpireActivityWallShares` / `runFinalizeIdleQuizAttempts`).
+ */
+export async function runExpireSubShares(
+  db: FirebaseFirestore.Firestore,
+  now: number = Date.now()
+): Promise<{ boards: SweepResult; collections: SweepResult }> {
+  // Run both sweeps independently: a failure in one (Firestore quota, a
+  // batch-commit error, a missing index) must not abort the other and leave
+  // its expired shares un-reaped for the hour.
+  const [boardsResult, collectionsResult] = await Promise.allSettled([
+    sweepCollection(db, 'shared_boards', now, 'originalAuthor', false),
+    sweepCollection(db, 'shared_collections', now, 'hostUid', true),
+  ]);
+  const failures: unknown[] = [];
+  if (boardsResult.status === 'rejected') {
+    console.error(
+      '[expireSubShares] shared_boards sweep failed:',
+      boardsResult.reason
+    );
+    failures.push(boardsResult.reason);
+  }
+  if (collectionsResult.status === 'rejected') {
+    console.error(
+      '[expireSubShares] shared_collections sweep failed:',
+      collectionsResult.reason
+    );
+    failures.push(collectionsResult.reason);
+  }
+  // Both sweeps have already completed (allSettled above guarantees neither
+  // aborted the other), so re-throwing here is safe and surfaces a persistent
+  // failure as a failed invocation — an error metric that can drive a Cloud
+  // Monitoring alert — instead of a silent success that lets expired shares
+  // accumulate until someone notices the logs.
+  if (failures.length > 0) {
+    throw new Error(
+      `[expireSubShares] ${failures.length} sweep(s) failed; see logged reasons above.`
+    );
+  }
+  return {
+    boards: (boardsResult as PromiseFulfilledResult<SweepResult>).value,
+    collections: (collectionsResult as PromiseFulfilledResult<SweepResult>)
+      .value,
+  };
+}
+
 export const expireSubShares = onSchedule(
   {
     schedule: 'every 60 minutes',
@@ -191,39 +303,6 @@ export const expireSubShares = onSchedule(
   },
   async () => {
     const db = admin.firestore();
-    const now = Date.now();
-
-    // Run both sweeps independently: a failure in one (Firestore quota, a
-    // batch-commit error, a missing index) must not abort the other and leave
-    // its expired shares un-reaped for the hour.
-    const [boardsResult, collectionsResult] = await Promise.allSettled([
-      sweepCollection(db, 'shared_boards', now, 'originalAuthor', false),
-      sweepCollection(db, 'shared_collections', now, 'hostUid', true),
-    ]);
-    const failures: unknown[] = [];
-    if (boardsResult.status === 'rejected') {
-      console.error(
-        '[expireSubShares] shared_boards sweep failed:',
-        boardsResult.reason
-      );
-      failures.push(boardsResult.reason);
-    }
-    if (collectionsResult.status === 'rejected') {
-      console.error(
-        '[expireSubShares] shared_collections sweep failed:',
-        collectionsResult.reason
-      );
-      failures.push(collectionsResult.reason);
-    }
-    // Both sweeps have already completed (allSettled above guarantees neither
-    // aborted the other), so re-throwing here is safe and surfaces a persistent
-    // failure as a failed invocation — an error metric that can drive a Cloud
-    // Monitoring alert — instead of a silent success that lets expired shares
-    // accumulate until someone notices the logs.
-    if (failures.length > 0) {
-      throw new Error(
-        `[expireSubShares] ${failures.length} sweep(s) failed; see logged reasons above.`
-      );
-    }
+    await runExpireSubShares(db, Date.now());
   }
 );

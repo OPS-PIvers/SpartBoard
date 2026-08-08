@@ -207,6 +207,8 @@ const FolderRow: React.FC<FolderRowProps> = ({
     const handleKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (isEscapeFromWidgetInput(e)) return;
+      // Prevent DashboardView's global Escape handler from minimizing the focused widget (see #2266).
+      e.stopPropagation();
       onOpenMenu(null);
     };
     document.addEventListener('keydown', handleKey);

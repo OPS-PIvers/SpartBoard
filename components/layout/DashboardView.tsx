@@ -25,6 +25,7 @@ import { BoardNavFab } from './BoardNavFab';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
 import { MountedBoardsLayer } from './MountedBoardsLayer';
 import { CheatSheetModal } from '@/components/common/CheatSheetModal';
+import { useHasOpenModal } from '@/components/common/modalStore';
 import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
 import { BoardActionsFab } from './BoardActionsFab';
 import { clampZoom, ZOOM_DEFAULT } from '@/utils/zoomMapping';
@@ -414,6 +415,8 @@ export const DashboardView: React.FC = () => {
   rescueWidgetsRef.current = activeDashboard?.widgets;
   const updateWidgetRef = React.useRef(updateWidget);
   updateWidgetRef.current = updateWidget;
+  const hasOpenModalRef = React.useRef(false);
+  hasOpenModalRef.current = useHasOpenModal();
 
   // Stable callback — reads fresh values via refs, never recreated.
   // Pulls every widget into the world rectangle (the area visible at
@@ -893,6 +896,14 @@ export const DashboardView: React.FC = () => {
   // Keyboard Navigation
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // A portalled Modal (or anything nested inside one — a confirm/prompt
+      // dialog, an in-modal dropdown) owns Escape. Bail before any widget- or
+      // group-build handling so the modal's own handler runs unaffected. This
+      // must run before the group-build branch below, which would otherwise
+      // consume Escape (exiting group-build mode) and swallow it while a modal
+      // is open, leaving the modal stuck.
+      if (e.key === 'Escape' && hasOpenModalRef.current) return;
+
       // Escape: Exit group-build mode first (highest priority modal state).
       // Guard: if focus is inside a typing field, let the second Escape branch
       // handle it (blur the field) — don't exit group-build mode unexpectedly.

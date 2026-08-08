@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   computeEffectiveTimes,
+  computeFocusIndex,
   formatCountdown,
   getItemDurationSeconds,
   parseScheduleTime,
@@ -205,5 +206,54 @@ describe('formatCountdown', () => {
 
   it('clamps negative values to 0', () => {
     expect(formatCountdown(-10)).toBe('0:00');
+  });
+});
+
+describe('computeFocusIndex', () => {
+  const item = (task: string, done = false): ScheduleItem => ({ task, done });
+
+  it('returns the active item when it is not done', () => {
+    const items = [item('A', true), item('B'), item('C')];
+    expect(computeFocusIndex(items, 1)).toBe(1);
+  });
+
+  it('falls through to the first not-done item when the active one is checked off', () => {
+    // Teacher finished the active event early and checked it off.
+    const items = [item('A', true), item('B', true), item('C')];
+    expect(computeFocusIndex(items, 1)).toBe(2);
+  });
+
+  it('falls back to the first not-done item when nothing is active', () => {
+    // Before the first event starts, or in a gap between events.
+    const items = [item('A'), item('B')];
+    expect(computeFocusIndex(items, -1)).toBe(0);
+  });
+
+  it('skips leading done items when nothing is active', () => {
+    const items = [item('A', true), item('B', true), item('C')];
+    expect(computeFocusIndex(items, -1)).toBe(2);
+  });
+
+  it('returns -1 when every item is done', () => {
+    const items = [item('A', true), item('B', true)];
+    expect(computeFocusIndex(items, -1)).toBe(-1);
+    expect(computeFocusIndex(items, 0)).toBe(-1);
+  });
+
+  it('returns -1 for an empty schedule', () => {
+    expect(computeFocusIndex([], -1)).toBe(-1);
+    expect(computeFocusIndex([], 0)).toBe(-1);
+  });
+
+  it('ignores an out-of-range active index', () => {
+    // Guards against a stale activeIndex surviving a schedule edit that
+    // removed items.
+    const items = [item('A'), item('B')];
+    expect(computeFocusIndex(items, 9)).toBe(0);
+  });
+
+  it('treats a missing done flag as not done', () => {
+    const items: ScheduleItem[] = [{ task: 'A' }, { task: 'B' }];
+    expect(computeFocusIndex(items, 1)).toBe(1);
   });
 });

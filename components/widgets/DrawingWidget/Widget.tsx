@@ -51,6 +51,7 @@ import { DRAWING_DEFAULTS } from './constants';
 import { useDrawingCanvas } from './useDrawingCanvas';
 import { migrateDrawingConfig, nextZ } from '@/utils/migrateDrawingConfig';
 import { deleteDrawingPageSubcollection } from '@/utils/deleteDrawingPageSubcollection';
+import { hydrateDrawingPagesFromSubcollection } from '@/utils/hydrateDrawingPages';
 import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import type { DrawingPage } from '@/types';
@@ -725,6 +726,42 @@ export const DrawingWidget: React.FC<{
     return `Whiteboard-${timestamp}`;
   };
 
+  // Post-migration pages[].objects is empty; the active page uses live objects, every other page is read from Firestore.
+  const resolveExportPages = useCallback(async (): Promise<DrawingPage[]> => {
+    if (!config.subcollectionMigrated) {
+      // Pre-migration the dashboard doc is still the source of truth and
+      // `objects` IS `activePage.objects` (see the assignment above), so
+      // every page already carries its content. `renderPageToPng` copies
+      // before sorting, so handing it these arrays directly is safe.
+      return pages;
+    }
+    const uid = user?.uid;
+    if (!uid || !dashboardId) {
+      // Migrated but we can't address the subcollection — exporting now would
+      // silently produce blank pages, so fail loudly instead. The message
+      // deliberately avoids the word "blocked" so the PDF handler's pop-up
+      // blocker branch doesn't misclassify it.
+      throw new Error('Drawing content is unavailable for export.');
+    }
+    return hydrateDrawingPagesFromSubcollection({
+      db,
+      uid,
+      dashboardId,
+      widgetId: widget.id,
+      pages,
+      livePageId: activePage.id,
+      liveObjects: objects,
+    });
+  }, [
+    config.subcollectionMigrated,
+    pages,
+    activePage.id,
+    objects,
+    user?.uid,
+    dashboardId,
+    widget.id,
+  ]);
+
   const handleExportCurrentPng = async () => {
     closeExportMenu();
     try {
@@ -733,10 +770,16 @@ export const DrawingWidget: React.FC<{
       // (which lives as a CSS div on the live canvas) gets baked into pixels.
       // Selection chrome is never on the offscreen canvas so we don't need
       // to clear selection first.
-      const dataUrl = await exportPagePng(activePage, {
-        w: canvasSize.width,
-        h: canvasSize.height,
-      });
+      // `activePage.objects` is empty post-migration (denormalized cache) —
+      // splice in the live subcollection-backed `objects` so the export
+      // carries the strokes the teacher can see, not just the background.
+      const dataUrl = await exportPagePng(
+        { ...activePage, objects },
+        {
+          w: canvasSize.width,
+          h: canvasSize.height,
+        }
+      );
       downloadDataUrl(
         dataUrl,
         `${exportFilenameStem()}-page-${currentPage + 1}.png`
@@ -755,7 +798,7 @@ export const DrawingWidget: React.FC<{
     if (pages.length === 0) return;
     try {
       setIsExporting(true);
-      const dataUrls = await exportAllPagesPng(pages, {
+      const dataUrls = await exportAllPagesPng(await resolveExportPages(), {
         w: canvasSize.width,
         h: canvasSize.height,
       });
@@ -780,7 +823,10 @@ export const DrawingWidget: React.FC<{
       // PDF export goes through the browser print dialog (one-shot OS-level
       // "Save as PDF"); the dialog owns the final filename so we no longer
       // pass one in.
-      await exportPdf(pages, { w: canvasSize.width, h: canvasSize.height });
+      await exportPdf(await resolveExportPages(), {
+        w: canvasSize.width,
+        h: canvasSize.height,
+      });
     } catch (e) {
       console.error('PDF export failed:', e);
       const message =

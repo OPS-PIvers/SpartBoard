@@ -29,7 +29,7 @@ export const BetaUsersPanel: React.FC<BetaUsersPanelProps> = ({
     widgetType: WidgetType | InternalToolType,
     email: string
   ) => {
-    const trimmedEmail = email.trim();
+    const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail) return;
 
     // Basic email format validation
@@ -39,7 +39,9 @@ export const BetaUsersPanel: React.FC<BetaUsersPanelProps> = ({
       return;
     }
 
-    if (!permission.betaUsers.includes(trimmedEmail)) {
+    // Case-insensitive membership check so a legacy mixed-case entry (written
+    // before emails were normalized on add) doesn't slip past as a duplicate.
+    if (!permission.betaUsers.some((e) => e.toLowerCase() === trimmedEmail)) {
       updatePermission(widgetType, {
         betaUsers: [...permission.betaUsers, trimmedEmail],
       });
