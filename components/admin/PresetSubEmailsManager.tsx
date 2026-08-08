@@ -161,7 +161,9 @@ const BuildingPresetEditor: React.FC<{ buildingId: string }> = ({
     }
     // Normalize before dedup/store — Firestore and .includes() are case-sensitive.
     const normalized = trimmed.toLowerCase();
-    if (draftEmails.includes(normalized)) {
+    // Compare case-insensitively so legacy mixed-case entries loaded from
+    // Firestore (written before normalization) aren't re-added as duplicates.
+    if (draftEmails.some((e) => e.toLowerCase() === normalized)) {
       setEmailInput('');
       return;
     }
