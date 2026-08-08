@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-08-08_
-_Last action: 2026-08-05 — LOW ClockWidget AM/PM badge hardcoded `ml-2` (8px fixed left margin) replaced with proportional inline `marginLeft: '0.1em'`, so the badge separation scales with the clock hero size instead of staying pinned at 8px on large/projected displays_
+_Last action: 2026-08-08 — LOW MathTools tab-nav row hardcoded `px-2 gap-1` replaced with inline `cqmin` (`paddingLeft`/`paddingRight` `min(8px, 2cqmin)`, `gap` `min(4px, 1cqmin)`), so the tab row's side padding and inter-tab gaps scale with the widget container instead of staying fixed-pixel on large/projected displays_
 
 ---
 
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-08 (action): Resolved the LOW "MathTools tab nav row container has hardcoded px-2 gap-1" item (top of Open in document order; moved to Completed). Selection: Saturday run — reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + today's weeklies (code-structure C1, ui-unification C2). Nothing In Progress anywhere. The only heading-level HIGH (code-structure `DashboardContext.tsx` extraction) is BLOCKED; the surviving code-structure HIGH (organizations/buildings double-subscription) was already resolved 2026-07-24; every code-structure MEDIUM (34-files-over-1000-lines, DashboardContext seams) is BLOCKED; and every ui-unification MEDIUM is blocked/unsafe for an unattended pass (UrlConfigurationPanel gradeLabel-vs-name decision, MaterialsWidget/MusicWidget config-key migrations, segmented-control + font-options visual-regression batches needing runtime, nextUp/VA/GL appearance panel has a false premise). widget-registry and typescript-eslint have no open items, so css-scaling (daily order 2) is the highest-priority journal with a safe actionable item — its Open items are all LOW; item 1 in document order is this one. File-recency check passed: `MathTools/Widget.tsx` last touched at `c185cd6b` (2026-06-27), far outside the last 5 branch commits (6117f7d7, b4bdda03, d353eca8, 4241e883, d5c6043f). Converted the row's `px-2 gap-1` Tailwind classes to inline `cqmin` (`paddingLeft`/`paddingRight` `min(8px, 2cqmin)`, `gap` `min(4px, 1cqmin)`), merged with the existing `paddingBottom: '0'`. `pnpm type-check` (exit 0), `eslint --max-warnings 0` (exit 0), `prettier --check` (clean). PR opened to dev-paul._
 
 _2026-08-08: Targeted scan (Saturday daily). No new widget front-face source changes since 2026-08-07. Full-codebase scan produced 6 findings; all resolved against existing precedent: (1) MaterialsWidget `w-2 h-2` status-dot — WON'T FIX per decorative-dot precedent (same as Webcam/Soundboard, 2026-07-07 and 2026-07-24); (2–6) remaining findings were already-tracked open items (MathTools tab row px-2 gap-1, Onboarding gap-2, EmbedWidget portaled toolbar, RevealGrid spacing + text-xs, multi-widget group). Zero new anti-patterns. All pre-existing LOW open items confirmed present and unresolved._
 
@@ -202,13 +204,6 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### LOW MathTools tab nav row container has hardcoded px-2 gap-1
-
-- **Detected:** 2026-07-18
-- **File:** components/widgets/MathTools/Widget.tsx:169
-- **Detail:** `<div className="flex px-2 gap-1 overflow-x-auto no-scrollbar">` — the tab navigation row has `px-2` (8px side padding) and `gap-1` (4px between tabs) hardcoded. Individual tab buttons inside it correctly use inline `style={{ padding: 'min(6px, 1.2cqmin) min(12px, 2.5cqmin)', fontSize: 'min(10px, 3.8cqmin)' }}`, but the outer container spacing is not scaled.
-- **Fix:** `style={{ paddingLeft: 'min(8px, 2cqmin)', paddingRight: 'min(8px, 2cqmin)', gap: 'min(4px, 1cqmin)' }}` on the row div.
-
 ### LOW Onboarding widget Header.tsx has hardcoded gap-2 in header flex row
 
 - **Detected:** 2026-07-18
@@ -273,6 +268,15 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW MathTools tab nav row container has hardcoded px-2 gap-1
+
+- **Detected:** 2026-07-18
+- **Completed:** 2026-08-08
+- **File:** components/widgets/MathTools/Widget.tsx:169
+- **Detail:** `<div className="flex px-2 gap-1 overflow-x-auto no-scrollbar">` — the tab navigation row had `px-2` (8px side padding) and `gap-1` (4px between tabs) hardcoded. Individual tab buttons inside it already used inline `style={{ padding: 'min(6px, 1.2cqmin) min(12px, 2.5cqmin)', fontSize: 'min(10px, 3.8cqmin)' }}`, but the outer container spacing was not scaled, so on large/projected widget sizes the tab row's padding and inter-tab gaps stayed fixed-pixel while the tabs themselves grew.
+- **Selection rationale:** Saturday run. Reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + today's weeklies (code-structure C1, ui-unification C2). Nothing In Progress anywhere. The only heading-level HIGH (code-structure `DashboardContext.tsx` extraction) is BLOCKED; every code-structure MEDIUM (34-files-over-1000-lines, DashboardContext seams) is BLOCKED; every ui-unification MEDIUM is blocked/unsafe (config-key migrations, visual-regression batches needing runtime, false-premise appearance-panel item). widget-registry and typescript-eslint have no open items, so css-scaling (daily order 2) is the highest-priority journal with a safe actionable item — all Open items LOW, this is item 1 in document order. File-recency check passed: `MathTools/Widget.tsx` last touched at `c185cd6b` (2026-06-27), far outside the last 5 branch commits.
+- **Resolution:** Removed `px-2 gap-1` from the row `className` and moved the spacing onto the element's inline `style` as `paddingLeft`/`paddingRight` `min(8px, 2cqmin)` and `gap` `min(4px, 1cqmin)`, merged with the existing `paddingBottom: '0'` (per the journal's fix note). The row's padding and inter-tab gap now scale proportionally with the widget container. No other markup touched. `pnpm type-check` (exit 0), `eslint --max-warnings 0` (exit 0), `prettier --check` (clean).
 
 ### LOW ClockWidget AM/PM badge has hardcoded ml-2 margin
 
