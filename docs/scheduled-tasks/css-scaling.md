@@ -204,6 +204,14 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
+### LOW MathTools/Widget.tsx has additional hardcoded front-face spacing beyond the tab-nav row
+
+- **Detected:** 2026-08-08 (surfaced by the PR #2414 automated review while resolving the tab-nav `px-2 gap-1` item)
+- **File:** components/widgets/MathTools/Widget.tsx:149, :325, :345 (plus hairline note at :189)
+- **Detail:** Three hardcoded Tailwind spacing utilities remain in front-face content (`skipScaling: true`), each sitting next to a neighbor that already scales via `cqmin`, so the fixed-pixel gap drifts out of proportion at large/projected sizes: (1) line 149 — `pr-2` (8px) on the grade-filter `<select>` className provides clearance for the custom dropdown arrow whose `backgroundSize` scales at `min(8px, 2.5cqmin)`, so the arrow shrinks but its clearance does not; (2) line 325 — `mt-1.5` (6px) on the sticker-pieces card label span, while the emoji above scales at `min(28px, 9cqmin)` and the label font at `min(10px, 3.5cqmin)`; (3) line 345 — `gap-1.5` (6px) inside each sticker-piece sub-item button, while its emoji and text both scale via `cqmin`. All three are LOW (spacing only; no text-size legibility impact).
+- **Fix:** Convert each to inline `cqmin` per project pattern — e.g. line 149 `pr-2` → `paddingRight: 'min(8px, 2cqmin)'`; line 325 `mt-1.5` → `marginTop: 'min(6px, 1.5cqmin)'`; line 345 `gap-1.5` → `gap: 'min(6px, 1.5cqmin)'` on the button's existing inline style.
+- **Note (separate, lower confidence):** line 189 uses `marginBottom: '-1px'` to cover the active tab's bottom border. The reviewer raised a possible retina hairline on 2× displays where the parent `border-b` renders at a 0.5px physical boundary; a `marginBottom: '-2px'` + `paddingBottom: '1px'` (or `overflow: hidden` on the container) would be more snap-safe. Speculative / visual-verification-gated — not a confirmed anti-pattern; recorded for the auditor to evaluate, not auto-fix.
+
 ### LOW Onboarding widget Header.tsx has hardcoded gap-2 in header flex row
 
 - **Detected:** 2026-07-18
