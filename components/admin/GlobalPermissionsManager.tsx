@@ -211,15 +211,18 @@ const GEMINI_FEATURES: GlobalFeature[] = [
   'ai-file-context',
 ];
 
+// Keep in sync with `DEFAULT_ADVANCED_MODEL` / `DEFAULT_STANDARD_MODEL` in
+// `functions/src/aiGeneration.ts` — these are the values this picker writes to
+// `global_permissions/gemini-functions`, which override the server defaults.
 const KNOWN_GEMINI_MODELS = [
   {
-    value: 'gemini-3-flash-preview',
-    label: 'Gemini 3 Flash (Preview)',
+    value: 'gemini-3.6-flash',
+    label: 'Gemini 3.6 Flash',
     tier: 'advanced',
   },
   {
-    value: 'gemini-3.1-flash-lite-preview',
-    label: 'Gemini 3.1 Flash Lite (Preview)',
+    value: 'gemini-3.5-flash-lite',
+    label: 'Gemini 3.5 Flash Lite',
     tier: 'standard',
   },
   {
@@ -246,8 +249,8 @@ const KNOWN_GEMINI_MODELS = [
 
 const GEMINI_MODEL_REGEX = /^gemini-[\w.-]+$/;
 
-const DEFAULT_ADVANCED_MODEL = 'gemini-3-flash-preview';
-const DEFAULT_STANDARD_MODEL = 'gemini-3.1-flash-lite-preview';
+const DEFAULT_ADVANCED_MODEL = 'gemini-3.6-flash';
+const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
 
 /**
  * Shared UI for configuring Gemini model overrides on the `gemini-functions`

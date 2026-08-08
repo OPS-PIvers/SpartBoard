@@ -59,7 +59,6 @@ const h = vi.hoisted(() => ({
 vi.mock('./functionsInit', () => ({}));
 
 vi.mock('./secrets', () => ({
-  GEMINI_API_KEY: { value: () => 'gemini' },
   CLASSLINK_CLIENT_ID: { value: () => h.secretValues.classlinkClientId },
   CLASSLINK_CLIENT_SECRET: {
     value: () => h.secretValues.classlinkClientSecret,
