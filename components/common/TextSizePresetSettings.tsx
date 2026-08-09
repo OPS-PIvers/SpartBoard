@@ -29,6 +29,8 @@ export const TextSizePresetSettings: React.FC<TextSizePresetSettingsProps> = ({
   fallbackScale = 1,
   writeScaleMultiplier = false,
 }) => {
+  const textSizeLabelId = useId();
+
   const presetCandidate = config.textSizePreset;
   const scaleCandidate = config.scaleMultiplier;
 
@@ -38,8 +40,6 @@ export const TextSizePresetSettings: React.FC<TextSizePresetSettingsProps> = ({
       typeof scaleCandidate === 'number' ? scaleCandidate : fallbackScale
     );
 
-  const textSizeLabelId = useId();
-
   return (
     <div>
       <SettingsLabel icon={Type} as="span" id={textSizeLabelId}>
@@ -47,13 +47,15 @@ export const TextSizePresetSettings: React.FC<TextSizePresetSettingsProps> = ({
       </SettingsLabel>
       <div
         className="grid grid-cols-2 gap-2"
-        role="group"
+        role="radiogroup"
         aria-labelledby={textSizeLabelId}
       >
         {TEXT_SIZE_PRESETS.map((preset) => (
           <button
             type="button"
             key={preset.id}
+            role="radio"
+            aria-checked={selectedPreset === preset.id}
             onClick={() =>
               updateConfig({
                 textSizePreset: preset.id,
