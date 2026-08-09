@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
 _Last audited: 2026-08-09_
-_Last action: 2026-07-30 — MEDIUM RevealGrid `isMemoryMode` added to admin building config (BuildingRevealGridDefaults field + case 'reveal-grid' boolean guard + Game Mode toggle in RevealGridConfigurationPanel)_
+_Last action: 2026-08-09 — MEDIUM ConceptWeb `fontColor` dead control confirmed already resolved (out-of-band by commit 37ceb18f, 2026-08-07); moved to Completed. No new code needed (the 2026-08-09 Sunday audit re-confirmed it as still-open in error)._
 
 ---
 
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-09 action notes (Sunday): Selected the MEDIUM `ConceptWeb fontColor dead control` item — the single highest-priority Open across today's reading list (three dailies had no MEDIUM/HIGH: widget-registry none, typescript-eslint none, css-scaling all LOW; among Sunday weeklies D1 admin-settings-alignment outranks D2 legacy-cleanup, and this journal's lone MEDIUM ranked ahead of all 22 LOWs). Nothing In Progress anywhere. File-recency check on `ConceptWeb/Settings.tsx`: last touched at `37ceb18f` (2026-08-07) — and inspecting that commit revealed **the fix was already landed**: `fix(ConceptWeb): disable dead fontColor picker in appearance settings` passed `showColorPicker={false}` to `<TypographySettings />` at `Settings.tsx:119`, exactly the minimal fix this item recommended. Verified in the working tree: `Settings.tsx:116-120` renders `showColorPicker={false}`, and `grep -rn fontColor components/widgets/ConceptWeb/` returns zero hits (widget never consumes it). The commit is on dev-paul (and scheduled-tasks). It was tracked/resolved out-of-band via the ui-unification journal (its message: "Resolves the ui-unification.md MEDIUM item detected 2026-08-07"), so this journal was never updated — the 2026-08-09 Sunday audit re-confirmed it as still-open in error. No code needed; moved the item to Completed and corrected the record here. Next-highest Open (legacy-cleanup MEDIUMs) handled separately this run._
 
 _2026-08-09 audit notes (Sunday): Full cross-check of new dev-paul commits since 2026-08-02 and re-verification of all pre-existing open items. New commits since 2026-08-02: fix(pr-2412) case-insensitive dedup for preset sub emails (7a54826b — components/admin/PresetSubEmailsManager.tsx only; no widget config, no adminBuildingConfig, no ConfigurationPanel impact); docs(rich-response) series (b4bdda03/d5c6043f/1f4cdfc8/2305380b/961a4028/f4a20bc6 — docs-only; no source changes); fix: address PR #2412 review (d353eca8 — modal Escape guard, domain trim, beta-user dedup; admin components only; no widget config impact); fix(plc) clear stale directory entries on scope change (4883b6ab — hooks/usePlcBuildingDirectory.ts + utils/plcDirectorySubscriptionKey.ts; PLC directory hook, no adminBuildingConfig or ConfigurationPanel impact). None of these commits touch adminBuildingConfig.ts, any ConfigurationPanel, widget Settings.tsx files, or types.ts widget config interfaces. All 23 pre-existing open items re-confirmed still unresolved: MEDIUM ConceptWeb fontColor dead user-level control (detected 2026-07-05); 22 LOWs (Schedule isBuildingSyncEnabled, time-tool legacy fontFamily/clockStyle, clock case truthiness-check, TimeTool adjustStepSeconds, Checklist textSizePreset, Music no admin config, InstructionalRoutines no admin config, LunchCount no admin config, Expectations no admin config, SpecialistSchedule no admin config, Weather no admin config, SeatingChart 1-of-7 coverage, Countdown eventColor dead, Clock showSeconds, Checklist completedNames dead, SmartNotebook appearance dead, Checklist rosterMode, Drawing shapeFill, Scoreboard layout, guided-learning stub panel, NeedDoPutThen drawerSize dead, BloomsTaxonomy themeColor dead). No new items._
 
@@ -64,13 +66,6 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 - **File:** types.ts (`ScheduleConfig.isBuildingSyncEnabled` ~line 2369), components/widgets/Schedule/Settings.tsx:857, utils/adminBuildingConfig.ts (`case 'schedule'`), types.ts (`BuildingScheduleDefaults`), components/admin/ScheduleConfigurationPanel.tsx
 - **Detail:** `Schedule/Settings.tsx:857` exposes an `isBuildingSyncEnabled` toggle: `checked={config.isBuildingSyncEnabled ?? true}`. This controls whether the Schedule widget syncs from a building-level schedule. The field is defined in `ScheduleConfig` (types.ts:2369 — `isBuildingSyncEnabled?: boolean`). However, `BuildingScheduleDefaults` (extended in the 2026-07-26 HIGH fix to cover fontFamily/fontColor/textSizePreset/cardColor/cardOpacity/autoProgress/autoScroll) does NOT include `isBuildingSyncEnabled`. The `case 'schedule':` handler in `adminBuildingConfig.ts` does not extract it. `ScheduleConfigurationPanel.tsx` has no control for it. An admin cannot pre-configure whether new Schedule instances default to building-sync-enabled or disabled per building. Severity LOW: the field null-coalesces to `true`, so all new instances behave as sync-enabled regardless — only the "default to sync-off" use case is unserved.
 - **Fix:** Add `isBuildingSyncEnabled?: boolean` to `BuildingScheduleDefaults` in types.ts. Add `typeof raw.isBuildingSyncEnabled === 'boolean'` extraction to the `case 'schedule':` handler in `adminBuildingConfig.ts`. Add a "Building Sync" boolean toggle to `ScheduleConfigurationPanel.tsx` (following the autoProgress/autoScroll toggle pattern added in the 2026-07-26 HIGH fix).
-
-### MEDIUM ConceptWeb: user-level `fontColor` picker in Settings.tsx is a dead control
-
-- **Detected:** 2026-07-05
-- **File:** components/widgets/ConceptWeb/Settings.tsx:115-119, components/widgets/ConceptWeb/Widget.tsx
-- **Detail:** ConceptWeb/Settings.tsx renders `<TypographySettings ... />` without passing `showColorPicker={false}`, causing the shared component to render a font-color picker that writes `config.fontColor`. However, ConceptWeb/Widget.tsx hardcodes node text as `text-slate-800` and never reads `config.fontColor` — the control writes a value with no visual effect. This was noted in the 2026-06-04 Completed entry (admin-side fontColor intentionally not wired), but the user-facing Settings.tsx panel still shows the picker. Violates the Widget Appearance Standard: "Ensure front-face widgets actually consume settings values (no dead controls)."
-- **Fix:** Pass `showColorPicker={false}` to `<TypographySettings />` in `ConceptWeb/Settings.tsx` to hide the dead picker. Alternatively, wire consumption in `ConceptWeb/Widget.tsx` by applying `config.fontColor` to node text. The first option is the minimal correct fix.
 
 ### LOW Existing `time-tool` widgets carrying legacy `fontFamily: 'sans'` / `clockStyle: 'standard'` are not remediated
 
@@ -222,6 +217,15 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 ---
 
 ## Completed
+
+### MEDIUM ConceptWeb: user-level `fontColor` picker in Settings.tsx is a dead control
+
+- **Detected:** 2026-07-05
+- **Completed:** 2026-08-07 (landed) / 2026-08-09 (recorded here)
+- **File:** components/widgets/ConceptWeb/Settings.tsx (ConceptWebAppearanceSettings), components/widgets/ConceptWeb/Widget.tsx
+- **Detail:** `ConceptWebAppearanceSettings` rendered `<TypographySettings config={config} updateConfig={updateConfig} />` without `showColorPicker={false}`, so the shared component surfaced a font-color picker writing `config.fontColor`. `ConceptWeb/Widget.tsx` renders node text with hardcoded `text-slate-800` and never reads `config.fontColor`, so the picker was a dead control (write with no visual effect) — violating the Widget Appearance Standard ("no dead controls").
+- **Resolution:** Fixed out-of-band by commit `37ceb18f` (2026-08-07, `fix(ConceptWeb): disable dead fontColor picker in appearance settings`) — passed `showColorPicker={false}` to `<TypographySettings />` in `ConceptWeb/Settings.tsx:119`, exactly the minimal fix this Open entry recommended and matching the 2026-08-02 GraphicOrganizer resolution. No widget `fontColor` consumption was added (ConceptWeb node text is intentionally per-node hardcoded); any previously persisted `fontColor` values become harmless dead fields. The commit tracked itself against the ui-unification journal (message: "Resolves the ui-unification.md MEDIUM item detected 2026-08-07") and never updated this journal, so the 2026-08-09 Sunday audit re-confirmed it as still-open in error.
+- **Verification against dead-control anti-pattern:** `grep -rn fontColor components/widgets/ConceptWeb/` returns no hits (widget never consumes it), and `Settings.tsx:116-120` renders `showColorPicker={false}`. Commit `37ceb18f` is present on both dev-paul and scheduled-tasks. No new code was needed this run; the item was moved to Completed to correct the record.
 
 ### MEDIUM GraphicOrganizer: user-level `fontColor` picker in Settings.tsx is a dead control
 

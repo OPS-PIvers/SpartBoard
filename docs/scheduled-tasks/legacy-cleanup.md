@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
 _Last audited: 2026-08-09_
-_Last action: never_
+_Last action: 2026-08-09 — Deleted the entire `scripts/tools/` directory (9 stale Python/Playwright dev-session scripts, zero references anywhere, including `fix_buttons.py` which auto-edited widget source). Resolves the source-modification-risk portion of the "scripts/tools/\*.py" MEDIUM; the root `scripts/*.js` audit portion remains Open (narrowed)._
 
 ---
 
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-09 action notes (Sunday): The single highest-priority Open item across today's reading list (ConceptWeb `fontColor` MEDIUM in admin-settings-alignment D1) was found already resolved by commit 37ceb18f (2026-08-07) — moved to Completed there, no code needed. The next-highest genuinely-open MEDIUM was in this journal. Of this journal's two MEDIUMs, `migrateLocalStorageToFirestore` (document order first) is NOT safely actionable unattended — its fix requires auditing production Firestore/user-activity data to confirm the localStorage migration window has closed, or designing a Firestore-flag short-circuit that changes sign-in/migration behavior; both need runtime data and human judgment, so it stays Open. The `scripts/tools/*.py` MEDIUM was the highest-priority safely-actionable item: deleted the whole `scripts/tools/` directory (9 stale dev-session Python/Playwright scripts, `grep` confirmed zero references in package.json / .github/workflows / any .js/.ts/.mjs/.md source, and one script — `fix_buttons.py` — auto-edits `components/widgets/Breathing/BreathingWidget.tsx`, a standing source-modification hazard). Deleting `.py` files does not affect the TS build/lint/tests; `pnpm type-check` and `pnpm lint` re-run clean. The item's root `scripts/*.js` portion was split off into a narrowed LOW Open item (those are Firestore migration/backfill scripts that may still be operationally needed — unsafe to bulk-delete unattended). Moved the `scripts/tools/` portion to Completed. PR to dev-paul via the rolling scheduled-tasks PR (#2414)._
 
 ### MEDIUM `migrateLocalStorageToFirestore` still invoked on every sign-in — dead overhead if migration window has closed
 
@@ -30,12 +32,13 @@ _Nothing currently in progress._
 - **Detail:** `utils/periodCompat.ts` exports `buildPeriodFields` — a helper that constructs period-compatibility field structures. A search of `components/`, `hooks/`, `utils/` (excluding the file itself) finds zero production imports. The file also has no test file of its own. It may be a compatibility shim that was never wired in, or was made redundant by a refactor that didn't clean it up.
 - **Fix:** Verify no production import exists (confirmed by audit), then delete the export or the file. Run `pnpm type-check` and `pnpm lint` to verify clean.
 
-### MEDIUM scripts/tools/\*.py — 9 stale dev-session scripts including one that writes to source files
+### LOW root `scripts/*.js` — historical one-shot backfill/setup scripts sharing the stale-artifact pattern
 
-- **Detected:** 2026-04-16 (severity upgraded 2026-07-12)
-- **File:** scripts/tools/ (verify_routines_manager.py, verify_dock_icons.py, verify_routines.py, verify_lunch_count.py, refactor_manager.py, fix_buttons.py, inspect_buttons.py, debug_admin_settings.py, debug_landing.py)
-- **Detail:** The `scripts/tools/` directory contains 9 Python/Playwright scripts. All are stale dev-session artifacts. `fix_buttons.py` directly writes to `components/widgets/Breathing/BreathingWidget.tsx` — the fix was presumably applied long ago, but the script could accidentally re-apply it. `refactor_manager.py` reads from `FeaturePermissionsManager.tsx.bak`, a backup file that likely no longer exists; running it would silently fail or corrupt state. None are wired into any CI pipeline. Severity upgraded from LOW: a script that modifies source files in the working tree is a confusion/safety risk. **2026-07-26 supplement:** The root `scripts/` directory (distinct from `scripts/tools/`) also contains approximately 10 one-shot backfill/utility `.js` scripts beyond the CI helpers (`checkTestCounts.mjs`, `checkTestCounts.test.ts`, `test-count-baseline.json`) classified as ONGOING CI HELPER in 2026-07-05. These appear to be historical one-off data-migration and setup scripts. They lack the source-file-modification risk of `fix_buttons.py` but share the same stale-artifact pattern. Scope the eventual cleanup to cover both `scripts/tools/` and the root `scripts/` one-off `.js` files simultaneously.
-- **Fix:** Delete `scripts/tools/` directory entirely. Audit root `scripts/*.js` files (excluding CI helpers `checkTestCounts.mjs`, `setup-admins.js`, and `generate-version.mjs` which are wired into pnpm scripts) and delete stale one-shot backfill scripts. Ongoing E2E testing is handled by `tests/e2e/` via Playwright and pnpm test:e2e.
+- **Detected:** 2026-07-26 (split out 2026-08-09 from the resolved `scripts/tools/*.py` MEDIUM)
+- **File:** root `scripts/` (e.g. `backfill-feature-permission-building-keys.js`, `backfill-org-members.js`, `backfill-user-building-ids.js`, `backfill-user-dock-items.js`, `configure-invite-emails-flag.js`, `diagnose-building-ids.js`, `fix-empty-feature-permission-gradelevels.js`, `graduate-org-admin-writes-flag.js`, `init-global-perms.js`, `inspect-org-buildings.js`, `migrateAnnouncements.js`, `migratePlcContributions.js`, `recount-org-members.js`, `add-test-class.js`)
+- **Detail:** The root `scripts/` directory contains ~14 one-shot backfill/migration/setup `.js` scripts beyond the wired CI helpers (`generate-version.js`, `draft-changelog-entry.js`, `checkTestCounts.mjs` — all referenced in `package.json`; `setup-admins.js` referenced in docs). They share the stale-artifact pattern but, unlike the deleted `scripts/tools/*.py`, they do **not** modify source files in the working tree — they operate against Firestore. Several (org/building/PLC backfills, `graduate-org-admin-writes-flag.js`, `configure-invite-emails-flag.js`) are plausibly still operationally useful for onboarding new orgs or running one-time data migrations, so bulk deletion is unsafe for an unattended pass. Severity downgraded to LOW accordingly.
+- **Fix:** Requires human/operational judgment: for each root `scripts/*.js` that is not a wired CI helper, confirm the corresponding data migration/backfill has definitively completed (no orgs still need it) before deleting, or relocate finished one-shots to an archived/`legacy/` subfolder. Do NOT bulk-delete unattended. Wired helpers to preserve: `generate-version.js`, `draft-changelog-entry.js`, `checkTestCounts.mjs`, `setup-admins.js`.
+- **2026-08-09 note:** The higher-risk `scripts/tools/*.py` portion of the original MEDIUM (9 dev-session Playwright/debug scripts, one auto-editing `BreathingWidget.tsx`) was deleted this run — see Completed.
 
 ### LOW `hooks/useScaledFont.ts` — dead hook with no production imports
 
@@ -220,4 +223,13 @@ console.log() calls (2026-05-03): Zero `console.log()` calls in components/, con
 
 ## Completed
 
-_No completed items yet._
+### MEDIUM scripts/tools/\*.py — 9 stale dev-session scripts including one that writes to source files
+
+- **Detected:** 2026-04-16 (severity upgraded 2026-07-12)
+- **Completed:** 2026-08-09
+- **File:** scripts/tools/ (verify_routines_manager.py, verify_dock_icons.py, verify_routines.py, verify_lunch_count.py, refactor_manager.py, fix_buttons.py, inspect_buttons.py, debug_admin_settings.py, debug_landing.py)
+- **Detail:** The `scripts/tools/` directory held 9 Python/Playwright dev-session scripts, none wired into any CI pipeline. `fix_buttons.py` directly wrote to `components/widgets/Breathing/BreathingWidget.tsx` — a standing safety/confusion risk if accidentally re-run — and `refactor_manager.py` read from a `FeaturePermissionsManager.tsx.bak` backup that no longer exists. Severity had been upgraded to MEDIUM because a script that mutates source files in the working tree is a hazard.
+- **Resolution:** Deleted the entire `scripts/tools/` directory via `git rm -r scripts/tools/`. Pre-deletion verification: `grep -rn "scripts/tools"` and per-filename greps across `package.json`, `functions/package.json`, `.github/workflows/`, and all `.js`/`.ts`/`.mjs`/`.md` sources returned zero references (only this journal mentioned them). Deleting `.py` files does not touch the TypeScript build, ESLint, or the test suites; `pnpm type-check` and `pnpm lint` remain clean. Ongoing E2E coverage is provided by `tests/e2e/` (Playwright + `pnpm test:e2e`), unaffected.
+- **Scope note:** Only the `scripts/tools/*.py` portion of the original combined item is resolved here. The root `scripts/*.js` one-shot backfill/migration scripts (a distinct, lower-risk set that operates against Firestore and may still be operationally needed) were split into a separate narrowed LOW Open item rather than bulk-deleted unattended.
+
+_No other completed items yet._
