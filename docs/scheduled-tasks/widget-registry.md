@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-07_
+_Last audited: 2026-08-09_
 _Last action: 2026-06-25_
 
 ---
@@ -15,6 +15,10 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-09: Full audit (Sunday daily). New dev-paul commits since 2026-08-08: fix(pr-2412) case-insensitive dedup for preset sub emails (7a54826b — components/admin/PresetSubEmailsManager.tsx only; no WidgetType changes); docs(rich-response) series (b4bdda03, d5c6043f, 1f4cdfc8, 2305380b, 961a4028, f4a20bc6 — docs-only spike; no widget source changes); fix: address PR #2412 review (d353eca8 — admin components only); fix(plc) clear stale directory entries on scope change (4883b6ab — hooks/usePlcBuildingDirectory.ts + new utils/plcDirectorySubscriptionKey.ts; no WidgetType changes). VERIFIED COUNT: 63 WidgetType members (unchanged — consistent with all prior runs). All 63 WidgetTypes correctly registered across all 7 locations (WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, config/tools.ts, config/widgetDefaults.ts, config/widgetGradeLevels.ts). All intentional omissions re-confirmed: sticker intentional WidgetRenderer special-case per JSDoc; 7 intentional tools.ts omissions (catalyst-instruction, catalyst-visual, blooms-detail, mathTool, custom-widget, onboarding, sticker); 3 InternalToolType entries (magic, record, remote) documented. pnpm type-check (exit 0). pnpm lint (exit 0). Zero new gaps._
+
+_2026-08-08: Full audit (Saturday daily). New dev-paul commits since 2026-08-07: none detected (docs(rich-response) series was the last known change; no new widget, WidgetType, or WidgetRegistry source changes since that series). VERIFIED COUNT: 63 WidgetType members (unchanged — consistent with all prior runs). All 63 WidgetTypes correctly registered across all 7 locations (WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, config/tools.ts, config/widgetDefaults.ts, config/widgetGradeLevels.ts). All intentional omissions re-confirmed: sticker intentional WidgetRenderer special-case per JSDoc; 7 intentional tools.ts omissions (catalyst-instruction, catalyst-visual, blooms-detail, mathTool, custom-widget, onboarding, sticker); 3 InternalToolType entries (magic, record, remote) documented. 15+ lazyNamed() export names spot-checked — zero mismatches. pnpm type-check (exit 0). pnpm lint (exit 0). Zero new gaps._
 
 _2026-08-07: Full audit (Friday daily). New dev-paul commits since 2026-08-06: docs(rich-response) series (7 commits — docs-only spike; no WidgetType, WidgetRegistry, or widget source changes). VERIFIED COUNT: 63 WidgetType members (unchanged — consistent with all prior runs). All 63 WidgetTypes correctly registered across all 7 locations (WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, config/tools.ts, config/widgetDefaults.ts, config/widgetGradeLevels.ts). All intentional omissions re-confirmed: sticker intentional WidgetRenderer special-case per JSDoc; 7 intentional tools.ts omissions (catalyst-instruction, catalyst-visual, blooms-detail, mathTool, custom-widget, onboarding, sticker); 3 InternalToolType entries (magic, record, remote) documented. pnpm type-check (exit 0). pnpm lint (exit 0). Zero new gaps._
 

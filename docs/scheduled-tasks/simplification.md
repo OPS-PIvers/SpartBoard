@@ -54,6 +54,13 @@ _Nothing currently in progress._
 - **Detail:** The ternary `val === 'all' ? 'All' : val === 'on' ? 'On' : 'Off'` appears verbatim in three separate admin files. Each is a standalone expression with no shared helper. Separately, `DraggableWindow.tsx` contains a 4-deep nested ternary for corner-position CSS assignment that is duplicated in two places within the same component.
 - **Fix:** For the three-file ternary, extract to a shared `formatPermissionValue` (or `displayAccessLevel`) utility and import from a common location. For the `DraggableWindow` corner ternary, extract to a local `getCornerClass(position)` helper within the file. Both are mechanical extractions with no behavior change.
 
+### LOW `MathTools/Widget.tsx` tool-label hover color is a dead ternary — both branches identical (missed purple/indigo theming)
+
+- **Detected:** 2026-08-08 (surfaced by the PR #2414 automated review)
+- **Files:** components/widgets/MathTools/Widget.tsx:283-285
+- **Detail:** The tool-label `<span>` picks its hover color with `activeSection.mode === 'sticker-whole' ? 'text-slate-600 group-hover:text-brand-blue-dark' : 'text-slate-600 group-hover:text-brand-blue-dark'` — both branches are the identical string, so the conditional has no effect. The intent was almost certainly to match the sibling card-border theming just above (lines 265-267), which correctly diverges: `hover:border-purple-300` for `sticker-whole` vs `hover:border-indigo-300` for `interactive`. As-is the label hover stays brand-blue for both modes, so interactive-mode buttons get a hover color that clashes with their indigo card theme.
+- **Fix — needs a design decision (NOT a safe unattended auto-fix):** Two divergent intents are possible: (a) collapse the dead ternary to the single string (accept brand-blue for both, byte-identical behavior — pure simplification), or (b) implement the missed theming so the label hover matches the card border per mode (e.g. `group-hover:text-purple-700` for `sticker-whole`, `group-hover:text-indigo-700` for `interactive`) — a visual change requiring maintainer/design sign-off on the exact colors. Because (b) changes rendered output and the "correct" colors are a judgment call, this was left for a supervised pass rather than auto-fixed on the css-scaling PR (#2414) that surfaced it.
+
 ### LOW `TimeTool/useTimeTool.ts` uses 6 `as WidgetConfig` casts on partial update objects
 
 - **Detected:** 2026-07-22
