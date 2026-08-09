@@ -62,6 +62,7 @@ import {
   SOFT_DELETE_SUBCOLLECTIONS,
   PLC_PAGE_SIZE,
   GROUP_PAGE_SIZE,
+  CATEGORY_PAGE_SIZE,
 } from './gcPlcOrphans';
 
 // ===========================================================================
@@ -591,6 +592,73 @@ describe('runGcPlcOrphans — synced-group pagination past the first page', () =
     expect(counts.versionOverflow).toBe(3);
     const targetDoc = root.synced_quizzes.find((d) => d.id === 'zzz-target')!;
     expect(targetDoc.sub!.versions).toHaveLength(VERSION_HISTORY_LIMIT);
+  });
+});
+
+describe('runGcPlcOrphans — per-PLC category pagination past the first page', () => {
+  // Before the fix, `sweepPlc` read each of activity / presence / every
+  // soft-delete subcollection with a single un-paginated `.limit(500).get()`
+  // and NO `orderBy` — so once a subcollection held more than 500 docs, the
+  // fetched page was an arbitrary (doc-id-ordered, age-unrelated) slice, and
+  // any doc outside that slice was silently never visited by any run, ever.
+  // This is the identical bug class already fixed for cross-PLC iteration
+  // (PLC_PAGE_SIZE) and the synced-group sweep (GROUP_PAGE_SIZE), one level
+  // deeper: inside a single PLC's own subcollections.
+
+  it('sweeps stale activity beyond the first category page, not just the first 500 docs', async () => {
+    // 500 fresh docs with doc ids sorting BEFORE the stale one, so they fill
+    // the entire first page and push the genuinely-stale doc out of it.
+    const fresh = Array.from({ length: CATEGORY_PAGE_SIZE }, (_, i) => ({
+      id: `fresh-${String(i).padStart(6, '0')}`,
+      data: { createdAt: NOW - 1 * day },
+    }));
+    const stale = { id: 'zzz-stale', data: { createdAt: NOW - 120 * day } };
+    const { db, root } = makeStubDb({
+      plcs: [{ id: 'plc-1', data: {}, sub: { activity: [...fresh, stale] } }],
+    });
+
+    const counts = await runGcPlcOrphans(db, NOW);
+
+    expect(counts.activity).toBe(1);
+    const remaining = root.plcs[0].sub!.activity.map((d) => d.id);
+    expect(remaining).not.toContain('zzz-stale');
+  });
+
+  it('sweeps stale presence beyond the first category page, not just the first 500 docs', async () => {
+    const fresh = Array.from({ length: CATEGORY_PAGE_SIZE }, (_, i) => ({
+      id: `fresh-${String(i).padStart(6, '0')}`,
+      data: { lastActiveAt: NOW - 60 * 1000 },
+    }));
+    const stale = {
+      id: 'zzz-stale',
+      data: { lastActiveAt: NOW - 10 * 60 * 1000 },
+    };
+    const { db, root } = makeStubDb({
+      plcs: [{ id: 'plc-1', data: {}, sub: { presence: [...fresh, stale] } }],
+    });
+
+    const counts = await runGcPlcOrphans(db, NOW);
+
+    expect(counts.presence).toBe(1);
+    const remaining = root.plcs[0].sub!.presence.map((d) => d.id);
+    expect(remaining).not.toContain('zzz-stale');
+  });
+
+  it('hard-deletes an expired tombstone beyond the first category page, not just the first 500 docs', async () => {
+    const fresh = Array.from({ length: CATEGORY_PAGE_SIZE }, (_, i) => ({
+      id: `fresh-${String(i).padStart(6, '0')}`,
+      data: { deletedAt: null },
+    }));
+    const expired = { id: 'zzz-stale', data: { deletedAt: NOW - 40 * day } };
+    const { db, root } = makeStubDb({
+      plcs: [{ id: 'plc-1', data: {}, sub: { notes: [...fresh, expired] } }],
+    });
+
+    const counts = await runGcPlcOrphans(db, NOW);
+
+    expect(counts.tombstones).toBe(1);
+    const remaining = root.plcs[0].sub!.notes.map((d) => d.id);
+    expect(remaining).not.toContain('zzz-stale');
   });
 });
 

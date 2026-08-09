@@ -1,0 +1,13 @@
+# Model artifacts — downloaded, not committed (~2.3 GB across four
+# quantizations). Fetch with the commands in RESULTS.md ("Reproducing").
+model/
+*.onnx
+vocab.json
+preprocessor_config.json
+config.json
+
+# Local virtualenv, if created here rather than alongside.
+venv/
+
+# Python bytecode from the harness.
+__pycache__/

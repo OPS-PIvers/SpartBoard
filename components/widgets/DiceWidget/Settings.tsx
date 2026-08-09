@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, DiceConfig } from '@/types';
 import { Dices, Hash, Palette, Circle } from 'lucide-react';
@@ -9,6 +9,7 @@ export const DiceSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const config = widget.config as DiceConfig;
   const { updateWidget } = useDashboard();
   const count = config.count ?? 1;
+  const diceCountLabelId = useId();
 
   const updateConfig = (updates: Partial<DiceConfig>) => {
     updateWidget(widget.id, {
@@ -19,8 +20,14 @@ export const DiceSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   return (
     <div className="space-y-6">
       <div>
-        <SettingsLabel icon={Hash}>Number of Dice</SettingsLabel>
-        <div className="grid grid-cols-3 gap-2">
+        <SettingsLabel as="span" id={diceCountLabelId} icon={Hash}>
+          Number of Dice
+        </SettingsLabel>
+        <div
+          className="grid grid-cols-3 gap-2"
+          role="group"
+          aria-labelledby={diceCountLabelId}
+        >
           {[1, 2, 3, 4, 5, 6].map((n) => (
             <button
               key={n}

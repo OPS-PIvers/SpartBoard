@@ -159,11 +159,15 @@ const BuildingPresetEditor: React.FC<{ buildingId: string }> = ({
       setError('Must end with @orono.k12.mn.us');
       return;
     }
-    if (draftEmails.includes(trimmed)) {
+    // Normalize before dedup/store — Firestore and .includes() are case-sensitive.
+    const normalized = trimmed.toLowerCase();
+    // Compare case-insensitively so legacy mixed-case entries loaded from
+    // Firestore (written before normalization) aren't re-added as duplicates.
+    if (draftEmails.some((e) => e.toLowerCase() === normalized)) {
       setEmailInput('');
       return;
     }
-    setDraftEmails((prev) => [...prev, trimmed]);
+    setDraftEmails((prev) => [...prev, normalized]);
     setEmailInput('');
     setError(null);
   };

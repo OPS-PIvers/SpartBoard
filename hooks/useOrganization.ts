@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
+import { useOrgSubscriptionReset } from '@/hooks/useOrgSubscriptionReset';
 import type { OrgRecord } from '@/types/organization';
 
 /**
@@ -22,16 +23,13 @@ export const useOrganization = (orgId: string | null) => {
   const shouldSubscribe = !isAuthBypass && Boolean(user) && Boolean(orgId);
   const [loading, setLoading] = useState<boolean>(shouldSubscribe);
 
-  const [prevKey, setPrevKey] = useState(`${shouldSubscribe}:${orgId ?? ''}`);
-  const nextKey = `${shouldSubscribe}:${orgId ?? ''}`;
-  if (prevKey !== nextKey) {
-    setPrevKey(nextKey);
+  useOrgSubscriptionReset(shouldSubscribe, orgId, (shouldClear) => {
     setLoading(shouldSubscribe);
-    if (!shouldSubscribe) {
+    if (shouldClear) {
       setOrganization(null);
       setError(null);
     }
-  }
+  });
 
   useEffect(() => {
     if (!shouldSubscribe || !orgId) return;

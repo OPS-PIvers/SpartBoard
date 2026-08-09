@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { WidgetData, MaterialsConfig, MaterialsGlobalConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { getMaterialsCatalog } from './constants';
@@ -15,6 +15,7 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
   const { featurePermissions } = useAuth();
   const buildingId = useWidgetBuildingId(widget);
   const config = widget.config as MaterialsConfig;
+  const availableMaterialsLabelId = useId();
   const {
     selectedItems = [],
     activeItems = [],
@@ -165,7 +166,13 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
       {/* Item Selection */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <SettingsLabel className="mb-0">Available Materials</SettingsLabel>
+          <SettingsLabel
+            as="span"
+            id={availableMaterialsLabelId}
+            className="mb-0"
+          >
+            Available Materials
+          </SettingsLabel>
           <button
             onClick={toggleAll}
             className="text-xs text-blue-600 font-bold hover:underline"
@@ -174,7 +181,11 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[250px] overflow-y-auto pr-1">
+        <div
+          className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[250px] overflow-y-auto pr-1"
+          role="group"
+          aria-labelledby={availableMaterialsLabelId}
+        >
           {materialsCatalog.map((item) => {
             const isSelected = selectedSet.has(item.id);
             return (

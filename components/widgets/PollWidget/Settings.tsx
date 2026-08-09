@@ -321,8 +321,14 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
       {/* Actions */}
       <div className="pt-4 border-t border-slate-100">
-        <SettingsLabel>Actions</SettingsLabel>
-        <div className="grid grid-cols-2 gap-3">
+        <SettingsLabel as="span" id={`pollwidget-actions-label-${widget.id}`}>
+          Actions
+        </SettingsLabel>
+        <div
+          className="grid grid-cols-2 gap-3"
+          role="group"
+          aria-labelledby={`pollwidget-actions-label-${widget.id}`}
+        >
           <Button
             variant="secondary"
             onClick={handleReset}

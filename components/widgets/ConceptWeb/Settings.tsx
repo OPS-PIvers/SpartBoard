@@ -113,7 +113,11 @@ export const ConceptWebAppearanceSettings: React.FC<WidgetComponentProps> = ({
 
   return (
     <div className="space-y-6">
-      <TypographySettings config={config} updateConfig={updateConfig} />
+      <TypographySettings
+        config={config}
+        updateConfig={updateConfig}
+        showColorPicker={false}
+      />
       <SurfaceColorSettings config={config} updateConfig={updateConfig} />
     </div>
   );

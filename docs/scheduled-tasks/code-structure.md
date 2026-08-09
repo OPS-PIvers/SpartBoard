@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-08-01_
+_Last audited: 2026-08-07_
 _Last action: 2026-07-24 — HIGH `organizations/{orgId}/buildings` double-subscription resolved: `useOrgBuildings` reuses AuthContext's `orgBuildings` for the active org instead of opening a second listener_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-07: Friday audit pass (weekly C1). New dev-paul commits since 2026-08-01: docs(rich-response) series (7 commits — docs-only spike; no source changes to context/, functions/src/, utils/, or config/). DashboardContext.tsx confirmed still at **5,865 lines** (unchanged — HIGH BLOCKED status unchanged). All pre-existing open items re-confirmed valid and unresolved: HIGH DashboardContext extraction BLOCKED; MEDIUM 34+ files >1000 lines BLOCKED; LOW duplicate constants (`validTextSizePresets` in 3 switch cases + `checklist` isGlobalFontFamily inconsistency); LOW 27 Cloud Functions lack explicit memory config + `generateWithAI` lacks `timeoutSeconds` + 5 Firestore-triggered functions lack options object; LOW `videoActivityDriveService.ts` zero production imports; LOW `mockGuidedLearningDriveService.ts` in wrong directory; LOW double-getDoc on `userProfile/profile` (AuthContext + DashboardContext); LOW gen1 logger import in `finalizeIdleQuizAttempts.ts`; LOW OAuth Cloud Functions missing `timeoutSeconds`; LOW single-consumer utils list. Zero new open items._
 
 _2026-08-01: Saturday audit pass (weekly C1). No new dev-paul commits since 2026-07-31 (scheduled-tasks branch; rebase not required). DashboardContext.tsx confirmed still at **5,865 lines** (unchanged — HIGH BLOCKED status unchanged). Agent scan of large files, adminBuildingConfig.ts, Cloud Functions, cross-context data fetching, deep relative imports, and single-consumer utils. EXTENSION to LOW duplicate-constants item: `validTextSizePresets` is now declared in **three** separate switch cases (not two as previously noted) — the 2026-07-27 rename of `validScheduleTextSizePresets` → `validTextSizePresets` in the `schedule` case added a third declaration site alongside `need-do-put-then` and `work-symbols`; detail text updated to reflect this. ADDITIONAL extension to same item: `checklist` case uses `isGlobalFontFamily` for its `fontFamily` validator while every other widget case uses `isWidgetFontFamily` — semantic inconsistency (bare `GlobalFontFamily` values vs `font-*` prefixed IDs) that could silently accept values the Checklist font picker never writes. EXTENSION to LOW Cloud Functions memory item: function count updated **17 → 27** (new functions added since 2026-07-24 audit). Additionally, 5 Firestore-triggered functions (`organizationMembersSync`, `organizationMemberCounters`, `organizationBuildingCounters`, `plcInvitationEmail`, `rolloutRequestEmail`) pass **no options object at all** — global `setGlobalOptions` does not apply to non-HTTP trigger functions, so these have no region, memory, or timeout configuration explicit in code. `generateWithAI` also lacks `timeoutSeconds` despite making external HTTP calls to the Gemini API; detail updated below. Deep relative imports: CLEAN. Cross-context Firestore: no new redundant fetches. `videoActivityDriveService.ts` zero-production-imports: confirmed still open. 0 new open items; 2 existing items extended._
 
