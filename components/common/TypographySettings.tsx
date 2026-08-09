@@ -36,15 +36,14 @@ export const TypographySettings = <
         </SettingsLabel>
         <div
           className="grid grid-cols-4 gap-2"
-          role="radiogroup"
+          role="group"
           aria-labelledby={typographyLabelId}
         >
           {FONTS.map((f) => (
             <button
               key={f.id}
               type="button"
-              role="radio"
-              aria-checked={fontFamily === f.id}
+              aria-pressed={fontFamily === f.id}
               onClick={() =>
                 updateConfig({
                   // 'global' is a sentinel meaning "inherit dashboard font".
@@ -78,15 +77,14 @@ export const TypographySettings = <
           </SettingsLabel>
           <div
             className="flex flex-wrap gap-2 px-1 mb-2"
-            role="radiogroup"
+            role="group"
             aria-labelledby={textColorLabelId}
           >
             {TEXT_COLOR_PRESETS.map((color) => (
               <button
                 key={color}
                 type="button"
-                role="radio"
-                aria-checked={fontColor === color}
+                aria-pressed={fontColor === color}
                 onClick={() => updateConfig({ fontColor: color } as Partial<T>)}
                 className={`w-6 h-6 rounded-full border-2 transition hover:scale-110 ${
                   fontColor === color

@@ -1,7 +1,7 @@
 import React, { useId } from 'react';
 import { Type } from 'lucide-react';
 import { SettingsLabel } from './SettingsLabel';
-import { TEXT_SIZE_PRESETS } from '@/config/widgetAppearance';
+import { TEXT_SIZE_PRESETS, presetFromScale } from '@/config/widgetAppearance';
 import type { TextSizePreset } from '@/types';
 
 interface PresetConfig {
@@ -16,13 +16,6 @@ interface TextSizePresetSettingsProps {
   writeScaleMultiplier?: boolean;
 }
 
-const scaleToPreset = (scale: number): TextSizePreset => {
-  if (scale <= 0.92) return 'small';
-  if (scale >= 1.32) return 'x-large';
-  if (scale >= 1.1) return 'large';
-  return 'medium';
-};
-
 export const TextSizePresetSettings: React.FC<TextSizePresetSettingsProps> = ({
   config,
   updateConfig,
@@ -36,7 +29,7 @@ export const TextSizePresetSettings: React.FC<TextSizePresetSettingsProps> = ({
 
   const selectedPreset: TextSizePreset =
     presetCandidate ??
-    scaleToPreset(
+    presetFromScale(
       typeof scaleCandidate === 'number' ? scaleCandidate : fallbackScale
     );
 
@@ -47,15 +40,14 @@ export const TextSizePresetSettings: React.FC<TextSizePresetSettingsProps> = ({
       </SettingsLabel>
       <div
         className="grid grid-cols-2 gap-2"
-        role="radiogroup"
+        role="group"
         aria-labelledby={textSizeLabelId}
       >
         {TEXT_SIZE_PRESETS.map((preset) => (
           <button
             type="button"
             key={preset.id}
-            role="radio"
-            aria-checked={selectedPreset === preset.id}
+            aria-pressed={selectedPreset === preset.id}
             onClick={() =>
               updateConfig({
                 textSizePreset: preset.id,
