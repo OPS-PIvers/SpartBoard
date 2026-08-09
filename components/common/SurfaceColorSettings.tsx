@@ -78,7 +78,7 @@ export const SurfaceColorSettings = <
               } as Partial<T>)
             }
             className="w-full accent-indigo-600"
-            aria-label="Surface opacity"
+            aria-label={`${label} opacity`}
           />
         </div>
       </div>
