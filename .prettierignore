@@ -16,3 +16,10 @@ playwright-report/
 .claude/workflows
 .Jules/admin-widget-config_implementation.md
 tests/perf/results/
+# Append-only nightly automation logs: prettier's GFM table alignment pads
+# every cell in a column to match the widest cell, and these tables grow
+# large rows over hundreds of runs, ballooning file size (1MB+) and causing
+# tool read-truncation on long ranges. Content isn't hand-formatted for
+# review, so table alignment provides no benefit here.
+docs/routines/*.md
+docs/scheduled-tasks/*.md
