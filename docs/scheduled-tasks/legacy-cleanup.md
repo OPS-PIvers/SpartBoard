@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-08-02_
+_Last audited: 2026-08-09_
 _Last action: never_
 
 ---
@@ -61,6 +61,20 @@ _Nothing currently in progress._
 ---
 
 ## Clean (no issues found)
+
+Migration code + dead exports + console.log audit (2026-08-09, re-verified):
+
+- Old type strings 'timer', 'stopwatch': Only in `utils/migration.ts:71-80` — correct.
+- Old type string 'workSymbols': Only in `utils/migration.ts:93` — correct.
+- `migrateLocalStorageToFirestore()`: Still actively called in `context/DashboardContext.tsx:2046`. Existing MEDIUM open item still valid.
+- New dev-paul commits since 2026-08-02: fix(pr-2412) case-insensitive dedup for preset sub emails (components/admin/PresetSubEmailsManager.tsx — 4-line change; no new utility files, no dead exports); docs(rich-response) series (docs only); fix: address PR review (modal Escape guard, domain trim, beta-user dedup — admin components; no new utility files); fix(plc) clear stale directory entries on scope change (hooks/usePlcBuildingDirectory.ts + new utils/plcDirectorySubscriptionKey.ts — new utility confirmed actively imported: `hooks/usePlcBuildingDirectory.ts:12` imports `shouldClearPlcDirectoryOnScopeChange` from it; live, not dead).
+- Commented-out code: Zero in new commits (usePlcBuildingDirectory.ts has inline explanatory comments only — not commented-out code blocks).
+- console.log(): Zero in components/, context/, hooks/, utils/.
+- `useScaledFont.ts`: Still dead (no production import found). Existing LOW open item still valid.
+- `videoActivityDriveService.ts`: Still no production imports. Existing LOW open item still valid.
+- `scripts/tools/`: Still present with 9 Python/Playwright scripts. Existing MEDIUM open item still valid.
+- `utils/imageProcessing.ts:109`: `console.warn` on success still present. Existing LOW open item still valid.
+- `utils/periodCompat.ts` — `buildPeriodFields`: Still no production imports (`resolvePeriodNames` is imported at `hooks/useQuizSession.ts:49` but `buildPeriodFields` is not). Existing LOW open item still valid.
 
 Migration code + dead exports + console.log audit (2026-08-02, re-verified):
 

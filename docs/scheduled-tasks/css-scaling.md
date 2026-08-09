@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-08_
+_Last audited: 2026-08-09_
 _Last action: 2026-08-08 — LOW MathTools tab-nav row hardcoded `px-2 gap-1` replaced with inline `cqmin` (`paddingLeft`/`paddingRight` `min(8px, 2cqmin)`, `gap` `min(4px, 1cqmin)`), so the tab row's side padding and inter-tab gaps scale with the widget container instead of staying fixed-pixel on large/projected displays_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-09: Targeted scan (Sunday daily). New dev-paul commits since 2026-08-08: fix(pr-2412) components/admin/PresetSubEmailsManager.tsx (admin component, no widget front-face); docs(rich-response) series (docs only); fix: address PR review (admin components only); fix(plc) hooks/usePlcBuildingDirectory.ts + utils/plcDirectorySubscriptionKey.ts (hook + utility, no widget front-face). Zero new widget front-face content changes. All pre-existing LOW open items confirmed present and unresolved: (1) MathTools/Widget.tsx lines 149/325/345 — pr-2/mt-1.5/gap-1.5 hardcoded spacing (detected 2026-08-08); (2) Onboarding/components/Header.tsx:14 — gap-2 (detected 2026-07-18); (3) Embed/Widget.tsx portaled toolbar hardcoded sizes (detected 2026-04-28); (4) RevealGrid/Widget.tsx hardcoded spacing (detected 2026-04-12); (5) multi-widget group (CatalystWidget, DiceWidget, GuidedLearning, InstructionalRoutines, NextUp, SoundWidget, SoundboardWidget, SpecialistSchedule, Stations, TalkingTool, Webcam) hardcoded gap/padding/icon sizes; (6) MiniApp/Widget.tsx internal dialog overlay hardcoded text sizes; (7) SmartNotebook/components/PageEditorOverlay.tsx:983/:1061 drawing toolbar; (8) random/RandomClassContextButton.tsx portaled dropdown. Zero new anti-patterns._
 
 _2026-08-08 (action): Resolved the LOW "MathTools tab nav row container has hardcoded px-2 gap-1" item (top of Open in document order; moved to Completed). Selection: Saturday run — reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + today's weeklies (code-structure C1, ui-unification C2). Nothing In Progress anywhere. The only heading-level HIGH (code-structure `DashboardContext.tsx` extraction) is BLOCKED; the surviving code-structure HIGH (organizations/buildings double-subscription) was already resolved 2026-07-24; every code-structure MEDIUM (34-files-over-1000-lines, DashboardContext seams) is BLOCKED; and every ui-unification MEDIUM is blocked/unsafe for an unattended pass (UrlConfigurationPanel gradeLabel-vs-name decision, MaterialsWidget/MusicWidget config-key migrations, segmented-control + font-options visual-regression batches needing runtime, nextUp/VA/GL appearance panel has a false premise). widget-registry and typescript-eslint have no open items, so css-scaling (daily order 2) is the highest-priority journal with a safe actionable item — its Open items are all LOW; item 1 in document order is this one. File-recency check passed: `MathTools/Widget.tsx` last touched at `c185cd6b` (2026-06-27), far outside the last 5 branch commits (6117f7d7, b4bdda03, d353eca8, 4241e883, d5c6043f). Converted the row's `px-2 gap-1` Tailwind classes to inline `cqmin` (`paddingLeft`/`paddingRight` `min(8px, 2cqmin)`, `gap` `min(4px, 1cqmin)`), merged with the existing `paddingBottom: '0'`. `pnpm type-check` (exit 0), `eslint --max-warnings 0` (exit 0), `prettier --check` (clean). PR opened to dev-paul._
 
