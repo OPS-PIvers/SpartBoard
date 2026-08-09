@@ -42,6 +42,7 @@ export const TypographySettings = <
           {FONTS.map((f) => (
             <button
               key={f.id}
+              type="button"
               onClick={() =>
                 updateConfig({
                   // 'global' is a sentinel meaning "inherit dashboard font".
@@ -81,6 +82,7 @@ export const TypographySettings = <
             {TEXT_COLOR_PRESETS.map((color) => (
               <button
                 key={color}
+                type="button"
                 onClick={() => updateConfig({ fontColor: color } as Partial<T>)}
                 className={`w-6 h-6 rounded-full border-2 transition hover:scale-110 ${
                   fontColor === color

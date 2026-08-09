@@ -34,11 +34,9 @@ export const TextSizePresetSettings: React.FC<TextSizePresetSettingsProps> = ({
 
   const selectedPreset: TextSizePreset =
     presetCandidate ??
-    (typeof scaleCandidate === 'number'
-      ? scaleToPreset(scaleCandidate)
-      : fallbackScale !== 1
-        ? scaleToPreset(fallbackScale)
-        : 'medium');
+    scaleToPreset(
+      typeof scaleCandidate === 'number' ? scaleCandidate : fallbackScale
+    );
 
   const textSizeLabelId = useId();
 
