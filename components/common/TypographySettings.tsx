@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { Type, Palette } from 'lucide-react';
 import { SettingsLabel } from './SettingsLabel';
 import { FONTS } from '@/config/fonts';
@@ -25,12 +25,20 @@ export const TypographySettings = <
   showColorPicker = true,
 }: TypographySettingsProps<T>) => {
   const { fontFamily = 'global', fontColor = '#334155' } = config;
+  const typographyLabelId = useId();
+  const textColorLabelId = useId();
 
   return (
     <>
       <div>
-        <SettingsLabel icon={Type}>Typography</SettingsLabel>
-        <div className="grid grid-cols-4 gap-2">
+        <SettingsLabel icon={Type} as="span" id={typographyLabelId}>
+          Typography
+        </SettingsLabel>
+        <div
+          className="grid grid-cols-4 gap-2"
+          role="group"
+          aria-labelledby={typographyLabelId}
+        >
           {FONTS.map((f) => (
             <button
               key={f.id}
@@ -62,8 +70,14 @@ export const TypographySettings = <
 
       {showColorPicker && (
         <div>
-          <SettingsLabel icon={Palette}>Text Color</SettingsLabel>
-          <div className="flex flex-wrap gap-2 px-1 mb-2">
+          <SettingsLabel icon={Palette} as="span" id={textColorLabelId}>
+            Text Color
+          </SettingsLabel>
+          <div
+            className="flex flex-wrap gap-2 px-1 mb-2"
+            role="group"
+            aria-labelledby={textColorLabelId}
+          >
             {TEXT_COLOR_PRESETS.map((color) => (
               <button
                 key={color}
