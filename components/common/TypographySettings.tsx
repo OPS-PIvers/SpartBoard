@@ -98,16 +98,16 @@ export const TypographySettings = <
                 aria-label={`Select text color ${color}`}
               />
             ))}
+            <input
+              type="color"
+              value={fontColor}
+              onChange={(e) =>
+                updateConfig({ fontColor: e.target.value } as Partial<T>)
+              }
+              className="h-8 w-full rounded-md border border-slate-200 bg-white"
+              aria-label="Custom text color"
+            />
           </div>
-          <input
-            type="color"
-            value={fontColor}
-            onChange={(e) =>
-              updateConfig({ fontColor: e.target.value } as Partial<T>)
-            }
-            className="h-8 w-full rounded-md border border-slate-200 bg-white"
-            aria-label="Custom text color"
-          />
         </div>
       )}
     </>
