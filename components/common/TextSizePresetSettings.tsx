@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { Type } from 'lucide-react';
 import { SettingsLabel } from './SettingsLabel';
-import { TEXT_SIZE_PRESETS } from '@/config/widgetAppearance';
+import { TEXT_SIZE_PRESETS, presetFromScale } from '@/config/widgetAppearance';
 import type { TextSizePreset } from '@/types';
 
 interface PresetConfig {
@@ -16,38 +16,38 @@ interface TextSizePresetSettingsProps {
   writeScaleMultiplier?: boolean;
 }
 
-const scaleToPreset = (scale: number): TextSizePreset => {
-  if (scale <= 0.92) return 'small';
-  if (scale >= 1.32) return 'x-large';
-  if (scale >= 1.1) return 'large';
-  return 'medium';
-};
-
 export const TextSizePresetSettings: React.FC<TextSizePresetSettingsProps> = ({
   config,
   updateConfig,
   fallbackScale = 1,
   writeScaleMultiplier = false,
 }) => {
+  const textSizeLabelId = useId();
+
   const presetCandidate = config.textSizePreset;
   const scaleCandidate = config.scaleMultiplier;
 
   const selectedPreset: TextSizePreset =
     presetCandidate ??
-    (typeof scaleCandidate === 'number'
-      ? scaleToPreset(scaleCandidate)
-      : fallbackScale !== 1
-        ? scaleToPreset(fallbackScale)
-        : 'medium');
+    presetFromScale(
+      typeof scaleCandidate === 'number' ? scaleCandidate : fallbackScale
+    );
 
   return (
     <div>
-      <SettingsLabel icon={Type}>Text Size</SettingsLabel>
-      <div className="grid grid-cols-2 gap-2">
+      <SettingsLabel icon={Type} as="span" id={textSizeLabelId}>
+        Text Size
+      </SettingsLabel>
+      <div
+        className="grid grid-cols-2 gap-2"
+        role="group"
+        aria-labelledby={textSizeLabelId}
+      >
         {TEXT_SIZE_PRESETS.map((preset) => (
           <button
             type="button"
             key={preset.id}
+            aria-pressed={selectedPreset === preset.id}
             onClick={() =>
               updateConfig({
                 textSizePreset: preset.id,

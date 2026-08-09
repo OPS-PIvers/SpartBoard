@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { Palette, LucideIcon } from 'lucide-react';
 import { WidgetConfig } from '@/types';
 import { SettingsLabel } from './SettingsLabel';
@@ -21,16 +21,24 @@ export const SurfaceColorSettings = <
 }: SurfaceColorSettingsProps<T>) => {
   const cardColor = config.cardColor ?? '#ffffff';
   const cardOpacity = config.cardOpacity ?? 1;
+  const surfaceLabelId = useId();
 
   return (
     <div>
-      <SettingsLabel icon={icon}>{label}</SettingsLabel>
-      <div className="space-y-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
+      <SettingsLabel icon={icon} as="span" id={surfaceLabelId}>
+        {label}
+      </SettingsLabel>
+      <div
+        className="space-y-3 rounded-xl border border-slate-100 bg-slate-50 p-3"
+        role="group"
+        aria-labelledby={surfaceLabelId}
+      >
         <div className="flex flex-wrap gap-2">
           {SURFACE_COLOR_PRESETS.map((color) => (
             <button
               key={color}
               type="button"
+              aria-pressed={cardColor === color}
               onClick={() => updateConfig({ cardColor: color } as Partial<T>)}
               className={`h-6 w-6 rounded-md border transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
                 cardColor === color
@@ -38,7 +46,7 @@ export const SurfaceColorSettings = <
                   : 'border-slate-200'
               }`}
               style={{ backgroundColor: color }}
-              aria-label={`Select surface color ${color}`}
+              aria-label={`Select ${label.toLowerCase()} color ${color}`}
             />
           ))}
         </div>
@@ -70,7 +78,7 @@ export const SurfaceColorSettings = <
               } as Partial<T>)
             }
             className="w-full accent-indigo-600"
-            aria-label="Surface opacity"
+            aria-label={`${label} opacity`}
           />
         </div>
       </div>
