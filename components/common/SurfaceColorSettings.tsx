@@ -46,7 +46,7 @@ export const SurfaceColorSettings = <
                   : 'border-slate-200'
               }`}
               style={{ backgroundColor: color }}
-              aria-label={`Select ${label.toLowerCase()} ${color}`}
+              aria-label={`Select ${label.toLowerCase()} color ${color}`}
             />
           ))}
         </div>
@@ -58,7 +58,7 @@ export const SurfaceColorSettings = <
             updateConfig({ cardColor: e.target.value } as Partial<T>)
           }
           className="h-8 w-full rounded-md border border-slate-200 bg-white"
-          aria-label={`Custom ${label}`}
+          aria-label={`Custom ${label.toLowerCase()} color`}
         />
 
         <div>
