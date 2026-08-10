@@ -2,7 +2,11 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { TimeToolConfig, WidgetData } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
-import { WIDGET_PALETTE, STANDARD_COLORS } from '@/config/colors';
+import {
+  WIDGET_PALETTE,
+  STANDARD_COLORS,
+  COLOR_HEX_TO_NAME,
+} from '@/config/colors';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { Toggle } from '@/components/common/Toggle';
 import { TypographySettings } from '@/components/common/TypographySettings';
@@ -32,12 +36,6 @@ const clampAdjustStep = (n: number) =>
   Math.max(ADJUST_STEP_MIN, Math.min(ADJUST_STEP_MAX, n));
 
 const SOUNDS = TIME_TOOL_SOUNDS;
-
-// Reverse lookup so color swatch buttons (which render only a coloured circle)
-// can expose a readable accessible name to screen readers.
-const COLOR_NAME_BY_HEX: Record<string, string> = Object.fromEntries(
-  Object.entries(STANDARD_COLORS).map(([name, hex]) => [hex, name])
-);
 
 // Maps each canonical clock style to its existing i18n label key
 // (note `modern` uses the `default` key), so the appearance picker derives
@@ -570,7 +568,7 @@ export const TimeToolAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
                     config: { ...config, themeColor: c },
                   })
                 }
-                aria-label={COLOR_NAME_BY_HEX[c] ?? c}
+                aria-label={COLOR_HEX_TO_NAME[c] ?? c}
                 aria-pressed={themeColor === c}
                 className={`w-6 h-6 rounded-full border-2 transition-all ${themeColor === c ? 'border-slate-800 scale-125 shadow-md' : 'border-transparent hover:scale-110'}`}
                 style={{ backgroundColor: c }}
@@ -584,6 +582,7 @@ export const TimeToolAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
               config: { ...config, glow: !config.glow },
             })
           }
+          aria-pressed={!!config.glow}
           className={`p-2 rounded-lg border-2 flex items-center gap-2 transition-all ${config.glow ? 'bg-amber-100 border-amber-300 text-amber-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-400'}`}
         >
           <Sun className={`w-4 h-4 ${config.glow ? 'fill-current' : ''}`} />
