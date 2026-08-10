@@ -283,6 +283,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
                     config: { ...config, timerEndVoiceLevel: null },
                   })
                 }
+                aria-pressed={timerEndVoiceLevel == null}
                 className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                   timerEndVoiceLevel == null
                     ? 'bg-blue-600 border-blue-600 text-white'
@@ -299,6 +300,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
                       config: { ...config, timerEndVoiceLevel: level },
                     })
                   }
+                  aria-pressed={timerEndVoiceLevel === level}
                   className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                     timerEndVoiceLevel === level
                       ? 'bg-blue-600 border-blue-600 text-white'
@@ -331,6 +333,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
                     config: { ...config, timerEndTrafficColor: null },
                   })
                 }
+                aria-pressed={timerEndTrafficColor == null}
                 className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                   timerEndTrafficColor == null
                     ? 'bg-brand-gray-darkest border-brand-gray-darkest text-white'
@@ -346,6 +349,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
                     config: { ...config, timerEndTrafficColor: 'red' },
                   })
                 }
+                aria-pressed={timerEndTrafficColor === 'red'}
                 className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                   timerEndTrafficColor === 'red'
                     ? 'bg-red-500 border-red-500 text-white'
@@ -361,6 +365,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
                     config: { ...config, timerEndTrafficColor: 'yellow' },
                   })
                 }
+                aria-pressed={timerEndTrafficColor === 'yellow'}
                 className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                   timerEndTrafficColor === 'yellow'
                     ? 'bg-yellow-300 border-yellow-300 text-yellow-900'
@@ -376,6 +381,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
                     config: { ...config, timerEndTrafficColor: 'green' },
                   })
                 }
+                aria-pressed={timerEndTrafficColor === 'green'}
                 className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                   timerEndTrafficColor === 'green'
                     ? 'bg-green-500 border-green-500 text-white'
