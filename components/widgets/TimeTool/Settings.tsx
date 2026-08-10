@@ -273,10 +273,17 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-xxs font-bold text-slate-500 uppercase tracking-tight">
+            <p
+              id={`timetool-voicelevel-label-${widget.id}`}
+              className="text-xxs font-bold text-slate-500 uppercase tracking-tight"
+            >
               {t('widgets.timeTool.switchToVoiceLevel')}:
             </p>
-            <div className="grid grid-cols-3 gap-2">
+            <div
+              className="grid grid-cols-3 gap-2"
+              role="group"
+              aria-labelledby={`timetool-voicelevel-label-${widget.id}`}
+            >
               <button
                 onClick={() =>
                   updateWidget(widget.id, {
@@ -315,7 +322,10 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
         )}
 
         <div className="pt-2 border-t border-slate-100 mt-4">
-          <p className="text-xxs font-bold text-slate-500 uppercase tracking-tight mb-2">
+          <p
+            id={`timetool-trafficlight-label-${widget.id}`}
+            className="text-xxs font-bold text-slate-500 uppercase tracking-tight mb-2"
+          >
             {t('widgets.timeTool.autoSetTrafficLight')}:
           </p>
           {!hasTrafficLight ? (
@@ -326,7 +336,11 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-4 gap-2">
+            <div
+              className="grid grid-cols-4 gap-2"
+              role="group"
+              aria-labelledby={`timetool-trafficlight-label-${widget.id}`}
+            >
               <button
                 onClick={() =>
                   updateWidget(widget.id, {
