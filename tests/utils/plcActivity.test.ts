@@ -57,7 +57,10 @@ function makeEvent(
 
 describe('plcActivity', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // resetAllMocks (not clearAllMocks) so a queued `mockRejectedValueOnce`
+    // from the failure test can never survive into the next test — the mock
+    // implementations below are re-established every run regardless.
+    vi.resetAllMocks();
     // collection() → a sentinel encoding its path segments so we can assert on
     // where the write lands; doc(collectionRef) → an auto-id ref.
     mockCollection.mockImplementation(
@@ -398,6 +401,14 @@ describe('plcActivity', () => {
         targetTitle: 'Great point',
       });
 
+      // The plcId must route the write — a hard-coded/ignored id would slip
+      // past a payload-only assertion.
+      expect(mockCollection).toHaveBeenCalledWith(
+        { __brand: 'db' },
+        'plcs',
+        'plc-2',
+        'activity'
+      );
       expect(mockSetDoc).toHaveBeenCalledWith(
         { id: GENERATED_ID },
         {
@@ -419,14 +430,29 @@ describe('plcActivity', () => {
         targetType: 'note',
       });
 
+      expect(mockCollection).toHaveBeenCalledWith(
+        { __brand: 'db' },
+        'plcs',
+        'plc-3',
+        'activity'
+      );
       const payload = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
+      // Invariant fields must survive the partial-target branch (Firestore
+      // rules require actorName + createdAt), not just the one present target.
+      expect(payload.id).toBe(GENERATED_ID);
+      expect(payload.type).toBe('note_created');
+      expect(payload.actorUid).toBe('u1');
+      expect(payload.actorName).toBe('Alice');
+      expect(payload.createdAt).toBe(SERVER_TS);
       expect(payload.targetType).toBe('note');
       expect(payload).not.toHaveProperty('targetId');
       expect(payload).not.toHaveProperty('targetTitle');
     });
 
-    it('does not call logError on a successful write', async () => {
-      await writePlcActivityEvent('plc-1', baseInput);
+    it('resolves to undefined and does not call logError on a successful write', async () => {
+      await expect(
+        writePlcActivityEvent('plc-1', baseInput)
+      ).resolves.toBeUndefined();
       expect(mockLogError).not.toHaveBeenCalled();
     });
 
@@ -448,12 +474,6 @@ describe('plcActivity', () => {
           type: 'note_created',
         }
       );
-    });
-
-    it('resolves to undefined on the happy path', async () => {
-      await expect(
-        writePlcActivityEvent('plc-1', baseInput)
-      ).resolves.toBeUndefined();
     });
   });
 });
