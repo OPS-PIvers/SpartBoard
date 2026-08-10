@@ -16,9 +16,10 @@ export const STANDARD_COLORS = {
   rose: '#f43f5e', // rose-500
 } as const;
 
-export const COLOR_HEX_TO_NAME: Record<string, string> = Object.fromEntries(
-  Object.entries(STANDARD_COLORS).map(([name, hex]) => [hex, name])
-);
+export const COLOR_HEX_TO_NAME: Partial<Record<string, string>> =
+  Object.fromEntries(
+    Object.entries(STANDARD_COLORS).map(([name, hex]) => [hex, name])
+  );
 
 export const WIDGET_PALETTE = [
   STANDARD_COLORS.slate,
