@@ -121,6 +121,21 @@ describe('plcActivity', () => {
       });
       expect(isForeignMentionEvent(event, null)).toBe(true);
     });
+
+    it('treats a mention with no targetId as foreign (strict-inequality edge)', () => {
+      // The normal write path (buildCommentActivityEvents) always sets
+      // `targetId: mentionedUid`, so an absent targetId is an edge case — but
+      // pin the branch: `event.targetId !== uid` is `undefined !== uid`, which
+      // is true for EVERY uid (a real one or null). A malformed mention with no
+      // targetId is therefore classified as foreign (hidden), not surfaced.
+      const event = makeEvent({
+        type: 'comment_added',
+        targetType: MENTION_ACTIVITY_TARGET_TYPE,
+      });
+      expect(event).not.toHaveProperty('targetId');
+      expect(isForeignMentionEvent(event, 'me')).toBe(true);
+      expect(isForeignMentionEvent(event, null)).toBe(true);
+    });
   });
 
   describe('parseActivity', () => {
