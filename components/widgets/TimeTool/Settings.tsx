@@ -216,11 +216,15 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
       {/* Adjust step (used by the on-face +/- buttons while a timer is running) */}
       {config.mode === 'timer' && (
         <div>
-          <SettingsLabel icon={PlusSquare}>
+          <SettingsLabel
+            icon={PlusSquare}
+            htmlFor={`timetool-adjuststep-input-${widget.id}`}
+          >
             {t('widgets.timeTool.adjustStep')}
           </SettingsLabel>
           <div className="flex items-center gap-2">
             <input
+              id={`timetool-adjuststep-input-${widget.id}`}
               type="number"
               min={ADJUST_STEP_MIN}
               max={ADJUST_STEP_MAX}
@@ -248,8 +252,15 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
       )}
 
       {/* Timer End Action */}
-      <div>
-        <SettingsLabel icon={Bell}>
+      <div
+        role="group"
+        aria-labelledby={`timetool-timerendaction-label-${widget.id}`}
+      >
+        <SettingsLabel
+          as="span"
+          id={`timetool-timerendaction-label-${widget.id}`}
+          icon={Bell}
+        >
           {t('widgets.timeTool.timerEndAction')}
         </SettingsLabel>
 
