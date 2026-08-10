@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-09_
+_Last audited: 2026-08-10_
 _Last action: 2026-08-08 — LOW MathTools tab-nav row hardcoded `px-2 gap-1` replaced with inline `cqmin` (`paddingLeft`/`paddingRight` `min(8px, 2cqmin)`, `gap` `min(4px, 1cqmin)`), so the tab row's side padding and inter-tab gaps scale with the widget container instead of staying fixed-pixel on large/projected displays_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-10: Targeted scan (Monday daily). New dev-paul commits since 2026-08-09: c26ad917 / 0e79f85f docs only; f58cb0db fix(a11y) #2416 touches components/common/SurfaceColorSettings.tsx, TextSizePresetSettings.tsx, TypographySettings.tsx — these are back-face settings primitives (no widget front-face content), CQ scaling rules do not apply; f4830ebe pr-review docs only. Zero widget front-face content changes. All pre-existing LOW open items confirmed present and unresolved (MathTools/Widget.tsx pr-2/mt-1.5/gap-1.5 hardcoded spacing; Onboarding/components/Header.tsx:14 gap-2; Embed/Widget.tsx portaled toolbar; RevealGrid/Widget.tsx hardcoded spacing; multi-widget group CatalystWidget/DiceWidget/GuidedLearning/InstructionalRoutines/NextUp/SoundWidget/SoundboardWidget/SpecialistSchedule/Stations/TalkingTool/Webcam; MiniApp/Widget.tsx dialog overlay; SmartNotebook/components/PageEditorOverlay.tsx:983/:1061 drawing toolbar; random/RandomClassContextButton.tsx portaled dropdown). Zero new anti-patterns._
 
 _2026-08-09: Targeted scan (Sunday daily). New dev-paul commits since 2026-08-08: fix(pr-2412) components/admin/PresetSubEmailsManager.tsx (admin component, no widget front-face); docs(rich-response) series (docs only); fix: address PR review (admin components only); fix(plc) hooks/usePlcBuildingDirectory.ts + utils/plcDirectorySubscriptionKey.ts (hook + utility, no widget front-face). Zero new widget front-face content changes. All pre-existing LOW open items confirmed present and unresolved: (1) MathTools/Widget.tsx lines 149/325/345 — pr-2/mt-1.5/gap-1.5 hardcoded spacing (detected 2026-08-08); (2) Onboarding/components/Header.tsx:14 — gap-2 (detected 2026-07-18); (3) Embed/Widget.tsx portaled toolbar hardcoded sizes (detected 2026-04-28); (4) RevealGrid/Widget.tsx hardcoded spacing (detected 2026-04-12); (5) multi-widget group (CatalystWidget, DiceWidget, GuidedLearning, InstructionalRoutines, NextUp, SoundWidget, SoundboardWidget, SpecialistSchedule, Stations, TalkingTool, Webcam) hardcoded gap/padding/icon sizes; (6) MiniApp/Widget.tsx internal dialog overlay hardcoded text sizes; (7) SmartNotebook/components/PageEditorOverlay.tsx:983/:1061 drawing toolbar; (8) random/RandomClassContextButton.tsx portaled dropdown. Zero new anti-patterns._
 
