@@ -63,17 +63,11 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { useHasOpenModal } from './modalStore';
 import { AnnotationCanvas } from './AnnotationCanvas';
 import { IconButton } from '@/components/common/IconButton';
-import { STANDARD_COLORS, WIDGET_PALETTE } from '@/config/colors';
+import { COLOR_HEX_TO_NAME, WIDGET_PALETTE } from '@/config/colors';
 import { Z_INDEX } from '@/config/zIndex';
 
 // Widgets that cannot be snapshotted due to CORS/Technical limitations
 const SCREENSHOT_BLACKLIST: WidgetType[] = ['webcam', 'embed'];
-
-// Hex → human-readable color name, for screen-reader aria-labels on the
-// annotation palette. Falls back to the raw hex when unknown.
-const COLOR_HEX_TO_NAME: Record<string, string> = Object.fromEntries(
-  Object.entries(STANDARD_COLORS).map(([name, hex]) => [hex, name])
-);
 
 // Custom size picker grid dimensions
 const GRID_COLS = 10;
