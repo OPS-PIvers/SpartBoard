@@ -33,6 +33,12 @@ const clampAdjustStep = (n: number) =>
 
 const SOUNDS = TIME_TOOL_SOUNDS;
 
+// Reverse lookup so color swatch buttons (which render only a coloured circle)
+// can expose a readable accessible name to screen readers.
+const COLOR_NAME_BY_HEX: Record<string, string> = Object.fromEntries(
+  Object.entries(STANDARD_COLORS).map(([name, hex]) => [hex, name])
+);
+
 // Maps each canonical clock style to its existing i18n label key
 // (note `modern` uses the `default` key), so the appearance picker derives
 // its options from TIME_TOOL_CLOCK_STYLES without changing translations.
@@ -117,6 +123,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
                   });
                 }
               }}
+              aria-pressed={config.mode === m}
               className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 flex items-center justify-center gap-2 ${
                 config.mode === m
                   ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
@@ -158,6 +165,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
                   config: { ...config, visualType: v },
                 })
               }
+              aria-pressed={config.visualType === v}
               className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                 config.visualType === v
                   ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
@@ -194,6 +202,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
                   config: { ...config, selectedSound: s },
                 })
               }
+              aria-pressed={config.selectedSound === s}
               className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                 config.selectedSound === s
                   ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
@@ -529,6 +538,7 @@ export const TimeToolAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
                   config: { ...config, clockStyle: s.id },
                 })
               }
+              aria-pressed={clockStyle === s.id}
               className={`flex-1 py-1.5 text-xxs font-black uppercase tracking-widest rounded-lg transition-all ${clockStyle === s.id ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
             >
               {s.label}
@@ -560,6 +570,8 @@ export const TimeToolAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
                     config: { ...config, themeColor: c },
                   })
                 }
+                aria-label={COLOR_NAME_BY_HEX[c] ?? c}
+                aria-pressed={themeColor === c}
                 className={`w-6 h-6 rounded-full border-2 transition-all ${themeColor === c ? 'border-slate-800 scale-125 shadow-md' : 'border-transparent hover:scale-110'}`}
                 style={{ backgroundColor: c }}
               />
