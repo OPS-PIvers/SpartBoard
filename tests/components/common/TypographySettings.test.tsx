@@ -42,7 +42,7 @@ describe('TypographySettings', () => {
     render(<TypographySettings config={config} updateConfig={updateConfig} />);
 
     // The "Inherit" button should be visually selected
-    const inheritButton = screen.getByRole('button', { name: /inherit/i });
+    const inheritButton = screen.getByRole('radio', { name: /inherit/i });
     expect(inheritButton.className).toContain('border-brand-blue-primary');
   });
 
@@ -54,7 +54,7 @@ describe('TypographySettings', () => {
 
     render(<TypographySettings config={config} updateConfig={updateConfig} />);
 
-    const inheritButton = screen.getByRole('button', { name: /inherit/i });
+    const inheritButton = screen.getByRole('radio', { name: /inherit/i });
     expect(inheritButton.className).toContain('border-brand-blue-primary');
   });
 
@@ -64,11 +64,11 @@ describe('TypographySettings', () => {
 
     render(<TypographySettings config={config} updateConfig={updateConfig} />);
 
-    const monoButton = screen.getByRole('button', { name: /digital/i });
+    const monoButton = screen.getByRole('radio', { name: /digital/i });
     expect(monoButton.className).toContain('border-brand-blue-primary');
 
     // Inherit button must NOT be selected when a specific font is active
-    const inheritButton = screen.getByRole('button', { name: /inherit/i });
+    const inheritButton = screen.getByRole('radio', { name: /inherit/i });
     expect(inheritButton.className).not.toContain('border-brand-blue-primary');
   });
 
@@ -90,7 +90,7 @@ describe('TypographySettings', () => {
 
     render(<TypographySettings config={config} updateConfig={updateConfig} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /inherit/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /inherit/i }));
 
     expect(updateConfig).toHaveBeenCalledOnce();
     const [calledWith] = updateConfig.mock.calls[0] as [Partial<TestConfig>];
@@ -111,7 +111,7 @@ describe('TypographySettings', () => {
     render(<TypographySettings config={config} updateConfig={updateConfig} />);
 
     // "Digital" is the label for font-mono
-    fireEvent.click(screen.getByRole('button', { name: /digital/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /digital/i }));
 
     expect(updateConfig).toHaveBeenCalledOnce();
     const [calledWith] = updateConfig.mock.calls[0] as [Partial<TestConfig>];

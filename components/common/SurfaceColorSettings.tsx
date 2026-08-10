@@ -33,12 +33,17 @@ export const SurfaceColorSettings = <
         role="group"
         aria-labelledby={surfaceLabelId}
       >
-        <div className="flex flex-wrap gap-2">
+        <div
+          className="flex flex-wrap gap-2"
+          role="radiogroup"
+          aria-label={`${label} color`}
+        >
           {SURFACE_COLOR_PRESETS.map((color) => (
             <button
               key={color}
               type="button"
-              aria-pressed={cardColor === color}
+              role="radio"
+              aria-checked={cardColor === color}
               onClick={() => updateConfig({ cardColor: color } as Partial<T>)}
               className={`h-6 w-6 rounded-md border transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
                 cardColor === color

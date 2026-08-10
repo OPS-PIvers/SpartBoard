@@ -40,14 +40,15 @@ export const TextSizePresetSettings: React.FC<TextSizePresetSettingsProps> = ({
       </SettingsLabel>
       <div
         className="grid grid-cols-2 gap-2"
-        role="group"
+        role="radiogroup"
         aria-labelledby={textSizeLabelId}
       >
         {TEXT_SIZE_PRESETS.map((preset) => (
           <button
             type="button"
             key={preset.id}
-            aria-pressed={selectedPreset === preset.id}
+            role="radio"
+            aria-checked={selectedPreset === preset.id}
             onClick={() =>
               updateConfig({
                 textSizePreset: preset.id,
