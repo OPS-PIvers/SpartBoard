@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-08-03_
+_Last audited: 2026-08-10_
 _Last action: 2026-05-01_
 
 ---
 
 ## Audit Log
+
+_2026-08-10: Full audit (Audit E1 — Monday weekly). New dev-paul commits since 2026-08-03: c26ad917 / 0e79f85f docs only; f58cb0db fix(a11y) #2416 — shared settings primitives (SurfaceColorSettings.tsx, TextSizePresetSettings.tsx, TypographySettings.tsx): as="span" conversions, aria-pressed pattern, presetFromScale import swap replacing a local duplicate (removes one small duplication; no new cast or hook complexity); f4830ebe pr-review docs only. f58cb0db removes the local `sizeToPreset` helper from TextSizePresetSettings.tsx by importing `presetFromScale` from widgetAppearance.ts — this is a positive simplification (existing duplicate removed; note for record, not a new open item). All 11 existing open items confirmed present and unchanged: MEDIUM useFirestore.ts double-cast, MEDIUM ai_security.ts structuredClone casts, LOW validTextSizePresets tripled in adminBuildingConfig.ts, LOW prop drilling 13 props DashboardView→WidgetRenderer, LOW triple val ternary + DraggableWindow 4-deep ternary, LOW MathTools dead hover-color ternary, LOW TimeTool 6 WidgetConfig casts, LOW RandomWidget 13 WidgetConfig casts, LOW widgetConfigPersistence Object.assign cast, LOW adminBuildingConfig double-cast for WIDGET_DEFAULTS, LOW usePlcTrash 9 useState, LOW usePlcResources 9 useState. Zero new items._
 
 _2026-08-03: Full audit (Audit E1 — Monday weekly). New dev-paul commits since 2026-07-29 absorbed via rebase: docs(spike) multilingual pronunciation plan (#2343 — spike-doc commits only; no source files changed). fix(GraphicOrganizer) hide dead fontColor picker in appearance settings (12f86641 — settings panel UI change; no new type assertions, hooks, or prop drilling). (1) Type assertions: all existing items re-confirmed — useFirestore.ts MEDIUM, ai_security.ts MEDIUM, dashboardPII/smartPaste LOW, BlockRenderer LOW, icon registry LOW, FeatureConfigurationPanel LOW, TimeTool 6-cast LOW, RandomWidget 13-cast LOW, widgetConfigPersistence LOW, adminBuildingConfig double-cast LOW, AnnouncementOverlay LOW, validTextSizePresets triple LOW. (2) Heavy hooks: usePlcTrash.ts (9 useState) and usePlcResources.ts (9 useState) — both existing LOW items, unchanged. (3) Prop drilling: MountedBoardsLayer 13-prop passthrough — existing LOW item, unchanged. (4) Nested ternaries: val triple and DraggableWindow corner ternary — existing LOW items, unchanged. Zero new items. All 11 existing open items remain valid._
 
