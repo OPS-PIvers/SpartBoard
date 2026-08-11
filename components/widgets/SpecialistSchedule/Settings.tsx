@@ -73,6 +73,11 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
   const { cycleDays = [], recurringItems = [] } = config;
   const activityNameLabelId = useId();
   const recurringActivityNameInputId = useId();
+  const startTimeInputId = useId();
+  const endTimeInputId = useId();
+  const repeatEveryInputId = useId();
+  const recurringStartTimeInputId = useId();
+  const recurringEndTimeInputId = useId();
 
   const [activeTab, setActiveTab] = useState<'schedules' | 'recurring'>(
     'schedules'
@@ -350,32 +355,34 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                   <SettingsLabel as="span" id={activityNameLabelId}>
                     Activity Name
                   </SettingsLabel>
-                  <div
-                    className="flex flex-wrap gap-1 mb-2"
-                    role="radiogroup"
-                    aria-labelledby={activityNameLabelId}
-                  >
-                    {specialistOptions.map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        role="radio"
-                        aria-checked={tempItem?.task === opt}
-                        onClick={() =>
-                          setTempItem((prev) =>
-                            prev ? { ...prev, task: opt } : null
-                          )
-                        }
-                        className={`px-2 py-1 rounded-lg border text-xxs font-bold transition-all ${
-                          tempItem?.task === opt
-                            ? 'bg-teal-600 text-white border-teal-600'
-                            : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
-                        }`}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
+                  {specialistOptions.length > 0 && (
+                    <div
+                      className="flex flex-wrap gap-1 mb-2"
+                      role="radiogroup"
+                      aria-labelledby={activityNameLabelId}
+                    >
+                      {specialistOptions.map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          role="radio"
+                          aria-checked={tempItem?.task === opt}
+                          onClick={() =>
+                            setTempItem((prev) =>
+                              prev ? { ...prev, task: opt } : null
+                            )
+                          }
+                          className={`px-2 py-1 rounded-lg border text-xxs font-bold transition-all ${
+                            tempItem?.task === opt
+                              ? 'bg-teal-600 text-white border-teal-600'
+                              : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <input
                     type="text"
                     value={tempItem?.task ?? ''}
@@ -392,8 +399,11 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <SettingsLabel>Start Time</SettingsLabel>
+                    <SettingsLabel htmlFor={startTimeInputId}>
+                      Start Time
+                    </SettingsLabel>
                     <input
+                      id={startTimeInputId}
                       type="time"
                       value={tempItem?.startTime ?? ''}
                       onChange={(e) =>
@@ -405,8 +415,11 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                     />
                   </div>
                   <div>
-                    <SettingsLabel>End Time</SettingsLabel>
+                    <SettingsLabel htmlFor={endTimeInputId}>
+                      End Time
+                    </SettingsLabel>
                     <input
+                      id={endTimeInputId}
                       type="time"
                       value={tempItem?.endTime ?? ''}
                       onChange={(e) =>
@@ -594,8 +607,11 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                   'type' in tempItem &&
                   tempItem.type === 'weekly' && (
                     <div>
-                      <SettingsLabel>Repeat Every</SettingsLabel>
+                      <SettingsLabel htmlFor={repeatEveryInputId}>
+                        Repeat Every
+                      </SettingsLabel>
                       <select
+                        id={repeatEveryInputId}
                         value={tempItem.dayOfWeek}
                         onChange={(e) =>
                           setTempItem({
@@ -634,8 +650,11 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <SettingsLabel>Start Time</SettingsLabel>
+                    <SettingsLabel htmlFor={recurringStartTimeInputId}>
+                      Start Time
+                    </SettingsLabel>
                     <input
+                      id={recurringStartTimeInputId}
                       type="time"
                       value={tempItem?.startTime ?? ''}
                       onChange={(e) =>
@@ -647,8 +666,11 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                     />
                   </div>
                   <div>
-                    <SettingsLabel>End Time</SettingsLabel>
+                    <SettingsLabel htmlFor={recurringEndTimeInputId}>
+                      End Time
+                    </SettingsLabel>
                     <input
+                      id={recurringEndTimeInputId}
                       type="time"
                       value={tempItem?.endTime ?? ''}
                       onChange={(e) =>

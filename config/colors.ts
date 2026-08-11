@@ -20,6 +20,9 @@ export const COLOR_HEX_TO_NAME: Partial<Record<string, string>> = {
   ...Object.fromEntries(
     Object.entries(STANDARD_COLORS).map(([name, hex]) => [hex, name])
   ),
+  // White is intentionally NOT a STANDARD_COLORS member: consumers reference
+  // individual named entries (STANDARD_COLORS.slate, .red, ...) as default
+  // accent colors, and white isn't a comparable "solid accent" option.
   '#ffffff': 'white',
 };
 
