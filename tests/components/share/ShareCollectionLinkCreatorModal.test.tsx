@@ -257,4 +257,33 @@ describe('ShareCollectionLinkCreatorModal — substitute sub-email case handling
     const items = screen.getAllByRole('listitem').map((li) => li.textContent);
     expect(items).toEqual(['sub@orono.k12.mn.us']);
   });
+
+  // Regression (#2432 review): the Collection variant of this chip always
+  // rendered a Plus icon, even once `added` was true (ShareLinkCreatorModal's
+  // chip correctly switches to Check). Functionality wasn't broken — the chip
+  // was still disabled — but the icon lied about the chip's state.
+  it('switches the preset chip icon from Plus to Check once its value is already added', () => {
+    usePresetSubEmailsMock.mockReturnValue({
+      emails: ['sub@orono.k12.mn.us'],
+    });
+    openSubstituteMode();
+
+    const chipBeforeAdd = screen.getByRole('button', {
+      name: 'sub@orono.k12.mn.us',
+    });
+    expect(chipBeforeAdd.querySelector('.lucide-plus')).toBeInTheDocument();
+    expect(
+      chipBeforeAdd.querySelector('.lucide-check')
+    ).not.toBeInTheDocument();
+
+    const input = screen.getByPlaceholderText('name@orono.k12.mn.us');
+    fireEvent.change(input, { target: { value: 'Sub@Orono.K12.MN.US' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    const chipAfterAdd = screen.getByRole('button', {
+      name: 'sub@orono.k12.mn.us',
+    });
+    expect(chipAfterAdd.querySelector('.lucide-check')).toBeInTheDocument();
+    expect(chipAfterAdd.querySelector('.lucide-plus')).not.toBeInTheDocument();
+  });
 });

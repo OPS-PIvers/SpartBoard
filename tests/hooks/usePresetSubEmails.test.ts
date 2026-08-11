@@ -176,6 +176,26 @@ describe('usePresetSubEmails — snapshot mapping', () => {
       loading: false,
     });
   });
+
+  // Regression (#2432 review): normalizing collapses case-variant legacy
+  // entries to identical strings, but the map alone doesn't dedup them —
+  // consumers would render duplicate React keys and two inert chips for one
+  // real mailbox.
+  it('dedups case-variant entries that normalize to the same email', () => {
+    const { result } = renderHook(() => usePresetSubEmails('high'));
+    act(() => {
+      lastListener().next(
+        fakeDocSnap({
+          emails: ['Sub@Orono.K12.MN.US', 'sub@orono.k12.mn.us', 'other@x.org'],
+        })
+      );
+    });
+
+    expect(result.current).toEqual({
+      emails: ['sub@orono.k12.mn.us', 'other@x.org'],
+      loading: false,
+    });
+  });
 });
 
 describe('usePresetSubEmails — error handling', () => {

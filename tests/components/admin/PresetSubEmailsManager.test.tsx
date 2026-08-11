@@ -121,4 +121,38 @@ describe('PresetSubEmailsManager — email case handling', () => {
     // Only one chip for the mailbox, not two case-variant duplicates.
     expect(screen.getAllByText(/sub@orono\.k12\.mn\.us/i)).toHaveLength(1);
   });
+
+  // Regression (#2432 review): a legacy mixed-case Firestore entry used to
+  // seed draftEmails as-is (raw, un-normalized). The admin would see the
+  // stale casing in the list, and typing the lowercase replacement got
+  // silently blocked by addEmail's case-insensitive dedup check — correct
+  // dedup, but no visible cue why. Normalizing at snapshot time means the
+  // draft always displays (and dedups against) the same canonical value
+  // usePresetSubEmails hands to every other consumer.
+  it('normalizes a legacy mixed-case Firestore entry when seeding the draft list', () => {
+    render(<PresetSubEmailsManager />);
+
+    act(() => {
+      listeners[listeners.length - 1].next(
+        fakeDocSnap({ emails: ['Sub@Orono.K12.MN.US'] })
+      );
+    });
+
+    expect(screen.getByText('sub@orono.k12.mn.us')).toBeInTheDocument();
+    expect(screen.queryByText('Sub@Orono.K12.MN.US')).not.toBeInTheDocument();
+  });
+
+  it('dedups case-variant legacy entries when seeding the draft list', () => {
+    render(<PresetSubEmailsManager />);
+
+    act(() => {
+      listeners[listeners.length - 1].next(
+        fakeDocSnap({
+          emails: ['Sub@Orono.K12.MN.US', 'sub@orono.k12.mn.us'],
+        })
+      );
+    });
+
+    expect(screen.getAllByText('sub@orono.k12.mn.us')).toHaveLength(1);
+  });
 });

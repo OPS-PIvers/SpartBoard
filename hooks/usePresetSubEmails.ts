@@ -37,11 +37,15 @@ export function usePresetSubEmails(buildingId: string): PresetSubEmailsState {
         // Normalize once at the source (trim + lowercase) so every consumer
         // gets an already-canonical value — Firestore array membership and
         // downstream `.includes()` checks are exact-match, and a legacy or
-        // hand-typed preset can carry stray whitespace/casing.
+        // hand-typed preset can carry stray whitespace/casing. Dedup after
+        // normalizing: legacy case-variant entries (e.g. 'Sub@x' and 'sub@x')
+        // would otherwise collapse to identical strings, producing duplicate
+        // React keys and two inert chips for one real mailbox.
         const emails = Array.isArray(data?.emails)
           ? (data.emails as unknown[])
               .filter((v): v is string => typeof v === 'string')
               .map((e) => e.trim().toLowerCase())
+              .filter((e, i, arr) => arr.indexOf(e) === i)
           : [];
         setSnapshot({ emails, buildingId: canonical });
       },

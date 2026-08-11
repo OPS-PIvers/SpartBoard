@@ -1,6 +1,14 @@
 import { type FC, useState, useId, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Folder, Copy, UserCheck, Mail, Plus, Trash2 } from 'lucide-react';
+import {
+  Folder,
+  Copy,
+  UserCheck,
+  Mail,
+  Plus,
+  Check,
+  Trash2,
+} from 'lucide-react';
 import type { Collection, Dashboard } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { usePresetSubEmails } from '@/hooks/usePresetSubEmails';
@@ -350,7 +358,11 @@ export const ShareCollectionLinkCreatorModal: FC<
                               : 'bg-brand-blue-lighter/40 text-brand-blue-primary hover:bg-brand-blue-lighter/70'
                           }`}
                         >
-                          <Plus className="w-3 h-3" />
+                          {added ? (
+                            <Check className="w-3 h-3" />
+                          ) : (
+                            <Plus className="w-3 h-3" />
+                          )}
                           {email}
                         </button>
                       );

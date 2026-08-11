@@ -123,10 +123,16 @@ const BuildingPresetEditor: React.FC<{ buildingId: string }> = ({
       ref,
       (snap) => {
         const data = snap.data();
+        // Normalize legacy mixed-case entries the same way usePresetSubEmails
+        // does — otherwise a raw un-normalized value seeds draftEmails as-is,
+        // and typing its lowercase replacement gets silently blocked by the
+        // case-insensitive dedup check in addEmail below (correct dedup, but
+        // no visible cue that the old entry is the reason).
         const list = Array.isArray(data?.emails)
-          ? (data.emails as unknown[]).filter(
-              (v): v is string => typeof v === 'string'
-            )
+          ? (data.emails as unknown[])
+              .filter((v): v is string => typeof v === 'string')
+              .map((e) => e.trim().toLowerCase())
+              .filter((e, i, arr) => arr.indexOf(e) === i)
           : [];
         setSnapshot({ emails: list, loaded: true });
       },
