@@ -345,8 +345,17 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
               <div className="space-y-3">
                 <div>
-                  <SettingsLabel>Activity Name</SettingsLabel>
-                  <div className="flex flex-wrap gap-1 mb-2">
+                  <SettingsLabel
+                    as="span"
+                    id={`specialistschedule-activity-name-label-${widget.id}`}
+                  >
+                    Activity Name
+                  </SettingsLabel>
+                  <div
+                    className="flex flex-wrap gap-1 mb-2"
+                    role="group"
+                    aria-labelledby={`specialistschedule-activity-name-label-${widget.id}`}
+                  >
                     {specialistOptions.map((opt) => (
                       <button
                         key={opt}
