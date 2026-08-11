@@ -70,15 +70,53 @@ const VERTEX_LOCATION = 'global';
  * the failure mode the old missing-API-key guards had.
  */
 function vertexClientOptions(): GoogleGenAIOptions {
+  // Resolution order matters. `GCLOUD_PROJECT` / `GOOGLE_CLOUD_PROJECT` are
+  // populated on the gen1 runtime and commonly on gen2, but neither appears in
+  // Google's list of variables automatically set on Cloud Run (which is what
+  // gen2 functions run on) — Cloud Run's docs are explicit that it does NOT
+  // set GOOGLE_CLOUD_PROJECT. Relying on them alone risks every AI callable
+  // throwing "AI service is not configured" on a runtime that happens not to
+  // set them: a total AI outage, not a partial one.
+  //
+  // `FIREBASE_CONFIG` IS guaranteed by Firebase Functions on both gen1 and
+  // gen2, and carries `projectId`. This is the same fallback that
+  // firebase-functions' own `projectID` / `gcloudProject` params use — those
+  // read ONLY FIREBASE_CONFIG, so they are a complement to the env vars, not
+  // a superset. Reading both here covers strictly more runtimes than either
+  // source alone.
+  //
+  // Parsed inline rather than via `projectID.value()` so this stays callable
+  // outside a functions runtime (unit tests, local tooling) without the
+  // deploy-time warning `.value()` emits when FUNCTIONS_CONTROL_API is set.
   const project =
-    process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT;
+    process.env.GCLOUD_PROJECT ||
+    process.env.GOOGLE_CLOUD_PROJECT ||
+    projectIdFromFirebaseConfig();
   if (!project) {
     console.error(
-      'CRITICAL: no Cloud project id in the environment; cannot reach Vertex AI'
+      'CRITICAL: no Cloud project id in the environment (checked GCLOUD_PROJECT, ' +
+        'GOOGLE_CLOUD_PROJECT, FIREBASE_CONFIG.projectId); cannot reach Vertex AI'
     );
     throw new HttpsError('internal', 'AI service is not configured.');
   }
   return { vertexai: true, project, location: VERTEX_LOCATION };
+}
+
+/**
+ * Reads `projectId` out of the `FIREBASE_CONFIG` env var Firebase Functions
+ * sets on both generations. Returns '' when unset or unparseable — a
+ * malformed value must not throw here, or it would mask the caller's clearer
+ * "AI service is not configured" error with a raw SyntaxError.
+ */
+function projectIdFromFirebaseConfig(): string {
+  try {
+    const parsed = JSON.parse(process.env.FIREBASE_CONFIG || '{}') as {
+      projectId?: unknown;
+    };
+    return typeof parsed.projectId === 'string' ? parsed.projectId : '';
+  } catch {
+    return '';
+  }
 }
 
 interface GeminiModelConfig {
@@ -272,6 +310,11 @@ export {
   resolveOrgIdForToken as __resolveOrgIdForToken,
   DEFAULT_EXTERNAL_DAILY_LIMIT as __DEFAULT_EXTERNAL_DAILY_LIMIT,
   DEFAULT_DAILY_LIMIT as __DEFAULT_DAILY_LIMIT,
+  // Every AI callable constructs its client through this, so a project-id
+  // resolution regression is a total AI outage. Exported so both the success
+  // and the missing-project-id paths are unit-testable without a deploy.
+  vertexClientOptions as __vertexClientOptions,
+  VERTEX_LOCATION as __VERTEX_LOCATION,
 };
 
 /**

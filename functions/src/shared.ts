@@ -36,7 +36,39 @@ export function normalizeModelName(raw: unknown): string | undefined {
   const trimmed = raw.trim();
   if (!trimmed) return undefined;
   if (!/^gemini-[\w.-]+$/.test(trimmed)) return undefined;
+  if (isDeprecatedModelId(trimmed)) {
+    console.warn(
+      `[gemini] ignoring deprecated model override "${trimmed}" — ` +
+        'falling back to the current default (see GEMINI.md)'
+    );
+    return undefined;
+  }
   return trimmed;
+}
+
+/**
+ * Model IDs that GEMINI.md marks deprecated and must-not-be-used.
+ *
+ * The pattern check above is deliberately permissive so new model IDs work
+ * without a deploy — but that also means a stale
+ * `global_permissions/gemini-functions` override written before those models
+ * were retired keeps being honoured indefinitely, silently bypassing the
+ * current defaults. Rejecting them here makes `normalizeModelName` return
+ * `undefined`, which every caller already treats as "use the default", so a
+ * stale override self-heals on the next call instead of requiring a
+ * one-time Firestore sweep to catch.
+ *
+ * Superseded `*-preview` 3.x IDs are matched by suffix rather than listed,
+ * since preview IDs are minted and retired continuously.
+ */
+function isDeprecatedModelId(model: string): boolean {
+  const RETIRED_EXACT = new Set([
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
+  ]);
+  return RETIRED_EXACT.has(model) || /-preview$/.test(model);
 }
 
 /**
