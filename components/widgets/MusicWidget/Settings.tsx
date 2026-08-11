@@ -9,6 +9,7 @@ import {
   WIDGET_PALETTE,
   STANDARD_COLORS,
   TRANSPARENT_BG_URL,
+  COLOR_HEX_TO_NAME,
 } from '@/config/colors';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { buildSpotifyEmbedUrl } from './utils';
@@ -408,8 +409,8 @@ export const MusicAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
                   : 'border-slate-200'
               }`}
               style={{ backgroundColor: c }}
-              aria-label={c}
-              title={c}
+              aria-label={`Text color ${COLOR_HEX_TO_NAME[c] ?? c}`}
+              title={COLOR_HEX_TO_NAME[c] ?? c}
             />
           ))}
         </div>

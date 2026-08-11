@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useId } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
@@ -71,7 +71,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
   } = buildingConfig;
 
   const { cycleDays = [], recurringItems = [] } = config;
-  const activityNameLabelId = `specialistschedule-activity-name-label-${widget.id}`;
+  const activityNameLabelId = useId();
 
   const [activeTab, setActiveTab] = useState<'schedules' | 'recurring'>(
     'schedules'
