@@ -15,6 +15,61 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe('nrpsNet.fetchMembershipPage', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  // SSRF regression: `fetch()` follows redirects by default, so a 3xx from
+  // the (platform-asserted) membership URL — or from a `Link: rel="next"`
+  // page URL taken straight from the platform's response headers — could
+  // silently retarget this request, bearer token included, at an arbitrary
+  // off-platform host. `redirect: 'manual'` refuses to follow. Mirrors the
+  // `maxRedirects: 0` assertions in index.test.ts for the axios-based guards.
+  it('requests manual redirect handling on the membership GET (SSRF guard)', async () => {
+    const fetchMock = vi.fn<
+      (url: string | URL, init?: unknown) => Promise<Response>
+    >(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ members: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await nrpsNet.fetchMembershipPage('https://lms/m', 'tok');
+
+    const init = fetchMock.mock.calls[0][1] as { redirect?: string };
+    expect(init.redirect).toBe('manual');
+  });
+
+  // Regression: `fetchNrpsMembers` needs `isRedirect` to distinguish "the
+  // SSRF guard refused a redirect" from an ordinary platform error, so it can
+  // throw instead of silently truncating the roster on page 2+.
+  it('marks the result isRedirect when the response is an opaque redirect', async () => {
+    const opaqueRedirect = new Response(null, { status: 200 });
+    Object.defineProperty(opaqueRedirect, 'type', {
+      value: 'opaqueredirect',
+    });
+    Object.defineProperty(opaqueRedirect, 'status', { value: 0 });
+    Object.defineProperty(opaqueRedirect, 'ok', { value: false });
+    // Regression (#2433 round-5 review): this test only asserted isRedirect,
+    // not that the body was drained — the same drain the parallel AGS test
+    // spies on. Without this assertion, an accidental removal of
+    // `res.text().catch(...)` on this path would silently reintroduce
+    // undici connection-pool exhaustion under burst pagination.
+    const drainSpy = vi.spyOn(opaqueRedirect, 'text');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(opaqueRedirect))
+    );
+
+    const result = await nrpsNet.fetchMembershipPage('https://lms/m', 'tok');
+    expect(result).toMatchObject({ ok: false, isRedirect: true });
+    expect(drainSpy).toHaveBeenCalled();
+  });
+});
+
 describe('parseNextLink', () => {
   it('extracts the rel="next" target', () => {
     expect(parseNextLink('<https://lms/memberships?page=2>; rel="next"')).toBe(
@@ -51,6 +106,7 @@ describe('fetchNrpsMembers', () => {
         },
       ],
       nextUrl: null,
+      isRedirect: false,
     });
 
     const members = await fetchNrpsMembers('https://lms/m', 'tok');
@@ -80,6 +136,7 @@ describe('fetchNrpsMembers', () => {
         { user_id: 'sub-noemail', given_name: 'No', family_name: 'Email' },
       ],
       nextUrl: null,
+      isRedirect: false,
     });
 
     const members = await fetchNrpsMembers('https://lms/m', 'tok');
@@ -93,6 +150,7 @@ describe('fetchNrpsMembers', () => {
       status: 200,
       members: [{ user_id: 'sub-2', name: 'Grace Hopper' }],
       nextUrl: null,
+      isRedirect: false,
     });
 
     const members = await fetchNrpsMembers('https://lms/m', 'tok');
@@ -112,6 +170,7 @@ describe('fetchNrpsMembers', () => {
         { user_id: 'sub-3', given_name: 'Has', family_name: 'Id' },
       ],
       nextUrl: null,
+      isRedirect: false,
     });
 
     const members = await fetchNrpsMembers('https://lms/m', 'tok');
@@ -126,12 +185,14 @@ describe('fetchNrpsMembers', () => {
         status: 200,
         members: [{ user_id: 'a', given_name: 'A', family_name: 'A' }],
         nextUrl: 'https://lms/m?page=2',
+        isRedirect: false,
       })
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
         members: [{ user_id: 'b', given_name: 'B', family_name: 'B' }],
         nextUrl: null,
+        isRedirect: false,
       });
 
     const members = await fetchNrpsMembers('https://lms/m?page=1', 'tok');
@@ -146,9 +207,28 @@ describe('fetchNrpsMembers', () => {
       status: 403,
       members: [],
       nextUrl: null,
+      isRedirect: false,
     });
     await expect(fetchNrpsMembers('https://lms/m', 'tok')).rejects.toThrow(
       /403/
+    );
+  });
+
+  // Regression (#2433 round-2 review): the page===0 branch throws on ANY
+  // failure already, but the message text differs by isRedirect — swapping
+  // the ternary's arms in fetchNrpsMembers would pass every other test here
+  // (they only assert `.rejects.toThrow()`, not the message) while silently
+  // mislabeling a first-page redirect refusal as an ordinary status error.
+  it('throws with the redirect-specific message when the FIRST page is a refused redirect', async () => {
+    vi.spyOn(nrpsNet, 'fetchMembershipPage').mockResolvedValue({
+      ok: false,
+      status: 0,
+      members: [],
+      nextUrl: null,
+      isRedirect: true,
+    });
+    await expect(fetchNrpsMembers('https://lms/m', 'tok')).rejects.toThrow(
+      /refused a redirect \(SSRF guard\)/
     );
   });
 
@@ -159,12 +239,14 @@ describe('fetchNrpsMembers', () => {
         status: 200,
         members: [{ user_id: 'a', given_name: 'A', family_name: 'A' }],
         nextUrl: 'https://lms/m?page=2',
+        isRedirect: false,
       })
       .mockResolvedValueOnce({
         ok: false,
         status: 500,
         members: [],
         nextUrl: null,
+        isRedirect: false,
       });
 
     const members = await fetchNrpsMembers('https://lms/m', 'tok');
@@ -177,9 +259,40 @@ describe('fetchNrpsMembers', () => {
       status: 200,
       members: [{ user_id: 'x', given_name: 'X', family_name: 'X' }],
       nextUrl: 'https://lms/m?page=next', // always points onward
+      isRedirect: false,
     });
     await fetchNrpsMembers('https://lms/m', 'tok');
     // MAX_PAGES is 20 — the loop must stop rather than spin forever.
     expect(spy).toHaveBeenCalledTimes(20);
+  });
+
+  // Regression: a refused redirect (SSRF guard) on page 2+ used to hit the
+  // same silent `break` path as an ordinary transient page error, returning
+  // a truncated roster WITHOUT throwing. Callers (e.g. ltiResolveNamesForAssignmentV1)
+  // counted that as a successful `contextsFetched`, so a persistent
+  // configuration-level failure looked identical to "class roster fully
+  // resolved" — students past the redirected page silently showed as
+  // "Student" with no error surfaced anywhere. A refused redirect must throw
+  // regardless of which page it occurs on, unlike an ordinary page-2+ error.
+  it('throws (does not silently truncate) when a LATER page is a refused redirect', async () => {
+    vi.spyOn(nrpsNet, 'fetchMembershipPage')
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        members: [{ user_id: 'a', given_name: 'A', family_name: 'A' }],
+        nextUrl: 'https://lms/m?page=2',
+        isRedirect: false,
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 0,
+        members: [],
+        nextUrl: null,
+        isRedirect: true,
+      });
+
+    await expect(fetchNrpsMembers('https://lms/m', 'tok')).rejects.toThrow(
+      /redirect/i
+    );
   });
 });

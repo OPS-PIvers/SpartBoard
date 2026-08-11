@@ -132,6 +132,13 @@ interface GradeResult {
   ok: boolean;
   status?: number;
   reason?: string;
+  /**
+   * True when the failure was the SSRF guard refusing a redirect, distinct
+   * from an ordinary platform error — caller-visible so any future retry
+   * logic keyed on status:0 can exclude this case explicitly (retrying would
+   * resend the bearer token toward the redirect target).
+   */
+  isRedirect?: boolean;
 }
 
 export const ltiPushGradesForAssignmentV1 = onCall(
@@ -249,14 +256,24 @@ export const ltiPushGradesForAssignmentV1 = onCall(
         const pointsEarned =
           typeof entry.pointsEarned === 'number' ? entry.pointsEarned : NaN;
         if (!pseudonymUid || !Number.isFinite(pointsEarned)) {
-          return { pseudonymUid, ok: false, reason: 'invalid entry' };
+          return {
+            pseudonymUid,
+            ok: false,
+            reason: 'invalid entry',
+            isRedirect: false,
+          };
         }
 
         const snap = await db
           .doc(`lti_grade_links/${pseudonymUid}/resources/${resourceLinkId}`)
           .get();
         if (!snap.exists) {
-          return { pseudonymUid, ok: false, reason: 'student never launched' };
+          return {
+            pseudonymUid,
+            ok: false,
+            reason: 'student never launched',
+            isRedirect: false,
+          };
         }
         const link = snap.data() as {
           sub?: string;
@@ -268,6 +285,7 @@ export const ltiPushGradesForAssignmentV1 = onCall(
             pseudonymUid,
             ok: false,
             reason: 'no line item for student',
+            isRedirect: false,
           };
         }
 
@@ -278,7 +296,18 @@ export const ltiPushGradesForAssignmentV1 = onCall(
           score: { userId: link.sub, scoreGiven, scoreMaximum: maxPoints },
           timestamp,
         });
-        return { pseudonymUid, ok: r.ok, status: r.status };
+        return {
+          pseudonymUid,
+          ok: r.ok,
+          status: r.status,
+          // Always set explicitly — postScore's isRedirect is never
+          // undefined, so the previous conditional spread only ever
+          // omitted the key on `false`, leaving result.isRedirect
+          // `undefined` for ordinary failures instead of `false`. Any
+          // future retry guard written as `result.isRedirect === false`
+          // would silently never fire against an `undefined` value.
+          isRedirect: r.isRedirect,
+        };
       })
     );
 
