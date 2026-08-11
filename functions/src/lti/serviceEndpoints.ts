@@ -256,14 +256,24 @@ export const ltiPushGradesForAssignmentV1 = onCall(
         const pointsEarned =
           typeof entry.pointsEarned === 'number' ? entry.pointsEarned : NaN;
         if (!pseudonymUid || !Number.isFinite(pointsEarned)) {
-          return { pseudonymUid, ok: false, reason: 'invalid entry' };
+          return {
+            pseudonymUid,
+            ok: false,
+            reason: 'invalid entry',
+            isRedirect: false,
+          };
         }
 
         const snap = await db
           .doc(`lti_grade_links/${pseudonymUid}/resources/${resourceLinkId}`)
           .get();
         if (!snap.exists) {
-          return { pseudonymUid, ok: false, reason: 'student never launched' };
+          return {
+            pseudonymUid,
+            ok: false,
+            reason: 'student never launched',
+            isRedirect: false,
+          };
         }
         const link = snap.data() as {
           sub?: string;
@@ -275,6 +285,7 @@ export const ltiPushGradesForAssignmentV1 = onCall(
             pseudonymUid,
             ok: false,
             reason: 'no line item for student',
+            isRedirect: false,
           };
         }
 

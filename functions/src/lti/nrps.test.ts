@@ -53,6 +53,12 @@ describe('nrpsNet.fetchMembershipPage', () => {
     });
     Object.defineProperty(opaqueRedirect, 'status', { value: 0 });
     Object.defineProperty(opaqueRedirect, 'ok', { value: false });
+    // Regression (#2433 round-5 review): this test only asserted isRedirect,
+    // not that the body was drained — the same drain the parallel AGS test
+    // spies on. Without this assertion, an accidental removal of
+    // `res.text().catch(...)` on this path would silently reintroduce
+    // undici connection-pool exhaustion under burst pagination.
+    const drainSpy = vi.spyOn(opaqueRedirect, 'text');
     vi.stubGlobal(
       'fetch',
       vi.fn(() => Promise.resolve(opaqueRedirect))
@@ -60,6 +66,7 @@ describe('nrpsNet.fetchMembershipPage', () => {
 
     const result = await nrpsNet.fetchMembershipPage('https://lms/m', 'tok');
     expect(result).toMatchObject({ ok: false, isRedirect: true });
+    expect(drainSpy).toHaveBeenCalled();
   });
 });
 

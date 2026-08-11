@@ -451,7 +451,55 @@ describe('ltiPushGradesForAssignmentV1 — push', () => {
       },
     });
     expect(res.pushed).toBe(0);
-    expect(res.results[0]).toMatchObject({ ok: false });
+    // Regression (#2433 round-5 review): this early-exit return omitted
+    // isRedirect, leaving it undefined instead of explicit false — same
+    // footgun as the postScore-path return above, for a caller that keys a
+    // future retry guard on `result.isRedirect === false`.
+    expect(res.results[0]).toMatchObject({
+      ok: false,
+      reason: 'student never launched',
+      isRedirect: false,
+    });
+    expect(postScoreMock).not.toHaveBeenCalled();
+  });
+
+  it('sets isRedirect:false on an invalid grade entry (missing/non-numeric pointsEarned)', async () => {
+    const res = await callPush({
+      auth: TEACHER,
+      data: {
+        sessionId: 's1',
+        maxPoints: 20,
+        grades: [{ pseudonymUid: 'uid-A', pointsEarned: 'not-a-number' }],
+      },
+    });
+    expect(res.results[0]).toMatchObject({
+      ok: false,
+      reason: 'invalid entry',
+      isRedirect: false,
+    });
+    expect(postScoreMock).not.toHaveBeenCalled();
+  });
+
+  it('sets isRedirect:false when the student has no line item on record', async () => {
+    gradeLinks.set('lti_grade_links/uid-A/resources/rl-1', {
+      sub: 'sub-A',
+      // No `ags.lineitem` — student launched but the deep-link never
+      // attached a gradable line item.
+    });
+
+    const res = await callPush({
+      auth: TEACHER,
+      data: {
+        sessionId: 's1',
+        maxPoints: 20,
+        grades: [{ pseudonymUid: 'uid-A', pointsEarned: 10 }],
+      },
+    });
+    expect(res.results[0]).toMatchObject({
+      ok: false,
+      reason: 'no line item for student',
+      isRedirect: false,
+    });
     expect(postScoreMock).not.toHaveBeenCalled();
   });
 

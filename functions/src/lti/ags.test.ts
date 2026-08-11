@@ -241,6 +241,33 @@ describe('postScore', () => {
     expect(r).toEqual({ ok: false, status: 0, isRedirect: false });
   });
 
+  // Regression (#2433 round-5 review): the catch block silently discarded
+  // the caught error, unlike fetchMembershipPage's equivalent catch in
+  // nrps.ts — a network timeout/DNS failure/AbortSignal expiry on a grade
+  // push produced a status:0 result with zero trace in Cloud Functions logs.
+  it('logs the caught error on a network failure', async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => undefined);
+    const netError = new Error('net');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<(url: string | URL, init?: unknown) => Promise<Response>>(() =>
+        Promise.reject(netError)
+      )
+    );
+    await postScore({
+      lineitemUrl: 'https://x/li',
+      accessToken: 't',
+      score: { userId: 'u', scoreGiven: 1, scoreMaximum: 1 },
+      timestamp: 'now',
+    });
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      '[ags] postScore failed (network/timeout):',
+      netError
+    );
+  });
+
   // Regression (#2433 round-2 review): a refused redirect and a genuine
   // network error both surfaced as {ok:false, status:0} with no
   // caller-visible way to distinguish them — a future retry keyed on

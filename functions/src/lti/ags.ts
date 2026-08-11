@@ -184,7 +184,11 @@ export async function postScore(opts: {
     // exchanges/score posts, which then time out and report status: 0.
     await res.text().catch(() => '');
     return { ok: true, status: res.status, isRedirect: false };
-  } catch {
+  } catch (err) {
+    // Network failure / timeout / abort — log so a burst of status:0 results
+    // in Cloud Functions logs has a traceable cause. Mirrors nrps.ts's
+    // fetchMembershipPage catch block.
+    console.warn('[ags] postScore failed (network/timeout):', err);
     return { ok: false, status: 0, isRedirect: false };
   }
 }
