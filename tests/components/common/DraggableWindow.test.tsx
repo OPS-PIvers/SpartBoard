@@ -810,7 +810,7 @@ describe('DraggableWindow (Tests folder)', () => {
         >
           <DraggableWindow
             widget={{ ...mockWidget, flipped: true }}
-            settings={<div>Settings</div>}
+            settings={<div>Mock Settings Content</div>}
             title="Test Widget"
             globalStyle={mockGlobalStyle}
           >
@@ -853,6 +853,15 @@ describe('DraggableWindow (Tests folder)', () => {
     it('does not call updateWidget a second time when SettingsPanel already closed the panel via its own Escape handler', () => {
       renderFlipped();
 
+      // Guard against a vacuous pass: confirm SettingsPanel actually mounted
+      // and rendered its content BEFORE dispatching Escape below. Testing
+      // Library's render() flushes all passive effects synchronously (via its
+      // own act() wrapper), so if this assertion holds, SettingsPanel's
+      // `useEffect(() => { document.addEventListener('keydown', ...) }, [])`
+      // has already registered — the document dispatch below is guaranteed
+      // to reach a live listener, not a race against effect timing.
+      expect(screen.getByText('Mock Settings Content')).toBeInTheDocument();
+
       // SettingsPanel's own document-level Escape handler and DashboardView's
       // window-level widget-keyboard-action dispatch both fire within the
       // same synchronous keydown dispatch in the real app — reproduce that by
@@ -873,7 +882,81 @@ describe('DraggableWindow (Tests folder)', () => {
       const flipCalls = mockContext.updateWidget.mock.calls.filter(
         ([, patch]) => (patch as { flipped?: boolean })?.flipped === false
       );
+      // Exactly one call, from SettingsPanel's own onClose — proves the
+      // justClosedSettingsRef guard actually suppressed handleCustomKeyboard's
+      // would-be second write, not just that only one path happened to fire.
       expect(flipCalls).toHaveLength(1);
+    });
+
+    // Regression (#2430 round-5 review): justClosedSettingsRef was set
+    // unconditionally to `true` in onClose, but updateWidget returns early on
+    // a read-only board (never calls setDashboards), so no re-render fires to
+    // reset the ref in the render body. The ref stayed stuck `true` for the
+    // widget's lifetime, permanently no-op'ing handleCustomKeyboard's Escape
+    // priority chain — including setIsAnnotating(false), a purely local write
+    // NOT blocked by the read-only guard, leaving a read-only viewer unable
+    // to exit annotation mode via keyboard for the rest of the session.
+    it('does not permanently suppress Escape after closing settings on a read-only board (isAnnotating still toggles)', () => {
+      // isAnnotating is local component state (useState), not a widget field,
+      // and the normal UI paths to set it true (Alt+D, the Annotate toolbar
+      // button) are gated by isLocked = widget.isLocked || isActiveBoardReadOnly.
+      // So to reproduce "already annotating when the board flips to read-only
+      // mid-session", start writable, enter annotation mode via the real Alt+D
+      // shortcut, then rerender the same instance with isActiveBoardReadOnly
+      // flipped to true — local state survives the rerender.
+      const tree = (isActiveBoardReadOnly: boolean) => (
+        <DashboardContext.Provider
+          value={
+            {
+              ...mockContext,
+              selectedWidgetId: mockWidget.id,
+              isActiveBoardReadOnly,
+            } as unknown as DashboardContextValue
+          }
+        >
+          <DraggableWindow
+            widget={{ ...mockWidget, flipped: true }}
+            settings={<div>Mock Settings Content</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+
+      const { rerender, container } = render(tree(false));
+
+      const widgetEl = screen.getByTestId('widget-content').closest('.widget');
+      if (!widgetEl) throw new Error('.widget element not found');
+      fireEvent.keyDown(widgetEl, { key: 'd', altKey: true });
+      expect(container.querySelector('canvas')).toBeInTheDocument();
+
+      // Board becomes read-only mid-session.
+      rerender(tree(true));
+      expect(screen.getByText('Mock Settings Content')).toBeInTheDocument();
+
+      // First Escape: SettingsPanel's onClose fires. With the fix, the ref is
+      // only set when the board is writable, so it stays `false` here —
+      // updateWidget no-ops on this read-only board (no re-render either way).
+      act(() => {
+        document.body.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+        );
+      });
+
+      // A later, independent Escape must still be able to reach the
+      // isAnnotating branch — proving the ref did not leak past this widget's
+      // one settings-close.
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('widget-keyboard-action', {
+            detail: { widgetId: 'test-widget', key: 'Escape', shiftKey: false },
+          })
+        );
+      });
+
+      expect(container.querySelector('canvas')).not.toBeInTheDocument();
     });
   });
 

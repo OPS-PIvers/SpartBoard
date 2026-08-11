@@ -3368,7 +3368,15 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           appearanceSettings={appearanceSettings}
           shouldRenderSettings={shouldRenderSettings}
           onClose={() => {
-            justClosedSettingsRef.current = true;
+            // On a read-only board, updateWidget below returns early (never
+            // calls setDashboards), so no re-render fires to reset this ref
+            // in the render body — it would otherwise stay stuck `true` for
+            // the widget's lifetime, permanently no-op'ing every subsequent
+            // Escape in handleCustomKeyboard's priority chain (including
+            // setIsAnnotating(false), a purely local write NOT blocked by
+            // the read-only guard). Only set it when the write will actually
+            // land and trigger the reset.
+            justClosedSettingsRef.current = !isActiveBoardReadOnly;
             updateWidget(widget.id, { flipped: false });
           }}
           updateWidget={updateWidget}
