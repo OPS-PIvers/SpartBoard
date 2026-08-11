@@ -5,6 +5,7 @@
 // it for a scoped bearer token, then POST scores to a line item.
 
 import { signToolJwt } from './toolKey';
+import { OPAQUE_REDIRECT_TYPE } from './config';
 
 const ASSERTION_TYPE = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer';
 const NET_TIMEOUT_MS = 15000;
@@ -78,10 +79,12 @@ export async function getAgsAccessToken(
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     // Distinguish a refused redirect (SSRF guard) from an ordinary platform
-    // error in the thrown message — both otherwise present identically
-    // (`res.status` is 0 for both an opaque redirect and a network failure).
+    // error in the thrown message. (Unlike postScore below, this function has
+    // no try/catch — a network failure throws before reaching this block at
+    // all, so the only two cases reachable here are a refused redirect and an
+    // ordinary non-2xx status.)
     const reason =
-      res.type === 'opaqueredirect'
+      res.type === OPAQUE_REDIRECT_TYPE
         ? 'refused redirect (SSRF guard)'
         : `${res.status}`;
     const suffix = text ? `: ${text.slice(0, 300)}` : '';
@@ -167,7 +170,7 @@ export async function postScore(opts: {
       // isRedirect is caller-visible (not just logged) so any future retry
       // logic keyed on status:0 can exclude a refused redirect explicitly —
       // retrying would resend the bearer token toward the redirect target.
-      const isRedirect = res.type === 'opaqueredirect';
+      const isRedirect = res.type === OPAQUE_REDIRECT_TYPE;
       if (isRedirect) {
         console.warn('[ags] postScore refused redirect (SSRF guard)');
       }

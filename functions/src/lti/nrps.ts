@@ -9,6 +9,8 @@
 // Auth is the same client_credentials + signed-JWT bearer the AGS client uses
 // (getAgsAccessToken), just scoped to NRPS_SCOPE. We only ever GET.
 
+import { OPAQUE_REDIRECT_TYPE } from './config';
+
 // NRPS v2 membership container media type — sent as `Accept` so the platform
 // returns the v2 shape (members[] with user_id + name claims).
 const MEMBERSHIP_ACCEPT =
@@ -104,7 +106,7 @@ export const nrpsNet = {
         // An opaque redirect (SSRF guard refusal) and a genuine platform error
         // both land here with `res.ok === false`; distinguish them so a
         // refused redirect can't be silently treated as "no more pages".
-        const isRedirect = res.type === 'opaqueredirect';
+        const isRedirect = res.type === OPAQUE_REDIRECT_TYPE;
         console.warn(
           isRedirect
             ? '[nrps] membership fetch refused redirect (SSRF guard)'
@@ -155,9 +157,12 @@ export const nrpsNet = {
  * `givenName` so the teacher still sees a full label (`formatStudentName`
  * joins given + family).
  *
- * Throws only if the FIRST page errors (so the caller can distinguish "no
- * access / bad URL" from "empty roster"). Subsequent page errors stop
- * pagination and return what was collected so far.
+ * Throws if the FIRST page errors (so the caller can distinguish "no access /
+ * bad URL" from "empty roster"), OR if any page is a refused redirect (SSRF
+ * guard) regardless of page number — a persistent, configuration/attack-shaped
+ * failure that must not be silently treated as "roster fully resolved".
+ * An ordinary transient error on page 2+ (not a redirect) stops pagination
+ * and returns what was collected so far.
  */
 export async function fetchNrpsMembers(
   membershipUrl: string,

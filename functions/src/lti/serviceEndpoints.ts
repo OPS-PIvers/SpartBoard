@@ -132,6 +132,13 @@ interface GradeResult {
   ok: boolean;
   status?: number;
   reason?: string;
+  /**
+   * True when the failure was the SSRF guard refusing a redirect, distinct
+   * from an ordinary platform error — caller-visible so any future retry
+   * logic keyed on status:0 can exclude this case explicitly (retrying would
+   * resend the bearer token toward the redirect target).
+   */
+  isRedirect?: boolean;
 }
 
 export const ltiPushGradesForAssignmentV1 = onCall(
@@ -278,7 +285,12 @@ export const ltiPushGradesForAssignmentV1 = onCall(
           score: { userId: link.sub, scoreGiven, scoreMaximum: maxPoints },
           timestamp,
         });
-        return { pseudonymUid, ok: r.ok, status: r.status };
+        return {
+          pseudonymUid,
+          ok: r.ok,
+          status: r.status,
+          ...(r.isRedirect ? { isRedirect: true } : {}),
+        };
       })
     );
 

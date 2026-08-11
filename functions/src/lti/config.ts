@@ -54,6 +54,12 @@ export const AGS_SCOPE_RESULT =
 export const NRPS_SCOPE =
   'https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly';
 
+// The WHATWG `Response.type` value for a request sent with `redirect: 'manual'`
+// that received a 3xx — i.e. the SSRF guard refused to follow it. Shared so
+// ags.ts/nrps.ts don't each inline the literal (a typo at any call site would
+// silently fall through to a generic-error branch with no failing test).
+export const OPAQUE_REDIRECT_TYPE = 'opaqueredirect' as const;
+
 // ── Runtime platform config (clientId / deploymentId) ──────────────────────
 export interface LtiPlatformConfig {
   issuer: string;
