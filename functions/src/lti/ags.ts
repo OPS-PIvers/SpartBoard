@@ -66,6 +66,14 @@ export async function getAgsAccessToken(
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
     signal: AbortSignal.timeout(NET_TIMEOUT_MS),
+    // SSRF guard: `fetch()` follows redirects by default, so a 3xx response
+    // from the (platform-asserted) token/lineitem URL could silently retarget
+    // this request — including the Authorization bearer on postScore below —
+    // at an arbitrary off-platform host. `redirect: 'manual'` refuses to
+    // follow; the resulting response is `!ok`, which the existing error
+    // handling below already treats as a failure. Mirrors the
+    // `maxRedirects: 0` guard on the axios calls in embedProxy.ts.
+    redirect: 'manual',
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
@@ -139,6 +147,10 @@ export async function postScore(opts: {
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(NET_TIMEOUT_MS),
+      // SSRF guard — see the identical comment on the token-exchange fetch
+      // above. Here it also stops the bearer token from being sent to a
+      // redirect target.
+      redirect: 'manual',
     });
     return { ok: res.ok, status: res.status };
   } catch {

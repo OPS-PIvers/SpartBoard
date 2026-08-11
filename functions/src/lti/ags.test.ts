@@ -83,13 +83,20 @@ describe('getAgsAccessToken', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     expect(fetchMock.mock.calls[0][0]).toBe('https://schoology/token');
-    const body = String(
-      (fetchMock.mock.calls[0][1] as { body?: unknown }).body
-    );
+    const call = fetchMock.mock.calls[0][1] as {
+      body?: unknown;
+      redirect?: string;
+    };
+    const body = String(call.body);
     expect(body).toContain('grant_type=client_credentials');
     expect(body).toContain('client_assertion=');
     expect(body).toContain('scopeA');
     expect(body).toContain('scopeB');
+    // SSRF regression: `fetch()` follows redirects by default, so a 3xx from
+    // the token URL could silently retarget this request off-platform.
+    // `redirect: 'manual'` refuses to follow — see index.test.ts's
+    // `maxRedirects: 0` assertions for the equivalent axios-based guard.
+    expect(call.redirect).toBe('manual');
 
     // Cache hit for the same scope-set (order-independent).
     const tok2 = await getAgsAccessToken({
@@ -142,11 +149,16 @@ describe('postScore', () => {
     const init = fetchMock.mock.calls[0][1] as {
       headers: Record<string, string>;
       body: string;
+      redirect?: string;
     };
     expect(init.headers.Authorization).toBe('Bearer tok');
     expect(init.headers['Content-Type']).toBe(
       'application/vnd.ims.lis.v1.score+json'
     );
+    // SSRF regression: without `redirect: 'manual'`, a 3xx from the
+    // (platform-asserted) lineitem URL would carry the bearer token to
+    // whatever host it redirects to.
+    expect(init.redirect).toBe('manual');
     const sent = JSON.parse(init.body) as Record<string, unknown>;
     expect(sent).toMatchObject({
       userId: 'u1',

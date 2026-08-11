@@ -15,6 +15,35 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe('nrpsNet.fetchMembershipPage', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  // SSRF regression: `fetch()` follows redirects by default, so a 3xx from
+  // the (platform-asserted) membership URL — or from a `Link: rel="next"`
+  // page URL taken straight from the platform's response headers — could
+  // silently retarget this request, bearer token included, at an arbitrary
+  // off-platform host. `redirect: 'manual'` refuses to follow. Mirrors the
+  // `maxRedirects: 0` assertions in index.test.ts for the axios-based guards.
+  it('requests manual redirect handling on the membership GET (SSRF guard)', async () => {
+    const fetchMock = vi.fn<
+      (url: string | URL, init?: unknown) => Promise<Response>
+    >(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ members: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await nrpsNet.fetchMembershipPage('https://lms/m', 'tok');
+
+    const init = fetchMock.mock.calls[0][1] as { redirect?: string };
+    expect(init.redirect).toBe('manual');
+  });
+});
+
 describe('parseNextLink', () => {
   it('extracts the rel="next" target', () => {
     expect(parseNextLink('<https://lms/memberships?page=2>; rel="next"')).toBe(

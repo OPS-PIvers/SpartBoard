@@ -86,6 +86,15 @@ export const nrpsNet = {
           Accept: MEMBERSHIP_ACCEPT,
         },
         signal: AbortSignal.timeout(NET_TIMEOUT_MS),
+        // SSRF guard: `fetch()` follows redirects by default, so a 3xx from the
+        // (platform-asserted) membership URL — or from a `Link: rel="next"`
+        // page URL, which comes straight from the platform's response headers —
+        // could retarget this request, bearer token included, at an arbitrary
+        // off-platform host. `redirect: 'manual'` refuses to follow; the
+        // resulting response is `!ok`, already handled as a failed page below.
+        // Mirrors the `maxRedirects: 0` guard on the axios calls in
+        // embedProxy.ts.
+        redirect: 'manual',
       });
       if (!res.ok) {
         // Drain so undici returns the socket to the pool even on the error path.
