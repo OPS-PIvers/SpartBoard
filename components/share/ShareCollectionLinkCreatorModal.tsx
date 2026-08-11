@@ -67,8 +67,10 @@ export const ShareCollectionLinkCreatorModal: FC<
       );
       return;
     }
+    // Normalize before dedup/store — Firestore and .includes() are case-sensitive.
+    const normalized = trimmed.toLowerCase();
     setSubEmails((prev) =>
-      prev.includes(trimmed) ? prev : [...prev, trimmed]
+      prev.includes(normalized) ? prev : [...prev, normalized]
     );
     setSubEmailDraft('');
     setSubEmailError(null);
@@ -320,7 +322,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                 {presetEmails.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {presetEmails.map((email) => {
-                      const added = subEmails.includes(email);
+                      const added = subEmails.includes(email.toLowerCase());
                       return (
                         <button
                           key={email}
@@ -328,15 +330,18 @@ export const ShareCollectionLinkCreatorModal: FC<
                           disabled={added}
                           onClick={() =>
                             // Mirror the typed-input path: validate against the
-                            // Orono domain and de-dupe before adding. `disabled`
-                            // already blocks re-adds in normal use, but keeping
-                            // the guard here means the list stays clean even if
-                            // a preset ever comes from a non-hardcoded source.
-                            setSubEmails((prev) =>
-                              !isValidOronoEmail(email) || prev.includes(email)
+                            // Orono domain, normalize case, and de-dupe before
+                            // adding (matches handleAddSubEmail above).
+                            // `disabled` already blocks re-adds, but keep the
+                            // list clean even if a preset ever comes from a
+                            // non-hardcoded source.
+                            setSubEmails((prev) => {
+                              const normalized = email.toLowerCase();
+                              return !isValidOronoEmail(email) ||
+                                prev.includes(normalized)
                                 ? prev
-                                : [...prev, email]
-                            )
+                                : [...prev, normalized];
+                            })
                           }
                           className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition-colors ${
                             added

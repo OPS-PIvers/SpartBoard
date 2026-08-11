@@ -14,8 +14,9 @@ vi.mock('@/context/useDashboard', () => ({
 
 // usePresetSubEmails hits Firestore; stub it so the modal's optional sub-email
 // preset chips render without a live backend.
+const usePresetSubEmailsMock = vi.fn(() => ({ emails: [] as string[] }));
 vi.mock('@/hooks/usePresetSubEmails', () => ({
-  usePresetSubEmails: () => ({ emails: [] as string[] }),
+  usePresetSubEmails: () => usePresetSubEmailsMock(),
 }));
 
 const collection = (): Collection => ({
@@ -47,6 +48,7 @@ const baseMockReturn = {
 beforeEach(() => {
   vi.clearAllMocks();
   useDashboardMock.mockReturnValue(baseMockReturn);
+  usePresetSubEmailsMock.mockReturnValue({ emails: [] as string[] });
   // Stub clipboard for the auto-copy path
   Object.assign(navigator, {
     clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
@@ -190,5 +192,64 @@ describe('ShareCollectionLinkCreatorModal', () => {
     expect((urlInput as HTMLInputElement).value).toContain(
       '/share-collection/share-id-123'
     );
+  });
+});
+
+// Regression guard, same bug class as ShareLinkCreatorModal.test.tsx /
+// PresetSubEmailsManager.test.tsx / BetaUsersPanel.test.tsx (#2389 / #2375):
+// every other "add an email" call site in the app lowercases the trimmed
+// input before storing/deduping it, because downstream `.includes()` checks
+// and Firestore array membership are case-sensitive. This modal's substitute
+// Collection-share sub-email picker was never updated to match — both the
+// manual `handleAddSubEmail` input and the preset-chip click handler deduped
+// via a case-sensitive `subEmails.includes(...)` without lowercasing, so
+// adding "Sub@orono.k12.mn.us" and later "sub@orono.k12.mn.us" produced two
+// entries for the same real mailbox instead of one.
+describe('ShareCollectionLinkCreatorModal — substitute sub-email case handling', () => {
+  const openSubstituteMode = () => {
+    render(
+      <ShareCollectionLinkCreatorModal
+        isOpen
+        collection={collection()}
+        boards={[board('b1')]}
+        onClose={vi.fn()}
+      />
+    );
+    act(() => {
+      fireEvent.click(screen.getByRole('radio', { name: /substitute/i }));
+    });
+  };
+
+  it('de-dupes a manually-typed email against a differently-cased existing entry', () => {
+    openSubstituteMode();
+
+    const input = screen.getByPlaceholderText('name@orono.k12.mn.us');
+    fireEvent.change(input, { target: { value: 'Sub@Orono.K12.MN.US' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    fireEvent.change(input, { target: { value: 'SUB@ORONO.K12.MN.US' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    // Exactly one entry, stored lowercased — not two case-variant duplicates.
+    const items = screen.getAllByRole('listitem').map((li) => li.textContent);
+    expect(items).toEqual(['sub@orono.k12.mn.us']);
+  });
+
+  it('de-dupes a preset-chip click against an already-added differently-cased entry', () => {
+    usePresetSubEmailsMock.mockReturnValue({
+      emails: ['sub@orono.k12.mn.us'],
+    });
+    openSubstituteMode();
+
+    const input = screen.getByPlaceholderText('name@orono.k12.mn.us');
+    fireEvent.change(input, { target: { value: 'Sub@Orono.K12.MN.US' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    // Preset chip for the lowercase form of the same mailbox.
+    fireEvent.click(
+      screen.getByRole('button', { name: 'sub@orono.k12.mn.us' })
+    );
+
+    const items = screen.getAllByRole('listitem').map((li) => li.textContent);
+    expect(items).toEqual(['sub@orono.k12.mn.us']);
   });
 });

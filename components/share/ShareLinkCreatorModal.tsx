@@ -722,10 +722,10 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                           onClick={() =>
                             // Mirror the typed-input path: validate against the
                             // Orono domain, normalize case, and de-dupe before
-                            // adding (matches ShareCollectionLinkCreatorModal
-                            // and handleAddSubEmail above). `disabled` already
-                            // blocks re-adds, but keep the list clean even if a
-                            // preset ever comes from a non-hardcoded source.
+                            // adding (matches handleAddSubEmail above).
+                            // `disabled` already blocks re-adds, but keep the
+                            // list clean even if a preset ever comes from a
+                            // non-hardcoded source.
                             setSubEmails((prev) => {
                               const normalized = email.toLowerCase();
                               return !isValidOronoEmail(email) ||
