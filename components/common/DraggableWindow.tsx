@@ -562,6 +562,19 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync for stale-closure prevention (CLAUDE.md pattern); false positive from react-hooks/refs v7
   stateRef.current = { isEditingTitle, saveTitle };
 
+  // Set to true by SettingsPanel's onClose, synchronously, before it calls
+  // updateWidget. DashboardView's global Escape handler always dispatches a
+  // widget-keyboard-action event (it can't see this component's local
+  // showConfirm state, so it must not skip the dispatch — see DashboardView.tsx).
+  // Without this ref, handleCustomKeyboard's Escape branch would read the
+  // still-stale `widget.flipped === true` prop (React hasn't re-rendered yet
+  // within the same synchronous keydown dispatch) and call updateWidget a
+  // second, redundant time. Reset every render — the ref only needs to
+  // survive the brief window between onClose firing and the next commit.
+  const justClosedSettingsRef = useRef(false);
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref reset for stale-flag prevention (CLAUDE.md pattern); false positive from react-hooks/refs v7
+  justClosedSettingsRef.current = false;
+
   const handleCloseTools = useCallback(() => {
     setSelectedWidgetId(null);
     const { isEditingTitle, saveTitle } = stateRef.current;
@@ -1935,6 +1948,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         // If you add a new Escape branch here, mirror it in handleKeyDown and vice-versa.
         if (showConfirm) {
           setShowConfirm(false);
+        } else if (justClosedSettingsRef.current) {
+          // SettingsPanel's own Escape handler already closed the panel in
+          // this same keydown dispatch (see the ref's declaration comment) —
+          // nothing left to do. A plain `&&` guard on the branch below would
+          // instead fall through to the minimize branch, which is worse than
+          // the original redundant write it was meant to prevent.
         } else if (widget.flipped && !isActiveBoardReadOnly) {
           // Allow closing an already-open settings panel for per-widget-locked
           // widgets; isActiveBoardReadOnly blocks all writes on shared boards.
@@ -3348,7 +3367,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           settings={settings}
           appearanceSettings={appearanceSettings}
           shouldRenderSettings={shouldRenderSettings}
-          onClose={() => updateWidget(widget.id, { flipped: false })}
+          onClose={() => {
+            justClosedSettingsRef.current = true;
+            updateWidget(widget.id, { flipped: false });
+          }}
           updateWidget={updateWidget}
           globalStyle={globalStyle}
           title={title}

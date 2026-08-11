@@ -1150,19 +1150,26 @@ describe('DashboardView Gestures & Navigation', () => {
     });
   });
 
-  // Regression: SettingsPanel.tsx's own document-level Escape handler already
-  // closes an open settings panel (document fires before window in the bubble
-  // phase). Without this guard, DashboardView's window-level fallback also
-  // dispatched a widget-keyboard-action Escape at the SAME widget, causing
-  // DraggableWindow to flip it back a second, redundant time — an extra
-  // Firestore write on every settings-panel Escape-close. An earlier fix
-  // attempt solved this by calling stopPropagation() inside SettingsPanel
-  // itself, but that also silenced Shift+Escape (minimize all), group-build
-  // mode exit, and AnnotationOverlay's own Escape handler whenever a settings
-  // panel happened to be open — all legitimate co-active states. The correct
-  // fix instead skips the dispatch here, only for the specific already-open
-  // widget, leaving every other window-level Escape listener untouched.
-  describe('global Escape defers to an already-open widget settings panel', () => {
+  // Regression history (#2430): SettingsPanel.tsx's own document-level
+  // Escape handler already closes an open settings panel (document fires
+  // before window in the bubble phase). An earlier fix attempt called
+  // stopPropagation() inside SettingsPanel to stop DashboardView's
+  // window-level fallback from ALSO dispatching a redundant
+  // widget-keyboard-action Escape at the same widget — but that also
+  // silenced Shift+Escape (minimize all), group-build mode exit, and
+  // AnnotationOverlay's own Escape handler whenever a settings panel
+  // happened to be open. A second attempt skipped the dispatch here in
+  // DashboardView specifically when the target widget was flipped — but
+  // DashboardView can't see DraggableWindow's local `showConfirm` state, so
+  // that also left an open delete-confirm dialog on a flipped widget stuck
+  // (Escape blocked before it could reach handleCustomKeyboard's
+  // showConfirm branch). The correct fix: DashboardView ALWAYS dispatches;
+  // DraggableWindow avoids the redundant write itself via a ref set
+  // synchronously by SettingsPanel's onClose (see
+  // justClosedSettingsRef in DraggableWindow.tsx, and
+  // "handleCustomKeyboard Escape priority" in DraggableWindow.test.tsx for
+  // that side of the fix).
+  describe('global Escape always dispatches widget-keyboard-action, even when a widget is flipped (settings open)', () => {
     const widgetsWithFlipped = (flipped: boolean) => [
       {
         id: 'widget-1',
@@ -1190,6 +1197,13 @@ describe('DashboardView Gestures & Navigation', () => {
       loadDashboard: mockLoadDashboard,
       zoom: 1,
       setZoom: vi.fn(),
+      removeToast: vi.fn(),
+      updateWidget: vi.fn(),
+      removeWidget: vi.fn(),
+      duplicateWidget: vi.fn(),
+      bringToFront: vi.fn(),
+      addToast: vi.fn(),
+      deleteAllWidgets: vi.fn(),
       collectionsApi: {
         collections: [],
         loading: false,
@@ -1205,7 +1219,7 @@ describe('DashboardView Gestures & Navigation', () => {
       ...extra,
     });
 
-    it('does not dispatch a widget-keyboard-action Escape when the target widget is already flipped (settings open)', () => {
+    it('still dispatches a widget-keyboard-action Escape when the target widget is already flipped (settings open)', () => {
       (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
         mockReturnWithWidget(true)
       );
@@ -1214,7 +1228,7 @@ describe('DashboardView Gestures & Navigation', () => {
       try {
         renderView();
         fireEvent.keyDown(window, { key: 'Escape' });
-        expect(handler).not.toHaveBeenCalled();
+        expect(handler).toHaveBeenCalled();
       } finally {
         window.removeEventListener('widget-keyboard-action', handler);
       }

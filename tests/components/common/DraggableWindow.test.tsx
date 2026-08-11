@@ -792,6 +792,91 @@ describe('DraggableWindow (Tests folder)', () => {
     });
   });
 
+  // Regression (#2430 review): DashboardView's global Escape handler always
+  // dispatches widget-keyboard-action — it can't see this component's local
+  // showConfirm state, so it must not skip the dispatch just because the
+  // widget is flipped. These tests exercise handleCustomKeyboard's own
+  // priority chain and the justClosedSettingsRef redundant-write guard.
+  describe('handleCustomKeyboard Escape priority (showConfirm vs. flipped)', () => {
+    const renderFlipped = () =>
+      render(
+        <DashboardContext.Provider
+          value={
+            {
+              ...mockContext,
+              selectedWidgetId: mockWidget.id,
+            } as unknown as DashboardContextValue
+          }
+        >
+          <DraggableWindow
+            widget={{ ...mockWidget, flipped: true }}
+            settings={<div>Settings</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+
+    it('dismisses an open delete-confirm dialog via Escape even while the settings panel is also open (flipped)', () => {
+      renderFlipped();
+
+      // Delete → showConfirm(true), reproducing the compound state from the
+      // review: settings open (flipped) AND a confirm dialog open.
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('widget-keyboard-action', {
+            detail: { widgetId: 'test-widget', key: 'Delete', shiftKey: false },
+          })
+        );
+      });
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('widget-keyboard-action', {
+            detail: { widgetId: 'test-widget', key: 'Escape', shiftKey: false },
+          })
+        );
+      });
+
+      // showConfirm takes priority in handleCustomKeyboard's Escape branch —
+      // the dialog must dismiss, and this dismissal must NOT also flip the
+      // widget back (that branch is only reached when showConfirm is false).
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      expect(mockContext.updateWidget).not.toHaveBeenCalledWith('test-widget', {
+        flipped: false,
+      });
+    });
+
+    it('does not call updateWidget a second time when SettingsPanel already closed the panel via its own Escape handler', () => {
+      renderFlipped();
+
+      // SettingsPanel's own document-level Escape handler and DashboardView's
+      // window-level widget-keyboard-action dispatch both fire within the
+      // same synchronous keydown dispatch in the real app — reproduce that by
+      // firing the real Escape on document (triggers SettingsPanel's onClose,
+      // which sets justClosedSettingsRef before calling updateWidget) and the
+      // CustomEvent DashboardView would dispatch, inside one act() batch.
+      act(() => {
+        document.body.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+        );
+        window.dispatchEvent(
+          new CustomEvent('widget-keyboard-action', {
+            detail: { widgetId: 'test-widget', key: 'Escape', shiftKey: false },
+          })
+        );
+      });
+
+      const flipCalls = mockContext.updateWidget.mock.calls.filter(
+        ([, patch]) => (patch as { flipped?: boolean })?.flipped === false
+      );
+      expect(flipCalls).toHaveLength(1);
+    });
+  });
+
   describe('Toolbar button lock guards', () => {
     // Regression suite for the toolbar `disabled={isLocked}` + `if (isLocked) return`
     // defense-in-depth pattern. `disabled` alone doesn't stop programmatic
