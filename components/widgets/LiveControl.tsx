@@ -95,6 +95,11 @@ export const LiveControl: React.FC<LiveControlProps> = ({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        // Portalled to <body>, outside any `.widget` ancestor — without
+        // stopPropagation the keydown bubbles to DashboardView's global
+        // Escape handler, which minimizes the topmost widget (see
+        // ActiveClassChip's fix for the same bug class).
+        event.stopPropagation();
         setShowMenu(false);
         buttonRef.current?.focus();
         return;

@@ -155,6 +155,41 @@ describe('LiveControl', () => {
     expect(screen.queryByText('Classroom (2)')).not.toBeInTheDocument();
   });
 
+  /**
+   * Regression: the classroom menu is portalled to document.body, outside
+   * any `.widget` DraggableWindow ancestor. Its Escape handler closed the
+   * menu but never called stopPropagation(), so the keydown kept bubbling to
+   * DashboardView's global window-level Escape handler, which falls back to
+   * minimizing the topmost z-index widget. Net effect: dismissing this menu
+   * with Escape during a live session could also silently minimize an
+   * unrelated widget on the live board.
+   *
+   * FIX: the handler now calls event.stopPropagation() before closing,
+   * matching the same fix already applied to ActiveClassChip and other
+   * portalled popovers for this exact bug class.
+   */
+  it('stops propagation on Escape so it does not reach window-level handlers', () => {
+    renderLiveControl();
+    fireEvent.click(screen.getByLabelText(/connected students/));
+    expect(screen.getByText('Classroom (2)')).toBeInTheDocument();
+
+    const windowKeydownSpy = vi.fn();
+    window.addEventListener('keydown', windowKeydownSpy);
+
+    try {
+      fireEvent.keyDown(document, { key: 'Escape', bubbles: true });
+
+      expect(screen.queryByText('Classroom (2)')).not.toBeInTheDocument();
+      // This is the crux of the regression: DashboardView's global Escape
+      // handler is a window-level `keydown` listener. If the menu's own
+      // handler doesn't stopPropagation, the event still reaches window
+      // and DashboardView falls back to minimizing the topmost widget.
+      expect(windowKeydownSpy).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('keydown', windowKeydownSpy);
+    }
+  });
+
   it('renders Preview link with preview=1 appended when joinUrl is present', () => {
     renderLiveControl();
     fireEvent.click(screen.getByLabelText(/connected students/));
