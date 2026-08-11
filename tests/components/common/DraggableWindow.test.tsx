@@ -841,10 +841,13 @@ describe('DraggableWindow (Tests folder)', () => {
         );
       });
 
-      // showConfirm takes priority in handleCustomKeyboard's Escape branch —
-      // the dialog must dismiss, and this dismissal must NOT also flip the
-      // widget back (that branch is only reached when showConfirm is false).
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      // showConfirm takes priority in handleCustomKeyboard's Escape branch.
+      // The flipped-back write is blocked by showConfirm returning early —
+      // justClosedSettingsRef is NOT exercised here (no real keydown was
+      // dispatched, only the widget-keyboard-action CustomEvent, so
+      // SettingsPanel's own document-level Escape listener never fires).
+      // See the next test in this suite for the ref guard itself.
       expect(mockContext.updateWidget).not.toHaveBeenCalledWith('test-widget', {
         flipped: false,
       });

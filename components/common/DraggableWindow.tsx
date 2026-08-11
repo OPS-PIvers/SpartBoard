@@ -1948,20 +1948,24 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         // If you add a new Escape branch here, mirror it in handleKeyDown and vice-versa.
         if (showConfirm) {
           setShowConfirm(false);
-        } else if (justClosedSettingsRef.current) {
+        } else if (!justClosedSettingsRef.current) {
+          // Wrapped (rather than an early empty `else if` branch) so a new
+          // sub-case added below is mechanically guarded by the ref check —
           // SettingsPanel's own Escape handler already closed the panel in
-          // this same keydown dispatch (see the ref's declaration comment) —
-          // nothing left to do. A plain `&&` guard on the branch below would
-          // instead fall through to the minimize branch, which is worse than
-          // the original redundant write it was meant to prevent.
-        } else if (widget.flipped && !isActiveBoardReadOnly) {
-          // Allow closing an already-open settings panel for per-widget-locked
-          // widgets; isActiveBoardReadOnly blocks all writes on shared boards.
-          updateWidget(widget.id, { flipped: false });
-        } else if (isAnnotating) {
-          setIsAnnotating(false);
-        } else if (!isLocked) {
-          updateWidget(widget.id, { minimized: true, flipped: false });
+          // this same keydown dispatch (see the ref's declaration comment)
+          // when justClosedSettingsRef.current is true, so nothing here
+          // should run in that case. A plain `&&` on just the widget.flipped
+          // branch would instead fall through to the minimize branch, which
+          // is worse than the original redundant write this ref prevents.
+          if (widget.flipped && !isActiveBoardReadOnly) {
+            // Allow closing an already-open settings panel for per-widget-locked
+            // widgets; isActiveBoardReadOnly blocks all writes on shared boards.
+            updateWidget(widget.id, { flipped: false });
+          } else if (isAnnotating) {
+            setIsAnnotating(false);
+          } else if (!isLocked) {
+            updateWidget(widget.id, { minimized: true, flipped: false });
+          }
         }
       } else if (key === 'Pin') {
         if (!isLocked) {
