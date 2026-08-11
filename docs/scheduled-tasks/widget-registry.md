@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-10_
+_Last audited: 2026-08-11_
 _Last action: 2026-06-25_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-11: Full audit (Tuesday daily). New dev-paul commits since 2026-08-10: d81ca589 fix(a11y) use radio semantics for single-select settings groups — touches components/common/SurfaceColorSettings.tsx, TextSizePresetSettings.tsx, TypographySettings.tsx (shared back-face settings primitives), components/widgets/TimeTool/Settings.tsx (back-face only), and tests/components/common/TypographySettings.test.tsx — all back-face/test files; no WidgetType additions, removals, or renames, no WidgetRegistry impact; b6e4b108 pr-review (docs/scheduled-tasks/pr-review-log.md only). VERIFIED COUNT: 63 WidgetType members (unchanged — consistent with all prior runs). All 63 WidgetTypes correctly registered across all 7 locations (WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, config/tools.ts, config/widgetDefaults.ts, config/widgetGradeLevels.ts). All intentional omissions re-confirmed: sticker intentional WidgetRenderer special-case per JSDoc; 7 intentional tools.ts omissions (catalyst-instruction, catalyst-visual, blooms-detail, mathTool, custom-widget, onboarding, sticker); 3 InternalToolType entries (magic, record, remote) documented. Full lazyNamed() cross-check: RevealGrid barrel aliases ('Widget'/'Settings' via index.ts re-export) confirmed intentional and consistent with all prior audits; QuizWidgetSettings and VideoActivityWidgetSettings naming patterns confirmed intentional. pnpm type-check exit 0. pnpm lint: full-codebase run timed out in audit environment (>5 min); all sampled files (context/, hooks/, utils/, config/, root) lint-clean; prior CI confirms codebase lint-clean. Zero new gaps._
 
 _2026-08-10: Full audit (Monday daily). New dev-paul commits since 2026-08-09: c26ad917 docs(rich-response) (docs only); 0e79f85f docs(unifier) run 50 (docs only); f58cb0db fix(a11y) #2416 retrofit orphaned SettingsLabel group headings in shared settings primitives (components/common/SurfaceColorSettings.tsx, TextSizePresetSettings.tsx, TypographySettings.tsx — back-face settings primitives only; no WidgetType changes); f4830ebe pr-review (docs only). Zero WidgetType additions, removals, or renames. VERIFIED COUNT: 63 WidgetType members (unchanged — consistent with all prior runs). All 63 WidgetTypes correctly registered across all 7 locations (WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, config/tools.ts, config/widgetDefaults.ts, config/widgetGradeLevels.ts). All intentional omissions re-confirmed: sticker intentional WidgetRenderer special-case per JSDoc; 7 intentional tools.ts omissions (catalyst-instruction, catalyst-visual, blooms-detail, mathTool, custom-widget, onboarding, sticker); 3 InternalToolType entries (magic, record, remote) documented. pnpm type-check exit 0. pnpm lint exit 0. pnpm test: 604 files / 7321 tests all passing. Zero new gaps._
 
