@@ -273,6 +273,12 @@ describe('ShareCollectionLinkCreatorModal — substitute sub-email case handling
       name: 'not-an-orono-email@gmail.com',
     });
     expect(chip).toBeDisabled();
+    // Regression (#2432 round-9 review): `disabled` alone blocked clicks,
+    // but the className ternary only branched on `added` — an invalid-domain
+    // chip rendered with the full blue enabled appearance, giving a teacher
+    // zero visual cue that the click they just made was silently ignored.
+    expect(chip.className).not.toContain('bg-brand-blue-lighter/40');
+    expect(chip.className).toContain('cursor-not-allowed');
   });
 
   // Regression (#2432 review): the Collection variant of this chip always

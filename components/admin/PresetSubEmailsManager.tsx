@@ -95,6 +95,14 @@ export const PresetSubEmailsManager: React.FC = () => {
 
 interface Snapshot {
   emails: string[];
+  /**
+   * The raw Firestore array (string entries only, unnormalized) as of this
+   * snapshot — used to compute `dirty` against, since `emails` is already
+   * normalized/deduped and comparing draftEmails to it would always match
+   * right after seeding, permanently disabling Save for a building whose
+   * legacy data needs the normalization written back.
+   */
+  rawEmails: string[];
   loaded: boolean;
 }
 
@@ -104,6 +112,7 @@ const BuildingPresetEditor: React.FC<{ buildingId: string }> = ({
   const { user } = useAuth();
   const [snapshot, setSnapshot] = useState<Snapshot>({
     emails: [],
+    rawEmails: [],
     loaded: false,
   });
   // Editable draft layered on top of the snapshot. Initialized empty; once
@@ -132,21 +141,23 @@ const BuildingPresetEditor: React.FC<{ buildingId: string }> = ({
         // hook for the empty-chip failure mode this prevents) and dedup via
         // Set (the codebase's dedup convention elsewhere; O(n) vs the
         // previous indexOf-based O(n²) filter).
-        const list = Array.isArray(data?.emails)
-          ? [
-              ...new Set(
-                (data.emails as unknown[])
-                  .filter((v): v is string => typeof v === 'string')
-                  .map((e) => e.trim().toLowerCase())
-                  .filter((e) => e.length > 0)
-              ),
-            ]
+        const rawEmails = Array.isArray(data?.emails)
+          ? (data.emails as unknown[]).filter(
+              (v): v is string => typeof v === 'string'
+            )
           : [];
-        setSnapshot({ emails: list, loaded: true });
+        const list = [
+          ...new Set(
+            rawEmails
+              .map((e) => e.trim().toLowerCase())
+              .filter((e) => e.length > 0)
+          ),
+        ];
+        setSnapshot({ emails: list, rawEmails, loaded: true });
       },
       (err) => {
         console.error('[PresetSubEmailsManager] snapshot error:', err);
-        setSnapshot({ emails: [], loaded: true });
+        setSnapshot({ emails: [], rawEmails: [], loaded: true });
       }
     );
     return unsub;
@@ -160,10 +171,15 @@ const BuildingPresetEditor: React.FC<{ buildingId: string }> = ({
     setDraftSeededAt(Date.now());
   }
 
+  // Compares against the RAW Firestore array, not the already-normalized
+  // snapshot.emails draftEmails is seeded from — comparing to the normalized
+  // list would always match right after seeding, permanently disabling Save
+  // for a building whose legacy data (case variants, whitespace, duplicates)
+  // needs the normalized/deduped result written back to Firestore.
   const dirty = useMemo(() => {
     if (!snapshot.loaded) return false;
-    if (draftEmails.length !== snapshot.emails.length) return true;
-    return draftEmails.some((e, i) => e !== snapshot.emails[i]);
+    if (draftEmails.length !== snapshot.rawEmails.length) return true;
+    return draftEmails.some((e, i) => e !== snapshot.rawEmails[i]);
   }, [draftEmails, snapshot]);
 
   const addEmail = () => {
@@ -186,7 +202,16 @@ const BuildingPresetEditor: React.FC<{ buildingId: string }> = ({
       prev.some((e) => e === normalized) ? prev : [...prev, normalized]
     );
     setEmailInput('');
-    setError(null);
+    // For the (lower-stakes, UI-only) decision of whether to clear a live
+    // save-failure error, read draftEmails from the outer closure instead
+    // of trying to observe the updater's outcome synchronously — React
+    // does not invoke a functional updater inline when setState is called;
+    // it runs later during the render pass, so a `let added` flag captured
+    // inside the updater and read on the next line is always stale.
+    // Without this check, setError(null) would fire unconditionally,
+    // silently clearing a still-live save-failure error whenever a
+    // duplicate Add no-ops instead of only on a genuine new entry.
+    if (!draftEmails.includes(normalized)) setError(null);
   };
 
   const removeEmail = (email: string) => {

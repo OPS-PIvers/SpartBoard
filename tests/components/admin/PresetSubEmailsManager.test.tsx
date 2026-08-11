@@ -1,5 +1,13 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type Mock,
+} from 'vitest';
 import {
   render,
   screen,
@@ -75,7 +83,10 @@ vi.mock('firebase/firestore', () => ({
   setDoc: vi.fn().mockResolvedValue(undefined),
 }));
 
+import { setDoc } from 'firebase/firestore';
 import { PresetSubEmailsManager } from '@/components/admin/PresetSubEmailsManager';
+
+const setDocMock = setDoc as unknown as Mock;
 
 const fakeDocSnap = (data: Record<string, unknown> | undefined) => ({
   data: () => data,
@@ -84,6 +95,7 @@ const fakeDocSnap = (data: Record<string, unknown> | undefined) => ({
 describe('PresetSubEmailsManager — email case handling', () => {
   beforeEach(() => {
     listeners = [];
+    setDocMock.mockReset().mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -200,5 +212,78 @@ describe('PresetSubEmailsManager — email case handling', () => {
 
     expect(screen.getByText('1 preset email')).toBeInTheDocument();
     expect(screen.getByText('valid@orono.k12.mn.us')).toBeInTheDocument();
+  });
+
+  // Regression (#2432 round-9 review): moving the dedup check into the
+  // functional updater dropped the early return that used to keep
+  // setError(null) off the duplicate path — it now fires unconditionally.
+  // A live save-failure error message got silently wiped by a subsequent
+  // duplicate Add, with no indication to the admin that the save is still
+  // failing.
+  it('does not clear a save-failure error when a duplicate email is submitted', async () => {
+    setDocMock.mockRejectedValueOnce(new Error('permission-denied'));
+    render(<PresetSubEmailsManager />);
+
+    // Legacy mixed-case raw data (see the "marks dirty..." test below) makes
+    // Save enabled immediately, with no add-cycle needed first.
+    act(() => {
+      listeners[listeners.length - 1].next(
+        fakeDocSnap({ emails: ['Sub@Orono.K12.MN.US'] })
+      );
+    });
+
+    // Type a value that's already a duplicate of the (normalized) existing
+    // entry BEFORE the save fails — this fireEvent.change's onChange handler
+    // clears error too (correct, pre-existing, unrelated behavior), but no
+    // error exists yet at this point, so it's a no-op here. Doing this
+    // *after* the save failure instead would let that unrelated onChange
+    // path silently clear the error, masking whether THIS fix (in
+    // addEmail's own duplicate branch) actually works.
+    const input = screen.getByPlaceholderText('ohssub@orono.k12.mn.us');
+    fireEvent.change(input, { target: { value: 'sub@orono.k12.mn.us' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+    expect(
+      await screen.findByText(
+        'Failed to save. Check Firestore rules and try again.'
+      )
+    ).toBeInTheDocument();
+
+    // Click Add with no further onChange — exercises addEmail's own
+    // duplicate path in isolation.
+    fireEvent.click(screen.getByRole('button', { name: /add/i }));
+
+    expect(
+      screen.getByText('Failed to save. Check Firestore rules and try again.')
+    ).toBeInTheDocument();
+  });
+
+  // Regression (#2432 round-9 review): snapshot.emails is already
+  // normalized/deduped, and draftEmails seeds from it — comparing the two
+  // for `dirty` always matches right after seeding, permanently disabling
+  // Save for a building whose legacy Firestore data (case variants,
+  // whitespace, duplicates) needs the cleaned-up result written back.
+  it('marks dirty (Save enabled) when legacy Firestore data required normalization', () => {
+    render(<PresetSubEmailsManager />);
+
+    act(() => {
+      listeners[listeners.length - 1].next(
+        fakeDocSnap({ emails: ['Sub@Orono.K12.MN.US', 'sub@orono.k12.mn.us'] })
+      );
+    });
+
+    expect(screen.getByRole('button', { name: /save/i })).toBeEnabled();
+  });
+
+  it('leaves Save disabled when Firestore data is already clean', () => {
+    render(<PresetSubEmailsManager />);
+
+    act(() => {
+      listeners[listeners.length - 1].next(
+        fakeDocSnap({ emails: ['sub@orono.k12.mn.us'] })
+      );
+    });
+
+    expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
   });
 });

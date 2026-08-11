@@ -361,7 +361,9 @@ export const ShareCollectionLinkCreatorModal: FC<
                           className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition-colors ${
                             added
                               ? 'bg-emerald-100 text-emerald-700 cursor-default'
-                              : 'bg-brand-blue-lighter/40 text-brand-blue-primary hover:bg-brand-blue-lighter/70'
+                              : !isValidOronoEmail(email)
+                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-50'
+                                : 'bg-brand-blue-lighter/40 text-brand-blue-primary hover:bg-brand-blue-lighter/70'
                           }`}
                         >
                           {added ? (
