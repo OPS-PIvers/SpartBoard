@@ -60,7 +60,16 @@ export const TypographySettings = <
                   : 'border-slate-100 hover:border-slate-200'
               }`}
             >
-              <span className={`text-sm ${f.className} text-slate-900`}>
+              {/* Decorative sample glyph (✏️, ☺, 𝒞, ★ …) — purely a visual
+                  preview of the typeface. Without aria-hidden it is
+                  concatenated into the button's accessible name, so the
+                  option announces as "pencil Handwriting, radio" instead of
+                  "Handwriting, radio". The {f.label} span below carries the
+                  real name. */}
+              <span
+                aria-hidden="true"
+                className={`text-sm ${f.className} text-slate-900`}
+              >
                 {f.icon}
               </span>
               <span className="text-xxxs uppercase text-slate-600 font-bold">
