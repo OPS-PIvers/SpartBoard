@@ -172,12 +172,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           target.tagName === 'SELECT' ||
           target.isContentEditable);
       if (isFormField) return;
-      // Portalled to <body>, outside any `.widget` ancestor — without
-      // stopping propagation an Escape here also bubbles up to
-      // DashboardView's global window-level Escape handler, which then
-      // dispatches a redundant widget-keyboard-action Escape at this same
-      // widget (a second, unnecessary updateWidget/Firestore write).
-      e.stopPropagation();
       onCloseRef.current();
     };
     document.addEventListener('keydown', handleKeyDown);

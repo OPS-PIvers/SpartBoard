@@ -946,6 +946,15 @@ export const DashboardView: React.FC = () => {
 
           if (!targetId) return;
 
+          // If the target widget's settings panel is already open, SettingsPanel's
+          // own document-level Escape handler already closes it (document fires
+          // before window in the bubble phase) — dispatching here too would be a
+          // redundant flip-back / extra Firestore write for the same widget.
+          const targetWidget = activeDashboard.widgets.find(
+            (w) => w.id === targetId
+          );
+          if (targetWidget?.flipped) return;
+
           // Dispatch custom event to notify the specific widget
           const event = new CustomEvent('widget-keyboard-action', {
             detail: { widgetId: targetId, key: 'Escape', shiftKey: e.shiftKey },

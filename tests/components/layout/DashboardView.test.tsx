@@ -1150,6 +1150,102 @@ describe('DashboardView Gestures & Navigation', () => {
     });
   });
 
+  // Regression: SettingsPanel.tsx's own document-level Escape handler already
+  // closes an open settings panel (document fires before window in the bubble
+  // phase). Without this guard, DashboardView's window-level fallback also
+  // dispatched a widget-keyboard-action Escape at the SAME widget, causing
+  // DraggableWindow to flip it back a second, redundant time — an extra
+  // Firestore write on every settings-panel Escape-close. An earlier fix
+  // attempt solved this by calling stopPropagation() inside SettingsPanel
+  // itself, but that also silenced Shift+Escape (minimize all), group-build
+  // mode exit, and AnnotationOverlay's own Escape handler whenever a settings
+  // panel happened to be open — all legitimate co-active states. The correct
+  // fix instead skips the dispatch here, only for the specific already-open
+  // widget, leaving every other window-level Escape listener untouched.
+  describe('global Escape defers to an already-open widget settings panel', () => {
+    const widgetsWithFlipped = (flipped: boolean) => [
+      {
+        id: 'widget-1',
+        type: 'clock',
+        x: 100,
+        y: 100,
+        w: 200,
+        h: 200,
+        z: 1,
+        flipped,
+        config: {},
+      },
+    ];
+
+    const mockReturnWithWidget = (flipped: boolean, extra = {}) => ({
+      activeDashboard: {
+        ...mockDashboards[1],
+        widgets: widgetsWithFlipped(flipped),
+      },
+      dashboards: mockDashboards,
+      toasts: [],
+      addWidget: vi.fn(),
+      minimizeAllWidgets: vi.fn(),
+      restoreAllWidgets: vi.fn(),
+      loadDashboard: mockLoadDashboard,
+      zoom: 1,
+      setZoom: vi.fn(),
+      collectionsApi: {
+        collections: [],
+        loading: false,
+        error: null,
+        createCollection: vi.fn(),
+        renameCollection: vi.fn(),
+        moveCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        reorderSiblings: vi.fn(),
+        setCollectionMetadata: vi.fn(),
+        setCollectionDefaultBoard: vi.fn(),
+      },
+      ...extra,
+    });
+
+    it('does not dispatch a widget-keyboard-action Escape when the target widget is already flipped (settings open)', () => {
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockReturnWithWidget(true)
+      );
+      const handler = vi.fn();
+      window.addEventListener('widget-keyboard-action', handler);
+      try {
+        renderView();
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(handler).not.toHaveBeenCalled();
+      } finally {
+        window.removeEventListener('widget-keyboard-action', handler);
+      }
+    });
+
+    it('still dispatches a widget-keyboard-action Escape when the target widget is not flipped', () => {
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockReturnWithWidget(false)
+      );
+      const handler = vi.fn();
+      window.addEventListener('widget-keyboard-action', handler);
+      try {
+        renderView();
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(handler).toHaveBeenCalled();
+      } finally {
+        window.removeEventListener('widget-keyboard-action', handler);
+      }
+    });
+
+    it('Shift+Escape still minimizes all widgets even when the top widget is flipped (settings open)', () => {
+      const minimizeAllWidgets = vi.fn();
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockReturnWithWidget(true, { minimizeAllWidgets })
+      );
+      renderView();
+      fireEvent.keyDown(window, { key: 'Escape', shiftKey: true });
+      expect(minimizeAllWidgets).toHaveBeenCalledTimes(1);
+    });
+  });
+
   // Regression: Ctrl+/ (Open Cheat Sheet) lacked a typing-field guard.
   //
   // Bug: the `if ((e.ctrlKey || e.metaKey) && e.key === '/')` branch in the
