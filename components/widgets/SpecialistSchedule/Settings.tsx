@@ -72,6 +72,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
   const { cycleDays = [], recurringItems = [] } = config;
   const activityNameLabelId = useId();
+  const recurringActivityNameInputId = useId();
 
   const [activeTab, setActiveTab] = useState<'schedules' | 'recurring'>(
     'schedules'
@@ -383,7 +384,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                         prev ? { ...prev, task: e.target.value } : null
                       )
                     }
-                    aria-label="Activity Name"
+                    aria-label="Custom activity name"
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"
                     placeholder="Type activity name..."
                     autoFocus
@@ -614,8 +615,11 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                   )}
 
                 <div>
-                  <SettingsLabel>Activity Name</SettingsLabel>
+                  <SettingsLabel htmlFor={recurringActivityNameInputId}>
+                    Activity Name
+                  </SettingsLabel>
                   <input
+                    id={recurringActivityNameInputId}
                     type="text"
                     value={tempItem?.task ?? ''}
                     onChange={(e) =>

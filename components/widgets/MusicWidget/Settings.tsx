@@ -384,7 +384,7 @@ export const MusicAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
                 backgroundImage:
                   c.hex === 'transparent' ? TRANSPARENT_BG_URL : undefined,
               }}
-              aria-label={`Background ${c.label}`}
+              aria-label={`Background color ${c.label}`}
               title={c.label}
             />
           ))}
