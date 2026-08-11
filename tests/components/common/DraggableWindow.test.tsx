@@ -958,6 +958,62 @@ describe('DraggableWindow (Tests folder)', () => {
 
       expect(container.querySelector('canvas')).not.toBeInTheDocument();
     });
+
+    // Regression (#2430 round-6 review): the read-only-board fix above only
+    // accounted for one of updateWidget's two early returns
+    // (isActiveBoardReadOnlyRef.current). The other — `!activeIdRef.current`
+    // — hits on a narrow race (e.g. a dashboard switch clears activeId while
+    // this widget is still mounted). Without also guarding on that, the ref
+    // would get stuck the same way: set unconditionally true, updateWidget
+    // no-ops with no re-render, nothing ever resets it.
+    it('does not permanently suppress Escape when there is no active dashboard (activeId race)', () => {
+      render(
+        <DashboardContext.Provider
+          value={
+            {
+              ...mockContext,
+              selectedWidgetId: mockWidget.id,
+              isActiveBoardReadOnly: false,
+              activeDashboard: null,
+            } as unknown as DashboardContextValue
+          }
+        >
+          <DraggableWindow
+            widget={{ ...mockWidget, flipped: true }}
+            settings={<div>Mock Settings Content</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+      expect(screen.getByText('Mock Settings Content')).toBeInTheDocument();
+
+      // First Escape: SettingsPanel's onClose fires. With the fix, the ref
+      // stays `false` here since there's no active dashboard to write to.
+      act(() => {
+        document.body.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+        );
+      });
+
+      // A later, independent Escape must still reach the widget.flipped
+      // branch and call updateWidget a second time — proving the ref did
+      // not leak past this widget's one settings-close.
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('widget-keyboard-action', {
+            detail: { widgetId: 'test-widget', key: 'Escape', shiftKey: false },
+          })
+        );
+      });
+
+      const flipCalls = mockContext.updateWidget.mock.calls.filter(
+        ([, patch]) => (patch as { flipped?: boolean })?.flipped === false
+      );
+      expect(flipCalls).toHaveLength(2);
+    });
   });
 
   describe('Toolbar button lock guards', () => {

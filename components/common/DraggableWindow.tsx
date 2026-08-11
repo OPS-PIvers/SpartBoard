@@ -205,6 +205,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const isActiveBoardReadOnly = useDashboardCanvasSelector(
     (s) => s.isActiveBoardReadOnly
   );
+  // Mirrors updateWidget's `!activeIdRef.current` early return (activeDashboard
+  // is derived from activeId — see DashboardContext.tsx). Read by
+  // SettingsPanel's onClose below so justClosedSettingsRef is only set when
+  // updateWidget's write will actually land and re-render to reset it.
+  const hasActiveDashboard = useDashboardCanvasSelector(
+    (s) => s.activeDashboard !== null
+  );
   const zoom = useDashboardCanvasSelector((s) => s.zoom);
   const groupBuildMode = useDashboardCanvasSelector((s) => s.groupBuildMode);
   // Event-handler-time canvas reads (no render subscription).
@@ -3368,15 +3375,19 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           appearanceSettings={appearanceSettings}
           shouldRenderSettings={shouldRenderSettings}
           onClose={() => {
-            // On a read-only board, updateWidget below returns early (never
-            // calls setDashboards), so no re-render fires to reset this ref
-            // in the render body — it would otherwise stay stuck `true` for
-            // the widget's lifetime, permanently no-op'ing every subsequent
-            // Escape in handleCustomKeyboard's priority chain (including
-            // setIsAnnotating(false), a purely local write NOT blocked by
-            // the read-only guard). Only set it when the write will actually
-            // land and trigger the reset.
-            justClosedSettingsRef.current = !isActiveBoardReadOnly;
+            // updateWidget (DashboardContext.tsx) returns early — without
+            // calling setDashboards, so no re-render fires to reset this ref
+            // in the render body — on a read-only board OR when there's no
+            // active dashboard (activeIdRef.current null; a very narrow race
+            // where a dashboard switch clears activeId while this widget is
+            // still mounted). Either way the ref would otherwise stay stuck
+            // `true` for the widget's lifetime, permanently no-op'ing every
+            // subsequent Escape in handleCustomKeyboard's priority chain
+            // (including setIsAnnotating(false), a purely local write NOT
+            // blocked by either guard). Only set it when the write will
+            // actually land and trigger the reset.
+            justClosedSettingsRef.current =
+              !isActiveBoardReadOnly && hasActiveDashboard;
             updateWidget(widget.id, { flipped: false });
           }}
           updateWidget={updateWidget}
