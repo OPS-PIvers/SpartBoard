@@ -224,6 +224,34 @@ describe('LiveControl', () => {
     }
   });
 
+  // Regression (#2429 round-2 review): fixing the stale-listener leak above
+  // by adding `isLive` to the focus-trap effect's deps left a second bug —
+  // showMenu/menuPosition were never reset when isLive went false. The
+  // portal unmounts via the render guard (`!isLive` short-circuits it), but
+  // showMenu stays true. If a *new* live session starts before the teacher
+  // reopens the menu, the render guard passes again, the portal re-mounts
+  // at stale coordinates, and the focus-trap effect re-runs — stealing
+  // focus with no user gesture. Fixed by resetting both pieces of state in
+  // a dedicated effect keyed on isLive.
+  it('does not silently reopen the menu when a new live session starts after the previous one ended while the menu was open', () => {
+    const { rerender, props } = renderLiveControl();
+    fireEvent.click(screen.getByLabelText(/connected students/));
+    expect(screen.getByText('Classroom (2)')).toBeInTheDocument();
+
+    // Session ends while the menu is open.
+    act(() => {
+      rerender(<LiveControl {...props} isLive={false} />);
+    });
+    expect(screen.queryByText('Classroom (2)')).not.toBeInTheDocument();
+
+    // A new session starts. Without the fix, showMenu was still `true` from
+    // before, so the portal silently re-mounts here.
+    act(() => {
+      rerender(<LiveControl {...props} isLive={true} />);
+    });
+    expect(screen.queryByText('Classroom (2)')).not.toBeInTheDocument();
+  });
+
   it('renders Preview link with preview=1 appended when joinUrl is present', () => {
     renderLiveControl();
     fireEvent.click(screen.getByLabelText(/connected students/));
