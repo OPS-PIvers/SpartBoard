@@ -519,10 +519,11 @@ describe('SettingsPanel', () => {
    * same widget — but that also silenced every OTHER window-level Escape
    * listener while a settings panel was open: Shift+Escape (minimize all),
    * group-build-mode exit, and AnnotationOverlay's own close-on-Escape. The
-   * redundant-dispatch bug is fixed instead in DashboardView (skip the
-   * widget-keyboard-action dispatch when the target widget is already
-   * flipped) — see tests/components/layout/DashboardView.test.tsx. Escape
-   * must keep propagating past this panel's document-level handler.
+   * redundant-dispatch bug is instead prevented inside DraggableWindow itself
+   * via justClosedSettingsRef — a ref set synchronously in the onClose lambda
+   * before updateWidget fires, then read in handleCustomKeyboard's Escape
+   * priority chain to skip the redundant flip-back write. Escape must keep
+   * propagating past this panel's document-level handler.
    */
   it('does not stop Escape from reaching a window-level handler', () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
