@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { Palette, LucideIcon } from 'lucide-react';
 import { WidgetConfig } from '@/types';
 import { SettingsLabel } from './SettingsLabel';
@@ -21,16 +21,37 @@ export const SurfaceColorSettings = <
 }: SurfaceColorSettingsProps<T>) => {
   const cardColor = config.cardColor ?? '#ffffff';
   const cardOpacity = config.cardOpacity ?? 1;
+  const surfaceLabelId = useId();
+  // Callers are inconsistent about whether `label` already names a color:
+  // DiceWidget passes "Die Color"/"Pip Color", while others pass "Surface"
+  // or "Card surface". The aria-labels below all append the word "color", so
+  // without stripping a trailing one the Dice groups announce "Die Color
+  // color" and "Select die color color #ffffff". Strip it here rather than
+  // renaming the props, so both calling conventions stay valid. The `||
+  // label` fallback keeps a label of exactly "Color" from stripping to ''.
+  const colorSubject = label.replace(/\s*colou?rs?\s*$/i, '') || label;
 
   return (
     <div>
-      <SettingsLabel icon={icon}>{label}</SettingsLabel>
-      <div className="space-y-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
-        <div className="flex flex-wrap gap-2">
+      <SettingsLabel icon={icon} as="span" id={surfaceLabelId}>
+        {label}
+      </SettingsLabel>
+      <div
+        className="space-y-3 rounded-xl border border-slate-100 bg-slate-50 p-3"
+        role="group"
+        aria-labelledby={surfaceLabelId}
+      >
+        <div
+          className="flex flex-wrap gap-2"
+          role="radiogroup"
+          aria-label={`${colorSubject} color`}
+        >
           {SURFACE_COLOR_PRESETS.map((color) => (
             <button
               key={color}
               type="button"
+              role="radio"
+              aria-checked={cardColor === color}
               onClick={() => updateConfig({ cardColor: color } as Partial<T>)}
               className={`h-6 w-6 rounded-md border transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
                 cardColor === color
@@ -38,7 +59,7 @@ export const SurfaceColorSettings = <
                   : 'border-slate-200'
               }`}
               style={{ backgroundColor: color }}
-              aria-label={`Select surface color ${color}`}
+              aria-label={`Select ${colorSubject.toLowerCase()} color ${color}`}
             />
           ))}
         </div>
@@ -50,7 +71,7 @@ export const SurfaceColorSettings = <
             updateConfig({ cardColor: e.target.value } as Partial<T>)
           }
           className="h-8 w-full rounded-md border border-slate-200 bg-white"
-          aria-label={`Custom ${label.toLowerCase()} color`}
+          aria-label={`Custom ${colorSubject.toLowerCase()} color`}
         />
 
         <div>
@@ -70,7 +91,7 @@ export const SurfaceColorSettings = <
               } as Partial<T>)
             }
             className="w-full accent-indigo-600"
-            aria-label="Surface opacity"
+            aria-label={`${label} opacity`}
           />
         </div>
       </div>

@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-07_
+_Last audited: 2026-08-10_
 _Last action: never_
 
 ---
@@ -15,6 +15,12 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-10: Checked (Monday daily). pnpm type-check exit 0 (0 TypeScript errors). pnpm lint exit 0 (0 ESLint errors, 0 warnings, --max-warnings 0, root + functions). pnpm test: 604 files / 7321 tests all passing. New dev-paul commits since 2026-08-09: f58cb0db fix(a11y) #2416 — as="span" + role="group"/aria-labelledby conversions in three shared settings primitives, aria-pressed toggle pattern, type="button" fixes, aria-label on opacity slider, presetFromScale import swap (back-face only; type-safe, lint-clean). All new and modified code type-safe and lint-clean. Codebase remains fully type-safe and lint-clean._
+
+_2026-08-09: Checked (Sunday daily). pnpm type-check exit 0 (0 TypeScript errors). pnpm lint exit 0 (0 ESLint errors, 0 warnings, --max-warnings 0, root + functions). New dev-paul commits since 2026-08-08: fix(pr-2412) case-insensitive dedup for preset sub emails (PresetSubEmailsManager.tsx — string transform, no new types or ESLint suppressions); docs(rich-response) series (docs only); fix: address PR review (modal Escape guard, domain trim, beta-user dedup — admin components; type-safe); fix(plc) clear stale directory entries on scope change (usePlcBuildingDirectory.ts + new utils/plcDirectorySubscriptionKey.ts — new utility confirmed clean; render-phase state adjustment pattern, type-safe). All new and modified code type-safe and lint-clean. Codebase remains fully type-safe and lint-clean._
+
+_2026-08-08: Checked (Saturday daily). pnpm type-check exit 0 (0 TypeScript errors). pnpm lint exit 0 (0 ESLint errors, 0 warnings, --max-warnings 0, root + functions). No new dev-paul source commits detected since 2026-08-07. Codebase remains fully type-safe and lint-clean._
 
 _2026-08-07: Checked (Friday daily). pnpm type-check exit 0 (0 TypeScript errors). pnpm lint exit 0 (0 ESLint errors, 0 warnings, --max-warnings 0, root + functions). New dev-paul commits since 2026-08-06: docs(rich-response) series (7 commits — docs-only spike; no TypeScript source changes, no ESLint surface changes). Codebase remains fully type-safe and lint-clean._
 

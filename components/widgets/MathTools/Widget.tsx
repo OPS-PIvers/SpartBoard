@@ -166,8 +166,13 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
         </div>
       </div>
       <div
-        className="flex px-2 gap-1 overflow-x-auto no-scrollbar"
-        style={{ paddingBottom: '0' }}
+        className="flex overflow-x-auto no-scrollbar"
+        style={{
+          paddingLeft: 'min(8px, 2cqmin)',
+          paddingRight: 'min(8px, 2cqmin)',
+          paddingBottom: '0',
+          gap: 'min(4px, 1cqmin)',
+        }}
       >
         {PALETTE_SECTIONS.map((s) => (
           <button

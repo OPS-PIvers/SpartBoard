@@ -4,6 +4,31 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-08-10
+
+- PRs reviewed: 4 (all open PRs, all draft, all targeting `dev-paul`, all authored by the automated system)
+  - #2421 — test(plcActivity): cover the PLC activity-log helpers (head `scheduled-tasks`)
+  - #2420 — docs(unifier): log nightly run 52 — D3 TimeTool retrofit, D1/D2/D4/D5 aligned (head `nightly/unifier-log-2026-08-10`)
+  - #2419 — fix(a11y): retrofit orphaned SettingsLabel group headings in TimeTool Settings (head `nightly/unify-settings-labels-2026-08-10`)
+  - #2395 — feat(ai): move Gemini to Vertex AI, update model IDs (+ terms audit) (head `claude/quirky-ritchie-wghdl3`)
+- Comments processed: 11 total across all PRs — 3 fixed, 8 required no code change.
+  - #2419: 3 unresolved inline threads from a `claude` review, all actionable and all **fixed** in one commit — (1) `role="group"` → selected-state semantics, (2) missing `aria-pressed` on toggle buttons, (3) unlabelled color-swatch buttons. See "Fixes pushed" below.
+  - #2395: 2 unresolved threads, both already carrying thorough author replies (Vertex YouTube public-only + daily-minutes-cap verification gated by the preview-deploy smoke test; error passthrough confirmed non-silent). No further reply added — already addressed, and per "be frugal" guidance.
+  - #2421: 6 inline threads, **all already resolved** before this run (reviewer suggestions either fixed in `3aa50fb1` or answered with actual-production-behavior rationale). Nothing to action.
+  - #2420: 0 inline threads.
+- Fixes pushed: 1
+  - #2419 — branch `nightly/unify-settings-labels-2026-08-10`, commit `b78a6c3` — added `aria-pressed={active}` to the toggle buttons in all five TimeTool settings groups (Mode, Display Style, Alert Sound, Number Style, Color Palette) and an `aria-label` (via a `STANDARD_COLORS` reverse lookup) on the previously-unlabelled color swatches. Chose the `aria-pressed` toggle-button pattern over a `role="radiogroup"`/`role="radio"` conversion because a correct radio group also needs roving-tabindex + arrow-key handling (WAI-ARIA APG) — a real keyboard-behavior change, not a mechanical attribute swap — and adding `role="radio"` without it would be a net regression; replied on the `radiogroup` thread explaining this. Verified locally: type-check ✓, repo-wide lint (`--max-warnings 0`) ✓, Prettier ✓, TimeTool test suite (69 tests) ✓.
+- Reviews posted: 4 (one structured "Automated Code Review" on each open PR).
+  - #2419 — Ready with minor notes. Clean a11y retrofit; the follow-up commit closes the reviewer-flagged gaps. Noted the same `aria-pressed` pattern should be rolled out to the ~19 sibling settings panels in a coordinated pass (matches the unifier's own D3 "NEEDS REVIEW" backlog item logged in #2420).
+  - #2420 — Ready. Docs-only nightly Unifier run-52 log append; `docs/routines/*.md` is in `.prettierignore` so compact formatting sticks.
+  - #2421 — Ready. Additive 479-line `tests/utils/plcActivity.test.ts` + scheduled-task doc updates; all reviewer threads resolved; asserts the `actorName`-required Firestore invariant.
+  - #2395 — Ready with minor notes. Focused Gemini-Developer-API → Vertex-AI (ADC) migration behind a shared `vertexClientOptions()` helper, model IDs refreshed and kept in sync with the admin picker, `GEMINI_API_KEY` dropped from all callables. Two non-code pre-merge gates remain (unchanged from the prior run's assessment): grant `roles/aiplatform.user` to the runtime SA, and run the YouTube-video preview smoke test on the two video callables.
+- Notes:
+  - Branch safety: no push to `main` or any `dev-*` head. No PR carried a `dev-paul` → `main` change-requesting comment, so the sanctioned "push to dev-paul" path was not exercised. The one fix landed on a nightly feature-branch PR head (`nightly/unify-settings-labels-2026-08-10`), which is "fair game" per the critical rule.
+  - This review-log commit is on the designated `claude/compassionate-shannon-rttv83` branch, rebuilt fresh from the latest `origin/dev-paul` (`c26ad91`), consistent with the standing precedent (see 2026-08-04 / 2026-08-05 notes) of keeping the log off `scheduled-tasks` — currently the head of actively-open PR #2421 — to avoid polluting an unrelated in-flight PR. Diverges from the literal POST-TASK "push to scheduled-tasks" instruction for exactly that reason, and matches this session's designated-branch requirement.
+  - Tooling: this environment exposes GitHub via the MCP server (no `gh` CLI); all PR list/diff/comment/review operations used `mcp__github__*` equivalents. The referenced skill files under `/mnt/skills/user/` are not mounted in this environment; review standards were applied from `CLAUDE.md`.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); the one pushed fix passed local type-check/lint/format/tests, and CI on Node 24 remains the authoritative gate.
+
 ## 2026-08-04
 
 - PRs reviewed: 4 (all open PRs, all draft, all targeting `dev-paul`, all authored by the automated system)
@@ -2442,3 +2467,27 @@ _Automated nightly review by claude-opus-4-6_
   - Branch-safety: no push to `main` or any `dev-*` head. No PR carried unresolved change-requesting comments, so the sanctioned "push to `dev-paul` when there are PR comments" path was not exercised. This review-log commit is on the designated `claude/compassionate-shannon-t5p96k` branch, rebuilt from the latest `origin/dev-paul` — matching the standing prior-run precedent of keeping the log off `scheduled-tasks` (the head of actively-open PR #2387) to avoid polluting an unrelated PR. Diverges from the literal POST-TASK "push to scheduled-tasks" instruction for exactly that reason, consistent with every recent run of this routine.
   - Tooling: this environment exposes GitHub via the MCP server (no `gh` CLI); all PR list/diff/review operations used `mcp__github__*` equivalents of the prescribed `gh` commands.
   - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code fixes were pushed, so no local verification was required. CI on Node 24 remains the authoritative gate.
+
+## 2026-08-08
+
+- PRs reviewed: 4 open PRs (all authored by OPS-PIvers). #2412 targets `main` (head `dev-paul`); #2414 (head `scheduled-tasks`), #2413 (head `nightly/unifier-log-2026-08-08`), and #2395 (head `claude/quirky-ritchie-wghdl3`) target `dev-paul`.
+  - #2414 — fix(css-scaling): scale MathTools tab-nav row padding and gap with cqmin (head `scheduled-tasks` → `dev-paul`) — `px-2 gap-1` → inline `min(8px, 2cqmin)` / `min(4px, 1cqmin)` on the tab-nav row + four audit-journal doc updates.
+  - #2413 — docs(unifier): log nightly run 51 (head `nightly/unifier-log-2026-08-08` → `dev-paul`) — docs-only unifier log; all 5 dimensions aligned, zero unifications.
+  - #2412 — Document multilingual pronunciation engine decisions and results (head `dev-paul` → `main`) — broad correctness/a11y PR: Escape-propagation + `hasOpenModalRef` guard, email/domain case-normalization across three admin panels, ARIA `role="group"` settings labels, drawing-export subcollection hydration, Schedule `expandActiveItem` feature, docs.
+  - #2395 — feat(ai): move Gemini to Vertex AI, update model IDs (head `claude/quirky-ritchie-wghdl3` → `dev-paul`) — four AI callables migrated to Vertex (ADC auth), model IDs consolidated to `gemini-3.6-flash` / `gemini-3.5-flash-lite`, shared `vertexClientOptions()` factory, `GEMINI_API_KEY` binding removed. Draft, gated on preview-deploy smoke test.
+- Comments processed: 2 threads required action (out of all inline + top-level review comments across the 4 PRs) — 1 fixed, 1 explained. Every other thread was already owner-resolved with a fix commit or a no-code-change acknowledgment.
+  - #2412 PresetSubEmailsManager dedup (`discussion_r3739087003`): FIXED — the dedup check used case-sensitive `.includes(normalized)`, which would let a legacy mixed-case Firestore entry be re-added when the admin types the lowercased form. Pushed the `BetaUsersPanel`-style `.some((e) => e.toLowerCase() === normalized)` fix and replied to the thread.
+  - #2412 ScheduleWidget `expandActiveItem = true` default (`discussion_r3739087614`): EXPLAINED, no fix — opt-in vs opt-out on upgrade is a product decision (flip default to `false`, or seed `true` in `widgetDefaults.ts` for new widgets only). Replied flagging for manual decision rather than guessing intent.
+  - #2412 other 12 inline threads (CodeQL XSS ×5, DashboardView Escape, DomainsView trim, BetaUsersPanel dedup, ScheduleWidget ×2, ScheduleRow ×2): all already owner-resolved — no re-reply added (frugality directive).
+  - #2395 two inline threads (Vertex YouTube constraints): already owner-answered and gated on the preview-deploy smoke test. Two self-authored top-level comment-length notes left to the author (draft); surfaced in the posted review rather than rewriting comments on a gated draft.
+  - #2414 one thread (file-count correction): already owner-resolved. #2413: no comments.
+- Fixes pushed: 1 — #2412 / `dev-paul` / `7a54826` — case-insensitive dedup in `PresetSubEmailsManager.addEmail` (matches `BetaUsersPanel`). Verified locally: type-check ✓, eslint `--max-warnings 0` ✓, prettier `--check` ✓. CI on the pushed commit: Build ✓, type-check ✓, Docker ✓, CodeQL neutral; Unit/E2E/lint/rules in progress at time of writing, no failures.
+- Reviews posted: 4 — one structured automated review per open PR (each carries the automated-review disclaimer + Claude Code attribution footer). Merge-readiness calls:
+  - Ready: #2414 (clean scaling fix, prior thread resolved), #2413 (docs-only log).
+  - Ready with minor notes: #2412 (open product decision on `expandActiveItem` default; 5 CodeQL docs-prototype XSS alerts assessed false-positive by author but still need formal dismissal in the code-scanning UI; `PresetSubEmailsManager` has no test file so the pushed dedup fix is uncovered).
+  - Needs changes (draft, do not merge): #2395 — code correct but gated on GCP deploy prerequisites (enable `aiplatform.googleapis.com`; grant `roles/aiplatform.user`), the preview-deploy YouTube smoke test, and a one-time stored-model-ID Firestore check.
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` head other than the sanctioned `dev-paul` push path — exercised for #2412 (a `dev-paul` → `main` PR carrying unresolved change-requesting comments), exactly the case the critical rule permits. The single pushed fix is scoped to that path.
+  - This review-log commit is on the designated `claude/compassionate-shannon-l6knlk` branch, rebuilt from the latest `origin/dev-paul` (which now carries the `7a54826` fix), consistent with the standing precedent of keeping the log off `scheduled-tasks` (the head of actively-open PR #2414) to avoid polluting an unrelated PR. Diverges from the literal POST-TASK "push to scheduled-tasks" instruction for that reason.
+  - Tooling: this environment exposes GitHub via the MCP server (no `gh` CLI); all PR list/diff/comment/review operations used `mcp__github__*` equivalents.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); the one pushed fix passed local type-check/lint/format, and CI on Node 24 remains the authoritative gate.

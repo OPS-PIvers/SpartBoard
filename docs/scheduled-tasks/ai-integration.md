@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-08-03_
+_Last audited: 2026-08-10_
 _Last action: 2026-07-31 — MEDIUM `blooms-taxonomy` global gate bypass resolved: `Widget.tsx` now gates its effective `aiEnabled` on BOTH `buildingConfig.aiEnabled` AND `canAccessFeature('gemini-functions')`, so the global AI kill-switch fully disables Blooms AI_
 
 ---
@@ -35,6 +35,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-10: Full AI integration audit (Audit E2 — Monday weekly). New dev-paul commits since 2026-08-03 absorbed via rebase: c26ad917 / 0e79f85f docs only; f58cb0db fix(a11y) #2416 back-face settings primitives only (no AI function, widget, or utils/ai.ts source changes); f4830ebe pr-review docs only. Generation type map confirmed unchanged (14 types). All existing open items re-confirmed: MEDIUM RevealGrid "Generate" button still has no onClick handler (Settings.tsx:473–478 area); LOW video-activity-recommend no independent feature gate; LOW GeminiPanel ad-hoc regex instead of parseGeminiJson; LOW instructional-routine missing client canAccessFeature() gate; LOW hardcoded model string in transcribeVideoWithGemini; LOW generateVideoActivity standard vs advanced model; LOW generateVideoActivity no per-feature ai_usage bucket; LOW plain JSON mode for most gen types (no responseSchema). Zero new items._
 
 _2026-08-03: Full AI integration audit (Audit E2 — Monday weekly). New dev-paul commits since 2026-07-29 absorbed via rebase: docs(spike) multilingual pronunciation plan (#2343 — spike-doc commits only; no AI function, widget, or utils/ai.ts source changes). fix(GraphicOrganizer) hide dead fontColor picker in appearance settings (12f86641 — settings panel UI change; no AI impact). Generation type map confirmed unchanged (14 types, all present in table above). All existing open items re-confirmed: MEDIUM RevealGrid "Generate" button still has no onClick handler (Settings.tsx:473–478 area, button renders with Sparkles icon but no click action); LOW video-activity-recommend no independent feature gate; LOW GeminiPanel ad-hoc regex instead of parseGeminiJson; LOW instructional-routine missing client canAccessFeature() gate; LOW hardcoded model string in transcribeVideoWithGemini; LOW generateVideoActivity standard vs advanced model; LOW generateVideoActivity no per-feature ai_usage bucket; LOW plain JSON mode for most gen types (no responseSchema). Zero new items._
 

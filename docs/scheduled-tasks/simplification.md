@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-08-03_
+_Last audited: 2026-08-10_
 _Last action: 2026-05-01_
 
 ---
 
 ## Audit Log
+
+_2026-08-10: Full audit (Audit E1 — Monday weekly). New dev-paul commits since 2026-08-03: c26ad917 / 0e79f85f docs only; f58cb0db fix(a11y) #2416 — shared settings primitives (SurfaceColorSettings.tsx, TextSizePresetSettings.tsx, TypographySettings.tsx): as="span" conversions, aria-pressed pattern, presetFromScale import swap replacing a local duplicate (removes one small duplication; no new cast or hook complexity); f4830ebe pr-review docs only. f58cb0db removes the local `sizeToPreset` helper from TextSizePresetSettings.tsx by importing `presetFromScale` from widgetAppearance.ts — this is a positive simplification (existing duplicate removed; note for record, not a new open item). All 11 existing open items confirmed present and unchanged: MEDIUM useFirestore.ts double-cast, MEDIUM ai_security.ts structuredClone casts, LOW validTextSizePresets tripled in adminBuildingConfig.ts, LOW prop drilling 13 props DashboardView→WidgetRenderer, LOW triple val ternary + DraggableWindow 4-deep ternary, LOW MathTools dead hover-color ternary, LOW TimeTool 6 WidgetConfig casts, LOW RandomWidget 13 WidgetConfig casts, LOW widgetConfigPersistence Object.assign cast, LOW adminBuildingConfig double-cast for WIDGET_DEFAULTS, LOW usePlcTrash 9 useState, LOW usePlcResources 9 useState. Zero new items._
 
 _2026-08-03: Full audit (Audit E1 — Monday weekly). New dev-paul commits since 2026-07-29 absorbed via rebase: docs(spike) multilingual pronunciation plan (#2343 — spike-doc commits only; no source files changed). fix(GraphicOrganizer) hide dead fontColor picker in appearance settings (12f86641 — settings panel UI change; no new type assertions, hooks, or prop drilling). (1) Type assertions: all existing items re-confirmed — useFirestore.ts MEDIUM, ai_security.ts MEDIUM, dashboardPII/smartPaste LOW, BlockRenderer LOW, icon registry LOW, FeatureConfigurationPanel LOW, TimeTool 6-cast LOW, RandomWidget 13-cast LOW, widgetConfigPersistence LOW, adminBuildingConfig double-cast LOW, AnnouncementOverlay LOW, validTextSizePresets triple LOW. (2) Heavy hooks: usePlcTrash.ts (9 useState) and usePlcResources.ts (9 useState) — both existing LOW items, unchanged. (3) Prop drilling: MountedBoardsLayer 13-prop passthrough — existing LOW item, unchanged. (4) Nested ternaries: val triple and DraggableWindow corner ternary — existing LOW items, unchanged. Zero new items. All 11 existing open items remain valid._
 
@@ -53,6 +55,13 @@ _Nothing currently in progress._
 - **Files:** components/admin/GlobalPermissionsManager.tsx:724, components/admin/BackgroundManager/index.tsx:657, components/admin/FeaturePermissionsManager.tsx:376, components/common/DraggableWindow.tsx
 - **Detail:** The ternary `val === 'all' ? 'All' : val === 'on' ? 'On' : 'Off'` appears verbatim in three separate admin files. Each is a standalone expression with no shared helper. Separately, `DraggableWindow.tsx` contains a 4-deep nested ternary for corner-position CSS assignment that is duplicated in two places within the same component.
 - **Fix:** For the three-file ternary, extract to a shared `formatPermissionValue` (or `displayAccessLevel`) utility and import from a common location. For the `DraggableWindow` corner ternary, extract to a local `getCornerClass(position)` helper within the file. Both are mechanical extractions with no behavior change.
+
+### LOW `MathTools/Widget.tsx` tool-label hover color is a dead ternary — both branches identical (missed purple/indigo theming)
+
+- **Detected:** 2026-08-08 (surfaced by the PR #2414 automated review)
+- **Files:** components/widgets/MathTools/Widget.tsx:283-285
+- **Detail:** The tool-label `<span>` picks its hover color with `activeSection.mode === 'sticker-whole' ? 'text-slate-600 group-hover:text-brand-blue-dark' : 'text-slate-600 group-hover:text-brand-blue-dark'` — both branches are the identical string, so the conditional has no effect. The intent was almost certainly to match the sibling card-border theming just above (lines 265-267), which correctly diverges: `hover:border-purple-300` for `sticker-whole` vs `hover:border-indigo-300` for `interactive`. As-is the label hover stays brand-blue for both modes, so interactive-mode buttons get a hover color that clashes with their indigo card theme.
+- **Fix — needs a design decision (NOT a safe unattended auto-fix):** Two divergent intents are possible: (a) collapse the dead ternary to the single string (accept brand-blue for both, byte-identical behavior — pure simplification), or (b) implement the missed theming so the label hover matches the card border per mode (e.g. `group-hover:text-purple-700` for `sticker-whole`, `group-hover:text-indigo-700` for `interactive`) — a visual change requiring maintainer/design sign-off on the exact colors. Because (b) changes rendered output and the "correct" colors are a judgment call, this was left for a supervised pass rather than auto-fixed on the css-scaling PR (#2414) that surfaced it.
 
 ### LOW `TimeTool/useTimeTool.ts` uses 6 `as WidgetConfig` casts on partial update objects
 
