@@ -721,7 +721,13 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                         <button
                           key={email}
                           type="button"
-                          disabled={added}
+                          // Also gate on validity — usePresetSubEmails
+                          // normalizes but doesn't validate the Orono
+                          // domain, so an invalid or (pre-fix) empty-string
+                          // preset would otherwise render enabled and
+                          // permanently inert (the onClick guard below
+                          // silently no-ops on it with no error feedback).
+                          disabled={added || !isValidOronoEmail(email)}
                           onClick={() =>
                             // Mirror the typed-input path: validate against
                             // the Orono domain and de-dupe before adding
@@ -735,7 +741,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                                 : [...prev, email]
                             )
                           }
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition-colors ${
                             added
                               ? 'bg-emerald-100 text-emerald-700 cursor-default'
                               : 'bg-brand-blue-lighter/40 text-brand-blue-primary hover:bg-brand-blue-lighter/70'

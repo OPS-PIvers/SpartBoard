@@ -185,4 +185,20 @@ describe('PresetSubEmailsManager — email case handling', () => {
 
     expect(screen.getAllByText('sub@orono.k12.mn.us')).toHaveLength(1);
   });
+
+  // Regression (#2432 round-8 review): a whitespace-only Firestore entry
+  // ('   ') trims to '', which passed the old dedup filter — the admin
+  // draft list showed an invisible, permanently-enabled, inert chip.
+  it('drops whitespace-only entries when seeding the draft list', () => {
+    render(<PresetSubEmailsManager />);
+
+    act(() => {
+      listeners[listeners.length - 1].next(
+        fakeDocSnap({ emails: ['   ', 'valid@orono.k12.mn.us'] })
+      );
+    });
+
+    expect(screen.getByText('1 preset email')).toBeInTheDocument();
+    expect(screen.getByText('valid@orono.k12.mn.us')).toBeInTheDocument();
+  });
 });

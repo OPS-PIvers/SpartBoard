@@ -37,15 +37,25 @@ export function usePresetSubEmails(buildingId: string): PresetSubEmailsState {
         // Normalize once at the source (trim + lowercase) so every consumer
         // gets an already-canonical value — Firestore array membership and
         // downstream `.includes()` checks are exact-match, and a legacy or
-        // hand-typed preset can carry stray whitespace/casing. Dedup after
-        // normalizing: legacy case-variant entries (e.g. 'Sub@x' and 'sub@x')
-        // would otherwise collapse to identical strings, producing duplicate
-        // React keys and two inert chips for one real mailbox.
+        // hand-typed preset can carry stray whitespace/casing. Drop
+        // whitespace-only entries after normalizing — a Firestore entry of
+        // '   ' would otherwise trim to '', pass dedup as the first
+        // occurrence, and reach every consumer as an invisible, permanently
+        // enabled, inert chip (isValidOronoEmail('') is false, so the
+        // add-click always no-ops). Dedup via Set (matches the codebase's
+        // dedup convention elsewhere) after normalizing: legacy case-variant
+        // entries (e.g. 'Sub@x' and 'sub@x') would otherwise collapse to
+        // identical strings, producing duplicate React keys and two inert
+        // chips for one real mailbox.
         const emails = Array.isArray(data?.emails)
-          ? (data.emails as unknown[])
-              .filter((v): v is string => typeof v === 'string')
-              .map((e) => e.trim().toLowerCase())
-              .filter((e, i, arr) => arr.indexOf(e) === i)
+          ? [
+              ...new Set(
+                (data.emails as unknown[])
+                  .filter((v): v is string => typeof v === 'string')
+                  .map((e) => e.trim().toLowerCase())
+                  .filter((e) => e.length > 0)
+              ),
+            ]
           : [];
         setSnapshot({ emails, buildingId: canonical });
       },

@@ -196,6 +196,27 @@ describe('usePresetSubEmails — snapshot mapping', () => {
       loading: false,
     });
   });
+
+  // Regression (#2432 round-8 review): a whitespace-only Firestore entry
+  // ('   ') trims to '', which passed the old dedup filter as a normal
+  // entry — every consumer got an invisible, permanently-enabled, inert
+  // preset chip (isValidOronoEmail('') is false, so a click always no-ops
+  // with no error feedback).
+  it('drops whitespace-only entries after normalizing', () => {
+    const { result } = renderHook(() => usePresetSubEmails('high'));
+    act(() => {
+      lastListener().next(
+        fakeDocSnap({
+          emails: ['   ', 'valid@orono.k12.mn.us', '\t\n'],
+        })
+      );
+    });
+
+    expect(result.current).toEqual({
+      emails: ['valid@orono.k12.mn.us'],
+      loading: false,
+    });
+  });
 });
 
 describe('usePresetSubEmails — error handling', () => {

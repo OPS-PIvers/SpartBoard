@@ -258,6 +258,23 @@ describe('ShareCollectionLinkCreatorModal — substitute sub-email case handling
     expect(items).toEqual(['sub@orono.k12.mn.us']);
   });
 
+  // Regression (#2432 round-8 review): `disabled={added}` only blocks
+  // re-adds of an already-added email — it doesn't gate a preset that fails
+  // Orono-domain validation (or, pre-fix, a whitespace-only entry that
+  // normalized to ''). Such a chip rendered permanently enabled while the
+  // onClick guard silently no-op'd every click, with zero error feedback.
+  it('renders the preset chip disabled when the preset value fails domain validation', () => {
+    usePresetSubEmailsMock.mockReturnValue({
+      emails: ['not-an-orono-email@gmail.com'],
+    });
+    openSubstituteMode();
+
+    const chip = screen.getByRole('button', {
+      name: 'not-an-orono-email@gmail.com',
+    });
+    expect(chip).toBeDisabled();
+  });
+
   // Regression (#2432 review): the Collection variant of this chip always
   // rendered a Plus icon, even once `added` was true (ShareLinkCreatorModal's
   // chip correctly switches to Check). Functionality wasn't broken — the chip

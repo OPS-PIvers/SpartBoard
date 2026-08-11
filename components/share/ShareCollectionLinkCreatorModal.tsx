@@ -338,7 +338,13 @@ export const ShareCollectionLinkCreatorModal: FC<
                         <button
                           key={email}
                           type="button"
-                          disabled={added}
+                          // Also gate on validity — usePresetSubEmails
+                          // normalizes but doesn't validate the Orono
+                          // domain, so an invalid or (pre-fix) empty-string
+                          // preset would otherwise render enabled and
+                          // permanently inert (the onClick guard below
+                          // silently no-ops on it with no error feedback).
+                          disabled={added || !isValidOronoEmail(email)}
                           onClick={() =>
                             // Mirror the typed-input path: validate against
                             // the Orono domain and de-dupe before adding

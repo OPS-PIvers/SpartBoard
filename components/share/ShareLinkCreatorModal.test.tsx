@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import {
   render,
@@ -78,11 +78,14 @@ vi.mock('@/hooks/useAdminBuildings', () => ({
 // usePresetSubEmails normalizes (trim + lowercase) at its own source — see
 // tests/hooks/usePresetSubEmails.test.ts for that regression coverage. This
 // mock returns an already-canonical value, matching the real hook's contract.
+// Backed by a vi.fn() (matching ShareCollectionLinkCreatorModal.test.tsx's
+// usePresetSubEmailsMock) so individual tests can override the returned list.
+const usePresetSubEmailsMock = vi.fn(() => ({
+  emails: ['sub@orono.k12.mn.us'] as string[],
+  loading: false,
+}));
 vi.mock('@/hooks/usePresetSubEmails', () => ({
-  usePresetSubEmails: () => ({
-    emails: ['sub@orono.k12.mn.us'],
-    loading: false,
-  }),
+  usePresetSubEmails: () => usePresetSubEmailsMock(),
 }));
 
 import { ShareLinkCreatorModal } from '@/components/share/ShareLinkCreatorModal';
@@ -106,6 +109,13 @@ const openSubstituteMode = () => {
 };
 
 describe('ShareLinkCreatorModal — substitute sub-email case handling', () => {
+  beforeEach(() => {
+    usePresetSubEmailsMock.mockReturnValue({
+      emails: ['sub@orono.k12.mn.us'],
+      loading: false,
+    });
+  });
+
   afterEach(() => {
     cleanup();
   });
@@ -147,6 +157,24 @@ describe('ShareLinkCreatorModal — substitute sub-email case handling', () => {
 
     const items = screen.getAllByRole('listitem').map((li) => li.textContent);
     expect(items).toEqual(['sub@orono.k12.mn.us']);
+  });
+
+  // Regression (#2432 round-8 review): `disabled={added}` only blocks
+  // re-adds of an already-added email — it doesn't gate a preset that fails
+  // Orono-domain validation (or, pre-fix, a whitespace-only entry that
+  // normalized to ''). Such a chip rendered permanently enabled while the
+  // onClick guard silently no-op'd every click, with zero error feedback.
+  it('renders the preset chip disabled when the preset value fails domain validation', () => {
+    usePresetSubEmailsMock.mockReturnValue({
+      emails: ['not-an-orono-email@gmail.com'],
+      loading: false,
+    });
+    openSubstituteMode();
+
+    const chip = screen.getByRole('button', {
+      name: 'not-an-orono-email@gmail.com',
+    });
+    expect(chip).toBeDisabled();
   });
 
   // Regression: handleAddSubEmail's dedup check read the outer `subEmails`

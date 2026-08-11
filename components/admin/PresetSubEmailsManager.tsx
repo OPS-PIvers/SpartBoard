@@ -127,12 +127,20 @@ const BuildingPresetEditor: React.FC<{ buildingId: string }> = ({
         // does — otherwise a raw un-normalized value seeds draftEmails as-is,
         // and typing its lowercase replacement gets silently blocked by the
         // case-insensitive dedup check in addEmail below (correct dedup, but
-        // no visible cue that the old entry is the reason).
+        // no visible cue that the old entry is the reason). Drop
+        // whitespace-only entries (mirrors usePresetSubEmails — see that
+        // hook for the empty-chip failure mode this prevents) and dedup via
+        // Set (the codebase's dedup convention elsewhere; O(n) vs the
+        // previous indexOf-based O(n²) filter).
         const list = Array.isArray(data?.emails)
-          ? (data.emails as unknown[])
-              .filter((v): v is string => typeof v === 'string')
-              .map((e) => e.trim().toLowerCase())
-              .filter((e, i, arr) => arr.indexOf(e) === i)
+          ? [
+              ...new Set(
+                (data.emails as unknown[])
+                  .filter((v): v is string => typeof v === 'string')
+                  .map((e) => e.trim().toLowerCase())
+                  .filter((e) => e.length > 0)
+              ),
+            ]
           : [];
         setSnapshot({ emails: list, loaded: true });
       },
