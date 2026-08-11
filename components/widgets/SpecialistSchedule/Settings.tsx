@@ -380,6 +380,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                         prev ? { ...prev, task: e.target.value } : null
                       )
                     }
+                    aria-label="Activity Name"
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"
                     placeholder="Type activity name..."
                     autoFocus
