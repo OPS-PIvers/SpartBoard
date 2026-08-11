@@ -42,6 +42,25 @@ describe('nrpsNet.fetchMembershipPage', () => {
     const init = fetchMock.mock.calls[0][1] as { redirect?: string };
     expect(init.redirect).toBe('manual');
   });
+
+  // Regression: `fetchNrpsMembers` needs `isRedirect` to distinguish "the
+  // SSRF guard refused a redirect" from an ordinary platform error, so it can
+  // throw instead of silently truncating the roster on page 2+.
+  it('marks the result isRedirect when the response is an opaque redirect', async () => {
+    const opaqueRedirect = new Response(null, { status: 200 });
+    Object.defineProperty(opaqueRedirect, 'type', {
+      value: 'opaqueredirect',
+    });
+    Object.defineProperty(opaqueRedirect, 'status', { value: 0 });
+    Object.defineProperty(opaqueRedirect, 'ok', { value: false });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(opaqueRedirect))
+    );
+
+    const result = await nrpsNet.fetchMembershipPage('https://lms/m', 'tok');
+    expect(result).toMatchObject({ ok: false, isRedirect: true });
+  });
 });
 
 describe('parseNextLink', () => {
@@ -210,5 +229,34 @@ describe('fetchNrpsMembers', () => {
     await fetchNrpsMembers('https://lms/m', 'tok');
     // MAX_PAGES is 20 — the loop must stop rather than spin forever.
     expect(spy).toHaveBeenCalledTimes(20);
+  });
+
+  // Regression: a refused redirect (SSRF guard) on page 2+ used to hit the
+  // same silent `break` path as an ordinary transient page error, returning
+  // a truncated roster WITHOUT throwing. Callers (e.g. ltiResolveNamesForAssignmentV1)
+  // counted that as a successful `contextsFetched`, so a persistent
+  // configuration-level failure looked identical to "class roster fully
+  // resolved" — students past the redirected page silently showed as
+  // "Student" with no error surfaced anywhere. A refused redirect must throw
+  // regardless of which page it occurs on, unlike an ordinary page-2+ error.
+  it('throws (does not silently truncate) when a LATER page is a refused redirect', async () => {
+    vi.spyOn(nrpsNet, 'fetchMembershipPage')
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        members: [{ user_id: 'a', given_name: 'A', family_name: 'A' }],
+        nextUrl: 'https://lms/m?page=2',
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 0,
+        members: [],
+        nextUrl: null,
+        isRedirect: true,
+      });
+
+    await expect(fetchNrpsMembers('https://lms/m', 'tok')).rejects.toThrow(
+      /redirect/i
+    );
   });
 });

@@ -54,6 +54,8 @@ interface MembershipPage {
   members: RawMember[];
   /** Absolute URL of the next page, or null when there is none. */
   nextUrl: string | null;
+  /** True when the SSRF guard refused a redirect (distinct from a network failure). */
+  isRedirect?: boolean;
 }
 
 const asStr = (v: unknown): string =>
@@ -99,8 +101,22 @@ export const nrpsNet = {
       if (!res.ok) {
         // Drain so undici returns the socket to the pool even on the error path.
         if (typeof res.text === 'function') await res.text().catch(() => '');
-        console.warn(`[nrps] membership fetch ${res.status}`);
-        return { ok: false, status: res.status, members: [], nextUrl: null };
+        // An opaque redirect (SSRF guard refusal) and a genuine platform error
+        // both land here with `res.ok === false`; distinguish them so a
+        // refused redirect can't be silently treated as "no more pages".
+        const isRedirect = res.type === 'opaqueredirect';
+        console.warn(
+          isRedirect
+            ? '[nrps] membership fetch refused redirect (SSRF guard)'
+            : `[nrps] membership fetch ${res.status}`
+        );
+        return {
+          ok: false,
+          status: res.status,
+          members: [],
+          nextUrl: null,
+          isRedirect,
+        };
       }
       const body = (await res.json()) as { members?: unknown };
       const members = Array.isArray(body.members)
@@ -144,9 +160,15 @@ export async function fetchNrpsMembers(
       accessToken
     );
     if (!result.ok) {
-      if (page === 0) {
+      // A refused redirect is a persistent configuration/attack-shaped
+      // failure, not a transient one — unlike an ordinary page-2+ error,
+      // silently returning the partial roster so far would let a caller
+      // treat a truncated class list as complete. Throw on every page.
+      if (page === 0 || result.isRedirect) {
         throw new Error(
-          `NRPS membership fetch failed (status ${result.status})`
+          result.isRedirect
+            ? 'NRPS membership fetch refused a redirect (SSRF guard)'
+            : `NRPS membership fetch failed (status ${result.status})`
         );
       }
       break; // partial roster is better than none

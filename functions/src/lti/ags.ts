@@ -77,8 +77,15 @@ export async function getAgsAccessToken(
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
+    // Distinguish a refused redirect (SSRF guard) from an ordinary platform
+    // error in the thrown message — both otherwise present identically
+    // (`res.status` is 0 for both an opaque redirect and a network failure).
+    const reason =
+      res.type === 'opaqueredirect'
+        ? 'refused redirect (SSRF guard)'
+        : `${res.status}`;
     throw new Error(
-      `AGS token exchange failed (${res.status}): ${text.slice(0, 300)}`
+      `AGS token exchange failed (${reason}): ${text.slice(0, 300)}`
     );
   }
   const json = (await res.json()) as {
@@ -152,6 +159,12 @@ export async function postScore(opts: {
       // redirect target.
       redirect: 'manual',
     });
+    // A refused redirect and a network failure both surface to the caller as
+    // `{ok:false, status:0}` (the return shape isn't worth widening for a
+    // logging-only distinction) — log which one this was for on-call diagnosis.
+    if (!res.ok && res.type === 'opaqueredirect') {
+      console.warn('[ags] postScore refused redirect (SSRF guard)');
+    }
     return { ok: res.ok, status: res.status };
   } catch {
     return { ok: false, status: 0 };
