@@ -393,6 +393,31 @@ describe('ltiPushGradesForAssignmentV1 — push', () => {
     });
   });
 
+  // Regression (#2433 round-4 review): the conditional spread
+  // `...(r.isRedirect ? { isRedirect: true } : {})` omitted the key
+  // entirely whenever postScore's isRedirect was false, leaving
+  // `result.isRedirect` `undefined` for ordinary successes and failures
+  // alike — not explicit `false`. A future retry guard written as
+  // `result.isRedirect === false` (the natural way to confirm
+  // retry-safety) would silently never fire against `undefined`.
+  it('sets isRedirect:false explicitly on the GradeResult for an ordinary successful push', async () => {
+    gradeLinks.set('lti_grade_links/uid-A/resources/rl-1', {
+      sub: 'sub-A',
+      ags: { lineitem: 'https://lms/lineitems/1' },
+    });
+
+    const res = await callPush({
+      auth: TEACHER,
+      data: {
+        sessionId: 's1',
+        maxPoints: 20,
+        grades: [{ pseudonymUid: 'uid-A', pointsEarned: 10 }],
+      },
+    });
+
+    expect(res.results[0]).toHaveProperty('isRedirect', false);
+  });
+
   // Regression (#2433 round-3 review): postScore's isRedirect signal was
   // computed but never threaded through GradeResult — a future retry keyed
   // on status:0 would have retried a redirect attack, resending the bearer

@@ -197,6 +197,34 @@ describe('postScore', () => {
     });
   });
 
+  // Regression (#2433 round-4 review): the error path drains the response
+  // body so undici returns the socket to the pool, but the 200 OK success
+  // path returned without consuming it. The AGS spec has the scores
+  // endpoint echo the submitted score record as JSON on success, so a
+  // 200 leaves an unconsumed body too — under Promise.all across many
+  // concurrent grade posts, that holds sockets out of the pool just like
+  // an unconsumed error body does, starving subsequent token
+  // exchanges/score posts until they time out.
+  it('drains the response body on the 200 OK success path too', async () => {
+    const okResponse = new Response(JSON.stringify({ scoreGiven: 8 }), {
+      status: 200,
+    });
+    const drainSpy = vi.spyOn(okResponse, 'text');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(okResponse))
+    );
+
+    const r = await postScore({
+      lineitemUrl: 'https://x/li',
+      accessToken: 't',
+      score: { userId: 'u', scoreGiven: 8, scoreMaximum: 10 },
+      timestamp: 'now',
+    });
+    expect(r).toEqual({ ok: true, status: 200, isRedirect: false });
+    expect(drainSpy).toHaveBeenCalled();
+  });
+
   it('returns ok:false on a network error', async () => {
     vi.stubGlobal(
       'fetch',

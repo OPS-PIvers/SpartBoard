@@ -289,7 +289,13 @@ export const ltiPushGradesForAssignmentV1 = onCall(
           pseudonymUid,
           ok: r.ok,
           status: r.status,
-          ...(r.isRedirect ? { isRedirect: true } : {}),
+          // Always set explicitly — postScore's isRedirect is never
+          // undefined, so the previous conditional spread only ever
+          // omitted the key on `false`, leaving result.isRedirect
+          // `undefined` for ordinary failures instead of `false`. Any
+          // future retry guard written as `result.isRedirect === false`
+          // would silently never fire against an `undefined` value.
+          isRedirect: r.isRedirect,
         };
       })
     );

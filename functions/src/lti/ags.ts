@@ -176,6 +176,13 @@ export async function postScore(opts: {
       }
       return { ok: false, status: res.status, isRedirect };
     }
+    // Drain the 200 OK body too — the AGS spec returns the submitted score
+    // record as JSON here, and an unconsumed body holds the socket out of
+    // undici's pool just as much as an unconsumed error body does. Under
+    // Promise.all across many concurrent grade posts, leaving this
+    // unconsumed exhausts the pool and starves subsequent token
+    // exchanges/score posts, which then time out and report status: 0.
+    await res.text().catch(() => '');
     return { ok: true, status: res.status, isRedirect: false };
   } catch {
     return { ok: false, status: 0, isRedirect: false };
