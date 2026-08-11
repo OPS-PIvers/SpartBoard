@@ -333,7 +333,9 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
 
         <div className="pt-2 border-t border-slate-100 mt-4">
           <p
-            id={`timetool-trafficlight-label-${widget.id}`}
+            {...(hasTrafficLight
+              ? { id: `timetool-trafficlight-label-${widget.id}` }
+              : {})}
             className="text-xxs font-bold text-slate-500 uppercase tracking-tight mb-2"
           >
             {t('widgets.timeTool.autoSetTrafficLight')}:
