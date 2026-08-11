@@ -4,7 +4,7 @@
 // top-level TZ assignment here.
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
-import '../i18n'; // Initialise i18next with English translations for all tests
+import '@/i18n'; // Initialise i18next with English translations for all tests
 import { mockPointerEvent, mockCanvasGetContext } from './testHelpers/mocks';
 
 vi.stubEnv('VITE_FIREBASE_API_KEY', '');
