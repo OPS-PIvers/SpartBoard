@@ -129,7 +129,7 @@ const TEACHER = { uid: 'teacher-1', token: { email: 't@orono.k12.mn.us' } };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  postScoreMock.mockResolvedValue({ ok: true, status: 200 });
+  postScoreMock.mockResolvedValue({ ok: true, status: 200, isRedirect: false });
   sessionDoc = { exists: true, data: () => ({ teacherUid: 'teacher-1' }) };
   contextDocs = [];
   gradeLinks = new Map();
@@ -214,6 +214,7 @@ describe('ltiResolveNamesForAssignmentV1 — resolution', () => {
         { user_id: 'sub-B', given_name: 'Bob', family_name: 'H' },
       ],
       nextUrl: null,
+      isRedirect: false,
     });
 
     const res = await callResolve({ auth: TEACHER, data: { sessionId: 's1' } });
@@ -236,7 +237,46 @@ describe('ltiResolveNamesForAssignmentV1 — resolution', () => {
       status: 403,
       members: [],
       nextUrl: null,
+      isRedirect: false,
     });
+    await expectCode(
+      callResolve({ auth: TEACHER, data: { sessionId: 's1' } }),
+      'unavailable'
+    );
+  });
+
+  // Regression (#2433 round-3 review): fetchNrpsMembers now throws on a
+  // page-2+ refused redirect instead of silently breaking with a partial
+  // roster. Before that fix, this scenario (page 1 succeeds, page 2 is a
+  // refused redirect) would have returned contextsFetched=1 — treated as a
+  // successful, if incomplete, resolution. Now it must propagate as a
+  // context-level failure, and since it's the only context, the callable's
+  // all-failed guard fires — exercising the behavioral change through the
+  // actual callable, not just fetchNrpsMembers in isolation (see nrps.test.ts
+  // for the unit-level coverage of the throw itself).
+  it('throws `unavailable` when a context resolves page 1 but hits a refused redirect on page 2 (SSRF guard)', async () => {
+    contextDocs = [
+      {
+        id: 'ctx-1',
+        data: () => ({ contextMembershipsUrl: 'https://lms/m1' }),
+      },
+    ];
+    vi.spyOn(nrpsNet, 'fetchMembershipPage')
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        members: [{ user_id: 'sub-A', given_name: 'Ada', family_name: 'L' }],
+        nextUrl: 'https://lms/m1?page=2',
+        isRedirect: false,
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 0,
+        members: [],
+        nextUrl: null,
+        isRedirect: true,
+      });
+
     await expectCode(
       callResolve({ auth: TEACHER, data: { sessionId: 's1' } }),
       'unavailable'
@@ -353,6 +393,54 @@ describe('ltiPushGradesForAssignmentV1 — push', () => {
     });
   });
 
+  // Regression (#2433 round-4 review): the conditional spread
+  // `...(r.isRedirect ? { isRedirect: true } : {})` omitted the key
+  // entirely whenever postScore's isRedirect was false, leaving
+  // `result.isRedirect` `undefined` for ordinary successes and failures
+  // alike — not explicit `false`. A future retry guard written as
+  // `result.isRedirect === false` (the natural way to confirm
+  // retry-safety) would silently never fire against `undefined`.
+  it('sets isRedirect:false explicitly on the GradeResult for an ordinary successful push', async () => {
+    gradeLinks.set('lti_grade_links/uid-A/resources/rl-1', {
+      sub: 'sub-A',
+      ags: { lineitem: 'https://lms/lineitems/1' },
+    });
+
+    const res = await callPush({
+      auth: TEACHER,
+      data: {
+        sessionId: 's1',
+        maxPoints: 20,
+        grades: [{ pseudonymUid: 'uid-A', pointsEarned: 10 }],
+      },
+    });
+
+    expect(res.results[0]).toHaveProperty('isRedirect', false);
+  });
+
+  // Regression (#2433 round-3 review): postScore's isRedirect signal was
+  // computed but never threaded through GradeResult — a future retry keyed
+  // on status:0 would have retried a redirect attack, resending the bearer
+  // token toward the redirect target on every attempt.
+  it('propagates isRedirect:true onto the GradeResult when postScore refuses a redirect (SSRF guard)', async () => {
+    gradeLinks.set('lti_grade_links/uid-A/resources/rl-1', {
+      sub: 'sub-A',
+      ags: { lineitem: 'https://lms/lineitems/1' },
+    });
+    postScoreMock.mockResolvedValue({ ok: false, status: 0, isRedirect: true });
+
+    const res = await callPush({
+      auth: TEACHER,
+      data: {
+        sessionId: 's1',
+        maxPoints: 20,
+        grades: [{ pseudonymUid: 'uid-A', pointsEarned: 10 }],
+      },
+    });
+
+    expect(res.results[0]).toMatchObject({ ok: false, isRedirect: true });
+  });
+
   it('skips a student who never launched (no grade link)', async () => {
     const res = await callPush({
       auth: TEACHER,
@@ -363,7 +451,55 @@ describe('ltiPushGradesForAssignmentV1 — push', () => {
       },
     });
     expect(res.pushed).toBe(0);
-    expect(res.results[0]).toMatchObject({ ok: false });
+    // Regression (#2433 round-5 review): this early-exit return omitted
+    // isRedirect, leaving it undefined instead of explicit false — same
+    // footgun as the postScore-path return above, for a caller that keys a
+    // future retry guard on `result.isRedirect === false`.
+    expect(res.results[0]).toMatchObject({
+      ok: false,
+      reason: 'student never launched',
+      isRedirect: false,
+    });
+    expect(postScoreMock).not.toHaveBeenCalled();
+  });
+
+  it('sets isRedirect:false on an invalid grade entry (missing/non-numeric pointsEarned)', async () => {
+    const res = await callPush({
+      auth: TEACHER,
+      data: {
+        sessionId: 's1',
+        maxPoints: 20,
+        grades: [{ pseudonymUid: 'uid-A', pointsEarned: 'not-a-number' }],
+      },
+    });
+    expect(res.results[0]).toMatchObject({
+      ok: false,
+      reason: 'invalid entry',
+      isRedirect: false,
+    });
+    expect(postScoreMock).not.toHaveBeenCalled();
+  });
+
+  it('sets isRedirect:false when the student has no line item on record', async () => {
+    gradeLinks.set('lti_grade_links/uid-A/resources/rl-1', {
+      sub: 'sub-A',
+      // No `ags.lineitem` — student launched but the deep-link never
+      // attached a gradable line item.
+    });
+
+    const res = await callPush({
+      auth: TEACHER,
+      data: {
+        sessionId: 's1',
+        maxPoints: 20,
+        grades: [{ pseudonymUid: 'uid-A', pointsEarned: 10 }],
+      },
+    });
+    expect(res.results[0]).toMatchObject({
+      ok: false,
+      reason: 'no line item for student',
+      isRedirect: false,
+    });
     expect(postScoreMock).not.toHaveBeenCalled();
   });
 
