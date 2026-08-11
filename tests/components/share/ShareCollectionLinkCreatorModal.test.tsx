@@ -252,4 +252,19 @@ describe('ShareCollectionLinkCreatorModal — substitute sub-email case handling
     const items = screen.getAllByRole('listitem').map((li) => li.textContent);
     expect(items).toEqual(['sub@orono.k12.mn.us']);
   });
+
+  // Regression: the preset chip rendered the raw Firestore-stored casing
+  // (`{email}`) while the added-emails list always shows the lowercased,
+  // normalized form — a legacy uppercase-cased preset looked like a
+  // different address than its own entry in the added list once clicked.
+  it('renders the preset chip label lowercased, matching the normalized stored value', () => {
+    usePresetSubEmailsMock.mockReturnValue({
+      emails: ['Sub@Orono.K12.MN.US'],
+    });
+    openSubstituteMode();
+
+    expect(
+      screen.getByRole('button', { name: 'sub@orono.k12.mn.us' })
+    ).toBeInTheDocument();
+  });
 });

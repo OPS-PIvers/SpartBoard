@@ -247,13 +247,13 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
       return;
     }
     // Normalize before dedup/store — Firestore and .includes() are case-sensitive.
+    // Dedup check lives inside the functional updater (not against the outer
+    // `subEmails` closure) so two Add clicks in the same render tick can't
+    // both pass the check against the same stale snapshot and both append.
     const normalized = trimmed.toLowerCase();
-    if (subEmails.includes(normalized)) {
-      setSubEmailDraft('');
-      setSubEmailError(null);
-      return;
-    }
-    setSubEmails((prev) => [...prev, normalized]);
+    setSubEmails((prev) =>
+      prev.includes(normalized) ? prev : [...prev, normalized]
+    );
     setSubEmailDraft('');
     setSubEmailError(null);
   };
@@ -745,7 +745,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                           ) : (
                             <Plus className="w-3 h-3" />
                           )}
-                          {email}
+                          {email.toLowerCase()}
                         </button>
                       );
                     })}

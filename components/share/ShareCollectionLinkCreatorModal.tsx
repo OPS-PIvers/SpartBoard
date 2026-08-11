@@ -350,7 +350,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                           }`}
                         >
                           <Plus className="w-3 h-3" />
-                          {email}
+                          {email.toLowerCase()}
                         </button>
                       );
                     })}
