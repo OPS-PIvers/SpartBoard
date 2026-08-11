@@ -408,6 +408,8 @@ export const MusicAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
                   : 'border-slate-200'
               }`}
               style={{ backgroundColor: c }}
+              aria-label={c}
+              title={c}
             />
           ))}
         </div>

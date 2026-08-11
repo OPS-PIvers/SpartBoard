@@ -71,6 +71,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
   } = buildingConfig;
 
   const { cycleDays = [], recurringItems = [] } = config;
+  const activityNameLabelId = `specialistschedule-activity-name-label-${widget.id}`;
 
   const [activeTab, setActiveTab] = useState<'schedules' | 'recurring'>(
     'schedules'
@@ -345,16 +346,13 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
               <div className="space-y-3">
                 <div>
-                  <SettingsLabel
-                    as="span"
-                    id={`specialistschedule-activity-name-label-${widget.id}`}
-                  >
+                  <SettingsLabel as="span" id={activityNameLabelId}>
                     Activity Name
                   </SettingsLabel>
                   <div
                     className="flex flex-wrap gap-1 mb-2"
                     role="group"
-                    aria-labelledby={`specialistschedule-activity-name-label-${widget.id}`}
+                    aria-labelledby={activityNameLabelId}
                   >
                     {specialistOptions.map((opt) => (
                       <button
