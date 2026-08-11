@@ -126,6 +126,33 @@ describe('getAgsAccessToken', () => {
       })
     ).rejects.toThrow(/401/);
   });
+
+  // Regression (#2433 round-2 review): the 'refused redirect (SSRF guard)'
+  // reason string is only reachable via `res.type === 'opaqueredirect'` — a
+  // typo in that literal would silently fall through to the ordinary
+  // `${res.status}` branch with no test to catch it.
+  it('names the failure "refused redirect (SSRF guard)" on an opaque redirect, not a bare status', async () => {
+    const pem = await testPem();
+    const opaqueRedirect = new Response(null, { status: 200 });
+    Object.defineProperty(opaqueRedirect, 'type', {
+      value: 'opaqueredirect',
+    });
+    Object.defineProperty(opaqueRedirect, 'status', { value: 0 });
+    Object.defineProperty(opaqueRedirect, 'ok', { value: false });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(opaqueRedirect))
+    );
+
+    await expect(
+      getAgsAccessToken({
+        clientId: 'c1',
+        tokenUrl: 'https://schoology/token',
+        privatePem: pem,
+        scopes: ['s'],
+      })
+    ).rejects.toThrow(/refused redirect \(SSRF guard\)/);
+  });
 });
 
 describe('postScore', () => {
@@ -143,7 +170,7 @@ describe('postScore', () => {
       score: { userId: 'u1', scoreGiven: 8, scoreMaximum: 10 },
       timestamp: '2026-06-02T00:00:00Z',
     });
-    expect(r).toEqual({ ok: true, status: 200 });
+    expect(r).toEqual({ ok: true, status: 200, isRedirect: false });
 
     expect(fetchMock.mock.calls[0][0]).toBe('https://x/li/1/lineitem/scores');
     const init = fetchMock.mock.calls[0][1] as {
@@ -183,6 +210,36 @@ describe('postScore', () => {
       score: { userId: 'u', scoreGiven: 1, scoreMaximum: 1 },
       timestamp: 'now',
     });
-    expect(r).toEqual({ ok: false, status: 0 });
+    expect(r).toEqual({ ok: false, status: 0, isRedirect: false });
+  });
+
+  // Regression (#2433 round-2 review): a refused redirect and a genuine
+  // network error both surfaced as {ok:false, status:0} with no
+  // caller-visible way to distinguish them — a future retry keyed on
+  // status:0 would also retry a redirect attack, resending the bearer token
+  // toward the attacker's redirect target on every attempt.
+  it('drains the body and reports isRedirect:true on an opaque redirect, distinct from a network failure', async () => {
+    const opaqueRedirect = new Response(null, { status: 200 });
+    Object.defineProperty(opaqueRedirect, 'type', {
+      value: 'opaqueredirect',
+    });
+    Object.defineProperty(opaqueRedirect, 'status', { value: 0 });
+    Object.defineProperty(opaqueRedirect, 'ok', { value: false });
+    const drainSpy = vi.spyOn(opaqueRedirect, 'text');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(opaqueRedirect))
+    );
+
+    const r = await postScore({
+      lineitemUrl: 'https://x/li',
+      accessToken: 't',
+      score: { userId: 'u', scoreGiven: 1, scoreMaximum: 1 },
+      timestamp: 'now',
+    });
+    expect(r).toEqual({ ok: false, status: 0, isRedirect: true });
+    // Draining the body is what lets undici recycle the connection — without
+    // it, a burst of refused redirects/429s exhausts the pool.
+    expect(drainSpy).toHaveBeenCalled();
   });
 });

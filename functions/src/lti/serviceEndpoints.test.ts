@@ -214,6 +214,7 @@ describe('ltiResolveNamesForAssignmentV1 — resolution', () => {
         { user_id: 'sub-B', given_name: 'Bob', family_name: 'H' },
       ],
       nextUrl: null,
+      isRedirect: false,
     });
 
     const res = await callResolve({ auth: TEACHER, data: { sessionId: 's1' } });
@@ -236,6 +237,7 @@ describe('ltiResolveNamesForAssignmentV1 — resolution', () => {
       status: 403,
       members: [],
       nextUrl: null,
+      isRedirect: false,
     });
     await expectCode(
       callResolve({ auth: TEACHER, data: { sessionId: 's1' } }),

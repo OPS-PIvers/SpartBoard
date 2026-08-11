@@ -99,6 +99,7 @@ describe('fetchNrpsMembers', () => {
         },
       ],
       nextUrl: null,
+      isRedirect: false,
     });
 
     const members = await fetchNrpsMembers('https://lms/m', 'tok');
@@ -128,6 +129,7 @@ describe('fetchNrpsMembers', () => {
         { user_id: 'sub-noemail', given_name: 'No', family_name: 'Email' },
       ],
       nextUrl: null,
+      isRedirect: false,
     });
 
     const members = await fetchNrpsMembers('https://lms/m', 'tok');
@@ -141,6 +143,7 @@ describe('fetchNrpsMembers', () => {
       status: 200,
       members: [{ user_id: 'sub-2', name: 'Grace Hopper' }],
       nextUrl: null,
+      isRedirect: false,
     });
 
     const members = await fetchNrpsMembers('https://lms/m', 'tok');
@@ -160,6 +163,7 @@ describe('fetchNrpsMembers', () => {
         { user_id: 'sub-3', given_name: 'Has', family_name: 'Id' },
       ],
       nextUrl: null,
+      isRedirect: false,
     });
 
     const members = await fetchNrpsMembers('https://lms/m', 'tok');
@@ -174,12 +178,14 @@ describe('fetchNrpsMembers', () => {
         status: 200,
         members: [{ user_id: 'a', given_name: 'A', family_name: 'A' }],
         nextUrl: 'https://lms/m?page=2',
+        isRedirect: false,
       })
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
         members: [{ user_id: 'b', given_name: 'B', family_name: 'B' }],
         nextUrl: null,
+        isRedirect: false,
       });
 
     const members = await fetchNrpsMembers('https://lms/m?page=1', 'tok');
@@ -194,9 +200,28 @@ describe('fetchNrpsMembers', () => {
       status: 403,
       members: [],
       nextUrl: null,
+      isRedirect: false,
     });
     await expect(fetchNrpsMembers('https://lms/m', 'tok')).rejects.toThrow(
       /403/
+    );
+  });
+
+  // Regression (#2433 round-2 review): the page===0 branch throws on ANY
+  // failure already, but the message text differs by isRedirect — swapping
+  // the ternary's arms in fetchNrpsMembers would pass every other test here
+  // (they only assert `.rejects.toThrow()`, not the message) while silently
+  // mislabeling a first-page redirect refusal as an ordinary status error.
+  it('throws with the redirect-specific message when the FIRST page is a refused redirect', async () => {
+    vi.spyOn(nrpsNet, 'fetchMembershipPage').mockResolvedValue({
+      ok: false,
+      status: 0,
+      members: [],
+      nextUrl: null,
+      isRedirect: true,
+    });
+    await expect(fetchNrpsMembers('https://lms/m', 'tok')).rejects.toThrow(
+      /refused a redirect \(SSRF guard\)/
     );
   });
 
@@ -207,12 +232,14 @@ describe('fetchNrpsMembers', () => {
         status: 200,
         members: [{ user_id: 'a', given_name: 'A', family_name: 'A' }],
         nextUrl: 'https://lms/m?page=2',
+        isRedirect: false,
       })
       .mockResolvedValueOnce({
         ok: false,
         status: 500,
         members: [],
         nextUrl: null,
+        isRedirect: false,
       });
 
     const members = await fetchNrpsMembers('https://lms/m', 'tok');
@@ -225,6 +252,7 @@ describe('fetchNrpsMembers', () => {
       status: 200,
       members: [{ user_id: 'x', given_name: 'X', family_name: 'X' }],
       nextUrl: 'https://lms/m?page=next', // always points onward
+      isRedirect: false,
     });
     await fetchNrpsMembers('https://lms/m', 'tok');
     // MAX_PAGES is 20 — the loop must stop rather than spin forever.
@@ -246,6 +274,7 @@ describe('fetchNrpsMembers', () => {
         status: 200,
         members: [{ user_id: 'a', given_name: 'A', family_name: 'A' }],
         nextUrl: 'https://lms/m?page=2',
+        isRedirect: false,
       })
       .mockResolvedValueOnce({
         ok: false,

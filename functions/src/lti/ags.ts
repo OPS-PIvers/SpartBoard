@@ -84,9 +84,8 @@ export async function getAgsAccessToken(
       res.type === 'opaqueredirect'
         ? 'refused redirect (SSRF guard)'
         : `${res.status}`;
-    throw new Error(
-      `AGS token exchange failed (${reason}): ${text.slice(0, 300)}`
-    );
+    const suffix = text ? `: ${text.slice(0, 300)}` : '';
+    throw new Error(`AGS token exchange failed (${reason})${suffix}`);
   }
   const json = (await res.json()) as {
     access_token?: string;
@@ -135,7 +134,7 @@ export async function postScore(opts: {
   accessToken: string;
   score: AgsScore;
   timestamp: string;
-}): Promise<{ ok: boolean; status: number }> {
+}): Promise<{ ok: boolean; status: number; isRedirect: boolean }> {
   const payload = {
     userId: opts.score.userId,
     scoreGiven: opts.score.scoreGiven,
@@ -159,14 +158,23 @@ export async function postScore(opts: {
       // redirect target.
       redirect: 'manual',
     });
-    // A refused redirect and a network failure both surface to the caller as
-    // `{ok:false, status:0}` (the return shape isn't worth widening for a
-    // logging-only distinction) — log which one this was for on-call diagnosis.
-    if (!res.ok && res.type === 'opaqueredirect') {
-      console.warn('[ags] postScore refused redirect (SSRF guard)');
+    if (!res.ok) {
+      // Drain so undici returns the socket to the pool even on the error
+      // path — without this, a burst of 429/503s (or refused redirects)
+      // exhausts the connection pool and starves subsequent token
+      // exchanges/score posts. Mirrors getAgsAccessToken/fetchMembershipPage.
+      await res.text().catch(() => '');
+      // isRedirect is caller-visible (not just logged) so any future retry
+      // logic keyed on status:0 can exclude a refused redirect explicitly —
+      // retrying would resend the bearer token toward the redirect target.
+      const isRedirect = res.type === 'opaqueredirect';
+      if (isRedirect) {
+        console.warn('[ags] postScore refused redirect (SSRF guard)');
+      }
+      return { ok: false, status: res.status, isRedirect };
     }
-    return { ok: res.ok, status: res.status };
+    return { ok: true, status: res.status, isRedirect: false };
   } catch {
-    return { ok: false, status: 0 };
+    return { ok: false, status: 0, isRedirect: false };
   }
 }

@@ -55,7 +55,7 @@ interface MembershipPage {
   /** Absolute URL of the next page, or null when there is none. */
   nextUrl: string | null;
   /** True when the SSRF guard refused a redirect (distinct from a network failure). */
-  isRedirect?: boolean;
+  isRedirect: boolean;
 }
 
 const asStr = (v: unknown): string =>
@@ -100,7 +100,7 @@ export const nrpsNet = {
       });
       if (!res.ok) {
         // Drain so undici returns the socket to the pool even on the error path.
-        if (typeof res.text === 'function') await res.text().catch(() => '');
+        await res.text().catch(() => '');
         // An opaque redirect (SSRF guard refusal) and a genuine platform error
         // both land here with `res.ok === false`; distinguish them so a
         // refused redirect can't be silently treated as "no more pages".
@@ -123,12 +123,24 @@ export const nrpsNet = {
         ? (body.members as RawMember[])
         : [];
       const nextUrl = parseNextLink(res.headers.get('link'));
-      return { ok: true, status: res.status, members, nextUrl };
+      return {
+        ok: true,
+        status: res.status,
+        members,
+        nextUrl,
+        isRedirect: false,
+      };
     } catch (err) {
       // Network failure / timeout / abort → empty page; the caller surfaces a
       // clean "couldn't resolve names" rather than an unhandled rejection.
       console.warn('[nrps] membership fetch failed (network/timeout):', err);
-      return { ok: false, status: 0, members: [], nextUrl: null };
+      return {
+        ok: false,
+        status: 0,
+        members: [],
+        nextUrl: null,
+        isRedirect: false,
+      };
     }
   },
 };
