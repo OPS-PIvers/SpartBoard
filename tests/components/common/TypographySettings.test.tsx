@@ -22,6 +22,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { TypographySettings } from '@/components/common/TypographySettings';
+import { FONTS } from '@/config/fonts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -116,5 +117,51 @@ describe('TypographySettings', () => {
     expect(updateConfig).toHaveBeenCalledOnce();
     const [calledWith] = updateConfig.mock.calls[0] as [Partial<TestConfig>];
     expect(calledWith.fontFamily).toBe('font-mono');
+  });
+});
+
+/**
+ * Regression (#2423 review): each font option renders a decorative sample
+ * glyph (`✏️`, `☺`, `𝒞`, `★`, `◯`, `▦`, `✍` …) beside its label. The glyph
+ * span had no `aria-hidden`, so it was folded into the button's accessible
+ * name and options announced as e.g. "✏️ School, radio" instead of "School,
+ * radio". CLAUDE.md's accessibility baseline calls for `aria-hidden` on
+ * purely decorative icons.
+ *
+ * These assert on the COMPUTED ACCESSIBLE NAME (which honours aria-hidden),
+ * not textContent (which does not) — testing textContent here would fail
+ * even with the fix in place.
+ */
+describe('TypographySettings — decorative glyphs excluded from accessible names', () => {
+  type Cfg = { fontFamily?: string; fontColor?: string };
+
+  it('names each font option by its label alone, with no glyph', () => {
+    render(<TypographySettings config={{} as Cfg} updateConfig={vi.fn()} />);
+
+    // Exact-string role queries match against the accessible name, so these
+    // only resolve when the glyph is excluded from it. 'School' carries the
+    // '✏️' emoji and 'Cursive' the '𝒞' mathematical script capital — the two
+    // most disruptive to announce character-by-character.
+    for (const label of ['School', 'Cursive', 'Comic', 'Fun', 'Marker']) {
+      expect(screen.getByRole('radio', { name: label })).toHaveAccessibleName(
+        label
+      );
+    }
+  });
+
+  it('marks the glyph span aria-hidden on every font option', () => {
+    render(<TypographySettings config={{} as Cfg} updateConfig={vi.fn()} />);
+
+    // Every font option must carry exactly one aria-hidden descendant (the
+    // glyph). Scoped per-button so a stray aria-hidden elsewhere in the tree
+    // cannot satisfy this.
+    const fontOptions = FONTS.map((f) =>
+      screen.getByRole('radio', { name: f.label })
+    );
+    expect(fontOptions).toHaveLength(FONTS.length);
+
+    for (const option of fontOptions) {
+      expect(option.querySelectorAll('[aria-hidden="true"]')).toHaveLength(1);
+    }
   });
 });

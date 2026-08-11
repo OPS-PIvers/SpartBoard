@@ -946,6 +946,15 @@ export const DashboardView: React.FC = () => {
 
           if (!targetId) return;
 
+          // Always dispatch — even when the target widget's settings panel is
+          // already open (SettingsPanel's own document-level handler may have
+          // just closed it in this same event). DashboardView can't see
+          // DraggableWindow's local `showConfirm` state, so skipping the
+          // dispatch here would also swallow Escape for an open delete-confirm
+          // dialog on a flipped widget, leaving it stuck. DraggableWindow's
+          // handleCustomKeyboard avoids the resulting redundant flip-back
+          // write itself, via a ref set synchronously by SettingsPanel's
+          // onClose (see justClosedSettingsRef).
           // Dispatch custom event to notify the specific widget
           const event = new CustomEvent('widget-keyboard-action', {
             detail: { widgetId: targetId, key: 'Escape', shiftKey: e.shiftKey },

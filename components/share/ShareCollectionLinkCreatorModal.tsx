@@ -1,6 +1,14 @@
 import { type FC, useState, useId, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Folder, Copy, UserCheck, Mail, Plus, Trash2 } from 'lucide-react';
+import {
+  Folder,
+  Copy,
+  UserCheck,
+  Mail,
+  Plus,
+  Check,
+  Trash2,
+} from 'lucide-react';
 import type { Collection, Dashboard } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { usePresetSubEmails } from '@/hooks/usePresetSubEmails';
@@ -67,8 +75,10 @@ export const ShareCollectionLinkCreatorModal: FC<
       );
       return;
     }
+    // Normalize before dedup/store — Firestore and .includes() are case-sensitive.
+    const normalized = trimmed.toLowerCase();
     setSubEmails((prev) =>
-      prev.includes(trimmed) ? prev : [...prev, trimmed]
+      prev.includes(normalized) ? prev : [...prev, normalized]
     );
     setSubEmailDraft('');
     setSubEmailError(null);
@@ -320,18 +330,28 @@ export const ShareCollectionLinkCreatorModal: FC<
                 {presetEmails.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {presetEmails.map((email) => {
+                      // usePresetSubEmails already normalizes (trim +
+                      // lowercase) at the source — no per-consumer
+                      // re-normalization needed here.
                       const added = subEmails.includes(email);
                       return (
                         <button
                           key={email}
                           type="button"
-                          disabled={added}
+                          // Also gate on validity — usePresetSubEmails
+                          // normalizes but doesn't validate the Orono
+                          // domain, so an invalid or (pre-fix) empty-string
+                          // preset would otherwise render enabled and
+                          // permanently inert (the onClick guard below
+                          // silently no-ops on it with no error feedback).
+                          disabled={added || !isValidOronoEmail(email)}
                           onClick={() =>
-                            // Mirror the typed-input path: validate against the
-                            // Orono domain and de-dupe before adding. `disabled`
-                            // already blocks re-adds in normal use, but keeping
-                            // the guard here means the list stays clean even if
-                            // a preset ever comes from a non-hardcoded source.
+                            // Mirror the typed-input path: validate against
+                            // the Orono domain and de-dupe before adding
+                            // (matches handleAddSubEmail above). `disabled`
+                            // already blocks re-adds, but keep the list clean
+                            // even if a preset ever comes from a
+                            // non-hardcoded source.
                             setSubEmails((prev) =>
                               !isValidOronoEmail(email) || prev.includes(email)
                                 ? prev
@@ -341,10 +361,16 @@ export const ShareCollectionLinkCreatorModal: FC<
                           className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition-colors ${
                             added
                               ? 'bg-emerald-100 text-emerald-700 cursor-default'
-                              : 'bg-brand-blue-lighter/40 text-brand-blue-primary hover:bg-brand-blue-lighter/70'
+                              : !isValidOronoEmail(email)
+                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-50'
+                                : 'bg-brand-blue-lighter/40 text-brand-blue-primary hover:bg-brand-blue-lighter/70'
                           }`}
                         >
-                          <Plus className="w-3 h-3" />
+                          {added ? (
+                            <Check className="w-3 h-3" />
+                          ) : (
+                            <Plus className="w-3 h-3" />
+                          )}
                           {email}
                         </button>
                       );
