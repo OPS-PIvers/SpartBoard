@@ -713,26 +713,27 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                 {presetEmails.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-2">
                     {presetEmails.map((email) => {
-                      const added = subEmails.includes(email.toLowerCase());
+                      // usePresetSubEmails already normalizes (trim +
+                      // lowercase) at the source — no per-consumer
+                      // re-normalization needed here.
+                      const added = subEmails.includes(email);
                       return (
                         <button
-                          key={email.toLowerCase()}
+                          key={email}
                           type="button"
                           disabled={added}
                           onClick={() =>
-                            // Mirror the typed-input path: validate against the
-                            // Orono domain, normalize case, and de-dupe before
-                            // adding (matches handleAddSubEmail above).
-                            // `disabled` already blocks re-adds, but keep the
-                            // list clean even if a preset ever comes from a
+                            // Mirror the typed-input path: validate against
+                            // the Orono domain and de-dupe before adding
+                            // (matches handleAddSubEmail above). `disabled`
+                            // already blocks re-adds, but keep the list clean
+                            // even if a preset ever comes from a
                             // non-hardcoded source.
-                            setSubEmails((prev) => {
-                              const normalized = email.trim().toLowerCase();
-                              return !isValidOronoEmail(email) ||
-                                prev.includes(normalized)
+                            setSubEmails((prev) =>
+                              !isValidOronoEmail(email) || prev.includes(email)
                                 ? prev
-                                : [...prev, normalized];
-                            })
+                                : [...prev, email]
+                            )
                           }
                           className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
                             added
@@ -745,7 +746,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                           ) : (
                             <Plus className="w-3 h-3" />
                           )}
-                          {email.toLowerCase()}
+                          {email}
                         </button>
                       );
                     })}

@@ -34,10 +34,14 @@ export function usePresetSubEmails(buildingId: string): PresetSubEmailsState {
       ref,
       (snap) => {
         const data = snap.data();
+        // Normalize once at the source (trim + lowercase) so every consumer
+        // gets an already-canonical value — Firestore array membership and
+        // downstream `.includes()` checks are exact-match, and a legacy or
+        // hand-typed preset can carry stray whitespace/casing.
         const emails = Array.isArray(data?.emails)
-          ? (data.emails as unknown[]).filter(
-              (v): v is string => typeof v === 'string'
-            )
+          ? (data.emails as unknown[])
+              .filter((v): v is string => typeof v === 'string')
+              .map((e) => e.trim().toLowerCase())
           : [];
         setSnapshot({ emails, buildingId: canonical });
       },

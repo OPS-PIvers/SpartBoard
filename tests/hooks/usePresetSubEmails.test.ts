@@ -152,6 +152,30 @@ describe('usePresetSubEmails — snapshot mapping', () => {
       loading: false,
     });
   });
+
+  // Regression: consumers (ShareLinkCreatorModal, ShareCollectionLinkCreator
+  // Modal) each re-implemented trim().toLowerCase() at 4 separate call sites
+  // and repeatedly missed one of them across several review rounds — a
+  // space-padded or mixed-case Firestore preset would pass validation but
+  // leave a chip stuck "enabled" after being added, render with visible
+  // whitespace, or collide on its React key. Normalizing once here, at the
+  // single source every consumer reads from, makes every consumer trivially
+  // correct instead of needing the same fix copy-pasted in 4 places.
+  it('trims and lowercases every email so every consumer gets an already-canonical value', () => {
+    const { result } = renderHook(() => usePresetSubEmails('high'));
+    act(() => {
+      lastListener().next(
+        fakeDocSnap({
+          emails: ['  Sub@Orono.K12.MN.US  ', 'ALREADY@LOWER.COM'],
+        })
+      );
+    });
+
+    expect(result.current).toEqual({
+      emails: ['sub@orono.k12.mn.us', 'already@lower.com'],
+      loading: false,
+    });
+  });
 });
 
 describe('usePresetSubEmails — error handling', () => {

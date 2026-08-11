@@ -75,12 +75,12 @@ vi.mock('@/hooks/useAdminBuildings', () => ({
   useAdminBuildings: () => [{ id: 'high', name: 'High School' }],
 }));
 
-// Mixed-case on purpose: a legacy Firestore-stored preset with non-lowercase
-// casing is exactly the scenario the chip-label-lowercasing regression test
-// below needs to distinguish from an always-already-lowercase fixture.
+// usePresetSubEmails normalizes (trim + lowercase) at its own source — see
+// tests/hooks/usePresetSubEmails.test.ts for that regression coverage. This
+// mock returns an already-canonical value, matching the real hook's contract.
 vi.mock('@/hooks/usePresetSubEmails', () => ({
   usePresetSubEmails: () => ({
-    emails: ['Sub@Orono.K12.MN.US', '  padded@orono.k12.mn.us  '],
+    emails: ['sub@orono.k12.mn.us'],
     loading: false,
   }),
 }));
@@ -173,38 +173,5 @@ describe('ShareLinkCreatorModal — substitute sub-email case handling', () => {
 
     const items = screen.getAllByRole('listitem').map((li) => li.textContent);
     expect(items).toEqual(['sub@orono.k12.mn.us']);
-  });
-
-  // Regression: preset chips rendered the raw Firestore-stored casing
-  // (`{email}`) while the added-emails list always shows the lowercased,
-  // normalized form — a legacy uppercase-cased preset looked like a
-  // different address than its own entry in the added list once clicked.
-  it('renders the preset chip label lowercased, matching the normalized stored value', () => {
-    render(
-      <ShareLinkCreatorModal dashboard={dashboard} isOpen onClose={vi.fn()} />
-    );
-    fireEvent.click(
-      screen.getByRole('button', { name: /Substitute \(View-Only\)/ })
-    );
-
-    expect(
-      screen.getByRole('button', { name: 'sub@orono.k12.mn.us' })
-    ).toBeInTheDocument();
-  });
-
-  // Regression: isValidOronoEmail trims internally, so a space-padded
-  // Firestore preset passed validation but the surrounding whitespace
-  // survived into the stored/added value (the Drive API silently rejects a
-  // padded address). The preset-chip click path must trim before storing,
-  // matching handleAddSubEmail's trimmed.toLowerCase() normalization.
-  it('trims a space-padded preset email before storing it', async () => {
-    openSubstituteMode();
-
-    await userEvent.click(
-      screen.getByRole('button', { name: 'padded@orono.k12.mn.us' })
-    );
-
-    const items = screen.getAllByRole('listitem').map((li) => li.textContent);
-    expect(items).toEqual(['padded@orono.k12.mn.us']);
   });
 });
