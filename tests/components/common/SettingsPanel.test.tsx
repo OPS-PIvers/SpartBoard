@@ -511,4 +511,70 @@ describe('SettingsPanel', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  /**
+   * Regression: SettingsPanel's Escape handler is a document-level listener
+   * on a portal rendered outside any `.widget` ancestor (createPortal to
+   * document.body). Without calling stopPropagation(), the same Escape
+   * keypress continues bubbling past document to the window, where
+   * DashboardView's global keydown handler also reacts to it — dispatching
+   * a redundant 'widget-keyboard-action' Escape event at the same widget
+   * (an extra, unnecessary updateWidget/Firestore write on every settings
+   * close). This mirrors the "portalled popover Escape doesn't
+   * stopPropagation()" bug class fixed elsewhere (see ClassRosterMenu.tsx,
+   * FolderTree.tsx, ActiveClassChip.tsx, etc.) — SettingsPanel was missed.
+   */
+  it('stops propagation on Escape so a window-level handler (DashboardView) does not also fire', () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 100,
+      right: 200,
+      bottom: 250,
+      width: 200,
+      height: 150,
+      x: 0,
+      y: 100,
+      toJSON: () => ({}),
+    });
+
+    const onClose = vi.fn();
+    const windowHandler = vi.fn();
+
+    const HarnessSimple: React.FC = () => {
+      const widgetRef = React.useRef<HTMLDivElement>(null);
+      return (
+        <>
+          <div ref={widgetRef} data-testid="fake-widget" />
+          <SettingsPanel
+            widget={MOCK_WIDGET}
+            widgetRef={widgetRef}
+            settings={<div data-testid="no-input">No form fields</div>}
+            shouldRenderSettings
+            onClose={onClose}
+            updateWidget={vi.fn()}
+            globalStyle={MOCK_GLOBAL_STYLE}
+            title="Test Widget"
+          />
+        </>
+      );
+    };
+
+    window.addEventListener('keydown', windowHandler);
+    try {
+      act(() => {
+        render(<HarnessSimple />);
+      });
+
+      act(() => {
+        document.body.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+        );
+      });
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(windowHandler).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('keydown', windowHandler);
+    }
+  });
 });
