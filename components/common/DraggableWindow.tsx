@@ -205,13 +205,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const isActiveBoardReadOnly = useDashboardCanvasSelector(
     (s) => s.isActiveBoardReadOnly
   );
-  // Mirrors updateWidget's `!activeIdRef.current` early return (activeDashboard
-  // is derived from activeId — see DashboardContext.tsx). Read by
-  // SettingsPanel's onClose below so justClosedSettingsRef is only set when
-  // updateWidget's write will actually land and re-render to reset it.
-  const hasActiveDashboard = useDashboardCanvasSelector(
-    (s) => s.activeDashboard !== null
-  );
   const zoom = useDashboardCanvasSelector((s) => s.zoom);
   const groupBuildMode = useDashboardCanvasSelector((s) => s.groupBuildMode);
   // Event-handler-time canvas reads (no render subscription).
@@ -3386,8 +3379,16 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             // (including setIsAnnotating(false), a purely local write NOT
             // blocked by either guard). Only set it when the write will
             // actually land and trigger the reset.
+            //
+            // Read via getCanvasState() (event-fire time) rather than the
+            // render-closure values above — this callback can fire after a
+            // stale render commit, and reading at event time closes that
+            // window entirely instead of risking acting on a value that's
+            // already out of date by the time onClose runs.
+            const canvasState = getCanvasState();
             justClosedSettingsRef.current =
-              !isActiveBoardReadOnly && hasActiveDashboard;
+              !canvasState.isActiveBoardReadOnly &&
+              canvasState.activeDashboard !== null;
             updateWidget(widget.id, { flipped: false });
           }}
           updateWidget={updateWidget}
