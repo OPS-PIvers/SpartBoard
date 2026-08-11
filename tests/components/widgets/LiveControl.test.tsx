@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { LiveControl } from '@/components/widgets/LiveControl';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { LiveStudent } from '@/types';
@@ -177,7 +177,9 @@ describe('LiveControl', () => {
     window.addEventListener('keydown', windowKeydownSpy);
 
     try {
-      fireEvent.keyDown(document, { key: 'Escape', bubbles: true });
+      act(() => {
+        fireEvent.keyDown(document, { key: 'Escape', bubbles: true });
+      });
 
       expect(screen.queryByText('Classroom (2)')).not.toBeInTheDocument();
       // This is the crux of the regression: DashboardView's global Escape
@@ -185,6 +187,38 @@ describe('LiveControl', () => {
       // handler doesn't stopPropagation, the event still reaches window
       // and DashboardView falls back to minimizing the topmost widget.
       expect(windowKeydownSpy).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('keydown', windowKeydownSpy);
+    }
+  });
+
+  // Regression: the focus-trap effect's stopPropagation() Escape handler is
+  // registered on `document` with a dep array of only [showMenu]. Ending a
+  // live session (isLive: true -> false) while the menu is open unmounts the
+  // popout-menu portal (the render guard also checks `!isLive`) without
+  // `showMenu` itself changing, so the effect never re-runs its cleanup and
+  // the listener leaks. Before stopPropagation() was added this leak was
+  // harmless; after, the stale listener would swallow every future Escape
+  // press site-wide, since setShowMenu(false) is a no-op once the popover is
+  // already unmounted and stopPropagation() still runs regardless. Fixed by
+  // adding `isLive` to the effect's dependency array so ending the session
+  // tears down the listener even though `showMenu` never flips back to false.
+  it('cleans up the Escape listener when isLive flips to false while the menu is open, so a later Escape still reaches window', () => {
+    const { rerender, props } = renderLiveControl();
+    fireEvent.click(screen.getByLabelText(/connected students/));
+    expect(screen.getByText('Classroom (2)')).toBeInTheDocument();
+
+    act(() => {
+      rerender(<LiveControl {...props} isLive={false} />);
+    });
+
+    const windowKeydownSpy = vi.fn();
+    window.addEventListener('keydown', windowKeydownSpy);
+    try {
+      act(() => {
+        fireEvent.keyDown(document, { key: 'Escape', bubbles: true });
+      });
+      expect(windowKeydownSpy).toHaveBeenCalledTimes(1);
     } finally {
       window.removeEventListener('keydown', windowKeydownSpy);
     }

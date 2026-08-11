@@ -126,7 +126,7 @@ export const LiveControl: React.FC<LiveControlProps> = ({
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showMenu]);
+  }, [showMenu, isLive]);
 
   // BUTTON UI (extracted for consistency)
   const ActionButtons = (
