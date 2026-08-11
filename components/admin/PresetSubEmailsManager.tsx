@@ -166,14 +166,17 @@ const BuildingPresetEditor: React.FC<{ buildingId: string }> = ({
       return;
     }
     // Normalize before dedup/store — Firestore and .includes() are case-sensitive.
+    // Dedup check lives inside the functional updater (not against the outer
+    // `draftEmails` closure) so two Add clicks in the same render tick can't
+    // both pass the check against the same stale snapshot and both append —
+    // same race this PR fixes in the share modals. draftEmails is always
+    // seeded from the normalized snapshot and new entries are always stored
+    // normalized, so a plain `===` is enough here (no per-comparison
+    // toLowerCase needed).
     const normalized = trimmed.toLowerCase();
-    // Compare case-insensitively so legacy mixed-case entries loaded from
-    // Firestore (written before normalization) aren't re-added as duplicates.
-    if (draftEmails.some((e) => e.toLowerCase() === normalized)) {
-      setEmailInput('');
-      return;
-    }
-    setDraftEmails((prev) => [...prev, normalized]);
+    setDraftEmails((prev) =>
+      prev.some((e) => e === normalized) ? prev : [...prev, normalized]
+    );
     setEmailInput('');
     setError(null);
   };

@@ -155,4 +155,34 @@ describe('PresetSubEmailsManager — email case handling', () => {
 
     expect(screen.getAllByText('sub@orono.k12.mn.us')).toHaveLength(1);
   });
+
+  // Regression (#2432 review): addEmail's dedup check read the outer
+  // `draftEmails` closure, then called setDraftEmails with an unconditional
+  // append — two separate operations, not one atomic update. Two Add clicks
+  // dispatched before React re-renders (e.g. a double-click) both read the
+  // same stale `draftEmails` snapshot, both pass the dedup check, and both
+  // enqueue an append — yielding a duplicate entry. Fixed by moving the
+  // dedup check inside the setDraftEmails functional updater (matches the
+  // already-atomic pattern in ShareLinkCreatorModal/
+  // ShareCollectionLinkCreatorModal).
+  it('does not duplicate an entry when Add is clicked twice before a re-render (double-click)', () => {
+    render(<PresetSubEmailsManager />);
+
+    act(() => {
+      listeners[listeners.length - 1].next(fakeDocSnap({ emails: [] }));
+    });
+
+    const input = screen.getByPlaceholderText('ohssub@orono.k12.mn.us');
+    fireEvent.change(input, { target: { value: 'sub@orono.k12.mn.us' } });
+    const addButton = screen.getByRole('button', { name: /add/i });
+    // Both clicks inside one act() batch React's updates together, so the
+    // second addEmail() call reads the same pre-click `draftEmails` state
+    // as the first — reproducing the race a real double-click can hit.
+    act(() => {
+      fireEvent.click(addButton);
+      fireEvent.click(addButton);
+    });
+
+    expect(screen.getAllByText('sub@orono.k12.mn.us')).toHaveLength(1);
+  });
 });
