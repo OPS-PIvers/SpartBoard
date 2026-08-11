@@ -234,7 +234,12 @@ describe('ShareCollectionLinkCreatorModal — substitute sub-email case handling
     expect(items).toEqual(['sub@orono.k12.mn.us']);
   });
 
-  it('de-dupes a preset-chip click against an already-added differently-cased entry', () => {
+  // A preset chip for an already-added mailbox is rendered `disabled` — real
+  // browsers never deliver a click to a disabled button (jsdom's fireEvent
+  // does, which would make a fireEvent-based "click" here a vacuous test of
+  // an unreachable path). userEvent.click respects `disabled` and no-ops,
+  // matching what actually happens in the browser.
+  it('renders the preset chip disabled (not clickable) once its normalized value is already added', async () => {
     usePresetSubEmailsMock.mockReturnValue({
       emails: ['sub@orono.k12.mn.us'],
     });
@@ -244,10 +249,10 @@ describe('ShareCollectionLinkCreatorModal — substitute sub-email case handling
     fireEvent.change(input, { target: { value: 'Sub@Orono.K12.MN.US' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
-    // Preset chip for the lowercase form of the same mailbox.
-    fireEvent.click(
-      screen.getByRole('button', { name: 'sub@orono.k12.mn.us' })
-    );
+    const chip = screen.getByRole('button', { name: 'sub@orono.k12.mn.us' });
+    expect(chip).toBeDisabled();
+
+    await userEvent.click(chip);
 
     const items = screen.getAllByRole('listitem').map((li) => li.textContent);
     expect(items).toEqual(['sub@orono.k12.mn.us']);
@@ -266,5 +271,23 @@ describe('ShareCollectionLinkCreatorModal — substitute sub-email case handling
     expect(
       screen.getByRole('button', { name: 'sub@orono.k12.mn.us' })
     ).toBeInTheDocument();
+  });
+
+  // Regression: isValidOronoEmail trims internally, so a space-padded
+  // Firestore preset passed validation but the surrounding whitespace
+  // survived into the stored/added value. The preset-chip click path must
+  // trim before storing.
+  it('trims a space-padded preset email before storing it', async () => {
+    usePresetSubEmailsMock.mockReturnValue({
+      emails: ['  padded@orono.k12.mn.us  '],
+    });
+    openSubstituteMode();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'padded@orono.k12.mn.us' })
+    );
+
+    const items = screen.getAllByRole('listitem').map((li) => li.textContent);
+    expect(items).toEqual(['padded@orono.k12.mn.us']);
   });
 });

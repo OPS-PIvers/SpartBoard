@@ -325,7 +325,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                       const added = subEmails.includes(email.toLowerCase());
                       return (
                         <button
-                          key={email}
+                          key={email.toLowerCase()}
                           type="button"
                           disabled={added}
                           onClick={() =>
@@ -336,7 +336,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                             // list clean even if a preset ever comes from a
                             // non-hardcoded source.
                             setSubEmails((prev) => {
-                              const normalized = email.toLowerCase();
+                              const normalized = email.trim().toLowerCase();
                               return !isValidOronoEmail(email) ||
                                 prev.includes(normalized)
                                 ? prev
