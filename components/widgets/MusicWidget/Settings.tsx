@@ -360,12 +360,15 @@ export const MusicAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
         </SettingsLabel>
         <div
           className="flex flex-wrap gap-1.5 mt-1"
-          role="group"
+          role="radiogroup"
           aria-labelledby={bgColorLabelId}
         >
           {bgColors.map((c) => (
             <button
               key={c.hex}
+              type="button"
+              role="radio"
+              aria-checked={bgColor === c.hex}
               onClick={() =>
                 updateWidget(widget.id, {
                   config: { bgColor: c.hex },
@@ -393,12 +396,15 @@ export const MusicAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
         </SettingsLabel>
         <div
           className="flex flex-wrap gap-1.5 mt-1"
-          role="group"
+          role="radiogroup"
           aria-labelledby={textColorLabelId}
         >
           {textColors.map((c) => (
             <button
               key={c}
+              type="button"
+              role="radio"
+              aria-checked={textColor === c}
               onClick={() =>
                 updateWidget(widget.id, {
                   config: { textColor: c },

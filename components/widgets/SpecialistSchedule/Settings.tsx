@@ -351,12 +351,15 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                   </SettingsLabel>
                   <div
                     className="flex flex-wrap gap-1 mb-2"
-                    role="group"
+                    role="radiogroup"
                     aria-labelledby={activityNameLabelId}
                   >
                     {specialistOptions.map((opt) => (
                       <button
                         key={opt}
+                        type="button"
+                        role="radio"
+                        aria-checked={tempItem?.task === opt}
                         onClick={() =>
                           setTempItem((prev) =>
                             prev ? { ...prev, task: opt } : null
