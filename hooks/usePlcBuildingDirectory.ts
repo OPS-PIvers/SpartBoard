@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
+import { logError } from '@/utils/logError';
 import { shouldClearPlcDirectoryOnScopeChange } from '@/utils/plcDirectorySubscriptionKey';
 
 /**
@@ -214,7 +215,10 @@ export const usePlcBuildingDirectory = (
         setError(null);
       },
       (err) => {
-        console.error('PLC building-directory snapshot error:', err);
+        logError('usePlcBuildingDirectory.snapshot', err, {
+          orgId,
+          buildingId,
+        });
         setEntries(EMPTY_ENTRIES);
         setLoading(false);
         setError(err instanceof Error ? err : new Error(String(err)));
