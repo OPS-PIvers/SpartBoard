@@ -4,6 +4,37 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-08-12
+
+- PRs reviewed: 10 (all open PRs, all draft, all targeting `dev-paul`, all authored by the automated system)
+  - #2443 — test(functions): cover W7 AI-quota external/org classification helpers (head `scheduled-tasks`)
+  - #2442 — docs(routines): log nightly run 38 (head `nightly/debugger-log-2026-08-12`)
+  - #2441 — fix(admin): case-insensitive beta-user dedup in GlobalPermissionsManager (head `nightly/admin-config-2026-08-12`)
+  - #2440 — fix(dashboard): clear pending long-press timer on unmount (head `nightly/dashboard-layout-2026-08-12`)
+  - #2439 — fix(widgets): stop Escape leaking from Catalyst set picker to DashboardView (head `nightly/widgets-2026-08-12`)
+  - #2438 — docs(routines): log nightly run 54 (head `nightly/unifier-log-2026-08-12`)
+  - #2437 — D4: use @/ alias in stress-reference spike import (head `nightly/unify-import-paths-2026-08-12`)
+  - #2429 — fix(widgets): stop Escape propagation in LiveControl and PageStrip popovers (head `nightly/widgets-2026-08-11`)
+  - #2424 — fix(a11y): retrofit orphaned SettingsLabel group headings (run 53) (head `nightly/unify-settings-labels-2026-08-11`)
+  - #2395 — feat(ai): move Gemini to Vertex AI, update model IDs (+ terms audit) (head `claude/quirky-ritchie-wghdl3`)
+- Comments processed: 3 total — 3 fixed, 0 explained-without-fix.
+  - #2395: 3 unresolved inline threads from a `claude[bot]` review posted 2026-08-11 22:56, all actionable and all **fixed** in one commit. See "Fixes pushed" below.
+  - #2429 (4 threads), #2424 (19 threads), and #2395's 4 older threads were all already carrying substantive author replies — every one either fixed on-branch in an earlier round or declined with recorded reasoning. Nothing left to action; no reply added, per "be frugal".
+  - #2443, #2442, #2441, #2440, #2439, #2438, #2437: 0 inline threads each.
+- Fixes pushed: 1
+  - #2395 — branch `claude/quirky-ritchie-wghdl3`, commit `a024d461` — three defects in the Vertex AI migration: (1) `transcribeVideoWithGemini` read `perm.config?.model` from `global_permissions/video-activity-audio-transcription` and passed it straight to Vertex, bypassing the `normalizeModelName()` gate its three sibling callables go through, so a stale deprecated override there would have failed every call with model-not-found instead of self-healing to the default; (2) `generateGuidedLearning`'s catch had no `instanceof HttpsError` guard, so after this PR moved `vertexClientOptions()` inside the `try`, its clean `'AI service is not configured.'` sentinel was re-wrapped with a model-specific message and surfaced verbatim to the teacher UI — guard added ahead of the `console.error` too, so a config error no longer logs as a Gemini failure; (3) `isDeprecatedModelId`'s `/-preview$/` missed date-versioned preview ids (`gemini-3.0-flash-preview-06-05`) and `RETIRED_EXACT` was reallocated on every call. Used `/-preview(?:-|$)/` rather than the reviewer's suggested `/.*-preview/` substring match — this predicate guards a deliberately permissive `^gemini-[\w.-]+$` pattern whose whole purpose is that genuinely new model ids work without a deploy, so over-rejecting would silently pin every caller to the default with only a `console.warn`. Added 3 tests to `normalizeModelName.test.ts` (two date-versioned rejections plus a `gemini-4.0-previewer` negative case pinning that the narrowness is intentional). Verified locally: type-check ✓, repo-wide lint (`--max-warnings 0`) ✓, Prettier ✓, full functions suite 799/799 ✓.
+- Reviews posted: 10 (one per open PR)
+  - Merge-readiness split: **Ready** ×7 (#2443, #2442, #2441, #2440, #2439, #2438, #2437 — including the two docs-only run logs), **Ready with minor notes** ×2 (#2429, #2424), **Needs changes / hold** ×1 (#2395, correctly still a draft behind ops gates).
+- Notes:
+  - Branch-safety: no push to `main`, and no push to any `dev-*` head. The single fix went to `claude/quirky-ritchie-wghdl3`, a non-protected PR head.
+  - This review-log commit is on the designated `claude/pensive-bell-deggzo` branch, rebuilt from the latest `origin/dev-paul`, following the standing precedent (see 2026-08-11 entry) of keeping the log off `scheduled-tasks` when that branch is the head of an actively-open PR — it currently heads #2443, and a log commit would land in that PR's diff. Diverges from the literal POST-TASK "push to scheduled-tasks" instruction for that reason; flagged in the #2443 review as well.
+  - Substantive review findings that are **not** automated fixes, carried forward for a human:
+    - #2429: the ghost-portal regression test's comment says the fix is "a dedicated effect keyed on isLive", but the shipped implementation is deliberately the adjusting-state-while-rendering pattern (`LiveControl.tsx:88-95`) chosen over the effect form in-thread. Comment-only, but it contradicts the code.
+    - #2424: the `role="radiogroup"` + `role="radio"` without roving tabindex / arrow-key handling now spans **six** files. The per-PR decline is correct (reverting would make these files the outlier against the `d81ca589` pattern), but it is not a resolution — the shared `RadioGroup` primitive should be scheduled rather than left to accrue. Also: this PR ships ARIA semantics and a `COLOR_HEX_TO_NAME['#ffffff']` entry with zero tests; the map assertion is two lines and would have caught the round-4 defect.
+    - #2395: `gemini-2.5-*` is deliberately still selectable and un-rejected — whether it serves from the `global` endpoint can't be settled without a live Vertex call. Added to the smoke-test list alongside the two YouTube constraints and the two GCP ops gates.
+  - Tooling: this environment exposes GitHub via the MCP server (no `gh` CLI); all PR list/diff/comment/review operations used `mcp__github__*` equivalents of the prescribed `gh` commands. The `/mnt/skills/user/` skill paths named in the task prompt do not exist here; equivalent `spart-new-widget` / `spart-widget-admin-config` skills are available via the Skill tool, and widget/admin standards were checked against `CLAUDE.md` and the in-repo reference implementations instead.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); the pushed fix passed local type-check/lint/format + the full functions suite, and CI on Node 24 remains the authoritative gate.
+
 ## 2026-08-10
 
 - PRs reviewed: 4 (all open PRs, all draft, all targeting `dev-paul`, all authored by the automated system)
