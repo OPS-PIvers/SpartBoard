@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 
 /** Distance in px the pointer can move before cancelling the long press. */
 const MOVE_THRESHOLD = 15;
@@ -58,6 +58,9 @@ export function useLongPress(
     },
     [clear]
   );
+
+  // Unmount mid-press must cancel the pending timer — no pointerup/cancel will ever arrive.
+  useEffect(() => clear, [clear]);
 
   return {
     onPointerDown: handlePointerDown,
