@@ -76,6 +76,24 @@ export const LiveControl: React.FC<LiveControlProps> = ({
     if (showMenu) setShowMenu(false);
   }, [buttonRef]);
 
+  // Reset the menu when the live session ends — adjusting state while
+  // rendering (CLAUDE.md pattern; mirrors InlineTitle's prevValue sync
+  // below) rather than an effect, since this synchronizes local state to a
+  // prop change rather than an external system. Without this, showMenu and
+  // menuPosition survive isLive→false (the portal unmounts via the render
+  // guard below, but neither piece of state is cleared) — if a new session
+  // starts before the teacher closes the menu, the render guard passes
+  // again and the portal re-mounts at stale coordinates, re-running the
+  // focus-trap effect and stealing focus with no user gesture.
+  const [prevIsLive, setPrevIsLive] = useState(isLive);
+  if (prevIsLive !== isLive) {
+    setPrevIsLive(isLive);
+    if (!isLive) {
+      setShowMenu(false);
+      setMenuPosition(null);
+    }
+  }
+
   // Trap focus within the menu when open
   useEffect(() => {
     if (!showMenu || !menuRef.current) return undefined;
@@ -95,6 +113,11 @@ export const LiveControl: React.FC<LiveControlProps> = ({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        // Portalled to <body>, outside any `.widget` ancestor — without
+        // stopPropagation the keydown bubbles to DashboardView's global
+        // Escape handler, which minimizes the topmost widget (see
+        // ActiveClassChip's fix for the same bug class).
+        event.stopPropagation();
         setShowMenu(false);
         buttonRef.current?.focus();
         return;
@@ -121,7 +144,7 @@ export const LiveControl: React.FC<LiveControlProps> = ({
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showMenu]);
+  }, [showMenu, isLive]);
 
   // BUTTON UI (extracted for consistency)
   const ActionButtons = (

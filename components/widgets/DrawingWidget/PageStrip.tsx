@@ -133,7 +133,13 @@ export const PageStrip: React.FC<PageStripProps> = ({
       close();
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
+      if (e.key !== 'Escape') return;
+      // Portalled to <body>, outside any `.widget` ancestor — without
+      // stopPropagation the keydown bubbles to DashboardView's global
+      // Escape handler, which minimizes the topmost widget (see
+      // ActiveClassChip's fix for the same bug class).
+      e.stopPropagation();
+      close();
     };
     document.addEventListener('pointerdown', onDocPointerDown);
     document.addEventListener('keydown', onKey);
