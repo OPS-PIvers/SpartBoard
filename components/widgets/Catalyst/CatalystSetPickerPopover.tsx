@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, RefObject, useState } from 'react';
+import React, { useEffect, useMemo, useRef, RefObject, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ImageOff } from 'lucide-react';
 import { useCatalystSets } from '@/hooks/useCatalystSets';
@@ -10,6 +10,7 @@ import {
   renderCatalystIcon,
 } from '@/components/widgets/Catalyst/catalystHelpers';
 import { Z_INDEX } from '@/config/zIndex';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 interface Props {
   anchorRect: DOMRect;
@@ -31,6 +32,18 @@ export const CatalystSetPickerPopover: React.FC<Props> = ({
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
 
   useClickOutside(menuRef, onClose, buttonRef ? [buttonRef] : []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(event)) return;
+      // Portalled outside any `.widget` ancestor — stop it reaching DashboardView's global handler.
+      event.stopPropagation();
+      onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const bottom = window.innerHeight - anchorRect.top + 10;
   const left = anchorRect.left + anchorRect.width / 2;
