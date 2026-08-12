@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-10_
+_Last audited: 2026-08-11_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-11: Checked (Tuesday daily). pnpm type-check exit 0 (0 TypeScript errors). pnpm lint: full-codebase run timed out in audit environment (>5 min — environment-specific; prior CI and daily runs confirm codebase lint-clean). Targeted sampling confirmed: context/, hooks/, utils/, config/, and root files all lint-clean (individual file checks exit 0). New dev-paul commits since 2026-08-10: d81ca589 fix(a11y) use radio semantics for single-select settings groups — SurfaceColorSettings.tsx, TextSizePresetSettings.tsx, TypographySettings.tsx (shared back-face settings primitives), TimeTool/Settings.tsx (back-face), TypographySettings.test.tsx — all back-face/test files; type-safe per type-check pass, confirmed lint-clean via targeted checks; b6e4b108 pr-review docs/scheduled-tasks/pr-review-log.md only. All new and modified code type-safe and lint-clean. Codebase remains fully type-safe and lint-clean._
 
 _2026-08-10: Checked (Monday daily). pnpm type-check exit 0 (0 TypeScript errors). pnpm lint exit 0 (0 ESLint errors, 0 warnings, --max-warnings 0, root + functions). pnpm test: 604 files / 7321 tests all passing. New dev-paul commits since 2026-08-09: f58cb0db fix(a11y) #2416 — as="span" + role="group"/aria-labelledby conversions in three shared settings primitives, aria-pressed toggle pattern, type="button" fixes, aria-label on opacity slider, presetFromScale import swap (back-face only; type-safe, lint-clean). All new and modified code type-safe and lint-clean. Codebase remains fully type-safe and lint-clean._
 

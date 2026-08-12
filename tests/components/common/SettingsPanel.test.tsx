@@ -511,4 +511,71 @@ describe('SettingsPanel', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  /**
+   * Regression guard against re-introducing a blanket stopPropagation() here.
+   * An earlier version of this fix called e.stopPropagation() on Escape to
+   * avoid a redundant DashboardView-dispatched widget-keyboard-action for the
+   * same widget — but that also silenced every OTHER window-level Escape
+   * listener while a settings panel was open: Shift+Escape (minimize all),
+   * group-build-mode exit, and AnnotationOverlay's own close-on-Escape. The
+   * redundant-dispatch bug is instead prevented inside DraggableWindow itself
+   * via justClosedSettingsRef — a ref set synchronously in the onClose lambda
+   * before updateWidget fires, then read in handleCustomKeyboard's Escape
+   * priority chain to skip the redundant flip-back write. Escape must keep
+   * propagating past this panel's document-level handler.
+   */
+  it('does not stop Escape from reaching a window-level handler', () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 100,
+      right: 200,
+      bottom: 250,
+      width: 200,
+      height: 150,
+      x: 0,
+      y: 100,
+      toJSON: () => ({}),
+    });
+
+    const onClose = vi.fn();
+    const windowHandler = vi.fn();
+
+    const HarnessSimple: React.FC = () => {
+      const widgetRef = React.useRef<HTMLDivElement>(null);
+      return (
+        <>
+          <div ref={widgetRef} data-testid="fake-widget" />
+          <SettingsPanel
+            widget={MOCK_WIDGET}
+            widgetRef={widgetRef}
+            settings={<div data-testid="no-input">No form fields</div>}
+            shouldRenderSettings
+            onClose={onClose}
+            updateWidget={vi.fn()}
+            globalStyle={MOCK_GLOBAL_STYLE}
+            title="Test Widget"
+          />
+        </>
+      );
+    };
+
+    window.addEventListener('keydown', windowHandler);
+    try {
+      act(() => {
+        render(<HarnessSimple />);
+      });
+
+      act(() => {
+        document.body.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+        );
+      });
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(windowHandler).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener('keydown', windowHandler);
+    }
+  });
 });

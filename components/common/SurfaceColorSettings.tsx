@@ -22,6 +22,14 @@ export const SurfaceColorSettings = <
   const cardColor = config.cardColor ?? '#ffffff';
   const cardOpacity = config.cardOpacity ?? 1;
   const surfaceLabelId = useId();
+  // Callers are inconsistent about whether `label` already names a color:
+  // DiceWidget passes "Die Color"/"Pip Color", while others pass "Surface"
+  // or "Card surface". The aria-labels below all append the word "color", so
+  // without stripping a trailing one the Dice groups announce "Die Color
+  // color" and "Select die color color #ffffff". Strip it here rather than
+  // renaming the props, so both calling conventions stay valid. The `||
+  // label` fallback keeps a label of exactly "Color" from stripping to ''.
+  const colorSubject = label.replace(/\s*colou?rs?\s*$/i, '') || label;
 
   return (
     <div>
@@ -36,7 +44,7 @@ export const SurfaceColorSettings = <
         <div
           className="flex flex-wrap gap-2"
           role="radiogroup"
-          aria-label={`${label} color`}
+          aria-label={`${colorSubject} color`}
         >
           {SURFACE_COLOR_PRESETS.map((color) => (
             <button
@@ -51,7 +59,7 @@ export const SurfaceColorSettings = <
                   : 'border-slate-200'
               }`}
               style={{ backgroundColor: color }}
-              aria-label={`Select ${label.toLowerCase()} color ${color}`}
+              aria-label={`Select ${colorSubject.toLowerCase()} color ${color}`}
             />
           ))}
         </div>
@@ -63,7 +71,7 @@ export const SurfaceColorSettings = <
             updateConfig({ cardColor: e.target.value } as Partial<T>)
           }
           className="h-8 w-full rounded-md border border-slate-200 bg-white"
-          aria-label={`Custom ${label.toLowerCase()} color`}
+          aria-label={`Custom ${colorSubject.toLowerCase()} color`}
         />
 
         <div>

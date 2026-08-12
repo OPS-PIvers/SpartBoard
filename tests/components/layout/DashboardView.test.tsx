@@ -1150,6 +1150,116 @@ describe('DashboardView Gestures & Navigation', () => {
     });
   });
 
+  // Regression history (#2430): SettingsPanel.tsx's own document-level
+  // Escape handler already closes an open settings panel (document fires
+  // before window in the bubble phase). An earlier fix attempt called
+  // stopPropagation() inside SettingsPanel to stop DashboardView's
+  // window-level fallback from ALSO dispatching a redundant
+  // widget-keyboard-action Escape at the same widget — but that also
+  // silenced Shift+Escape (minimize all), group-build mode exit, and
+  // AnnotationOverlay's own Escape handler whenever a settings panel
+  // happened to be open. A second attempt skipped the dispatch here in
+  // DashboardView specifically when the target widget was flipped — but
+  // DashboardView can't see DraggableWindow's local `showConfirm` state, so
+  // that also left an open delete-confirm dialog on a flipped widget stuck
+  // (Escape blocked before it could reach handleCustomKeyboard's
+  // showConfirm branch). The correct fix: DashboardView ALWAYS dispatches;
+  // DraggableWindow avoids the redundant write itself via a ref set
+  // synchronously by SettingsPanel's onClose (see
+  // justClosedSettingsRef in DraggableWindow.tsx, and
+  // "handleCustomKeyboard Escape priority" in DraggableWindow.test.tsx for
+  // that side of the fix).
+  describe('global Escape always dispatches widget-keyboard-action, even when a widget is flipped (settings open)', () => {
+    const widgetsWithFlipped = (flipped: boolean) => [
+      {
+        id: 'widget-1',
+        type: 'clock',
+        x: 100,
+        y: 100,
+        w: 200,
+        h: 200,
+        z: 1,
+        flipped,
+        config: {},
+      },
+    ];
+
+    const mockReturnWithWidget = (flipped: boolean, extra = {}) => ({
+      activeDashboard: {
+        ...mockDashboards[1],
+        widgets: widgetsWithFlipped(flipped),
+      },
+      dashboards: mockDashboards,
+      toasts: [],
+      addWidget: vi.fn(),
+      minimizeAllWidgets: vi.fn(),
+      restoreAllWidgets: vi.fn(),
+      loadDashboard: mockLoadDashboard,
+      zoom: 1,
+      setZoom: vi.fn(),
+      removeToast: vi.fn(),
+      updateWidget: vi.fn(),
+      removeWidget: vi.fn(),
+      duplicateWidget: vi.fn(),
+      bringToFront: vi.fn(),
+      addToast: vi.fn(),
+      deleteAllWidgets: vi.fn(),
+      collectionsApi: {
+        collections: [],
+        loading: false,
+        error: null,
+        createCollection: vi.fn(),
+        renameCollection: vi.fn(),
+        moveCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        reorderSiblings: vi.fn(),
+        setCollectionMetadata: vi.fn(),
+        setCollectionDefaultBoard: vi.fn(),
+      },
+      ...extra,
+    });
+
+    it('still dispatches a widget-keyboard-action Escape when the target widget is already flipped (settings open)', () => {
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockReturnWithWidget(true)
+      );
+      const handler = vi.fn();
+      window.addEventListener('widget-keyboard-action', handler);
+      try {
+        renderView();
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(handler).toHaveBeenCalled();
+      } finally {
+        window.removeEventListener('widget-keyboard-action', handler);
+      }
+    });
+
+    it('still dispatches a widget-keyboard-action Escape when the target widget is not flipped', () => {
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockReturnWithWidget(false)
+      );
+      const handler = vi.fn();
+      window.addEventListener('widget-keyboard-action', handler);
+      try {
+        renderView();
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(handler).toHaveBeenCalled();
+      } finally {
+        window.removeEventListener('widget-keyboard-action', handler);
+      }
+    });
+
+    it('Shift+Escape still minimizes all widgets even when the top widget is flipped (settings open)', () => {
+      const minimizeAllWidgets = vi.fn();
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockReturnWithWidget(true, { minimizeAllWidgets })
+      );
+      renderView();
+      fireEvent.keyDown(window, { key: 'Escape', shiftKey: true });
+      expect(minimizeAllWidgets).toHaveBeenCalledTimes(1);
+    });
+  });
+
   // Regression: Ctrl+/ (Open Cheat Sheet) lacked a typing-field guard.
   //
   // Bug: the `if ((e.ctrlKey || e.metaKey) && e.key === '/')` branch in the

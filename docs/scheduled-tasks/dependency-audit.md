@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-08-06_
-_Last action: 2026-08-06_
+_Last audited: 2026-08-11_
+_Last action: 2026-08-11 — MEDIUM `axios@1.15.0` multi-CVE item resolved: bumped the direct `axios` dependency `^1.15.0`→`^1.18.1` (resolves to 1.19.0) in both root and functions/; all axios advisories cleared from `pnpm audit`. PR #2428 (branch `deps/axios-cve-fix`) against dev-paul._
 
 ---
 
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-11 (action): Resolved the MEDIUM `axios@1.15.0` multi-CVE item. Selection: today is Tuesday; reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + Tuesday weeklies dependency-audit / skill-freshness. No In Progress items anywhere (all five journals confirmed clear). widget-registry and typescript-eslint have no open items; css-scaling and skill-freshness open items are all LOW; the MEDIUM items are all dependency-audit MEDIUMs, so this weekly wins the severity tiebreak. In document order: (1) `pnpm audit` 410 tooling item — **skipped as not a safe unattended auto-fix** per standing precedent (its residual fix is an open-ended confirm-in-CI / switch-scanner / adopt-Dependabot policy call, not a mechanical change; `pnpm audit` is in fact working in this environment — 137 root / 8 low·50 mod·75 high·4 crit this run); (2) `@hono/node-server` — remaining moderate GHSA-frvp-7c67-39w9 is **blocked** (path-traversal fix requires `@hono/node-server` 2.x, but `@modelcontextprotocol/sdk@1.25.2` only accepts `^1.19.9`), so not actionable now; (3) `axios` — the next actionable MEDIUM. Fix applied on a **separate branch off dev-paul** (`deps/axios-cve-fix`), NOT on scheduled-tasks, so its diff is exactly `package.json` + `functions/package.json` + both lockfiles and does not carry this journal update — file-recency check measured against dev-paul: package files last touched at `0fa548f7` (postcss bump #2399), well outside dev-paul's last 5 commits. `axios` is a direct devDependency in root (declared but NOT imported by any root source — dev/tooling only) and a direct runtime dependency in functions/ (imported by `classlinkRoster.ts`, `googleOAuth.ts`, `spotifyOAuth.ts`, `classroomAddonAuth.ts`, `studentIdentity.ts`, `embedProxy.ts` — default export + `AxiosError`, both stable across 1.x). Bumped both from `^1.15.0` to `^1.18.1` (matches the journal fix target; latest 1.x is 1.19.0 so pnpm resolves both to `axios@1.19.0`, staying within 1.x). After `pnpm install` (root + functions), `pnpm audit` reports **zero** remaining axios advisories in both projects (was 8+ CVEs, several HIGH: prototype-pollution gadgets, proxy-authorization credential leak, ReDoS via cookies, MITM, header injection, DoS via unbounded recursion, NO_PROXY bypass). Lockfile diff is axios-scoped only (axios + its transitive `form-data` 4.0.5→4.0.6 and new `hasown`). Verified clean: `prettier --check package.json functions/package.json` (clean), `pnpm run type-check` (exit 0, root + functions), functions `lint` (`--max-warnings 0`, exit 0), functions test suite (785 tests green — includes `index.test.ts` which imports axios). Moved item to Completed. PR #2428 opened against dev-paul (draft, branch `deps/axios-cve-fix`). Remaining MEDIUM items (pnpm-audit-410, @hono/node-server [blocked], firebase-tools, firebase-admin, MCP SDK, lodash, protobufjs, ws-in-functions, @grpc/grpc-js) and LOW items all still active._
 
 _2026-08-06 (action, second run): Resolved the MEDIUM `postcss@8.5.6` two-CVE item. Selection: today is Thursday; reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + Thursday weeklies B1 skill-freshness / B2 dependency-audit. No In Progress items anywhere (all five journals confirmed clear). widget-registry and typescript-eslint have no open items; css-scaling and skill-freshness open items are all LOW; the MEDIUM/HIGH items are dependency-audit MEDIUMs, so this weekly wins the severity tiebreak. In document order: (1) `pnpm audit` 410 tooling item — **skipped as not a safe unattended auto-fix** per standing precedent; (2) `@hono/node-server` — partially fixed earlier today (first run), remaining moderate GHSA-frvp-7c67-39w9 is **blocked** (requires a 2.x major that `@modelcontextprotocol/sdk@1.25.2` does not accept), so not actionable now; (3) `postcss` — the next actionable MEDIUM. Fix applied on a **separate branch off dev-paul** (`deps/postcss-source-map-read`), NOT on scheduled-tasks, so its diff is exactly `package.json` + `pnpm-lock.yaml` and does not carry this journal update — file-recency check measured against dev-paul: `package.json` last touched at `48db764f` (merge #2370, the hono fix), well outside dev-paul's last 5 commits. `postcss@8.5.6` is a direct devDependency (dev/build tooling only; consumed by autoprefixer, tailwindcss, vite, postcss-\* plugins — no production runtime impact). Bumped `devDependencies.postcss` from `^8.5.6` to `^8.5.25` (latest; matches the file's caret convention, stays within 8.x). After `pnpm install`, `pnpm why postcss` reports a single `postcss@8.5.25` across all paths (8.5.6 gone); both GHSA-6g55-p6wh-862q (high) and GHSA-fxqj-rqcc-2cmp (moderate) confirmed gone from `pnpm audit`. Root vuln count 135 → **133** (−2 for the two resolved postcss advisories). Lockfile diff is postcss-scoped only (52 lines, net 0). Verified clean: `prettier --check package.json pnpm-lock.yaml` (clean), `pnpm run type-check` (exit 0), `pnpm run lint` (root + functions, `--max-warnings 0`, exit 0). Moved item to Completed. PR #2399 opened against dev-paul (draft, branch `deps/postcss-source-map-read`). Remaining MEDIUM items (pnpm-audit-410, @hono/node-server [partial/blocked], axios, firebase-tools, firebase-admin, MCP SDK, lodash, protobufjs, ws-in-functions, @grpc/grpc-js) and LOW items all still active._
 
@@ -73,23 +75,6 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
   - **moderate**: Node.js adapter for Hono — path traversal (GHSA-frvp-7c67-39w9, patched >=2.0.5).
     Reached via `@google/genai>@modelcontextprotocol/sdk>@hono/node-server` (dev/tooling chain; also via `firebase-tools`). Not imported by application source.
 - **Fix:** Once `@google/genai` upgrades its bundled `@modelcontextprotocol/sdk` to >=1.30.0 (which reportedly accepts `^1.19.9 || ^2.0.5`), update the override to `"@hono/node-server": "^2.0.5"`. Monitor `@google/genai` releases: check `pnpm view @google/genai dependencies | grep modelcontextprotocol`. When safe, run `pnpm install`, verify `pnpm why @hono/node-server` reports 2.x, and confirm `pnpm audit` clears GHSA-frvp-7c67-39w9.
-
-### MEDIUM `axios@1.15.0` has multiple CVEs — full fix now requires >=1.18.0 (latest 1.18.1)
-
-- **Detected:** 2026-05-05
-- **Updated:** 2026-07-21 — two new CVEs detected requiring >=1.18.0; fix target raised from 1.16.0 to 1.18.0; latest is now 1.18.1
-- **File:** package.json (direct devDependency), functions/package.json (direct dependency)
-- **Detail:** Eight CVEs now appear in `pnpm audit` against the current `axios@1.15.0` (root and functions/):
-  - **GHSA-vf2m-468p-8v99** (moderate): HTTP adapter streamed responses bypass `maxContentLength`. Patched >=1.15.1.
-  - **GHSA-xx6v-rp6x-q39c** (moderate): XSRF Token Cross-Origin Leakage via Prototype Pollution. Patched >=1.15.1.
-  - **NO_PROXY bypass** (high): Incomplete fix for CVE-2025-62718 — `NO_PROXY` hostname normalization bypass via SSRF. Patched >=1.15.1.
-  - **Prototype Pollution Gadgets - Response** (high): Response object prototype pollution allowing manipulation of subsequent requests. Patched >=1.15.1.
-  - **Header Injection via Prototype Pollution** (high): Header values can be injected via prototype-polluted objects. Patched >=1.15.1.
-  - **Prototype pollution read-side gadgets** (high): Read-side prototype pollution in response parsing. Patched **>=1.15.2**.
-    - **GHSA-7q8q-rj6j-mhjq** (moderate, NEW 2026-07-21): Nested axios option objects can consume polluted prototype values. Patched **>=1.18.0**.
-  - **GHSA-mwf2-3pr3-8698** (moderate, NEW 2026-07-21): HTTP/2 streamed uploads bypass `maxBodyLength`. Patched **>=1.18.0**.
-    The two newest CVEs require >=1.18.0 — upgrading to the previously-recommended 1.16.0 would not be sufficient. `pnpm outdated` shows latest is `1.18.1`.
-- **Fix:** `pnpm up axios@^1.18.1` in root and `pnpm -C functions up axios@^1.18.1` in functions/. All 8 CVEs are patched in `>=1.18.0`; upgrading to `1.18.1` (latest) addresses all. Verify `pnpm type-check`, `pnpm lint`, and `pnpm test` pass after upgrade.
 
 ### MEDIUM `firebase-tools` brings in multiple vulnerable transitive deps
 
@@ -229,6 +214,23 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
 ---
 
 ## Completed
+
+### MEDIUM `axios@1.15.0` has multiple CVEs — patched in >=1.18.0 (resolved at 1.19.0)
+
+- **Detected:** 2026-05-05
+- **Completed:** 2026-08-11
+- **File:** package.json (direct devDependency), functions/package.json (direct dependency), both `pnpm-lock.yaml`
+- **Detail:** `axios@1.15.0` was affected by 8+ advisories (several HIGH) reported by `pnpm audit` in both root and functions/:
+  - **Prototype pollution read-side gadgets** (high): read-side prototype pollution in response parsing. Patched >=1.15.2.
+  - **Prototype Pollution Gadgets - Response** (high): response object prototype pollution altering subsequent requests. Patched >=1.15.1.
+  - **Header Injection via Prototype Pollution** (high). Patched >=1.15.1.
+  - **NO_PROXY bypass / SSRF** (high): incomplete fix for CVE-2025-62718; `shouldBypassProxy` IPv4-mapped-IPv6 gap. Patched >=1.15.1 / >=1.16.0.
+  - **Proxy-Authorization credential leak** (high): leaks to origin/redirect target. Patched >=1.16.0.
+  - **ReDoS via Cookie** (high). Patched >=1.16.0.
+  - **GHSA-7q8q-rj6j-mhjq** (moderate): nested axios option objects consume polluted prototype values. Patched >=1.18.0.
+  - **GHSA-mwf2-3pr3-8698** (moderate): HTTP/2 streamed uploads bypass `maxBodyLength`. Patched >=1.18.0.
+  - Plus additional moderate DoS (unbounded recursion in `formDataToJSON`/`toFormData`) advisories.
+- **Fix applied (2026-08-11):** Bumped the direct `axios` dependency from `^1.15.0` to `^1.18.1` in both root `package.json` (devDependency) and `functions/package.json` (runtime dependency). pnpm resolves both to `axios@1.19.0` (latest 1.x, within the stable 1.x API surface). After `pnpm install` (root + functions), `pnpm audit` reports **zero** remaining axios advisories in both projects. axios is imported only within `functions/src/*` (default export + `AxiosError`, both stable across 1.x) — root declares it as a devDependency with no source imports, so no application code changes were required. Lockfile diff is axios-scoped only (axios + transitive `form-data` 4.0.5→4.0.6 / new `hasown`). Verified: `prettier --check` (clean), `pnpm run type-check` (exit 0, root + functions), functions `lint` (`--max-warnings 0`), functions test suite (785 tests green). Delivered on branch `deps/axios-cve-fix` (off dev-paul), PR #2428 (draft) against dev-paul.
 
 ### MEDIUM `postcss@8.5.6` has two CVEs — patched in >=8.5.23 (latest 8.5.25)
 

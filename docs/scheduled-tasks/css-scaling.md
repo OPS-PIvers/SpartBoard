@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-10_
+_Last audited: 2026-08-11_
 _Last action: 2026-08-08 — LOW MathTools tab-nav row hardcoded `px-2 gap-1` replaced with inline `cqmin` (`paddingLeft`/`paddingRight` `min(8px, 2cqmin)`, `gap` `min(4px, 1cqmin)`), so the tab row's side padding and inter-tab gaps scale with the widget container instead of staying fixed-pixel on large/projected displays_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-11: Targeted scan (Tuesday daily). New dev-paul commits since 2026-08-10: d81ca589 fix(a11y) use radio semantics for single-select settings groups — components/common/SurfaceColorSettings.tsx, TextSizePresetSettings.tsx, TypographySettings.tsx (back-face settings primitives), components/widgets/TimeTool/Settings.tsx (back-face only), tests/components/common/TypographySettings.test.tsx — all back-face/test files; CQ scaling rules do not apply; b6e4b108 pr-review docs/scheduled-tasks/pr-review-log.md only. Zero widget front-face content changes. Nightly branches unify-settings-labels-2026-08-11 and unify-import-paths-2026-08-11 only touch back-face Settings.tsx files — not yet merged into dev-paul, no front-face impact. Agent scan of 14 widget files (BlendingBoard, Stations, NeedDoPutThen, WorkSymbols, TimeTool, Countdown, First5, NumberLine, MusicWidget, RevealGrid, ConceptWeb, GraphicOrganizer, SyntaxFramer, HotspotImage): RevealGrid/Widget.tsx lines 162/168 text-xs labels and line 183 gap-4 confirmed present and unchanged — all already tracked in existing LOW open item "RevealGridWidget has additional hardcoded spacing". All other 13 files confirmed CLEAN. All pre-existing LOW open items confirmed present and unresolved (MathTools hardcoded spacing; Onboarding gap-2; EmbedWidget portaled toolbar; RevealGrid spacing; multi-widget group; MiniApp overlay; SmartNotebook drawing toolbar; RandomClassContextButton portaled dropdown). Zero new anti-patterns._
 
 _2026-08-10: Targeted scan (Monday daily). New dev-paul commits since 2026-08-09: c26ad917 / 0e79f85f docs only; f58cb0db fix(a11y) #2416 touches components/common/SurfaceColorSettings.tsx, TextSizePresetSettings.tsx, TypographySettings.tsx — these are back-face settings primitives (no widget front-face content), CQ scaling rules do not apply; f4830ebe pr-review docs only. Zero widget front-face content changes. All pre-existing LOW open items confirmed present and unresolved (MathTools/Widget.tsx pr-2/mt-1.5/gap-1.5 hardcoded spacing; Onboarding/components/Header.tsx:14 gap-2; Embed/Widget.tsx portaled toolbar; RevealGrid/Widget.tsx hardcoded spacing; multi-widget group CatalystWidget/DiceWidget/GuidedLearning/InstructionalRoutines/NextUp/SoundWidget/SoundboardWidget/SpecialistSchedule/Stations/TalkingTool/Webcam; MiniApp/Widget.tsx dialog overlay; SmartNotebook/components/PageEditorOverlay.tsx:983/:1061 drawing toolbar; random/RandomClassContextButton.tsx portaled dropdown). Zero new anti-patterns._
 
