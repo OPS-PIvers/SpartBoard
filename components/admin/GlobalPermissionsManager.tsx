@@ -645,7 +645,8 @@ export const GlobalPermissionsManager: React.FC = () => {
     }
 
     const permission = getPermission(featureId);
-    if (!permission.betaUsers.includes(trimmedEmail)) {
+    // Case-insensitive: catches a legacy mixed-case entry pre-dating normalization.
+    if (!permission.betaUsers.some((e) => e.toLowerCase() === trimmedEmail)) {
       updatePermission(featureId, {
         betaUsers: [...permission.betaUsers, trimmedEmail],
       });
