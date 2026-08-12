@@ -58,17 +58,20 @@ export function normalizeModelName(raw: unknown): string | undefined {
  * stale override self-heals on the next call instead of requiring a
  * one-time Firestore sweep to catch.
  *
- * Superseded `*-preview` 3.x IDs are matched by suffix rather than listed,
- * since preview IDs are minted and retired continuously.
+ * Superseded `*-preview` 3.x IDs are matched by pattern rather than listed,
+ * since preview IDs are minted and retired continuously. The pattern also has
+ * to catch date-versioned variants (`gemini-3.0-flash-preview-06-05`), which
+ * carry a trailing date segment rather than ending at `-preview`.
  */
+const RETIRED_EXACT_MODEL_IDS = new Set([
+  'gemini-1.5-flash',
+  'gemini-1.5-pro',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
+]);
+
 function isDeprecatedModelId(model: string): boolean {
-  const RETIRED_EXACT = new Set([
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-lite',
-  ]);
-  return RETIRED_EXACT.has(model) || /-preview$/.test(model);
+  return RETIRED_EXACT_MODEL_IDS.has(model) || /-preview(?:-|$)/.test(model);
 }
 
 /**

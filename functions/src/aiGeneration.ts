@@ -2015,7 +2015,8 @@ export const transcribeVideoWithGemini = onCall(
         : undefined;
 
     // Use the YouTube video URL directly with Gemini's video understanding
-    const model = perm.config?.model ?? DEFAULT_STANDARD_MODEL;
+    const model =
+      normalizeModelName(perm.config?.model) ?? DEFAULT_STANDARD_MODEL;
     const ai = new GoogleGenAI(vertexClientOptions());
 
     const systemPrompt = buildVideoActivityPrompt(
@@ -2349,6 +2350,7 @@ Guidelines:
         _modelConfigUsedFallback: geminiConfig.usedFallback,
       };
     } catch (error: unknown) {
+      if (error instanceof HttpsError) throw error;
       console.error('[generateGuidedLearning] Gemini error:', error);
       const detail = error instanceof Error ? error.message : 'unknown error';
       const msg = `AI generation failed (model: ${guidedLearningModel}): ${detail}`;

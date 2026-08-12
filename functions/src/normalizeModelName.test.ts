@@ -61,14 +61,26 @@ describe('normalizeModelName — rejected values', () => {
     expect(normalizeModelName(model)).toBeUndefined();
   });
 
-  it.each([['gemini-3-flash-preview'], ['gemini-3.1-flash-lite-preview']])(
-    'rejects the superseded preview id %s',
-    (model) => {
-      // Matched by suffix rather than an explicit list — preview ids are minted
-      // and retired continuously.
-      expect(normalizeModelName(model)).toBeUndefined();
-    }
-  );
+  it.each([
+    ['gemini-3-flash-preview'],
+    ['gemini-3.1-flash-lite-preview'],
+    // Date-versioned variants carry a trailing date segment rather than
+    // ending at `-preview`, so a `$`-anchored suffix test would miss them.
+    ['gemini-3.0-flash-preview-06-05'],
+    ['gemini-3.0-pro-preview-11-2025'],
+  ])('rejects the superseded preview id %s', (model) => {
+    // Matched by pattern rather than an explicit list — preview ids are minted
+    // and retired continuously.
+    expect(normalizeModelName(model)).toBeUndefined();
+  });
+
+  it('does not treat "preview" inside a non-preview segment as deprecated', () => {
+    // The pattern requires `-preview` to be a whole segment, so a future model
+    // whose name merely contains the substring is not swept up.
+    expect(normalizeModelName('gemini-4.0-previewer')).toBe(
+      'gemini-4.0-previewer'
+    );
+  });
 
   it('warns when discarding a deprecated override so the fallback is traceable', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
