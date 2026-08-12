@@ -231,8 +231,11 @@ describe('LiveControl', () => {
   // showMenu stays true. If a *new* live session starts before the teacher
   // reopens the menu, the render guard passes again, the portal re-mounts
   // at stale coordinates, and the focus-trap effect re-runs — stealing
-  // focus with no user gesture. Fixed by resetting both pieces of state in
-  // a dedicated effect keyed on isLive.
+  // focus with no user gesture. Fixed by resetting both pieces of state via
+  // the adjusting-state-while-rendering pattern (LiveControl.tsx:88-95;
+  // CLAUDE.md "useEffect is an escape hatch, not a default") — not an
+  // effect, which would cost an extra render pass for what's really a
+  // render-time prop-change reaction.
   it('does not silently reopen the menu when a new live session starts after the previous one ended while the menu was open', () => {
     const { rerender, props } = renderLiveControl();
     fireEvent.click(screen.getByLabelText(/connected students/));
