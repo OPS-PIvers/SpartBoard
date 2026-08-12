@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-11_
+_Last audited: 2026-08-12_
 _Last action: 2026-06-25_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-12: Full audit (Wednesday daily), delegated to a dedicated sub-agent for independent re-verification. New dev-paul commits since 2026-08-11: only 649e792a "Update Claude PR review workflow to use Sonnet 5" — touches .github/workflows/ only, no app source. VERIFIED COUNT: 63 WidgetType members (unchanged — consistent with all prior runs). All 63 WidgetTypes correctly registered across all 7 locations (WIDGET_COMPONENTS: 62/63, sticker intentional special-case; WIDGET_SETTINGS_COMPONENTS: 59/63, sticker/stickers/blooms-detail/onboarding documented omissions; WIDGET_APPEARANCE_COMPONENTS: 28, non-exhaustive by design, no orphans; WIDGET_SCALING_CONFIG: 63/63 exhaustive Record; config/widgetDefaults.ts: 63/63 exhaustive Record; config/tools.ts: 59 widget entries + 3 InternalToolType, 7 documented exclusions; config/widgetGradeLevels.ts: 66 = 63 WidgetTypes + 3 InternalToolType, no orphans). Reverse check for stale/orphaned entries: none found. `WidgetConfig` union and `ConfigForWidget<T>` conditional chain both confirmed with exactly 63 branches/members — complete. 25 lazyNamed() export names spot-checked (prioritizing recently-touched files: TimeTool, ClockWidget, ConceptWeb, RevealGrid, DrawingWidget, MathTools, Schedule, random, plus a broad sample) — zero mismatches. pnpm type-check exit 0. pnpm lint (full root + functions run, completed this time — no timeout) exit 0. Zero new gaps._
 
 _2026-08-11: Full audit (Tuesday daily). New dev-paul commits since 2026-08-10: d81ca589 fix(a11y) use radio semantics for single-select settings groups — touches components/common/SurfaceColorSettings.tsx, TextSizePresetSettings.tsx, TypographySettings.tsx (shared back-face settings primitives), components/widgets/TimeTool/Settings.tsx (back-face only), and tests/components/common/TypographySettings.test.tsx — all back-face/test files; no WidgetType additions, removals, or renames, no WidgetRegistry impact; b6e4b108 pr-review (docs/scheduled-tasks/pr-review-log.md only). VERIFIED COUNT: 63 WidgetType members (unchanged — consistent with all prior runs). All 63 WidgetTypes correctly registered across all 7 locations (WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, config/tools.ts, config/widgetDefaults.ts, config/widgetGradeLevels.ts). All intentional omissions re-confirmed: sticker intentional WidgetRenderer special-case per JSDoc; 7 intentional tools.ts omissions (catalyst-instruction, catalyst-visual, blooms-detail, mathTool, custom-widget, onboarding, sticker); 3 InternalToolType entries (magic, record, remote) documented. Full lazyNamed() cross-check: RevealGrid barrel aliases ('Widget'/'Settings' via index.ts re-export) confirmed intentional and consistent with all prior audits; QuizWidgetSettings and VideoActivityWidgetSettings naming patterns confirmed intentional. pnpm type-check exit 0. pnpm lint: full-codebase run timed out in audit environment (>5 min); all sampled files (context/, hooks/, utils/, config/, root) lint-clean; prior CI confirms codebase lint-clean. Zero new gaps._
 
