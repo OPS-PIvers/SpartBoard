@@ -70,24 +70,7 @@ const VERTEX_LOCATION = 'global';
  * the failure mode the old missing-API-key guards had.
  */
 function vertexClientOptions(): GoogleGenAIOptions {
-  // Resolution order matters. `GCLOUD_PROJECT` / `GOOGLE_CLOUD_PROJECT` are
-  // populated on the gen1 runtime and commonly on gen2, but neither appears in
-  // Google's list of variables automatically set on Cloud Run (which is what
-  // gen2 functions run on) — Cloud Run's docs are explicit that it does NOT
-  // set GOOGLE_CLOUD_PROJECT. Relying on them alone risks every AI callable
-  // throwing "AI service is not configured" on a runtime that happens not to
-  // set them: a total AI outage, not a partial one.
-  //
-  // `FIREBASE_CONFIG` IS guaranteed by Firebase Functions on both gen1 and
-  // gen2, and carries `projectId`. This is the same fallback that
-  // firebase-functions' own `projectID` / `gcloudProject` params use — those
-  // read ONLY FIREBASE_CONFIG, so they are a complement to the env vars, not
-  // a superset. Reading both here covers strictly more runtimes than either
-  // source alone.
-  //
-  // Parsed inline rather than via `projectID.value()` so this stays callable
-  // outside a functions runtime (unit tests, local tooling) without the
-  // deploy-time warning `.value()` emits when FUNCTIONS_CONTROL_API is set.
+  // GCLOUD_PROJECT/GOOGLE_CLOUD_PROJECT aren't guaranteed on gen2 (Cloud Run); FIREBASE_CONFIG.projectId is, so it's a fallback, not a replacement.
   const project =
     process.env.GCLOUD_PROJECT ||
     process.env.GOOGLE_CLOUD_PROJECT ||

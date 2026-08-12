@@ -235,22 +235,7 @@ const KNOWN_GEMINI_MODELS = [
     label: 'Gemini 2.5 Flash Lite',
     tier: 'standard',
   },
-  // gemini-2.0-flash / gemini-2.0-flash-lite were removed here: GEMINI.md
-  // names them (with gemini-1.5-*) as deprecated and must-not-be-used, so
-  // offering them as first-class picker options contradicted the same repo's
-  // stated policy. `normalizeModelName` in functions/src/shared.ts now also
-  // rejects them server-side, so a stale stored override falls back to the
-  // default rather than being honoured indefinitely.
-  //
-  // The 2.5 entries above are intentionally left: GEMINI.md does not name
-  // them explicitly. They do warrant a look during the preview-deploy smoke
-  // test though — `vertexClientOptions()` pins `location: 'global'`, and this
-  // file's own docs scope the global-endpoint guarantee to the 3.x models, so
-  // whether 2.5 is servable from `global` is unverified.
-  //
-  // Removing an option is non-destructive for admins who already selected it:
-  // `getSelectValue` maps any unrecognised stored value to the "Custom..."
-  // branch, which renders the raw id in an editable text field.
+  // gemini-2.0-*/1.5-* dropped: GEMINI.md marks them deprecated and normalizeModelName rejects them server-side. 2.5-* kept — GEMINI.md doesn't name it (verify global-endpoint support before merge).
 ] as const;
 
 const GEMINI_MODEL_REGEX = /^gemini-[\w.-]+$/;

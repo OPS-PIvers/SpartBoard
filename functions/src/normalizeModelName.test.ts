@@ -44,6 +44,12 @@ describe('normalizeModelName — accepted values', () => {
     expect(normalizeModelName('gemini-4.0-ultra')).toBe('gemini-4.0-ultra');
   });
 
+  it('does not let the 1.x prefix swallow future double-digit generations', () => {
+    // The trailing dot in `gemini-1.` is load-bearing: without it a future
+    // `gemini-12.x` id would be rejected as if it were Gemini 1.
+    expect(normalizeModelName('gemini-12.0-flash')).toBe('gemini-12.0-flash');
+  });
+
   it('does not reject the 2.5 models (not named deprecated in GEMINI.md)', () => {
     // Deliberately narrower than "anything below 3.x": GEMINI.md names only
     // 1.5/2.0 and the *-preview ids. Widening this is a product decision.
@@ -57,6 +63,13 @@ describe('normalizeModelName — rejected values', () => {
     ['gemini-1.5-pro'],
     ['gemini-2.0-flash'],
     ['gemini-2.0-flash-lite'],
+    // Matched by family prefix, not an exact list — GEMINI.md's "e.g." names
+    // representatives of the 1.x/2.0 generations, not an exhaustive pair.
+    ['gemini-1.5-flash-8b'],
+    ['gemini-1.5-pro-002'],
+    ['gemini-1.0-pro'],
+    ['gemini-2.0-pro'],
+    ['gemini-2.0-flash-thinking-exp'],
   ])('rejects the deprecated model %s', (model) => {
     expect(normalizeModelName(model)).toBeUndefined();
   });
