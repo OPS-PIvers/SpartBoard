@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import nucleiData from '../stress-detection/nuclei.json';
+import nucleiData from '@/scripts/spikes/stress-detection/nuclei.json';
 import {
   type Lang,
   type StressReading,

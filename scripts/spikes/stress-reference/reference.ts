@@ -15,7 +15,7 @@
  * the map and `ˌ` is discarded everywhere below.
  */
 
-import nucleiData from '../stress-detection/nuclei.json';
+import nucleiData from '@/scripts/spikes/stress-detection/nuclei.json';
 
 /** The 244 nucleus-bearing tokens, derived from the model's own vocabulary. */
 const NUCLEUS_TOKENS: readonly string[] = [...nucleiData.nuclei].sort(
