@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-12_
-_Last action: 2026-08-08 — LOW MathTools tab-nav row hardcoded `px-2 gap-1` replaced with inline `cqmin` (`paddingLeft`/`paddingRight` `min(8px, 2cqmin)`, `gap` `min(4px, 1cqmin)`), so the tab row's side padding and inter-tab gaps scale with the widget container instead of staying fixed-pixel on large/projected displays_
+_Last audited: 2026-08-13_
+_Last action: 2026-08-13 — LOW MathTools/Widget.tsx additional hardcoded spacing (grade-filter `pr-2`, sticker label `mt-1.5`, sticker-piece button `gap-1.5`) converted to inline `cqmin` so all three scale with the widget container instead of staying fixed-pixel_
 
 ---
 
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-13 action notes (Thursday): Selected the LOW `MathTools/Widget.tsx has additional hardcoded front-face spacing beyond the tab-nav row` item — top of the Open section in document order. Selection: reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + today's weeklies (admin-settings-alignment D1, legacy-cleanup D2). Nothing In Progress anywhere. widget-registry and typescript-eslint have no open items. legacy-cleanup's one MEDIUM (`migrateLocalStorageToFirestore`) is the only open item above LOW severity across all five journals, but it remains not safely actionable unattended (requires a production Firestore/user-activity audit or a judgment call on gating migration behind a flag — same block noted 2026-08-09 and every prior audit since 2026-07-12); admin-settings-alignment has no MEDIUM/HIGH left (its lone MEDIUM, ConceptWeb fontColor, was moved to Completed 2026-08-09). That leaves LOW as the effective top severity, where daily-before-weekly puts css-scaling (daily order 2, since widget-registry/order 1 has no open items) ahead of both Thursday weeklies, and this is item 1 in css-scaling's Open section. File-recency check passed: `git log --oneline -10 -- components/widgets/MathTools/Widget.tsx` shows last touch at `c97028c3` (2026-08-08, the prior tab-nav fix), far outside the last 5 branch commits (d5ebc021, a4e46ef1, 2e400298, bfcb8657, edf738c5 — none touch this file). Resolution: converted the grade-filter `<select>`'s `pr-2` to inline `paddingRight: 'min(8px, 2cqmin)'` (kept as a `style` key so it merges with the element's existing `backgroundSize` cqmin value); converted the sticker-piece card label's `mt-1.5` to inline `marginTop: 'min(6px, 1.5cqmin)'`; converted each sticker-piece sub-item button's `gap-1.5` to inline `gap: 'min(6px, 1.5cqmin)'` alongside its existing `padding`/`fontSize` style keys. Left the speculative retina-hairline note (line 189, `marginBottom: '-1px'`) untouched — it's visual-verification-gated, not a confirmed anti-pattern. `pnpm type-check` (exit 0), `eslint components/widgets/MathTools/Widget.tsx --max-warnings 0` (exit 0), `prettier --check` (clean). No dedicated MathTools test file exists (`components/widgets/MathTools/` and `tests/` both confirmed). Moved the item to Completed. PR opened to dev-paul._
 
 _2026-08-12: Targeted scan (Wednesday daily), delegated to a dedicated sub-agent. New dev-paul commits since 2026-08-11: only 649e792a "Update Claude PR review workflow to use Sonnet 5" — touches .github/workflows/ only, no widget front-face content. `git log --oneline --since="3 days ago" -- components/widgets/` shows 5 commits, 4 on TimeTool/Settings.tsx (back-face a11y refactors, CQ rules don't apply) and one (c97028c3, 2026-08-08) already covered by the prior audit as the resolved MathTools tab-nav LOW item. Zero widget front-face files modified since the last scan. Broad pass across all Widget.tsx/front-face files: zero `max-h-[Npx]`/`max-w-[Npx]` arbitrary classes found; zero hardcoded `maxHeight`/`maxWidth` inline pixel styles found; zero hardcoded icon `size={N}` props found; all `overflow-hidden` occurrences correctly paired with `h-full`/`w-full`/`flex-1`/`min-h-0 flex-1`; `cqmin` usage dense and consistent (1224 occurrences across 56 files) with no missing-px-cap outliers found on inspection. All 8 pre-existing LOW open items confirmed present and unresolved (none of their files were touched): MathTools/Widget.tsx additional hardcoded spacing (pr-2/mt-1.5/gap-1.5); Onboarding/Header.tsx gap-2; EmbedWidget portaled zoom toolbar; RevealGrid additional hardcoded spacing; multi-widget group (CatalystWidget, DiceWidget, GuidedLearning, InstructionalRoutines, NextUp, SoundWidget, SoundboardWidget, SpecialistSchedule, Stations, TalkingTool, Webcam); MiniApp internal dialog overlays; SmartNotebook drawing toolbar; RandomClassContextButton portaled dropdown. Zero new anti-patterns._
 
@@ -212,14 +214,6 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### LOW MathTools/Widget.tsx has additional hardcoded front-face spacing beyond the tab-nav row
-
-- **Detected:** 2026-08-08 (surfaced by the PR #2414 automated review while resolving the tab-nav `px-2 gap-1` item)
-- **File:** components/widgets/MathTools/Widget.tsx:149, :325, :345 (plus hairline note at :189)
-- **Detail:** Three hardcoded Tailwind spacing utilities remain in front-face content (`skipScaling: true`), each sitting next to a neighbor that already scales via `cqmin`, so the fixed-pixel gap drifts out of proportion at large/projected sizes: (1) line 149 — `pr-2` (8px) on the grade-filter `<select>` className provides clearance for the custom dropdown arrow whose `backgroundSize` scales at `min(8px, 2.5cqmin)`, so the arrow shrinks but its clearance does not; (2) line 325 — `mt-1.5` (6px) on the sticker-pieces card label span, while the emoji above scales at `min(28px, 9cqmin)` and the label font at `min(10px, 3.5cqmin)`; (3) line 345 — `gap-1.5` (6px) inside each sticker-piece sub-item button, while its emoji and text both scale via `cqmin`. All three are LOW (spacing only; no text-size legibility impact).
-- **Fix:** Convert each to inline `cqmin` per project pattern — e.g. line 149 `pr-2` → `paddingRight: 'min(8px, 2cqmin)'`; line 325 `mt-1.5` → `marginTop: 'min(6px, 1.5cqmin)'`; line 345 `gap-1.5` → `gap: 'min(6px, 1.5cqmin)'` on the button's existing inline style.
-- **Note (separate, lower confidence):** line 189 uses `marginBottom: '-1px'` to cover the active tab's bottom border. The reviewer raised a possible retina hairline on 2× displays where the parent `border-b` renders at a 0.5px physical boundary; a `marginBottom: '-2px'` + `paddingBottom: '1px'` (or `overflow: hidden` on the container) would be more snap-safe. Speculative / visual-verification-gated — not a confirmed anti-pattern; recorded for the auditor to evaluate, not auto-fix.
-
 ### LOW Onboarding widget Header.tsx has hardcoded gap-2 in header flex row
 
 - **Detected:** 2026-07-18
@@ -284,6 +278,15 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW MathTools/Widget.tsx has additional hardcoded front-face spacing beyond the tab-nav row
+
+- **Detected:** 2026-08-08 (surfaced by the PR #2414 automated review while resolving the tab-nav `px-2 gap-1` item)
+- **Completed:** 2026-08-13
+- **File:** components/widgets/MathTools/Widget.tsx:149, :325, :345 (plus hairline note at :189)
+- **Detail:** Three hardcoded Tailwind spacing utilities remained in front-face content (`skipScaling: true`), each sitting next to a neighbor that already scaled via `cqmin`, so the fixed-pixel gap drifted out of proportion at large/projected sizes: (1) line 149 — `pr-2` (8px) on the grade-filter `<select>` className provided clearance for the custom dropdown arrow whose `backgroundSize` scales at `min(8px, 2.5cqmin)`, so the arrow shrank but its clearance did not; (2) line 325 — `mt-1.5` (6px) on the sticker-pieces card label span, while the emoji above scales at `min(28px, 9cqmin)` and the label font at `min(10px, 3.5cqmin)`; (3) line 345 — `gap-1.5` (6px) inside each sticker-piece sub-item button, while its emoji and text both scale via `cqmin`.
+- **Selection rationale:** Thursday run. Reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + today's weeklies (admin-settings-alignment D1, legacy-cleanup D2). Nothing In Progress anywhere. legacy-cleanup's lone MEDIUM (`migrateLocalStorageToFirestore`) is the only above-LOW item across all five journals but remains not safely actionable unattended (requires a production data audit — same block noted every audit since 2026-07-12). admin-settings-alignment has no MEDIUM/HIGH left. That leaves LOW as the effective top severity, where daily-before-weekly puts css-scaling ahead of both weeklies (widget-registry/typescript-eslint have no open items), and this was item 1 in css-scaling's Open section. File-recency check passed: `MathTools/Widget.tsx` last touched at `c97028c3` (2026-08-08), outside the last 5 branch commits.
+- **Resolution:** Converted the grade-filter `<select>`'s `pr-2` to inline `paddingRight: 'min(8px, 2cqmin)'` (merged into its existing `style` object alongside the `backgroundSize` cqmin value); converted the sticker-piece card label's `mt-1.5` to inline `marginTop: 'min(6px, 1.5cqmin)'`; converted each sticker-piece sub-item button's `gap-1.5` to inline `gap: 'min(6px, 1.5cqmin)'` alongside its existing `padding`/`fontSize` style keys. Left the speculative retina-hairline note (line 189, `marginBottom: '-1px'`) untouched — visual-verification-gated, not a confirmed anti-pattern. `pnpm type-check` (exit 0), `eslint components/widgets/MathTools/Widget.tsx --max-warnings 0` (exit 0), `prettier --check` (clean). No dedicated MathTools test file exists.
 
 ### LOW MathTools tab nav row container has hardcoded px-2 gap-1
 
