@@ -10,6 +10,11 @@ interface ScaledEmptyStateProps {
   iconClassName?: string;
   titleClassName?: string;
   subtitleClassName?: string;
+  /** Override the default `min(48px, 15cqmin)` icon size — for empty states
+   * scoped to a sub-panel container rather than the full widget, where the
+   * default cqmin coefficient (tuned for whole-widget scope) would resolve
+   * larger than intended. */
+  iconSize?: string;
 }
 
 /**
@@ -33,6 +38,7 @@ export const ScaledEmptyState: React.FC<ScaledEmptyStateProps> = ({
   iconClassName = 'text-slate-300',
   titleClassName = 'text-slate-200',
   subtitleClassName = 'text-slate-300',
+  iconSize = 'min(48px, 15cqmin)',
 }) => {
   return (
     <div
@@ -42,8 +48,8 @@ export const ScaledEmptyState: React.FC<ScaledEmptyStateProps> = ({
       <div
         className={iconClassName}
         style={{
-          width: 'min(48px, 15cqmin)',
-          height: 'min(48px, 15cqmin)',
+          width: iconSize,
+          height: iconSize,
         }}
       >
         <Icon aria-hidden="true" style={{ width: '100%', height: '100%' }} />
