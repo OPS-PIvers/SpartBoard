@@ -1,10 +1,4 @@
-/**
- * Client-side mirror of `isDeprecatedModelId` in `functions/src/shared.ts`.
- * Duplicated rather than imported: `functions/` is a separate package and is
- * not resolvable from the client bundle. Keep the two in sync — the server is
- * authoritative, this copy only drives admin-facing validation feedback.
- */
-
+// Mirrors the authoritative isDeprecatedModelId in functions/src/shared.ts; duplicated because functions/ isn't resolvable from the client bundle — keep in sync.
 const RETIRED_MODEL_ID_PREFIXES = ['gemini-1.', 'gemini-2.0-'];
 
 /** True for model ids the AI callables reject and silently replace with a default. */

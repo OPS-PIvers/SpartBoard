@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { isDeprecatedGeminiModelId } from '@/utils/geminiModelDeprecation';
 
-// Mirrors functions/src/normalizeModelName.test.ts — if these diverge, the admin
-// panel is telling admins something the server disagrees with.
+// Mirrors functions/src/normalizeModelName.test.ts — divergence means the admin panel contradicts the server.
 describe('isDeprecatedGeminiModelId', () => {
   it.each([
     'gemini-1.5-flash',
