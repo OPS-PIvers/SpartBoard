@@ -8,10 +8,7 @@
  */
 import { defineSecret } from 'firebase-functions/params';
 
-// NOTE: `GEMINI_API_KEY` was removed when the AI call sites moved from the
-// Gemini Developer API to Vertex AI, which authenticates with Application
-// Default Credentials instead of an API key. The secret itself can be deleted
-// from Secret Manager once this change is deployed and verified.
+// Removed: AI callables moved to Vertex AI (ADC auth); delete GEMINI_API_KEY from Secret Manager post-deploy.
 export const CLASSLINK_CLIENT_ID = defineSecret('CLASSLINK_CLIENT_ID');
 export const CLASSLINK_CLIENT_SECRET = defineSecret('CLASSLINK_CLIENT_SECRET');
 export const CLASSLINK_TENANT_URL = defineSecret('CLASSLINK_TENANT_URL');

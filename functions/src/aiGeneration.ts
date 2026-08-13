@@ -46,29 +46,10 @@ type QuizGenType = 'MC' | 'FIB' | 'Matching' | 'Ordering';
 const DEFAULT_ADVANCED_MODEL = 'gemini-3.6-flash';
 const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
 
-/**
- * Vertex AI location for every Gemini call.
- *
- * `'global'` is required, not incidental: the Gemini 3.x models this codebase
- * uses are served from the global endpoint, and regional endpoints such as
- * `us-central1` return model-not-found for them. Global is also the price-parity
- * path — regional endpoints can carry an uplift.
- */
+// Gemini 3.x models are global-endpoint only on Vertex; us-central1 returns model-not-found.
 const VERTEX_LOCATION = 'global';
 
-/**
- * Builds the shared Vertex AI client options.
- *
- * `vertexai: true` points the SDK at Vertex AI (a Google Cloud service) rather
- * than the Gemini Developer API. That choice is deliberate and is the reason
- * this module no longer holds an API key — see `docs/gemini-api-terms-audit.md`
- * for the full rationale. Authentication is Application Default Credentials
- * from the function's runtime service account, which needs `roles/aiplatform.user`
- * on the project.
- *
- * Throws `internal` when the project id is absent from the environment, matching
- * the failure mode the old missing-API-key guards had.
- */
+// Vertex AI auth via ADC (not Developer API key) — needs roles/aiplatform.user; see docs/gemini-api-terms-audit.md.
 function vertexClientOptions(): GoogleGenAIOptions {
   // GCLOUD_PROJECT/GOOGLE_CLOUD_PROJECT aren't guaranteed on gen2 (Cloud Run); FIREBASE_CONFIG.projectId is, so it's a fallback, not a replacement.
   const project =

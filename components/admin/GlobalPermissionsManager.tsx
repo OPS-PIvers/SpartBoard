@@ -211,9 +211,7 @@ const GEMINI_FEATURES: GlobalFeature[] = [
   'ai-file-context',
 ];
 
-// Keep in sync with `DEFAULT_ADVANCED_MODEL` / `DEFAULT_STANDARD_MODEL` in
-// `functions/src/aiGeneration.ts` — these are the values this picker writes to
-// `global_permissions/gemini-functions`, which override the server defaults.
+// Keep in sync with DEFAULT_ADVANCED_MODEL / DEFAULT_STANDARD_MODEL in aiGeneration.ts — this picker writes to global_permissions/gemini-functions.
 const KNOWN_GEMINI_MODELS = [
   {
     value: 'gemini-3.6-flash',
