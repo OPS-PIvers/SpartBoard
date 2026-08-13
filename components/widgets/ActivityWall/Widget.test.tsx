@@ -243,8 +243,9 @@ describe('ActivityWallWidget', () => {
 
     expect(await screen.findByText('1 pending')).toBeInTheDocument();
     expect(screen.queryByText('hidden')).not.toBeInTheDocument();
+    expect(screen.getByText(/no responses yet/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/responses will appear here after participants submit/i)
+      screen.getByText(/they'll appear here after participants submit/i)
     ).toBeInTheDocument();
   });
 
