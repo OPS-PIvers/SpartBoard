@@ -1912,20 +1912,28 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
               style={{ padding: 'min(8px, 2cqmin)' }}
             >
               {visibleSubmissions.length === 0 ? (
+                // This region is shorter than the full widget (the header/
+                // action-bar above it eats vertical space), so it needs its
+                // own container-query boundary — otherwise ScaledEmptyState's
+                // cqmin sizing would resolve against the taller outer widget
+                // box and render larger than this actual space allows. Safe
+                // because this div only exists in the `length === 0` branch
+                // of this ternary — it never coexists with the populated
+                // word-cloud/rows or photo-grid branches, so their sizing
+                // is untouched (same technique as the "No Activities Yet"
+                // empty state above).
                 <div
-                  className="h-full flex flex-col items-center justify-center text-slate-500 text-center"
-                  style={{ gap: 'min(6px, 1.5cqmin)' }}
+                  className="h-full w-full"
+                  style={{ containerType: 'size' }}
                 >
-                  <MessageSquare
-                    style={{
-                      width: 'min(24px, 7cqmin)',
-                      height: 'min(24px, 7cqmin)',
-                    }}
-                    className="opacity-40"
+                  <ScaledEmptyState
+                    icon={MessageSquare}
+                    title="No Responses Yet"
+                    subtitle="They'll appear here after participants submit."
+                    iconClassName="text-slate-400"
+                    titleClassName="text-slate-600"
+                    subtitleClassName="text-slate-500"
                   />
-                  <span style={{ fontSize: 'min(11px, 3.8cqmin)' }}>
-                    Responses will appear here after participants submit.
-                  </span>
                 </div>
               ) : activeActivity.mode === 'text' ? (
                 <div
