@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-12_
+_Last audited: 2026-08-14_
 _Last action: 2026-06-25_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-14: Full audit (Friday daily). New dev-paul commits since 2026-08-12: aa267109 fix(css-scaling) MathTools cqmin spacing, 6b00ff00 fix(drawing) DrawingWidget/Settings.tsx a11y label retrofit, 5c5f5542 fix(activitywall) ActivityWall/Widget.tsx empty-state unification — all widget-internal edits only, no WidgetType/registration changes. VERIFIED COUNT: 63 WidgetType members (unchanged — consistent with all prior runs). All 63 WidgetTypes correctly registered across all 7 locations (WIDGET_COMPONENTS: 62/63, sticker intentional special-case; WIDGET_SETTINGS_COMPONENTS: 59/63, sticker/stickers/blooms-detail/onboarding documented omissions; WIDGET_APPEARANCE_COMPONENTS: 28, non-exhaustive by design, no orphans; WIDGET_SCALING_CONFIG: 63/63 exhaustive Record; config/widgetDefaults.ts: 63/63 exhaustive Record; config/tools.ts: 59 widget entries + 3 InternalToolType, 7 documented exclusions; config/widgetGradeLevels.ts: 66 = 63 WidgetTypes + 3 InternalToolType, no orphans). WidgetConfig union and ConfigForWidget<T> conditional chain both confirmed with exactly 63 branches/members — complete. Reverse check for stale/orphaned entries: none found. All 145 lazyNamed() export names in WidgetRegistry.ts programmatically resolved and cross-checked against source files (prioritizing MathTools, ActivityWall, DrawingWidget touched this cycle) — zero mismatches; 11 wildcard-barrel false positives (PollWidget, Catalyst, SpecialistSchedule) manually traced and confirmed valid. pnpm type-check exit 0. Zero new gaps._
 
 _2026-08-12: Full audit (Wednesday daily), delegated to a dedicated sub-agent for independent re-verification. New dev-paul commits since 2026-08-11: only 649e792a "Update Claude PR review workflow to use Sonnet 5" — touches .github/workflows/ only, no app source. VERIFIED COUNT: 63 WidgetType members (unchanged — consistent with all prior runs). All 63 WidgetTypes correctly registered across all 7 locations (WIDGET_COMPONENTS: 62/63, sticker intentional special-case; WIDGET_SETTINGS_COMPONENTS: 59/63, sticker/stickers/blooms-detail/onboarding documented omissions; WIDGET_APPEARANCE_COMPONENTS: 28, non-exhaustive by design, no orphans; WIDGET_SCALING_CONFIG: 63/63 exhaustive Record; config/widgetDefaults.ts: 63/63 exhaustive Record; config/tools.ts: 59 widget entries + 3 InternalToolType, 7 documented exclusions; config/widgetGradeLevels.ts: 66 = 63 WidgetTypes + 3 InternalToolType, no orphans). Reverse check for stale/orphaned entries: none found. `WidgetConfig` union and `ConfigForWidget<T>` conditional chain both confirmed with exactly 63 branches/members — complete. 25 lazyNamed() export names spot-checked (prioritizing recently-touched files: TimeTool, ClockWidget, ConceptWeb, RevealGrid, DrawingWidget, MathTools, Schedule, random, plus a broad sample) — zero mismatches. pnpm type-check exit 0. pnpm lint (full root + functions run, completed this time — no timeout) exit 0. Zero new gaps._
 
