@@ -188,3 +188,52 @@ describe('GroupDropZone — rename input', () => {
     expect(onRenameGroup).toHaveBeenCalledWith('g1', 'Good Name');
   });
 });
+
+// ─── Regression: color-picker popover had no local Escape handling ─────────
+//
+// The color-picker popover is portalled to document.body, outside the
+// widget's `.widget` ancestor. Before the fix it had an outside-pointerdown
+// listener but no keydown listener at all, so pressing Escape while it was
+// open did nothing locally and bubbled unimpeded to DashboardView's
+// window-level Escape handler — which minimizes/closes the top-most (or
+// focused) widget. Opening a color swatch picker should never make the
+// whole RandomWidget disappear.
+describe('GroupDropZone — color picker Escape', () => {
+  const groups = makeGroups({ g1: ['Alice', 'Bob'], g2: ['Carol'] });
+  const sharedGroups = [{ id: 'g1', name: 'Team Alpha' }];
+
+  it('REGRESSION: closes the color picker on Escape and stops it reaching window-level handlers', () => {
+    const onChangeGroupColor = vi.fn();
+    render(
+      <RandomGroups
+        displayResult={groups}
+        sharedGroups={sharedGroups}
+        editable
+        onToggleLock={vi.fn()}
+        onChangeGroupColor={onChangeGroupColor}
+      />
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Change Team Alpha color/i })
+    );
+    expect(screen.getByLabelText('Reset to default color')).toBeInTheDocument();
+
+    const windowKeydownSpy = vi.fn();
+    window.addEventListener('keydown', windowKeydownSpy);
+
+    try {
+      fireEvent.keyDown(document, { key: 'Escape', bubbles: true });
+
+      // The popover must close locally...
+      expect(
+        screen.queryByLabelText('Reset to default color')
+      ).not.toBeInTheDocument();
+      // ...and the Escape must never reach DashboardView's window listener
+      // (which would otherwise minimize/close an unrelated widget).
+      expect(windowKeydownSpy).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('keydown', windowKeydownSpy);
+    }
+  });
+});

@@ -6,6 +6,7 @@ import { RandomGroup, SharedGroup } from '@/types';
 import { StudentChip } from './StudentChip';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 interface RandomGroupsProps {
   displayResult: string | string[] | string[][] | RandomGroup[] | null;
@@ -154,6 +155,23 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
     };
     document.addEventListener('pointerdown', handlePointerDown);
     return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [colorPickerOpen]);
+
+  // Close color picker on Escape. Portalled to document.body, outside any
+  // `.widget` ancestor, so without stopPropagation an Escape here bubbles
+  // unimpeded to DashboardView's window-level handler, which minimizes/closes
+  // the top-most (or focused) widget — an unrelated widget disappearing just
+  // because the color picker was open.
+  useEffect(() => {
+    if (!colorPickerOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(e)) return;
+      e.stopPropagation();
+      setColorPickerOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, [colorPickerOpen]);
 
   // Recompute popover anchor on open + window resize / scroll so it tracks
