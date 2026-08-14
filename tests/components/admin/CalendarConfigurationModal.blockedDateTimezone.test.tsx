@@ -8,22 +8,10 @@ import {
   act,
 } from '@testing-library/react';
 
-// Regression guard: "Add Date" under District Blocked Dates must add the
-// admin's LOCAL today, not the UTC date. The old code computed
-// `new Date().toISOString().split('T')[0]`, which shifts to UTC first — for
-// an admin east of UTC (ahead, e.g. UTC+12) near local midnight, that rolls
-// the added date back to yesterday; for an admin west of UTC in the evening
-// it rolls forward to tomorrow. Either way the blocked date silently doesn't
-// match the local "today" that CalendarWidget.isBlocked checks against
-// (that widget already reads local date parts — see its own regression
-// test), so the district's intended block doesn't take effect and an
-// unrelated day gets blocked instead.
-//
-// The test environment pins TZ=UTC (tests/setTz.ts), so — mirroring
-// components/widgets/Calendar/Widget.test.tsx's "UTC+12 midnight" case — we
-// spy on the local-time Date.prototype getters to simulate an admin whose
-// local calendar date is a day ahead of the UTC date at the moment they
-// click "Add Date".
+// Regression guard: "Add Date"/"Add Event" must use the admin's LOCAL today, not
+// toISOString()'s UTC date (mirrors Calendar/Widget.test.tsx's "UTC+12 midnight" case).
+// TZ is pinned to UTC (tests/setTz.ts), so we spy on the local-time Date.prototype
+// getters to simulate an admin whose local date is a day ahead of the UTC date.
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ ensureGoogleScope: vi.fn().mockResolvedValue(null) }),

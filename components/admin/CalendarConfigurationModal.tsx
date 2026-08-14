@@ -231,9 +231,7 @@ export const CalendarConfigurationModal: React.FC<
   };
 
   const addBlockedDate = () => {
-    // Local date, not UTC — toISOString() shifts to UTC and can add tomorrow
-    // (or yesterday) depending on the admin's timezone offset. Matches the
-    // fix already applied to CalendarWidget.isBlocked, which reads this list.
+    // Local date, not UTC (matches CalendarWidget.isBlocked, which reads this list).
     const today = getLocalIsoDate();
     if (!config.blockedDates.includes(today)) {
       updateGlobal({ blockedDates: [...config.blockedDates, today] });
