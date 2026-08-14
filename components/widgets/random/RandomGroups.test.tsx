@@ -226,4 +226,31 @@ describe('GroupDropZone — color picker Escape', () => {
       window.removeEventListener('keydown', windowKeydownSpy);
     }
   });
+
+  // isEscapeFromWidgetInput() needs a [data-draggable-window] ancestor to fire, which DraggableWindow supplies in the real tree.
+  it('leaves the color picker open when Escape comes from the rename input', () => {
+    render(
+      <div data-draggable-window="">
+        <RandomGroups
+          displayResult={groups}
+          sharedGroups={sharedGroups}
+          editable
+          onToggleLock={vi.fn()}
+          onRenameGroup={vi.fn()}
+          onChangeGroupColor={vi.fn()}
+        />
+      </div>
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Change Team Alpha color/i })
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Rename Team Alpha/i }));
+    const input = screen.getByRole('textbox', { name: /Rename Team Alpha/i });
+
+    fireEvent.keyDown(input, { key: 'Escape', bubbles: true });
+
+    // Escape belongs to the input (cancel the rename); the picker must not consume it.
+    expect(screen.getByLabelText('Reset to default color')).toBeInTheDocument();
+  });
 });
