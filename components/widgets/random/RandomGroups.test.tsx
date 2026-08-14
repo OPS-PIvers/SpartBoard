@@ -189,15 +189,7 @@ describe('GroupDropZone — rename input', () => {
   });
 });
 
-// ─── Regression: color-picker popover had no local Escape handling ─────────
-//
-// The color-picker popover is portalled to document.body, outside the
-// widget's `.widget` ancestor. Before the fix it had an outside-pointerdown
-// listener but no keydown listener at all, so pressing Escape while it was
-// open did nothing locally and bubbled unimpeded to DashboardView's
-// window-level Escape handler — which minimizes/closes the top-most (or
-// focused) widget. Opening a color swatch picker should never make the
-// whole RandomWidget disappear.
+// Regression: portalled color-picker popover had no local Escape handling at all.
 describe('GroupDropZone — color picker Escape', () => {
   const groups = makeGroups({ g1: ['Alice', 'Bob'], g2: ['Carol'] });
   const sharedGroups = [{ id: 'g1', name: 'Team Alpha' }];
@@ -225,12 +217,10 @@ describe('GroupDropZone — color picker Escape', () => {
     try {
       fireEvent.keyDown(document, { key: 'Escape', bubbles: true });
 
-      // The popover must close locally...
       expect(
         screen.queryByLabelText('Reset to default color')
       ).not.toBeInTheDocument();
-      // ...and the Escape must never reach DashboardView's window listener
-      // (which would otherwise minimize/close an unrelated widget).
+      // Must never reach DashboardView's window handler (would minimize an unrelated widget).
       expect(windowKeydownSpy).not.toHaveBeenCalled();
     } finally {
       window.removeEventListener('keydown', windowKeydownSpy);
