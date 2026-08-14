@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-08-14_
-_Last action: 2026-08-13 — LOW MathTools/Widget.tsx additional hardcoded spacing (grade-filter `pr-2`, sticker label `mt-1.5`, sticker-piece button `gap-1.5`) converted to inline `cqmin` so all three scale with the widget container instead of staying fixed-pixel_
+_Last action: 2026-08-14 — LOW Onboarding widget Header.tsx `gap-2` converted to inline `cqmin` so the icon/title gap scales with the widget container instead of staying fixed-pixel_
 
 ---
 
@@ -23,6 +23,8 @@ _Nothing currently in progress._
 ## Open
 
 _2026-08-14: Targeted scan (Friday daily). New dev-paul commits since 2026-08-13 touching components/widgets/: aa267109/5aa11b1c is the MathTools grade-filter/sticker-piece cqmin fix already recorded as completed in yesterday's action entry, not new; 6b00ff00 touches only DrawingWidget/Settings.tsx (back-face a11y retrofit, CQ rules don't apply); 5c5f5542 converts ActivityWall/Widget.tsx's "no responses" empty state to ScaledEmptyState inside its own scoped `containerType: 'size'` wrapper, adding an optional `iconSize` prop to ScaledEmptyState (default unchanged) to preserve the original `min(24px, 7cqmin)` icon sizing — a clean, correctly-scoped cqmin pattern, not an anti-pattern. All 7 pre-existing LOW open items confirmed present and unresolved (their files untouched): Onboarding Header.tsx gap-2, EmbedWidget portaled zoom toolbar, RevealGrid additional spacing, multi-widget group (CatalystWidget/DiceWidget/GuidedLearning/InstructionalRoutines/NextUp/SoundWidget/SoundboardWidget/SpecialistSchedule/Stations/TalkingTool/Webcam), MiniApp internal dialog overlays, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown. The MathTools LOW item remains in Completed (resolved 2026-08-13). Zero new anti-patterns._
+
+_2026-08-14 action notes (Friday): Selected the LOW "Onboarding widget Header.tsx has hardcoded gap-2 in header flex row" item — top of the Open section in document order. Selection: reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + today's weeklies (code-structure C1, ui-unification C2). Nothing In Progress anywhere. code-structure's HIGH (`DashboardContext.tsx` extraction) and its MEDIUM (34-files-over-1000-lines) both remain BLOCKED/deferred — no runtime verification available in this environment. Every MEDIUM in ui-unification remains blocked or unsafe for an unattended pass: `UrlConfigurationPanel` needs a maintainer label-override decision; `MaterialsWidget` needs a config-key data migration; `Organization/primitives.tsx` Card/OrgToast/Btn need admin runtime verification; segmented-control and font-options normalization both carry unverifiable visual-regression risk; MusicWidget→SurfaceColorSettings needs a data-model migration; the nextUp/VA/GL appearance-panel item has a confirmed-false premise pending reclassification. widget-registry and typescript-eslint have no open items, so css-scaling (daily order 2) is the highest-priority journal with a safe actionable item — its Open items are all LOW; this is item 1 in document order. File-recency check passed: `git log --oneline -10 -- components/widgets/Onboarding/components/Header.tsx` shows the last touch was `59cf8bb8` (merge of PR #2369, pre-dating this cycle), far outside the last 5 branch commits (ce4ed855, cef4219f, 8e2bec35, 8e546c86, ffabaa03). Resolution: removed `gap-2` from the header row's `className` and added `gap: 'min(8px, 2cqmin)'` to its existing inline `style` object alongside the `padding` value. `pnpm type-check` (exit 0), `eslint components/widgets/Onboarding/components/Header.tsx --max-warnings 0` (exit 0), `prettier --check` (clean). No dedicated Onboarding widget test file exists. Moved the item to Completed. PR opened to dev-paul._
 
 _2026-08-13 action notes (Thursday): Selected the LOW `MathTools/Widget.tsx has additional hardcoded front-face spacing beyond the tab-nav row` item — top of the Open section in document order. Selection: reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + today's weeklies (admin-settings-alignment D1, legacy-cleanup D2). Nothing In Progress anywhere. widget-registry and typescript-eslint have no open items. legacy-cleanup's one MEDIUM (`migrateLocalStorageToFirestore`) is the only open item above LOW severity across all five journals, but it remains not safely actionable unattended (requires a production Firestore/user-activity audit or a judgment call on gating migration behind a flag — same block noted 2026-08-09 and every prior audit since 2026-07-12); admin-settings-alignment has no MEDIUM/HIGH left (its lone MEDIUM, ConceptWeb fontColor, was moved to Completed 2026-08-09). That leaves LOW as the effective top severity, where daily-before-weekly puts css-scaling (daily order 2, since widget-registry/order 1 has no open items) ahead of both Thursday weeklies, and this is item 1 in css-scaling's Open section. File-recency check passed: `git log --oneline -10 -- components/widgets/MathTools/Widget.tsx` shows last touch at `c97028c3` (2026-08-08, the prior tab-nav fix), far outside the last 5 branch commits (d5ebc021, a4e46ef1, 2e400298, bfcb8657, edf738c5 — none touch this file). Resolution: converted the grade-filter `<select>`'s `pr-2` to inline `paddingRight: 'min(8px, 2cqmin)'` (kept as a `style` key so it merges with the element's existing `backgroundSize` cqmin value); converted the sticker-piece card label's `mt-1.5` to inline `marginTop: 'min(6px, 1.5cqmin)'`; converted each sticker-piece sub-item button's `gap-1.5` to inline `gap: 'min(6px, 1.5cqmin)'` alongside its existing `padding`/`fontSize` style keys. Left the speculative retina-hairline note (line 189, `marginBottom: '-1px'`) untouched — it's visual-verification-gated, not a confirmed anti-pattern. `pnpm type-check` (exit 0), `eslint components/widgets/MathTools/Widget.tsx --max-warnings 0` (exit 0), `prettier --check` (clean). No dedicated MathTools test file exists (`components/widgets/MathTools/` and `tests/` both confirmed). Moved the item to Completed. PR opened to dev-paul._
 
@@ -216,13 +218,6 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### LOW Onboarding widget Header.tsx has hardcoded gap-2 in header flex row
-
-- **Detected:** 2026-07-18
-- **File:** components/widgets/Onboarding/components/Header.tsx:14
-- **Detail:** `<div className="flex items-center gap-2 bg-brand-blue-primary shrink-0">` — header flex row uses `gap-2` (8px) between the Rocket icon (correctly sized with `min(18px, 5cqmin)`) and the title span (correctly sized with `min(11px, 3.5cqmin)`). Container padding IS correctly scaled via inline style.
-- **Fix:** Add `style={{ gap: 'min(8px, 2cqmin)' }}` to the header div, alongside the existing `padding: 'min(10px, 2.5cqmin) min(14px, 3cqmin)'`.
-
 ### LOW EmbedWidget zoom toolbar uses hardcoded sizes — portaled outside container query context
 
 - **Detected:** 2026-04-28
@@ -280,6 +275,15 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW Onboarding widget Header.tsx has hardcoded gap-2 in header flex row
+
+- **Detected:** 2026-07-18
+- **Completed:** 2026-08-14
+- **File:** components/widgets/Onboarding/components/Header.tsx:14
+- **Detail:** `<div className="flex items-center gap-2 bg-brand-blue-primary shrink-0">` — header flex row used `gap-2` (8px) between the Rocket icon (correctly sized with `min(18px, 5cqmin)`) and the title span (correctly sized with `min(11px, 3.5cqmin)`). Container padding was already correctly scaled via inline style.
+- **Selection rationale:** Friday run. Reading list = three dailies (widget-registry, css-scaling, typescript-eslint) + today's weeklies (code-structure C1, ui-unification C2). Nothing In Progress anywhere. code-structure's HIGH (`DashboardContext.tsx` extraction) and MEDIUM (34-files-over-1000-lines) remain BLOCKED; every ui-unification MEDIUM remains blocked or unsafe for an unattended pass (maintainer decisions, data migrations, or unverifiable visual-regression risk — see that journal's items). widget-registry and typescript-eslint have no open items, so css-scaling (daily order 2) is the highest-priority journal with a safe actionable item — all its Open items are LOW, and this was item 1 in document order. File-recency check passed: `Header.tsx` last touched at `59cf8bb8` (merge of PR #2369), far outside the last 5 branch commits.
+- **Resolution:** Removed `gap-2` from the header row's `className` and added `gap: 'min(8px, 2cqmin)'` to its existing inline `style` object, merged alongside the `padding: 'min(10px, 2.5cqmin) min(14px, 3cqmin)'` value. No other markup touched. `pnpm type-check` (exit 0), `eslint components/widgets/Onboarding/components/Header.tsx --max-warnings 0` (exit 0), `prettier --check` (clean). No dedicated Onboarding widget test file exists.
 
 ### LOW MathTools/Widget.tsx has additional hardcoded front-face spacing beyond the tab-nav row
 

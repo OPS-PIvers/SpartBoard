@@ -11,8 +11,11 @@ export const Header: React.FC<HeaderProps> = ({ allDone }) => {
 
   return (
     <div
-      className="flex items-center gap-2 bg-brand-blue-primary shrink-0"
-      style={{ padding: 'min(10px, 2.5cqmin) min(14px, 3cqmin)' }}
+      className="flex items-center bg-brand-blue-primary shrink-0"
+      style={{
+        padding: 'min(10px, 2.5cqmin) min(14px, 3cqmin)',
+        gap: 'min(8px, 2cqmin)',
+      }}
     >
       <Rocket
         style={{
