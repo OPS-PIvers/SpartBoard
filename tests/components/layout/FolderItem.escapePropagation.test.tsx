@@ -25,28 +25,36 @@ const folder: DockFolder = {
   items: ['clock', 'time-tool'],
 };
 
-function renderPopover(): void {
+function renderPopover(): HTMLButtonElement {
   const noop = vi.fn();
   render(
-    <DndContext>
-      <SortableContext items={[folder.id]}>
-        <FolderItem
-          folder={folder}
-          onAdd={noop}
-          onRename={noop}
-          onDelete={noop}
-          isEditMode={false}
-          onLongPress={noop}
-          minimizedWidgetsByType={{} as never}
-          onRemoveItem={noop}
-          onReorder={noop}
-          globalStyle={DEFAULT_GLOBAL_STYLE}
-          canAccessTool={() => true}
-        />
-      </SortableContext>
-    </DndContext>
+    <>
+      {/* Stand-in for a widget text input elsewhere on the dashboard — isEscapeFromWidgetInput() keys off the [data-draggable-window] ancestor. */}
+      <div data-draggable-window="">
+        <input aria-label="Widget text field" />
+      </div>
+      <DndContext>
+        <SortableContext items={[folder.id]}>
+          <FolderItem
+            folder={folder}
+            onAdd={noop}
+            onRename={noop}
+            onDelete={noop}
+            isEditMode={false}
+            onLongPress={noop}
+            minimizedWidgetsByType={{} as never}
+            onRemoveItem={noop}
+            onReorder={noop}
+            globalStyle={DEFAULT_GLOBAL_STYLE}
+            canAccessTool={() => true}
+          />
+        </SortableContext>
+      </DndContext>
+    </>
   );
-  fireEvent.click(screen.getByText('My Folder'));
+  const trigger = screen.getByText('My Folder').closest('button');
+  fireEvent.click(trigger as HTMLButtonElement);
+  return trigger as HTMLButtonElement;
 }
 
 describe('FolderItem — folder popover Escape dismissal', () => {
@@ -73,5 +81,26 @@ describe('FolderItem — folder popover Escape dismissal', () => {
     } finally {
       window.removeEventListener('keydown', windowKeydownSpy);
     }
+  });
+
+  it('returns focus to the folder trigger button after Escape', () => {
+    const trigger = renderPopover();
+
+    fireEvent.keyDown(document, { key: 'Escape', bubbles: true });
+
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('leaves the popover open when Escape comes from a widget text input', () => {
+    renderPopover();
+    expect(screen.getByText('Clock')).toBeInTheDocument();
+
+    fireEvent.keyDown(screen.getByLabelText('Widget text field'), {
+      key: 'Escape',
+      bubbles: true,
+    });
+
+    // Escape belongs to the input; the dock popover must not consume it.
+    expect(screen.getByText('Clock')).toBeInTheDocument();
   });
 });
