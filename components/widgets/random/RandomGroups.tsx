@@ -156,8 +156,7 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
     return () => document.removeEventListener('pointerdown', handlePointerDown);
   }, [colorPickerOpen]);
 
-  // Close color picker on Escape. Portalled outside any .widget ancestor, so
-  // without this it falls through to DashboardView's global handler instead.
+  // Portalled outside any .widget ancestor; without this, Escape falls through to DashboardView's global handler.
   useEffect(() => {
     if (!colorPickerOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
