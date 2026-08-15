@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { isDeprecatedGeminiModelId } from '@/utils/geminiModelDeprecation';
+import { KNOWN_GEMINI_MODELS } from '@/components/admin/GlobalPermissionsManager';
 
 // Mirrors functions/src/normalizeModelName.test.ts — divergence means the admin panel contradicts the server.
 describe('isDeprecatedGeminiModelId', () => {
@@ -41,5 +42,16 @@ describe('isDeprecatedGeminiModelId', () => {
 
   it('does not treat "preview" inside a longer segment as deprecated', () => {
     expect(isDeprecatedGeminiModelId('gemini-4.0-previewer')).toBe(false);
+  });
+});
+
+// The inline warning only reaches the "Custom..." branch, so a deprecated dropdown
+// entry would be offered as first-class and silently discarded by the server.
+describe('KNOWN_GEMINI_MODELS', () => {
+  it('offers no model the server would reject', () => {
+    const rejected = KNOWN_GEMINI_MODELS.filter((m) =>
+      isDeprecatedGeminiModelId(m.value)
+    ).map((m) => m.value);
+    expect(rejected).toEqual([]);
   });
 });
