@@ -1026,6 +1026,103 @@ describe('DashboardView Gestures & Navigation', () => {
     });
   });
 
+  describe('widget-keyboard-action falls back to the topmost widget when focus is inside a portal with no data-widget-id', () => {
+    const TOP_WIDGET_ID = 'widget-topmost';
+
+    let portalRoot: HTMLDivElement;
+    let portalButton: HTMLButtonElement;
+
+    beforeEach(() => {
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        activeDashboard: {
+          ...mockDashboards[1],
+          widgets: [
+            {
+              id: TOP_WIDGET_ID,
+              type: 'clock',
+              x: 0,
+              y: 0,
+              w: 200,
+              h: 200,
+              z: 1,
+              flipped: false,
+              config: {},
+            },
+          ],
+        },
+        dashboards: mockDashboards,
+        toasts: [],
+        addWidget: mockAddWidget,
+        loadDashboard: mockLoadDashboard,
+        removeToast: vi.fn(),
+        updateWidget: vi.fn(),
+        removeWidget: vi.fn(),
+        duplicateWidget: vi.fn(),
+        bringToFront: vi.fn(),
+        addToast: vi.fn(),
+        minimizeAllWidgets: vi.fn(),
+        restoreAllWidgets: vi.fn(),
+        deleteAllWidgets: vi.fn(),
+        setSelectedWidgetId: vi.fn(),
+        updateDashboardSettings: vi.fn(),
+        zoom: 1,
+        setZoom: vi.fn(),
+        collectionsApi: {
+          collections: [],
+          loading: false,
+          error: null,
+          createCollection: vi.fn(),
+          renameCollection: vi.fn(),
+          moveCollection: vi.fn(),
+          deleteCollection: vi.fn(),
+          reorderSiblings: vi.fn(),
+          setCollectionMetadata: vi.fn(),
+          setCollectionDefaultBoard: vi.fn(),
+        },
+      });
+
+      // Simulate a non-SettingsPanel [data-widget-portal] consumer (e.g. a
+      // Drawing tool popover or TextWidget formatting toolbar) — these carry
+      // the portal marker but no data-widget-id, unlike SettingsPanel.
+      portalRoot = document.createElement('div');
+      portalRoot.setAttribute('data-widget-portal', '');
+
+      portalButton = document.createElement('button');
+      portalButton.setAttribute('type', 'button');
+      portalButton.textContent = 'Bold';
+      portalRoot.appendChild(portalButton);
+
+      document.body.appendChild(portalRoot);
+      portalButton.focus();
+    });
+
+    afterEach(() => {
+      if (portalRoot.parentNode) {
+        portalRoot.parentNode.removeChild(portalRoot);
+      }
+    });
+
+    it('REGRESSION: still dispatches Delete to the topmost widget instead of silently no-oping', () => {
+      renderView();
+
+      const dispatched: CustomEvent[] = [];
+      const handler = (e: Event) => dispatched.push(e as CustomEvent);
+      window.addEventListener('widget-keyboard-action', handler);
+
+      expect(document.activeElement).toBe(portalButton);
+
+      fireEvent.keyDown(window, { key: 'Delete' });
+
+      window.removeEventListener('widget-keyboard-action', handler);
+
+      expect(dispatched).toHaveLength(1);
+      const detail = (
+        dispatched[0] as CustomEvent<{ widgetId: string; key: string }>
+      ).detail;
+      expect(detail.widgetId).toBe(TOP_WIDGET_ID);
+    });
+  });
+
   // Toast accessibility: the ToastContainer must expose live-region roles so
   // screen readers announce toasts (assertive for errors, polite otherwise) and
   // provide an explicit Dismiss control so SR/keyboard users can close a toast

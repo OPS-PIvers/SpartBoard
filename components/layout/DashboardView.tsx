@@ -219,6 +219,14 @@ const ShellPlaceholder: React.FC = () => {
   );
 };
 
+// [data-widget-portal] covers SettingsPanel, which portals outside its widget's .widget subtree — but only SettingsPanel carries data-widget-id, so any other portal falls back to topWidgetId.
+function resolveTargetWidgetId(topWidgetId: string): string {
+  const widgetAncestor = document.activeElement?.closest<HTMLElement>(
+    '.widget, [data-widget-portal]'
+  );
+  return widgetAncestor?.getAttribute('data-widget-id') ?? topWidgetId;
+}
+
 export const DashboardView: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -934,13 +942,7 @@ export const DashboardView: React.FC = () => {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
 
-          // [data-widget-portal] covers SettingsPanel, which portals outside its widget's .widget subtree.
-          const widgetAncestor = document.activeElement?.closest<HTMLElement>(
-            '.widget, [data-widget-portal]'
-          );
-          const targetId = widgetAncestor
-            ? widgetAncestor.getAttribute('data-widget-id')
-            : topWidget.id;
+          const targetId = resolveTargetWidgetId(topWidget.id);
 
           if (!targetId) return;
 
@@ -1002,13 +1004,7 @@ export const DashboardView: React.FC = () => {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
 
-          // [data-widget-portal] covers SettingsPanel, which portals outside its widget's .widget subtree.
-          const widgetAncestor = document.activeElement?.closest<HTMLElement>(
-            '.widget, [data-widget-portal]'
-          );
-          const targetId = widgetAncestor
-            ? widgetAncestor.getAttribute('data-widget-id')
-            : topWidget.id;
+          const targetId = resolveTargetWidgetId(topWidget.id);
 
           if (targetId) {
             const event = new CustomEvent('widget-keyboard-action', {
@@ -1042,13 +1038,7 @@ export const DashboardView: React.FC = () => {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
 
-          // [data-widget-portal] covers SettingsPanel, which portals outside its widget's .widget subtree.
-          const widgetAncestor = document.activeElement?.closest<HTMLElement>(
-            '.widget, [data-widget-portal]'
-          );
-          const targetId = widgetAncestor
-            ? widgetAncestor.getAttribute('data-widget-id')
-            : topWidget.id;
+          const targetId = resolveTargetWidgetId(topWidget.id);
 
           if (targetId) {
             const event = new CustomEvent('widget-keyboard-action', {
