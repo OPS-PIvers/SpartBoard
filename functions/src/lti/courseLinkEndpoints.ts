@@ -418,10 +418,7 @@ export const ltiSuggestClassLinkMatchV1 = onCall(
           clClientSecret,
           classlinkClassId
         );
-        // Dedup fence: OneRoster can list the same student twice (merged /
-        // cross-listed enrollments), which would otherwise double-count that
-        // one student's match and let a class with duplicate roster rows
-        // out-rank a class with more genuinely distinct matching students.
+        // Dedup fence: OneRoster can list the same student twice (merged/cross-listed enrollments).
         rosterEmails = new Set(
           students
             .map((s) => (s.email ?? '').toLowerCase())
