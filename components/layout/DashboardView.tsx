@@ -934,9 +934,7 @@ export const DashboardView: React.FC = () => {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
 
-          // [data-widget-portal] covers SettingsPanel, which portals to document.body
-          // outside its owning widget's .widget subtree — without it, focus on a
-          // non-form settings control falls through to topWidget instead.
+          // [data-widget-portal] covers SettingsPanel, which portals outside its widget's .widget subtree.
           const widgetAncestor = document.activeElement?.closest<HTMLElement>(
             '.widget, [data-widget-portal]'
           );
@@ -1004,8 +1002,7 @@ export const DashboardView: React.FC = () => {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
 
-          // [data-widget-portal] covers SettingsPanel, portalled to document.body
-          // outside its owning widget's .widget subtree.
+          // [data-widget-portal] covers SettingsPanel, which portals outside its widget's .widget subtree.
           const widgetAncestor = document.activeElement?.closest<HTMLElement>(
             '.widget, [data-widget-portal]'
           );
@@ -1045,8 +1042,7 @@ export const DashboardView: React.FC = () => {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
 
-          // [data-widget-portal] covers SettingsPanel, portalled to document.body
-          // outside its owning widget's .widget subtree.
+          // [data-widget-portal] covers SettingsPanel, which portals outside its widget's .widget subtree.
           const widgetAncestor = document.activeElement?.closest<HTMLElement>(
             '.widget, [data-widget-portal]'
           );
