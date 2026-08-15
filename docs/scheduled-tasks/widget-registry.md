@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-14_
+_Last audited: 2026-08-15_
 _Last action: 2026-06-25_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-15: Full audit (Saturday daily). New dev-paul commits since 2026-08-14: only d4071d51 fix(css-scaling) scale Onboarding widget Header.tsx gap-2→cqmin — a sub-component front-face fix, not a registered widget entry point; no WidgetType/registration changes. VERIFIED COUNT: 63 WidgetType members (unchanged — consistent with all prior runs). Re-derived all 7 registration-location counts directly from source (line-range + top-level-key-indent parsing, not the prior brace-matching approach): WIDGET_COMPONENTS 62/63 (sticker intentional special-case, confirmed at WidgetRegistry.ts:86-239); WIDGET_SETTINGS_COMPONENTS 59/63 (sticker/stickers/blooms-detail/onboarding documented omissions, WidgetRegistry.ts:265-418); WIDGET_APPEARANCE_COMPONENTS 28 (non-exhaustive by design, WidgetRegistry.ts:420-530); WIDGET_SCALING_CONFIG 63/63 exhaustive (WidgetRegistry.ts:562-986); config/widgetDefaults.ts WIDGET_DEFAULTS 63/63 exhaustive (lines 61-570); config/tools.ts TOOLS array 59 widget `type:` entries + 3 InternalToolType handled elsewhere, 7 documented exclusions (lines 80-328); config/widgetGradeLevels.ts WIDGET_GRADE_LEVELS 66 = 63 WidgetTypes + 3 InternalToolType (lines 29-112). All counts match the established baseline exactly — zero drift. Reverse check for stale/orphaned entries: none found. Did not re-run the full 145-call lazyNamed() export-name sweep this cycle (no widget registry or component files changed since yesterday's full sweep found zero mismatches); spot-checked the two files touched this week (Onboarding, MathTools) — both still resolve correctly. pnpm type-check exit 0. Zero new gaps._
 
 _2026-08-14: Full audit (Friday daily). New dev-paul commits since 2026-08-12: aa267109 fix(css-scaling) MathTools cqmin spacing, 6b00ff00 fix(drawing) DrawingWidget/Settings.tsx a11y label retrofit, 5c5f5542 fix(activitywall) ActivityWall/Widget.tsx empty-state unification — all widget-internal edits only, no WidgetType/registration changes. VERIFIED COUNT: 63 WidgetType members (unchanged — consistent with all prior runs). All 63 WidgetTypes correctly registered across all 7 locations (WIDGET_COMPONENTS: 62/63, sticker intentional special-case; WIDGET_SETTINGS_COMPONENTS: 59/63, sticker/stickers/blooms-detail/onboarding documented omissions; WIDGET_APPEARANCE_COMPONENTS: 28, non-exhaustive by design, no orphans; WIDGET_SCALING_CONFIG: 63/63 exhaustive Record; config/widgetDefaults.ts: 63/63 exhaustive Record; config/tools.ts: 59 widget entries + 3 InternalToolType, 7 documented exclusions; config/widgetGradeLevels.ts: 66 = 63 WidgetTypes + 3 InternalToolType, no orphans). WidgetConfig union and ConfigForWidget<T> conditional chain both confirmed with exactly 63 branches/members — complete. Reverse check for stale/orphaned entries: none found. All 145 lazyNamed() export names in WidgetRegistry.ts programmatically resolved and cross-checked against source files (prioritizing MathTools, ActivityWall, DrawingWidget touched this cycle) — zero mismatches; 11 wildcard-barrel false positives (PollWidget, Catalyst, SpecialistSchedule) manually traced and confirmed valid. pnpm type-check exit 0. Zero new gaps._
 

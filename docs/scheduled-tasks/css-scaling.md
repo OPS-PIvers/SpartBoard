@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-14_
+_Last audited: 2026-08-15_
 _Last action: 2026-08-14 — LOW Onboarding widget Header.tsx `gap-2` converted to inline `cqmin` so the icon/title gap scales with the widget container instead of staying fixed-pixel_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-15: Targeted scan (Saturday daily). New dev-paul commits since 2026-08-14: only d4071d51 fix(css-scaling) Onboarding Header.tsx gap-2→cqmin — this is yesterday's action-item fix landing on dev-paul, already recorded in Completed (2026-08-14); not a new finding. Zero other widget front-face content changes. Broad anti-pattern sweep across all Widget.tsx files (targeted grep, since only one already-tracked file changed): zero `max-[hw]-\[Npx\]` arbitrary Tailwind classes; zero hardcoded icon `size={N}` props; zero hardcoded `maxHeight`/`maxWidth` inline px styles. Verified the Onboarding fix directly: header row's `className` no longer carries `gap-2`, replaced with `gap: 'min(8px, 2cqmin)'` merged into the existing padding style object — clean, correctly capped. The remaining 6 pre-existing LOW open items confirmed present and unresolved (their files untouched this cycle): EmbedWidget portaled zoom toolbar, RevealGrid additional spacing, multi-widget group (CatalystWidget/DiceWidget/GuidedLearning/InstructionalRoutines/NextUp/SoundWidget/SoundboardWidget/SpecialistSchedule/Stations/TalkingTool/Webcam), MiniApp internal dialog overlays, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown. Zero new anti-patterns._
 
 _2026-08-14: Targeted scan (Friday daily). New dev-paul commits since 2026-08-13 touching components/widgets/: aa267109/5aa11b1c is the MathTools grade-filter/sticker-piece cqmin fix already recorded as completed in yesterday's action entry, not new; 6b00ff00 touches only DrawingWidget/Settings.tsx (back-face a11y retrofit, CQ rules don't apply); 5c5f5542 converts ActivityWall/Widget.tsx's "no responses" empty state to ScaledEmptyState inside its own scoped `containerType: 'size'` wrapper, adding an optional `iconSize` prop to ScaledEmptyState (default unchanged) to preserve the original `min(24px, 7cqmin)` icon sizing — a clean, correctly-scoped cqmin pattern, not an anti-pattern. All 7 pre-existing LOW open items confirmed present and unresolved (their files untouched): Onboarding Header.tsx gap-2, EmbedWidget portaled zoom toolbar, RevealGrid additional spacing, multi-widget group (CatalystWidget/DiceWidget/GuidedLearning/InstructionalRoutines/NextUp/SoundWidget/SoundboardWidget/SpecialistSchedule/Stations/TalkingTool/Webcam), MiniApp internal dialog overlays, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown. The MathTools LOW item remains in Completed (resolved 2026-08-13). Zero new anti-patterns._
 
