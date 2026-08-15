@@ -798,6 +798,58 @@ describe('useRosters — PII migration', () => {
     ]);
   });
 
+  it('skips the pin-index callable entirely for a migrated roster with no ClassLink students', async () => {
+    localStorage.removeItem(migrationKey(TEACHER_UID));
+    currentDriveService = makeDriveService();
+
+    renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [
+      metaDoc('r1', {
+        studentCount: 1,
+        // Local roster — no classLinkSourcedId, so there is no SSO bridge to write.
+        students: [{ id: 's1', firstName: 'Ada', lastName: 'L' }],
+      }),
+    ]);
+
+    await waitFor(() => expect(mockUpdateDoc).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(localStorage.getItem(migrationKey(TEACHER_UID))).toBe('1')
+    );
+    expect(lastCallableName).toBeNull();
+  });
+
+  it('warns instead of syncing silently when a migrated roster has no name', async () => {
+    localStorage.removeItem(migrationKey(TEACHER_UID));
+    currentDriveService = makeDriveService();
+
+    renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [
+      // No `name` on the doc and no matching meta entry, so rosterName resolves to ''.
+      {
+        id: 'r1',
+        data: () => ({
+          studentCount: 1,
+          students: [
+            {
+              id: 's1',
+              firstName: 'Ada',
+              lastName: 'L',
+              classLinkSourcedId: 'cl-a',
+            },
+          ],
+        }),
+      },
+    ]);
+
+    await waitFor(() => expect(mockUpdateDoc).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(vi.mocked(console.warn)).toHaveBeenCalledWith(
+        expect.stringContaining('skipped pin_index sync')
+      )
+    );
+    expect(lastCallableName).toBeNull();
+  });
+
   it('does not re-run migration once the per-user flag is set', async () => {
     // Flag is set in beforeEach; a legacy doc with students[] should be ignored.
     const { result } = renderHook(() => useRosters(mockUser));
