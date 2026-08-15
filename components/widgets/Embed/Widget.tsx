@@ -428,25 +428,34 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   transition: 'opacity 150ms ease',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 4,
+                  gap: 'min(4px, 0.4vmin)',
                 }}
               >
                 <div className="flex items-center bg-white/80 backdrop-blur-sm shadow-sm border border-slate-200/50 rounded-lg overflow-hidden">
                   <button
                     onClick={handleZoomOut}
                     disabled={!canZoomOut}
-                    className="p-2 text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    style={{ padding: 'min(8px, 0.8vmin)' }}
                     title="Zoom out"
                     aria-label="Zoom out"
                   >
-                    <ZoomOut className="w-4 h-4" />
+                    <ZoomOut
+                      style={{
+                        width: 'min(16px, 1.6vmin)',
+                        height: 'min(16px, 1.6vmin)',
+                      }}
+                    />
                   </button>
                   <span title={isDefaultZoom ? 'Current zoom' : undefined}>
                     <button
                       onClick={handleZoomReset}
                       disabled={isDefaultZoom}
-                      className="px-1 text-xs font-mono font-bold text-slate-600 select-none hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:cursor-default disabled:hover:text-slate-600 disabled:hover:bg-transparent"
-                      style={{ minWidth: '3em' }}
+                      className="px-1 font-mono font-bold text-slate-600 select-none hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:cursor-default disabled:hover:text-slate-600 disabled:hover:bg-transparent"
+                      style={{
+                        minWidth: '3em',
+                        fontSize: 'min(12px, 1.2vmin)',
+                      }}
                       title={isDefaultZoom ? undefined : 'Reset to 100%'}
                     >
                       {Math.round(effectiveZoom * 100)}%
@@ -455,11 +464,17 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   <button
                     onClick={handleZoomIn}
                     disabled={!canZoomIn}
-                    className="p-2 text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    style={{ padding: 'min(8px, 0.8vmin)' }}
                     title="Zoom in"
                     aria-label="Zoom in"
                   >
-                    <ZoomIn className="w-4 h-4" />
+                    <ZoomIn
+                      style={{
+                        width: 'min(16px, 1.6vmin)',
+                        height: 'min(16px, 1.6vmin)',
+                      }}
+                    />
                   </button>
                   {!isDefaultZoom && (
                     <button

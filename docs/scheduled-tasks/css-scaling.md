@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-08-15_
-_Last action: 2026-08-14 — LOW Onboarding widget Header.tsx `gap-2` converted to inline `cqmin` so the icon/title gap scales with the widget container instead of staying fixed-pixel_
+_Last action: 2026-08-15 — LOW EmbedWidget zoom toolbar's hardcoded gap/padding/icon-size/text-size converted to `vmin`-capped inline styles (portaled outside container-query context, so `vmin` is used instead of `cqmin`, matching the LunchCount portal precedent)_
 
 ---
 
@@ -220,13 +220,6 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### LOW EmbedWidget zoom toolbar uses hardcoded sizes — portaled outside container query context
-
-- **Detected:** 2026-04-28
-- **File:** components/widgets/Embed/Widget.tsx:443 (zoom reset button), :437 (ZoomOut icon), :457 (ZoomIn icon), :426 (toolbar gap)
-- **Detail:** The hover-visible zoom toolbar uses `text-xs font-mono` on the percentage reset button (line 443), `className="w-4 h-4"` on ZoomOut/ZoomIn icons (lines 437, 457), `p-2` on the zoom buttons, and `gap: 4` (hardcoded pixels) on the toolbar flex container (line 426). Widget has `skipScaling: true`. Critically, the entire toolbar is rendered via `createPortal` to `document.body` (line 393) with `position: fixed` — it lives **outside** the widget's container query context, so `cqmin` units will not resolve against the widget size. The hardcoded sizes will not scale with the widget, but cqmin is not a straightforward fix either.
-- **Fix:** Two options: (a) Remove the portal if the toolbar doesn't need to escape the iframe stacking context — then convert to `cqmin` as normal: `text-xs` → `style={{ fontSize: 'min(11px, 4cqmin)' }}`, icons `w-4 h-4` → `style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}`, `gap: 4` → `style={{ gap: 'min(4px, 1cqmin)' }}`; (b) Keep the portal and pass the widget's computed `cqmin`-equivalent pixel size down as a prop derived from the widget's `rect` dimensions, then use those pixel values directly in the portaled toolbar's styles.
-
 ### LOW RevealGridWidget has additional hardcoded spacing beyond `text-xs` labels
 
 - **Detected:** 2026-04-12 (expanded 2026-04-14)
@@ -277,6 +270,15 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW EmbedWidget zoom toolbar uses hardcoded sizes — portaled outside container query context
+
+- **Detected:** 2026-04-28
+- **Completed:** 2026-08-15
+- **File:** components/widgets/Embed/Widget.tsx (toolbar gap, ZoomOut/ZoomIn button padding + icon size, zoom-percentage reset button text size)
+- **Detail:** The hover-visible zoom toolbar uses `text-xs font-mono` on the percentage reset button, `className="w-4 h-4"` on the ZoomOut/ZoomIn icons, `p-2` on those two buttons, and `gap: 4` (hardcoded pixels) on the toolbar flex container. Widget has `skipScaling: true`. The toolbar is rendered via `createPortal` to `document.body` with `position: fixed` — intentionally, per an existing code comment, so it never overlaps full-bleed iframe content (Google Docs tabs, YouTube chrome, etc.). It lives outside the widget's container-query context, so `cqmin` will not resolve against the widget size.
+- **Selection rationale:** Saturday run. Reading list = three dailies (widget-registry, css-scaling, typescript-eslint); no weekly journal has Saturday cadence, so none were read. Nothing In Progress anywhere. widget-registry and typescript-eslint both audited clean today with zero open items, so css-scaling (daily order 2) is the highest-priority journal with a safe actionable item — all its Open items are LOW, and this was item 1 in document order (the prior top item, Onboarding Header.tsx, was completed 2026-08-14). File-recency check passed: `git log --oneline -10 -- components/widgets/Embed/Widget.tsx` shows the last touch was `59cf8bb8` (merge of PR #2369), outside the last 5 branch commits (eb3a219e, d4071d51, ce4ed855, cef4219f, 8e2bec35).
+- **Resolution:** Rejected option (a) from the prior audit note (removing the portal) — the code comment confirms the portal is load-bearing for iframe stacking, not incidental. Took option (b): since the toolbar is outside any container-query context, `cqmin` isn't available regardless of the portal; used the same `vmin`-based pattern already established in this codebase for portaled overlays (LunchCount's peek-photo modal, and the ratio proposed for the still-open RandomClassContextButton item) instead of a JS-computed `rect`-derived prop, since it needs no extra plumbing and matches precedent. Converted: `gap: 4` → `gap: 'min(4px, 0.4vmin)'`; ZoomOut/ZoomIn `p-2` → inline `padding: 'min(8px, 0.8vmin)'`; ZoomOut/ZoomIn `<Icon className="w-4 h-4" />` → inline `style={{ width: 'min(16px, 1.6vmin)', height: 'min(16px, 1.6vmin)' }}`; percentage-reset button's `text-xs` → inline `fontSize: 'min(12px, 1.2vmin)'` merged into its existing `minWidth: '3em'` style object. Left the RotateCcw reset-icon button and the "Generate Interactive Mini App" button untouched — neither was named in this finding, and both are still-hardcoded but out of scope here (worth a future finding if not already implied by the still-open RandomClassContextButton/MiniApp items). `pnpm type-check` (exit 0), `eslint components/widgets/Embed/Widget.tsx --max-warnings 0` (exit 0), `prettier --check` (clean), full `pnpm run lint`/`pnpm run type-check`/`pnpm run format:check` also clean. No dedicated EmbedWidget test file exists.
 
 ### LOW Onboarding widget Header.tsx has hardcoded gap-2 in header flex row
 
