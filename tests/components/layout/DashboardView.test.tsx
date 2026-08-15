@@ -868,6 +868,164 @@ describe('DashboardView Gestures & Navigation', () => {
     });
   });
 
+  // Regression: SettingsPanel is portalled to document.body via
+  // createPortal, tagged data-widget-portal="" but (until this fix) with no
+  // data-widget-id — so focus landing on a non-form control inside an open
+  // settings panel (a Toggle/SegmentedControl button, not an INPUT/
+  // TEXTAREA/SELECT) can't be resolved back to its owning widget via
+  // closest('.widget'). The fallback silently targets whatever widget is
+  // topmost by z-index instead — which is a DIFFERENT widget than the one
+  // whose settings panel is actually open whenever that widget isn't also
+  // the top one. Escape then dispatches to the wrong widget (e.g. silently
+  // minimizing an unrelated widget instead of just closing the settings
+  // panel already closing via SettingsPanel's own document-level handler).
+  describe('widget-keyboard-action targets the owning widget when focus is inside a settings-panel portal', () => {
+    const TOP_WIDGET_ID = 'widget-topmost';
+    const SETTINGS_WIDGET_ID = 'widget-settings-open';
+
+    let portalRoot: HTMLDivElement;
+    let portalButton: HTMLButtonElement;
+
+    beforeEach(() => {
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        activeDashboard: {
+          ...mockDashboards[1],
+          widgets: [
+            {
+              id: TOP_WIDGET_ID,
+              type: 'clock',
+              x: 0,
+              y: 0,
+              w: 200,
+              h: 200,
+              z: 2,
+              flipped: false,
+              config: {},
+            },
+            {
+              id: SETTINGS_WIDGET_ID,
+              type: 'clock',
+              x: 300,
+              y: 0,
+              w: 200,
+              h: 200,
+              z: 1,
+              flipped: true,
+              config: {},
+            },
+          ],
+        },
+        dashboards: mockDashboards,
+        toasts: [],
+        addWidget: mockAddWidget,
+        loadDashboard: mockLoadDashboard,
+        removeToast: vi.fn(),
+        updateWidget: vi.fn(),
+        removeWidget: vi.fn(),
+        duplicateWidget: vi.fn(),
+        bringToFront: vi.fn(),
+        addToast: vi.fn(),
+        minimizeAllWidgets: vi.fn(),
+        restoreAllWidgets: vi.fn(),
+        deleteAllWidgets: vi.fn(),
+        setSelectedWidgetId: vi.fn(),
+        updateDashboardSettings: vi.fn(),
+        zoom: 1,
+        setZoom: vi.fn(),
+        collectionsApi: {
+          collections: [],
+          loading: false,
+          error: null,
+          createCollection: vi.fn(),
+          renameCollection: vi.fn(),
+          moveCollection: vi.fn(),
+          deleteCollection: vi.fn(),
+          reorderSiblings: vi.fn(),
+          setCollectionMetadata: vi.fn(),
+          setCollectionDefaultBoard: vi.fn(),
+        },
+      });
+
+      // Simulate SettingsPanel's portal: appended directly to document.body
+      // (outside any .widget ancestor), tagged data-widget-portal="" like
+      // the real component, holding a non-form control (e.g. a Toggle) that
+      // receives focus when the teacher interacts with a setting.
+      portalRoot = document.createElement('div');
+      portalRoot.setAttribute('data-widget-portal', '');
+      portalRoot.setAttribute('data-widget-id', SETTINGS_WIDGET_ID);
+
+      portalButton = document.createElement('button');
+      portalButton.setAttribute('type', 'button');
+      portalButton.textContent = 'Show seconds';
+      portalRoot.appendChild(portalButton);
+
+      document.body.appendChild(portalRoot);
+      portalButton.focus();
+    });
+
+    afterEach(() => {
+      if (portalRoot.parentNode) {
+        portalRoot.parentNode.removeChild(portalRoot);
+      }
+    });
+
+    it('dispatches Escape to the widget whose settings panel owns the focused control, not the topmost widget', () => {
+      renderView();
+
+      const dispatched: CustomEvent[] = [];
+      const handler = (e: Event) => dispatched.push(e as CustomEvent);
+      window.addEventListener('widget-keyboard-action', handler);
+
+      expect(document.activeElement).toBe(portalButton);
+
+      fireEvent.keyDown(window, { key: 'Escape' });
+
+      window.removeEventListener('widget-keyboard-action', handler);
+
+      expect(dispatched).toHaveLength(1);
+      const detail = (
+        dispatched[0] as CustomEvent<{ widgetId: string; key: string }>
+      ).detail;
+      expect(detail.widgetId).toBe(SETTINGS_WIDGET_ID);
+    });
+
+    it('dispatches Delete to the widget whose settings panel owns the focused control, not the topmost widget', () => {
+      renderView();
+
+      const dispatched: CustomEvent[] = [];
+      const handler = (e: Event) => dispatched.push(e as CustomEvent);
+      window.addEventListener('widget-keyboard-action', handler);
+
+      fireEvent.keyDown(window, { key: 'Delete' });
+
+      window.removeEventListener('widget-keyboard-action', handler);
+
+      expect(dispatched).toHaveLength(1);
+      const detail = (
+        dispatched[0] as CustomEvent<{ widgetId: string; key: string }>
+      ).detail;
+      expect(detail.widgetId).toBe(SETTINGS_WIDGET_ID);
+    });
+
+    it('dispatches Pin (Alt+P) to the widget whose settings panel owns the focused control, not the topmost widget', () => {
+      renderView();
+
+      const dispatched: CustomEvent[] = [];
+      const handler = (e: Event) => dispatched.push(e as CustomEvent);
+      window.addEventListener('widget-keyboard-action', handler);
+
+      fireEvent.keyDown(window, { key: 'p', altKey: true });
+
+      window.removeEventListener('widget-keyboard-action', handler);
+
+      expect(dispatched).toHaveLength(1);
+      const detail = (
+        dispatched[0] as CustomEvent<{ widgetId: string; key: string }>
+      ).detail;
+      expect(detail.widgetId).toBe(SETTINGS_WIDGET_ID);
+    });
+  });
+
   // Toast accessibility: the ToastContainer must expose live-region roles so
   // screen readers announce toasts (assertive for errors, polite otherwise) and
   // provide an explicit Dismiss control so SR/keyboard users can close a toast

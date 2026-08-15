@@ -934,12 +934,12 @@ export const DashboardView: React.FC = () => {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
 
-          // Use the focused element if it's a widget, otherwise target top widget.
-          // Call getAttribute on the .widget ancestor (from closest()), NOT on
-          // document.activeElement — the focused element may be a child button or
-          // input inside the widget and would not carry data-widget-id itself.
-          const widgetAncestor =
-            document.activeElement?.closest<HTMLElement>('.widget');
+          // [data-widget-portal] covers SettingsPanel, which portals to document.body
+          // outside its owning widget's .widget subtree — without it, focus on a
+          // non-form settings control falls through to topWidget instead.
+          const widgetAncestor = document.activeElement?.closest<HTMLElement>(
+            '.widget, [data-widget-portal]'
+          );
           const targetId = widgetAncestor
             ? widgetAncestor.getAttribute('data-widget-id')
             : topWidget.id;
@@ -1004,8 +1004,11 @@ export const DashboardView: React.FC = () => {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
 
-          const widgetAncestor =
-            document.activeElement?.closest<HTMLElement>('.widget');
+          // [data-widget-portal] covers SettingsPanel, portalled to document.body
+          // outside its owning widget's .widget subtree.
+          const widgetAncestor = document.activeElement?.closest<HTMLElement>(
+            '.widget, [data-widget-portal]'
+          );
           const targetId = widgetAncestor
             ? widgetAncestor.getAttribute('data-widget-id')
             : topWidget.id;
@@ -1042,8 +1045,11 @@ export const DashboardView: React.FC = () => {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
 
-          const widgetAncestor =
-            document.activeElement?.closest<HTMLElement>('.widget');
+          // [data-widget-portal] covers SettingsPanel, portalled to document.body
+          // outside its owning widget's .widget subtree.
+          const widgetAncestor = document.activeElement?.closest<HTMLElement>(
+            '.widget, [data-widget-portal]'
+          );
           const targetId = widgetAncestor
             ? widgetAncestor.getAttribute('data-widget-id')
             : topWidget.id;
