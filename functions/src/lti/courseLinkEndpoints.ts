@@ -410,7 +410,7 @@ export const ltiSuggestClassLinkMatchV1 = onCall(
     let best: MatchSuggestion | null = null;
     let secondOverlap = 0;
     for (const classlinkClassId of ownedCandidates) {
-      let rosterEmails: string[];
+      let rosterEmails: Set<string>;
       try {
         const students = await classroomAddonNet.fetchClassStudents(
           tenantUrl,
@@ -418,9 +418,15 @@ export const ltiSuggestClassLinkMatchV1 = onCall(
           clClientSecret,
           classlinkClassId
         );
-        rosterEmails = students
-          .map((s) => (s.email ?? '').toLowerCase())
-          .filter((e) => e.length > 0);
+        // Dedup fence: OneRoster can list the same student twice (merged /
+        // cross-listed enrollments), which would otherwise double-count that
+        // one student's match and let a class with duplicate roster rows
+        // out-rank a class with more genuinely distinct matching students.
+        rosterEmails = new Set(
+          students
+            .map((s) => (s.email ?? '').toLowerCase())
+            .filter((e) => e.length > 0)
+        );
       } catch (err) {
         console.warn(
           `[ltiSuggestMatch] OneRoster fetch failed for class ${classlinkClassId}:`,
@@ -428,11 +434,11 @@ export const ltiSuggestClassLinkMatchV1 = onCall(
         );
         continue;
       }
-      if (rosterEmails.length === 0) continue;
+      if (rosterEmails.size === 0) continue;
       let overlap = 0;
       for (const e of rosterEmails) if (sectionEmails.has(e)) overlap += 1;
       if (overlap === 0) continue;
-      const ratio = overlap / Math.min(rosterEmails.length, sectionEmails.size);
+      const ratio = overlap / Math.min(rosterEmails.size, sectionEmails.size);
       if (!best || overlap > best.overlap) {
         if (best) secondOverlap = best.overlap;
         best = { classlinkClassId, overlap, ratio };
