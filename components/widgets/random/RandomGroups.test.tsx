@@ -188,3 +188,56 @@ describe('GroupDropZone — rename input', () => {
     expect(onRenameGroup).toHaveBeenCalledWith('g1', 'Good Name');
   });
 });
+
+// ─── Regression: color-picker popover Escape does not leak to window ──────
+//
+// BEFORE the fix: the color-picker popover (portalled to document.body, with
+// no `.widget` ancestor) had no local Escape handling at all. Pressing
+// Escape while it was open left it stuck open AND fell through to
+// DashboardView's global window-level keydown handler, which acts on the
+// topmost widget (e.g. dispatches a minimize/close action) — an unrelated
+// side effect the user never intended while just trying to dismiss a color
+// swatch popover.
+//
+// AFTER the fix: a document-level keydown handler closes the popover and
+// calls stopPropagation() before the event can reach window listeners.
+describe('GroupDropZone — color picker popover Escape handling', () => {
+  const groups = makeGroups({ g1: ['Alice', 'Bob'] });
+  const sharedGroups = [{ id: 'g1', name: 'Team Alpha' }];
+
+  function renderWithColorPicker() {
+    return render(
+      <RandomGroups
+        displayResult={groups}
+        sharedGroups={sharedGroups}
+        editable
+        onRenameGroup={vi.fn()}
+        onToggleLock={vi.fn()}
+        onChangeGroupColor={vi.fn()}
+      />
+    );
+  }
+
+  it('REGRESSION: closes on Escape and stops propagation before it reaches window listeners', () => {
+    renderWithColorPicker();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Change Team Alpha color/i })
+    );
+    expect(screen.getByLabelText('Reset to default color')).toBeInTheDocument();
+
+    const windowKeydownSpy = vi.fn();
+    window.addEventListener('keydown', windowKeydownSpy);
+
+    try {
+      fireEvent.keyDown(document, { key: 'Escape', bubbles: true });
+      expect(
+        screen.queryByLabelText('Reset to default color')
+      ).not.toBeInTheDocument();
+      // Without stopPropagation this would reach DashboardView's global handler.
+      expect(windowKeydownSpy).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('keydown', windowKeydownSpy);
+    }
+  });
+});

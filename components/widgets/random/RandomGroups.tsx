@@ -156,6 +156,19 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
     return () => document.removeEventListener('pointerdown', handlePointerDown);
   }, [colorPickerOpen]);
 
+  // Close color picker on Escape. Portalled outside any .widget ancestor, so
+  // without this it falls through to DashboardView's global handler instead.
+  useEffect(() => {
+    if (!colorPickerOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      setColorPickerOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [colorPickerOpen]);
+
   // Recompute popover anchor on open + window resize / scroll so it tracks
   // the palette button when the user pans the dashboard.
   useEffect(() => {
