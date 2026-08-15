@@ -507,6 +507,13 @@ export const useRosters = (user: User | null) => {
               studentCount: withPins.length,
             };
           }
+          // Phase 3 — mirrors addRoster/updateRoster's pin_index sync, which this migration path was missing.
+          const rosterName =
+            typeof raw.name === 'string'
+              ? raw.name
+              : (metaListRef.current[idx]?.name ?? '');
+          if (rosterName)
+            void syncRosterPinIndex(docSnap.id, rosterName, withPins);
           didMigrate = true;
           console.warn(
             `[PII Migration] Moved students for roster ${docSnap.id} to Drive`

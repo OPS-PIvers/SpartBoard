@@ -759,6 +759,45 @@ describe('useRosters — PII migration', () => {
     );
   });
 
+  it('syncs the pin-index sidecar for ClassLink students freshly pinned during migration', async () => {
+    localStorage.removeItem(migrationKey(TEACHER_UID));
+    currentDriveService = makeDriveService();
+
+    renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [
+      metaDoc('r1', {
+        studentCount: 1,
+        // Legacy ClassLink doc: no `pin` field yet, so migration's
+        // assignPins() hands out a fresh one.
+        students: [
+          {
+            id: 's1',
+            firstName: 'Ada',
+            lastName: 'L',
+            classLinkSourcedId: 'cl-a',
+          },
+        ],
+      }),
+    ]);
+
+    await waitFor(() => expect(mockUpdateDoc).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(lastCallableName).toBe('commitRosterPinIndexV1')
+    );
+    const payload = lastCallablePayload as {
+      rosterId: string;
+      entries: Array<{
+        period: string;
+        pin: string;
+        classlinkSourcedId: string;
+      }>;
+    };
+    expect(payload.rosterId).toBe('r1');
+    expect(payload.entries).toEqual([
+      { period: 'Roster r1', pin: '01', classlinkSourcedId: 'cl-a' },
+    ]);
+  });
+
   it('does not re-run migration once the per-user flag is set', async () => {
     // Flag is set in beforeEach; a legacy doc with students[] should be ignored.
     const { result } = renderHook(() => useRosters(mockUser));
