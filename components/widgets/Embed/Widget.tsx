@@ -428,7 +428,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   transition: 'opacity 150ms ease',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 'min(4px, 0.4vmin)',
+                  gap: 'min(4px, 0.5vmin)',
                 }}
               >
                 <div className="flex items-center bg-white/80 backdrop-blur-sm shadow-sm border border-slate-200/50 rounded-lg overflow-hidden">
@@ -436,14 +436,14 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     onClick={handleZoomOut}
                     disabled={!canZoomOut}
                     className="text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    style={{ padding: 'min(8px, 0.8vmin)' }}
+                    style={{ padding: 'min(8px, 1vmin)' }}
                     title="Zoom out"
                     aria-label="Zoom out"
                   >
                     <ZoomOut
                       style={{
-                        width: 'min(16px, 1.6vmin)',
-                        height: 'min(16px, 1.6vmin)',
+                        width: 'min(16px, 2vmin)',
+                        height: 'min(16px, 2vmin)',
                       }}
                     />
                   </button>
@@ -454,7 +454,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       className="px-1 font-mono font-bold text-slate-600 select-none hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:cursor-default disabled:hover:text-slate-600 disabled:hover:bg-transparent"
                       style={{
                         minWidth: '3em',
-                        fontSize: 'min(12px, 1.2vmin)',
+                        fontSize: 'min(12px, 1.5vmin)',
                       }}
                       title={isDefaultZoom ? undefined : 'Reset to 100%'}
                     >
@@ -465,14 +465,14 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     onClick={handleZoomIn}
                     disabled={!canZoomIn}
                     className="text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    style={{ padding: 'min(8px, 0.8vmin)' }}
+                    style={{ padding: 'min(8px, 1vmin)' }}
                     title="Zoom in"
                     aria-label="Zoom in"
                   >
                     <ZoomIn
                       style={{
-                        width: 'min(16px, 1.6vmin)',
-                        height: 'min(16px, 1.6vmin)',
+                        width: 'min(16px, 2vmin)',
+                        height: 'min(16px, 2vmin)',
                       }}
                     />
                   </button>
