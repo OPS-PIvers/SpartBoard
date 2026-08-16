@@ -18,6 +18,7 @@ import { useAuth } from '@/context/useAuth';
 import { GoogleCalendarService } from '@/utils/googleCalendarService';
 import { GAP_STYLE } from './constants';
 import { hexToRgba } from '@/utils/styles';
+import { getLocalIsoDate } from '@/utils/localDate';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 
 /** Parses a time string (e.g. "14:30", "2:30 PM") into seconds since midnight, or -1 if invalid. */
@@ -267,11 +268,8 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   // Blocked Date logic
   const isBlocked = useMemo(() => {
     if (!isBuildingSyncEnabled) return false;
-    // Use local time methods — toISOString() shifts to UTC and can give the
-    // previous day for users in UTC+ timezones (e.g. UTC+12 local midnight
-    // is still yesterday in UTC).
-    const d = new Date(todayMidnightMs);
-    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    // Same helper CalendarConfigurationModal writes with, so producer and consumer can't drift back to UTC.
+    const today = getLocalIsoDate(new Date(todayMidnightMs));
     return globalConfig?.blockedDates?.includes(today);
   }, [isBuildingSyncEnabled, globalConfig, todayMidnightMs]);
 

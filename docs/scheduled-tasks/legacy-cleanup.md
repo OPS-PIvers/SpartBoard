@@ -2,8 +2,8 @@
 
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
-_Audit cadence: weekly — Thursday_
-_Last audited: 2026-08-09_
+_Audit cadence: weekly — Sunday_
+_Last audited: 2026-08-16_
 _Last action: 2026-08-09 — Deleted the entire `scripts/tools/` directory (9 stale Python/Playwright dev-session scripts, zero references anywhere, including `fix_buttons.py` which auto-edited widget source). Resolves the source-modification-risk portion of the "scripts/tools/\*.py" MEDIUM; the root `scripts/*.js` audit portion remains Open (narrowed)._
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-16 audit notes (Sunday): Note — corrected this journal's cadence label from "weekly — Thursday" to "weekly — Sunday" to match its actual audit history (see matching note in admin-settings-alignment.md). No new items found this cycle — see the Clean section below for verification detail._
 
 _2026-08-09 action notes (Sunday): The single highest-priority Open item across today's reading list (ConceptWeb `fontColor` MEDIUM in admin-settings-alignment D1) was found already resolved by commit 37ceb18f (2026-08-07) — moved to Completed there, no code needed. The next-highest genuinely-open MEDIUM was in this journal. Of this journal's two MEDIUMs, `migrateLocalStorageToFirestore` (document order first) is NOT safely actionable unattended — its fix requires auditing production Firestore/user-activity data to confirm the localStorage migration window has closed, or designing a Firestore-flag short-circuit that changes sign-in/migration behavior; both need runtime data and human judgment, so it stays Open. The `scripts/tools/*.py` MEDIUM was the highest-priority safely-actionable item: deleted the whole `scripts/tools/` directory (9 stale dev-session Python/Playwright scripts, `grep` confirmed zero references in package.json / .github/workflows / any .js/.ts/.mjs/.md source, and one script — `fix_buttons.py` — auto-edits `components/widgets/Breathing/BreathingWidget.tsx`, a standing source-modification hazard). Deleting `.py` files does not affect the TS build/lint/tests; `pnpm type-check` and `pnpm lint` re-run clean. The item's root `scripts/*.js` portion was split off into a narrowed LOW Open item (those are Firestore migration/backfill scripts that may still be operationally needed — unsafe to bulk-delete unattended). Moved the `scripts/tools/` portion to Completed. PR to dev-paul via the rolling scheduled-tasks PR (#2414)._
 
@@ -64,6 +66,20 @@ _2026-08-09 action notes (Sunday): The single highest-priority Open item across 
 ---
 
 ## Clean (no issues found)
+
+Migration code + dead exports + console.log audit (2026-08-16, re-verified):
+
+- Old type strings 'timer', 'stopwatch': Only in `utils/migration.ts:71-80` — correct.
+- Old type string 'workSymbols': Only in `utils/migration.ts:93` — correct.
+- `migrateLocalStorageToFirestore()`: Still actively called in `context/DashboardContext.tsx:2046`. Existing MEDIUM open item still valid.
+- New dev-paul commits since 2026-08-09 (~50 commits): a11y SettingsLabel/radio-semantics retrofits across shared settings primitives and TimeTool/MusicWidget/SpecialistSchedule/DrawingWidget Settings.tsx; css-scaling fixes (MathTools, Onboarding, EmbedWidget); PLC activity-log test coverage; dependency bump (axios CVE fix); SSRF fix in LTI Schoology fetch calls; ActivityWall empty-state unification; nightly docs runs. None introduce new utility files with dead exports, commented-out code blocks, or console.log calls.
+- Commented-out code: Zero in components/, context/, hooks/, utils/.
+- console.log(): Zero in components/, context/, hooks/, utils/ (grep confirmed).
+- `useScaledFont.ts`: Still dead (no production import found; `components/widgets/ScheduleWidget.test.tsx` still carries the stale `vi.mock`). Existing LOW open item still valid.
+- `videoActivityDriveService.ts`: Still no production imports (not re-verified this cycle; no commits touched it).
+- `scripts/tools/`: Confirmed still deleted (`ls scripts/tools` → no such directory).
+- `utils/imageProcessing.ts:109`: Not re-verified this cycle; no commits touched the file.
+- `utils/periodCompat.ts` — `buildPeriodFields`: Still no production imports (grep confirmed zero call sites outside the file itself).
 
 Migration code + dead exports + console.log audit (2026-08-09, re-verified):
 

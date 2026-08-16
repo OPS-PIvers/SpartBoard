@@ -27,6 +27,7 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { Modal } from '@/components/common/Modal';
 import { useAuth } from '@/context/useAuth';
 import { GoogleCalendarService } from '@/utils/googleCalendarService';
+import { getLocalIsoDate } from '@/utils/localDate';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useDashboard } from '@/context/useDashboard';
@@ -230,7 +231,8 @@ export const CalendarConfigurationModal: React.FC<
   };
 
   const addBlockedDate = () => {
-    const today = new Date().toISOString().split('T')[0];
+    // Local date, not UTC (matches CalendarWidget.isBlocked, which reads this list).
+    const today = getLocalIsoDate();
     if (!config.blockedDates.includes(today)) {
       updateGlobal({ blockedDates: [...config.blockedDates, today] });
     }
@@ -238,7 +240,7 @@ export const CalendarConfigurationModal: React.FC<
 
   const addDefaultEvent = () => {
     const newEvent: CalendarEvent = {
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalIsoDate(),
       title: 'New Default Event',
     };
     updateBuilding({

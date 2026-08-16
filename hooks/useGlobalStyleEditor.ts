@@ -53,10 +53,16 @@ export function useGlobalStyleEditor(): GlobalStyleEditor {
   // changes so a different read-only board re-notifies. Adjusting state during
   // render avoids the extra round-trip an effect would cost.
   const [readOnlyToastShown, setReadOnlyToastShown] = useState(false);
+  // In-flight values so the thumb follows the cursor before the debounce fires.
+  const [pendingWindow, setPendingWindow] = useState<number | null>(null);
+  const [pendingDock, setPendingDock] = useState<number | null>(null);
   const [prevBoardId, setPrevBoardId] = useState(activeDashboard?.id);
   if (activeDashboard?.id !== prevBoardId) {
     setPrevBoardId(activeDashboard?.id);
     setReadOnlyToastShown(false);
+    // Clear in-flight drag values so a switched-to board shows its own committed value, not a carried-over one.
+    setPendingWindow(null);
+    setPendingDock(null);
   }
 
   const commit = useCallback(
@@ -85,20 +91,21 @@ export function useGlobalStyleEditor(): GlobalStyleEditor {
     [commit]
   );
 
-  // Each slider gets its own debounced commit so rapid cross-slider drags don't
-  // share a timer and overwrite each other's pending values.
+  // originBoardId is re-checked against the active board when the debounce fires, so a board switch mid-drag can't write onto the wrong board.
   const commitWindowTransparency = useDebouncedCallback(
-    (value: number) => commit({ windowTransparency: value }),
+    (originBoardId: string | undefined, value: number) => {
+      if (originBoardId !== activeDashboard?.id) return;
+      commit({ windowTransparency: value });
+    },
     200
   );
   const commitDockTransparency = useDebouncedCallback(
-    (value: number) => commit({ dockTransparency: value }),
+    (originBoardId: string | undefined, value: number) => {
+      if (originBoardId !== activeDashboard?.id) return;
+      commit({ dockTransparency: value });
+    },
     200
   );
-
-  // In-flight values so the thumb follows the cursor before the debounce fires.
-  const [pendingWindow, setPendingWindow] = useState<number | null>(null);
-  const [pendingDock, setPendingDock] = useState<number | null>(null);
 
   // Clear each pending value once the committed state catches up.
   const [prevCommittedWindow, setPrevCommittedWindow] = useState(
@@ -130,14 +137,14 @@ export function useGlobalStyleEditor(): GlobalStyleEditor {
       value: pendingWindow ?? currentStyle.windowTransparency,
       onChange: (value: number) => {
         setPendingWindow(value);
-        commitWindowTransparency(value);
+        commitWindowTransparency(activeDashboard?.id, value);
       },
     },
     dockTransparency: {
       value: pendingDock ?? currentStyle.dockTransparency,
       onChange: (value: number) => {
         setPendingDock(value);
-        commitDockTransparency(value);
+        commitDockTransparency(activeDashboard?.id, value);
       },
     },
   };
