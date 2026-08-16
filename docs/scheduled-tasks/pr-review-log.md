@@ -2678,3 +2678,57 @@ _Automated nightly review by claude-opus-4-6_
   - This log commit is on the designated `claude/inspiring-cannon-lukfxb` branch, **stacked on `claude/pensive-bell-1yqsp3`** (the still-open #2465, itself stacked on #2457) — same reasoning as the morning run, and now a three-deep stack of unmerged log PRs. That depth is itself the signal: the stacking workaround is working as intended but is compensating for log PRs not being merged, and each additional layer makes the eventual merge more fragile. Worth merging the stack before it grows further.
   - **Two runs of this task fired on the same date** (≈06:20 and ≈21:35 UTC). The morning run's own log claims "Fixes pushed: 0 … no comment on any PR was left unaddressed" — accurate for inbound comments at the time it ran, but it had just posted 16 reviews of its own, five with findings, and ended without answering them. A run that reviews and a run that responds to reviews are the same task here; when one run does both, it should treat its own fresh review findings as inbound work rather than as output.
   - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); the pushed fix passed local type-check/lint/format/tests, and CI on Node 24 remains the authoritative gate.
+
+## 2026-08-16
+
+- PRs reviewed: **21 open PRs** — #2395, #2450, #2452–#2457, #2460–#2472. Eight got a fresh structured review; thirteen were deliberately skipped as unchanged since a prior run's review (see Scope below). None had a head of `main` or `dev-*`, so all 21 were in scope for pushes.
+  - New since the last run (2026-08-16 nightly batch, none previously reviewed): #2472 (debugger log), #2471 (Calendar local-date), #2470 (WidgetLibrary Escape), #2469 (`useGlobalStyleEditor` board-switch race), #2468 (RandomGroups Escape), #2467 (unifier log).
+  - Changed since its last review: #2456 — new commits at 05:14 (2026-08-16 Sunday audit journals; the `bad06a4` `vmin` coefficients from the prior review's finding had also landed).
+  - Never reviewed: #2466 — the prior run's own log PR.
+- Comments processed: **3** — all unresolved inline threads on #2395, **0 fixed, 0 newly replied.** All three already carry an owner reply, all three are preview-deploy verification gates (Vertex YouTube public-only + daily-minutes cap; `gemini-2.5-*` global-endpoint confirmation) rather than open change requests. A fourth identical reply would be noise; skipped under the frugality directive, consistent with the last three runs. The other 20 PRs carried **zero** inline review threads.
+- Fixes pushed: **0**. Phase 1 had nothing to fix — no unaddressed reviewer comment existed on any PR. Every finding below is a fresh Phase 2 finding and was delivered as a review rather than a commit, because in each case the correct action is *closing* a PR, not patching it.
+- Reviews posted: **8** — #2456, #2466, #2467, #2468, #2469, #2470, #2471, #2472. Merge-readiness calls:
+  - Ready: #2470, #2469, #2467, #2466.
+  - Ready with minor notes: #2456.
+  - Needs changes: #2468, #2471, #2472.
+
+### Principal finding: the unmerged-nightly pattern is now producing duplicate *code* PRs, not just doc conflicts
+
+Two of the four code PRs opened on 2026-08-16 re-implement fixes that already exist on open PRs from 2026-08-14, and both are the weaker implementation. Verified with `git merge-tree --write-tree`, not inferred from the diffs:
+
+| new PR | duplicates | conflicts | why the older one is stronger |
+| --- | --- | --- | --- |
+| **#2468** `RandomGroups.tsx` Escape | **#2452** (2026-08-14) | `RandomGroups.tsx` + `.test.tsx` | Implementations are byte-equivalent in behavior (`git diff` between heads shows only a moved comment). #2452 carries a follow-up commit `ba93a4f` adding `isEscapeFromWidgetInput` guard coverage — its test file is **52 lines richer**. The guard is load-bearing: `GroupDropZone` also renders a rename `<input>` with its own Escape handler. |
+| **#2471** `CalendarConfigurationModal` local date | **#2454** (2026-08-14) | `CalendarConfigurationModal.tsx` | #2454 uses the existing tested `utils/localDate.ts` `getLocalIsoDate()` (8+ call sites, 6 unit tests) **and** refactors `Calendar/Widget.tsx`'s `isBlocked` reader onto the same helper. #2471 hand-rolls a new file-local `getLocalDateISO()` — a near-name-collision — and leaves the reader with its own inline copy, so producer and consumer stay independent implementations that merely agree today. |
+
+This is the **third and fourth** duplicate from the same cause: #2459 was already closed as a duplicate of #2452 on 2026-08-15, and #2455/#2464 collided the same way on `debugger.md`. Root cause is unchanged and already diagnosed twice in `docs/routines/debugger.md`'s own Notes — nightly branches are cut from `dev-paul` while the prior night's PRs are still open, so each sweep re-discovers unmerged fixes. The standing recommendation there (merge same-day, or have Phase 0 branch from the newest open `nightly/*` head) has now been *recorded* twice and *implemented* zero times. **This escalates to a human — no nightly run can fix it from inside the pattern.**
+
+Counter-example worth copying: **#2467** hit the identical situation on `unifier.md` and handled it — consolidated runs 56–58 into one PR, reconciled both predecessor deltas, and closed #2451/#2458 as superseded. **#2472** did not: it conflicts with the still-open #2455/#2464 stack, and does not bump the `Run count:` footer.
+
+### Other findings
+
+- **#2472** — two Run Log rows (Widgets, Admin & Config) and one struck backlog row credit the fixes to #2468/#2471. If those close as recommended, all three need re-pointing to #2452/#2454 — the same attribution correction #2464 already had to make once for #2459.
+- **#2456** — the prior review's `vmin` coefficient finding is **resolved** (`bad06a4` applied the suggested values; break-even 1000px → 800px, zoom buttons hold at 32px on 1366×768 and 1280×720 instead of crossing the WCAG 2.2 SC 2.5.8 floor). New, previously-unflagged finding: the conversion covers **3 of 7** controls in that toolbar. `RotateCcw` (`p-2`, `w-3.5`) sits inside the *same* pill as the three converted buttons; `Sparkles`/`Loader2` and `ExternalLink` (`p-2`, `w-4 h-4`) are siblings in the same flex row. At 1280×720 the converted buttons render ≈28.8px against their unconverted neighbours' 32px — the row splits into mismatched heights on exactly the small-viewport case the coefficient fix was made to protect. Pre-`bad06a4` it was uniformly wrong; it is now non-uniformly right.
+- **#2469** — clean. Noted that the fix depends on a property of a different file: `useDebouncedCallback` reassigns `fnRef.current = fn` every render, so `activeDashboard?.id` inside the guard reads the current board. A plain `useCallback([])`-style memo would make both sides of the comparison stale together and the guard would silently never fire. Also noted the guard *drops* the pending commit rather than redirecting it to the origin board — right trade, but a deliberate one. Coverage gap: `dockTransparency` gets identical treatment with no test of its own.
+- **#2470** — clean, and the one non-obvious interaction holds. A document-bubble Escape handler could have hijacked Escape from the "Reset dock" `showConfirm` dialog; it doesn't, because `DialogContainer.tsx:224` registers that handler **capture-phase on `window`** with `stopImmediatePropagation()` (`:216`), which fires strictly first. Recorded so a future phase change to either handler doesn't silently break the pairing.
+- **#2467** — `Dock.tsx:1586` (D2) is now unresolved **28+ consecutive runs** since run 30; the analysis is settled and only a human scope decision is outstanding. #2450 has been open 2+ days.
+
+### Verification performed this run
+
+- `pnpm run type-check` on all four code-carrying branches (#2468/#2469/#2470/#2471) — all clean.
+- Targeted suites per branch: #2470 `WidgetLibrary.escapePropagation.test.tsx` **1/1** ✓, #2469 `useGlobalStyleEditor.test.tsx` **1/1** ✓, #2471 `CalendarConfigurationModal.localDate.test.tsx` **2/2** ✓, #2468 `RandomGroups.test.tsx` **9/9** ✓.
+- Both duplicate pairs confirmed unmergeable via `git merge-tree --write-tree --name-only` (content conflicts in 2 files and 1 file respectively), and the "which is stronger" call made from a direct `git diff` between the branch heads rather than from the PR descriptions.
+- #2470's confirm-dialog interaction traced through `DialogContainer.tsx` and `Modal.tsx` to the actual listener phase and `stopImmediatePropagation()` call, rather than assumed from the fix pattern. An earlier hypothesis that this fix would hijack Escape from the reset-dock dialog was investigated and **disproved** before it reached the review.
+- #2456's incomplete-conversion finding derived from reading the full toolbar on the branch head (`Embed/Widget.tsx:475-520`), not from the diff hunks alone — the four unconverted controls are outside the diff's context lines.
+- #2467's reconciliation spot-checked for the `patch --fuzz` misplacement its own Notes entry warns about; the run-56/57/58 additions land under their correct headings, no stray insertions in the bootstrap-era rows.
+- `getLocalIsoDate` confirmed present in `utils/localDate.ts` with 6 unit tests and 8+ call sites before calling #2471's helper a duplicate.
+
+### Notes
+
+- Branch-safety: **no push to `main` or any `dev-*` branch**, and no push to any PR head branch this run.
+- **Scope decision — 13 PRs deliberately not re-reviewed.** #2395, #2450, #2452–#2455, #2457, #2460–#2465 all carry a structured review from the 2026-08-14 and/or 2026-08-15 runs, and none has a commit since. Re-reviewing unchanged code would bury the eight reviews that do say something new. The two duplicate-target PRs (#2452, #2454) are cross-linked from the #2468/#2471 reviews, so they surface in GitHub's timeline without a separate comment.
+- **Confirms the prior run's `get_reviews`-vs-`get_comments` finding.** `get_review_comments` returned **zero** threads on 20 of 21 open PRs; the entire automated-review history on this repo lives in **review bodies**. A run that reads only issue comments and inline threads sees almost every PR as quiet. This belongs in the task definition, not just in this log.
+- This log commit is on the designated `claude/pensive-bell-p1hfbs` branch, **based on `claude/inspiring-cannon-lukfxb`** (the still-open #2466, itself stacked on #2465 → #2457). Basing on the stack top rather than cutting fresh from `dev-paul` is the same reasoning as the last two runs — a fresh cut appends at a tail that lacks the 08-14/08-15 entries and conflicts, which is precisely the failure this run flagged on #2472. It would be inconsistent to criticise that and then commit it. The stack is now **four deep**; that is the cost of the log PRs not merging, and it is compounding.
+- Continues the standing precedent of keeping the log **off** `scheduled-tasks` (head of actively-open #2456), now for a fifth consecutive run. On the evidence of #2456 — a PR titled `fix(css-scaling)` that has since absorbed three review rounds and eight journal commits — that precedent is correct and should be written into the task definition rather than re-justified every run.
+- Tooling: this environment exposes GitHub via the MCP server (no `gh` CLI); all PR list/diff/review operations used `mcp__github__*` equivalents of the prescribed `gh` commands.
+- Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); CI on Node 24 remains the authoritative gate.
