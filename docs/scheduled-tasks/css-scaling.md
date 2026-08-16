@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-15_
+_Last audited: 2026-08-16_
 _Last action: 2026-08-15 — LOW EmbedWidget zoom toolbar's hardcoded gap/padding/icon-size/text-size converted to `vmin`-capped inline styles (portaled outside container-query context, so `vmin` is used instead of `cqmin`, matching the LunchCount portal precedent); coefficients corrected same-day per PR review to match the precedent's 800px break-even instead of an incorrect 1000px break-even_
 
 ---
@@ -21,6 +21,15 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### LOW EmbedWidget portaled toolbar: three sibling buttons left unscaled by the 2026-08-15 vmin fix
+
+- **Detected:** 2026-08-16
+- **File:** `components/widgets/Embed/Widget.tsx:482-516`
+- **Detail:** The 2026-08-15 action converted the zoom in/out controls (icons, padding, `%` label) to `vmin`-capped inline styles inside the portaled (`createPortal` to `document.body`) toolbar. Three sibling buttons in the identical portaled context were left with hardcoded Tailwind classes: the reset-zoom button (`RotateCcw className="w-3.5 h-3.5"`, `p-2` at line ~482-486), the generate-mini-app button (`Loader2`/`Sparkles className="w-4 h-4"`, `p-2` at line ~490-501), and the "open in new tab" link (`ExternalLink className="w-4 h-4"`, `p-2` at line ~508-516). Verified directly by reading the file. Since these buttons share the same portaled, viewport-relative container as the just-fixed zoom controls, the `vmin` treatment should logically extend to them for visual consistency at extreme widget sizes.
+- **Fix:** Convert the three buttons' icon sizes and button padding to `vmin`-capped inline styles matching the zoom-control precedent (e.g. `style={{ width: 'min(14px, 1.75vmin)', height: 'min(14px, 1.75vmin)' }}` for the 3.5-unit icons, `min(16px, 2vmin)` for the 4-unit icons, `min(8px, 1vmin)` padding), reusing the same break-even coefficients already established for this toolbar.
+
+_2026-08-16: Targeted scan (Sunday daily). New dev-paul commits since 2026-08-15: none (dev-paul HEAD already fully merged; scheduled-tasks-only commits since are yesterday's own recorded css-scaling action). Broad grep sweep across all 49 Widget.tsx files for `max-[hw]-\[Npx\]` arbitrary classes, hardcoded icon `size={N}` props, and hardcoded `maxHeight`/`maxWidth` inline px styles: zero matches anywhere — no new hardcoded-px violations. Directly verified the 2026-08-15 EmbedWidget zoom-toolbar fix: the zoom in/out controls are correctly `vmin`-capped and match the LunchCount precedent. However, found ONE new LOW: three sibling buttons in the same portaled toolbar (reset-zoom, generate-mini-app, open-in-new-tab) were not included in yesterday's fix and still use hardcoded Tailwind icon/padding classes — see new open item above. All previously-tracked LOW items confirmed present and unresolved (unchanged files): RevealGrid additional spacing (lines 158-183), multi-widget group (CatalystWidget/DiceWidget/GuidedLearning/InstructionalRoutines/NextUp/SoundWidget/SoundboardWidget/SpecialistSchedule/Stations/TalkingTool/Webcam), MiniApp internal dialog overlays, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown. Onboarding Header.tsx gap-2 item remains Completed (resolved 2026-08-14). DrawingWidget fixed-position toolbars re-confirmed exempt (skipScaling: false, CSS-transform widget, not CQ scaled)._
 
 _2026-08-15: Targeted scan (Saturday daily). New dev-paul commits since 2026-08-14: only d4071d51 fix(css-scaling) Onboarding Header.tsx gap-2→cqmin — this is yesterday's action-item fix landing on dev-paul, already recorded in Completed (2026-08-14); not a new finding. Zero other widget front-face content changes. Broad anti-pattern sweep across all Widget.tsx files (targeted grep, since only one already-tracked file changed): zero `max-[hw]-\[Npx\]` arbitrary Tailwind classes; zero hardcoded icon `size={N}` props; zero hardcoded `maxHeight`/`maxWidth` inline px styles. Verified the Onboarding fix directly: header row's `className` no longer carries `gap-2`, replaced with `gap: 'min(8px, 2cqmin)'` merged into the existing padding style object — clean, correctly capped. The remaining 6 pre-existing LOW open items confirmed present and unresolved (their files untouched this cycle): EmbedWidget portaled zoom toolbar, RevealGrid additional spacing, multi-widget group (CatalystWidget/DiceWidget/GuidedLearning/InstructionalRoutines/NextUp/SoundWidget/SoundboardWidget/SpecialistSchedule/Stations/TalkingTool/Webcam), MiniApp internal dialog overlays, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown. Zero new anti-patterns._
 

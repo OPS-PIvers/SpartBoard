@@ -2,8 +2,8 @@
 
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
-_Audit cadence: weekly — Thursday_
-_Last audited: 2026-08-09_
+_Audit cadence: weekly — Sunday_
+_Last audited: 2026-08-16_
 _Last action: 2026-08-09 — MEDIUM ConceptWeb `fontColor` dead control confirmed already resolved (out-of-band by commit 37ceb18f, 2026-08-07); moved to Completed. No new code needed (the 2026-08-09 Sunday audit re-confirmed it as still-open in error)._
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-16 audit notes (Sunday): Note — this journal's cadence label previously read "weekly — Thursday" while the scheduled-task's actual day-assignment section has always mapped admin-settings-alignment/legacy-cleanup to Sunday (Audit D); corrected the label above to match observed practice (this journal has, in fact, only ever been audited on Sundays per its own history). Full cross-check of new dev-paul commits since 2026-08-09: ~50 commits landed (a11y SettingsLabel/radio-semantics retrofits across TimeTool/MusicWidget/SpecialistSchedule/DrawingWidget Settings.tsx, css-scaling fixes, PLC activity-log test coverage, dependency bumps, SSRF fix, nightly docs runs, scripts/tools/ deletion already reflected in legacy-cleanup). Targeted grep confirms **zero** of these commits touch `utils/adminBuildingConfig.ts`, any `components/admin/*ConfigurationPanel.tsx` / `*ConfigurationModal.tsx`, or `types.ts` (no diffs against any of the three since 2026-08-09). The Settings.tsx changes are exclusively accessibility-label retrofits (SettingsLabel group-heading / radio-semantics conversions) — no new config fields introduced, no existing field's UI removed. All ~23 pre-existing open items (1 MEDIUM: none currently — see below; 22 LOWs: Schedule isBuildingSyncEnabled, TimeTool legacy fontFamily/clockStyle migration, clock truthiness-check, TimeTool adjustStepSeconds, Checklist textSizePreset, Music/InstructionalRoutines/LunchCount/Expectations/SpecialistSchedule/Weather no admin config, SeatingChart 1-of-7 coverage, Countdown eventColor dead, Clock showSeconds, Checklist completedNames dead, SmartNotebook appearance dead, Checklist rosterMode, Drawing shapeFill, Scoreboard layout, guided-learning stub panel, NeedDoPutThen drawerSize dead, BloomsTaxonomy themeColor dead) re-confirmed still unresolved — none of their target files changed. No new items found._
 
 _2026-08-09 action notes (Sunday): Selected the MEDIUM `ConceptWeb fontColor dead control` item — the single highest-priority Open across today's reading list (three dailies had no MEDIUM/HIGH: widget-registry none, typescript-eslint none, css-scaling all LOW; among Sunday weeklies D1 admin-settings-alignment outranks D2 legacy-cleanup, and this journal's lone MEDIUM ranked ahead of all 22 LOWs). Nothing In Progress anywhere. File-recency check on `ConceptWeb/Settings.tsx`: last touched at `37ceb18f` (2026-08-07) — and inspecting that commit revealed **the fix was already landed**: `fix(ConceptWeb): disable dead fontColor picker in appearance settings` passed `showColorPicker={false}` to `<TypographySettings />` at `Settings.tsx:119`, exactly the minimal fix this item recommended. Verified in the working tree: `Settings.tsx:116-120` renders `showColorPicker={false}`, and `grep -rn fontColor components/widgets/ConceptWeb/` returns zero hits (widget never consumes it). The commit is on dev-paul (and scheduled-tasks). It was tracked/resolved out-of-band via the ui-unification journal (its message: "Resolves the ui-unification.md MEDIUM item detected 2026-08-07"), so this journal was never updated — the 2026-08-09 Sunday audit re-confirmed it as still-open in error. No code needed; moved the item to Completed and corrected the record here. Next-highest Open (legacy-cleanup MEDIUMs) handled separately this run._
 
