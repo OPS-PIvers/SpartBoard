@@ -188,3 +188,38 @@ describe('GroupDropZone — rename input', () => {
     expect(onRenameGroup).toHaveBeenCalledWith('g1', 'Good Name');
   });
 });
+
+// ─── Regression: color-picker popover has no Escape handling ────────────────
+//
+// The color-picker popover is portalled to document.body (outside any
+// `.widget` / `[data-draggable-window]` ancestor) but only closed on
+// outside-pointerdown — it had no document-level keydown listener at all, so
+// pressing Escape while it was open did nothing locally and instead reached
+// DashboardView's global Escape handler unobstructed (which minimizes the
+// topmost widget), leaving the popover stuck open. This mirrors the fix
+// pattern in CatalystSetPickerPopover.tsx (PR #2439) and ActiveClassChip.tsx.
+describe('GroupDropZone — color picker popover', () => {
+  it('REGRESSION: closes the color picker when Escape is pressed', () => {
+    render(
+      <RandomGroups
+        displayResult={makeGroups({ g1: ['Alice', 'Bob'] })}
+        editable
+        onToggleLock={vi.fn()}
+        onChangeGroupColor={vi.fn()}
+      />
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Change Group 1 color/i })
+    );
+    expect(
+      screen.getByRole('button', { name: /Change Group 1 color/i })
+    ).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(
+      screen.getByRole('button', { name: /Change Group 1 color/i })
+    ).toHaveAttribute('aria-expanded', 'false');
+  });
+});
