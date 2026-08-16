@@ -507,6 +507,19 @@ export const useRosters = (user: User | null) => {
               studentCount: withPins.length,
             };
           }
+          // Phase 3 — mirrors addRoster/updateRoster's pin_index sync, which this migration path was missing.
+          const rosterName =
+            typeof raw.name === 'string'
+              ? raw.name
+              : (metaListRef.current[idx]?.name ?? '');
+          if (rosterName) {
+            void syncRosterPinIndex(docSnap.id, rosterName, withPins);
+          } else {
+            // syncRosterPinIndex keys pin_index entries by roster name; without one there is nothing to bridge PIN login against.
+            console.warn(
+              `[PII Migration] Roster ${docSnap.id} has no name — skipped pin_index sync; re-save the roster to bridge PIN login`
+            );
+          }
           didMigrate = true;
           console.warn(
             `[PII Migration] Moved students for roster ${docSnap.id} to Drive`
