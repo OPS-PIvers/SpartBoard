@@ -85,4 +85,31 @@ describe('useGlobalStyleEditor — board switch mid-drag', () => {
       windowTransparency: 0.5,
     });
   });
+
+  it('applies the same board-switch guard to dockTransparency', () => {
+    mockState.activeDashboard = {
+      id: 'board-a',
+      globalStyle: { ...DEFAULT_GLOBAL_STYLE, dockTransparency: 0.2 },
+    };
+    const { result, rerender } = renderHook(() => useGlobalStyleEditor());
+
+    act(() => {
+      result.current.dockTransparency.onChange(0.5);
+    });
+    expect(result.current.dockTransparency.value).toBe(0.5);
+
+    mockState.activeDashboard = {
+      id: 'board-b',
+      globalStyle: { ...DEFAULT_GLOBAL_STYLE, dockTransparency: 0.9 },
+    };
+    rerender();
+
+    expect(result.current.dockTransparency.value).toBe(0.9);
+
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(setGlobalStyle).not.toHaveBeenCalledWith({ dockTransparency: 0.5 });
+  });
 });
