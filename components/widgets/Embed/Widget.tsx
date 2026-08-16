@@ -479,11 +479,17 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   {!isDefaultZoom && (
                     <button
                       onClick={handleZoomReset}
-                      className="p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 transition-colors border-l border-slate-200/50"
+                      className="text-slate-400 hover:text-orange-500 hover:bg-orange-50 transition-colors border-l border-slate-200/50"
+                      style={{ padding: 'min(8px, 1vmin)' }}
                       title="Reset zoom to 100%"
                       aria-label="Reset zoom to 100%"
                     >
-                      <RotateCcw className="w-3.5 h-3.5" />
+                      <RotateCcw
+                        style={{
+                          width: 'min(14px, 1.75vmin)',
+                          height: 'min(14px, 1.75vmin)',
+                        }}
+                      />
                     </button>
                   )}
                 </div>
@@ -491,14 +497,26 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   <button
                     onClick={handleGenerateMiniApp}
                     disabled={isGeneratingApp}
-                    className="p-2 bg-white/80 backdrop-blur-sm hover:bg-indigo-50 text-indigo-500 shadow-sm border border-indigo-200/50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    className="bg-white/80 backdrop-blur-sm hover:bg-indigo-50 text-indigo-500 shadow-sm border border-indigo-200/50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    style={{ padding: 'min(8px, 1vmin)' }}
                     title="Generate Interactive Mini App"
                     aria-label="Generate Interactive Mini App"
                   >
                     {isGeneratingApp ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2
+                        className="animate-spin"
+                        style={{
+                          width: 'min(16px, 2vmin)',
+                          height: 'min(16px, 2vmin)',
+                        }}
+                      />
                     ) : (
-                      <Sparkles className="w-4 h-4" />
+                      <Sparkles
+                        style={{
+                          width: 'min(16px, 2vmin)',
+                          height: 'min(16px, 2vmin)',
+                        }}
+                      />
                     )}
                   </button>
                 )}
@@ -507,12 +525,18 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     href={sanitizedUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2 bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-blue-500 shadow-sm border border-slate-200/50 rounded-lg transition-colors flex items-center justify-center"
+                    className="bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-blue-500 shadow-sm border border-slate-200/50 rounded-lg transition-colors flex items-center justify-center"
+                    style={{ padding: 'min(8px, 1vmin)' }}
                     title="Open in new tab"
                     aria-label="Open in new tab"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <ExternalLink className="w-4 h-4" />
+                    <ExternalLink
+                      style={{
+                        width: 'min(16px, 2vmin)',
+                        height: 'min(16px, 2vmin)',
+                      }}
+                    />
                   </a>
                 )}
               </div>,

@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-08-16_
-_Last action: 2026-08-15 — LOW EmbedWidget zoom toolbar's hardcoded gap/padding/icon-size/text-size converted to `vmin`-capped inline styles (portaled outside container-query context, so `vmin` is used instead of `cqmin`, matching the LunchCount portal precedent); coefficients corrected same-day per PR review to match the precedent's 800px break-even instead of an incorrect 1000px break-even_
+_Last action: 2026-08-16 — LOW EmbedWidget portaled toolbar's three remaining sibling buttons (reset-zoom, generate-mini-app, open-in-new-tab) converted to the same `vmin`-capped inline styles as the 2026-08-15 zoom-control fix, closing out the toolbar conversion_
 
 ---
 
@@ -21,13 +21,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### LOW EmbedWidget portaled toolbar: three sibling buttons left unscaled by the 2026-08-15 vmin fix
-
-- **Detected:** 2026-08-16
-- **File:** `components/widgets/Embed/Widget.tsx:482-516`
-- **Detail:** The 2026-08-15 action converted the zoom in/out controls (icons, padding, `%` label) to `vmin`-capped inline styles inside the portaled (`createPortal` to `document.body`) toolbar. Three sibling buttons in the identical portaled context were left with hardcoded Tailwind classes: the reset-zoom button (`RotateCcw className="w-3.5 h-3.5"`, `p-2` at line ~482-486), the generate-mini-app button (`Loader2`/`Sparkles className="w-4 h-4"`, `p-2` at line ~490-501), and the "open in new tab" link (`ExternalLink className="w-4 h-4"`, `p-2` at line ~508-516). Verified directly by reading the file. Since these buttons share the same portaled, viewport-relative container as the just-fixed zoom controls, the `vmin` treatment should logically extend to them for visual consistency at extreme widget sizes.
-- **Fix:** Convert the three buttons' icon sizes and button padding to `vmin`-capped inline styles matching the zoom-control precedent (e.g. `style={{ width: 'min(14px, 1.75vmin)', height: 'min(14px, 1.75vmin)' }}` for the 3.5-unit icons, `min(16px, 2vmin)` for the 4-unit icons, `min(8px, 1vmin)` padding), reusing the same break-even coefficients already established for this toolbar.
 
 _2026-08-16: Targeted scan (Sunday daily). New dev-paul commits since 2026-08-15: none (dev-paul HEAD already fully merged; scheduled-tasks-only commits since are yesterday's own recorded css-scaling action). Broad grep sweep across all 49 Widget.tsx files for `max-[hw]-\[Npx\]` arbitrary classes, hardcoded icon `size={N}` props, and hardcoded `maxHeight`/`maxWidth` inline px styles: zero matches anywhere — no new hardcoded-px violations. Directly verified the 2026-08-15 EmbedWidget zoom-toolbar fix: the zoom in/out controls are correctly `vmin`-capped and match the LunchCount precedent. However, found ONE new LOW: three sibling buttons in the same portaled toolbar (reset-zoom, generate-mini-app, open-in-new-tab) were not included in yesterday's fix and still use hardcoded Tailwind icon/padding classes — see new open item above. All previously-tracked LOW items confirmed present and unresolved (unchanged files): RevealGrid additional spacing (lines 158-183), multi-widget group (CatalystWidget/DiceWidget/GuidedLearning/InstructionalRoutines/NextUp/SoundWidget/SoundboardWidget/SpecialistSchedule/Stations/TalkingTool/Webcam), MiniApp internal dialog overlays, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown. Onboarding Header.tsx gap-2 item remains Completed (resolved 2026-08-14). DrawingWidget fixed-position toolbars re-confirmed exempt (skipScaling: false, CSS-transform widget, not CQ scaled)._
 
@@ -281,6 +274,15 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW EmbedWidget portaled toolbar: three sibling buttons left unscaled by the 2026-08-15 vmin fix
+
+- **Detected:** 2026-08-16 (Sunday daily audit)
+- **Completed:** 2026-08-16
+- **File:** `components/widgets/Embed/Widget.tsx` (reset-zoom button, generate-mini-app button, "open in new tab" link — all inside the same portaled toolbar as the item above)
+- **Detail:** The 2026-08-15 fix converted the zoom in/out controls (icons, padding, `%` label) to `vmin`-capped inline styles inside the portaled (`createPortal` to `document.body`) toolbar, but left three sibling buttons in the identical portaled context on hardcoded Tailwind: the reset-zoom button (`RotateCcw className="w-3.5 h-3.5"`, `p-2`), the generate-mini-app button (`Loader2`/`Sparkles className="w-4 h-4"`, `p-2`), and the "open in new tab" link (`ExternalLink className="w-4 h-4"`, `p-2`). Independently surfaced twice: the Sunday daily audit logged it as a new Open item then correctly declined to act on it same-cycle (file-recency guard: `Embed/Widget.tsx` had been touched by `bad06a4e`/`29abcae5`, both inside the last-5-commits window); a same-day PR #2456 automated code review flagged the identical gap, noting the three buttons sit in the *same rounded pill / same flex row* as the just-converted zoom controls, so below the `vmin` break-even viewport the row now renders with mismatched button heights (converted buttons ~28.8px vs. unconverted ~32px at 1280×720) — worse than the pre-fix uniform-but-static state.
+- **Selection rationale:** Resolved out-of-cycle in response to the PR review rather than through the next scheduled selection pass, since the file-recency guard that blocked the automated Sunday run was specifically protecting against a second agent editing the same file concurrently — not applicable here, as this is the same PR/session finishing its own in-progress toolbar conversion in response to direct review feedback on that exact code.
+- **Resolution:** Extended the same break-even-corrected `vmin` coefficients from the item above to all three remaining buttons: `p-2` → `style={{ padding: 'min(8px, 1vmin)' }}` on all three; `RotateCcw className="w-3.5 h-3.5"` → `style={{ width: 'min(14px, 1.75vmin)', height: 'min(14px, 1.75vmin)' }}` (kept its intentionally-smaller-than-the-4-unit-icons proportion); `Loader2`/`Sparkles className="w-4 h-4"` and `ExternalLink className="w-4 h-4"` → `style={{ width: 'min(16px, 2vmin)', height: 'min(16px, 2vmin)' }}`, preserving `animate-spin` as a className on `Loader2`. `pnpm type-check` (exit 0), `eslint components/widgets/Embed/Widget.tsx --max-warnings 0` (exit 0), `prettier --check` (clean), full `pnpm run lint`/`pnpm run type-check` also clean. No dedicated EmbedWidget test file exists. The entire portaled toolbar is now uniformly `vmin`-scaled — no hardcoded Tailwind sizing classes remain in it.
 
 ### LOW EmbedWidget zoom toolbar uses hardcoded sizes — portaled outside container query context
 
