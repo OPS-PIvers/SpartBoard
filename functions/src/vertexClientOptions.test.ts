@@ -1,26 +1,4 @@
-/**
- * Regression tests for `vertexClientOptions()` — the single helper every AI
- * callable (`generateWithAI`, `generateVideoActivity`, `transcribeVideoWithGemini`,
- * `generateGuidedLearning`) uses to construct its Vertex AI client.
- *
- * Raised in review on #2395: the helper resolved `project` purely from
- * `GCLOUD_PROJECT` / `GOOGLE_CLOUD_PROJECT` and threw `internal` when neither
- * was set. Neither variable appears in Google's list of variables set
- * automatically on Cloud Run — which is what gen2 functions run on, and whose
- * docs explicitly state it does NOT set `GOOGLE_CLOUD_PROJECT`. If the
- * deployed runtime doesn't populate them, all four callables throw
- * "AI service is not configured" on every invocation: a total AI outage.
- *
- * `FIREBASE_CONFIG` *is* guaranteed by Firebase Functions on both generations
- * and carries `projectId` — it's the same fallback firebase-functions' own
- * `projectID` / `gcloudProject` params read (they read ONLY FIREBASE_CONFIG,
- * so they complement the env vars rather than superseding them). The helper
- * now reads both sources.
- *
- * There was also no coverage of this helper at all — not the success path,
- * not the throw, not the `vertexai: true` construction. The repo's vitest
- * config sets `GCLOUD_PROJECT`, which only ever exercised the happy path.
- */
+// Regression coverage for vertexClientOptions()'s project-id resolution — see PR #2395 review. GCLOUD_PROJECT/GOOGLE_CLOUD_PROJECT aren't guaranteed on gen2 (Cloud Run); FIREBASE_CONFIG.projectId is the required fallback.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Same module mocks as aiQuotaExternalLimit.test.ts, so importing

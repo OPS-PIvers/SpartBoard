@@ -1,20 +1,4 @@
-/**
- * Tests for `normalizeModelName` — the single validation gate every
- * Firestore-supplied Gemini model override passes through
- * (`getGeminiModelConfig` in aiGeneration.ts).
- *
- * Raised in review on #2395: the function validated only against
- * `/^gemini-[\w.-]+$/`, which still matches the `*-preview` 3.x IDs and the
- * 2.0/1.5 models that GEMINI.md marks deprecated and must-not-be-used. Any
- * org/building with one of those saved in `global_permissions/gemini-functions`
- * kept using it unchanged after the Vertex migration, silently bypassing the
- * new defaults — and the audit doc scoped the remedy to a one-time manual
- * Firestore sweep rather than anything in code.
- *
- * Rejecting deprecated ids here makes the function return `undefined`, which
- * every caller already treats as "use the default", so a stale override
- * self-heals on the next call.
- */
+// Regression coverage for normalizeModelName() rejecting deprecated model ids — see PR #2395 review. A rejected id returns undefined, which every caller already treats as "use the default", so a stale override self-heals.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { normalizeModelName } from './shared';
 
