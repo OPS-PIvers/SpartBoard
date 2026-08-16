@@ -1,5 +1,6 @@
-import React, { forwardRef, useCallback, useMemo } from 'react';
+import React, { forwardRef, useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import {
   Bookmark,
   FolderPlus,
@@ -185,6 +186,18 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
       onClose,
       triggerRef ? [triggerRef] : []
     );
+
+    // Portalled outside any `.widget`/Modal ancestor — stop Escape reaching DashboardView's global handler.
+    useEffect(() => {
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key !== 'Escape') return;
+        if (isEscapeFromWidgetInput(event)) return;
+        event.stopPropagation();
+        onClose();
+      };
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [onClose]);
 
     const handleResetDock = useCallback(async () => {
       const confirmed = await showConfirm(
