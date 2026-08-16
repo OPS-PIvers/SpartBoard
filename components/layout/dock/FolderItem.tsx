@@ -2,6 +2,7 @@ import React, {
   useState,
   useRef,
   useCallback,
+  useEffect,
   useLayoutEffect,
   useMemo,
 } from 'react';
@@ -23,6 +24,7 @@ import {
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { GlassCard } from '@/components/common/GlassCard';
 import { DockIcon } from './DockIcon';
 import { DockLabel } from './DockLabel';
@@ -121,6 +123,20 @@ export const FolderItem = React.memo(
     });
 
     useClickOutside(popoverRef, () => setShowPopover(false), [buttonRef]);
+
+    // Portalled outside any `.widget` ancestor — stop Escape reaching DashboardView's global handler (see ToolDockItem).
+    useEffect(() => {
+      if (!showPopover) return undefined;
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key !== 'Escape') return;
+        if (isEscapeFromWidgetInput(e)) return;
+        e.stopPropagation();
+        setShowPopover(false);
+        buttonRef.current?.focus();
+      };
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [showPopover, buttonRef]);
 
     const handleDragEnd = useCallback(
       (event: DragEndEvent) => {

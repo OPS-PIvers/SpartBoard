@@ -400,6 +400,25 @@ describe('ScoreboardSettings', () => {
     mockAddToast.mockClear();
   });
 
+  // Pins the aria-labelledby ↔ SettingsLabel id pairing; dropping the id leaves the group unnamed with nothing else failing.
+  it('names the layout radiogroup from its visible heading', () => {
+    const widget: WidgetData = {
+      id: 'scoreboard-id',
+      type: 'scoreboard',
+      config: { teams: [] } as ScoreboardConfig,
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 100,
+      z: 1,
+      flipped: true,
+    };
+
+    render(<ScoreboardSettings widget={widget} />);
+
+    expect(screen.getByRole('radiogroup')).toHaveAccessibleName('Layout');
+  });
+
   it('imports groups from random widget', () => {
     const widget: WidgetData = {
       id: 'scoreboard-id',

@@ -348,6 +348,42 @@ describe('ltiSuggestClassLinkMatchV1', () => {
     expect(res.suggestion?.overlap).toBe(3);
   });
 
+  it('does not let duplicate roster entries for the same student inflate overlap past a genuinely-better match', async () => {
+    seenSession();
+    fetchNrpsMembersMock.mockResolvedValue([
+      {
+        userId: 's1',
+        givenName: '',
+        familyName: '',
+        email: 'a@s.edu',
+        roles: [],
+        status: '',
+      },
+      {
+        userId: 's2',
+        givenName: '',
+        familyName: '',
+        email: 'b@s.edu',
+        roles: [],
+        status: '',
+      },
+    ]);
+    fetchClassStudentsMock.mockImplementation(
+      async (_t, _i, _s, classId: string) =>
+        // cl-A's OneRoster response lists the SAME student 3x (a data-quality
+        // duplicate, e.g. a merged/cross-listed enrollment) — 1 true unique
+        // match. cl-B has 2 distinct students, both matching — the genuinely
+        // better class.
+        classId === 'cl-A'
+          ? [{ email: 'a@s.edu' }, { email: 'a@s.edu' }, { email: 'a@s.edu' }]
+          : [{ email: 'a@s.edu' }, { email: 'b@s.edu' }]
+    );
+
+    const res = await callSuggest({ auth: TEACHER, data: base });
+    expect(res.suggestion?.classlinkClassId).toBe('cl-B');
+    expect(res.suggestion?.overlap).toBe(2);
+  });
+
   it('returns null (no-emails-released) when the platform withholds NRPS email', async () => {
     seenSession();
     fetchNrpsMembersMock.mockResolvedValue([

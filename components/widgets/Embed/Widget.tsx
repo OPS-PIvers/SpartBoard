@@ -428,25 +428,34 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   transition: 'opacity 150ms ease',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 4,
+                  gap: 'min(4px, 0.5vmin)',
                 }}
               >
                 <div className="flex items-center bg-white/80 backdrop-blur-sm shadow-sm border border-slate-200/50 rounded-lg overflow-hidden">
                   <button
                     onClick={handleZoomOut}
                     disabled={!canZoomOut}
-                    className="p-2 text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    style={{ padding: 'min(8px, 1vmin)' }}
                     title="Zoom out"
                     aria-label="Zoom out"
                   >
-                    <ZoomOut className="w-4 h-4" />
+                    <ZoomOut
+                      style={{
+                        width: 'min(16px, 2vmin)',
+                        height: 'min(16px, 2vmin)',
+                      }}
+                    />
                   </button>
                   <span title={isDefaultZoom ? 'Current zoom' : undefined}>
                     <button
                       onClick={handleZoomReset}
                       disabled={isDefaultZoom}
-                      className="px-1 text-xs font-mono font-bold text-slate-600 select-none hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:cursor-default disabled:hover:text-slate-600 disabled:hover:bg-transparent"
-                      style={{ minWidth: '3em' }}
+                      className="px-1 font-mono font-bold text-slate-600 select-none hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:cursor-default disabled:hover:text-slate-600 disabled:hover:bg-transparent"
+                      style={{
+                        minWidth: '3em',
+                        fontSize: 'min(12px, 1.5vmin)',
+                      }}
                       title={isDefaultZoom ? undefined : 'Reset to 100%'}
                     >
                       {Math.round(effectiveZoom * 100)}%
@@ -455,20 +464,32 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   <button
                     onClick={handleZoomIn}
                     disabled={!canZoomIn}
-                    className="p-2 text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    style={{ padding: 'min(8px, 1vmin)' }}
                     title="Zoom in"
                     aria-label="Zoom in"
                   >
-                    <ZoomIn className="w-4 h-4" />
+                    <ZoomIn
+                      style={{
+                        width: 'min(16px, 2vmin)',
+                        height: 'min(16px, 2vmin)',
+                      }}
+                    />
                   </button>
                   {!isDefaultZoom && (
                     <button
                       onClick={handleZoomReset}
-                      className="p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 transition-colors border-l border-slate-200/50"
+                      className="text-slate-400 hover:text-orange-500 hover:bg-orange-50 transition-colors border-l border-slate-200/50"
+                      style={{ padding: 'min(8px, 1vmin)' }}
                       title="Reset zoom to 100%"
                       aria-label="Reset zoom to 100%"
                     >
-                      <RotateCcw className="w-3.5 h-3.5" />
+                      <RotateCcw
+                        style={{
+                          width: 'min(14px, 1.75vmin)',
+                          height: 'min(14px, 1.75vmin)',
+                        }}
+                      />
                     </button>
                   )}
                 </div>
@@ -476,14 +497,26 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   <button
                     onClick={handleGenerateMiniApp}
                     disabled={isGeneratingApp}
-                    className="p-2 bg-white/80 backdrop-blur-sm hover:bg-indigo-50 text-indigo-500 shadow-sm border border-indigo-200/50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    className="bg-white/80 backdrop-blur-sm hover:bg-indigo-50 text-indigo-500 shadow-sm border border-indigo-200/50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    style={{ padding: 'min(8px, 1vmin)' }}
                     title="Generate Interactive Mini App"
                     aria-label="Generate Interactive Mini App"
                   >
                     {isGeneratingApp ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2
+                        className="animate-spin"
+                        style={{
+                          width: 'min(16px, 2vmin)',
+                          height: 'min(16px, 2vmin)',
+                        }}
+                      />
                     ) : (
-                      <Sparkles className="w-4 h-4" />
+                      <Sparkles
+                        style={{
+                          width: 'min(16px, 2vmin)',
+                          height: 'min(16px, 2vmin)',
+                        }}
+                      />
                     )}
                   </button>
                 )}
@@ -492,12 +525,18 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     href={sanitizedUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2 bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-blue-500 shadow-sm border border-slate-200/50 rounded-lg transition-colors flex items-center justify-center"
+                    className="bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-blue-500 shadow-sm border border-slate-200/50 rounded-lg transition-colors flex items-center justify-center"
+                    style={{ padding: 'min(8px, 1vmin)' }}
                     title="Open in new tab"
                     aria-label="Open in new tab"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <ExternalLink className="w-4 h-4" />
+                    <ExternalLink
+                      style={{
+                        width: 'min(16px, 2vmin)',
+                        height: 'min(16px, 2vmin)',
+                      }}
+                    />
                   </a>
                 )}
               </div>,
