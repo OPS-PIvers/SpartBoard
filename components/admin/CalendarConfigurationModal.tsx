@@ -31,6 +31,11 @@ import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useDashboard } from '@/context/useDashboard';
 
+// Local Y-M-D, not toISOString() (UTC-shifts across the day boundary) — mirrors Calendar/Widget.tsx's isBlocked fix.
+function getLocalDateISO(date: Date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 interface CalendarConfigurationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -230,7 +235,7 @@ export const CalendarConfigurationModal: React.FC<
   };
 
   const addBlockedDate = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateISO();
     if (!config.blockedDates.includes(today)) {
       updateGlobal({ blockedDates: [...config.blockedDates, today] });
     }
@@ -238,7 +243,7 @@ export const CalendarConfigurationModal: React.FC<
 
   const addDefaultEvent = () => {
     const newEvent: CalendarEvent = {
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalDateISO(),
       title: 'New Default Event',
     };
     updateBuilding({
