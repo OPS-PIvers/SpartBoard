@@ -9,6 +9,7 @@ import {
   WIDGET_PALETTE,
   STANDARD_COLORS,
   TRANSPARENT_BG_URL,
+  COLOR_HEX_TO_NAME,
 } from '@/config/colors';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { buildSpotifyEmbedUrl } from './utils';
@@ -339,6 +340,8 @@ export const MusicAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
   const { updateWidget } = useDashboard();
   const config = widget.config as MusicConfig;
   const { bgColor = '#ffffff', textColor = STANDARD_COLORS.slate } = config;
+  const bgColorLabelId = useId();
+  const textColorLabelId = useId();
 
   const bgColors = [
     { hex: '#ffffff', label: 'White' },
@@ -352,11 +355,20 @@ export const MusicAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
   return (
     <div className="grid grid-cols-2 gap-4">
       <div>
-        <SettingsLabel icon={Palette}>Background</SettingsLabel>
-        <div className="flex flex-wrap gap-1.5 mt-1">
+        <SettingsLabel as="span" icon={Palette} id={bgColorLabelId}>
+          Background
+        </SettingsLabel>
+        <div
+          className="flex flex-wrap gap-1.5 mt-1"
+          role="radiogroup"
+          aria-labelledby={bgColorLabelId}
+        >
           {bgColors.map((c) => (
             <button
               key={c.hex}
+              type="button"
+              role="radio"
+              aria-checked={bgColor === c.hex}
               onClick={() =>
                 updateWidget(widget.id, {
                   config: { bgColor: c.hex },
@@ -372,17 +384,27 @@ export const MusicAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
                 backgroundImage:
                   c.hex === 'transparent' ? TRANSPARENT_BG_URL : undefined,
               }}
+              aria-label={`Background color ${c.label}`}
               title={c.label}
             />
           ))}
         </div>
       </div>
       <div>
-        <SettingsLabel icon={Palette}>Text Color</SettingsLabel>
-        <div className="flex flex-wrap gap-1.5 mt-1">
+        <SettingsLabel as="span" icon={Palette} id={textColorLabelId}>
+          Text Color
+        </SettingsLabel>
+        <div
+          className="flex flex-wrap gap-1.5 mt-1"
+          role="radiogroup"
+          aria-labelledby={textColorLabelId}
+        >
           {textColors.map((c) => (
             <button
               key={c}
+              type="button"
+              role="radio"
+              aria-checked={textColor === c}
               onClick={() =>
                 updateWidget(widget.id, {
                   config: { textColor: c },
@@ -394,6 +416,8 @@ export const MusicAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
                   : 'border-slate-200'
               }`}
               style={{ backgroundColor: c }}
+              aria-label={`Text color ${COLOR_HEX_TO_NAME[c] ?? c}`}
+              title={COLOR_HEX_TO_NAME[c] ?? c}
             />
           ))}
         </div>

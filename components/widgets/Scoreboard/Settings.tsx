@@ -176,14 +176,18 @@ export const ScoreboardSettings: React.FC<{ widget: WidgetData }> = ({
     addToast('All scores reset to 0', 'info');
   };
 
+  const layoutLabelId = `scoreboard-layout-label-${widget.id}`;
+
   return (
     <div className="space-y-6">
       <div>
-        <SettingsLabel>Layout</SettingsLabel>
+        <SettingsLabel as="span" id={layoutLabelId}>
+          Layout
+        </SettingsLabel>
         <div
           className="flex items-center bg-slate-200/80 rounded-lg p-0.5"
           role="radiogroup"
-          aria-label="Scoreboard layout"
+          aria-labelledby={layoutLabelId}
         >
           <button
             type="button"

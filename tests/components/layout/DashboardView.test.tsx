@@ -868,6 +868,261 @@ describe('DashboardView Gestures & Navigation', () => {
     });
   });
 
+  // Regression: SettingsPanel is portalled to document.body via
+  // createPortal, tagged data-widget-portal="" but (until this fix) with no
+  // data-widget-id — so focus landing on a non-form control inside an open
+  // settings panel (a Toggle/SegmentedControl button, not an INPUT/
+  // TEXTAREA/SELECT) can't be resolved back to its owning widget via
+  // closest('.widget'). The fallback silently targets whatever widget is
+  // topmost by z-index instead — which is a DIFFERENT widget than the one
+  // whose settings panel is actually open whenever that widget isn't also
+  // the top one. Escape then dispatches to the wrong widget (e.g. silently
+  // minimizing an unrelated widget instead of just closing the settings
+  // panel already closing via SettingsPanel's own document-level handler).
+  describe('widget-keyboard-action targets the owning widget when focus is inside a settings-panel portal', () => {
+    const TOP_WIDGET_ID = 'widget-topmost';
+    const SETTINGS_WIDGET_ID = 'widget-settings-open';
+
+    let portalRoot: HTMLDivElement;
+    let portalButton: HTMLButtonElement;
+
+    beforeEach(() => {
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        activeDashboard: {
+          ...mockDashboards[1],
+          widgets: [
+            {
+              id: TOP_WIDGET_ID,
+              type: 'clock',
+              x: 0,
+              y: 0,
+              w: 200,
+              h: 200,
+              z: 2,
+              flipped: false,
+              config: {},
+            },
+            {
+              id: SETTINGS_WIDGET_ID,
+              type: 'clock',
+              x: 300,
+              y: 0,
+              w: 200,
+              h: 200,
+              z: 1,
+              flipped: true,
+              config: {},
+            },
+          ],
+        },
+        dashboards: mockDashboards,
+        toasts: [],
+        addWidget: mockAddWidget,
+        loadDashboard: mockLoadDashboard,
+        removeToast: vi.fn(),
+        updateWidget: vi.fn(),
+        removeWidget: vi.fn(),
+        duplicateWidget: vi.fn(),
+        bringToFront: vi.fn(),
+        addToast: vi.fn(),
+        minimizeAllWidgets: vi.fn(),
+        restoreAllWidgets: vi.fn(),
+        deleteAllWidgets: vi.fn(),
+        setSelectedWidgetId: vi.fn(),
+        updateDashboardSettings: vi.fn(),
+        zoom: 1,
+        setZoom: vi.fn(),
+        collectionsApi: {
+          collections: [],
+          loading: false,
+          error: null,
+          createCollection: vi.fn(),
+          renameCollection: vi.fn(),
+          moveCollection: vi.fn(),
+          deleteCollection: vi.fn(),
+          reorderSiblings: vi.fn(),
+          setCollectionMetadata: vi.fn(),
+          setCollectionDefaultBoard: vi.fn(),
+        },
+      });
+
+      // Simulate SettingsPanel's portal: appended directly to document.body
+      // (outside any .widget ancestor), tagged data-widget-portal="" like
+      // the real component, holding a non-form control (e.g. a Toggle) that
+      // receives focus when the teacher interacts with a setting.
+      portalRoot = document.createElement('div');
+      portalRoot.setAttribute('data-widget-portal', '');
+      portalRoot.setAttribute('data-widget-id', SETTINGS_WIDGET_ID);
+
+      portalButton = document.createElement('button');
+      portalButton.setAttribute('type', 'button');
+      portalButton.textContent = 'Show seconds';
+      portalRoot.appendChild(portalButton);
+
+      document.body.appendChild(portalRoot);
+      portalButton.focus();
+    });
+
+    afterEach(() => {
+      if (portalRoot.parentNode) {
+        portalRoot.parentNode.removeChild(portalRoot);
+      }
+    });
+
+    it('dispatches Escape to the widget whose settings panel owns the focused control, not the topmost widget', () => {
+      renderView();
+
+      const dispatched: CustomEvent[] = [];
+      const handler = (e: Event) => dispatched.push(e as CustomEvent);
+      window.addEventListener('widget-keyboard-action', handler);
+
+      expect(document.activeElement).toBe(portalButton);
+
+      fireEvent.keyDown(window, { key: 'Escape' });
+
+      window.removeEventListener('widget-keyboard-action', handler);
+
+      expect(dispatched).toHaveLength(1);
+      const detail = (
+        dispatched[0] as CustomEvent<{ widgetId: string; key: string }>
+      ).detail;
+      expect(detail.widgetId).toBe(SETTINGS_WIDGET_ID);
+    });
+
+    it('dispatches Delete to the widget whose settings panel owns the focused control, not the topmost widget', () => {
+      renderView();
+
+      const dispatched: CustomEvent[] = [];
+      const handler = (e: Event) => dispatched.push(e as CustomEvent);
+      window.addEventListener('widget-keyboard-action', handler);
+
+      fireEvent.keyDown(window, { key: 'Delete' });
+
+      window.removeEventListener('widget-keyboard-action', handler);
+
+      expect(dispatched).toHaveLength(1);
+      const detail = (
+        dispatched[0] as CustomEvent<{ widgetId: string; key: string }>
+      ).detail;
+      expect(detail.widgetId).toBe(SETTINGS_WIDGET_ID);
+    });
+
+    it('dispatches Pin (Alt+P) to the widget whose settings panel owns the focused control, not the topmost widget', () => {
+      renderView();
+
+      const dispatched: CustomEvent[] = [];
+      const handler = (e: Event) => dispatched.push(e as CustomEvent);
+      window.addEventListener('widget-keyboard-action', handler);
+
+      fireEvent.keyDown(window, { key: 'p', altKey: true });
+
+      window.removeEventListener('widget-keyboard-action', handler);
+
+      expect(dispatched).toHaveLength(1);
+      const detail = (
+        dispatched[0] as CustomEvent<{ widgetId: string; key: string }>
+      ).detail;
+      expect(detail.widgetId).toBe(SETTINGS_WIDGET_ID);
+    });
+  });
+
+  describe('widget-keyboard-action falls back to the topmost widget when focus is inside a portal with no data-widget-id', () => {
+    const TOP_WIDGET_ID = 'widget-topmost';
+
+    let portalRoot: HTMLDivElement;
+    let portalButton: HTMLButtonElement;
+
+    beforeEach(() => {
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        activeDashboard: {
+          ...mockDashboards[1],
+          widgets: [
+            {
+              id: TOP_WIDGET_ID,
+              type: 'clock',
+              x: 0,
+              y: 0,
+              w: 200,
+              h: 200,
+              z: 1,
+              flipped: false,
+              config: {},
+            },
+          ],
+        },
+        dashboards: mockDashboards,
+        toasts: [],
+        addWidget: mockAddWidget,
+        loadDashboard: mockLoadDashboard,
+        removeToast: vi.fn(),
+        updateWidget: vi.fn(),
+        removeWidget: vi.fn(),
+        duplicateWidget: vi.fn(),
+        bringToFront: vi.fn(),
+        addToast: vi.fn(),
+        minimizeAllWidgets: vi.fn(),
+        restoreAllWidgets: vi.fn(),
+        deleteAllWidgets: vi.fn(),
+        setSelectedWidgetId: vi.fn(),
+        updateDashboardSettings: vi.fn(),
+        zoom: 1,
+        setZoom: vi.fn(),
+        collectionsApi: {
+          collections: [],
+          loading: false,
+          error: null,
+          createCollection: vi.fn(),
+          renameCollection: vi.fn(),
+          moveCollection: vi.fn(),
+          deleteCollection: vi.fn(),
+          reorderSiblings: vi.fn(),
+          setCollectionMetadata: vi.fn(),
+          setCollectionDefaultBoard: vi.fn(),
+        },
+      });
+
+      // Simulate a non-SettingsPanel [data-widget-portal] consumer (e.g. a
+      // Drawing tool popover or TextWidget formatting toolbar) — these carry
+      // the portal marker but no data-widget-id, unlike SettingsPanel.
+      portalRoot = document.createElement('div');
+      portalRoot.setAttribute('data-widget-portal', '');
+
+      portalButton = document.createElement('button');
+      portalButton.setAttribute('type', 'button');
+      portalButton.textContent = 'Bold';
+      portalRoot.appendChild(portalButton);
+
+      document.body.appendChild(portalRoot);
+      portalButton.focus();
+    });
+
+    afterEach(() => {
+      if (portalRoot.parentNode) {
+        portalRoot.parentNode.removeChild(portalRoot);
+      }
+    });
+
+    it('REGRESSION: still dispatches Delete to the topmost widget instead of silently no-oping', () => {
+      renderView();
+
+      const dispatched: CustomEvent[] = [];
+      const handler = (e: Event) => dispatched.push(e as CustomEvent);
+      window.addEventListener('widget-keyboard-action', handler);
+
+      expect(document.activeElement).toBe(portalButton);
+
+      fireEvent.keyDown(window, { key: 'Delete' });
+
+      window.removeEventListener('widget-keyboard-action', handler);
+
+      expect(dispatched).toHaveLength(1);
+      const detail = (
+        dispatched[0] as CustomEvent<{ widgetId: string; key: string }>
+      ).detail;
+      expect(detail.widgetId).toBe(TOP_WIDGET_ID);
+    });
+  });
+
   // Toast accessibility: the ToastContainer must expose live-region roles so
   // screen readers announce toasts (assertive for errors, polite otherwise) and
   // provide an explicit Dismiss control so SR/keyboard users can close a toast
@@ -1147,6 +1402,116 @@ describe('DashboardView Gestures & Navigation', () => {
       } finally {
         window.removeEventListener('widget-keyboard-action', handler);
       }
+    });
+  });
+
+  // Regression history (#2430): SettingsPanel.tsx's own document-level
+  // Escape handler already closes an open settings panel (document fires
+  // before window in the bubble phase). An earlier fix attempt called
+  // stopPropagation() inside SettingsPanel to stop DashboardView's
+  // window-level fallback from ALSO dispatching a redundant
+  // widget-keyboard-action Escape at the same widget — but that also
+  // silenced Shift+Escape (minimize all), group-build mode exit, and
+  // AnnotationOverlay's own Escape handler whenever a settings panel
+  // happened to be open. A second attempt skipped the dispatch here in
+  // DashboardView specifically when the target widget was flipped — but
+  // DashboardView can't see DraggableWindow's local `showConfirm` state, so
+  // that also left an open delete-confirm dialog on a flipped widget stuck
+  // (Escape blocked before it could reach handleCustomKeyboard's
+  // showConfirm branch). The correct fix: DashboardView ALWAYS dispatches;
+  // DraggableWindow avoids the redundant write itself via a ref set
+  // synchronously by SettingsPanel's onClose (see
+  // justClosedSettingsRef in DraggableWindow.tsx, and
+  // "handleCustomKeyboard Escape priority" in DraggableWindow.test.tsx for
+  // that side of the fix).
+  describe('global Escape always dispatches widget-keyboard-action, even when a widget is flipped (settings open)', () => {
+    const widgetsWithFlipped = (flipped: boolean) => [
+      {
+        id: 'widget-1',
+        type: 'clock',
+        x: 100,
+        y: 100,
+        w: 200,
+        h: 200,
+        z: 1,
+        flipped,
+        config: {},
+      },
+    ];
+
+    const mockReturnWithWidget = (flipped: boolean, extra = {}) => ({
+      activeDashboard: {
+        ...mockDashboards[1],
+        widgets: widgetsWithFlipped(flipped),
+      },
+      dashboards: mockDashboards,
+      toasts: [],
+      addWidget: vi.fn(),
+      minimizeAllWidgets: vi.fn(),
+      restoreAllWidgets: vi.fn(),
+      loadDashboard: mockLoadDashboard,
+      zoom: 1,
+      setZoom: vi.fn(),
+      removeToast: vi.fn(),
+      updateWidget: vi.fn(),
+      removeWidget: vi.fn(),
+      duplicateWidget: vi.fn(),
+      bringToFront: vi.fn(),
+      addToast: vi.fn(),
+      deleteAllWidgets: vi.fn(),
+      collectionsApi: {
+        collections: [],
+        loading: false,
+        error: null,
+        createCollection: vi.fn(),
+        renameCollection: vi.fn(),
+        moveCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        reorderSiblings: vi.fn(),
+        setCollectionMetadata: vi.fn(),
+        setCollectionDefaultBoard: vi.fn(),
+      },
+      ...extra,
+    });
+
+    it('still dispatches a widget-keyboard-action Escape when the target widget is already flipped (settings open)', () => {
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockReturnWithWidget(true)
+      );
+      const handler = vi.fn();
+      window.addEventListener('widget-keyboard-action', handler);
+      try {
+        renderView();
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(handler).toHaveBeenCalled();
+      } finally {
+        window.removeEventListener('widget-keyboard-action', handler);
+      }
+    });
+
+    it('still dispatches a widget-keyboard-action Escape when the target widget is not flipped', () => {
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockReturnWithWidget(false)
+      );
+      const handler = vi.fn();
+      window.addEventListener('widget-keyboard-action', handler);
+      try {
+        renderView();
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(handler).toHaveBeenCalled();
+      } finally {
+        window.removeEventListener('widget-keyboard-action', handler);
+      }
+    });
+
+    it('Shift+Escape still minimizes all widgets even when the top widget is flipped (settings open)', () => {
+      const minimizeAllWidgets = vi.fn();
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockReturnWithWidget(true, { minimizeAllWidgets })
+      );
+      renderView();
+      fireEvent.keyDown(window, { key: 'Escape', shiftKey: true });
+      expect(minimizeAllWidgets).toHaveBeenCalledTimes(1);
     });
   });
 

@@ -246,12 +246,14 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
       );
       return;
     }
-    if (subEmails.includes(trimmed)) {
-      setSubEmailDraft('');
-      setSubEmailError(null);
-      return;
-    }
-    setSubEmails((prev) => [...prev, trimmed]);
+    // Normalize before dedup/store — Firestore and .includes() are case-sensitive.
+    // Dedup check lives inside the functional updater (not against the outer
+    // `subEmails` closure) so two Add clicks in the same render tick can't
+    // both pass the check against the same stale snapshot and both append.
+    const normalized = trimmed.toLowerCase();
+    setSubEmails((prev) =>
+      prev.includes(normalized) ? prev : [...prev, normalized]
+    );
     setSubEmailDraft('');
     setSubEmailError(null);
   };
@@ -711,28 +713,40 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                 {presetEmails.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-2">
                     {presetEmails.map((email) => {
+                      // usePresetSubEmails already normalizes (trim +
+                      // lowercase) at the source — no per-consumer
+                      // re-normalization needed here.
                       const added = subEmails.includes(email);
                       return (
                         <button
                           key={email}
                           type="button"
-                          disabled={added}
+                          // Also gate on validity — usePresetSubEmails
+                          // normalizes but doesn't validate the Orono
+                          // domain, so an invalid or (pre-fix) empty-string
+                          // preset would otherwise render enabled and
+                          // permanently inert (the onClick guard below
+                          // silently no-ops on it with no error feedback).
+                          disabled={added || !isValidOronoEmail(email)}
                           onClick={() =>
-                            // Mirror the typed-input path: validate against the
-                            // Orono domain and de-dupe before adding (matches
-                            // ShareCollectionLinkCreatorModal). `disabled` already
-                            // blocks re-adds, but keep the list clean even if a
-                            // preset ever comes from a non-hardcoded source.
+                            // Mirror the typed-input path: validate against
+                            // the Orono domain and de-dupe before adding
+                            // (matches handleAddSubEmail above). `disabled`
+                            // already blocks re-adds, but keep the list clean
+                            // even if a preset ever comes from a
+                            // non-hardcoded source.
                             setSubEmails((prev) =>
                               !isValidOronoEmail(email) || prev.includes(email)
                                 ? prev
                                 : [...prev, email]
                             )
                           }
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition-colors ${
                             added
                               ? 'bg-emerald-100 text-emerald-700 cursor-default'
-                              : 'bg-brand-blue-lighter/40 text-brand-blue-primary hover:bg-brand-blue-lighter/70'
+                              : !isValidOronoEmail(email)
+                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-50'
+                                : 'bg-brand-blue-lighter/40 text-brand-blue-primary hover:bg-brand-blue-lighter/70'
                           }`}
                         >
                           {added ? (

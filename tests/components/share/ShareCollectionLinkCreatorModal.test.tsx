@@ -14,8 +14,9 @@ vi.mock('@/context/useDashboard', () => ({
 
 // usePresetSubEmails hits Firestore; stub it so the modal's optional sub-email
 // preset chips render without a live backend.
+const usePresetSubEmailsMock = vi.fn(() => ({ emails: [] as string[] }));
 vi.mock('@/hooks/usePresetSubEmails', () => ({
-  usePresetSubEmails: () => ({ emails: [] as string[] }),
+  usePresetSubEmails: () => usePresetSubEmailsMock(),
 }));
 
 const collection = (): Collection => ({
@@ -47,6 +48,7 @@ const baseMockReturn = {
 beforeEach(() => {
   vi.clearAllMocks();
   useDashboardMock.mockReturnValue(baseMockReturn);
+  usePresetSubEmailsMock.mockReturnValue({ emails: [] as string[] });
   // Stub clipboard for the auto-copy path
   Object.assign(navigator, {
     clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
@@ -190,5 +192,121 @@ describe('ShareCollectionLinkCreatorModal', () => {
     expect((urlInput as HTMLInputElement).value).toContain(
       '/share-collection/share-id-123'
     );
+  });
+});
+
+// Regression guard, same bug class as ShareLinkCreatorModal.test.tsx /
+// PresetSubEmailsManager.test.tsx / BetaUsersPanel.test.tsx (#2389 / #2375):
+// every other "add an email" call site in the app lowercases the trimmed
+// input before storing/deduping it, because downstream `.includes()` checks
+// and Firestore array membership are case-sensitive. This modal's substitute
+// Collection-share sub-email picker was never updated to match — both the
+// manual `handleAddSubEmail` input and the preset-chip click handler deduped
+// via a case-sensitive `subEmails.includes(...)` without lowercasing, so
+// adding "Sub@orono.k12.mn.us" and later "sub@orono.k12.mn.us" produced two
+// entries for the same real mailbox instead of one.
+describe('ShareCollectionLinkCreatorModal — substitute sub-email case handling', () => {
+  const openSubstituteMode = () => {
+    render(
+      <ShareCollectionLinkCreatorModal
+        isOpen
+        collection={collection()}
+        boards={[board('b1')]}
+        onClose={vi.fn()}
+      />
+    );
+    act(() => {
+      fireEvent.click(screen.getByRole('radio', { name: /substitute/i }));
+    });
+  };
+
+  it('de-dupes a manually-typed email against a differently-cased existing entry', () => {
+    openSubstituteMode();
+
+    const input = screen.getByPlaceholderText('name@orono.k12.mn.us');
+    fireEvent.change(input, { target: { value: 'Sub@Orono.K12.MN.US' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    fireEvent.change(input, { target: { value: 'SUB@ORONO.K12.MN.US' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    // Exactly one entry, stored lowercased — not two case-variant duplicates.
+    const items = screen.getAllByRole('listitem').map((li) => li.textContent);
+    expect(items).toEqual(['sub@orono.k12.mn.us']);
+  });
+
+  // A preset chip for an already-added mailbox is rendered `disabled` — real
+  // browsers never deliver a click to a disabled button (jsdom's fireEvent
+  // does, which would make a fireEvent-based "click" here a vacuous test of
+  // an unreachable path). userEvent.click respects `disabled` and no-ops,
+  // matching what actually happens in the browser.
+  it('renders the preset chip disabled (not clickable) once its normalized value is already added', async () => {
+    usePresetSubEmailsMock.mockReturnValue({
+      emails: ['sub@orono.k12.mn.us'],
+    });
+    openSubstituteMode();
+
+    const input = screen.getByPlaceholderText('name@orono.k12.mn.us');
+    fireEvent.change(input, { target: { value: 'Sub@Orono.K12.MN.US' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    const chip = screen.getByRole('button', { name: 'sub@orono.k12.mn.us' });
+    expect(chip).toBeDisabled();
+
+    await userEvent.click(chip);
+
+    const items = screen.getAllByRole('listitem').map((li) => li.textContent);
+    expect(items).toEqual(['sub@orono.k12.mn.us']);
+  });
+
+  // Regression (#2432 round-8 review): `disabled={added}` only blocks
+  // re-adds of an already-added email — it doesn't gate a preset that fails
+  // Orono-domain validation (or, pre-fix, a whitespace-only entry that
+  // normalized to ''). Such a chip rendered permanently enabled while the
+  // onClick guard silently no-op'd every click, with zero error feedback.
+  it('renders the preset chip disabled when the preset value fails domain validation', () => {
+    usePresetSubEmailsMock.mockReturnValue({
+      emails: ['not-an-orono-email@gmail.com'],
+    });
+    openSubstituteMode();
+
+    const chip = screen.getByRole('button', {
+      name: 'not-an-orono-email@gmail.com',
+    });
+    expect(chip).toBeDisabled();
+    // Regression (#2432 round-9 review): `disabled` alone blocked clicks,
+    // but the className ternary only branched on `added` — an invalid-domain
+    // chip rendered with the full blue enabled appearance, giving a teacher
+    // zero visual cue that the click they just made was silently ignored.
+    expect(chip.className).not.toContain('bg-brand-blue-lighter/40');
+    expect(chip.className).toContain('cursor-not-allowed');
+  });
+
+  // Regression (#2432 review): the Collection variant of this chip always
+  // rendered a Plus icon, even once `added` was true (ShareLinkCreatorModal's
+  // chip correctly switches to Check). Functionality wasn't broken — the chip
+  // was still disabled — but the icon lied about the chip's state.
+  it('switches the preset chip icon from Plus to Check once its value is already added', () => {
+    usePresetSubEmailsMock.mockReturnValue({
+      emails: ['sub@orono.k12.mn.us'],
+    });
+    openSubstituteMode();
+
+    const chipBeforeAdd = screen.getByRole('button', {
+      name: 'sub@orono.k12.mn.us',
+    });
+    expect(chipBeforeAdd.querySelector('.lucide-plus')).toBeInTheDocument();
+    expect(
+      chipBeforeAdd.querySelector('.lucide-check')
+    ).not.toBeInTheDocument();
+
+    const input = screen.getByPlaceholderText('name@orono.k12.mn.us');
+    fireEvent.change(input, { target: { value: 'Sub@Orono.K12.MN.US' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    const chipAfterAdd = screen.getByRole('button', {
+      name: 'sub@orono.k12.mn.us',
+    });
+    expect(chipAfterAdd.querySelector('.lucide-check')).toBeInTheDocument();
+    expect(chipAfterAdd.querySelector('.lucide-plus')).not.toBeInTheDocument();
   });
 });

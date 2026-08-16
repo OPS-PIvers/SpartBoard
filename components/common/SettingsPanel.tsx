@@ -213,6 +213,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     <div
       ref={panelRef}
       data-widget-portal=""
+      data-widget-id={widget.id}
       className={`font-${globalStyle.fontFamily}`}
       style={{
         position: 'fixed',

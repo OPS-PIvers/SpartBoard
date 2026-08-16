@@ -19,7 +19,7 @@
  * `firebase-*` modules are mocked so importing `aiGeneration.ts` (which runs
  * `functionsInit` + `defineSecret` at module load) stays pure.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const resolveOrgIdForDomainMock = vi.fn();
 
@@ -201,6 +201,24 @@ describe('isExternalCaller', () => {
     expect(external).toBe(false);
   });
 
+  it('fail-safe: lookup error is surfaced via console.warn (not swallowed silently)', async () => {
+    // The fail-safe deliberately hides the error from the caller, so the log
+    // is the ONLY signal an operator gets that org classification degraded.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const lookupError = new Error('firestore down');
+    resolveOrgIdForDomainMock.mockRejectedValue(lookupError);
+
+    await expect(
+      __isExternalCaller(db, { email: 'teacher@orono.k12.mn.us' })
+    ).resolves.toBe(false);
+
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('Org resolution failed'),
+      lookupError
+    );
+    warn.mockRestore();
+  });
+
   it('caches the domain→org resolution across calls (single lookup)', async () => {
     resolveOrgIdForDomainMock.mockResolvedValue('orono');
     await __isExternalCaller(db, { email: 'a@orono.k12.mn.us' });
@@ -272,5 +290,93 @@ describe('resolveOrgIdForToken (raw resolution, behind isExternalCaller)', () =>
   it('returns null without a lookup when the token has no domain', async () => {
     expect(await __resolveOrgIdForToken(db, {})).toBe(null);
     expect(resolveOrgIdForDomainMock).not.toHaveBeenCalled();
+  });
+
+  it('a cached miss on the hd domain still falls through to the email domain', async () => {
+    // Warm the cache with a negative result for the hd domain only.
+    resolveOrgIdForDomainMock.mockResolvedValue(null);
+    expect(await __resolveOrgIdForToken(db, { hd: 'alias-domain.com' })).toBe(
+      null
+    );
+    expect(resolveOrgIdForDomainMock).toHaveBeenCalledTimes(1);
+
+    // Same hd, now paired with an org email domain. The cached miss must not
+    // short-circuit the whole resolution — the second candidate is still tried.
+    resolveOrgIdForDomainMock.mockResolvedValue('orono');
+    expect(
+      await __resolveOrgIdForToken(db, {
+        hd: 'alias-domain.com',
+        email: 'teacher@orono.k12.mn.us',
+      })
+    ).toBe('orono');
+    // Exactly one NEW lookup: the hd candidate was served from the cached miss.
+    expect(resolveOrgIdForDomainMock).toHaveBeenCalledTimes(2);
+    expect(resolveOrgIdForDomainMock).toHaveBeenLastCalledWith(
+      expect.anything(),
+      '@orono.k12.mn.us'
+    );
+  });
+});
+
+describe('org-resolution cache lifecycle (TTL + explicit reset)', () => {
+  // The domain→org cache keeps the external/internal classification off the
+  // hot path, but it must not pin a stale answer forever: a domain that gets
+  // verified (org promotion) has to take effect within the TTL window.
+  const TTL_MS = 5 * 60 * 1000;
+
+  beforeEach(() => {
+    resolveOrgIdForDomainMock.mockReset();
+    __resetOrgResolutionCache();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('serves from cache for the whole TTL window (no second lookup)', async () => {
+    resolveOrgIdForDomainMock.mockResolvedValue(null);
+    expect(await __isExternalCaller(db, { email: 'a@gmail.com' })).toBe(true);
+
+    // Just inside the TTL — still cached.
+    vi.advanceTimersByTime(TTL_MS - 1);
+    expect(await __isExternalCaller(db, { email: 'b@gmail.com' })).toBe(true);
+
+    expect(resolveOrgIdForDomainMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-resolves after the TTL expires, picking up an org promotion', async () => {
+    // Cold: the domain is not yet registered to any org → external.
+    resolveOrgIdForDomainMock.mockResolvedValue(null);
+    expect(
+      await __isExternalCaller(db, { email: 'teacher@newschool.org' })
+    ).toBe(true);
+    expect(resolveOrgIdForDomainMock).toHaveBeenCalledTimes(1);
+
+    // An admin verifies the domain. Once the TTL lapses the next caller must
+    // see the promotion instead of staying pinned to the free-tier cap.
+    resolveOrgIdForDomainMock.mockResolvedValue('newschool');
+    vi.advanceTimersByTime(TTL_MS);
+
+    expect(
+      await __isExternalCaller(db, { email: 'teacher@newschool.org' })
+    ).toBe(false);
+    expect(resolveOrgIdForDomainMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('__resetOrgResolutionCache forces a fresh lookup before the TTL lapses', async () => {
+    resolveOrgIdForDomainMock.mockResolvedValue('orono');
+    expect(
+      await __resolveOrgIdForToken(db, { email: 'a@orono.k12.mn.us' })
+    ).toBe('orono');
+
+    __resetOrgResolutionCache();
+
+    // No time has passed, so only the explicit reset can explain a re-read.
+    expect(
+      await __resolveOrgIdForToken(db, { email: 'a@orono.k12.mn.us' })
+    ).toBe('orono');
+    expect(resolveOrgIdForDomainMock).toHaveBeenCalledTimes(2);
   });
 });

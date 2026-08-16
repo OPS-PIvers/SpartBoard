@@ -562,6 +562,19 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync for stale-closure prevention (CLAUDE.md pattern); false positive from react-hooks/refs v7
   stateRef.current = { isEditingTitle, saveTitle };
 
+  // Set to true by SettingsPanel's onClose, synchronously, before it calls
+  // updateWidget. DashboardView's global Escape handler always dispatches a
+  // widget-keyboard-action event (it can't see this component's local
+  // showConfirm state, so it must not skip the dispatch — see DashboardView.tsx).
+  // Without this ref, handleCustomKeyboard's Escape branch would read the
+  // still-stale `widget.flipped === true` prop (React hasn't re-rendered yet
+  // within the same synchronous keydown dispatch) and call updateWidget a
+  // second, redundant time. Reset every render — the ref only needs to
+  // survive the brief window between onClose firing and the next commit.
+  const justClosedSettingsRef = useRef(false);
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref reset for stale-flag prevention (CLAUDE.md pattern); false positive from react-hooks/refs v7
+  justClosedSettingsRef.current = false;
+
   const handleCloseTools = useCallback(() => {
     setSelectedWidgetId(null);
     const { isEditingTitle, saveTitle } = stateRef.current;
@@ -1935,14 +1948,24 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         // If you add a new Escape branch here, mirror it in handleKeyDown and vice-versa.
         if (showConfirm) {
           setShowConfirm(false);
-        } else if (widget.flipped && !isActiveBoardReadOnly) {
-          // Allow closing an already-open settings panel for per-widget-locked
-          // widgets; isActiveBoardReadOnly blocks all writes on shared boards.
-          updateWidget(widget.id, { flipped: false });
-        } else if (isAnnotating) {
-          setIsAnnotating(false);
-        } else if (!isLocked) {
-          updateWidget(widget.id, { minimized: true, flipped: false });
+        } else if (!justClosedSettingsRef.current) {
+          // Wrapped (rather than an early empty `else if` branch) so a new
+          // sub-case added below is mechanically guarded by the ref check —
+          // SettingsPanel's own Escape handler already closed the panel in
+          // this same keydown dispatch (see the ref's declaration comment)
+          // when justClosedSettingsRef.current is true, so nothing here
+          // should run in that case. A plain `&&` on just the widget.flipped
+          // branch would instead fall through to the minimize branch, which
+          // is worse than the original redundant write this ref prevents.
+          if (widget.flipped && !isActiveBoardReadOnly) {
+            // Allow closing an already-open settings panel for per-widget-locked
+            // widgets; isActiveBoardReadOnly blocks all writes on shared boards.
+            updateWidget(widget.id, { flipped: false });
+          } else if (isAnnotating) {
+            setIsAnnotating(false);
+          } else if (!isLocked) {
+            updateWidget(widget.id, { minimized: true, flipped: false });
+          }
         }
       } else if (key === 'Pin') {
         if (!isLocked) {
@@ -3348,7 +3371,30 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           settings={settings}
           appearanceSettings={appearanceSettings}
           shouldRenderSettings={shouldRenderSettings}
-          onClose={() => updateWidget(widget.id, { flipped: false })}
+          onClose={() => {
+            // updateWidget (DashboardContext.tsx) returns early — without
+            // calling setDashboards, so no re-render fires to reset this ref
+            // in the render body — on a read-only board OR when there's no
+            // active dashboard (activeIdRef.current null; a very narrow race
+            // where a dashboard switch clears activeId while this widget is
+            // still mounted). Either way the ref would otherwise stay stuck
+            // `true` for the widget's lifetime, permanently no-op'ing every
+            // subsequent Escape in handleCustomKeyboard's priority chain
+            // (including setIsAnnotating(false), a purely local write NOT
+            // blocked by either guard). Only set it when the write will
+            // actually land and trigger the reset.
+            //
+            // Read via getCanvasState() (event-fire time) rather than the
+            // render-closure values above — this callback can fire after a
+            // stale render commit, and reading at event time closes that
+            // window entirely instead of risking acting on a value that's
+            // already out of date by the time onClose runs.
+            const canvasState = getCanvasState();
+            justClosedSettingsRef.current =
+              !canvasState.isActiveBoardReadOnly &&
+              canvasState.activeDashboard !== null;
+            updateWidget(widget.id, { flipped: false });
+          }}
           updateWidget={updateWidget}
           globalStyle={globalStyle}
           title={title}
