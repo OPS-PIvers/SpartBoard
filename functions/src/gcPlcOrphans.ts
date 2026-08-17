@@ -314,10 +314,19 @@ async function fetchPaginated(
     lastDoc = page.docs[page.docs.length - 1];
     if (page.size < pageLimit) break;
   }
-  if (results.length >= maxScan) {
-    console.warn(
-      `[gcPlcOrphans] hit scan ceiling (${maxScan}) on ${collectionRef.path} — raise it or shard the sweep`
-    );
+  // A full last page at the ceiling is ambiguous — an exactly-maxScan collection
+  // strands nothing. One 1-doc probe distinguishes the two, warn only if truncated.
+  if (results.length >= maxScan && lastDoc) {
+    const probe = await collectionRef
+      .orderBy(admin.firestore.FieldPath.documentId())
+      .startAfter(lastDoc)
+      .limit(1)
+      .get();
+    if (probe.size > 0) {
+      console.warn(
+        `[gcPlcOrphans] hit scan ceiling (${maxScan}) on ${collectionRef.path} — raise it or shard the sweep`
+      );
+    }
   }
   return results;
 }

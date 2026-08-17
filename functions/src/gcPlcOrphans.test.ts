@@ -63,6 +63,7 @@ import {
   PLC_PAGE_SIZE,
   GROUP_PAGE_SIZE,
   CATEGORY_PAGE_SIZE,
+  MAX_VERSIONS_SCAN_PER_GROUP,
 } from './gcPlcOrphans';
 
 // ===========================================================================
@@ -555,6 +556,109 @@ describe('runGcPlcOrphans — version overflow scan must paginate (pagination cl
         (a, b) => a - b
       )
     );
+  });
+});
+
+describe('runGcPlcOrphans — version history past MAX_VERSIONS_SCAN_PER_GROUP', () => {
+  // The scan is capped at MAX_VERSIONS_SCAN_PER_GROUP in lexicographic
+  // documentId() order, which does NOT track the numeric version order the
+  // trim step sorts by. Past the ceiling the scanned sample can therefore
+  // exclude real versions. These tests pin the contract the constant's
+  // docblock claims: never over-delete, converge across runs.
+  //
+  // With ids "1".."5001", the lexicographic maximum is "999" ('9' > '5'), so
+  // "999" is the one doc pushed outside the 5000-doc scan window.
+  const total = MAX_VERSIONS_SCAN_PER_GROUP + 1;
+  const excludedByLexOrder = '999';
+
+  const seedGroup = () =>
+    makeStubDb({
+      synced_quizzes: [
+        {
+          id: 'g1',
+          data: { participants: { uidA: { joinedAt: 1 } } },
+          sub: {
+            versions: Array.from({ length: total }, (_, i) => ({
+              id: String(i + 1),
+              data: { version: i + 1 },
+            })),
+          },
+        },
+      ],
+    });
+
+  it('never deletes a version the capped scan could not see', async () => {
+    const { db, root } = seedGroup();
+
+    await runGcPlcOrphans(db, NOW);
+
+    const remaining = root.synced_quizzes[0].sub!.versions.map((d) => d.id);
+    // Unscanned, and outside the kept-newest set — but still present.
+    expect(remaining).toContain(excludedByLexOrder);
+    // The genuinely-newest version is kept.
+    expect(remaining).toContain(String(total));
+  });
+
+  it('does not converge to VERSION_HISTORY_LIMIT in one run, but does on the next', async () => {
+    const { db, root } = seedGroup();
+
+    const first = await runGcPlcOrphans(db, NOW);
+
+    // One run trims the scanned sample only, leaving the skewed doc behind.
+    expect(first.versionOverflow).toBe(
+      MAX_VERSIONS_SCAN_PER_GROUP - VERSION_HISTORY_LIMIT
+    );
+    expect(root.synced_quizzes[0].sub!.versions).toHaveLength(
+      VERSION_HISTORY_LIMIT + 1
+    );
+
+    const second = await runGcPlcOrphans(db, NOW);
+
+    expect(second.versionOverflow).toBe(1);
+    const converged = root.synced_quizzes[0]
+      .sub!.versions.map((d) => Number(d.id))
+      .sort((a, b) => a - b);
+    expect(converged).toHaveLength(VERSION_HISTORY_LIMIT);
+    expect(converged).toEqual(
+      Array.from({ length: VERSION_HISTORY_LIMIT }, (_, i) => total - i).sort(
+        (a, b) => a - b
+      )
+    );
+  });
+
+  it('warns when the ceiling actually truncated, not when the collection merely fills it', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { db } = seedGroup();
+    await runGcPlcOrphans(db, NOW);
+    expect(
+      warn.mock.calls.some((c) => String(c[0]).includes('hit scan ceiling'))
+    ).toBe(true);
+
+    warn.mockClear();
+
+    // Exactly MAX_VERSIONS_SCAN_PER_GROUP docs: the scan sees everything, so
+    // the ceiling warning would be a false alarm.
+    const exact = makeStubDb({
+      synced_quizzes: [
+        {
+          id: 'g1',
+          data: { participants: { uidA: { joinedAt: 1 } } },
+          sub: {
+            versions: Array.from(
+              { length: MAX_VERSIONS_SCAN_PER_GROUP },
+              (_, i) => ({ id: String(i + 1), data: { version: i + 1 } })
+            ),
+          },
+        },
+      ],
+    });
+    await runGcPlcOrphans(exact.db, NOW);
+    expect(
+      warn.mock.calls.some((c) => String(c[0]).includes('hit scan ceiling'))
+    ).toBe(false);
+
+    warn.mockRestore();
   });
 });
 
