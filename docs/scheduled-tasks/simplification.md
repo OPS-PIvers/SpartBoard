@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-08-10_
+_Last audited: 2026-08-17_
 _Last action: 2026-05-01_
 
 ---
 
 ## Audit Log
+
+_2026-08-17: Full audit (Audit E1 — Monday weekly). None of the 15 most recent branch commits touch any of the 13 tracked-item files (DashboardContext.tsx, widgetConfigPersistence.ts, TimeTool, RandomWidget, adminBuildingConfig.ts, AnnouncementOverlay.tsx, usePlcTrash.ts, usePlcResources.ts, useFirestore.ts, ai_security.ts, DraggableWindow.tsx, MathTools/Widget.tsx) — commits cover Dock/Escape, settings drag-transparency, i18n, roster pin_index, LTI dedup, and widget-keyboard-action portal routing. (1) mergeWidgetConfig() confirmed still the single canonical merge point (DashboardContext.tsx:4443/:4547; the only remaining Object.assign is inside the helper itself). (2) All 13 tracked cast items re-verified present at their existing locations/counts. Scanned all `as WidgetConfig`/`as unknown as` sites codebase-wide; other hits (WidgetRenderer.tsx, SoundWidget/Widget.tsx, smartPaste.ts, dashboardPII.ts, Announcements/Widget.tsx) are isolated single occurrences, not a new concentration warranting a tracked item. (3) Hooks with >5 useState/useRef: known items confirmed. **NEW LOW:** `hooks/useSpotifyWebPlayback.ts` — 12 useState/useRef calls (6 state, 6 ref), not previously tracked; added below. **Correction:** `hooks/useScreenRecord.ts` is now 11 useState/useRef calls (was tracked at 7) — grew via prior commits predating this audit window; existing item's file detail updated below. Borderline (exactly 6, not flagged): useSubstituteShares.ts, useRosters.ts, usePlcAutoPullSync.ts, useGuidedLearning.ts, useGlobalStyleEditor.ts. (4) 13-prop passthrough chain confirmed present, unchanged. (5) Nested ternaries (triple ternary, DraggableWindow corner ternary, MathTools dead ternary) confirmed present, unchanged. One new LOW item added; one existing item's count corrected._
 
 _2026-08-10: Full audit (Audit E1 — Monday weekly). New dev-paul commits since 2026-08-03: c26ad917 / 0e79f85f docs only; f58cb0db fix(a11y) #2416 — shared settings primitives (SurfaceColorSettings.tsx, TextSizePresetSettings.tsx, TypographySettings.tsx): as="span" conversions, aria-pressed pattern, presetFromScale import swap replacing a local duplicate (removes one small duplication; no new cast or hook complexity); f4830ebe pr-review docs only. f58cb0db removes the local `sizeToPreset` helper from TextSizePresetSettings.tsx by importing `presetFromScale` from widgetAppearance.ts — this is a positive simplification (existing duplicate removed; note for record, not a new open item). All 11 existing open items confirmed present and unchanged: MEDIUM useFirestore.ts double-cast, MEDIUM ai_security.ts structuredClone casts, LOW validTextSizePresets tripled in adminBuildingConfig.ts, LOW prop drilling 13 props DashboardView→WidgetRenderer, LOW triple val ternary + DraggableWindow 4-deep ternary, LOW MathTools dead hover-color ternary, LOW TimeTool 6 WidgetConfig casts, LOW RandomWidget 13 WidgetConfig casts, LOW widgetConfigPersistence Object.assign cast, LOW adminBuildingConfig double-cast for WIDGET_DEFAULTS, LOW usePlcTrash 9 useState, LOW usePlcResources 9 useState. Zero new items._
 
@@ -33,6 +35,13 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### LOW `hooks/useSpotifyWebPlayback.ts` has 12 useState/useRef calls
+
+- **Detected:** 2026-08-17
+- **File:** hooks/useSpotifyWebPlayback.ts
+- **Detail:** The hook declares 12 useState/useRef calls (6 state, 6 ref) managing the Spotify Web Playback SDK lifecycle (player instance, device id, playback state, ready/error flags, and SDK/script refs). Same class as the already-tracked `usePlcTrash.ts`/`usePlcResources.ts` items — high state count driven by several loosely-related concerns in one hook rather than a unified abstraction.
+- **Fix:** Group SDK-lifecycle state (`ready`, `error`, `deviceId`) into a single object and keep the player/script refs separate (they are genuinely distinct external handles, matching the `useScreenRecord` precedent of leaving refs individual). Lower priority than the session hooks since Spotify integration is an optional feature, not core classroom flow.
 
 ### LOW `validTextSizePresets` array defined identically three times in `adminBuildingConfig.ts`
 
@@ -188,7 +197,8 @@ _Nothing currently in progress._
 ### LOW useScreenRecord and useLiveSession exceed 5 state/ref calls
 
 - **Detected:** 2026-04-24
-- **File:** hooks/useScreenRecord.ts (7 useState/useRef: 3 state + 4 refs), hooks/useLiveSession.ts (7 useState/useRef calls)
+- **Updated:** 2026-08-17 — `useScreenRecord.ts` count grew to 11 useState/useRef calls (was 7), via commits predating this audit window; `useLiveSession.ts` unchanged at 7.
+- **File:** hooks/useScreenRecord.ts (11 useState/useRef as of 2026-08-17), hooks/useLiveSession.ts (7 useState/useRef calls)
 - **Detail:** Both hooks exceed the 5-call threshold. `useScreenRecord` manages 3 logically-grouped pieces of UI state (isRecording, duration, error) plus 4 DOM/API refs (MediaRecorder, Blob[], timer, MediaStream). `useLiveSession` has 6 useState calls (session, students, loading, studentId, studentPin, individualFrozen, prevDeps). The refs in useScreenRecord are all distinct external resources, so grouping has lower ROI here than in the session hooks. However, they should be documented.
 - **Fix:** For `useScreenRecord`, group `{ isRecording, duration, error }` into a single `useState` object to reduce the state surface. The 4 refs are all distinct external handles and should remain individual. For `useLiveSession`, group `{ studentId, studentPin }` (always set/cleared together) into a single state object. Severity is LOW because the individual state declarations are cohesive and readable.
 

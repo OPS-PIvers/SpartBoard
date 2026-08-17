@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-16_
+_Last audited: 2026-08-17_
 _Last action: 2026-08-16 — LOW EmbedWidget portaled toolbar's three remaining sibling buttons (reset-zoom, generate-mini-app, open-in-new-tab) converted to the same `vmin`-capped inline styles as the 2026-08-15 zoom-control fix, closing out the toolbar conversion_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-17: Targeted scan (Monday daily), delegated to a dedicated sub-agent. New dev-paul commits since 2026-08-16: none of the last 15 branch commits touch widget front-face content. Repo-wide grep across all components/widgets/** for `max-[hw]-\[Npx\]`, hardcoded icon `size={N}` props, and hardcoded `maxHeight`/`maxWidth` px styles, with every hit manually triaged: all in back-face Settings.tsx files, portaled dropdowns/panels, manager/editor sub-components already covered by the known multi-widget group bucket, or DrawingWidget/stickers drag chrome (skipScaling:false-equivalent, exempt). `QuizWidget/components/QuizManager.tsx` re-confirmed out-of-scope per established precedent (back-face manager). EmbedWidget/Widget.tsx confirmed still within the last 5 widget-scoped commits (`69fde84e`) — noted per protocol, not re-flagged. One non-scaling observation surfaced (not an anti-pattern): `components/widgets/Classes/RosterEditor.tsx` has hardcoded icon sizes but is orphaned dead code (zero imports anywhere, superseded by `components/classes/RosterEditorModal.tsx`) — no live CSS-scaling impact, out of scope for this journal. All pre-existing LOW open items confirmed present and unresolved. ZERO NEW ANTI-PATTERNS._
 
 _2026-08-16: Targeted scan (Sunday daily). New dev-paul commits since 2026-08-15: none (dev-paul HEAD already fully merged; scheduled-tasks-only commits since are yesterday's own recorded css-scaling action). Broad grep sweep across all 49 Widget.tsx files for `max-[hw]-\[Npx\]` arbitrary classes, hardcoded icon `size={N}` props, and hardcoded `maxHeight`/`maxWidth` inline px styles: zero matches anywhere — no new hardcoded-px violations. Directly verified the 2026-08-15 EmbedWidget zoom-toolbar fix: the zoom in/out controls are correctly `vmin`-capped and match the LunchCount precedent. However, found ONE new LOW: three sibling buttons in the same portaled toolbar (reset-zoom, generate-mini-app, open-in-new-tab) were not included in yesterday's fix and still use hardcoded Tailwind icon/padding classes — see new open item above. All previously-tracked LOW items confirmed present and unresolved (unchanged files): RevealGrid additional spacing (lines 158-183), multi-widget group (CatalystWidget/DiceWidget/GuidedLearning/InstructionalRoutines/NextUp/SoundWidget/SoundboardWidget/SpecialistSchedule/Stations/TalkingTool/Webcam), MiniApp internal dialog overlays, SmartNotebook drawing toolbar, RandomClassContextButton portaled dropdown. Onboarding Header.tsx gap-2 item remains Completed (resolved 2026-08-14). DrawingWidget fixed-position toolbars re-confirmed exempt (skipScaling: false, CSS-transform widget, not CQ scaled)._
 
