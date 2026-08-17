@@ -3367,14 +3367,26 @@ describe('transcribeVideoWithGemini', () => {
 
     // Admins skip the rate-limit transaction entirely, so this reaches the
     // real `ai.models.generateContent(...)` call (mocked, network-free).
-    const result = handler(VALID_DATA, { auth: ADMIN_AUTH });
-    await expect(result).rejects.not.toThrow(
-      'Gemini audio transcription is restricted to administrators.'
-    );
-    await expect(result).rejects.not.toThrow(
-      'You do not have access to Gemini audio transcription.'
-    );
+    // `generateContentMock`'s default rejection means the handler still
+    // throws an unrelated `internal` error afterward — swallow it so the
+    // assertion targets what actually reached the AI call (the call
+    // arguments), not the incidental shape of that downstream failure.
+    await handler(VALID_DATA, { auth: ADMIN_AUTH }).catch(() => undefined);
+
     expect(generateContentMock).toHaveBeenCalledTimes(1);
+    const [call] = generateContentMock.mock.calls[0] as unknown as [
+      {
+        model: string;
+        contents: { role: string; parts: unknown[] }[];
+      },
+    ];
+    expect(call.model).toBe('gemini-3.1-flash-lite-preview');
+    expect(call.contents[0].parts[1]).toEqual({
+      fileData: {
+        fileUri: VALID_URL,
+        mimeType: 'video/mp4',
+      },
+    });
   });
 
   it('throws invalid-argument for an unparseable video URL', async () => {
@@ -3479,11 +3491,27 @@ describe('generateGuidedLearning', () => {
   it('reaches the AI call for an admin caller with a valid single image', async () => {
     mockFirestoreState.admins.add('admin@school.org');
 
-    const result = handler({ images: [VALID_IMAGE] }, { auth: ADMIN_AUTH });
-    await expect(result).rejects.not.toThrow(
-      'Admin access required to use AI generation.'
+    // `generateContentMock`'s default rejection means the handler still
+    // throws an unrelated `internal` error afterward — swallow it so the
+    // assertion targets what actually reached the AI call (the call
+    // arguments), not the incidental shape of that downstream failure.
+    await handler({ images: [VALID_IMAGE] }, { auth: ADMIN_AUTH }).catch(
+      () => undefined
     );
-    await expect(result).rejects.not.toThrow('At least one image is required.');
+
     expect(generateContentMock).toHaveBeenCalledTimes(1);
+    const [call] = generateContentMock.mock.calls[0] as unknown as [
+      {
+        model: string;
+        contents: { role: string; parts: unknown[] }[];
+      },
+    ];
+    expect(call.model).toBe('gemini-3-flash-preview');
+    expect(call.contents[0].parts[2]).toEqual({
+      inlineData: {
+        mimeType: VALID_IMAGE.mimeType,
+        data: VALID_IMAGE.base64,
+      },
+    });
   });
 });
