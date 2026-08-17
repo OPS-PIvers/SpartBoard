@@ -8,20 +8,8 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
-// Closes on Escape without letting the key event reach AdminSettings' own
-// Escape-to-close-the-whole-panel listener. AdminSettings listens on
-// `document` in the bubble phase, registered on mount — i.e. before any of
-// these portalled popovers/menus/modals are ever opened — so a same-phase
-// `document` listener added later here can never pre-empt it via
-// stopPropagation (registration order decides same-target listener order,
-// not stopPropagation). Listening on `window` in the CAPTURE phase runs
-// before ANY bubble-phase `document` listener regardless of add order, so
-// stopImmediatePropagation() here reliably stops it. Same pattern as
-// `captureEscape` in components/common/Modal.tsx.
-// CONSTRAINT: same-target capture listeners run in add order, so if two of
-// these are ever open at once the OUTER (first-mounted) one wins — the
-// inverse of the LIFO dismissal users expect. No call site nests them today;
-// nesting one would need a depth counter or a topmost-layer registry.
+// Capture-phase + stopImmediatePropagation to pre-empt AdminSettings' bubble-phase document listener; mirrors captureEscape in components/common/Modal.tsx.
+// Constraint: first-mounted wins, so nesting two of these would dismiss the outer one — no call site does today.
 function useCaptureEscape(active: boolean, onEscape: () => void): void {
   const onEscapeRef = useRef(onEscape);
   // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync to avoid stale-closure without re-subscribing the effect (CLAUDE.md pattern)

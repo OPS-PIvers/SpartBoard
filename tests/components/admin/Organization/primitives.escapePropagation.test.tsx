@@ -1,23 +1,4 @@
-/**
- * Regression test: RowMenu / CellPopover / LocalModal in
- * components/admin/Organization/components/primitives.tsx are portalled to
- * document.body and each register their own `document`-level `keydown`
- * listener to close on Escape — but none of them call stopPropagation (or
- * use capture phase). AdminSettings.tsx wraps the whole Organization panel
- * in a modal that ALSO listens for Escape on `document` (registered on
- * mount, i.e. before any of these are ever opened), so pressing Escape to
- * dismiss a row's action menu / cell popover / nested "add building" style
- * modal also closes the entire Admin Settings panel underneath it.
- *
- * Because both listeners are added to the SAME target (`document`) in the
- * bubble phase, registration order — not stopPropagation() — decides who
- * runs first. AdminSettings registers first (on mount, before the user can
- * open any popover), so a same-phase stopPropagation() added later can never
- * pre-empt it. The fix mirrors the already-established `captureEscape`
- * pattern in components/common/Modal.tsx: listen on `window` in the CAPTURE
- * phase and call stopImmediatePropagation(), which always runs before any
- * bubble-phase `document` listener regardless of add order.
- */
+// Escape on a portalled RowMenu/CellPopover/LocalModal must not also close the whole Admin Settings panel underneath it.
 import React, { useRef } from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
