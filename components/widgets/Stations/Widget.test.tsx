@@ -133,4 +133,31 @@ describe('StationsWidget', () => {
     expect(updatePayload.config.assignments).not.toHaveProperty('John Doe');
     expect(updatePayload.config.assignments.s1).toBeNull();
   });
+
+  it('persists an assignment write for custom-roster students (id equals name in custom mode)', async () => {
+    // Regression test: in custom-list mode there's no backing student record,
+    // so `activeRoster` maps { id: name, name } — id and name are literally
+    // the same string. setAssignment's legacy-key cleanup must not delete
+    // the very key it just wrote (legacyName === studentId here), or every
+    // write to a custom-roster student's assignment silently reverts to
+    // nothing once persisted, breaking assignment for the entire roster mode.
+    const widget = createWidget({
+      rosterMode: 'custom',
+      customRoster: ['Alex Kim'],
+      assignments: { 'Alex Kim': 'station-a' },
+    });
+
+    render(<StationsWidget widget={widget} />);
+
+    const chip = await screen.findByText('Alex Kim');
+    fireEvent.click(chip);
+
+    const [, updatePayload] = mockDashboardContext.updateWidget.mock.calls.at(
+      -1
+    ) as [string, { config: StationsConfig }];
+    // Must retain the key with an explicit null, not delete it outright — the
+    // pre-fix bug deleted it unconditionally (on both assign AND unassign),
+    // so this asserts the write actually lands rather than silently vanishing.
+    expect(updatePayload.config.assignments).toHaveProperty('Alex Kim', null);
+  });
 });

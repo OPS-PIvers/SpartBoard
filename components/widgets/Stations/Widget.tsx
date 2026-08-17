@@ -146,11 +146,14 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
   // Always clear a legacy name-keyed entry for this student when writing —
   // otherwise it either keeps re-surfacing via the read-path fallback above
   // after an unassign, or lingers as orphaned data after a direct reassignment.
+  // Guard legacyName !== studentId: in custom-list mode id and name are the
+  // same string (id: name), so without this guard the delete would remove
+  // the very key `next[studentId] = value` just set two lines above.
   const setAssignment = useCallback(
     (studentId: string, value: string | null) => {
       const next = { ...assignments, [studentId]: value };
       const legacyName = activeRoster.find((s) => s.id === studentId)?.name;
-      if (legacyName) delete next[legacyName];
+      if (legacyName && legacyName !== studentId) delete next[legacyName];
       persistAssignments(next);
     },
     [assignments, activeRoster, persistAssignments]
