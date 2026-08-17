@@ -18,6 +18,10 @@ import {
 // before ANY bubble-phase `document` listener regardless of add order, so
 // stopImmediatePropagation() here reliably stops it. Same pattern as
 // `captureEscape` in components/common/Modal.tsx.
+// CONSTRAINT: same-target capture listeners run in add order, so if two of
+// these are ever open at once the OUTER (first-mounted) one wins — the
+// inverse of the LIFO dismissal users expect. No call site nests them today;
+// nesting one would need a depth counter or a topmost-layer registry.
 function useCaptureEscape(active: boolean, onEscape: () => void): void {
   const onEscapeRef = useRef(onEscape);
   // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync to avoid stale-closure without re-subscribing the effect (CLAUDE.md pattern)
