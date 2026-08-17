@@ -234,7 +234,7 @@ export const KNOWN_GEMINI_MODELS = [
     label: 'Gemini 2.5 Flash Lite',
     tier: 'standard',
   },
-  // gemini-2.0-*/1.5-* dropped: GEMINI.md marks them deprecated and normalizeModelName rejects them server-side. 2.5-* kept — GEMINI.md doesn't name it (verify global-endpoint support before merge).
+  // gemini-2.0-*/1.5-* dropped: GEMINI.md marks them deprecated and normalizeModelName rejects them server-side. 2.5-* kept — Google's Vertex locations doc lists both as global-endpoint models.
 ] as const;
 
 const GEMINI_MODEL_REGEX = /^gemini-[\w.-]+$/;
