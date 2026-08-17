@@ -17,6 +17,7 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
   const config = widget.config as MaterialsConfig;
   const availableMaterialsLabelId = useId();
   const typographyLabelId = useId();
+  const titleTextId = useId();
   const titleColorLabelId = useId();
   const {
     selectedItems = [],
@@ -98,8 +99,11 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
       {/* Title Settings */}
       <div className="space-y-4">
         <div>
-          <SettingsLabel icon={Edit3}>Title Text</SettingsLabel>
+          <SettingsLabel htmlFor={titleTextId} icon={Edit3}>
+            Title Text
+          </SettingsLabel>
           <input
+            id={titleTextId}
             type="text"
             value={title}
             onChange={(e) =>
