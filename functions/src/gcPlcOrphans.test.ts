@@ -211,6 +211,14 @@ interface StubDoc {
  * returns) and slice past the cursor doc — this is what actually exercises
  * cross-page pagination in the regression tests below.
  */
+/**
+ * Any un-paginated (no `.limit()`) `.get()` over a backing array larger than
+ * this simulates a real Firestore unbounded-read cliff (see `get()` below).
+ * Comfortably above every VERSION_HISTORY_LIMIT-sized fixture used elsewhere
+ * in this file, so only a deliberately huge collection trips it.
+ */
+const UNBOUNDED_READ_SAFETY_THRESHOLD = 1000;
+
 function makeStubDb(seed: {
   plcs?: StubDoc[];
   synced_quizzes?: StubDoc[];
@@ -260,6 +268,20 @@ function makeStubDb(seed: {
     startAfter: (cursor: DocSnap) =>
       makeCollectionRef(backing, { ...opts, afterId: cursor.id }),
     get: () => {
+      // Simulated pagination cliff: a real Firestore `.get()` over a huge
+      // subcollection with no `.limit()` risks a function-memory/timeout
+      // blowout (this is a scheduled function pinned to 256MiB). This stub
+      // can't reproduce an actual OOM, so it stands in for one — any
+      // unbounded read over UNBOUNDED_READ_SAFETY_THRESHOLD docs throws,
+      // forcing the sweep to always page through `.limit()`.
+      if (
+        opts.lim === undefined &&
+        backing.length > UNBOUNDED_READ_SAFETY_THRESHOLD
+      ) {
+        throw new Error(
+          `[stub] unbounded .get() over ${backing.length} docs — real Firestore would risk a memory/timeout blowout; the sweep must paginate with .limit()`
+        );
+      }
       let rows = opts.ordered
         ? [...backing].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
         : [...backing];
@@ -487,6 +509,52 @@ describe('runGcPlcOrphans — version overflow (category e)', () => {
 
     expect(counts.versionOverflow).toBe(0);
     expect(root.synced_quizzes[0].sub!.versions).toHaveLength(5);
+  });
+});
+
+describe('runGcPlcOrphans — version overflow scan must paginate (pagination cliff)', () => {
+  // Before the fix, `sweepVersionOverflow` read a single un-paginated
+  // `groupRef.collection('versions').get()` with no `.limit()` at all —
+  // unlike every sibling sweep in this module (PLC iteration, group
+  // iteration, per-PLC category scans), which were already fixed for this
+  // exact bug class. A group whose `versions` subcollection grows very large
+  // (e.g. client-side pruning failed for a stretch, or abuse) would blow the
+  // single Firestore call up to an unbounded size on a function pinned to
+  // 256MiB — the stub's `get()` simulates that risk by throwing on any
+  // unbounded read past UNBOUNDED_READ_SAFETY_THRESHOLD docs.
+  it('trims overflow for a group whose version history is much larger than a single page, without an unbounded read', async () => {
+    // Comfortably past UNBOUNDED_READ_SAFETY_THRESHOLD (the stub's simulated
+    // cliff), but well under the production MAX_VERSIONS_SCAN_PER_GROUP
+    // ceiling — a realistic "this group's history grew huge" scenario, not
+    // an edge-of-ceiling one.
+    const total = 1500;
+    const versions: StubDoc[] = Array.from({ length: total }, (_, i) => ({
+      id: String(i + 1),
+      data: { version: i + 1 },
+    }));
+    const { db, root } = makeStubDb({
+      synced_quizzes: [
+        {
+          id: 'g1',
+          data: { participants: { uidA: { joinedAt: 1 } } },
+          sub: { versions },
+        },
+      ],
+    });
+
+    const counts = await runGcPlcOrphans(db, NOW);
+
+    expect(counts.versionOverflow).toBe(total - VERSION_HISTORY_LIMIT);
+    const remaining = root.synced_quizzes[0]
+      .sub!.versions.map((d) => Number(d.id))
+      .sort((a, b) => a - b);
+    expect(remaining).toHaveLength(VERSION_HISTORY_LIMIT);
+    // Newest VERSION_HISTORY_LIMIT versions (by numeric id) are kept.
+    expect(remaining).toEqual(
+      Array.from({ length: VERSION_HISTORY_LIMIT }, (_, i) => total - i).sort(
+        (a, b) => a - b
+      )
+    );
   });
 });
 

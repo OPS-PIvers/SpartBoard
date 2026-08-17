@@ -119,6 +119,27 @@ export const MAX_CATEGORY_SCAN_PER_PLC = 5000;
 /** Page size for the paginated per-PLC category sweeps (startAfter cursor on document id). */
 export const CATEGORY_PAGE_SIZE = 500;
 
+/**
+ * Overall safety ceiling on version-history snapshots scanned PER GROUP PER
+ * RUN — same rationale as `MAX_CATEGORY_SCAN_PER_PLC`, one level deeper still:
+ * a single synced group's own `versions` subcollection. Version doc ids are
+ * the bare version number as a string, which does NOT sort numerically under
+ * Firestore's lexicographic `FieldPath.documentId()` ordering (e.g. `"10"` <
+ * `"9"`), so this sweep still fetches every candidate page-by-page and does
+ * the real numeric sort in memory afterward — pagination here bounds the size
+ * of each individual Firestore response (memory/time per call), the same way
+ * it does for `fetchCategoryPaginated`, rather than reducing total docs read.
+ * Without this, `sweepVersionOverflow` issued a single un-paginated `.get()`
+ * over the entire `versions` subcollection — the same unbounded-read bug
+ * already fixed for cross-PLC iteration (`MAX_PLCS_PER_RUN`), the
+ * synced-group sweep (`MAX_GROUPS_PER_RUN`), and per-PLC category scans
+ * (`MAX_CATEGORY_SCAN_PER_PLC`), just missed one level deeper still.
+ */
+export const MAX_VERSIONS_SCAN_PER_GROUP = 5000;
+
+/** Page size for the paginated version-overflow scan (startAfter cursor on document id). */
+export const VERSIONS_PAGE_SIZE = 500;
+
 /** Firestore caps a batch at 500 ops; chunk below that defensively. */
 const BATCH_CHUNK = 250;
 
@@ -256,6 +277,42 @@ async function deleteRefs(
 }
 
 /**
+ * Paginates an arbitrary collection ref up to `maxScan`, `pageSize` docs at a
+ * time, via a `startAfter` cursor on `orderBy(FieldPath.documentId())`. Used
+ * for both per-PLC category subcollections (`activity` / `presence` /
+ * soft-delete subs) and, separately, a single group's `versions`
+ * subcollection — see `MAX_CATEGORY_SCAN_PER_PLC` / `MAX_VERSIONS_SCAN_PER_GROUP`
+ * for why a single un-paginated page silently strands docs outside an
+ * effectively-arbitrary doc-id window once a collection grows past one page.
+ */
+async function fetchPaginated(
+  collectionRef: admin.firestore.CollectionReference,
+  maxScan: number,
+  pageSize: number
+): Promise<QueryDocSnap[]> {
+  const results: QueryDocSnap[] = [];
+  let lastDoc: QueryDocSnap | undefined;
+  while (results.length < maxScan) {
+    const pageLimit = Math.min(pageSize, maxScan - results.length);
+    let query = collectionRef
+      .orderBy(admin.firestore.FieldPath.documentId())
+      .limit(pageLimit);
+    if (lastDoc) query = query.startAfter(lastDoc);
+    const page = await query.get();
+    if (page.size === 0) break;
+    results.push(...page.docs);
+    lastDoc = page.docs[page.docs.length - 1];
+    if (page.size < pageLimit) break;
+  }
+  if (results.length >= maxScan) {
+    console.warn(
+      `[gcPlcOrphans] hit scan ceiling (${maxScan}) on ${collectionRef.path} — raise it or shard the sweep`
+    );
+  }
+  return results;
+}
+
+/**
  * Reap empty synced groups across both canonical collections. A group is
  * deleted only when its `participants` map is empty (no teacher still shares
  * it). Paginated (startAfter cursor on document id) so every group up to
@@ -303,17 +360,23 @@ async function sweepEmptyGroups(db: Firestore): Promise<number> {
  * Trim version-history overflow under a single synced group. Keeps the newest
  * `VERSION_HISTORY_LIMIT` snapshots (by numeric doc id = version number) and
  * deletes the rest. Defensive: the client prunes after each publish, so this
- * usually finds nothing.
+ * usually finds nothing. Paginated (startAfter cursor on document id, up to
+ * `MAX_VERSIONS_SCAN_PER_GROUP`) — see that constant for why a single
+ * un-paginated `.get()` on this subcollection was an unbounded-read cliff.
  */
 async function sweepVersionOverflow(
   db: Firestore,
   groupRef: admin.firestore.DocumentReference
 ): Promise<number> {
-  const versionsSnap = await groupRef.collection('versions').get();
-  if (versionsSnap.size <= VERSION_HISTORY_LIMIT) return 0;
+  const versionDocs = await fetchPaginated(
+    groupRef.collection('versions'),
+    MAX_VERSIONS_SCAN_PER_GROUP,
+    VERSIONS_PAGE_SIZE
+  );
+  if (versionDocs.length <= VERSION_HISTORY_LIMIT) return 0;
   // Newest-first by version number (doc id). Non-numeric ids sort last (NaN →
   // treated as oldest) so malformed snapshots are pruned first.
-  const sorted = [...versionsSnap.docs].sort((a, b) => {
+  const sorted = [...versionDocs].sort((a, b) => {
     const av = Number(a.id);
     const bv = Number(b.id);
     const an = Number.isFinite(av) ? av : -Infinity;
@@ -325,38 +388,20 @@ async function sweepVersionOverflow(
 }
 
 /**
- * Paginates an arbitrary subcollection up to `MAX_CATEGORY_SCAN_PER_PLC`,
- * `CATEGORY_PAGE_SIZE` docs at a time, via a `startAfter` cursor on
- * `orderBy(FieldPath.documentId())`. See `MAX_CATEGORY_SCAN_PER_PLC` for why
- * a single un-paginated page silently stranded docs outside an
- * effectively-arbitrary doc-id window once a subcollection grew past one page.
+ * Paginates an arbitrary PLC subcollection (activity / presence / a
+ * soft-delete sub) up to `MAX_CATEGORY_SCAN_PER_PLC`. Thin wrapper around
+ * `fetchPaginated` — see `MAX_CATEGORY_SCAN_PER_PLC` for why a single
+ * un-paginated page silently stranded docs outside an effectively-arbitrary
+ * doc-id window once a subcollection grew past one page.
  */
-async function fetchCategoryPaginated(
+function fetchCategoryPaginated(
   collectionRef: admin.firestore.CollectionReference
 ): Promise<QueryDocSnap[]> {
-  const results: QueryDocSnap[] = [];
-  let lastDoc: QueryDocSnap | undefined;
-  while (results.length < MAX_CATEGORY_SCAN_PER_PLC) {
-    const pageLimit = Math.min(
-      CATEGORY_PAGE_SIZE,
-      MAX_CATEGORY_SCAN_PER_PLC - results.length
-    );
-    let query = collectionRef
-      .orderBy(admin.firestore.FieldPath.documentId())
-      .limit(pageLimit);
-    if (lastDoc) query = query.startAfter(lastDoc);
-    const page = await query.get();
-    if (page.size === 0) break;
-    results.push(...page.docs);
-    lastDoc = page.docs[page.docs.length - 1];
-    if (page.size < pageLimit) break;
-  }
-  if (results.length >= MAX_CATEGORY_SCAN_PER_PLC) {
-    console.warn(
-      `[gcPlcOrphans] hit MAX_CATEGORY_SCAN_PER_PLC ceiling (${MAX_CATEGORY_SCAN_PER_PLC}) on ${collectionRef.path} — raise it or shard the sweep`
-    );
-  }
-  return results;
+  return fetchPaginated(
+    collectionRef,
+    MAX_CATEGORY_SCAN_PER_PLC,
+    CATEGORY_PAGE_SIZE
+  );
 }
 
 /**
