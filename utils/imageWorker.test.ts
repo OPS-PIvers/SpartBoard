@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { trimImageData } from './imageWorker';
+import { removeBackgroundFloodFill, trimImageData } from './imageWorker';
 
 /**
  * Builds an RGBA Uint8ClampedArray for a `width`x`height` image. Every pixel
@@ -91,5 +91,44 @@ describe('trimImageData', () => {
     expect(result.minY).toBe(0);
     expect(result.width).toBe(width);
     expect(result.height).toBe(height);
+  });
+});
+
+describe('removeBackgroundFloodFill -> trimImageData', () => {
+  it('trims to the content that survived background removal', () => {
+    // The interaction that actually broke: flood-fill zeroes only the alpha
+    // byte, so every cleared background pixel keeps its RGB. Feeding that
+    // straight into trim is the real pipeline, not a synthesized fixture.
+    const width = 10;
+    const height = 10;
+    const bg: [number, number, number] = [200, 200, 200];
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const offset = (y * width + x) * 4;
+        const inContent = x >= 4 && x <= 5 && y >= 4 && y <= 5;
+        const [r, g, b] = inContent ? [10, 10, 10] : bg;
+        data[offset] = r;
+        data[offset + 1] = g;
+        data[offset + 2] = b;
+        data[offset + 3] = 255;
+      }
+    }
+
+    const cleared = removeBackgroundFloodFill(data, width, height);
+
+    // Background cleared to alpha 0 but RGB retained; content untouched.
+    expect(cleared[0 * 4 + 3]).toBe(0);
+    expect(cleared[0 * 4]).toBe(bg[0]);
+    const contentOffset = (4 * width + 4) * 4;
+    expect(cleared[contentOffset + 3]).toBe(255);
+
+    const result = trimImageData(cleared, width, height);
+
+    expect(result.found).toBe(true);
+    expect(result.minX).toBe(2);
+    expect(result.minY).toBe(2);
+    expect(result.width).toBe(6);
+    expect(result.height).toBe(6);
   });
 });

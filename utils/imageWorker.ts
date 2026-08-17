@@ -99,7 +99,7 @@ export function trimImageData(
 /**
  * Fallback background removal using flood fill from corners.
  */
-function removeBackgroundFloodFill(
+export function removeBackgroundFloodFill(
   data: Uint8ClampedArray,
   width: number,
   height: number,
