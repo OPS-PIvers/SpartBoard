@@ -3193,17 +3193,23 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
         }) as Record<string, unknown>,
     });
 
-    // The function proceeds past the accessLevel gate into the usage-limit
-    // path and eventually rejects for unrelated Firestore-mock reasons
-    // (this mock's `ai_usage` collection doesn't stub `.doc()`); we only need
-    // to confirm it does NOT throw a permission-denied error.
-    const result = handler(VALID_DATA, { auth: NON_ADMIN_AUTH });
-    await expect(result).rejects.not.toThrow(
-      'You do not have access to Gemini beta functions.'
+    // A beta caller clears the accessLevel gate but still rejects in the
+    // usage-limit step (this mock's `ai_usage` collection doesn't stub
+    // `.doc()`), so the AI call is never reached. Pin the actual rejection
+    // reason rather than asserting "not this message" — the latter passes
+    // for any failure at all, including a gate error whose wording moved.
+    const err = await handler(VALID_DATA, { auth: NON_ADMIN_AUTH }).then(
+      () => null,
+      (e: unknown) => e as Error
     );
-    await expect(result).rejects.not.toThrow(
-      'Gemini functions are currently restricted to administrators.'
-    );
+
+    expect(err).toBeInstanceOf(Error);
+    // The gate rejects with HttpsError('permission-denied'), which this
+    // file's HttpsError mock surfaces as `name`. Anything else means the
+    // caller got through the gate.
+    expect(err?.name).not.toBe('permission-denied');
+    expect(err?.name).toBe('TypeError');
+    expect(generateContentMock).not.toHaveBeenCalled();
   });
 
   it('does not throw accessLevel errors for an admin regardless of accessLevel setting', async () => {
@@ -3220,20 +3226,24 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
         }) as Record<string, unknown>,
     });
 
-    const result = handler(VALID_DATA, { auth: NON_ADMIN_AUTH });
-    await expect(result).rejects.not.toThrow(
-      'Gemini functions are currently restricted to administrators.'
-    );
+    await handler(VALID_DATA, { auth: NON_ADMIN_AUTH }).catch(() => undefined);
+
     // Regression guard: an admin caller reaches the real `ai.models
     // .generateContent(...)` call in `generateVideoActivity` (aiGeneration.ts)
     // with no gates in between. Without mocking `@google/genai`, this test
     // makes a REAL network call to the Generative Language API — normally
     // rejected fast with an invalid-key error, but under CPU/network
     // contention that round-trip can exceed the test timeout, producing
-    // flaky failures. Asserting the mock was invoked (once) proves the
+    // flaky failures. Asserting on the mock's call arguments proves the
     // handler took the code path that used to hit the network, without ever
     // actually reaching it.
     expect(generateContentMock).toHaveBeenCalledTimes(1);
+    const [call] = generateContentMock.mock.calls[0] as unknown as [
+      { contents: { role: string; parts: unknown[] }[] },
+    ];
+    expect(call.contents[0].parts[1]).toEqual({
+      fileData: { fileUri: VALID_URL, mimeType: 'video/mp4' },
+    });
   });
 });
 
