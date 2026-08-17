@@ -122,18 +122,28 @@ export const CATEGORY_PAGE_SIZE = 500;
 /**
  * Overall safety ceiling on version-history snapshots scanned PER GROUP PER
  * RUN — same rationale as `MAX_CATEGORY_SCAN_PER_PLC`, one level deeper still:
- * a single synced group's own `versions` subcollection. Version doc ids are
- * the bare version number as a string, which does NOT sort numerically under
- * Firestore's lexicographic `FieldPath.documentId()` ordering (e.g. `"10"` <
- * `"9"`), so this sweep still fetches every candidate page-by-page and does
- * the real numeric sort in memory afterward — pagination here bounds the size
- * of each individual Firestore response (memory/time per call), the same way
- * it does for `fetchCategoryPaginated`, rather than reducing total docs read.
- * Without this, `sweepVersionOverflow` issued a single un-paginated `.get()`
- * over the entire `versions` subcollection — the same unbounded-read bug
- * already fixed for cross-PLC iteration (`MAX_PLCS_PER_RUN`), the
- * synced-group sweep (`MAX_GROUPS_PER_RUN`), and per-PLC category scans
+ * a single synced group's own `versions` subcollection. Without this,
+ * `sweepVersionOverflow` issued a single un-paginated `.get()` over the
+ * entire `versions` subcollection — the same unbounded-read bug already
+ * fixed for cross-PLC iteration (`MAX_PLCS_PER_RUN`), the synced-group sweep
+ * (`MAX_GROUPS_PER_RUN`), and per-PLC category scans
  * (`MAX_CATEGORY_SCAN_PER_PLC`), just missed one level deeper still.
+ *
+ * CAVEAT (unlike the category scans, where scan order doesn't matter):
+ * version doc ids are the bare version number as a string, which does NOT
+ * sort numerically under Firestore's lexicographic `FieldPath.documentId()`
+ * ordering (e.g. `"6"` sorts after `"5999"`). `sweepVersionOverflow` sorts
+ * numerically in memory, but only across whatever this scan actually
+ * fetched — for a group whose history has grown past this ceiling, the
+ * lexicographically-first 5000 doc ids are not guaranteed to include the
+ * true highest version numbers, so the "keep newest 10" step can operate on
+ * a skewed sample rather than the actual newest versions. This never
+ * over-deletes a version genuinely worth keeping (an excluded doc is simply
+ * not read this run, not wrongly deleted) and never reintroduces the
+ * unbounded-read risk this constant exists to bound, but full convergence to
+ * `VERSION_HISTORY_LIMIT` for a group past this ceiling may take several
+ * nightly runs rather than one. See docs/routines/debugger.md Backlog for a
+ * proper fix (order by a numeric field instead of lexicographic doc id).
  */
 export const MAX_VERSIONS_SCAN_PER_GROUP = 5000;
 
