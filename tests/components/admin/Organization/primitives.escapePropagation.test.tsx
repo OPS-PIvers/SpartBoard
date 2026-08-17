@@ -60,6 +60,10 @@ describe('Organization primitives — Escape does not leak to an outer document-
       pressEscape();
 
       expect(onParentClose).not.toHaveBeenCalled();
+      // RowMenu has no onClose callback (it closes via internal setOpen
+      // state), so the DOM is the only observable proof the capture handler
+      // actually closed it rather than just swallowing the keydown.
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     } finally {
       uninstall();
     }
