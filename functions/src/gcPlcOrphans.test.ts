@@ -63,6 +63,7 @@ import {
   PLC_PAGE_SIZE,
   GROUP_PAGE_SIZE,
   CATEGORY_PAGE_SIZE,
+  MAX_VERSIONS_SCAN_PER_GROUP,
 } from './gcPlcOrphans';
 
 // ===========================================================================
@@ -231,8 +232,9 @@ function makeStubDb(seed: {
   }
   interface CollectionRef {
     limit: (n: number) => CollectionRef;
-    orderBy: (field: unknown) => CollectionRef;
+    orderBy: (field: unknown, direction?: 'asc' | 'desc') => CollectionRef;
     startAfter: (cursor: DocSnap) => CollectionRef;
+    offset: (n: number) => CollectionRef;
     get: () => Promise<{ docs: DocSnap[]; size: number }>;
   }
   interface DocSnap {
@@ -253,19 +255,54 @@ function makeStubDb(seed: {
 
   const makeCollectionRef = (
     backing: StubDoc[],
-    opts: { lim?: number; ordered?: boolean; afterId?: string } = {}
+    opts: {
+      lim?: number;
+      ordered?: boolean;
+      afterId?: string;
+      offsetN?: number;
+      orderField?: unknown;
+      orderDir?: 'asc' | 'desc';
+    } = {}
   ): CollectionRef => ({
     limit: (n: number) => makeCollectionRef(backing, { ...opts, lim: n }),
-    orderBy: () => makeCollectionRef(backing, { ...opts, ordered: true }),
+    orderBy: (field: unknown, direction?: 'asc' | 'desc') =>
+      makeCollectionRef(backing, {
+        ...opts,
+        ordered: true,
+        orderField: field,
+        orderDir: direction ?? 'asc',
+      }),
+    offset: (n: number) => makeCollectionRef(backing, { ...opts, offsetN: n }),
     startAfter: (cursor: DocSnap) =>
       makeCollectionRef(backing, { ...opts, afterId: cursor.id }),
     get: () => {
-      let rows = opts.ordered
-        ? [...backing].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      // '__name__' (mocked FieldPath.documentId()) sorts by doc id, same as
+      // production. A real field name orders numerically on that field and —
+      // mirroring live Firestore — excludes docs where the field is absent.
+      const byRealField =
+        opts.ordered &&
+        opts.orderField !== undefined &&
+        opts.orderField !== '__name__';
+      let rows = byRealField
+        ? backing.filter((d) => d.data[opts.orderField as string] !== undefined)
         : [...backing];
+      if (opts.ordered) {
+        rows = rows.sort((a, b) => {
+          if (!byRealField) {
+            return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+          }
+          const field = opts.orderField as string;
+          const av = Number(a.data[field]);
+          const bv = Number(b.data[field]);
+          return opts.orderDir === 'desc' ? bv - av : av - bv;
+        });
+      }
       if (opts.afterId !== undefined) {
         const i = rows.findIndex((d) => d.id === opts.afterId);
         if (i >= 0) rows = rows.slice(i + 1);
+      }
+      if (opts.offsetN) {
+        rows = rows.slice(opts.offsetN);
       }
       const slice = rows.slice(
         0,
@@ -487,6 +524,105 @@ describe('runGcPlcOrphans — version overflow (category e)', () => {
 
     expect(counts.versionOverflow).toBe(0);
     expect(root.synced_quizzes[0].sub!.versions).toHaveLength(5);
+  });
+});
+
+describe('runGcPlcOrphans — version overflow is bounded per group (MAX_VERSIONS_SCAN_PER_GROUP)', () => {
+  // Before the fix, `sweepVersionOverflow` read the ENTIRE `versions`
+  // subcollection with a single un-bounded `.get()` and sorted it in memory —
+  // the one sweep in this file with no per-run ceiling. A group whose backlog
+  // has grown large (client prune stuck failing) could blow past the
+  // function's pinned 256MiB budget or simply dominate the run, and — since
+  // this sweep runs BEFORE the per-PLC loop with no try/catch around it — a
+  // single pathological group could abort the whole run before any PLC's
+  // activity/presence/tombstone sweep even starts. This proves the fix caps
+  // deletions at MAX_VERSIONS_SCAN_PER_GROUP per run and leaves the rest for
+  // next run, exactly like every other ceiling in this file.
+  it('caps deletions at MAX_VERSIONS_SCAN_PER_GROUP and leaves the remainder for next run', async () => {
+    const overflowBeyondCap = 50;
+    const totalOverflow = MAX_VERSIONS_SCAN_PER_GROUP + overflowBeyondCap;
+    const total = VERSION_HISTORY_LIMIT + totalOverflow;
+    const versions: StubDoc[] = Array.from({ length: total }, (_, i) => ({
+      id: String(i + 1),
+      data: { version: i + 1 },
+    }));
+    const { db, root } = makeStubDb({
+      synced_quizzes: [
+        {
+          id: 'g1',
+          data: { participants: { uidA: { joinedAt: 1 } } },
+          sub: { versions },
+        },
+      ],
+    });
+
+    const counts = await runGcPlcOrphans(db, NOW);
+
+    // Un-bounded (pre-fix) behaviour deletes ALL overflow in one run
+    // (totalOverflow); the fix must cap it at MAX_VERSIONS_SCAN_PER_GROUP.
+    expect(counts.versionOverflow).toBe(MAX_VERSIONS_SCAN_PER_GROUP);
+    const remaining = root.synced_quizzes[0].sub!.versions;
+    // The un-swept remainder (newest kept + leftover overflow) stays behind
+    // for the next run to pick up — nothing is lost, just deferred.
+    expect(remaining).toHaveLength(VERSION_HISTORY_LIMIT + overflowBeyondCap);
+    // The newest VERSION_HISTORY_LIMIT snapshots are never touched.
+    const newestIds = Array.from({ length: VERSION_HISTORY_LIMIT }, (_, i) =>
+      String(total - i)
+    );
+    const remainingIds = new Set(remaining.map((d) => d.id));
+    for (const id of newestIds) {
+      expect(remainingIds.has(id)).toBe(true);
+    }
+  });
+
+  it('warns when the per-group ceiling is hit', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const total = VERSION_HISTORY_LIMIT + MAX_VERSIONS_SCAN_PER_GROUP + 1;
+    const versions: StubDoc[] = Array.from({ length: total }, (_, i) => ({
+      id: String(i + 1),
+      data: { version: i + 1 },
+    }));
+    const { db } = makeStubDb({
+      synced_quizzes: [
+        {
+          id: 'g1',
+          data: { participants: { uidA: { joinedAt: 1 } } },
+          sub: { versions },
+        },
+      ],
+    });
+
+    await runGcPlcOrphans(db, NOW);
+
+    expect(
+      warnSpy.mock.calls.some((call) =>
+        String(call[0]).includes('MAX_VERSIONS_SCAN_PER_GROUP')
+      )
+    ).toBe(true);
+    warnSpy.mockRestore();
+  });
+
+  it('does not touch a group whose overflow is within the cap (unchanged behaviour)', async () => {
+    const versions: StubDoc[] = Array.from({ length: 13 }, (_, i) => ({
+      id: String(i + 1),
+      data: { version: i + 1 },
+    }));
+    const { db, root } = makeStubDb({
+      synced_quizzes: [
+        {
+          id: 'g1',
+          data: { participants: { uidA: { joinedAt: 1 } } },
+          sub: { versions },
+        },
+      ],
+    });
+
+    const counts = await runGcPlcOrphans(db, NOW);
+
+    expect(counts.versionOverflow).toBe(3);
+    expect(root.synced_quizzes[0].sub!.versions).toHaveLength(
+      VERSION_HISTORY_LIMIT
+    );
   });
 });
 
