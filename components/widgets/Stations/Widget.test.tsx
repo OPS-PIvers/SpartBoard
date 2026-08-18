@@ -1,0 +1,116 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import { StationsWidget } from './Widget';
+import { useDashboard } from '@/context/useDashboard';
+import { WidgetData, StationsConfig } from '@/types';
+import { mockPointerEvent } from '@/tests/testHelpers/mocks';
+
+vi.mock('@/context/useDashboard');
+
+const mockDashboardContext = {
+  updateWidget: vi.fn(),
+  addToast: vi.fn(),
+  rosters: [
+    {
+      id: 'roster-1',
+      name: 'Class 1A',
+      students: [
+        { id: 's1', firstName: 'John', lastName: 'Doe' },
+        { id: 's2', firstName: 'Jane', lastName: 'Smith' },
+      ],
+    },
+  ],
+  activeRosterId: 'roster-1',
+  activeDashboard: { widgets: [{ id: 'stations-1' }] },
+};
+
+describe('StationsWidget', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockDashboardContext
+    );
+    if (!global.PointerEvent) {
+      global.PointerEvent = mockPointerEvent();
+    }
+  });
+
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  const createWidget = (config: Partial<StationsConfig> = {}): WidgetData => {
+    return {
+      id: 'stations-1',
+      type: 'stations',
+      x: 0,
+      y: 0,
+      w: 600,
+      h: 420,
+      z: 1,
+      config: {
+        rosterMode: 'class',
+        assignments: {},
+        stations: [
+          { id: 'st-a', title: 'Reading', color: '#10b981', order: 0 },
+          { id: 'st-b', title: 'Math', color: '#f59e0b', order: 1 },
+        ],
+        ...config,
+      },
+    } as WidgetData;
+  };
+
+  it('keeps two same-name students independently assigned (no name-collision)', async () => {
+    // Regression test: assignments must be keyed by the roster student `id`,
+    // not the display name. Two students who share a name (e.g. two "Emma
+    // Smith"s) previously collided on the same `assignments` key, so
+    // assigning one to a station silently placed/overwrote the other's
+    // station too.
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      rosters: [
+        {
+          id: 'roster-1',
+          name: 'Class 1A',
+          students: [
+            { id: 's1', firstName: 'Emma', lastName: 'Smith' },
+            { id: 's2', firstName: 'Emma', lastName: 'Smith' },
+          ],
+        },
+      ],
+    });
+
+    const widget = createWidget({
+      assignments: { s1: 'st-a', s2: 'st-b' },
+    });
+
+    render(<StationsWidget widget={widget} />);
+
+    const chips = await screen.findAllByText('Emma Smith');
+    expect(chips).toHaveLength(2);
+
+    const readingZone = screen.getByTestId('station-zone-st-a');
+    const mathZone = screen.getByTestId('station-zone-st-b');
+
+    expect(within(readingZone).getAllByText('Emma Smith')).toHaveLength(1);
+    expect(within(mathZone).getAllByText('Emma Smith')).toHaveLength(1);
+  });
+
+  it('still honors a legacy name-keyed assignment (e.g. from Randomizer or pre-fix data)', async () => {
+    // Regression test: assignments sent over from the Randomizer's
+    // "Send Groups -> Stations" button (nexus.ts) — and dashboards saved
+    // before assignments were id-keyed — store the entry under the display
+    // name instead of the roster id. The widget must still honor it when no
+    // id-keyed entry exists.
+    const widget = createWidget({
+      assignments: { 'John Doe': 'st-a' },
+    });
+
+    render(<StationsWidget widget={widget} />);
+
+    const readingZone = screen.getByTestId('station-zone-st-a');
+    expect(
+      await within(readingZone).findByText('John Doe')
+    ).toBeInTheDocument();
+  });
+});

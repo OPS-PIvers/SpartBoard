@@ -82,8 +82,17 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
     [config.rosterMode, rosters, activeRosterId]
   );
 
-  const activeRoster = useMemo((): string[] => {
-    if (config.rosterMode === 'custom') return config.customRoster ?? [];
+  // Each entry pairs a stable identity (`id`) with the display `name`.
+  // `assignments` is keyed by `id` — class-roster students use their roster
+  // `id` so two students who share a display name (e.g. two "Emma Smith"s)
+  // get independent assignments instead of colliding on the same key.
+  // Custom-list mode has no backing student record, so the typed name is the
+  // only identity available there — two identical custom-list entries still
+  // collide, same pre-existing limitation as LunchCount's custom-list mode.
+  const activeRoster = useMemo((): { id: string; name: string }[] => {
+    if (config.rosterMode === 'custom') {
+      return (config.customRoster ?? []).map((name) => ({ id: name, name }));
+    }
     if (!currentRoster) return [];
 
     const today = getLocalIsoDate();
@@ -94,39 +103,64 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
 
     // Absent students drop out of the source list entirely — they don't appear
     // in any station card or the unassigned bucket. Their stored assignment in
-    // `config.assignments` is preserved (keyed by display name), so they snap
+    // `config.assignments` is preserved (keyed by roster id), so they snap
     // back to the same station automatically once un-marked.
     return currentRoster.students
       .filter((s) => !absentIds.has(s.id))
-      .map((s) => `${s.firstName} ${s.lastName}`.trim());
+      .map((s) => ({ id: s.id, name: `${s.firstName} ${s.lastName}`.trim() }));
   }, [config.rosterMode, config.customRoster, currentRoster]);
 
   // Group students by station id (for chip lists) plus an unassigned bucket.
-  // Stale assignments (students no longer in roster) survive silently — we
-  // only render chips for roster members so missing-from-roster keys don't
-  // appear, but they remain in `assignments` until the next reset.
+  // Falls back to a legacy name-keyed entry when no id-keyed one exists, so
+  // dashboards saved before assignments were id-keyed (and groups sent over
+  // from the Randomizer via nexus.ts, which are always name-keyed) still
+  // resolve correctly. Stale assignments (students no longer in roster)
+  // survive silently — we only render chips for roster members so
+  // missing-from-roster keys don't appear, but they remain in `assignments`
+  // until the next reset.
   const grouped = useMemo(() => {
-    const byStation: Record<string, string[]> = {};
+    const byStation: Record<string, { id: string; name: string }[]> = {};
     for (const station of orderedStations) byStation[station.id] = [];
-    const unassigned: string[] = [];
-    for (const name of activeRoster) {
-      const value = assignments[name];
+    const unassigned: { id: string; name: string }[] = [];
+    for (const student of activeRoster) {
+      const value = assignments[student.id] ?? assignments[student.name];
       if (value && byStation[value]) {
-        byStation[value].push(name);
+        byStation[value].push(student);
       } else {
-        unassigned.push(name);
+        unassigned.push(student);
       }
     }
     return { byStation, unassigned };
   }, [orderedStations, activeRoster, assignments]);
 
+  // Opportunistically migrates legacy name-keyed entries to id-keyed ones for
+  // every roster student on every write — so persisted state converges to
+  // fully id-keyed over time no matter which action (drag, rotate, shuffle,
+  // reset) touched the map. Never drops a legacy value: it's copied to the id
+  // key first (unless an id-keyed value already takes precedence), then the
+  // legacy key is removed either way so it can't linger as a phantom entry
+  // that rotate/resetStation would otherwise carry forward independently.
+  const coalesceLegacyKeys = useCallback(
+    (raw: Record<string, string | null>): Record<string, string | null> => {
+      const next = { ...raw };
+      for (const student of activeRoster) {
+        if (student.id === student.name) continue; // custom-list mode: id IS the name
+        if (!(student.name in next)) continue;
+        if (!(student.id in next)) next[student.id] = next[student.name];
+        delete next[student.name];
+      }
+      return next;
+    },
+    [activeRoster]
+  );
+
   const persistAssignments = useCallback(
     (next: Record<string, string | null>) => {
       updateWidget(widget.id, {
-        config: { ...config, assignments: next },
+        config: { ...config, assignments: coalesceLegacyKeys(next) },
       });
     },
-    [widget.id, config, updateWidget]
+    [widget.id, config, updateWidget, coalesceLegacyKeys]
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -145,11 +179,15 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
       setActiveId(null);
       const { active, over } = event;
       if (!over) return;
-      const studentName = String(active.id);
+      const studentId = String(active.id);
+      const legacyName = activeRoster.find((s) => s.id === studentId)?.name;
+      const currentAssignment =
+        assignments[studentId] ??
+        (legacyName ? assignments[legacyName] : undefined);
       const overId = String(over.id);
 
       if (overId === UNASSIGNED_DROP_ID) {
-        const next = { ...assignments, [studentName]: null };
+        const next = { ...assignments, [studentId]: null };
         persistAssignments(next);
         return;
       }
@@ -159,7 +197,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
         if (!station) return;
         // Capacity guard: refuse and toast if full (and the student isn't
         // already there — moving within the same station is a no-op).
-        if (assignments[studentName] === stationId) return;
+        if (currentAssignment === stationId) return;
         if (
           station.maxStudents != null &&
           stationCount(assignments, stationId) >= station.maxStudents
@@ -167,15 +205,15 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
           addToast(`${station.title || 'Station'} is full.`, 'info');
           return;
         }
-        const next = { ...assignments, [studentName]: stationId };
+        const next = { ...assignments, [studentId]: stationId };
         persistAssignments(next);
       }
     },
-    [assignments, orderedStations, persistAssignments, addToast]
+    [assignments, activeRoster, orderedStations, persistAssignments, addToast]
   );
 
   const handleResetAll = useCallback(() => {
-    persistAssignments(resetAllAssignments(activeRoster));
+    persistAssignments(resetAllAssignments(activeRoster.map((s) => s.id)));
   }, [persistAssignments, activeRoster]);
 
   const handleResetStation = useCallback(
@@ -209,7 +247,10 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
       addToast('No students in the active class.', 'info');
       return;
     }
-    const result = shuffleStudentsIntoStations(orderedStations, activeRoster);
+    const result = shuffleStudentsIntoStations(
+      orderedStations,
+      activeRoster.map((s) => s.id)
+    );
     persistAssignments(result.assignments);
     if (result.overflowStudents.length > 0) {
       addToast(
@@ -419,8 +460,8 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                     key={station.id}
                     station={station}
                     members={members}
-                    onUnassign={(student) => {
-                      const next = { ...assignments, [student]: null };
+                    onUnassign={(studentId) => {
+                      const next = { ...assignments, [studentId]: null };
                       persistAssignments(next);
                     }}
                     onResetStation={() => handleResetStation(station.id)}
@@ -479,9 +520,9 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                   >
                     {grouped.unassigned.map((student) => (
                       <DraggableStudent
-                        key={student}
-                        id={student}
-                        name={student}
+                        key={student.id}
+                        id={student.id}
+                        name={student.name}
                         className={studentChipClass}
                         style={{
                           ...studentChipStyle,
@@ -510,7 +551,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
               fontSize: 'min(14px, 6cqmin)',
             }}
           >
-            {activeId}
+            {activeRoster.find((s) => s.id === activeId)?.name ?? activeId}
           </div>
         ) : null}
       </DragOverlay>
