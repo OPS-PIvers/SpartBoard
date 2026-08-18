@@ -333,6 +333,22 @@ async function sweepEmptyGroups(db: Firestore): Promise<number> {
  * wrong (non-oldest) snapshots. Ordering by the real numeric field avoids
  * that trap entirely. Defensive: the client prunes after each publish, so
  * this usually finds nothing.
+ *
+ * TRADE-OFF: `orderBy('version')` silently excludes any doc that lacks the
+ * `version` field entirely (Firestore's field-orderBy semantics, not a bug
+ * here) — such a doc would neither be counted nor deleted, and would
+ * accumulate forever instead of being pruned. The prior unbounded-`.get()`
+ * implementation handled this deliberately (non-numeric ids sorted as
+ * oldest, pruned first). This is an accepted, verified-unreachable trade:
+ * the sole writer (`useSyncedQuizGroups.ts`/`useSyncedVideoActivityGroups.ts`
+ * `writeVersionSnapshot`) always constructs a full `PlcVersionSnapshot`
+ * (`version: number` is non-optional in `types.ts`) and writes it via a
+ * full `setDoc` (never a partial `updateDoc`), so no code path can produce
+ * a fieldless version doc. `firestore.rules`' `version is int` constraint
+ * only covers this same client path — it's corroborating evidence, not the
+ * primary guarantee. If a future writer (e.g. a migration script or a new
+ * Admin-SDK caller) can create a version doc without this field, that
+ * writer must be fixed rather than this sweep re-widened to compensate.
  */
 async function sweepVersionOverflow(
   db: Firestore,

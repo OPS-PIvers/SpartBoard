@@ -624,6 +624,33 @@ describe('runGcPlcOrphans — version overflow is bounded per group (MAX_VERSION
       VERSION_HISTORY_LIMIT
     );
   });
+
+  it('pins the documented trade-off: a version doc missing the `version` field is left untouched (neither counted nor deleted)', async () => {
+    const versions: StubDoc[] = [
+      ...Array.from({ length: VERSION_HISTORY_LIMIT + 5 }, (_, i) => ({
+        id: String(i + 1),
+        data: { version: i + 1 },
+      })),
+      { id: 'malformed', data: {} },
+    ];
+    const { db, root } = makeStubDb({
+      synced_quizzes: [
+        {
+          id: 'g1',
+          data: { participants: { uidA: { joinedAt: 1 } } },
+          sub: { versions },
+        },
+      ],
+    });
+
+    const counts = await runGcPlcOrphans(db, NOW);
+
+    // Firestore's orderBy('version') excludes the fieldless doc from the
+    // query entirely — it's invisible to the sweep, not swept as overflow.
+    expect(counts.versionOverflow).toBe(5);
+    const remainingIds = root.synced_quizzes[0].sub!.versions.map((d) => d.id);
+    expect(remainingIds).toContain('malformed');
+  });
 });
 
 describe('runGcPlcOrphans — full sweep summary', () => {
