@@ -398,6 +398,58 @@ describe('SettingsPanel', () => {
   });
 
   /**
+   * Regression: panning the board canvas (drag on empty space) translates the
+   * widget surface via a CSS transform WITHOUT changing widget.x/y — those
+   * are world coordinates, pan is purely visual. DashboardView dispatches a
+   * `board-pan` window event on every pan frame so floating popovers anchored
+   * to a widget's on-screen rect (DraggableWindow's tool menu, snap menu) can
+   * re-measure and follow. SettingsPanel positions itself the same way (via
+   * widgetRef.getBoundingClientRect()) but never listened for that event, so
+   * panning while settings are open left the panel visually stranded at its
+   * pre-pan screen position instead of following the widget.
+   */
+  it('re-measures its position on a board-pan event', () => {
+    // rect "moves" like a pan would, while widget.x/y (world coords) stay put.
+    let rect = {
+      left: 0,
+      top: 100,
+      right: 200,
+      bottom: 250,
+      width: 200,
+      height: 150,
+      x: 0,
+      y: 100,
+      toJSON: () => ({}),
+    };
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+      () => rect
+    );
+
+    act(() => {
+      render(<Harness />);
+    });
+
+    const settingsContent = screen.getByTestId('settings-content');
+    const panelEl = findFixedAncestor(settingsContent);
+    expect(panelEl).not.toBeNull();
+    if (!panelEl) return;
+
+    // Pre-pan: panel sits to the right of the widget's screen rect.
+    expect(parseFloat(panelEl.style.left)).toBe(212); // 200 (rect.right) + 12
+
+    // Pan moves the widget 300px right on screen; widget.x/y are untouched.
+    rect = { ...rect, left: 300, right: 500 };
+    act(() => {
+      window.dispatchEvent(new CustomEvent('board-pan'));
+    });
+
+    // With the fix: the panel re-measures and follows the widget.
+    // With the bug: nothing listens for 'board-pan', so left stays at 212 —
+    // the panel is now floating over empty canvas, detached from the widget.
+    expect(parseFloat(panelEl.style.left)).toBe(512); // 500 (new rect.right) + 12
+  });
+
+  /**
    * Regression: pressing Escape inside a form field (input, textarea, select)
    * inside the settings panel must NOT close the panel.
    *
