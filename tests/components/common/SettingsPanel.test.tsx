@@ -397,17 +397,7 @@ describe('SettingsPanel', () => {
     expect(leftValue).not.toBe(312);
   });
 
-  /**
-   * Regression: panning the board canvas (drag on empty space) translates the
-   * widget surface via a CSS transform WITHOUT changing widget.x/y — those
-   * are world coordinates, pan is purely visual. DashboardView dispatches a
-   * `board-pan` window event on every pan frame so floating popovers anchored
-   * to a widget's on-screen rect (DraggableWindow's tool menu, snap menu) can
-   * re-measure and follow. SettingsPanel positions itself the same way (via
-   * widgetRef.getBoundingClientRect()) but never listened for that event, so
-   * panning while settings are open left the panel visually stranded at its
-   * pre-pan screen position instead of following the widget.
-   */
+  // Regression: panning (CSS transform, doesn't touch widget.x/y) must re-measure the panel's position, mirroring DraggableWindow's board-pan listener.
   it('re-measures its position on a board-pan event', () => {
     // rect "moves" like a pan would, while widget.x/y (world coords) stay put.
     let rect = {
