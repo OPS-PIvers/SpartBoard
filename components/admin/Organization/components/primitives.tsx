@@ -8,6 +8,26 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
+// Capture-phase + stopImmediatePropagation to pre-empt AdminSettings' bubble-phase document listener; mirrors captureEscape in components/common/Modal.tsx.
+// Constraint: first-mounted wins, so nesting two of these would dismiss the outer one — no call site does today.
+function useCaptureEscape(active: boolean, onEscape: () => void): void {
+  const onEscapeRef = useRef(onEscape);
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync to avoid stale-closure without re-subscribing the effect (CLAUDE.md pattern)
+  onEscapeRef.current = onEscape;
+
+  useEffect(() => {
+    if (!active) return undefined;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopImmediatePropagation();
+      onEscapeRef.current();
+    };
+    window.addEventListener('keydown', handler, { capture: true });
+    return () =>
+      window.removeEventListener('keydown', handler, { capture: true });
+  }, [active]);
+}
+
 // Color palette for badges and role accents.
 export type AccentColor =
   | 'emerald'
@@ -419,16 +439,13 @@ export const RowMenu: React.FC<{ items: MenuItem[]; label?: string }> = ({
       if (triggerRef.current?.contains(target)) return;
       setOpen(false);
     };
-    const onEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
     document.addEventListener('mousedown', onDocClick);
-    document.addEventListener('keydown', onEsc);
     return () => {
       document.removeEventListener('mousedown', onDocClick);
-      document.removeEventListener('keydown', onEsc);
     };
   }, [open]);
+
+  useCaptureEscape(open, () => setOpen(false));
 
   return (
     <div>
@@ -594,16 +611,13 @@ export const CellPopover: React.FC<{
       if (anchorRef.current?.contains(target)) return;
       onClose();
     };
-    const onEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
     document.addEventListener('mousedown', onDocClick);
-    document.addEventListener('keydown', onEsc);
     return () => {
       document.removeEventListener('mousedown', onDocClick);
-      document.removeEventListener('keydown', onEsc);
     };
   }, [open, onClose, anchorRef]);
+
+  useCaptureEscape(open, onClose);
 
   if (!open || !pos || typeof document === 'undefined') return null;
   return createPortal(
@@ -770,14 +784,7 @@ export const LocalModal: React.FC<{
   footer?: React.ReactNode;
   size?: 'md' | 'lg' | 'xl';
 }> = ({ isOpen, onClose, title, icon, children, footer, size = 'md' }) => {
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    const onEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onEsc);
-    return () => document.removeEventListener('keydown', onEsc);
-  }, [isOpen, onClose]);
+  useCaptureEscape(isOpen, onClose);
   if (!isOpen) return null;
   const widthClass =
     size === 'xl' ? 'max-w-4xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-lg';
