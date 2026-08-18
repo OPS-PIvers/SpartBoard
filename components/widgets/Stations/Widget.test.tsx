@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, fireEvent } from '@testing-library/react';
 import { StationsWidget } from './Widget';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, StationsConfig } from '@/types';
@@ -112,5 +112,40 @@ describe('StationsWidget', () => {
     expect(
       await within(readingZone).findByText('John Doe')
     ).toBeInTheDocument();
+  });
+
+  it('can unassign a student whose assignment only exists under the legacy name key', async () => {
+    const widget = createWidget({
+      assignments: { 'John Doe': 'st-a' },
+    });
+
+    render(<StationsWidget widget={widget} />);
+
+    const chip = await screen.findByText('John Doe');
+    fireEvent.click(chip);
+
+    const [, updatePayload] = mockDashboardContext.updateWidget.mock.calls.at(
+      -1
+    ) as [string, { config: StationsConfig }];
+    expect(updatePayload.config.assignments).not.toHaveProperty('John Doe');
+    expect(updatePayload.config.assignments.s1).toBeNull();
+  });
+
+  it('persists an assignment write for custom-roster students (id equals name in custom mode)', async () => {
+    const widget = createWidget({
+      rosterMode: 'custom',
+      customRoster: ['Alex Kim'],
+      assignments: { 'Alex Kim': 'st-a' },
+    });
+
+    render(<StationsWidget widget={widget} />);
+
+    const chip = await screen.findByText('Alex Kim');
+    fireEvent.click(chip);
+
+    const [, updatePayload] = mockDashboardContext.updateWidget.mock.calls.at(
+      -1
+    ) as [string, { config: StationsConfig }];
+    expect(updatePayload.config.assignments).toHaveProperty('Alex Kim', null);
   });
 });
