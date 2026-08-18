@@ -2653,3 +2653,54 @@ _Automated nightly review by claude-opus-4-6_
   - Standing recommendation from prior runs, still open: #2395's inline threads remain unresolved in GitHub's UI despite each carrying a resolving reply, which makes the PR look more contested than it is. Bulk-resolving them would let a genuine new finding stand out.
   - Tooling: this environment exposes GitHub via the MCP server (no `gh` CLI); all PR list/diff/comment/review operations used `mcp__github__*` equivalents of the prescribed `gh` commands.
   - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); CI on Node 24 remains the authoritative gate.
+
+---
+
+## 2026-08-18
+
+- PRs reviewed: **15** open PRs (all authored by OPS-PIvers, all drafts, all targeting `dev-paul`). No head branch was `main` or matched `dev-*`, so all 15 were in scope.
+  - #2491 — docs(routines): log nightly debugger run 43 (head `nightly/debugger-log-2026-08-18`) — docs-only, `docs/routines/debugger.md` (+21/−5); adds a mandatory Phase 0 collision check, 5 run rows, strikes 2 backlog rows, opens 1.
+  - #2490 — fix(functions): bound gcPlcOrphans version-overflow sweep per group (head `nightly/build-tooling-2026-08-18`) — replaces the unbounded `.get()` + in-memory sort with `orderBy('version','desc').offset(…).limit(MAX_VERSIONS_SCAN_PER_GROUP)`; +146 test lines.
+  - #2488 — fix(dashboard): unify beta-widget access check (head `nightly/state-data-2026-08-18`) — extracts `utils/betaAccess.ts` as the single source of truth for `AuthContext` and `DashboardContext.getDefaultDockTools`; +252-line test file.
+  - #2487 — fix(settings-panel): reposition on board pan (head `nightly/dashboard-layout-2026-08-18`) — subscribes `SettingsPanel` to the existing `board-pan` window event; +6 source lines, +42 test lines.
+  - #2486 — fix(Stations): key assignments by roster student id (head `nightly/widgets-2026-08-18`) — id-keyed `assignments` with a legacy name-key read fallback and `coalesceLegacyKeys` migration inside `persistAssignments`; +151 test lines.
+  - #2485 — fix(deps): bump tar override to ^7.5.19 (head `deps/tar-cve-fix`) — `package.json` + `pnpm-lock.yaml`, resolving `tar@7.5.6` → `7.5.22`.
+  - #2484 — pr-review: log the 2026-08-17 automated PR review run (head `claude/pensive-bell-kb3ftt`) — docs-only, this file (+40).
+  - #2483 — docs(routines): log nightly debugger run 42 (head `nightly/debugger-log-2026-08-17`) — 2 new commits: PR-link casing fix, and un-striking two backlog rows after #2478/#2482 closed unmerged.
+  - #2481 — fix(admin): stop Organization panel popovers from closing Admin Settings on Escape (head `nightly/admin-config-2026-08-17`) — 3 new commits.
+  - #2480 — fix(imageWorker): check the alpha byte when trimming (head `nightly/state-data-2026-08-17`) — 1 new commit adding flood-fill → trim end-to-end coverage.
+  - #2479 — fix(layout): use local-date helper for download filenames (head `nightly/dashboard-layout-2026-08-17`) — unchanged since the 2026-08-17 review.
+  - #2477 — test(functions): cover transcribeVideoWithGemini + generateGuidedLearning (head `scheduled-tasks`) — 7 new commits: 2 assertion-quality fixes, 5 unrelated Tuesday audit-journal entries.
+  - #2476 — docs(routines): log nightly unifier runs 59-60 (head `nightly/unifier-log-2026-08-17`) — 2 new commits.
+  - #2475 — fix(a11y): pair MaterialsWidget's settings labels with their controls (head `nightly/unify-settings-labels-2026-08-17`) — 1 new commit adding the "Title Text" `htmlFor` pairing + a 72-line test file.
+  - #2395 — feat(ai): move Gemini to Vertex AI (head `claude/quirky-ritchie-wghdl3`) — 2 new commits: a client/server deprecation-parity test and a comment correction. Open 13 days.
+- Comments processed: **5 inline threads examined across 2 PRs — 0 fixed by this run, 0 new replies.**
+  - 13 of the 15 PRs carried zero inline review comments.
+  - #2481 (1 thread, already resolved): the multi-line-comment convention finding was fixed in `fb29f65` before this run started.
+  - #2395 (17 threads, 4 unresolved): all 4 already carry an author reply that either resolves the finding or deliberately defers it to the pre-merge deploy gate (Vertex YouTube constraints ×2, the `KNOWN_GEMINI_MODELS` picker, and the 2.5 global-endpoint question — the last of which was answered in `fca3bf0`). No re-reply posted, per the frugality directive; the substance is carried in this run's review instead.
+  - Both actionable findings from my own 2026-08-17 PR-level reviews had **already been fixed on-branch before this run started**, so no automated edit was warranted: #2483's lowercase `ops-pivers/spartboard` PR links (fixed in `d9d21d5`) and #2481's missing `RowMenu` DOM close-assertion (fixed in `0206a58`). #2480's and #2477's test-coverage notes were likewise addressed on-branch (`3065bf7`, `b757065`/`b65e024`).
+- Fixes pushed: **0**. No push was made to any PR head branch this run — nothing actionable was left unaddressed to fix.
+- Reviews posted: **15** — one structured review per open PR, each carrying the automated-review disclaimer and the Claude Code attribution footer. Merge-readiness calls:
+  - Ready: #2475, #2476, #2477, #2479, #2480, #2481, #2483, #2484, #2485, #2487, #2488.
+  - Ready with minor notes: #2486, #2490, #2491.
+  - Needs changes / hold (draft): #2395 — unchanged from the prior nine rounds; blocked on human GCP-console verification, not on code.
+- Local verification run for this review (Node 22; CI on Node 24 remains authoritative):
+  - #2486 — `vitest run components/widgets/Stations/` → 4 files / 31 tests pass; `tsc --noEmit` clean.
+  - #2488 — `vitest run context/DashboardContext.betaDockDefaults.test.tsx` → 3 pass; `tsc --noEmit` clean.
+  - #2487 — `vitest run tests/components/common/SettingsPanel.test.tsx` → 9 pass.
+  - #2490 — `vitest run src/gcPlcOrphans.test.ts` (functions) → 38 pass.
+  - #2477 — `vitest run src/index.test.ts` (functions) → 90 pass.
+  - #2485 — `pnpm install --frozen-lockfile` clean; lockfile resolves a single `tar@7.5.22` across both transitive paths.
+  - #2480 — `vitest run utils/imageWorker.test.ts` → 4 pass. #2475 — `vitest run components/widgets/MaterialsWidget/` → 7 pass. #2395 — `vitest run tests/utils/geminiModelDeprecationParity.test.ts` → 21 pass.
+- New findings this run (none blocking, all reported on the relevant PR):
+  - **#2483 ↔ #2491 conflict, confirmed not theoretical.** Both edit `docs/routines/debugger.md`; #2483's `76a79ce` un-strikes the two backlog rows #2491 strikes. `git merge-tree --write-tree` reports `CONFLICT (content)`. Merging #2483 first and resolving toward #2491's struck rows loses the least content. (Supersedes the #2483/#2482 merge-order note from 2026-08-17, now moot — #2482 closed unmerged.)
+  - **#2479: a fourth, untracked instance of the UTC-date filename anti-pattern** — `components/widgets/PollWidget/Settings.tsx:141`. #2483's backlog row names only `components/admin/Announcements/Widget.tsx`; grepping `docs/routines/debugger.md` for the PollWidget call site returns nothing. Same feature area as the tracked one (both are poll-results CSV exports), so the two exports can disagree about the date. The row should read "two remaining instances".
+  - **#2490: `orderBy('version')` silently excludes version docs missing the field.** The replaced code deliberately handled malformed docs ("Non-numeric ids sort last … so malformed snapshots are pruned first"); that intent is dropped. `firestore.rules:1320` enforces `version is int` on client creates only. Low blast radius (a leaked doc, never a wrong deletion) — but untested, and notably the new test double already models the exclusion semantics without any case exercising it.
+  - **#2486: one-time migration artifact in the exact case the PR fixes.** For two students sharing a display name, both resolve the single legacy key pre-migration; on the first write `coalesceLegacyKeys` assigns it to whichever is iterated first and the other drops to unassigned. Unavoidable and strictly better than the collision, but visible to affected teachers and untested. Also: no test exercises coalescing via `handleRotate`/`handleResetStation`, which is the specific claim that made this the stronger fix over the closed #2478.
+  - **#2488: the LO2 harmonization rationale was deleted, not relocated.** The removed `AuthContext` comment explained why the legacy `superAdmins[]` list is still an accepted source alongside `roleId: 'super_admin'`; `utils/betaAccess.ts` carries no equivalent, and it is exactly the kind of clause a future reader would simplify away.
+  - **#2477: the branch-hygiene risk flagged on 2026-08-17 has materialized.** Five unrelated Tuesday audit-journal commits have landed on `scheduled-tasks` since that review; the PR's file list no longer matches its title, and will keep drifting while it stays open.
+- Notes:
+  - This log commit is on the designated `claude/pensive-bell-h0ncg4` branch, **stacked on #2484's head** rather than branched fresh from `origin/dev-paul`. `pr-review-log.md` is append-only with a nightly writer, so a fresh-from-`dev-paul` branch would guarantee a trailing-line conflict with #2484 while it remains open; stacking makes the append clean in either merge order, and if #2484 is closed unmerged its entry is preserved rather than lost. Continues the standing precedent of keeping this log **off** `scheduled-tasks`, which is again an actively-open PR head (#2477).
+  - #2395's 3 remaining unresolved threads: recommendation to bulk-resolve is now in its third consecutive run. Each carries a resolving reply, so the PR reads as far more contested than it is, and a genuinely new finding would be buried.
+  - Tooling: this environment exposes GitHub via the MCP server (no `gh` CLI); all PR list/diff/comment/review operations used `mcp__github__*` equivalents of the prescribed `gh` commands.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); CI on Node 24 remains the authoritative gate.
