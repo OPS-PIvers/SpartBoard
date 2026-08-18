@@ -148,4 +148,81 @@ describe('StationsWidget', () => {
     ) as [string, { config: StationsConfig }];
     expect(updatePayload.config.assignments).toHaveProperty('Alex Kim', null);
   });
+
+  it('coalesces a legacy name-keyed entry when Rotate touches it (not just drag/click)', async () => {
+    const widget = createWidget({
+      assignments: { 'John Doe': 'st-a' },
+    });
+
+    render(<StationsWidget widget={widget} />);
+    await screen.findByText('John Doe');
+
+    fireEvent.click(screen.getByTitle('Rotate clockwise'));
+
+    const [, updatePayload] = mockDashboardContext.updateWidget.mock.calls.at(
+      -1
+    ) as [string, { config: StationsConfig }];
+    // Rotated from st-a to st-b, and re-keyed to the roster id in the same write.
+    expect(updatePayload.config.assignments).not.toHaveProperty('John Doe');
+    expect(updatePayload.config.assignments.s1).toBe('st-b');
+  });
+
+  it('coalesces a legacy name-keyed entry when Reset Station touches it', async () => {
+    const widget = createWidget({
+      assignments: { 'John Doe': 'st-a' },
+    });
+
+    render(<StationsWidget widget={widget} />);
+    await screen.findByText('John Doe');
+
+    fireEvent.click(screen.getByTitle('Reset students in Reading'));
+
+    const [, updatePayload] = mockDashboardContext.updateWidget.mock.calls.at(
+      -1
+    ) as [string, { config: StationsConfig }];
+    expect(updatePayload.config.assignments).not.toHaveProperty('John Doe');
+    expect(updatePayload.config.assignments.s1).toBeNull();
+  });
+
+  it('pins the duplicate-name migration outcome: one shared legacy key resolves to exactly one roster student', () => {
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      rosters: [
+        {
+          id: 'roster-1',
+          name: 'Class 1A',
+          students: [
+            { id: 's1', firstName: 'Emma', lastName: 'Smith' },
+            { id: 's2', firstName: 'Emma', lastName: 'Smith' },
+          ],
+        },
+      ],
+    });
+
+    const widget = createWidget({
+      assignments: { 'Emma Smith': 'st-a' },
+    });
+
+    render(<StationsWidget widget={widget} />);
+
+    // Before any write, the legacy key resolves for BOTH same-named students.
+    const readingZone = screen.getByTestId('station-zone-st-a');
+    expect(within(readingZone).getAllByText('Emma Smith')).toHaveLength(2);
+
+    // Unassigning the first-rendered chip (roster order: s1 first) triggers
+    // the write that migrates/collapses the shared legacy key.
+    fireEvent.click(within(readingZone).getAllByText('Emma Smith')[0]);
+
+    const [, updatePayload] = mockDashboardContext.updateWidget.mock.calls.at(
+      -1
+    ) as [string, { config: StationsConfig }];
+    expect(updatePayload.config.assignments).not.toHaveProperty('Emma Smith');
+    // s1 (first-iterated) deterministically wins the migration and is
+    // explicitly unassigned by this click; s2 has no entry at all (the
+    // ambiguous legacy value could not be attributed to it) and falls back
+    // to the unassigned bucket rather than silently double-counting toward
+    // station capacity.
+    expect(updatePayload.config.assignments.s1).toBeNull();
+    expect(updatePayload.config.assignments).not.toHaveProperty('s2');
+  });
 });
