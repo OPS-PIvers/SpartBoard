@@ -7,6 +7,7 @@ import {
   Info,
   AlertTriangle,
 } from 'lucide-react';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 // Color palette for badges and role accents.
 export type AccentColor =
@@ -420,7 +421,11 @@ export const RowMenu: React.FC<{ items: MenuItem[]; label?: string }> = ({
       setOpen(false);
     };
     const onEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(e)) return;
+      // Portalled outside any `.widget` ancestor — stop Escape reaching DashboardView's global handler (see ToolDockItem).
+      e.stopPropagation();
+      setOpen(false);
     };
     document.addEventListener('mousedown', onDocClick);
     document.addEventListener('keydown', onEsc);
@@ -595,7 +600,11 @@ export const CellPopover: React.FC<{
       onClose();
     };
     const onEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(e)) return;
+      // Portalled outside any `.widget` ancestor — stop Escape reaching DashboardView's global handler (see ToolDockItem).
+      e.stopPropagation();
+      onClose();
     };
     document.addEventListener('mousedown', onDocClick);
     document.addEventListener('keydown', onEsc);
@@ -773,7 +782,11 @@ export const LocalModal: React.FC<{
   useEffect(() => {
     if (!isOpen) return undefined;
     const onEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(e)) return;
+      // Rendered over live dashboard widgets — stop Escape reaching DashboardView's global handler (see ToolDockItem).
+      e.stopPropagation();
+      onClose();
     };
     document.addEventListener('keydown', onEsc);
     return () => document.removeEventListener('keydown', onEsc);
