@@ -1,19 +1,4 @@
-/**
- * Regression test: `RowMenu`, `CellPopover`, and `LocalModal`
- * (components/admin/Organization/components/primitives.tsx) closed on
- * Escape but never called stopPropagation(). All three are rendered inside
- * AdminSettings' full-screen overlay while live dashboard widgets sit behind
- * it (opened via the Sidebar gear icon), and are portalled outside any
- * `.widget` ancestor. The unstopped keydown bubbled to DashboardView's
- * global `window`-level Escape handler, which falls back to minimizing the
- * topmost dashboard widget — a completely unrelated widget disappearing
- * just because an admin dismissed a row menu, cell popover, or nested
- * modal. Same recurring bug class fixed 13+ times elsewhere (ToolDockItem,
- * ClassRosterMenu, ActiveClassChip, FolderItem, WidgetLibrary, etc.).
- *
- * FIX: all three handlers now call event.stopPropagation() before closing,
- * matching the established sibling pattern.
- */
+// Regression: RowMenu/CellPopover/LocalModal Escape handlers must stopPropagation() so it doesn't leak to DashboardView's global handler.
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
