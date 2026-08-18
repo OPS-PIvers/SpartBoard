@@ -3206,9 +3206,11 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
     expect(err).toBeInstanceOf(Error);
     // The gate rejects with HttpsError('permission-denied'), which this
     // file's HttpsError mock surfaces as `name`. Anything else means the
-    // caller got through the gate.
+    // caller got through the gate. (Deliberately not pinning the exact
+    // downstream error — it's a `TypeError` only because this mock's
+    // `ai_usage` collection doesn't stub `.doc()`, an artifact of mock
+    // completeness rather than handler behavior.)
     expect(err?.name).not.toBe('permission-denied');
-    expect(err?.name).toBe('TypeError');
     expect(generateContentMock).not.toHaveBeenCalled();
   });
 
