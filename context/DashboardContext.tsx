@@ -744,14 +744,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     | WidgetType
     | InternalToolType
   )[] => {
-    /**
-     * Checks whether a given FeaturePermission record is accessible to the
-     * current user (enabled, correct access level, in beta list if required).
-     * Delegates the beta check to the shared `isBetaUser` helper — the same
-     * one `AuthContext.canAccessWidget` uses — so this stays in lockstep
-     * with the real gate instead of re-deriving its own (previously
-     * case-sensitive, role-list-blind) copy.
-     */
+    // Checks whether a FeaturePermission is accessible to the current user; beta check delegates to the shared isBetaUser helper.
     const isPermAccessible = (perm: FeaturePermission): boolean => {
       const isEnabled = perm.enabled !== false;
       const isAccessibleByRole =

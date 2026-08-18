@@ -1,13 +1,4 @@
-/**
- * Shared beta-access check for `FeaturePermission.accessLevel === 'beta'`.
- *
- * Single source of truth so every consumer (AuthContext.canAccessWidget /
- * canAccessFeature, DashboardContext.getDefaultDockTools) grants beta access
- * identically. A user is a beta user if their (case-insensitively compared)
- * email appears in the permission's own `betaUsers` list, OR in the account-
- * wide `userRoles.betaTeachers` / `userRoles.superAdmins` lists, OR they hold
- * the `super_admin` role.
- */
+// Single source of truth for beta-widget access — shared by AuthContext and DashboardContext.
 import type { UserRolesConfig } from '@/types';
 
 export function isBetaUser(

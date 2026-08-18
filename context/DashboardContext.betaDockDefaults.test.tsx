@@ -1,23 +1,4 @@
-/**
- * Regression coverage for `getDefaultDockTools` / `resetDockToDefaults`'s
- * beta-access check.
- *
- * `DashboardContext` re-derives "is this beta-gated widget accessible to the
- * current user" independently of `AuthContext.canAccessWidget`, and the two
- * had drifted: the real gate (`AuthContext.isBetaUser`) compares emails
- * case-insensitively and also accepts `userRoles.betaTeachers` /
- * `userRoles.superAdmins` / `roleId === 'super_admin'` as beta-access
- * sources, while `DashboardContext`'s copy only did a case-SENSITIVE
- * `.includes()` against the permission's own `betaUsers` array. A beta user
- * who could access a widget via `canAccessWidget()` (e.g. an admin-lowercased
- * `betaUsers` entry against a mixed-case sign-in email, or account-wide
- * `betaTeachers` access) would silently never get that widget seeded into
- * their default dock, nor restored via the "Reset to defaults" action.
- *
- * Mocking strategy mirrors `context/toolVisibility.test.tsx` (the sibling
- * DashboardProvider test harness), with `useAuth` backed by a `vi.fn()` so
- * each test can drive its own user/permission fixture.
- */
+// Regression coverage for getDefaultDockTools/resetDockToDefaults's beta-access check staying in sync with AuthContext.isBetaUser.
 import React, { useEffect } from 'react';
 import { render, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';

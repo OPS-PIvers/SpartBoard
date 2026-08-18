@@ -2283,10 +2283,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, []);
 
-  // Helper for checking if a user has beta access. Delegates to the shared
-  // `utils/betaAccess.isBetaUser` (single source of truth — see LO2
-  // harmonization note there) so every consumer of beta-gated permissions
-  // agrees on who counts as a beta user.
+  // Helper for checking if a user has beta access — delegates to the shared utils/betaAccess.isBetaUser.
   const isBetaUser = useCallback(
     (betaUsers: string[], email: string | null | undefined) =>
       isBetaUserShared(betaUsers, email, userRoles, roleId),
