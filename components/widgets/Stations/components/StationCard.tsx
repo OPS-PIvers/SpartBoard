@@ -12,8 +12,8 @@ import { studentChipClass, studentChipStyle } from './studentChip';
 
 interface StationCardProps {
   station: Station;
-  members: string[];
-  onUnassign: (student: string) => void;
+  members: { id: string; name: string }[];
+  onUnassign: (studentId: string) => void;
   onResetStation: () => void;
   isFull: boolean;
   /** Active typography class (from `getFontClass`) inherited from widget config. */
@@ -76,6 +76,7 @@ export const StationCard: React.FC<StationCardProps> = ({
   return (
     <DroppableZone
       id={`station:${station.id}`}
+      data-testid={`station-zone-${station.id}`}
       className={`relative rounded-2xl border-2 border-dashed flex transition-all group h-full overflow-hidden ${fontClassName}`}
       style={{
         borderColor: accent,
@@ -259,10 +260,10 @@ export const StationCard: React.FC<StationCardProps> = ({
             >
               {members.map((student) => (
                 <DraggableStudent
-                  key={student}
-                  id={student}
-                  name={student}
-                  onClick={() => onUnassign(student)}
+                  key={student.id}
+                  id={student.id}
+                  name={student.name}
+                  onClick={() => onUnassign(student.id)}
                   className={`${studentChipClass} justify-center text-center`}
                   style={{
                     // Override studentChipStyle's widget-relative cqmin values

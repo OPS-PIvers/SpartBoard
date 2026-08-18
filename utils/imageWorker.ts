@@ -45,7 +45,11 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
  * Trims transparent whitespace from image data.
  * Returns the bounds of the non-transparent area.
  */
-function trimImageData(data: Uint8ClampedArray, width: number, height: number) {
+export function trimImageData(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number
+) {
   let minX = width;
   let minY = height;
   let maxX = 0;
@@ -57,10 +61,12 @@ function trimImageData(data: Uint8ClampedArray, width: number, height: number) {
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      // Check if alpha channel is non-zero
-      // In little-endian, alpha is the most significant byte (0xAA_BB_GG_RR)
-      // We just need to know if the entire pixel is NOT transparent
-      if (data32[y * width + x] !== 0) {
+      // Check if alpha channel is non-zero. In little-endian, alpha is the
+      // most significant byte (0xAA_BB_GG_RR), so isolate it with >>> 24 —
+      // checking the whole word (`!== 0`) is wrong whenever a transparent
+      // pixel still carries non-zero RGB (e.g. removeBackgroundFloodFill
+      // below zeroes only the alpha byte), which would count it as opaque.
+      if (data32[y * width + x] >>> 24 !== 0) {
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
         if (y < minY) minY = y;
@@ -93,7 +99,7 @@ function trimImageData(data: Uint8ClampedArray, width: number, height: number) {
 /**
  * Fallback background removal using flood fill from corners.
  */
-function removeBackgroundFloodFill(
+export function removeBackgroundFloodFill(
   data: Uint8ClampedArray,
   width: number,
   height: number,

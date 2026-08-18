@@ -53,6 +53,7 @@ import { hitTestObject } from '@/components/widgets/DrawingWidget/hitTest';
 import { Button } from '@/components/common/Button';
 import { extractTextWithGemini } from '@/utils/ai';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { getLocalIsoDate } from '@/utils/localDate';
 import {
   DrawableObject,
   ImageObject,
@@ -504,7 +505,8 @@ export const AnnotationOverlay: React.FC = () => {
       const dataUrl = await capturePng();
       if (!dataUrl) return;
       const link = document.createElement('a');
-      link.download = `Annotation-${new Date().toISOString().split('T')[0]}.png`;
+      // Local date, not UTC (toISOString()) — see utils/localDate.ts.
+      link.download = `Annotation-${getLocalIsoDate()}.png`;
       link.href = dataUrl;
       link.click();
       addToast('Annotation downloaded!', 'success');

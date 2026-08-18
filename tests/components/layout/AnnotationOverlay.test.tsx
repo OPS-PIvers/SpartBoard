@@ -4,6 +4,7 @@ import React from 'react';
 import { AnnotationOverlay } from '@/components/layout/AnnotationOverlay';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { toPng } from 'html-to-image';
 import type {
   AnnotationState,
   DashboardContextValue,
@@ -24,6 +25,26 @@ vi.mock('@/hooks/useGoogleDrive', () => ({
 // html-to-image is only used by handlers we don't exercise here — stub so the
 // import doesn't load its canvas-heavy module graph under jsdom.
 vi.mock('html-to-image', () => ({ toPng: vi.fn().mockResolvedValue('') }));
+
+// Controllable getLocalIsoDate for the UTC/local-date-divergence regression
+// test below — see the matching mock in DraggableWindow.test.tsx for the
+// same pattern and rationale (TZ is pinned to 'UTC' in this test env, so real
+// local getters can never diverge from toISOString(); the helper itself must
+// be mocked to simulate what a non-UTC teacher would see).
+const { mockGetLocalIsoDate, defaultGetLocalIsoDate } = vi.hoisted(() => ({
+  mockGetLocalIsoDate: vi.fn<() => string>(),
+  defaultGetLocalIsoDate: { current: (() => '') as () => string },
+}));
+
+vi.mock('@/utils/localDate', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/localDate')>();
+  defaultGetLocalIsoDate.current = actual.getLocalIsoDate;
+  mockGetLocalIsoDate.mockImplementation(actual.getLocalIsoDate);
+  return {
+    ...actual,
+    getLocalIsoDate: mockGetLocalIsoDate,
+  };
+});
 // The image-insertion hook does its own I/O; stub it so the overlay mounts
 // cleanly without needing a Firebase auth user or storage upload pipeline.
 vi.mock('@/components/widgets/DrawingWidget/useImageInsertion', () => ({
@@ -114,6 +135,10 @@ describe('AnnotationOverlay', () => {
     const root = document.createElement('div');
     root.id = 'dashboard-root';
     document.body.appendChild(root);
+    // Default: getLocalIsoDate returns the real local date so existing tests
+    // (which don't care about the download filename) are unaffected.
+    mockGetLocalIsoDate.mockReset();
+    mockGetLocalIsoDate.mockImplementation(defaultGetLocalIsoDate.current);
   });
 
   afterEach(() => {
@@ -223,5 +248,43 @@ describe('AnnotationOverlay', () => {
     expect(removeAnnotationObject).toHaveBeenCalledWith('txt-erase-me');
     expect(updateAnnotationState).not.toHaveBeenCalled();
     expect(addAnnotationObject).not.toHaveBeenCalled();
+  });
+
+  // Regression: the "Download PNG" filename was built from
+  // `new Date().toISOString().split('T')[0]` — the UTC calendar date —
+  // instead of the teacher's local date. For every timezone west of UTC (all
+  // of the Americas), the last few hours of the local day fall on the *next*
+  // UTC date, so an annotation downloaded in the evening gets tomorrow's date
+  // baked into the filename. Fix: use the shared `getLocalIsoDate()` helper
+  // (utils/localDate.ts).
+  it('REGRESSION: downloaded annotation filename uses the local date, not the UTC date', async () => {
+    setupContext();
+    (toPng as Mock).mockResolvedValueOnce('data:image/png;base64,abc');
+    // A teacher in a UTC-negative zone in the evening: their local calendar
+    // date has not yet caught up to UTC's. getLocalIsoDate is mocked directly
+    // (rather than the system clock) so the assertion below is deterministic
+    // regardless of when this suite actually runs.
+    mockGetLocalIsoDate.mockReturnValue('2026-03-05');
+
+    const anchors: HTMLAnchorElement[] = [];
+    const realCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation((tag) => {
+      const el = realCreateElement(tag);
+      if (tag === 'a') anchors.push(el as HTMLAnchorElement);
+      return el;
+    });
+
+    const { getByTitle } = render(<AnnotationOverlay />);
+    fireEvent.click(getByTitle('Download PNG'));
+
+    await waitFor(() => {
+      expect(anchors.length).toBeGreaterThan(0);
+    });
+
+    // BUG: toISOString-based code names the file after today's real UTC date,
+    // not the mocked local date — this assertion fails on the pre-fix
+    // implementation and passes once the filename is sourced from
+    // getLocalIsoDate().
+    expect(anchors[0].download).toBe('Annotation-2026-03-05.png');
   });
 });

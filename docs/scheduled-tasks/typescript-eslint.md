@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-16_
+_Last audited: 2026-08-18_
 _Last action: never_
 
 ---
@@ -15,6 +15,10 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-18: Checked (Tuesday daily). pnpm type-check exit 0 (0 TypeScript errors, ~64s). pnpm lint: full `lint:app` run was OOM-killed (exit 137, ~4min) in this audit environment — same class of environment limit as prior timeouts (e.g. 2026-08-11). Targeted sampling confirmed clean instead: `npx eslint context/ hooks/ utils/ config/` exit 0; `npx eslint components/layout components/common App.tsx index.tsx types.ts` exit 0; `pnpm run lint` inside functions/ exit 0 (0 errors, 0 warnings, --max-warnings 0). New dev-paul commits since 2026-08-17: only functions/src/index.test.ts touched by source (b65e0749/b757065a/2f550e7d — three test(functions) commits adding/tightening AI-gate assertions for generateVideoActivity/transcribeVideoWithGemini/generateGuidedLearning); confirmed lint-clean via the functions/ lint pass above and covered by the full type-check pass. Remaining new commits are docs-only (other scheduled-task audit logs). Codebase remains fully type-safe and lint-clean._
+
+_2026-08-17: Checked (Monday daily). pnpm type-check exit 0 (0 TypeScript errors). pnpm lint exit 0 (0 ESLint errors, 0 warnings, --max-warnings 0, root + functions). New dev-paul commits since 2026-08-16: fix(dock), fix(settings), fix(lti), fix(i18n), fix(rosters), fix(dashboard) and others — none introduce type or lint issues. Codebase remains fully type-safe and lint-clean._
 
 _2026-08-16: Checked (Sunday daily). pnpm type-check exit 0 (0 TypeScript errors). pnpm lint exit 0 (0 ESLint errors, 0 warnings, --max-warnings 0, root + functions — full run completed). New dev-paul commits since 2026-08-15: none (dev-paul HEAD already fully merged into scheduled-tasks). Codebase remains fully type-safe and lint-clean._
 

@@ -49,6 +49,7 @@ import { SNAP_LAYOUTS, SnapZone } from '@/config/snapLayouts';
 import { POSITION_AWARE_WIDGETS } from '@/config/widgetDefaults';
 import { calculateSnapBounds, SNAP_LAYOUT_CONSTANTS } from '@/utils/layoutMath';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { getLocalIsoDate } from '@/utils/localDate';
 import { clampWidgetToWorld, getWorldBounds } from '@/utils/zoomPanMath';
 import { useScreenshot } from '@/hooks/useScreenshot';
 import { useWindowSize } from '@/hooks/useWindowSize';
@@ -597,8 +598,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const innerEdgeStripsCacheRef = useRef<NodeListOf<HTMLElement> | null>(null);
 
   // Auto-generate filename: "Classroom-[WidgetType]-[Date]"
-  // Use ISO format YYYY-MM-DD
-  const dateStr = new Date().toISOString().split('T')[0];
+  // Use local ISO format YYYY-MM-DD (NOT toISOString(), which is UTC-based and
+  // shows tomorrow's date for the last few hours of a teacher's local day in
+  // every UTC-negative timezone — see utils/localDate.ts).
+  const dateStr = getLocalIsoDate();
   const fileName = `Classroom-${widget.type.charAt(0).toUpperCase() + widget.type.slice(1)}-${dateStr}`;
 
   const handleScreenshotSuccess = useCallback(() => {
