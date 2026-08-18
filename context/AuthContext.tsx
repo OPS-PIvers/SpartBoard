@@ -78,6 +78,7 @@ import {
   stampLastActive,
 } from '@/utils/lastActiveThrottle';
 import { deriveUserTier, meetsMinTier } from '@/utils/userTier';
+import { isBetaUser as isBetaUserShared } from '@/utils/betaAccess';
 
 // The operator's own organization. Two narrow uses remain after dynamic
 // org resolution shipped:
@@ -2282,24 +2283,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, []);
 
-  // Helper for checking if a user has beta access
+  // Helper for checking if a user has beta access — delegates to the shared utils/betaAccess.isBetaUser.
   const isBetaUser = useCallback(
-    (betaUsers: string[], email: string | null | undefined) => {
-      const lowerEmail = email?.toLowerCase() ?? '';
-      return (
-        betaUsers.some((e) => e.toLowerCase() === lowerEmail) ||
-        (userRoles?.betaTeachers?.some((e) => e.toLowerCase() === lowerEmail) ??
-          false) ||
-        // LO2 harmonization: super admins get beta access from EITHER source —
-        // the legacy admin_settings/user_roles.superAdmins[] list OR a member
-        // doc with roleId 'super_admin'. The legacy list is KEPT as an
-        // additional accepted source (a Paul-gated migration retires it later);
-        // this mirrors OrganizationPanel.resolveActorRole, which reads both.
-        (userRoles?.superAdmins?.some((e) => e.toLowerCase() === lowerEmail) ??
-          false) ||
-        roleId === 'super_admin'
-      );
-    },
+    (betaUsers: string[], email: string | null | undefined) =>
+      isBetaUserShared(betaUsers, email, userRoles, roleId),
     [userRoles, roleId]
   );
 
