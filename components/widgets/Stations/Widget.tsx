@@ -123,7 +123,10 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
     for (const station of orderedStations) byStation[station.id] = [];
     const unassigned: { id: string; name: string }[] = [];
     for (const student of activeRoster) {
-      const value = assignments[student.id] ?? assignments[student.name];
+      const value =
+        student.id in assignments
+          ? assignments[student.id]
+          : assignments[student.name];
       if (value && byStation[value]) {
         byStation[value].push(student);
       } else {
@@ -182,8 +185,11 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
       const studentId = String(active.id);
       const legacyName = activeRoster.find((s) => s.id === studentId)?.name;
       const currentAssignment =
-        assignments[studentId] ??
-        (legacyName ? assignments[legacyName] : undefined);
+        studentId in assignments
+          ? assignments[studentId]
+          : legacyName
+            ? assignments[legacyName]
+            : undefined;
       const overId = String(over.id);
 
       if (overId === UNASSIGNED_DROP_ID) {
