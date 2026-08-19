@@ -155,17 +155,30 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
       header={
         <div className="flex justify-between items-center w-full">
           <span className="font-bold text-gray-700">Vocabulary Review</span>
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center"
+            style={{ gap: 'min(8px, 2cqmin)' }}
+          >
             {isMemoryMode ? (
               <button
                 onClick={handleStartMemoryGame}
-                className="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-1 px-3 rounded-lg text-xs transition-colors"
+                className="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold rounded-lg transition-colors"
+                style={{
+                  paddingTop: 'min(4px, 1cqmin)',
+                  paddingBottom: 'min(4px, 1cqmin)',
+                  paddingLeft: 'min(12px, 3cqmin)',
+                  paddingRight: 'min(12px, 3cqmin)',
+                  fontSize: 'min(12px, 4.5cqmin)',
+                }}
               >
                 Start Over
               </button>
             ) : (
               <>
-                <span className="text-xs text-gray-600 font-medium">
+                <span
+                  className="text-gray-600 font-medium"
+                  style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+                >
                   Show Answers
                 </span>
                 <Toggle
@@ -180,8 +193,11 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
       }
       content={
         <div
-          className={`grid gap-4 h-full w-full ${fontClass}`}
-          style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+          className={`grid h-full w-full ${fontClass}`}
+          style={{
+            gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+            gap: 'min(16px, 4cqmin)',
+          }}
         >
           {isMemoryMode
             ? // MEMORY MODE GRID
