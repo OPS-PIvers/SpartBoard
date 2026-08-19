@@ -26,6 +26,11 @@ import {
   deleteDoc,
   deleteField,
   doc,
+  collection,
+  query,
+  where,
+  orderBy,
+  getDocs,
 } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-shared-boards';
@@ -464,6 +469,179 @@ describe('shared_boards — intendedMode immutability', () => {
         updatedAt: 2000,
         updatedBy: HOST_UID,
       })
+    );
+  });
+});
+
+// Regression: `allow list` is evaluated against the QUERY, not the matched
+// documents — only equality-pinned fields carry a value, others fall back to
+// the `.get()` default, and a range-filtered field errors outright, denying
+// the whole query even when it matches zero docs. Under the /subs directory
+// query the old get-side branches gave: `intendedMode != 'substitute'` false
+// (pinned), `originalAuthor` null (unpinned), `expiresAt` an evaluation error
+// (range-filtered) — so every non-admin, non-host sub was denied on /subs.
+describe('shared_boards — substitute directory list query', () => {
+  const dirQuery = (db: ReturnType<typeof asOronoTeacher>) =>
+    query(
+      collection(db, 'shared_boards'),
+      where('intendedMode', '==', 'substitute'),
+      where('buildingId', '==', 'ohs'),
+      where('expiresAt', '>', Date.now())
+    );
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), 'shared_boards/live-sub'),
+        subShareDoc()
+      );
+      await setDoc(
+        doc(ctx.firestore(), 'shared_boards/expired-sub'),
+        subShareDoc({ expiresAt: NOW_MS - 60_000 })
+      );
+    });
+  });
+
+  it('Orono sub can run the /subs directory query', async () => {
+    await assertSucceeds(getDocs(dirQuery(asOronoTeacher())));
+  });
+
+  it('the query still succeeds when it matches nothing', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await deleteDoc(doc(ctx.firestore(), 'shared_boards/live-sub'));
+    });
+    await assertSucceeds(getDocs(dirQuery(asOronoTeacher())));
+  });
+
+  it('non-Orono email is denied on the directory query', async () => {
+    await assertFails(getDocs(dirQuery(asStranger())));
+  });
+
+  it('a spoofed embedded-@ email is denied on the directory query', async () => {
+    const spoofedDb = testEnv
+      .authenticatedContext('spoofed-uid', {
+        email: 'x@evil.com@orono.k12.mn.us',
+      })
+      .firestore();
+    await assertFails(getDocs(dirQuery(spoofedDb)));
+  });
+
+  it('host can list their own substitute shares (cleanup sweep)', async () => {
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(asHost(), 'shared_boards'),
+          where('originalAuthor', '==', HOST_UID),
+          where('intendedMode', '==', 'substitute')
+        )
+      )
+    );
+  });
+
+  it('an unscoped list is denied for a non-admin', async () => {
+    await assertFails(
+      getDocs(query(collection(asOronoTeacher(), 'shared_boards')))
+    );
+  });
+});
+
+// The PLC board picker lists by `plcId` alone, so the list rule resolves
+// membership from that pinned value — non-members are denied.
+describe('shared_boards — PLC board list query', () => {
+  const PLC_ID = 'plc-list-test';
+  const MEMBER_UID = 'plc-member-uid';
+
+  const plcQuery = (db: ReturnType<typeof asOronoTeacher>) =>
+    query(
+      collection(db, 'shared_boards'),
+      where('plcId', '==', PLC_ID),
+      orderBy('updatedAt', 'desc')
+    );
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        memberUids: [MEMBER_UID],
+      });
+      await setDoc(
+        doc(ctx.firestore(), 'shared_boards/plc-board'),
+        seededShare({ plcId: PLC_ID })
+      );
+    });
+  });
+
+  it("a PLC member can list that PLC's shared boards", async () => {
+    const memberDb = testEnv
+      .authenticatedContext(MEMBER_UID, { email: 'member@orono.k12.mn.us' })
+      .firestore();
+    await assertSucceeds(getDocs(plcQuery(memberDb)));
+  });
+
+  it('a non-member is denied', async () => {
+    await assertFails(getDocs(plcQuery(asStranger())));
+  });
+});
+
+// Regression (PR #2503 review): the `allow list` plcId branch admits any member
+// of the queried PLC with no @orono/expiry gate, and cannot re-check
+// `intendedMode` — the PLC query doesn't pin that field, so in query scope it
+// resolves to the `.get()` default and the check silently passes (verified
+// against the emulator). The branch is therefore sound only while a substitute
+// share can never carry a plcId: create forbids it, and update must too.
+describe('shared_boards — substitute shares can never acquire a plcId', () => {
+  const PLC_ID = 'plc-attach-test';
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        memberUids: [HOST_UID, ADMIN_UID],
+      });
+      await setDoc(
+        doc(ctx.firestore(), `shared_boards/${SHARE_ID}`),
+        subShareDoc()
+      );
+    });
+  });
+
+  it('host cannot attach a plcId to their own substitute share', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), { plcId: PLC_ID })
+    );
+  });
+
+  it('admin cannot attach a plcId to a substitute share either', async () => {
+    await assertFails(
+      updateDoc(doc(asAdmin(), `shared_boards/${SHARE_ID}`), { plcId: PLC_ID })
+    );
+  });
+
+  it('host cannot attach a plcId alongside an otherwise-legal content edit', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), {
+        name: 'Renamed',
+        plcId: PLC_ID,
+      })
+    );
+  });
+
+  it('host can still edit content on a substitute share', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), {
+        name: 'Renamed',
+        widgets: [{ id: 'w1' }],
+      })
+    );
+  });
+
+  it('a non-substitute share can still be tagged into a PLC the host belongs to', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `shared_boards/${SHARE_ID}`),
+        seededShare()
+      );
+    });
+    await assertSucceeds(
+      updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), { plcId: PLC_ID })
     );
   });
 });
