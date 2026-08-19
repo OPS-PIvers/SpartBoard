@@ -154,7 +154,12 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
     <WidgetLayout
       header={
         <div className="flex justify-between items-center w-full">
-          <span className="font-bold text-gray-700">Vocabulary Review</span>
+          <span
+            className="font-bold text-gray-700"
+            style={{ fontSize: 'min(14px, 5cqmin)' }}
+          >
+            Vocabulary Review
+          </span>
           <div
             className="flex items-center"
             style={{ gap: 'min(8px, 2cqmin)' }}
