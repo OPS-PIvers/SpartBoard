@@ -26,6 +26,7 @@ import React, {
 import { createPortal } from 'react-dom';
 import { MoreHorizontal } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import type {
   AssignmentArchiveCardProps,
   LibraryBadgeTone,
@@ -94,6 +95,23 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
   // so `useClickOutside` doesn't re-subscribe DOM listeners every render.
   const ignoreRefs = useMemo(() => [menuRef], []);
   useClickOutside(wrapperRef, () => setOpen(false), ignoreRefs);
+
+  // Close on Escape and stop propagation — this menu is portalled to
+  // document.body, outside any `.widget` DraggableWindow ancestor, so an
+  // unhandled Escape here bubbles to DashboardView's global window-level
+  // handler, which falls back to minimizing the topmost widget.
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(e)) return;
+      e.stopPropagation();
+      setOpen(false);
+      buttonRef.current?.focus();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open]);
 
   // Measure trigger position when the menu opens so the portal renders
   // flush under it. `opacity-70` on archive cards creates a stacking
