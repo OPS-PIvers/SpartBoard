@@ -106,10 +106,7 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
 
   useClickOutside(ref, () => setOpen(false));
 
-  // Close on Escape and stop propagation — this menu is portalled to
-  // document.body, outside any `.widget` DraggableWindow ancestor, so an
-  // unhandled Escape here bubbles to DashboardView's global window-level
-  // handler, which falls back to minimizing the topmost widget.
+  // stopPropagation prevents this portalled menu's Escape from also minimizing the topmost widget.
   useEffect(() => {
     if (!open) return undefined;
     const handleKeyDown = (e: KeyboardEvent) => {
