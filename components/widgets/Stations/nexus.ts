@@ -5,6 +5,12 @@ import { WIDGET_PALETTE } from '@/config/colors';
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+/** Only trust a Random-group name→roster-id resolution when BOTH the source (Random) and target (Stations) widgets are in class-roster mode — else a freeform-typed Random name could collide with an unrelated real student's name. */
+export const shouldResolveRosterNames = (
+  sourceRosterMode: 'class' | 'custom' | undefined,
+  targetRosterMode: 'class' | 'custom' | undefined
+): boolean => sourceRosterMode !== 'custom' && targetRosterMode !== 'custom';
+
 /**
  * Convert Randomizer groups into a Stations widget config payload. Used by
  * the "Send Groups → Stations" button on the Randomizer settings panel; lives
@@ -30,12 +36,6 @@ const UUID_RE =
  *                        don't resolve (custom-roster mode, or no map passed)
  *                        fall back to the legacy name-keyed entry.
  */
-/** Only trust a Random-group name→roster-id resolution when BOTH the source (Random) and target (Stations) widgets are in class-roster mode — else a freeform-typed Random name could collide with an unrelated real student's name. */
-export const shouldResolveRosterNames = (
-  sourceRosterMode: 'class' | 'custom' | undefined,
-  targetRosterMode: 'class' | 'custom' | undefined
-): boolean => sourceRosterMode !== 'custom' && targetRosterMode !== 'custom';
-
 export const buildStationsFromRandomGroups = (
   groups: RandomGroup[],
   sharedGroups?: SharedGroup[],
