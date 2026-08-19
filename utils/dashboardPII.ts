@@ -30,9 +30,6 @@ export const PII_WIDGET_FIELDS = [
   'roster', // LunchCountConfig — student name array
   'customRoster', // StationsConfig — custom-mode roster name list
 ] as const;
-// NOTE: `assignments` (Stations/LunchCount/SeatingChart) is a further,
-// conditionally-PII field — see `isCustomModeAssignments` below. It isn't
-// listed here because it's only PII when `rosterMode === 'custom'`.
 
 export type PiiWidgetField = (typeof PII_WIDGET_FIELDS)[number] | 'assignments';
 
@@ -42,16 +39,7 @@ export type DashboardPiiSupplement = Record<
   Partial<Record<PiiWidgetField, unknown>>
 >;
 
-/**
- * Stations, LunchCount, and SeatingChart all persist an `assignments: Record<string, ...>`
- * map. In roster mode ('class') keys are opaque roster student ids — safe for
- * Firestore. In custom-list mode ('custom') there is no backing roster record,
- * so the widgets use the raw typed student name AS the key (see e.g.
- * `Stations/Widget.tsx`: "custom-list mode: id IS the name"). `assignments` is
- * therefore PII only when `rosterMode === 'custom'` — treating it as PII
- * unconditionally would strip the (non-PII, id-keyed) roster-mode map from
- * every save and break real-time sync for the common case.
- */
+// `assignments` is PII only in custom-list mode, where the map keys ARE the typed student names.
 function isCustomModeAssignments(config: Record<string, unknown>): boolean {
   return config.rosterMode === 'custom' && config.assignments !== undefined;
 }
