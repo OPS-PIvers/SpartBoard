@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { WidgetData, RandomConfig, RandomGroup, StationsConfig } from '@/types';
-import { buildStationsFromRandomGroups } from '@/components/widgets/Stations/nexus';
+import {
+  buildStationsFromRandomGroups,
+  shouldResolveRosterNames,
+} from '@/components/widgets/Stations/nexus';
 import { RosterModeControl } from '@/components/common/RosterModeControl';
 import { Toggle } from '@/components/common/Toggle';
 import { Card } from '@/components/common/Card';
@@ -103,13 +106,10 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
       );
       if (!ok) return;
     }
-    // Mirror the Stations widget's own active-roster resolution (Widget.tsx)
-    // so sent-over assignments land on the same roster id keys the widget
-    // itself writes — keeping raw student names out of the Firestore-bound
-    // assignments map for the common (non-custom-roster) case.
+    // Only trust name→id resolution when BOTH widgets are in class-roster mode, else a freeform Random name could collide with a real student's name.
     const stationsConfig = stationsWidget.config as StationsConfig;
     let rosterNameToId: Map<string, string> | undefined;
-    if (stationsConfig.rosterMode !== 'custom') {
+    if (shouldResolveRosterNames(rosterMode, stationsConfig.rosterMode)) {
       const targetRoster =
         rosters.find((r) => r.id === activeRosterId) ?? rosters[0];
       if (targetRoster) {

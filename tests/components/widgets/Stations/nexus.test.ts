@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { RandomGroup, SharedGroup } from '@/types';
-import { buildStationsFromRandomGroups } from '@/components/widgets/Stations/nexus';
+import {
+  buildStationsFromRandomGroups,
+  shouldResolveRosterNames,
+} from '@/components/widgets/Stations/nexus';
 
 // Realistic UUID v4 values matching what crypto.randomUUID() emits.
 const UUID_A = '550e8400-e29b-4000-a000-426614174000';
@@ -146,5 +149,27 @@ describe('buildStationsFromRandomGroups', () => {
     const groups: RandomGroup[] = [{ id: 'A', names: ['Alice Smith'] }];
     const { assignments } = buildStationsFromRandomGroups(groups);
     expect(assignments['Alice Smith']).toBeDefined();
+  });
+});
+
+describe('shouldResolveRosterNames', () => {
+  it('resolves when both source and target are class-roster mode', () => {
+    expect(shouldResolveRosterNames('class', 'class')).toBe(true);
+  });
+
+  it('does not resolve when the target Stations widget is custom-roster mode', () => {
+    expect(shouldResolveRosterNames('class', 'custom')).toBe(false);
+  });
+
+  it('does not resolve when the source Random widget is custom-roster mode, even if the target is class mode (regression: a freeform-typed name could collide with a real student)', () => {
+    expect(shouldResolveRosterNames('custom', 'class')).toBe(false);
+  });
+
+  it('does not resolve when both are custom-roster mode', () => {
+    expect(shouldResolveRosterNames('custom', 'custom')).toBe(false);
+  });
+
+  it('treats an undefined mode the same as its default ("class")', () => {
+    expect(shouldResolveRosterNames(undefined, undefined)).toBe(true);
   });
 });

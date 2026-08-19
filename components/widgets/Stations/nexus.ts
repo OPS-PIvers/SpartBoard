@@ -30,6 +30,12 @@ const UUID_RE =
  *                        don't resolve (custom-roster mode, or no map passed)
  *                        fall back to the legacy name-keyed entry.
  */
+/** Only trust a Random-group name→roster-id resolution when BOTH the source (Random) and target (Stations) widgets are in class-roster mode — else a freeform-typed Random name could collide with an unrelated real student's name. */
+export const shouldResolveRosterNames = (
+  sourceRosterMode: 'class' | 'custom' | undefined,
+  targetRosterMode: 'class' | 'custom' | undefined
+): boolean => sourceRosterMode !== 'custom' && targetRosterMode !== 'custom';
+
 export const buildStationsFromRandomGroups = (
   groups: RandomGroup[],
   sharedGroups?: SharedGroup[],
