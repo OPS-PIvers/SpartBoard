@@ -56,6 +56,11 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
     const handleKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (isEscapeFromWidgetInput(event)) return;
+      // Portalled to <body>, outside any `.widget` ancestor — without
+      // stopping propagation an Escape here also bubbles up to
+      // DashboardView's global window-level Escape handler, which falls
+      // back to minimizing the topmost widget (see #2266 pattern).
+      event.stopPropagation();
       closeMenu();
     };
     let animationFrameId = 0;

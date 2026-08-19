@@ -98,8 +98,44 @@ export const MAX_GROUPS_PER_RUN = 5000;
 /** Page size for the paginated synced-group sweeps (startAfter cursor on document id). */
 export const GROUP_PAGE_SIZE = 500;
 
-/** Max doc deletes per category per PLC per run (defensive batching). */
-export const MAX_DELETES_PER_CATEGORY = 500;
+/**
+ * Overall safety ceiling on docs scanned PER CATEGORY PER PLC PER RUN — a
+ * runaway guard, NOT an expected limit. Each of the three per-PLC sweeps
+ * (activity / presence / each soft-delete subcollection) PAGINATES
+ * (startAfter cursor on document id, CATEGORY_PAGE_SIZE per page) up to this
+ * ceiling, so every doc in the subcollection is visited every run — not just
+ * a single arbitrary first page. Without pagination here, a subcollection
+ * that grew past one page would strand any doc outside it forever: with no
+ * `orderBy`, the fetched page is implicitly ordered by doc id, which is
+ * unrelated to `createdAt`/`lastActiveAt`/`deletedAt` age, so nothing
+ * guarantees the genuinely-stale docs fall inside that first slice, and no
+ * cursor ever advanced across runs to reach the rest. Same bug class already
+ * fixed for cross-PLC iteration (`MAX_PLCS_PER_RUN`) and the synced-group
+ * sweep (`MAX_GROUPS_PER_RUN`) — just missed one level deeper, inside a
+ * single PLC's own subcollections.
+ */
+export const MAX_CATEGORY_SCAN_PER_PLC = 5000;
+
+/** Page size for the paginated per-PLC category sweeps (startAfter cursor on document id). */
+export const CATEGORY_PAGE_SIZE = 500;
+
+/**
+ * Overall safety ceiling on version-overflow snapshots deleted PER GROUP PER
+ * RUN — same rationale as the other `MAX_*_PER_RUN` ceilings. Before this,
+ * `sweepVersionOverflow` read the ENTIRE `versions` subcollection into memory
+ * with an un-bounded `.get()` and sorted it client-side — the one sweep in
+ * this file with no ceiling at all. In steady state the client prunes to
+ * `VERSION_HISTORY_LIMIT` after every publish so this rarely matters, but a
+ * group whose prune has been failing (e.g. a long-broken client) can carry an
+ * unbounded backlog, and this sweep runs BEFORE the per-PLC loop with no
+ * try/catch around it — an unbounded read/sort on one pathological group can
+ * throw or exhaust the function's pinned 256MiB budget and abort the whole
+ * run before a single PLC's activity/presence/tombstone sweep even starts.
+ * Bounding the per-group delete keeps one bad group from starving every
+ * other group and PLC in the run; leftover overflow is picked up next run
+ * (the sweep is idempotent, same as every other ceiling in this file).
+ */
+export const MAX_VERSIONS_SCAN_PER_GROUP = 5000;
 
 /** Firestore caps a batch at 500 ops; chunk below that defensively. */
 const BATCH_CHUNK = 250;
@@ -282,28 +318,93 @@ async function sweepEmptyGroups(db: Firestore): Promise<number> {
 }
 
 /**
- * Trim version-history overflow under a single synced group. Keeps the newest
- * `VERSION_HISTORY_LIMIT` snapshots (by numeric doc id = version number) and
- * deletes the rest. Defensive: the client prunes after each publish, so this
- * usually finds nothing.
+ * Trim version-history overflow under a single synced group. Keeps the
+ * newest `VERSION_HISTORY_LIMIT` snapshots (by the numeric `version` field —
+ * every version doc is written with `version is int` per firestore.rules) and
+ * deletes the rest, bounded by `MAX_VERSIONS_SCAN_PER_GROUP` per run.
+ *
+ * Sorts and skips the kept head SERVER-SIDE via `orderBy('version',
+ * 'desc').offset(VERSION_HISTORY_LIMIT)` rather than fetching the whole
+ * subcollection and sorting in memory — the prior approach had no ceiling at
+ * all (see `MAX_VERSIONS_SCAN_PER_GROUP`). This intentionally does NOT mirror
+ * `fetchCategoryPaginated`'s doc-id `startAfter` cursor: doc ids here are
+ * stringified version numbers, so string-order pagination ("1","10","11",...)
+ * does not match numeric recency, and a capped doc-id page could delete the
+ * wrong (non-oldest) snapshots. Ordering by the real numeric field avoids
+ * that trap entirely. Defensive: the client prunes after each publish, so
+ * this usually finds nothing.
+ *
+ * TRADE-OFF: `orderBy('version')` silently excludes any doc that lacks the
+ * `version` field entirely (Firestore's field-orderBy semantics, not a bug
+ * here) — such a doc would neither be counted nor deleted, and would
+ * accumulate forever instead of being pruned. The prior unbounded-`.get()`
+ * implementation handled this deliberately (non-numeric ids sorted as
+ * oldest, pruned first). This is an accepted, verified-unreachable trade:
+ * the sole writer (`useSyncedQuizGroups.ts`/`useSyncedVideoActivityGroups.ts`
+ * `writeVersionSnapshot`) always constructs a full `PlcVersionSnapshot`
+ * (`version: number` is non-optional in `types.ts`) and writes it via a
+ * full `setDoc` (never a partial `updateDoc`), so no code path can produce
+ * a fieldless version doc. `firestore.rules`' `version is int` constraint
+ * only covers this same client path — it's corroborating evidence, not the
+ * primary guarantee. If a future writer (e.g. a migration script or a new
+ * Admin-SDK caller) can create a version doc without this field, that
+ * writer must be fixed rather than this sweep re-widened to compensate.
  */
 async function sweepVersionOverflow(
   db: Firestore,
   groupRef: admin.firestore.DocumentReference
 ): Promise<number> {
-  const versionsSnap = await groupRef.collection('versions').get();
-  if (versionsSnap.size <= VERSION_HISTORY_LIMIT) return 0;
-  // Newest-first by version number (doc id). Non-numeric ids sort last (NaN →
-  // treated as oldest) so malformed snapshots are pruned first.
-  const sorted = [...versionsSnap.docs].sort((a, b) => {
-    const av = Number(a.id);
-    const bv = Number(b.id);
-    const an = Number.isFinite(av) ? av : -Infinity;
-    const bn = Number.isFinite(bv) ? bv : -Infinity;
-    return bn - an;
-  });
-  const overflow = sorted.slice(VERSION_HISTORY_LIMIT).map((d) => d.ref);
-  return deleteRefs(db, overflow);
+  const overflowSnap = await groupRef
+    .collection('versions')
+    .orderBy('version', 'desc')
+    .offset(VERSION_HISTORY_LIMIT)
+    .limit(MAX_VERSIONS_SCAN_PER_GROUP)
+    .get();
+  if (overflowSnap.size === 0) return 0;
+  if (overflowSnap.size >= MAX_VERSIONS_SCAN_PER_GROUP) {
+    console.warn(
+      `[gcPlcOrphans] hit MAX_VERSIONS_SCAN_PER_GROUP ceiling (${MAX_VERSIONS_SCAN_PER_GROUP}) on ${groupRef.path}/versions — raise it or shard the sweep`
+    );
+  }
+  return deleteRefs(
+    db,
+    overflowSnap.docs.map((d) => d.ref)
+  );
+}
+
+/**
+ * Paginates an arbitrary subcollection up to `MAX_CATEGORY_SCAN_PER_PLC`,
+ * `CATEGORY_PAGE_SIZE` docs at a time, via a `startAfter` cursor on
+ * `orderBy(FieldPath.documentId())`. See `MAX_CATEGORY_SCAN_PER_PLC` for why
+ * a single un-paginated page silently stranded docs outside an
+ * effectively-arbitrary doc-id window once a subcollection grew past one page.
+ */
+async function fetchCategoryPaginated(
+  collectionRef: admin.firestore.CollectionReference
+): Promise<QueryDocSnap[]> {
+  const results: QueryDocSnap[] = [];
+  let lastDoc: QueryDocSnap | undefined;
+  while (results.length < MAX_CATEGORY_SCAN_PER_PLC) {
+    const pageLimit = Math.min(
+      CATEGORY_PAGE_SIZE,
+      MAX_CATEGORY_SCAN_PER_PLC - results.length
+    );
+    let query = collectionRef
+      .orderBy(admin.firestore.FieldPath.documentId())
+      .limit(pageLimit);
+    if (lastDoc) query = query.startAfter(lastDoc);
+    const page = await query.get();
+    if (page.size === 0) break;
+    results.push(...page.docs);
+    lastDoc = page.docs[page.docs.length - 1];
+    if (page.size < pageLimit) break;
+  }
+  if (results.length >= MAX_CATEGORY_SCAN_PER_PLC) {
+    console.warn(
+      `[gcPlcOrphans] hit MAX_CATEGORY_SCAN_PER_PLC ceiling (${MAX_CATEGORY_SCAN_PER_PLC}) on ${collectionRef.path} — raise it or shard the sweep`
+    );
+  }
+  return results;
 }
 
 /**
@@ -319,31 +420,26 @@ async function sweepPlc(
   // (b) Activity events older than ~90 days. Query by createdAt where the
   // index allows; fall back to a bounded scan + client filter so the sweep
   // works even before a composite index exists.
-  const activitySnap = await plcRef
-    .collection('activity')
-    .limit(MAX_DELETES_PER_CATEGORY)
-    .get();
-  const staleActivity = activitySnap.docs
+  const activityDocs = await fetchCategoryPaginated(
+    plcRef.collection('activity')
+  );
+  const staleActivity = activityDocs
     .filter((d: QueryDocSnap) => isStaleActivity(d.data().createdAt, now))
     .map((d: QueryDocSnap) => d.ref);
 
   // (c) Presence docs whose lastActiveAt is older than ~5 min.
-  const presenceSnap = await plcRef
-    .collection('presence')
-    .limit(MAX_DELETES_PER_CATEGORY)
-    .get();
-  const stalePresence = presenceSnap.docs
+  const presenceDocs = await fetchCategoryPaginated(
+    plcRef.collection('presence')
+  );
+  const stalePresence = presenceDocs
     .filter((d: QueryDocSnap) => isStalePresence(d.data().lastActiveAt, now))
     .map((d: QueryDocSnap) => d.ref);
 
   // (d) Expired soft-delete tombstones across every soft-deletable subcollection.
   const expiredTombstones: admin.firestore.DocumentReference[] = [];
   for (const sub of SOFT_DELETE_SUBCOLLECTIONS) {
-    const subSnap = await plcRef
-      .collection(sub)
-      .limit(MAX_DELETES_PER_CATEGORY)
-      .get();
-    for (const d of subSnap.docs) {
+    const subDocs = await fetchCategoryPaginated(plcRef.collection(sub));
+    for (const d of subDocs) {
       if (isExpiredTombstone(d.data().deletedAt, now)) {
         expiredTombstones.push(d.ref);
       }

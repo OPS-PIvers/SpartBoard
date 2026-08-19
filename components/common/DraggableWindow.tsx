@@ -49,6 +49,7 @@ import { SNAP_LAYOUTS, SnapZone } from '@/config/snapLayouts';
 import { POSITION_AWARE_WIDGETS } from '@/config/widgetDefaults';
 import { calculateSnapBounds, SNAP_LAYOUT_CONSTANTS } from '@/utils/layoutMath';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { getLocalIsoDate } from '@/utils/localDate';
 import { clampWidgetToWorld, getWorldBounds } from '@/utils/zoomPanMath';
 import { useScreenshot } from '@/hooks/useScreenshot';
 import { useWindowSize } from '@/hooks/useWindowSize';
@@ -63,17 +64,11 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { useHasOpenModal } from './modalStore';
 import { AnnotationCanvas } from './AnnotationCanvas';
 import { IconButton } from '@/components/common/IconButton';
-import { STANDARD_COLORS, WIDGET_PALETTE } from '@/config/colors';
+import { COLOR_HEX_TO_NAME, WIDGET_PALETTE } from '@/config/colors';
 import { Z_INDEX } from '@/config/zIndex';
 
 // Widgets that cannot be snapshotted due to CORS/Technical limitations
 const SCREENSHOT_BLACKLIST: WidgetType[] = ['webcam', 'embed'];
-
-// Hex → human-readable color name, for screen-reader aria-labels on the
-// annotation palette. Falls back to the raw hex when unknown.
-const COLOR_HEX_TO_NAME: Record<string, string> = Object.fromEntries(
-  Object.entries(STANDARD_COLORS).map(([name, hex]) => [hex, name])
-);
 
 // Custom size picker grid dimensions
 const GRID_COLS = 10;
@@ -568,6 +563,19 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync for stale-closure prevention (CLAUDE.md pattern); false positive from react-hooks/refs v7
   stateRef.current = { isEditingTitle, saveTitle };
 
+  // Set to true by SettingsPanel's onClose, synchronously, before it calls
+  // updateWidget. DashboardView's global Escape handler always dispatches a
+  // widget-keyboard-action event (it can't see this component's local
+  // showConfirm state, so it must not skip the dispatch — see DashboardView.tsx).
+  // Without this ref, handleCustomKeyboard's Escape branch would read the
+  // still-stale `widget.flipped === true` prop (React hasn't re-rendered yet
+  // within the same synchronous keydown dispatch) and call updateWidget a
+  // second, redundant time. Reset every render — the ref only needs to
+  // survive the brief window between onClose firing and the next commit.
+  const justClosedSettingsRef = useRef(false);
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref reset for stale-flag prevention (CLAUDE.md pattern); false positive from react-hooks/refs v7
+  justClosedSettingsRef.current = false;
+
   const handleCloseTools = useCallback(() => {
     setSelectedWidgetId(null);
     const { isEditingTitle, saveTitle } = stateRef.current;
@@ -590,8 +598,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const innerEdgeStripsCacheRef = useRef<NodeListOf<HTMLElement> | null>(null);
 
   // Auto-generate filename: "Classroom-[WidgetType]-[Date]"
-  // Use ISO format YYYY-MM-DD
-  const dateStr = new Date().toISOString().split('T')[0];
+  // Use local ISO format YYYY-MM-DD (NOT toISOString(), which is UTC-based and
+  // shows tomorrow's date for the last few hours of a teacher's local day in
+  // every UTC-negative timezone — see utils/localDate.ts).
+  const dateStr = getLocalIsoDate();
   const fileName = `Classroom-${widget.type.charAt(0).toUpperCase() + widget.type.slice(1)}-${dateStr}`;
 
   const handleScreenshotSuccess = useCallback(() => {
@@ -1941,14 +1951,24 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         // If you add a new Escape branch here, mirror it in handleKeyDown and vice-versa.
         if (showConfirm) {
           setShowConfirm(false);
-        } else if (widget.flipped && !isActiveBoardReadOnly) {
-          // Allow closing an already-open settings panel for per-widget-locked
-          // widgets; isActiveBoardReadOnly blocks all writes on shared boards.
-          updateWidget(widget.id, { flipped: false });
-        } else if (isAnnotating) {
-          setIsAnnotating(false);
-        } else if (!isLocked) {
-          updateWidget(widget.id, { minimized: true, flipped: false });
+        } else if (!justClosedSettingsRef.current) {
+          // Wrapped (rather than an early empty `else if` branch) so a new
+          // sub-case added below is mechanically guarded by the ref check —
+          // SettingsPanel's own Escape handler already closed the panel in
+          // this same keydown dispatch (see the ref's declaration comment)
+          // when justClosedSettingsRef.current is true, so nothing here
+          // should run in that case. A plain `&&` on just the widget.flipped
+          // branch would instead fall through to the minimize branch, which
+          // is worse than the original redundant write this ref prevents.
+          if (widget.flipped && !isActiveBoardReadOnly) {
+            // Allow closing an already-open settings panel for per-widget-locked
+            // widgets; isActiveBoardReadOnly blocks all writes on shared boards.
+            updateWidget(widget.id, { flipped: false });
+          } else if (isAnnotating) {
+            setIsAnnotating(false);
+          } else if (!isLocked) {
+            updateWidget(widget.id, { minimized: true, flipped: false });
+          }
         }
       } else if (key === 'Pin') {
         if (!isLocked) {
@@ -3354,7 +3374,30 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           settings={settings}
           appearanceSettings={appearanceSettings}
           shouldRenderSettings={shouldRenderSettings}
-          onClose={() => updateWidget(widget.id, { flipped: false })}
+          onClose={() => {
+            // updateWidget (DashboardContext.tsx) returns early — without
+            // calling setDashboards, so no re-render fires to reset this ref
+            // in the render body — on a read-only board OR when there's no
+            // active dashboard (activeIdRef.current null; a very narrow race
+            // where a dashboard switch clears activeId while this widget is
+            // still mounted). Either way the ref would otherwise stay stuck
+            // `true` for the widget's lifetime, permanently no-op'ing every
+            // subsequent Escape in handleCustomKeyboard's priority chain
+            // (including setIsAnnotating(false), a purely local write NOT
+            // blocked by either guard). Only set it when the write will
+            // actually land and trigger the reset.
+            //
+            // Read via getCanvasState() (event-fire time) rather than the
+            // render-closure values above — this callback can fire after a
+            // stale render commit, and reading at event time closes that
+            // window entirely instead of risking acting on a value that's
+            // already out of date by the time onClose runs.
+            const canvasState = getCanvasState();
+            justClosedSettingsRef.current =
+              !canvasState.isActiveBoardReadOnly &&
+              canvasState.activeDashboard !== null;
+            updateWidget(widget.id, { flipped: false });
+          }}
           updateWidget={updateWidget}
           globalStyle={globalStyle}
           title={title}

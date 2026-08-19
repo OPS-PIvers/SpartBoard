@@ -31,21 +31,48 @@ import {
 } from './modalStore';
 
 // Mock dependencies
-const { mockTakeScreenshot } = vi.hoisted(() => ({
+const { mockTakeScreenshot, mockUseScreenshot } = vi.hoisted(() => ({
   mockTakeScreenshot: vi.fn(),
+  mockUseScreenshot: vi.fn(),
 }));
 
 vi.mock('@/hooks/useScreenshot', () => ({
-  useScreenshot: () => ({
-    takeScreenshot: mockTakeScreenshot,
-    isFlashing: false,
-    isCapturing: false,
-  }),
+  // Records the (contentRef, fileName, options) args it's called with so
+  // tests can assert on the generated screenshot filename.
+  useScreenshot: (...args: unknown[]) => {
+    mockUseScreenshot(...args);
+    return {
+      takeScreenshot: mockTakeScreenshot,
+      isFlashing: false,
+      isCapturing: false,
+    };
+  },
 }));
 
 vi.mock('@/hooks/useClickOutside', () => ({
   useClickOutside: vi.fn(),
 }));
+
+// Controllable getLocalIsoDate for the UTC/local-date-divergence regression
+// test below. Mirrors the getTodayStr pattern in ScheduleWidget.test.tsx —
+// the test environment pins process.env.TZ to 'UTC' (see vitest.config.ts),
+// so real local getters can never diverge from toISOString() there; mocking
+// the helper directly is the only way to simulate the divergence a teacher
+// in a UTC-negative timezone actually sees.
+const { mockGetLocalIsoDate, defaultGetLocalIsoDate } = vi.hoisted(() => ({
+  mockGetLocalIsoDate: vi.fn<() => string>(),
+  defaultGetLocalIsoDate: { current: (() => '') as () => string },
+}));
+
+vi.mock('@/utils/localDate', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/localDate')>();
+  defaultGetLocalIsoDate.current = actual.getLocalIsoDate;
+  mockGetLocalIsoDate.mockImplementation(actual.getLocalIsoDate);
+  return {
+    ...actual,
+    getLocalIsoDate: mockGetLocalIsoDate,
+  };
+});
 
 interface GlassCardProps {
   children: React.ReactNode;
@@ -202,6 +229,10 @@ describe('DraggableWindow', () => {
       return 0;
     });
     vi.clearAllMocks();
+    // Default: getLocalIsoDate returns the real local date so existing tests
+    // (which don't care about the screenshot filename) are unaffected.
+    mockGetLocalIsoDate.mockReset();
+    mockGetLocalIsoDate.mockImplementation(defaultGetLocalIsoDate.current);
     // Reset SettingsPanel render spy before each test
     settingsPanelRenderProps.length = 0;
     // Setup default spy to return null
@@ -1426,5 +1457,38 @@ describe('DraggableWindow', () => {
       'test-widget',
       expect.objectContaining({ minimized: true })
     );
+  });
+
+  // Regression: the screenshot filename was built from
+  // `new Date().toISOString().split('T')[0]` — the UTC calendar date — instead
+  // of the teacher's local date. For every timezone west of UTC (all of the
+  // Americas), the last few hours of the local day fall on the *next* UTC
+  // date, so a screenshot taken in the evening downloads with tomorrow's date
+  // baked into the filename. Fix: use the shared `getLocalIsoDate()` helper
+  // (utils/localDate.ts), already used elsewhere in the app for this exact
+  // class of bug (see ScheduleWidget's getTodayStr).
+  it('REGRESSION: screenshot filename uses the local date, not the UTC date', () => {
+    vi.useFakeTimers();
+    try {
+      // System clock: UTC 2026-03-06 02:00. A teacher at UTC-5 (e.g. US
+      // Central, DST) experiences this instant as 2026-03-05, 9:00 PM —
+      // still the evening before. Mock getLocalIsoDate to return that local
+      // date directly, since the test environment's TZ is pinned to UTC and
+      // real local getters can't diverge from toISOString() there.
+      vi.setSystemTime(new Date('2026-03-06T02:00:00Z'));
+      mockGetLocalIsoDate.mockReturnValue('2026-03-05');
+
+      renderComponent();
+
+      expect(mockUseScreenshot).toHaveBeenCalled();
+      const [, fileName] = mockUseScreenshot.mock.calls[0] as [unknown, string];
+      // BUG: toISOString-based code produces 'Classroom-Clock-2026-03-06'
+      // (tomorrow, from the teacher's perspective) — this assertion fails on
+      // the pre-fix implementation and passes once dateStr is sourced from
+      // getLocalIsoDate().
+      expect(fileName).toBe('Classroom-Clock-2026-03-05');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

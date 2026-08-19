@@ -25,6 +25,7 @@ import { BoardNavFab } from './BoardNavFab';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
 import { MountedBoardsLayer } from './MountedBoardsLayer';
 import { CheatSheetModal } from '@/components/common/CheatSheetModal';
+import { useHasOpenModal } from '@/components/common/modalStore';
 import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
 import { BoardActionsFab } from './BoardActionsFab';
 import { clampZoom, ZOOM_DEFAULT } from '@/utils/zoomMapping';
@@ -217,6 +218,14 @@ const ShellPlaceholder: React.FC = () => {
     />
   );
 };
+
+// [data-widget-portal] covers SettingsPanel, which portals outside its widget's .widget subtree — but only SettingsPanel carries data-widget-id, so any other portal falls back to topWidgetId.
+function resolveTargetWidgetId(topWidgetId: string): string {
+  const widgetAncestor = document.activeElement?.closest<HTMLElement>(
+    '.widget, [data-widget-portal]'
+  );
+  return widgetAncestor?.getAttribute('data-widget-id') ?? topWidgetId;
+}
 
 export const DashboardView: React.FC = () => {
   const { t } = useTranslation();
@@ -414,6 +423,8 @@ export const DashboardView: React.FC = () => {
   rescueWidgetsRef.current = activeDashboard?.widgets;
   const updateWidgetRef = React.useRef(updateWidget);
   updateWidgetRef.current = updateWidget;
+  const hasOpenModalRef = React.useRef(false);
+  hasOpenModalRef.current = useHasOpenModal();
 
   // Stable callback — reads fresh values via refs, never recreated.
   // Pulls every widget into the world rectangle (the area visible at
@@ -893,6 +904,14 @@ export const DashboardView: React.FC = () => {
   // Keyboard Navigation
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // A portalled Modal (or anything nested inside one — a confirm/prompt
+      // dialog, an in-modal dropdown) owns Escape. Bail before any widget- or
+      // group-build handling so the modal's own handler runs unaffected. This
+      // must run before the group-build branch below, which would otherwise
+      // consume Escape (exiting group-build mode) and swallow it while a modal
+      // is open, leaving the modal stuck.
+      if (e.key === 'Escape' && hasOpenModalRef.current) return;
+
       // Escape: Exit group-build mode first (highest priority modal state).
       // Guard: if focus is inside a typing field, let the second Escape branch
       // handle it (blur the field) — don't exit group-build mode unexpectedly.
@@ -923,18 +942,19 @@ export const DashboardView: React.FC = () => {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
 
-          // Use the focused element if it's a widget, otherwise target top widget.
-          // Call getAttribute on the .widget ancestor (from closest()), NOT on
-          // document.activeElement — the focused element may be a child button or
-          // input inside the widget and would not carry data-widget-id itself.
-          const widgetAncestor =
-            document.activeElement?.closest<HTMLElement>('.widget');
-          const targetId = widgetAncestor
-            ? widgetAncestor.getAttribute('data-widget-id')
-            : topWidget.id;
+          const targetId = resolveTargetWidgetId(topWidget.id);
 
           if (!targetId) return;
 
+          // Always dispatch — even when the target widget's settings panel is
+          // already open (SettingsPanel's own document-level handler may have
+          // just closed it in this same event). DashboardView can't see
+          // DraggableWindow's local `showConfirm` state, so skipping the
+          // dispatch here would also swallow Escape for an open delete-confirm
+          // dialog on a flipped widget, leaving it stuck. DraggableWindow's
+          // handleCustomKeyboard avoids the resulting redundant flip-back
+          // write itself, via a ref set synchronously by SettingsPanel's
+          // onClose (see justClosedSettingsRef).
           // Dispatch custom event to notify the specific widget
           const event = new CustomEvent('widget-keyboard-action', {
             detail: { widgetId: targetId, key: 'Escape', shiftKey: e.shiftKey },
@@ -984,11 +1004,7 @@ export const DashboardView: React.FC = () => {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
 
-          const widgetAncestor =
-            document.activeElement?.closest<HTMLElement>('.widget');
-          const targetId = widgetAncestor
-            ? widgetAncestor.getAttribute('data-widget-id')
-            : topWidget.id;
+          const targetId = resolveTargetWidgetId(topWidget.id);
 
           if (targetId) {
             const event = new CustomEvent('widget-keyboard-action', {
@@ -1022,11 +1038,7 @@ export const DashboardView: React.FC = () => {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
 
-          const widgetAncestor =
-            document.activeElement?.closest<HTMLElement>('.widget');
-          const targetId = widgetAncestor
-            ? widgetAncestor.getAttribute('data-widget-id')
-            : topWidget.id;
+          const targetId = resolveTargetWidgetId(topWidget.id);
 
           if (targetId) {
             const event = new CustomEvent('widget-keyboard-action', {

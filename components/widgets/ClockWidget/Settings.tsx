@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, ClockConfig } from '@/types';
@@ -47,6 +47,8 @@ export const ClockAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
   const { t } = useTranslation();
   const { updateWidget } = useDashboard();
   const config = widget.config as ClockConfig;
+  const displayStyleLabelId = useId();
+  const colorPaletteLabelId = useId();
 
   const colors = WIDGET_PALETTE;
 
@@ -69,10 +71,14 @@ export const ClockAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
 
       {/* Clock Style */}
       <div>
-        <SettingsLabel icon={Sparkles}>
+        <SettingsLabel as="span" id={displayStyleLabelId} icon={Sparkles}>
           {t('widgets.clock.displayStyle')}
         </SettingsLabel>
-        <div className="flex bg-slate-100 p-1 rounded-xl">
+        <div
+          className="flex bg-slate-100 p-1 rounded-xl"
+          role="group"
+          aria-labelledby={displayStyleLabelId}
+        >
           {styles.map((s) => (
             <button
               key={s.id}
@@ -92,10 +98,14 @@ export const ClockAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
       {/* Color & Glow */}
       <div className="flex items-end justify-between gap-4">
         <div className="flex-1">
-          <SettingsLabel icon={Palette}>
+          <SettingsLabel as="span" id={colorPaletteLabelId} icon={Palette}>
             {t('widgets.clock.colorPalette')}
           </SettingsLabel>
-          <div className="flex gap-1.5">
+          <div
+            className="flex gap-1.5"
+            role="group"
+            aria-labelledby={colorPaletteLabelId}
+          >
             {colors.map((c) => (
               <button
                 key={c}

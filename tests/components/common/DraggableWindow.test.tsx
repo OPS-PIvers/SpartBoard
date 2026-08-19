@@ -792,6 +792,233 @@ describe('DraggableWindow (Tests folder)', () => {
     });
   });
 
+  // Regression (#2430 review): DashboardView's global Escape handler always
+  // dispatches widget-keyboard-action — it can't see this component's local
+  // showConfirm state, so it must not skip the dispatch just because the
+  // widget is flipped. These tests exercise handleCustomKeyboard's own
+  // priority chain and the justClosedSettingsRef redundant-write guard.
+  describe('handleCustomKeyboard Escape priority (showConfirm vs. flipped)', () => {
+    const renderFlipped = () =>
+      render(
+        <DashboardContext.Provider
+          value={
+            {
+              ...mockContext,
+              selectedWidgetId: mockWidget.id,
+            } as unknown as DashboardContextValue
+          }
+        >
+          <DraggableWindow
+            widget={{ ...mockWidget, flipped: true }}
+            settings={<div>Mock Settings Content</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+
+    it('dismisses an open delete-confirm dialog via Escape even while the settings panel is also open (flipped)', () => {
+      renderFlipped();
+
+      // Delete → showConfirm(true), reproducing the compound state from the
+      // review: settings open (flipped) AND a confirm dialog open.
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('widget-keyboard-action', {
+            detail: { widgetId: 'test-widget', key: 'Delete', shiftKey: false },
+          })
+        );
+      });
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('widget-keyboard-action', {
+            detail: { widgetId: 'test-widget', key: 'Escape', shiftKey: false },
+          })
+        );
+      });
+
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      // showConfirm takes priority in handleCustomKeyboard's Escape branch.
+      // The flipped-back write is blocked by showConfirm returning early —
+      // justClosedSettingsRef is NOT exercised here (no real keydown was
+      // dispatched, only the widget-keyboard-action CustomEvent, so
+      // SettingsPanel's own document-level Escape listener never fires).
+      // See the next test in this suite for the ref guard itself.
+      expect(mockContext.updateWidget).not.toHaveBeenCalledWith('test-widget', {
+        flipped: false,
+      });
+    });
+
+    it('does not call updateWidget a second time when SettingsPanel already closed the panel via its own Escape handler', () => {
+      renderFlipped();
+
+      // Guard against a vacuous pass: confirm SettingsPanel actually mounted
+      // and rendered its content BEFORE dispatching Escape below. Testing
+      // Library's render() flushes all passive effects synchronously (via its
+      // own act() wrapper), so if this assertion holds, SettingsPanel's
+      // `useEffect(() => { document.addEventListener('keydown', ...) }, [])`
+      // has already registered — the document dispatch below is guaranteed
+      // to reach a live listener, not a race against effect timing.
+      expect(screen.getByText('Mock Settings Content')).toBeInTheDocument();
+
+      // SettingsPanel's own document-level Escape handler and DashboardView's
+      // window-level widget-keyboard-action dispatch both fire within the
+      // same synchronous keydown dispatch in the real app — reproduce that by
+      // firing the real Escape on document (triggers SettingsPanel's onClose,
+      // which sets justClosedSettingsRef before calling updateWidget) and the
+      // CustomEvent DashboardView would dispatch, inside one act() batch.
+      act(() => {
+        document.body.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+        );
+        window.dispatchEvent(
+          new CustomEvent('widget-keyboard-action', {
+            detail: { widgetId: 'test-widget', key: 'Escape', shiftKey: false },
+          })
+        );
+      });
+
+      const flipCalls = mockContext.updateWidget.mock.calls.filter(
+        ([, patch]) => (patch as { flipped?: boolean })?.flipped === false
+      );
+      // Exactly one call, from SettingsPanel's own onClose — proves the
+      // justClosedSettingsRef guard actually suppressed handleCustomKeyboard's
+      // would-be second write, not just that only one path happened to fire.
+      expect(flipCalls).toHaveLength(1);
+    });
+
+    // Regression (#2430 round-5 review): justClosedSettingsRef was set
+    // unconditionally to `true` in onClose, but updateWidget returns early on
+    // a read-only board (never calls setDashboards), so no re-render fires to
+    // reset the ref in the render body. The ref stayed stuck `true` for the
+    // widget's lifetime, permanently no-op'ing handleCustomKeyboard's Escape
+    // priority chain — including setIsAnnotating(false), a purely local write
+    // NOT blocked by the read-only guard, leaving a read-only viewer unable
+    // to exit annotation mode via keyboard for the rest of the session.
+    it('does not permanently suppress Escape after closing settings on a read-only board (isAnnotating still toggles)', () => {
+      // isAnnotating is local component state (useState), not a widget field,
+      // and the normal UI paths to set it true (Alt+D, the Annotate toolbar
+      // button) are gated by isLocked = widget.isLocked || isActiveBoardReadOnly.
+      // So to reproduce "already annotating when the board flips to read-only
+      // mid-session", start writable, enter annotation mode via the real Alt+D
+      // shortcut, then rerender the same instance with isActiveBoardReadOnly
+      // flipped to true — local state survives the rerender.
+      const tree = (isActiveBoardReadOnly: boolean) => (
+        <DashboardContext.Provider
+          value={
+            {
+              ...mockContext,
+              selectedWidgetId: mockWidget.id,
+              isActiveBoardReadOnly,
+            } as unknown as DashboardContextValue
+          }
+        >
+          <DraggableWindow
+            widget={{ ...mockWidget, flipped: true }}
+            settings={<div>Mock Settings Content</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+
+      const { rerender, container } = render(tree(false));
+
+      const widgetEl = screen.getByTestId('widget-content').closest('.widget');
+      if (!widgetEl) throw new Error('.widget element not found');
+      fireEvent.keyDown(widgetEl, { key: 'd', altKey: true });
+      expect(container.querySelector('canvas')).toBeInTheDocument();
+
+      // Board becomes read-only mid-session.
+      rerender(tree(true));
+      expect(screen.getByText('Mock Settings Content')).toBeInTheDocument();
+
+      // First Escape: SettingsPanel's onClose fires. With the fix, the ref is
+      // only set when the board is writable, so it stays `false` here —
+      // updateWidget no-ops on this read-only board (no re-render either way).
+      act(() => {
+        document.body.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+        );
+      });
+
+      // A later, independent Escape must still be able to reach the
+      // isAnnotating branch — proving the ref did not leak past this widget's
+      // one settings-close.
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('widget-keyboard-action', {
+            detail: { widgetId: 'test-widget', key: 'Escape', shiftKey: false },
+          })
+        );
+      });
+
+      expect(container.querySelector('canvas')).not.toBeInTheDocument();
+    });
+
+    // Regression (#2430 round-6 review): the read-only-board fix above only
+    // accounted for one of updateWidget's two early returns
+    // (isActiveBoardReadOnlyRef.current). The other — `!activeIdRef.current`
+    // — hits on a narrow race (e.g. a dashboard switch clears activeId while
+    // this widget is still mounted). Without also guarding on that, the ref
+    // would get stuck the same way: set unconditionally true, updateWidget
+    // no-ops with no re-render, nothing ever resets it.
+    it('does not permanently suppress Escape when there is no active dashboard (activeId race)', () => {
+      render(
+        <DashboardContext.Provider
+          value={
+            {
+              ...mockContext,
+              selectedWidgetId: mockWidget.id,
+              isActiveBoardReadOnly: false,
+              activeDashboard: null,
+            } as unknown as DashboardContextValue
+          }
+        >
+          <DraggableWindow
+            widget={{ ...mockWidget, flipped: true }}
+            settings={<div>Mock Settings Content</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+      expect(screen.getByText('Mock Settings Content')).toBeInTheDocument();
+
+      // First Escape: SettingsPanel's onClose fires. With the fix, the ref
+      // stays `false` here since there's no active dashboard to write to.
+      act(() => {
+        document.body.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+        );
+      });
+
+      // A later, independent Escape must still reach the widget.flipped
+      // branch and call updateWidget a second time — proving the ref did
+      // not leak past this widget's one settings-close.
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('widget-keyboard-action', {
+            detail: { widgetId: 'test-widget', key: 'Escape', shiftKey: false },
+          })
+        );
+      });
+
+      const flipCalls = mockContext.updateWidget.mock.calls.filter(
+        ([, patch]) => (patch as { flipped?: boolean })?.flipped === false
+      );
+      expect(flipCalls).toHaveLength(2);
+    });
+  });
+
   describe('Toolbar button lock guards', () => {
     // Regression suite for the toolbar `disabled={isLocked}` + `if (isLocked) return`
     // defense-in-depth pattern. `disabled` alone doesn't stop programmatic

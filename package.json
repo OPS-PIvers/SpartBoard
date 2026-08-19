@@ -39,11 +39,11 @@
   },
   "pnpm": {
     "overrides": {
-      "hono": "^4.12.14",
+      "hono": "^4.13.0",
       "dompurify": "^3.4.11",
       "diff": "^8.0.3",
       "flatted": "^3.4.2",
-      "tar": "^7.5.4",
+      "tar": "^7.5.19",
       "lodash": "^4.17.23",
       "lodash-es": "^4.18.1",
       "ws@8": "^8.20.1",
@@ -51,7 +51,8 @@
       "rollup": "^4.59.0",
       "protobufjs": "^7.5.6",
       "path-to-regexp@0.1": "^0.1.13",
-      "path-to-regexp@8": "^8.4.0"
+      "path-to-regexp@8": "^8.4.0",
+      "@hono/node-server": "^1.19.13"
     }
   },
   "dependencies": {
@@ -100,7 +101,7 @@
     "@vitejs/plugin-react": "^5.1.2",
     "@vitest/coverage-v8": "^4.1.8",
     "autoprefixer": "^10.4.23",
-    "axios": "^1.15.0",
+    "axios": "^1.18.1",
     "cors": "^2.8.6",
     "cross-env": "^10.1.0",
     "crypto-js": "^4.2.0",
@@ -115,12 +116,12 @@
     "firebase-functions-test": "^3.4.1",
     "firebase-tools": "^15.22.3",
     "globals": "^17.2.0",
-    "hono": "^4.12.14",
+    "hono": "^4.13.0",
     "husky": "^9.1.7",
     "jsdom": "^27.4.0",
     "lint-staged": "^16.2.7",
     "oauth-1.0a": "^2.2.6",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.25",
     "prettier": "^3.8.1",
     "tailwindcss": "^3.4.19",
     "tailwindcss-animate": "^1.0.7",

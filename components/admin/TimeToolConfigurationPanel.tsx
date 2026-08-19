@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { BuildingSelector } from './BuildingSelector';
@@ -81,6 +81,12 @@ export const TimeToolConfigurationPanel: React.FC<
   const BUILDINGS = useAdminBuildings();
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
+  const accentColorLabelId = useId();
+  const trafficLightColorLabelId = useId();
+  const defaultModeLabelId = useId();
+  const displayStyleLabelId = useId();
+  const numberStyleLabelId = useId();
+  const defaultAlertSoundLabelId = useId();
 
   const buildingDefaults = config.buildingDefaults ?? {};
   const currentBuildingConfig: BuildingTimeToolDefaults = buildingDefaults[
@@ -182,11 +188,13 @@ export const TimeToolConfigurationPanel: React.FC<
 
         {/* Default Mode */}
         <div>
-          <SettingsLabel className="mb-1">Default Mode</SettingsLabel>
+          <SettingsLabel as="span" id={defaultModeLabelId} className="mb-1">
+            Default Mode
+          </SettingsLabel>
           <div
             className="flex gap-1.5"
             role="radiogroup"
-            aria-label="Default Mode"
+            aria-labelledby={defaultModeLabelId}
           >
             {MODES.map(({ value, label }) => (
               <button
@@ -206,11 +214,13 @@ export const TimeToolConfigurationPanel: React.FC<
 
         {/* Display Style */}
         <div>
-          <SettingsLabel className="mb-1">Display Style</SettingsLabel>
+          <SettingsLabel as="span" id={displayStyleLabelId} className="mb-1">
+            Display Style
+          </SettingsLabel>
           <div
             className="flex gap-1.5"
             role="radiogroup"
-            aria-label="Display Style"
+            aria-labelledby={displayStyleLabelId}
           >
             {VISUAL_TYPES.map(({ value, label }) => (
               <button
@@ -232,11 +242,13 @@ export const TimeToolConfigurationPanel: React.FC<
 
         {/* Number Style */}
         <div>
-          <SettingsLabel className="mb-1">Number Style</SettingsLabel>
+          <SettingsLabel as="span" id={numberStyleLabelId} className="mb-1">
+            Number Style
+          </SettingsLabel>
           <div
             className="flex gap-1.5"
             role="radiogroup"
-            aria-label="Number Style"
+            aria-labelledby={numberStyleLabelId}
           >
             {CLOCK_STYLES.map(({ value, label }) => (
               <button
@@ -258,11 +270,17 @@ export const TimeToolConfigurationPanel: React.FC<
 
         {/* Alert Sound */}
         <div>
-          <SettingsLabel className="mb-1">Default Alert Sound</SettingsLabel>
+          <SettingsLabel
+            as="span"
+            id={defaultAlertSoundLabelId}
+            className="mb-1"
+          >
+            Default Alert Sound
+          </SettingsLabel>
           <div
             className="flex gap-1.5"
             role="radiogroup"
-            aria-label="Default Alert Sound"
+            aria-labelledby={defaultAlertSoundLabelId}
           >
             {SOUNDS.map((sound) => (
               <button
@@ -285,8 +303,14 @@ export const TimeToolConfigurationPanel: React.FC<
         {/* Theme Color & Glow */}
         <div className="flex items-end justify-between gap-4">
           <div className="flex-1">
-            <SettingsLabel className="mb-1">Accent Color</SettingsLabel>
-            <div className="flex gap-1.5">
+            <SettingsLabel as="span" id={accentColorLabelId} className="mb-1">
+              Accent Color
+            </SettingsLabel>
+            <div
+              className="flex gap-1.5"
+              role="group"
+              aria-labelledby={accentColorLabelId}
+            >
               {WIDGET_PALETTE.map((color) => (
                 <button
                   key={color}
@@ -349,14 +373,22 @@ export const TimeToolConfigurationPanel: React.FC<
 
         {/* Timer End Traffic Light Color */}
         <div>
-          <SettingsLabel className="mb-1">
+          <SettingsLabel
+            as="span"
+            id={trafficLightColorLabelId}
+            className="mb-1"
+          >
             Timer-End Traffic Light Color
           </SettingsLabel>
           <p className="text-xxs text-slate-400 mb-2 leading-tight">
             Automatically sets the traffic light widget to this color when the
             timer reaches zero.
           </p>
-          <div className="flex gap-1.5">
+          <div
+            className="flex gap-1.5"
+            role="group"
+            aria-labelledby={trafficLightColorLabelId}
+          >
             {TRAFFIC_COLORS.map(({ value, label }) => (
               <button
                 key={String(value)}

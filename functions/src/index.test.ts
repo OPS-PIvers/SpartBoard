@@ -85,6 +85,16 @@ const geminiConfigDocGet = vi.fn(() =>
   })
 );
 
+// Hoisted for the same reason — the `video-activity-audio-transcription`
+// permission doc read is the target of `transcribeVideoWithGemini`'s
+// accessLevel gate and needs a stable, independently resettable mock.
+const audioTranscriptionPermDocGet = vi.fn(() =>
+  Promise.resolve({
+    exists: false,
+    data: () => undefined as Record<string, unknown> | undefined,
+  })
+);
+
 // Hoisted mock for `@google/genai`'s `Models.generateContent`. Any handler
 // that reaches the actual Gemini call (e.g. an admin caller who clears every
 // permission gate) must hit this stub, never the real network — a unit test
@@ -157,10 +167,12 @@ const mockFirestore = {
     if (name === 'global_permissions') {
       return {
         doc: (id: string) => ({
-          get: () =>
-            id === 'gemini-functions'
-              ? geminiConfigDocGet()
-              : Promise.resolve({ exists: false }),
+          get: () => {
+            if (id === 'gemini-functions') return geminiConfigDocGet();
+            if (id === 'video-activity-audio-transcription')
+              return audioTranscriptionPermDocGet();
+            return Promise.resolve({ exists: false });
+          },
         }),
       };
     }
@@ -409,6 +421,8 @@ import {
   getPseudonymsForAssignmentV1,
   archiveActivityWallPhoto,
   generateVideoActivity,
+  transcribeVideoWithGemini,
+  generateGuidedLearning,
   __getCachedAdminStatus,
   __getGeminiModelConfig,
   __resetGenerateWithAICaches,
@@ -3171,17 +3185,25 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
         }) as Record<string, unknown>,
     });
 
-    // The function proceeds past the accessLevel gate into the usage-limit
-    // path and eventually rejects for unrelated Firestore-mock reasons
-    // (this mock's `ai_usage` collection doesn't stub `.doc()`); we only need
-    // to confirm it does NOT throw a permission-denied error.
-    const result = handler(VALID_DATA, { auth: NON_ADMIN_AUTH });
-    await expect(result).rejects.not.toThrow(
-      'You do not have access to Gemini beta functions.'
+    // A beta caller clears the accessLevel gate but still rejects in the
+    // usage-limit step (this mock's `ai_usage` collection doesn't stub
+    // `.doc()`), so the AI call is never reached. Pin the actual rejection
+    // reason rather than asserting "not this message" — the latter passes
+    // for any failure at all, including a gate error whose wording moved.
+    const err = await handler(VALID_DATA, { auth: NON_ADMIN_AUTH }).then(
+      () => null,
+      (e: unknown) => e as Error
     );
-    await expect(result).rejects.not.toThrow(
-      'Gemini functions are currently restricted to administrators.'
-    );
+
+    expect(err).toBeInstanceOf(Error);
+    // The gate rejects with HttpsError('permission-denied'), which this
+    // file's HttpsError mock surfaces as `name`. Anything else means the
+    // caller got through the gate. (Deliberately not pinning the exact
+    // downstream error — it's a `TypeError` only because this mock's
+    // `ai_usage` collection doesn't stub `.doc()`, an artifact of mock
+    // completeness rather than handler behavior.)
+    expect(err?.name).not.toBe('permission-denied');
+    expect(generateContentMock).not.toHaveBeenCalled();
   });
 
   it('does not throw accessLevel errors for an admin regardless of accessLevel setting', async () => {
@@ -3198,19 +3220,302 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
         }) as Record<string, unknown>,
     });
 
-    const result = handler(VALID_DATA, { auth: NON_ADMIN_AUTH });
-    await expect(result).rejects.not.toThrow(
-      'Gemini functions are currently restricted to administrators.'
-    );
+    await handler(VALID_DATA, { auth: NON_ADMIN_AUTH }).catch(() => undefined);
+
     // Regression guard: an admin caller reaches the real `ai.models
     // .generateContent(...)` call in `generateVideoActivity` (aiGeneration.ts)
     // with no gates in between. Without mocking `@google/genai`, this test
     // makes a REAL network call to the Generative Language API — normally
     // rejected fast with an invalid-key error, but under CPU/network
     // contention that round-trip can exceed the test timeout, producing
-    // flaky failures. Asserting the mock was invoked (once) proves the
+    // flaky failures. Asserting on the mock's call arguments proves the
     // handler took the code path that used to hit the network, without ever
     // actually reaching it.
     expect(generateContentMock).toHaveBeenCalledTimes(1);
+    const [call] = generateContentMock.mock.calls[0] as unknown as [
+      { contents: { role: string; parts: unknown[] }[] },
+    ];
+    expect(call.contents[0].parts[1]).toEqual({
+      fileData: { fileUri: VALID_URL, mimeType: 'video/mp4' },
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// transcribeVideoWithGemini — gated behind
+// `global_permissions/video-activity-audio-transcription`. Mirrors the
+// `generateVideoActivity — accessLevel enforcement` block above, but targets
+// the audio-transcription permission doc (via `audioTranscriptionPermDocGet`)
+// instead of `gemini-functions`.
+// ---------------------------------------------------------------------------
+describe('transcribeVideoWithGemini', () => {
+  // Minimal valid YouTube URL + typeCounts so input validation passes once
+  // the caller clears every permission gate. Note: unlike
+  // `generateVideoActivity`, this handler reads `typeCounts` directly with
+  // no legacy `questionCount` fallback, so `typeCounts` must be populated.
+  const VALID_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+  const VALID_DATA = { url: VALID_URL, typeCounts: { MC: 3 } };
+  const NON_ADMIN_AUTH = {
+    uid: 'uid-teacher-1',
+    token: { email: 'teacher@school.org' },
+  };
+  const ADMIN_AUTH = {
+    uid: 'uid-admin-1',
+    token: { email: 'admin@school.org' },
+  };
+
+  const handler = transcribeVideoWithGemini as unknown as (
+    data: unknown,
+    context: unknown
+  ) => Promise<unknown>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFirestoreState.admins = new Set<string>();
+    __resetGenerateWithAICaches();
+    // Default: permission doc does not exist → feature not enabled.
+    audioTranscriptionPermDocGet.mockResolvedValue({
+      exists: false,
+      data: () => undefined as Record<string, unknown> | undefined,
+    });
+    geminiConfigDocGet.mockResolvedValue({
+      exists: false,
+      data: () => undefined as Record<string, unknown> | undefined,
+    });
+  });
+
+  it('throws unauthenticated when there is no auth context', async () => {
+    await expect(handler(VALID_DATA, {})).rejects.toThrow(
+      'The function must be called while authenticated.'
+    );
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('throws invalid-argument when the authenticated user has no email', async () => {
+    await expect(
+      handler(VALID_DATA, {
+        auth: { uid: 'uid-no-email', token: {} },
+      })
+    ).rejects.toThrow('User must have an email associated with their account.');
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('throws permission-denied when the permission doc does not exist', async () => {
+    await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
+      'Gemini audio transcription is not enabled. An administrator must enable it in Feature Permissions.'
+    );
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('throws permission-denied when the feature is disabled', async () => {
+    audioTranscriptionPermDocGet.mockResolvedValue({
+      exists: true,
+      data: () =>
+        ({
+          enabled: false,
+          accessLevel: 'all',
+        }) as Record<string, unknown>,
+    });
+
+    await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
+      'Gemini audio transcription is currently disabled.'
+    );
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('throws permission-denied for a non-admin when accessLevel is "admin"', async () => {
+    audioTranscriptionPermDocGet.mockResolvedValue({
+      exists: true,
+      data: () =>
+        ({
+          enabled: true,
+          accessLevel: 'admin',
+          betaUsers: [],
+        }) as Record<string, unknown>,
+    });
+
+    await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
+      'Gemini audio transcription is restricted to administrators.'
+    );
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('throws permission-denied for a non-beta user when accessLevel is "beta"', async () => {
+    audioTranscriptionPermDocGet.mockResolvedValue({
+      exists: true,
+      data: () =>
+        ({
+          enabled: true,
+          accessLevel: 'beta',
+          betaUsers: ['beta@school.org'],
+        }) as Record<string, unknown>,
+    });
+
+    await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
+      'You do not have access to Gemini audio transcription.'
+    );
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('reaches the AI call for an admin caller with a valid URL and the feature enabled', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+    audioTranscriptionPermDocGet.mockResolvedValue({
+      exists: true,
+      data: () =>
+        ({
+          enabled: true,
+          accessLevel: 'admin',
+          betaUsers: [],
+        }) as Record<string, unknown>,
+    });
+
+    // Admins skip the rate-limit transaction entirely, so this reaches the
+    // real `ai.models.generateContent(...)` call (mocked, network-free).
+    // `generateContentMock`'s default rejection means the handler still
+    // throws an unrelated `internal` error afterward — swallow it so the
+    // assertion targets what actually reached the AI call (the call
+    // arguments), not the incidental shape of that downstream failure.
+    await handler(VALID_DATA, { auth: ADMIN_AUTH }).catch(() => undefined);
+
+    expect(generateContentMock).toHaveBeenCalledTimes(1);
+    const [call] = generateContentMock.mock.calls[0] as unknown as [
+      {
+        model: string;
+        contents: { role: string; parts: unknown[] }[];
+      },
+    ];
+    expect(call.model).toBe('gemini-3.1-flash-lite-preview');
+    expect(call.contents[0].parts[1]).toEqual({
+      fileData: {
+        fileUri: VALID_URL,
+        mimeType: 'video/mp4',
+      },
+    });
+  });
+
+  it('throws invalid-argument for an unparseable video URL', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+    audioTranscriptionPermDocGet.mockResolvedValue({
+      exists: true,
+      data: () =>
+        ({
+          enabled: true,
+          accessLevel: 'admin',
+          betaUsers: [],
+        }) as Record<string, unknown>,
+    });
+
+    await expect(
+      handler(
+        { url: 'https://example.com/not-a-video', typeCounts: { MC: 3 } },
+        { auth: ADMIN_AUTH }
+      )
+    ).rejects.toThrow('Could not extract a video ID from the provided URL.');
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateGuidedLearning — admin-only authoring tool with no `ai_usage` rate
+// limit (see the docblock above the export in aiGeneration.ts). Every caller
+// that reaches the AI call is necessarily an admin.
+// ---------------------------------------------------------------------------
+describe('generateGuidedLearning', () => {
+  const NON_ADMIN_AUTH = {
+    uid: 'uid-teacher-1',
+    token: { email: 'teacher@school.org' },
+  };
+  const ADMIN_AUTH = {
+    uid: 'uid-admin-1',
+    token: { email: 'admin@school.org' },
+  };
+  const VALID_IMAGE = {
+    base64: 'AAAAAAAAAAAAAAAAAAAAAAAA',
+    mimeType: 'image/png',
+  };
+
+  const handler = generateGuidedLearning as unknown as (
+    data: unknown,
+    context: unknown
+  ) => Promise<unknown>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFirestoreState.admins = new Set<string>();
+    __resetGenerateWithAICaches();
+    geminiConfigDocGet.mockResolvedValue({
+      exists: false,
+      data: () => undefined as Record<string, unknown> | undefined,
+    });
+  });
+
+  it('throws unauthenticated when there is no auth context', async () => {
+    await expect(handler({ images: [VALID_IMAGE] }, {})).rejects.toThrow(
+      'Must be authenticated to use this feature.'
+    );
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('throws invalid-argument when the authenticated user has no email', async () => {
+    await expect(
+      handler(
+        { images: [VALID_IMAGE] },
+        { auth: { uid: 'uid-no-email', token: {} } }
+      )
+    ).rejects.toThrow('Authenticated user must have an email address.');
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('throws permission-denied for a non-admin caller', async () => {
+    await expect(
+      handler({ images: [VALID_IMAGE] }, { auth: NON_ADMIN_AUTH })
+    ).rejects.toThrow('Admin access required to use AI generation.');
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('throws invalid-argument when no images are provided', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+
+    await expect(handler({ images: [] }, { auth: ADMIN_AUTH })).rejects.toThrow(
+      'At least one image is required.'
+    );
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('throws invalid-argument for more than 10 images', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+    const images = Array.from({ length: 11 }, () => VALID_IMAGE);
+
+    await expect(handler({ images }, { auth: ADMIN_AUTH })).rejects.toThrow(
+      'Too many images — please limit to 10 per request.'
+    );
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('reaches the AI call for an admin caller with a valid single image', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+
+    // `generateContentMock`'s default rejection means the handler still
+    // throws an unrelated `internal` error afterward — swallow it so the
+    // assertion targets what actually reached the AI call (the call
+    // arguments), not the incidental shape of that downstream failure.
+    await handler({ images: [VALID_IMAGE] }, { auth: ADMIN_AUTH }).catch(
+      () => undefined
+    );
+
+    expect(generateContentMock).toHaveBeenCalledTimes(1);
+    const [call] = generateContentMock.mock.calls[0] as unknown as [
+      {
+        model: string;
+        contents: { role: string; parts: unknown[] }[];
+      },
+    ];
+    expect(call.model).toBe('gemini-3-flash-preview');
+    expect(call.contents[0].parts[2]).toEqual({
+      inlineData: {
+        mimeType: VALID_IMAGE.mimeType,
+        data: VALID_IMAGE.base64,
+      },
+    });
   });
 });

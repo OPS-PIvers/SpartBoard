@@ -263,6 +263,44 @@ describe('RandomClassContextButton', () => {
     expect(screen.getAllByRole('menuitemradio')).toHaveLength(2);
   });
 
+  describe('Escape does not leak to window-level handlers', () => {
+    it('closes the popover on Escape and stops propagation before it reaches window listeners', () => {
+      const r1 = makeRoster('r1', 'Period 1');
+      const r2 = makeRoster('r2', 'Period 2');
+      mockUseDashboard([r1, r2], 'r1');
+      render(
+        <RandomClassContextButton
+          roster={r1}
+          rosterMode="class"
+          onOpenAbsentModal={noop}
+        />
+      );
+      fireEvent.click(
+        screen.getByRole('button', { name: /Active class: Period 1/i })
+      );
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+
+      const windowKeydownSpy = vi.fn();
+      window.addEventListener('keydown', windowKeydownSpy);
+
+      try {
+        fireEvent.keyDown(document, { key: 'Escape', bubbles: true });
+
+        expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+        // Crux of the regression: DashboardView's global Escape handler is a
+        // window-level `keydown` listener. This popover is portalled to
+        // document.body outside any `.widget` DraggableWindow ancestor, so if
+        // its own handler doesn't call stopPropagation(), the event still
+        // reaches `window` and DashboardView falls back to targeting the
+        // topmost z-index widget — silently minimizing an unrelated widget
+        // just from dismissing this popover with Escape.
+        expect(windowKeydownSpy).not.toHaveBeenCalled();
+      } finally {
+        window.removeEventListener('keydown', windowKeydownSpy);
+      }
+    });
+  });
+
   it('renders a static (non-interactive) chip when only one class exists and rosterMode is custom', () => {
     const r = makeRoster('r1', 'Period 1');
     mockUseDashboard([r], 'r1');

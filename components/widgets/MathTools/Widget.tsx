@@ -146,9 +146,10 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
             onChange={(e) =>
               setGradeFilter(e.target.value as GradeLevel | 'all')
             }
-            className="bg-transparent text-brand-blue-dark font-black outline-none cursor-pointer appearance-none text-right pr-2"
+            className="bg-transparent text-brand-blue-dark font-black outline-none cursor-pointer appearance-none text-right"
             style={{
               fontSize: 'min(10px, 3.5cqmin)',
+              paddingRight: 'min(8px, 2cqmin)',
               backgroundImage:
                 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%231d2a5d%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")',
               backgroundRepeat: 'no-repeat',
@@ -166,8 +167,13 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
         </div>
       </div>
       <div
-        className="flex px-2 gap-1 overflow-x-auto no-scrollbar"
-        style={{ paddingBottom: '0' }}
+        className="flex overflow-x-auto no-scrollbar"
+        style={{
+          paddingLeft: 'min(8px, 2cqmin)',
+          paddingRight: 'min(8px, 2cqmin)',
+          paddingBottom: '0',
+          gap: 'min(4px, 1cqmin)',
+        }}
       >
         {PALETTE_SECTIONS.map((s) => (
           <button
@@ -317,8 +323,11 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
                         {tool.emoji}
                       </span>
                       <span
-                        className="font-black text-slate-700 uppercase tracking-wider mt-1.5 text-center"
-                        style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+                        className="font-black text-slate-700 uppercase tracking-wider text-center"
+                        style={{
+                          fontSize: 'min(10px, 3.5cqmin)',
+                          marginTop: 'min(6px, 1.5cqmin)',
+                        }}
                       >
                         {tool.label}
                       </span>
@@ -337,10 +346,11 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
                           key={item.id}
                           onClick={() => handleSpawnPiece(tool.type, item)}
                           title={item.description ?? item.label}
-                          className="flex flex-col items-center justify-center gap-1.5 bg-white border border-slate-200 rounded-xl font-black text-slate-600 hover:bg-brand-blue-lighter hover:border-brand-blue-light hover:text-brand-blue-dark transition-all active:scale-95 shadow-sm hover:shadow"
+                          className="flex flex-col items-center justify-center bg-white border border-slate-200 rounded-xl font-black text-slate-600 hover:bg-brand-blue-lighter hover:border-brand-blue-light hover:text-brand-blue-dark transition-all active:scale-95 shadow-sm hover:shadow"
                           style={{
                             fontSize: 'min(9px, 3.3cqmin)',
                             padding: 'min(8px, 1.5cqmin) min(4px, 1cqmin)',
+                            gap: 'min(6px, 1.5cqmin)',
                             aspectRatio: '1',
                           }}
                         >

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { BuildingSelector } from './BuildingSelector';
@@ -35,6 +35,8 @@ export const ClockConfigurationPanel: React.FC<
   const BUILDINGS = useAdminBuildings();
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
+  const fontFamilyLabelId = useId();
+  const clockStyleLabelId = useId();
 
   const buildingDefaults = config.buildingDefaults ?? {};
   const currentBuildingConfig: BuildingClockDefaults = buildingDefaults[
@@ -92,8 +94,14 @@ export const ClockConfigurationPanel: React.FC<
 
         {/* Font Family */}
         <div>
-          <SettingsLabel className="mb-1">Default Font Family</SettingsLabel>
-          <div className="flex bg-white rounded-lg border border-slate-200 p-1 gap-1">
+          <SettingsLabel as="span" id={fontFamilyLabelId} className="mb-1">
+            Default Font Family
+          </SettingsLabel>
+          <div
+            className="flex bg-white rounded-lg border border-slate-200 p-1 gap-1"
+            role="group"
+            aria-labelledby={fontFamilyLabelId}
+          >
             {FONT_FAMILY_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
@@ -147,8 +155,14 @@ export const ClockConfigurationPanel: React.FC<
 
         {/* Clock Style */}
         <div>
-          <SettingsLabel className="mb-1">Default Display Style</SettingsLabel>
-          <div className="flex bg-white rounded-lg border border-slate-200 p-1 gap-1">
+          <SettingsLabel as="span" id={clockStyleLabelId} className="mb-1">
+            Default Display Style
+          </SettingsLabel>
+          <div
+            className="flex bg-white rounded-lg border border-slate-200 p-1 gap-1"
+            role="group"
+            aria-labelledby={clockStyleLabelId}
+          >
             {CLOCK_STYLE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}

@@ -1,0 +1,9 @@
+# Pipeline data — downloaded, not committed (~10 MB). Regenerate with the
+# commands in ../DECISIONS.md ("Reproducing the measurements").
+cmudict.dict
+g10k.txt
+es_50k.txt
+de_50k.txt
+corpus.txt
+*.tsv
+*.json

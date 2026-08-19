@@ -5,6 +5,7 @@
 // it for a scoped bearer token, then POST scores to a line item.
 
 import { signToolJwt } from './toolKey';
+import { OPAQUE_REDIRECT_TYPE } from './config';
 
 const ASSERTION_TYPE = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer';
 const NET_TIMEOUT_MS = 15000;
@@ -66,12 +67,28 @@ export async function getAgsAccessToken(
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
     signal: AbortSignal.timeout(NET_TIMEOUT_MS),
+    // SSRF guard: `fetch()` follows redirects by default, so a 3xx response
+    // from the (platform-asserted) token/lineitem URL could silently retarget
+    // this request — including the Authorization bearer on postScore below —
+    // at an arbitrary off-platform host. `redirect: 'manual'` refuses to
+    // follow; the resulting response is `!ok`, which the existing error
+    // handling below already treats as a failure. Mirrors the
+    // `maxRedirects: 0` guard on the axios calls in embedProxy.ts.
+    redirect: 'manual',
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(
-      `AGS token exchange failed (${res.status}): ${text.slice(0, 300)}`
-    );
+    // Distinguish a refused redirect (SSRF guard) from an ordinary platform
+    // error in the thrown message. (Unlike postScore below, this function has
+    // no try/catch — a network failure throws before reaching this block at
+    // all, so the only two cases reachable here are a refused redirect and an
+    // ordinary non-2xx status.)
+    const reason =
+      res.type === OPAQUE_REDIRECT_TYPE
+        ? 'refused redirect (SSRF guard)'
+        : `${res.status}`;
+    const suffix = text ? `: ${text.slice(0, 300)}` : '';
+    throw new Error(`AGS token exchange failed (${reason})${suffix}`);
   }
   const json = (await res.json()) as {
     access_token?: string;
@@ -120,7 +137,7 @@ export async function postScore(opts: {
   accessToken: string;
   score: AgsScore;
   timestamp: string;
-}): Promise<{ ok: boolean; status: number }> {
+}): Promise<{ ok: boolean; status: number; isRedirect: boolean }> {
   const payload = {
     userId: opts.score.userId,
     scoreGiven: opts.score.scoreGiven,
@@ -139,9 +156,39 @@ export async function postScore(opts: {
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(NET_TIMEOUT_MS),
+      // SSRF guard — see the identical comment on the token-exchange fetch
+      // above. Here it also stops the bearer token from being sent to a
+      // redirect target.
+      redirect: 'manual',
     });
-    return { ok: res.ok, status: res.status };
-  } catch {
-    return { ok: false, status: 0 };
+    if (!res.ok) {
+      // Drain so undici returns the socket to the pool even on the error
+      // path — without this, a burst of 429/503s (or refused redirects)
+      // exhausts the connection pool and starves subsequent token
+      // exchanges/score posts. Mirrors getAgsAccessToken/fetchMembershipPage.
+      await res.text().catch(() => '');
+      // isRedirect is caller-visible (not just logged) so any future retry
+      // logic keyed on status:0 can exclude a refused redirect explicitly —
+      // retrying would resend the bearer token toward the redirect target.
+      const isRedirect = res.type === OPAQUE_REDIRECT_TYPE;
+      if (isRedirect) {
+        console.warn('[ags] postScore refused redirect (SSRF guard)');
+      }
+      return { ok: false, status: res.status, isRedirect };
+    }
+    // Drain the 200 OK body too — the AGS spec returns the submitted score
+    // record as JSON here, and an unconsumed body holds the socket out of
+    // undici's pool just as much as an unconsumed error body does. Under
+    // Promise.all across many concurrent grade posts, leaving this
+    // unconsumed exhausts the pool and starves subsequent token
+    // exchanges/score posts, which then time out and report status: 0.
+    await res.text().catch(() => '');
+    return { ok: true, status: res.status, isRedirect: false };
+  } catch (err) {
+    // Network failure / timeout / abort — log so a burst of status:0 results
+    // in Cloud Functions logs has a traceable cause. Mirrors nrps.ts's
+    // fetchMembershipPage catch block.
+    console.warn('[ags] postScore failed (network/timeout):', err);
+    return { ok: false, status: 0, isRedirect: false };
   }
 }

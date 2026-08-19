@@ -9,6 +9,8 @@
 // Auth is the same client_credentials + signed-JWT bearer the AGS client uses
 // (getAgsAccessToken), just scoped to NRPS_SCOPE. We only ever GET.
 
+import { OPAQUE_REDIRECT_TYPE } from './config';
+
 // NRPS v2 membership container media type — sent as `Accept` so the platform
 // returns the v2 shape (members[] with user_id + name claims).
 const MEMBERSHIP_ACCEPT =
@@ -54,6 +56,8 @@ interface MembershipPage {
   members: RawMember[];
   /** Absolute URL of the next page, or null when there is none. */
   nextUrl: string | null;
+  /** True when the SSRF guard refused a redirect (distinct from a network failure). */
+  isRedirect: boolean;
 }
 
 const asStr = (v: unknown): string =>
@@ -86,24 +90,59 @@ export const nrpsNet = {
           Accept: MEMBERSHIP_ACCEPT,
         },
         signal: AbortSignal.timeout(NET_TIMEOUT_MS),
+        // SSRF guard: `fetch()` follows redirects by default, so a 3xx from the
+        // (platform-asserted) membership URL — or from a `Link: rel="next"`
+        // page URL, which comes straight from the platform's response headers —
+        // could retarget this request, bearer token included, at an arbitrary
+        // off-platform host. `redirect: 'manual'` refuses to follow; the
+        // resulting response is `!ok`, already handled as a failed page below.
+        // Mirrors the `maxRedirects: 0` guard on the axios calls in
+        // embedProxy.ts.
+        redirect: 'manual',
       });
       if (!res.ok) {
         // Drain so undici returns the socket to the pool even on the error path.
-        if (typeof res.text === 'function') await res.text().catch(() => '');
-        console.warn(`[nrps] membership fetch ${res.status}`);
-        return { ok: false, status: res.status, members: [], nextUrl: null };
+        await res.text().catch(() => '');
+        // An opaque redirect (SSRF guard refusal) and a genuine platform error
+        // both land here with `res.ok === false`; distinguish them so a
+        // refused redirect can't be silently treated as "no more pages".
+        const isRedirect = res.type === OPAQUE_REDIRECT_TYPE;
+        console.warn(
+          isRedirect
+            ? '[nrps] membership fetch refused redirect (SSRF guard)'
+            : `[nrps] membership fetch ${res.status}`
+        );
+        return {
+          ok: false,
+          status: res.status,
+          members: [],
+          nextUrl: null,
+          isRedirect,
+        };
       }
       const body = (await res.json()) as { members?: unknown };
       const members = Array.isArray(body.members)
         ? (body.members as RawMember[])
         : [];
       const nextUrl = parseNextLink(res.headers.get('link'));
-      return { ok: true, status: res.status, members, nextUrl };
+      return {
+        ok: true,
+        status: res.status,
+        members,
+        nextUrl,
+        isRedirect: false,
+      };
     } catch (err) {
       // Network failure / timeout / abort → empty page; the caller surfaces a
       // clean "couldn't resolve names" rather than an unhandled rejection.
       console.warn('[nrps] membership fetch failed (network/timeout):', err);
-      return { ok: false, status: 0, members: [], nextUrl: null };
+      return {
+        ok: false,
+        status: 0,
+        members: [],
+        nextUrl: null,
+        isRedirect: false,
+      };
     }
   },
 };
@@ -118,9 +157,12 @@ export const nrpsNet = {
  * `givenName` so the teacher still sees a full label (`formatStudentName`
  * joins given + family).
  *
- * Throws only if the FIRST page errors (so the caller can distinguish "no
- * access / bad URL" from "empty roster"). Subsequent page errors stop
- * pagination and return what was collected so far.
+ * Throws if the FIRST page errors (so the caller can distinguish "no access /
+ * bad URL" from "empty roster"), OR if any page is a refused redirect (SSRF
+ * guard) regardless of page number — a persistent, configuration/attack-shaped
+ * failure that must not be silently treated as "roster fully resolved".
+ * An ordinary transient error on page 2+ (not a redirect) stops pagination
+ * and returns what was collected so far.
  */
 export async function fetchNrpsMembers(
   membershipUrl: string,
@@ -135,9 +177,15 @@ export async function fetchNrpsMembers(
       accessToken
     );
     if (!result.ok) {
-      if (page === 0) {
+      // A refused redirect is a persistent configuration/attack-shaped
+      // failure, not a transient one — unlike an ordinary page-2+ error,
+      // silently returning the partial roster so far would let a caller
+      // treat a truncated class list as complete. Throw on every page.
+      if (page === 0 || result.isRedirect) {
         throw new Error(
-          `NRPS membership fetch failed (status ${result.status})`
+          result.isRedirect
+            ? 'NRPS membership fetch refused a redirect (SSRF guard)'
+            : `NRPS membership fetch failed (status ${result.status})`
         );
       }
       break; // partial roster is better than none

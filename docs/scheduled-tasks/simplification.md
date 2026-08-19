@@ -3,12 +3,18 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-07-29_
+_Last audited: 2026-08-17_
 _Last action: 2026-05-01_
 
 ---
 
 ## Audit Log
+
+_2026-08-17: Full audit (Audit E1 — Monday weekly). None of the 15 most recent branch commits touch any of the 13 tracked-item files (DashboardContext.tsx, widgetConfigPersistence.ts, TimeTool, RandomWidget, adminBuildingConfig.ts, AnnouncementOverlay.tsx, usePlcTrash.ts, usePlcResources.ts, useFirestore.ts, ai_security.ts, DraggableWindow.tsx, MathTools/Widget.tsx) — commits cover Dock/Escape, settings drag-transparency, i18n, roster pin_index, LTI dedup, and widget-keyboard-action portal routing. (1) mergeWidgetConfig() confirmed still the single canonical merge point (DashboardContext.tsx:4443/:4547; the only remaining Object.assign is inside the helper itself). (2) All 13 tracked cast items re-verified present at their existing locations/counts. Scanned all `as WidgetConfig`/`as unknown as` sites codebase-wide; other hits (WidgetRenderer.tsx, SoundWidget/Widget.tsx, smartPaste.ts, dashboardPII.ts, Announcements/Widget.tsx) are isolated single occurrences, not a new concentration warranting a tracked item. (3) Hooks with >5 useState/useRef: known items confirmed. **NEW LOW:** `hooks/useSpotifyWebPlayback.ts` — 12 useState/useRef calls (6 state, 6 ref), not previously tracked; added below. **Correction:** `hooks/useScreenRecord.ts` is now 11 useState/useRef calls (was tracked at 7) — grew via prior commits predating this audit window; existing item's file detail updated below. Borderline (exactly 6, not flagged): useSubstituteShares.ts, useRosters.ts, usePlcAutoPullSync.ts, useGuidedLearning.ts, useGlobalStyleEditor.ts. (4) 13-prop passthrough chain confirmed present, unchanged. (5) Nested ternaries (triple ternary, DraggableWindow corner ternary, MathTools dead ternary) confirmed present, unchanged. One new LOW item added; one existing item's count corrected._
+
+_2026-08-10: Full audit (Audit E1 — Monday weekly). New dev-paul commits since 2026-08-03: c26ad917 / 0e79f85f docs only; f58cb0db fix(a11y) #2416 — shared settings primitives (SurfaceColorSettings.tsx, TextSizePresetSettings.tsx, TypographySettings.tsx): as="span" conversions, aria-pressed pattern, presetFromScale import swap replacing a local duplicate (removes one small duplication; no new cast or hook complexity); f4830ebe pr-review docs only. f58cb0db removes the local `sizeToPreset` helper from TextSizePresetSettings.tsx by importing `presetFromScale` from widgetAppearance.ts — this is a positive simplification (existing duplicate removed; note for record, not a new open item). All 11 existing open items confirmed present and unchanged: MEDIUM useFirestore.ts double-cast, MEDIUM ai_security.ts structuredClone casts, LOW validTextSizePresets tripled in adminBuildingConfig.ts, LOW prop drilling 13 props DashboardView→WidgetRenderer, LOW triple val ternary + DraggableWindow 4-deep ternary, LOW MathTools dead hover-color ternary, LOW TimeTool 6 WidgetConfig casts, LOW RandomWidget 13 WidgetConfig casts, LOW widgetConfigPersistence Object.assign cast, LOW adminBuildingConfig double-cast for WIDGET_DEFAULTS, LOW usePlcTrash 9 useState, LOW usePlcResources 9 useState. Zero new items._
+
+_2026-08-03: Full audit (Audit E1 — Monday weekly). New dev-paul commits since 2026-07-29 absorbed via rebase: docs(spike) multilingual pronunciation plan (#2343 — spike-doc commits only; no source files changed). fix(GraphicOrganizer) hide dead fontColor picker in appearance settings (12f86641 — settings panel UI change; no new type assertions, hooks, or prop drilling). (1) Type assertions: all existing items re-confirmed — useFirestore.ts MEDIUM, ai_security.ts MEDIUM, dashboardPII/smartPaste LOW, BlockRenderer LOW, icon registry LOW, FeatureConfigurationPanel LOW, TimeTool 6-cast LOW, RandomWidget 13-cast LOW, widgetConfigPersistence LOW, adminBuildingConfig double-cast LOW, AnnouncementOverlay LOW, validTextSizePresets triple LOW. (2) Heavy hooks: usePlcTrash.ts (9 useState) and usePlcResources.ts (9 useState) — both existing LOW items, unchanged. (3) Prop drilling: MountedBoardsLayer 13-prop passthrough — existing LOW item, unchanged. (4) Nested ternaries: val triple and DraggableWindow corner ternary — existing LOW items, unchanged. Zero new items. All 11 existing open items remain valid._
 
 _2026-07-29: Full audit (Audit E1 — Wednesday weekly). New dev-paul commits since 2026-07-22 absorbed via rebase: refactor(MiniAppManager) drop redundant iconClassName (2 lines deleted from back-face manager — no cast or state impact); pr-review docs; deps/yaml-stack-overflow (dep patch); unifier log; b4b1f504 Unify MiniAppManager empty states (back-face). (1) Type assertions: all existing items re-confirmed — useFirestore.ts MEDIUM, ai_security.ts MEDIUM, dashboardPII/smartPaste LOW, BlockRenderer LOW, icon registry LOW, FeatureConfigurationPanel LOW, TimeTool 6-cast LOW, RandomWidget 13-cast LOW, widgetConfigPersistence LOW, adminBuildingConfig double-cast LOW. `validTextSizePresets` local const tripled at lines 423/649/704 in adminBuildingConfig.ts confirmed still present (existing LOW open item). (2) Heavy hooks: usePlcTrash.ts (9 useState) and usePlcResources.ts (9 useState) — both existing LOW items, unchanged. (3) Prop drilling: MountedBoardsLayer 13-prop passthrough — existing LOW item, unchanged. (4) Nested ternaries: val triple and DraggableWindow corner ternary — existing LOW items, unchanged. Zero new items. All 9 existing open items remain valid._
 
@@ -29,6 +35,13 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### LOW `hooks/useSpotifyWebPlayback.ts` has 12 useState/useRef calls
+
+- **Detected:** 2026-08-17
+- **File:** hooks/useSpotifyWebPlayback.ts
+- **Detail:** The hook declares 12 useState/useRef calls (6 state, 6 ref) managing the Spotify Web Playback SDK lifecycle (player instance, device id, playback state, ready/error flags, and SDK/script refs). Same class as the already-tracked `usePlcTrash.ts`/`usePlcResources.ts` items — high state count driven by several loosely-related concerns in one hook rather than a unified abstraction.
+- **Fix:** Group SDK-lifecycle state (`ready`, `error`, `deviceId`) into a single object and keep the player/script refs separate (they are genuinely distinct external handles, matching the `useScreenRecord` precedent of leaving refs individual). Lower priority than the session hooks since Spotify integration is an optional feature, not core classroom flow.
 
 ### LOW `validTextSizePresets` array defined identically three times in `adminBuildingConfig.ts`
 
@@ -51,6 +64,13 @@ _Nothing currently in progress._
 - **Files:** components/admin/GlobalPermissionsManager.tsx:724, components/admin/BackgroundManager/index.tsx:657, components/admin/FeaturePermissionsManager.tsx:376, components/common/DraggableWindow.tsx
 - **Detail:** The ternary `val === 'all' ? 'All' : val === 'on' ? 'On' : 'Off'` appears verbatim in three separate admin files. Each is a standalone expression with no shared helper. Separately, `DraggableWindow.tsx` contains a 4-deep nested ternary for corner-position CSS assignment that is duplicated in two places within the same component.
 - **Fix:** For the three-file ternary, extract to a shared `formatPermissionValue` (or `displayAccessLevel`) utility and import from a common location. For the `DraggableWindow` corner ternary, extract to a local `getCornerClass(position)` helper within the file. Both are mechanical extractions with no behavior change.
+
+### LOW `MathTools/Widget.tsx` tool-label hover color is a dead ternary — both branches identical (missed purple/indigo theming)
+
+- **Detected:** 2026-08-08 (surfaced by the PR #2414 automated review)
+- **Files:** components/widgets/MathTools/Widget.tsx:283-285
+- **Detail:** The tool-label `<span>` picks its hover color with `activeSection.mode === 'sticker-whole' ? 'text-slate-600 group-hover:text-brand-blue-dark' : 'text-slate-600 group-hover:text-brand-blue-dark'` — both branches are the identical string, so the conditional has no effect. The intent was almost certainly to match the sibling card-border theming just above (lines 265-267), which correctly diverges: `hover:border-purple-300` for `sticker-whole` vs `hover:border-indigo-300` for `interactive`. As-is the label hover stays brand-blue for both modes, so interactive-mode buttons get a hover color that clashes with their indigo card theme.
+- **Fix — needs a design decision (NOT a safe unattended auto-fix):** Two divergent intents are possible: (a) collapse the dead ternary to the single string (accept brand-blue for both, byte-identical behavior — pure simplification), or (b) implement the missed theming so the label hover matches the card border per mode (e.g. `group-hover:text-purple-700` for `sticker-whole`, `group-hover:text-indigo-700` for `interactive`) — a visual change requiring maintainer/design sign-off on the exact colors. Because (b) changes rendered output and the "correct" colors are a judgment call, this was left for a supervised pass rather than auto-fixed on the css-scaling PR (#2414) that surfaced it.
 
 ### LOW `TimeTool/useTimeTool.ts` uses 6 `as WidgetConfig` casts on partial update objects
 
@@ -177,7 +197,8 @@ _Nothing currently in progress._
 ### LOW useScreenRecord and useLiveSession exceed 5 state/ref calls
 
 - **Detected:** 2026-04-24
-- **File:** hooks/useScreenRecord.ts (7 useState/useRef: 3 state + 4 refs), hooks/useLiveSession.ts (7 useState/useRef calls)
+- **Updated:** 2026-08-17 — `useScreenRecord.ts` count grew to 11 useState/useRef calls (was 7), via commits predating this audit window; `useLiveSession.ts` unchanged at 7.
+- **File:** hooks/useScreenRecord.ts (11 useState/useRef as of 2026-08-17), hooks/useLiveSession.ts (7 useState/useRef calls)
 - **Detail:** Both hooks exceed the 5-call threshold. `useScreenRecord` manages 3 logically-grouped pieces of UI state (isRecording, duration, error) plus 4 DOM/API refs (MediaRecorder, Blob[], timer, MediaStream). `useLiveSession` has 6 useState calls (session, students, loading, studentId, studentPin, individualFrozen, prevDeps). The refs in useScreenRecord are all distinct external resources, so grouping has lower ROI here than in the session hooks. However, they should be documented.
 - **Fix:** For `useScreenRecord`, group `{ isRecording, duration, error }` into a single `useState` object to reduce the state surface. The 4 refs are all distinct external handles and should remain individual. For `useLiveSession`, group `{ studentId, studentPin }` (always set/cleared together) into a single state object. Severity is LOW because the individual state declarations are cohesive and readable.
 

@@ -137,7 +137,13 @@ export const DrawingSettings: React.FC<{ widget: WidgetData }> = ({
       </div>
 
       <div>
-        <SettingsLabel icon={LayoutGrid}>Background</SettingsLabel>
+        <SettingsLabel
+          icon={LayoutGrid}
+          as="span"
+          id={`drawing-background-label-${widget.id}`}
+        >
+          Background
+        </SettingsLabel>
         {/* Toggle-button group (not radiogroup) — selecting a background is a
             mode toggle. The button + aria-pressed pattern gives us native
             Tab/Space/Enter without the roving-tabindex machinery that a true
@@ -145,7 +151,7 @@ export const DrawingSettings: React.FC<{ widget: WidgetData }> = ({
             AnnotationOverlay.tsx (PR 1685 round-1 fix). */}
         <div
           role="group"
-          aria-label="Background template"
+          aria-labelledby={`drawing-background-label-${widget.id}`}
           className="flex gap-2 px-2"
         >
           {BACKGROUND_OPTIONS.map(({ value, label }) => {

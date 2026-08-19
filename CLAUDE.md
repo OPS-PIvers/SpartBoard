@@ -895,6 +895,7 @@ See [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md) for development branch workflow
 - **ESLint**: Zero errors allowed, warnings acceptable
 - **Prettier**: All files must be formatted
 - **Tests**: Vitest (unit/integration) + Playwright (E2E) + a Firestore-rules suite (`test:rules`). `pnpm run validate` runs type-check, lint, format-check, and the root + functions test suites.
+- **Comments**: One short line max — never multi-paragraph docstrings or multi-line comment blocks. Root-cause narrative and verification rationale belong in the PR description, not the diff. Exception: match the surrounding file's convention where one already differs consistently (e.g. `firestore.rules`). Enforced in review; see [docs/routines/debugger.md](docs/routines/debugger.md).
 
 See [docs/LINTING_SETUP.md](docs/LINTING_SETUP.md) for complete linting documentation.
 

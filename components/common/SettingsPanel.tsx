@@ -143,6 +143,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     updatePosition();
   }, [updatePosition, viewport, zoom]);
 
+  // Reposition on board pan (mirrors DraggableWindow's tool/snap menus) — pan doesn't touch widget.x/y, so the deps above never fire.
+  useEffect(() => {
+    window.addEventListener('board-pan', updatePosition);
+    return () => window.removeEventListener('board-pan', updatePosition);
+  }, [updatePosition]);
+
   // Animate in on mount (track both rAF handles for safe cleanup)
   useEffect(() => {
     let outerRaf = 0;
@@ -213,6 +219,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     <div
       ref={panelRef}
       data-widget-portal=""
+      data-widget-id={widget.id}
       className={`font-${globalStyle.fontFamily}`}
       style={{
         position: 'fixed',

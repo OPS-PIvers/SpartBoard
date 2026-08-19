@@ -33,6 +33,9 @@ import {
   where,
 } from 'firebase/firestore';
 import { usePlcBuildingDirectory } from '@/hooks/usePlcBuildingDirectory';
+import { logError } from '@/utils/logError';
+
+vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
@@ -65,6 +68,7 @@ const mockOnSnapshot = onSnapshot as Mock;
 const mockQuery = query as Mock;
 const mockWhere = where as Mock;
 const mockLimit = limit as Mock;
+const mockLogError = logError as unknown as Mock;
 
 const USER_UID = 'me-uid';
 const USER_EMAIL = 'me@example.com';
@@ -347,5 +351,108 @@ describe('usePlcBuildingDirectory — result filtering', () => {
     expect(result.current.entries).toEqual([]);
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBeNull();
+  });
+});
+
+describe('usePlcBuildingDirectory — error path', () => {
+  it('routes snapshot errors through the structured logError seam, not raw console.error', () => {
+    let errorCb: (err: unknown) => void = () => {
+      throw new Error('error callback not captured');
+    };
+    mockOnSnapshot.mockImplementation((_q, _onNext, onError) => {
+      errorCb = onError;
+      return () => undefined;
+    });
+
+    const { result } = renderHook(() => usePlcBuildingDirectory());
+
+    const err = new Error('permission-denied');
+    act(() => {
+      errorCb(err);
+    });
+
+    // Every sibling usePlc* hook routes its snapshot-error path through the
+    // shared `logError` seam (single point where a future Sentry/Bugsnag
+    // backend gets wired in — see utils/logError.ts). A bare `console.error`
+    // here means this hook's failures are invisible to that pipeline.
+    expect(mockLogError).toHaveBeenCalledWith(
+      'usePlcBuildingDirectory.snapshot',
+      err,
+      { orgId: ORG_ID, buildingId: BUILDING_ID }
+    );
+    expect(result.current.error).toBe(err);
+    expect(result.current.entries).toEqual([]);
+    expect(result.current.loading).toBe(false);
+  });
+});
+
+describe('usePlcBuildingDirectory — scope-change stale-data clear (regression)', () => {
+  // Sibling-drift regression: mirrors the useOrgBuildings/#2374 fix — staying subscribed while orgId/buildingId changes must still clear stale entries.
+  it('clears stale entries when staying subscribed but the orgId changes', () => {
+    const snapshot = captureSnapshot();
+    const { result, rerender } = renderHook(() => usePlcBuildingDirectory());
+
+    act(() => {
+      snapshot.push(
+        fakeSnap([
+          {
+            id: 'plc-old-org',
+            data: {
+              name: 'Old Org PLC',
+              orgId: ORG_ID,
+              buildingId: BUILDING_ID,
+              memberUids: ['other-1'],
+            },
+          },
+        ])
+      );
+    });
+    expect(result.current.entries.map((e) => e.id)).toEqual(['plc-old-org']);
+
+    useAuthMock.mockReturnValue({
+      user: { uid: USER_UID, email: USER_EMAIL },
+      orgId: 'org-other',
+      selectedBuildings: [BUILDING_ID],
+      buildingIds: [],
+    });
+    rerender();
+
+    // Before org-other's first snapshot lands, the old org's entries must
+    // NOT still be showing under the new orgId.
+    expect(result.current.entries).toEqual([]);
+  });
+
+  it('clears stale entries when staying subscribed but the buildingId changes', () => {
+    const snapshot = captureSnapshot();
+    const { result, rerender } = renderHook(() => usePlcBuildingDirectory());
+
+    act(() => {
+      snapshot.push(
+        fakeSnap([
+          {
+            id: 'plc-old-building',
+            data: {
+              name: 'Old Building PLC',
+              orgId: ORG_ID,
+              buildingId: BUILDING_ID,
+              memberUids: ['other-1'],
+            },
+          },
+        ])
+      );
+    });
+    expect(result.current.entries.map((e) => e.id)).toEqual([
+      'plc-old-building',
+    ]);
+
+    useAuthMock.mockReturnValue({
+      user: { uid: USER_UID, email: USER_EMAIL },
+      orgId: ORG_ID,
+      selectedBuildings: ['bldg-other'],
+      buildingIds: [],
+    });
+    rerender();
+
+    expect(result.current.entries).toEqual([]);
   });
 });

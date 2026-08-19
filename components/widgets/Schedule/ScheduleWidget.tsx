@@ -26,6 +26,7 @@ import {
   getActiveScheduleId,
   parseScheduleTime,
   computeEffectiveTimes,
+  computeFocusIndex,
   getItemDurationSeconds,
   scheduleSize,
 } from '@/components/widgets/Schedule/utils';
@@ -100,6 +101,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     cardColor = '#ffffff',
     textSizePreset,
     fontColor = '#334155',
+    expandActiveItem = true,
   } = config;
 
   const textScale = resolveTextPresetMultiplier(textSizePreset, 1);
@@ -194,22 +196,40 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
   }, [displayItems, effectiveTimes, nowSeconds]);
 
   /**
+   * Which row renders its title in full. Display-only — deliberately separate
+   * from `activeIndex`, which drives the "Now" badge, auto-progress, and
+   * linked-widget auto-launch. `-1` disables expansion entirely.
+   */
+  const focusIndex = useMemo(
+    () =>
+      expandActiveItem ? computeFocusIndex(displayItems, activeIndex) : -1,
+    [expandActiveItem, displayItems, activeIndex]
+  );
+
+  /**
    * Scroll the list so that the previously-completed item is at the top,
    * making the active item the second visible row. Uses each row's actual
    * offsetTop so it works correctly with variable-height flex rows.
    */
   useLayoutEffect(() => {
-    if (!autoScroll || activeIndex < 0 || !scrollContainerRef.current) return;
+    if (!autoScroll || !scrollContainerRef.current) return;
+
+    // Anchor on the expanded row when there is one — an expanded row that sits
+    // off-screen is useless. Falls back to activeIndex when expansion is turned
+    // off or every item is done, which is the original behavior.
+    const anchorIndex = focusIndex >= 0 ? focusIndex : activeIndex;
+    if (anchorIndex < 0) return;
+
     const el = scrollContainerRef.current;
 
-    // Show the completed item above the active one (activeIndex - 1).
-    const targetIndex = Math.max(0, activeIndex - 1);
+    // Show the completed item above the anchor (anchorIndex - 1).
+    const targetIndex = Math.max(0, anchorIndex - 1);
     const targetRow = el.children[targetIndex] as HTMLElement;
     if (!targetRow) return;
 
     // Optional chaining guards against jsdom (tests) and edge-case browsers.
     el.scrollTo?.({ top: targetRow.offsetTop, behavior: 'smooth' });
-  }, [activeIndex, autoScroll, displayItems.length]);
+  }, [activeIndex, focusIndex, autoScroll, displayItems.length]);
 
   // Find the clock widget on the board (if any) so we can mirror its time format.
   const clockWidget = useMemo(
@@ -556,6 +576,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                   effectiveEndSec={eff.endSec}
                   isIdle={eff.isIdle}
                   durationSeconds={getItemDurationSeconds(item)}
+                  isExpanded={i === focusIndex}
                   textScale={textScale}
                   fontColor={fontColor}
                 />

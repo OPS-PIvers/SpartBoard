@@ -152,6 +152,71 @@ describe('usePresetSubEmails — snapshot mapping', () => {
       loading: false,
     });
   });
+
+  // Regression: consumers (ShareLinkCreatorModal, ShareCollectionLinkCreator
+  // Modal) each re-implemented trim().toLowerCase() at 4 separate call sites
+  // and repeatedly missed one of them across several review rounds — a
+  // space-padded or mixed-case Firestore preset would pass validation but
+  // leave a chip stuck "enabled" after being added, render with visible
+  // whitespace, or collide on its React key. Normalizing once here, at the
+  // single source every consumer reads from, makes every consumer trivially
+  // correct instead of needing the same fix copy-pasted in 4 places.
+  it('trims and lowercases every email so every consumer gets an already-canonical value', () => {
+    const { result } = renderHook(() => usePresetSubEmails('high'));
+    act(() => {
+      lastListener().next(
+        fakeDocSnap({
+          emails: ['  Sub@Orono.K12.MN.US  ', 'ALREADY@LOWER.COM'],
+        })
+      );
+    });
+
+    expect(result.current).toEqual({
+      emails: ['sub@orono.k12.mn.us', 'already@lower.com'],
+      loading: false,
+    });
+  });
+
+  // Regression (#2432 review): normalizing collapses case-variant legacy
+  // entries to identical strings, but the map alone doesn't dedup them —
+  // consumers would render duplicate React keys and two inert chips for one
+  // real mailbox.
+  it('dedups case-variant entries that normalize to the same email', () => {
+    const { result } = renderHook(() => usePresetSubEmails('high'));
+    act(() => {
+      lastListener().next(
+        fakeDocSnap({
+          emails: ['Sub@Orono.K12.MN.US', 'sub@orono.k12.mn.us', 'other@x.org'],
+        })
+      );
+    });
+
+    expect(result.current).toEqual({
+      emails: ['sub@orono.k12.mn.us', 'other@x.org'],
+      loading: false,
+    });
+  });
+
+  // Regression (#2432 round-8 review): a whitespace-only Firestore entry
+  // ('   ') trims to '', which passed the old dedup filter as a normal
+  // entry — every consumer got an invisible, permanently-enabled, inert
+  // preset chip (isValidOronoEmail('') is false, so a click always no-ops
+  // with no error feedback).
+  it('drops whitespace-only entries after normalizing', () => {
+    const { result } = renderHook(() => usePresetSubEmails('high'));
+    act(() => {
+      lastListener().next(
+        fakeDocSnap({
+          emails: ['   ', 'valid@orono.k12.mn.us', '\t\n'],
+        })
+      );
+    });
+
+    expect(result.current).toEqual({
+      emails: ['valid@orono.k12.mn.us'],
+      loading: false,
+    });
+  });
 });
 
 describe('usePresetSubEmails — error handling', () => {

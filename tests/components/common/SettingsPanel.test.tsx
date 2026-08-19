@@ -397,6 +397,48 @@ describe('SettingsPanel', () => {
     expect(leftValue).not.toBe(312);
   });
 
+  // Regression: panning (CSS transform, doesn't touch widget.x/y) must re-measure the panel's position, mirroring DraggableWindow's board-pan listener.
+  it('re-measures its position on a board-pan event', () => {
+    // rect "moves" like a pan would, while widget.x/y (world coords) stay put.
+    let rect = {
+      left: 0,
+      top: 100,
+      right: 200,
+      bottom: 250,
+      width: 200,
+      height: 150,
+      x: 0,
+      y: 100,
+      toJSON: () => ({}),
+    };
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+      () => rect
+    );
+
+    act(() => {
+      render(<Harness />);
+    });
+
+    const settingsContent = screen.getByTestId('settings-content');
+    const panelEl = findFixedAncestor(settingsContent);
+    expect(panelEl).not.toBeNull();
+    if (!panelEl) return;
+
+    // Pre-pan: panel sits to the right of the widget's screen rect.
+    expect(parseFloat(panelEl.style.left)).toBe(212); // 200 (rect.right) + 12
+
+    // Pan moves the widget 300px right on screen; widget.x/y are untouched.
+    rect = { ...rect, left: 300, right: 500 };
+    act(() => {
+      window.dispatchEvent(new CustomEvent('board-pan'));
+    });
+
+    // With the fix: the panel re-measures and follows the widget.
+    // With the bug: nothing listens for 'board-pan', so left stays at 212 —
+    // the panel is now floating over empty canvas, detached from the widget.
+    expect(parseFloat(panelEl.style.left)).toBe(512); // 500 (new rect.right) + 12
+  });
+
   /**
    * Regression: pressing Escape inside a form field (input, textarea, select)
    * inside the settings panel must NOT close the panel.
@@ -510,5 +552,72 @@ describe('SettingsPanel', () => {
     });
 
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Regression guard against re-introducing a blanket stopPropagation() here.
+   * An earlier version of this fix called e.stopPropagation() on Escape to
+   * avoid a redundant DashboardView-dispatched widget-keyboard-action for the
+   * same widget — but that also silenced every OTHER window-level Escape
+   * listener while a settings panel was open: Shift+Escape (minimize all),
+   * group-build-mode exit, and AnnotationOverlay's own close-on-Escape. The
+   * redundant-dispatch bug is instead prevented inside DraggableWindow itself
+   * via justClosedSettingsRef — a ref set synchronously in the onClose lambda
+   * before updateWidget fires, then read in handleCustomKeyboard's Escape
+   * priority chain to skip the redundant flip-back write. Escape must keep
+   * propagating past this panel's document-level handler.
+   */
+  it('does not stop Escape from reaching a window-level handler', () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 100,
+      right: 200,
+      bottom: 250,
+      width: 200,
+      height: 150,
+      x: 0,
+      y: 100,
+      toJSON: () => ({}),
+    });
+
+    const onClose = vi.fn();
+    const windowHandler = vi.fn();
+
+    const HarnessSimple: React.FC = () => {
+      const widgetRef = React.useRef<HTMLDivElement>(null);
+      return (
+        <>
+          <div ref={widgetRef} data-testid="fake-widget" />
+          <SettingsPanel
+            widget={MOCK_WIDGET}
+            widgetRef={widgetRef}
+            settings={<div data-testid="no-input">No form fields</div>}
+            shouldRenderSettings
+            onClose={onClose}
+            updateWidget={vi.fn()}
+            globalStyle={MOCK_GLOBAL_STYLE}
+            title="Test Widget"
+          />
+        </>
+      );
+    };
+
+    window.addEventListener('keydown', windowHandler);
+    try {
+      act(() => {
+        render(<HarnessSimple />);
+      });
+
+      act(() => {
+        document.body.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+        );
+      });
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(windowHandler).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener('keydown', windowHandler);
+    }
   });
 });
