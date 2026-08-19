@@ -108,4 +108,43 @@ describe('buildStationsFromRandomGroups', () => {
     expect(stations[0].title).toBe('Group 1');
     expect(stations[1].title).toBe('Math Corner');
   });
+
+  // ── Regression: PII — assignments must key by roster id, not raw name ─────
+  //
+  // "Send Groups → Stations" writes `assignments` straight to the target
+  // Stations widget's config via updateWidget, bypassing the Stations
+  // widget's own coalesceLegacyKeys id-migration step. Without a roster map,
+  // the result is keyed by raw student display name, which is never scrubbed
+  // (PII_WIDGET_FIELDS has no entry for `assignments`) and reaches Firestore
+  // verbatim — even for ordinary class-roster dashboards, not just
+  // custom-roster mode.
+
+  it('keys assignments by roster student id when a name->id map is provided', () => {
+    const groups: RandomGroup[] = [{ id: 'A', names: ['Alice Smith'] }];
+    const rosterNameToId = new Map([['Alice Smith', 'student-123']]);
+    const { assignments } = buildStationsFromRandomGroups(
+      groups,
+      undefined,
+      rosterNameToId
+    );
+    expect(assignments['student-123']).toBeDefined();
+    expect(assignments).not.toHaveProperty('Alice Smith');
+  });
+
+  it('falls back to the raw name when it is not found in the roster map', () => {
+    const groups: RandomGroup[] = [{ id: 'A', names: ['Custom Kid'] }];
+    const rosterNameToId = new Map([['Alice Smith', 'student-123']]);
+    const { assignments } = buildStationsFromRandomGroups(
+      groups,
+      undefined,
+      rosterNameToId
+    );
+    expect(assignments['Custom Kid']).toBeDefined();
+  });
+
+  it('falls back to raw name keys when no roster map is passed (custom-roster mode)', () => {
+    const groups: RandomGroup[] = [{ id: 'A', names: ['Alice Smith'] }];
+    const { assignments } = buildStationsFromRandomGroups(groups);
+    expect(assignments['Alice Smith']).toBeDefined();
+  });
 });

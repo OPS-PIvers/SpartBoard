@@ -11,17 +11,29 @@ const UUID_RE =
  * in its own file so re-exporting it from Settings.tsx doesn't trip the
  * `react-refresh/only-export-components` lint rule.
  *
- * @param groups        The RandomGroup[] from config.lastResult.
- * @param sharedGroups  Optional dashboard.sharedGroups — used to resolve a
- *                      group's UUID id to its human-readable name.  Without
- *                      this, groups created by the random groupmaker (whose
- *                      `id` is a crypto.randomUUID()) would produce station
- *                      titles that are raw UUID strings instead of "Group 1",
- *                      "Group 2", etc.
+ * @param groups          The RandomGroup[] from config.lastResult.
+ * @param sharedGroups    Optional dashboard.sharedGroups — used to resolve a
+ *                        group's UUID id to its human-readable name.  Without
+ *                        this, groups created by the random groupmaker (whose
+ *                        `id` is a crypto.randomUUID()) would produce station
+ *                        titles that are raw UUID strings instead of "Group 1",
+ *                        "Group 2", etc.
+ * @param rosterNameToId  Optional display-name -> roster student id map for
+ *                        the TARGET Stations widget's active class roster.
+ *                        When a group member's name resolves, the assignment
+ *                        is keyed by the roster id instead of the raw name —
+ *                        matching the id-keyed scheme the Stations widget
+ *                        itself writes via `coalesceLegacyKeys`. Without this,
+ *                        assignments are keyed by raw student display name,
+ *                        which reaches Firestore unscrubbed (PII_WIDGET_FIELDS
+ *                        has no way to strip a value-keyed map). Names that
+ *                        don't resolve (custom-roster mode, or no map passed)
+ *                        fall back to the legacy name-keyed entry.
  */
 export const buildStationsFromRandomGroups = (
   groups: RandomGroup[],
-  sharedGroups?: SharedGroup[]
+  sharedGroups?: SharedGroup[],
+  rosterNameToId?: Map<string, string>
 ): { stations: Station[]; assignments: Record<string, string | null> } => {
   const sharedMap = new Map((sharedGroups ?? []).map((sg) => [sg.id, sg.name]));
 
@@ -54,9 +66,12 @@ export const buildStationsFromRandomGroups = (
   groups.forEach((group, i) => {
     const station = stations[i];
     for (const name of group.names) {
-      // Last write wins for duplicate names across groups — that's the only
-      // sane choice given assignments are keyed by display name.
-      assignments[name] = station.id;
+      // Prefer the roster student id (PII-safe, and disambiguates duplicate
+      // display names). Last write wins for names that still collide —
+      // either two roster students who resolve to the same key somehow, or
+      // two identical custom-list names with no roster to disambiguate them.
+      const key = rosterNameToId?.get(name) ?? name;
+      assignments[key] = station.id;
     }
   });
   return { stations, assignments };

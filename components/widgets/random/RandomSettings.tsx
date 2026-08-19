@@ -103,9 +103,28 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
       );
       if (!ok) return;
     }
+    // Mirror the Stations widget's own active-roster resolution (Widget.tsx)
+    // so sent-over assignments land on the same roster id keys the widget
+    // itself writes — keeping raw student names out of the Firestore-bound
+    // assignments map for the common (non-custom-roster) case.
+    const stationsConfig = stationsWidget.config as StationsConfig;
+    let rosterNameToId: Map<string, string> | undefined;
+    if (stationsConfig.rosterMode !== 'custom') {
+      const targetRoster =
+        rosters.find((r) => r.id === activeRosterId) ?? rosters[0];
+      if (targetRoster) {
+        rosterNameToId = new Map(
+          targetRoster.students.map((s) => [
+            `${s.firstName} ${s.lastName}`.trim(),
+            s.id,
+          ])
+        );
+      }
+    }
     const { stations, assignments } = buildStationsFromRandomGroups(
       groups,
-      activeDashboard?.sharedGroups
+      activeDashboard?.sharedGroups,
+      rosterNameToId
     );
     updateWidget(stationsWidget.id, {
       config: {
