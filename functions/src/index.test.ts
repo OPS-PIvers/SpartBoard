@@ -3384,7 +3384,7 @@ describe('transcribeVideoWithGemini', () => {
         contents: { role: string; parts: unknown[] }[];
       },
     ];
-    expect(call.model).toBe('gemini-3.1-flash-lite-preview');
+    expect(call.model).toBe('gemini-3.5-flash-lite');
     expect(call.contents[0].parts[1]).toEqual({
       fileData: {
         fileUri: VALID_URL,
@@ -3510,7 +3510,7 @@ describe('generateGuidedLearning', () => {
         contents: { role: string; parts: unknown[] }[];
       },
     ];
-    expect(call.model).toBe('gemini-3-flash-preview');
+    expect(call.model).toBe('gemini-3.6-flash');
     expect(call.contents[0].parts[2]).toEqual({
       inlineData: {
         mimeType: VALID_IMAGE.mimeType,
