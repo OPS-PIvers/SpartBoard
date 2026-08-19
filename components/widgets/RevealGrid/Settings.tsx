@@ -621,7 +621,11 @@ export const RevealGridAppearanceSettings: React.FC<{
       {/* Default Card Colors */}
       <div className="space-y-4">
         <div>
-          <SettingsLabel>Default Card Front Color</SettingsLabel>
+          <SettingsLabel
+            htmlFor={`revealgrid-default-card-front-color-${widget.id}`}
+          >
+            Default Card Front Color
+          </SettingsLabel>
           <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-slate-500">
@@ -632,6 +636,7 @@ export const RevealGridAppearanceSettings: React.FC<{
               </span>
             </div>
             <input
+              id={`revealgrid-default-card-front-color-${widget.id}`}
               type="color"
               value={config.defaultCardColor ?? '#dbeafe'}
               onChange={(e) =>
@@ -645,7 +650,11 @@ export const RevealGridAppearanceSettings: React.FC<{
         </div>
 
         <div>
-          <SettingsLabel>Default Card Back Color</SettingsLabel>
+          <SettingsLabel
+            htmlFor={`revealgrid-default-card-back-color-${widget.id}`}
+          >
+            Default Card Back Color
+          </SettingsLabel>
           <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-slate-500">
@@ -656,6 +665,7 @@ export const RevealGridAppearanceSettings: React.FC<{
               </span>
             </div>
             <input
+              id={`revealgrid-default-card-back-color-${widget.id}`}
               type="color"
               value={config.defaultCardBackColor ?? '#dcfce7'}
               onChange={(e) =>
