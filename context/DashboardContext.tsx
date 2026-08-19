@@ -96,6 +96,7 @@ import {
 import { ToolVisibilityContext } from './ToolVisibilityContextValue';
 import { validateGridConfig, sanitizeAIConfig } from '@/utils/ai_security';
 import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '@/utils/adminBuildingConfig';
+import { isBetaUser } from '@/utils/betaAccess';
 import { AnnotationState } from './DashboardContextValue';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
 import { STANDARD_COLORS } from '@/config/colors';
@@ -231,6 +232,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     user,
     isAdmin,
     roleId,
+    userRoles,
     isStudentRole,
     roleResolved,
     refreshGoogleToken,
@@ -742,17 +744,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     | WidgetType
     | InternalToolType
   )[] => {
-    /**
-     * Checks whether a given FeaturePermission record is accessible to the
-     * current user (enabled, correct access level, in beta list if required).
-     */
+    // Checks whether a FeaturePermission is accessible to the current user; beta check delegates to the shared isBetaUser helper.
     const isPermAccessible = (perm: FeaturePermission): boolean => {
       const isEnabled = perm.enabled !== false;
       const isAccessibleByRole =
         perm.accessLevel !== 'admin' || isAdmin === true;
       const isBetaAccessible =
         perm.accessLevel !== 'beta' ||
-        perm.betaUsers.includes(user?.email ?? '');
+        isBetaUser(perm.betaUsers, user?.email, userRoles, roleId);
       return isEnabled && isAccessibleByRole && isBetaAccessible;
     };
 
@@ -811,7 +810,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     return tools;
-  }, [featurePermissions, selectedBuildings, isAdmin, user]);
+  }, [featurePermissions, selectedBuildings, isAdmin, user, userRoles, roleId]);
 
   // Empty-dock recovery: whenever the dock is empty after hydration,
   // refill it with building-aware defaults. Earlier iterations of this

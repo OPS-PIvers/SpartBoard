@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-08-10_
+_Last audited: 2026-08-17_
 _Last action: 2026-05-18 (admin_audit_log immutability hardening)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-17: Weekly rules audit (Monday). Read firestore.rules in full (now 3883 lines — smaller than the previously-noted ~4500+ estimate, apparently reduced via a prior refactor; not itself a finding). Default-deny catch-all confirmed present and unchanged at firestore.rules:3879-3881. Cross-referenced every distinct collection() / collectionGroup() / doc() string-literal path in components/, context/, hooks/, utils/, and functions/src/ (including resolved constants and folder-collection switch statements) against match blocks — 100% coverage, no client-referenced collection lacks a match block beyond the already-tracked LOW items. All 9 existing open items confirmed present and unchanged (line numbers shifted with file size, content unchanged): MEDIUM pollVotes unrestricted write (:3277-3280), MEDIUM sessions broad read (:2847-2853), LOW organizations/analytics dead rule (:437-442), LOW lti_course_links dead rule (:722-725), LOW plc_layouts possibly retired (:498-508, now zero client references at all, consistent with retired status), LOW admin_settings/user_roles redundant (:646-648), LOW classroom_grade_links no explicit rule, LOW ai_usage write denial absent (:3614-3622), LOW custom_widgets.buildings not enforced (:3330-3334). Security posture unchanged. Zero new items._
 
 _2026-08-10: Weekly rules audit (Monday). New dev-paul commits since 2026-08-03 absorbed via rebase: c26ad917 / 0e79f85f docs only; f58cb0db fix(a11y) #2416 back-face settings primitives only (no Firestore collection changes); f4830ebe pr-review docs only. Default-deny catch-all confirmed still present. No new Firestore collection() or collectionGroup() calls introduced by any rebased commit. All 7 existing open items confirmed present and unchanged: MEDIUM pollVotes unrestricted write, MEDIUM sessions broad read, LOW organizations/analytics dead rule, LOW lti_course_links dead rule, LOW plc_layouts possibly retired, LOW admin_settings/user_roles redundant, LOW classroom_grade_links no explicit rule, LOW ai_usage write denial absent. Security posture unchanged. Zero new items._
 

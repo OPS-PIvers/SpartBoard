@@ -119,6 +119,24 @@ export const MAX_CATEGORY_SCAN_PER_PLC = 5000;
 /** Page size for the paginated per-PLC category sweeps (startAfter cursor on document id). */
 export const CATEGORY_PAGE_SIZE = 500;
 
+/**
+ * Overall safety ceiling on version-overflow snapshots deleted PER GROUP PER
+ * RUN — same rationale as the other `MAX_*_PER_RUN` ceilings. Before this,
+ * `sweepVersionOverflow` read the ENTIRE `versions` subcollection into memory
+ * with an un-bounded `.get()` and sorted it client-side — the one sweep in
+ * this file with no ceiling at all. In steady state the client prunes to
+ * `VERSION_HISTORY_LIMIT` after every publish so this rarely matters, but a
+ * group whose prune has been failing (e.g. a long-broken client) can carry an
+ * unbounded backlog, and this sweep runs BEFORE the per-PLC loop with no
+ * try/catch around it — an unbounded read/sort on one pathological group can
+ * throw or exhaust the function's pinned 256MiB budget and abort the whole
+ * run before a single PLC's activity/presence/tombstone sweep even starts.
+ * Bounding the per-group delete keeps one bad group from starving every
+ * other group and PLC in the run; leftover overflow is picked up next run
+ * (the sweep is idempotent, same as every other ceiling in this file).
+ */
+export const MAX_VERSIONS_SCAN_PER_GROUP = 5000;
+
 /** Firestore caps a batch at 500 ops; chunk below that defensively. */
 const BATCH_CHUNK = 250;
 
@@ -300,28 +318,58 @@ async function sweepEmptyGroups(db: Firestore): Promise<number> {
 }
 
 /**
- * Trim version-history overflow under a single synced group. Keeps the newest
- * `VERSION_HISTORY_LIMIT` snapshots (by numeric doc id = version number) and
- * deletes the rest. Defensive: the client prunes after each publish, so this
- * usually finds nothing.
+ * Trim version-history overflow under a single synced group. Keeps the
+ * newest `VERSION_HISTORY_LIMIT` snapshots (by the numeric `version` field —
+ * every version doc is written with `version is int` per firestore.rules) and
+ * deletes the rest, bounded by `MAX_VERSIONS_SCAN_PER_GROUP` per run.
+ *
+ * Sorts and skips the kept head SERVER-SIDE via `orderBy('version',
+ * 'desc').offset(VERSION_HISTORY_LIMIT)` rather than fetching the whole
+ * subcollection and sorting in memory — the prior approach had no ceiling at
+ * all (see `MAX_VERSIONS_SCAN_PER_GROUP`). This intentionally does NOT mirror
+ * `fetchCategoryPaginated`'s doc-id `startAfter` cursor: doc ids here are
+ * stringified version numbers, so string-order pagination ("1","10","11",...)
+ * does not match numeric recency, and a capped doc-id page could delete the
+ * wrong (non-oldest) snapshots. Ordering by the real numeric field avoids
+ * that trap entirely. Defensive: the client prunes after each publish, so
+ * this usually finds nothing.
+ *
+ * TRADE-OFF: `orderBy('version')` silently excludes any doc that lacks the
+ * `version` field entirely (Firestore's field-orderBy semantics, not a bug
+ * here) — such a doc would neither be counted nor deleted, and would
+ * accumulate forever instead of being pruned. The prior unbounded-`.get()`
+ * implementation handled this deliberately (non-numeric ids sorted as
+ * oldest, pruned first). This is an accepted, verified-unreachable trade:
+ * the sole writer (`useSyncedQuizGroups.ts`/`useSyncedVideoActivityGroups.ts`
+ * `writeVersionSnapshot`) always constructs a full `PlcVersionSnapshot`
+ * (`version: number` is non-optional in `types.ts`) and writes it via a
+ * full `setDoc` (never a partial `updateDoc`), so no code path can produce
+ * a fieldless version doc. `firestore.rules`' `version is int` constraint
+ * only covers this same client path — it's corroborating evidence, not the
+ * primary guarantee. If a future writer (e.g. a migration script or a new
+ * Admin-SDK caller) can create a version doc without this field, that
+ * writer must be fixed rather than this sweep re-widened to compensate.
  */
 async function sweepVersionOverflow(
   db: Firestore,
   groupRef: admin.firestore.DocumentReference
 ): Promise<number> {
-  const versionsSnap = await groupRef.collection('versions').get();
-  if (versionsSnap.size <= VERSION_HISTORY_LIMIT) return 0;
-  // Newest-first by version number (doc id). Non-numeric ids sort last (NaN →
-  // treated as oldest) so malformed snapshots are pruned first.
-  const sorted = [...versionsSnap.docs].sort((a, b) => {
-    const av = Number(a.id);
-    const bv = Number(b.id);
-    const an = Number.isFinite(av) ? av : -Infinity;
-    const bn = Number.isFinite(bv) ? bv : -Infinity;
-    return bn - an;
-  });
-  const overflow = sorted.slice(VERSION_HISTORY_LIMIT).map((d) => d.ref);
-  return deleteRefs(db, overflow);
+  const overflowSnap = await groupRef
+    .collection('versions')
+    .orderBy('version', 'desc')
+    .offset(VERSION_HISTORY_LIMIT)
+    .limit(MAX_VERSIONS_SCAN_PER_GROUP)
+    .get();
+  if (overflowSnap.size === 0) return 0;
+  if (overflowSnap.size >= MAX_VERSIONS_SCAN_PER_GROUP) {
+    console.warn(
+      `[gcPlcOrphans] hit MAX_VERSIONS_SCAN_PER_GROUP ceiling (${MAX_VERSIONS_SCAN_PER_GROUP}) on ${groupRef.path}/versions — raise it or shard the sweep`
+    );
+  }
+  return deleteRefs(
+    db,
+    overflowSnap.docs.map((d) => d.ref)
+  );
 }
 
 /**

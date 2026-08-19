@@ -5716,7 +5716,7 @@ export interface SavedStationsPreset {
 export interface StationsConfig {
   /** Teacher-defined stations. Sorted by `order` for rotation/display. */
   stations: Station[];
-  /** Map: studentName -> stationId, or null/missing for unassigned. */
+  /** Map: roster studentId (or display name for custom-list / legacy entries) -> stationId, or null/missing for unassigned. */
   assignments: Record<string, string | null>;
   rosterMode?: 'class' | 'custom';
   customRoster?: string[];
