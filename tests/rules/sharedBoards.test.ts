@@ -581,3 +581,67 @@ describe('shared_boards — PLC board list query', () => {
     await assertFails(getDocs(plcQuery(asStranger())));
   });
 });
+
+// Regression (PR #2503 review): the `allow list` plcId branch admits any member
+// of the queried PLC with no @orono/expiry gate, and cannot re-check
+// `intendedMode` — the PLC query doesn't pin that field, so in query scope it
+// resolves to the `.get()` default and the check silently passes (verified
+// against the emulator). The branch is therefore sound only while a substitute
+// share can never carry a plcId: create forbids it, and update must too.
+describe('shared_boards — substitute shares can never acquire a plcId', () => {
+  const PLC_ID = 'plc-attach-test';
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        memberUids: [HOST_UID, ADMIN_UID],
+      });
+      await setDoc(
+        doc(ctx.firestore(), `shared_boards/${SHARE_ID}`),
+        subShareDoc()
+      );
+    });
+  });
+
+  it('host cannot attach a plcId to their own substitute share', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), { plcId: PLC_ID })
+    );
+  });
+
+  it('admin cannot attach a plcId to a substitute share either', async () => {
+    await assertFails(
+      updateDoc(doc(asAdmin(), `shared_boards/${SHARE_ID}`), { plcId: PLC_ID })
+    );
+  });
+
+  it('host cannot attach a plcId alongside an otherwise-legal content edit', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), {
+        name: 'Renamed',
+        plcId: PLC_ID,
+      })
+    );
+  });
+
+  it('host can still edit content on a substitute share', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), {
+        name: 'Renamed',
+        widgets: [{ id: 'w1' }],
+      })
+    );
+  });
+
+  it('a non-substitute share can still be tagged into a PLC the host belongs to', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `shared_boards/${SHARE_ID}`),
+        seededShare()
+      );
+    });
+    await assertSucceeds(
+      updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), { plcId: PLC_ID })
+    );
+  });
+});

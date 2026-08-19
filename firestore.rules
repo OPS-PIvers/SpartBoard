@@ -883,6 +883,8 @@ service cloud.firestore {
       //   - own shares: originalAuthor == uid (useReconcileExpiredSubShares)
       //   - /subs directory: intendedMode == 'substitute' + @orono email
       //   - PLC board picker: plcId == <plc> + current membership of that PLC
+      //     (sound only because a substitute share can never carry a plcId —
+      //     forbidden at create and pinned in `allow update` below)
       // An unscoped list stays denied for everyone but admins. Expiry is NOT
       // enforceable here (see above), so an @orono caller can list — never
       // `get` — an expired substitute share until the hourly expireSubShares
@@ -947,6 +949,19 @@ service cloud.firestore {
       allow update: if request.auth != null &&
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin()) &&
         request.resource.data.get('intendedMode', null) == resource.data.get('intendedMode', null) &&
+        // "substitute + plcId" must stay an impossible state. The `list` rule's
+        // plcId branch admits any member of that PLC with no @orono/expiry gate,
+        // and it CANNOT re-check intendedMode: the PLC query doesn't pin that
+        // field, so in query scope it resolves to the `.get()` default rather
+        // than the doc's value and the check silently passes. Create already
+        // forbids plcId on substitute shares; this keeps a later update from
+        // attaching one and exposing driveGrants/subEmails/initialState to the
+        // PLC. Deliberately NOT admin-overridable — unlike the lifecycle pins
+        // below, this one is what makes the list branch sound.
+        (
+          request.resource.data.get('intendedMode', null) != 'substitute'
+          || request.resource.data.get('plcId', null) == null
+        ) &&
         (
           resource.data.get('intendedMode', null) != 'substitute'
           || isAdmin()
