@@ -6,8 +6,11 @@
  * - `useSubstituteShare(shareId)` — live single-doc subscription for the
  *   sub-board view.
  *
- * Schema: see `SubstituteShareFields` in types.ts. Reads are auth-gated
- * by `firestore.rules` (`allow read: if request.auth != null`).
+ * Schema: see `SubstituteShareFields` in types.ts. `firestore.rules` splits
+ * these reads: `allow get` gates single-doc reads on host/admin/@orono +
+ * expiresAt, while `allow list` is evaluated against the query — it can only
+ * see fields pinned by an equality filter (here: intendedMode), so expiry is
+ * filtered below rather than in rules.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -82,8 +85,9 @@ interface ShareSnapshot {
 const MAX_PERMISSION_DENIED_RETRIES = 3;
 
 /**
- * Live list of substitute shares in the given building. The Firestore read rule
- * gates @orono callers on expiresAt; see PR #2150 for the retry-on-permission-denied logic.
+ * Live list of substitute shares in the given building. The `allow list` rule
+ * gates @orono callers on `intendedMode == 'substitute'`; the `expiresAt`
+ * range filter below narrows the result set but is invisible to rules.
  */
 export function useSubstituteShares(
   buildingId: string
@@ -132,7 +136,7 @@ export function useSubstituteShares(
           retryCountRef.current < MAX_PERMISSION_DENIED_RETRIES
         ) {
           retryCountRef.current += 1;
-          // Clear stale snapshot so callers see loading, not the expired-doc list, until re-subscribe resolves.
+          // Covers a stale-token race right after sign-in; clear the snapshot so callers see loading, not a stale list.
           setSnapshot(null);
           setRetryToken((t) => t + 1);
           return;

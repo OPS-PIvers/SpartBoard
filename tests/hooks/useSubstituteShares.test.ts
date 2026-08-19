@@ -118,7 +118,7 @@ describe('useSubstituteShares — listener wiring', () => {
     expect(listeners).toHaveLength(1);
   });
 
-  it('includes an expiresAt > now query constraint so the read rule can be proven for the whole query (#2150)', () => {
+  it('includes an expiresAt > now query constraint so expired shares stay out of the result set (rules cannot filter them)', () => {
     const now = 1_700_000_000_000;
     vi.spyOn(Date, 'now').mockReturnValue(now);
 
@@ -226,12 +226,11 @@ describe('useSubstituteShares — snapshot mapping', () => {
 
 describe('useSubstituteShares — error handling', () => {
   it('re-subscribes (does not surface an error) on the first few permission-denied hits', () => {
-    // Regression (#2150 follow-up): a share expiring WHILE this listener is
-    // open, followed by expireSubShares.ts writing to it, denies the WHOLE
-    // query with permission-denied (confirmed against the real emulator) —
-    // not just a per-doc removal. Re-subscribing with a fresh Date.now()
-    // baseline (which excludes the now-expired doc) recovers transparently
-    // instead of parking the directory listing in a hard error state.
+    // A list rule is evaluated against the query, not its documents, so an
+    // expiring share can no longer deny this listener (see firestore.rules).
+    // The retry now covers a transient denial — e.g. a stale ID token right
+    // after sign-in — recovering transparently instead of parking the
+    // directory listing in a hard error state.
     const { result } = renderHook(() => useSubstituteShares('high'));
     expect(listeners).toHaveLength(1);
 
@@ -241,8 +240,8 @@ describe('useSubstituteShares — error handling', () => {
     expect(listeners).toHaveLength(2); // re-subscribed
     expect(result.current.loading).toBe(true);
     expect(result.current.error).toBeNull();
-    // Expiry-driven reconnects are expected and transparent — don't log them
-    // as errors (would trip error-dashboard rate limits for routine expiry).
+    // Transient reconnects are expected — don't log them as errors (would
+    // trip error-dashboard rate limits).
     expect(mockLogError).not.toHaveBeenCalled();
 
     act(() => {
@@ -254,9 +253,8 @@ describe('useSubstituteShares — error handling', () => {
   });
 
   it('clears the stale snapshot during a retry instead of showing the list that triggered the denial', () => {
-    // Regression (#2150 round 6): a permission-denied caused by a share
-    // expiring mid-listener must not leave the pre-denial (possibly
-    // now-expired) shares on screen while the re-subscribe is in flight.
+    // Regression (#2150 round 6): a permission-denied must not leave the
+    // pre-denial shares on screen while the re-subscribe is in flight.
     const now = 1_000_000;
     vi.spyOn(Date, 'now').mockReturnValue(now);
 
@@ -572,7 +570,7 @@ describe('useSubstituteShare — single-doc subscription', () => {
     );
   });
 
-  it("flags permission-denied as likely-expired (the read rule's only other branches are host/admin, which never deny)", () => {
+  it("flags permission-denied as likely-expired (the get rule's only other branches are host/admin, which never deny)", () => {
     const { result } = renderHook(() => useSubstituteShare('s1', 'high'));
     act(() => {
       lastListener().error({ code: 'permission-denied' });
