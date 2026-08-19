@@ -110,8 +110,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
     const stationsConfig = stationsWidget.config as StationsConfig;
     let rosterNameToId: Map<string, string> | undefined;
     if (shouldResolveRosterNames(rosterMode, stationsConfig.rosterMode)) {
-      const targetRoster =
-        rosters.find((r) => r.id === activeRosterId) ?? rosters[0];
+      const targetRoster = rosters.find((r) => r.id === activeRosterId);
       if (targetRoster) {
         rosterNameToId = new Map(
           targetRoster.students.map((s) => [
