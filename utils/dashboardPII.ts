@@ -24,18 +24,37 @@ export const PII_WIDGET_FIELDS = [
   'lockedNames', // RandomWidget — manually pinned names (Jigsaw/manual edit)
   'unassignedNames', // RandomWidget — names parked in the Unassigned tray
   'doneNames', // RandomWidget — names marked "done" in Shuffle mode
+  'jigsawHomeGroups', // RandomWidget — Jigsaw mode home groups (RandomGroup[] with names[])
+  'jigsawExpertGroups', // RandomWidget — Jigsaw mode expert groups (RandomGroup[] with names[])
   'names', // SeatingChartWidget — custom roster name list
   'roster', // LunchCountConfig — student name array
   'customRoster', // StationsConfig — custom-mode roster name list
 ] as const;
+// NOTE: `assignments` (Stations/LunchCount/SeatingChart) is a further,
+// conditionally-PII field — see `isCustomModeAssignments` below. It isn't
+// listed here because it's only PII when `rosterMode === 'custom'`.
 
-export type PiiWidgetField = (typeof PII_WIDGET_FIELDS)[number];
+export type PiiWidgetField = (typeof PII_WIDGET_FIELDS)[number] | 'assignments';
 
 /** Maps widgetId → object containing only PII fields for that widget */
 export type DashboardPiiSupplement = Record<
   string,
   Partial<Record<PiiWidgetField, unknown>>
 >;
+
+/**
+ * Stations, LunchCount, and SeatingChart all persist an `assignments: Record<string, ...>`
+ * map. In roster mode ('class') keys are opaque roster student ids — safe for
+ * Firestore. In custom-list mode ('custom') there is no backing roster record,
+ * so the widgets use the raw typed student name AS the key (see e.g.
+ * `Stations/Widget.tsx`: "custom-list mode: id IS the name"). `assignments` is
+ * therefore PII only when `rosterMode === 'custom'` — treating it as PII
+ * unconditionally would strip the (non-PII, id-keyed) roster-mode map from
+ * every save and break real-time sync for the common case.
+ */
+function isCustomModeAssignments(config: Record<string, unknown>): boolean {
+  return config.rosterMode === 'custom' && config.assignments !== undefined;
+}
 
 /**
  * Returns a deep copy of `dashboard` with all PII fields removed from every
@@ -46,6 +65,9 @@ export function scrubDashboardPII(dashboard: Dashboard): Dashboard {
     ...dashboard,
     widgets: dashboard.widgets.map((widget) => {
       const config = { ...(widget.config as Record<string, unknown>) };
+      if (isCustomModeAssignments(config)) {
+        delete config.assignments;
+      }
       for (const field of PII_WIDGET_FIELDS) {
         delete config[field];
       }
@@ -74,6 +96,11 @@ export function extractDashboardPII(
         piiFields[field] = config[field];
         hasPii = true;
       }
+    }
+
+    if (isCustomModeAssignments(config)) {
+      piiFields.assignments = config.assignments;
+      hasPii = true;
     }
 
     if (hasPii) {
@@ -119,6 +146,7 @@ export function dashboardHasPII(dashboard: Dashboard): boolean {
     for (const field of PII_WIDGET_FIELDS) {
       if (field in config && config[field] !== undefined) return true;
     }
+    if (isCustomModeAssignments(config)) return true;
   }
   return false;
 }
