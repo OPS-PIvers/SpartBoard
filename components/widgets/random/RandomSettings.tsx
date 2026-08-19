@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { WidgetData, RandomConfig, RandomGroup, StationsConfig } from '@/types';
-import { buildStationsFromRandomGroups } from '@/components/widgets/Stations/nexus';
+import {
+  buildStationsFromRandomGroups,
+  shouldResolveRosterNames,
+} from '@/components/widgets/Stations/nexus';
 import { RosterModeControl } from '@/components/common/RosterModeControl';
 import { Toggle } from '@/components/common/Toggle';
 import { Card } from '@/components/common/Card';
@@ -103,9 +106,24 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
       );
       if (!ok) return;
     }
+    // Only trust name→id resolution when BOTH widgets are in class-roster mode, else a freeform Random name could collide with a real student's name.
+    const stationsConfig = stationsWidget.config as StationsConfig;
+    let rosterNameToId: Map<string, string> | undefined;
+    if (shouldResolveRosterNames(rosterMode, stationsConfig.rosterMode)) {
+      const targetRoster = rosters.find((r) => r.id === activeRosterId);
+      if (targetRoster) {
+        rosterNameToId = new Map(
+          targetRoster.students.map((s) => [
+            `${s.firstName} ${s.lastName}`.trim(),
+            s.id,
+          ])
+        );
+      }
+    }
     const { stations, assignments } = buildStationsFromRandomGroups(
       groups,
-      activeDashboard?.sharedGroups
+      activeDashboard?.sharedGroups,
+      rosterNameToId
     );
     updateWidget(stationsWidget.id, {
       config: {
