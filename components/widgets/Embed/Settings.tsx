@@ -274,8 +274,11 @@ export const EmbedSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       ) : (
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div>
-            <SettingsLabel>HTML / CSS / JS</SettingsLabel>
+            <SettingsLabel htmlFor={`embed-html-content-${widget.id}`}>
+              HTML / CSS / JS
+            </SettingsLabel>
             <textarea
+              id={`embed-html-content-${widget.id}`}
               value={html}
               placeholder="<html>&#10;  <style>body { background: #f0f; }</style>&#10;  <body><h1>Hello Class!</h1></body>&#10;</html>"
               onChange={(e) =>

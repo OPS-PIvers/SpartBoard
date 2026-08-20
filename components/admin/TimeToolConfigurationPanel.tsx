@@ -87,6 +87,7 @@ export const TimeToolConfigurationPanel: React.FC<
   const displayStyleLabelId = useId();
   const numberStyleLabelId = useId();
   const defaultAlertSoundLabelId = useId();
+  const defaultFontLabelId = useId();
 
   const buildingDefaults = config.buildingDefaults ?? {};
   const currentBuildingConfig: BuildingTimeToolDefaults = buildingDefaults[
@@ -350,8 +351,11 @@ export const TimeToolConfigurationPanel: React.FC<
 
         {/* Font Family */}
         <div>
-          <SettingsLabel className="mb-1">Default Font</SettingsLabel>
+          <SettingsLabel className="mb-1" htmlFor={defaultFontLabelId}>
+            Default Font
+          </SettingsLabel>
           <select
+            id={defaultFontLabelId}
             value={currentBuildingConfig.fontFamily ?? 'global'}
             onChange={(e) =>
               handleUpdateBuilding({
