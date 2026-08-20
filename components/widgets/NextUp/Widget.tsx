@@ -331,7 +331,10 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
             filter: 'brightness(0.8)',
           }}
         >
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center"
+            style={{ gap: 'min(8px, 2cqmin)' }}
+          >
             <ListOrdered
               style={{
                 width: 'min(18px, 4.5cqmin)',
@@ -348,10 +351,14 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
               {config.sessionName}
             </h3>
           </div>
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center"
+            style={{ gap: 'min(8px, 2cqmin)' }}
+          >
             <button
               onClick={handleResetQueue}
-              className="p-1 hover:bg-white/10 rounded transition-colors"
+              className="hover:bg-white/10 rounded transition-colors"
+              style={{ padding: 'min(4px, 1cqmin)' }}
               title="Reset Queue"
             >
               <RefreshCcw
@@ -364,8 +371,14 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
             <button
               onClick={handleNextStudent}
               disabled={loading}
-              className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded font-bold transition-all text-white disabled:opacity-50"
-              style={{ fontSize: 'min(12px, 3cqmin)' }}
+              className="bg-white/20 hover:bg-white/30 rounded font-bold transition-all text-white disabled:opacity-50"
+              style={{
+                fontSize: 'min(12px, 3cqmin)',
+                paddingLeft: 'min(12px, 3cqmin)',
+                paddingRight: 'min(12px, 3cqmin)',
+                paddingTop: 'min(4px, 1cqmin)',
+                paddingBottom: 'min(4px, 1cqmin)',
+              }}
             >
               NEXT
             </button>
@@ -413,7 +426,14 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
 
           {/* Upcoming List */}
           <div className="flex-1 min-h-0 flex flex-col">
-            <div className="flex items-center justify-between mb-2 px-1">
+            <div
+              className="flex items-center justify-between"
+              style={{
+                marginBottom: 'min(8px, 2cqmin)',
+                paddingLeft: 'min(4px, 1cqmin)',
+                paddingRight: 'min(4px, 1cqmin)',
+              }}
+            >
               <p
                 className="text-slate-400 font-bold uppercase tracking-wider"
                 style={{ fontSize: 'min(10px, 2.5cqmin)' }}
@@ -429,11 +449,17 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
             </div>
 
             <div
-              className="flex-1 overflow-y-auto pr-1 space-y-2 custom-scrollbar"
+              className="flex-1 overflow-y-auto pr-1 flex flex-col custom-scrollbar"
               style={{ gap: 'min(8px, 2cqmin)' }}
             >
               {waitingStudents.length === 0 ? (
-                <div className="h-full flex items-center justify-center opacity-30 italic py-8 text-center">
+                <div
+                  className="h-full flex items-center justify-center opacity-30 italic text-center"
+                  style={{
+                    paddingTop: 'min(32px, 8cqmin)',
+                    paddingBottom: 'min(32px, 8cqmin)',
+                  }}
+                >
                   <p style={{ fontSize: 'min(14px, 3.5cqmin)' }}>
                     No one waiting
                   </p>

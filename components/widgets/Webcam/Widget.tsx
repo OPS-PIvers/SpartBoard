@@ -474,7 +474,10 @@ export const WebcamWidget: React.FC<{
               {/* Status Overlays */}
               {showCaptureSuccess && (
                 <div className="absolute inset-0 flex items-center justify-center bg-green-500/20 backdrop-blur-sm z-40 animate-in fade-in zoom-in duration-300">
-                  <div className="bg-green-500 text-white rounded-full p-6 shadow-2xl">
+                  <div
+                    className="bg-green-500 text-white rounded-full shadow-2xl"
+                    style={{ padding: 'min(24px, 6cqmin)' }}
+                  >
                     <Check
                       style={{
                         width: 'min(48px, 12cqmin)',
@@ -487,7 +490,13 @@ export const WebcamWidget: React.FC<{
 
               {isExtracting && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-blue-500/20 backdrop-blur-sm z-40 animate-in fade-in duration-300">
-                  <div className="bg-brand-blue-primary text-white rounded-full p-6 shadow-2xl mb-4">
+                  <div
+                    className="bg-brand-blue-primary text-white rounded-full shadow-2xl"
+                    style={{
+                      padding: 'min(24px, 6cqmin)',
+                      marginBottom: 'min(16px, 4cqmin)',
+                    }}
+                  >
                     <Loader2
                       className="animate-spin"
                       style={{
@@ -497,8 +506,14 @@ export const WebcamWidget: React.FC<{
                     />
                   </div>
                   <div
-                    className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-full text-white font-bold tracking-widest uppercase"
-                    style={{ fontSize: 'min(12px, 3cqmin)' }}
+                    className="bg-black/60 backdrop-blur-md rounded-full text-white font-bold tracking-widest uppercase"
+                    style={{
+                      fontSize: 'min(12px, 3cqmin)',
+                      paddingLeft: 'min(16px, 4cqmin)',
+                      paddingRight: 'min(16px, 4cqmin)',
+                      paddingTop: 'min(8px, 2cqmin)',
+                      paddingBottom: 'min(8px, 2cqmin)',
+                    }}
                   >
                     Processing Text...
                   </div>
@@ -514,7 +529,10 @@ export const WebcamWidget: React.FC<{
                 className="flex items-center justify-between border-b border-white/20 shrink-0"
                 style={{ padding: 'min(16px, 3.5cqmin)' }}
               >
-                <div className="flex items-center gap-2">
+                <div
+                  className="flex items-center"
+                  style={{ gap: 'min(8px, 2cqmin)' }}
+                >
                   <FileText
                     className="text-blue-400"
                     style={{
@@ -544,14 +562,15 @@ export const WebcamWidget: React.FC<{
               </div>
 
               <div
-                className="flex-1 overflow-y-auto custom-scrollbar p-4"
+                className="flex-1 overflow-y-auto custom-scrollbar"
                 style={{ padding: 'min(16px, 3.5cqmin)' }}
               >
                 <div
-                  className="bg-white/5 border border-white/10 rounded-xl p-4 text-white/90 whitespace-pre-wrap font-mono selection:bg-blue-500/30"
+                  className="bg-white/5 border border-white/10 rounded-xl text-white/90 whitespace-pre-wrap font-mono selection:bg-blue-500/30"
                   style={{
                     fontSize: 'min(14px, 3.5cqmin)',
                     lineHeight: '1.6',
+                    padding: 'min(16px, 3.5cqmin)',
                   }}
                 >
                   {extractedText ?? 'No text found.'}
@@ -559,15 +578,19 @@ export const WebcamWidget: React.FC<{
               </div>
 
               <div
-                className="p-4 border-t border-white/10 flex justify-end gap-3"
-                style={{ padding: 'min(16px, 3.5cqmin)' }}
+                className="border-t border-white/10 flex justify-end"
+                style={{
+                  padding: 'min(16px, 3.5cqmin)',
+                  gap: 'min(12px, 3cqmin)',
+                }}
               >
                 <button
                   onClick={handleSendToNotes}
-                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all shadow-lg active:scale-95"
+                  className="flex items-center bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all shadow-lg active:scale-95"
                   style={{
                     fontSize: 'min(12px, 3cqmin)',
                     padding: 'min(8px, 1.5cqmin) min(16px, 3cqmin)',
+                    gap: 'min(8px, 2cqmin)',
                   }}
                 >
                   <FileText style={{ width: 'min(14px, 3.5cqmin)' }} />
@@ -575,10 +598,11 @@ export const WebcamWidget: React.FC<{
                 </button>
                 <button
                   onClick={handleCopy}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-lg active:scale-95"
+                  className="flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-lg active:scale-95"
                   style={{
                     fontSize: 'min(12px, 3cqmin)',
                     padding: 'min(8px, 1.5cqmin) min(16px, 3cqmin)',
+                    gap: 'min(8px, 2cqmin)',
                   }}
                 >
                   {copied ? (

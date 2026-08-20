@@ -385,8 +385,11 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                   }}
                 />
                 <span
-                  className="ml-1 font-black uppercase tracking-widest"
-                  style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+                  className="font-black uppercase tracking-widest"
+                  style={{
+                    fontSize: 'min(11px, 3.5cqmin)',
+                    marginLeft: 'min(4px, 1cqmin)',
+                  }}
                 >
                   Shuffle
                 </span>
@@ -411,8 +414,11 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                   }}
                 />
                 <span
-                  className="ml-1 font-black uppercase tracking-widest"
-                  style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+                  className="font-black uppercase tracking-widest"
+                  style={{
+                    fontSize: 'min(11px, 3.5cqmin)',
+                    marginLeft: 'min(4px, 1cqmin)',
+                  }}
                 >
                   Rotate
                 </span>

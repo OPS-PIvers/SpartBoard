@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-08-20_
-_Last action: 2026-08-19 — LOW RevealGridWidget hardcoded header/grid spacing (gap-2 header row, py-1 px-3 + text-xs "Start Over" button, text-xs "Show Answers" label, gap-4 vocabulary grid) converted to inline `cqmin`-capped styles, closing out the item_
+_Last action: 2026-08-20 — LOW "Multiple widgets with hardcoded gap/padding/icon-size spacing" group item resolved across all 11 listed widgets (CatalystWidget, DiceWidget, GuidedLearning, InstructionalRoutines, NextUp, SoundWidget, SoundboardWidget, SpecialistScheduleWidget, Stations, TalkingTool, Webcam): every hardcoded `gap-N`/`p-N`/`px-N py-N`/`mb-N`/`mr-N`/`ml-N`/`w-N h-N` Tailwind spacing/icon-size utility listed in the item converted to inline `cqmin`-capped equivalents (a few dead classes already shadowed by an existing inline style of the same property — e.g. InstructionalRoutines `p-8`/`gap-4`/`gap-2`, TalkingTool `mb-4`, NextUp `p-2` — were removed instead of duplicated). `pnpm type-check` exit 0, `pnpm exec eslint <11 files> --max-warnings 0` exit 0, `pnpm exec prettier --check <11 files>` clean, and the 8 existing widget test files covering these components (44 tests) all pass. PR opened to dev-paul.
 
 ---
 
@@ -234,25 +234,6 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### LOW Multiple widgets with hardcoded gap/padding/icon-size spacing (group)
-
-- **Detected:** 2026-04-14
-- **File:** (see per-widget details below)
-- **Detail:** The following widgets have `skipScaling: true` and contain hardcoded Tailwind spacing utilities (`gap-N`, `p-N`, `px-N py-N`, `mb-N`) or icon size classes (`w-N h-N`) in their front-face content. These cause fixed-pixel spacing that does not respond to container query scaling, creating density mismatches at large widget sizes. None affect text legibility directly (no Tailwind text-size classes), so severity is LOW.
-  - `CatalystWidget/Widget.tsx:88` — `mr-2` on back button
-  - `DiceWidget/Widget.tsx:109, :113-116` — `px-3 pb-3` footer, `py-4 px-6 gap-3` Roll Dice button
-  - `GuidedLearning/Widget.tsx:618` — `w-8 h-8` on Loader2 loading icon (line shifted from :231 — confirmed 2026-07-01)
-  - `InstructionalRoutines/Widget.tsx:186, :276` — `p-8` in `isHero` branch, `mt-4 gap-4`/`gap-2` in action row (detected 2026-07-01)
-  - `NextUp/Widget.tsx:295, :331, :344, :346, :360, :409, :425, :430` — `p-6`, `gap-2`, `p-1`, `px-3 py-1`, `mb-2 px-1`, `space-y-2`, `py-8`
-  - ~~`random/RandomWidget.tsx:711, :750, :752`~~ — resolved by random redesign (2026-05-15; commits b0b11656, f8fb1e6b converted all to `cqmin`)
-  - `SoundWidget/Widget.tsx:182, :210, :212` — `p-2` content wrapper, `pb-3` footer, `px-6 py-2` level label
-  - `SoundboardWidget/Widget.tsx:391` — `gap-2` selection bar (~~`mb-2` Music icon resolved 2026-06-08 — replaced with ScaledEmptyState~~)
-  - `SpecialistSchedule/SpecialistScheduleWidget.tsx:234, :314` — `mb-2 pb-2` header row, `px-2 py-1` "Now" badge
-  - `Stations/Widget.tsx:341, :367` — `ml-1` on Shuffle/Rotate action-bar button label spans; all other sizing on these buttons already uses `clamp()` inline styles (detected 2026-07-03)
-  - `TalkingTool/Widget.tsx:80, :109, :135` — `p-2 space-y-2`, `mb-2`, `mb-4`
-  - `Webcam/Widget.tsx:457, :470, :480, :497, :527, :531, :542, :547, :558` — `p-6`, `p-6 mb-4`, `px-4 py-2`, `gap-2`, `p-4` (multiple), `gap-3`, `gap-2` (multiple)
-- **Fix:** For each widget, convert hardcoded spacing and icon-size Tailwind classes to inline `cqmin` equivalents. Example: `gap-2` → `style={{ gap: 'min(8px, 2cqmin)' }}`, `w-8 h-8` → `style={{ width: 'min(32px, 8cqmin)', height: 'min(32px, 8cqmin)' }}`. Prioritize widgets visible in default-size teacher dashboards (DiceWidget, NextUp, SoundWidget) over utility widgets.
-
 ### LOW MiniApp internal dialog overlays use hardcoded Tailwind text sizes
 
 - **Detected:** 2026-04-26
@@ -284,6 +265,14 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW Multiple widgets with hardcoded gap/padding/icon-size spacing (group)
+
+- **Detected:** 2026-04-14
+- **Completed:** 2026-08-20
+- **File:** CatalystWidget/Widget.tsx, DiceWidget/Widget.tsx, GuidedLearning/Widget.tsx, InstructionalRoutines/Widget.tsx, NextUp/Widget.tsx, SoundWidget/Widget.tsx, SoundboardWidget/Widget.tsx, SpecialistSchedule/SpecialistScheduleWidget.tsx, Stations/Widget.tsx, TalkingTool/Widget.tsx, Webcam/Widget.tsx
+- **Detail:** All 11 widgets have `skipScaling: true` and contained hardcoded Tailwind spacing utilities (`gap-N`, `p-N`, `px-N py-N`, `mb-N`, `mr-N`, `ml-N`) or icon-size classes (`w-N h-N`) in front-face content, causing fixed-pixel spacing that doesn't respond to container query scaling.
+- **Resolution:** Converted every listed hardcoded utility to an inline `cqmin`-capped equivalent (e.g. `gap-2` → `style={{ gap: 'min(8px, 2cqmin)' }}`). Where a class was already shadowed by an existing inline style on the same CSS property (InstructionalRoutines `p-8`/`gap-4`/`gap-2`, TalkingTool `mb-4`, NextUp `p-2`/`space-y-2` next to per-item `marginBottom`, SoundWidget/Webcam duplicate `p-4`/`p-6` pairs), removed the dead class instead of double-applying spacing. `pnpm type-check` exit 0; `eslint <11 files> --max-warnings 0` exit 0; `prettier --check <11 files>` clean; the 8 existing widget test files covering these components (44 tests) all pass. PR opened to dev-paul.
 
 ### LOW RevealGridWidget has additional hardcoded spacing beyond `text-xs` labels
 

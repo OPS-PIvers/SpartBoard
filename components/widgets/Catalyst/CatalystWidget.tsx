@@ -79,8 +79,11 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
             >
               <button
                 onClick={() => setActiveSetId(null)}
-                className="rounded-full hover:bg-slate-200 transition-colors text-slate-600 mr-2"
-                style={{ padding: 'min(4px, 1cqmin)' }}
+                className="rounded-full hover:bg-slate-200 transition-colors text-slate-600"
+                style={{
+                  padding: 'min(4px, 1cqmin)',
+                  marginRight: 'min(8px, 2cqmin)',
+                }}
               >
                 <ChevronLeft
                   style={{

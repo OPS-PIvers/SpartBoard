@@ -615,7 +615,13 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       <WidgetLayout
         content={
           <div className="h-full flex items-center justify-center">
-            <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+            <Loader2
+              className="text-indigo-400 animate-spin"
+              style={{
+                width: 'min(32px, 8cqmin)',
+                height: 'min(32px, 8cqmin)',
+              }}
+            />
           </div>
         }
       />
