@@ -3,9 +3,7 @@ import { buildMiniAppExportFilename } from './exportFilename';
 
 describe('buildMiniAppExportFilename', () => {
   it('REGRESSION: uses the local date, not the UTC date, for the export filename', () => {
-    // UTC+12 teacher at local midnight 2026-06-15 (= 2026-06-14T12:00:00Z).
-    // Old code: new Date().toISOString().slice(0, 10) -> "2026-06-14" (UTC date).
-    // Fixed code: getLocalIsoDate() reads local getters -> "2026-06-15".
+    // Getters stubbed (not a plain Date) because TZ is pinned to UTC in tests/setTz.ts, so a real offset can't otherwise be simulated.
     const now = new Date('2026-06-14T12:00:00.000Z');
     now.getFullYear = () => 2026;
     now.getMonth = () => 5;
