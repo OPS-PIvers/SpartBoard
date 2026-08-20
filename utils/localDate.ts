@@ -13,6 +13,17 @@ export function getLocalIsoDate(now: Date = new Date()): string {
 }
 
 /**
+ * Returns a filename-safe local timestamp (`YYYY-MM-DDTHH-mm-ss`) using local
+ * getters (not `toISOString()`, which is UTC-based and shifts recordings made
+ * in the evening onto tomorrow's UTC date for every UTC-negative timezone —
+ * see `getLocalIsoDate` above for the same anti-pattern).
+ */
+export function getLocalTimestampForFilename(now: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${getLocalIsoDate(now)}T${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+}
+
+/**
  * Combine a `YYYY-MM-DD` date and `HH:MM` time into a millisecond timestamp
  * using local-time semantics. Returns null when either piece is missing,
  * malformed, or out of range.
