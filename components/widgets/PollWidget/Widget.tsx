@@ -7,6 +7,7 @@ import {
   increment,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 import {
   useGlobalStyle,
   useDashboardActions,
@@ -94,10 +95,15 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     if (_announcementId) {
       if (userVoted !== null) return; // one vote per session
       setUserVoted(index);
-      void setDoc(
+      setDoc(
         doc(db, 'announcements', _announcementId, 'pollVotes', String(index)),
         { count: increment(1) },
         { merge: true }
+      ).catch((err) =>
+        logError('PollWidget.vote', err, {
+          announcementId: _announcementId,
+          index,
+        })
       );
       return;
     }

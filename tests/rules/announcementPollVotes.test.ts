@@ -128,6 +128,23 @@ describe('announcement pollVotes — write shape validation', () => {
   it('an unauthenticated caller cannot write a vote', async () => {
     await assertFails(setDoc(voteRef(asUnauthed(), 0), { count: 1 }));
   });
+
+  it('KNOWN EDGE CASE: a legacy doc with an extra field (written before this rule existed) rejects all future increment-merge votes', async () => {
+    // Documents the one gap flagged by review on this fix: `hasOnly(['count'])`
+    // applies to the resulting merged document, not just the write payload, so
+    // a pre-existing doc carrying any field beyond `count` — impossible via the
+    // current PollWidget.vote() call site, but not impossible via a pre-fix
+    // write or manual edit — would have every subsequent vote silently denied.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `announcements/${ANNOUNCEMENT_ID}/pollVotes/2`),
+        { count: 3, teacherUid: 'legacy-write' }
+      );
+    });
+    await assertFails(
+      setDoc(voteRef(asVoter(), 2), { count: increment(1) }, { merge: true })
+    );
+  });
 });
 
 describe('announcement pollVotes — read', () => {
