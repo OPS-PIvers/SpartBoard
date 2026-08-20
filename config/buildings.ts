@@ -340,7 +340,9 @@ export function buildingRecordToBuilding(record: BuildingRecord): Building {
   };
 }
 
-function gradeLabelFromType(type: BuildingType): string {
+// Exported so admin UIs (e.g. the "New building" modal) can default the
+// grades field to match the selected building Type instead of a fixed value.
+export function gradeLabelFromType(type: BuildingType): string {
   switch (type) {
     case 'elementary':
       return 'K-5';
