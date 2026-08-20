@@ -336,7 +336,7 @@ const BuildingModalInner: React.FC<BuildingModalProps> = ({
             <Input
               value={grades}
               onChange={(e) => setGrades(e.target.value)}
-              placeholder={gradeLabelFromType(type) || 'K-2'}
+              placeholder={gradeLabelFromType(type)}
             />
           </Field>
         </div>
