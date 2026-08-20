@@ -27,6 +27,7 @@ import {
 import { Z_INDEX } from '@/config/zIndex';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
+import { buildMiniAppExportFilename } from './exportFilename';
 import { WidgetLayout } from '../WidgetLayout';
 import { useAuth } from '@/context/useAuth';
 import { useMiniAppSessionTeacher } from '@/hooks/useMiniAppSession';
@@ -878,7 +879,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `spartboard-apps-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = buildMiniAppExportFilename();
     a.click();
     URL.revokeObjectURL(url);
     addToast('Library exported successfully', 'success');

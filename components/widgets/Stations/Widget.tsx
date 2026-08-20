@@ -113,8 +113,8 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
   // Group students by station id (for chip lists) plus an unassigned bucket.
   // Falls back to a legacy name-keyed entry when no id-keyed one exists, so
   // dashboards saved before assignments were id-keyed (and groups sent over
-  // from the Randomizer via nexus.ts, which are always name-keyed) still
-  // resolve correctly. Stale assignments (students no longer in roster)
+  // from the Randomizer via nexus.ts in custom-roster mode, which are still
+  // name-keyed) still resolve correctly. Stale assignments (students no longer in roster)
   // survive silently — we only render chips for roster members so
   // missing-from-roster keys don't appear, but they remain in `assignments`
   // until the next reset.
