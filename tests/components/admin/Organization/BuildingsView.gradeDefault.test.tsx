@@ -98,3 +98,79 @@ describe('BuildingsView — Add building grades default', () => {
     expect(record.grades).not.toBe('');
   });
 });
+
+describe('BuildingsView — Edit building grades default', () => {
+  // The save-time fallback also fires on the edit path, which the create-path
+  // tests above don't reach. Flagged by automated PR review on #2511.
+  const openEditModal = (building: BuildingRecord, onUpdate: () => void) => {
+    render(
+      <BuildingsView
+        buildings={[building]}
+        actorRole="super_admin"
+        actorBuildingIds={[]}
+        onAdd={vi.fn()}
+        onUpdate={onUpdate}
+        onRemove={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: 'Row actions' })[0]);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }));
+    return screen.getByRole('dialog');
+  };
+
+  const buildingWithGrades = (grades: string): BuildingRecord => ({
+    id: 'b1',
+    orgId: 'org1',
+    name: 'Orono High School',
+    type: 'high',
+    address: '685 Old Crystal Bay Rd N',
+    grades,
+    users: 0,
+    adminEmails: [],
+  });
+
+  it('backfills a stored empty grades string from the building Type on save', () => {
+    const onUpdate = vi.fn();
+    const dialog = openEditModal(buildingWithGrades(''), onUpdate);
+
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Save changes' })
+    );
+
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    const record = onUpdate.mock.calls[0][1] as Partial<BuildingRecord>;
+    expect(record.grades).toBe('9-12');
+  });
+
+  it('backfills from the Type when an admin clears the grades field', () => {
+    const onUpdate = vi.fn();
+    const dialog = openEditModal(buildingWithGrades('9-12'), onUpdate);
+
+    fireEvent.change(within(dialog).getByDisplayValue('9-12'), {
+      target: { value: '   ' },
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Save changes' })
+    );
+
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    const record = onUpdate.mock.calls[0][1] as Partial<BuildingRecord>;
+    expect(record.grades).toBe('9-12');
+  });
+
+  it('preserves a manually entered grades value on save', () => {
+    const onUpdate = vi.fn();
+    const dialog = openEditModal(buildingWithGrades('9-12'), onUpdate);
+
+    fireEvent.change(within(dialog).getByDisplayValue('9-12'), {
+      target: { value: '10-12' },
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Save changes' })
+    );
+
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    const record = onUpdate.mock.calls[0][1] as Partial<BuildingRecord>;
+    expect(record.grades).toBe('10-12');
+  });
+});
