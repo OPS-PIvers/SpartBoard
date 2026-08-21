@@ -43,7 +43,7 @@ import { initializeApp, applicationDefault, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, resolve } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -104,9 +104,15 @@ function loadCredentials() {
   };
 }
 
+// Must mirror functions/src/organizationMemberCounters.ts's emailDomain() exactly, including the .trim().
 function emailDomain(email) {
   const at = email.lastIndexOf('@');
-  return at === -1 ? '' : email.slice(at + 1).toLowerCase();
+  return at === -1
+    ? ''
+    : email
+        .slice(at + 1)
+        .trim()
+        .toLowerCase();
 }
 
 // Build the three counters from a member list. Extracted so a future CF
@@ -281,10 +287,18 @@ async function run() {
   process.exit(0);
 }
 
-run().catch((err) => {
-  console.error(
-    '\nrecount-org-members failed: ' + (err && err.message ? err.message : err)
-  );
-  if (err && err.stack) console.error(err.stack);
-  process.exit(1);
-});
+// Guard direct execution so the pure helpers below can be imported and unit-tested.
+const isMain =
+  process.argv[1] && resolve(process.argv[1]) === resolve(__filename);
+if (isMain) {
+  run().catch((err) => {
+    console.error(
+      '\nrecount-org-members failed: ' +
+        (err && err.message ? err.message : err)
+    );
+    if (err && err.stack) console.error(err.stack);
+    process.exit(1);
+  });
+}
+
+export { emailDomain, tallyMembers, parseArgs };
