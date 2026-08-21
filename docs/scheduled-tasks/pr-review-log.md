@@ -2809,7 +2809,7 @@ _Automated nightly review by claude-opus-4-6_
 ## 2026-08-21
 
 - PRs reviewed: **21** — every open PR on `ops-pivers/spartboard`. #2395, #2504 and #2506–#2523 target `dev-paul`; #2505 targets `main`.
-- Comments processed: **all 19 inline review threads across the 21 PRs were already resolved** (17 on #2395, one each on #2509 and #2511), so as on the previous run the actionable surface was the PR-level structured reviews, which have no thread and therefore no resolved state to check. Twelve reviews were posted between 06:33 and 06:45 today; six carried an actionable item.
+- Comments processed: **all 19 inline review threads across the 21 PRs were already resolved** (17 on #2395, one each on #2509 and #2511), so as on the previous run the actionable surface was the PR-level structured reviews, which have no thread and therefore no resolved state to check. Fifteen review submissions landed across 14 PRs between 06:33 and 06:45 today (#2522 got two — a review plus a self-correction retracting an unverified "CI green" claim); six carried an actionable item.
   - **#2521 (`pollVotes` value integrity) — valid, fixed this run.** The only unanswered code finding in the set.
   - **#2516 (group-heading pairing shipped without a test) — valid, fixed this run.**
   - #2508 (two `text-xs` conversions capped at 11px instead of 12px) — **already fixed on-branch** in `2fff1ab` and replied at 06:38, before this run started. No action.
