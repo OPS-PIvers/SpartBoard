@@ -487,6 +487,8 @@ export const DialogContainer: React.FC = () => {
 
   return createPortal(
     <div
+      // Key by dialog id (not kind) so back-to-back same-kind dialogs get a fresh mount, not stale input state.
+      key={currentDialog.id}
       // Dialogs render in a portal on document.body, so a pointerdown on this
       // overlay reads as a "click outside" to any open widget SettingsPanel and
       // would close it out from under the dialog that it opened. Marking the

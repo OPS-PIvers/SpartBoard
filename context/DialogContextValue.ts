@@ -26,8 +26,9 @@ export interface PromptOptions {
   cancelLabel?: string;
 }
 
-// Internal queued dialog states
+// Internal queued dialog states; `id` is unique per occurrence, used for render keying.
 export interface AlertState {
+  id: string;
   kind: 'alert';
   message: string;
   options: AlertOptions;
@@ -35,6 +36,7 @@ export interface AlertState {
 }
 
 export interface ConfirmState {
+  id: string;
   kind: 'confirm';
   message: string;
   options: ConfirmOptions;
@@ -42,6 +44,7 @@ export interface ConfirmState {
 }
 
 export interface PromptState {
+  id: string;
   kind: 'prompt';
   message: string;
   options: PromptOptions;
