@@ -6,16 +6,16 @@
 // Contract under test (tightened from the prior `allow write: if request.auth
 // != null` with no shape/value validation — see docs/scheduled-tasks/
 // firestore-rules.md "MEDIUM pollVotes subcollection write is unrestricted"):
-//   - Any authed user may create/update a tally doc, but ONLY in the exact
-//     shape the widget writes: `{count: <non-negative int>}` — no extra
-//     fields, no non-int/negative count, no other field names. This still
-//     allows the real `setDoc(..., {count: increment(1)}, {merge: true})`
-//     call site while blocking an authed user from smuggling arbitrary
-//     extra fields, non-numeric junk, or a negative value into a poll's
-//     tally doc. (Scope note: this does not add per-voter dedup — a same-
-//     shaped `{count: <int>}` overwrite is still possible, same as the
-//     already-hardened poll_sessions/votes sibling's tally values; that
-//     would need a per-voter vote doc redesign, out of scope here.)
+//   - Any authed user may create/update a tally doc, but ONLY with the exact
+//     value the widget's `setDoc(..., {count: increment(1)}, {merge: true})`
+//     produces: a create must land on `{count: 1}`, an update on previous + 1.
+//     Field transforms are resolved into `request.resource` before rules run,
+//     so the real call site passes while a same-shaped overwrite — `{count: 0}`
+//     to wipe a tally, `{count: 999999}` to inflate one — is denied. (Scope
+//     note: this is not per-voter dedup; a caller can still vote repeatedly.
+//     It caps the damage per write at +1 instead of arbitrary, which is what
+//     makes a tally reset or one-shot inflation impossible. True dedup needs a
+//     per-voter vote doc redesign, out of scope here.)
 //   - Delete is admin-only (mirrors the poll_sessions/votes sibling's
 //     teacher/admin-only reset — no client ever deletes a pollVotes doc
 //     today, so this closes an unused, unrestricted delete surface).
@@ -123,6 +123,36 @@ describe('announcement pollVotes — write shape validation', () => {
     await assertFails(
       setDoc(voteRef(asVoter(), 0), { count: 6, teacherUid: 'someone-else' })
     );
+  });
+
+  it('rejects resetting an existing tally to zero', async () => {
+    await assertFails(setDoc(voteRef(asVoter(), 0), { count: 0 }));
+  });
+
+  it('rejects inflating an existing tally in one write', async () => {
+    await assertFails(setDoc(voteRef(asVoter(), 0), { count: 999999 }));
+  });
+
+  it('rejects decrementing an existing tally', async () => {
+    await assertFails(
+      setDoc(voteRef(asVoter(), 0), { count: increment(-1) }, { merge: true })
+    );
+  });
+
+  it('rejects an increment larger than one', async () => {
+    await assertFails(
+      setDoc(voteRef(asVoter(), 0), { count: increment(5) }, { merge: true })
+    );
+  });
+
+  it('rejects creating a fresh option at anything other than one', async () => {
+    await assertFails(setDoc(voteRef(asVoter(), 3), { count: 42 }));
+  });
+
+  it('a plain +1 overwrite matching the current tally is allowed (indistinguishable from a real vote)', async () => {
+    // Seeded tally is 5, so a literal {count: 6} is exactly what increment(1)
+    // resolves to — the rule authorises the value, not the transform used.
+    await assertSucceeds(setDoc(voteRef(asVoter(), 0), { count: 6 }));
   });
 
   it('an unauthenticated caller cannot write a vote', async () => {
