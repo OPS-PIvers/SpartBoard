@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-20_
+_Last audited: 2026-08-21_
 _Last action: 2026-06-25_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-21: Full audit (Friday daily). New commits on scheduled-tasks since the 2026-08-20 audit (`c0eeb0aa..HEAD`): `3cb4bcf4` fix(css-scaling) convert remaining hardcoded spacing/icon-size classes to cqmin across 11 widgets (yesterday's own css-scaling action, already closed in css-scaling.md), `c8ca1116` docs-only audit journal commit — confirmed via `git log --oneline --since="2026-08-20" -- types.ts components/widgets/WidgetRegistry.ts config/widgetDefaults.ts config/tools.ts config/widgetGradeLevels.ts` returning zero hits. VERIFIED COUNT: 63 `WidgetType` members (unchanged, re-derived directly from the union body). WidgetRegistry.ts section boundaries re-confirmed identical to the established baseline (WIDGET_COMPONENTS 86-239, WIDGET_SETTINGS_COMPONENTS 265-418, WIDGET_APPEARANCE_COMPONENTS 420-530, WIDGET_SCALING_CONFIG 562-986, file total 986 lines — unchanged). `pnpm exec tsc --noEmit` exit 0 (confirmed independently by this cycle; also confirmed by today's typescript-eslint audit). No source changes to any of the 7 registration locations since yesterday's exhaustive cross-reference — all counts stand unchanged. Zero new gaps._
 
 _2026-08-20: Full audit (Thursday daily). New commits on scheduled-tasks since the 2026-08-19 audit (`eab66f66..HEAD`): `c0eeb0aa` fix(subs) shared-share read rules, `a46fc08c`/`c724a109` docs-only nightly logs, `8d4d4a1c` merge of scheduled-tasks PR #2500, `c3194ad4` fix(library) Escape-key leak fix, `01690bb3` fix(stations) roster-id keying, `01723255` fix(admin,widgets) poll CSV export local-date fix, `9500c0d0` fix(pii) scrub name-keyed assignments/jigsaw groups, `2e54e7d8` fix(a11y) SettingsLabel htmlFor/id pairing, `49f9dd2b`/`5200df14` fix(RevealGrid)/fix(css-scaling) header font/spacing cqmin (yesterday's own action, already closed in css-scaling.md) — none of these touch `types.ts`, `components/widgets/WidgetRegistry.ts`, `config/widgetDefaults.ts`, `config/tools.ts`, or `config/widgetGradeLevels.ts` (confirmed via `git log -- <5 files>` over the same range, zero hits). VERIFIED COUNT: 63 `WidgetType` members (unchanged, re-derived directly from the union body). pnpm type-check exit 0 (confirmed by today's typescript-eslint audit, run independently this cycle). No source changes to any of the 7 registration locations since yesterday's exhaustive cross-reference (WIDGET_COMPONENTS 62/63, WIDGET_SETTINGS_COMPONENTS 59/63, WIDGET_APPEARANCE_COMPONENTS 28 non-exhaustive-by-design, WIDGET_SCALING_CONFIG 63/63, widgetDefaults.ts 63/63, tools.ts 59+3 InternalToolType with the same 7 documented exclusions, widgetGradeLevels.ts 66 = 63+3) — all counts stand unchanged from 2026-08-19's full re-verification. Zero new gaps._
 
