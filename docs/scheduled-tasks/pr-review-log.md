@@ -2803,3 +2803,53 @@ _Automated nightly review by claude-opus-4-6_
   - Branch safety: no push to `main` or any `dev-*` branch. Both fixes went to `nightly/*` PR heads whose PRs are open and draft.
   - Tooling: GitHub via the MCP server (no `gh` CLI); all PR list/read/comment operations used `mcp__github__*` equivalents.
   - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); CI on Node 24 remains the authoritative gate.
+
+---
+
+## 2026-08-21
+
+- PRs reviewed: **20** open PRs (all authored by OPS-PIvers; 19 draft targeting `dev-paul`, plus the non-draft `dev-paul` → `main` integration PR #2505). Only #2505 has a head branch matching the read-only rule (`dev-paul`); it was reviewed but not pushed to. All 19 others were in scope for pushes.
+  - #2522 — docs(debugger): log run 46 (head `nightly/debugger-log-2026-08-21`) — docs-only.
+  - #2521 — fix(scripts): trim domain in recount-org-members (head `nightly/build-tooling-2026-08-21`).
+  - #2520 — fix(widget-builder): stop dropping an explicit `actionValue` of 0 (head `nightly/admin-config-2026-08-21`).
+  - #2519 — fix(dialog): key queued dialogs by id (head `nightly/state-data-2026-08-21`).
+  - #2518 — fix(annotation): local time for Drive-saved filenames (head `nightly/dashboard-layout-2026-08-21`).
+  - #2517 — fix(lunch-count): don't duplicate the bento item as the hot lunch entree (head `nightly/widgets-2026-08-21`).
+  - #2516 — fix(a11y): TalkingTool "Sentence Stems" as group-heading (head `nightly/unify-d3-settings-labels-2026-08-21`).
+  - #2515 / #2514 / #2504 — pr-review log appends (heads `claude/inspiring-cannon-7ey7s7`, `claude/pensive-bell-pus4xw`, `claude/inspiring-cannon-qlcaca`).
+  - #2513 / #2512 / #2511 / #2510 / #2509 — the 2026-08-20 nightly run's five PRs.
+  - #2508 — fix(css-scaling): audit + cqmin conversions (head `scheduled-tasks`) — 2 new commits since the last review.
+  - #2507 — docs(unifier): log runs 62-63 (head `nightly/unifier-log-2026-08-20`).
+  - #2506 — fix(a11y): pair 12 more orphaned SettingsLabel controls (head `nightly/unify-d3-settings-labels-2026-08-20`).
+  - #2505 — Fix accessibility, scaling, and security issues in widgets (head `dev-paul` → `main`) — read-only.
+  - #2395 — feat(ai): move Gemini to Vertex AI (head `claude/quirky-ritchie-wghdl3`) — open 16 days.
+- Comments processed: **0 requiring action — 0 fixed, 0 replies posted.** `get_review_comments` returned zero *unresolved* threads across all 20 PRs. Every thread that exists (1 on #2511, 1 on #2509, 17 on #2395) is already marked resolved and already carries a substantive author reply. The only top-level comments present are approving `claude[bot]` CI reviews ("no issues found" / "LGTM") — informational, not change requests. Nothing warranted a reply under the frugality directive, so the substance is carried in this run's reviews instead.
+  - Worth recording: **#2395's inline threads are now all 17 resolved.** The "please bulk-resolve these" recommendation carried in the four prior runs is satisfied and can be retired.
+- Fixes pushed: **0**. No push was made to any PR head branch this run — no unresolved comment existed to action, and no diff-level defect met the "confident, small, obvious correct fix" bar. The two findings below are reported on their PRs rather than pushed, because both are judgement calls the author should make: a 1px type-cap choice, and how strict a Firestore rule should be.
+- Reviews posted: **20** — one structured review per open PR, each carrying the automated-review disclaimer and the Claude Code attribution footer. Merge-readiness calls:
+  - Ready: #2522, #2520, #2519, #2518, #2517, #2516, #2515, #2507, #2506, #2505.
+  - Ready with minor notes: #2521, #2508.
+  - Ready but superseded — merge the superset instead: #2513, #2512, #2511, #2510, #2509, #2514, #2504.
+  - Needs changes / hold (draft): #2395 — unchanged from the ten prior rounds; blocked on GCP-console verification, not on code.
+- Local verification run for this review (Node 22; CI on Node 24 remains authoritative). All type-checks clean, all suites green:
+  - #2517 — `vitest run components/widgets/LunchCount components/widgets/MiniApp` → 5 files / 41 tests.
+  - #2518 — `vitest run tests/components/layout/{AnnotationOverlay,Dock}.test.tsx utils/localDate.test.ts` → 3 files / 37 tests.
+  - #2519 — `vitest run tests/components/common/DialogContainer.queuedPrompt.test.tsx` → 1 test.
+  - #2520 — `vitest run components/admin/WidgetBuilder/ConnectionsTab.test.tsx config/buildings.test.ts tests/components/admin/Organization` → 7 files / 19 tests.
+  - #2521 — `vitest run scripts/recount-org-members.test.ts tests/components/plcMeetingMode.test.tsx components/widgets/PollWidget` → 4 files / 35 tests.
+  - #2508 — full `lint` (root + functions, `--max-warnings 0`) ✓, `format:check` ✓, `vitest run` across 5 affected widget dirs → 7 files / 54 tests.
+  - #2516 — `type-check` ✓ (no test file exists for this panel).
+  - Merge safety: all 12 distinct branch tips verified to merge cleanly into `dev-paul` **individually and in sequence** (`git merge` simulation on a scratch branch, not just `merge-tree`). CI green (7/7) on every PR head checked except #2395.
+- New findings this run:
+  - **Five PR pairs are strictly redundant, and the cause is a process improvement working as intended.** `git merge-base --is-ancestor` confirms #2509⊂#2517, #2510⊂#2518, #2511⊂#2520, #2512⊂#2521, #2513⊂#2522 — tonight's nightly run branched each area from its own unmerged 2026-08-20 head rather than from `dev-paul` in parallel. That is exactly the Phase 0 collision check `docs/routines/debugger.md` added after the 2026-08-15/16/18 same-base-commit incidents, and it worked: **no duplicate-fix incident this round**, and the #2513/#2522 journal pair appends cleanly instead of conflicting on the `Run count` line. The cost is five redundant open PRs; merging each superset closes its ancestor automatically. Flagged on all ten PRs so the pairing is visible from either side.
+  - **#2508: two of four `text-xs` conversions shrink the cap by 1px.** `text-xs` is 12px; the MiniApp commit converts it to `min(12px, 4.5cqmin)` at the `<h4>` and "Save App" sites but to `min(11px, 4cqmin)` at the share-link block and the "Create Assignment Link" eyebrow. The `min(11px, 4cqmin)` figure is correct for the one site that was genuinely `text-[11px]` and looks copied. Only place in the commit where the "preserve the original px as the `min()` cap" convention isn't held, and the one class of change the existing tests are blind to.
+  - **#2521/#2512: the `pollVotes` hardening is narrower than the PR describes.** `count is int && count >= 0` still admits any non-negative integer, so an authenticated client can write `{count: 0}` or `{count: 999999}`. What it genuinely prevents is *shape* corruption — a real improvement over the fully-open `allow write` it replaces. Proposed the tighter form on the PR: `create` requires `count == 1`, `update` requires `count == resource.data.count + 1`, which is exactly what `increment(1)` produces and reduces the worst case to +1 per write. Scope call for the author, not a defect.
+  - **#2395 has no CI on its current head.** Both `get_status` and the check-runs endpoint report zero checks for `5552a62`, while every other open PR carries 7 green. The local verification from earlier rounds is currently the only signal on this branch; added "restore CI on the head commit" to its pre-merge gate list.
+  - **#2506 mixes two id-generation strategies within one PR** — `useId()` in `TimeToolConfigurationPanel.tsx` and `LunchCount/Settings.tsx`, template-interpolated `${widget.id}` in the other nine files, with `LunchCount` using both in the same file. Both are valid and both pre-exist in the codebase; worth settling on `useId()` before the sweep spreads further.
+  - **#2507: a backlog row has now survived 33 consecutive confirmations.** `components/layout/Dock.tsx:1586` (unifier D2) has been re-confirmed present every run since run 30. Either it is intentional and belongs on the catalogued-exception list, or it needs an owner — re-confirming it nightly costs more than resolving it. Run 63 applied exactly this reasoning to a 7-night D3 row and shipped #2519 instead; same logic applies.
+  - **The queue behind #2505 has doubled**, from 9 open `dev-paul`-targeting PRs at the last check to 19. Collapsing the five superseded pairs and the three-deep review-log stack would take it to 11 for free.
+- Notes:
+  - Branch safety: no push to `main` or any `dev-*` branch, and no push to any PR head branch at all this run.
+  - This log commit is on the designated `claude/pensive-bell-i70q8x` branch, **stacked on #2515's head** (`55e9c37`), continuing the established precedent — `pr-review-log.md` is append-only with a nightly writer, so branching fresh from `origin/dev-paul` would guarantee a trailing-line conflict while #2515 and #2514 stay open. Also continues keeping this log **off** `scheduled-tasks`, still the head of open PR #2508; committing there would inject an unrelated file into a PR under review. Diverges from the literal POST-TASK "push to scheduled-tasks" instruction for that reason. This makes the review-log stack four deep (#2504 ⊂ #2514 ⊂ #2515 ⊂ this) — merging the tip lands all four.
+  - Tooling: GitHub via the MCP server (no `gh` CLI); all PR list/read/review operations used `mcp__github__*` equivalents of the prescribed `gh` commands. The `/mnt/skills/user/` skill paths named in the task prompt are not mounted here; equivalent `spart-new-widget` / `spart-widget-admin-config` skills exist via the Skill tool, and widget/admin standards were applied from `CLAUDE.md` and the in-repo reference implementations.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); CI on Node 24 remains the authoritative gate.
