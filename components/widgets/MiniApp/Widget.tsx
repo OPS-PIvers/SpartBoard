@@ -195,7 +195,7 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                 className="bg-slate-50 border border-slate-200 rounded-xl break-all text-slate-700 font-mono"
                 style={{
                   padding: 'min(12px, 3cqmin)',
-                  fontSize: 'min(11px, 4cqmin)',
+                  fontSize: 'min(12px, 4.5cqmin)',
                 }}
               >
                 {link}
@@ -274,7 +274,7 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                   className="text-brand-blue-primary/60 font-black uppercase tracking-widest"
                   style={{
                     marginTop: 'min(4px, 1cqmin)',
-                    fontSize: 'min(11px, 4cqmin)',
+                    fontSize: 'min(12px, 4.5cqmin)',
                   }}
                 >
                   {isViewOnly ? 'Create Share Link' : 'Create Assignment Link'}
