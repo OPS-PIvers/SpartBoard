@@ -2704,3 +2704,102 @@ _Automated nightly review by claude-opus-4-6_
   - #2395's 3 remaining unresolved threads: recommendation to bulk-resolve is now in its third consecutive run. Each carries a resolving reply, so the PR reads as far more contested than it is, and a genuinely new finding would be buried.
   - Tooling: this environment exposes GitHub via the MCP server (no `gh` CLI); all PR list/diff/comment/review operations used `mcp__github__*` equivalents of the prescribed `gh` commands.
   - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); CI on Node 24 remains the authoritative gate.
+
+---
+
+## 2026-08-19
+
+- PRs reviewed: **2** open PRs (both authored by OPS-PIvers, both drafts, both targeting `dev-paul`, both green on all 7 checks). The 15-PR backlog from the 2026-08-18 run has since merged; no head branch was `main` or matched `dev-*`, so both were in scope.
+  - #2503 — fix(subs): split shared-share read rules so the /subs directory query is allowed (head `claude/substitute-permissions-error-o6ohwr`) — `get`/`list` split on `shared_boards`/`shared_collections` plus the substitute `plcId` pin; opened and reviewed three times the same day.
+  - #2395 — feat(ai): move Gemini to Vertex AI, update model IDs (head `claude/quirky-ritchie-wghdl3`) — unchanged since `5552a62` (the `dev-paul` merge). Open 14 days, `mergeable_state: clean`.
+- Comments processed: **3 inline threads across the 2 PRs — 0 fixes pushed, 2 replies posted, 2 threads resolved.** Each finding was re-verified against the branch head rather than taken from the prior reply.
+  - #2503 (1 thread, already resolved before this run): the PLC-member substitute-share leak. Verified the landed fix rather than the claim — `firestore.rules:962-964` carries `intendedMode != 'substitute' || plcId == null` as a standalone conjunct **outside** the admin bypass, while the lifecycle pins below it stay admin-overridable. That placement is what the `list` rule's plcId branch rests on, since that branch cannot re-check `intendedMode` in query scope. Correct as landed; nothing to re-raise.
+  - #2395 (17 threads, 2 unresolved): both were the Vertex/YouTube constraint notes, each already carrying a reply. **Split verdict, re-confirmed on `5552a62` after that commit merged 170 commits of `dev-paul` and moved every line reference in the reply:**
+    - *Not valid* — "unlisted-video failures are silently mapped to a generic AI failure." `aiGeneration.ts:1741-1745` and `:2046-2048` re-throw `HttpsError` and otherwise interpolate the underlying detail; `utils/ai.ts`'s `generateVideoActivity` catch re-throws the real `Error` before its fallback string. A Vertex public-only rejection reaches the teacher with its own text. No code change, for the tenth round running.
+    - *Valid but not code-fixable* — public-only videos and the ~8h/day per-project YouTube minutes cap. Operational, settled only by a live call.
+  - PR-level issue comments: the 08-19 06:44 and 21:05 `claude[bot]` reviews (on #2395 and #2503 respectively) both concluded no correctness/security/performance issues. Nothing actionable, no reply — frugality directive.
+- Fixes pushed: **0**. Nothing on either diff was left unaddressed; the only open items on #2395 are console operations this PR deliberately does not perform.
+- **Standing recommendation closed after four runs: #2395's last 2 unresolved threads are now resolved.** Prior runs split on this — 08-14/08-16 kept them open as visible pre-merge gates, 08-17/08-18 recommended bulk-resolving so a new finding would stand out. The condition that reconciles them was set in [#issuecomment-5300936458](https://github.com/OPS-PIvers/SpartBoard/pull/2395#issuecomment-5300936458): resolve only once the gate moves into the PR description rather than disappearing. That has since happened — "Not verified, and needs a preview deploy" item 3 names both video callables and requires a public **and** an unlisted video — and the PR is still a draft behind that list. So the gate survives the resolve. Each resolve carries a reply recording the re-verification and the reason for the state change.
+- Reviews posted: 0. This run's prompt scopes to unresolved-comment triage; both PRs already carry a same-day `claude[bot]` review with no open findings, so a third structured review would have added no information.
+- Notes:
+  - Branch-safety: no push to `main` or any `dev-*` head. This log commit is on the designated `claude/inspiring-cannon-qlcaca` branch, rebuilt fresh from `origin/dev-paul` — unlike the 08-18 run there is no open PR appending to this file, so stacking was unnecessary and a fresh branch cannot conflict. Continues the standing precedent of keeping the log off `scheduled-tasks`.
+  - #2395 is 10 commits behind `dev-paul` (`eab66f6..a46fc08`) but `mergeable_state: clean`. Checked for a repeat of the semantic conflict that `5552a62` caught: the drift touches only widgets, `utils/dashboardPII.ts`, and routine logs — no overlap with this PR's 14 files and nothing under `functions/` — so no pre-emptive base merge was made on a draft whose remaining gate is a deploy.
+  - Tooling: this environment exposes GitHub via the MCP server (no `gh` CLI); all PR list/read/reply/resolve operations used `mcp__github__*` equivalents of the prescribed `gh` commands.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); CI on Node 24 remains the authoritative gate.
+
+## 2026-08-20
+
+- PRs reviewed: **11 open PRs** (all reviewed; none filtered out — no open PR has `main` or a `dev-*` branch as its head except #2505, whose head is `dev-paul`, and no push to it was needed).
+  - #2513 — docs(debugger): log run 45 (head `nightly/debugger-log-2026-08-20`) — docs-only, `docs/routines/debugger.md` (+22/-5).
+  - #2512 — fix(rules): shape-validate `announcements/*/pollVotes` writes, admin-only delete (head `nightly/build-tooling-2026-08-20`) — `firestore.rules` + 151-line emulator suite + baseline bump.
+  - #2511 — fix(admin): default new building grades from Type, not hardcoded K-5 (head `nightly/admin-config-2026-08-20`) — `BuildingsView.tsx` + `config/buildings.ts` + 2 test files.
+  - #2510 — fix(dock): local time for screen-recording filenames (head `nightly/dashboard-layout-2026-08-20`) — new `getLocalTimestampForFilename()` helper + 2 test files.
+  - #2509 — fix(mini-app): local date for library export filename (head `nightly/widgets-2026-08-20`) — new `exportFilename.ts` module + test, plus a `Stations/Widget.tsx` comment correction.
+  - #2508 — fix(css-scaling): hardcoded spacing → `cqmin` across 11 widgets (head `scheduled-tasks`) — 11 widget files + Thursday audit journal.
+  - #2507 — docs(unifier): log run 62 (head `nightly/unifier-log-2026-08-20`) — docs-only, `docs/routines/unifier.md`.
+  - #2506 — fix(a11y): pair 12 orphaned `SettingsLabel` controls with `htmlFor`/`id` (head `nightly/unify-d3-settings-labels-2026-08-20`) — 11 settings/config panels.
+  - #2505 — Fix accessibility, scaling, and security issues in widgets (head `dev-paul` → `main`) — 34-file integration snapshot, head unchanged (`c0eeb0a`) since the 2026-08-19 review.
+  - #2504 — pr-review: log the 2026-08-19 run (head `claude/inspiring-cannon-qlcaca`) — docs-only, this file (+22).
+  - #2395 — feat(ai): move Gemini to Vertex AI (head `claude/quirky-ritchie-wghdl3`) — unchanged since the 2026-08-19 review. Open 15 days.
+- Comments processed: **20 inline threads + 8 PR-level review comments examined across 11 PRs — 0 fixed by this run, 0 new replies posted.**
+  - 8 of the 11 PRs carried zero inline review comments.
+  - #2511 (1 thread) and #2509 (1 thread): both already resolved, each carrying an author reply that fixed the finding on-branch (`9f2afc8`, `f4ce79f`) before this run started.
+  - #2395 (17 threads): **all 17 now resolved** — the bulk-resolve recommendation carried in the three prior runs has been actioned. Nothing left unaddressed.
+  - #2511's second PR-level comment (the multi-building `'other'` grade-union question) was answered by the author with a deliberate deferral; verified the promised Backlog row actually exists in #2513's diff rather than accepting the reply at face value.
+  - No comment on any PR met the "fix is needed" bar, so no push was made to any PR head branch. Nothing was left unaddressed to fix.
+- Fixes pushed: **0**.
+- Reviews posted: **11** — one structured review per open PR, each with the automated-review disclaimer and the Claude Code attribution footer. Merge-readiness calls:
+  - Ready: #2513, #2511, #2510, #2509, #2507, #2506, #2505, #2504.
+  - Ready with minor notes: #2512, #2508.
+  - Needs changes / hold (draft): #2395 — unchanged from the prior ten rounds; blocked on human GCP-console verification, not on code.
+- Local verification run for this review (Node 22; CI on Node 24 remains authoritative):
+  - #2512 — `pnpm run test:rules` against the real Firestore emulator → **48 files / 1155 tests pass**, matching the bumped baseline exactly, count guard green.
+  - #2508 — `vitest run` across the 7 affected widget dirs → 14 files / 95 tests pass.
+  - #2506 — `tsc --noEmit` exit 0; `vitest run` across the 8 affected widget dirs → 40 files / 482 tests pass.
+  - #2510 — `vitest run tests/components/layout/Dock.test.tsx utils/localDate.test.ts` → 32 pass.
+  - #2511 — `vitest run tests/components/admin/Organization/BuildingsView.gradeDefault.test.tsx config/buildings.test.ts` → 4 pass.
+  - #2509 — `vitest run components/widgets/MiniApp/exportFilename.test.ts` → 2 pass.
+  - #2395 — `pnpm -C functions test` → 43 files / 852 pass; root deprecation + parity suites → 41 pass.
+  - CI: green on every PR that runs it. #2513/#2507/#2504 have **zero** check runs, which is by design, not a gap — `pr-validation.yml` carries `paths-ignore: ['**/*.md', 'docs/**']` so journal-only PRs skip the 6-job suite.
+- New findings this run (none blocking, all reported on the relevant PR):
+  - **#2512: the new shape lock also applies to updates over pre-existing docs, and a denial is invisible.** `hasOnly(['count'])` / `count is int` gate `update`, not just `create`. Any `announcements/*/pollVotes/*` doc already in production — all of which were written under the unrestricted `write` rule being replaced — that carries an extra field, or whose `count` was ever stored as a double, will have every subsequent vote denied. The new suite only seeds `{count: <int>}` (`announcementPollVotes.test.ts:92`), so the path is untested. Compounding it: `PollWidget.vote()` calls `setUserVoted(index)` *before* firing `void setDoc(...)` with no `.catch`, so a rejected write surfaces as an unhandled rejection while the voter's UI already shows the vote as cast. Low probability (PollWidget has only ever written `{count}`), one live-collection read to settle.
+  - **#2508: one conversion in the PR is not px-equivalent.** `InstructionalRoutines/Widget.tsx`'s hero button row goes from `mt-4` (fixed 16px) to `marginTop: '1em'`, which now tracks the hero container's font size. Consistent with that file's em-based convention and defensible, but it is a real visual delta in the layout mode where type is largest, it's the only non-equivalent conversion in an otherwise mechanical PR, and CSS-only changes have no test signal in this repo.
+  - **#2511: an untested silent write on the *edit* path**, distinct from the multi-building item already in the backlog. `useState(existing?.grades ?? '')` uses `??`, so an existing building whose stored `grades` is `''` — or one an admin deliberately clears — now saves the Type-derived label on the next save. Probably an improvement over a blank grade label, but the new tests only exercise the create path.
+  - **#2504's two-dot diff is misleading.** Its merge base is `a46fc08`, three commits behind current `dev-paul`, so `git diff origin/dev-paul origin/claude/inspiring-cannon-qlcaca` shows ten files as reverted. The PR's real (three-dot) diff is this file only, +22 lines. Worth naming because it's the easy mistake when eyeballing a stacked journal branch locally.
+- Notes:
+  - **Zero merge-order hazard this run** — a first in several runs. Verified by simulation, not inference: all nine `dev-paul`-targeting PRs merge cleanly into `dev-paul` both individually (`git merge-tree --write-tree`) and applied in sequence (`git merge` onto a scratch branch). The one real file overlap — #2508 and #2509 both editing `components/widgets/Stations/Widget.tsx` — auto-merges in either order (different hunks). Contrast with the #2483/#2491 same-file `debugger.md` conflict found on 2026-08-18.
+  - **The `scheduled-tasks` branch-hygiene finding from the 2026-08-17 and 2026-08-18 runs has not recurred.** #2508's head carries exactly two commits over `dev-paul`, both in scope for its title. No unrelated audit-journal drift this time.
+  - Cross-PR follow-through was checked rather than assumed: both deferrals promised in tonight's PR threads (#2511's multi-building grade-union product decision, #2510's `AnnotationOverlay.handleSaveToDrive` lead) are present as dated, status-marked Backlog rows in #2513's diff.
+  - #2507's one substantive claim — that the `AssignmentsModal`/`SubmissionsModal` backlog row duplicated exception D1-E11 and its container-query framing was moot because neither modal has an icon — was verified by reading both files directly. Confirmed: both empty states are a bare `<p className="font-bold text-slate-700">` with no icon element.
+  - This log commit is on the designated `claude/pensive-bell-pus4xw` branch, **stacked on #2504's head** rather than branched fresh from `origin/dev-paul`, continuing the established precedent: `pr-review-log.md` is append-only with a nightly writer, so a fresh-from-`dev-paul` branch would guarantee a trailing-line conflict while #2504 stays open. Also continues keeping this log **off** `scheduled-tasks`, which is again an actively-open PR head (#2508) — pushing here would have added unrelated commits to a CSS-scaling PR.
+  - Tooling: this environment exposes GitHub via the MCP server (no `gh` CLI); all PR list/read/review operations used `mcp__github__*` equivalents of the prescribed `gh` commands.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); CI on Node 24 remains the authoritative gate.
+
+---
+
+## 2026-08-20 (second run)
+
+- PRs reviewed: **12** — every open PR on `ops-pivers/spartboard`. #2504, #2506–#2514 target `dev-paul`; #2505 targets `main`; #2395 targets `dev-paul`.
+- Comments processed: **all 17 inline review threads across the 12 PRs were already resolved**, so this run's work came from a different surface — the eight structured PR-level reviews posted by the first 2026-08-20 run (06:26–06:28), whose findings have no thread and therefore no resolved state to check. Four carried actionable items; two had already been answered by 06:45, two had not.
+  - #2512 (legacy `pollVotes` doc shape + silent write failure) — **already fixed on-branch** in `b1f77f3` and replied at 06:45, before this run started. The follow-up review at 06:47 confirms no blocking issues. No action.
+  - #2508 (`mt-4` → `marginTop: '1em'` not px-equivalent) — **already answered** at 06:28:40 with the analysis that `1em` inherits from a `min()`-capped `fontSize`, so it tops out near the original 16px rather than growing unbounded. No action.
+  - #2511 (edit-path grades backfill untested) — **valid, fixed this run.**
+  - #2506 (`*LabelId` bindings applied as control ids) — **valid, fixed this run.**
+  - #2395 — re-walked; the 08-20 06:29 comment already carries the current disposition and the three remaining items are operational GCP gates, not code. No re-reply, per the frugality directive.
+  - #2504, #2505, #2507, #2513 — reviews found no code issues; their notes are merge-order and merge-latency observations addressed to whoever merges. No reply posted rather than adding four "nothing to do" comments.
+- Fixes pushed: **2.**
+  - #2511 / `nightly/admin-config-2026-08-20` / `eeb47be` — `test(admin): cover the building edit path's grades backfill` (+70, test-only). `useState(existing?.grades ?? '')` lets a stored empty string through `??`, so the save-time `grades.trim() || gradeLabelFromType(type)` fallback fires on the edit path too — which neither existing test reaches, both driving the "Add building" flow. Pinned rather than changed: an empty `grades` yields `gradeLevels: []`, which hides every grade-gated widget in `FeaturePermissionsManager`'s building filter, so backfilling on save is the fix this PR exists to make, not an overwrite of admin intent. Three cases — stored-empty, admin-cleared-to-whitespace, and a control asserting a manually entered `'10-12'` survives.
+  - #2506 / `nightly/unify-d3-settings-labels-2026-08-20` / `1d132c4` — `refactor(a11y): name control ids for the control, not the label` (identifier rename only). `defaultFontLabelId` → `defaultFontSelectId`, `schoolSiteLabelId` → `schoolSiteSelectId`, `customRosterLabelId` → `customRosterTextareaId`.
+- Verification before each push (Node 22; CI on Node 24 authoritative):
+  - #2511 — fail-before confirmed by removing the `|| gradeLabelFromType(type)` fallback: both new backfill cases fail (`expected '' to be '9-12'`), the control passes. Restored → 5/5 green. `tsc --noEmit` ✓ · `eslint --max-warnings 0` ✓ · `prettier --check` ✓.
+  - #2506 — `tsc --noEmit` ✓ · `eslint --max-warnings 0` ✓ · `prettier --check` ✓ · `vitest run components/widgets/LunchCount components/admin` → 29 files / 119 tests pass.
+  - No `scripts/test-count-baseline.json` edit for #2511's three added tests: `checkTestCounts.mjs` fails only on a drop (`fileCount < baseline.testFiles`, `testCount < baseline.tests`), so growth needs no bump and guessing a fresh total risks a wrong floor.
+- New finding this run (#2506): **the review's own premise was inverted, and correcting it strengthened the fix.** The review read the new `*LabelId` names as consistent with the pre-existing `gradeLevelLabelId` in `LunchCount/Settings.tsx`. Read directly, that binding is accurately named — it sits on a `SettingsLabel as="span"` (`:198`) with the control pointing back via `aria-labelledby` (`:204`), as do all seven pre-existing `*LabelId` bindings in `TimeToolConfigurationPanel.tsx`. So the suffix already meant "id of the label" in these files, and the three new `htmlFor`/`id` pairings borrowed it for the control — in `TimeToolConfigurationPanel.tsx` both meanings landed six lines apart in the same `useId()` block. The precedent argued against the naming rather than for it, which turned a "consistent with what it found" nit into a real correction. Every genuine `aria-labelledby` `*LabelId` was left untouched.
+- Reviews posted: **0 new structured reviews.** The first 2026-08-20 run had already posted one per open PR less than a day earlier against unchanged heads; re-reviewing the same diffs would have buried this run's two replies. Output was two targeted replies plus the two fixes instead.
+- Notes:
+  - Declined to expand #2506's scope to the review's missing-tests note (no `getByLabelText` assertions accompany the 12 pairings). Real gap, but it wants coverage across the whole a11y series rather than tonight's batch alone, and half-doing it here would make the omission harder to see later. Said so in the reply rather than leaving it silent.
+  - `tests/rules/announcementPollVotes.test.ts:132` — the legacy-doc regression test added by #2512's `b1f77f3` carries a 6-line comment block, against the "one short line max" convention (`docs/routines/debugger.md`). Not raised by any reviewer and not this run's diff, so left alone; recording it here so it isn't lost.
+  - This log commit is on the designated `claude/inspiring-cannon-7ey7s7` branch, **stacked on #2514's head** (`7a4fa8f`), continuing the established precedent — `pr-review-log.md` is append-only with a nightly writer, so branching fresh from `origin/dev-paul` would guarantee a trailing-line conflict while #2514 stays open. Also continues keeping this log **off** `scheduled-tasks`, still the head of open PR #2508.
+  - Branch safety: no push to `main` or any `dev-*` branch. Both fixes went to `nightly/*` PR heads whose PRs are open and draft.
+  - Tooling: GitHub via the MCP server (no `gh` CLI); all PR list/read/comment operations used `mcp__github__*` equivalents.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); CI on Node 24 remains the authoritative gate.
