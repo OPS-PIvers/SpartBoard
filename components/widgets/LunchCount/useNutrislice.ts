@@ -220,7 +220,10 @@ export const useNutrislice = ({
           if (entreeIndex === -1 || entreeIndex === bentoIndex) {
             entreeIndex = items.findIndex(
               (i, idx) =>
-                !i.is_section_title && itemDisplayName(i) && idx !== bentoIndex
+                !i.is_section_title &&
+                itemDisplayName(i) &&
+                idx !== bentoIndex &&
+                !isAltMealSectionName(sectionForIndex[idx])
             );
           }
 
