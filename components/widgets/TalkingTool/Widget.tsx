@@ -86,7 +86,7 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
         </div>
 
         <div
-          className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar"
+          className="flex-1 overflow-y-auto custom-scrollbar"
           style={{ padding: 'min(8px, 2cqmin)' }}
         >
           {categories.map((cat) => {
@@ -116,11 +116,11 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
                 }}
               >
                 <Icon
-                  className="mb-2"
                   style={{
                     width: 'min(22px, 5.5cqmin)',
                     height: 'min(22px, 5.5cqmin)',
                     color: isActive ? '#ffffff' : cat.color,
+                    marginBottom: 'min(8px, 2cqmin)',
                   }}
                 />
                 <span
@@ -142,7 +142,7 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
       >
         <div className="animate-in fade-in slide-in-from-right-2 duration-300">
           <h3
-            className="font-black mb-4 uppercase tracking-tight flex items-center"
+            className="font-black uppercase tracking-tight flex items-center"
             style={{
               color: activeCat.color,
               fontSize: 'min(18px, 4.5cqmin)',

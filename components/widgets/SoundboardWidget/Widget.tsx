@@ -401,11 +401,12 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
           {/* Selection bar — only when focused */}
           {isFocused && visibleSounds.length > 0 && (
             <div
-              className="flex-shrink-0 bg-slate-100/80 rounded-[min(16px,3cqmin)] flex gap-2 overflow-x-auto no-scrollbar"
+              className="flex-shrink-0 bg-slate-100/80 rounded-[min(16px,3cqmin)] flex overflow-x-auto no-scrollbar"
               style={{
                 marginTop: 'min(8px, 1.5cqmin)',
                 padding: 'min(6px, 1.5cqmin)',
                 minHeight: 'max(64px, min(80px, 20cqmin))',
+                gap: 'min(8px, 2cqmin)',
               }}
             >
               {visibleSounds.map((sound) => {

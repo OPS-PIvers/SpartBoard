@@ -142,12 +142,18 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         </div>
       }
       footer={
-        <div className="px-3 pb-3">
+        <div
+          style={{
+            paddingLeft: 'min(12px, 3cqmin)',
+            paddingRight: 'min(12px, 3cqmin)',
+            paddingBottom: 'min(12px, 3cqmin)',
+          }}
+        >
           <button
             onClick={roll}
             disabled={isRolling}
             className={`
-            w-full py-4 px-6 flex items-center justify-center gap-3 rounded-2xl uppercase tracking-widest transition-all font-black font-${
+            w-full flex items-center justify-center rounded-2xl uppercase tracking-widest transition-all font-black font-${
               globalStyle.fontFamily
             }
             ${
@@ -156,7 +162,14 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 : 'bg-purple-600 text-white shadow-lg hover:bg-purple-700 active:scale-90 hover:shadow-purple-500/30'
             }
           `}
-            style={{ fontSize: 'min(20px, 5cqmin)' }}
+            style={{
+              fontSize: 'min(20px, 5cqmin)',
+              paddingTop: 'min(16px, 4cqmin)',
+              paddingBottom: 'min(16px, 4cqmin)',
+              paddingLeft: 'min(24px, 6cqmin)',
+              paddingRight: 'min(24px, 6cqmin)',
+              gap: 'min(12px, 3cqmin)',
+            }}
           >
             <RefreshCw
               style={{ width: '1.2em', height: '1.2em' }}

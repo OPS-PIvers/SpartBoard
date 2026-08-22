@@ -292,12 +292,18 @@ export const SoundWidget: React.FC<{
     <WidgetLayout
       padding="p-0"
       content={
-        <div className="flex-1 min-h-0 relative w-full h-full p-2">
+        <div
+          className="flex-1 min-h-0 relative w-full h-full"
+          style={{ padding: 'min(8px, 2cqmin)' }}
+        >
           {visual === 'thermometer' && <ThermometerView volume={volume} />}
           {visual === 'speedometer' && <SpeedometerView volume={volume} />}
           {visual === 'balls' && <PopcornBallsView volume={volume} />}
           {visual === 'line' && (
-            <div className="w-full h-full bg-black/20 rounded-2xl p-2">
+            <div
+              className="w-full h-full bg-black/20 rounded-2xl"
+              style={{ padding: 'min(8px, 2cqmin)' }}
+            >
               <svg
                 viewBox="0 0 100 100"
                 preserveAspectRatio="none"
@@ -318,12 +324,19 @@ export const SoundWidget: React.FC<{
         </div>
       }
       footer={
-        <div className="text-center pb-3">
+        <div
+          className="text-center"
+          style={{ paddingBottom: 'min(12px, 3cqmin)' }}
+        >
           <span
-            className="font-black uppercase tracking-widest px-6 py-2 rounded-full text-white shadow-md transition-all duration-300 inline-block border-2 border-white/20"
+            className="font-black uppercase tracking-widest rounded-full text-white shadow-md transition-all duration-300 inline-block border-2 border-white/20"
             style={{
               backgroundColor: level.color,
               fontSize: 'min(12px, 3.5cqmin)',
+              paddingLeft: 'min(24px, 6cqmin)',
+              paddingRight: 'min(24px, 6cqmin)',
+              paddingTop: 'min(8px, 2cqmin)',
+              paddingBottom: 'min(8px, 2cqmin)',
             }}
           >
             {level.label}
