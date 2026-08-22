@@ -982,7 +982,7 @@ const Toolbar: React.FC<{
               >
                 <span
                   className="leading-none"
-                  style={{ fontSize: 'min(16px, 6cqmin)' }}
+                  style={{ fontSize: 'min(16px, 4cqmin)' }}
                   aria-hidden
                 >
                   +
@@ -1065,7 +1065,7 @@ const Toolbar: React.FC<{
                 <span
                   className="font-mono text-slate-300 text-right tabular-nums"
                   style={{
-                    fontSize: 'min(12px, 4.5cqmin)',
+                    fontSize: 'min(12px, 3cqmin)',
                     width: 'min(48px, 10cqmin)',
                   }}
                 >
