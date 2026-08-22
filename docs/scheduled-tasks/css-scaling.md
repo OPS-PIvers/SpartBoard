@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-21_
-_Last action: 2026-08-21 — LOW "MiniApp internal dialog overlays use hardcoded Tailwind text sizes" resolved: both internal overlay dialogs (assign/share modal, Save-to-Library paste overlay) converted from hardcoded Tailwind text/icon/spacing classes to inline `cqmin`-capped equivalents. `pnpm type-check` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean. No dedicated widget test file exists. PR opened to dev-paul.
+_Last audited: 2026-08-22_
+_Last action: 2026-08-22 — LOW "SmartNotebook drawing toolbar uses hardcoded Tailwind sizes in front-face editing UI" resolved: converted the color-picker `+` label (`text-base`) and brush-size value display (`text-xs w-12`) in `PageEditorOverlay.tsx` to inline `cqmin`-capped equivalents. `pnpm exec tsc --noEmit` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean. No dedicated widget test file exists. PR opened to dev-paul.
 
 ---
 
@@ -21,6 +21,10 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-22 action notes (Saturday): Nothing In Progress anywhere across today's reading list (three dailies — widget-registry, css-scaling, typescript-eslint; no weekly journal has cadence Saturday). widget-registry and typescript-eslint report zero open items. css-scaling's Open section (document order) top item is the SmartNotebook drawing toolbar LOW (`PageEditorOverlay.tsx:983,1061`, detected 2026-07-07). File-recency check passed: `git log --oneline -10 -- components/widgets/SmartNotebook/components/PageEditorOverlay.tsx` shows the only commit touching this file is `5c1488a4` (PR #1908), far outside the last 5 branch commits (`12506b2b`, `655f3072`, `3e379974`, `25f61278`, `0f3c1b9e`). Resolution: converted the color-picker `+` label (`text-base`) and brush-size value display (`text-xs w-12`) to inline `cqmin`-capped equivalents per the item's own Fix guidance. `pnpm exec tsc --noEmit` (exit 0), `eslint --max-warnings 0` (exit 0), `prettier --check` (clean). No dedicated widget test file exists. Moved the item to Completed. PR opened to dev-paul._
+
+_2026-08-22: Targeted scan (Saturday daily). `git log --oneline -15 -- components/widgets/` shows nothing dated after 2026-08-21 (last commit touching widget files is `3ce2fc6d`, 2026-08-21, already covered by yesterday's audit); zero widget front-face content changes landed today. Repo-wide grep across `components/widgets/**` for `max-[hw]-\[Npx\]` arbitrary classes, hardcoded icon `size={N}` props, and hardcoded `maxHeight`/`maxWidth` px inline styles, with every hit individually triaged: `size={N}` hits in `stickers/DraggableSticker.tsx` and `stickers/StickerItemWidget.tsx` confirmed out of scope (the `sticker` widget type is handled by a hard-coded branch in `WidgetRenderer.tsx`, not the `skipScaling` registry, and contains zero `cqmin`/`container-type` usage — same CSS-transform-drag-chrome exemption class as `DrawingWidget`); `LiveControl.tsx` re-confirmed out of scope per 2026-08-18 precedent (portaled shared session-control overlay, not a per-widget CQ front face); `InstructionalRoutines/IconPicker.tsx`, `Stations/components/IconOrImageInput.tsx` (via `StationEditor.tsx`), and `UrlWidget/LinkShapePicker.tsx`/`LinkBackgroundInput.tsx` all traced to back-face-only consumers (`Settings.tsx`/`LibraryManager.tsx`) — CQ rules don't apply. `max-w`/`min-w` hits: `GuidedLearningEditor.tsx:874`, `QuizManager.tsx:2201/2205`, `LiveControl.tsx:261`, `DrawingWidget/PageStrip.tsx:434/462` all re-confirmed out-of-scope back-face/portaled/skipScaling:false per established precedent. `PageEditorOverlay.tsx:777` (`maxWidth: '720px'` on the toolbar's centering flex-wrap container) and `:1362` (`maxWidth: '100%', maxHeight: '200px'` on a background-preview `<img>` with `objectFit: 'contain'`) inspected directly — both sit inside the same already-tracked drawing-toolbar overlay, not a new distinct anti-pattern (the image case matches the excluded `max-w-full max-h-full object-contain` pattern). All 3 previously-tracked open items individually re-verified against current file content (not just journal text): `PageEditorOverlay.tsx` lines 983 (`text-base` custom-color "+" label) and 1061 (`text-xs w-12` speed-slider value) still present verbatim; `SmartNotebook/components/Viewer.tsx:258` still has `max-w-[240px] min-w-[160px]` on the Assets Panel; `random/RandomClassContextButton.tsx:300` still has `min-w-[220px] max-w-[280px]` on the portaled dropdown — `git log -5` on all three files shows no touches since well before 2026-08-21 (`PageEditorOverlay.tsx`/`Viewer.tsx` last touched at merge `5c1488a4`, PR #1908; `RandomClassContextButton.tsx` last touched by the unrelated Escape-key fix #2388). Zero new anti-patterns._
 
 _2026-08-21: Targeted scan (Friday daily). New commits on scheduled-tasks since the 2026-08-20 audit (`c0eeb0aa..HEAD`): `3cb4bcf4` fix(css-scaling) convert remaining hardcoded spacing/icon-size classes to cqmin across 11 widgets (yesterday's own recorded action, already in Completed — verified the fix is intact across all 11 files: CatalystWidget, DiceWidget, GuidedLearning, InstructionalRoutines, NextUp, SoundWidget, SoundboardWidget, SpecialistScheduleWidget, Stations, TalkingTool, Webcam), `c8ca1116` docs-only audit journal commit. Zero widget front-face content changes. Repo-wide grep across all 62 `**/Widget.tsx`/`*Widget.tsx` front-face files for `max-[hw]-\[Npx\]` arbitrary classes, hardcoded icon `size={N}` props, and hardcoded `maxHeight`/`maxWidth` px inline styles: zero matches anywhere. All 4 remaining pre-existing LOW open items individually re-confirmed present and unchanged in their files (none touched since 2026-08-19): MiniApp/Widget.tsx internal dialog overlay hardcoded text/icon sizes; SmartNotebook/components/PageEditorOverlay.tsx:983,1061 drawing toolbar; SmartNotebook/components/Viewer.tsx:258 Assets Panel `max-w-[240px] min-w-[160px]`; random/RandomClassContextButton.tsx:300 portaled dropdown `min-w-[220px] max-w-[280px]`. Zero new anti-patterns._
 
@@ -238,13 +242,6 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### LOW SmartNotebook drawing toolbar uses hardcoded Tailwind sizes in front-face editing UI
-
-- **Detected:** 2026-07-07
-- **File:** components/widgets/SmartNotebook/components/PageEditorOverlay.tsx :983, :1061
-- **Detail:** Line 983: `<span className="text-base leading-none" aria-hidden>+</span>` — the color-picker `+` label in the drawing toolbar uses `text-base` (16px hardcoded). Line 1061: `<span className="font-mono text-xs text-slate-300 w-12 text-right tabular-nums">` — the brush-size value display uses `text-xs` (12px hardcoded) plus `w-12` (48px fixed width). SmartNotebook has `skipScaling: true`, so this drawing toolbar content is inside the CSS container-query context and both elements are front-face content, not a settings back-face. Late-arriving finding from 2026-07-07 comprehensive scan.
-- **Fix:** Line 983: convert `text-base` to `style={{ fontSize: 'min(16px, 6cqmin)' }}`. Line 1061: convert `text-xs` to `style={{ fontSize: 'min(12px, 4.5cqmin)' }}` and `w-12` to `style={{ width: 'min(48px, 10cqmin)' }}`.
-
 ### LOW RandomClassContextButton portaled dropdown uses hardcoded sizes — requires vmin/em not cqmin
 
 - **Detected:** 2026-07-07
@@ -262,6 +259,14 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW SmartNotebook drawing toolbar uses hardcoded Tailwind sizes in front-face editing UI
+
+- **Detected:** 2026-07-07
+- **Completed:** 2026-08-22
+- **File:** components/widgets/SmartNotebook/components/PageEditorOverlay.tsx :983, :1061
+- **Detail:** Line 983: `<span className="text-base leading-none" aria-hidden>+</span>` — the color-picker `+` label in the drawing toolbar uses `text-base` (16px hardcoded). Line 1061: `<span className="font-mono text-xs text-slate-300 w-12 text-right tabular-nums">` — the brush-size value display uses `text-xs` (12px hardcoded) plus `w-12` (48px fixed width). SmartNotebook has `skipScaling: true`, so this drawing toolbar content is inside the CSS container-query context and both elements are front-face content, not a settings back-face.
+- **Resolution:** Converted line 983's `text-base` to inline `style={{ fontSize: 'min(16px, 4cqmin)' }}` (kept `leading-none` as a class). Converted line 1061's `text-xs` to `fontSize: 'min(12px, 3cqmin)'` and `w-12` to `width: 'min(48px, 10cqmin)'` (kept `font-mono text-slate-300 text-right tabular-nums` as classes). Coefficients (`4cqmin`/`3cqmin`) were tightened from an initial `6cqmin`/`4.5cqmin` pass after a PR review flagged them as more aggressive than the file's own established scale, causing these two elements to grow *larger* than neighboring text/swatches below the px cap — `4cqmin` matches the adjacent `min(24px, 5cqmin)` swatch-button ratio, `3cqmin` matches the file's other `min(12px, 3cqmin)` label at line 561. `pnpm exec tsc --noEmit` (exit 0), `eslint components/widgets/SmartNotebook/components/PageEditorOverlay.tsx --max-warnings 0` (exit 0), `prettier --check` (clean). No dedicated widget test file exists. PR opened to dev-paul (#2527).
 
 ### LOW MiniApp internal dialog overlays use hardcoded Tailwind text sizes
 
