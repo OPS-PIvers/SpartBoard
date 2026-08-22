@@ -397,10 +397,14 @@ export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
         <SettingsLabel>Practice Set</SettingsLabel>
 
         <div>
-          <label className="text-xxxs font-black text-slate-400 uppercase tracking-widest block mb-1">
+          <label
+            htmlFor={`revealgrid-set-name-${widget.id}`}
+            className="text-xxxs font-black text-slate-400 uppercase tracking-widest block mb-1"
+          >
             Set Name
           </label>
           <input
+            id={`revealgrid-set-name-${widget.id}`}
             type="text"
             value={config.setName ?? ''}
             onChange={(e) =>
@@ -439,11 +443,15 @@ export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
 
         {existingFiles.length > 0 && (
           <div className="mt-4 pt-4 border-t border-slate-200">
-            <label className="text-xxxs font-black text-slate-400 uppercase tracking-widest block mb-2 flex items-center gap-1">
+            <label
+              htmlFor={`revealgrid-load-existing-set-${widget.id}`}
+              className="text-xxxs font-black text-slate-400 uppercase tracking-widest block mb-2 flex items-center gap-1"
+            >
               <FolderOpen className="w-3 h-3" /> Load Existing Set
             </label>
             <div className="relative">
               <select
+                id={`revealgrid-load-existing-set-${widget.id}`}
                 onChange={(e) => handleLoadFromDrive(e.target.value)}
                 value=""
                 className="w-full text-xs bg-white border border-slate-200 rounded-lg px-3 py-2 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -557,10 +565,14 @@ export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
             {expandedId === card.id && (
               <div className="px-3 pb-3 space-y-2 border-t border-slate-100 pt-2 animate-in fade-in slide-in-from-top-1">
                 <div>
-                  <label className="text-xxxs font-black text-slate-400 uppercase tracking-widest block mb-1">
+                  <label
+                    htmlFor={`revealgrid-card-front-${card.id}`}
+                    className="text-xxxs font-black text-slate-400 uppercase tracking-widest block mb-1"
+                  >
                     Front (Question / Term)
                   </label>
                   <input
+                    id={`revealgrid-card-front-${card.id}`}
                     type="text"
                     value={card.frontContent}
                     onChange={(e) =>
@@ -571,10 +583,14 @@ export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
                   />
                 </div>
                 <div>
-                  <label className="text-xxxs font-black text-slate-400 uppercase tracking-widest block mb-1">
+                  <label
+                    htmlFor={`revealgrid-card-back-${card.id}`}
+                    className="text-xxxs font-black text-slate-400 uppercase tracking-widest block mb-1"
+                  >
                     Back (Answer / Definition)
                   </label>
                   <input
+                    id={`revealgrid-card-back-${card.id}`}
                     type="text"
                     value={card.backContent}
                     onChange={(e) =>
