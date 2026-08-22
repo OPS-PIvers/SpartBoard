@@ -793,17 +793,22 @@ const AiAssistOverlay: React.FC<AiAssistOverlayProps> = ({
   onCancel,
   onGenerate,
 }) => {
+  // onCancel is read via a ref so the listener isn't torn down/re-added on every keystroke (onCancel is an inline arrow function at the call site).
+  const onCancelRef = useRef(onCancel);
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync to avoid stale-closure without re-subscribing the effect (CLAUDE.md pattern)
+  onCancelRef.current = onCancel;
+
   // Escape must be caught here regardless of focus — nothing moves focus into
   // this overlay on open, so a div-level onKeyDown never fires for it.
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.stopPropagation();
-      onCancel();
+      onCancelRef.current();
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [onCancel]);
+  }, []);
 
   return (
     <div
