@@ -216,13 +216,7 @@ export const useNutrislice = ({
                 ? -1
                 : bentoIndexByName;
 
-          // Re-derive the entree when it's missing OR when the section-match
-          // above happened to land on the same item as bentoIndex (e.g. a
-          // section literally named "Alt Entree" matches both the "entree"
-          // and the alt-meal patterns; same for an entree-section item whose
-          // own name contains "bento" with no dedicated alt-meal section).
-          // Without this, that single item gets duplicated as both hotLunch
-          // and bentoBox instead of being treated as the alt meal only.
+          // Re-derive if entree collided with bentoIndex (e.g. an "Alt Entree" section matches both patterns).
           if (entreeIndex === -1 || entreeIndex === bentoIndex) {
             entreeIndex = items.findIndex(
               (i, idx) =>
