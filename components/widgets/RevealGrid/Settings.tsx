@@ -508,10 +508,14 @@ export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
 
         {isPasting && (
           <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl mb-4">
-            <label className="text-xxxs font-black text-blue-400 uppercase tracking-widest block mb-2">
+            <label
+              htmlFor={`revealgrid-paste-data-${widget.id}`}
+              className="text-xxxs font-black text-blue-400 uppercase tracking-widest block mb-2"
+            >
               Paste two columns (Term, Definition)
             </label>
             <textarea
+              id={`revealgrid-paste-data-${widget.id}`}
               value={pasteData}
               onChange={(e) => setPasteData(e.target.value)}
               className="w-full h-24 text-xs p-2 rounded border border-blue-200 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
