@@ -18,11 +18,11 @@
  *     existing "Stop sharing" affordance in the Sidebar where they
  *     created the share.
  *
- * Read security: `/shared_boards` rule allows reads from any authed
- * user, so the PLC filter is a client-side pivot, not a permissions
- * boundary. A hostile client could list arbitrary shares by removing
- * the `where plcId == ...` clause; nothing in this body assumes
- * otherwise.
+ * Read security: the `where plcId == ...` clause IS the permissions boundary —
+ * the `/shared_boards` `allow list` rule requires the caller to be in that
+ * PLC's `memberUids`, so removing the clause denies the query. Opening a single
+ * share by its unguessable id remains available to any authed user (`allow
+ * get`), which is the share-URL flow this body links into.
  */
 
 import React from 'react';

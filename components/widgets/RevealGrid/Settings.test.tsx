@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { RevealGridSettings } from './Settings';
+import { RevealGridSettings, RevealGridAppearanceSettings } from './Settings';
 import { useDashboard } from '@/context/useDashboard';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDialog } from '@/context/useDialog';
@@ -72,6 +72,33 @@ describe('RevealGridSettings — Reveal Grid Set Generator button', () => {
     expect(mockAddToast).toHaveBeenCalledWith(
       expect.stringMatching(/coming soon/i),
       'info'
+    );
+  });
+});
+
+describe('RevealGridAppearanceSettings — card color label associations', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      updateWidget: mockUpdateWidget,
+    });
+  });
+
+  it('names the Default Card Front Color input from its label', () => {
+    render(<RevealGridAppearanceSettings widget={baseWidget} />);
+
+    expect(screen.getByLabelText('Default Card Front Color')).toHaveAttribute(
+      'type',
+      'color'
+    );
+  });
+
+  it('names the Default Card Back Color input from its label', () => {
+    render(<RevealGridAppearanceSettings widget={baseWidget} />);
+
+    expect(screen.getByLabelText('Default Card Back Color')).toHaveAttribute(
+      'type',
+      'color'
     );
   });
 });

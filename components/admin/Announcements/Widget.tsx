@@ -540,7 +540,7 @@ const AnnouncementPreview: React.FC<{
 // Poll responses panel — live vote tallies from announcement sub-collection
 // ---------------------------------------------------------------------------
 
-const PollResponsesPanel: React.FC<{
+export const PollResponsesPanel: React.FC<{
   announcement: Announcement;
   onClose: () => void;
 }> = ({ announcement, onClose }) => {
@@ -579,7 +579,7 @@ const PollResponsesPanel: React.FC<{
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Poll_${announcement.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `Poll_${announcement.name.replace(/\s+/g, '_')}_${getLocalIsoDate()}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
