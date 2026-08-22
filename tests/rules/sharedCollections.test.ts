@@ -24,7 +24,17 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, getDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import {
+  setDoc,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from 'firebase/firestore';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -646,5 +656,61 @@ describe('shared_collections/boards — write authorization', () => {
       await setDoc(doc(ctx.firestore(), boardPath), boardSnapshotDoc());
     });
     await assertFails(deleteDoc(doc(asExternalTeacher(), boardPath)));
+  });
+});
+
+// Regression: `allow list` is evaluated against the QUERY (only
+// equality-pinned fields carry a value; a range-filtered field errors), so
+// none of the get-side branches — `intendedMode != 'substitute'`, `hostUid`,
+// `expiresAt` — could pass the /subs Collections query. See sharedBoards.
+describe('shared_collections — substitute directory list query', () => {
+  const dirQuery = (db: ReturnType<typeof asOronoTeacher>) =>
+    query(
+      collection(db, 'shared_collections'),
+      where('intendedMode', '==', 'substitute'),
+      where('buildingId', '==', 'ohs'),
+      where('expiresAt', '>', Date.now())
+    );
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), 'shared_collections/live-col'),
+        subShareDoc()
+      );
+    });
+  });
+
+  it('Orono sub can run the /subs Collections directory query', async () => {
+    await assertSucceeds(getDocs(dirQuery(asOronoTeacher())));
+  });
+
+  it('the query still succeeds when it matches nothing', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await deleteDoc(doc(ctx.firestore(), 'shared_collections/live-col'));
+    });
+    await assertSucceeds(getDocs(dirQuery(asOronoTeacher())));
+  });
+
+  it('non-Orono email is denied on the directory query', async () => {
+    await assertFails(getDocs(dirQuery(asExternalTeacher())));
+  });
+
+  it('host can list their own substitute Collection shares', async () => {
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(asHost(), 'shared_collections'),
+          where('hostUid', '==', HOST_UID),
+          where('intendedMode', '==', 'substitute')
+        )
+      )
+    );
+  });
+
+  it('an unscoped list is denied for a non-admin', async () => {
+    await assertFails(
+      getDocs(query(collection(asOronoTeacher(), 'shared_collections')))
+    );
   });
 });

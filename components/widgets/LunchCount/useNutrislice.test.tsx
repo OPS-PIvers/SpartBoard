@@ -332,6 +332,43 @@ describe('useNutrislice', () => {
     });
   });
 
+  it('does not duplicate a bento-only item as the hot lunch entree', async () => {
+    // No Entree/Main section anywhere; the only food item is the bento item.
+    const bentoOnlyData = {
+      days: [
+        {
+          date: '2023-10-27',
+          menu_items: [
+            { is_section_title: true, section_name: 'PB Jammin Bento Box' },
+            {
+              section_name: 'PB Jammin Bento Box',
+              food: { name: 'Turkey Bento', image_url: 'https://cdn/t.jpg' },
+            },
+          ],
+        },
+      ],
+    };
+
+    const mockProxy = vi.fn().mockResolvedValue({ data: bentoOnlyData });
+    (httpsCallable as Mock).mockReturnValue(mockProxy);
+
+    render(<TestComponent />);
+
+    await waitFor(() => {
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        mockWidgetId,
+        expect.objectContaining({
+          config: expect.objectContaining({
+            cachedMenu: expect.objectContaining({
+              hotLunch: { name: 'No Hot Lunch Listed' },
+              bentoBox: { name: 'Turkey Bento', imageUrl: 'https://cdn/t.jpg' },
+            }) as unknown,
+          }) as unknown,
+        })
+      );
+    });
+  });
+
   it('parses bento via name match across any section', async () => {
     const bentoData = {
       days: [

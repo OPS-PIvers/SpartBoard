@@ -321,8 +321,12 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
         >
           {/* Header with Day Number */}
           <div
-            className="flex items-center justify-between mb-2 border-b border-slate-100 pb-2 shrink-0"
-            style={{ gap: 'min(8px, 2cqmin)' }}
+            className="flex items-center justify-between border-b border-slate-100 shrink-0"
+            style={{
+              gap: 'min(8px, 2cqmin)',
+              marginBottom: 'min(8px, 2cqmin)',
+              paddingBottom: 'min(8px, 2cqmin)',
+            }}
           >
             <div
               className="flex items-center"
@@ -404,9 +408,13 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                 >
                   {isActive && (
                     <div
-                      className="absolute top-0 right-0 bg-teal-600 text-white font-black uppercase tracking-widest px-2 py-1 rounded-bl-xl z-20"
+                      className="absolute top-0 right-0 bg-teal-600 text-white font-black uppercase tracking-widest rounded-bl-xl z-20"
                       style={{
                         fontSize: `min(${Math.round(10 * textScale)}px, ${(2.5 * textScale).toFixed(2)}cqmin)`,
+                        paddingLeft: 'min(8px, 2cqmin)',
+                        paddingRight: 'min(8px, 2cqmin)',
+                        paddingTop: 'min(4px, 1cqmin)',
+                        paddingBottom: 'min(4px, 1cqmin)',
                       }}
                     >
                       Now

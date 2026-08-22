@@ -187,7 +187,7 @@ const RoutineStepItem: React.FC<RoutineStepItemProps> = ({
         flex animate-in slide-in-from-right duration-300 group bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all
         ${
           isHero
-            ? 'flex-col items-center justify-center text-center p-8'
+            ? 'flex-col items-center justify-center text-center'
             : isGrid
               ? 'flex-col items-center justify-center text-center aspect-square'
               : isVisualCue
@@ -273,8 +273,11 @@ const RoutineStepItem: React.FC<RoutineStepItemProps> = ({
       </div>
 
       <div
-        className={`flex shrink-0 ${isHero ? 'mt-4 gap-4' : isGrid ? 'mt-auto w-full flex-col gap-2' : 'items-center gap-2'}`}
-        style={{ gap: isHero ? '1em' : '0.5em' }}
+        className={`flex shrink-0 ${isHero ? '' : isGrid ? 'mt-auto w-full flex-col' : 'items-center'}`}
+        style={{
+          gap: isHero ? '1em' : '0.5em',
+          marginTop: isHero ? '1em' : undefined,
+        }}
       >
         {hasWidget && (
           <button

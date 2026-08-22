@@ -29,6 +29,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Check, GripVertical, MoreHorizontal } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { Z_INDEX } from '@/config/zIndex';
 import { LibraryGridLockContext } from './LibraryGridLockContext';
 import type {
@@ -104,6 +105,20 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   useClickOutside(ref, () => setOpen(false));
+
+  // stopPropagation prevents this portalled menu's Escape from also minimizing the topmost widget.
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(e)) return;
+      e.stopPropagation();
+      setOpen(false);
+      buttonRef.current?.focus();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open]);
 
   useLayoutEffect(() => {
     if (!open || !buttonRef.current) return;

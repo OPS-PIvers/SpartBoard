@@ -9,6 +9,10 @@ import {
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
+let dialogIdCounter = 0;
+// Monotonic id so DialogContainer can force a fresh mount per dialog occurrence.
+const nextDialogId = () => `dialog-${++dialogIdCounter}`;
+
 export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -46,6 +50,7 @@ export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({
     (message: string, options: AlertOptions = {}): Promise<void> => {
       return new Promise<void>((resolve) => {
         enqueue({
+          id: nextDialogId(),
           kind: 'alert',
           message,
           options,
@@ -63,6 +68,7 @@ export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({
     (message: string, options: ConfirmOptions = {}): Promise<boolean> => {
       return new Promise<boolean>((resolve) => {
         enqueue({
+          id: nextDialogId(),
           kind: 'confirm',
           message,
           options,
@@ -80,6 +86,7 @@ export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({
     (message: string, options: PromptOptions = {}): Promise<string | null> => {
       return new Promise<string | null>((resolve) => {
         enqueue({
+          id: nextDialogId(),
           kind: 'prompt',
           message,
           options,

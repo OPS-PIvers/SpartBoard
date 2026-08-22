@@ -98,12 +98,11 @@ function parseEntry(
  * `null` for `plcId` to disable the listener (e.g. while the dashboard
  * is closed).
  *
- * Read permission is already granted to all authenticated users by the
- * `/shared_boards` rule block; the PLC scope is implemented as a `where
- * plcId == ...` query filter, not a rule gate. This means a hostile
- * client could still list non-PLC shares by removing the filter — the
- * PLC tab uses the filter as a convenience pivot, not as a security
- * boundary.
+ * The `where plcId == ...` filter is a real rule gate: the `/shared_boards`
+ * `allow list` branch resolves that pinned value and requires the caller to be
+ * in that PLC's `memberUids`, so dropping the filter denies the query outright.
+ * Reading a single share by its (unguessable) id stays open to any authed user
+ * via `allow get` — that's the share-URL flow, not this listing.
  */
 export const usePlcSharedBoards = (
   plcId: string | null

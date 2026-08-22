@@ -146,8 +146,11 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <SettingsLabel>Min</SettingsLabel>
+              <SettingsLabel htmlFor={`mathtoolinstance-min-${widget.id}`}>
+                Min
+              </SettingsLabel>
               <input
+                id={`mathtoolinstance-min-${widget.id}`}
                 type="number"
                 value={config.numberLineMin ?? -10}
                 onChange={(e) =>
@@ -165,8 +168,11 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
               />
             </div>
             <div>
-              <SettingsLabel>Max</SettingsLabel>
+              <SettingsLabel htmlFor={`mathtoolinstance-max-${widget.id}`}>
+                Max
+              </SettingsLabel>
               <input
+                id={`mathtoolinstance-max-${widget.id}`}
                 type="number"
                 value={config.numberLineMax ?? 10}
                 onChange={(e) =>

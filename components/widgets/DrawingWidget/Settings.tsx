@@ -112,9 +112,15 @@ export const DrawingSettings: React.FC<{ widget: WidgetData }> = ({
       </div>
 
       <div>
-        <SettingsLabel icon={Pencil}>Brush Thickness</SettingsLabel>
+        <SettingsLabel
+          icon={Pencil}
+          htmlFor={`drawing-brush-thickness-${widget.id}`}
+        >
+          Brush Thickness
+        </SettingsLabel>
         <div className="flex items-center gap-4 px-2">
           <input
+            id={`drawing-brush-thickness-${widget.id}`}
             type="range"
             min="1"
             max="80"

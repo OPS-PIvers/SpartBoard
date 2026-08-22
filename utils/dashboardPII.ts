@@ -24,18 +24,25 @@ export const PII_WIDGET_FIELDS = [
   'lockedNames', // RandomWidget — manually pinned names (Jigsaw/manual edit)
   'unassignedNames', // RandomWidget — names parked in the Unassigned tray
   'doneNames', // RandomWidget — names marked "done" in Shuffle mode
+  'jigsawHomeGroups', // RandomWidget — Jigsaw mode home groups (RandomGroup[] with names[])
+  'jigsawExpertGroups', // RandomWidget — Jigsaw mode expert groups (RandomGroup[] with names[])
   'names', // SeatingChartWidget — custom roster name list
   'roster', // LunchCountConfig — student name array
   'customRoster', // StationsConfig — custom-mode roster name list
 ] as const;
 
-export type PiiWidgetField = (typeof PII_WIDGET_FIELDS)[number];
+export type PiiWidgetField = (typeof PII_WIDGET_FIELDS)[number] | 'assignments';
 
 /** Maps widgetId → object containing only PII fields for that widget */
 export type DashboardPiiSupplement = Record<
   string,
   Partial<Record<PiiWidgetField, unknown>>
 >;
+
+// `assignments` is PII only in custom-list mode, where the map keys ARE the typed student names.
+function isCustomModeAssignments(config: Record<string, unknown>): boolean {
+  return config.rosterMode === 'custom' && config.assignments !== undefined;
+}
 
 /**
  * Returns a deep copy of `dashboard` with all PII fields removed from every
@@ -46,6 +53,9 @@ export function scrubDashboardPII(dashboard: Dashboard): Dashboard {
     ...dashboard,
     widgets: dashboard.widgets.map((widget) => {
       const config = { ...(widget.config as Record<string, unknown>) };
+      if (isCustomModeAssignments(config)) {
+        delete config.assignments;
+      }
       for (const field of PII_WIDGET_FIELDS) {
         delete config[field];
       }
@@ -74,6 +84,11 @@ export function extractDashboardPII(
         piiFields[field] = config[field];
         hasPii = true;
       }
+    }
+
+    if (isCustomModeAssignments(config)) {
+      piiFields.assignments = config.assignments;
+      hasPii = true;
     }
 
     if (hasPii) {
@@ -119,6 +134,7 @@ export function dashboardHasPII(dashboard: Dashboard): boolean {
     for (const field of PII_WIDGET_FIELDS) {
       if (field in config && config[field] !== undefined) return true;
     }
+    if (isCustomModeAssignments(config)) return true;
   }
   return false;
 }

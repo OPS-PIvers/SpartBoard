@@ -276,10 +276,14 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
 
       {mode === 'manual' && (
         <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-          <SettingsLabel icon={ListPlus}>
+          <SettingsLabel
+            icon={ListPlus}
+            htmlFor={`checklist-task-list-${widget.id}`}
+          >
             Task List (One per line)
           </SettingsLabel>
           <textarea
+            id={`checklist-task-list-${widget.id}`}
             value={localText}
             onChange={(e) => handleBulkChange(e.target.value)}
             placeholder="Enter tasks here..."
@@ -302,8 +306,11 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
           {rosterMode === 'custom' && (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <SettingsLabel>First Names</SettingsLabel>
+                <SettingsLabel htmlFor={`checklist-first-names-${widget.id}`}>
+                  First Names
+                </SettingsLabel>
                 <textarea
+                  id={`checklist-first-names-${widget.id}`}
                   value={firstNames}
                   onChange={(e) =>
                     updateWidget(widget.id, {
@@ -315,8 +322,11 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
                 />
               </div>
               <div>
-                <SettingsLabel>Last Names</SettingsLabel>
+                <SettingsLabel htmlFor={`checklist-last-names-${widget.id}`}>
+                  Last Names
+                </SettingsLabel>
                 <textarea
+                  id={`checklist-last-names-${widget.id}`}
                   value={lastNames}
                   onChange={(e) =>
                     updateWidget(widget.id, {

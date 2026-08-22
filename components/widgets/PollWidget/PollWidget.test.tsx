@@ -549,6 +549,62 @@ describe('PollSettings', () => {
     );
   });
 
+  it('REGRESSION: exported CSV filename uses the local date, not the UTC date', () => {
+    // UTC+12 admin at local midnight 2026-06-15 (= 2026-06-14T12:00:00Z).
+    // Old code: toISOString() -> "2026-06-14T12:00:00.000Z" -> "2026-06-14".
+    // Fixed code: local getters -> "2026-06-15" via getLocalIsoDate().
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-06-14T12:00:00.000Z'));
+    vi.spyOn(Date.prototype, 'getFullYear').mockReturnValue(2026);
+    vi.spyOn(Date.prototype, 'getMonth').mockReturnValue(5);
+    vi.spyOn(Date.prototype, 'getDate').mockReturnValue(15);
+
+    const mockWidget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Test',
+        options: [{ id: 'opt-1', label: 'Option 1', votes: 5 }],
+      },
+    };
+
+    const originalCreateElement = document.createElement.bind(document);
+    const mockCreateElement = vi.spyOn(document, 'createElement');
+    vi.stubGlobal('URL', {
+      ...global.URL,
+      createObjectURL: vi.fn(() => 'blob:test-url'),
+      revokeObjectURL: vi.fn(),
+    });
+
+    let mockAnchor: HTMLAnchorElement | undefined;
+    mockCreateElement.mockImplementation((tagName) => {
+      if (tagName === 'a') {
+        const a = originalCreateElement('a');
+        mockAnchor = a;
+        return a;
+      }
+      return originalCreateElement(tagName);
+    });
+
+    render(<PollSettings widget={mockWidget} />);
+    fireEvent.click(screen.getByRole('button', { name: /Export CSV/i }));
+
+    // BUG: toISOString-based code names the file after today's UTC date
+    // ("Poll_Results_2026-06-14.csv") — this assertion fails on the pre-fix
+    // implementation and passes once getLocalIsoDate() is used.
+    expect(mockAnchor?.getAttribute('download')).toBe(
+      'Poll_Results_2026-06-15.csv'
+    );
+
+    vi.useRealTimers();
+  });
+
   it('starts a fresh device-voting session when there is no prior session', async () => {
     const widget: WidgetData = {
       id: 'poll-1',

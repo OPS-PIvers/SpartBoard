@@ -849,22 +849,59 @@ service cloud.firestore {
     // append only themselves to participants; intendedMode is immutable after
     // create (the recipient flow trusts it to skip the picker).
     match /shared_boards/{shareId} {
-      // Substitute shares carry org-internal routing/Drive-grant metadata, so
-      // reads are restricted to host, admins, and @orono.k12.mn.us callers (the
-      // gate the /subs UI enforces) AND not past expiresAt for the email branch
-      // (a hostile direct-REST client could otherwise read a frozen board
-      // snapshot plus Drive-grant metadata indefinitely after expiry — the
-      // expireSubShares sweep can leave an expired doc with driveGrants in
-      // place for up to a 7-day grace window). Host and admin can still read
-      // past expiry for cleanup. Other modes stay readable by any authed user
-      // (discovered by share URL, not query). Mirrors /shared_collections.
-      allow read: if request.auth != null && (
+      // GET (single doc, `resource` fully bound). Substitute shares carry
+      // org-internal routing/Drive-grant metadata, so reads are restricted to
+      // host, admins, and @orono.k12.mn.us callers (the gate the /subs UI
+      // enforces) AND not past expiresAt for the email branch (a hostile
+      // direct-REST client could otherwise read a frozen board snapshot plus
+      // Drive-grant metadata indefinitely after expiry — the expireSubShares
+      // sweep can leave an expired doc with driveGrants in place for up to a
+      // 7-day grace window). Host and admin can still read past expiry for
+      // cleanup. Other modes stay readable by any authed user (discovered by
+      // share URL, not query). Mirrors /shared_collections.
+      allow get: if request.auth != null && (
         resource.data.get('intendedMode', null) != 'substitute'
         || resource.data.get('originalAuthor', null) == request.auth.uid
         || isAdmin()
         || (
           request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
           && resource.data.get('expiresAt', 0) > request.time.toMillis()
+        )
+      );
+
+      // LIST is evaluated against the QUERY, not the matched documents — the
+      // result is the same for a query returning 50 docs or zero. Only fields
+      // the query pins with an EQUALITY filter carry their value; any other
+      // field falls back to the `.get()` default, and a field the query
+      // RANGE-filters raises an evaluation error that denies the whole query.
+      // That is why the get branches above cannot be reused here: under the
+      // /subs directory query `intendedMode == 'substitute'` makes the first
+      // branch false, `originalAuthor` defaults to null, and `expiresAt` —
+      // range-filtered by that query — errors. Every non-admin sub was denied
+      // on /subs as a result. Each branch below reads only what its own query
+      // pins by equality:
+      //   - own shares: originalAuthor == uid (useReconcileExpiredSubShares)
+      //   - /subs directory: intendedMode == 'substitute' + @orono email
+      //   - PLC board picker: plcId == <plc> + current membership of that PLC
+      //     (sound only because a substitute share can never carry a plcId —
+      //     forbidden at create and pinned in `allow update` below)
+      // An unscoped list stays denied for everyone but admins. Expiry is NOT
+      // enforceable here (see above), so an @orono caller can list — never
+      // `get` — an expired substitute share until the hourly expireSubShares
+      // sweep reaps it (≤1h, or ≤7d for a share still holding unrevoked Drive
+      // grants). Mirrors /shared_collections.
+      allow list: if request.auth != null && (
+        isAdmin()
+        || resource.data.get('originalAuthor', null) == request.auth.uid
+        || (
+          resource.data.get('intendedMode', null) == 'substitute'
+          && request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
+        )
+        || (
+          resource.data.get('plcId', null) != null
+          && request.auth.uid in get(
+            /databases/$(database)/documents/plcs/$(resource.data.plcId)
+          ).data.memberUids
         )
       );
 
@@ -912,6 +949,19 @@ service cloud.firestore {
       allow update: if request.auth != null &&
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin()) &&
         request.resource.data.get('intendedMode', null) == resource.data.get('intendedMode', null) &&
+        // "substitute + plcId" must stay an impossible state. The `list` rule's
+        // plcId branch admits any member of that PLC with no @orono/expiry gate,
+        // and it CANNOT re-check intendedMode: the PLC query doesn't pin that
+        // field, so in query scope it resolves to the `.get()` default rather
+        // than the doc's value and the check silently passes. Create already
+        // forbids plcId on substitute shares; this keeps a later update from
+        // attaching one and exposing driveGrants/subEmails/initialState to the
+        // PLC. Deliberately NOT admin-overridable — unlike the lifecycle pins
+        // below, this one is what makes the list branch sound.
+        (
+          request.resource.data.get('intendedMode', null) != 'substitute'
+          || request.resource.data.get('plcId', null) == null
+        ) &&
         (
           resource.data.get('intendedMode', null) != 'substitute'
           || isAdmin()
@@ -979,17 +1029,33 @@ service cloud.firestore {
     // subcollection holds frozen Board snapshots. Mirrors /shared_boards
     // substitute gating + 14-day expiresAt cap.
     match /shared_collections/{shareId} {
-      // READ: any authed user for non-substitute. Substitute shares gated by
+      // GET: any authed user for non-substitute. Substitute shares gated by
       // host/admin/@orono.k12.mn.us email AND not past expiresAt (a hostile
       // direct-REST client would otherwise read stale snapshots forever). Host
       // and admin can read past expiry for cleanup.
-      allow read: if request.auth != null && (
+      allow get: if request.auth != null && (
         resource.data.get('intendedMode', null) != 'substitute'
         || resource.data.get('hostUid', null) == request.auth.uid
         || isAdmin()
         || (
           request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
           && resource.data.get('expiresAt', 0) > request.time.toMillis()
+        )
+      );
+
+      // LIST is query-scoped (see the /shared_boards list rule for the full
+      // explanation): only equality-pinned fields carry a value, and the
+      // range-filtered `expiresAt` errors outright. Branches match the two
+      // queries the app issues — a host's own substitute shares
+      // (hostUid == uid) and the /subs Collections directory (intendedMode ==
+      // 'substitute' + @orono email). Expiry can't be enforced in query scope,
+      // so expired shares stay listable (never `get`-able) until the sweep.
+      allow list: if request.auth != null && (
+        isAdmin()
+        || resource.data.get('hostUid', null) == request.auth.uid
+        || (
+          resource.data.get('intendedMode', null) == 'substitute'
+          && request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
         )
       );
 
@@ -3273,10 +3339,27 @@ service cloud.firestore {
         );
       allow write: if isAdmin();
 
-      // Poll votes subcollection — authenticated users can read live tallies and cast votes
+      // Poll votes subcollection — authenticated users can read live tallies and cast votes.
+      // Value-locked to exactly what PollWidget's setDoc({count: increment(1)}, {merge:
+      // true}) produces: a create must land on 1, an update must be previous + 1. Field
+      // transforms are resolved into request.resource before rules run, so the real call
+      // site passes while a same-shaped overwrite ({count: 0} to wipe a tally, {count:
+      // 999999} to inflate one) is denied — the gap left by the earlier shape-only check.
+      // Caps abuse at +1 per write; per-voter dedup would need a per-voter vote doc.
+      // Delete is admin-only (mirrors the poll_sessions/votes sibling's teacher/admin-only
+      // reset); no client deletes a pollVotes doc today.
       match /pollVotes/{optionIndex} {
         allow read: if request.auth != null;
-        allow write: if request.auth != null;
+        allow create: if request.auth != null &&
+          request.resource.data.keys().hasOnly(['count']) &&
+          request.resource.data.count is int &&
+          request.resource.data.count == 1;
+        allow update: if request.auth != null &&
+          request.resource.data.keys().hasOnly(['count']) &&
+          request.resource.data.count is int &&
+          resource.data.count is int &&
+          request.resource.data.count == resource.data.count + 1;
+        allow delete: if isAdmin();
       }
     }
 

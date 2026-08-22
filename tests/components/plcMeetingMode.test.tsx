@@ -381,7 +381,7 @@ describe('PlcMeetingMode — guided happy path', () => {
 
     // The success view renders.
     expect(await screen.findByText(/meeting saved/i)).toBeInTheDocument();
-  });
+  }, 15000); // Longest test in the file (5 chained UI steps) — the 5000ms default flakes under nightly-run CPU contention.
 
   it('a Review "Discuss this" jumps to Decide pre-linked to the assessment', async () => {
     render(<PlcMeetingMode plc={fakePlc} onNavigate={vi.fn()} />);

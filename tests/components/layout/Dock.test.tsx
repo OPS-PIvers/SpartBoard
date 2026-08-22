@@ -14,7 +14,7 @@
  * at the top of the dock items render loop.
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Dock } from '@/components/layout/Dock';
 
@@ -88,6 +88,21 @@ vi.mock('@/utils/widgetDragFlag', () => ({
   beginWidgetDrag: vi.fn(),
   endWidgetDrag: vi.fn(),
 }));
+
+const { mockGetLocalTimestampForFilename } = vi.hoisted(() => ({
+  mockGetLocalTimestampForFilename: vi.fn<() => string>(),
+}));
+
+vi.mock('@/utils/localDate', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/localDate')>();
+  mockGetLocalTimestampForFilename.mockImplementation(
+    actual.getLocalTimestampForFilename
+  );
+  return {
+    ...actual,
+    getLocalTimestampForFilename: mockGetLocalTimestampForFilename,
+  };
+});
 
 // Mock heavy sub-components to keep the test focused on the permission logic
 vi.mock('@/components/layout/dock/WidgetLibrary', () => {
@@ -824,5 +839,77 @@ describe('Dock smart-paste – SELECT element is excluded from paste interceptio
 
     document.body.removeChild(selectEl);
     unmount();
+  });
+});
+
+// Regression: the recording download filename was built from
+// `new Date().toISOString()` — the UTC calendar date/time — instead of the
+// teacher's local time. For every timezone west of UTC (all of the
+// Americas), the last few hours of the local day fall on the *next* UTC
+// date, so a recording saved in the evening gets tomorrow's date baked into
+// the filename. Fix: use the shared `getLocalTimestampForFilename()` helper
+// (utils/localDate.ts), matching the DraggableWindow/AnnotationOverlay fixes.
+describe('Dock screen-record – recording filename uses local time, not UTC', () => {
+  const originalCreateObjectURL = URL.createObjectURL.bind(URL);
+  const originalRevokeObjectURL = URL.revokeObjectURL.bind(URL);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+    URL.revokeObjectURL = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    URL.createObjectURL = originalCreateObjectURL;
+    URL.revokeObjectURL = originalRevokeObjectURL;
+  });
+
+  it('names the downloaded recording using getLocalTimestampForFilename(), not a raw UTC ISO string', () => {
+    setupMocks();
+
+    // A sentinel local timestamp unrelated to the real current time — proves
+    // the filename comes from the mocked helper, not from Dock computing its
+    // own `new Date().toISOString()`.
+    mockGetLocalTimestampForFilename.mockReturnValue('2026-03-05T23-45-00');
+
+    // Capture the onSuccess callback useScreenRecord is wired with.
+    let capturedOnSuccess: ((blob: Blob) => void) | undefined;
+    vi.mocked(useScreenRecord).mockImplementation((opts = {}) => {
+      capturedOnSuccess = opts.onSuccess;
+      return {
+        isRecording: false,
+        duration: 0,
+        startRecording: vi.fn(),
+        stopRecording: vi.fn(),
+        error: null,
+      } as unknown as ReturnType<typeof useScreenRecord>;
+    });
+
+    const anchors: HTMLAnchorElement[] = [];
+    const realCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation((tag) => {
+      const el = realCreateElement(tag);
+      if (tag === 'a') anchors.push(el as HTMLAnchorElement);
+      return el;
+    });
+
+    render(<Dock />);
+    expect(capturedOnSuccess).toBeDefined();
+
+    // driveService is null in setupMocks(), so this takes the local-download
+    // fallback path (URL.createObjectURL + a.click()), which is synchronous.
+    act(() => {
+      capturedOnSuccess?.(new Blob(['x'], { type: 'video/webm' }));
+    });
+
+    expect(anchors.length).toBeGreaterThan(0);
+    // BUG: toISOString-based code names the file after the real current UTC
+    // time, not the mocked local timestamp — this assertion fails on the
+    // pre-fix implementation and passes once the filename is sourced from
+    // getLocalTimestampForFilename().
+    expect(anchors[anchors.length - 1].download).toBe(
+      'SPART-Board-Recording-2026-03-05T23-45-00.webm'
+    );
   });
 });

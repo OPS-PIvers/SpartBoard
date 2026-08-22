@@ -132,8 +132,17 @@ export const TalkingToolConfigurationPanel: React.FC<
             </div>
 
             {/* Stems List */}
-            <div className="p-4 space-y-2">
-              <SettingsLabel>Sentence Stems</SettingsLabel>
+            <div
+              className="p-4 space-y-2"
+              role="group"
+              aria-labelledby={`talking-tool-stems-label-${cat.id}`}
+            >
+              <SettingsLabel
+                as="span"
+                id={`talking-tool-stems-label-${cat.id}`}
+              >
+                Sentence Stems
+              </SettingsLabel>
               {cat.stems.map((stem) => (
                 <div key={stem.id} className="flex items-center gap-2 group">
                   <input

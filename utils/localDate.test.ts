@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   getLocalIsoDate,
+  getLocalTimestampForFilename,
   combineDateAndTime,
   splitDueAtToInputs,
   dueInputsToEpoch,
@@ -43,6 +44,36 @@ describe('getLocalIsoDate', () => {
     vi.setSystemTime(mockDate);
 
     expect(getLocalIsoDate()).toBe('2025-03-10');
+  });
+});
+
+describe('getLocalTimestampForFilename', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('formats as YYYY-MM-DDTHH-mm-ss using local getters', () => {
+    const date = new Date(2023, 4, 15, 9, 5, 3); // May 15, 2023, 09:05:03
+    expect(getLocalTimestampForFilename(date)).toBe('2023-05-15T09-05-03');
+  });
+
+  it('pads single-digit hours, minutes, and seconds', () => {
+    const date = new Date(2023, 0, 5, 1, 2, 3);
+    expect(getLocalTimestampForFilename(date)).toBe('2023-01-05T01-02-03');
+  });
+
+  it('contains no colons or periods (filename-safe on all OSes)', () => {
+    const date = new Date(2023, 4, 15, 23, 59, 59);
+    const result = getLocalTimestampForFilename(date);
+    expect(result).not.toMatch(/[:.]/);
+  });
+
+  it('uses the current time if no argument is provided', () => {
+    const mockDate = new Date(2025, 2, 10, 14, 30, 45);
+    vi.useFakeTimers();
+    vi.setSystemTime(mockDate);
+
+    expect(getLocalTimestampForFilename()).toBe('2025-03-10T14-30-45');
   });
 });
 
