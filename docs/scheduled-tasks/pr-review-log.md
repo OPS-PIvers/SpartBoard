@@ -2858,3 +2858,38 @@ A review comment on this log challenged the #2395 finding as describing "a bug t
 - **One thing the comment got right, now corrected above:** the entry cited `1439-1447`, which is `validateAndBucketQuizQuestions` — a transposition. The correct range at `5552a62` is 1014-1025.
 
 Recording this because the challenge was the right instinct on partial evidence: a stale sha plus a formatting-blind grep is exactly how a real finding gets mistaken for a fabricated one, and the wrong line number in the original entry is what made that mistake cheap to reach.
+
+---
+
+## 2026-08-22 (second run)
+
+- PRs reviewed: 10 (every open PR; all draft, all targeting `dev-paul`) — #2533, #2532, #2531, #2530, #2529, #2528, #2527, #2526, #2525, #2395.
+- Scope of this run: **not** a fresh review pass. The task was to sweep *unresolved* comments across all open PRs, judge each one valid or not, push fixes for the valid ones, and reply either way. Three comment channels were checked per PR — inline review threads, review-level bodies, and PR-level issue comments — because this repo's automated reviewer posts findings in all three, and a finding that lives only in a review body has no thread to show up as "unresolved."
+- Comments processed: 8 items still open across 6 PRs. **4 valid → fixed and pushed** (3 code, 1 docs); **4 already-addressed or not-actionable → replied with reasoning, no code change.**
+
+### Fixes pushed (4)
+
+| PR | Commit | Change |
+| --- | --- | --- |
+| #2525 | `589d763` | Pair `RevealGrid/Settings.tsx`'s "Paste two columns" label with its `pasteData` textarea via `revealgrid-paste-data-${widget.id}`. |
+| #2528 | `3fc29fe` | Exclude alt-meal-section items from `useNutrislice`'s entree fallback, + regression test. |
+| #2526 | `eab849f` | Correct the D3 row's instance count and record the second #2525 follow-up. |
+| #2529 | — | (No push; the one open thread was already fixed at head by `5506409` — replied and resolved.) |
+
+- **#2528 is the substantive one, and it was mis-scoped by the reviewer as a "low-priority follow-up" for a later PR.** The note said the re-derivation's failure to exclude alt-meal items was pre-existing. That's true of the `findIndex` expression but not of the case reaching it: this PR's widened guard (`entreeIndex === -1 || entreeIndex === bentoIndex`) is precisely what newly routes a two-item alt section into that fallback. Traced both versions — old code duplicated item 1 as hot lunch *and* bento (the bug the PR fixes); this PR, pre-fix, promoted item 2 (`Veggie Bento`) to `hotLunch`. Both wrong, but the new shape is worse to look at on a projector because it reads as a plausible entree rather than an obvious duplicate. So the fix belonged in this PR, not a follow-up. Fail-before/pass-after confirmed by reverting only `useNutrislice.ts`.
+- **#2525's miss is a reusable D3 lesson, not a one-off.** The 11th orphaned label sits inside the `isPasting` block, which only renders after "Paste from Sheet" is clicked — a sweep reasoning over a component's default render never sees it. Recorded in `docs/routines/unifier.md` as *grep the file, not the rendered tree*, which also explains the otherwise-odd record of the same file being fixed, reviewed, then re-fixed.
+
+### Replied without a code change (4)
+
+- **#2527 — coefficient alignment:** already fixed at head. The review ran against `832b219`; `8682c38` had since tightened both values to exactly what the reviewer proposed (`6cqmin`→`4cqmin`, `4.5cqmin`→`3cqmin`).
+- **#2527 — `w-12` → `min(48px, 10cqmin)` narrowing:** fair concern, wrong direction. Since both width and font-size scale off `cqmin` below the cap, the width÷font ratio is *constant* at 3.33em rather than degrading with container size, against ~1.8em needed for three `tabular-nums` glyphs. No narrow end where it collapses.
+- **#2529 — PR description undersells the change:** stale by minutes. The body was rewritten in the same round as `5506409`, and now leads with the `document`-listener mechanism plus both post-push repairs. Declined to edit again — churning it would only invalidate the reply.
+- **#2533 — "this finding describes a bug that isn't there":** independently re-verified both shas rather than trusting either side of the thread. `5552a62` has the duck-type check; `ba14633` has `instanceof HttpsError`. Finding real, fix landed, line reference already corrected in `09e0bc5`. Resolved.
+- Threads resolved: 2 (#2529, #2533) — both verified fixed at head first. Everything else was already resolved or lives in a channel with no resolve affordance.
+
+### Notes
+
+- **The "already answered" majority is the expected steady state, and checking it is still the work.** 6 of 10 PRs had nothing open. Of the 8 open items, half were already handled — but two of those (#2527's coefficients, #2529's description) only *looked* open because the review body was written against an older commit than the current head. Reading the head before replying is what separates "stale note" from "unfixed bug"; the #2533 thread on this same log is the cautionary case where that step was skipped.
+- Branch safety: no push to `main` or any `dev-*`. Fixes went to the four PR head branches named above; this log entry is on the designated `claude/inspiring-cannon-n9310v`, branched from `claude/pensive-bell-8w0qe6` (#2533's head) rather than `dev-paul` so today's two runs read as one continuous record and don't conflict at the same insertion point.
+- Verification per fix: `tsc --noEmit` + `eslint --max-warnings 0` + `prettier --check` on changed files, plus the relevant suites — `tests/components` 1540/1540 (206 files) for #2525, LunchCount 18/18 for #2528.
+- Env runs Node 22 (repo pins 24, "Unsupported engine" warning); CI on Node 24 remains the authoritative gate.
