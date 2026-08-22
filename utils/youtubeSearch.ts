@@ -207,7 +207,12 @@ export async function searchYouTube(
       // fall through with empty durations rather than blocking the picker.
       videosData = { items: [] };
     }
-  } catch {
+  } catch (err) {
+    // Let the quota signal thrown above propagate — otherwise this catch-all
+    // swallows it identically to a genuine transient failure (network error,
+    // bad JSON), silently returning results with every duration blanked to 0
+    // instead of the "quota exhausted" message Creator.tsx is built to show.
+    if (err instanceof YouTubeQuotaError) throw err;
     videosData = { items: [] };
   }
 
