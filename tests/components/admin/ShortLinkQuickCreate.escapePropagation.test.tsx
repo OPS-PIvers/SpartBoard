@@ -1,19 +1,4 @@
-/**
- * Regression test: ShortLinkQuickCreate (the "Shorten a URL" quick-action
- * modal opened from the Sidebar) is a hand-rolled `fixed inset-0` overlay
- * with its own `document`-level Escape handler — it never uses the shared
- * `Modal` component, so `useHasOpenModal()` (which DashboardView's global
- * `window`-level Escape handler checks to bail out) never registers it as
- * open. Because the handler also never calls `stopPropagation()`, pressing
- * Escape while the quick-create modal is open both closes the modal AND
- * bubbles up to `window`, where DashboardView's handler fires its own
- * Escape behavior (closing/minimizing the topmost widget, exiting
- * group-build mode) on the dashboard underneath.
- *
- * FIX: mirror the same fix already applied to WidgetLibrary, ToolDockItem,
- * ClassRosterMenu, RemoteControlMenu, ActiveClassChip, and
- * FolderPickerPopover — stop propagation once this modal handles Escape.
- */
+// Regression test: ShortLinkQuickCreate's Escape handler must stop propagation so it doesn't also reach DashboardView's window-level handler.
 
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
