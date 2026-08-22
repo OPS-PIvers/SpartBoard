@@ -216,11 +216,11 @@ export const useNutrislice = ({
                 ? -1
                 : bentoIndexByName;
 
-          // Fallback: if no entree section matched, use the first non-title
-          // food item that has a non-empty display name.
+          // Fallback: first non-title item with a name, excluding whichever item is already claimed as the bento box.
           if (entreeIndex === -1) {
             entreeIndex = items.findIndex(
-              (i) => !i.is_section_title && itemDisplayName(i)
+              (i, idx) =>
+                !i.is_section_title && itemDisplayName(i) && idx !== bentoIndex
             );
           }
 
