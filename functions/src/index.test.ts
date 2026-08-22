@@ -395,15 +395,7 @@ vi.mock('firebase-functions/params', () => ({
 // Mock axios
 vi.mock('axios');
 
-// Mock `@google/genai` so any code path that reaches the real Gemini call
-// (e.g. an admin caller bypassing every permission gate in
-// `generateVideoActivity`) hits a deterministic, network-free stub instead
-// of the live Generative Language API. Without this, `GEMINI_API_KEY.value()`
-// resolves to the truthy `mock-GEMINI_API_KEY` string (see the
-// `firebase-functions/params` mock above), so the real SDK is constructed
-// and makes a real HTTP round-trip — usually rejected fast by Google with an
-// invalid-key error, but under CPU/network contention that round-trip can
-// exceed the test timeout, making the test flaky rather than deterministic.
+// Stub GoogleGenAI so tests don't make live Vertex AI calls under network/CPU contention.
 vi.mock('@google/genai', async (importOriginal) => {
   // Keep every real export (e.g. the `Type` enum used at runtime to build
   // response schemas) — only the network-calling `GoogleGenAI` class itself
@@ -3392,7 +3384,7 @@ describe('transcribeVideoWithGemini', () => {
         contents: { role: string; parts: unknown[] }[];
       },
     ];
-    expect(call.model).toBe('gemini-3.1-flash-lite-preview');
+    expect(call.model).toBe('gemini-3.5-flash-lite');
     expect(call.contents[0].parts[1]).toEqual({
       fileData: {
         fileUri: VALID_URL,
@@ -3518,7 +3510,7 @@ describe('generateGuidedLearning', () => {
         contents: { role: string; parts: unknown[] }[];
       },
     ];
-    expect(call.model).toBe('gemini-3-flash-preview');
+    expect(call.model).toBe('gemini-3.6-flash');
     expect(call.contents[0].parts[2]).toEqual({
       inlineData: {
         mimeType: VALID_IMAGE.mimeType,

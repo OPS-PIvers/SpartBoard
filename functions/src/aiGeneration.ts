@@ -1,13 +1,18 @@
 import './functionsInit';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
-import { GoogleGenAI, Content, Type, Schema } from '@google/genai';
+import {
+  GoogleGenAI,
+  Content,
+  Type,
+  Schema,
+  GoogleGenAIOptions,
+} from '@google/genai';
 import { sanitizePrompt } from './sanitize';
 import { parseGeminiJson } from './parseGeminiJson';
 import { BoundedLruMap } from './utils/boundedLruMap';
 import { ALLOWED_ORIGINS, resolveOrgIdForDomain } from './classlinkShared';
 import { resolveDomainCandidates } from './resolveOrgForUser';
-import { GEMINI_API_KEY } from './secrets';
 import {
   GlobalPermission,
   GlobalPermConfig,
@@ -38,8 +43,45 @@ interface AIData {
 
 type QuizGenType = 'MC' | 'FIB' | 'Matching' | 'Ordering';
 
-const DEFAULT_ADVANCED_MODEL = 'gemini-3-flash-preview';
-const DEFAULT_STANDARD_MODEL = 'gemini-3.1-flash-lite-preview';
+const DEFAULT_ADVANCED_MODEL = 'gemini-3.6-flash';
+const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
+
+// Gemini 3.x models are global-endpoint only on Vertex; us-central1 returns model-not-found.
+const VERTEX_LOCATION = 'global';
+
+// Vertex AI auth via ADC (not Developer API key) — needs roles/aiplatform.user; see docs/gemini-api-terms-audit.md.
+function vertexClientOptions(): GoogleGenAIOptions {
+  // GCLOUD_PROJECT/GOOGLE_CLOUD_PROJECT aren't guaranteed on gen2 (Cloud Run); FIREBASE_CONFIG.projectId is, so it's a fallback, not a replacement.
+  const project =
+    process.env.GCLOUD_PROJECT ||
+    process.env.GOOGLE_CLOUD_PROJECT ||
+    projectIdFromFirebaseConfig();
+  if (!project) {
+    console.error(
+      'CRITICAL: no Cloud project id in the environment (checked GCLOUD_PROJECT, ' +
+        'GOOGLE_CLOUD_PROJECT, FIREBASE_CONFIG.projectId); cannot reach Vertex AI'
+    );
+    throw new HttpsError('internal', 'AI service is not configured.');
+  }
+  return { vertexai: true, project, location: VERTEX_LOCATION };
+}
+
+/**
+ * Reads `projectId` out of the `FIREBASE_CONFIG` env var Firebase Functions
+ * sets on both generations. Returns '' when unset or unparseable — a
+ * malformed value must not throw here, or it would mask the caller's clearer
+ * "AI service is not configured" error with a raw SyntaxError.
+ */
+function projectIdFromFirebaseConfig(): string {
+  try {
+    const parsed = JSON.parse(process.env.FIREBASE_CONFIG || '{}') as {
+      projectId?: unknown;
+    };
+    return typeof parsed.projectId === 'string' ? parsed.projectId : '';
+  } catch {
+    return '';
+  }
+}
 
 interface GeminiModelConfig {
   advancedModel?: string;
@@ -232,6 +274,11 @@ export {
   resolveOrgIdForToken as __resolveOrgIdForToken,
   DEFAULT_EXTERNAL_DAILY_LIMIT as __DEFAULT_EXTERNAL_DAILY_LIMIT,
   DEFAULT_DAILY_LIMIT as __DEFAULT_DAILY_LIMIT,
+  // Every AI callable constructs its client through this, so a project-id
+  // resolution regression is a total AI outage. Exported so both the success
+  // and the missing-project-id paths are unit-testable without a deploy.
+  vertexClientOptions as __vertexClientOptions,
+  VERTEX_LOCATION as __VERTEX_LOCATION,
 };
 
 /**
@@ -346,7 +393,6 @@ export {
 export const generateWithAI = onCall(
   {
     memory: '512MiB',
-    secrets: [GEMINI_API_KEY],
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
@@ -545,18 +591,9 @@ export const generateWithAI = onCall(
     // Read model config from Firestore (for both admins and non-admins)
     const geminiConfig = await getGeminiModelConfig(db);
 
-    const apiKey = GEMINI_API_KEY.value();
-    if (!apiKey) {
-      console.error('CRITICAL: GEMINI_API_KEY is missing');
-      throw new HttpsError(
-        'internal',
-        'Gemini API Key is missing on the server.'
-      );
-    }
-
     try {
       // `genType` is already computed above (feature-permission gate); reuse it.
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI(vertexClientOptions());
 
       // Input size guards
       if (data?.prompt && String(data.prompt).length > 10000) {
@@ -977,15 +1014,7 @@ Output JSON ONLY in this exact shape:
     } catch (error: unknown) {
       console.error('AI Generation Error Details:', error);
 
-      // If it's already an HttpsError, just re-throw it
-      if (
-        error &&
-        typeof error === 'object' &&
-        'code' in error &&
-        'message' in error
-      ) {
-        throw error;
-      }
+      if (error instanceof HttpsError) throw error;
 
       const detail = error instanceof Error ? error.message : 'unknown error';
       throw new HttpsError('internal', `AI generation failed: ${detail}`);
@@ -1479,7 +1508,6 @@ export const generateVideoActivity = onCall(
   {
     memory: '1GiB',
     timeoutSeconds: 300,
-    secrets: [GEMINI_API_KEY],
     cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<GeneratedVideoActivity> => {
@@ -1635,19 +1663,11 @@ export const generateVideoActivity = onCall(
       }
     }
 
-    const apiKey = GEMINI_API_KEY.value();
-    if (!apiKey) {
-      throw new HttpsError(
-        'internal',
-        'Gemini API Key is missing on the server.'
-      );
-    }
-
     // Read model config from Firestore
     const geminiConfig = await getGeminiModelConfig(db);
     const videoModel = geminiConfig.standardModel;
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI(vertexClientOptions());
 
     const systemPrompt = buildVideoActivityPrompt(
       counts,
@@ -1763,7 +1783,6 @@ export const transcribeVideoWithGemini = onCall(
   {
     memory: '1GiB',
     timeoutSeconds: 300,
-    secrets: [GEMINI_API_KEY],
     cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<GeneratedVideoActivity> => {
@@ -1951,17 +1970,10 @@ export const transcribeVideoWithGemini = onCall(
         ? Math.floor(durationSeconds)
         : undefined;
 
-    const apiKey = GEMINI_API_KEY.value();
-    if (!apiKey) {
-      throw new HttpsError(
-        'internal',
-        'Gemini API Key is missing on the server.'
-      );
-    }
-
     // Use the YouTube video URL directly with Gemini's video understanding
-    const model = perm.config?.model ?? 'gemini-3.1-flash-lite-preview';
-    const ai = new GoogleGenAI({ apiKey });
+    const model =
+      normalizeModelName(perm.config?.model) ?? DEFAULT_STANDARD_MODEL;
+    const ai = new GoogleGenAI(vertexClientOptions());
 
     const systemPrompt = buildVideoActivityPrompt(
       counts,
@@ -2095,7 +2107,6 @@ export const generateGuidedLearning = onCall(
   {
     memory: '512MiB',
     timeoutSeconds: 120,
-    secrets: [GEMINI_API_KEY],
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
@@ -2176,17 +2187,12 @@ export const generateGuidedLearning = onCall(
       );
     }
 
-    const apiKey = GEMINI_API_KEY.value();
-    if (!apiKey) {
-      throw new HttpsError('internal', 'AI service is not configured.');
-    }
-
     // Read model config from Firestore
     const geminiConfig = await getGeminiModelConfig(db);
     const guidedLearningModel = geminiConfig.advancedModel;
 
     try {
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI(vertexClientOptions());
 
       const imageCount = images.length;
       const maxIndex = imageCount - 1;
@@ -2300,6 +2306,7 @@ Guidelines:
         _modelConfigUsedFallback: geminiConfig.usedFallback,
       };
     } catch (error: unknown) {
+      if (error instanceof HttpsError) throw error;
       console.error('[generateGuidedLearning] Gemini error:', error);
       const detail = error instanceof Error ? error.message : 'unknown error';
       const msg = `AI generation failed (model: ${guidedLearningModel}): ${detail}`;
