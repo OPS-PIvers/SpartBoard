@@ -415,6 +415,36 @@ describe('ImportWizard', () => {
     expect(screen.getByLabelText('Google Sheet URL')).toBeInTheDocument();
   });
 
+  it('Escape with focus outside the overlay (initial state) still closes only the overlay', () => {
+    const aiAssist: ImportAdapter<FakeData>['aiAssist'] = {
+      promptPlaceholder: 'Describe your quiz…',
+      generate: () => Promise.resolve({ rows: ['ai-row'] }),
+    };
+    const { adapter } = makeAdapter({ aiAssist });
+    const { onClose } = renderWizard(adapter);
+
+    const trigger = screen.getByRole('button', {
+      name: /ai-assist import for quiz/i,
+    });
+    fireEvent.click(trigger);
+    expect(
+      screen.getByLabelText('AI-assist prompt for Quiz')
+    ).toBeInTheDocument();
+
+    // Focus is still on the trigger button — nothing moves it into the
+    // overlay on open. Dispatch Escape at the actual focused element.
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: 'Escape',
+      code: 'Escape',
+    });
+
+    expect(
+      screen.queryByLabelText('AI-assist prompt for Quiz')
+    ).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Google Sheet URL')).toBeInTheDocument();
+  });
+
   it('shows a hint when Sheet URL does not look like a Google Sheets URL', () => {
     const { adapter } = makeAdapter();
     renderWizard(adapter);
