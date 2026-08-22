@@ -369,6 +369,90 @@ describe('useNutrislice', () => {
     });
   });
 
+  it('does not duplicate the item as hotLunch when a section name matches both the entree and alt-meal patterns (e.g. "Alt Entree")', async () => {
+    // A section literally named "Alt Entree" satisfies both the entree
+    // section check (contains "entree") and the alt-meal check (contains
+    // "alt"), so the same index was picked as both entreeIndex and
+    // bentoIndex before the section-match path also excluded bentoIndex.
+    const altEntreeData = {
+      days: [
+        {
+          date: '2023-10-27',
+          menu_items: [
+            { is_section_title: true, section_name: 'Alt Entree' },
+            {
+              section_name: 'Alt Entree',
+              food: { name: 'Turkey Bento', image_url: 'https://cdn/t.jpg' },
+            },
+          ],
+        },
+      ],
+    };
+
+    const mockProxy = vi.fn().mockResolvedValue({ data: altEntreeData });
+    (httpsCallable as Mock).mockReturnValue(mockProxy);
+
+    render(<TestComponent />);
+
+    await waitFor(() => {
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        mockWidgetId,
+        expect.objectContaining({
+          config: expect.objectContaining({
+            cachedMenu: expect.objectContaining({
+              hotLunch: { name: 'No Hot Lunch Listed' },
+              bentoBox: { name: 'Turkey Bento', imageUrl: 'https://cdn/t.jpg' },
+            }) as unknown,
+          }) as unknown,
+        })
+      );
+    });
+  });
+
+  it('does not duplicate the item as hotLunch when an entree-section item name itself matches the bento name pattern', async () => {
+    // The only item that day sits in an "Entrees" section (so entreeIndex
+    // is set via the section match) but its own name contains "bento", and
+    // no alt-meal section title was ever observed, so bentoIndexByName also
+    // resolves to the same index.
+    const soleEntreeNamedBentoData = {
+      days: [
+        {
+          date: '2023-10-27',
+          menu_items: [
+            {
+              section_name: 'Entrees',
+              food: { name: 'Chicken Bento', image_url: 'https://cdn/c.jpg' },
+            },
+          ],
+        },
+      ],
+    };
+
+    const mockProxy = vi
+      .fn()
+      .mockResolvedValue({ data: soleEntreeNamedBentoData });
+    (httpsCallable as Mock).mockReturnValue(mockProxy);
+
+    render(<TestComponent />);
+
+    await waitFor(() => {
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        mockWidgetId,
+        expect.objectContaining({
+          config: expect.objectContaining({
+            cachedMenu: expect.objectContaining({
+              hotLunch: { name: 'No Hot Lunch Listed' },
+              bentoBox: {
+                name: 'Chicken Bento',
+                imageUrl: 'https://cdn/c.jpg',
+              },
+            }) as unknown,
+          }) as unknown,
+        })
+      );
+    });
+  });
+
   it('parses bento via name match across any section', async () => {
     const bentoData = {
       days: [
