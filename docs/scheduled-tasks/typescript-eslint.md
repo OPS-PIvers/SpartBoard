@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-21_
+_Last audited: 2026-08-22_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-22: Checked (Saturday daily). pnpm type-check exit 0 (0 TypeScript errors). pnpm lint: full `pnpm run lint` (root `lint:app`) timed out (exit 124, >280s) in this audit environment, same class of environment limit as prior timeouts (e.g. 2026-08-18, 2026-08-11). Fell back to targeted `npx eslint` sweeps: `context/` `hooks/` `utils/` `config/` exit 0; `components/widgets` exit 0; remaining `components/*` subdirs (activityWall, admin, announcements, auth, backgroundsModal, boardsModal, classes, classroomAddon, common, converter, dev, guidedLearning, landing, layout, legal, lti, miniApp, plc, poll, quickAccessModal, quiz, remote, settingsModal, share, spotify, student, subs, videoActivity) exit 0; `App.tsx` `index.tsx` `types.ts` `i18n/` `tests/` `types/` exit 0; `functions/` `pnpm run lint` (`lint:functions`) exit 0. All sweeps together cover the same file set as the full run — 0 ESLint errors, 0 warnings (`--max-warnings 0`) everywhere checked. New commits since 2026-08-21: two Saturday audit commits (`655f3072` widget-registry audit, `3e379974` css-scaling audit — both docs-only), plus source fixes `25f61278` fix(dialog) key queued dialogs by id, `0f3c1b9e` fix(a11y) TalkingToolConfigurationPanel group-heading, `3ce2fc6d` fix(scripts) recount-org-members domain trim, `c9ff9870` fix(widget-builder) preserve explicit actionValue of 0, `1b0f550f` fix(annotation) local time for Drive filenames, `c7d12782` fix(lunch-count) dedupe bento/hot-lunch entree — all covered clean by today's sweeps. Codebase remains fully type-safe and lint-clean._
 
 _2026-08-21: Checked (Friday daily). pnpm type-check exit 0 (0 TypeScript errors). pnpm lint exit 0 (0 ESLint errors, 0 warnings, `--max-warnings 0`, root `lint:app` + `functions/` `lint:functions`, full run completed). New commits on scheduled-tasks since 2026-08-20: `3cb4bcf4` fix(css-scaling) cqmin conversion across 11 widgets (already validated clean at commit time per yesterday's own action entry), `c8ca1116` docs-only audit journal commit. Codebase remains fully type-safe and lint-clean._
 
