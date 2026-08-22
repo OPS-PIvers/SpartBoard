@@ -265,8 +265,11 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
       {/* Question Edit */}
       <div>
-        <SettingsLabel icon={Type}>Question</SettingsLabel>
+        <SettingsLabel icon={Type} htmlFor={`poll-question-${widget.id}`}>
+          Question
+        </SettingsLabel>
         <input
+          id={`poll-question-${widget.id}`}
           key={question} // Force reset when prop changes
           type="text"
           value={localQuestion}

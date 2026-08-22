@@ -22,8 +22,11 @@ export const QuizWidgetSettings: React.FC<{ widget: WidgetData }> = ({
       </div>
 
       <div>
-        <SettingsLabel>Widget Label</SettingsLabel>
+        <SettingsLabel htmlFor={`quiz-widget-label-${widget.id}`}>
+          Widget Label
+        </SettingsLabel>
         <input
+          id={`quiz-widget-label-${widget.id}`}
           type="text"
           value={widget.customTitle ?? ''}
           onChange={(e) =>

@@ -52,8 +52,14 @@ export const RecessGearSettings: React.FC<{ widget: WidgetData }> = ({
         </div>
 
         <div className="space-y-2">
-          <SettingsLabel className="px-1">Source Weather Widget</SettingsLabel>
+          <SettingsLabel
+            className="px-1"
+            htmlFor={`recessgear-source-weather-${widget.id}`}
+          >
+            Source Weather Widget
+          </SettingsLabel>
           <select
+            id={`recessgear-source-weather-${widget.id}`}
             value={config.linkedWeatherWidgetId ?? ''}
             onChange={(e) =>
               updateWidget(widget.id, {
