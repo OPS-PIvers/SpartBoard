@@ -566,13 +566,13 @@ export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
               <div className="px-3 pb-3 space-y-2 border-t border-slate-100 pt-2 animate-in fade-in slide-in-from-top-1">
                 <div>
                   <label
-                    htmlFor={`revealgrid-card-front-${card.id}`}
+                    htmlFor={`revealgrid-card-front-${widget.id}-${card.id}`}
                     className="text-xxxs font-black text-slate-400 uppercase tracking-widest block mb-1"
                   >
                     Front (Question / Term)
                   </label>
                   <input
-                    id={`revealgrid-card-front-${card.id}`}
+                    id={`revealgrid-card-front-${widget.id}-${card.id}`}
                     type="text"
                     value={card.frontContent}
                     onChange={(e) =>
@@ -584,13 +584,13 @@ export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
                 </div>
                 <div>
                   <label
-                    htmlFor={`revealgrid-card-back-${card.id}`}
+                    htmlFor={`revealgrid-card-back-${widget.id}-${card.id}`}
                     className="text-xxxs font-black text-slate-400 uppercase tracking-widest block mb-1"
                   >
                     Back (Answer / Definition)
                   </label>
                   <input
-                    id={`revealgrid-card-back-${card.id}`}
+                    id={`revealgrid-card-back-${widget.id}-${card.id}`}
                     type="text"
                     value={card.backContent}
                     onChange={(e) =>
