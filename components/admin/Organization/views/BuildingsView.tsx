@@ -4,6 +4,7 @@ import type {
   BuildingRecord,
   BuildingType,
 } from '@/components/admin/Organization/types';
+import { gradeLabelFromType } from '@/config/buildings';
 import {
   Avatar,
   Badge,
@@ -275,7 +276,9 @@ const BuildingModalInner: React.FC<BuildingModalProps> = ({
     existing?.type ?? 'elementary'
   );
   const [address, setAddress] = useState(existing?.address ?? '');
-  const [grades, setGrades] = useState(existing?.grades ?? 'K-5');
+  // Empty (not a hardcoded 'K-5') so a new building's saved grades follow
+  // the selected Type — see gradeLabelFromType() fallback in onSave below.
+  const [grades, setGrades] = useState(existing?.grades ?? '');
 
   return (
     <LocalModal
@@ -296,7 +299,7 @@ const BuildingModalInner: React.FC<BuildingModalProps> = ({
                 name,
                 type,
                 address,
-                grades,
+                grades: grades.trim() || gradeLabelFromType(type),
               })
             }
           >
@@ -333,7 +336,7 @@ const BuildingModalInner: React.FC<BuildingModalProps> = ({
             <Input
               value={grades}
               onChange={(e) => setGrades(e.target.value)}
-              placeholder="K-2"
+              placeholder={gradeLabelFromType(type)}
             />
           </Field>
         </div>
