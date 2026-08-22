@@ -980,7 +980,11 @@ const Toolbar: React.FC<{
                 }}
                 title="Custom color"
               >
-                <span className="text-base leading-none" aria-hidden>
+                <span
+                  className="leading-none"
+                  style={{ fontSize: 'min(16px, 6cqmin)' }}
+                  aria-hidden
+                >
                   +
                 </span>
                 <input
@@ -1058,7 +1062,13 @@ const Toolbar: React.FC<{
                   aria-label={label}
                   className="flex-1 h-1.5 rounded-full bg-slate-700 appearance-none cursor-pointer accent-brand-blue-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
                 />
-                <span className="font-mono text-xs text-slate-300 w-12 text-right tabular-nums">
+                <span
+                  className="font-mono text-slate-300 text-right tabular-nums"
+                  style={{
+                    fontSize: 'min(12px, 4.5cqmin)',
+                    width: 'min(48px, 10cqmin)',
+                  }}
+                >
                   {value}
                   {suffix}
                 </span>
