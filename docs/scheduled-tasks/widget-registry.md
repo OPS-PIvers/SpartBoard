@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-21_
+_Last audited: 2026-08-22_
 _Last action: 2026-06-25_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-22: Full audit (Saturday daily). `git log --since="2026-08-21" -- types.ts components/widgets/WidgetRegistry.ts config/widgetDefaults.ts config/tools.ts config/widgetGradeLevels.ts` returned zero hits (last touch to any of the 5 files remains `f285758c`, 2026-08-18, already covered). Re-derived counts by script rather than trusting the baseline: 63 `WidgetType` members (unchanged). WIDGET_COMPONENTS 62/63 (only `sticker` missing, intentional WidgetRenderer special-case). WIDGET_SETTINGS_COMPONENTS 59/63 (missing `stickers`/`sticker`/`onboarding`/`blooms-detail`, all documented). WIDGET_SCALING_CONFIG and WIDGET_DEFAULTS are both `Record<WidgetType, ...>` — `pnpm exec tsc --noEmit` exit 0 confirms both remain exhaustive 63/63 (also spot-checked DEFAULT_SCALING_CONFIG's fallback baseWidth is separate from the per-widget map). WIDGET_GRADE_LEVELS 66 = 63 WidgetType + 3 InternalToolType (record/magic/remote). tools.ts TOOLS array: 59 total entries = 56 widget-typed + 3 InternalToolType, and 63-56=7 matches the documented exclusion list exactly (catalyst-instruction, catalyst-visual, blooms-detail, mathTool, custom-widget, onboarding, sticker). All figures match the established baseline. Zero new gaps._
 
 _2026-08-21: Full audit (Friday daily). New commits on scheduled-tasks since the 2026-08-20 audit (`c0eeb0aa..HEAD`): `3cb4bcf4` fix(css-scaling) convert remaining hardcoded spacing/icon-size classes to cqmin across 11 widgets (yesterday's own css-scaling action, already closed in css-scaling.md), `c8ca1116` docs-only audit journal commit — confirmed via `git log --oneline --since="2026-08-20" -- types.ts components/widgets/WidgetRegistry.ts config/widgetDefaults.ts config/tools.ts config/widgetGradeLevels.ts` returning zero hits. VERIFIED COUNT: 63 `WidgetType` members (unchanged, re-derived directly from the union body). WidgetRegistry.ts section boundaries re-confirmed identical to the established baseline (WIDGET_COMPONENTS 86-239, WIDGET_SETTINGS_COMPONENTS 265-418, WIDGET_APPEARANCE_COMPONENTS 420-530, WIDGET_SCALING_CONFIG 562-986, file total 986 lines — unchanged). `pnpm exec tsc --noEmit` exit 0 (confirmed independently by this cycle; also confirmed by today's typescript-eslint audit). No source changes to any of the 7 registration locations since yesterday's exhaustive cross-reference — all counts stand unchanged. Zero new gaps._
 
