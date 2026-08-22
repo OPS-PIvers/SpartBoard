@@ -410,8 +410,7 @@ describe('ImportWizard', () => {
     expect(
       screen.queryByLabelText('AI-assist prompt for Quiz')
     ).not.toBeInTheDocument();
-    // ...but the Escape keystroke must not also bubble up and close the
-    // whole wizard, destroying the in-progress import (source/preview state).
+    // ...but must not also bubble up and close the whole wizard.
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByLabelText('Google Sheet URL')).toBeInTheDocument();
   });
