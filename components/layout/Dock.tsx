@@ -48,6 +48,7 @@ import { toLunchCountSchoolSite } from '@/config/buildings';
 import { matchesUserBuilding as matchesUserBuildingLevels } from '@/config/widgetGradeLevels';
 import { AddWidgetOverrides } from '@/types';
 import { getJoinUrl } from '@/utils/urlHelpers';
+import { getLocalTimestampForFilename } from '@/utils/localDate';
 import ClassRosterMenu from './ClassRosterMenu';
 import RemoteControlMenu from './RemoteControlMenu';
 import { CatalystSetPickerPopover } from '@/components/widgets/Catalyst/CatalystSetPickerPopover';
@@ -249,7 +250,8 @@ export const Dock: React.FC = () => {
 
   const handleRecordingComplete = useCallback(
     async (blob: Blob) => {
-      const fileName = `SPART-Board-Recording-${new Date().toISOString()}.webm`;
+      // Local time, not UTC — see utils/localDate.ts.
+      const fileName = `SPART-Board-Recording-${getLocalTimestampForFilename()}.webm`;
 
       if (driveService) {
         addToast(t('dock.uploadingToDrive'), 'info');
