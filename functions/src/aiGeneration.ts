@@ -1014,15 +1014,7 @@ Output JSON ONLY in this exact shape:
     } catch (error: unknown) {
       console.error('AI Generation Error Details:', error);
 
-      // If it's already an HttpsError, just re-throw it
-      if (
-        error &&
-        typeof error === 'object' &&
-        'code' in error &&
-        'message' in error
-      ) {
-        throw error;
-      }
+      if (error instanceof HttpsError) throw error;
 
       const detail = error instanceof Error ? error.message : 'unknown error';
       throw new HttpsError('internal', `AI generation failed: ${detail}`);
