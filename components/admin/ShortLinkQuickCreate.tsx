@@ -20,6 +20,11 @@ export const ShortLinkQuickCreate: React.FC<ShortLinkQuickCreateProps> = ({
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (isEscapeFromWidgetInput(event)) return;
+      // Stop propagation so this modal's own Escape doesn't also reach
+      // DashboardView's window-level handler (which would otherwise act on
+      // the topmost dashboard widget underneath this modal — this overlay
+      // isn't a shared `Modal`, so `useHasOpenModal()` never sees it as open).
+      event.stopPropagation();
       onClose();
     };
     document.addEventListener('keydown', handleEscape);
