@@ -35,4 +35,56 @@ describe('DomainsView — Add sign-in domain', () => {
     const record = onAdd.mock.calls[0][0] as Partial<DomainRecord>;
     expect(record.domain).toBe('@orono.k12.mn.us');
   });
+
+  // firestore.rules now rejects a non-normalized `domain`, so a shape the
+  // rule won't accept has to fail in the form rather than as permission-denied.
+  it.each(['localhost', 'orono.', 'orono k12.mn.us', 'orono.k12.mn.1'])(
+    'blocks submit and explains why for %j',
+    (typed) => {
+      const onAdd = vi.fn();
+      render(<DomainsView domains={[]} onAdd={onAdd} onRemove={vi.fn()} />);
+
+      fireEvent.click(
+        screen.getAllByRole('button', { name: /add domain/i })[0]
+      );
+      fireEvent.change(screen.getByPlaceholderText('orono.k12.mn.us'), {
+        target: { value: typed },
+      });
+
+      const submit = screen.getByRole('button', { name: /send verification/i });
+      expect(submit).toBeDisabled();
+      expect(screen.getByText(/use a full domain with a dot/i)).toBeTruthy();
+
+      fireEvent.click(submit);
+      expect(onAdd).not.toHaveBeenCalled();
+    }
+  );
+
+  it('shows no error before anything is typed', () => {
+    render(<DomainsView domains={[]} onAdd={vi.fn()} onRemove={vi.fn()} />);
+
+    fireEvent.click(screen.getAllByRole('button', { name: /add domain/i })[0]);
+
+    expect(screen.queryByText(/use a full domain with a dot/i)).toBeNull();
+    expect(screen.getByText(/example: orono\.k12\.mn\.us/i)).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: /send verification/i })
+    ).toBeDisabled();
+  });
+
+  it('accepts a domain the rule allows, with or without the @ typed', () => {
+    const onAdd = vi.fn();
+    render(<DomainsView domains={[]} onAdd={onAdd} onRemove={vi.fn()} />);
+
+    fireEvent.click(screen.getAllByRole('button', { name: /add domain/i })[0]);
+    fireEvent.change(screen.getByPlaceholderText('orono.k12.mn.us'), {
+      target: { value: '@orono.k12.mn.us' },
+    });
+
+    expect(screen.queryByText(/use a full domain with a dot/i)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /send verification/i }));
+
+    const record = onAdd.mock.calls[0][0] as Partial<DomainRecord>;
+    expect(record.domain).toBe('@orono.k12.mn.us');
+  });
 });
