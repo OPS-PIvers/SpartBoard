@@ -841,6 +841,22 @@ describe('organizations/domains — writes', () => {
       )
     );
   });
+
+  it('super admin cannot update a domain value to an unnormalized form', async () => {
+    await assertFails(
+      updateDoc(doc(asSuper(), `organizations/${ORG_ID}/domains/primary`), {
+        domain: '@Orono.K12.MN.US',
+      })
+    );
+  });
+
+  it('super admin can update a domain value to a normalized form', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asSuper(), `organizations/${ORG_ID}/domains/primary`), {
+        domain: '@renamed.orono.k12.mn.us',
+      })
+    );
+  });
 });
 
 describe('organizations/roles — writes (system role protection)', () => {

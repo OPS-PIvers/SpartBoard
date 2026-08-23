@@ -304,14 +304,14 @@ service cloud.firestore {
             'users', 'addedAt'
           ]);
         allow delete: if isSuperAdmin() || isDomainAdmin(orgId);
-        allow update: if isSuperAdmin() ||
-          (isDomainAdmin(orgId) &&
-           request.resource.data.id == resource.data.id &&
-           request.resource.data.orgId == resource.data.orgId &&
-           request.resource.data.domain.matches('^@[a-z0-9.-]+[.][a-z]{2,}$') &&
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-             'domain', 'authMethod', 'role'
-           ]));
+        allow update: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
+          request.resource.data.domain.matches('^@[a-z0-9.-]+[.][a-z]{2,}$') &&
+          (isSuperAdmin() ||
+           (request.resource.data.id == resource.data.id &&
+            request.resource.data.orgId == resource.data.orgId &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'domain', 'authMethod', 'role'
+            ])));
       }
 
       match /roles/{roleId} {
