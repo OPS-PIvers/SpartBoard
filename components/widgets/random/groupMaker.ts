@@ -14,16 +14,7 @@ function shuffleInPlace<T>(arr: T[]): T[] {
   return arr;
 }
 
-/**
- * Restriction lists are meant to be symmetric (enforced by
- * `normalizeRestrictions` when a teacher saves the roster editor), but this
- * consuming code has no way to guarantee every `Student[]` it's handed —
- * raw Firestore roster data, historical records predating that safeguard,
- * ClassLink merges, etc. — actually satisfies that invariant. Checking only
- * `student`'s own list would silently miss a restriction that only the
- * OTHER student declared, so we check both directions here regardless of
- * which side the data actually recorded it on.
- */
+// Checks both directions — restriction data read from Firestore isn't guaranteed to be symmetric.
 function conflictsWithBucket(student: Student, bucket: Student[]): boolean {
   const restricted = new Set(student.restrictedStudentIds ?? []);
   return bucket.some(
