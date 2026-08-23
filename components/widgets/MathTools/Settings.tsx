@@ -30,13 +30,16 @@ export const MathToolsSettings: React.FC<{ widget: WidgetData }> = ({
       </div>
 
       <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
-        <SettingsLabel>Palette DPI Calibration (px / inch)</SettingsLabel>
+        <SettingsLabel htmlFor={`mathtools-dpi-${widget.id}`}>
+          Palette DPI Calibration (px / inch)
+        </SettingsLabel>
         <p className="text-xxs text-slate-400 leading-relaxed">
           Spawned true-scale tools inherit this PPI. CSS defines 1 in = 96 px —
           override only if your IFP screen renders differently.
         </p>
         <div className="flex gap-2 items-center">
           <input
+            id={`mathtools-dpi-${widget.id}`}
             type="number"
             min={60}
             max={300}
