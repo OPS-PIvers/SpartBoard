@@ -968,6 +968,11 @@ describe('getAdminBuildingConfig', () => {
       expect(getAdminBuildingConfig('calendar', [perm], ['high'])).toEqual({});
     });
 
+    it('rejects daysVisible above the 30-day UI bound', () => {
+      const perm = makePerm('calendar', { high: { daysVisible: 500 } });
+      expect(getAdminBuildingConfig('calendar', [perm], ['high'])).toEqual({});
+    });
+
     it('seeds only the provided fields, leaving proxy-sync fields untouched', () => {
       const perm = makePerm('calendar', {
         high: { daysVisible: 7 },

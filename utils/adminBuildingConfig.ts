@@ -758,7 +758,8 @@ export const getAdminBuildingConfig = (
       if (
         typeof raw.daysVisible === 'number' &&
         Number.isFinite(raw.daysVisible) &&
-        raw.daysVisible > 0
+        raw.daysVisible >= 1 &&
+        raw.daysVisible <= 30
       )
         out.daysVisible = raw.daysVisible;
       if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
