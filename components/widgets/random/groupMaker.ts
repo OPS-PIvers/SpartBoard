@@ -15,6 +15,25 @@ function shuffleInPlace<T>(arr: T[]): T[] {
 }
 
 /**
+ * Restriction lists are meant to be symmetric (enforced by
+ * `normalizeRestrictions` when a teacher saves the roster editor), but this
+ * consuming code has no way to guarantee every `Student[]` it's handed —
+ * raw Firestore roster data, historical records predating that safeguard,
+ * ClassLink merges, etc. — actually satisfies that invariant. Checking only
+ * `student`'s own list would silently miss a restriction that only the
+ * OTHER student declared, so we check both directions here regardless of
+ * which side the data actually recorded it on.
+ */
+function conflictsWithBucket(student: Student, bucket: Student[]): boolean {
+  const restricted = new Set(student.restrictedStudentIds ?? []);
+  return bucket.some(
+    (m) =>
+      restricted.has(m.id) ||
+      (m.restrictedStudentIds ?? []).includes(student.id)
+  );
+}
+
+/**
  * Greedy, restriction-aware group maker.
  *
  * Strategy: for each student (in a shuffled order), prefer the smallest
@@ -39,10 +58,9 @@ export function makeRestrictedGroups(
   let unsatisfied = 0;
 
   for (const student of shuffled) {
-    const restricted = new Set(student.restrictedStudentIds ?? []);
     const open = buckets.filter((b) => b.length < size);
 
-    const safe = open.filter((b) => !b.some((m) => restricted.has(m.id)));
+    const safe = open.filter((b) => !conflictsWithBucket(student, b));
 
     const pool = safe.length > 0 ? safe : open;
     if (safe.length === 0) unsatisfied++;
@@ -198,8 +216,7 @@ export function makeRestrictedGroupsByCount(
   let unsatisfied = 0;
 
   for (const student of shuffled) {
-    const restricted = new Set(student.restrictedStudentIds ?? []);
-    const safe = buckets.filter((b) => !b.some((m) => restricted.has(m.id)));
+    const safe = buckets.filter((b) => !conflictsWithBucket(student, b));
     const pool = safe.length > 0 ? safe : buckets;
     if (safe.length === 0) unsatisfied++;
     pool.sort((a, b) => a.length - b.length);
