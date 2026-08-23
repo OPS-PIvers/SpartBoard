@@ -2893,3 +2893,57 @@ Recording this because the challenge was the right instinct on partial evidence:
 - Branch safety: no push to `main` or any `dev-*`. Fixes went to the four PR head branches named above; this log entry is on the designated `claude/inspiring-cannon-n9310v`, branched from `claude/pensive-bell-8w0qe6` (#2533's head) rather than `dev-paul` so today's two runs read as one continuous record and don't conflict at the same insertion point.
 - Verification per fix: `tsc --noEmit` + `eslint --max-warnings 0` + `prettier --check` on changed files, plus the relevant suites — `tests/components` 1540/1540 (206 files) for #2525, LunchCount 18/18 for #2528.
 - Env runs Node 22 (repo pins 24, "Unsupported engine" warning); CI on Node 24 remains the authoritative gate.
+
+---
+
+## 2026-08-23
+
+- PRs reviewed: **17** (every open PR; all target `dev-paul`, all draft, all authored by the automated system — no head branch is `main` or `dev-*`, so all were eligible for pushes)
+  - #2540 — docs(debugger): log run 48 (head `nightly/debugger-log-2026-08-23`)
+  - #2539 — fix(rules): enforce normalized shape on organization domain docs (head `nightly/build-tooling-2026-08-23`)
+  - #2538 — fix(admin): preserve block content when splitting a merged custom-widget grid cell (head `nightly/admin-config-2026-08-23`)
+  - #2537 — fix(guidedLearning): keep first-occurrence answer per step in CSV export (head `nightly/state-data-2026-08-23`)
+  - #2536 — fix(random): check restrictions from both students, not just the one being placed (head `nightly/widgets-2026-08-23`)
+  - #2535 — fix(a11y): pair 6 more orphaned SettingsLabel controls (head `nightly/unify-d3-settings-labels-2026-08-23`)
+  - #2534 — docs(pr-review): log 2026-08-22 second run (head `claude/inspiring-cannon-n9310v`)
+  - #2533 — docs(pr-review): log 2026-08-22 run (head `claude/pensive-bell-8w0qe6`)
+  - #2532 — docs(debugger): log run 47 (head `nightly/debugger-log-2026-08-22`)
+  - #2531 — fix(admin): stop ShortLinkQuickCreate Escape from leaking to the dashboard (head `nightly/admin-config-2026-08-22`)
+  - #2530 — fix(youtube): stop swallowing quota errors from the durations lookup (head `nightly/state-data-2026-08-22`)
+  - #2529 — fix(import-wizard): stop Escape in AI-assist overlay from closing the whole wizard (head `nightly/dashboard-layout-2026-08-22`)
+  - #2528 — fix(lunch-count): don't duplicate an entree-section item as bentoBox (head `nightly/widgets-2026-08-22`)
+  - #2527 — fix(css-scaling): SmartNotebook toolbar cqmin + Calendar building-default appearance (head `scheduled-tasks`)
+  - #2526 — docs(unifier): log runs 64-65 (head `nightly/unifier-log-2026-08-22`)
+  - #2525 — fix(a11y): pair 10 more orphaned SettingsLabel controls (head `nightly/unify-d3-settings-labels-2026-08-22`)
+  - #2395 — feat(ai): move Gemini to Vertex AI, update model IDs (head `claude/quirky-ritchie-wghdl3`)
+- Comments processed: **0 actionable** — every inline review thread across all 17 PRs is resolved (17 on #2395, 1 each on #2533/#2529/#2526; the other 13 PRs carry none), and every top-level note already has an author reply recording a fix commit or reasoned decline. No reply was added anywhere, per the frugality directive.
+- Fixes pushed: **0** — Phase 1 found nothing needing a code change. The one factual defect found this run (below) surfaced from Phase 2 review, not from an unresolved reviewer comment, so it was reported rather than auto-pushed.
+- Reviews posted: **17** — one structured automated review per open PR. Merge-readiness split:
+  - **Ready** ×13: #2538, #2537, #2536, #2535, #2534, #2533, #2532, #2531, #2530, #2529, #2528, #2526, #2525
+  - **Ready with minor notes** ×3: #2540, #2539, #2527
+  - **Needs changes / hold (draft)** ×1: #2395
+
+### Substantive findings this run
+
+- **#2540 carries a stale backlog row that advertises already-shipped work as "ready for pickup."** `docs/routines/debugger.md`'s `useNutrislice.ts` row still reads *"excludes only `bentoIndex`, not every item in an alt-meal section … Straightforward fix: add `&& !isAltMealSectionName(sectionForIndex[idx])` … open (straightforward fix, ready for pickup)"*. Verified that exact line is already present at #2528's head (`3fc29fe`, `useNutrislice.ts:226`), pushed 2026-08-22 21:41 — before run 48 dispatched. The convention for this is two rows up in the same diff: the `lti_session_memberships` row is struck through and marked **Fixed/shipped #2539**. Left for the author since it came from review rather than a comment; the risk if unfixed is a future Widgets night re-deriving the same one-line fix and opening a duplicate PR.
+- **#2527's `daysVisible` validator doesn't mirror its own UI bound.** The new Calendar building-default input is `min="1" max="30"`, but `getAdminBuildingConfig`'s `calendar` case accepts any finite `> 0`. HTML `max` is advisory on programmatic input, so `daysVisible: 500` validates and reaches `Calendar/Widget.tsx`. Also `parseInt` with no `NaN` fallback on a cleared field — that one degrades to "silently ignored" via the read-side `Number.isFinite` check and matches the existing `updateFrequencyHours` pattern, so it's the weaker of the two.
+- **#2527's title no longer describes its diff.** Still `fix(css-scaling): convert SmartNotebook drawing toolbar sizes to cqmin`, but `690f272` added a ~260-line Calendar admin feature across four files plus tests. The six prior reviews on this PR each reviewed a different diff. Retitle or split.
+- **#2533 is fully contained in #2534.** `git merge-base --is-ancestor` confirms #2533's tip (`09e0bc5`) is an ancestor of #2534's tip (`0889e97`); #2534's commit list opens with both of #2533's commits. Merging #2534 supersedes #2533 rather than conflicting with it. Flagged on both so they aren't merged separately expecting distinct content.
+- **#2539 bundles 160 lines of `lti_session_memberships` coverage under a `fix(rules)` domain-validation title.** Per #2540's log this is deliberate — the nightly routine forbids coverage-only PRs, so held-back coverage is folded into the next genuine fix. Reasonable policy, but nothing in the title or description says so.
+- **#2539's `update` rule revalidates `domain` unconditionally.** A legacy doc with an unnormalized `domain` could not have `authMethod`/`role` updated until `domain` is fixed in the same write. Unreachable today (`useOrgDomains.ts` exposes only create/delete — verified, `OrganizationPanel.tsx:382` is the sole caller), live the moment a domain-edit UI is added. Already captured in #2540's backlog.
+
+### Claims verified rather than taken at face value
+
+- **#2526's shipped-work counts.** Run 65's row claims "6 instances (6 files) → 4 `htmlFor`/`id` + 2 group-heading"; counted #2535's diff — exact match. Run 64's row *opens* with the now-stale "10 … 9 of the 1:1-pairing form" but **does** resolve it at the end of the same cell with *"Final shipped count: 11 instances (10 `htmlFor`/`id` + 1 group-heading)"*, which matches #2525 at head (10 `htmlFor` + 1 `role="group"`). Recorded as a readability nit, **not** a factual error — the correction the 2026-08-22 thread promised did land.
+- **#2533's `#2395` catch-guard correction.** Independently re-read both shas rather than trusting either side of that thread: the duck-typed `'code' in error && 'message' in error` re-throw exists at `5552a62:functions/src/aiGeneration.ts:1014-1025` and is gone at `ba14633`, which now uses `instanceof HttpsError` in all seven catches. Finding real, corrected citation right, fix landed.
+- **#2395's "no API key material remains."** The only `GEMINI_API_KEY` hit anywhere in `functions/`, `utils/`, `config/`, or `components/` is the post-deploy cleanup comment at `secrets.ts:11`.
+- **#2536's root cause.** Confirmed `normalizeRestrictions` is only reached on the roster-editor write path (`components/classes/useRosterRowsState.ts`), never when the Randomizer reads `activeRoster.students` — so asymmetric restriction data is genuinely reachable and the fix belongs at the point of use.
+- **#2539's regex against real writes.** `views/DomainsView.tsx:288-294` normalizes with `trim().toLowerCase()` + leading `@`; every value that path produces satisfies `^@[a-z0-9.-]+[.][a-z]{2,}$`, so no legitimate admin write starts failing.
+- **Two things checked that turned out *not* to be findings:** #2527's "Colour" spelling matches the established convention across `components/admin/` (19 occurrences), and #2536's multi-line test comments fall under the `docs/routines/debugger.md` carve-out because `groupMaker.test.ts` already uses 3-6 line rationale comments throughout.
+
+### Notes
+
+- Branch-safety: no push to `main` and none to any `dev-*` branch. No fix pushes at all this run.
+- **Log placement again deviates from the literal POST-TASK instruction, for the same standing reason:** `scheduled-tasks` is currently the head branch of actively-open PR #2527, so a log commit there would inject an unrelated file into a PR under review. Logged instead on the designated `claude/pensive-bell-xorxs2`, branched from #2534's head (`0889e97`) to continue the log chain rather than fork it — the same pattern #2534 used with #2533. Consistent with the 2026-08-12/13 entries.
+- Tooling: this environment exposes GitHub via the MCP server, not the `gh` CLI; all list/read/review operations used `mcp__github__*` equivalents of the prescribed `gh` commands. Diffs were read locally from fetched branches rather than via `get_diff`, which is both cheaper and allows reading surrounding context in the files under review.
+- Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning). No commits requiring `pnpm run validate` were produced this run; CI on Node 24 remains the authoritative gate.
