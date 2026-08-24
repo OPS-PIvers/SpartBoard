@@ -21,6 +21,7 @@ export const PII_WIDGET_FIELDS = [
   'lastNames', // RandomWidget, ChecklistWidget — newline-delimited name list
   'completedNames', // ChecklistWidget — names/IDs of students who completed items
   'remainingStudents', // RandomWidget — unpicked students in current session
+  'lastResult', // RandomWidget — picked name / shuffle / groups (same roster names as remainingStudents)
   'lockedNames', // RandomWidget — manually pinned names (Jigsaw/manual edit)
   'unassignedNames', // RandomWidget — names parked in the Unassigned tray
   'doneNames', // RandomWidget — names marked "done" in Shuffle mode
