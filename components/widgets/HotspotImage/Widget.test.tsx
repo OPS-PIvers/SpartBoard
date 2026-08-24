@@ -48,35 +48,45 @@ describe('HotspotImageWidget', () => {
     cleanup();
   });
 
-  it('closes the open popover when Escape is pressed', () => {
+  it('closes the open popover when Escape is pressed on the focused pin', () => {
     render(<HotspotImageWidget widget={createWidget()} />);
 
-    fireEvent.click(
-      screen.getByRole('button', { name: /Open hotspot: Pin One/ })
-    );
+    const pin = screen.getByRole('button', { name: /Open hotspot: Pin One/ });
+    fireEvent.click(pin);
     expect(screen.getByText('Detail body text')).toBeInTheDocument();
 
-    fireEvent.keyDown(document, { key: 'Escape' });
+    // Escape fires on the still-focused pin button — a real DOM/React
+    // bubble, not a synthetic document-level dispatch — so this also
+    // exercises the same bubble path an ancestor's onKeyDown would see.
+    fireEvent.keyDown(pin, { key: 'Escape' });
 
     expect(screen.queryByText('Detail body text')).not.toBeInTheDocument();
   });
 
-  it('stops the Escape from reaching the window-level handler while open', () => {
-    const windowHandler = vi.fn();
-    window.addEventListener('keydown', windowHandler);
+  it('stops Escape from reaching an ancestor onKeyDown (e.g. DraggableWindow) while open', () => {
+    // DraggableWindow attaches its own onKeyDown on a GlassCard ancestor
+    // and minimizes the widget on Escape. Simulate that ancestor here to
+    // prove the popover's Escape handler shadows it via React's synthetic
+    // bubble phase, not just a document-level listener.
+    const ancestorHandler = vi.fn();
 
-    render(<HotspotImageWidget widget={createWidget()} />);
-    fireEvent.click(
-      screen.getByRole('button', { name: /Open hotspot: Pin One/ })
+    render(
+      <div onKeyDown={ancestorHandler}>
+        <HotspotImageWidget widget={createWidget()} />
+      </div>
     );
 
-    fireEvent.keyDown(document, { key: 'Escape' });
+    const pin = screen.getByRole('button', { name: /Open hotspot: Pin One/ });
+    fireEvent.click(pin);
+    expect(screen.getByText('Detail body text')).toBeInTheDocument();
 
-    expect(windowHandler).not.toHaveBeenCalled();
-    window.removeEventListener('keydown', windowHandler);
+    fireEvent.keyDown(pin, { key: 'Escape' });
+
+    expect(screen.queryByText('Detail body text')).not.toBeInTheDocument();
+    expect(ancestorHandler).not.toHaveBeenCalled();
   });
 
-  it('ignores Escape originating from a text input in another widget', () => {
+  it('is unaffected by Escape originating from a text input in another widget', () => {
     const windowHandler = vi.fn();
     window.addEventListener('keydown', windowHandler);
 

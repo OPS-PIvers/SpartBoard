@@ -20,19 +20,18 @@ export const HotspotImageWidget: React.FC<{ widget: WidgetData }> = ({
   const config = widget.config as HotspotImageConfig;
   const [activePinId, setActivePinId] = React.useState<string | null>(null);
 
-  // Escape closes the open popover; stopPropagation keeps it from bubbling to
-  // DashboardView's window-level handler, which would minimize the widget.
-  React.useEffect(() => {
-    if (activePinId === null) return undefined;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (isEscapeFromWidgetInput(e)) return;
-      e.stopPropagation();
-      setActivePinId(null);
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [activePinId]);
+  // Escape closes the open popover. This must be a React onKeyDown (not a
+  // document listener) so it fires during React's synthetic bubble phase
+  // *before* DraggableWindow's ancestor handleKeyDown, which also calls
+  // stopPropagation() on Escape and would otherwise minimize the widget —
+  // a synthetic stopPropagation() there halts the underlying native event
+  // too, so a document-level listener never sees it.
+  const handleContentKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Escape' || activePinId === null) return;
+    if (isEscapeFromWidgetInput(e.nativeEvent)) return;
+    e.stopPropagation();
+    setActivePinId(null);
+  };
 
   const handlePinClick = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -75,6 +74,7 @@ export const HotspotImageWidget: React.FC<{ widget: WidgetData }> = ({
           <div
             className="w-full h-full relative bg-slate-900 overflow-hidden flex items-center justify-center"
             onClick={() => setActivePinId(null)}
+            onKeyDown={handleContentKeyDown}
           >
             {/* The actual image constraint container so pins align properly */}
             <div
