@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-23_
+_Last audited: 2026-08-24_
 _Last action: 2026-08-22 — LOW "SmartNotebook drawing toolbar uses hardcoded Tailwind sizes in front-face editing UI" resolved: converted the color-picker `+` label (`text-base`) and brush-size value display (`text-xs w-12`) in `PageEditorOverlay.tsx` to inline `cqmin`-capped equivalents. `pnpm exec tsc --noEmit` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean. No dedicated widget test file exists. PR opened to dev-paul.
 
 ---
@@ -21,6 +21,57 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### MEDIUM Shared `common/library` primitives are unscaled inside four widget container-query front faces
+
+- **Detected:** 2026-08-24
+- **File:** `components/common/library/LibraryToolbar.tsx`, `BulkActionBar.tsx`, `LibraryPreviewPane.tsx`, `ViewCountBadge.tsx`
+- **Detail:** These four primitives carry 64 hardcoded Tailwind size utilities between them and **zero** `cqmin`, yet they render inline (no portal) inside the default front-face view of four `skipScaling: true` widgets — `QuizManager.tsx:1462/1867/1934/2192`, `VideoActivityManager.tsx:397/830/961/1209`, `GuidedLearningManager.tsx:346/1039/1220/1318`, `MiniAppManager.tsx:279/1076/1169/1313`. Their siblings in the same directory are fully converted (`LibraryShell.tsx` 30 `cqmin`, `LibraryItemCard.tsx` 41, `PlcTab.tsx` 42, `FolderSidebar.tsx` 15) and the parallel `components/common/sessionViews/*` set is 100% clean, so this is an inconsistency inside an otherwise-converted shared system rather than a design choice. Specifics: `LibraryToolbar.tsx:42,77,109,199` `text-sm` + `px-3 py-1.5`; `BulkActionBar.tsx:70,90,109,138,149` `text-sm`/`text-xs` + `px-3 py-1.5`; `LibraryPreviewPane.tsx:128,144,163,165,180,183` `text-sm`/`text-xs` + `w-5 h-5`/`w-3.5 h-3.5`; `ViewCountBadge.tsx:29,32,39,42` `text-xs` + `w-3 h-3`.
+- **Fix:** Convert to inline `cqmin` per the skill table, matching `LibraryItemCard.tsx`'s conventions in the same directory: `text-sm` → `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`, `text-xs` → `min(12px, 4.5cqmin)`, `px-3 py-1.5` → `paddingInline: 'min(12px, 3cqmin)'` / `paddingBlock: 'min(6px, 1.5cqmin)'`, `w-3 h-3`/`w-3.5 h-3.5`/`w-5 h-5` → `style={{ width/height: 'min(Npx, N/4 cqmin)' }}`. `LibraryDevHarness.tsx` also renders `LibraryToolbar` — harmless, it inherits whatever the primitive does.
+
+### MEDIUM `GuidedLearningResults` front-face view has zero container-query units
+
+- **Detected:** 2026-08-24
+- **File:** `components/widgets/GuidedLearning/components/GuidedLearningResults.tsx` (341 lines, 0 `cqmin`, 34 hardcoded utilities)
+- **Detail:** Rendered inline at `GuidedLearning/Widget.tsx:822`, directly inside `WidgetLayout content` — no `createPortal`, root is `<div className="h-full flex flex-col">`, so `cqmin` would resolve correctly against the widget. `guided-learning` is `skipScaling: true` (`WidgetRegistry.ts:937-942`, base 720×520). Every size is a Tailwind class: `text-2xl` on the three summary numbers (`:229,237,245` — the primary content of the view), `text-sm` (`:207,333`), `text-xs` (×12), icons `w-4 h-4`/`w-3 h-3`/`w-6 h-6` (`:204,206,215,222`), spacing `px-3 py-2`/`p-3`/`gap-2`/`mb-2`/`mt-0.5`. Sibling GL views are converted (`GuidedLearningPlayer`, and `VideoActivityWidget/components/Results.tsx` = 30 `cqmin` / 0 hardcoded), so this file was simply missed. Not covered by the Completed 2026-04-14 group item, which listed only `GuidedLearning/Widget.tsx`.
+- **Fix:** Convert throughout per the skill table. The three summary numbers are hero-tier: `text-2xl` → `style={{ fontSize: 'min(24px, 12cqmin)' }}`; `text-sm` → `min(14px, 5.5cqmin)`; `text-xs` → `min(12px, 4.5cqmin)`; icons → `style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}`. Follow the QRWidget pattern of merging into existing `style` objects rather than adding a second one.
+
+### MEDIUM `GuidedLearningAIGenerator` in-widget overlay has zero container-query units
+
+- **Detected:** 2026-08-24
+- **File:** `components/widgets/GuidedLearning/components/GuidedLearningAIGenerator.tsx` (544 lines, 0 `cqmin`)
+- **Detail:** Rendered at `GuidedLearning/Widget.tsx:831`; root is `className="absolute inset-0 z-widget-internal-overlay bg-white/95 backdrop-blur-sm flex flex-col p-6"` (`:371`) — an absolutely-positioned child *inside* the widget's own container, not portaled, so `cqmin` resolves. This is the exact analog of the Completed 2026-08-21 item "MiniApp internal dialog overlays", which was resolved on precisely this reasoning. Hardcoded throughout: `p-6` overlay padding (`:371`), `w-5 h-5` header/close icons (`:377,384`), `text-sm` (`:389,488,493,502`), `text-xs` (`:126,147,403,439,448,480,518,527`), `w-16 h-16` thumbnail (`:112`), `p-2.5`/`p-3`/`gap-3`/`py-5`/`mb-4`.
+- **Fix:** Apply the same conversion the MiniApp overlay fix used (see the 2026-08-21 action note): `text-sm` → `min(14px, 5.5cqmin)`, `text-xs` → `min(11px, 4cqmin)`, `w-5 h-5` → `min(20px, 5cqmin)`, `p-6` → `padding: 'min(24px, 5cqmin)'`, etc.
+
+### MEDIUM `TrafficLightWidget` primary content has a hardcoded 40px minimum that breaks small sizes
+
+- **Detected:** 2026-08-24
+- **File:** `components/widgets/TrafficLightWidget/Widget.tsx:38-39, 50-51, 62-63`
+- **Detail:** All three lights — the widget's entire primary content — carry `minWidth: '40px', minHeight: '40px'` alongside their `width/height: 'min(28cqh, 80cqw)'`. `traffic` is `skipScaling: true` with base 120×320 (`WidgetRegistry.ts:591-596`). Below roughly 160px of widget height the px floor overrides the container formula: at 100px tall the three circles pin at 40px each = 120px, plus two `min(12px,3cqh)` gaps and the shell's `p-[min(12px,3cqh)]`, so content exceeds the container and clips. The `min(28cqh, 80cqw)` formula itself is standing WON'T FIX per the fill-better guidance (2026-07-26 / 2026-06-06); this px floor is a separate, previously-unjournaled defect that defeats it.
+- **Fix:** Drop the px floor, or make it container-relative — e.g. `minWidth: 'min(40px, 20cqmin)', minHeight: 'min(40px, 20cqmin)'` — leaving the existing `min(28cqh, 80cqw)` formula untouched.
+
+### MEDIUM `VideoActivity` Creator front-face view is only half converted
+
+- **Detected:** 2026-08-24
+- **File:** `components/widgets/VideoActivityWidget/components/Creator.tsx` (15 `cqmin`, 39 residual hardcoded)
+- **Detail:** Rendered as a top-level front-face view at `VideoActivityWidget/Widget.tsx:409` (`view === 'create'`), `skipScaling: true`. Inputs and buttons already carry correct inline `fontSize: 'min(13px, 3.5cqmin)'` styles (`:692,700`), showing the file was partially converted — but 39 sibling elements in the same JSX still use Tailwind: `text-xs` (`:396,414,434,458,478,498,512,519,604,611,641,749`), `text-sm` (`:492,638,737`), icons `w-4 h-4`/`w-5 h-5`/`w-12 h-12` (`:263,354,397,424,706,712`). Its two peers in the same directory (`Results.tsx`, `VideoActivityLiveMonitor.tsx`) are 100% clean, confirming the intended standard.
+- **Fix:** Finish the conversion in the style already present in the file — `text-xs` → `min(12px, 3.5cqmin)`, `text-sm` → `min(14px, 4.5cqmin)`, icons → `style={{ width/height: 'min(Npx, N/4 cqmin)' }}`. Leave the `Timeline.tsx`/`VideoActivityEditor.tsx` hits alone: those render only inside the viewport-bounded `VideoActivityEditorModal` (established WON'T FIX bucket).
+
+### LOW SmartNotebook Viewer page-counter has a hardcoded `minWidth: '80px'`
+
+- **Detected:** 2026-08-24
+- **File:** `components/widgets/SmartNotebook/components/Viewer.tsx:327`
+- **Detail:** `style={{ minWidth: '80px' }}` on the page-counter container in the Viewer footer, sitting between two fully `cqmin`-scaled nav buttons (`:316-323`, `:335-345`) inside a `cqmin`-padded footer (`:307-310`). `smartNotebook` is `skipScaling: true`. Same class as the resolved NextUp `maxWidth: '120px'` precedent, and distinct from the already-Open `Viewer.tsx:258` Assets Panel item (different element, different line).
+- **Fix:** `style={{ minWidth: 'min(80px, 18cqmin)' }}`.
+
+### LOW `QuizPreview` front-face view leaves four icons unscaled
+
+- **Detected:** 2026-08-24
+- **File:** `components/widgets/QuizWidget/components/QuizPreview.tsx:122, 126, 421, 519`
+- **Detail:** Rendered as a top-level front-face view at `QuizWidget/Widget.tsx:878` (`view === 'preview'`), no portal. The file is otherwise a model citizen — every `fontSize` and `padding` uses `min(Npx, Ycqmin)` — but the back-arrow `<ArrowLeft className="w-4 h-4" />` and three `<Eye className="w-3.5 h-3.5" />` icons stayed as Tailwind classes, plus `p-1.5` on the back button (`:119`) and `gap-3`/`gap-2` (`:114,124`).
+- **Fix:** `w-4 h-4` → `style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}`; `w-3.5 h-3.5` → `min(14px, 3.5cqmin)`; `p-1.5` → `padding: 'min(6px, 1.5cqmin)'`.
+
+_2026-08-24: Full audit (Monday daily), delegated to a dedicated sub-agent. **Skill path note:** `/mnt/skills/user/spart-new-widget/SKILL.md` does not exist in this environment; the synced copy at `/root/.claude/skills/synced/spart-new-widget/SKILL.md` was used (Scaling Rules at `:319-380`). Method: grepped all 49 `Widget.tsx` / `*Widget.tsx` / `index.tsx` front faces **plus every sub-component they import**, then read each hit in context and traced every candidate to its actual render site (inline-in-CQ vs. portaled vs. back-face/modal) before reporting — the import-tracing step is what surfaced findings 1–3, which sit in shared primitives and sub-components rather than in the widget entry points earlier sweeps scanned. Seven new items filed (5 MEDIUM, 2 LOW). Sweeps that came back clean: `max-h-[Npx]`/`max-w-[Npx]` — zero new hits, all 18 matches resolve to already-Open items, back-face editors/modals, `DrawingWidget`/`SeatingChart` (`skipScaling: false`), or the portaled `LiveControl.tsx`; `overflow-hidden` at content-area level — 104 occurrences swept, every one pairs with `h-full`/`w-full`/`flex-1 min-h-0` on the same or parent element, zero instances of the anti-pattern; low-px-cap-on-hero — every `min(Npx, Ycqmin)` pair extracted repo-wide and filtered for caps that would defeat scaling (≤16px paired with ≥15cqmin), zero hits. Triaged out and deliberately not flagged: `TextWidget/FormattingToolbar.tsx` (hardcoded sizes confirmed, but it is `createPortal`'d to `document.body` at `TextWidget/Widget.tsx:310` **and** already has a real responsive mechanism — ResizeObserver-driven group overflow collapsing at `:770-800`); `random/RandomGroups.tsx:372,384` (inside a portaled color picker, same bucket as the Open RandomClassContextButton item); decorative `w-2 h-2` dots (WON'T FIX per 2026-07-07/07-24); `NeedDoPutThen/Widget.tsx:492-517` fixed-px resize-handle chrome (exempt per 2026-07-27). All 4 existing Open items re-verified verbatim at their tracked line numbers; none stale, none resolved. **Out-of-scope observation for `legacy-cleanup`:** `components/widgets/math-tools/PlaceValueTool.tsx` has zero importers anywhere in the repo — dead code, like `Classes/RosterEditor.tsx` noted 2026-08-17; its hardcoded sizes have no runtime effect._
 
 ### LOW Second-pass residual hardcoded margin/padding across multiple `skipScaling: true` widgets
 
