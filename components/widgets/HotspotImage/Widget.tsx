@@ -19,6 +19,19 @@ export const HotspotImageWidget: React.FC<{ widget: WidgetData }> = ({
   const config = widget.config as HotspotImageConfig;
   const [activePinId, setActivePinId] = React.useState<string | null>(null);
 
+  // Escape closes the open popover; stopPropagation keeps it from bubbling to
+  // DashboardView's window-level handler, which would minimize the widget.
+  React.useEffect(() => {
+    if (activePinId === null) return undefined;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      setActivePinId(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [activePinId]);
+
   const handlePinClick = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setActivePinId(id === activePinId ? null : id);
