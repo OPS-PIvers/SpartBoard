@@ -37,6 +37,7 @@ export const ClockConfigurationPanel: React.FC<
     useBuildingSelection(BUILDINGS);
   const fontFamilyLabelId = useId();
   const clockStyleLabelId = useId();
+  const themeColorLabelId = useId();
 
   const buildingDefaults = config.buildingDefaults ?? {};
   const currentBuildingConfig: BuildingClockDefaults = buildingDefaults[
@@ -120,8 +121,14 @@ export const ClockConfigurationPanel: React.FC<
 
         {/* Theme Color */}
         <div>
-          <SettingsLabel className="mb-1">Default Theme Color</SettingsLabel>
-          <div className="flex items-center gap-3">
+          <SettingsLabel as="span" id={themeColorLabelId} className="mb-1">
+            Default Theme Color
+          </SettingsLabel>
+          <div
+            className="flex items-center gap-3"
+            role="group"
+            aria-labelledby={themeColorLabelId}
+          >
             <input
               type="color"
               value={currentBuildingConfig.themeColor ?? STANDARD_COLORS.slate}

@@ -175,10 +175,13 @@ export const EmbedSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       {displayMode === 'url' ? (
         <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
           <div>
-            <SettingsLabel>Target URL</SettingsLabel>
+            <SettingsLabel htmlFor={`embed-target-url-${widget.id}`}>
+              Target URL
+            </SettingsLabel>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <input
+                  id={`embed-target-url-${widget.id}`}
                   type="text"
                   value={url}
                   placeholder="https://example.com..."
