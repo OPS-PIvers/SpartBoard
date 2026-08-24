@@ -4,6 +4,7 @@ import { WidgetData, HotspotImageConfig } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { MapPin, Search, Info, HelpCircle, Star, X } from 'lucide-react';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 const ICON_MAP = {
   search: Search,
@@ -25,6 +26,7 @@ export const HotspotImageWidget: React.FC<{ widget: WidgetData }> = ({
     if (activePinId === null) return undefined;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(e)) return;
       e.stopPropagation();
       setActivePinId(null);
     };

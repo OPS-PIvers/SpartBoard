@@ -75,4 +75,29 @@ describe('HotspotImageWidget', () => {
     expect(windowHandler).not.toHaveBeenCalled();
     window.removeEventListener('keydown', windowHandler);
   });
+
+  it('ignores Escape originating from a text input in another widget', () => {
+    const windowHandler = vi.fn();
+    window.addEventListener('keydown', windowHandler);
+
+    render(<HotspotImageWidget widget={createWidget()} />);
+    fireEvent.click(
+      screen.getByRole('button', { name: /Open hotspot: Pin One/ })
+    );
+    expect(screen.getByText('Detail body text')).toBeInTheDocument();
+
+    const otherWidget = document.createElement('div');
+    otherWidget.setAttribute('data-draggable-window', '');
+    const input = document.createElement('input');
+    otherWidget.appendChild(input);
+    document.body.appendChild(otherWidget);
+
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    expect(screen.getByText('Detail body text')).toBeInTheDocument();
+    expect(windowHandler).toHaveBeenCalled();
+
+    document.body.removeChild(otherWidget);
+    window.removeEventListener('keydown', windowHandler);
+  });
 });
