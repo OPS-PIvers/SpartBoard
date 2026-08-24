@@ -26,20 +26,32 @@ export const ViewCountBadge: React.FC<ViewCountBadgeProps> = ({ count }) => {
     return (
       <span
         aria-hidden="true"
-        className="inline-flex items-center gap-1 text-xs font-medium text-slate-300 select-none"
-        style={{ visibility: 'hidden' }}
+        className="inline-flex items-center font-medium text-slate-300 select-none"
+        style={{
+          visibility: 'hidden',
+          gap: 'min(4px, 1cqmin)',
+          fontSize: 'min(12px, 4.5cqmin)',
+        }}
       >
-        <Eye aria-hidden="true" className="w-3 h-3 shrink-0" />
+        <Eye
+          aria-hidden="true"
+          className="shrink-0"
+          style={{ width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' }}
+        />
         <span>0 views</span>
       </span>
     );
   }
   return (
     <span
-      className="inline-flex items-center gap-1 text-xs font-medium text-slate-500"
+      className="inline-flex items-center font-medium text-slate-500"
+      style={{ gap: 'min(4px, 1cqmin)', fontSize: 'min(12px, 4.5cqmin)' }}
       title={count === 1 ? 'Link opened 1 time' : `Link opened ${count} times`}
     >
-      <Eye className="w-3 h-3 shrink-0" />
+      <Eye
+        className="shrink-0"
+        style={{ width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' }}
+      />
       <span>
         {count} {count === 1 ? 'view' : 'views'}
       </span>

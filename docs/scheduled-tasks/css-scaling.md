@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-08-24_
-_Last action: 2026-08-22 — LOW "SmartNotebook drawing toolbar uses hardcoded Tailwind sizes in front-face editing UI" resolved: converted the color-picker `+` label (`text-base`) and brush-size value display (`text-xs w-12`) in `PageEditorOverlay.tsx` to inline `cqmin`-capped equivalents. `pnpm exec tsc --noEmit` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean. No dedicated widget test file exists. PR opened to dev-paul.
+_Last action: 2026-08-24 — MEDIUM "Shared `common/library` primitives are unscaled inside four widget container-query front faces" resolved: converted all hardcoded Tailwind size/spacing/icon classes in `LibraryToolbar.tsx`, `BulkActionBar.tsx`, `LibraryPreviewPane.tsx`, and `ViewCountBadge.tsx` to inline `cqmin`-capped styles. `pnpm exec tsc --noEmit` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean. PR opened to dev-paul.
 
 ---
 
@@ -21,13 +21,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### MEDIUM Shared `common/library` primitives are unscaled inside four widget container-query front faces
-
-- **Detected:** 2026-08-24
-- **File:** `components/common/library/LibraryToolbar.tsx`, `BulkActionBar.tsx`, `LibraryPreviewPane.tsx`, `ViewCountBadge.tsx`
-- **Detail:** These four primitives carry 64 hardcoded Tailwind size utilities between them and **zero** `cqmin`, yet they render inline (no portal) inside the default front-face view of four `skipScaling: true` widgets — `QuizManager.tsx:1462/1867/1934/2192`, `VideoActivityManager.tsx:397/830/961/1209`, `GuidedLearningManager.tsx:346/1039/1220/1318`, `MiniAppManager.tsx:279/1076/1169/1313`. Their siblings in the same directory are fully converted (`LibraryShell.tsx` 30 `cqmin`, `LibraryItemCard.tsx` 41, `PlcTab.tsx` 42, `FolderSidebar.tsx` 15) and the parallel `components/common/sessionViews/*` set is 100% clean, so this is an inconsistency inside an otherwise-converted shared system rather than a design choice. Specifics: `LibraryToolbar.tsx:42,77,109,199` `text-sm` + `px-3 py-1.5`; `BulkActionBar.tsx:70,90,109,138,149` `text-sm`/`text-xs` + `px-3 py-1.5`; `LibraryPreviewPane.tsx:128,144,163,165,180,183` `text-sm`/`text-xs` + `w-5 h-5`/`w-3.5 h-3.5`; `ViewCountBadge.tsx:29,32,39,42` `text-xs` + `w-3 h-3`.
-- **Fix:** Convert to inline `cqmin` per the skill table, matching `LibraryItemCard.tsx`'s conventions in the same directory: `text-sm` → `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`, `text-xs` → `min(12px, 4.5cqmin)`, `px-3 py-1.5` → `paddingInline: 'min(12px, 3cqmin)'` / `paddingBlock: 'min(6px, 1.5cqmin)'`, `w-3 h-3`/`w-3.5 h-3.5`/`w-5 h-5` → `style={{ width/height: 'min(Npx, N/4 cqmin)' }}`. `LibraryDevHarness.tsx` also renders `LibraryToolbar` — harmless, it inherits whatever the primitive does.
 
 ### MEDIUM `GuidedLearningResults` front-face view has zero container-query units
 
@@ -72,6 +65,8 @@ _Nothing currently in progress._
 - **Fix:** `w-4 h-4` → `style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}`; `w-3.5 h-3.5` → `min(14px, 3.5cqmin)`; `p-1.5` → `padding: 'min(6px, 1.5cqmin)'`.
 
 _2026-08-24: Full audit (Monday daily), delegated to a dedicated sub-agent. **Skill path note:** `/mnt/skills/user/spart-new-widget/SKILL.md` does not exist in this environment; the synced copy at `/root/.claude/skills/synced/spart-new-widget/SKILL.md` was used (Scaling Rules at `:319-380`). Method: grepped all 49 `Widget.tsx` / `*Widget.tsx` / `index.tsx` front faces **plus every sub-component they import**, then read each hit in context and traced every candidate to its actual render site (inline-in-CQ vs. portaled vs. back-face/modal) before reporting — the import-tracing step is what surfaced findings 1–3, which sit in shared primitives and sub-components rather than in the widget entry points earlier sweeps scanned. Seven new items filed (5 MEDIUM, 2 LOW). Sweeps that came back clean: `max-h-[Npx]`/`max-w-[Npx]` — zero new hits, all 18 matches resolve to already-Open items, back-face editors/modals, `DrawingWidget`/`SeatingChart` (`skipScaling: false`), or the portaled `LiveControl.tsx`; `overflow-hidden` at content-area level — 104 occurrences swept, every one pairs with `h-full`/`w-full`/`flex-1 min-h-0` on the same or parent element, zero instances of the anti-pattern; low-px-cap-on-hero — every `min(Npx, Ycqmin)` pair extracted repo-wide and filtered for caps that would defeat scaling (≤16px paired with ≥15cqmin), zero hits. Triaged out and deliberately not flagged: `TextWidget/FormattingToolbar.tsx` (hardcoded sizes confirmed, but it is `createPortal`'d to `document.body` at `TextWidget/Widget.tsx:310` **and** already has a real responsive mechanism — ResizeObserver-driven group overflow collapsing at `:770-800`); `random/RandomGroups.tsx:372,384` (inside a portaled color picker, same bucket as the Open RandomClassContextButton item); decorative `w-2 h-2` dots (WON'T FIX per 2026-07-07/07-24); `NeedDoPutThen/Widget.tsx:492-517` fixed-px resize-handle chrome (exempt per 2026-07-27). All 4 existing Open items re-verified verbatim at their tracked line numbers; none stale, none resolved. **Out-of-scope observation for `legacy-cleanup`:** `components/widgets/math-tools/PlaceValueTool.tsx` has zero importers anywhere in the repo — dead code, like `Classes/RosterEditor.tsx` noted 2026-08-17; its hardcoded sizes have no runtime effect._
+
+_2026-08-24 action notes (Monday): Nothing In Progress anywhere across today's reading list (three dailies -- widget-registry, css-scaling, typescript-eslint -- plus today's Monday weeklies test-coverage, firestore-rules, simplification, ai-integration). widget-registry and typescript-eslint report zero HIGH/MEDIUM open items (widget-registry: 3 LOW only; typescript-eslint: 0 issues). css-scaling (daily order 2) is therefore the first journal in the reading list with an open MEDIUM, and its Open section's top item in document order (this cycle's own first new finding, detected today) is the shared `common/library` primitives MEDIUM. File-recency check passed: `git log --oneline -10 -- components/common/library/LibraryToolbar.tsx components/common/library/BulkActionBar.tsx components/common/library/LibraryPreviewPane.tsx components/common/library/ViewCountBadge.tsx` shows the last touches (`615a6457`, `aa9d56fe`) are both well outside the last 5 branch commits (`b83f4346`, `d42a46d6`, `690f2729`, `291be2fd`, `fd7a8847`). Resolution: converted every `text-sm`/`text-xs`/`px-*`/`py-*`/`pl-*`/`pr-*`/`p-*`/`gap-*`/`w-3`/`w-3.5`/`w-5` hardcoded Tailwind class across all four files to inline `cqmin`-capped styles per the item's own Fix guidance, deliberately leaving the WCAG 44px touch-target floor and lucide numeric `size={N}` icon props untouched (see the Completed entry for the full rationale). `pnpm exec tsc --noEmit` (exit 0), `eslint <4 files> --max-warnings 0` (exit 0), `prettier --check <4 files>` (clean), the 2 existing `LibraryPreviewPane` test files (9 tests) pass unchanged. Moved the item to Completed. PR opened to dev-paul._
 
 ### LOW Second-pass residual hardcoded margin/padding across multiple `skipScaling: true` widgets
 
@@ -326,6 +321,14 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### MEDIUM Shared `common/library` primitives are unscaled inside four widget container-query front faces
+
+- **Detected:** 2026-08-24
+- **Completed:** 2026-08-24
+- **File:** `components/common/library/LibraryToolbar.tsx`, `BulkActionBar.tsx`, `LibraryPreviewPane.tsx`, `ViewCountBadge.tsx`
+- **Detail:** These four primitives carried 64 hardcoded Tailwind size utilities between them and zero `cqmin`, yet they render inline (no portal) inside the default front-face view of four `skipScaling: true` widgets (QuizManager, VideoActivityManager, GuidedLearningManager, MiniAppManager). Siblings in the same directory (`LibraryItemCard.tsx`, `LibraryShell.tsx`) were already fully converted.
+- **Resolution:** Converted every `text-sm`/`text-xs` font-size class, `px-*`/`py-*`/`pl-*`/`pr-*`/`p-*`/`gap-*` spacing class, and `w-3`/`w-3.5`/`w-5` icon-size class in all four files to inline `cqmin`-capped styles, following the item's own fix guidance and `LibraryItemCard.tsx`'s established conventions: `text-sm` → `fontSize: 'min(14px, 5.5cqmin)'`, `text-xs` → `min(12px, 4.5cqmin)`, spacing/icon classes → `min(Npx, N/4 cqmin)`. Left two deliberate exceptions unconverted: `LibraryPreviewPane.tsx`'s WCAG 2.5.5 `min-w-[44px] min-h-[44px]` close-button touch target (converting it to a `cqmin`-capped value would let it shrink below the 44px accessibility minimum on small containers — the opposite of the intent) and its `-m-2` hit-slop margin, plus the toolbar/badge icons' numeric `size={N}` lucide props (a different pattern than the flagged Tailwind size *classes*, left as-is to keep the change scoped to what the audit measured). `pnpm exec tsc --noEmit` (exit 0), `eslint <4 files> --max-warnings 0` (exit 0), `prettier --check <4 files>` (clean). The two existing `LibraryPreviewPane` test files (9 tests) pass unchanged. PR opened to dev-paul.
 
 ### LOW SmartNotebook drawing toolbar uses hardcoded Tailwind sizes in front-face editing UI
 
