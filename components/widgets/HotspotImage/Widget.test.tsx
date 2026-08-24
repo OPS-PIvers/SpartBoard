@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { WidgetData, HotspotImageConfig } from '@/types';
 import { HotspotImageWidget } from './Widget';
@@ -81,6 +82,52 @@ describe('HotspotImageWidget', () => {
     expect(screen.getByText('Detail body text')).toBeInTheDocument();
 
     fireEvent.keyDown(pin, { key: 'Escape' });
+
+    expect(screen.queryByText('Detail body text')).not.toBeInTheDocument();
+    expect(ancestorHandler).not.toHaveBeenCalled();
+  });
+
+  it('closes the popover (not the widget) after a real mouse click, even though DraggableWindow steals focus to its own root on pointerdown', () => {
+    // DraggableWindow.handlePointerDown calls
+    // `(e.currentTarget as HTMLElement).focus()` on its own GlassCard root
+    // for every pointerdown inside the widget (DraggableWindow.tsx:782-805),
+    // unless the target is contenteditable. So after a *real* mouse click —
+    // pointerdown then click, not just click — DOM focus lands on that
+    // ancestor root, not on the pin button. Escape's keydown target is then
+    // the ancestor itself; bubbling only flows target -> ancestors, never
+    // into a descendant's onKeyDown. Mimic that focus-steal here.
+    const ancestorHandler = vi.fn();
+
+    function AncestorLikeGlassCard({ children }: { children: ReactNode }) {
+      const handlePointerDown = (e: ReactPointerEvent) => {
+        const targetEl = e.target instanceof Element ? e.target : null;
+        if (!targetEl?.closest('[contenteditable="true"]')) {
+          (e.currentTarget as HTMLElement).focus();
+        }
+      };
+      return (
+        <div
+          tabIndex={0}
+          onPointerDown={handlePointerDown}
+          onKeyDown={ancestorHandler}
+        >
+          {children}
+        </div>
+      );
+    }
+
+    render(
+      <AncestorLikeGlassCard>
+        <HotspotImageWidget widget={createWidget()} />
+      </AncestorLikeGlassCard>
+    );
+
+    const pin = screen.getByRole('button', { name: /Open hotspot: Pin One/ });
+    fireEvent.pointerDown(pin);
+    fireEvent.click(pin);
+    expect(screen.getByText('Detail body text')).toBeInTheDocument();
+
+    fireEvent.keyDown(document.activeElement as Element, { key: 'Escape' });
 
     expect(screen.queryByText('Detail body text')).not.toBeInTheDocument();
     expect(ancestorHandler).not.toHaveBeenCalled();

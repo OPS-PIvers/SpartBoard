@@ -37,6 +37,14 @@ export const HotspotImageWidget: React.FC<{ widget: WidgetData }> = ({
     e.stopPropagation();
     setActivePinId(id === activePinId ? null : id);
 
+    // DraggableWindow's own pointerdown handler already moved DOM focus to
+    // its GlassCard root before this click fires (it focuses the ancestor
+    // on every pointerdown). Reclaim focus on the pin so a later Escape's
+    // keydown target is inside this widget's subtree — otherwise the event
+    // never reaches handleContentKeyDown and bubbles straight to
+    // DraggableWindow's ancestor handler instead.
+    (e.currentTarget as HTMLElement).focus();
+
     // Find the hotspot that was clicked
     const currentHotspots = config.hotspots ?? [];
     const clickedHotspot = currentHotspots.find((h) => h.id === id);
