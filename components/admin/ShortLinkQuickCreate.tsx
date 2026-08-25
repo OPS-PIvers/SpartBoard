@@ -20,6 +20,8 @@ export const ShortLinkQuickCreate: React.FC<ShortLinkQuickCreateProps> = ({
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (isEscapeFromWidgetInput(event)) return;
+      // Stop propagation so DashboardView's window-level Escape handler doesn't also act on the widget underneath.
+      event.stopPropagation();
       onClose();
     };
     document.addEventListener('keydown', handleEscape);
