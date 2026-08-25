@@ -390,6 +390,26 @@ describe('ImportWizard', () => {
     });
   });
 
+  it('Escape in the AI-assist overlay closes only the overlay, not the wizard', () => {
+    const aiAssist: ImportAdapter<FakeData>['aiAssist'] = {
+      promptPlaceholder: 'Describe your quiz…',
+      generate: () => Promise.resolve({ rows: ['ai-row-1'] }),
+    };
+    const { adapter } = makeAdapter({ aiAssist });
+    const { onClose } = renderWizard(adapter);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /ai-assist import for quiz/i })
+    );
+    const textarea = screen.getByLabelText('AI-assist prompt for Quiz');
+    fireEvent.keyDown(textarea, { key: 'Escape' });
+
+    expect(
+      screen.queryByLabelText('AI-assist prompt for Quiz')
+    ).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('shows a hint when Sheet URL does not look like a Google Sheets URL', () => {
     const { adapter } = makeAdapter();
     renderWizard(adapter);

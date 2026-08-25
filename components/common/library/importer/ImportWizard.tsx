@@ -798,7 +798,10 @@ const AiAssistOverlay: React.FC<AiAssistOverlayProps> = ({
     aria-label={`AI-assist for ${widgetLabel}`}
     className="absolute inset-0 z-10 bg-white/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 -mx-6 -my-5"
     onKeyDown={(e) => {
-      if (e.key === 'Escape') onCancel();
+      if (e.key !== 'Escape') return;
+      // Stop here so Modal's own bubble-phase window Escape listener doesn't also close the wizard.
+      e.stopPropagation();
+      onCancel();
     }}
   >
     <div className="w-full max-w-md space-y-4">
