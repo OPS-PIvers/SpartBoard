@@ -113,8 +113,8 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
   // Group students by station id (for chip lists) plus an unassigned bucket.
   // Falls back to a legacy name-keyed entry when no id-keyed one exists, so
   // dashboards saved before assignments were id-keyed (and groups sent over
-  // from the Randomizer via nexus.ts, which are always name-keyed) still
-  // resolve correctly. Stale assignments (students no longer in roster)
+  // from the Randomizer via nexus.ts in custom-roster mode, which are still
+  // name-keyed) still resolve correctly. Stale assignments (students no longer in roster)
   // survive silently — we only render chips for roster members so
   // missing-from-roster keys don't appear, but they remain in `assignments`
   // until the next reset.
@@ -385,8 +385,11 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                   }}
                 />
                 <span
-                  className="ml-1 font-black uppercase tracking-widest"
-                  style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+                  className="font-black uppercase tracking-widest"
+                  style={{
+                    fontSize: 'min(11px, 3.5cqmin)',
+                    marginLeft: 'min(4px, 1cqmin)',
+                  }}
                 >
                   Shuffle
                 </span>
@@ -411,8 +414,11 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                   }}
                 />
                 <span
-                  className="ml-1 font-black uppercase tracking-widest"
-                  style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+                  className="font-black uppercase tracking-widest"
+                  style={{
+                    fontSize: 'min(11px, 3.5cqmin)',
+                    marginLeft: 'min(4px, 1cqmin)',
+                  }}
                 >
                   Rotate
                 </span>

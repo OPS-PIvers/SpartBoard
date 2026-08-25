@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { acquireBodyScrollLock, releaseBodyScrollLock } from './bodyScrollLock';
 import {
   AlertCircle,
   AlertTriangle,
@@ -385,25 +386,6 @@ const PromptDialog: React.FC<{
   );
 };
 
-// ─── Scroll lock (mirrors Modal.tsx pattern) ──────────────────────────────────
-
-let dialogScrollLockCount = 0;
-
-const lockBodyScroll = () => {
-  if (dialogScrollLockCount === 0) {
-    document.body.style.overflow = 'hidden';
-  }
-  dialogScrollLockCount += 1;
-};
-
-const unlockBodyScroll = () => {
-  if (dialogScrollLockCount === 0) return;
-  dialogScrollLockCount -= 1;
-  if (dialogScrollLockCount === 0) {
-    document.body.style.overflow = 'unset';
-  }
-};
-
 // ─── DialogContainer ──────────────────────────────────────────────────────────
 
 export const DialogContainer: React.FC = () => {
@@ -411,9 +393,11 @@ export const DialogContainer: React.FC = () => {
 
   useEffect(() => {
     if (!currentDialog) return;
-    lockBodyScroll();
+    // Shared with Modal via bodyScrollLock so a dialog opened over a modal
+    // doesn't unlock the page behind it when the dialog alone closes.
+    acquireBodyScrollLock();
     return () => {
-      unlockBodyScroll();
+      releaseBodyScrollLock();
     };
   }, [currentDialog]);
 
@@ -487,6 +471,8 @@ export const DialogContainer: React.FC = () => {
 
   return createPortal(
     <div
+      // Key by dialog id (not kind) so back-to-back same-kind dialogs get a fresh mount, not stale input state.
+      key={currentDialog.id}
       // Dialogs render in a portal on document.body, so a pointerdown on this
       // overlay reads as a "click outside" to any open widget SettingsPanel and
       // would close it out from under the dialog that it opened. Marking the

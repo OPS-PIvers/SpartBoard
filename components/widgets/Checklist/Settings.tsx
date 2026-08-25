@@ -276,10 +276,14 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
 
       {mode === 'manual' && (
         <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-          <SettingsLabel icon={ListPlus}>
+          <SettingsLabel
+            icon={ListPlus}
+            htmlFor={`checklist-task-list-${widget.id}`}
+          >
             Task List (One per line)
           </SettingsLabel>
           <textarea
+            id={`checklist-task-list-${widget.id}`}
             value={localText}
             onChange={(e) => handleBulkChange(e.target.value)}
             placeholder="Enter tasks here..."

@@ -40,6 +40,7 @@ export const HotspotImageSettings: React.FC<{ widget: WidgetData }> = ({
   const { uploadHotspotImage, uploading } = useStorage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
+  const interactivePinsLabelId = useId();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -279,10 +280,14 @@ export const HotspotImageSettings: React.FC<{ widget: WidgetData }> = ({
 
       {config.baseImageUrl && (
         <div>
-          <SettingsLabel>
+          <SettingsLabel as="span" id={interactivePinsLabelId}>
             Interactive Pins ({config.hotspots?.length ?? 0})
           </SettingsLabel>
-          <div className="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+          <div
+            className="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar"
+            role="group"
+            aria-labelledby={interactivePinsLabelId}
+          >
             {config.hotspots?.map((spot, i) => (
               <div
                 key={spot.id}

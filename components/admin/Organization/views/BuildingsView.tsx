@@ -4,6 +4,7 @@ import type {
   BuildingRecord,
   BuildingType,
 } from '@/components/admin/Organization/types';
+import { canonicalBuildingId, gradeLabelFromType } from '@/config/buildings';
 import {
   Avatar,
   Badge,
@@ -52,10 +53,14 @@ export const BuildingsView: React.FC<Props> = ({
   const isScoped = actorRole === 'building_admin';
   // Building admins only see the buildings they manage and can't add new ones
   // or archive existing ones. They can edit their own buildings.
+  // Canonicalize b.id: actorBuildingIds is already canonical, so a legacy stored id would never match raw.
   const visibleBuildings = isScoped
-    ? buildings.filter((b) => actorBuildingIds.includes(b.id))
+    ? buildings.filter((b) =>
+        actorBuildingIds.includes(canonicalBuildingId(b.id))
+      )
     : buildings;
-  const canEdit = (id: string) => !isScoped || actorBuildingIds.includes(id);
+  const canEdit = (id: string) =>
+    !isScoped || actorBuildingIds.includes(canonicalBuildingId(id));
   const canCreate = !isScoped;
   const canRemove = (id: string) => !isScoped && canEdit(id);
 
@@ -275,7 +280,9 @@ const BuildingModalInner: React.FC<BuildingModalProps> = ({
     existing?.type ?? 'elementary'
   );
   const [address, setAddress] = useState(existing?.address ?? '');
-  const [grades, setGrades] = useState(existing?.grades ?? 'K-5');
+  // Empty (not a hardcoded 'K-5') so a new building's saved grades follow
+  // the selected Type — see gradeLabelFromType() fallback in onSave below.
+  const [grades, setGrades] = useState(existing?.grades ?? '');
 
   return (
     <LocalModal
@@ -296,7 +303,7 @@ const BuildingModalInner: React.FC<BuildingModalProps> = ({
                 name,
                 type,
                 address,
-                grades,
+                grades: grades.trim() || gradeLabelFromType(type),
               })
             }
           >
@@ -333,7 +340,7 @@ const BuildingModalInner: React.FC<BuildingModalProps> = ({
             <Input
               value={grades}
               onChange={(e) => setGrades(e.target.value)}
-              placeholder="K-2"
+              placeholder={gradeLabelFromType(type)}
             />
           </Field>
         </div>

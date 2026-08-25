@@ -53,7 +53,10 @@ import { hitTestObject } from '@/components/widgets/DrawingWidget/hitTest';
 import { Button } from '@/components/common/Button';
 import { extractTextWithGemini } from '@/utils/ai';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
-import { getLocalIsoDate } from '@/utils/localDate';
+import {
+  getLocalIsoDate,
+  getLocalTimestampForFilename,
+} from '@/utils/localDate';
 import {
   DrawableObject,
   ImageObject,
@@ -531,7 +534,8 @@ export const AnnotationOverlay: React.FC = () => {
       const dataUrl = await capturePng();
       if (!dataUrl) return;
       const blob = await (await fetch(dataUrl)).blob();
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      // Local time, not UTC (toISOString()) — see utils/localDate.ts.
+      const timestamp = getLocalTimestampForFilename();
       const name = `Annotation-${timestamp}.png`;
       await saveDrawingToDrive(blob, name);
       addToast('Annotation saved to Google Drive!', 'success');

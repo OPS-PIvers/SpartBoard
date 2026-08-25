@@ -116,7 +116,8 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
       ...(PAYLOAD_ACTIONS.includes(form.action) && form.actionPayload
         ? { actionPayload: form.actionPayload }
         : {}),
-      ...(VALUE_ACTIONS.includes(form.action) && form.actionValue !== 0
+      // 0 is a legitimate step/index, not "unset" — always persist it (see blockReducer.ts's actionValue ?? 1 fallback).
+      ...(VALUE_ACTIONS.includes(form.action)
         ? { actionValue: form.actionValue }
         : {}),
       ...(form.hasCondition && form.conditionWatchBlockId

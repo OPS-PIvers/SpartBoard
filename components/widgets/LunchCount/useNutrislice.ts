@@ -216,11 +216,14 @@ export const useNutrislice = ({
                 ? -1
                 : bentoIndexByName;
 
-          // Fallback: if no entree section matched, use the first non-title
-          // food item that has a non-empty display name.
-          if (entreeIndex === -1) {
+          // Re-derive if entree collided with bentoIndex (e.g. an "Alt Entree" section matches both patterns).
+          if (entreeIndex === -1 || entreeIndex === bentoIndex) {
             entreeIndex = items.findIndex(
-              (i) => !i.is_section_title && itemDisplayName(i)
+              (i, idx) =>
+                !i.is_section_title &&
+                itemDisplayName(i) &&
+                idx !== bentoIndex &&
+                !isAltMealSectionName(sectionForIndex[idx])
             );
           }
 

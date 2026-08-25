@@ -65,6 +65,9 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
     gradeLevel = '',
   } = config;
   const gradeLevelLabelId = useId();
+  const schoolSiteSelectId = useId();
+  const customRosterTextareaId = useId();
+  const lunchTimeLabelId = useId();
 
   // Legacy widget configs may contain a canonical short-form building ID
   // (e.g. `schumann`) instead of the long-form `schoolSite` this widget
@@ -93,8 +96,11 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
       <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-4">
         {/* School Site */}
         <div>
-          <SettingsLabel icon={School}>School Site</SettingsLabel>
+          <SettingsLabel icon={School} htmlFor={schoolSiteSelectId}>
+            School Site
+          </SettingsLabel>
           <select
+            id={schoolSiteSelectId}
             value={schoolSite}
             onChange={(e) =>
               handleSiteChange(e.target.value as LunchCountConfig['schoolSite'])
@@ -111,9 +117,15 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
 
         {/* Lunch Time */}
         <div>
-          <SettingsLabel icon={Clock}>Lunch Time</SettingsLabel>
+          <SettingsLabel as="span" id={lunchTimeLabelId} icon={Clock}>
+            Lunch Time
+          </SettingsLabel>
           <div>
-            <div className="flex items-center gap-2">
+            <div
+              className="flex items-center gap-2"
+              role="group"
+              aria-labelledby={lunchTimeLabelId}
+            >
               <input
                 type="number"
                 min="1"
@@ -279,8 +291,11 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
         <div>
           {rosterMode === 'custom' ? (
             <>
-              <SettingsLabel icon={Users}>Custom Roster</SettingsLabel>
+              <SettingsLabel icon={Users} htmlFor={customRosterTextareaId}>
+                Custom Roster
+              </SettingsLabel>
               <textarea
+                id={customRosterTextareaId}
                 value={roster.join('\n')}
                 onChange={(e) =>
                   updateWidget(widget.id, {

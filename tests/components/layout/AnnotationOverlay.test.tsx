@@ -16,10 +16,14 @@ import type { DrawableObject, TextObject } from '@/types';
 // the approach used by BoardActionsFab.test and DashboardView.test).
 vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
 vi.mock('@/context/useAuth', () => ({ useAuth: vi.fn() }));
+const { mockSaveDrawingToDrive, mockIsDriveConnected } = vi.hoisted(() => ({
+  mockSaveDrawingToDrive: vi.fn(),
+  mockIsDriveConnected: { current: false },
+}));
 vi.mock('@/hooks/useGoogleDrive', () => ({
   useGoogleDrive: () => ({
-    isConnected: false,
-    saveDrawingToDrive: vi.fn(),
+    isConnected: mockIsDriveConnected.current,
+    saveDrawingToDrive: mockSaveDrawingToDrive,
   }),
 }));
 // html-to-image is only used by handlers we don't exercise here — stub so the
@@ -31,18 +35,31 @@ vi.mock('html-to-image', () => ({ toPng: vi.fn().mockResolvedValue('') }));
 // same pattern and rationale (TZ is pinned to 'UTC' in this test env, so real
 // local getters can never diverge from toISOString(); the helper itself must
 // be mocked to simulate what a non-UTC teacher would see).
-const { mockGetLocalIsoDate, defaultGetLocalIsoDate } = vi.hoisted(() => ({
+const {
+  mockGetLocalIsoDate,
+  defaultGetLocalIsoDate,
+  mockGetLocalTimestampForFilename,
+  defaultGetLocalTimestampForFilename,
+} = vi.hoisted(() => ({
   mockGetLocalIsoDate: vi.fn<() => string>(),
   defaultGetLocalIsoDate: { current: (() => '') as () => string },
+  mockGetLocalTimestampForFilename: vi.fn<() => string>(),
+  defaultGetLocalTimestampForFilename: { current: (() => '') as () => string },
 }));
 
 vi.mock('@/utils/localDate', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/utils/localDate')>();
   defaultGetLocalIsoDate.current = actual.getLocalIsoDate;
   mockGetLocalIsoDate.mockImplementation(actual.getLocalIsoDate);
+  defaultGetLocalTimestampForFilename.current =
+    actual.getLocalTimestampForFilename;
+  mockGetLocalTimestampForFilename.mockImplementation(
+    actual.getLocalTimestampForFilename
+  );
   return {
     ...actual,
     getLocalIsoDate: mockGetLocalIsoDate,
+    getLocalTimestampForFilename: mockGetLocalTimestampForFilename,
   };
 });
 // The image-insertion hook does its own I/O; stub it so the overlay mounts
@@ -139,6 +156,13 @@ describe('AnnotationOverlay', () => {
     // (which don't care about the download filename) are unaffected.
     mockGetLocalIsoDate.mockReset();
     mockGetLocalIsoDate.mockImplementation(defaultGetLocalIsoDate.current);
+    mockGetLocalTimestampForFilename.mockReset();
+    mockGetLocalTimestampForFilename.mockImplementation(
+      defaultGetLocalTimestampForFilename.current
+    );
+    mockSaveDrawingToDrive.mockReset();
+    mockSaveDrawingToDrive.mockResolvedValue(undefined);
+    mockIsDriveConnected.current = false;
   });
 
   afterEach(() => {
@@ -286,5 +310,28 @@ describe('AnnotationOverlay', () => {
     // implementation and passes once the filename is sourced from
     // getLocalIsoDate().
     expect(anchors[0].download).toBe('Annotation-2026-03-05.png');
+  });
+
+  // Regression: Drive-saved filenames used a raw toISOString() UTC timestamp instead of local time.
+  it('REGRESSION: Drive-saved annotation filename uses the local timestamp, not the UTC one', async () => {
+    mockIsDriveConnected.current = true;
+    setupContext();
+    (toPng as Mock).mockResolvedValueOnce('data:image/png;base64,abc');
+    mockGetLocalTimestampForFilename.mockReturnValue('2026-03-05T20-15-30');
+    global.fetch = vi.fn().mockResolvedValue({
+      blob: () => Promise.resolve(new Blob(['x'])),
+    } as unknown as Response);
+
+    const { getByTitle } = render(<AnnotationOverlay />);
+    fireEvent.click(getByTitle('Save to Google Drive'));
+
+    await waitFor(() => {
+      expect(mockSaveDrawingToDrive).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockSaveDrawingToDrive).toHaveBeenCalledWith(
+      expect.any(Blob),
+      'Annotation-2026-03-05T20-15-30.png'
+    );
   });
 });

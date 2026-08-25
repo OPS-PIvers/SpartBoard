@@ -83,10 +83,12 @@ export const TimeToolConfigurationPanel: React.FC<
     useBuildingSelection(BUILDINGS);
   const accentColorLabelId = useId();
   const trafficLightColorLabelId = useId();
+  const defaultDurationLabelId = useId();
   const defaultModeLabelId = useId();
   const displayStyleLabelId = useId();
   const numberStyleLabelId = useId();
   const defaultAlertSoundLabelId = useId();
+  const defaultFontSelectId = useId();
 
   const buildingDefaults = config.buildingDefaults ?? {};
   const currentBuildingConfig: BuildingTimeToolDefaults = buildingDefaults[
@@ -143,8 +145,14 @@ export const TimeToolConfigurationPanel: React.FC<
 
         {/* Default Duration */}
         <div>
-          <SettingsLabel className="mb-1">Default Timer Duration</SettingsLabel>
-          <div className="flex items-center gap-2">
+          <SettingsLabel as="span" id={defaultDurationLabelId} className="mb-1">
+            Default Timer Duration
+          </SettingsLabel>
+          <div
+            className="flex items-center gap-2"
+            role="group"
+            aria-labelledby={defaultDurationLabelId}
+          >
             <div className="flex items-center gap-1">
               <input
                 type="number"
@@ -350,8 +358,11 @@ export const TimeToolConfigurationPanel: React.FC<
 
         {/* Font Family */}
         <div>
-          <SettingsLabel className="mb-1">Default Font</SettingsLabel>
+          <SettingsLabel className="mb-1" htmlFor={defaultFontSelectId}>
+            Default Font
+          </SettingsLabel>
           <select
+            id={defaultFontSelectId}
             value={currentBuildingConfig.fontFamily ?? 'global'}
             onChange={(e) =>
               handleUpdateBuilding({

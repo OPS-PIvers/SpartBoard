@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Clock,
   CheckCircle2,
+  Palette,
 } from 'lucide-react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
@@ -21,6 +22,7 @@ import {
   BuildingCalendarDefaults,
   CalendarEvent,
   FeaturePermission,
+  TextSizePreset,
 } from '@/types';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
@@ -31,6 +33,15 @@ import { getLocalIsoDate } from '@/utils/localDate';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useDashboard } from '@/context/useDashboard';
+import { FONTS } from '@/config/fonts';
+import { HexColorField } from './HexColorField';
+
+const TEXT_SIZE_PRESET_OPTIONS: { value: TextSizePreset; label: string }[] = [
+  { value: 'small', label: 'Small' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'large', label: 'Large' },
+  { value: 'x-large', label: 'Extra Large' },
+];
 
 interface CalendarConfigurationModalProps {
   isOpen: boolean;
@@ -685,6 +696,160 @@ export const CalendarConfigurationModal: React.FC<
                         No Google Calendars synced for this building.
                       </div>
                     )}
+                  </div>
+                </div>
+
+                <hr className="border-slate-200" />
+
+                {/* Widget Appearance Defaults */}
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                      <Palette className="w-4 h-4 text-rose-500" /> Widget
+                      Appearance Defaults
+                    </h4>
+                    <p className="text-xxs text-slate-500 font-medium mt-1 uppercase tracking-wider">
+                      Pre-populates new Calendar widgets in this building —
+                      teachers can still override per-instance
+                    </p>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor={`cal-days-visible-${selectedBuildingId}`}
+                      className="text-xxs font-bold text-slate-500 uppercase mb-1 block"
+                    >
+                      Default Days Visible
+                    </label>
+                    <input
+                      id={`cal-days-visible-${selectedBuildingId}`}
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={currentBuildingConfig.daysVisible ?? 5}
+                      onChange={(e) => {
+                        // Ignore a non-finite parse (empty field) — NaN would reach Firestore and fail the whole save.
+                        const next = parseInt(e.target.value, 10);
+                        if (Number.isFinite(next)) {
+                          updateBuilding({ daysVisible: next });
+                        }
+                      }}
+                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor={`cal-font-${selectedBuildingId}`}
+                      className="text-xxs font-bold text-slate-500 uppercase mb-1 block"
+                    >
+                      Default Font Family
+                    </label>
+                    <select
+                      id={`cal-font-${selectedBuildingId}`}
+                      value={currentBuildingConfig.fontFamily ?? 'global'}
+                      onChange={(e) => {
+                        const selected = e.target.value;
+                        updateBuilding({
+                          fontFamily:
+                            selected === 'global' ? undefined : selected,
+                        });
+                      }}
+                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+                    >
+                      {FONTS.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.id === 'global'
+                            ? 'Global (Dashboard default)'
+                            : `${f.label} (${f.icon})`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor={`cal-size-${selectedBuildingId}`}
+                      className="text-xxs font-bold text-slate-500 uppercase mb-1 block"
+                    >
+                      Default Text Size
+                    </label>
+                    <select
+                      id={`cal-size-${selectedBuildingId}`}
+                      value={currentBuildingConfig.textSizePreset ?? 'medium'}
+                      onChange={(e) =>
+                        updateBuilding({
+                          textSizePreset: e.target.value as TextSizePreset,
+                        })
+                      }
+                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
+                    >
+                      {TEXT_SIZE_PRESET_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor={`cal-font-color-${selectedBuildingId}`}
+                      className="text-xxs font-bold text-slate-500 uppercase mb-1 block"
+                    >
+                      Default Text Colour
+                    </label>
+                    <HexColorField
+                      id={`cal-font-color-${selectedBuildingId}`}
+                      value={currentBuildingConfig.fontColor}
+                      onChange={(fontColor) => updateBuilding({ fontColor })}
+                      fallback="#334155"
+                      ariaLabel="Pick default calendar text colour"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor={`cal-card-color-${selectedBuildingId}`}
+                      className="text-xxs font-bold text-slate-500 uppercase mb-1 block"
+                    >
+                      Default Surface Colour
+                    </label>
+                    <HexColorField
+                      id={`cal-card-color-${selectedBuildingId}`}
+                      value={currentBuildingConfig.cardColor}
+                      onChange={(cardColor) => updateBuilding({ cardColor })}
+                      fallback="#ffffff"
+                      ariaLabel="Pick default calendar surface colour"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor={`cal-opacity-${selectedBuildingId}`}
+                      className="text-xxs font-bold text-slate-500 uppercase mb-1 block"
+                    >
+                      Default Surface Opacity (
+                      {Math.round(
+                        (currentBuildingConfig.cardOpacity ?? 1) * 100
+                      )}
+                      %)
+                    </label>
+                    <input
+                      id={`cal-opacity-${selectedBuildingId}`}
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={currentBuildingConfig.cardOpacity ?? 1}
+                      onChange={(e) =>
+                        updateBuilding({
+                          cardOpacity: parseFloat(e.target.value),
+                        })
+                      }
+                      className="w-full accent-brand-blue-primary"
+                      aria-label="Default calendar surface opacity"
+                    />
                   </div>
                 </div>
               </div>

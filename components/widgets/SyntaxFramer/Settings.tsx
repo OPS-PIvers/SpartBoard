@@ -15,6 +15,7 @@ export const SyntaxFramerSettings: React.FC<SyntaxFramerSettingsProps> = ({
   const config = widget.config as SyntaxFramerConfig;
   const syntaxFramerModeLabelId = `syntaxframer-mode-label-${widget.id}`;
   const syntaxFramerAlignmentLabelId = `syntaxframer-alignment-label-${widget.id}`;
+  const syntaxFramerContentInputId = `syntaxframer-content-input-${widget.id}`;
 
   // Derive initial input from existing tokens
   const initialInput = config.tokens
@@ -81,9 +82,12 @@ export const SyntaxFramerSettings: React.FC<SyntaxFramerSettingsProps> = ({
   return (
     <div className="space-y-6">
       <div>
-        <SettingsLabel icon={Type}>Content</SettingsLabel>
+        <SettingsLabel icon={Type} htmlFor={syntaxFramerContentInputId}>
+          Content
+        </SettingsLabel>
         <div className="mb-4">
           <textarea
+            id={syntaxFramerContentInputId}
             className="w-full p-2 border border-slate-300 rounded-lg text-sm bg-white"
             rows={3}
             placeholder={

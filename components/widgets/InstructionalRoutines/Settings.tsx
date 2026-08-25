@@ -38,8 +38,17 @@ export const InstructionalRoutinesSettings: React.FC<{
         Switch Routine Template
       </button>
 
-      <div className="space-y-3">
-        <SettingsLabel>Step Editor</SettingsLabel>
+      <div
+        className="space-y-3"
+        role="group"
+        aria-labelledby={`instructional-routines-step-editor-label-${widget.id}`}
+      >
+        <SettingsLabel
+          as="span"
+          id={`instructional-routines-step-editor-label-${widget.id}`}
+        >
+          Step Editor
+        </SettingsLabel>
         {customSteps.map((step, i) => (
           <div
             key={step.id}
@@ -212,8 +221,11 @@ export const InstructionalRoutinesAppearanceSettings: React.FC<{
 
   return (
     <div className="bg-slate-50 p-4 rounded-2xl">
-      <SettingsLabel>Text Zoom</SettingsLabel>
+      <SettingsLabel htmlFor={`instructional-routines-text-zoom-${widget.id}`}>
+        Text Zoom
+      </SettingsLabel>
       <input
+        id={`instructional-routines-text-zoom-${widget.id}`}
         type="range"
         min="0.5"
         max="2.0"

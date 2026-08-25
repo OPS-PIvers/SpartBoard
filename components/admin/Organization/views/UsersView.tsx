@@ -41,6 +41,10 @@ import {
   Confirm,
 } from '@/components/admin/Organization/components/primitives';
 import { parseInvitesCsv, type InviteIntent } from '@/utils/csvImport';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingIds,
+} from '@/config/buildings';
 
 interface Props {
   users: UserRecord[];
@@ -151,9 +155,20 @@ export const UsersView: React.FC<Props> = ({
   const [showBulkRole, setShowBulkRole] = useState(false);
   const [showBulkBuilding, setShowBulkBuilding] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+
+  // Canonicalize legacy long-form buildingIds (e.g. `orono-high-school`) so scoping/filtering/display match canonical BuildingRecord ids, per lib/buildingUserCounts.ts.
+  const canonicalUsers = useMemo(
+    () =>
+      users.map((u) => ({
+        ...u,
+        buildingIds: canonicalizeBuildingIds(u.buildingIds),
+      })),
+    [users]
+  );
+
   const editingUser = useMemo(
-    () => users.find((u) => u.id === editingUserId) ?? null,
-    [users, editingUserId]
+    () => canonicalUsers.find((u) => u.id === editingUserId) ?? null,
+    [canonicalUsers, editingUserId]
   );
 
   // Filter changes must clear selection, otherwise bulk actions could fire
@@ -194,13 +209,16 @@ export const UsersView: React.FC<Props> = ({
   const visibleBuildings = useMemo(
     () =>
       isScoped
-        ? buildings.filter((b) => actorBuildingIds.includes(b.id))
+        ? buildings.filter((b) =>
+            // Canonicalize b.id: actorBuildingIds is already canonical, so a legacy stored id would never match raw.
+            actorBuildingIds.includes(canonicalBuildingId(b.id))
+          )
         : buildings,
     [buildings, isScoped, actorBuildingIds]
   );
 
   const filtered = useMemo(() => {
-    let list = users;
+    let list = canonicalUsers;
     if (isScoped) {
       list = list.filter((u) =>
         u.buildingIds.some((b) => actorBuildingIds.includes(b))
@@ -240,7 +258,7 @@ export const UsersView: React.FC<Props> = ({
     });
     return sorted;
   }, [
-    users,
+    canonicalUsers,
     isScoped,
     actorBuildingIds,
     search,

@@ -300,7 +300,11 @@ export function parseGradeLevels(grades: string): GradeLevel[] {
 
 /**
  * Fallback grade levels derived from a BuildingRecord's type when the
- * `grades` string is unparseable.
+ * `grades` string is unparseable. 'other' defaults to every band (matching
+ * the seeded K-12 "Orono Community Education" building above) rather than
+ * an empty array — an empty `gradeLevels` hides every grade-gated widget in
+ * FeaturePermissionsManager's building filter, which is worse than showing
+ * everything for a building that doesn't fit a single grade band.
  */
 function gradesFromType(type: BuildingType): GradeLevel[] {
   switch (type) {
@@ -311,7 +315,7 @@ function gradesFromType(type: BuildingType): GradeLevel[] {
     case 'high':
       return ['9-12'];
     default:
-      return [];
+      return ['k-2', '3-5', '6-8', '9-12'];
   }
 }
 
@@ -340,7 +344,9 @@ export function buildingRecordToBuilding(record: BuildingRecord): Building {
   };
 }
 
-function gradeLabelFromType(type: BuildingType): string {
+// Exported so admin UIs (e.g. the "New building" modal) can default the
+// grades field to match the selected building Type instead of a fixed value.
+export function gradeLabelFromType(type: BuildingType): string {
   switch (type) {
     case 'elementary':
       return 'K-5';
@@ -349,6 +355,6 @@ function gradeLabelFromType(type: BuildingType): string {
     case 'high':
       return '9-12';
     default:
-      return '';
+      return 'K-12';
   }
 }

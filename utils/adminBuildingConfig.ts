@@ -5,6 +5,7 @@ import {
   NextUpConfig,
   NumberLineJump,
   NumberLineMarker,
+  TextSizePreset,
   WidgetType,
 } from '@/types';
 import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
@@ -82,6 +83,13 @@ const isCardOpacity = (value: unknown): value is number =>
   Number.isFinite(value) &&
   value >= 0 &&
   value <= 1;
+
+// Single source for the TextSizePreset whitelist — four cases below shared an inline copy.
+const isTextSizePreset = (value: unknown): value is TextSizePreset =>
+  value === 'small' ||
+  value === 'medium' ||
+  value === 'large' ||
+  value === 'x-large';
 
 /**
  * The non-null `timerEndTrafficColor` values a TimeTool building default may
@@ -422,20 +430,11 @@ export const getAdminBuildingConfig = (
       // `isWidgetFontFamily`). All five fields are actively consumed by
       // NeedDoPutThen/Widget.tsx (getFontClass, hexToRgba, fontColor,
       // resolveTextPresetMultiplier).
-      const validTextSizePresets = [
-        'small',
-        'medium',
-        'large',
-        'x-large',
-      ] as const;
       if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
       if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
       if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
       if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;
-      if (
-        typeof raw.textSizePreset === 'string' &&
-        (validTextSizePresets as readonly string[]).includes(raw.textSizePreset)
-      )
+      if (isTextSizePreset(raw.textSizePreset))
         out.textSizePreset = raw.textSizePreset;
       break;
     }
@@ -648,18 +647,9 @@ export const getAdminBuildingConfig = (
         );
       }
       // Appearance defaults — fontFamily uses the prefixed FONTS-id space.
-      const validTextSizePresets = [
-        'small',
-        'medium',
-        'large',
-        'x-large',
-      ] as const;
       if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
       if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
-      if (
-        typeof raw.textSizePreset === 'string' &&
-        (validTextSizePresets as readonly string[]).includes(raw.textSizePreset)
-      )
+      if (isTextSizePreset(raw.textSizePreset))
         out.textSizePreset = raw.textSizePreset;
       if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
       if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;
@@ -703,18 +693,9 @@ export const getAdminBuildingConfig = (
       // (validated by `isWidgetFontFamily`, like `stations`/`need-do-put-then`).
       // All four fields are actively consumed by WorkSymbols/Widget.tsx
       // (getFontClass, resolveTextPresetMultiplier, fontColor, titlePosition).
-      const validTextSizePresets = [
-        'small',
-        'medium',
-        'large',
-        'x-large',
-      ] as const;
       if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
       if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
-      if (
-        typeof raw.textSizePreset === 'string' &&
-        (validTextSizePresets as readonly string[]).includes(raw.textSizePreset)
-      )
+      if (isTextSizePreset(raw.textSizePreset))
         out.textSizePreset = raw.textSizePreset;
       if (
         typeof raw.titlePosition === 'string' &&
@@ -746,6 +727,28 @@ export const getAdminBuildingConfig = (
       // No `fontColor` default: the Appearance tab renders a fontColor picker,
       // but GraphicOrganizer/Widget.tsx hardcodes node text colors and never
       // reads config.fontColor (dead control, same as ConceptWeb).
+      break;
+    }
+    case 'calendar': {
+      // Calendar's Appearance tab uses the shared TypographySettings /
+      // SurfaceColorSettings primitives, so `fontFamily` lives in the prefixed
+      // `FONTS`-id space (validated by `isWidgetFontFamily`, like
+      // schedule/stations/work-symbols/graphic-organizer). All six fields are
+      // actively consumed by Calendar/Widget.tsx (daysVisible event window,
+      // getFontClass, fontColor row text, hexToRgba surface, textSizePreset).
+      if (
+        typeof raw.daysVisible === 'number' &&
+        Number.isFinite(raw.daysVisible) &&
+        raw.daysVisible >= 1 &&
+        raw.daysVisible <= 30
+      )
+        out.daysVisible = raw.daysVisible;
+      if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
+      if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
+      if (isTextSizePreset(raw.textSizePreset))
+        out.textSizePreset = raw.textSizePreset;
+      if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
+      if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;
       break;
     }
     default:

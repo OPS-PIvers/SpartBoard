@@ -2803,3 +2803,285 @@ _Automated nightly review by claude-opus-4-6_
   - Branch safety: no push to `main` or any `dev-*` branch. Both fixes went to `nightly/*` PR heads whose PRs are open and draft.
   - Tooling: GitHub via the MCP server (no `gh` CLI); all PR list/read/comment operations used `mcp__github__*` equivalents.
   - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); CI on Node 24 remains the authoritative gate.
+
+---
+
+## 2026-08-22
+
+- PRs reviewed: **9** — every open PR on `ops-pivers/spartboard`. Eight target `dev-paul` from nightly/scheduled heads (#2525 `nightly/unify-d3-settings-labels-2026-08-22`, #2526 `nightly/unifier-log-2026-08-22`, #2527 `scheduled-tasks`, #2528 `nightly/widgets-2026-08-22`, #2529 `nightly/dashboard-layout-2026-08-22`, #2530 `nightly/state-data-2026-08-22`, #2531 `nightly/admin-config-2026-08-22`, #2532 `nightly/debugger-log-2026-08-22`); #2395 (`claude/quirky-ritchie-wghdl3`, Vertex AI migration) also targets `dev-paul`. No open PR has `main` or a `dev-*` branch as its head.
+- Comments processed: **0 actionable — nothing to fix, nothing to explain.** All 17 inline review threads on #2395 are resolved; the other eight PRs have zero review threads and zero submitted reviews. Six carry a single PR-level comment from the on-open `claude[bot]` GitHub Action (#2525, #2527, #2528, #2529, #2530, #2531), all of which report no issues and request no change. No replies posted — six "nothing to do here" comments would be noise, per the frugality directive.
+- Fixes pushed: **0.** Phase 1 found no unresolved change request on any branch, so no PR head was touched this run. The one defect found (#2529, below) surfaced in Phase 2 review, which is review-only by this task's definition, and its correct fix has a genuine design choice (focus management vs. a lifetime-scoped listener) that belongs to the author.
+- Reviews posted: **9** — one structured review per open PR.
+
+### Findings
+
+- **#2529 — Needs changes. The fix doesn't reach the bug on the path teachers actually hit, confirmed by reproduction.** The PR adds `e.stopPropagation()` to `AiAssistOverlay`'s Escape handler so closing the overlay doesn't also close the whole import wizard. The mechanism is sound — `ImportWizard` passes no `captureEscape`, so `Modal` listens on `window` in the bubble phase (`components/common/Modal.tsx:79`), and a React-root bubble-phase stop does prevent it. But `AiAssistOverlay` (`ImportWizard.tsx:787-805`) has `role="dialog"` and never moves focus into itself: no `autoFocus`, no `tabIndex={-1}` + `focus()`, no focus effect. The overlay is `absolute inset-0` over a still-mounted `{body}`, so the "AI-assist import for Quiz" trigger button stays in the DOM **and stays focused**. Escape therefore targets a node *outside* the overlay `div`, the overlay's `onKeyDown` never runs, and the wizard closes — discarding the in-progress import. Reproduced against head `9ec1291` with a probe test that opens the overlay and dispatches Escape at `document.activeElement` without clicking into the textarea first: `expected "vi.fn()" to not be called at all, but actually been called 1 times`. The PR's own test fires Escape on the textarea, so it only covers the focus-already-inside case. Probe reverted; nothing pushed to the branch.
+- **#2395 — Needs changes.** _(Corrected 2026-08-22 after review on this PR: the line reference below originally read `1439-1447`, which is wrong — that range is `validateAndBucketQuizQuestions`. The catch is at 1014-1025. Finding itself stands; fixed by the author in `ba14633`, see the follow-up note at the end of this entry.)_ `generateWithAI`'s catch (`functions/src/aiGeneration.ts:1014-1025` at reviewed head `5552a62`) re-throws on a duck-type check (`'code' in error && 'message' in error`, split across lines 1018-1023 by Prettier) while all five other catches in the file use `error instanceof HttpsError` (1668, 1741, 1939, 2046, 2317). Pre-existing, but the migration makes it newly reachable and newly consequential: a Vertex/ADC failure — service account missing `roles/aiplatform.user`, or the Vertex API not enabled — arrives as a gaxios/google-auth object that *does* carry both `code` and `message`, gets re-thrown raw, isn't recognized as an `HttpsError`, and reaches the client as a bare `INTERNAL` with no detail. That is exactly the first-deploy failure mode this PR introduces, and the one case where the operator most needs the underlying message. Also flagged: `isDeprecatedModelId`'s `/-preview(?:-|$)/` rule will reject the next preview-only Gemini generation an admin wants to pilot (surfaced in the picker now, so not silent — a maintenance tripwire, not a defect); `VITE_GEMINI_API_KEY` is dead in app code but still injected by four CI workflows; and the head is 16 ahead / 28 behind `dev-paul`, so CI is validating against a stale base (merges cleanly — verified with `git merge-tree`).
+- **#2525 — Ready with minor notes.** `revealgrid-card-front-${card.id}` / `-back-${card.id}` (`RevealGrid/Settings.tsx:565-590`) are scoped by card id only, while every other id the PR adds — including two in the same file — is scoped by `widget.id`. Card ids come from the loaded practice set, so two RevealGrid widgets flipped on one dashboard with the same Drive set loaded produce duplicate DOM ids and label mis-association: the exact failure this a11y sweep exists to remove. Suggested `${widget.id}-${card.id}`. Smaller: `specialist-block-*-${i}` is index-only, safe today (single-instance modal) but the one addition without an instance-level prefix.
+- **#2528 — Ready with minor notes.** Fix is correct and idempotent (the re-derivation's `idx !== bentoIndex` exclusion means the new disjunct can't re-collide). Noted that the re-derivation excludes only `bentoIndex`, not other alt-meal-section items, unlike the sides loop below it which breaks on `isAltMealSectionName` — so a two-item "Alt Entree" section resolves the second alt item as `hotLunch`. Pre-existing fallback semantics, uncovered because unchanged.
+- **#2527 — Ready with minor notes.** Correct `cqmin` conversion of the file's last two hardcoded Tailwind sizes, but the coefficients (`4.5cqmin` at a 12px cap, `6cqmin` at 16px) are more aggressive than the file's own scale (`3cqmin`/12px at line 561, `2.8cqmin`/11px at line 345, `5cqmin`/24px swatches alongside). Below the cap these two elements now render *larger* than their neighbors — the opposite of the intent.
+- **#2530, #2531 — Ready.** Both verified by tracing the actual propagation paths rather than trusting the description. #2530's rethrow is correctly narrowed to `YouTubeQuotaError`, leaving the deliberate "don't block the picker" swallow intact for `YouTubeSearchError`. #2531 works by construction, not by listener order: the overlay listens on `document`, `DashboardView` on `window` (`DashboardView.tsx:1070`), and `document` is below `window` in the path. Checked and cleared that it also blocks `Modal`'s window-level Escape — inert today, since `ShortLinkQuickCreate` is only mounted from `Sidebar.tsx:349`.
+- **#2526, #2532 — Ready.** Journal-only (`docs/routines/unifier.md`, `docs/routines/debugger.md`); no executable content, no credentials or internal hostnames in the added rows.
+
+### Verification
+
+Ran each PR's affected suite on its own branch — all green, no branch left dirty:
+
+| PR | Suite | Result |
+| --- | --- | --- |
+| #2527 | `components/widgets/SmartNotebook` | 2 files / 10 tests |
+| #2528 | `components/widgets/LunchCount/useNutrislice.test.tsx` | 1 file / 10 tests |
+| #2529 | `tests/components/ImportWizard.test.tsx` | 1 file / 21 tests |
+| #2530 | `tests/utils/youtubeSearch.test.ts` | 1 file / 17 tests |
+| #2531 | `tests/components/admin/ShortLinkQuickCreate.escapePropagation.test.tsx` | 1 file / 1 test |
+| #2525 | RevealGrid + Weather + SoundWidget | 4 files / 19 tests |
+| #2395 | `functions/src/{vertexClientOptions,normalizeModelName}.test.ts` | 2 files / 30 tests |
+| #2395 | `tests/utils/geminiModelDeprecation{,Parity}.test.ts` | 2 files / 41 tests |
+
+Also verified for #2395, rather than taking the description's word: no remaining `GEMINI_API_KEY` import anywhere in `functions/`; no client-side `new GoogleGenAI(...)` and no `VITE_GEMINI_API_KEY` read in `utils/`, `components/`, `hooks/`, `config/`, or `vite.config.ts` — so no API key ships to the browser and the migration is complete on the app path. `vertexClientOptions.test.ts` does delete the suite-wide `GCLOUD_PROJECT` that `functions/vitest.config.ts` now sets, so its three failure-mode cases are genuinely exercised rather than passing vacuously. And `SettingsLabel` really does accept `as`/`id` (`components/common/SettingsLabel.tsx`), so #2525's group-heading `aria-labelledby` resolves.
+
+### Notes
+
+- **Two PRs came out "Needs changes" and neither was pushed — that was the call, not an omission.** Phase 1's fix mandate is scoped to unresolved reviewer comments, and there were none. Both defects surfaced during Phase 2 review, where this task's remit is to report. #2529's fix has a real design choice (focus management, which also closes the `role="dialog"` a11y gap, vs. a lifetime-scoped capture listener like #2531's) and #2395's touches an error path on a draft migration gated behind a preview-deploy smoke test. Each review states the recommended fix concretely enough to apply directly.
+- This log commit is on the designated `claude/pensive-bell-8w0qe6` branch, branched fresh from `origin/dev-paul` (`25f6127`) rather than pushed to `scheduled-tasks` as the task prompt's post-task step reads. `scheduled-tasks` is the head of open PR #2527, so a log commit there would add an unrelated docs change to a code PR under review — the same reasoning the 2026-08-20 second run recorded. No conflict risk from branching fresh: `pr-review-log.md` is byte-identical on `main`, `dev-paul`, and `scheduled-tasks`, so this run's writer is the only one touching it.
+- Branch safety: no push to `main`, to any `dev-*` branch, or to any PR head. Nothing was pushed anywhere this run except this log.
+- Tooling: GitHub via the MCP server (no `gh` CLI available in this environment); all PR list/read/review operations used `mcp__github__*` equivalents.
+- Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); CI on Node 24 remains the authoritative gate.
+
+### Follow-up (2026-08-22, after review on PR #2533)
+
+A review comment on this log challenged the #2395 finding as describing "a bug that isn't there." Re-verified against the branch rather than restating the original claim — the outcome is a corrected line reference and a confirmed finding:
+
+- **The finding was real at the reviewed head.** At `5552a62` — the sha this run reviewed, named in the entry above — `functions/src/aiGeneration.ts:1014-1025` reads verbatim: `} catch (error: unknown) { console.error(...); // If it's already an HttpsError, just re-throw it` then `if (error && typeof error === 'object' && 'code' in error && 'message' in error) { throw error; }`.
+- **It is genuinely gone now, because the review worked.** The branch head moved from `5552a62` to `ba14633` between the review and the comment, and that commit is titled `fix(ai): guard generateWithAI's catch with instanceof HttpsError`. Line 1017 at the new head now reads `if (error instanceof HttpsError) throw error;`. The reviewer was reading the post-fix head.
+- **The reviewer's grep returned a false negative for a second reason worth recording**, independent of the sha: Prettier splits the condition across lines 1018-1023, so the single-line pattern `'code' in error && 'message' in error` never matches the source even where the check does exist. A multi-line or `-U` grep is needed to find this construct in this repo.
+- **One thing the comment got right, now corrected above:** the entry cited `1439-1447`, which is `validateAndBucketQuizQuestions` — a transposition. The correct range at `5552a62` is 1014-1025.
+
+Recording this because the challenge was the right instinct on partial evidence: a stale sha plus a formatting-blind grep is exactly how a real finding gets mistaken for a fabricated one, and the wrong line number in the original entry is what made that mistake cheap to reach.
+
+---
+
+## 2026-08-22 (second run)
+
+- PRs reviewed: 10 (every open PR; all draft, all targeting `dev-paul`) — #2533, #2532, #2531, #2530, #2529, #2528, #2527, #2526, #2525, #2395.
+- Scope of this run: **not** a fresh review pass. The task was to sweep *unresolved* comments across all open PRs, judge each one valid or not, push fixes for the valid ones, and reply either way. Three comment channels were checked per PR — inline review threads, review-level bodies, and PR-level issue comments — because this repo's automated reviewer posts findings in all three, and a finding that lives only in a review body has no thread to show up as "unresolved."
+- Comments processed: 8 items still open across 6 PRs. **4 valid → fixed and pushed** (3 code, 1 docs); **4 already-addressed or not-actionable → replied with reasoning, no code change.**
+
+### Fixes pushed (4)
+
+| PR | Commit | Change |
+| --- | --- | --- |
+| #2525 | `589d763` | Pair `RevealGrid/Settings.tsx`'s "Paste two columns" label with its `pasteData` textarea via `revealgrid-paste-data-${widget.id}`. |
+| #2528 | `3fc29fe` | Exclude alt-meal-section items from `useNutrislice`'s entree fallback, + regression test. |
+| #2526 | `eab849f` | Correct the D3 row's instance count and record the second #2525 follow-up. |
+| #2529 | — | (No push; the one open thread was already fixed at head by `5506409` — replied and resolved.) |
+
+- **#2528 is the substantive one, and it was mis-scoped by the reviewer as a "low-priority follow-up" for a later PR.** The note said the re-derivation's failure to exclude alt-meal items was pre-existing. That's true of the `findIndex` expression but not of the case reaching it: this PR's widened guard (`entreeIndex === -1 || entreeIndex === bentoIndex`) is precisely what newly routes a two-item alt section into that fallback. Traced both versions — old code duplicated item 1 as hot lunch *and* bento (the bug the PR fixes); this PR, pre-fix, promoted item 2 (`Veggie Bento`) to `hotLunch`. Both wrong, but the new shape is worse to look at on a projector because it reads as a plausible entree rather than an obvious duplicate. So the fix belonged in this PR, not a follow-up. Fail-before/pass-after confirmed by reverting only `useNutrislice.ts`.
+- **#2525's miss is a reusable D3 lesson, not a one-off.** The 11th orphaned label sits inside the `isPasting` block, which only renders after "Paste from Sheet" is clicked — a sweep reasoning over a component's default render never sees it. Recorded in `docs/routines/unifier.md` as *grep the file, not the rendered tree*, which also explains the otherwise-odd record of the same file being fixed, reviewed, then re-fixed.
+
+### Replied without a code change (4)
+
+- **#2527 — coefficient alignment:** already fixed at head. The review ran against `832b219`; `8682c38` had since tightened both values to exactly what the reviewer proposed (`6cqmin`→`4cqmin`, `4.5cqmin`→`3cqmin`).
+- **#2527 — `w-12` → `min(48px, 10cqmin)` narrowing:** fair concern, wrong direction. Since both width and font-size scale off `cqmin` below the cap, the width÷font ratio is *constant* at 3.33em rather than degrading with container size, against ~1.8em needed for three `tabular-nums` glyphs. No narrow end where it collapses.
+- **#2529 — PR description undersells the change:** stale by minutes. The body was rewritten in the same round as `5506409`, and now leads with the `document`-listener mechanism plus both post-push repairs. Declined to edit again — churning it would only invalidate the reply.
+- **#2533 — "this finding describes a bug that isn't there":** independently re-verified both shas rather than trusting either side of the thread. `5552a62` has the duck-type check; `ba14633` has `instanceof HttpsError`. Finding real, fix landed, line reference already corrected in `09e0bc5`. Resolved.
+- Threads resolved: 2 (#2529, #2533) — both verified fixed at head first. Everything else was already resolved or lives in a channel with no resolve affordance.
+
+### Notes
+
+- **The "already answered" majority is the expected steady state, and checking it is still the work.** 6 of 10 PRs had nothing open. Of the 8 open items, half were already handled — but two of those (#2527's coefficients, #2529's description) only *looked* open because the review body was written against an older commit than the current head. Reading the head before replying is what separates "stale note" from "unfixed bug"; the #2533 thread on this same log is the cautionary case where that step was skipped.
+- Branch safety: no push to `main` or any `dev-*`. Fixes went to the four PR head branches named above; this log entry is on the designated `claude/inspiring-cannon-n9310v`, branched from `claude/pensive-bell-8w0qe6` (#2533's head) rather than `dev-paul` so today's two runs read as one continuous record and don't conflict at the same insertion point.
+- Verification per fix: `tsc --noEmit` + `eslint --max-warnings 0` + `prettier --check` on changed files, plus the relevant suites — `tests/components` 1540/1540 (206 files) for #2525, LunchCount 18/18 for #2528.
+- Env runs Node 22 (repo pins 24, "Unsupported engine" warning); CI on Node 24 remains the authoritative gate.
+
+---
+
+## 2026-08-23
+
+- PRs reviewed: **17** (every open PR; all target `dev-paul`, all draft, all authored by the automated system — no head branch is `main` or `dev-*`, so all were eligible for pushes)
+  - #2540 — docs(debugger): log run 48 (head `nightly/debugger-log-2026-08-23`)
+  - #2539 — fix(rules): enforce normalized shape on organization domain docs (head `nightly/build-tooling-2026-08-23`)
+  - #2538 — fix(admin): preserve block content when splitting a merged custom-widget grid cell (head `nightly/admin-config-2026-08-23`)
+  - #2537 — fix(guidedLearning): keep first-occurrence answer per step in CSV export (head `nightly/state-data-2026-08-23`)
+  - #2536 — fix(random): check restrictions from both students, not just the one being placed (head `nightly/widgets-2026-08-23`)
+  - #2535 — fix(a11y): pair 6 more orphaned SettingsLabel controls (head `nightly/unify-d3-settings-labels-2026-08-23`)
+  - #2534 — docs(pr-review): log 2026-08-22 second run (head `claude/inspiring-cannon-n9310v`)
+  - #2533 — docs(pr-review): log 2026-08-22 run (head `claude/pensive-bell-8w0qe6`)
+  - #2532 — docs(debugger): log run 47 (head `nightly/debugger-log-2026-08-22`)
+  - #2531 — fix(admin): stop ShortLinkQuickCreate Escape from leaking to the dashboard (head `nightly/admin-config-2026-08-22`)
+  - #2530 — fix(youtube): stop swallowing quota errors from the durations lookup (head `nightly/state-data-2026-08-22`)
+  - #2529 — fix(import-wizard): stop Escape in AI-assist overlay from closing the whole wizard (head `nightly/dashboard-layout-2026-08-22`)
+  - #2528 — fix(lunch-count): don't duplicate an entree-section item as bentoBox (head `nightly/widgets-2026-08-22`)
+  - #2527 — fix(css-scaling): SmartNotebook toolbar cqmin + Calendar building-default appearance (head `scheduled-tasks`)
+  - #2526 — docs(unifier): log runs 64-65 (head `nightly/unifier-log-2026-08-22`)
+  - #2525 — fix(a11y): pair 10 more orphaned SettingsLabel controls (head `nightly/unify-d3-settings-labels-2026-08-22`)
+  - #2395 — feat(ai): move Gemini to Vertex AI, update model IDs (head `claude/quirky-ritchie-wghdl3`)
+- Comments processed: **0 actionable** — every inline review thread across all 17 PRs is resolved (17 on #2395, 1 each on #2533/#2529/#2526; the other 13 PRs carry none), and every top-level note already has an author reply recording a fix commit or reasoned decline. No reply was added anywhere, per the frugality directive.
+- Fixes pushed: **0** — Phase 1 found nothing needing a code change. The one factual defect found this run (below) surfaced from Phase 2 review, not from an unresolved reviewer comment, so it was reported rather than auto-pushed.
+- Reviews posted: **17** — one structured automated review per open PR. Merge-readiness split:
+  - **Ready** ×13: #2538, #2537, #2536, #2535, #2534, #2533, #2532, #2531, #2530, #2529, #2528, #2526, #2525
+  - **Ready with minor notes** ×3: #2540, #2539, #2527
+  - **Needs changes / hold (draft)** ×1: #2395
+
+### Substantive findings this run
+
+- **#2540 carries a stale backlog row that advertises already-shipped work as "ready for pickup."** `docs/routines/debugger.md`'s `useNutrislice.ts` row still reads *"excludes only `bentoIndex`, not every item in an alt-meal section … Straightforward fix: add `&& !isAltMealSectionName(sectionForIndex[idx])` … open (straightforward fix, ready for pickup)"*. Verified that exact line is already present at #2528's head (`3fc29fe`, `useNutrislice.ts:226`), pushed 2026-08-22 21:41 — before run 48 dispatched. The convention for this is two rows up in the same diff: the `lti_session_memberships` row is struck through and marked **Fixed/shipped #2539**. Left for the author since it came from review rather than a comment; the risk if unfixed is a future Widgets night re-deriving the same one-line fix and opening a duplicate PR.
+- **#2527's `daysVisible` validator doesn't mirror its own UI bound.** The new Calendar building-default input is `min="1" max="30"`, but `getAdminBuildingConfig`'s `calendar` case accepts any finite `> 0`. HTML `max` is advisory on programmatic input, so `daysVisible: 500` validates and reaches `Calendar/Widget.tsx`. Also `parseInt` with no `NaN` fallback on a cleared field — that one degrades to "silently ignored" via the read-side `Number.isFinite` check and matches the existing `updateFrequencyHours` pattern, so it's the weaker of the two.
+- **#2527's title no longer describes its diff.** Still `fix(css-scaling): convert SmartNotebook drawing toolbar sizes to cqmin`, but `690f272` added a ~260-line Calendar admin feature across four files plus tests. The six prior reviews on this PR each reviewed a different diff. Retitle or split.
+- **#2533 is fully contained in #2534.** `git merge-base --is-ancestor` confirms #2533's tip (`09e0bc5`) is an ancestor of #2534's tip (`0889e97`); #2534's commit list opens with both of #2533's commits. Merging #2534 supersedes #2533 rather than conflicting with it. Flagged on both so they aren't merged separately expecting distinct content.
+- **#2539 bundles 160 lines of `lti_session_memberships` coverage under a `fix(rules)` domain-validation title.** Per #2540's log this is deliberate — the nightly routine forbids coverage-only PRs, so held-back coverage is folded into the next genuine fix. Reasonable policy, but nothing in the title or description says so.
+- **#2539's `update` rule revalidates `domain` unconditionally.** A legacy doc with an unnormalized `domain` could not have `authMethod`/`role` updated until `domain` is fixed in the same write. Unreachable today (`useOrgDomains.ts` exposes only create/delete — verified, `OrganizationPanel.tsx:382` is the sole caller), live the moment a domain-edit UI is added. Already captured in #2540's backlog.
+
+### Claims verified rather than taken at face value
+
+- **#2526's shipped-work counts.** Run 65's row claims "6 instances (6 files) → 4 `htmlFor`/`id` + 2 group-heading"; counted #2535's diff — exact match. Run 64's row *opens* with the now-stale "10 … 9 of the 1:1-pairing form" but **does** resolve it at the end of the same cell with *"Final shipped count: 11 instances (10 `htmlFor`/`id` + 1 group-heading)"*, which matches #2525 at head (10 `htmlFor` + 1 `role="group"`). Recorded as a readability nit, **not** a factual error — the correction the 2026-08-22 thread promised did land.
+- **#2533's `#2395` catch-guard correction.** Independently re-read both shas rather than trusting either side of that thread: the duck-typed `'code' in error && 'message' in error` re-throw exists at `5552a62:functions/src/aiGeneration.ts:1014-1025` and is gone at `ba14633`, which now uses `instanceof HttpsError` in all seven catches. Finding real, corrected citation right, fix landed.
+- **#2395's "no API key material remains."** The only `GEMINI_API_KEY` hit anywhere in `functions/`, `utils/`, `config/`, or `components/` is the post-deploy cleanup comment at `secrets.ts:11`.
+- **#2536's root cause.** Confirmed `normalizeRestrictions` is only reached on the roster-editor write path (`components/classes/useRosterRowsState.ts`), never when the Randomizer reads `activeRoster.students` — so asymmetric restriction data is genuinely reachable and the fix belongs at the point of use.
+- **#2539's regex against real writes.** `views/DomainsView.tsx:288-294` normalizes with `trim().toLowerCase()` + leading `@`; every value that path produces satisfies `^@[a-z0-9.-]+[.][a-z]{2,}$`, so no legitimate admin write starts failing.
+- **Two things checked that turned out *not* to be findings:** #2527's "Colour" spelling matches the established convention across `components/admin/` (19 occurrences), and #2536's multi-line test comments fall under the `docs/routines/debugger.md` carve-out because `groupMaker.test.ts` already uses 3-6 line rationale comments throughout.
+
+### Notes
+
+- Branch-safety: no push to `main` and none to any `dev-*` branch. No fix pushes at all this run.
+- **Log placement again deviates from the literal POST-TASK instruction, for the same standing reason:** `scheduled-tasks` is currently the head branch of actively-open PR #2527, so a log commit there would inject an unrelated file into a PR under review. Logged instead on the designated `claude/pensive-bell-xorxs2`, branched from #2534's head (`0889e97`) to continue the log chain rather than fork it — the same pattern #2534 used with #2533. Consistent with the 2026-08-12/13 entries.
+- Tooling: this environment exposes GitHub via the MCP server, not the `gh` CLI; all list/read/review operations used `mcp__github__*` equivalents of the prescribed `gh` commands. Diffs were read locally from fetched branches rather than via `get_diff`, which is both cheaper and allows reading surrounding context in the files under review.
+- Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning). No commits requiring `pnpm run validate` were produced this run; CI on Node 24 remains the authoritative gate.
+
+---
+
+## 2026-08-24
+
+- PRs reviewed: **25** open PRs enumerated (all draft, all authored by the automated system). Individual fix PRs target `main`/`dev-paul`; `scheduled-tasks` (#2527) targets `dev-paul`. Structured reviews were posted on **4** of them (rationale under "Reviews posted"); the rest were triaged for open comments only.
+  - Un-reviewed substantive code PRs (reviewed this run): #2542 (a11y: retrofit orphaned SettingsLabel headings), #2545 (overlay: share one body scroll lock between Modal and DialogContainer), #2546 (pii: scrub RandomWidget `lastResult`), #2547 (admin: canonicalize building IDs in org per-building user counts).
+  - Already reviewed at their current head, not re-reviewed (frugality): #2525, #2527, #2528, #2529, #2530, #2531, #2535, #2536, #2537, #2538, #2539, #2544, #2395.
+  - Docs/log-only PRs, no code to review: #2526, #2532, #2533, #2534, #2540, #2541, #2543, #2548.
+- Comments processed: **1 unresolved inline thread across all 25 PRs — explained, 0 fixed.** Every other inline review thread on every open PR was already owner-resolved (with a fix commit or a reasoned no-change reply).
+  - #2539 (`firestore.rules`, `discussion_r3839699183`) — a non-blocking edge-case note by the `claude` reviewer about `request.resource.data.domain.matches(...)` evaluating against the post-merge document on every update. **No code change.** It scopes itself out ("not an issue for the current PR since neither is live yet") and duplicates the sibling resolved thread (`r3839580839`/`r3839658875`), where the author already established the strictness is intentional (it self-heals legacy docs rather than grandfathering the silent-sign-in-breakage value the PR closes) and that no partial-update path is reachable today (`hooks/useOrgDomains.ts` exposes only `addDomain`/`removeDomain`). Replied on the thread with that reasoning.
+- Fixes pushed: **0.** No unresolved comment required a code fix, and all four newly reviewed PRs are correct as-is (see below).
+- Reviews posted: **4**, one structured review per newly-reviewed PR, each `COMMENT` (non-approving) with the automated-review disclaimer + Claude Code attribution footer. All four assessed **Ready**:
+  - #2547 — canonicalizing both sides of `withDerivedUserCounts` is required and idempotent; verified `canonicalBuildingId(id) = BUILDING_ID_ALIASES[id] ?? id` and that canonical IDs are not themselves alias keys, so double-canonicalization is a no-op (same invariant the sibling `canonicalizeBuildingKeyedRecord`/`canonicalizeBuildingIds` rely on). Two fail-before tests pin the legacy-alias and legacy+canonical-fold cases.
+  - #2546 — adding `lastResult` to the single canonical `PII_WIDGET_FIELDS` list makes scrub/extract/merge pick it up together; it carries the same roster names as `remainingStudents`, so leaving it in the Firestore doc was a real leak. Round-trip test confirms Drive-sync restore. Noted (human eye) that already-synced docs keep the field until their next scrubbed write.
+  - #2545 — collapses Modal's and DialogContainer's two independent scroll-lock counters into one shared `bodyScrollLock` module; fixes the page unlocking when a dialog opened over a modal closes. Confirmed Modal correctly retains the separate `modalStore` count for its distinct open-detection concern. Regression test drives the exact modal→dialog→dialog-close sequence.
+  - #2542 — seven more orphaned `SettingsLabel` instances paired (3 `htmlFor`/`id`, 4 `role="group"` + `aria-labelledby`); group-vs-pair choice correct per site, IDs collision-safe (`useId()` for single-mount panels, `widget.id` where multiple instances can be open). Noted the deferred `jsx-a11y` lint rule as the durable fix, consistent with prior D3 sweeps (#2525/#2535).
+- Notes:
+  - Deliberately did **not** re-post structured reviews on the 13 already-reviewed code PRs (unchanged heads, reviewed 08-22/08-23) or the 8 docs/log-only PRs — re-reviewing unchanged diffs is duplicative noise. Reviews were focused on the four PRs with no existing review at their current head.
+  - Branch safety: no push to `main` or any `dev-*` branch. The four reviews and the one thread reply are GitHub API operations (no branch push); this log is the only pushed change.
+  - **Log placement deviates from the literal POST-TASK instruction, same reason as the prior runs:** `scheduled-tasks` is currently the head of actively-open PR #2527 (an unrelated SmartNotebook/Calendar feature diff), so committing this log there would inject an unrelated file into a PR under review. Logged instead on the designated `claude/pensive-bell-omq4dy` branch, based on `origin/dev-paul` (whose copy of this log is byte-identical to `main`/`scheduled-tasks`), and opened as its own draft `docs(pr-review)` PR into `dev-paul`.
+  - Tooling: GitHub via the MCP server (no `gh` CLI); all PR list/read/diff/comment/review operations used `mcp__github__*` equivalents of the prescribed `gh` commands.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code was pushed this run, so CI on Node 24 remains the authoritative gate for the four reviewed PRs.
+
+---
+
+## 2026-08-24 (second run)
+
+- PRs reviewed: **25** — every open PR on `ops-pivers/spartboard` as of this run (unchanged set from the first run today, aside from the first run's own log PR #2549 joining it). #2395 targets `dev-paul` from `claude/quirky-ritchie-wghdl3`; #2527 (`scheduled-tasks`) targets `dev-paul`; every other head is a `nightly/*` or `claude/*` branch, also all targeting `dev-paul`. No open PR has `main` or a `dev-*` branch as its head.
+- Scope of this run: the mandate was to sweep unresolved comment threads across all open PRs and post NEW comments only for genuine issues not already covered — explicitly comment-only, no fix pushes.
+  - **Already reviewed earlier today at an unchanged head (skipped, per instructions):** #2542, #2545, #2546, #2547 — each still has exactly 1 commit and the same head SHA as when #2549's run reviewed and posted a structured "Ready" review on it hours earlier (`fdacacf1`, `5694711e`, `6101c9f3`, `72e3f370` respectively). Re-reviewing an unchanged diff would be pure noise.
+  - **Docs/log-only PRs, no code to review (skipped):** #2526, #2532, #2533, #2534, #2540, #2541, #2543, #2548 — confirmed via `get_files` that every file in each diff is under `docs/routines/*.md` or `docs/scheduled-tasks/pr-review-log.md`.
+  - **Everything else (13 code PRs, spanning 2026-08-22/23/24 heads) got a full unresolved-comment audit:** #2525, #2527, #2528, #2529, #2530, #2531, #2535, #2536, #2537, #2538, #2539, #2544, #2395.
+- Comments processed: **traced every inline review thread (via `get_review_comments`, checking `isResolved`) and every PR-level issue comment (via `get_comments`) across all 13 audited code PRs — 44 review-thread comments + 27 issue comments read. Exactly one thread came back unresolved anywhere: #2539's `discussion_r3841102513`.**
+  - #2539's unresolved thread is the same non-blocking `update`-rule edge-case note (`request.resource.data.domain` evaluates against the post-merge document) that recurs three times on this PR across three different reviewers, and it already carries an owner reply from earlier *today* (06:21:39Z, posted by the first run) explaining why no code change is warranted — it self-scopes out ("not an issue for the current PR since neither is live yet") and duplicates the resolved sibling thread's reasoning (`r3839580839`/`r3839658875`: the strictness self-heals legacy docs rather than grandfathering the bug this PR closes, and `useOrgDomains.ts` exposes no reachable partial-update path today). Nothing new to add; left as-is rather than re-explaining an already-explained note.
+  - Every other thread across all 13 PRs was already resolved, each carrying either a fix commit or a reasoned decline from the PR author, verified by reading the actual reply text rather than trusting the `isResolved` flag alone (e.g. #2529's `onCancelRef` fix, #2537's `PublishedGLReview` follow-on dedup fix, #2544's three-round Escape-propagation/focus-steal fix chain, #2525's `widget.id`-scoping + `isPasting`-conditional label fix).
+  - Every PR-level issue comment reviewed (#2525's 8, #2527's 11, #2535's 3, #2539's 4, #2544's 4, plus #2528/#2529/#2537's smaller counts) was an automated "Reviewed — LGTM / no issues" or an author reply recording a fix commit; none left an open ask.
+- Fixes pushed: **0** (comment-only mandate this run — no branch was touched).
+- Reviews/comments posted: **0 new.** Read the diffs directly for the 4 PRs with the thinnest comment history (#2530, #2531, #2536, #2538 — youtube quota rethrow, ShortLinkQuickCreate Escape stopPropagation, Randomizer restriction symmetry, BuilderGrid split-preserves-block) rather than relying on the existing "LGTM" comments alone; all four are small, correct, well-tested fixes with no new defect to flag. #2395 re-confirmed via `get_review_comments`: all 17 threads resolved, nothing new, still blocked purely on the two GCP console operations (`aiplatform.googleapis.com` + `roles/aiplatform.user`) documented in every prior review of this PR, not on code.
+- Notes:
+  - **This is a legitimate zero-new-comments outcome, not an incomplete sweep.** Every one of today's 13 audited code PRs has already been through 2-7 rounds of automated review (visible in each PR's own issue-comment history) across the 2026-08-22/23/24 nightly cycle, and every valid finding from those rounds was already fixed on-branch with a fail-before/pass-after cycle before this run started. This matches yesterday's #2541 precedent ("17 PRs reviewed, 0 fixes pushed") — the steady-state outcome once a PR has been swept enough times, not a sign the check was skipped.
+  - Branch safety: no push to `main`, to any `dev-*` branch, or to any PR head branch. Nothing was pushed anywhere this run except this log entry.
+  - **Log placement:** `scheduled-tasks` is still the head of open PR #2527 (unchanged reasoning from every recent entry — a log commit there would inject an unrelated docs file into a code PR under review). This entry is stacked on **#2549's head** (`claude/pensive-bell-omq4dy`, commit `ca9f505`) rather than branched fresh from `origin/dev-paul`, so today's two runs read as one continuous record at the same insertion point instead of two competing tails that would conflict when either merges — the same pattern the 2026-08-22 second run used stacking on #2533, and the 2026-08-23 run used stacking on #2534.
+  - Tooling: GitHub via the MCP server (no `gh` CLI available in this environment); all PR list/read/diff/comment operations used `mcp__github__*` equivalents of the prescribed `gh` commands.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code was pushed this run, so CI on Node 24 remains the authoritative gate.
+
+---
+
+## 2026-08-24 (third run)
+
+- PRs reviewed: **27** — every open PR on `ops-pivers/spartboard`. The set grew by two since the second run: #2549 and #2550, the two log PRs the earlier runs opened today. All 27 target `dev-paul`; no open PR has `main` or a `dev-*` branch as its head.
+- Scope of this run: unlike the second run's comment-only mandate, this one was authorised to push fixes — analyse every unresolved comment, fix the valid ones on the PR's own head branch and reply, and reply explaining inaction on the invalid ones.
+- Comments processed: **every surface, not just inline threads.** The second run audited `get_review_comments` + `get_comments`; this run added `get_reviews` bodies, which turned out to be where the two actionable items were hiding. Findings raised in a structured review's Regression Risk / Code Quality section have **no thread and therefore no resolved state**, so they are invisible to an `isResolved` sweep and are not returned by `get_comments` either.
+  - **Inline review threads: 27 across the 27 PRs (#2395 ×17, #2539 ×3, #2544 ×3, #2526/#2529/#2533/#2537 ×1 each); 26 resolved, 1 unresolved.**
+  - **PR-level issue comments: 45 read across 12 PRs.** All were automated "LGTM / no issues" verdicts or author replies recording a fix commit, except one (#2527, below).
+  - **Review bodies: 40+ read.** Two carried findings that were acted on but never acknowledged on the thread.
+- Fixes pushed: **0 code fixes — and that is the correct outcome, verified rather than assumed.** Every valid finding across all 27 PRs was already fixed at its PR's current head. Each was checked against the branch rather than against the reply claiming the fix:
+  - #2540's stale `useNutrislice` backlog row — struck in `20b2965`, confirmed present at head `b658f12`, `docs/routines/debugger.md:447`.
+  - #2527's `daysVisible` upper bound — confirmed at `origin/scheduled-tasks`: `utils/adminBuildingConfig.ts:759-764` now carries `raw.daysVisible >= 1 && raw.daysVisible <= 30`, matching the modal's `max="30"`.
+  - #2527's title/scope divergence — the title now names both halves, and the body carries the library conversion as its own numbered section.
+- Comments posted: **2 replies**, both on findings that were genuinely fixed but left unacknowledged, so the PR read as having an open ask when it did not.
+  - **#2527** ([comment](https://github.com/OPS-PIvers/SpartBoard/pull/2527#issuecomment-5401674443)) — the 05:24:39Z bot note that the description omitted the `components/common/library/*` cqmin conversion. Valid when written; the body was rewritten at 05:25:37Z, **58 seconds later**, so the two crossed. Verified the current body against the actual diff rather than the body alone: `git diff --stat origin/dev-paul...origin/scheduled-tasks` shows exactly the four files section 3 names (`BulkActionBar`, `LibraryPreviewPane`, `LibraryToolbar`, `ViewCountBadge`) — all three described changes and no fourth undescribed one. No further body edit; churning it again would only invalidate the reply.
+  - **#2540** ([comment](https://github.com/OPS-PIvers/SpartBoard/pull/2540#issuecomment-5401676721)) — the review's suggestion to strike the stale `useNutrislice` backlog row. Confirmed the finding independently before replying: at `3fc29fe`, `useNutrislice.ts:222-228` does carry `!isAltMealSectionName(sectionForIndex[idx])`, so the row really was advertising completed work as *ready for pickup*. Also recorded why the sibling run-48 row was deliberately **not** changed: a run-log row records what happened during that run, and #2528's follow-up landed hours afterward — the struck backlog row is where current state belongs, and it now names both PR and commit.
+- Threads resolved: **1.** #2539's `discussion_r3841102513`, the post-merge-document `update`-rule edge case. The second run read it correctly — non-blocking, self-scoping, already answered at 06:21:39Z — and left it open. Resolved it this run for consistency with its own sibling thread `r3839658875`, which raises the identical concern and was resolved with the same "worth keeping the note on the thread" framing. Leaving one of a matched pair open makes the PR read as contested over a note that was settled twice.
+- New finding this run: **an `isResolved` sweep does not cover a PR's review bodies, and this repo's nightly reviewers put substantive findings there.** Both items above sat in a structured review's prose — one under Regression Risk, one as a trailing "minor FYI" — where there is no thread to resolve and no `get_comments` entry to read. The second run's audit was thorough on the two surfaces it checked and still returned zero, because neither surface contains them. `get_reviews` is the third call the sweep needs. Recording it as a routine change, not a one-off miss.
+- Notes:
+  - **Zero code fixes here means something different than it did on the second run.** That run was told not to push. This one was, and still pushed nothing — because the 2026-08-22/23/24 nightly cycle has already driven every open PR's valid findings to a fix on-branch with fail-before/pass-after evidence. The residual work was acknowledgement, not repair.
+  - **#2395 remains the one PR with genuinely open items, and none are pushable.** All 17 threads resolved; the latest review (2026-08-23) confirms no outstanding code item. The gate is three operational actions requiring GCP console access — enable `aiplatform.googleapis.com`, grant `roles/aiplatform.user` to the Functions runtime SA, and confirm `gemini-3.6-flash` / `gemini-3.5-flash-lite` resolve at `location: 'global'` — plus a YouTube smoke test on both video callables, public and unlisted. Correctly still a draft. No re-reply; the disposition is already recorded across several rounds.
+  - Branch safety: no push to `main`, to any `dev-*` branch, or to any PR head branch. Nothing was pushed anywhere this run except this log entry.
+  - **Log placement:** stacked on **#2550's head** (`claude/log-2026-08-24-second-run`, commit `525bdd3`), continuing the same-day chaining the second run used on #2549 and the 2026-08-22/23 runs used on #2533/#2534 — so today's three runs read as one continuous record at a single insertion point rather than three competing tails. `scheduled-tasks` is still the head of open PR #2527, so the log stays off it.
+  - Tooling: GitHub via the MCP server (no `gh` CLI in this environment); all PR list/read/diff/comment/resolve operations used `mcp__github__*` equivalents.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code was pushed this run, so CI on Node 24 remains the authoritative gate.
+
+---
+
+## 2026-08-25
+
+- PRs swept: **32** — every open PR on `ops-pivers/spartboard` (#2395, #2525, #2527–#2542, #2544–#2557). All target `dev-paul`; none targets `main` and no head is `main` or `dev-*`, so no branch-safety exclusion applied.
+- Comments processed: **all inline review threads across all 32 PRs were already resolved** — no unresolved thread existed anywhere. One resolved thread was still worth opening, and it was the run's first finding:
+  - **#2553 `r3849790007` — resolved, but the finding is wrong, and nothing had said so.** The thread claimed `components/widgets/MiniApp/Widget.test.tsx` throws before rendering because it never mocks `@/context/useDialog`, and that the PR's "1/1 passing" claim was therefore false. It carried no author reply and no follow-up commit — resolved silently. Verified instead of trusting the flag: `vitest.config.ts:13` loads `setupFiles: ['./tests/setTz.ts', './tests/setup.ts']`, and `tests/setup.ts:29-31` mocks `useDialog` **globally**, with a comment naming that exact purpose. Ran it at the PR head (`df85c45`): **1 file / 1 test passed**, assertion body reached (`getByTitle` resolves, both `sandbox` assertions execute). The `TextWidget/Widget.test.tsx` precedent the thread cited is a *redundant* local override that supplies its own spies, not a requirement. Replied with the run output; no code change.
+  - All other threads (#2395 ×17, #2544 ×3, #2539 ×3, #2537, #2533, #2529) close with an author reply carrying a verified on-branch fix. Nothing left unaddressed.
+- Fixes pushed: **0.** No comment on any PR met the "fix is needed" bar. The one substantive defect found this run (#2554, below) is a supersede-or-reimplement decision between two open PRs — a maintainer call, and pushing to that branch would have created a second branch carrying the same fix and guaranteed the conflict it already has with #2529.
+- Reviews posted: **6** — one per PR opened since the last run (#2552–#2557); the other 26 already carry a structured review against an unchanged head, and re-reviewing identical diffs would have buried this run's findings. Plus **2** targeted comments (#2542, #2554).
+  - Ready: #2555.
+  - Ready with minor notes: #2553, #2556, #2557, #2552.
+  - Needs changes: #2554.
+
+### #2554 — the fix is partial, and its test can't tell
+
+The run's main finding, reproduced rather than reasoned about. #2554 adds `e.stopPropagation()` to `AiAssistOverlay`'s div-level `onKeyDown` so Escape closes only the overlay, not the whole `ImportWizard`. Its test passes; `tsc` clean; 21/21 green.
+
+The test fires `keyDown` on a hand-picked node (`fireEvent.keyDown(textarea, …)`), synthesizing a target real usage doesn't produce. Probing the actual flow — open the overlay via its real trigger, then fire Escape on `document.activeElement`:
+
+| Focus when Escape is pressed | `activeElement` | Overlay closes | Wizard closes |
+| --- | --- | --- | --- |
+| Just opened, not yet clicked into | `BODY` | no | **yes — the bug the PR is titled after** |
+| After clicking into the textarea | `TEXTAREA` | yes | no |
+
+Nothing moves focus into the overlay on open, so in the just-opened state the handler sits on a *descendant* of the focused element and is structurally unreachable. That is also the moment a user is most likely to press Escape.
+
+- **Self-correction, recorded because it changed the call.** The review as first posted said the fix "does not work for the real user flow" — right for the case probed, too broad as stated. Probing the second sub-case showed the composing case genuinely works. Posted a correction on #2554 refining "broken" to "partial"; the merge recommendation stands but is now argued on the right basis.
+- **#2529 already fixes both cases and is still open.** Same base, same file, same bug, opened 08-22. Its `document`-listener + `onCancelRef` approach returns `OVERLAY_OPEN=false, ONCLOSE=0` from the `BODY`-focus state under the identical probe. Its in-code comment states the reason #2554's shape can't work: *"nothing moves focus into this overlay on open, so a div-level onKeyDown never fires for it."* The two also collide textually — #2529 deletes the `onKeyDown` prop that #2554 edits.
+- **Third recurrence of one test-shape gap.** #2544's reviewer caught it twice (`r3840742237`, `r3840821450`); it recurs here. Recommended promoting a procedural rule into `docs/routines/debugger.md`'s Escape bug-class section — *fire Escape on `document.activeElement`, never on a node the test chose* — which would have caught this before dispatch.
+
+### #2542/#2525/#2535 collision — real, but the mechanics differ from the flag
+
+#2552 records a three-way collision and #2542 carries the flag. Simulated the merges onto a scratch branch off `origin/dev-paul` rather than accepting it:
+
+```
+merge #2525 → clean
+merge #2535 → clean
+merge #2542 → CONFLICT: MathToolInstance/Settings.tsx, MathTools/Settings.tsx
+```
+
+Headline holds. The five duplicated instances split in two, though, and both documents treat them as one group:
+
+- **Three are byte-identical** — `ClockConfigurationPanel.tsx`, `LunchCount/Settings.tsx`, `Embed/Settings.tsx` produce character-for-character identical hunks in both PRs (diffed each pair, zero delta). Git dedupes them; the result is the correct `htmlFor`/`id` pair exactly once.
+- **Two diverge only in the id string** — `mathtools-dpi-` vs `mathtools-dpi-calibration-` (and the `mathtoolinstance-` pair). Functionally equivalent; that text is the entire conflict.
+
+So the flag's "silently reintroduce/duplicate" warning describes an unreachable outcome: identical hunks can't duplicate, divergent hunks can't merge silently. The failure mode is a **visible 2-file conflict** — the better outcome — and the fix is picking either side on two lines after the siblings land, not the proposed rebase-down-to-2-instances or close-and-reopen. Posted on both #2552 and #2542.
+
+- Local verification this run (Node 22; CI on Node 24 authoritative):
+  - #2553 — `vitest run components/widgets/MiniApp` → 4 files / 27 tests pass; `tsc` ✓, `eslint --max-warnings 0` ✓, `prettier --check` ✓.
+  - #2555 — `tsc --noEmit` exit 0; `actorBuildingScope.test.ts` 5/5, `UsersView.legacyBuildingId.test.tsx` 2/2.
+  - #2556 — `functions` `tsc --noEmit` exit 0; `vitest run src/organizationInvites.test.ts` → 60/60; `prettier --check` ✓.
+  - #2554 — `tsc` exit 0; suite 21/21 — green, and the probe above is why that isn't sufficient.
+- New findings this run, beyond the two above:
+  - **#2553 is better supported than its own description claims.** The removed `allow-same-origin` grant made the *teacher-side* runtime the lone outlier: `MiniAppStudentApp.tsx:419` and `CustomWidget/Widget.tsx:271` already ship `sandbox="allow-scripts allow-forms allow-modals"`. So students have never had the grant, any app depending on `localStorage` was already broken for them, and `functions/src/aiGeneration.ts` never instructs generated apps to use it (grepped, zero hits). The change makes teacher behavior *match* student behavior — a stronger argument than the compatibility trade-off the old comment implied.
+  - **#2555 has no silent-migration side effect**, which was the hazard its shape invited. `editingUser` is now the canonicalized record, so `EditUserModal.buildPatch()` compares in canonical space: a name-only edit leaves `patch.buildingIds` unset and legacy ids are *not* rewritten; changing buildings writes canonical ids and self-heals. Verified by reading the patch builder, not inferred. Noted the architectural point — this is the third read-site shim for the same data problem (`buildingUserCounts.ts` in #2547 being the first two sites), and a one-time `members/*.buildingIds` backfill would retire the class.
+  - **#2556 fixes creation but not existing data.** Invitations already written with an internal space stay unclaimable, with the same confusing "This invitation is not for this account." Backlog row, not a widening of that PR.
+  - **Comment-convention drift is batch-wide, not per-PR.** #2556 and #2555 each pushed a `review: trim comment to one line per CLAUDE.md` commit — but #2556's *test* file still carries an 8-line block, and #2553's new test carries a 6-line block with no trim commit at all. The "one short line max" rule isn't scoped to source files.
+- Notes:
+  - **Zero unresolved review threads across 32 PRs** — a first at this PR count. The work this run came from two other surfaces: a resolved-but-unanswered thread whose claim was wrong (#2553), and reviewing the six PRs opened since the last run.
+  - Both cross-PR findings this run were only visible from outside any single PR — #2554's overlap with #2529, and the true shape of the #2542 collision. Neither dispatching automation could have seen them, which is the same root cause #2552 identifies: concurrent nightly runs branching from one `dev-paul` tip (`25f6127`) with no visibility into in-flight siblings. #2535 avoided it by diffing against #2525's branch first; that check isn't part of the routine yet.
+  - **Log placement:** stacked on **#2551's head** (`claude/inspiring-cannon-ciu7ws`, `7f9a897`), continuing the established chaining — `pr-review-log.md` is append-only with a nightly writer, so branching fresh from `origin/dev-paul` would guarantee a trailing-line conflict while #2551 stays open. Pushed to the session's designated branch `claude/pensive-bell-va42yz`. Kept **off** `scheduled-tasks`, which is still the head of open PR #2527.
+  - Branch safety: no push to `main` or any `dev-*` branch, and no push to any PR head branch at all this run.
+  - Tooling: GitHub via the MCP server (no `gh` CLI in this environment); all PR list/read/diff/review/comment operations used `mcp__github__*` equivalents.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code was pushed, so CI on Node 24 remains the authoritative gate.

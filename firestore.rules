@@ -279,23 +279,39 @@ service cloud.firestore {
         // status:'pending' and users:0 (verification is server-side DNS; users is
         // derived), and hasOnly([...]) blocks stray fields. Update is whitelisted
         // to the configurable fields.
+        //
+        // `domain` must be normalized (leading '@', all-lowercase, dotted
+        // hostname shape) on BOTH create and update. `resolveOrgIdForDomain`
+        // (functions/src/classlinkShared.ts) resolves a signed-in user's org
+        // via an EXACT-match Firestore query against a value it builds as
+        // '@' + <lowercased email/hd domain> — it never normalizes the STORED
+        // side. Before this check, nothing enforced that shape here: this
+        // rule only pinned the schema (hasOnly) and identity fields, so a
+        // write with mismatched case or stray whitespace (e.g. a hand-edited
+        // Firestore console value, or a future write path that skips the
+        // admin UI's own client-side normalization) would be silently
+        // accepted, then every sign-in from that domain would fail org
+        // resolution forever with no error surfaced anywhere — the domain
+        // would look "added" in the admin UI but never actually resolve.
         allow create: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
           request.resource.data.orgId == orgId &&
           request.resource.data.id == domainId &&
           request.resource.data.status == 'pending' &&
           request.resource.data.users == 0 &&
+          request.resource.data.domain.matches('^@[a-z0-9.-]+[.][a-z]{2,}$') &&
           request.resource.data.keys().hasOnly([
             'id', 'orgId', 'domain', 'authMethod', 'status', 'role',
             'users', 'addedAt'
           ]);
         allow delete: if isSuperAdmin() || isDomainAdmin(orgId);
-        allow update: if isSuperAdmin() ||
-          (isDomainAdmin(orgId) &&
-           request.resource.data.id == resource.data.id &&
-           request.resource.data.orgId == resource.data.orgId &&
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-             'domain', 'authMethod', 'role'
-           ]));
+        allow update: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
+          request.resource.data.domain.matches('^@[a-z0-9.-]+[.][a-z]{2,}$') &&
+          (isSuperAdmin() ||
+           (request.resource.data.id == resource.data.id &&
+            request.resource.data.orgId == resource.data.orgId &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'domain', 'authMethod', 'role'
+            ])));
       }
 
       match /roles/{roleId} {
@@ -3339,10 +3355,27 @@ service cloud.firestore {
         );
       allow write: if isAdmin();
 
-      // Poll votes subcollection — authenticated users can read live tallies and cast votes
+      // Poll votes subcollection — authenticated users can read live tallies and cast votes.
+      // Value-locked to exactly what PollWidget's setDoc({count: increment(1)}, {merge:
+      // true}) produces: a create must land on 1, an update must be previous + 1. Field
+      // transforms are resolved into request.resource before rules run, so the real call
+      // site passes while a same-shaped overwrite ({count: 0} to wipe a tally, {count:
+      // 999999} to inflate one) is denied — the gap left by the earlier shape-only check.
+      // Caps abuse at +1 per write; per-voter dedup would need a per-voter vote doc.
+      // Delete is admin-only (mirrors the poll_sessions/votes sibling's teacher/admin-only
+      // reset); no client deletes a pollVotes doc today.
       match /pollVotes/{optionIndex} {
         allow read: if request.auth != null;
-        allow write: if request.auth != null;
+        allow create: if request.auth != null &&
+          request.resource.data.keys().hasOnly(['count']) &&
+          request.resource.data.count is int &&
+          request.resource.data.count == 1;
+        allow update: if request.auth != null &&
+          request.resource.data.keys().hasOnly(['count']) &&
+          request.resource.data.count is int &&
+          resource.data.count is int &&
+          request.resource.data.count == resource.data.count + 1;
+        allow delete: if isAdmin();
       }
     }
 

@@ -149,6 +149,58 @@ describe('PublishedGLReview', () => {
     expect(screen.getByText('Chlorophyll')).toBeInTheDocument();
     expect(screen.queryByText(/Correct answer/)).not.toBeInTheDocument();
   });
+
+  it('keeps the FIRST answer per stepId and does not double-count a duplicate correct answer', () => {
+    // Regression: a duplicate-write for the same stepId (2 entries, both
+    // isCorrect:true) previously (a) rendered the LAST entry's text via a
+    // last-wins Map, and (b) inflated correctCount by filtering the raw
+    // (un-deduped) answers array, showing "2 of 1 correct".
+    const session: GuidedLearningSession = {
+      id: 'session-1',
+      title: 'Photosynthesis review',
+      mode: 'guided',
+      imageUrls: [],
+      publicSteps: [
+        {
+          id: 'step-mc',
+          xPct: 0,
+          yPct: 0,
+          imageIndex: 0,
+          label: 'Stage 1',
+          interactionType: 'question',
+          question: {
+            type: 'multiple-choice',
+            text: 'Which produces oxygen?',
+            choices: ['Chlorophyll', 'Mitochondria'],
+          },
+        },
+      ],
+      teacherUid: 'teacher-1',
+      createdAt: 0,
+      scoreVisibility: 'score-and-responses',
+    };
+    const myResponse: GuidedLearningResponse = {
+      sessionId: 'session-1',
+      studentAnonymousId: 'student-1',
+      startedAt: 1,
+      completedAt: 2,
+      score: 100,
+      answers: [
+        { stepId: 'step-mc', answer: 'FirstAnswer', isCorrect: true },
+        { stepId: 'step-mc', answer: 'SecondAnswer', isCorrect: true },
+      ],
+    };
+    render(
+      <PublishedGLReview
+        session={session}
+        myResponse={myResponse}
+        visibility="score-and-responses"
+      />
+    );
+    expect(screen.getByText('1 of 1 correct')).toBeInTheDocument();
+    expect(screen.getByText('FirstAnswer')).toBeInTheDocument();
+    expect(screen.queryByText('SecondAnswer')).not.toBeInTheDocument();
+  });
 });
 
 describe('formatStudentAnswer', () => {

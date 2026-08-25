@@ -27,6 +27,7 @@ import {
 import { Z_INDEX } from '@/config/zIndex';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
+import { buildMiniAppExportFilename } from './exportFilename';
 import { WidgetLayout } from '../WidgetLayout';
 import { useAuth } from '@/context/useAuth';
 import { useMiniAppSessionTeacher } from '@/hooks/useMiniAppSession';
@@ -116,17 +117,34 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 z-overlay bg-brand-blue-dark/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div
+      className="absolute inset-0 z-overlay bg-brand-blue-dark/60 backdrop-blur-sm flex items-center justify-center"
+      style={{ padding: 'min(16px, 4cqmin)' }}
+    >
       <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div
-          className={`p-4 flex items-center justify-between ${createdSessionId ? 'bg-emerald-600' : 'bg-brand-blue-primary'}`}
+          className={`flex items-center justify-between ${createdSessionId ? 'bg-emerald-600' : 'bg-brand-blue-primary'}`}
+          style={{ padding: 'min(16px, 4cqmin)' }}
         >
-          <div className="flex items-center gap-2 text-white">
+          <div
+            className="flex items-center text-white"
+            style={{ gap: 'min(8px, 2cqmin)' }}
+          >
             {createdSessionId ? (
-              <CheckCircle2 className="w-5 h-5" />
+              <CheckCircle2
+                style={{
+                  width: 'min(20px, 6cqmin)',
+                  height: 'min(20px, 6cqmin)',
+                }}
+              />
             ) : (
-              <Link2 className="w-5 h-5" />
+              <Link2
+                style={{
+                  width: 'min(20px, 6cqmin)',
+                  height: 'min(20px, 6cqmin)',
+                }}
+              />
             )}
             <span className="font-black uppercase tracking-tight">
               {createdSessionId
@@ -142,39 +160,76 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
             onClick={onClose}
             className="text-white/60 hover:text-white transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X
+              style={{
+                width: 'min(20px, 6cqmin)',
+                height: 'min(20px, 6cqmin)',
+              }}
+            />
           </button>
         </div>
 
-        <div className="p-5 space-y-4">
+        <div style={{ padding: 'min(20px, 5cqmin)' }} className="space-y-4">
           {createdSessionId && link ? (
             /* Post-creation: show link */
             <>
               <div className="text-center">
-                <p className="font-bold text-brand-blue-dark text-base truncate px-2">
+                <p
+                  className="font-bold text-brand-blue-dark truncate"
+                  style={{
+                    fontSize: 'min(16px, 6cqmin)',
+                    paddingLeft: 'min(8px, 2cqmin)',
+                    paddingRight: 'min(8px, 2cqmin)',
+                  }}
+                >
                   {assignmentName}
                 </p>
               </div>
-              <p className="text-slate-600 text-sm text-center">
+              <p
+                className="text-slate-600 text-center"
+                style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+              >
                 Share this link with your students. They&apos;ll interact with
                 the app immediately.
               </p>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 break-all text-xs text-slate-700 font-mono">
+              <div
+                className="bg-slate-50 border border-slate-200 rounded-xl break-all text-slate-700 font-mono"
+                style={{
+                  padding: 'min(12px, 3cqmin)',
+                  fontSize: 'min(12px, 4.5cqmin)',
+                }}
+              >
                 {link}
               </div>
-              <div className="grid gap-2">
+              <div className="grid" style={{ gap: 'min(8px, 2cqmin)' }}>
                 <button
                   onClick={() => void handleCopy()}
-                  className="w-full flex items-center justify-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm py-3 text-sm"
+                  className="w-full flex items-center justify-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm"
+                  style={{
+                    gap: 'min(8px, 2cqmin)',
+                    paddingTop: 'min(12px, 3cqmin)',
+                    paddingBottom: 'min(12px, 3cqmin)',
+                    fontSize: 'min(14px, 5.5cqmin)',
+                  }}
                 >
                   {copied ? (
                     <>
-                      <Check className="w-4 h-4" />
+                      <Check
+                        style={{
+                          width: 'min(16px, 5cqmin)',
+                          height: 'min(16px, 5cqmin)',
+                        }}
+                      />
                       Copied!
                     </>
                   ) : (
                     <>
-                      <Copy className="w-4 h-4" />
+                      <Copy
+                        style={{
+                          width: 'min(16px, 5cqmin)',
+                          height: 'min(16px, 5cqmin)',
+                        }}
+                      />
                       Copy Link
                     </>
                   )}
@@ -183,9 +238,20 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                   href={link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors py-3 text-sm"
+                  className="w-full flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+                  style={{
+                    gap: 'min(8px, 2cqmin)',
+                    paddingTop: 'min(12px, 3cqmin)',
+                    paddingBottom: 'min(12px, 3cqmin)',
+                    fontSize: 'min(14px, 5.5cqmin)',
+                  }}
                 >
-                  <ExternalLink className="w-4 h-4" />
+                  <ExternalLink
+                    style={{
+                      width: 'min(16px, 5cqmin)',
+                      height: 'min(16px, 5cqmin)',
+                    }}
+                  />
                   Open in New Tab
                 </a>
               </div>
@@ -195,10 +261,23 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                picker in submissions. */
             <>
               <div className="text-center">
-                <p className="font-bold text-brand-blue-dark text-base truncate px-2">
+                <p
+                  className="font-bold text-brand-blue-dark truncate"
+                  style={{
+                    fontSize: 'min(16px, 6cqmin)',
+                    paddingLeft: 'min(8px, 2cqmin)',
+                    paddingRight: 'min(8px, 2cqmin)',
+                  }}
+                >
                   {appTitle}
                 </p>
-                <p className="text-brand-blue-primary/60 font-black uppercase tracking-widest mt-1 text-xs">
+                <p
+                  className="text-brand-blue-primary/60 font-black uppercase tracking-widest"
+                  style={{
+                    marginTop: 'min(4px, 1cqmin)',
+                    fontSize: 'min(12px, 4.5cqmin)',
+                  }}
+                >
                   {isViewOnly ? 'Create Share Link' : 'Create Assignment Link'}
                 </p>
               </div>
@@ -208,20 +287,33 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                    of /my-assignments anyway). The auto-generated share name
                    is used behind the scenes for the Shared archive — teachers
                    can rename later from the archive's overflow menu. */
-                <p className="text-slate-600 text-sm text-center">
+                <p
+                  className="text-slate-600 text-center"
+                  style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+                >
                   Anyone with the link can view this app. No submissions are
                   collected — view counts appear in the Shared archive.
                 </p>
               ) : (
                 <>
-                  <p className="text-slate-600 text-sm text-center">
+                  <p
+                    className="text-slate-600 text-center"
+                    style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+                  >
                     Name this assignment, then share the generated link with
                     students.
                   </p>
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  <div
+                    className="bg-slate-50 border border-slate-200 rounded-xl"
+                    style={{ padding: 'min(12px, 3cqmin)' }}
+                  >
                     <label
                       htmlFor="miniapp-assignment-name"
-                      className="block text-sm font-bold text-slate-700 mb-1.5"
+                      className="block font-bold text-slate-700"
+                      style={{
+                        fontSize: 'min(14px, 5.5cqmin)',
+                        marginBottom: 'min(6px, 1.5cqmin)',
+                      }}
                     >
                       Assignment Name
                     </label>
@@ -231,16 +323,32 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                       value={assignmentName}
                       onChange={(e) => onNameChange(e.target.value)}
                       placeholder="1st period"
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-brand-blue-primary"
+                      className="w-full rounded-xl border border-slate-200 font-medium text-slate-700 outline-none focus:border-brand-blue-primary"
+                      style={{
+                        paddingLeft: 'min(12px, 3cqmin)',
+                        paddingRight: 'min(12px, 3cqmin)',
+                        paddingTop: 'min(8px, 2cqmin)',
+                        paddingBottom: 'min(8px, 2cqmin)',
+                        fontSize: 'min(14px, 5.5cqmin)',
+                      }}
                     />
                   </div>
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  <div
+                    className="bg-slate-50 border border-slate-200 rounded-xl"
+                    style={{ padding: 'min(12px, 3cqmin)' }}
+                  >
                     <AssignClassPicker
                       rosters={rosters}
                       value={pickerValue}
                       onChange={onPickerChange}
                     />
-                    <p className="text-[11px] text-slate-500 mt-2">
+                    <p
+                      className="text-slate-500"
+                      style={{
+                        fontSize: 'min(11px, 4cqmin)',
+                        marginTop: 'min(8px, 2cqmin)',
+                      }}
+                    >
                       Enrolled students will see this in their assignments list.
                       Leave unselected to share the link directly.
                     </p>
@@ -248,7 +356,10 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                 </>
               )}
               {error && (
-                <p className="text-sm text-brand-red-primary text-center font-medium">
+                <p
+                  className="text-brand-red-primary text-center font-medium"
+                  style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+                >
                   {error}
                 </p>
               )}
@@ -258,12 +369,29 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                   isCreating ||
                   (!isViewOnly && assignmentName.trim().length === 0)
                 }
-                className="w-full flex items-center justify-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm py-3 text-sm disabled:opacity-60"
+                className="w-full flex items-center justify-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm disabled:opacity-60"
+                style={{
+                  gap: 'min(8px, 2cqmin)',
+                  paddingTop: 'min(12px, 3cqmin)',
+                  paddingBottom: 'min(12px, 3cqmin)',
+                  fontSize: 'min(14px, 5.5cqmin)',
+                }}
               >
                 {isCreating ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2
+                    style={{
+                      width: 'min(16px, 5cqmin)',
+                      height: 'min(16px, 5cqmin)',
+                    }}
+                    className="animate-spin"
+                  />
                 ) : (
-                  <Link2 className="w-4 h-4" />
+                  <Link2
+                    style={{
+                      width: 'min(16px, 5cqmin)',
+                      height: 'min(16px, 5cqmin)',
+                    }}
+                  />
                 )}
                 {isCreating
                   ? 'Creating…'
@@ -878,7 +1006,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `spartboard-apps-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = buildMiniAppExportFilename();
     a.click();
     URL.revokeObjectURL(url);
     addToast('Library exported successfully', 'success');
@@ -1280,24 +1408,52 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               ref={iframeRef}
               srcDoc={activeApp.html}
               className="flex-1 w-full border-none bg-white" // Keep bg-white for iframe content visibility
-              sandbox="allow-scripts allow-forms allow-popups allow-modals allow-same-origin"
+              // No allow-same-origin: untrusted app html + srcDoc would inherit the parent's origin (DOM/localStorage access); the init/result protocol is postMessage-only.
+              sandbox="allow-scripts allow-forms allow-popups allow-modals"
               title={activeApp.title}
             />
             {/* Save-to-library overlay (shown when user pastes HTML and hasn't saved yet) */}
             {showSaveForm && (
-              <div className="absolute inset-0 z-20 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
-                <div className="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-xs flex flex-col gap-3 animate-in zoom-in-95 duration-150">
+              <div
+                className="absolute inset-0 z-20 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-150"
+                style={{ padding: 'min(16px, 4cqmin)' }}
+              >
+                <div
+                  className="bg-white rounded-2xl shadow-2xl w-full max-w-xs flex flex-col animate-in zoom-in-95 duration-150"
+                  style={{
+                    padding: 'min(20px, 5cqmin)',
+                    gap: 'min(12px, 3cqmin)',
+                  }}
+                >
                   <div className="flex items-center justify-between">
-                    <h4 className="font-black text-slate-800 uppercase tracking-tight text-xs flex items-center gap-1.5">
-                      <Save className="w-3.5 h-3.5 text-indigo-500" />
+                    <h4
+                      className="font-black text-slate-800 uppercase tracking-tight flex items-center"
+                      style={{
+                        fontSize: 'min(12px, 4.5cqmin)',
+                        gap: 'min(6px, 1.5cqmin)',
+                      }}
+                    >
+                      <Save
+                        className="text-indigo-500"
+                        style={{
+                          width: 'min(14px, 4.5cqmin)',
+                          height: 'min(14px, 4.5cqmin)',
+                        }}
+                      />
                       Save to Library
                     </h4>
                     <button
                       onClick={() => setShowSaveForm(false)}
-                      className="p-1 rounded-lg hover:bg-slate-100 text-slate-400"
+                      className="rounded-lg hover:bg-slate-100 text-slate-400"
+                      style={{ padding: 'min(4px, 1cqmin)' }}
                       aria-label="Cancel save"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <X
+                        style={{
+                          width: 'min(14px, 4.5cqmin)',
+                          height: 'min(14px, 4.5cqmin)',
+                        }}
+                      />
                     </button>
                   </div>
                   <input
@@ -1306,7 +1462,14 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                     onChange={(e) => setPendingSaveTitle(e.target.value)}
                     placeholder="App title…"
                     autoFocus
-                    className="w-full px-3 py-2 bg-slate-100 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-slate-100 rounded-xl font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    style={{
+                      paddingLeft: 'min(12px, 3cqmin)',
+                      paddingRight: 'min(12px, 3cqmin)',
+                      paddingTop: 'min(8px, 2cqmin)',
+                      paddingBottom: 'min(8px, 2cqmin)',
+                      fontSize: 'min(14px, 5.5cqmin)',
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') void handleSavePasted();
                       if (e.key === 'Escape') setShowSaveForm(false);
@@ -1314,9 +1477,21 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                   />
                   <button
                     onClick={() => void handleSavePasted()}
-                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center active:scale-95"
+                    style={{
+                      paddingTop: 'min(10px, 2.5cqmin)',
+                      paddingBottom: 'min(10px, 2.5cqmin)',
+                      fontSize: 'min(12px, 4.5cqmin)',
+                      gap: 'min(6px, 1.5cqmin)',
+                    }}
                   >
-                    <Save className="w-3.5 h-3.5" /> Save App
+                    <Save
+                      style={{
+                        width: 'min(14px, 4.5cqmin)',
+                        height: 'min(14px, 4.5cqmin)',
+                      }}
+                    />{' '}
+                    Save App
                   </button>
                 </div>
               </div>

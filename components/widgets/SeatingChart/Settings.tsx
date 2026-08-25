@@ -52,8 +52,11 @@ export const SeatingChartSettings: React.FC<{ widget: WidgetData }> = ({
 
       {rosterMode === 'custom' && (
         <div className="space-y-2">
-          <SettingsLabel>Custom Roster</SettingsLabel>
+          <SettingsLabel htmlFor={`seatingchart-custom-roster-${widget.id}`}>
+            Custom Roster
+          </SettingsLabel>
           <textarea
+            id={`seatingchart-custom-roster-${widget.id}`}
             value={names}
             onChange={(e) =>
               updateWidget(widget.id, {

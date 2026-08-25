@@ -108,6 +108,12 @@ describe('emailDomain', () => {
   it('takes the portion after the last @ (defensive against multi-@ inputs)', () => {
     expect(emailDomain('a@b@example.com')).toBe('example.com');
   });
+
+  // Mirrored in scripts/recount-org-members.test.ts — the two emailDomain() copies must agree.
+  it('trims incidental whitespace around the domain', () => {
+    expect(emailDomain('teacher@ orono.k12.mn.us')).toBe('orono.k12.mn.us');
+    expect(emailDomain('teacher@orono.k12.mn.us ')).toBe('orono.k12.mn.us');
+  });
 });
 
 describe('planMemberCounterDeltas', () => {

@@ -670,12 +670,19 @@ export const PublishedGLReview: React.FC<{
   const showAnswers = visibility === 'score-responses-and-answers';
 
   const gradableSteps = session.publicSteps.filter((s) => !!s.question);
-  const answersByStep = new Map(
-    myResponse.answers.map((a) => [a.stepId, a] as const)
-  );
+  // First-occurrence per stepId, matching publishAssignmentScores's dedup so this can't contradict the published score.
+  const answersByStep = new Map<
+    string,
+    GuidedLearningResponse['answers'][number]
+  >();
+  for (const a of myResponse.answers) {
+    if (!answersByStep.has(a.stepId)) {
+      answersByStep.set(a.stepId, a);
+    }
+  }
 
   const score = myResponse.score ?? 0;
-  const correctCount = myResponse.answers.filter(
+  const correctCount = Array.from(answersByStep.values()).filter(
     (a) => a.isCorrect === true
   ).length;
   const totalGradable = gradableSteps.length;
