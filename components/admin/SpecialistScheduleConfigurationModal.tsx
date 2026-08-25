@@ -617,10 +617,14 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                               </div>
                               <div className="grid grid-cols-2 gap-2">
                                 <div className="space-y-1">
-                                  <label className="text-xxxs font-black text-slate-400 uppercase tracking-widest">
+                                  <label
+                                    htmlFor={`specialist-block-start-date-${i}`}
+                                    className="text-xxxs font-black text-slate-400 uppercase tracking-widest"
+                                  >
                                     Start Date
                                   </label>
                                   <input
+                                    id={`specialist-block-start-date-${i}`}
                                     type="date"
                                     value={
                                       currentBuildingConfig.blocks?.[i]
@@ -637,10 +641,14 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <label className="text-xxxs font-black text-slate-400 uppercase tracking-widest">
+                                  <label
+                                    htmlFor={`specialist-block-end-date-${i}`}
+                                    className="text-xxxs font-black text-slate-400 uppercase tracking-widest"
+                                  >
                                     End Date
                                   </label>
                                   <input
+                                    id={`specialist-block-end-date-${i}`}
                                     type="date"
                                     value={
                                       currentBuildingConfig.blocks?.[i]

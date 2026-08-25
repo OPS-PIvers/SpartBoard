@@ -67,6 +67,7 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
   const gradeLevelLabelId = useId();
   const schoolSiteSelectId = useId();
   const customRosterTextareaId = useId();
+  const lunchTimeLabelId = useId();
 
   // Legacy widget configs may contain a canonical short-form building ID
   // (e.g. `schumann`) instead of the long-form `schoolSite` this widget
@@ -116,9 +117,15 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
 
         {/* Lunch Time */}
         <div>
-          <SettingsLabel icon={Clock}>Lunch Time</SettingsLabel>
+          <SettingsLabel as="span" id={lunchTimeLabelId} icon={Clock}>
+            Lunch Time
+          </SettingsLabel>
           <div>
-            <div className="flex items-center gap-2">
+            <div
+              className="flex items-center gap-2"
+              role="group"
+              aria-labelledby={lunchTimeLabelId}
+            >
               <input
                 type="number"
                 min="1"

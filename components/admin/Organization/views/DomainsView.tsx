@@ -57,6 +57,16 @@ const DOMAIN_ROLE_META = {
   student: { color: 'sky', label: 'Student' },
 } as const;
 
+// Mirrors the `domain.matches(...)` check in firestore.rules — keep in sync.
+const NORMALIZED_DOMAIN_RE = /^@[a-z0-9.-]+[.][a-z]{2,}$/;
+
+// Lowercased so it exact-matches the lowercased email/hd candidate
+// resolveOrgIdForDomain() queries against.
+const normalizeDomainInput = (raw: string): string => {
+  const normalized = raw.trim().toLowerCase();
+  return normalized.startsWith('@') ? normalized : `@${normalized}`;
+};
+
 interface Props {
   domains: DomainRecord[];
   onAdd: (domain: Partial<DomainRecord>) => void;
@@ -270,6 +280,10 @@ const AddDomainModal: React.FC<{
   const [method, setMethod] = useState<AuthMethod>('google');
   const [samlUrl, setSamlUrl] = useState('');
 
+  const normalized = normalizeDomainInput(domain);
+  const isValid = NORMALIZED_DOMAIN_RE.test(normalized);
+  const showError = domain.trim().length > 0 && !isValid;
+
   return (
     <LocalModal
       isOpen={isOpen}
@@ -283,15 +297,10 @@ const AddDomainModal: React.FC<{
           </Btn>
           <Btn
             variant="primary"
-            disabled={!domain.trim()}
+            disabled={!isValid}
             onClick={() => {
-              const normalized = domain.trim().toLowerCase();
               onAdd({
-                // Lowercased so it exact-matches the lowercased email/hd
-                // candidate resolveOrgIdForDomain() queries against.
-                domain: normalized.startsWith('@')
-                  ? normalized
-                  : `@${normalized}`,
+                domain: normalized,
                 authMethod: method,
                 status: 'pending',
                 role: 'staff',
@@ -310,6 +319,11 @@ const AddDomainModal: React.FC<{
           label="Domain"
           required
           hint="Example: orono.k12.mn.us"
+          error={
+            showError
+              ? 'Use a full domain with a dot and a letters-only suffix — lowercase letters, digits, dots and hyphens only.'
+              : undefined
+          }
           htmlFor="add-domain-input"
         >
           <div className="flex items-center rounded-lg border border-slate-300 focus-within:border-brand-blue-primary focus-within:ring-[3px] focus-within:ring-brand-blue-primary/30 bg-white">
