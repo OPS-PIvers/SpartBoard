@@ -321,4 +321,22 @@ describe('buildGLResponsesCSV — duplicate-step dedup', () => {
     // Columns: Student ID(0) PIN(1) Started(2) Completed(3) Score(4) Answer(5) Correct(6)
     expect(rows[1][6]).toBe('Yes');
   });
+
+  it("keeps the FIRST answer per stepId, matching the scoring path's dedup fence", () => {
+    // A duplicate answer entry for the same stepId must resolve the same way
+    // as publishAssignmentScores's first-occurrence Set, or the export can
+    // contradict the score already published for this response.
+    const set = minimalSet([mcQuestionStep('s1', 'Q?', 'right')]);
+    const response = minimalResponse([
+      { stepId: 's1', answer: 'right' }, // first occurrence: correct
+      { stepId: 's1', answer: 'wrong' }, // duplicate write: incorrect
+    ]);
+
+    const csv = buildGLResponsesCSV([response], set);
+    const rows = parseCsv(csv);
+
+    // Columns: Student ID(0) PIN(1) Started(2) Completed(3) Score(4) Answer(5) Correct(6)
+    expect(rows[1][5]).toBe('right');
+    expect(rows[1][6]).toBe('Yes');
+  });
 });
