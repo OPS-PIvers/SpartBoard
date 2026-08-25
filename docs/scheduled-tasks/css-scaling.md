@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-24_
+_Last audited: 2026-08-25_
 _Last action: 2026-08-24 — MEDIUM "Shared `common/library` primitives are unscaled inside four widget container-query front faces" resolved: converted all hardcoded Tailwind size/spacing/icon classes in `LibraryToolbar.tsx`, `BulkActionBar.tsx`, `LibraryPreviewPane.tsx`, and `ViewCountBadge.tsx` to inline `cqmin`-capped styles. `pnpm exec tsc --noEmit` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean. PR opened to dev-paul.
 
 ---
@@ -21,6 +21,13 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### MEDIUM Three widgets' loading state uses a full-widget opaque `bg-slate-50` root, masking the glass shell
+
+- **Detected:** 2026-08-25
+- **File:** `components/widgets/BlendingBoard/Widget.tsx:18`, `components/widgets/CarRiderPro/Widget.tsx:18`, `components/widgets/First5/Widget.tsx:18`
+- **Detail:** All three widgets are thin embed-URL wrappers with an identical (copy-pasted) `isLoading` branch: `<WidgetLayout padding="p-0" content={<div className="w-full h-full flex items-center justify-center bg-slate-50">...spinner...</div>} />`. This is the exact anti-pattern called out by name in the skill's "Backgrounds and Transparency" section — `.claude/skills/new-widget/SKILL.md:391-393` and the Common Mistakes table row "Loading/empty/error state uses full-bleed opaque fill" (`:522`): a full `w-full h-full` root with `bg-slate-50` masks `DraggableWindow`'s glass shell and makes the per-widget/global Transparency slider look broken during the (briefly rendered but real) loading phase. Each file's own subsequent empty state (`!url`/invalid-URL branch) correctly uses `ScaledEmptyState` with a transparent root, and the loaded-content branch is also transparent (`w-full h-full relative ...`, no background) — only the loading branch, in all three files, has the violation. No prior journal entry covers this; the closest prior BlendingBoard/CarRiderPro/First5 entries are unrelated (2026-05-05 cqmin pass predates this code; 2026-05-30 "overlay button" completed item is a different element).
+- **Fix:** Drop `bg-slate-50` from the loading-state root's `className` in all three files (keep `w-full h-full flex items-center justify-center`), matching the transparent-root pattern already used everywhere else in the same files. If a subtle loading surface is desired, localize it to a small card around the spinner (e.g. `bg-white/10 backdrop-blur-sm rounded-xl` sized to content) rather than filling the widget.
 
 ### MEDIUM `GuidedLearningResults` front-face view has zero container-query units
 

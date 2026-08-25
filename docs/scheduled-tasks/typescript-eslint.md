@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-24_
+_Last audited: 2026-08-25_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-25: Checked (Tuesday daily). `pnpm type-check` exit 0 (0 TypeScript errors, `tsc --noEmit`). `pnpm lint`: full `pnpm run lint` (root `lint:app`) was killed after ~10min in this audit environment with no rule output (same class of environment limit as 2026-08-23/08-22/08-18). Fell back to targeted `npx eslint` sweeps run sequentially: `context/ hooks/ utils/ config/` exit 0; `components/widgets` exit 0; remaining `components/*` subdirs (activityWall, admin, announcements, auth, backgroundsModal, boardsModal, classes, classroomAddon, common, converter, dev, guidedLearning, landing, layout, legal, lti, miniApp, plc, poll, quickAccessModal, quiz, remote, settingsModal, share, spotify, student, subs, videoActivity) exit 0; `App.tsx index.tsx types.ts i18n/ tests/ types/` exit 0; `functions/` `pnpm run lint` (`lint:functions`) exit 0. All sweeps together cover the same lintable file set as the full run — 0 ESLint errors, 0 warnings (`--max-warnings 0`) everywhere checked. Only one new commit since the 2026-08-24 audit: `90ec30e5` fix(css-scaling) convert shared library primitives to cqmin scaling (`components/common/library/LibraryToolbar.tsx`, `BulkActionBar.tsx`, `LibraryPreviewPane.tsx`, `ViewCountBadge.tsx`) — covered clean by the `components/*` sweep above. No existing structured Open items to cross-reference (prior entries are narrative daily-check logs, not `### [SEVERITY]` items); none newly found. Codebase remains fully type-safe and lint-clean._
 
 _2026-08-24: Checked (Monday daily). `pnpm type-check` exit 0 (0 TypeScript errors, `tsc --noEmit`). `pnpm lint` exit 0 — the full run completed cleanly this cycle (no timeout/OOM fallback needed, unlike 2026-08-23/08-22/08-18): root `lint:app` (`eslint . --max-warnings 0`) and `lint:functions` (`functions/` `eslint . --max-warnings 0`) both exited 0, so 0 ESLint errors and 0 warnings across the whole lintable file set in a single authoritative invocation. New commits since the 2026-08-23 audit, all on `scheduled-tasks`: `690f2729` feat(admin-config) Calendar building-default appearance config (`components/admin/CalendarConfigurationModal.tsx`, `types.ts`, `utils/adminBuildingConfig.ts`, `tests/utils/adminBuildingConfig.test.ts`) and `d42a46d6` fix(admin-config) enforce Calendar `daysVisible` upper bound in validator (`utils/adminBuildingConfig.ts`, `tests/utils/adminBuildingConfig.test.ts`) — both covered clean by today's full type-check and lint runs. `scheduled-tasks` is 11 commits ahead of and 0 behind `origin/dev-paul` (merge-base = dev-paul HEAD `25f61278`), so no rebase was required and no unaudited upstream source has landed. No existing structured Open items to cross-reference (prior entries are narrative daily-check logs, not `### [SEVERITY]` items); none newly found. Codebase remains fully type-safe and lint-clean._
 
