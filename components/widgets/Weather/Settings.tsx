@@ -319,12 +319,16 @@ export const WeatherSettings: React.FC<{ widget: WidgetData }> = ({
       {!isAuto ? (
         <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
           <div>
-            <label className="text-xxs  text-slate-400 uppercase tracking-widest mb-4 block flex items-center gap-2">
+            <label
+              htmlFor={`weather-temp-${widget.id}`}
+              className="text-xxs  text-slate-400 uppercase tracking-widest mb-4 block flex items-center gap-2"
+            >
               <Thermometer className="w-3 h-3" />{' '}
               {t('widgets.weather.temperature')} (°F)
             </label>
             <div className="flex items-center gap-4 px-2">
               <input
+                id={`weather-temp-${widget.id}`}
                 type="range"
                 min="0"
                 max="110"
@@ -449,12 +453,16 @@ export const WeatherSettings: React.FC<{ widget: WidgetData }> = ({
                   )}
 
                   <div>
-                    <label className="text-xxs  text-slate-400 uppercase tracking-widest mb-2 block flex items-center gap-2">
+                    <label
+                      htmlFor={`weather-city-${widget.id}`}
+                      className="text-xxs  text-slate-400 uppercase tracking-widest mb-2 block flex items-center gap-2"
+                    >
                       <MapPin className="w-3 h-3" />{' '}
                       {t('widgets.weather.cityZip')}
                     </label>
                     <div className="flex gap-2">
                       <input
+                        id={`weather-city-${widget.id}`}
                         type="text"
                         placeholder={t('widgets.weather.cityPlaceholder')}
                         value={city}

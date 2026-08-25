@@ -231,7 +231,9 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
       {/* DPI Calibration */}
       <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
         <div className="space-y-1">
-          <SettingsLabel>True-Scale Calibration (px / inch)</SettingsLabel>
+          <SettingsLabel htmlFor={`mathtoolinstance-dpi-${widget.id}`}>
+            True-Scale Calibration (px / inch)
+          </SettingsLabel>
           <p className="text-xxs text-slate-400 leading-relaxed">
             CSS defines 1 in = 96 px. Adjust this if your IFP renders at a
             different physical DPI. Measure a known object on screen to
@@ -240,6 +242,7 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
         </div>
         <div className="flex gap-2 items-center">
           <input
+            id={`mathtoolinstance-dpi-${widget.id}`}
             type="number"
             min={60}
             max={300}

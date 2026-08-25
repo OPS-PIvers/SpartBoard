@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Sunday_
-_Last audited: 2026-08-16_
+_Last audited: 2026-08-23_
 _Last action: 2026-08-09 — Deleted the entire `scripts/tools/` directory (9 stale Python/Playwright dev-session scripts, zero references anywhere, including `fix_buttons.py` which auto-edited widget source). Resolves the source-modification-risk portion of the "scripts/tools/\*.py" MEDIUM; the root `scripts/*.js` audit portion remains Open (narrowed)._
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-23 audit notes (Sunday): Re-verified all existing Open items — none resolved, none newly stale. Full re-scan of migration.ts legacy type strings, `scripts/tools/` (still absent), commented-out code (ran a code-likeness-filtered scan across ~650 raw candidate comment blocks in components/context/hooks/utils — all 9 blocks that survived the filter were legitimate JSDoc/prose, zero actual commented-out code), and console.log() (zero). Ran a systematic dead-export sweep across all `utils/`/`hooks/` named exports (615 exports checked via per-name repo-wide reference counts) — found two genuinely new dead exports with zero references anywhere outside their own definition line, both added below. Also scanned `scripts/` root: several files not previously itemized by name (`setup-organization.js`, `lti-keygen.mjs`, `org-seed.example.json`, `recount-org-members.test.ts`) are self-documented ops/companion scripts in the same bucket as the existing "root scripts/\*.js" LOW item — no new item needed. `scripts/spikes/` (7 subdirectories of speech/pronunciation research code) initially looked out-of-domain for a classroom dashboard repo, but is confirmed active, tracked R&D (referenced in `docs/multilingual-pronunciation-engine.md` / `-spec.md`, tied to GitHub issue #2331, most recent commit "D4: unify cross-directory import" on this branch) — not a legacy-cleanup candidate._
 
 _2026-08-16 audit notes (Sunday): Note — corrected this journal's cadence label from "weekly — Thursday" to "weekly — Sunday" to match its actual audit history (see matching note in admin-settings-alignment.md). No new items found this cycle — see the Clean section below for verification detail._
 
@@ -56,6 +58,20 @@ _2026-08-09 action notes (Sunday): The single highest-priority Open item across 
 - **Detail:** `console.warn('Background removal complete: ${key}')` is called when AI background removal reaches 100% (`current === total`). The comment above it reads "Final progress log." This is a debug trace left from development — `console.warn` is inappropriate for a success condition and will appear in production browser consoles. All other `console.warn`/`console.error` calls in the codebase are legitimate error-reporting paths; this is the sole misuse.
 - **Fix:** Delete line 109 (silent success is correct; the caller handles the resolved promise). If observability is desired, replace with a structured logger or a non-warn approach.
 
+### LOW `utils/migrateProportionalLayout.ts:61` — `dashboardNeedsProportionalMigration` dead export
+
+- **Detected:** 2026-08-23
+- **File:** utils/migrateProportionalLayout.ts:61
+- **Detail:** `dashboardNeedsProportionalMigration` (`(d: Dashboard): boolean => d.widgets.some(widgetNeedsProportionalMigration)`) is exported but has zero references anywhere in the codebase outside its own definition line — not imported by `context/DashboardContext.tsx` (which imports the sibling `migrateDashboardWidgets` and `hydrateWidgetPixels` from the same file, and imports `widgetNeedsProportionalMigration` from `utils/proportionalLayout.ts` directly for its own per-widget checks), not covered by `tests/utils/migrateProportionalLayout.test.ts` (which tests `widgetNeedsProportionalMigration` and other siblings but not this function), and not referenced in any component/hook/util. It appears to be a dashboard-level convenience wrapper around the actively-used `widgetNeedsProportionalMigration` that was never wired into a call site.
+- **Fix:** Delete the `dashboardNeedsProportionalMigration` export (lines 61-62). Run `pnpm type-check` and `pnpm lint` to verify clean.
+
+### LOW `hooks/usePlcPresence.ts:125` — `usePlcStandalonePresence` dead hook export
+
+- **Detected:** 2026-08-23
+- **File:** hooks/usePlcPresence.ts:125
+- **Detail:** `usePlcStandalonePresence(plcId)` is a full React hook (Firestore `onSnapshot` listener + `useState`/`useEffect`) exported and documented in the file's header JSDoc as "a standalone listener for a non-provider host that needs raw presence without mounting a whole `PlcProvider`." It has zero call sites anywhere in the codebase — every current PLC presence consumer goes through `PlcProvider` (`context/PlcContext.tsx`) and its selectors (`usePlcPresence()` / `usePlcWhoIsHere()` in `context/usePlcContext.ts`) instead. The only other occurrences of the name are the JSDoc mention and a self-referential `logError` scope string inside the function's own body. This looks like deliberately-built escape-hatch infrastructure for an anticipated non-provider host that was never built, rather than accidental cruft — but it is currently dead code (an unused Firestore subscription).
+- **Fix:** If no non-provider PLC host is planned, delete `usePlcStandalonePresence` (and its now-unused imports, e.g. `useEffect`/`useState`/`onSnapshot` if nothing else in the file needs them) along with its JSDoc mention. If a non-provider host is genuinely planned soon, leave in place but note the intended call site here so it doesn't get flagged as dead again. Run `pnpm type-check` and `pnpm lint` to verify clean.
+
 ### LOW `utils/videoActivityDriveService.ts` — export added 2026-05-08 with no production call site
 
 - **Detected:** 2026-05-17
@@ -66,6 +82,21 @@ _2026-08-09 action notes (Sunday): The single highest-priority Open item across 
 ---
 
 ## Clean (no issues found)
+
+Migration code + dead exports + console.log audit (2026-08-23, re-verified):
+
+- Old type strings 'timer', 'stopwatch': Only in `utils/migration.ts:71-80` — correct. All other 'timer'/'stopwatch' occurrences in components/ (TimeTool, Schedule, Calendar, SpecialistSchedule, InstructionalRoutines, RemoteTimerControl, NextUp, CustomWidget, WidgetBuilder) and `utils/adminBuildingConfig.ts` are `TimeToolMode`/`ScheduleItem.mode` config values, not legacy `WidgetType` strings.
+- Old type string 'workSymbols': Only in `utils/migration.ts:99` — correct.
+- `migrateLocalStorageToFirestore()`: Still actively called in `context/DashboardContext.tsx:2045`. Existing MEDIUM open item still valid.
+- `scripts/tools/`: Confirmed still absent (`ls scripts/tools` → no such directory).
+- `scripts/` root: New files present since last audit (`recount-org-members.js` + its new `recount-org-members.test.ts`, `setup-organization.js`, `lti-keygen.mjs`, `org-seed.example.json`, `prerender-legal.tsx`, `smart2spart/`, `spikes/`). `prerender-legal.tsx` is wired into `vite.prerender.config.ts` + the `build` script (ongoing). `smart2spart/` is a documented, tested, standalone teacher-facing SMART Notebook → `.spartnb` converter CLI (companion to but distinct from the in-app `/convert` route) — ongoing. `spikes/` is active R&D tracked by GitHub issue #2331 and `docs/multilingual-pronunciation-engine*.md` — not legacy. `setup-organization.js`/`lti-keygen.mjs`/`org-seed.example.json` are self-documented one-shot ops scripts in the same bucket as the existing "root scripts/\*.js" LOW item — no new item needed.
+- Commented-out code: Ran a code-likeness-filtered scan (615-line raw pattern scan narrowed to 9 candidates via a code-vs-prose heuristic) across components/, context/, hooks/, utils/ — all 9 survivors manually inspected and confirmed to be legitimate JSDoc/prose documentation (including code-example blocks in JSDoc), not commented-out code. Zero actual commented-out code blocks found.
+- console.log(): Zero in components/, context/, hooks/, utils/ (grep confirmed).
+- Dead exports: Systematic sweep of all 615 named `export const`/`export function`/`export class` declarations in `utils/`+`hooks/` (excluding `.test.ts`) via repo-wide per-name reference counts. 17 exports had zero references in other files; 15 of those are constants/helpers still used multiple times within their own defining file (just unnecessarily marked `export` — not dead code, low-value to flag). Two are genuinely zero-reference-anywhere dead code — see new LOW open items for `dashboardNeedsProportionalMigration` and `usePlcStandalonePresence`.
+- `useScaledFont.ts`: Still dead (no production import found; `components/widgets/ScheduleWidget.test.tsx:65` still carries the stale `vi.mock`). Existing LOW open item still valid.
+- `videoActivityDriveService.ts`: Still no production imports (only `tests/utils/videoActivityDriveService.test.ts` imports it). Existing LOW open item still valid.
+- `utils/imageProcessing.ts:109`: `console.warn('Background removal complete: ...')` on success still present, unchanged. Existing LOW open item still valid.
+- `utils/periodCompat.ts` — `buildPeriodFields`: Still no production imports (grep confirmed zero call sites outside the file itself). Existing LOW open item still valid.
 
 Migration code + dead exports + console.log audit (2026-08-16, re-verified):
 
