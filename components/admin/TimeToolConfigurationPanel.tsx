@@ -83,6 +83,7 @@ export const TimeToolConfigurationPanel: React.FC<
     useBuildingSelection(BUILDINGS);
   const accentColorLabelId = useId();
   const trafficLightColorLabelId = useId();
+  const defaultDurationLabelId = useId();
   const defaultModeLabelId = useId();
   const displayStyleLabelId = useId();
   const numberStyleLabelId = useId();
@@ -144,8 +145,14 @@ export const TimeToolConfigurationPanel: React.FC<
 
         {/* Default Duration */}
         <div>
-          <SettingsLabel className="mb-1">Default Timer Duration</SettingsLabel>
-          <div className="flex items-center gap-2">
+          <SettingsLabel as="span" id={defaultDurationLabelId} className="mb-1">
+            Default Timer Duration
+          </SettingsLabel>
+          <div
+            className="flex items-center gap-2"
+            role="group"
+            aria-labelledby={defaultDurationLabelId}
+          >
             <div className="flex items-center gap-1">
               <input
                 type="number"
