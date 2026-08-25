@@ -4,7 +4,7 @@ import type {
   BuildingRecord,
   BuildingType,
 } from '@/components/admin/Organization/types';
-import { gradeLabelFromType } from '@/config/buildings';
+import { canonicalBuildingId, gradeLabelFromType } from '@/config/buildings';
 import {
   Avatar,
   Badge,
@@ -53,10 +53,14 @@ export const BuildingsView: React.FC<Props> = ({
   const isScoped = actorRole === 'building_admin';
   // Building admins only see the buildings they manage and can't add new ones
   // or archive existing ones. They can edit their own buildings.
+  // Canonicalize b.id: actorBuildingIds is already canonical, so a legacy stored id would never match raw.
   const visibleBuildings = isScoped
-    ? buildings.filter((b) => actorBuildingIds.includes(b.id))
+    ? buildings.filter((b) =>
+        actorBuildingIds.includes(canonicalBuildingId(b.id))
+      )
     : buildings;
-  const canEdit = (id: string) => !isScoped || actorBuildingIds.includes(id);
+  const canEdit = (id: string) =>
+    !isScoped || actorBuildingIds.includes(canonicalBuildingId(id));
   const canCreate = !isScoped;
   const canRemove = (id: string) => !isScoped && canEdit(id);
 

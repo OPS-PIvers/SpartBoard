@@ -15,8 +15,12 @@ function shuffleInPlace<T>(arr: T[]): T[] {
 }
 
 // Checks both directions — restriction data read from Firestore isn't guaranteed to be symmetric.
-function conflictsWithBucket(student: Student, bucket: Student[]): boolean {
-  const restricted = new Set(student.restrictedStudentIds ?? []);
+// `restricted` is built once per student by the caller, not once per bucket.
+function conflictsWithBucket(
+  student: Student,
+  restricted: ReadonlySet<string>,
+  bucket: Student[]
+): boolean {
   return bucket.some(
     (m) =>
       restricted.has(m.id) ||
@@ -49,9 +53,12 @@ export function makeRestrictedGroups(
   let unsatisfied = 0;
 
   for (const student of shuffled) {
+    const restricted = new Set(student.restrictedStudentIds ?? []);
     const open = buckets.filter((b) => b.length < size);
 
-    const safe = open.filter((b) => !conflictsWithBucket(student, b));
+    const safe = open.filter(
+      (b) => !conflictsWithBucket(student, restricted, b)
+    );
 
     const pool = safe.length > 0 ? safe : open;
     if (safe.length === 0) unsatisfied++;
@@ -207,7 +214,10 @@ export function makeRestrictedGroupsByCount(
   let unsatisfied = 0;
 
   for (const student of shuffled) {
-    const safe = buckets.filter((b) => !conflictsWithBucket(student, b));
+    const restricted = new Set(student.restrictedStudentIds ?? []);
+    const safe = buckets.filter(
+      (b) => !conflictsWithBucket(student, restricted, b)
+    );
     const pool = safe.length > 0 ? safe : buckets;
     if (safe.length === 0) unsatisfied++;
     pool.sort((a, b) => a.length - b.length);

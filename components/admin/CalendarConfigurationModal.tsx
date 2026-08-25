@@ -727,11 +727,13 @@ export const CalendarConfigurationModal: React.FC<
                       min="1"
                       max="30"
                       value={currentBuildingConfig.daysVisible ?? 5}
-                      onChange={(e) =>
-                        updateBuilding({
-                          daysVisible: parseInt(e.target.value, 10),
-                        })
-                      }
+                      onChange={(e) => {
+                        // Ignore a non-finite parse (empty field) — NaN would reach Firestore and fail the whole save.
+                        const next = parseInt(e.target.value, 10);
+                        if (Number.isFinite(next)) {
+                          updateBuilding({ daysVisible: next });
+                        }
+                      }}
                       className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
                     />
                   </div>

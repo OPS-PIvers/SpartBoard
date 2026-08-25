@@ -41,7 +41,10 @@ import {
   Confirm,
 } from '@/components/admin/Organization/components/primitives';
 import { parseInvitesCsv, type InviteIntent } from '@/utils/csvImport';
-import { canonicalizeBuildingIds } from '@/config/buildings';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingIds,
+} from '@/config/buildings';
 
 interface Props {
   users: UserRecord[];
@@ -206,7 +209,10 @@ export const UsersView: React.FC<Props> = ({
   const visibleBuildings = useMemo(
     () =>
       isScoped
-        ? buildings.filter((b) => actorBuildingIds.includes(b.id))
+        ? buildings.filter((b) =>
+            // Canonicalize b.id: actorBuildingIds is already canonical, so a legacy stored id would never match raw.
+            actorBuildingIds.includes(canonicalBuildingId(b.id))
+          )
         : buildings,
     [buildings, isScoped, actorBuildingIds]
   );
