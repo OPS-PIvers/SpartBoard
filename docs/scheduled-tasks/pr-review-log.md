@@ -3019,3 +3019,69 @@ Recording this because the challenge was the right instinct on partial evidence:
   - **Log placement:** stacked on **#2550's head** (`claude/log-2026-08-24-second-run`, commit `525bdd3`), continuing the same-day chaining the second run used on #2549 and the 2026-08-22/23 runs used on #2533/#2534 — so today's three runs read as one continuous record at a single insertion point rather than three competing tails. `scheduled-tasks` is still the head of open PR #2527, so the log stays off it.
   - Tooling: GitHub via the MCP server (no `gh` CLI in this environment); all PR list/read/diff/comment/resolve operations used `mcp__github__*` equivalents.
   - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code was pushed this run, so CI on Node 24 remains the authoritative gate.
+
+---
+
+## 2026-08-25
+
+- PRs swept: **32** — every open PR on `ops-pivers/spartboard` (#2395, #2525, #2527–#2542, #2544–#2557). All target `dev-paul`; none targets `main` and no head is `main` or `dev-*`, so no branch-safety exclusion applied.
+- Comments processed: **all inline review threads across all 32 PRs were already resolved** — no unresolved thread existed anywhere. One resolved thread was still worth opening, and it was the run's first finding:
+  - **#2553 `r3849790007` — resolved, but the finding is wrong, and nothing had said so.** The thread claimed `components/widgets/MiniApp/Widget.test.tsx` throws before rendering because it never mocks `@/context/useDialog`, and that the PR's "1/1 passing" claim was therefore false. It carried no author reply and no follow-up commit — resolved silently. Verified instead of trusting the flag: `vitest.config.ts:13` loads `setupFiles: ['./tests/setTz.ts', './tests/setup.ts']`, and `tests/setup.ts:29-31` mocks `useDialog` **globally**, with a comment naming that exact purpose. Ran it at the PR head (`df85c45`): **1 file / 1 test passed**, assertion body reached (`getByTitle` resolves, both `sandbox` assertions execute). The `TextWidget/Widget.test.tsx` precedent the thread cited is a *redundant* local override that supplies its own spies, not a requirement. Replied with the run output; no code change.
+  - All other threads (#2395 ×17, #2544 ×3, #2539 ×3, #2537, #2533, #2529) close with an author reply carrying a verified on-branch fix. Nothing left unaddressed.
+- Fixes pushed: **0.** No comment on any PR met the "fix is needed" bar. The one substantive defect found this run (#2554, below) is a supersede-or-reimplement decision between two open PRs — a maintainer call, and pushing to that branch would have created a second branch carrying the same fix and guaranteed the conflict it already has with #2529.
+- Reviews posted: **6** — one per PR opened since the last run (#2552–#2557); the other 26 already carry a structured review against an unchanged head, and re-reviewing identical diffs would have buried this run's findings. Plus **2** targeted comments (#2542, #2554).
+  - Ready: #2555.
+  - Ready with minor notes: #2553, #2556, #2557, #2552.
+  - Needs changes: #2554.
+
+### #2554 — the fix is partial, and its test can't tell
+
+The run's main finding, reproduced rather than reasoned about. #2554 adds `e.stopPropagation()` to `AiAssistOverlay`'s div-level `onKeyDown` so Escape closes only the overlay, not the whole `ImportWizard`. Its test passes; `tsc` clean; 21/21 green.
+
+The test fires `keyDown` on a hand-picked node (`fireEvent.keyDown(textarea, …)`), synthesizing a target real usage doesn't produce. Probing the actual flow — open the overlay via its real trigger, then fire Escape on `document.activeElement`:
+
+| Focus when Escape is pressed | `activeElement` | Overlay closes | Wizard closes |
+| --- | --- | --- | --- |
+| Just opened, not yet clicked into | `BODY` | no | **yes — the bug the PR is titled after** |
+| After clicking into the textarea | `TEXTAREA` | yes | no |
+
+Nothing moves focus into the overlay on open, so in the just-opened state the handler sits on a *descendant* of the focused element and is structurally unreachable. That is also the moment a user is most likely to press Escape.
+
+- **Self-correction, recorded because it changed the call.** The review as first posted said the fix "does not work for the real user flow" — right for the case probed, too broad as stated. Probing the second sub-case showed the composing case genuinely works. Posted a correction on #2554 refining "broken" to "partial"; the merge recommendation stands but is now argued on the right basis.
+- **#2529 already fixes both cases and is still open.** Same base, same file, same bug, opened 08-22. Its `document`-listener + `onCancelRef` approach returns `OVERLAY_OPEN=false, ONCLOSE=0` from the `BODY`-focus state under the identical probe. Its in-code comment states the reason #2554's shape can't work: *"nothing moves focus into this overlay on open, so a div-level onKeyDown never fires for it."* The two also collide textually — #2529 deletes the `onKeyDown` prop that #2554 edits.
+- **Third recurrence of one test-shape gap.** #2544's reviewer caught it twice (`r3840742237`, `r3840821450`); it recurs here. Recommended promoting a procedural rule into `docs/routines/debugger.md`'s Escape bug-class section — *fire Escape on `document.activeElement`, never on a node the test chose* — which would have caught this before dispatch.
+
+### #2542/#2525/#2535 collision — real, but the mechanics differ from the flag
+
+#2552 records a three-way collision and #2542 carries the flag. Simulated the merges onto a scratch branch off `origin/dev-paul` rather than accepting it:
+
+```
+merge #2525 → clean
+merge #2535 → clean
+merge #2542 → CONFLICT: MathToolInstance/Settings.tsx, MathTools/Settings.tsx
+```
+
+Headline holds. The five duplicated instances split in two, though, and both documents treat them as one group:
+
+- **Three are byte-identical** — `ClockConfigurationPanel.tsx`, `LunchCount/Settings.tsx`, `Embed/Settings.tsx` produce character-for-character identical hunks in both PRs (diffed each pair, zero delta). Git dedupes them; the result is the correct `htmlFor`/`id` pair exactly once.
+- **Two diverge only in the id string** — `mathtools-dpi-` vs `mathtools-dpi-calibration-` (and the `mathtoolinstance-` pair). Functionally equivalent; that text is the entire conflict.
+
+So the flag's "silently reintroduce/duplicate" warning describes an unreachable outcome: identical hunks can't duplicate, divergent hunks can't merge silently. The failure mode is a **visible 2-file conflict** — the better outcome — and the fix is picking either side on two lines after the siblings land, not the proposed rebase-down-to-2-instances or close-and-reopen. Posted on both #2552 and #2542.
+
+- Local verification this run (Node 22; CI on Node 24 authoritative):
+  - #2553 — `vitest run components/widgets/MiniApp` → 4 files / 27 tests pass; `tsc` ✓, `eslint --max-warnings 0` ✓, `prettier --check` ✓.
+  - #2555 — `tsc --noEmit` exit 0; `actorBuildingScope.test.ts` 5/5, `UsersView.legacyBuildingId.test.tsx` 2/2.
+  - #2556 — `functions` `tsc --noEmit` exit 0; `vitest run src/organizationInvites.test.ts` → 60/60; `prettier --check` ✓.
+  - #2554 — `tsc` exit 0; suite 21/21 — green, and the probe above is why that isn't sufficient.
+- New findings this run, beyond the two above:
+  - **#2553 is better supported than its own description claims.** The removed `allow-same-origin` grant made the *teacher-side* runtime the lone outlier: `MiniAppStudentApp.tsx:419` and `CustomWidget/Widget.tsx:271` already ship `sandbox="allow-scripts allow-forms allow-modals"`. So students have never had the grant, any app depending on `localStorage` was already broken for them, and `functions/src/aiGeneration.ts` never instructs generated apps to use it (grepped, zero hits). The change makes teacher behavior *match* student behavior — a stronger argument than the compatibility trade-off the old comment implied.
+  - **#2555 has no silent-migration side effect**, which was the hazard its shape invited. `editingUser` is now the canonicalized record, so `EditUserModal.buildPatch()` compares in canonical space: a name-only edit leaves `patch.buildingIds` unset and legacy ids are *not* rewritten; changing buildings writes canonical ids and self-heals. Verified by reading the patch builder, not inferred. Noted the architectural point — this is the third read-site shim for the same data problem (`buildingUserCounts.ts` in #2547 being the first two sites), and a one-time `members/*.buildingIds` backfill would retire the class.
+  - **#2556 fixes creation but not existing data.** Invitations already written with an internal space stay unclaimable, with the same confusing "This invitation is not for this account." Backlog row, not a widening of that PR.
+  - **Comment-convention drift is batch-wide, not per-PR.** #2556 and #2555 each pushed a `review: trim comment to one line per CLAUDE.md` commit — but #2556's *test* file still carries an 8-line block, and #2553's new test carries a 6-line block with no trim commit at all. The "one short line max" rule isn't scoped to source files.
+- Notes:
+  - **Zero unresolved review threads across 32 PRs** — a first at this PR count. The work this run came from two other surfaces: a resolved-but-unanswered thread whose claim was wrong (#2553), and reviewing the six PRs opened since the last run.
+  - Both cross-PR findings this run were only visible from outside any single PR — #2554's overlap with #2529, and the true shape of the #2542 collision. Neither dispatching automation could have seen them, which is the same root cause #2552 identifies: concurrent nightly runs branching from one `dev-paul` tip (`25f6127`) with no visibility into in-flight siblings. #2535 avoided it by diffing against #2525's branch first; that check isn't part of the routine yet.
+  - **Log placement:** stacked on **#2551's head** (`claude/inspiring-cannon-ciu7ws`, `7f9a897`), continuing the established chaining — `pr-review-log.md` is append-only with a nightly writer, so branching fresh from `origin/dev-paul` would guarantee a trailing-line conflict while #2551 stays open. Pushed to the session's designated branch `claude/pensive-bell-va42yz`. Kept **off** `scheduled-tasks`, which is still the head of open PR #2527.
+  - Branch safety: no push to `main` or any `dev-*` branch, and no push to any PR head branch at all this run.
+  - Tooling: GitHub via the MCP server (no `gh` CLI in this environment); all PR list/read/diff/review/comment operations used `mcp__github__*` equivalents.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code was pushed, so CI on Node 24 remains the authoritative gate.
