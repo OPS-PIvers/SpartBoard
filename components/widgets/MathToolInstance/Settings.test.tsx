@@ -44,4 +44,12 @@ describe('MathToolInstanceSettings — Min/Max label associations', () => {
 
     expect(screen.getByLabelText('Max')).toHaveAttribute('type', 'number');
   });
+
+  it('names the true-scale calibration input from its label', () => {
+    render(<MathToolInstanceSettings widget={widget} />);
+
+    expect(
+      screen.getByLabelText('True-Scale Calibration (px / inch)')
+    ).toHaveAttribute('type', 'number');
+  });
 });

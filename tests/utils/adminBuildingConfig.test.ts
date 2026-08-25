@@ -927,6 +927,62 @@ describe('getAdminBuildingConfig', () => {
     });
   });
 
+  describe('calendar', () => {
+    it('passes through daysVisible, prefixed font family, text colour, text size preset, and surface colour/opacity', () => {
+      const perm = makePerm('calendar', {
+        high: {
+          daysVisible: 10,
+          fontFamily: 'font-handwritten',
+          fontColor: '#0f172a',
+          textSizePreset: 'large',
+          cardColor: '#e0f2fe',
+          cardOpacity: 0.8,
+        },
+      });
+      expect(getAdminBuildingConfig('calendar', [perm], ['high'])).toEqual({
+        daysVisible: 10,
+        fontFamily: 'font-handwritten',
+        fontColor: '#0f172a',
+        textSizePreset: 'large',
+        cardColor: '#e0f2fe',
+        cardOpacity: 0.8,
+      });
+    });
+
+    it('rejects bare GlobalFontFamily ids — calendar uses the prefixed FONTS space', () => {
+      const perm = makePerm('calendar', { high: { fontFamily: 'sans' } });
+      expect(getAdminBuildingConfig('calendar', [perm], ['high'])).toEqual({});
+    });
+
+    it('rejects invalid daysVisible, colours, text size preset, and out-of-range opacity', () => {
+      const perm = makePerm('calendar', {
+        high: {
+          daysVisible: -3,
+          fontFamily: 'not-a-font',
+          fontColor: 'rgb(0,0,0)',
+          textSizePreset: 'gigantic',
+          cardColor: 'white',
+          cardOpacity: 1.5,
+        },
+      });
+      expect(getAdminBuildingConfig('calendar', [perm], ['high'])).toEqual({});
+    });
+
+    it('rejects daysVisible above the 30-day UI bound', () => {
+      const perm = makePerm('calendar', { high: { daysVisible: 500 } });
+      expect(getAdminBuildingConfig('calendar', [perm], ['high'])).toEqual({});
+    });
+
+    it('seeds only the provided fields, leaving proxy-sync fields untouched', () => {
+      const perm = makePerm('calendar', {
+        high: { daysVisible: 7 },
+      });
+      expect(getAdminBuildingConfig('calendar', [perm], ['high'])).toEqual({
+        daysVisible: 7,
+      });
+    });
+  });
+
   it('returns empty for unknown widget types', () => {
     const perm = makePerm('clock', { high: { format24: true } });
     // Pass a type that has no case in the switch.

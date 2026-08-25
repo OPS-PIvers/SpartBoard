@@ -799,6 +799,64 @@ describe('organizations/domains — writes', () => {
       )
     );
   });
+
+  // resolveOrgIdForDomain (functions/src/classlinkShared.ts) resolves a
+  // signed-in user's org via an EXACT-match query against a value it builds
+  // itself as '@' + <lowercased email/hd domain> — it never normalizes the
+  // STORED `domain` field. A domain doc written with mismatched case or
+  // stray whitespace would previously pass this rule (only hasOnly + identity
+  // fields were pinned) and look "added" in the admin UI, but every sign-in
+  // from that domain would then silently fail org resolution forever with no
+  // error surfaced anywhere.
+  it('domain admin cannot create a domain value with uppercase letters', async () => {
+    await assertFails(
+      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/bad-case`), {
+        ...pendingDomain('bad-case', '@Orono.K12.MN.US'),
+      })
+    );
+  });
+
+  it('domain admin cannot create a domain value with embedded whitespace', async () => {
+    await assertFails(
+      setDoc(
+        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/bad-space`),
+        { ...pendingDomain('bad-space', '@orono.k12.mn.us ') }
+      )
+    );
+  });
+
+  it('domain admin cannot create a domain value missing the leading @', async () => {
+    await assertFails(
+      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/bad-at`), {
+        ...pendingDomain('bad-at', 'orono.k12.mn.us'),
+      })
+    );
+  });
+
+  it('domain admin cannot update a domain value to an unnormalized form', async () => {
+    await assertFails(
+      updateDoc(
+        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/primary`),
+        { domain: '@Orono.K12.MN.US' }
+      )
+    );
+  });
+
+  it('super admin cannot update a domain value to an unnormalized form', async () => {
+    await assertFails(
+      updateDoc(doc(asSuper(), `organizations/${ORG_ID}/domains/primary`), {
+        domain: '@Orono.K12.MN.US',
+      })
+    );
+  });
+
+  it('super admin can update a domain value to a normalized form', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asSuper(), `organizations/${ORG_ID}/domains/primary`), {
+        domain: '@renamed.orono.k12.mn.us',
+      })
+    );
+  });
 });
 
 describe('organizations/roles — writes (system role protection)', () => {

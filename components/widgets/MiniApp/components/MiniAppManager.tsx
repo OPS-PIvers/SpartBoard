@@ -1278,18 +1278,18 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
  * runtime player's:
  *
  *   preview:  sandbox="allow-scripts"
- *   runtime:  sandbox="allow-scripts allow-forms allow-popups allow-modals
- *                      allow-same-origin"
+ *   runtime:  sandbox="allow-scripts allow-forms allow-popups allow-modals"
  *
- * The runtime grants `allow-same-origin` so apps can use localStorage /
- * postMessage origin checks. In preview we keep the iframe at a null
- * origin so a teacher inspecting a malicious global app (review path)
- * can't have it reach `parent.window` and read the host DOM. That makes
- * the preview a strict subset of what students will see: apps that rely
- * on `allow-same-origin`, forms POST, `window.open`, or
- * `alert/confirm/prompt` will look broken in preview yet work at
- * runtime. The trade-off favors safety on the inspection surface; the
- * runtime is the source of truth.
+ * Neither grants `allow-same-origin` — app html is untrusted (AI-generated
+ * or imported), and on a `srcDoc` iframe that flag hands the app's JS the
+ * PARENT document's own origin (DOM/localStorage access to the teacher's
+ * live session), not some isolated app-local storage. Apps talk to the host
+ * purely over the SPART_MINIAPP_INIT/RESULT postMessage protocol (see
+ * aiGeneration.ts), which needs no same-origin grant. Preview additionally
+ * withholds `allow-forms`/`allow-popups`/`allow-modals` so a teacher
+ * inspecting a malicious global app (review path) sees a strictly quieter
+ * surface than runtime: forms POST, `window.open`, and `alert/confirm/
+ * prompt` will look inert in preview yet work at runtime.
  */
 const MiniAppPreviewPane: React.FC<{
   row: UnifiedRow;

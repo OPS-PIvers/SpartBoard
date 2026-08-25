@@ -231,9 +231,7 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
       {/* DPI Calibration */}
       <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
         <div className="space-y-1">
-          <SettingsLabel
-            htmlFor={`mathtoolinstance-dpi-calibration-${widget.id}`}
-          >
+          <SettingsLabel htmlFor={`mathtoolinstance-dpi-${widget.id}`}>
             True-Scale Calibration (px / inch)
           </SettingsLabel>
           <p className="text-xxs text-slate-400 leading-relaxed">
@@ -244,7 +242,7 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
         </div>
         <div className="flex gap-2 items-center">
           <input
-            id={`mathtoolinstance-dpi-calibration-${widget.id}`}
+            id={`mathtoolinstance-dpi-${widget.id}`}
             type="number"
             min={60}
             max={300}
