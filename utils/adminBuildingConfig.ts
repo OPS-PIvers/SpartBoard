@@ -748,6 +748,37 @@ export const getAdminBuildingConfig = (
       // reads config.fontColor (dead control, same as ConceptWeb).
       break;
     }
+    case 'calendar': {
+      // Calendar's Appearance tab uses the shared TypographySettings /
+      // SurfaceColorSettings primitives, so `fontFamily` lives in the prefixed
+      // `FONTS`-id space (validated by `isWidgetFontFamily`, like
+      // schedule/stations/work-symbols/graphic-organizer). All six fields are
+      // actively consumed by Calendar/Widget.tsx (daysVisible event window,
+      // getFontClass, fontColor row text, hexToRgba surface, textSizePreset).
+      if (
+        typeof raw.daysVisible === 'number' &&
+        Number.isFinite(raw.daysVisible) &&
+        raw.daysVisible >= 1 &&
+        raw.daysVisible <= 30
+      )
+        out.daysVisible = raw.daysVisible;
+      if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
+      if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
+      const validTextSizePresets = [
+        'small',
+        'medium',
+        'large',
+        'x-large',
+      ] as const;
+      if (
+        typeof raw.textSizePreset === 'string' &&
+        (validTextSizePresets as readonly string[]).includes(raw.textSizePreset)
+      )
+        out.textSizePreset = raw.textSizePreset;
+      if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
+      if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;
+      break;
+    }
     default:
       break;
   }

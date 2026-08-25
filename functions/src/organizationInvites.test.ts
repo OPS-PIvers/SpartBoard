@@ -204,6 +204,43 @@ describe('normalizeInvite', () => {
     expect('error' in r2).toBe(true);
   });
 
+  it('rejects an email with whitespace inside it (e.g. a bulk-paste "user@ example.com")', () => {
+    // Regression: only the OUTER string was trimmed, so a stray space right
+    // after '@' (a realistic bulk-invite copy/paste artifact — see the
+    // parallel fix in scripts/recount-org-members.js's emailDomain()) slipped
+    // past the shape check as long as a '.' appeared later in the string.
+    // The resulting invitation.email would never equal any real signed-in
+    // user's email (Firebase Auth emails never contain internal whitespace),
+    // so evaluateClaim's exact-match check permanently rejects the claim with
+    // a confusing "This invitation is not for this account." — an
+    // unclaimable invite the admin has no way to notice or fix.
+    const r1 = normalizeInvite({
+      email: 'teacher@ orono.k12.mn.us',
+      roleId: 'teacher',
+      buildingIds: [],
+    });
+    expect('error' in r1).toBe(true);
+
+    const r2 = normalizeInvite({
+      email: 'te acher@orono.k12.mn.us',
+      roleId: 'teacher',
+      buildingIds: [],
+    });
+    expect('error' in r2).toBe(true);
+
+    const r3 = normalizeInvite({
+      email: 'teacher@orono.k12.mn.us ',
+      roleId: 'teacher',
+      buildingIds: [],
+    });
+    // Trailing space is stripped by the OUTER .trim() — this one must still
+    // succeed so the fix doesn't regress the "trims whitespace" case above.
+    expect('invite' in r3).toBe(true);
+    if ('invite' in r3) {
+      expect(r3.invite.email).toBe('teacher@orono.k12.mn.us');
+    }
+  });
+
   it('rejects missing roleId', () => {
     const result = normalizeInvite({
       email: 'user@ex.com',
