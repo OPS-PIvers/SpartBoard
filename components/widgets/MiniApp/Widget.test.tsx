@@ -94,11 +94,7 @@ describe('MiniAppWidget — runtime iframe sandbox', () => {
     const sandbox = frame.getAttribute('sandbox') ?? '';
     const tokens = sandbox.split(/\s+/).filter(Boolean);
 
-    // allow-scripts + allow-same-origin together on a srcDoc iframe lets the
-    // untrusted app's JS inherit the PARENT document's origin (DOM/localStorage
-    // access to the teacher's live SpartBoard session) instead of a sandboxed
-    // opaque origin. The SPART_MINIAPP_INIT/RESULT protocol is postMessage-only
-    // and needs no same-origin grant (see MiniAppStudentApp.tsx / CustomWidget).
+    // allow-scripts + allow-same-origin on a srcDoc iframe would leak the parent origin to untrusted app JS.
     expect(tokens).not.toContain('allow-same-origin');
     // Sanity: the app still runs — scripts/forms/popups/modals stay granted.
     expect(tokens).toEqual(
