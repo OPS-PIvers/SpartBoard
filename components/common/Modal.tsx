@@ -1,11 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import {
-  decrementOpenModalCount,
-  getOpenModalCount,
-  incrementOpenModalCount,
-} from './modalStore';
+import { decrementOpenModalCount, incrementOpenModalCount } from './modalStore';
+import { acquireBodyScrollLock, releaseBodyScrollLock } from './bodyScrollLock';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 interface ModalProps {
@@ -71,9 +68,7 @@ export const Modal: React.FC<ModalProps> = ({
       onCloseRef.current();
     };
 
-    if (getOpenModalCount() === 0) {
-      document.body.style.overflow = 'hidden';
-    }
+    acquireBodyScrollLock();
     incrementOpenModalCount();
     window.addEventListener(
       'keydown',
@@ -82,10 +77,8 @@ export const Modal: React.FC<ModalProps> = ({
     );
 
     return () => {
-      const remaining = decrementOpenModalCount();
-      if (remaining === 0) {
-        document.body.style.overflow = 'unset';
-      }
+      decrementOpenModalCount();
+      releaseBodyScrollLock();
       window.removeEventListener(
         'keydown',
         handleEscape,

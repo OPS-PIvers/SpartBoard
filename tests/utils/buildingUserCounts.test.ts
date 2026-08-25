@@ -78,4 +78,21 @@ describe('withDerivedUserCounts', () => {
     expect(result[1]?.name).toBe('Building a');
     expect(result[1]?.orgId).toBe('orono');
   });
+
+  it('counts a member whose buildingId is a legacy alias against the canonical building', () => {
+    const buildings = [building('high')];
+    const users = [member('active', ['orono-high-school'])];
+    const result = withDerivedUserCounts(buildings, users);
+    expect(result[0]?.users).toBe(1);
+  });
+
+  it('folds legacy + canonical buildingIds onto the same canonical building', () => {
+    const buildings = [building('high')];
+    const users = [
+      member('active', ['orono-high-school']),
+      member('active', ['high']),
+    ];
+    const result = withDerivedUserCounts(buildings, users);
+    expect(result[0]?.users).toBe(2);
+  });
 });

@@ -65,13 +65,24 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
     <div
       role="region"
       aria-label="Bulk actions"
-      className="flex flex-wrap items-center gap-2 rounded-2xl border border-brand-blue-primary/30 bg-brand-blue-lighter/30 px-3 py-2 shadow-sm backdrop-blur-sm"
+      className="flex flex-wrap items-center rounded-2xl border border-brand-blue-primary/30 bg-brand-blue-lighter/30 shadow-sm backdrop-blur-sm"
+      style={{
+        gap: 'min(8px, 2cqmin)',
+        paddingInline: 'min(12px, 3cqmin)',
+        paddingBlock: 'min(8px, 2cqmin)',
+      }}
     >
-      <span className="font-bold text-sm text-brand-blue-dark">
+      <span
+        className="font-bold text-brand-blue-dark"
+        style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+      >
         {count} selected
       </span>
 
-      <div className="ml-auto flex items-center gap-2">
+      <div
+        className="ml-auto flex items-center"
+        style={{ gap: 'min(8px, 2cqmin)' }}
+      >
         {/* New multi-action API: render in declaration order. */}
         {actions?.map((action) => {
           const Icon = action.icon;
@@ -87,13 +98,26 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
                 if (!disabled) void action.onClick();
               }}
               disabled={disabled}
-              className={`inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+              className={`inline-flex items-center rounded-lg bg-white font-bold uppercase tracking-wider shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                 action.destructive
                   ? 'text-brand-red-dark ring-1 ring-brand-red-primary/20 hover:bg-brand-red-lighter/30 hover:ring-brand-red-primary/40'
                   : 'text-brand-blue-dark hover:bg-brand-blue-lighter/40'
               }`}
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                paddingInline: 'min(12px, 3cqmin)',
+                paddingBlock: 'min(6px, 1.5cqmin)',
+                fontSize: 'min(12px, 4.5cqmin)',
+              }}
             >
-              {Icon && <Icon className="h-3.5 w-3.5" />}
+              {Icon && (
+                <Icon
+                  style={{
+                    width: 'min(14px, 3.5cqmin)',
+                    height: 'min(14px, 3.5cqmin)',
+                  }}
+                />
+              )}
               {action.label}
             </button>
           );
@@ -106,11 +130,22 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
               type="button"
               onClick={() => setShowFolderPicker((v) => !v)}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-brand-blue-dark shadow-sm transition-colors hover:bg-brand-blue-lighter/40 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center rounded-lg bg-white font-bold uppercase tracking-wider text-brand-blue-dark shadow-sm transition-colors hover:bg-brand-blue-lighter/40 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                paddingInline: 'min(12px, 3cqmin)',
+                paddingBlock: 'min(6px, 1.5cqmin)',
+                fontSize: 'min(12px, 4.5cqmin)',
+              }}
               aria-haspopup="dialog"
               aria-expanded={showFolderPicker}
             >
-              <FolderInput className="h-3.5 w-3.5" />
+              <FolderInput
+                style={{
+                  width: 'min(14px, 3.5cqmin)',
+                  height: 'min(14px, 3.5cqmin)',
+                }}
+              />
               Move
             </button>
             {showFolderPicker && (
@@ -135,9 +170,20 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
               if (!busy) await onDelete();
             }}
             disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-brand-red-dark shadow-sm transition-colors hover:bg-brand-red-lighter/30 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center rounded-lg bg-white font-bold uppercase tracking-wider text-brand-red-dark shadow-sm transition-colors hover:bg-brand-red-lighter/30 disabled:cursor-not-allowed disabled:opacity-50"
+            style={{
+              gap: 'min(6px, 1.5cqmin)',
+              paddingInline: 'min(12px, 3cqmin)',
+              paddingBlock: 'min(6px, 1.5cqmin)',
+              fontSize: 'min(12px, 4.5cqmin)',
+            }}
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2
+              style={{
+                width: 'min(14px, 3.5cqmin)',
+                height: 'min(14px, 3.5cqmin)',
+              }}
+            />
             Delete
           </button>
         )}
@@ -146,10 +192,21 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
           type="button"
           onClick={onClear}
           disabled={busy}
-          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-600 hover:bg-white/60 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center rounded-lg font-semibold text-slate-600 hover:bg-white/60 disabled:cursor-not-allowed disabled:opacity-50"
+          style={{
+            gap: 'min(6px, 1.5cqmin)',
+            paddingInline: 'min(8px, 2cqmin)',
+            paddingBlock: 'min(6px, 1.5cqmin)',
+            fontSize: 'min(12px, 4.5cqmin)',
+          }}
           aria-label="Clear selection"
         >
-          <X className="h-3.5 w-3.5" />
+          <X
+            style={{
+              width: 'min(14px, 3.5cqmin)',
+              height: 'min(14px, 3.5cqmin)',
+            }}
+          />
           Clear
         </button>
       </div>

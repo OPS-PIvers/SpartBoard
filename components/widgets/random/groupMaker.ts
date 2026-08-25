@@ -14,6 +14,16 @@ function shuffleInPlace<T>(arr: T[]): T[] {
   return arr;
 }
 
+// Checks both directions — restriction data read from Firestore isn't guaranteed to be symmetric.
+function conflictsWithBucket(student: Student, bucket: Student[]): boolean {
+  const restricted = new Set(student.restrictedStudentIds ?? []);
+  return bucket.some(
+    (m) =>
+      restricted.has(m.id) ||
+      (m.restrictedStudentIds ?? []).includes(student.id)
+  );
+}
+
 /**
  * Greedy, restriction-aware group maker.
  *
@@ -39,10 +49,9 @@ export function makeRestrictedGroups(
   let unsatisfied = 0;
 
   for (const student of shuffled) {
-    const restricted = new Set(student.restrictedStudentIds ?? []);
     const open = buckets.filter((b) => b.length < size);
 
-    const safe = open.filter((b) => !b.some((m) => restricted.has(m.id)));
+    const safe = open.filter((b) => !conflictsWithBucket(student, b));
 
     const pool = safe.length > 0 ? safe : open;
     if (safe.length === 0) unsatisfied++;
@@ -198,8 +207,7 @@ export function makeRestrictedGroupsByCount(
   let unsatisfied = 0;
 
   for (const student of shuffled) {
-    const restricted = new Set(student.restrictedStudentIds ?? []);
-    const safe = buckets.filter((b) => !b.some((m) => restricted.has(m.id)));
+    const safe = buckets.filter((b) => !conflictsWithBucket(student, b));
     const pool = safe.length > 0 ? safe : buckets;
     if (safe.length === 0) unsatisfied++;
     pool.sort((a, b) => a.length - b.length);

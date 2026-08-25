@@ -123,11 +123,26 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
       // when the user has explicitly opened a preview.
       style={{ width: `clamp(240px, 50%, ${safeWidthPx}px)` }}
     >
-      <header className="flex items-start justify-between gap-3 px-4 py-3 border-b border-slate-100 shrink-0">
+      <header
+        className="flex items-start justify-between border-b border-slate-100 shrink-0"
+        style={{
+          gap: 'min(12px, 3cqmin)',
+          paddingInline: 'min(16px, 4cqmin)',
+          paddingBlock: 'min(12px, 3cqmin)',
+        }}
+      >
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-bold text-slate-900 truncate">{title}</h3>
+          <h3
+            className="font-bold text-slate-900 truncate"
+            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+          >
+            {title}
+          </h3>
           {subtitle && (
-            <p className="text-xxs text-slate-500 mt-0.5 truncate">
+            <p
+              className="text-xxs text-slate-500 truncate"
+              style={{ marginTop: 'min(2px, 0.5cqmin)' }}
+            >
               {subtitle}
             </p>
           )}
@@ -141,16 +156,29 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
           aria-label="Close preview"
           className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] -m-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors shrink-0"
         >
-          <X className="w-5 h-5" aria-hidden="true" />
+          <X
+            style={{ width: 'min(20px, 5cqmin)', height: 'min(20px, 5cqmin)' }}
+            aria-hidden="true"
+          />
         </button>
       </header>
 
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4">
+      <div
+        className="flex-1 min-h-0 overflow-y-auto custom-scrollbar"
+        style={{ padding: 'min(16px, 4cqmin)' }}
+      >
         {children}
       </div>
 
       {(primaryAction ?? (secondaryActions && secondaryActions.length > 0)) && (
-        <footer className="flex items-center gap-2 px-4 py-3 border-t border-slate-100 bg-slate-50 shrink-0">
+        <footer
+          className="flex items-center border-t border-slate-100 bg-slate-50 shrink-0"
+          style={{
+            gap: 'min(8px, 2cqmin)',
+            paddingInline: 'min(16px, 4cqmin)',
+            paddingBlock: 'min(12px, 3cqmin)',
+          }}
+        >
           {secondaryActions?.map((action, i) => {
             const Icon = action.icon;
             return (
@@ -160,9 +188,22 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
                 onClick={action.onClick}
                 disabled={action.disabled}
                 title={action.disabled ? action.disabledReason : action.label}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:border-brand-blue-primary text-slate-700 hover:text-brand-blue-primary text-xs font-bold uppercase tracking-wider rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center bg-white border border-slate-200 hover:border-brand-blue-primary text-slate-700 hover:text-brand-blue-primary font-bold uppercase tracking-wider rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  gap: 'min(6px, 1.5cqmin)',
+                  paddingInline: 'min(12px, 3cqmin)',
+                  paddingBlock: 'min(6px, 1.5cqmin)',
+                  fontSize: 'min(12px, 4.5cqmin)',
+                }}
               >
-                {Icon && <Icon className="w-3.5 h-3.5" />}
+                {Icon && (
+                  <Icon
+                    style={{
+                      width: 'min(14px, 3.5cqmin)',
+                      height: 'min(14px, 3.5cqmin)',
+                    }}
+                  />
+                )}
                 {action.label}
               </button>
             );
@@ -177,10 +218,21 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
                   ? primaryAction.disabledReason
                   : primaryAction.label
               }
-              className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="ml-auto inline-flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold uppercase tracking-wider rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                paddingInline: 'min(12px, 3cqmin)',
+                paddingBlock: 'min(6px, 1.5cqmin)',
+                fontSize: 'min(12px, 4.5cqmin)',
+              }}
             >
               {primaryAction.icon && (
-                <primaryAction.icon className="w-3.5 h-3.5" />
+                <primaryAction.icon
+                  style={{
+                    width: 'min(14px, 3.5cqmin)',
+                    height: 'min(14px, 3.5cqmin)',
+                  }}
+                />
               )}
               {primaryAction.label}
             </button>
