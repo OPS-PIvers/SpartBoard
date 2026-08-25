@@ -2351,6 +2351,13 @@ export interface BuildingCalendarDefaults {
   cachedEvents?: CalendarEvent[];
   /** Timestamp of the last successful proxy sync for this building */
   lastProxySync?: number;
+  /** Widget appearance/behavior defaults — distinct from the proxy-sync fields above. */
+  daysVisible?: number;
+  fontFamily?: string;
+  fontColor?: string;
+  textSizePreset?: TextSizePreset;
+  cardColor?: string;
+  cardOpacity?: number;
 }
 
 export interface CalendarGlobalConfig {

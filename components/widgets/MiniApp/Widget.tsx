@@ -1408,7 +1408,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               ref={iframeRef}
               srcDoc={activeApp.html}
               className="flex-1 w-full border-none bg-white" // Keep bg-white for iframe content visibility
-              sandbox="allow-scripts allow-forms allow-popups allow-modals allow-same-origin"
+              // No allow-same-origin: untrusted app html + srcDoc would inherit the parent's origin (DOM/localStorage access); the init/result protocol is postMessage-only.
+              sandbox="allow-scripts allow-forms allow-popups allow-modals"
               title={activeApp.title}
             />
             {/* Save-to-library overlay (shown when user pastes HTML and hasn't saved yet) */}

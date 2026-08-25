@@ -209,8 +209,13 @@ export function normalizeInvite(
   // ensures the dot occurs after at least one domain character — addresses
   // like "user@.com" or "user@.co.uk" have an empty first label and are
   // rejected by every real mail server.
+  // Also reject internal whitespace (outer .trim() only strips the ends) — a real signed-in email never has any.
   const atIdx = email.indexOf('@');
-  if (atIdx < 1 || email.indexOf('.', atIdx + 1) < atIdx + 2) {
+  if (
+    atIdx < 1 ||
+    /\s/.test(email) ||
+    email.indexOf('.', atIdx + 1) < atIdx + 2
+  ) {
     return { error: { email, reason: 'Malformed email address.' } };
   }
 

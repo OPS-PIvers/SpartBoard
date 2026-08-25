@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import {
   GradeLevel,
   MathToolType,
@@ -32,6 +32,7 @@ export const MathToolsConfigurationPanel: React.FC<
   const mathConfig = (config as unknown as MathToolsGlobalConfig) ?? {};
   const toolGradeLevels: Partial<MathToolGradeLevels> =
     mathConfig.toolGradeLevels ?? {};
+  const dpiCalibrationId = useId();
 
   const getToolGrades = (type: MathToolType): GradeLevel[] => {
     if (toolGradeLevels[type] !== undefined) {
@@ -93,13 +94,16 @@ export const MathToolsConfigurationPanel: React.FC<
 
       {/* Global DPI */}
       <div className="space-y-2">
-        <SettingsLabel>Building-Wide DPI Calibration (px / inch)</SettingsLabel>
+        <SettingsLabel htmlFor={dpiCalibrationId}>
+          Building-Wide DPI Calibration (px / inch)
+        </SettingsLabel>
         <p className="text-xxs text-slate-400">
           CSS 1 in = 96 px (default). Override for IFPs with non-standard pixel
           density. Teachers can still fine-tune per widget.
         </p>
         <div className="flex items-center gap-2">
           <input
+            id={dpiCalibrationId}
             type="number"
             min={60}
             max={300}
