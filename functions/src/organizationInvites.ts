@@ -209,15 +209,7 @@ export function normalizeInvite(
   // ensures the dot occurs after at least one domain character — addresses
   // like "user@.com" or "user@.co.uk" have an empty first label and are
   // rejected by every real mail server.
-  //
-  // The outer .trim() above only strips LEADING/TRAILING whitespace on the
-  // whole string, never an internal space (e.g. a bulk-invite paste like
-  // "teacher@ orono.k12.mn.us"). Without the /\s/ check below, such an
-  // address passed this shape check (a '.' still appears past atIdx + 2) and
-  // got stored verbatim. A real signed-in user's Firebase Auth email never
-  // contains internal whitespace, so evaluateClaim's exact-match check would
-  // then permanently reject the claim — an invite the admin sent that could
-  // never be claimed, with no error surfaced anywhere at invite time.
+  // Also reject internal whitespace (outer .trim() only strips the ends) — a real signed-in email never has any.
   const atIdx = email.indexOf('@');
   if (
     atIdx < 1 ||
