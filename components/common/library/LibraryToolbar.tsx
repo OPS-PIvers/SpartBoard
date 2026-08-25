@@ -39,7 +39,13 @@ const SortDropdown: React.FC<{
           onClick={() => setOpen((v) => !v)}
           aria-haspopup="listbox"
           aria-expanded={open}
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+          className="inline-flex items-center font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+          style={{
+            gap: 'min(8px, 2cqmin)',
+            paddingInline: 'min(12px, 3cqmin)',
+            paddingBlock: 'min(6px, 1.5cqmin)',
+            fontSize: 'min(14px, 5.5cqmin)',
+          }}
         >
           <ArrowUpDown size={14} className="shrink-0 text-slate-500" />
           <span className="truncate">{active?.label ?? 'Sort'}</span>
@@ -50,7 +56,8 @@ const SortDropdown: React.FC<{
           onClick={toggleDir}
           aria-label={sort.dir === 'asc' ? 'Sort ascending' : 'Sort descending'}
           title={sort.dir === 'asc' ? 'Ascending' : 'Descending'}
-          className="inline-flex items-center justify-center px-2.5 border-l border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+          className="inline-flex items-center justify-center border-l border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+          style={{ paddingInline: 'min(10px, 2.5cqmin)' }}
         >
           {sort.dir === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
         </button>
@@ -58,7 +65,12 @@ const SortDropdown: React.FC<{
       {open && (
         <div
           role="listbox"
-          className="absolute right-0 top-full mt-1 z-10 min-w-[12rem] rounded-xl border border-slate-200 bg-white shadow-lg py-1"
+          className="absolute right-0 top-full z-10 rounded-xl border border-slate-200 bg-white shadow-lg"
+          style={{
+            marginTop: 'min(4px, 1cqmin)',
+            minWidth: 'min(192px, 48cqmin)',
+            paddingBlock: 'min(4px, 1cqmin)',
+          }}
         >
           {sortOptions.map((opt) => {
             const selected = opt.key === sort.key;
@@ -74,11 +86,16 @@ const SortDropdown: React.FC<{
                   onSortChange({ key: opt.key, dir: nextDir });
                   setOpen(false);
                 }}
-                className={`flex items-center justify-between w-full px-3 py-2 text-sm text-left transition-colors ${
+                className={`flex items-center justify-between w-full text-left transition-colors ${
                   selected
                     ? 'bg-brand-blue-lighter/30 text-brand-blue-primary font-bold'
                     : 'text-slate-700 hover:bg-slate-50 font-medium'
                 }`}
+                style={{
+                  paddingInline: 'min(12px, 3cqmin)',
+                  paddingBlock: 'min(8px, 2cqmin)',
+                  fontSize: 'min(14px, 5.5cqmin)',
+                }}
               >
                 <span className="truncate">{opt.label}</span>
                 {selected && <Check size={14} className="shrink-0" />}
@@ -106,11 +123,17 @@ const FilterDropdown: React.FC<{
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label={label}
-        className={`appearance-none rounded-xl border bg-white shadow-sm pl-3 pr-8 py-1.5 text-sm font-bold transition-colors cursor-pointer hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30 ${
+        className={`appearance-none rounded-xl border bg-white shadow-sm font-bold transition-colors cursor-pointer hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30 ${
           isActive
             ? 'border-brand-blue-primary/40 text-brand-blue-primary'
             : 'border-slate-200 text-slate-700'
         }`}
+        style={{
+          paddingLeft: 'min(12px, 3cqmin)',
+          paddingRight: 'min(32px, 8cqmin)',
+          paddingBlock: 'min(6px, 1.5cqmin)',
+          fontSize: 'min(14px, 5.5cqmin)',
+        }}
       >
         <option value="">{label}: All</option>
         {options.map((opt) => (
@@ -146,11 +169,15 @@ const ViewModeToggle: React.FC<{
         aria-label={label}
         title={label}
         onClick={() => onChange(mode)}
-        className={`inline-flex items-center justify-center px-2.5 py-1.5 transition-colors ${
+        className={`inline-flex items-center justify-center transition-colors ${
           selected
             ? 'bg-brand-blue-primary text-white'
             : 'text-slate-500 hover:bg-slate-50'
         }`}
+        style={{
+          paddingInline: 'min(10px, 2.5cqmin)',
+          paddingBlock: 'min(6px, 1.5cqmin)',
+        }}
       >
         <Icon size={14} />
       </button>
@@ -185,8 +212,14 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
   const visibleFilters = (filters ?? []).filter((f) => f.visible !== false);
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <div className="relative flex-1 min-w-[12rem] max-w-md">
+    <div
+      className="flex items-center flex-wrap"
+      style={{ gap: 'min(8px, 2cqmin)' }}
+    >
+      <div
+        className="relative flex-1 max-w-md"
+        style={{ minWidth: 'min(192px, 48cqmin)' }}
+      >
         <Search
           size={14}
           className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
@@ -196,7 +229,13 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={searchPlaceholder}
-          className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 py-1.5 text-sm font-medium text-slate-700 placeholder:text-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30 focus:border-brand-blue-primary/40"
+          className="w-full rounded-xl border border-slate-200 bg-white font-medium text-slate-700 placeholder:text-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30 focus:border-brand-blue-primary/40"
+          style={{
+            paddingLeft: 'min(36px, 9cqmin)',
+            paddingRight: 'min(12px, 3cqmin)',
+            paddingBlock: 'min(6px, 1.5cqmin)',
+            fontSize: 'min(14px, 5.5cqmin)',
+          }}
         />
       </div>
 

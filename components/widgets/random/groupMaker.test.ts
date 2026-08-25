@@ -1,9 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { RandomGroup, Student } from '@/types';
 import {
   makeJigsawExpertGroups,
   makeNameGroups,
   makeNameGroupsByCount,
+  makeRestrictedGroups,
   makeRestrictedGroupsByCount,
 } from './groupMaker';
 
@@ -325,5 +326,66 @@ describe('makeRestrictedGroupsByCount', () => {
     const students = [student('a', 'A'), student('b', 'B')];
     const { groups } = makeRestrictedGroupsByCount(students, 7);
     expect(groups.length).toBe(2);
+  });
+});
+
+// Restriction lists are supposed to be symmetric (a teacher who checks "keep
+// A away from B" should get the same protection whichever student's record
+// actually stores the edge), but real roster data reaching these functions
+// isn't guaranteed to be normalized — it's read straight from Firestore, not
+// passed through the roster editor's `normalizeRestrictions` safeguard. The
+// group makers must therefore treat a restriction as binding regardless of
+// which side declared it, not just the side of the student being placed.
+describe('restriction symmetry (one-directional roster data)', () => {
+  const student = (
+    id: string,
+    firstName: string,
+    restrictedStudentIds: string[] = []
+  ): Student => ({
+    id,
+    firstName,
+    lastName: '',
+    pin: '00',
+    restrictedStudentIds,
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('makeRestrictedGroups still flags a conflict when only the OTHER student declared the restriction', () => {
+    // B declares a restriction against A; A's own record has none — the
+    // asymmetric shape normalizeRestrictions is meant to heal, but this
+    // roster snapshot never went through that pass.
+    const b = student('b', 'B', ['a']);
+    const a = student('a', 'A', []);
+
+    // Force a single group so B and A are necessarily placed together,
+    // and pin the shuffle to identity order (B processed before A) so the
+    // greedy loop reaches A — the unrestricted side — last, which is
+    // exactly the ordering the one-directional check used to miss.
+    vi.spyOn(Math, 'random').mockReturnValue(0.9);
+
+    const { groups, unsatisfied } = makeRestrictedGroups([b, a], 2);
+
+    expect(groups.length).toBe(1);
+    expect(groups[0].names.sort()).toEqual(['A', 'B']);
+    // The forced placement violates B's stated restriction — it must be
+    // reported so the caller's "couldn't satisfy all restrictions" toast
+    // fires, even though A's own list was empty.
+    expect(unsatisfied).toBe(1);
+  });
+
+  it('makeRestrictedGroupsByCount still flags a conflict when only the OTHER student declared the restriction', () => {
+    const b = student('b', 'B', ['a']);
+    const a = student('a', 'A', []);
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.9);
+
+    const { groups, unsatisfied } = makeRestrictedGroupsByCount([b, a], 1);
+
+    expect(groups.length).toBe(1);
+    expect(groups[0].names.sort()).toEqual(['A', 'B']);
+    expect(unsatisfied).toBe(1);
   });
 });
