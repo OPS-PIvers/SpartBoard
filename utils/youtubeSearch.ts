@@ -207,7 +207,9 @@ export async function searchYouTube(
       // fall through with empty durations rather than blocking the picker.
       videosData = { items: [] };
     }
-  } catch {
+  } catch (err) {
+    // Rethrow quota errors — this catch-all would otherwise swallow them like a transient failure.
+    if (err instanceof YouTubeQuotaError) throw err;
     videosData = { items: [] };
   }
 

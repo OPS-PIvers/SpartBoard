@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-08-17_
+_Last audited: 2026-08-24_
 _Last action: 2026-05-01_
 
 ---
 
 ## Audit Log
+
+_2026-08-24: Full audit (Audit E1 — Monday weekly), delegated to a dedicated sub-agent. Eight new items filed (3 MEDIUM, 5 LOW) plus count corrections on five existing ones. Step results: **(1)** Zero `Object.assign` calls remain in `context/DashboardContext.tsx` — `mergeWidgetConfig()` (`utils/widgetConfigPersistence.ts:102`) is still the single canonical merge point, called from exactly 2 sites (`DashboardContext.tsx:4442`, `:4546`), and the only `Object.assign` in the whole merge path is inside the helper itself (`:108`). Confirms the Completed item; no extraction warranted. **(2)** 31 `as WidgetConfig` + 150 `as unknown as` across components/context/hooks/utils (excl. tests), classified: **(a) safe ~95** (lucide/audio/GIS structural casts, mock `User`, legacy-shape probes), **(b) masking a real mismatch ~14** (`useFirestore.ts:266/:398/:400`, `smartPaste.ts` ×4, `RandomWidget` ×13 and `useTimeTool` ×6 partial-config, `AnnotationOverlay.tsx:457`), **(c) missing generics ~41** (admin building-config bridge, `BlockRenderer`, `BuildingConfigPanel`, `WIDGET_DEFAULTS`). All class-(b) sites except `AnnotationOverlay.tsx:457` were already tracked. **(3)** All 12 `hooks/` hits with >5 useState/useRef are already tracked or previously logged as borderline-6 — but three high-density editor-state hooks live **outside** `hooks/`, which is why every prior sweep missed them (new MEDIUM below). **(4)** The `MountedBoardsLayer` 13-prop chain is unchanged; one new drilling cluster found in the Spotify view trio. **(5)** 118 windows with 3+ chained ternaries repo-wide; the two worth acting on are filed below. Findings were ranked by impact and capped at the ~10 most valuable rather than dumped exhaustively, and each was verified by reading the code. **Zero existing Open items resolved** — all 20 re-verified as still present, including the `MathTools/Widget.tsx:283-287` dead ternary (both branches still `text-slate-600 group-hover:text-brand-blue-dark`, still awaiting the design decision), the `usePlcTrash`/`usePlcResources` 9-useState hooks, and both MEDIUM cast items (`useFirestore.ts`, `ai_security.ts` — still exactly 7 instances)._
 
 _2026-08-17: Full audit (Audit E1 — Monday weekly). None of the 15 most recent branch commits touch any of the 13 tracked-item files (DashboardContext.tsx, widgetConfigPersistence.ts, TimeTool, RandomWidget, adminBuildingConfig.ts, AnnouncementOverlay.tsx, usePlcTrash.ts, usePlcResources.ts, useFirestore.ts, ai_security.ts, DraggableWindow.tsx, MathTools/Widget.tsx) — commits cover Dock/Escape, settings drag-transparency, i18n, roster pin_index, LTI dedup, and widget-keyboard-action portal routing. (1) mergeWidgetConfig() confirmed still the single canonical merge point (DashboardContext.tsx:4443/:4547; the only remaining Object.assign is inside the helper itself). (2) All 13 tracked cast items re-verified present at their existing locations/counts. Scanned all `as WidgetConfig`/`as unknown as` sites codebase-wide; other hits (WidgetRenderer.tsx, SoundWidget/Widget.tsx, smartPaste.ts, dashboardPII.ts, Announcements/Widget.tsx) are isolated single occurrences, not a new concentration warranting a tracked item. (3) Hooks with >5 useState/useRef: known items confirmed. **NEW LOW:** `hooks/useSpotifyWebPlayback.ts` — 12 useState/useRef calls (6 state, 6 ref), not previously tracked; added below. **Correction:** `hooks/useScreenRecord.ts` is now 11 useState/useRef calls (was tracked at 7) — grew via prior commits predating this audit window; existing item's file detail updated below. Borderline (exactly 6, not flagged): useSubstituteShares.ts, useRosters.ts, usePlcAutoPullSync.ts, useGuidedLearning.ts, useGlobalStyleEditor.ts. (4) 13-prop passthrough chain confirmed present, unchanged. (5) Nested ternaries (triple ternary, DraggableWindow corner ternary, MathTools dead ternary) confirmed present, unchanged. One new LOW item added; one existing item's count corrected._
 
@@ -35,6 +37,68 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### MEDIUM ~110 lines of filter-pill UI copy-pasted verbatim across 3 admin managers
+
+- **Detected:** 2026-08-24
+- **File:** `components/admin/GlobalPermissionsManager.tsx:709-743`, `components/admin/FeaturePermissionsManager.tsx:360-394`, `components/admin/BackgroundManager/index.tsx:640-674`
+- **Detail:** `btnClass(active)` (6 lines) plus `renderEnabledFilter`/`renderActiveFilter` and `renderAvailabilityFilter` are **byte-identical blocks** in all three files — same markup, same Tailwind strings, same two ternaries. The existing tracked LOW item scopes this as "a duplicated ternary" and proposes extracting a `formatPermissionValue` helper; that fix is far too narrow — it would remove 3 of ~110 duplicated lines and leave the markup triplicated. Note also that `components/common/SegmentedControl.tsx` already exists as the accessible generic pill row, and these hand-rolled copies lack its `role="tablist"`/`aria-selected`, so this is an a11y gap as well. The verbatim ternary (`val === 'all' ? 'All' : val.charAt(0).toUpperCase() + val.slice(1)`) is triplicated at `:740`, `:391`, `:672`.
+- **Fix:** Extract one `AdminFilterPills<T extends string>({ label, options, value, onChange })` into `components/admin/` (preserving the current admin visual style, adding tablist semantics) and replace all six render helpers. Mechanical, no behavior change. Recommend widening the tracked ternary item to this scope rather than treating it separately.
+
+### MEDIUM Admin building-config panels bridge typed configs through `Record<string, unknown>` with 40 double-casts across 12 files
+
+- **Detected:** 2026-08-24
+- **File:** `components/admin/FeatureConfigurationPanel.tsx:65-70` (the contract), plus `MathToolsConfigurationPanel.tsx` (7), `StarterPackConfigurationModal.tsx`, `CatalystConfigurationModal.tsx`, `CalendarConfigurationModal.tsx`, `ConceptWebConfigurationPanel.tsx`, `ActivityWallConfigurationPanel.tsx`, `SeatingChartConfigurationPanel.tsx`, `RevealGridConfigurationPanel.tsx`, `RecessGearConfigurationPanel.tsx`, `WorkSymbolsConfigurationModal.tsx`, `GraphicOrganizerConfigurationModal.tsx`, `BloomsTaxonomyConfigurationModal.tsx`, `SpecialistScheduleConfigurationModal.tsx`
+- **Detail:** `BuildingConfigPanel` types its payload as `config: Record<string, unknown>` / `onChange: (newConfig: Record<string, unknown>) => void`. Every panel therefore double-casts *in* (`config as unknown as ActivityWallGlobalConfig`, 16 sites) and *out* (`{...} as unknown as Record<string, unknown>`, 24 sites). The root cause is mechanical: all 54 `*GlobalConfig` types in `types.ts` are declared as `interface`, and TS interfaces have no implicit index signature, so they are not assignable to `Record<string, unknown>` — hence the `unknown` bridge in both directions. Class (c). **Distinct from the tracked `as unknown as BuildingConfigPanel` item**, which covers the 38 *component* casts at `FeatureConfigurationPanel.tsx:94-138`; that item's root cause is the panels' differing prop shapes, this one is the config payload's shape.
+- **Fix:** Define `export interface BuildingConfigPanelProps<T> { config: Partial<T>; onChange: (next: T) => void; uploadWeatherImage?: ...; showMessage?: ... }` in a shared location; type each panel as `React.FC<BuildingConfigPanelProps<XGlobalConfig>>` and the map value as `BuildingConfigPanelProps<never>`-erased. Both cast families collapse. Medium effort, but it eliminates 78 casts total and every new admin config panel currently copies the pattern.
+
+### MEDIUM Three untracked editor-state hooks (18/15/14 state calls) each hand-roll a full reset-on-identity-change block
+
+- **Detected:** 2026-08-24
+- **File:** `components/widgets/GuidedLearning/components/useGuidedLearningEditorState.ts` (17 useState + 1 useRef; reset block `:166-186`, 16 setters), `components/widgets/QuizWidget/components/useQuizEditorState.ts` (14 useState + 1 useRef; reset `:109-125`, 13 setters), `components/widgets/VideoActivityWidget/components/useVideoActivityEditorState.ts` (14 useState; reset `:163-186`, 14 setters), plus a fourth partial block in `components/widgets/QuizWidget/components/QuizEditorModal.tsx:158-164`
+- **Detail:** None of these appear in this journal — they live under `components/widgets/`, not `hooks/`, which is why every prior state-density sweep missed them. Two exceed `useScreenRecord` (11) and one nearly matches `useVideoActivitySession` (17). Each stores a `prevX` sentinel and manually re-calls every setter when the edited entity's identity changes — ~46 setter calls in total. CLAUDE.md's own guidance names the `key` prop as the first choice for exactly this case. Each hook has exactly **one consumer** (`GuidedLearningEditorModal.tsx:205`, `QuizEditorModal.tsx:129`, `VideoActivityEditorModal.tsx:138`), so a `key` at the mount site is trivially applicable. There is also a live inconsistency: `useQuizEditorState` resets on referential identity (`quiz !== prevQuiz`) while `QuizEditorModal`'s behavior block resets on `quiz?.id` — the two draft halves reset on different triggers.
+- **Fix:** Add `key={editingQuiz?.id ?? 'new'}` (and equivalents) at the three modal mount sites — e.g. `QuizWidget/Widget.tsx:1917` — then delete all four reset blocks and the four `prevX` state pairs. Secondary: within `useQuizEditorState` the 8 AI fields (`showAiPrompt`, `aiPrompt`, `aiTypeCounts`, `aiGenerating`, `aiError`, `aiFileContext`, `aiFileName`, `aiFileExtracting`) already reset as one unit and collapse to a single `aiState` object. **Caveat to verify before acting:** `QuizEditorModal`'s `editorTab` currently survives a quiz switch; a key remount would reset it to `'questions'`. Small deliberate behavior change, worth confirming with the owner.
+
+### LOW Quiz question-type → badge-class rendered as a 9-branch nested ternary, duplicated with divergent fallbacks
+
+- **Detected:** 2026-08-24
+- **File:** `components/quiz/QuizStudentApp.tsx:2115-2133` and `:2282-2291`; `components/widgets/QuizWidget/components/QuizLiveMonitor.tsx:1127-1134`
+- **Detail:** `typeBadgeCls` is a `light ? (5-branch chain) : (5-branch chain)` — 9 nested levels in one expression. `QuizLiveMonitor` repeats the light half as a truncated 4-branch chain, and **the fallbacks disagree**: `QuizStudentApp` sends `short`/`essay` to rose; `QuizLiveMonitor` sends `Ordering`, `short`, and `essay` all to teal — so a short-answer question shows a "teal = Ordering" badge in the live monitor. A separate 4-branch chain at `:2282` maps type → display label, and that label map is duplicated at `QuizEditor.tsx:43-70`, `QuizEditor.tsx:636-652`, and `VideoActivityEditor.tsx:598-610` (4 copies, 3 files).
+- **Fix:** Add `QUIZ_TYPE_BADGE_CLS: Record<QuizQuestionType, { light: string; dark: string }>` and `QUIZ_TYPE_LABELS: Record<QuizQuestionType, string>` to `config/` (or a shared `quizTypeDisplay.ts`) and index instead of chaining. Exhaustive `Record` keying also turns the fallback divergence into a compile error rather than a silent mismatch. The editors keep their local `hint` strings and read only `label` from the shared map.
+
+### LOW 9 Spotify transport props declared, destructured, and hand-forwarded identically in 3 sibling views
+
+- **Detected:** 2026-08-24
+- **File:** `components/widgets/MusicWidget/PersonalSpotifyNowPlayingTab.tsx:168-179`, `PersonalSpotifyCompactBar.tsx:29-58,141-152`, `PersonalSpotifyMinimalView.tsx:29-58,139-150`
+- **Detail:** `isReady, isPlaying, repeatMode, shuffle, onTogglePlay, onNext, onPrevious, onCycleRepeat, onToggleShuffle` are re-declared in each view's props interface, destructured, and forwarded one-by-one to `<SpotifyTransportControls>` — which already exports `SpotifyTransportControlsProps` with exactly those 9 fields (`SpotifyTransportControls.tsx:34-47`). About 81 lines of boilerplate. The parent `PersonalSpotifyAdaptiveLayout.tsx:123-136` already passes a single spread `playbackProps` object, so the drilling is purely in the leaf layer.
+- **Fix:** Have each view's props `extends SpotifyTransportControlsProps` (dropping the 27 re-declarations) and render `<SpotifyTransportControls size="lg" {...props} />`. `CompactBar` keeps its one override: `isReady={props.isReady && !!url}`.
+
+### LOW `AnnotationOverlay.tsx:457` casts a native `KeyboardEvent` to `React.KeyboardEvent`
+
+- **Detected:** 2026-08-24
+- **File:** `components/layout/AnnotationOverlay.tsx:457`, `components/widgets/DrawingWidget/useSelection.ts:83,228-263`
+- **Detail:** `handleSelectKeyDown(e as unknown as React.KeyboardEvent)` bridges a `window` keydown listener into a handler typed for a React synthetic event. Reading the implementation, it uses only `e.key`, `e.shiftKey`, and `e.preventDefault()` — all present on the native event, so the handler's signature is simply over-specified. Class (b): benign today, but it would silently compile if the handler ever added `e.nativeEvent`/`e.persist()`, crashing at runtime for keyboard users. This is the one class-(b) cast site not already tracked.
+- **Fix:** Change `useSelection`'s declared type at `:83` and `:229` to `(e: Pick<KeyboardEvent, 'key' | 'shiftKey'> & { preventDefault: () => void }) => void` (or `KeyboardEvent | React.KeyboardEvent`) and delete the cast. One-line change in two files.
+
+### LOW `AnnotatedResponseView.tsx:394-400` re-derives a color map the same file already declares as a constant
+
+- **Detected:** 2026-08-24
+- **File:** `components/widgets/QuizWidget/components/AnnotatedResponseView.tsx:52-55` (the `COLORS` const), `:394-400` (the ternary)
+- **Detail:** A 4-branch chained ternary maps `annotation.highlightColor` → `bg-emerald-400`/`bg-pink-400`/`bg-sky-400`/`bg-amber-400`, duplicating the id→color relationship the file already stores in `COLORS` (which carries `swatch: 'bg-emerald-300'` etc. at the 300 shade). Adding a fifth highlight color requires editing two places, and the ternary's fallback silently claims amber for any unknown id.
+- **Fix:** Add a `dot` field to the four `COLORS` entries and index by `highlightColor`; delete the ternary.
+
+### LOW `WidgetRenderer.tsx` serializes and immediately re-parses widget config on every live-session config change
+
+- **Detected:** 2026-08-24
+- **File:** `components/widgets/WidgetRenderer.tsx:147-169`
+- **Detail:** `configJson` exists purely as a stable primitive effect dependency (`JSON.stringify(widget.config)`), then the effect body does `JSON.parse(configJson) as WidgetConfig` to reconstruct the object it already had in scope. The cast is safe (class a), but the parse is a redundant deep-copy on the live-session write path — the hot path the neighboring "BOLT OPTIMIZATION" comment was written to protect.
+- **Fix:** Keep `configJson` as the change token in the dependency array, but pass `widget.config` (mirrored through a render-assigned ref, per CLAUDE.md's ref guidance) to `updateSessionConfig`. Removes both the parse and the cast. Verify first that no caller mutates the object post-write — `updateWidget` appears to always construct fresh config objects, so this looks safe.
+
+### LOW Count corrections on existing tracked items (2026-08-24 audit — no action beyond journal accuracy)
+
+- **Detected:** 2026-08-24
+- **Detail:** `utils/adminBuildingConfig.ts` — `validTextSizePresets` is now defined **4** times (`:425`, `:651`, `:706`, `:767`), up from the tracked 3; the fourth arrived with the Calendar building-default commit (`690f2729`), so the hoist fix gets one more call site. `hooks/useFirestore.ts` — now **3** `as unknown as` (`:266`, `:398`, `:400`), up from the tracked 2; the new `:400` (`{ plcId } as unknown as Partial<Dashboard>`) is the identical class-(b) pattern as `:398` and should be folded into that MEDIUM item. `components/widgets/CustomWidget/BlockRenderer.tsx` — **22** casts (tracked at 18). `components/admin/FeatureConfigurationPanel.tsx` — **38** `as unknown as BuildingConfigPanel` component casts (tracked as "at least 11"). `hooks/useQuizSession.ts` **20** (was 22) and `hooks/useVideoActivitySession.ts` **17** (was 18) — both shrank slightly.
+- **Fix:** Update the counts on the corresponding items when each is next actioned; no standalone work.
 
 ### LOW `hooks/useSpotifyWebPlayback.ts` has 12 useState/useRef calls
 

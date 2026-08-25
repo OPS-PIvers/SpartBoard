@@ -81,9 +81,16 @@ export function buildGLResponsesCSV(
   ];
 
   const rows = responseList.map((r) => {
-    // Build a stepId -> answer lookup once per response so the two column
-    // passes below are O(N + M) instead of O(N * M) repeated finds.
-    const answersByStepId = new Map(r.answers.map((a) => [a.stepId, a]));
+    // stepId -> first-occurrence answer, matching publishAssignmentScores's dedup so the export can't contradict the published score.
+    const answersByStepId = new Map<
+      string,
+      GuidedLearningResponse['answers'][number]
+    >();
+    for (const a of r.answers) {
+      if (!answersByStepId.has(a.stepId)) {
+        answersByStepId.set(a.stepId, a);
+      }
+    }
     const questionAnswers = questionSteps.map((s) => {
       const ans = answersByStepId.get(s.id);
       return ans ? String(ans.answer) : '';

@@ -285,6 +285,24 @@ describe('EmbedWidget', () => {
         }),
       });
     });
+
+    it('names the Target URL input from its label', () => {
+      vi.mocked(useEmbedConfig).mockReturnValue({
+        config: {
+          buildingId: 'schumann-elementary',
+          hideUrlField: false,
+          whitelistUrls: [],
+        },
+        isLoading: false,
+      });
+
+      render(<EmbedSettings widget={baseWidget} />);
+
+      expect(screen.getByLabelText('Target URL')).toHaveAttribute(
+        'type',
+        'text'
+      );
+    });
   });
 
   describe('Mini App Generation', () => {
