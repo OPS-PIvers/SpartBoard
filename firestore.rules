@@ -279,23 +279,39 @@ service cloud.firestore {
         // status:'pending' and users:0 (verification is server-side DNS; users is
         // derived), and hasOnly([...]) blocks stray fields. Update is whitelisted
         // to the configurable fields.
+        //
+        // `domain` must be normalized (leading '@', all-lowercase, dotted
+        // hostname shape) on BOTH create and update. `resolveOrgIdForDomain`
+        // (functions/src/classlinkShared.ts) resolves a signed-in user's org
+        // via an EXACT-match Firestore query against a value it builds as
+        // '@' + <lowercased email/hd domain> — it never normalizes the STORED
+        // side. Before this check, nothing enforced that shape here: this
+        // rule only pinned the schema (hasOnly) and identity fields, so a
+        // write with mismatched case or stray whitespace (e.g. a hand-edited
+        // Firestore console value, or a future write path that skips the
+        // admin UI's own client-side normalization) would be silently
+        // accepted, then every sign-in from that domain would fail org
+        // resolution forever with no error surfaced anywhere — the domain
+        // would look "added" in the admin UI but never actually resolve.
         allow create: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
           request.resource.data.orgId == orgId &&
           request.resource.data.id == domainId &&
           request.resource.data.status == 'pending' &&
           request.resource.data.users == 0 &&
+          request.resource.data.domain.matches('^@[a-z0-9.-]+[.][a-z]{2,}$') &&
           request.resource.data.keys().hasOnly([
             'id', 'orgId', 'domain', 'authMethod', 'status', 'role',
             'users', 'addedAt'
           ]);
         allow delete: if isSuperAdmin() || isDomainAdmin(orgId);
-        allow update: if isSuperAdmin() ||
-          (isDomainAdmin(orgId) &&
-           request.resource.data.id == resource.data.id &&
-           request.resource.data.orgId == resource.data.orgId &&
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-             'domain', 'authMethod', 'role'
-           ]));
+        allow update: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
+          request.resource.data.domain.matches('^@[a-z0-9.-]+[.][a-z]{2,}$') &&
+          (isSuperAdmin() ||
+           (request.resource.data.id == resource.data.id &&
+            request.resource.data.orgId == resource.data.orgId &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'domain', 'authMethod', 'role'
+            ])));
       }
 
       match /roles/{roleId} {
