@@ -102,3 +102,86 @@ describe('RevealGridAppearanceSettings — card color label associations', () =>
     );
   });
 });
+
+describe('RevealGridSettings — label associations', () => {
+  const withCards: WidgetData = {
+    ...baseWidget,
+    config: { cards: [{ id: 'card-a', frontContent: 'Q', backContent: 'A' }] },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      updateWidget: mockUpdateWidget,
+      addToast: mockAddToast,
+    });
+    (useGoogleDrive as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      driveService: null,
+    });
+    (useDialog as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      showAlert: mockShowAlert,
+    });
+  });
+
+  it('names the Set Name input from its label', () => {
+    render(<RevealGridSettings widget={baseWidget} />);
+
+    expect(screen.getByLabelText('Set Name')).toHaveAttribute('type', 'text');
+  });
+
+  // The card's edit fields only render once its row is expanded, and the
+  // chevron that expands it is icon-only, so reach it through the row.
+  const expandCardShowing = (frontText: string) => {
+    const row = screen.getByText(frontText).parentElement as HTMLElement;
+    fireEvent.click(row.querySelectorAll('button')[0]);
+  };
+
+  it('names each card input from its own label', () => {
+    render(<RevealGridSettings widget={withCards} />);
+    expandCardShowing('Q');
+
+    expect(screen.getByLabelText('Front (Question / Term)')).toHaveValue('Q');
+    expect(screen.getByLabelText('Back (Answer / Definition)')).toHaveValue(
+      'A'
+    );
+  });
+
+  // Card ids come from the loaded set, not the widget, so two widgets sharing a
+  // set would collide on unprefixed ids and both labels would name the first input.
+  it('keeps card inputs distinct across two widgets sharing a card id', () => {
+    render(
+      <>
+        <RevealGridSettings widget={withCards} />
+        <RevealGridSettings
+          widget={{
+            ...withCards,
+            id: 'rg-test-2',
+            config: {
+              cards: [{ id: 'card-a', frontContent: 'Q2', backContent: 'A2' }],
+            },
+          }}
+        />
+      </>
+    );
+
+    expandCardShowing('Q');
+    expandCardShowing('Q2');
+
+    const fronts = screen.getAllByLabelText('Front (Question / Term)');
+    expect(fronts).toHaveLength(2);
+    expect(fronts[0]).toHaveValue('Q');
+    expect(fronts[1]).toHaveValue('Q2');
+  });
+
+  // Only renders after "Paste from Sheet" is clicked — the conditional that hid
+  // it from the original sweep.
+  it('names the paste-data textarea from its label', () => {
+    render(<RevealGridSettings widget={baseWidget} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Paste from Sheet/i }));
+
+    expect(
+      screen.getByLabelText('Paste two columns (Term, Definition)')
+    ).toHaveValue('');
+  });
+});

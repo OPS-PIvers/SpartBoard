@@ -4,6 +4,7 @@ import { WidgetData, HotspotImageConfig } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { MapPin, Search, Info, HelpCircle, Star, X } from 'lucide-react';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 const ICON_MAP = {
   search: Search,
@@ -19,9 +20,30 @@ export const HotspotImageWidget: React.FC<{ widget: WidgetData }> = ({
   const config = widget.config as HotspotImageConfig;
   const [activePinId, setActivePinId] = React.useState<string | null>(null);
 
+  // Escape closes the open popover. This must be a React onKeyDown (not a
+  // document listener) so it fires during React's synthetic bubble phase
+  // *before* DraggableWindow's ancestor handleKeyDown, which also calls
+  // stopPropagation() on Escape and would otherwise minimize the widget —
+  // a synthetic stopPropagation() there halts the underlying native event
+  // too, so a document-level listener never sees it.
+  const handleContentKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Escape' || activePinId === null) return;
+    if (isEscapeFromWidgetInput(e.nativeEvent)) return;
+    e.stopPropagation();
+    setActivePinId(null);
+  };
+
   const handlePinClick = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setActivePinId(id === activePinId ? null : id);
+
+    // DraggableWindow's own pointerdown handler already moved DOM focus to
+    // its GlassCard root before this click fires (it focuses the ancestor
+    // on every pointerdown). Reclaim focus on the pin so a later Escape's
+    // keydown target is inside this widget's subtree — otherwise the event
+    // never reaches handleContentKeyDown and bubbles straight to
+    // DraggableWindow's ancestor handler instead.
+    (e.currentTarget as HTMLElement).focus();
 
     // Find the hotspot that was clicked
     const currentHotspots = config.hotspots ?? [];
@@ -60,6 +82,7 @@ export const HotspotImageWidget: React.FC<{ widget: WidgetData }> = ({
           <div
             className="w-full h-full relative bg-slate-900 overflow-hidden flex items-center justify-center"
             onClick={() => setActivePinId(null)}
+            onKeyDown={handleContentKeyDown}
           >
             {/* The actual image constraint container so pins align properly */}
             <div

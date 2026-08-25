@@ -40,6 +40,7 @@ import type {
   UserRecord,
 } from '@/types/organization';
 import { withDerivedUserCounts } from './lib/buildingUserCounts';
+import { resolveActorBuildingIds } from './lib/actorBuildingScope';
 import { AllOrganizationsView } from './views/AllOrganizationsView';
 import { OverviewView } from './views/OverviewView';
 import { DomainsView } from './views/DomainsView';
@@ -591,12 +592,10 @@ export const OrganizationPanel: React.FC = () => {
   // A building admin with no assigned buildings sees an empty list — this
   // matches the permissions defined in Firestore. Super admins and domain
   // admins see every building.
-  const actorBuildingIds = useMemo(() => {
-    if (actorRole === 'building_admin') {
-      return memberBuildingIds;
-    }
-    return buildings.map((b) => b.id);
-  }, [actorRole, memberBuildingIds, buildings]);
+  const actorBuildingIds = useMemo(
+    () => resolveActorBuildingIds(actorRole, memberBuildingIds, buildings),
+    [actorRole, memberBuildingIds, buildings]
+  );
 
   // Derive per-building user counts from the live members subscription rather
   // than trusting the denormalized `BuildingRecord.users` counter. The counter
