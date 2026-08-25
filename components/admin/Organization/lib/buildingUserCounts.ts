@@ -1,3 +1,4 @@
+import { canonicalBuildingId } from '@/config/buildings';
 import type { BuildingRecord, UserRecord } from '@/types/organization';
 
 /**
@@ -13,12 +14,17 @@ export function withDerivedUserCounts(
   buildings: BuildingRecord[],
   users: Pick<UserRecord, 'status' | 'buildingIds'>[]
 ): BuildingRecord[] {
+  // Canonicalize both sides so a legacy stored buildingId (e.g. `orono-high-school`) counts against its canonical building (`high`).
   const counts = new Map<string, number>();
   for (const u of users) {
     if (u.status === 'inactive') continue;
     for (const bid of u.buildingIds) {
-      counts.set(bid, (counts.get(bid) ?? 0) + 1);
+      const id = canonicalBuildingId(bid);
+      counts.set(id, (counts.get(id) ?? 0) + 1);
     }
   }
-  return buildings.map((b) => ({ ...b, users: counts.get(b.id) ?? 0 }));
+  return buildings.map((b) => ({
+    ...b,
+    users: counts.get(canonicalBuildingId(b.id)) ?? 0,
+  }));
 }

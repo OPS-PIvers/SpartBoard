@@ -184,7 +184,9 @@ export const BuilderGrid: React.FC<BuilderGridProps> = ({
           rowStart: row,
           colSpan: 1,
           rowSpan: 1,
-          block: null,
+          // Keep the merged cell's block on its origin cell so splitting doesn't silently discard content.
+          block:
+            col === cell.colStart && row === cell.rowStart ? cell.block : null,
         });
       }
     }

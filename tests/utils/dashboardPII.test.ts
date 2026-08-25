@@ -105,6 +105,62 @@ describe('dashboardPII utilities', () => {
     });
   });
 
+  describe('RandomWidget lastResult (picked names) is treated as PII', () => {
+    // lastResult holds the picked name / shuffle order / groups — the same
+    // roster names as `remainingStudents` (both are written together from one
+    // roster partition), so it must be scrubbed from Firestore alongside it.
+    const randomDashboard = {
+      id: 'rand-dash',
+      name: 'Random Dashboard',
+      isShared: false,
+      widgets: [
+        {
+          id: 'random-1',
+          type: 'random',
+          position: { x: 0, y: 0 },
+          config: {
+            rosterMode: 'custom',
+            firstNames: 'Alice\nBob',
+            lastNames: '',
+            mode: 'groups',
+            remainingStudents: ['Alice'],
+            lastResult: [{ id: 'g1', names: ['Alice', 'Bob'] }],
+            soundEnabled: true,
+          },
+        },
+      ],
+    } as unknown as Dashboard;
+
+    it('scrubDashboardPII removes lastResult so picked names never reach Firestore', () => {
+      const scrubbed = scrubDashboardPII(randomDashboard);
+      expect(scrubbed.widgets[0].config).not.toHaveProperty('lastResult');
+      expect(scrubbed.widgets[0].config).not.toHaveProperty(
+        'remainingStudents'
+      );
+      expect(scrubbed.widgets[0].config).toEqual({
+        rosterMode: 'custom',
+        mode: 'groups',
+        soundEnabled: true,
+      });
+    });
+
+    it('extractDashboardPII pulls lastResult into the Drive supplement', () => {
+      const supplement = extractDashboardPII(randomDashboard);
+      expect(supplement['random-1']).toMatchObject({
+        lastResult: [{ id: 'g1', names: ['Alice', 'Bob'] }],
+      });
+    });
+
+    it('lastResult round-trips through scrub + merge', () => {
+      const scrubbed = scrubDashboardPII(randomDashboard);
+      const supplement = extractDashboardPII(randomDashboard);
+      const merged = mergeDashboardPII(scrubbed, supplement);
+      expect(merged.widgets[0].config).toHaveProperty('lastResult', [
+        { id: 'g1', names: ['Alice', 'Bob'] },
+      ]);
+    });
+  });
+
   describe('mergeDashboardPII', () => {
     it('merges PII fields back into the appropriate widget configs', () => {
       const scrubbed = scrubDashboardPII(mockDashboard);

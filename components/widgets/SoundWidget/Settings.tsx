@@ -64,10 +64,14 @@ export const SoundSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       </div>
 
       <div>
-        <label className="text-xxs  text-slate-400 uppercase tracking-widest mb-3 block">
+        <label
+          htmlFor={`soundwidget-sensitivity-${widget.id}`}
+          className="text-xxs  text-slate-400 uppercase tracking-widest mb-3 block"
+        >
           Sensitivity
         </label>
         <input
+          id={`soundwidget-sensitivity-${widget.id}`}
           type="range"
           min="0.5"
           max="5"

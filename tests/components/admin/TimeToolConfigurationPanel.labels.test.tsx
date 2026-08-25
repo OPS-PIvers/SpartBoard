@@ -34,4 +34,17 @@ describe('TimeToolConfigurationPanel — radiogroup accessible names', () => {
       expect(screen.getByRole('radiogroup', { name })).toBeInTheDocument();
     }
   );
+
+  it('names the Default Timer Duration group from its heading', () => {
+    render(
+      <TimeToolConfigurationPanel
+        config={{} as TimeToolGlobalConfig}
+        onChange={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByRole('group', { name: 'Default Timer Duration' })
+    ).toBeInTheDocument();
+  });
 });

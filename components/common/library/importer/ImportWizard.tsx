@@ -13,7 +13,7 @@
  * red banners, not toasts.
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
@@ -792,58 +792,74 @@ const AiAssistOverlay: React.FC<AiAssistOverlayProps> = ({
   isGenerating,
   onCancel,
   onGenerate,
-}) => (
-  <div
-    role="dialog"
-    aria-label={`AI-assist for ${widgetLabel}`}
-    className="absolute inset-0 z-10 bg-white/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 -mx-6 -my-5"
-    onKeyDown={(e) => {
-      if (e.key === 'Escape') onCancel();
-    }}
-  >
-    <div className="w-full max-w-md space-y-4">
-      <div className="flex items-center justify-between">
-        <h4 className="font-black text-indigo-600 flex items-center gap-2 uppercase tracking-tight">
-          <Sparkles className="w-5 h-5" /> AI-assist
-        </h4>
+}) => {
+  // onCancel is read via a ref so the listener isn't torn down/re-added on every keystroke (onCancel is an inline arrow function at the call site).
+  const onCancelRef = useRef(onCancel);
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync to avoid stale-closure without re-subscribing the effect (CLAUDE.md pattern)
+  onCancelRef.current = onCancel;
+
+  // Escape must be caught here regardless of focus — nothing moves focus into
+  // this overlay on open, so a div-level onKeyDown never fires for it.
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      onCancelRef.current();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, []);
+
+  return (
+    <div
+      role="dialog"
+      aria-label={`AI-assist for ${widgetLabel}`}
+      className="absolute inset-0 z-10 bg-white/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 -mx-6 -my-5"
+    >
+      <div className="w-full max-w-md space-y-4">
+        <div className="flex items-center justify-between">
+          <h4 className="font-black text-indigo-600 flex items-center gap-2 uppercase tracking-tight">
+            <Sparkles className="w-5 h-5" /> AI-assist
+          </h4>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
+            aria-label="Close AI-assist"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest opacity-70">
+          Describe the {widgetLabel.toLowerCase()} you want to create.
+        </p>
+        <textarea
+          value={prompt}
+          onChange={(e) => onPromptChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full h-32 p-4 bg-white border-2 border-indigo-100 rounded-2xl text-sm text-indigo-900 placeholder-indigo-300 focus:outline-none focus:border-indigo-500 resize-none shadow-inner"
+          aria-label={`AI-assist prompt for ${widgetLabel}`}
+        />
         <button
           type="button"
-          onClick={onCancel}
-          className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
-          aria-label="Close AI-assist"
+          onClick={onGenerate}
+          disabled={isGenerating || !prompt.trim()}
+          className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
         >
-          <X className="w-5 h-5" />
+          {isGenerating ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Generating…
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-4 h-4" /> Generate
+            </>
+          )}
         </button>
       </div>
-      <p className="text-xs text-slate-500 font-bold uppercase tracking-widest opacity-70">
-        Describe the {widgetLabel.toLowerCase()} you want to create.
-      </p>
-      <textarea
-        value={prompt}
-        onChange={(e) => onPromptChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full h-32 p-4 bg-white border-2 border-indigo-100 rounded-2xl text-sm text-indigo-900 placeholder-indigo-300 focus:outline-none focus:border-indigo-500 resize-none shadow-inner"
-        aria-label={`AI-assist prompt for ${widgetLabel}`}
-      />
-      <button
-        type="button"
-        onClick={onGenerate}
-        disabled={isGenerating || !prompt.trim()}
-        className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
-      >
-        {isGenerating ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" /> Generating…
-          </>
-        ) : (
-          <>
-            <Sparkles className="w-4 h-4" /> Generate
-          </>
-        )}
-      </button>
     </div>
-  </div>
-);
+  );
+};
 
 // Re-export the adapter/type contract at the import point for consumer
 // convenience — this keeps Wave 2 migration imports tidy.

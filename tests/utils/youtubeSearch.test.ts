@@ -224,6 +224,39 @@ describe('searchYouTube', () => {
     expect(nextCall).toContain('maxResults=1');
   });
 
+  it('throws YouTubeQuotaError when the durations lookup (2nd call) hits quota', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [
+              {
+                id: { videoId: 'abc12345678' },
+                snippet: { title: 't', channelTitle: 'c' },
+              },
+            ],
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        json: () =>
+          Promise.resolve({
+            error: {
+              code: 403,
+              errors: [{ reason: 'quotaExceeded' }],
+              message: 'quotaExceeded',
+            },
+          }),
+      });
+
+    await expect(searchYouTube('photosynthesis')).rejects.toBeInstanceOf(
+      YouTubeQuotaError
+    );
+  });
+
   it('does not block search on duration-fetch failure', async () => {
     fetchMock
       .mockResolvedValueOnce({
