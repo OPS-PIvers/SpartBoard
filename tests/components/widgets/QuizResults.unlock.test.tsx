@@ -129,14 +129,9 @@ describe('QuizResults — Students tab results-lockout unlock control', () => {
       />
     );
 
-    // Default tab is overview — switch to Students. The SegmentedTabs control
-    // renders each tab with role="tab" and the label as its accessible name.
-    fireEvent.click(screen.getByRole('tab', { name: /^students$/i }));
-
-    // Students tab gates the per-student rows behind a Show/Hide toggle so a
-    // teacher doesn't accidentally project scores. Reveal them so the
-    // locked-out row mounts.
-    fireEvent.click(screen.getByRole('button', { name: /show results/i }));
+    // The results view opens on the calm home face — drill into the
+    // Students screen (session is over, so rows render immediately).
+    fireEvent.click(screen.getByRole('button', { name: /students/i }));
 
     // Badge: "Locked (3/3)" — currentWarnings/threshold from the response +
     // session.protection. The aria-label is the stable selector.
@@ -188,8 +183,7 @@ describe('QuizResults — Students tab results-lockout unlock control', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('tab', { name: /^students$/i }));
-    fireEvent.click(screen.getByRole('button', { name: /show results/i }));
+    fireEvent.click(screen.getByRole('button', { name: /students/i }));
 
     const unlockButton = await screen.findByRole('button', {
       name: /unlock results for/i,
@@ -224,8 +218,7 @@ describe('QuizResults — Students tab results-lockout unlock control', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('tab', { name: /^students$/i }));
-    fireEvent.click(screen.getByRole('button', { name: /show results/i }));
+    fireEvent.click(screen.getByRole('button', { name: /students/i }));
 
     // The student row mounts (verify by looking for the score), but neither
     // the badge nor the unlock button should be present — the lock UI is
