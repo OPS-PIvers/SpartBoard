@@ -1157,9 +1157,17 @@ export const pinLoginV1 = onCall(
         .limit(1)
         .get();
       if (codeMatch.empty) {
+        // Cheap existence check purely for log clarity: was this code never
+        // used, or did every session sharing it end?
+        const anyMatch = await db
+          .collection('quiz_sessions')
+          .where('code', '==', code)
+          .limit(1)
+          .get();
         console.warn('[pinLoginV1] fallback', {
           kind,
           reason: 'no-joinable-session',
+          codeExisted: !anyMatch.empty,
           period,
         });
         return { matched: false, reason: 'no-joinable-session' };
