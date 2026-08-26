@@ -1139,7 +1139,8 @@
   },
   "login": {
     "signInToAccess": "Connectez-vous pour accéder à vos tableaux",
-    "signInWithGoogle": "Se connecter avec Google"
+    "signInWithGoogle": "Se connecter avec Google",
+    "learnMore": "Vous découvrez {{appName}} ? En savoir plus"
   },
   "toasts": {
     "boardSharingDisabled": "Le partage de tableaux est actuellement désactivé",

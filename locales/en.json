@@ -1139,7 +1139,8 @@
   },
   "login": {
     "signInToAccess": "Sign in to access your boards",
-    "signInWithGoogle": "Sign in with Google"
+    "signInWithGoogle": "Sign in with Google",
+    "learnMore": "New to {{appName}}? Learn more"
   },
   "toasts": {
     "boardSharingDisabled": "Board sharing is currently disabled",

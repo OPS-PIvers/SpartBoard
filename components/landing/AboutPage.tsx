@@ -1,13 +1,11 @@
 /**
- * Public landing page — what signed-out visitors see at `/`.
+ * Public product page at `/about` — what SpartBoard is, for visitors who don't
+ * already know. `/` is a bare sign-in card, so this is the only page that
+ * describes the product, and Orono teachers never pass through it.
  *
- * Phase 1 of docs/wide-distro-plan.md: replaces the bare LoginScreen for the
- * root route so future external users see what SpartBoard is before being
- * asked to sign in. Internal (orono.k12.mn.us) teachers keep their flow: the
- * sign-in button is the hero CTA, and signed-in users never see this page.
- *
- * The "Bring SpartBoard to your district" CTA points at the /request form
- * (Phase 2).
+ * Auth-free by design: every sign-in CTA is a plain link back to `/`. That
+ * keeps the page renderable by scripts/prerender-legal.tsx, which has no
+ * provider tree to satisfy a useAuth() call.
  *
  * English-only by design (public marketing surface, like /privacy + /terms).
  */
@@ -16,8 +14,6 @@ import React from 'react';
 // Local inline-SVG icons (lucide paths, no per-icon forwardRef/merge overhead)
 // — see landingIcons.tsx. Pixel-identical to the former lucide-react imports.
 import {
-  LogIn,
-  Loader2,
   LayoutDashboard,
   Timer,
   ListChecks,
@@ -27,7 +23,6 @@ import {
   Sparkles,
   ArrowRight,
 } from './landingIcons';
-import { useAuth } from '@/context/useAuth';
 
 const FEATURES = [
   {
@@ -76,37 +71,7 @@ const NAV = [
   { href: '/support', label: 'Support' },
 ];
 
-export const LandingPage: React.FC = () => {
-  const { signInWithGoogle } = useAuth();
-  const [signingIn, setSigningIn] = React.useState(false);
-
-  const handleSignIn = async () => {
-    setSigningIn(true);
-    try {
-      await signInWithGoogle();
-    } catch (error) {
-      console.error('Login failed:', error);
-      setSigningIn(false);
-    }
-  };
-
-  const signInButton = (
-    <button
-      onClick={handleSignIn}
-      disabled={signingIn}
-      className="group relative inline-flex items-center justify-center gap-3 rounded-2xl bg-brand-blue-primary px-8 py-4 font-bold text-white shadow-lg shadow-brand-blue-primary/25 transition-all duration-200 hover:bg-brand-blue-dark hover:shadow-brand-blue-primary/40 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:active:scale-100"
-    >
-      {signingIn ? (
-        <Loader2 className="h-5 w-5 animate-spin" />
-      ) : (
-        <>
-          <LogIn className="h-5 w-5 transition-transform group-hover:-translate-x-1" />
-          Sign in with Google
-        </>
-      )}
-    </button>
-  );
-
+export const AboutPage: React.FC = () => {
   return (
     // The app locks `body { overflow: hidden }` for the dashboard, so this
     // page is its own viewport-height scroll container (same trick as
@@ -121,18 +86,12 @@ export const LandingPage: React.FC = () => {
             <img src="/favicon.png" alt="" className="h-8 w-8 rounded" />
             <span className="text-lg font-bold text-slate-900">{APP_NAME}</span>
           </div>
-          <button
-            onClick={handleSignIn}
-            disabled={signingIn}
-            className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-brand-blue-primary transition hover:bg-brand-blue-primary/10 disabled:opacity-70"
+          <a
+            href="/"
+            className="rounded-xl px-4 py-2 text-sm font-semibold text-brand-blue-primary transition hover:bg-brand-blue-primary/10"
           >
-            {signingIn ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <LogIn className="h-4 w-4" />
-            )}
             Sign in
-          </button>
+          </a>
         </div>
       </header>
 
@@ -148,7 +107,12 @@ export const LandingPage: React.FC = () => {
             educators at Orono Public Schools.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            {signInButton}
+            <a
+              href="/"
+              className="inline-flex items-center justify-center rounded-2xl bg-brand-blue-primary px-8 py-4 font-bold text-white shadow-lg shadow-brand-blue-primary/25 transition-all duration-200 hover:bg-brand-blue-dark hover:shadow-brand-blue-primary/40 active:scale-[0.98]"
+            >
+              Sign in to {APP_NAME}
+            </a>
             <a
               href="/request"
               className="group inline-flex items-center gap-2 rounded-2xl px-6 py-4 font-bold text-slate-600 transition hover:text-slate-900"
@@ -241,4 +205,4 @@ export const LandingPage: React.FC = () => {
   );
 };
 
-export default LandingPage;
+export default AboutPage;

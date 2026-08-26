@@ -786,8 +786,8 @@ import { PrivacyPolicyPage } from '@/components/legal/PrivacyPolicyPage';
 import { TermsOfServicePage } from '@/components/legal/TermsOfServicePage';
 import { SupportPage } from '@/components/legal/SupportPage';
 import { RequestRolloutPage } from '@/components/landing/RequestRolloutPage';
-import { LandingPage } from '@/components/landing/LandingPage';
-import { LoginScreen } from '@/components/auth/LoginScreen';
+import { AboutPage } from '@/components/landing/AboutPage';
+import { SignInPage } from '@/components/auth/SignInPage';
 import { StudentApp } from '@/components/student/StudentApp';
 import { QuizStudentApp } from '@/components/quiz/QuizStudentApp';
 import { NextUpStudentApp } from '@/components/student/NextUpStudentApp';
@@ -1003,16 +1003,16 @@ const ROUTES: RouteSpec[] = [
     url: '/request',
   },
   {
-    route: '/',
-    component: 'LandingPage',
-    Component: LandingPage as ComponentType<Record<string, never>>,
-    url: '/',
+    route: '/about',
+    component: 'AboutPage',
+    Component: AboutPage as ComponentType<Record<string, never>>,
+    url: '/about',
   },
   {
-    route: '/ (signed-out remote)',
-    component: 'LoginScreen',
-    Component: LoginScreen as ComponentType<Record<string, never>>,
-    url: '/remote',
+    route: '/',
+    component: 'SignInPage',
+    Component: SignInPage as ComponentType<Record<string, never>>,
+    url: '/',
   },
   {
     route: '/join',

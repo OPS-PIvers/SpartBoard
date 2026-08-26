@@ -1139,7 +1139,8 @@
   },
   "login": {
     "signInToAccess": "Inicia sesión para acceder a tus tableros",
-    "signInWithGoogle": "Iniciar sesión con Google"
+    "signInWithGoogle": "Iniciar sesión con Google",
+    "learnMore": "¿Nuevo en {{appName}}? Más información"
   },
   "toasts": {
     "boardSharingDisabled": "El uso compartido de tableros está desactivado",
