@@ -57,7 +57,6 @@ export default defineConfig({
         ? process.env.VITE_FIREBASE_APP_ID!
         : 'dummy',
       VITE_GOOGLE_CLIENT_ID: process.env.VITE_GOOGLE_CLIENT_ID || 'dummy',
-      VITE_GEMINI_API_KEY: process.env.VITE_GEMINI_API_KEY || 'dummy',
       VITE_OPENWEATHER_API_KEY: process.env.VITE_OPENWEATHER_API_KEY || 'dummy',
       VITE_AUTH_BYPASS: 'true',
     },
