@@ -1,0 +1,543 @@
+# Gemini API surface audit — terms exposure and Vertex AI migration scope
+
+**Date:** 2026-08-05
+**Repo state audited:** `claude/quirky-ritchie-wghdl3` off `main` @ `e1e7a6d`
+
+**Status: audit complete, migration implemented.** Sections 1–3 are the original investigation and
+remain as written except where corrected inline. Section 4 was the migration plan; it has since been
+carried out in this same PR at Paul's direction, and is annotated where reality differed from the
+plan. No keys were rotated and no billing configuration was altered — the deploy-time steps in §4.3
+(enable `aiplatform.googleapis.com`, grant `roles/aiplatform.user`) remain for a human to perform.
+
+---
+
+## Bottom line
+
+_(State at time of audit. The migration described in §4 has since been implemented in this PR — see
+the status note above.)_
+
+**SpartBoard is NOT on Vertex AI.** All four Gemini call sites use the **Gemini Developer API**
+(`generativelanguage.googleapis.com`) authenticated with a raw API key held in Secret Manager as
+`GEMINI_API_KEY`. That is the surface governed by the Gemini API Additional Terms at
+<https://ai.google.dev/gemini-api/terms>.
+
+The research agent's reading of those terms is **correct in every quoted particular**, and one
+detail matters more than the rest:
+
+> **Age Requirements**
+> You must be 18 years of age or older to use the APIs. You also will not use the Services as part
+> of a website, application, or other service (collectively, "API Clients") that is directed
+> towards or is likely to be accessed by individuals under the age of 18.
+
+This is a **top-level section**, sitting above and outside the `Unpaid Services` / `Paid Services`
+split. It applies on **both** tiers. Moving from unpaid to paid quota does not cure it.
+
+Two findings cut the other way on the data question, and together they retire it:
+
+- **No student-submitted content reaches Gemini today.** Every AI call site is teacher/admin-gated
+  by a server-side check that student auth tokens structurally cannot satisfy (§2).
+- **The project is on the Paid tier** — confirmed by Paul Ivers, 2026-08-05, under Google Workspace
+  for Education. Google therefore does not train on submitted content, human reviewers do not read
+  it, and the _"Do not submit sensitive, confidential, or personal information"_ warning is an
+  Unpaid-tier clause that does not apply here (§1).
+
+What remains is a **terms-of-use / eligibility** problem, not a data-handling one.
+
+**Recommendation: migrate to Vertex AI — since implemented.** The code change is small (four
+constructor calls plus an IAM grant), and Vertex is governed by the Google Cloud Terms of Service —
+which these Additional Terms explicitly disclaim: _"For clarity, these Terms do not govern your
+direct use of any Google Cloud Platform service."_ I separately confirmed the Google Cloud Platform
+ToS contains **no** age or minors clause, so the exit is real rather than an optimistic reading.
+Details in §4 and §5.
+
+---
+
+## 1. Which Google AI surface the app calls today
+
+### Evidence, file by file
+
+**`functions/src/aiGeneration.ts`** — the only file in the repository that imports the Gemini SDK.
+
+```ts
+// line 4
+import { GoogleGenAI, Content, Type, Schema } from '@google/genai';
+// line 10
+import { GEMINI_API_KEY } from './secrets';
+```
+
+Four client constructions, all identical in shape:
+
+| Line   | Enclosing callable          |
+| ------ | --------------------------- |
+| `559`  | `generateWithAI`            |
+| `1650` | `generateVideoActivity`     |
+| `1964` | `transcribeVideoWithGemini` |
+| `2189` | `generateGuidedLearning`    |
+
+```ts
+const apiKey = GEMINI_API_KEY.value();
+const ai = new GoogleGenAI({ apiKey });
+```
+
+**`functions/src/secrets.ts:11`**
+
+```ts
+export const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
+```
+
+A Firebase Secret Manager secret bound to each callable via `secrets: [GEMINI_API_KEY]`
+(`aiGeneration.ts:349, 1482, 1766, 2098`).
+
+### Why this is definitively the Developer API and not Vertex
+
+1. **SDK contract.** `@google/genai@1.51.0` selects the backend from the `vertexai` / `enterprise`
+   option. From the shipped type definitions
+   (`functions/node_modules/@google/genai/dist/genai.d.ts:5391-5425`):
+
+   > `vertexai?: boolean` — _"When true, the Vertex AI API will be used. When false, the Gemini API
+   > will be used. **If unset, default SDK behavior is to use the Gemini API service.**"_
+
+   Neither `vertexai`, `enterprise`, `project`, nor `location` is passed at any of the four sites.
+   Verified by grep: no occurrence of `vertexai`, `aiplatform`, or `@google-cloud/vertexai` anywhere
+   in the repo outside `node_modules`.
+
+2. **Compiled endpoint.** The default base URL is hardcoded in the SDK bundle
+   (`functions/node_modules/@google/genai/dist/node/index.mjs:12974`):
+
+   ```js
+   initHttpOptions.baseUrl = `https://generativelanguage.googleapis.com/`;
+   ```
+
+3. **Independent corroboration from the repo's own incident log.**
+   `docs/routines/debugger.md:439` records a test flake caused by an unmocked SDK call making
+   _"a genuine HTTPS round-trip to Google's live Generative Language API."_ That was written from
+   observed network behavior, not from reading this code.
+
+4. **Auth model.** API key, not Application Default Credentials. Vertex does not accept a
+   Generative Language API key.
+
+### Client side: no direct Gemini access (verified empirically)
+
+`VITE_GEMINI_API_KEY` is threaded through `Dockerfile:24,35`, `playwright.config.ts:60`, and four
+GitHub Actions workflows — but **no application source file reads it**. `utils/ai.ts` routes
+everything through Firebase callables (`utils/ai.ts:137-145`), and its own comment at line 400-403
+states the intent: _"no client-side Gemini SDK or VITE-prefixed Gemini key."_
+
+Because `utils/youtubeSearch.ts:120` reads `import.meta.env` through a cast (which can defeat Vite's
+per-property static replacement and inline the whole env object), I confirmed this rather than
+assuming it. I built the app with a sentinel value:
+
+```
+VITE_GEMINI_API_KEY=SENTINEL_… VITE_YOUTUBE_API_KEY=SENTINEL_… pnpm run build
+```
+
+The YouTube sentinel appears in `dist/assets/index-*.js`. The **Gemini sentinel appears in zero
+files.** The Gemini key does not ship to browsers. (Build artifacts were deleted afterward.)
+
+The `VITE_GEMINI_API_KEY` plumbing in CI, the Dockerfile, and the Playwright config is **vestigial**
+and could be removed as unrelated cleanup.
+
+### Paid or unpaid tier — Paid, confirmed by the project owner
+
+Not determinable from the repository — nothing in the code reveals which Cloud project minted the
+key behind the `GEMINI_API_KEY` secret, and the terms draw the line by **billing account**, not by
+SDK or endpoint. **Confirmed out-of-band by Paul Ivers (2026-08-05): the project is on the paid
+tier under Google Workspace for Education.**
+
+That resolves the data-handling half of this audit. On the Paid tier:
+
+> When you use Paid Services… Google doesn't use your prompts (including associated system
+> instructions, cached content, and files such as images, videos, or documents) or responses to
+> improve our products, and will process your prompts and responses in accordance with the Data
+> Processing Addendum for Products Where Google is a Data Processor.
+
+So the _"Google trains on your content"_, _"human reviewers may read, annotate, and process your API
+input and output"_, and _"Do not submit sensitive, confidential, or personal information to the
+Unpaid Services"_ language **does not apply to SpartBoard**. Google acts as a data processor, and
+prompts/responses are retained only briefly for abuse detection. The teacher-initiated PII vectors
+catalogued in §2 are therefore governed by a processor agreement rather than a training pipeline.
+
+**One precision note on _why_ it is Paid**, because the terms treat AI Studio and the Gemini API
+differently and the distinction is easy to collapse:
+
+> Your access to **Google AI Studio** is a "Paid Service" even when it is offered free of charge, as
+> long as the account you are using to access Google AI Studio has access to a Cloud Project with an
+> associated and active Cloud Billing account **or is a Workspace enterprise account**.
+>
+> Your access to **Gemini API** is a "Paid Service" **only when accessing the API through a Cloud
+> Project associated with an active billing account.**
+
+The Workspace-enterprise-account carve-out is written against _AI Studio_ access. SpartBoard does
+not use AI Studio — it calls the Gemini API server-side from Cloud Functions, where the operative
+test is the **API key's owning Cloud project having active billing**. **Paul confirmed (2026-08-05)
+that the key's project is connected to a billing account**, which satisfies the Gemini API's own
+Paid test directly — independently of the Workspace relationship, and consistent with `spartboard`
+(`.firebaserc`) necessarily being on Blaze to run Functions v2 and Secret Manager at all.
+
+The failure mode this rules out is a key minted in **AI Studio's default Google-managed project**,
+where Workspace for Education alone would not have made _API_ calls Paid. Not the case here. No open
+verification items remain on the tier question.
+
+I did not retrieve the secret value or inspect billing directly, per the audit constraints — the
+tier is established by the owner's confirmation, not by anything I read.
+
+**This resolves the data-handling exposure. It does not touch the age-clause exposure**, which
+applies on both tiers — see §3.
+
+---
+
+## 2. Student reachability of the Gemini call sites
+
+**Finding: no student-facing route can reach Gemini, and no student-submitted content is sent —
+directly or indirectly.** Two independent layers establish this.
+
+### Layer 1 — no AI code in any student route tree
+
+Grepped `components/student`, `components/quiz`, `components/videoActivity`,
+`components/guidedLearning`, `components/miniApp`, `components/activityWall`, `components/remote`,
+and `components/subs` for `utils/ai`, `generateWithAI`, and `gemini`. **Zero matches in all eight
+directories.**
+
+Every importer of `@/utils/ai` is in the teacher dashboard tree — `components/widgets/*`
+(Quiz/VideoActivity/GuidedLearning/MiniApp/Poll/Drawing/Webcam/Blooms/Embed editors),
+`components/layout/AnnotationOverlay.tsx`, `components/layout/dock/MagicLayoutModal.tsx`, plus
+`components/widgets/InstructionalRoutines/LibraryManager.tsx:75` which calls the callable directly.
+
+Note the distinction: `components/widgets/QuizWidget` is the **teacher's authoring** widget.
+`components/quiz/QuizStudentApp.tsx` is what students at `/quiz` load, and it has no AI imports.
+
+### Layer 2 — server-side gate that student tokens structurally cannot pass
+
+Client-side absence is not sufficient, since Firebase callables are reachable by anyone holding the
+public project config. The real gate is server-side, and it holds. All four callables require a
+**verified email claim**:
+
+| Callable                    | Gate (`functions/src/aiGeneration.ts`)                                                    |
+| --------------------------- | ----------------------------------------------------------------------------------------- |
+| `generateWithAI`            | `354-369` — `request.auth` required; `!email` → `invalid-argument`                        |
+| `generateVideoActivity`     | `1487-1501` — same                                                                        |
+| `transcribeVideoWithGemini` | `1771-1785` — same, plus admin/beta feature-permission gate (`1789-1830`), off by default |
+| `generateGuidedLearning`    | `2110-2133` — same, plus **hard admin-only** check against `admins/{email}`               |
+
+And student sessions **never carry an email claim** — this is a deliberate, documented PII-free
+design, not an accident:
+
+- **Anonymous students** (`/join`, `/quiz`, `/activity-wall`, `/guided-learning`, `/miniapp`,
+  `/nextup`, poll voting) use `signInAnonymously`. Anonymous Firebase users have no email.
+- **SSO students** (`/my-assignments` via `studentLoginV1`) get a custom token whose claims are
+  exactly `{ studentRole: true, orgId, classIds }` — `functions/src/studentIdentity.ts:291-295`,
+  and the test-bypass path at `:204`. No email.
+- **PIN students** — `functions/src/studentIdentity.ts:1295`, same shape.
+- **LTI-launched students** — `functions/src/lti/launchEndpoints.ts:284-288`,
+  `{ studentRole: true, orgId?, classIds }`. No email.
+
+`functions/src/studentIdentity.ts:606-609` states the invariant outright:
+
+> _"Teachers authenticate with standard Firebase Auth (email present on token). **Students never
+> have email on their token**…"_
+
+So a student token hitting any of the four callables gets `invalid-argument` before a single byte
+reaches Google.
+
+### Indirect paths — checked, none found
+
+- **No AI grading or AI summarization of student work.** `WrittenResponseGrader.tsx` is manual
+  teacher grading. `utils/ai.ts:29-32` documents the deliberate exclusion: short-answer and essay
+  _"require manual teacher grading and are never generated by Gemini."_
+- **No AI moderation** on Activity Wall, NextUp, or any submission pipeline.
+- **`aiGeneration.ts` is the only file importing `@google/genai`.** No raw `fetch` to
+  `generativelanguage.googleapis.com` anywhere.
+
+### What _does_ flow to Gemini (all teacher-initiated) — and the residual PII vectors
+
+Worth naming, because these are real even though students cannot trigger them:
+
+| Path                                                                 | Payload                                | PII risk                                                                                                                                                             |
+| -------------------------------------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ocr` via Webcam widget (`components/widgets/Webcam/Widget.tsx:184`) | Live camera frame                      | **Highest.** A teacher scanning student work — or a camera pointed at the room — sends student handwriting, names, or faces as `inlineData` (`aiGeneration.ts:886`). |
+| `ocr` via Drawing widget (`:954`) / Annotation overlay (`:551`)      | Canvas PNG                             | Moderate — could contain student names/work if written on the board.                                                                                                 |
+| `generateGuidedLearning`                                             | Up to 10 images, ≤20 MB (`:2153-2175`) | Moderate — admin-only, but teachers do photograph student artifacts.                                                                                                 |
+| `quiz` / `mini-app` / `poll` / `dashboard-layout` / `blooms-ai`      | Teacher-typed free text                | Low, but unbounded — nothing stops a teacher pasting a student's essay in.                                                                                           |
+| `video-activity` / `transcribe`                                      | YouTube URL only (`:1668, :1982`)      | None.                                                                                                                                                                |
+
+**On the Paid tier (confirmed — §1), the training and human-review risk on every row above is
+retired.** Google acts as a data processor under the Cloud DPA; prompts and responses are logged
+only briefly for abuse detection. What remains is ordinary third-party-processor exposure, which is
+a policy question (what a district is comfortable sending, and under which agreement) rather than a
+terms violation. The Webcam OCR row is still the widest aperture in the system and is worth
+narrowing on its own merits — see §5.4.
+
+---
+
+## 3. Independent verification of the terms
+
+I re-read <https://ai.google.dev/gemini-api/terms> directly (raw HTML fetch, stripped to text — not
+relying on a summarizer). **Effective March 23, 2026. Last updated 2026-04-28 UTC.**
+
+### The age clause — confirmed verbatim, and it applies to both tiers
+
+The document's section order is:
+
+1. Age Requirements ← **here**
+2. Use Restrictions
+3. Use of Generated Content
+4. **Unpaid Services** (→ _How Google Uses Your Data_)
+5. **Paid Services** (→ _How Google Uses Your Data_, _Payment Terms_)
+6. Agentic Services … 10. Disclaimers
+
+Age Requirements is a **top-level section preceding the tier split**, so the research agent's claim
+that it applies to both paid and unpaid is **correct**. Verbatim:
+
+> You must be 18 years of age or older to use the APIs. You also will not use the Services as part
+> of a website, application, or other service (collectively, "API Clients") that is directed
+> towards or is likely to be accessed by individuals under the age of 18.
+
+Note the clause attaches to the **API Client** — the website or application — not to who triggers a
+given API call. SpartBoard's `/join`, `/quiz`, `/activity`, `/activity-wall`, `/guided-learning`,
+`/miniapp`, `/nextup`, and `/my-assignments` routes are, by design, accessed by K-12 students.
+**The §2 routing analysis does not resolve this clause.** Even with a perfect teacher-only gate on
+every Gemini call, the application is one "that is directed towards or is likely to be accessed by
+individuals under the age of 18."
+
+### The unpaid-tier data language — confirmed verbatim
+
+> When you use Unpaid Services, including, for example, Google AI Studio and the unpaid quota on
+> Gemini API, Google uses the content you submit to the Services and any generated responses to
+> provide, improve, and develop Google products and services and machine learning technologies…
+>
+> To help with quality and improve our products, human reviewers may read, annotate, and process
+> your API input and output. Google takes steps to protect your privacy as part of this process.
+> This includes disconnecting this data from your Google Account, API key, and Cloud project before
+> reviewers see or annotate it. **Do not submit sensitive, confidential, or personal information to
+> the Unpaid Services.**
+
+All three quotes in the task brief are accurate. No corrections needed.
+
+### What the paid tier actually buys
+
+> When you use Paid Services… Google doesn't use your prompts (including associated system
+> instructions, cached content, and files such as images, videos, or documents) or responses to
+> improve our products, and will process your prompts and responses in accordance with the Data
+> Processing Addendum for Products Where Google is a Data Processor. For Paid Services, Google logs
+> prompts and responses for a limited period of time, solely for detecting and preventing
+> violations of the Prohibited Use Policy…
+
+So paid tier fixes the **data** problem and brings a **data-processor** relationship — but leaves
+the **age** problem untouched.
+
+### The exit clause
+
+> **For clarity, these Terms do not govern your direct use of any Google Cloud Platform service**
+> (including those listed on the Google Cloud Services Summary).
+
+This is the load-bearing sentence for the recommendation. Vertex AI is a GCP service. Using Gemini
+models through Vertex takes the application out from under these Additional Terms — including the
+age clause — and places it under the Google Cloud Terms of Service and Google's Cloud DPA, which is
+the contractual posture a school district should want anyway.
+
+### Two additional clauses worth flagging
+
+- **Consumer-use restriction:** _"Use of Google AI Studio and Gemini API is for developers building
+  with Google AI models for professional or business purposes, not for consumer use."_ Arguably
+  fine for a district tool; another point of friction for a wide public release.
+- **EEA/Switzerland/UK:** _"You may use only Paid Services when making API Clients available to
+  users in the European Economic Area, Switzerland, or the United Kingdom."_ Not a concern for
+  Orono today; relevant to `docs/wide-distro-plan.md`.
+
+_(Not legal advice — this is a faithful reading of the published text, and the age clause is
+unambiguous enough on its face that it deserves counsel's eyes rather than an engineer's judgment
+call.)_
+
+---
+
+## 4. What moving to Vertex AI would involve
+
+Genuinely small on the code side. The risk is in model availability and the YouTube video path, not
+in the plumbing.
+
+### 4.1 SDK — no dependency change
+
+`@google/genai` is Google's unified SDK and already speaks both backends. No package add or remove
+in either `package.json`. The diff is four constructor calls:
+
+```ts
+// functions/src/aiGeneration.ts — lines 559, 1650, 1964, 2189
+- const ai = new GoogleGenAI({ apiKey });
++ const ai = new GoogleGenAI(vertexClientOptions());   // { vertexai: true, project, location: 'global' }
+```
+
+`generateContent`, `responseSchema`, the `Type` enum, `Content`/`Schema` types, `inlineData`, and
+`fileData` parts are all the same API surface on both backends. `functions/src/parseGeminiJson.ts`
+and the validators are unaffected.
+
+### 4.2 Auth — API key out, ADC in
+
+Vertex uses Application Default Credentials, not API keys.
+
+- Drop `secrets: [GEMINI_API_KEY]` from the four `onCall` configs (`:349, :1482, :1766, :2098`) and
+  the `GEMINI_API_KEY.value()` reads plus their missing-key guards (`:548-555, :1638, :1954,
+:2179-2183`).
+- `functions/src/secrets.ts:11` can drop the `GEMINI_API_KEY` definition once no callable binds it.
+- **No new secret material anywhere** — a genuine security improvement. The key currently in Secret
+  Manager can be deleted from Google Cloud after cutover (a separate, deliberate step; not part of
+  this audit).
+
+### 4.3 Can the existing Cloud Functions service account call Vertex? — Yes
+
+Firebase Functions v2 run on Cloud Run with a runtime service account, and ADC resolves to it
+automatically inside the function. The **only** change required is an IAM grant:
+
+```
+roles/aiplatform.user   →   <the functions runtime service account on project `spartboard`>
+```
+
+That is the default compute/App Engine service account unless a `serviceAccount` override is set —
+and `firebase.json` sets none, so it's the default. The `aiplatform.googleapis.com` API must also
+be enabled on the project. Both are console/CLI operations, not code.
+
+`google-auth-library` ships as a dependency of `@google/genai`, so ADC works without adding
+anything; worth a smoke test in the emulator regardless, since Firebase's dependency hoisting has
+bitten this repo before.
+
+### 4.4 Region — `global`, not `us-central1`
+
+**Corrected from an earlier draft of this document, which said `us-central1`.** That would have
+broken every AI call on deploy. `gemini-3-flash-preview` is served only from Vertex's **global**
+endpoint; regional endpoints such as `us-central1` return model-not-found for it, and the GA models
+this codebase now uses follow the same pattern. `location: 'global'` is required.
+
+Global is also the price-parity path — regional endpoints can carry a small uplift. The trade-off is
+that "in-region inference" is not available for these models on Vertex, so the data-residency
+argument for migrating is weaker than first stated; the contractual argument (§3, §5) is the real
+one. Cloud Functions remain pinned to `us-central1` (`functions/src/functionsInit.ts:18`); only the
+Vertex endpoint is global.
+
+### 4.5 The two real risks
+
+**(a) Model IDs — largely resolved by moving to GA models.** The original defaults were
+`gemini-3-flash-preview` and `gemini-3.1-flash-lite-preview`, and preview-tier IDs were the single
+likeliest source of a broken deploy. They have been replaced with **`gemini-3.6-flash`** (advanced)
+and **`gemini-3.5-flash-lite`** (standard), both GA on Vertex since 2026-07-21. GA status also
+retires the preview-deprecation exposure the codebase was carrying.
+
+Three residual notes:
+
+- A **fifth hardcoded model ID** existed at `aiGeneration.ts:1963` — a duplicated
+  `'gemini-3.1-flash-lite-preview'` literal in `transcribeVideoWithGemini`, missed in the first pass
+  of this audit. It now references `DEFAULT_STANDARD_MODEL` so it cannot drift again.
+- The **admin model picker** (`components/admin/GlobalPermissionsManager.tsx`) carries its own copy
+  of the model list and defaults, and is what writes `global_permissions/gemini-functions`. Updated
+  alongside the server defaults; a code-only change would have left admins selecting dead preview IDs.
+- **Existing Firestore overrides are not covered by any code change.** If an admin has already
+  written a preview model ID into `global_permissions/gemini-functions`, it still wins over the new
+  defaults. That needs a one-time Firestore check, not a deploy.
+
+`normalizeModelName` (`functions/src/shared.ts:34`) is a regex (`^gemini-[\w.-]+$`), not an
+allow-list, so both new IDs pass unchanged.
+
+**(b) YouTube video ingestion.** `generateVideoActivity` and `transcribeVideoWithGemini` pass a bare
+YouTube watch URL as `fileData.fileUri` (`:1668-1669`, `:1982-1983`). Vertex does support YouTube
+URIs — Google publishes a Vertex sample for exactly this — but the constraints differ in ways that
+matter: the video generally must be **public** (the Developer API is more permissive about
+unlisted), there is a **daily cap on total YouTube minutes processed per project (~8 hours)**, and
+per-request video counts vary by model generation. These two callables need end-to-end testing on a
+`dev-*` preview against real classroom videos, not just a unit test.
+
+Everything else — OCR (`inlineData`), guided-learning images, quiz/mini-app/poll text — is backend-
+agnostic and should port unchanged.
+
+### 4.6 Billing and quotas
+
+| Aspect            | Today (Developer API)                                                                                                                                   | After (Vertex AI)                                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Billed to         | Whichever project owns the API key — possibly not `spartboard`                                                                                          | `spartboard`, on the existing Blaze billing account, alongside Functions/Firestore/Storage                     |
+| Free tier         | Yes, if currently unpaid                                                                                                                                | **None.** Every call is billed from request one                                                                |
+| Per-token pricing | Public Gemini API rates                                                                                                                                 | Broadly comparable published rates; verify per model before cutover                                            |
+| Quota model       | Per-key RPM / RPD / TPM                                                                                                                                 | Per-project, per-region, per-model quotas via Cloud Quotas — **different limits, separately visible/raisable** |
+| Cost visibility   | Opaque if the key lives in a Google-managed project                                                                                                     | Line items in the project's existing billing report                                                            |
+| Cost control      | App-level daily caps: `dailyLimit ?? 20` for org users, `externalDailyLimit ?? 5` for external users, plus per-feature caps (`aiGeneration.ts:104-218`) | **Unchanged** — these are enforced in Firestore transactions before the Gemini call and carry over as-is       |
+
+Because the app is already on the **Paid** tier (§1), this is a **re-pointing of an existing spend
+line, not the creation of a new one** — the cost delta is per-token pricing differences between the
+two surfaces, not zero-to-nonzero. The existing quota machinery bounds it either way: 20
+generations/user/day for org users, 5 for external. Worth modeling against `ai_usage` documents to
+size the actual monthly delta before flipping, but this is no longer a budget-approval question.
+
+### 4.7 Tests and CI
+
+- `functions/src/index.test.ts:395-410` mocks `@google/genai` at module level — the mock survives
+  the migration unchanged (it replaces the `GoogleGenAI` class regardless of constructor args).
+- `functions/src/studentIdentity.test.ts:62` stubs `GEMINI_API_KEY: { value: () => 'gemini' }` —
+  needs removal once the secret is unbound.
+- `VITE_GEMINI_API_KEY` in `.github/workflows/{pr-validation,firebase-deploy,firebase-dev-deploy,docker-build}.yml`,
+  `Dockerfile:24,35`, and `playwright.config.ts:60` is already dead (§1) and can be removed
+  independently of this migration.
+
+### 4.8 Effort estimate
+
+Roughly **half a day of code plus a deliberate validation pass**: ~30 lines of diff in one file, one
+IAM grant, one API enablement. The schedule is set by (a) validating model IDs on Vertex, (b) end-
+to-end testing the two video callables on a preview deploy, and (c) confirming ADC resolves inside
+the deployed function. Staged rollout via a `dev-*` preview URL is the natural path.
+
+---
+
+## 5. Recommendation
+
+**Migrate to Vertex AI — as planned compliance work, not as an incident.** In priority order:
+
+1. **The data-handling question is closed — no action required.** Paid tier is confirmed, and the
+   key's Cloud project is confirmed connected to a billing account, which is precisely the test the
+   Gemini API's own Paid definition applies (§1). Nothing submitted to Gemini is trained on or read
+   by human reviewers; Google is acting as a data processor. No urgent action, no remediation,
+   nothing to disclose, and no outstanding verification.
+
+2. **Migrate anyway, because the age clause survives the paid tier.** It is a top-level section
+   above the Unpaid/Paid split, so no billing change touches it. Only leaving these Additional Terms
+   does, and the terms name their own exit: _"these Terms do not govern your direct use of any
+   Google Cloud Platform service."_ Vertex also brings better cost visibility, no long-lived API
+   key, in-region inference, and a contractual posture (Cloud DPA) already familiar to a district on
+   Workspace for Education. `docs/external-availability-legal-review.md` currently has **no
+   Gemini/AI section at all** — this is a genuine gap in that review, not a duplicate of it.
+
+3. **Get counsel's eyes on the age clause** before any wide distribution. The clause is written
+   against the API Client as a whole. My routing analysis shows no student _content_ reaching
+   Gemini, which is materially good news — but it does not make an app with student login routes
+   something other than "likely to be accessed by individuals under the age of 18." That is a legal
+   call, not an engineering one, and `docs/wide-distro-plan.md` raises the stakes on it.
+
+4. **Independent of all the above:** consider narrowing the Webcam OCR path. It is the widest PII
+   aperture in the system — a live camera frame, teacher-triggered, straight to a third-party model.
+   A confirm-before-send step, or defaulting `ocrMode` to the on-device Tesseract path already
+   implemented at `components/widgets/Webcam/Widget.tsx:186`, would cost little. Worth doing on
+   Vertex too.
+
+---
+
+## What was NOT done
+
+The audit phase changed no application code. The migration phase that followed (same PR, at Paul's
+direction) changed application code only — **no keys were rotated or read, and no billing or IAM
+configuration was altered.** Two deploy-time steps remain for a human, since they are console
+operations this audit deliberately did not perform:
+
+1. Enable `aiplatform.googleapis.com` on the `spartboard` project.
+2. Grant `roles/aiplatform.user` to the Cloud Functions runtime service account.
+
+**Until both are done, every AI call will fail on deploy.** Deleting the now-unused `GEMINI_API_KEY`
+secret from Secret Manager is a separate, optional cleanup — do it only after the deploy is verified.
+
+## Verification appendix
+
+| Claim                                     | How verified                                                                                                                                                                                                                                                     |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Developer API, not Vertex                 | SDK type docs `genai.d.ts:5391-5425`; compiled default base URL `dist/node/index.mjs:12974`; no `vertexai`/`project`/`location` passed; corroborated by `docs/routines/debugger.md:439`                                                                          |
+| Only one file calls Gemini                | Repo-wide grep for `@google/genai`, `GoogleGenAI`, `generativelanguage`, `aiplatform` outside `node_modules`                                                                                                                                                     |
+| Gemini key absent from client bundle      | Production build with sentinel env values; grep of `dist/` — 0 matches for the Gemini sentinel, 1 for the YouTube sentinel                                                                                                                                       |
+| No AI in student routes                   | Grep of 8 student-facing component directories for `utils/ai`, `generateWithAI`, `gemini` — 0 matches                                                                                                                                                            |
+| Student tokens carry no email             | All four `createCustomToken` claim sets (`studentIdentity.ts:204,291,1295`; `lti/launchEndpoints.ts:284`); `signInAnonymously` call sites; invariant stated at `studentIdentity.ts:606-609`                                                                      |
+| All AI callables require an email claim   | `aiGeneration.ts:354-369, 1487-1501, 1771-1785, 2110-2133`                                                                                                                                                                                                       |
+| Terms language + section placement        | Raw HTML fetch of <https://ai.google.dev/gemini-api/terms>, stripped to text and read directly (not summarizer output). Effective 2026-03-23, last updated 2026-04-28 UTC                                                                                        |
+| Functions region                          | `functions/src/functionsInit.ts:18`                                                                                                                                                                                                                              |
+| No `serviceAccount` override on functions | `firebase.json` functions block                                                                                                                                                                                                                                  |
+| Paid tier (no training / no human review) | Confirmed out-of-band by Paul Ivers, 2026-08-05: paid tier under Google Workspace for Education, and the API key's Cloud project is connected to a billing account — the exact test the Gemini API's Paid definition applies. Not verifiable from the repository |
