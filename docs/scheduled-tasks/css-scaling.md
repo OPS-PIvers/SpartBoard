@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-25_
+_Last audited: 2026-08-26_
 _Last action: 2026-08-24 — MEDIUM "Shared `common/library` primitives are unscaled inside four widget container-query front faces" resolved: converted all hardcoded Tailwind size/spacing/icon classes in `LibraryToolbar.tsx`, `BulkActionBar.tsx`, `LibraryPreviewPane.tsx`, and `ViewCountBadge.tsx` to inline `cqmin`-capped styles. `pnpm exec tsc --noEmit` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean. PR opened to dev-paul.
 
 ---
@@ -64,12 +64,35 @@ _Nothing currently in progress._
 - **Detail:** `style={{ minWidth: '80px' }}` on the page-counter container in the Viewer footer, sitting between two fully `cqmin`-scaled nav buttons (`:316-323`, `:335-345`) inside a `cqmin`-padded footer (`:307-310`). `smartNotebook` is `skipScaling: true`. Same class as the resolved NextUp `maxWidth: '120px'` precedent, and distinct from the already-Open `Viewer.tsx:258` Assets Panel item (different element, different line).
 - **Fix:** `style={{ minWidth: 'min(80px, 18cqmin)' }}`.
 
+### MEDIUM `ClockWidget` hero time display and date label use uncapped `cqmin` with no px ceiling
+
+- **Detected:** 2026-08-26
+- **File:** `components/widgets/ClockWidget/Widget.tsx:70, 126`
+- **Detail:** The clock's time display (`fontSize: showSeconds ? '40cqmin' : '50cqmin'`, line 70) — the widget's entire hero content — and the date label below it (`fontSize: '12cqmin'`, line 126) both use bare `cqmin` with no `min(Npx, ...)` ceiling. Every other reference widget (`QRWidget`, `WeatherWidget`) caps hero and secondary text at a px ceiling per CLAUDE.md's own examples (`clamp(24px, 25cqmin, 120px)` / `min(14px, 5.5cqmin)`), specifically to prevent text from blowing past a legible size and blurring on very large displays (projectors, big-screen TVs). Uncapped `cqmin` is a documented option for "unlimited scaling," but this widget's hero digits at 50cqmin on a widened widget would scale well past any of the codebase's other hero-text caps (typically 20-32px baseline, occasionally larger for true hero content, but always capped).
+- **Fix:** Wrap both in a `min(Npx, Ycqmin)` ceiling consistent with the file's own visual scale — e.g. `fontSize: showSeconds ? 'min(140px, 40cqmin)' : 'min(160px, 50cqmin)'` for the time, `fontSize: 'min(16px, 12cqmin)'` for the date label. Pick the px ceiling by testing the widget at its largest reasonable spawn size so digits stay legible without clipping or looking oversized.
+
+### MEDIUM `ConceptWeb` node text uses uncapped `cqmin` while its sibling icons are capped
+
+- **Detected:** 2026-08-26
+- **File:** `components/widgets/ConceptWeb/Widget.tsx:493`
+- **Detail:** The node textarea's `fontSize: '15cqmin'` has no px ceiling, while the delete/handle icons ~15 lines later in the same component correctly use `min(16px, 4cqmin)`. This is an internal inconsistency within one file, not just a deviation from the codebase norm — the same component demonstrates awareness of the capping convention right next to the uncapped instance.
+- **Fix:** `fontSize: 'min(24px, 15cqmin)'`, matching the file's own capping pattern used for the icons.
+
+### MEDIUM `ExpectationsWidget` category-card icon containers are uncapped while their icons are capped
+
+- **Detected:** 2026-08-26
+- **File:** `components/widgets/ExpectationsWidget/Widget.tsx:472-473, 560-561, 629-630`
+- **Detail:** All three category cards (Volume/Group Size/Interaction) have an icon container sized `width: '18cqmin', height: '18cqmin'` with no ceiling, while the icon rendered inside each container is correctly capped at `min(48px, 11cqmin)`. On a widened widget the container grows unbounded past the icon's cap, leaving the icon visibly floating in oversized empty space instead of filling its box.
+- **Fix:** `width: 'min(72px, 18cqmin)', height: 'min(72px, 18cqmin)'` on all three containers, sized so the container's cap comfortably contains the icon's own cap.
+
 ### LOW `QuizPreview` front-face view leaves four icons unscaled
 
 - **Detected:** 2026-08-24
 - **File:** `components/widgets/QuizWidget/components/QuizPreview.tsx:122, 126, 421, 519`
 - **Detail:** Rendered as a top-level front-face view at `QuizWidget/Widget.tsx:878` (`view === 'preview'`), no portal. The file is otherwise a model citizen — every `fontSize` and `padding` uses `min(Npx, Ycqmin)` — but the back-arrow `<ArrowLeft className="w-4 h-4" />` and three `<Eye className="w-3.5 h-3.5" />` icons stayed as Tailwind classes, plus `p-1.5` on the back button (`:119`) and `gap-3`/`gap-2` (`:114,124`).
 - **Fix:** `w-4 h-4` → `style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}`; `w-3.5 h-3.5` → `min(14px, 3.5cqmin)`; `p-1.5` → `padding: 'min(6px, 1.5cqmin)'`.
+
+_2026-08-26: Full audit (Wednesday daily), delegated to a dedicated sub-agent. Skill path note: `/mnt/skills/user/spart-new-widget/SKILL.md` does not exist in this environment; audited against CLAUDE.md's "Content Scaling with Container Queries" section instead, using `components/widgets/QRWidget/Widget.tsx` as the positive reference per the task instructions. Scanned all 62 front-face `Widget.tsx` files (3 `skipScaling: false` widgets excluded: DrawingWidget, SeatingChart, stickers). Zero `max-h-[Npx]`/`max-w-[Npx]` hits, zero hardcoded Tailwind text-size classes on scaling content, zero unguarded `overflow-hidden` sizing bugs. Four new MEDIUM findings, all "uncapped `cqmin` with no px ceiling on primary/near-primary content" — a category not previously tracked in this journal as a distinct anti-pattern: `ClockWidget/Widget.tsx:70,126` (hero time display + date label), `ConceptWeb/Widget.tsx:493` (node text, inconsistent with its own already-capped sibling icons), `ExpectationsWidget/Widget.tsx:472-473,560-561,629-630` (×3 icon containers, capped icon floating in an uncapped box). All existing Open items (three MEDIUM — loading-state opaque backgrounds, GuidedLearningResults, GuidedLearningAIGenerator; one MEDIUM TrafficLightWidget px floor; one MEDIUM VideoActivity Creator half-conversion; two LOW — SmartNotebook Viewer page-counter, QuizPreview icons) not independently re-verified line-by-line this cycle given today's focus was the fresh full-codebase sweep; none of their files appeared in `git log --oneline -10 -- components/widgets/` since 2026-08-25, so they are presumed unchanged. `pnpm exec tsc --noEmit` exit 0 (repo-wide, not scoped to changed files — no edits made this cycle)._
 
 _2026-08-24: Full audit (Monday daily), delegated to a dedicated sub-agent. **Skill path note:** `/mnt/skills/user/spart-new-widget/SKILL.md` does not exist in this environment; the synced copy at `/root/.claude/skills/synced/spart-new-widget/SKILL.md` was used (Scaling Rules at `:319-380`). Method: grepped all 49 `Widget.tsx` / `*Widget.tsx` / `index.tsx` front faces **plus every sub-component they import**, then read each hit in context and traced every candidate to its actual render site (inline-in-CQ vs. portaled vs. back-face/modal) before reporting — the import-tracing step is what surfaced findings 1–3, which sit in shared primitives and sub-components rather than in the widget entry points earlier sweeps scanned. Seven new items filed (5 MEDIUM, 2 LOW). Sweeps that came back clean: `max-h-[Npx]`/`max-w-[Npx]` — zero new hits, all 18 matches resolve to already-Open items, back-face editors/modals, `DrawingWidget`/`SeatingChart` (`skipScaling: false`), or the portaled `LiveControl.tsx`; `overflow-hidden` at content-area level — 104 occurrences swept, every one pairs with `h-full`/`w-full`/`flex-1 min-h-0` on the same or parent element, zero instances of the anti-pattern; low-px-cap-on-hero — every `min(Npx, Ycqmin)` pair extracted repo-wide and filtered for caps that would defeat scaling (≤16px paired with ≥15cqmin), zero hits. Triaged out and deliberately not flagged: `TextWidget/FormattingToolbar.tsx` (hardcoded sizes confirmed, but it is `createPortal`'d to `document.body` at `TextWidget/Widget.tsx:310` **and** already has a real responsive mechanism — ResizeObserver-driven group overflow collapsing at `:770-800`); `random/RandomGroups.tsx:372,384` (inside a portaled color picker, same bucket as the Open RandomClassContextButton item); decorative `w-2 h-2` dots (WON'T FIX per 2026-07-07/07-24); `NeedDoPutThen/Widget.tsx:492-517` fixed-px resize-handle chrome (exempt per 2026-07-27). All 4 existing Open items re-verified verbatim at their tracked line numbers; none stale, none resolved. **Out-of-scope observation for `legacy-cleanup`:** `components/widgets/math-tools/PlaceValueTool.tsx` has zero importers anywhere in the repo — dead code, like `Classes/RosterEditor.tsx` noted 2026-08-17; its hardcoded sizes have no runtime effect._
 

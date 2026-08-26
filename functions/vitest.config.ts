@@ -4,6 +4,10 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    // vertexClientOptions() reads GCLOUD_PROJECT; provide it so tests exercise the same path production does.
+    env: {
+      GCLOUD_PROJECT: 'demo-spartboard',
+    },
     exclude: [
       '**/node_modules/**',
       '**/dist/**',

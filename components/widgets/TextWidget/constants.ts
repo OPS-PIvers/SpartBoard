@@ -1,15 +1,6 @@
-import { STICKY_NOTE_COLORS } from '@/config/colors';
 import { FileText, MessageSquare, ShieldCheck, Star } from 'lucide-react';
 
 export const PLACEHOLDER_TEXT = 'Click to edit...';
-
-export const TEXT_WIDGET_COLORS = [
-  { hex: STICKY_NOTE_COLORS.yellow, label: 'yellow' },
-  { hex: STICKY_NOTE_COLORS.green, label: 'green' },
-  { hex: STICKY_NOTE_COLORS.blue, label: 'blue' },
-  { hex: STICKY_NOTE_COLORS.pink, label: 'pink' },
-  { hex: STICKY_NOTE_COLORS.gray, label: 'gray' },
-];
 
 export const TEXT_WIDGET_TEMPLATES = [
   {
