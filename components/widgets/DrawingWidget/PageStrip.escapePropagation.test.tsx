@@ -4,24 +4,8 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { PageStrip } from './PageStrip';
 
-/**
- * Regression: PageStrip's "manage pages" popover is portalled to
- * document.body. Its Escape handling used to be a `document`-level keydown
- * listener that called stopPropagation() before closing. That worked in
- * isolation, but PageStrip's trigger button is rendered inside a real
- * DraggableWindow: clicking it fires a pointerdown that
- * DraggableWindow.handlePointerDown uses to focus its own GlassCard root.
- * A later Escape's keydown target is then GlassCard, not the popover —
- * GlassCard's own onKeyDown minimizes the widget on Escape and calls
- * stopPropagation(), which halts the native event before it ever reaches
- * `document`. Net effect: Escape silently minimized the whole widget while
- * leaving the popover open and orphaned, instead of just closing it.
- *
- * FIX: DOM focus now moves into the popover when it opens, and Escape is
- * handled via a React onKeyDown on the popover itself (same fix pattern as
- * HotspotImage/Widget.tsx, #2544), so it wins the bubble before it can
- * reach GlassCard.
- */
+// Regression: a `document`-level Escape listener never fires inside a
+// DraggableWindow, which stops the native event first (same class as #2544).
 const makePages = () => [
   { id: 'p1', objects: [], title: 'Page 1' },
   { id: 'p2', objects: [], title: 'Page 2' },

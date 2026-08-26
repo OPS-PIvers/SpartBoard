@@ -123,20 +123,9 @@ export const PageStrip: React.FC<PageStripProps> = ({
   }, [isOpen, close]);
 
   // Outside-click dismiss for the popover. Escape is handled separately via
-  // a React onKeyDown on the popover element itself (see popoverRef below) —
-  // a `document`-level keydown listener never fires here at all when this
-  // trigger lives inside a real DraggableWindow: clicking "Manage pages"
-  // fires a pointerdown that DraggableWindow.handlePointerDown uses to focus
-  // its own GlassCard root, so a later Escape's keydown target is GlassCard,
-  // not this popover. GlassCard's own onKeyDown minimizes the widget on
-  // Escape and calls stopPropagation(), which (React 17+ synthetic
-  // propagation maps onto the real DOM event) halts the native event before
-  // it ever reaches `document` — so this component's own document listener
-  // would silently never run, closing nothing while the widget minimizes
-  // out from under an now-orphaned popover. Fixed by moving DOM focus into
-  // the popover on open and handling Escape as a React onKeyDown there,
-  // which wins the bubble before it can reach GlassCard (same fix pattern
-  // as HotspotImage/Widget.tsx, #2544).
+  // a React onKeyDown on popoverRef below — a `document` listener never
+  // fires inside a DraggableWindow, whose own Escape handler stops the
+  // native event first (same fix pattern as HotspotImage/Widget.tsx, #2544).
   useEffect(() => {
     if (!isOpen) return undefined;
     const onDocPointerDown = (e: PointerEvent) => {
@@ -153,9 +142,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
     };
   }, [isOpen, close]);
 
-  // Move DOM focus into the popover once it's mounted, so Escape's native
-  // keydown target lands inside it rather than on whatever DraggableWindow
-  // last focused (see the comment above).
+  // Move DOM focus into the popover so Escape's keydown target lands here.
   useEffect(() => {
     if (!isOpen) return undefined;
     popoverRef.current?.focus();
