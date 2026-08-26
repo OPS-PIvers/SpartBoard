@@ -1611,12 +1611,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               onArchiveEnd={(a) => void handleArchiveEnd(a)}
               onArchiveReactivate={(a) => void handleArchiveReactivate(a)}
               onArchiveDelete={(a) => void handleArchiveDelete(a)}
-              initialLibraryViewMode={config.libraryViewMode}
-              onLibraryViewModeChange={(mode) =>
-                updateWidget(widget.id, {
-                  config: { ...config, libraryViewMode: mode } as MiniAppConfig,
-                })
-              }
               assignmentMode={assignmentMode}
               readOnly={isActiveBoardReadOnly}
             />

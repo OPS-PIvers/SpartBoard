@@ -3130,6 +3130,12 @@ export interface QuizMetadata {
   folderId?: string | null;
   /** Synchronized-quiz linkage; see `QuizMetadataSyncLinkage`. */
   sync?: QuizMetadataSyncLinkage;
+  /**
+   * Lowercased question-text blob (capped) written on save so library search
+   * can match question content without a Drive load. Absent on quizzes not
+   * re-saved since the field was introduced — search falls back to title.
+   */
+  searchText?: string;
   /** Behavior settings authored in the editor; synced to PLC members. */
   behavior?: QuizBehaviorSettings;
   /**

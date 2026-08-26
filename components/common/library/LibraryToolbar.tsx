@@ -4,16 +4,10 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  LayoutGrid,
-  List as ListIcon,
   Check,
   ChevronDown,
 } from 'lucide-react';
-import type {
-  LibraryToolbarProps,
-  LibrarySortDir,
-  LibraryViewMode,
-} from './types';
+import type { LibraryToolbarProps, LibrarySortDir } from './types';
 import { useClickOutside } from '@/hooks/useClickOutside';
 
 const SortDropdown: React.FC<{
@@ -150,51 +144,6 @@ const FilterDropdown: React.FC<{
   );
 };
 
-const ViewModeToggle: React.FC<{
-  viewMode: LibraryViewMode;
-  onChange: (next: LibraryViewMode) => void;
-}> = ({ viewMode, onChange }) => {
-  const btn = (
-    mode: LibraryViewMode,
-    Icon: typeof LayoutGrid,
-    label: string
-  ) => {
-    const selected = viewMode === mode;
-    return (
-      <button
-        key={mode}
-        type="button"
-        role="radio"
-        aria-checked={selected}
-        aria-label={label}
-        title={label}
-        onClick={() => onChange(mode)}
-        className={`inline-flex items-center justify-center transition-colors ${
-          selected
-            ? 'bg-brand-blue-primary text-white'
-            : 'text-slate-500 hover:bg-slate-50'
-        }`}
-        style={{
-          paddingInline: 'min(10px, 2.5cqmin)',
-          paddingBlock: 'min(6px, 1.5cqmin)',
-        }}
-      >
-        <Icon size={14} />
-      </button>
-    );
-  };
-  return (
-    <div
-      role="radiogroup"
-      aria-label="View mode"
-      className="inline-flex items-stretch rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden"
-    >
-      {btn('grid', LayoutGrid, 'Grid view')}
-      {btn('list', ListIcon, 'List view')}
-    </div>
-  );
-};
-
 export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
   search,
   onSearchChange,
@@ -205,8 +154,6 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
   filters,
   filterValues,
   onFilterChange,
-  viewMode,
-  onViewModeChange,
   rightSlot,
 }) => {
   const visibleFilters = (filters ?? []).filter((f) => f.visible !== false);
@@ -257,10 +204,6 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
             onChange={(v) => onFilterChange(f.id, v)}
           />
         ))}
-
-      {viewMode !== undefined && onViewModeChange && (
-        <ViewModeToggle viewMode={viewMode} onChange={onViewModeChange} />
-      )}
 
       {rightSlot && (
         <div className="ml-auto flex items-center">{rightSlot}</div>

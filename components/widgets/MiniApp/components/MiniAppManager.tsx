@@ -147,11 +147,6 @@ export interface MiniAppManagerProps {
   /** Optional — open the underlying app in the widget. */
   onArchiveOpenApp?: (assignment: MiniAppAssignment) => void;
 
-  /** Persisted library grid/list toggle (from widget config). */
-  initialLibraryViewMode?: 'grid' | 'list';
-  /** Persist the library grid/list toggle into widget config. */
-  onLibraryViewModeChange?: (mode: 'grid' | 'list') => void;
-
   /** Org-wide assignment mode. Drives Assign-vs-Share button labels and the
    *  In-Progress-vs-Shared tab label. Defaults to `'submissions'`. */
   assignmentMode?: AssignmentMode;
@@ -313,8 +308,6 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   onArchiveReactivate,
   onArchiveDelete,
   onArchiveOpenApp,
-  initialLibraryViewMode,
-  onLibraryViewModeChange,
   assignmentMode = 'submissions',
   readOnly = false,
 }) => {
@@ -432,8 +425,8 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     searchFields: LIBRARY_SEARCH_FIELDS,
     sortComparators: LIBRARY_SORT_COMPARATORS,
     filterPredicates: LIBRARY_FILTER_PREDICATES,
-    initialViewMode: initialLibraryViewMode ?? 'grid',
-    onViewModeChange: onLibraryViewModeChange,
+    // Phase 2 redesign: the library is list-only (monitor row idiom).
+    initialViewMode: 'list',
   });
 
   const source: MiniAppSource =
@@ -1176,8 +1169,6 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         filters={[SOURCE_FILTER]}
         filterValues={view.toolbarProps.filterValues}
         onFilterChange={view.toolbarProps.onFilterChange}
-        viewMode={view.toolbarProps.viewMode}
-        onViewModeChange={view.toolbarProps.onViewModeChange}
         rightSlot={
           userId && !isGlobalView ? (
             <button

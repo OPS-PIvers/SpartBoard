@@ -210,11 +210,6 @@ export interface GuidedLearningManagerProps {
     assignment: GuidedLearningAssignment
   ) => void | Promise<void>;
 
-  /** Persisted library grid/list toggle (from widget config). */
-  initialLibraryViewMode?: 'grid' | 'list';
-  /** Persist the library grid/list toggle into widget config. */
-  onLibraryViewModeChange?: (mode: 'grid' | 'list') => void;
-
   /** Org-wide assignment mode. Drives Assign-vs-Share button labels and the
    *  In-Progress-vs-Shared tab label. Defaults to `'submissions'`. */
   assignmentMode?: AssignmentMode;
@@ -380,8 +375,6 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onAssignmentDelete,
   onAssignmentPublishScores,
   onAssignmentUnpublishScores,
-  initialLibraryViewMode,
-  onLibraryViewModeChange,
   assignmentMode = 'submissions',
 }) => {
   const isViewOnly = assignmentMode === 'view-only';
@@ -474,11 +467,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const view = useLibraryView<LibraryEntry>({
     items: allEntries,
     initialSort: LIBRARY_INITIAL_SORT,
-    initialViewMode: initialLibraryViewMode ?? 'grid',
+    // Phase 2 redesign: the library is list-only (monitor row idiom).
+    initialViewMode: 'list',
     searchFields: LIBRARY_SEARCH_FIELDS,
     sortComparators: LIBRARY_SORT_COMPARATORS,
     filterPredicates: LIBRARY_FILTER_PREDICATES,
-    onViewModeChange: onLibraryViewModeChange,
   });
 
   const activeSourceFilter = view.state.filterValues.source ?? '';

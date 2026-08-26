@@ -742,15 +742,6 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                     );
                   }
                 }}
-                initialLibraryViewMode={config.libraryViewMode}
-                onLibraryViewModeChange={(mode) => {
-                  updateWidget(widget.id, {
-                    config: {
-                      ...config,
-                      libraryViewMode: mode,
-                    } as GuidedLearningConfig,
-                  });
-                }}
                 assignmentMode={assignmentMode}
               />
             )}
