@@ -4,9 +4,11 @@ import type { Building } from '@/config/buildings';
 /**
  * Returns a `[selectedId, setSelectedId]` tuple scoped to the admin-configurable
  * building list. Auto-recovers when `buildings` transitions (seed fallback →
- * Firestore load, or an org admin renaming/archiving a building) and the
+ * Firestore load, an org admin renaming/archiving a building, or an org
+ * membership revoke mid-session dropping the list to empty) and the
  * currently selected id is no longer in the list: on the next render it
- * snaps forward to the first available building.
+ * snaps forward to the first available building, or clears to `''` when
+ * the list is empty.
  *
  * Uses the React "adjusting state while rendering" pattern so consumers never
  * render one frame with a stale id that doesn't match any tab.
@@ -18,7 +20,8 @@ export function useBuildingSelection(
   const [selectedId, setSelectedId] = useState<string>(first);
 
   const hasMatch = buildings.some((b) => b.id === selectedId);
-  if (!hasMatch && first && selectedId !== first) {
+  // Reset to '' too when `buildings` goes empty — a stale id can never match again.
+  if (!hasMatch && selectedId !== first) {
     setSelectedId(first);
   }
 
