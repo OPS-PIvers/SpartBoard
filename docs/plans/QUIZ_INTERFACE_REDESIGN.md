@@ -121,6 +121,21 @@ working). New composition in `components/widgets/QuizWidget/components/monitor/`
 Settings toggles (podium `showPodiumBetweenQuestions`, tab warnings `tabWarningsEnabled`, new
 scoreboard-sync toggle) surface together under Quiz settings (⋯ menu).
 
+## Phase 1.5 — Results view alignment
+
+`QuizResults.tsx` (2318 L, rendered from `Widget.tsx` for ended sessions / assignment review)
+still follows the old design. Functionality is largely right — this phase is a visual/structural
+catch-up to the Phase 1 monitor language, not a feature rebuild:
+
+1. Adopt the monitor shell vocabulary: blue header bar + status context, Blue Lighter summary
+   card, calm default face with drill-down screens instead of dense everything-at-once panels.
+2. Reuse the `monitor/` primitives where they fit (distribution bars from `QuestionDetail`,
+   roster row styling, proficiency band tints, toolbar toggle chips) rather than duplicating.
+3. Keep existing capabilities intact: per-student breakdowns, per-question analysis, grading/
+   manual scoring, export, unlock-results actions.
+4. Scores are appropriate here (session is over) — no projector-safety hiding, but keep the
+   same sort/filter/toggle patterns and persisted-config conventions as the monitor roster.
+
 ## Phase 2 — Quiz library restyle
 
 1. Extract library tab from `QuizManager.tsx`; align with the shared library primitives.
