@@ -9,9 +9,10 @@ import React from 'react';
  * share a single accessible implementation instead of hand-rolling the
  * `flex bg-slate-100 p-1 rounded-*` pattern per file.
  *
- * Implements the WAI-ARIA tablist keyboard pattern (select-follows-focus,
- * roving tabIndex) — see `sessionViews/SegmentedTabs.tsx` for the reference
- * implementation this mirrors.
+ * Implements the tablist keyboard pattern (select-follows-focus, roving
+ * tabIndex) — see `sessionViews/SegmentedTabs.tsx` for the reference
+ * implementation this mirrors. Role/tabpanel wiring is a separate, unfinished
+ * concern (no consumer here actually navigates into a panel).
  */
 export const SegmentedControl: <T extends string>(props: {
   value: T;
