@@ -824,6 +824,35 @@ describe('pinLoginV1', () => {
     expect(res).toMatchObject({ matched: false, reason: 'no-index-entry' });
   });
 
+  it('finds a joinable quiz session even behind 5 non-joinable same-code sessions', async () => {
+    // quiz_sessions is never pruned, so a reused code can accumulate past
+    // sessions. Seed 5 non-joinable ones ahead of the live one to prove the
+    // lookup filters by status in the query instead of sampling a capped page.
+    for (let i = 0; i < 5; i++) {
+      h.docStore.set(`quiz_sessions/old${i}`, {
+        code: 'DUP001',
+        status: 'ended',
+      });
+    }
+    h.docStore.set('quiz_sessions/live1', {
+      code: 'DUP001',
+      status: 'active',
+      teacherUid: 'teacher1',
+      rosterIds: ['r1'],
+    });
+    h.docStore.set('users/teacher1/rosters/r1/pin_index/1__1234', {
+      pseudonym: 'PS3',
+      classId: 'CL1',
+      orgId: 'org-orono',
+    });
+
+    const res = await callPinLogin({
+      data: { kind: 'quiz', code: 'DUP001', pin: '1234', period: '1' },
+    });
+
+    expect(res).toEqual({ matched: true, customToken: 'ct:PS3' });
+  });
+
   it('mints an SSO-matching token for a resolved quiz PIN', async () => {
     h.docStore.set('quiz_sessions/qs1', {
       code: 'ABC123',
