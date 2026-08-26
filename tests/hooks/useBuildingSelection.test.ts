@@ -25,13 +25,7 @@ describe('useBuildingSelection', () => {
     expect(result.current[0]).toBe('middle');
   });
 
-  // Regression: an org membership revoke mid-session (AuthContext clears
-  // orgId -> useAdminBuildings falls back to []) drops `buildings` from
-  // non-empty to empty. `selectedId` must clear along with it — a stale id
-  // pointing at a building no longer in the list otherwise sticks forever
-  // (no building in the now-empty list can ever match it again), leaving
-  // every *ConfigurationPanel consumer showing a blank building tab with no
-  // way for the user to recover by reselecting.
+  // Regression: an org membership revoke mid-session drops `buildings` to empty.
   it('clears the selection when buildings transitions from non-empty to empty', () => {
     const { result, rerender } = renderHook(
       ({ buildings }: { buildings: Building[] }) =>
