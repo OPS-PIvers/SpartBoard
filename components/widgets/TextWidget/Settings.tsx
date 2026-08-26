@@ -4,6 +4,8 @@ import { WidgetData, TextConfig } from '@/types';
 import { sanitizeHtml } from '@/utils/security';
 
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { TypographySettings } from '@/components/common/TypographySettings';
+import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';
 import { TEXT_WIDGET_TEMPLATES } from './constants';
 
 export const TextSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
@@ -42,6 +44,34 @@ export const TextSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           ))}
         </div>
       </div>
+    </div>
+  );
+};
+
+export const TextAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
+  widget,
+}) => {
+  const { updateWidget } = useDashboard();
+  const config = widget.config as TextConfig;
+
+  return (
+    <div className="space-y-6">
+      <TextSizePresetSettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, {
+            config: { ...config, ...updates } as TextConfig,
+          })
+        }
+      />
+      <TypographySettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, {
+            config: { ...config, ...updates } as TextConfig,
+          })
+        }
+      />
     </div>
   );
 };

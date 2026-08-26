@@ -1,2 +1,2 @@
 export { TextWidget } from './Widget';
-export { TextSettings } from './Settings';
+export { TextSettings, TextAppearanceSettings } from './Settings';
