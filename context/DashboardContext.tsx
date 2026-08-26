@@ -5851,7 +5851,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // F9 — tool-visibility slice. Split out of `contextValue` so a tool toggle
   // (or dock/library reorder) recreates ONLY this object, re-rendering its few
-  // consumers (Dock / NewUserSetup / WidgetLibrary / SidebarWidgets) instead of
+  // consumers (Dock / NewUserSetup / WidgetLibrary) instead of
   // every `useDashboard()` consumer. State + persistence effects stay in this
   // provider; this memo just exposes the same 17 callbacks/values from a
   // narrower context. Deps mirror exactly the tool-vis fields the deleted

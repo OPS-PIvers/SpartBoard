@@ -7,7 +7,7 @@ import { WidgetType, DockItem, InternalToolType } from '@/types';
  * whose `useMemo` deps include `visibleTools` / `dockItems` / `libraryOrder`,
  * so toggling a tool recreates that object and re-renders ALL ~189
  * `useDashboard()` consumers. Tool visibility is read by only a handful of
- * surfaces (Dock, NewUserSetup, WidgetLibrary, SidebarWidgets), so isolating
+ * surfaces (Dock, NewUserSetup, WidgetLibrary), so isolating
  * it here means a tool toggle recreates only THIS value (~3 consumers) while
  * widget/canvas mutations no longer churn the dock.
  *
