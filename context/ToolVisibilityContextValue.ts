@@ -24,6 +24,9 @@ export interface ToolVisibilityContextValue {
   visibleTools: (WidgetType | InternalToolType)[];
   dockItems: DockItem[];
   libraryOrder: (WidgetType | InternalToolType)[];
+  /** Widget types hidden from the library's default view (synced per-user) */
+  hiddenTools: (WidgetType | InternalToolType)[];
+  toggleToolHidden: (type: WidgetType | InternalToolType) => void;
   toggleToolVisibility: (type: WidgetType | InternalToolType) => void;
   setAllToolsVisibility: (visible: boolean) => void;
   reorderTools: (tools: (WidgetType | InternalToolType)[]) => void;

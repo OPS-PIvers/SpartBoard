@@ -29,6 +29,8 @@ export const SidebarWidgets: React.FC<SidebarWidgetsProps> = ({
     { value: '9-12', label: '9-12' },
   ] as const;
 
+  // TODO: align with the Widget Library's `hiddenTools` preference (exclude
+  // hidden widgets here + add a "show hidden" toggle) — deliberate follow-up.
   // Memoize filtered tools to prevent unnecessary recalculations
   const filteredTools = useMemo(() => {
     return TOOLS.filter((tool) => {

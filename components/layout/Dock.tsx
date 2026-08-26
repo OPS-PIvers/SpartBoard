@@ -45,7 +45,10 @@ import {
 } from '@/types';
 import { TOOLS } from '@/config/tools';
 import { toLunchCountSchoolSite } from '@/config/buildings';
-import { matchesUserBuilding as matchesUserBuildingLevels } from '@/config/widgetGradeLevels';
+import {
+  matchesUserBuilding as matchesUserBuildingLevels,
+  getWidgetGradeLevels,
+} from '@/config/widgetGradeLevels';
 import { AddWidgetOverrides } from '@/types';
 import { getJoinUrl } from '@/utils/urlHelpers';
 import { getLocalTimestampForFilename } from '@/utils/localDate';
@@ -246,6 +249,18 @@ export const Dock: React.FC = () => {
     (type: WidgetType | InternalToolType): boolean =>
       matchesUserBuildingLevels(type, userGradeLevels, featurePermissions),
     [userGradeLevels, featurePermissions]
+  );
+
+  // Permission-aware grade levels for the library's grade filter — admin
+  // overrides in featurePermissions narrow the static config when non-empty.
+  const getToolGradeLevels = useCallback(
+    (type: WidgetType | InternalToolType) => {
+      const permission = featurePermissions.find((p) => p.widgetType === type);
+      return permission?.gradeLevels && permission.gradeLevels.length > 0
+        ? permission.gradeLevels
+        : getWidgetGradeLevels(type);
+    },
+    [featurePermissions]
   );
 
   const handleRecordingComplete = useCallback(
@@ -1015,6 +1030,8 @@ export const Dock: React.FC = () => {
               }}
               canAccess={canAccessTool}
               matchesUserBuilding={matchesUserBuilding}
+              getToolGradeLevels={getToolGradeLevels}
+              onEnterEditMode={handleLongPress}
               onClose={() => {
                 setShowMoreMenu(false);
                 setShowLibrary(false);

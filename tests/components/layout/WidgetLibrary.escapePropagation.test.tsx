@@ -25,7 +25,11 @@ vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: vi.fn() }),
 }));
 vi.mock('@/context/useToolVisibility', () => ({
-  useToolVisibility: () => ({ resetDockToDefaults: vi.fn() }),
+  useToolVisibility: () => ({
+    resetDockToDefaults: vi.fn(),
+    hiddenTools: [],
+    toggleToolHidden: vi.fn(),
+  }),
 }));
 
 import { WidgetLibrary } from '@/components/layout/dock/WidgetLibrary';

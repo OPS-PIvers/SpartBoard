@@ -6169,6 +6169,11 @@ export interface UserProfile {
    */
   dockInitialized?: boolean;
   /**
+   * Widget types the user hid from the Widget Library's default view.
+   * Independent of dock membership. Synced across devices.
+   */
+  hiddenTools?: (WidgetType | InternalToolType)[];
+  /**
    * IDs of backgrounds the user has starred as favorites. May be preset IDs
    * (Tailwind class strings like `'bg-gradient-to-br from-blue-400'`), HTTPS
    * URLs (Drive uploads or preset images), or `custom:` values (custom solid
@@ -6325,11 +6330,23 @@ export interface Toast {
   };
 }
 
+export type WidgetCategory =
+  | 'time'
+  | 'management'
+  | 'instruction'
+  | 'interaction'
+  | 'media'
+  | 'fun';
+
 export interface ToolMetadata {
   type: WidgetType | InternalToolType;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   color: string;
+  /** Library filter category; see WIDGET_CATEGORIES in config/tools.ts */
+  category?: WidgetCategory;
+  /** Synonyms/related terms matched by the library's fuzzy search */
+  keywords?: string[];
   defaultWidth?: number;
   defaultHeight?: number;
   minWidth?: number;

@@ -23,3 +23,6 @@ tests/perf/results/
 # review, so table alignment provides no benefit here.
 docs/routines/*.md
 docs/scheduled-tasks/*.md
+
+# Impeccable design-hook machine-managed config/cache
+.impeccable/

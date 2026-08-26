@@ -1,21 +1,39 @@
-import React, { forwardRef, useCallback, useEffect, useMemo } from 'react';
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
+import Fuse from 'fuse.js';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import {
   Bookmark,
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  EyeOff,
   FolderPlus,
   LayoutGrid,
+  Pencil,
   Pin,
   PinOff,
   Plus,
   Puzzle,
   RotateCcw,
+  Search,
   Trash2,
   X,
 } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import { getCustomWidgetIcon } from '@/config/customWidgetIcons';
-import { CustomWidgetDoc, SavedWidget } from '@/types';
+import {
+  CustomWidgetDoc,
+  SavedWidget,
+  GradeLevel,
+  WidgetCategory,
+} from '@/types';
 import {
   DndContext,
   closestCenter,
@@ -33,10 +51,11 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { GlassCard } from '@/components/common/GlassCard';
 import { IconButton } from '@/components/common/IconButton';
-import { TOOLS } from '@/config/tools';
+import { TOOLS, WIDGET_CATEGORIES } from '@/config/tools';
 import { WidgetType, GlobalStyle, InternalToolType } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useDialog } from '@/context/useDialog';
+import { useLongPress } from '@/hooks/useLongPress';
 import { useToolVisibility } from '@/context/useToolVisibility';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 
@@ -46,18 +65,34 @@ const TOOLS_MAP = new Map<WidgetType | InternalToolType, (typeof TOOLS)[0]>(
   TOOLS.map((t) => [t.type, t])
 );
 
+const noop = () => {
+  // long-press placeholder when no edit-mode entry callback is provided
+};
+
+const GRADE_OPTIONS: { value: GradeLevel | 'all'; label: string }[] = [
+  { value: 'all', label: 'All Grades' },
+  { value: 'k-2', label: 'K-2' },
+  { value: '3-5', label: '3-5' },
+  { value: '6-8', label: '6-8' },
+  { value: '9-12', label: '9-12' },
+];
+
 interface WidgetLibraryProps {
   onToggle: (type: WidgetType | InternalToolType) => void;
   visibleTools: (WidgetType | InternalToolType)[];
   canAccess: (type: WidgetType | InternalToolType) => boolean;
   /** In normal (non-edit) mode, only widgets returning true are shown */
   matchesUserBuilding?: (type: WidgetType | InternalToolType) => boolean;
+  /** Permission-aware grade levels per tool, for the grade filter */
+  getToolGradeLevels?: (type: WidgetType | InternalToolType) => GradeLevel[];
   onClose: () => void;
   globalStyle: GlobalStyle;
   triggerRef?: React.RefObject<HTMLElement | null>;
   libraryOrder: (WidgetType | InternalToolType)[];
   onReorderLibrary: (tools: (WidgetType | InternalToolType)[]) => void;
   isEditMode?: boolean;
+  /** Enters dock edit mode (Edit button + long-press on library cards) */
+  onEnterEditMode?: () => void;
   onAddFolder?: () => void;
   getToolLabel?: (type: WidgetType | InternalToolType) => string;
   /** Published custom widgets to show as an additional section */
@@ -79,13 +114,22 @@ const SortableLibraryTool = React.memo(
     tool,
     isActive,
     isEditMode,
+    isHidden = false,
+    sortDisabled,
     onToggle,
+    onToggleHidden,
+    onLongPress,
     label,
   }: {
     tool: (typeof TOOLS)[0];
     isActive: boolean;
     isEditMode: boolean;
+    isHidden?: boolean;
+    /** Disables drag reorder (while searching/filtering, or in the hidden section) */
+    sortDisabled?: boolean;
     onToggle: (type: WidgetType | InternalToolType) => void;
+    onToggleHidden?: (type: WidgetType | InternalToolType) => void;
+    onLongPress?: () => void;
     label?: string;
   }) => {
     const {
@@ -95,7 +139,12 @@ const SortableLibraryTool = React.memo(
       transform,
       transition,
       isDragging,
-    } = useSortable({ id: tool.type });
+    } = useSortable({ id: tool.type, disabled: sortDisabled });
+
+    const longPressHandlers = useLongPress(onLongPress ?? noop, {
+      disabled: isEditMode || !onLongPress,
+      onPointerDown: listeners?.onPointerDown,
+    });
 
     const style = {
       transform: CSS.Transform.toString(transform),
@@ -105,41 +154,66 @@ const SortableLibraryTool = React.memo(
     };
 
     return (
-      <button
-        ref={setNodeRef}
-        style={style}
-        {...attributes}
-        {...listeners}
-        onClick={(e) => {
-          // Prevent click if dragging happened
-          if (e.defaultPrevented) return;
-          onToggle(tool.type);
-        }}
-        className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all group active:scale-95 border-2 ${
-          isActive
-            ? 'bg-white/80 border-brand-blue-primary shadow-md'
-            : 'bg-white/20 border-transparent opacity-100 hover:bg-white/30'
-        } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isEditMode ? 'animate-jiggle' : ''}`}
-      >
-        <div
-          className={`${tool.color} p-3 rounded-2xl text-white shadow-lg group-hover:scale-110 transition-transform relative`}
+      <div ref={setNodeRef} style={style} className="relative">
+        <button
+          {...attributes}
+          {...longPressHandlers}
+          onClick={(e) => {
+            // Prevent click if dragging happened
+            if (e.defaultPrevented) return;
+            onToggle(tool.type);
+          }}
+          className={`w-full flex flex-col items-center gap-2 p-4 rounded-2xl transition-all group active:scale-95 border-2 ${
+            isActive
+              ? 'bg-white/80 border-brand-blue-primary shadow-md'
+              : 'bg-white/20 border-transparent hover:bg-white/30'
+          } ${isHidden ? 'opacity-60' : 'opacity-100'} ${
+            isDragging ? 'cursor-grabbing' : 'cursor-grab'
+          } ${isEditMode && !isHidden ? 'animate-jiggle' : ''}`}
         >
-          <tool.icon className="w-6 h-6" />
-          {isEditMode && (
-            <div className="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5 shadow-sm ring-2 ring-white">
-              <Plus className="w-2.5 h-2.5" />
-            </div>
-          )}
-          {!isEditMode && isActive && (
-            <div className="absolute -top-1 -right-1 bg-green-500 text-white rounded-full p-0.5 shadow-sm">
-              <Plus className="w-2.5 h-2.5 rotate-45" />
-            </div>
-          )}
-        </div>
-        <span className="text-xxs font-black uppercase text-slate-700 tracking-tight text-center leading-tight">
-          {label ?? tool.label}
-        </span>
-      </button>
+          <div
+            className={`${tool.color} p-3 rounded-2xl text-white shadow-lg group-hover:scale-110 transition-transform relative`}
+          >
+            <tool.icon className="w-6 h-6" />
+            {isEditMode && !isHidden && (
+              <div className="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5 shadow-sm ring-2 ring-white">
+                <Plus className="w-2.5 h-2.5" />
+              </div>
+            )}
+            {!isEditMode && isActive && (
+              <div className="absolute -top-1 -right-1 bg-green-500 text-white rounded-full p-0.5 shadow-sm">
+                <Plus className="w-2.5 h-2.5 rotate-45" />
+              </div>
+            )}
+          </div>
+          <span className="text-xxs font-black uppercase text-slate-700 tracking-tight text-center leading-tight">
+            {label ?? tool.label}
+          </span>
+        </button>
+        {/* Hide (edit mode) / unhide (any mode) toggle */}
+        {onToggleHidden && (isHidden || isEditMode) && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleHidden(tool.type);
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className={`absolute top-1 left-1 p-1 rounded-md shadow-sm transition-all ${
+              isHidden
+                ? 'bg-white text-brand-blue-primary hover:bg-brand-blue-primary hover:text-white'
+                : 'bg-white/90 text-slate-400 hover:text-slate-700 hover:bg-white'
+            }`}
+            aria-label={isHidden ? 'Unhide widget' : 'Hide widget'}
+            title={isHidden ? 'Unhide widget' : 'Hide from library'}
+          >
+            {isHidden ? (
+              <Eye className="w-3.5 h-3.5" />
+            ) : (
+              <EyeOff className="w-3.5 h-3.5" />
+            )}
+          </button>
+        )}
+      </div>
     );
   }
 );
@@ -153,12 +227,14 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
       visibleTools,
       canAccess,
       matchesUserBuilding,
+      getToolGradeLevels,
       onClose,
       globalStyle,
       triggerRef,
       libraryOrder,
       onReorderLibrary,
       isEditMode = false,
+      onEnterEditMode,
       onAddFolder,
       getToolLabel,
       customWidgets = [],
@@ -171,7 +247,19 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
     ref
   ) => {
     const { showConfirm } = useDialog();
-    const { resetDockToDefaults } = useToolVisibility();
+    const { resetDockToDefaults, hiddenTools, toggleToolHidden } =
+      useToolVisibility();
+
+    const [searchQuery, setSearchQuery] = useState('');
+    const [categoryFilter, setCategoryFilter] = useState<
+      WidgetCategory | 'all'
+    >('all');
+    const [gradeFilter, setGradeFilter] = useState<GradeLevel | 'all'>('all');
+    const [showHiddenSection, setShowHiddenSection] = useState(false);
+
+    const trimmedQuery = searchQuery.trim();
+    const isFiltering =
+      trimmedQuery !== '' || categoryFilter !== 'all' || gradeFilter !== 'all';
 
     const sensors = useSensors(
       useSensor(PointerSensor, {
@@ -270,13 +358,91 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
       );
     }, [buildingAccessibleTools, visibleTools]);
 
+    // Category + grade filters (search is applied separately via Fuse below)
+    const categoryGradeFiltered = useMemo(() => {
+      return availableTools.filter((tool) => {
+        if (categoryFilter !== 'all' && tool.category !== categoryFilter)
+          return false;
+        if (gradeFilter !== 'all' && getToolGradeLevels) {
+          if (!getToolGradeLevels(tool.type).includes(gradeFilter))
+            return false;
+        }
+        return true;
+      });
+    }, [availableTools, categoryFilter, gradeFilter, getToolGradeLevels]);
+
+    // Fuzzy search over admin-aware label + curated keywords
+    const searchedTools = useMemo(() => {
+      if (trimmedQuery === '') return categoryGradeFiltered;
+      const fuse = new Fuse(
+        categoryGradeFiltered.map((tool) => ({
+          tool,
+          label: getToolLabel ? getToolLabel(tool.type) : tool.label,
+          keywords: tool.keywords ?? [],
+        })),
+        {
+          keys: [
+            { name: 'label', weight: 2 },
+            { name: 'keywords', weight: 1 },
+          ],
+          threshold: 0.35,
+          ignoreLocation: true,
+        }
+      );
+      return fuse.search(trimmedQuery).map((r) => r.item.tool);
+    }, [categoryGradeFiltered, trimmedQuery, getToolLabel]);
+
+    const hiddenToolsSet = useMemo(() => new Set(hiddenTools), [hiddenTools]);
+
+    // Default view excludes hidden tools; an active search surfaces them
+    // (marked hidden) so search stays the recovery path for hidden widgets.
+    const shownTools = useMemo(
+      () =>
+        trimmedQuery !== ''
+          ? searchedTools
+          : searchedTools.filter((t) => !hiddenToolsSet.has(t.type)),
+      [searchedTools, trimmedQuery, hiddenToolsSet]
+    );
+
+    // Hidden tools among the user's accessible set, for the "Hidden" section
+    // (only shown when not searching — search already surfaces them inline).
+    const hiddenSectionTools = useMemo(
+      () => categoryGradeFiltered.filter((t) => hiddenToolsSet.has(t.type)),
+      [categoryGradeFiltered, hiddenToolsSet]
+    );
+
+    // Reordering a filtered subset would scramble libraryOrder — only allow
+    // dragging when the full, unfiltered list is on screen.
+    const sortDisabled = isFiltering;
+
+    const savedMatches = useMemo(() => {
+      if (trimmedQuery === '') return isFiltering ? [] : savedWidgets;
+      const fuse = new Fuse(savedWidgets, {
+        keys: ['title'],
+        threshold: 0.35,
+        ignoreLocation: true,
+      });
+      return fuse.search(trimmedQuery).map((r) => r.item);
+    }, [savedWidgets, trimmedQuery, isFiltering]);
+
+    const customMatches = useMemo(() => {
+      if (trimmedQuery === '') return isFiltering ? [] : customWidgets;
+      const fuse = new Fuse(customWidgets, {
+        keys: ['title'],
+        threshold: 0.35,
+        ignoreLocation: true,
+      });
+      return fuse.search(trimmedQuery).map((r) => r.item);
+    }, [customWidgets, trimmedQuery, isFiltering]);
+
     // "Built-in" qualifier matters because custom widgets render in their
     // own section above and aren't counted here — without it, the message
     // reads as a lie whenever there are still custom widgets to add.
     // Edit mode bypasses the building filter entirely, so wording has to
     // fork on isEditMode as well.
-    const emptyStateMessage =
-      buildingAccessibleTools.length === 0
+    const emptyStateMessage = isFiltering
+      ? 'No widgets match your search'
+      : buildingAccessibleTools.length === 0
         ? isEditMode
           ? 'No built-in widgets available with your current access'
           : 'No built-in widgets available for your selected buildings'
@@ -288,7 +454,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
           ref={ref}
           globalStyle={globalStyle}
           transparency={0.98}
-          className="w-full max-w-2xl h-[520px] max-h-[70vh] overflow-hidden flex flex-col p-0 shadow-2xl animate-in zoom-in-95 duration-300 select-none pointer-events-auto"
+          className="w-full max-w-2xl h-[560px] max-h-[75vh] overflow-hidden flex flex-col p-0 shadow-2xl animate-in zoom-in-95 duration-300 select-none pointer-events-auto"
         >
           <div className="bg-white/50 px-6 py-4 border-b border-white/30 flex justify-between items-center shrink-0 backdrop-blur-xl">
             <div className="flex items-center gap-4">
@@ -298,6 +464,15 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                   Widget Library
                 </h3>
               </div>
+              {!isEditMode && onEnterEditMode && (
+                <button
+                  onClick={onEnterEditMode}
+                  className="px-3 py-1.5 bg-brand-blue-primary/10 hover:bg-brand-blue-primary/20 text-brand-blue-primary text-xxs font-black uppercase tracking-widest rounded-full transition-all flex items-center gap-1.5"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Edit
+                </button>
+              )}
               {isEditMode && onAddFolder && (
                 <button
                   onClick={onAddFolder}
@@ -316,8 +491,53 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
               size="md"
             />
           </div>
+          {/* Search + filters */}
+          <div className="bg-white/40 px-6 py-3 border-b border-white/30 shrink-0 flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search widgets…"
+                aria-label="Search widgets"
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/80 border border-white/60 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary"
+              />
+            </div>
+            <div className="flex gap-2">
+              <select
+                value={categoryFilter}
+                onChange={(e) =>
+                  setCategoryFilter(e.target.value as WidgetCategory | 'all')
+                }
+                aria-label="Filter by category"
+                className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-white/80 border border-white/60 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+              >
+                <option value="all">All Categories</option>
+                {WIDGET_CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={gradeFilter}
+                onChange={(e) =>
+                  setGradeFilter(e.target.value as GradeLevel | 'all')
+                }
+                aria-label="Filter by grade level"
+                className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-white/80 border border-white/60 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+              >
+                {GRADE_OPTIONS.map((g) => (
+                  <option key={g.value} value={g.value}>
+                    {g.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-6">
-            {savedWidgets.length > 0 && (
+            {savedMatches.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <Bookmark className="w-3.5 h-3.5 text-slate-400" />
@@ -326,7 +546,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                   </p>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {savedWidgets.map((sw) => {
+                  {savedMatches.map((sw) => {
                     const Icon = getCustomWidgetIcon(sw.icon) ?? Puzzle;
                     return (
                       <div
@@ -399,7 +619,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                 </div>
               </div>
             )}
-            {customWidgets.length > 0 && (
+            {customMatches.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <Puzzle className="w-3.5 h-3.5 text-slate-400" />
@@ -408,7 +628,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                   </p>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {customWidgets.map((w) => {
+                  {customMatches.map((w) => {
                     const Icon = getCustomWidgetIcon(w.icon);
                     return (
                       <button
@@ -433,7 +653,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                 </div>
               </div>
             )}
-            {availableTools.length > 0 ? (
+            {shownTools.length > 0 ? (
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -442,17 +662,21 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                 onDragCancel={endWidgetDrag}
               >
                 <SortableContext
-                  items={availableTools.map((t) => t.type)}
+                  items={shownTools.map((t) => t.type)}
                   strategy={rectSortingStrategy}
                 >
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {availableTools.map((tool) => (
+                    {shownTools.map((tool) => (
                       <SortableLibraryTool
                         key={tool.type}
                         tool={tool}
                         isActive={false} // They are always inactive now due to filtering
                         isEditMode={isEditMode}
+                        isHidden={hiddenToolsSet.has(tool.type)}
+                        sortDisabled={sortDisabled}
                         onToggle={onToggle}
+                        onToggleHidden={toggleToolHidden}
+                        onLongPress={onEnterEditMode}
                         label={
                           getToolLabel ? getToolLabel(tool.type) : undefined
                         }
@@ -469,13 +693,56 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                 </p>
               </div>
             )}
+            {/* Hidden widgets — collapsed by default; search surfaces them inline instead */}
+            {trimmedQuery === '' && hiddenSectionTools.length > 0 && (
+              <div>
+                <button
+                  onClick={() => setShowHiddenSection((prev) => !prev)}
+                  className="flex items-center gap-2 mb-3 text-slate-400 hover:text-slate-600 transition-colors"
+                  aria-expanded={showHiddenSection}
+                >
+                  {showHiddenSection ? (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  )}
+                  <EyeOff className="w-3.5 h-3.5" />
+                  <span className="text-xxs font-bold uppercase tracking-widest">
+                    Hidden ({hiddenSectionTools.length})
+                  </span>
+                </button>
+                {showHiddenSection && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {hiddenSectionTools.map((tool) => (
+                      <SortableLibraryTool
+                        key={tool.type}
+                        tool={tool}
+                        isActive={false}
+                        isEditMode={isEditMode}
+                        isHidden
+                        sortDisabled
+                        onToggle={onToggle}
+                        onToggleHidden={toggleToolHidden}
+                        label={
+                          getToolLabel ? getToolLabel(tool.type) : undefined
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div className="bg-slate-50/50 px-6 py-3 border-t border-white/30 text-center backdrop-blur-xl space-y-3">
             <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
-              {availableTools.length > 0
-                ? isEditMode
-                  ? 'Drag to reorder • Tap to add to dock'
-                  : 'Drag to reorder • Tap to add to board'
+              {shownTools.length > 0
+                ? isFiltering
+                  ? isEditMode
+                    ? 'Tap to add to dock • Clear search to reorder'
+                    : 'Tap to add to board • Clear search to reorder'
+                  : isEditMode
+                    ? 'Drag to reorder • Tap to add to dock'
+                    : 'Drag to reorder • Tap to add to board'
                 : emptyStateMessage}
             </p>
 
