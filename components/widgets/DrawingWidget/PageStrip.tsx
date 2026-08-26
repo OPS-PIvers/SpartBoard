@@ -75,6 +75,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
     null
   );
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
 
   // Per-row inline-edit state for the popover. We store the index of the row
   // currently in edit mode; -1 = nobody is editing. The current-page title
@@ -121,7 +122,21 @@ export const PageStrip: React.FC<PageStripProps> = ({
     };
   }, [isOpen, close]);
 
-  // Outside-click + Escape dismiss for the popover.
+  // Outside-click dismiss for the popover. Escape is handled separately via
+  // a React onKeyDown on the popover element itself (see popoverRef below) —
+  // a `document`-level keydown listener never fires here at all when this
+  // trigger lives inside a real DraggableWindow: clicking "Manage pages"
+  // fires a pointerdown that DraggableWindow.handlePointerDown uses to focus
+  // its own GlassCard root, so a later Escape's keydown target is GlassCard,
+  // not this popover. GlassCard's own onKeyDown minimizes the widget on
+  // Escape and calls stopPropagation(), which (React 17+ synthetic
+  // propagation maps onto the real DOM event) halts the native event before
+  // it ever reaches `document` — so this component's own document listener
+  // would silently never run, closing nothing while the widget minimizes
+  // out from under an now-orphaned popover. Fixed by moving DOM focus into
+  // the popover on open and handling Escape as a React onKeyDown there,
+  // which wins the bubble before it can reach GlassCard (same fix pattern
+  // as HotspotImage/Widget.tsx, #2544).
   useEffect(() => {
     if (!isOpen) return undefined;
     const onDocPointerDown = (e: PointerEvent) => {
@@ -132,22 +147,27 @@ export const PageStrip: React.FC<PageStripProps> = ({
       if (triggerRef.current?.contains(target)) return;
       close();
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      // Portalled to <body>, outside any `.widget` ancestor — without
-      // stopPropagation the keydown bubbles to DashboardView's global
-      // Escape handler, which minimizes the topmost widget (see
-      // ActiveClassChip's fix for the same bug class).
-      e.stopPropagation();
-      close();
-    };
     document.addEventListener('pointerdown', onDocPointerDown);
-    document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('pointerdown', onDocPointerDown);
-      document.removeEventListener('keydown', onKey);
     };
   }, [isOpen, close]);
+
+  // Move DOM focus into the popover once it's mounted, so Escape's native
+  // keydown target lands inside it rather than on whatever DraggableWindow
+  // last focused (see the comment above).
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    popoverRef.current?.focus();
+    return undefined;
+  }, [isOpen]);
+
+  const handlePopoverKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Escape') return;
+    e.stopPropagation();
+    close();
+    triggerRef.current?.focus();
+  };
 
   // Shared button classes for the compact in-toolbar chips.
   const chipBase =
@@ -218,7 +238,10 @@ export const PageStrip: React.FC<PageStripProps> = ({
               data-widget-portal=""
               role="dialog"
               aria-label="Pages"
-              className="fixed z-[2147483600] w-[280px] max-h-[60vh] flex flex-col rounded-xl bg-slate-900/95 backdrop-blur-md shadow-xl border border-white/10 overflow-hidden"
+              ref={popoverRef}
+              tabIndex={-1}
+              onKeyDown={handlePopoverKeyDown}
+              className="fixed z-[2147483600] w-[280px] max-h-[60vh] flex flex-col rounded-xl bg-slate-900/95 backdrop-blur-md shadow-xl border border-white/10 overflow-hidden focus:outline-none"
               style={{
                 bottom: `${anchor.bottom}px`,
                 left: `${anchor.left}px`,
