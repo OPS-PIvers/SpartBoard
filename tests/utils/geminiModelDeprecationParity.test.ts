@@ -5,7 +5,7 @@ import { normalizeModelName } from '../../functions/src/shared';
 // The client mirror and the server predicate are duplicated (functions/ isn't resolvable
 // from the client bundle), so edit one and both suites still pass — this is what fails.
 const WELL_FORMED_MODEL_IDS = [
-  'gemini-3.6-flash',
+  'gemini-3.7-flash',
   'gemini-3.5-flash-lite',
   'gemini-2.5-flash',
   'gemini-2.5-flash-lite',

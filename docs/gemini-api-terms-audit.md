@@ -416,7 +416,7 @@ Vertex endpoint is global.
 
 **(a) Model IDs — largely resolved by moving to GA models.** The original defaults were
 `gemini-3-flash-preview` and `gemini-3.1-flash-lite-preview`, and preview-tier IDs were the single
-likeliest source of a broken deploy. They have been replaced with **`gemini-3.6-flash`** (advanced)
+likeliest source of a broken deploy. They have been replaced with **`gemini-3.7-flash`** (advanced)
 and **`gemini-3.5-flash-lite`** (standard), both GA on Vertex since 2026-07-21. GA status also
 retires the preview-deprecation exposure the codebase was carrying.
 

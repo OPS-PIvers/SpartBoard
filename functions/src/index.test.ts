@@ -3510,7 +3510,7 @@ describe('generateGuidedLearning', () => {
         contents: { role: string; parts: unknown[] }[];
       },
     ];
-    expect(call.model).toBe('gemini-3.6-flash');
+    expect(call.model).toBe('gemini-3.7-flash');
     expect(call.contents[0].parts[2]).toEqual({
       inlineData: {
         mimeType: VALID_IMAGE.mimeType,

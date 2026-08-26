@@ -215,8 +215,8 @@ const GEMINI_FEATURES: GlobalFeature[] = [
 // Keep in sync with DEFAULT_ADVANCED_MODEL / DEFAULT_STANDARD_MODEL in aiGeneration.ts — this picker writes to global_permissions/gemini-functions.
 export const KNOWN_GEMINI_MODELS = [
   {
-    value: 'gemini-3.6-flash',
-    label: 'Gemini 3.6 Flash',
+    value: 'gemini-3.7-flash',
+    label: 'Gemini 3.7 Flash',
     tier: 'advanced',
   },
   {
@@ -251,7 +251,7 @@ const modelFieldError = (value: string, showCustom: boolean): string | null => {
   return null;
 };
 
-const DEFAULT_ADVANCED_MODEL = 'gemini-3.6-flash';
+const DEFAULT_ADVANCED_MODEL = 'gemini-3.7-flash';
 const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
 
 /**

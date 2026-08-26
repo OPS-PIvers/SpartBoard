@@ -12,14 +12,14 @@ afterEach(() => {
 
 describe('normalizeModelName — accepted values', () => {
   it('accepts the current defaults', () => {
-    expect(normalizeModelName('gemini-3.6-flash')).toBe('gemini-3.6-flash');
+    expect(normalizeModelName('gemini-3.7-flash')).toBe('gemini-3.7-flash');
     expect(normalizeModelName('gemini-3.5-flash-lite')).toBe(
       'gemini-3.5-flash-lite'
     );
   });
 
   it('trims surrounding whitespace', () => {
-    expect(normalizeModelName('  gemini-3.6-flash  ')).toBe('gemini-3.6-flash');
+    expect(normalizeModelName('  gemini-3.7-flash  ')).toBe('gemini-3.7-flash');
   });
 
   it('stays permissive for unknown future model ids (no deploy needed)', () => {
@@ -95,6 +95,6 @@ describe('normalizeModelName — rejected values', () => {
     expect(normalizeModelName(undefined)).toBeUndefined();
     expect(normalizeModelName(null)).toBeUndefined();
     expect(normalizeModelName(42)).toBeUndefined();
-    expect(normalizeModelName({ model: 'gemini-3.6-flash' })).toBeUndefined();
+    expect(normalizeModelName({ model: 'gemini-3.7-flash' })).toBeUndefined();
   });
 });
