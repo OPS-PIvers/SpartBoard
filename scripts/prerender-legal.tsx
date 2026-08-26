@@ -19,6 +19,7 @@ import fs from 'fs';
 import path from 'path';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { AboutPage } from '@/components/landing/AboutPage';
 import { PrivacyPolicyPage } from '@/components/legal/PrivacyPolicyPage';
 import { TermsOfServicePage } from '@/components/legal/TermsOfServicePage';
 import { SupportPage } from '@/components/legal/SupportPage';
@@ -29,6 +30,13 @@ const PAGES: Array<{
   description: string;
   component: React.FC;
 }> = [
+  {
+    route: 'about',
+    title: 'SpartBoard — the classroom dashboard for teachers',
+    description:
+      'SpartBoard is a classroom dashboard for teachers: daily tools, live activities, and quizzes students join in seconds. Built by educators at Orono Public Schools.',
+    component: AboutPage,
+  },
   {
     route: 'privacy',
     title: 'Privacy Policy — SpartBoard',

@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * Hand-inlined SVG icons for the public LandingPage, replacing the
+ * Hand-inlined SVG icons for the public AboutPage, replacing the
  * `lucide-react` imports it used. lucide's `createLucideIcon` wraps every glyph
  * in a `forwardRef` + per-render attribute/class merge; on the landing page
  * (10 icons across the hero, feature cards, and tier cards) that overhead was

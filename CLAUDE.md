@@ -29,7 +29,7 @@ SpartBoard is an interactive classroom management dashboard built with React 19,
 /
 ├── components/           # All React components
 │   ├── admin/           # Admin panel (Analytics, Announcements, BackgroundManager, UserManagement, WidgetBuilder)
-│   ├── auth/            # Authentication UI (LoginScreen)
+│   ├── auth/            # Authentication UI (SignInPage, AuthShell)
 │   ├── common/          # Shared components (DraggableWindow, ScaledEmptyState, TypographySettings, etc.)
 │   ├── layout/          # Layout components (Sidebar, Dock, DashboardView)
 │   ├── widgets/         # All widget implementations + WidgetRegistry
@@ -209,6 +209,7 @@ App.tsx (root — manual pathname switch)
 │   ├── /r, /r/:code        → ShortLinkRedirect (single Firestore lookup + redirect)
 │   ├── /spotify-callback   → SpotifyCallback (popup; posts code to window.opener)
 │   ├── /convert            → ConverterPage (SMART Notebook → .spartnb, client-only)
+│   ├── /about              → AboutPage (public product page; prerendered, auth-free)
 │   └── /notebook-editor-dev → NotebookEditorDevHarness (DEV builds only)
 ├── Student routes (lazy-loaded, wrapped in DialogProvider only):
 │   ├── /join               → StudentApp (lobby & live session)
@@ -242,7 +243,7 @@ App.tsx (root — manual pathname switch)
                                 ├── Sidebar (dashboard + background management)
                                 ├── Dock (widget toolbar)
                                 └── AdminSettings (admin-only)
-            └── (if not signed in) LoginScreen
+            └── (if not signed in) SignInPage
 ```
 
 ### Key Files
@@ -276,7 +277,7 @@ App.tsx (root — manual pathname switch)
 - `components/admin/AdminSettings.tsx`: Admin panel hub
 - `components/admin/Analytics/AnalyticsManager.tsx`: Usage analytics dashboard
 - `components/student/StudentApp.tsx`: Main student entry point
-- `components/auth/LoginScreen.tsx`: Google Sign-In UI
+- `components/auth/SignInPage.tsx`: Google Sign-In UI (`/` and `/remote`); chrome in `AuthShell.tsx`
 
 **Hooks** (see `hooks/` directory for the full list — strategically important ones):
 

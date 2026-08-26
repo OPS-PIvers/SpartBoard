@@ -127,9 +127,9 @@ const MyAssignmentsPage = lazy(() =>
     default: module.MyAssignmentsPage,
   }))
 );
-const LandingPage = lazy(() =>
-  import('./components/landing/LandingPage').then((module) => ({
-    default: module.LandingPage,
+const AboutPage = lazy(() =>
+  import('./components/landing/AboutPage').then((module) => ({
+    default: module.AboutPage,
   }))
 );
 const RequestRolloutPage = lazy(() =>
@@ -137,9 +137,9 @@ const RequestRolloutPage = lazy(() =>
     default: module.RequestRolloutPage,
   }))
 );
-const LoginScreen = lazy(() =>
-  import('./components/auth/LoginScreen').then((module) => ({
-    default: module.LoginScreen,
+const SignInPage = lazy(() =>
+  import('./components/auth/SignInPage').then((module) => ({
+    default: module.SignInPage,
   }))
 );
 const DeactivatedScreen = lazy(() =>
@@ -296,12 +296,11 @@ const AuthenticatedApp: React.FC<{ isRemote?: boolean }> = ({
     if (loading) {
       return <FullPageLoader />;
     }
-    // Signed-out fork (docs/wide-distro-plan.md Phase 1): the root route gets
-    // the public landing page (sign-in is its hero CTA); the mobile remote
-    // keeps the minimal login screen.
+    // Signed-out: one sign-in card for every visitor, so an Orono teacher is
+    // never marketed to. What SpartBoard is lives at /about, never here.
     return (
       <Suspense fallback={<FullPageLoader />}>
-        {isRemote ? <LoginScreen /> : <LandingPage />}
+        <SignInPage minimal={isRemote} />
       </Suspense>
     );
   }
@@ -549,6 +548,18 @@ const App: React.FC = () => {
   // prerendered static copies (dist/privacy/index.html etc.) make Firebase
   // Hosting redirect /privacy → /privacy/ before the SPA boots.
   const legalPath = pathname.replace(/\/+$/, '');
+
+  // Public product page. Anonymous and provider-free like the legal pages —
+  // its sign-in CTAs are plain links to `/`, so it needs no AuthProvider and
+  // stays prerenderable.
+  if (legalPath === '/about') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <AboutPage />
+      </Suspense>
+    );
+  }
+
   if (
     legalPath === '/privacy' ||
     legalPath === '/terms' ||

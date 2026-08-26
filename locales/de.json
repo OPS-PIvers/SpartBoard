@@ -1139,7 +1139,8 @@
   },
   "login": {
     "signInToAccess": "Melde dich an, um auf deine Tafeln zuzugreifen",
-    "signInWithGoogle": "Mit Google anmelden"
+    "signInWithGoogle": "Mit Google anmelden",
+    "learnMore": "Neu bei {{appName}}? Mehr erfahren"
   },
   "toasts": {
     "boardSharingDisabled": "Das Teilen von Tafeln ist derzeit deaktiviert",

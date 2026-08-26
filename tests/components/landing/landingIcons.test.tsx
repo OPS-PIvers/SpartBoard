@@ -1,5 +1,5 @@
 /**
- * Guards for the hand-inlined LandingPage SVG icons.
+ * Guards for the hand-inlined AboutPage SVG icons.
  *
  * 1. Glyph parity — the real protection: every inlined icon is rendered and
  *    its glyph children (paths/circles/rects + their geometry attrs) are
