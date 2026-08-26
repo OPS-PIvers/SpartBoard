@@ -125,6 +125,11 @@ const TEST_UID = 'teacher-uid-1';
 const ALL_SCOPES =
   'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
 
+// Wrong-key Salted__ envelope; a raw string makes CryptoJS pick a random KDF salt per call (flaky).
+// Generated with: CryptoJS.AES.encrypt('fake-refresh-token-value', 'old-key-before-rotation').toString()
+const WRONG_KEY_CIPHERTEXT =
+  'U2FsdGVkX1//A7x1s8GLcL/BjJr+goCH3uuG0i8XC4LVzD6TeOdV7UVKEYtWS4O/';
+
 // The mocked `onCall` returns the raw handler, so the exported callables
 // are actually `(req) => Promise<T>` at runtime. TS still sees them as the
 // firebase-functions CallableFunction type, so we cast through unknown.
@@ -371,14 +376,6 @@ describe('refreshGoogleAccessToken', () => {
   });
 
   it('deletes the stored doc AND returns needs-consent when decryption fails', async () => {
-    // Pre-populate with a properly-formed AES ciphertext that was encrypted
-    // with a *different* key than what the mock provides. Using a valid
-    // Salted__ ciphertext (vs a raw invalid string) makes decryption fail
-    // deterministically across Node versions: wrong-key AES output is random
-    // bytes that CryptoJS cannot decode as UTF-8, so it reliably returns "".
-    // Generated with: CryptoJS.AES.encrypt('fake-refresh-token-value', 'old-key-before-rotation').toString()
-    const WRONG_KEY_CIPHERTEXT =
-      'U2FsdGVkX1//A7x1s8GLcL/BjJr+goCH3uuG0i8XC4LVzD6TeOdV7UVKEYtWS4O/';
     firestoreDocs.set(PRIVATE_DOC_PATH_FOR(TEST_UID), {
       encryptedRefreshToken: WRONG_KEY_CIPHERTEXT,
       updatedAt: 1,
@@ -589,7 +586,7 @@ describe('revokeGoogleRefreshToken', () => {
   it('deletes the doc and skips the Google call when the stored ciphertext is undecryptable', async () => {
     // Pre-seed a poison doc.
     firestoreDocs.set(PRIVATE_DOC_PATH_FOR(TEST_UID), {
-      encryptedRefreshToken: 'garbage',
+      encryptedRefreshToken: WRONG_KEY_CIPHERTEXT,
       updatedAt: 1,
       scope: ALL_SCOPES,
     });
