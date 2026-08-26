@@ -3085,3 +3085,31 @@ So the flag's "silently reintroduce/duplicate" warning describes an unreachable 
   - Branch safety: no push to `main` or any `dev-*` branch, and no push to any PR head branch at all this run.
   - Tooling: GitHub via the MCP server (no `gh` CLI in this environment); all PR list/read/diff/review/comment operations used `mcp__github__*` equivalents.
   - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code was pushed, so CI on Node 24 remains the authoritative gate.
+
+---
+
+## 2026-08-25 (second run)
+
+- PRs swept: **2** — the full open set has collapsed from 32 to 2 since this morning's run, because #2560 rolled the other 30 into `dev-paul`.
+  - **#2560** — "Nightly routine batch: 30 PRs" (head `dev-paul` → `main`, 133 files, +4989/−459). Not draft.
+  - **#2395** — feat(ai): move Gemini to Vertex AI (head `claude/quirky-ritchie-wghdl3` → `dev-paul`, head `ba14633`). Still draft.
+- Comments processed: **zero unresolved inline threads on either PR** — second run running. #2560 carries no review threads at all (it is a rollup of already-reviewed work); all **17** threads on #2395 are resolved with an author reply carrying either a landed fix or a reasoned decline.
+  - Two top-level items on #2395 had no reply since the last author round: the 2026-08-22 review comment (`5378443617`) and the 2026-08-23 automated review. Both are approvals stating "no changes requested" / "no issues found at this head" — **not valid fix requests**, so no code changed. Replied once with the disposition rather than leaving them silently unanswered.
+  - #2560's only comment is the `claude[bot]` rollup review (`5416586575`) — spot-checks with an explicit "safe to merge as-is" and no findings. Nothing to action and nothing to explain, so no reply was posted (frugality directive).
+- Fixes pushed: **0.** No comment on either PR met the "fix is needed" bar.
+- Verification done rather than inherited — the approving reviews' load-bearing claims were re-derived at `ba14633` before the reply was written, not restated:
+  - `instanceof HttpsError` in **7** catches in `functions/src/aiGeneration.ts`; grep for the old duck-typed `'code' in error` form returns **zero** hits, so the `:1014` case litigated on the #2533 thread is genuinely gone.
+  - Sole `GEMINI_API_KEY` occurrence across `functions/`, `utils/`, `config/`, `components/`, `context/`, `hooks/` is the removal note at `secrets.ts:11`.
+  - `functions/src/shared.ts:55` is `/-preview(?:-|$)/` — date-versioned preview ids rejected without over-rejecting the permissive `gemini-*` pattern the picker depends on.
+  - CI on `ba14633`: 7/7 checks `success`. #2560 at `d2b9ca0`: 10/12 `success`, 2 still in progress (Unit Tests, `test`) — `mergeable_state: unstable` reflects the pending checks, not a failure.
+- New check added this run — **base-drift intersection**, aimed at the class of defect that the 08-19 merge uncovered on #2395 (170 commits of `dev-paul` drift that merged with zero textual conflicts while `aiGeneration.ts` had moved underneath it):
+  - #2395 is **33 commits behind `dev-paul`** (merge-base `25f6127` → tip `d2b9ca0`). Intersecting its 14 changed files against the 33 commits' changed files (`comm -12` over both `--name-only` diffs) gives the **empty set** — `dev-paul` moved only in `components/`, `utils/`, `hooks/`, `firestore.rules`, `types.ts`, `functions/src/organizationInvites*`, and routine docs. So no textual *or* semantic conflict exists this round and no merge commit was pushed into a draft that is otherwise frozen behind ops gates.
+  - Recommended in the reply: re-run this intersection immediately before the eventual merge, since `dev-paul` keeps moving. The cheap version of the 08-19 lesson is the intersection, not the merge.
+  - **Caveat added 08-26, and it narrows the check as written above.** The intersection is empty against `dev-paul` (re-verified at the moved tip `4a6a57a`, now 35 commits of drift — still empty), but it is **not** empty against the *open-PR set*: #2566 modifies `functions/src/studentIdentity.test.ts`, which #2395 also modifies. The hunks don't collide today — #2395 removes the `GEMINI_API_KEY` mock entry at `~:59`, #2566 adds a `pinLoginV1` reused-code test at `~:824` inside a different `describe` — so there is nothing to act on now. The narrower point is that **the moment #2566 lands, the "empty intersection" conclusion stops being current**, so the pre-merge re-run must be against the base that exists at merge time, not against today's. Intersecting only against the base is the incomplete form of this check; the 08-19 defect was exactly a clean textual merge hiding a semantic conflict in a test file.
+- Reviews posted: 0 structured reviews. Both PRs already carry a current review at their present head (#2395's 08-23 review is at the unchanged head `ba14633`; #2560's rollup review is from today), so a third opinion on an unchanged diff would have been noise.
+- #2395 blockers unchanged and still entirely operational: enable `aiplatform.googleapis.com`; grant `roles/aiplatform.user` to the Functions runtime SA; confirm `gemini-3.6-flash` / `gemini-3.5-flash-lite` serve from the `global` endpoint; one live YouTube run per video callable, public **and** unlisted.
+- Notes:
+  - Branch safety: no push to `main`, no push to any `dev-*` branch, and no push to any PR head branch this run.
+  - Log placement: branched fresh from `origin/dev-paul` onto the session's designated branch `claude/inspiring-cannon-yxw9ph`. No chaining was needed this time — the open-PR set no longer contains a log-carrying branch, so the trailing-line conflict the 08-25 first-run entry worked around cannot occur.
+  - Tooling: GitHub via the MCP server (no `gh` CLI); all PR list/read/comment operations used `mcp__github__*` equivalents.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code was pushed, so CI on Node 24 remains the authoritative gate.
