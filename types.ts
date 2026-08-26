@@ -3665,6 +3665,14 @@ export interface QuizResponse {
    * this map; their correctness is recomputed on the fly by `gradeAnswer`.
    */
   grading?: { [questionId: string]: WrittenAnswerGrade };
+  /**
+   * Server-stamped time the student raised their hand from the live quiz UI,
+   * or null when lowered (by the student or cleared by the teacher). Absent on
+   * responses written before the feature existed — treat as null. Deliberately
+   * NOT mirrored into `lastWriteAt` so a raised hand can't defer idle
+   * auto-submit.
+   */
+  handRaisedAt?: import('firebase/firestore').Timestamp | null;
 }
 
 /**
@@ -3883,6 +3891,16 @@ export interface QuizConfig {
    * Pre-selects the picker on re-launch.
    */
   lastRosterIdsByQuizId?: Record<string, string[]>;
+  /** Live monitor roster toolbar: show per-student score pills (off = projector-safe default). */
+  monitorShowScores?: boolean;
+  /** Live monitor roster toolbar: show tab-switch warning badges. */
+  monitorShowTabWarnings?: boolean;
+  /** Live monitor roster toolbar: tint rows by proficiency band. */
+  monitorShowProficiency?: boolean;
+  /** Live monitor roster sort order. */
+  monitorSortBy?: 'first' | 'last' | 'status' | 'score';
+  /** Live monitor roster filter. */
+  monitorFilterBy?: 'all' | 'hi' | 'mid' | 'low' | 'tabs';
 }
 
 // --- QUIZ ASSIGNMENT TYPES ---

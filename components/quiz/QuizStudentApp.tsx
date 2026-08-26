@@ -41,6 +41,7 @@ import {
   Check,
   Unlock as UnlockIcon,
   ShieldAlert,
+  Hand,
 } from 'lucide-react';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
@@ -316,6 +317,7 @@ const QuizJoinFlow: React.FC<{
     submitAnswer,
     completeQuiz,
     reportTabSwitch,
+    setHandRaised,
     warningCount,
   } = useQuizSessionStudent();
 
@@ -911,6 +913,8 @@ const QuizJoinFlow: React.FC<{
         onAnswer={handleAnswer}
         onComplete={handleComplete}
         reportTabSwitch={reportTabSwitch}
+        onSetHandRaised={setHandRaised}
+        handRaised={!!myResponse?.handRaisedAt}
         warningCount={warningCount}
       />
     );
@@ -1002,6 +1006,8 @@ const ActiveQuiz: React.FC<{
   ) => Promise<void>;
   onComplete: () => Promise<void>;
   reportTabSwitch: () => Promise<number>;
+  onSetHandRaised: (raised: boolean) => Promise<void>;
+  handRaised: boolean;
   warningCount: number;
 }> = ({
   session,
@@ -1011,10 +1017,24 @@ const ActiveQuiz: React.FC<{
   onAnswer,
   onComplete,
   reportTabSwitch,
+  onSetHandRaised,
+  handRaised,
   warningCount,
 }) => {
   const { showAlert } = useDialog();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
+  const [handBusy, setHandBusy] = useState(false);
+  const handleToggleHand = async () => {
+    if (handBusy) return;
+    setHandBusy(true);
+    try {
+      await onSetHandRaised(!handRaised);
+    } catch (err) {
+      console.error('[ActiveQuiz] hand toggle failed:', err);
+    } finally {
+      setHandBusy(false);
+    }
+  };
   // Show the "Your teacher unlocked your attempt" modal whenever the
   // student's response carries `unlocked: true` and they haven't yet
   // dismissed the prompt in this ActiveQuiz instance. The student keeps
@@ -2663,6 +2683,23 @@ const ActiveQuiz: React.FC<{
             </div>
           </div>
         )}
+
+        {/* Raise hand */}
+        <div className="mt-6 flex justify-center">
+          <button
+            onClick={() => void handleToggleHand()}
+            disabled={handBusy}
+            aria-pressed={handRaised}
+            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold border transition-colors disabled:opacity-60 ${
+              handRaised
+                ? 'bg-brand-red-primary border-brand-red-primary text-white'
+                : 'bg-transparent border-red-400 text-red-300 hover:bg-red-500/10'
+            }`}
+          >
+            <Hand className="w-4 h-4" aria-hidden />
+            {handRaised ? 'Hand raised — help is coming' : 'Raise hand'}
+          </button>
+        </div>
       </div>
     </div>
   );

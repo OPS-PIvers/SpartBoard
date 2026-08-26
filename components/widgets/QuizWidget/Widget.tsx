@@ -182,6 +182,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     removeStudent,
     unlockStudentAttempt,
     unlockResultsForStudent,
+    clearHandForStudent,
     revealAnswer,
     hideAnswer,
   } = useQuizSessionTeacher(config.activeAssignmentId);
@@ -1076,6 +1077,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         onRemoveStudent={removeStudent}
         onUnlockStudent={unlockStudentAttempt}
         onUnlockResultsForStudent={unlockResultsForStudent}
+        onClearHand={clearHandForStudent}
         onRevealAnswer={revealAnswer}
         onHideAnswer={hideAnswer}
         onBack={() => {

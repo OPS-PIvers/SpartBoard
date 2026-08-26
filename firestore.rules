@@ -3102,7 +3102,12 @@ service cloud.firestore {
            // (e.g. `somethingElse: 'hack'`) would land in `addedKeys` and
            // bypass the whitelist entirely.
            request.resource.data.diff(resource.data)
-             .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt']) &&
+             .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt']) &&
+           // `handRaisedAt` must be server-stamped when raising, or null when
+           // the student lowers their own hand — never a client timestamp.
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['handRaisedAt']) ||
+            request.resource.data.handRaisedAt == request.time ||
+            request.resource.data.handRaisedAt == null) &&
            // `lastWriteAt` is the idle-auto-submit cutoff field. Must
            // be server-stamped (`serverTimestamp()` from the SDK, which
            // resolves to `request.time` at rule evaluation), NOT a

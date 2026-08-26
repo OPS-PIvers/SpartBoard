@@ -752,6 +752,8 @@ export interface UseQuizSessionTeacherResult {
    * the student, giving zero grace warnings post-unlock.
    */
   unlockResultsForStudent: (responseKey: string) => Promise<void>;
+  /** Clear a student's raised hand (writes handRaisedAt: null to their response doc). */
+  clearHandForStudent: (responseKey: string) => Promise<void>;
   /** Reveal the correct answer for a question (writes to session doc) */
   revealAnswer: (questionId: string, correctAnswer: string) => Promise<void>;
   /** Hide a previously revealed answer (removes from session doc) */
@@ -1221,6 +1223,23 @@ export const useQuizSessionTeacher = (
     [sessionId]
   );
 
+  const clearHandForStudent = useCallback(
+    async (responseKey: string) => {
+      if (!sessionId) {
+        throw new Error('No active session — cannot clear hand.');
+      }
+      const responseRef = doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      );
+      await updateDoc(responseRef, { handRaisedAt: null });
+    },
+    [sessionId]
+  );
+
   const revealAnswer = useCallback(
     async (questionId: string, correctAnswer: string) => {
       if (!sessionId) return;
@@ -1367,6 +1386,7 @@ export const useQuizSessionTeacher = (
     removeStudent,
     unlockStudentAttempt,
     unlockResultsForStudent,
+    clearHandForStudent,
     revealAnswer,
     hideAnswer,
   };
@@ -1441,6 +1461,11 @@ export interface UseQuizSessionStudentResult {
    * Returns the updated count.
    */
   reportTabSwitch: () => Promise<number>;
+  /**
+   * Raise (true) or lower (false) the student's hand on their response doc.
+   * Server-stamps `handRaisedAt` when raising; writes null when lowering.
+   */
+  setHandRaised: (raised: boolean) => Promise<void>;
   warningCount: number;
 }
 
@@ -2529,6 +2554,24 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     });
   }, []);
 
+  const setHandRaised = useCallback(async (raised: boolean): Promise<void> => {
+    const sessionId = sessionIdRef.current;
+    const responseKey = responseKeyRef.current;
+    if (!sessionId || !responseKey) return;
+    const responseRef = doc(
+      db,
+      QUIZ_SESSIONS_COLLECTION,
+      sessionId,
+      RESPONSES_COLLECTION,
+      responseKey
+    );
+    // Deliberately no lastWriteAt stamp — a raised hand must not defer the
+    // idle auto-submit sweep (same convention as reportTabSwitch).
+    await updateDoc(responseRef, {
+      handRaisedAt: raised ? serverTimestamp() : null,
+    });
+  }, []);
+
   const reportTabSwitch = useCallback(async (): Promise<number> => {
     const sessionId = sessionIdRef.current;
     const responseKey = responseKeyRef.current;
@@ -2675,6 +2718,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     submitAnswer,
     completeQuiz,
     reportTabSwitch,
+    setHandRaised,
     warningCount,
   };
 };

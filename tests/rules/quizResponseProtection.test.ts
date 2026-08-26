@@ -463,6 +463,94 @@ describe('quiz response UPDATE — teacher refreshes lastWriteAt on student-owne
 });
 
 // ---------------------------------------------------------------------------
+// UPDATE: handRaisedAt server-stamp-or-null enforcement
+// ---------------------------------------------------------------------------
+
+describe('quiz response UPDATE — handRaisedAt raise-hand field', () => {
+  const asTeacher = () =>
+    testEnv
+      .authenticatedContext(TEACHER_UID, {
+        email: 'teacher@school.edu',
+        firebase: { sign_in_provider: 'google.com' },
+      })
+      .firestore();
+
+  async function seedResponse(handRaisedAt: unknown = null) {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(
+        doc(db, `quiz_sessions/${SESSION_ID}/responses/${PIN_KEY}`),
+        {
+          studentUid: ANON_UID,
+          pin: '01',
+          classPeriod: 'period_1',
+          classId: CLASS_ID,
+          classIds: [CLASS_ID],
+          joinedAt: 1000,
+          score: null,
+          answers: [],
+          status: 'in-progress',
+          completedAttempts: 0,
+          preSyncVersion: 0,
+          tabSwitchWarnings: 0,
+          lastWriteAt: Timestamp.fromMillis(1000),
+          handRaisedAt,
+        }
+      );
+    });
+  }
+
+  it('student raise with serverTimestamp() SUCCEEDS', async () => {
+    await seedResponse();
+    await assertSucceeds(
+      updateDoc(
+        doc(
+          asAnonStudent(),
+          `quiz_sessions/${SESSION_ID}/responses/${PIN_KEY}`
+        ),
+        { handRaisedAt: serverTimestamp() }
+      )
+    );
+  });
+
+  it('student raise with a client Timestamp is REJECTED', async () => {
+    await seedResponse();
+    await assertFails(
+      updateDoc(
+        doc(
+          asAnonStudent(),
+          `quiz_sessions/${SESSION_ID}/responses/${PIN_KEY}`
+        ),
+        { handRaisedAt: Timestamp.fromMillis(Date.now() - 60_000) }
+      )
+    );
+  });
+
+  it('student lowering their own hand (null) SUCCEEDS', async () => {
+    await seedResponse(Timestamp.fromMillis(1000));
+    await assertSucceeds(
+      updateDoc(
+        doc(
+          asAnonStudent(),
+          `quiz_sessions/${SESSION_ID}/responses/${PIN_KEY}`
+        ),
+        { handRaisedAt: null }
+      )
+    );
+  });
+
+  it('teacher clearing a student hand (null) SUCCEEDS', async () => {
+    await seedResponse(Timestamp.fromMillis(1000));
+    await assertSucceeds(
+      updateDoc(
+        doc(asTeacher(), `quiz_sessions/${SESSION_ID}/responses/${PIN_KEY}`),
+        { handRaisedAt: null }
+      )
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
 // UPDATE: unlocked self-elevation rejection (companion to CREATE guard)
 // ---------------------------------------------------------------------------
 
