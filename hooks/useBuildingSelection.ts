@@ -20,9 +20,7 @@ export function useBuildingSelection(
   const [selectedId, setSelectedId] = useState<string>(first);
 
   const hasMatch = buildings.some((b) => b.id === selectedId);
-  // Reset even to '' when `buildings` goes empty — a stale id that used to
-  // match can never match again once the list is empty, and would otherwise
-  // stick forever with no way for the user to reselect out of it.
+  // Reset to '' too when `buildings` goes empty — a stale id can never match again.
   if (!hasMatch && selectedId !== first) {
     setSelectedId(first);
   }
