@@ -729,7 +729,10 @@ export const useQuizAssignments = (
       const opts = settings.sessionOptions;
       // Dedupe once so totalQuestions and publicQuestions can't drift apart.
       const sessionQuestions = dedupeQuestionsById(quiz.questions);
-      const sessionStimuli = projectSessionStimuli(quiz);
+      const sessionStimuli = projectSessionStimuli({
+        questions: sessionQuestions,
+        stimuli: quiz.stimuli,
+      });
       const sessionStatus: QuizSession['status'] =
         initialStatus === 'paused'
           ? 'paused'
@@ -1799,7 +1802,10 @@ export const useQuizAssignments = (
       // Dedupe once so totalQuestions and publicQuestions can't drift apart.
       const canonicalQuestions = dedupeQuestionsById(canonical.questions);
       const publicQuestions = canonicalQuestions.map(toPublicQuestion);
-      const canonicalStimuli = projectSessionStimuli(canonical);
+      const canonicalStimuli = projectSessionStimuli({
+        questions: canonicalQuestions,
+        stimuli: canonical.stimuli,
+      });
 
       // Tag any pre-existing responses with the OLD `syncedVersion` so
       // the results UI can render "Answered before v{N+1} update" chips.
