@@ -1,6 +1,10 @@
 import { slugify } from '@/utils/slug';
 import React from 'react';
-import { WidgetMeta, WIDGET_COLOR_PRESETS } from './types';
+import {
+  WidgetMeta,
+  WIDGET_COLOR_PRESETS,
+  clampWidgetDimension,
+} from './types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import {
   CUSTOM_WIDGET_ICON_OPTIONS,
@@ -162,7 +166,11 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
               min={200}
               max={1200}
               step={50}
-              onChange={(e) => update({ defaultWidth: Number(e.target.value) })}
+              onChange={(e) =>
+                update({
+                  defaultWidth: clampWidgetDimension(e.target.value, 200, 1200),
+                })
+              }
               className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -175,7 +183,9 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
               max={900}
               step={50}
               onChange={(e) =>
-                update({ defaultHeight: Number(e.target.value) })
+                update({
+                  defaultHeight: clampWidgetDimension(e.target.value, 150, 900),
+                })
               }
               className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
             />
