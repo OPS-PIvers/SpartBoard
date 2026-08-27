@@ -3469,11 +3469,23 @@ service cloud.firestore {
                    (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
 
       match /entries/{entryId} {
-        // Students can submit entries (create)
-        allow create: if request.auth != null;
+        // Students can submit entries (create). Parent session must exist and
+        // be active, and the payload must match the client's exact write
+        // shape ({name, joinedAt}) — the teacher's listener queries
+        // orderBy('joinedAt'), so a doc missing that field is invisible to it
+        // and would accumulate forever; an unbounded name string would bloat
+        // the teacher's Drive queue export.
+        allow create: if request.auth != null &&
+          exists(/databases/$(database)/documents/nextup_sessions/$(sessionId)) &&
+          get(/databases/$(database)/documents/nextup_sessions/$(sessionId)).data.get('isActive', false) == true &&
+          request.resource.data.keys().hasOnly(['name', 'joinedAt']) &&
+          request.resource.data.name is string &&
+          request.resource.data.name.size() > 0 &&
+          request.resource.data.name.size() <= 100 &&
+          request.resource.data.joinedAt is int;
         // Only teacher and admin can read/delete entries (buffer processing)
         // Path-based ownership check ensures query safety for the teacher's listener
-        allow read, delete: if request.auth != null && 
+        allow read, delete: if request.auth != null &&
                             (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
       }
     }

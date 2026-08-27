@@ -200,6 +200,7 @@ export const NextUpStudentApp: React.FC = () => {
                   placeholder="e.g. Alex S."
                   required
                   autoFocus
+                  maxLength={100}
                   className="w-full px-6 py-4 bg-white border-2 border-slate-200 rounded-2xl text-xl font-bold text-slate-800 focus:outline-none focus:border-blue-600 transition-colors shadow-inner"
                 />
               </div>
