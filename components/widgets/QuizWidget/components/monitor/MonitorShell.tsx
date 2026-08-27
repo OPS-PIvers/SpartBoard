@@ -38,7 +38,7 @@ import {
   buildLiveLeaderboard,
   getDisplayScore,
   isGamificationActive,
-} from '../../utils/quizScoreboard';
+} from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { Z_INDEX } from '@/config/zIndex';
 import { useMonitorData } from './useMonitorData';
 import { CurrentQuestionCard } from './CurrentQuestionCard';
