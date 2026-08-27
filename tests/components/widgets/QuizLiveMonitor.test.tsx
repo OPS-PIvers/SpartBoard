@@ -3,8 +3,8 @@
  * projector safety (scores off by default, on-demand join code), status
  * buckets with inline roster expansion, needs-help pinning (raised hand +
  * stuck heuristic), toolbar toggle/sort/filter persistence via widget
- * config, the period-filter vs leaderboard-broadcast invariant, the live
- * correct-answer lock, and the class-safe Present mode.
+ * config, the period-filter vs leaderboard-broadcast invariant, and the live
+ * correct-answer lock. Present mode is covered in QuizPresentMode.test.tsx.
  *
  * Heavy mocking style mirrors `QuizResults.regenerate.test.tsx`: every
  * hook the component reaches into is stubbed at module-scope so the
@@ -72,7 +72,6 @@ vi.mock('firebase/firestore', () => ({
 
 import * as firestore from 'firebase/firestore';
 import { QuizLiveMonitor } from '@/components/widgets/QuizWidget/components/QuizLiveMonitor';
-import { PresentMode } from '@/components/widgets/QuizWidget/components/monitor/PresentMode';
 import { QuestionDetail } from '@/components/widgets/QuizWidget/components/monitor/QuestionResults';
 
 // ─── Fixture helpers ────────────────────────────────────────────────────────
@@ -438,24 +437,5 @@ describe('QuestionDetail correct-answer lock', () => {
       screen.queryByText(/appear in results after the session ends/i)
     ).not.toBeInTheDocument();
     expect(screen.getByLabelText('Correct answer')).toBeInTheDocument();
-  });
-});
-
-describe('PresentMode projector safety', () => {
-  it('shows code and counts but never student identifiers', () => {
-    render(
-      <PresentMode
-        session={makeSession()}
-        currentQ={makeQuizData().questions[0]}
-        answered={3}
-        doneCount={2}
-        total={5}
-        onExit={vi.fn()}
-      />
-    );
-    expect(screen.getByText('ABC123')).toBeInTheDocument();
-    expect(screen.getByText(/3 of 5 answered/)).toBeInTheDocument();
-    expect(screen.queryByText(/PIN /)).not.toBeInTheDocument();
-    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
   });
 });

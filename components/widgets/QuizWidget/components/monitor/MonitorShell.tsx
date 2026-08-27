@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ArrowLeft,
   BarChart3,
@@ -40,13 +46,14 @@ import {
   isGamificationActive,
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { Z_INDEX } from '@/config/zIndex';
+import { resolveStimuli } from '@/utils/quizStimuli';
+import { PresentSession } from '../present/PresentSession';
 import { useMonitorData } from './useMonitorData';
 import { CurrentQuestionCard } from './CurrentQuestionCard';
 import { StatusBuckets, BucketKey } from './StatusBuckets';
 import { RosterList } from './RosterList';
 import { QuestionResults, QuestionDetail } from './QuestionResults';
 import { JoinCodeScreen } from './JoinCodeScreen';
-import { PresentMode } from './PresentMode';
 import { QuizSettingsScreen } from './QuizSettingsScreen';
 
 export interface QuizLiveMonitorProps {
@@ -328,6 +335,44 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const revealed = currentQ
     ? session.revealedAnswers?.[currentQ.id]
     : undefined;
+
+  // Presentation inputs. Standings reuse the broadcast leaderboard builder so
+  // there is only ever one ranking path.
+  const standings = useMemo(
+    () =>
+      presenting
+        ? buildLiveLeaderboard(
+            responses,
+            quizData.questions,
+            {
+              speedBonusEnabled: session.speedBonusEnabled,
+              streakBonusEnabled: session.streakBonusEnabled,
+            },
+            data.pinToName,
+            data.byStudentUid
+          )
+        : [],
+    [
+      presenting,
+      responses,
+      quizData.questions,
+      session.speedBonusEnabled,
+      session.streakBonusEnabled,
+      data.pinToName,
+      data.byStudentUid,
+    ]
+  );
+  const classAverage = useMemo(() => {
+    const scored = data.students
+      .map((s) => s.bandScore)
+      .filter((s): s is number => s != null);
+    if (scored.length === 0) return null;
+    return Math.round(scored.reduce((a, b) => a + b, 0) / scored.length);
+  }, [data.students]);
+  const presentHasMedia = resolveStimuli(
+    currentQ?.stimulusIds,
+    session.stimuli
+  ).some((s) => s.type === 'audio' || s.type === 'video');
   const canReveal =
     (session.showCorrectOnBoard ?? false) &&
     session.sessionMode !== 'student' &&
@@ -340,9 +385,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     divider?: boolean;
   }[] = [
     {
-      label: 'Present to class',
+      label: presenting ? 'Close presentation' : 'Present to class',
       icon: MonitorPlay,
-      onClick: () => setPresenting(true),
+      onClick: () => setPresenting((v) => !v),
     },
     {
       label: 'Question results',
@@ -563,6 +608,32 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
         )}
       </div>
 
+      {presenting && (
+        <PresentSession
+          session={session}
+          currentQ={currentQ}
+          responses={responses}
+          answered={data.answeredCurrent}
+          counts={data.counts}
+          total={data.totalStudents}
+          standings={standings}
+          isGamified={data.isGamified}
+          classAverage={classAverage}
+          hasMedia={presentHasMedia}
+          onSavePauseMessage={(message) =>
+            handleUpdateSession({ pauseMessage: message })
+          }
+          onBlocked={() => {
+            setPresenting(false);
+            addToast(
+              'Allow pop-ups for this site to present to the class.',
+              'error'
+            );
+          }}
+          onExit={() => setPresenting(false)}
+        />
+      )}
+
       {onHome && (
         <div
           className="flex items-center border-t border-brand-gray-lightest shrink-0"
@@ -738,17 +809,6 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               </p>
             ))}
         </div>
-      )}
-
-      {presenting && (
-        <PresentMode
-          session={session}
-          currentQ={currentQ}
-          answered={data.answeredCurrent}
-          doneCount={data.counts.done}
-          total={data.totalStudents}
-          onExit={() => setPresenting(false)}
-        />
       )}
     </div>
   );
