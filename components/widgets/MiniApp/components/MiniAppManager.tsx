@@ -471,14 +471,10 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
 
   /* ── Drop-to-folder handler (Wave 3-B-3) ─────────────────────────────── */
   const { moveItem } = folderState;
-  const handleDropOnFolder = useCallback(
-    async (itemId: string, folderId: string | null): Promise<void> => {
+  // Takes an unprefixed app id — the folder picker already has one.
+  const moveAppToFolder = useCallback(
+    async (rawId: string, folderId: string | null): Promise<void> => {
       if (!userId) return;
-      // Row ids are prefixed `personal:` or `global:`. Only personal rows
-      // participate in folders; global cards are `sortable={false}` so drops
-      // from them shouldn't fire, but guard defensively.
-      if (!itemId.startsWith('personal:')) return;
-      const rawId = itemId.slice('personal:'.length);
       try {
         await moveItem(rawId, folderId);
       } catch (err) {
@@ -486,6 +482,16 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       }
     },
     [userId, moveItem]
+  );
+  const handleDropOnFolder = useCallback(
+    async (itemId: string, folderId: string | null): Promise<void> => {
+      // Row ids are prefixed `personal:` or `global:`. Only personal rows
+      // participate in folders; global cards are `sortable={false}` so drops
+      // from them shouldn't fire, but guard defensively.
+      if (!itemId.startsWith('personal:')) return;
+      await moveAppToFolder(itemId.slice('personal:'.length), folderId);
+    },
+    [moveAppToFolder]
   );
 
   /* ── Bulk handlers (Step 8) ──────────────────────────────────────────── */
@@ -1233,7 +1239,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       folders={folderState.folders}
       selectedFolderId={folderPickerTarget.folderId}
       onSelect={(folderId) => {
-        void handleDropOnFolder(folderPickerTarget.id, folderId);
+        void moveAppToFolder(folderPickerTarget.id, folderId);
       }}
       onClose={() => setFolderPickerTarget(null)}
       title={`Move "${folderPickerTarget.title}" to…`}
