@@ -24,7 +24,9 @@ export const QuizPausedPlaceholder: React.FC<QuizPausedPlaceholderProps> = ({
       Paused — eyes up
     </h1>
     <p className="text-brand-blue-lighter text-lg font-medium mb-2">
-      Your answers are saved.
+      {session.pauseMessage?.trim()
+        ? session.pauseMessage
+        : 'Your answers are saved.'}
     </p>
     <p className="text-white/60 text-sm mb-8 max-w-sm">
       {session.quizTitle} will resume when your teacher is ready. Keep this tab

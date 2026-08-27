@@ -3384,6 +3384,11 @@ export interface QuizSession {
   shuffleAnswerOptions?: boolean;
   /** Current phase within a question: 'answering' (default) or 'reviewing' (between-question review) */
   questionPhase?: 'answering' | 'reviewing';
+  /**
+   * Teacher-written reason shown while paused — on the projected board AND on
+   * each student's paused overlay, so a heads-down student sees it too.
+   */
+  pauseMessage?: string;
   /** Top-N leaderboard snapshot broadcast by the teacher for student view. */
   liveLeaderboard?: QuizLeaderboardEntry[];
 

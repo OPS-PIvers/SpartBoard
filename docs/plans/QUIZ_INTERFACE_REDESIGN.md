@@ -50,9 +50,11 @@ Nothing else. No icon-only toggles, no persistent join code, no stat tiles.
   live** — a lock note says it appears in results after the session ends.
 - **Join code** (via ⋯): on-demand only (SSO districts don't use codes) — big Blue Dark code,
   join URL, Copy link.
-- **Present to class** (via ⋯): fullscreen class-safe display — Blue Dark background, white
-  Lexend, join code (teacher-paced only where relevant), "19 of 24 finished". Explicitly never
-  shows names or scores. Exit button returns to the private monitor.
+- **Present to class** (via ⋯): superseded by
+  [QUIZ_PRESENT_MODE_REDESIGN.md](QUIZ_PRESENT_MODE_REDESIGN.md). Now a pop-out window (the
+  private monitor stays on the teacher's screen), with no join code and mode-specific layouts.
+  Names and scores are hidden by default and appear only when the teacher enables them for
+  that presentation, from a control on the private monitor.
 
 ### Student-side (approved as-is)
 
@@ -186,8 +188,9 @@ editor, assign/session-setup flow, and existing PLC surfaces. Priority: manageme
 
 - Iterate via `components/dev/SessionViewsDevHarness.tsx` (add fixtures: stuck, hand-raised,
   tab-switch counts, score bands for proficiency colors).
-- Unit tests: stuck heuristic, projector safety (Present shows no names/scores; Scores off by
-  default), live correct-answer lock, sort/filter logic, hand-raise write/clear.
+- Unit tests: stuck heuristic, projector safety (Present hides names/scores by default and
+  reveals them only on the teacher's opt-in; Scores off by default), live correct-answer lock,
+  sort/filter logic, hand-raise write/clear.
 - `pnpm run validate` green before every push; `pnpm run test:rules` if `firestore.rules` changes.
 - Manual pass on dev preview: teacher-paced + self-paced, widget-size + Present mode, toggles
   persistence.
