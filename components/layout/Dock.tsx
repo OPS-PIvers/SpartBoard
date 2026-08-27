@@ -593,6 +593,13 @@ export const Dock: React.FC = () => {
     if (showLiveInfo) setShowLiveInfo(false);
   }, [liveButtonRef]);
 
+  // Shared close so every path (click-outside, library's own close/Escape) also exits edit mode.
+  const closeLibraryAndEditMode = useCallback(() => {
+    setIsEditMode(false);
+    setShowLibrary(false);
+    setShowMoreMenu(false);
+  }, []);
+
   // Handle exiting edit mode when clicking outside the dock area
   useClickOutside(dockContainerRef, () => {
     if (
@@ -600,9 +607,7 @@ export const Dock: React.FC = () => {
       !renamingFolderId &&
       !showCreateFolderModal
     ) {
-      setIsEditMode(false);
-      setShowLibrary(false);
-      setShowMoreMenu(false);
+      closeLibraryAndEditMode();
     }
   }, [libraryRef]);
 
@@ -1032,10 +1037,7 @@ export const Dock: React.FC = () => {
               matchesUserBuilding={matchesUserBuilding}
               getToolGradeLevels={getToolGradeLevels}
               onEnterEditMode={handleLongPress}
-              onClose={() => {
-                setShowMoreMenu(false);
-                setShowLibrary(false);
-              }}
+              onClose={closeLibraryAndEditMode}
               globalStyle={globalStyle}
               triggerRef={dockContainerRef}
               libraryOrder={libraryOrder}
