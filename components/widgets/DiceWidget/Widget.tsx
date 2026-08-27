@@ -46,7 +46,7 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     if (isRolling) return;
 
     const ctx = getDiceAudioCtx();
-    if (ctx.state === 'suspended') await ctx.resume();
+    if (ctx && ctx.state === 'suspended') await ctx.resume();
 
     setIsRolling(true);
     let rolls = 0;

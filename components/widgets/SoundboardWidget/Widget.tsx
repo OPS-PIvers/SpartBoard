@@ -21,18 +21,13 @@ import {
   fetchDriveAudioBlobUrl,
 } from '@/utils/soundboardAudioUrl';
 import { getAvailableSoundboardSounds } from '@/utils/soundboardConfig';
+import { getAudioCtx } from '@/utils/timeToolAudio';
 
 // ─── Web Audio API synthesis ─────────────────────────────────────────────────
 
-let globalAudioContext: AudioContext | null = null;
-
-function getAudioContext(): AudioContext {
-  globalAudioContext ??= new AudioContext();
-  return globalAudioContext;
-}
-
 function playSynthesizedSound(id: string): void {
-  const ctx = getAudioContext();
+  const ctx = getAudioCtx();
+  if (!ctx) return;
 
   const run = () => {
     const t = ctx.currentTime;
