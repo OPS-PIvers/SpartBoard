@@ -285,9 +285,12 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           mid-vote would reject new-option votes and remap existing ones. */}
       <fieldset
         disabled={isLive}
+        aria-labelledby={`pollwidget-options-label-${widget.id}`}
         className="min-w-0 m-0 border-0 p-0 disabled:opacity-50"
       >
-        <SettingsLabel>Options</SettingsLabel>
+        <SettingsLabel as="span" id={`pollwidget-options-label-${widget.id}`}>
+          Options
+        </SettingsLabel>
         {isLive && (
           <p className="text-xxs text-amber-600 font-semibold mb-2">
             Stop voting to add, remove, or rename options.
