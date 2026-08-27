@@ -551,6 +551,82 @@ describe('quiz response UPDATE — handRaisedAt raise-hand field', () => {
 });
 
 // ---------------------------------------------------------------------------
+// UPDATE: stimulus telemetry maps are size-bounded
+// ---------------------------------------------------------------------------
+
+describe('quiz response UPDATE — stimulus telemetry size cap', () => {
+  // The counts themselves are client-enforced pacing, but the teacher monitor
+  // reads every response doc in the session, so an unbounded map would let one
+  // student inflate their own doc toward the 1 MB limit with junk keys.
+  async function seedResponse() {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(
+        doc(db, `quiz_sessions/${SESSION_ID}/responses/${PIN_KEY}`),
+        {
+          studentUid: ANON_UID,
+          pin: '01',
+          classPeriod: 'period_1',
+          classId: CLASS_ID,
+          classIds: [CLASS_ID],
+          joinedAt: 1000,
+          score: null,
+          answers: [],
+          status: 'in-progress',
+          completedAttempts: 0,
+          preSyncVersion: 0,
+          tabSwitchWarnings: 0,
+          lastWriteAt: Timestamp.fromMillis(1000),
+        }
+      );
+    });
+  }
+
+  const junkMap = (size: number) =>
+    Object.fromEntries(
+      Array.from({ length: size }, (_, i) => [`a0:stim-${i}`, 1])
+    );
+
+  const studentResponse = () =>
+    doc(asAnonStudent(), `quiz_sessions/${SESSION_ID}/responses/${PIN_KEY}`);
+
+  it('a realistic play-counter write SUCCEEDS', async () => {
+    await seedResponse();
+    await assertSucceeds(
+      updateDoc(studentResponse(), { stimulusPlays: { 'a0:stim-1': 1 } })
+    );
+  });
+
+  it('stimulusPlays at exactly the 200-key cap SUCCEEDS', async () => {
+    await seedResponse();
+    await assertSucceeds(
+      updateDoc(studentResponse(), { stimulusPlays: junkMap(200) })
+    );
+  });
+
+  it('stimulusPlays over the 200-key cap is REJECTED', async () => {
+    await seedResponse();
+    await assertFails(
+      updateDoc(studentResponse(), { stimulusPlays: junkMap(201) })
+    );
+  });
+
+  it('stimulusErrors over the 100-key cap is REJECTED', async () => {
+    await seedResponse();
+    await assertFails(
+      updateDoc(studentResponse(), { stimulusErrors: junkMap(101) })
+    );
+  });
+
+  it('a non-map stimulusPlays is REJECTED', async () => {
+    await seedResponse();
+    await assertFails(
+      updateDoc(studentResponse(), { stimulusPlays: 'not-a-map' })
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
 // UPDATE: unlocked self-elevation rejection (companion to CREATE guard)
 // ---------------------------------------------------------------------------
 

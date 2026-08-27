@@ -3106,12 +3106,17 @@ service cloud.firestore {
            request.resource.data.diff(resource.data)
              .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors']) &&
            // Stimulus telemetry maps (per-attempt play counters + load-failure
-           // counters). Client-enforced pacing/diagnostics, not a security
-           // boundary — only the shape is pinned.
+           // counters). Truthfulness is client-enforced pacing/diagnostics, not
+           // a security boundary — but size is: the teacher monitor reads every
+           // response doc in the session, so cap the key count to stop a student
+           // inflating their own doc toward the 1 MB limit with junk keys.
+           // Plays are keyed `a{attempt}:{stimulusId}`, errors by stimulus id.
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stimulusPlays']) ||
-            request.resource.data.stimulusPlays is map) &&
+            (request.resource.data.stimulusPlays is map &&
+             request.resource.data.stimulusPlays.keys().size() <= 200)) &&
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stimulusErrors']) ||
-            request.resource.data.stimulusErrors is map) &&
+            (request.resource.data.stimulusErrors is map &&
+             request.resource.data.stimulusErrors.keys().size() <= 100)) &&
            // `handRaisedAt` must be server-stamped when raising, or null when
            // the student lowers their own hand — never a client timestamp.
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['handRaisedAt']) ||
