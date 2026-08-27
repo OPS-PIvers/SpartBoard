@@ -16,12 +16,12 @@ import {
   getDisplayScore,
   getResponseScore,
   isGamificationActive,
-} from '../../utils/quizScoreboard';
+} from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import {
   resolveResponseDisplayName,
   responseTeamId,
   findDuplicateResponseIds,
-} from '../../utils/resolveDisplayName';
+} from '@/components/widgets/QuizWidget/utils/resolveDisplayName';
 import {
   needsHelpFlag,
   NeedsHelpFlag,
