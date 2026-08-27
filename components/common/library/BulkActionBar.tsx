@@ -10,7 +10,7 @@
  * for back-compat — they're synthesized into actions internally.
  */
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { FolderInput, Trash2, X, type LucideIcon } from 'lucide-react';
 import type { LibraryFolder } from '@/types';
 import { FolderPickerPopover } from './FolderPickerPopover';
@@ -58,6 +58,9 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
   busy,
 }) => {
   const [showFolderPicker, setShowFolderPicker] = useState(false);
+  // Anchors the picker so it portals to <body> instead of stacking inside the
+  // bar, where the grid rows below paint over it.
+  const moveButtonRef = useRef<HTMLButtonElement>(null);
 
   if (count === 0) return null;
 
@@ -127,6 +130,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
         {folders && onMove && (
           <div className="relative">
             <button
+              ref={moveButtonRef}
               type="button"
               onClick={() => setShowFolderPicker((v) => !v)}
               disabled={busy}
@@ -150,6 +154,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
             </button>
             {showFolderPicker && (
               <FolderPickerPopover
+                anchorRef={moveButtonRef}
                 folders={folders}
                 selectedFolderId={null}
                 onSelect={async (folderId) => {
