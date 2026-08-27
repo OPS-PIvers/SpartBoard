@@ -84,6 +84,46 @@ export function shuffleQuestionForStudent(
 }
 
 /**
+ * Group questions into stimulus-connected components. Questions sharing any
+ * stimulus id (transitively) form one unit that must stay contiguous, in
+ * original relative order, so a shared stimulus never has to remount as the
+ * student walks a shuffled quiz. Questions with no stimuli are singleton
+ * units. Units are emitted in the order of their first member.
+ */
+export function groupIntoStimulusUnits(
+  questions: readonly QuizPublicQuestion[]
+): QuizPublicQuestion[][] {
+  // Union-find over question indices, merged via shared stimulus ids.
+  const parent = questions.map((_, i) => i);
+  const find = (x: number): number =>
+    parent[x] === x ? x : (parent[x] = find(parent[x]));
+  const union = (a: number, b: number) => {
+    parent[find(a)] = find(b);
+  };
+  const firstIndexByStimulus = new Map<string, number>();
+  questions.forEach((q, i) => {
+    for (const sid of q.stimulusIds ?? []) {
+      const first = firstIndexByStimulus.get(sid);
+      if (first === undefined) firstIndexByStimulus.set(sid, i);
+      else union(first, i);
+    }
+  });
+  const unitByRoot = new Map<number, QuizPublicQuestion[]>();
+  const units: QuizPublicQuestion[][] = [];
+  questions.forEach((q, i) => {
+    const root = find(i);
+    let unit = unitByRoot.get(root);
+    if (!unit) {
+      unit = [];
+      unitByRoot.set(root, unit);
+      units.push(unit);
+    }
+    unit.push(q);
+  });
+  return units;
+}
+
+/**
  * Re-order the session's public questions per student per attempt. Callers
  * should pass a seed that already encodes both the student identity and the
  * attempt number (e.g. `${studentUid}:attempt-${completedAttempts}` — the
@@ -92,10 +132,15 @@ export function shuffleQuestionForStudent(
  * per-question option shuffle that uses the same base seed — without it,
  * the option order on the first question would be a deterministic function
  * of the question-order shuffle.
+ *
+ * Stimulus-aware: questions sharing a stimulus shuffle as one contiguous
+ * unit (see `groupIntoStimulusUnits`). With no stimuli every unit is a
+ * singleton, so the result is identical to the pre-stimulus behavior.
  */
 export function shufflePublicQuestions(
   questions: readonly QuizPublicQuestion[],
   attemptSeed: string
 ): QuizPublicQuestion[] {
-  return seededShuffle(questions, `${attemptSeed}:question-order`);
+  const units = groupIntoStimulusUnits(questions);
+  return seededShuffle(units, `${attemptSeed}:question-order`).flat();
 }

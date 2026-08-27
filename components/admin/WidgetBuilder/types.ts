@@ -75,6 +75,16 @@ export function builderStateToDoc(
   };
 }
 
+/** Clamps a widget-builder dimension input to [min, max], coercing empty/invalid input to the minimum. */
+export function clampWidgetDimension(
+  raw: string,
+  min: number,
+  max: number
+): number {
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : min;
+}
+
 /** Color presets for the widget color picker */
 export const WIDGET_COLOR_PRESETS = [
   { label: 'Blue', value: 'bg-blue-500' },

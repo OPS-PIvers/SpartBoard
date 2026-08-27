@@ -121,14 +121,60 @@ working). New composition in `components/widgets/QuizWidget/components/monitor/`
 Settings toggles (podium `showPodiumBetweenQuestions`, tab warnings `tabWarningsEnabled`, new
 scoreboard-sync toggle) surface together under Quiz settings (⋯ menu).
 
-## Phase 2 — Quiz library restyle
+## Phase 1.5 — Results view alignment
 
-1. Extract library tab from `QuizManager.tsx`; align with the shared library primitives.
-2. **List view is the default**, cards behind a view switcher (choice remembered). Compact rows:
-   title, status badge, question count · edited date, kebab.
-3. Status badges: "Live now" (→ monitor) and "Assigned · periods" (→ Active tab); reuse
-   `buildQuizBadges` + `useQuizAssignments`.
-4. Folders, bulk selection, reorder, preview, kebab actions unchanged.
+`QuizResults.tsx` (2318 L, rendered from `Widget.tsx` for ended sessions / assignment review)
+still follows the old design. Functionality is largely right — this phase is a visual/structural
+catch-up to the Phase 1 monitor language, not a feature rebuild:
+
+1. Adopt the monitor shell vocabulary: blue header bar + status context, Blue Lighter summary
+   card, calm default face with drill-down screens instead of dense everything-at-once panels.
+2. Reuse the `monitor/` primitives where they fit (distribution bars from `QuestionDetail`,
+   roster row styling, proficiency band tints, toolbar toggle chips) rather than duplicating.
+3. Keep existing capabilities intact: per-student breakdowns, per-question analysis, grading/
+   manual scoring, export, unlock-results actions.
+4. Scores are appropriate here (session is over) — no projector-safety hiding, but keep the
+   same sort/filter/toggle patterns and persisted-config conventions as the monitor roster.
+
+## Phase 2 — Quiz library restyle + light UX fixes (grilled 2026-08-26)
+
+Scope confirmed via grilling session: restyle + light UX fixes across the library list, quiz
+editor, assign/session-setup flow, and existing PLC surfaces. Priority: management.
+
+### Visual system
+
+1. Adopt the monitor/results language exactly: solid `bg-brand-blue-primary` header bar, opaque
+   white body (drop the frosted-glass translucency), white rows with `border-brand-gray-lightest`,
+   monitor-style buttons/badges/footer idioms.
+2. **Restyle the shared library primitives in place** (`components/common/library/` —
+   LibraryShell, LibraryToolbar, LibraryItemCard, FolderSidebar, BulkActionBar, AssignModal, etc.)
+   so the Video Activity, Guided Learning, and Mini-App libraries pick up the new look in the
+   same pass. Verify all four managers + `LibraryDevHarness` after the restyle.
+3. **List only** — remove the grid/list toggle (`config.libraryViewMode`); monitor-style rows
+   everywhere.
+4. Editor and assign flows **stay modals**, reskinned to the new language (no drill-down
+   conversion). PLC surfaces (Share with PLC action, PLC slot in AssignModal, related dialogs)
+   restyled only — no new PLC tab.
+
+### UX additions
+
+5. **Search question text**: extend `LIBRARY_SEARCH_FIELDS` beyond title to include question
+   text.
+6. **Richer rows**: question count, last used/assigned, results-available and sync status at a
+   glance (reuse `buildQuizBadges` + `useQuizAssignments`; "Live now" → monitor,
+   "Assigned · periods" → Active tab).
+7. **Bulk actions**: keep move/delete; add **Merge** and **Share with PLC** to the bulk bar.
+
+### Merge quizzes (new feature)
+
+8. Select 2+ quizzes → "Merge" creates a NEW quiz containing all questions in selection order
+   (fully editable afterward); source quizzes untouched.
+9. Merged quiz starts with **app-default quiz settings** (not inherited from sources).
+10. Exact-duplicate questions (same text + answers): show a warning with a choice —
+    keep both, or auto-dedupe.
+11. Auto-name the merged quiz from the sources (editable); open it in the editor on creation.
+
+12. Folders, reorder, preview, kebab actions otherwise unchanged.
 
 ## Phase 3 — Cleanup (opportunistic, same PRs)
 

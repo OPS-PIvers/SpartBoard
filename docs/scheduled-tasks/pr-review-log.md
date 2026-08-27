@@ -4,6 +4,49 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-08-27
+
+- PRs reviewed: 11 (all open PRs). Ten are draft nightly-automation PRs into `dev-paul`; one is the `dev-paul` → `main` integration PR.
+  - #2583 — fix(css-scaling): drop opaque `bg-slate-50` from 3 widgets' loading state (head `scheduled-tasks`)
+  - #2582 — docs(nightly): update debugger memory doc for run 52 (head `nightly/debugger-log-2026-08-27`)
+  - #2581 — fix(widgets): consolidate per-widget AudioContext singletons into shared `getAudioCtx` (head `nightly/widgets-2026-08-27`)
+  - #2580 — fix(rules): validate `nextup_sessions` entries create against active session + shape (head `nightly/build-tooling-2026-08-27`)
+  - #2579 — fix(admin): clamp WidgetBuilder default-size inputs instead of allowing 0x0 (head `nightly/admin-config-2026-08-27`)
+  - #2578 — fix(quiz): dedupe questions before building session content (head `nightly/state-data-2026-08-27`)
+  - #2577 — fix(dock): exit edit mode when the Widget Library is closed (head `nightly/dashboard-layout-2026-08-27`)
+  - #2576 — docs(unifier): log run 68 (head `nightly/unifier-log-2026-08-27`)
+  - #2575 — fix(a11y): pair PollWidget "Options" SettingsLabel with its control group (head `nightly/unify-settings-labels-2026-08-27`)
+  - #2574 — fix(quiz): use `@/` alias for cross-directory imports in `monitor/` (head `nightly/unify-import-paths-2026-08-27`)
+  - #2573 — Redesign quiz monitor and align results view with new design (head `dev-paul` → `main`)
+- Comments processed: 8 total — 0 fixed, 0 explained. All eight are prior automated review summaries (`claude[bot]` issue comments) with LGTM verdicts; **zero inline review threads exist across all 11 PRs** (`get_review_comments` returned `totalCount: 0` on every one). No comment requested a change, so no fix was needed and no "why no fix" reply was posted — replying "no action needed" to eight approvals would be pure noise under the frugality directive. The one non-LGTM remark (#2579's clamp-on-keystroke typing note, explicitly marked "Not asking for a change") was carried forward into this run's own review of that PR instead.
+- Fixes pushed: none. No unresolved change request existed on any open PR.
+- Reviews posted: 11 — one structured automated review per open PR, each with the automated-review disclaimer and Claude Code attribution footer. Merge-readiness calls:
+  - Ready: #2583, #2580, #2577, #2575, #2574
+  - Ready with minor notes: #2581, #2579, #2578, #2582, #2576, #2573
+  - Needs changes: none
+- Substantive findings this run (things the per-PR LGTM reviews had not surfaced):
+  - **#2573 — pdfjs worker resolution, checked empirically rather than assumed.** `QuizStimulusView.tsx:354` sets `workerSrc` from `new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url)` — a *bare* specifier, which is the classic way this pattern 404s in a production build. Ran a full `pnpm build` on the head: Vite does resolve it, emitting `dist/assets/pdf.worker.min-<hash>.mjs` and rewriting the reference in the emitted chunk. Reported as verified-not-a-bug rather than flagged on suspicion.
+  - **#2573 — `stimulusPlays`/`stimulusErrors` have no size bound.** The new rules validate `is map` only. The rule comment correctly disclaims *truthfulness* as a security boundary (client-side pacing), but *size* is a separate axis: a student can inflate their own response doc with arbitrary junk keys up to the 1 MB limit, and the teacher monitor reads every response doc in the session. Suggested a `.keys().size() <= N` bound.
+  - **#2573 — PR description covers roughly one of four shipped changes.** The body describes only the library restyle and mock-data updates; it never mentions the new `pdfjs-dist` production dependency, the `firestore.rules` change, or the live-monitor rebuild. Flagged as a merge-into-`main` legibility problem, not a code defect.
+  - **#2573 — untested enforcement path.** `components/quiz/QuizStimulusView.tsx` (569 lines) has no direct test; the `playLimit` coverage in the suite is all editor-state/util-level, so the actual count-and-block logic (`:154`, `:226`) and the error-counter write path are unexercised. That's the student-facing behavior most likely to regress silently.
+  - **#2579 — the fix is input-side only.** Clamping happens in the editor's `onChange`, but any custom-widget doc already persisted with a `0x0` default size stays broken: `builderStateToDoc` and `Dock.tsx`'s `addWidget` still consume the stored values unguarded. Whether that matters depends on whether such docs exist in production — raised as a decision, not a defect.
+  - **#2578 — `projectSessionStimuli` still reads the pre-dedupe array.** Immediately below the new `sessionQuestions`, stimuli are projected from raw `quiz.questions`, so a duplicate-id question carrying different `stimulusIds` than its surviving twin would leave an unreferenced stimulus in the session doc. Inert (`resolveStimuli` looks up by id) but it undercuts the PR's own "derive both from one array" goal.
+  - **#2582 / #2576 — merge-order caveat on the journal PRs.** Both mark work Completed/Shipped (#2580 for #2582; #2574/#2575 for #2576) while those code PRs are still open. If a code PR is closed unmerged, the journal asserts a fix that isn't in the tree — and the audit that reads the journal would then skip re-finding it.
+- Verification done independently rather than taken from the PRs' own claims:
+  - #2581: grepped the head branch for the removed `diceAudioCtx` export — zero remaining references; confirmed `utils/timeToolAudio.ts::getAudioCtx` is the SSR-safe nullable variant the new call-site guards are written against.
+  - #2580: confirmed `NextUpStudentApp.tsx` is the *only* writer to `nextup_sessions/*/entries` (the teacher widget only reads/deletes), so the `hasOnly(['name','joinedAt'])` whitelist can't break a teacher write; confirmed `NextUp/Settings.tsx` writes `isActive` on both start paths, so the new `.get('isActive', false)` gate resolves correctly for every session the current client creates.
+  - #2578: confirmed `quiz.questions` appeared in `useQuizAssignments.ts` at exactly the two lines this PR changes, so the choke-point fix is complete rather than partial.
+  - #2573: confirmed by name that `WidgetRegistry.ts`, `context/DashboardContext.tsx`, `config/tools.ts`, `config/widgetDefaults.ts`, and `functions/` are untouched; `types.ts` changes are purely additive optional fields with no new `WidgetType` member, so no registry map or `ConfigForWidget` update is required.
+  - Ran `pnpm run build` (exit 0), `pnpm run type-check` (exit 0), and `pnpm run lint` (exit 0, `--max-warnings 0`) locally against `dev-paul`'s head, matching CI.
+- Notes:
+  - Branch-safety: nothing was pushed to `main` or to any `dev-*` branch this run. No code fix was required on any PR, so no branch was modified at all.
+  - CI: all nine code PRs are fully green (six-job suite; #2573 additionally green on CodeQL ×2 and Docker). #2582 and #2576 show **zero** check runs — that is by design, not a gap: `pr-validation.yml` carries `paths-ignore` for `**/*.md` and `docs/**`, so docs-only PRs intentionally skip the suite.
+  - **Log placement again deviates from the literal POST-TASK instruction, for the same reason as the 2026-08-12 and 2026-08-13 entries:** `scheduled-tasks` is currently the head branch of actively-open PR #2583, so committing this log there would inject an unrelated file into a PR under review. Logged instead on the designated `claude/pensive-bell-5qmqs8` branch, rebuilt from the latest `origin/dev-paul`.
+  - Tooling: no `gh` CLI in this environment; all PR list/diff/comment/review operations used the `mcp__github__*` equivalents. The prescribed skill paths `/mnt/skills/user/spart-new-widget/SKILL.md` and `/mnt/skills/user/spart-widget-admin-config/SKILL.md` do not exist here (same note as prior css-scaling/widget-registry audits) — reviewed against the synced copies under `/root/.claude/skills/synced/` and `CLAUDE.md`'s own widget-registration and container-query sections instead.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); CI on Node 24 remains the authoritative gate.
+
+---
+
 ## 2026-08-13
 
 - PRs reviewed: 5 (all open PRs; every head branch eligible — none is `main` or `dev-*`)

@@ -322,6 +322,11 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
     if (q.maxWords && q.maxWords > 0) base.maxWords = q.maxWords;
     if (q.points && q.points > 0) base.points = q.points;
   }
+  // Stimulus pointers are student-safe (the referenced entries carry no
+  // answer data) and are needed to render/group stimuli client-side.
+  if (q.stimulusIds && q.stimulusIds.length > 0) {
+    base.stimulusIds = [...q.stimulusIds];
+  }
   return base;
 }
 
@@ -752,6 +757,8 @@ export interface UseQuizSessionTeacherResult {
    * the student, giving zero grace warnings post-unlock.
    */
   unlockResultsForStudent: (responseKey: string) => Promise<void>;
+  /** Clear a student's raised hand (writes handRaisedAt: null to their response doc). */
+  clearHandForStudent: (responseKey: string) => Promise<void>;
   /** Reveal the correct answer for a question (writes to session doc) */
   revealAnswer: (questionId: string, correctAnswer: string) => Promise<void>;
   /** Hide a previously revealed answer (removes from session doc) */
@@ -1221,6 +1228,23 @@ export const useQuizSessionTeacher = (
     [sessionId]
   );
 
+  const clearHandForStudent = useCallback(
+    async (responseKey: string) => {
+      if (!sessionId) {
+        throw new Error('No active session — cannot clear hand.');
+      }
+      const responseRef = doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      );
+      await updateDoc(responseRef, { handRaisedAt: null });
+    },
+    [sessionId]
+  );
+
   const revealAnswer = useCallback(
     async (questionId: string, correctAnswer: string) => {
       if (!sessionId) return;
@@ -1367,6 +1391,7 @@ export const useQuizSessionTeacher = (
     removeStudent,
     unlockStudentAttempt,
     unlockResultsForStudent,
+    clearHandForStudent,
     revealAnswer,
     hideAnswer,
   };
@@ -1441,6 +1466,18 @@ export interface UseQuizSessionStudentResult {
    * Returns the updated count.
    */
   reportTabSwitch: () => Promise<number>;
+  /**
+   * Raise (true) or lower (false) the student's hand on their response doc.
+   * Server-stamps `handRaisedAt` when raising; writes null when lowering.
+   */
+  setHandRaised: (raised: boolean) => Promise<void>;
+  /**
+   * Record one completed play of a play-limited stimulus. `playKey` is the
+   * attempt-scoped `stimulusPlayKey(attemptIndex, stimulusId)`.
+   */
+  recordStimulusPlay: (playKey: string) => Promise<void>;
+  /** Log a stimulus load failure so the monitor roster can flag the student. */
+  reportStimulusError: (stimulusId: string) => Promise<void>;
   warningCount: number;
 }
 
@@ -2529,6 +2566,80 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     });
   }, []);
 
+  const setHandRaised = useCallback(async (raised: boolean): Promise<void> => {
+    const sessionId = sessionIdRef.current;
+    const responseKey = responseKeyRef.current;
+    if (!sessionId || !responseKey) return;
+    const responseRef = doc(
+      db,
+      QUIZ_SESSIONS_COLLECTION,
+      sessionId,
+      RESPONSES_COLLECTION,
+      responseKey
+    );
+    // Deliberately no lastWriteAt stamp — a raised hand must not defer the
+    // idle auto-submit sweep (same convention as reportTabSwitch).
+    await updateDoc(responseRef, {
+      handRaisedAt: raised ? serverTimestamp() : null,
+    });
+  }, []);
+
+  /**
+   * Record one completed play of a play-limited stimulus. `playKey` is the
+   * attempt-scoped `stimulusPlayKey(attemptIndex, stimulusId)` so retakes
+   * start fresh. Fire-and-forget from the caller's perspective — a failed
+   * write just means the limit resets on refresh (pacing, not security).
+   */
+  const recordStimulusPlay = useCallback(
+    async (playKey: string): Promise<void> => {
+      const sessionId = sessionIdRef.current;
+      const responseKey = responseKeyRef.current;
+      if (!sessionId || !responseKey) return;
+      const responseRef = doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      );
+      try {
+        await updateDoc(responseRef, {
+          [`stimulusPlays.${playKey}`]: increment(1),
+        });
+      } catch (err) {
+        console.warn('[recordStimulusPlay] update failed:', err);
+      }
+    },
+    []
+  );
+
+  /**
+   * Log a stimulus load failure so the teacher's monitor roster can flag
+   * this student. Best-effort — never throws into the render path.
+   */
+  const reportStimulusError = useCallback(
+    async (stimulusId: string): Promise<void> => {
+      const sessionId = sessionIdRef.current;
+      const responseKey = responseKeyRef.current;
+      if (!sessionId || !responseKey) return;
+      const responseRef = doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      );
+      try {
+        await updateDoc(responseRef, {
+          [`stimulusErrors.${stimulusId}`]: increment(1),
+        });
+      } catch (err) {
+        console.warn('[reportStimulusError] update failed:', err);
+      }
+    },
+    []
+  );
+
   const reportTabSwitch = useCallback(async (): Promise<number> => {
     const sessionId = sessionIdRef.current;
     const responseKey = responseKeyRef.current;
@@ -2675,6 +2786,9 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     submitAnswer,
     completeQuiz,
     reportTabSwitch,
+    setHandRaised,
+    recordStimulusPlay,
+    reportStimulusError,
     warningCount,
   };
 };

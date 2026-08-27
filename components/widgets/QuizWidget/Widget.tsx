@@ -10,8 +10,10 @@ import {
   QuizConfig,
   QuizMetadata,
   QuizData,
+  QuizQuestion,
   ScoreboardTeam,
 } from '@/types';
+import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
@@ -182,6 +184,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     removeStudent,
     unlockStudentAttempt,
     unlockResultsForStudent,
+    clearHandForStudent,
     revealAnswer,
     hideAnswer,
   } = useQuizSessionTeacher(config.activeAssignmentId);
@@ -305,10 +308,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const [editingQuiz, setEditingQuiz] = useState<QuizData | null>(null);
   const [editingMeta, setEditingMeta] = useState<QuizMetadata | null>(null);
 
-  // "Share with PLC" target — when set, the PlcShareTargetModal is open
-  // for this quiz. Phase 2.
-  const [shareWithPlcTarget, setShareWithPlcTarget] =
-    useState<QuizMetadata | null>(null);
+  // "Share with PLC" targets — when non-empty, the PlcShareTargetModal is
+  // open for these quizzes (one entry for the kebab action, many for bulk).
+  const [shareWithPlcTargets, setShareWithPlcTargets] = useState<
+    QuizMetadata[]
+  >([]);
 
   const setView = useCallback(
     (view: QuizConfig['view']) => {
@@ -417,6 +421,89 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       });
     },
     [attachSyncLinkage, loadQuizData, plcs, user]
+  );
+
+  /**
+   * Phase 2 — merge N selected quizzes into a brand-new quiz. Sources stay
+   * untouched; the merged quiz gets app-default behavior settings, questions
+   * in selection order with fresh ids, and opens in the editor on success.
+   * Exact-duplicate questions trigger a keep-both / auto-dedupe choice.
+   */
+  const handleMergeQuizzes = useCallback(
+    async (metas: QuizMetadata[]): Promise<boolean> => {
+      if (metas.length < 2) return false;
+      let sources: QuizData[];
+      try {
+        sources = await Promise.all(
+          metas.map((m) => loadQuizData(m.driveFileId))
+        );
+      } catch (err) {
+        logError('QuizWidget.mergeQuizzes.load', err, {
+          quizIds: metas.map((m) => m.id).join(','),
+        });
+        addToast(
+          err instanceof Error
+            ? err.message
+            : 'Failed to load the selected quizzes for merging.',
+          'error'
+        );
+        return false;
+      }
+
+      let questions: QuizQuestion[] = sources.flatMap((s) => s.questions);
+      const seen = new Set<string>();
+      const deduped: QuizQuestion[] = [];
+      for (const q of questions) {
+        const key = quizQuestionDedupeKey(q);
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduped.push(q);
+        }
+      }
+      const dupCount = questions.length - deduped.length;
+      if (dupCount > 0) {
+        const removeDupes = await showConfirm(
+          `${dupCount} duplicate question${dupCount === 1 ? '' : 's'} found across the selected quizzes. Remove ${dupCount === 1 ? 'it' : 'them'} from the merged quiz, or keep every copy?`,
+          {
+            title: 'Merge Quizzes',
+            variant: 'warning',
+            confirmLabel: 'Remove Duplicates',
+            cancelLabel: 'Keep All',
+          }
+        );
+        if (removeDupes) questions = deduped;
+      }
+
+      const now = Date.now();
+      const merged: QuizData = {
+        id: crypto.randomUUID(),
+        title: metas
+          .map((m) => m.title || 'Untitled')
+          .join(' + ')
+          .slice(0, 120),
+        // Fresh ids so questions duplicated across sources can't collide.
+        questions: questions.map((q) => ({ ...q, id: crypto.randomUUID() })),
+        createdAt: now,
+        updatedAt: now,
+      };
+      try {
+        const meta = await saveQuiz(merged);
+        addToast(
+          `Merged ${metas.length} quizzes into "${meta.title}".`,
+          'success'
+        );
+        setEditingQuiz(merged);
+        setEditingMeta(meta);
+        return true;
+      } catch (err) {
+        logError('QuizWidget.mergeQuizzes.save', err, {
+          quizIds: metas.map((m) => m.id).join(','),
+        });
+        addToast(err instanceof Error ? err.message : 'Merge failed.', 'error');
+        return false;
+      }
+    },
+    [loadQuizData, saveQuiz, showConfirm, addToast]
   );
 
   // Drop any pending import-setup prompt when the QuizWidget unmounts.
@@ -1076,6 +1163,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         onRemoveStudent={removeStudent}
         onUnlockStudent={unlockStudentAttempt}
         onUnlockResultsForStudent={unlockResultsForStudent}
+        onClearHand={clearHandForStudent}
         onRevealAnswer={revealAnswer}
         onHideAnswer={hideAnswer}
         onBack={() => {
@@ -1288,6 +1376,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 title: meta.title,
                 driveFileId: meta.driveFileId,
                 questions: data.questions,
+                ...(data.stimuli ? { stimuli: data.stimuli } : {}),
               },
               {
                 sessionMode: mode,
@@ -1410,8 +1499,19 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
             return;
           }
-          setShareWithPlcTarget(meta);
+          setShareWithPlcTargets([meta]);
         }}
+        onBulkShareWithPlc={(metas) => {
+          if (plcs.length === 0) {
+            addToast(
+              'Join a PLC from the My PLCs sidebar to share quizzes with teammates.',
+              'info'
+            );
+            return;
+          }
+          setShareWithPlcTargets(metas);
+        }}
+        onMergeQuizzes={handleMergeQuizzes}
         onCreateViewOnlyShare={async (meta) => {
           // View-only Quiz share — bypasses the AssignModal/picker/PLC flow
           // entirely. Creates a minimal assignment with view-only mode so
@@ -1427,6 +1527,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               title: meta.title,
               driveFileId: meta.driveFileId,
               questions: data.questions,
+              ...(data.stimuli ? { stimuli: data.stimuli } : {}),
             },
             {
               sessionMode: 'teacher',
@@ -1852,11 +1953,6 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
           }
         }}
-        onLibraryViewModeChange={(mode) => {
-          updateWidget(widget.id, {
-            config: { ...config, libraryViewMode: mode } as QuizConfig,
-          });
-        }}
         syncedGroups={syncedGroups}
         onPullSyncedQuiz={async (quiz) => {
           try {
@@ -2245,28 +2341,52 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             />
           );
         })()}
-      {shareWithPlcTarget && (
+      {shareWithPlcTargets.length > 0 && (
         <PlcShareTargetModal
           plcs={plcs}
-          quizTitle={shareWithPlcTarget.title}
+          quizTitle={
+            shareWithPlcTargets.length === 1
+              ? shareWithPlcTargets[0].title
+              : `${shareWithPlcTargets.length} quizzes`
+          }
           onConfirm={async (plcId) => {
-            try {
-              await handleShareWithPlc(shareWithPlcTarget, plcId);
-              const plcName =
-                plcs.find((p) => p.id === plcId)?.name ?? 'your PLC';
-              addToast(`Shared with ${plcName}.`, 'success');
-              setShareWithPlcTarget(null);
-            } catch (err) {
-              logError('QuizWidget.shareWithPlc', err, {
-                plcId,
-                quizId: shareWithPlcTarget.id,
-              });
-              throw err instanceof Error
-                ? err
-                : new Error('Share with PLC failed.');
+            const plcName =
+              plcs.find((p) => p.id === plcId)?.name ?? 'your PLC';
+            // Sequential so a mid-list failure reports exactly what landed.
+            const failedTitles: string[] = [];
+            for (const target of shareWithPlcTargets) {
+              try {
+                await handleShareWithPlc(target, plcId);
+              } catch (err) {
+                failedTitles.push(target.title || 'Untitled');
+                logError('QuizWidget.shareWithPlc', err, {
+                  plcId,
+                  quizId: target.id,
+                });
+              }
             }
+            const shared = shareWithPlcTargets.length - failedTitles.length;
+            if (failedTitles.length === 0) {
+              addToast(
+                shared === 1
+                  ? `Shared with ${plcName}.`
+                  : `Shared ${shared} quizzes with ${plcName}.`,
+                'success'
+              );
+              setShareWithPlcTargets([]);
+              return;
+            }
+            if (shared > 0) {
+              addToast(
+                `Shared ${shared} of ${shareWithPlcTargets.length} quizzes with ${plcName}.`,
+                'warning'
+              );
+            }
+            throw new Error(
+              `Failed to share: ${failedTitles.join(', ')}. Try again.`
+            );
           }}
-          onClose={() => setShareWithPlcTarget(null)}
+          onClose={() => setShareWithPlcTargets([])}
         />
       )}
     </>

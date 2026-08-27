@@ -84,6 +84,7 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
     removeStudent,
     unlockStudentAttempt,
     unlockResultsForStudent,
+    clearHandForStudent,
     revealAnswer,
     hideAnswer,
   } = useQuizSessionTeacher(assignmentId);
@@ -274,6 +275,7 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
         onRemoveStudent={removeStudent}
         onUnlockStudent={unlockStudentAttempt}
         onUnlockResultsForStudent={unlockResultsForStudent}
+        onClearHand={clearHandForStudent}
         onRevealAnswer={revealAnswer}
         onHideAnswer={hideAnswer}
         onBack={onClose}

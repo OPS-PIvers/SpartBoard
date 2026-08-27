@@ -27,6 +27,7 @@ import { useEffect, useState } from 'react';
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -43,6 +44,7 @@ import type {
   PlcQuizVersionContent,
   QuizBehaviorSettings,
   QuizQuestion,
+  QuizStimulus,
   SyncedQuizGroup,
   SyncedQuizVersionSnapshot,
 } from '@/types';
@@ -64,6 +66,8 @@ export interface PublishSyncedQuizInput {
   title: string;
   /** Question list to publish. */
   questions: QuizQuestion[];
+  /** Stimuli referenced by the questions. Omitted = clear on the canonical. */
+  stimuli?: QuizStimulus[];
   /**
    * The version of the canonical doc the caller's local Drive replica is
    * based on. The transaction asserts `current.version === expectedVersion`;
@@ -214,6 +218,7 @@ export function useSyncedQuizGroupsByIds(
 export async function pullSyncedQuizContent(groupId: string): Promise<{
   title: string;
   questions: QuizQuestion[];
+  stimuli?: QuizStimulus[];
   behavior?: QuizBehaviorSettings;
   version: number;
 }> {
@@ -223,11 +228,12 @@ export async function pullSyncedQuizContent(groupId: string): Promise<{
   }
   const data = snap.data() as Pick<
     SyncedQuizGroup,
-    'title' | 'questions' | 'behavior' | 'version'
+    'title' | 'questions' | 'stimuli' | 'behavior' | 'version'
   >;
   return {
     title: data.title,
     questions: data.questions ?? [],
+    stimuli: data.stimuli,
     behavior: data.behavior,
     version: data.version ?? 1,
   };
@@ -247,6 +253,7 @@ export async function createSyncedQuizGroup(input: {
   uid: string;
   title: string;
   questions: QuizQuestion[];
+  stimuli?: QuizStimulus[];
   plcId?: string;
   behavior?: QuizBehaviorSettings;
 }): Promise<void> {
@@ -256,6 +263,9 @@ export async function createSyncedQuizGroup(input: {
     version: 1,
     title: input.title,
     questions: input.questions,
+    ...(input.stimuli && input.stimuli.length > 0
+      ? { stimuli: input.stimuli }
+      : {}),
     participants: { [input.uid]: { joinedAt: now } },
     ...(input.plcId ? { plcId: input.plcId } : {}),
     ...(input.behavior ? { behavior: input.behavior } : {}),
@@ -314,6 +324,13 @@ export async function publishSyncedQuiz(
       version: nextVersion,
       title: input.title,
       questions: input.questions,
+      // deleteField clears the canonical entry when the publisher removed
+      // the quiz's last stimulus — leaving a stale array would resurrect
+      // deleted stimuli on every peer pull.
+      stimuli:
+        input.stimuli && input.stimuli.length > 0
+          ? input.stimuli
+          : deleteField(),
       updatedAt: now,
       updatedBy: input.uid,
       ...(input.behavior ? { behavior: input.behavior } : {}),
@@ -346,11 +363,14 @@ export async function publishSyncedQuiz(
  * (Firestore rejects it) and the schema-locked rule stays satisfied.
  */
 function buildQuizVersionContent(
-  source: Pick<SyncedQuizGroup, 'title' | 'questions' | 'behavior'>
+  source: Pick<SyncedQuizGroup, 'title' | 'questions' | 'stimuli' | 'behavior'>
 ): PlcQuizVersionContent {
   return {
     title: source.title,
     questions: source.questions ?? [],
+    ...(source.stimuli && source.stimuli.length > 0
+      ? { stimuli: source.stimuli }
+      : {}),
     ...(source.behavior ? { behavior: source.behavior } : {}),
   };
 }
@@ -447,11 +467,18 @@ export async function restoreSyncedVersion(
     throw new Error('Synced quiz group not found.');
   }
   const current = groupSnap.data() as SyncedQuizGroup;
+  // Prefer the snapshot's stimuli; legacy snapshots (no field) keep the
+  // current canonical's so a restore never silently wipes attachments.
+  // Dangling pointers are sanitized on the next editor load/save.
+  const restoredStimuli = content.stimuli ?? current.stimuli;
   return publishSyncedQuiz(groupId, {
     title: content.title,
     questions: content.questions,
     expectedVersion: current.version,
     uid,
+    ...(restoredStimuli && restoredStimuli.length > 0
+      ? { stimuli: restoredStimuli }
+      : {}),
     ...(content.behavior ? { behavior: content.behavior } : {}),
   });
 }

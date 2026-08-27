@@ -69,10 +69,12 @@ const renderActionButton = (
   const Icon = action.icon;
   const base =
     'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed';
+  // Buttons sit on the solid blue header bar: primary inverts to a white
+  // chip; secondary is a translucent white ghost.
   const variantClass =
     variant === 'primary'
-      ? 'bg-brand-blue-primary hover:bg-brand-blue-dark text-white'
-      : 'bg-white/70 backdrop-blur-sm hover:bg-brand-blue-lighter/40 text-brand-blue-primary border border-brand-blue-primary/20';
+      ? 'bg-white hover:bg-brand-blue-lighter text-brand-blue-primary'
+      : 'bg-white/15 hover:bg-white/25 text-white border border-white/30';
   return (
     <button
       key={key}
@@ -217,7 +219,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
   return (
     <section
       ref={rootRef}
-      className="flex flex-col h-full min-h-0 text-slate-800 rounded-2xl overflow-hidden"
+      className="flex flex-col h-full min-h-0 text-brand-gray-dark bg-white rounded-2xl overflow-hidden"
       aria-label={`${widgetLabel} library`}
     >
       {/* Single chrome bar: segmented tab control on the left, header
@@ -228,7 +230,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
         primaryAction != null ||
         (secondaryActions != null && secondaryActions.length > 0)) && (
         <div
-          className="flex items-center justify-between bg-white/60 backdrop-blur-sm border-b border-slate-200/70 shrink-0"
+          className="flex items-center justify-between bg-brand-blue-primary shrink-0"
           style={{
             gap: 'min(12px, 2.5cqmin)',
             paddingInline: 'min(16px, 3.5cqmin)',
@@ -242,6 +244,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
               onChange={onTabChange}
               labelsHidden={tabLabelsHidden}
               ariaLabel={`${widgetLabel} library tabs`}
+              onDark
             />
           ) : (
             <div className="min-w-0" />
@@ -269,7 +272,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
 
       {toolbarSlot && (
         <div
-          className="bg-white/40 backdrop-blur-sm border-b border-slate-200/70 shrink-0"
+          className="bg-white border-b border-brand-gray-lightest shrink-0"
           style={{
             paddingInline: 'min(16px, 3.5cqmin)',
             paddingBlock: 'min(10px, 2.2cqmin)',
@@ -283,7 +286,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
         {shouldRenderFolderPanel && (
           <LibraryFolderPanelContext.Provider value={folderPanelContextValue}>
             <aside
-              className="shrink-0 bg-white/40 backdrop-blur-sm border-r border-slate-200/70 overflow-y-auto flex flex-col"
+              className="shrink-0 bg-white border-r border-brand-gray-lightest overflow-y-auto flex flex-col"
               style={{
                 // Width-based (cqw) sizing, not cqmin: the panel competes for
                 // horizontal space, so the widget's height shouldn't shrink
@@ -313,7 +316,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                       cycleFolderPanelSetting(effectiveFolderPanelMode)
                     )
                   }
-                  className="inline-flex items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white/70 hover:text-brand-blue-primary"
+                  className="inline-flex items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-brand-blue-lighter/40 hover:text-brand-blue-primary"
                   style={{
                     width: 'min(28px, 7cqmin)',
                     height: 'min(28px, 7cqmin)',
@@ -343,7 +346,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
         )}
         {!shouldRenderFolderPanel && filterSidebarSlot != null && (
           <div
-            className="shrink-0 border-r border-slate-200/70 bg-white/40 backdrop-blur-sm flex items-start justify-center"
+            className="shrink-0 border-r border-brand-gray-lightest bg-white flex items-start justify-center"
             style={{
               paddingInline: 'min(6px, 1.5cqmin)',
               paddingBlock: 'min(8px, 2cqmin)',
@@ -352,7 +355,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
             <button
               type="button"
               onClick={() => setFolderPanelSetting('full')}
-              className="inline-flex items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white/70 hover:text-brand-blue-primary"
+              className="inline-flex items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-brand-blue-lighter/40 hover:text-brand-blue-primary"
               style={{
                 width: 'min(28px, 7cqmin)',
                 height: 'min(28px, 7cqmin)',

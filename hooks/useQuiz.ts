@@ -38,6 +38,7 @@ import {
   SyncedQuizVersionConflictError,
 } from './useSyncedQuizGroups';
 import { migrateQuizMetadataShape } from '@/utils/quizSyncMigration';
+import { buildQuizSearchText } from '@/utils/quizSearchText';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
 
@@ -263,6 +264,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         const result = await publishSyncedQuiz(existingSync.groupId, {
           title: updatedQuiz.title,
           questions: updatedQuiz.questions,
+          ...(updatedQuiz.stimuli && updatedQuiz.stimuli.length > 0
+            ? { stimuli: updatedQuiz.stimuli }
+            : {}),
           expectedVersion: existingSync.lastSyncedVersion,
           uid: userId,
           ...(effectiveBehavior !== undefined
@@ -282,6 +286,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         title: quiz.title,
         driveFileId,
         questionCount: quiz.questions.length,
+        searchText: buildQuizSearchText(quiz.questions),
         createdAt: quiz.createdAt,
         updatedAt: updatedQuiz.updatedAt,
         // Preserve folder assignment + synced linkage + behavior settings
@@ -330,6 +335,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         id: quizMeta.id,
         title: canonical.title,
         questions: canonical.questions,
+        ...(canonical.stimuli && canonical.stimuli.length > 0
+          ? { stimuli: canonical.stimuli }
+          : {}),
         createdAt: quizMeta.createdAt,
         updatedAt: now,
       };
@@ -340,6 +348,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         title: canonical.title,
         driveFileId,
         questionCount: canonical.questions.length,
+        searchText: buildQuizSearchText(canonical.questions),
         createdAt: quizMeta.createdAt,
         updatedAt: now,
         ...(quizMeta.folderId !== undefined
@@ -422,6 +431,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         title: quizMeta.title,
         driveFileId: quizMeta.driveFileId,
         questionCount: quizMeta.questionCount,
+        ...(quizMeta.searchText !== undefined
+          ? { searchText: quizMeta.searchText }
+          : {}),
         createdAt: quizMeta.createdAt,
         updatedAt: Date.now(),
         ...(quizMeta.folderId !== undefined
@@ -549,10 +561,15 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       const drive = getDriveService();
       const sourceData = await drive.loadQuiz(sourceMeta.driveFileId);
       const now = Date.now();
+      // Stimuli deep-copy keeps the SAME ids and Drive file references —
+      // the duplicate points at the same files (PLC decision Q16-adjacent).
       const fresh: QuizData = {
         id: crypto.randomUUID(),
         title: suggestDuplicateTitle(sourceData.title || sourceMeta.title),
         questions: sourceData.questions,
+        ...(sourceData.stimuli && sourceData.stimuli.length > 0
+          ? { stimuli: sourceData.stimuli.map((s) => ({ ...s })) }
+          : {}),
         createdAt: now,
         updatedAt: now,
       };
@@ -564,6 +581,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           title: fresh.title,
           driveFileId: createdDriveFileId,
           questionCount: fresh.questions.length,
+          searchText: buildQuizSearchText(fresh.questions),
           createdAt: fresh.createdAt,
           updatedAt: fresh.updatedAt,
           // Preserve folder placement. Setting folderId to undefined on
@@ -627,6 +645,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         id: crypto.randomUUID(),
         title: shared.title,
         questions: shared.questions,
+        ...(shared.stimuli && shared.stimuli.length > 0
+          ? { stimuli: shared.stimuli }
+          : {}),
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };

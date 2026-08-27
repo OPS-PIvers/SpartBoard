@@ -47,6 +47,7 @@ import {
   CloudOff,
   Users2,
   GraduationCap,
+  Combine,
 } from 'lucide-react';
 import {
   AssignmentMode,
@@ -87,6 +88,7 @@ import {
   useSortableReorder,
   BulkActionBar,
   buildDuplicateAction,
+  type BulkAction,
   type LibraryMenuAction,
   type LibrarySortOption,
   type LibrarySortDir,
@@ -290,6 +292,17 @@ interface QuizManagerProps {
    * omitted (e.g. test harnesses).
    */
   onShareWithPlc?: (quiz: QuizMetadata) => void;
+  /**
+   * Bulk-select "Share with PLC": opens the PLC picker for every selected
+   * quiz at once. Owned by the Widget (it renders the picker modal).
+   */
+  onBulkShareWithPlc?: (quizzes: QuizMetadata[]) => void;
+  /**
+   * Bulk-select "Merge": combines the selected quizzes into a brand-new quiz
+   * (sources untouched). Resolves `true` when a merge was performed (caller
+   * clears the selection) and `false` on cancel/failure.
+   */
+  onMergeQuizzes?: (quizzes: QuizMetadata[]) => Promise<boolean>;
   rosters: ClassRoster[];
   config: QuizConfig;
 
@@ -334,8 +347,6 @@ interface QuizManagerProps {
   /** Reopen an ended assignment back to a paused state. */
   onArchiveReopen?: (assignment: QuizAssignment) => void | Promise<void>;
   onArchiveDelete?: (assignment: QuizAssignment) => void | Promise<void>;
-  /** Persist the library grid/list toggle into widget config. */
-  onLibraryViewModeChange?: (mode: 'grid' | 'list') => void;
   /**
    * Signed-in teacher's display name. Used as the auto-fill default for the
    * "Your Name" / `teacherName` field in the assign modal when neither the
@@ -428,7 +439,10 @@ const SORT_OPTIONS: LibrarySortOption[] = [
  * re-derived every render (which would drive `useSortableReorder` into a
  * setState-during-render loop). */
 
-const LIBRARY_SEARCH_FIELDS = (q: QuizMetadata): string => q.title;
+// Title + the question-text blob written on save (see QuizMetadata.searchText)
+// so search matches question content, not just titles.
+const LIBRARY_SEARCH_FIELDS = (q: QuizMetadata): string =>
+  q.searchText ? `${q.title} ${q.searchText}` : q.title;
 
 const LIBRARY_INITIAL_SORT = { key: 'updated', dir: 'desc' as const };
 
@@ -495,6 +509,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onBulkDelete,
   onShare,
   onShareWithPlc,
+  onBulkShareWithPlc,
+  onMergeQuizzes,
   rosters,
   config,
   managerTab = 'library',
@@ -515,7 +531,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onArchiveDeactivate,
   onArchiveReopen,
   onArchiveDelete,
-  onLibraryViewModeChange,
   defaultTeacherName,
   syncedGroups,
   onPullSyncedQuiz,
@@ -738,10 +753,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const libraryView = useLibraryView<QuizMetadata>({
     items: folderFilteredQuizzes,
     initialSort: LIBRARY_INITIAL_SORT,
-    initialViewMode: config.libraryViewMode ?? 'grid',
+    // Phase 2 redesign: the library is list-only (monitor row idiom).
+    initialViewMode: 'list',
     searchFields: LIBRARY_SEARCH_FIELDS,
     sortComparators: SORT_COMPARATORS,
-    onViewModeChange: onLibraryViewModeChange,
   });
 
   const onReorderCommit = useCallback(
@@ -768,6 +783,18 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     () => assignments.filter((a) => a.status === 'inactive'),
     [assignments]
   );
+
+  // Per-quiz assignment index for the library rows' status badges and
+  // "Last assigned" metadata.
+  const assignmentsByQuizId = useMemo(() => {
+    const byQuiz = new Map<string, QuizAssignment[]>();
+    for (const a of assignments) {
+      const list = byQuiz.get(a.quizId);
+      if (list) list.push(a);
+      else byQuiz.set(a.quizId, [a]);
+    }
+    return byQuiz;
+  }, [assignments]);
 
   // ─── Build per-quiz card actions ──────────────────────────────────────────
   // Sync availability: a quiz is "stale" when its `sync.lastSyncedVersion`
@@ -888,6 +915,49 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
    * `version` exceeds local `lastSyncedVersion`.
    */
   const buildQuizBadges = (quiz: QuizMetadata) => {
+    // Assignment-status badges first: "Live now" jumps to the monitor,
+    // "Assigned" jumps to the In Progress tab, "Results" opens stats.
+    const related = assignmentsByQuizId.get(quiz.id) ?? [];
+    const liveAssignment = related.find((a) => a.status === 'active');
+    const pausedCount = related.filter((a) => a.status === 'paused').length;
+    const archivedCount = related.filter((a) => a.status === 'inactive').length;
+    const statusBadges: Array<{
+      label: string;
+      tone: LibraryBadgeTone;
+      dot?: boolean;
+      actionLabel?: string;
+      onClick?: () => void;
+    }> = [];
+    if (liveAssignment) {
+      statusBadges.push({
+        label: 'Live now',
+        tone: 'success',
+        dot: true,
+        actionLabel: 'Open live monitor',
+        ...(onArchiveMonitor
+          ? { onClick: () => void onArchiveMonitor(liveAssignment) }
+          : {}),
+      });
+    } else if (pausedCount > 0) {
+      statusBadges.push({
+        label: pausedCount === 1 ? 'Assigned' : `Assigned · ${pausedCount}`,
+        tone: 'info',
+        actionLabel: 'View in In Progress',
+        ...(onTabChange ? { onClick: () => onTabChange('active') } : {}),
+      });
+    }
+    if (archivedCount > 0 && !isViewOnly) {
+      statusBadges.push({
+        label: 'Results',
+        tone: 'neutral',
+        actionLabel: 'View results',
+        onClick: () => onResults(quiz),
+      });
+    }
+    return [...statusBadges, ...buildQuizSyncBadges(quiz)];
+  };
+
+  const buildQuizSyncBadges = (quiz: QuizMetadata) => {
     if (!quiz.sync) return [];
 
     // While a pull is in flight, show a disabled "Syncing…" pill with a
@@ -1427,6 +1497,89 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     }
   }, [selection, quizzes, onDelete, onBulkDelete, showConfirm]);
 
+  // Selected metas in selection order (Set preserves insertion order) —
+  // merge assembles the new quiz's questions in this order.
+  const getSelectedMetas = useCallback(
+    (): QuizMetadata[] =>
+      Array.from(selection.selectedIds)
+        .map((id) => quizzes.find((q) => q.id === id))
+        .filter((q): q is QuizMetadata => Boolean(q)),
+    [selection, quizzes]
+  );
+
+  const handleBulkMerge = useCallback(async (): Promise<void> => {
+    if (!onMergeQuizzes) return;
+    const metas = getSelectedMetas();
+    if (metas.length < 2) return;
+    setBulkBusy(true);
+    try {
+      const merged = await onMergeQuizzes(metas);
+      if (merged) {
+        selection.clear();
+        setSelectionMode(false);
+      }
+    } finally {
+      setBulkBusy(false);
+    }
+  }, [onMergeQuizzes, getSelectedMetas, selection]);
+
+  const handleBulkSharePlc = useCallback((): void => {
+    if (!onBulkShareWithPlc) return;
+    const metas = getSelectedMetas();
+    if (metas.length === 0) return;
+    onBulkShareWithPlc(metas);
+  }, [onBulkShareWithPlc, getSelectedMetas]);
+
+  const extraBulkActions: BulkAction[] = [
+    ...(onMergeQuizzes
+      ? [
+          {
+            id: 'merge',
+            label: 'Merge',
+            icon: Combine,
+            onClick: () => void handleBulkMerge(),
+            disabled: selection.count < 2,
+          },
+        ]
+      : []),
+    ...(onBulkShareWithPlc
+      ? [
+          {
+            id: 'share-plc',
+            label: 'Share with PLC',
+            icon: Users2,
+            onClick: handleBulkSharePlc,
+          },
+        ]
+      : []),
+  ];
+
+  // Richer row subtitle: question count · updated · last assigned.
+  const renderQuizSubtitle = (quiz: QuizMetadata): React.ReactNode => {
+    const related = assignmentsByQuizId.get(quiz.id) ?? [];
+    const lastAssignedAt = related.reduce(
+      (max, a) => Math.max(max, a.createdAt ?? 0),
+      0
+    );
+    return (
+      <span className="flex items-center gap-2">
+        <span className="bg-brand-blue-lighter text-brand-blue-primary font-bold rounded px-1.5 text-[10px] uppercase">
+          {quiz.questionCount} Qs
+        </span>
+        <span>
+          Updated{' '}
+          {new Date(quiz.updatedAt || quiz.createdAt).toLocaleDateString()}
+        </span>
+        {lastAssignedAt > 0 && (
+          <span className="hidden @[360px]:inline">
+            · {isViewOnly ? 'Last shared' : 'Last assigned'}{' '}
+            {new Date(lastAssignedAt).toLocaleDateString()}
+          </span>
+        )}
+      </span>
+    );
+  };
+
   // ─── Folder sidebar (Library tab only) ────────────────────────────────────
   const folderSidebarSlot =
     managerTab === 'library' && userId ? (
@@ -1527,17 +1680,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       <LibraryItemCard<QuizMetadata>
         id={quiz.id}
         title={quiz.title}
-        subtitle={
-          <span className="flex items-center gap-2">
-            <span className="bg-brand-blue-lighter text-brand-blue-primary font-bold rounded px-1.5 text-[10px] uppercase">
-              {quiz.questionCount} Qs
-            </span>
-            <span>
-              Updated{' '}
-              {new Date(quiz.updatedAt || quiz.createdAt).toLocaleDateString()}
-            </span>
-          </span>
-        }
+        subtitle={renderQuizSubtitle(quiz)}
         primaryAction={{
           label: primaryActionLabel,
           icon: Play,
@@ -1576,6 +1719,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onAssignClick={(q) => openShareOrAssign(q)}
           buildSecondaryActions={buildQuizSecondaryActions}
           buildBadges={buildQuizBadges}
+          renderSubtitle={renderQuizSubtitle}
+          extraBulkActions={extraBulkActions}
           onEdit={onEdit}
           onImport={onImport}
           totalCount={quizzes.length}
@@ -1771,6 +1916,10 @@ const LibraryTabContent: React.FC<{
   ) => { label: string; tone: LibraryBadgeTone; dot?: boolean }[];
   onEdit: (quiz: QuizMetadata) => void;
   onImport: () => void;
+  /** Row subtitle (question count · updated · last assigned). */
+  renderSubtitle: (quiz: QuizMetadata) => React.ReactNode;
+  /** Extra bulk-bar actions (Merge, Share with PLC) rendered before Move/Delete. */
+  extraBulkActions: BulkAction[];
   totalCount: number;
   reorderLocked: boolean;
   reorderLockedReason: string | undefined;
@@ -1810,6 +1959,8 @@ const LibraryTabContent: React.FC<{
   buildBadges,
   onEdit,
   onImport,
+  renderSubtitle,
+  extraBulkActions,
   totalCount,
   reorderLocked,
   reorderLockedReason,
@@ -1867,6 +2018,7 @@ const LibraryTabContent: React.FC<{
             <BulkActionBar
               count={selection.count}
               onClear={() => selection.clear()}
+              actions={extraBulkActions}
               folders={folders}
               onMove={onBulkMove}
               onDelete={onBulkDelete}
@@ -1894,19 +2046,7 @@ const LibraryTabContent: React.FC<{
               key={quiz.id}
               id={quiz.id}
               title={quiz.title}
-              subtitle={
-                <span className="flex items-center gap-2">
-                  <span className="bg-brand-blue-lighter text-brand-blue-primary font-bold rounded px-1.5 text-[10px] uppercase">
-                    {quiz.questionCount} Qs
-                  </span>
-                  <span>
-                    Updated{' '}
-                    {new Date(
-                      quiz.updatedAt || quiz.createdAt
-                    ).toLocaleDateString()}
-                  </span>
-                </span>
-              }
+              subtitle={renderSubtitle(quiz)}
               primaryAction={{
                 label: primaryActionLabel,
                 icon: Play,

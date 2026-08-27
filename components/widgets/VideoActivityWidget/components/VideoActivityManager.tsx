@@ -228,11 +228,6 @@ export interface VideoActivityManagerProps {
     assignment: VideoActivityAssignment
   ) => void | Promise<void>;
 
-  /** Persisted library grid/list toggle (from widget config). */
-  initialLibraryViewMode?: 'grid' | 'list';
-  /** Persist the library grid/list toggle into widget config. */
-  onLibraryViewModeChange?: (mode: 'grid' | 'list') => void;
-
   // Legacy per-activity session view (one-off session history). Kept for
   // backwards compatibility with existing Widget.tsx wiring; new work should
   // prefer the assignment archive instead.
@@ -455,8 +450,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchiveMonitor,
   onArchivePublishScores,
   onArchiveUnpublishScores,
-  initialLibraryViewMode,
-  onLibraryViewModeChange,
   rosters,
   lastRosterIdsByActivityId,
   lastClassIdsByActivityId,
@@ -597,10 +590,10 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const libraryView = useLibraryView<VideoActivityMetadata>({
     items: folderFilteredActivities,
     initialSort: LIBRARY_INITIAL_SORT,
-    initialViewMode: initialLibraryViewMode ?? 'grid',
+    // Phase 2 redesign: the library is list-only (monitor row idiom).
+    initialViewMode: 'list',
     searchFields: LIBRARY_SEARCH_FIELDS,
     sortComparators: LIBRARY_SORT_COMPARATORS,
-    onViewModeChange: onLibraryViewModeChange,
   });
 
   const onReorderCommit = useCallback(

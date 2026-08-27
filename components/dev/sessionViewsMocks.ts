@@ -128,6 +128,15 @@ export function makeQuizConfig(): QuizConfig {
 
 /* ─── Quiz responses ─────────────────────────────────────────────────────── */
 
+// Minimal Timestamp stand-in so mocks stay free of the Firestore SDK.
+function fakeTimestamp(ms: number): import('firebase/firestore').Timestamp {
+  return {
+    toMillis: () => ms,
+    seconds: Math.floor(ms / 1000),
+    nanoseconds: (ms % 1000) * 1_000_000,
+  } as import('firebase/firestore').Timestamp;
+}
+
 function quizCompleted(
   key: string,
   pin: string,
@@ -186,6 +195,36 @@ export function makeQuizResponses(): QuizResponse[] {
       score: null,
       submittedAt: null,
       classPeriod: 'Period 3',
+    },
+    // In-progress with a raised hand (fake Timestamp keeps mocks SDK-free).
+    {
+      _responseKey: 'pin-Period 3-1007',
+      studentUid: 'pin-Period 3-1007',
+      pin: '1007',
+      joinedAt: NOW - 400_000,
+      status: 'in-progress',
+      answers: [
+        { questionId: QUIZ_Q1_ID, answer: '1/4', answeredAt: NOW - 100_000 },
+      ],
+      score: null,
+      submittedAt: null,
+      classPeriod: 'Period 3',
+      handRaisedAt: fakeTimestamp(NOW - 90_000),
+    },
+    // In-progress and stuck — last write well past the 120s threshold.
+    {
+      _responseKey: 'pin-Period 3-1008',
+      studentUid: 'pin-Period 3-1008',
+      pin: '1008',
+      joinedAt: NOW - 600_000,
+      status: 'in-progress',
+      answers: [
+        { questionId: QUIZ_Q1_ID, answer: '3/4', answeredAt: NOW - 300_000 },
+      ],
+      score: null,
+      submittedAt: null,
+      classPeriod: 'Period 3',
+      lastWriteAt: fakeTimestamp(NOW - 300_000),
     },
     // Locked / auto-submitted attempt.
     {

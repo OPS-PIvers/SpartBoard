@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-26_
+_Last audited: 2026-08-27_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-27: Checked (Thursday daily). Fast-forwarded `scheduled-tasks` onto `origin/dev-paul` this cycle (0 unique commits on scheduled-tasks, 59 behind — a clean fast-forward, no rebase needed), absorbing new source including quiz question stimuli (image/PDF/audio/video/YouTube/doc embeds), a quiz-library Phase 2 restyle, and a quiz monitor-results redesign. First `pnpm type-check` run failed with `error TS2307: Cannot find module 'pdfjs-dist'` in `components/quiz/QuizStimulusView.tsx:353` — traced to a stale `node_modules` after the fast-forward (the dependency was added to `package.json` by the incoming commits but not yet installed), not a real type error. `pnpm install` (root) picked up `pdfjs-dist@6.2.108` and resolved it; re-run `pnpm type-check` exit 0 (0 TypeScript errors, `tsc --noEmit`, full root run). `pnpm lint` exit 0 — full `pnpm run lint` (root `lint:app` via `eslint . --max-warnings 0` + `lint:functions` via `functions/`'s own `eslint . --max-warnings 0`) completed cleanly in a single authoritative run, no timeout/OOM fallback required. 0 ESLint errors, 0 warnings across the whole lintable file set, root and functions both. No existing structured Open items to cross-reference (prior entries are narrative daily-check logs, not `### [SEVERITY]` items); none newly found. Codebase remains fully type-safe and lint-clean._
 
 _2026-08-26: Checked (Wednesday daily). `pnpm type-check` exit 0 (0 TypeScript errors, `tsc --noEmit`, full root run, no fallback needed). `pnpm lint` exit 0 — the full `pnpm run lint` (root `lint:app` via `eslint . --max-warnings 0` + `lint:functions` via `functions/`'s own `eslint . --max-warnings 0`) completed cleanly in a single authoritative run this cycle, no timeout/OOM fallback required. 0 ESLint errors, 0 warnings across the whole lintable file set, root and functions both. Rebased scheduled-tasks onto origin/dev-paul this cycle, absorbing 3 new commits: `fix(admin)` canonical building-ID scoping + Calendar `daysVisible` guard, `feat(auth)` make `/` a sign-in card + move landing page to `/about`, `test(functions)` de-flake `revokeGoogleRefreshToken` decrypt-failure case — all covered clean by today's full type-check and lint runs. No existing structured Open items to cross-reference (prior entries are narrative daily-check logs, not `### [SEVERITY]` items); none newly found. Codebase remains fully type-safe and lint-clean._
 

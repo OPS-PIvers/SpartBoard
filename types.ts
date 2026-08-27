@@ -3027,6 +3027,37 @@ export function isWrittenQuestionType(type: QuizQuestionType): boolean {
   return type === 'short' || type === 'essay';
 }
 
+/**
+ * Kinds of stimulus content a teacher can attach to quiz questions.
+ * `gdoc-embed` covers Google Docs/Slides shared as embeds by URL.
+ */
+export type QuizStimulusType =
+  | 'image'
+  | 'pdf'
+  | 'audio'
+  | 'video'
+  | 'youtube'
+  | 'gdoc-embed';
+
+/**
+ * A stimulus attached to one or more quiz questions. Lives on
+ * `QuizData.stimuli`; questions reference entries via `stimulusIds` —
+ * the pointer array IS the grouping (no group objects).
+ */
+export interface QuizStimulus {
+  /** Stable UUID — question `stimulusIds` pointers reference this. */
+  id: string;
+  type: QuizStimulusType;
+  /** Source URL (pasted or derived from the Drive file). */
+  url: string;
+  /** Set when the file lives in the teacher's Google Drive. */
+  driveFileId?: string;
+  /** Authoring-only name; stripped before the session doc is written. */
+  label: string;
+  /** audio/video/youtube only: max completed plays per attempt. Undefined = unlimited. */
+  playLimit?: number;
+}
+
 export interface QuizQuestion {
   id: string;
   /** Time limit in seconds. 0 = no time limit. */
@@ -3067,6 +3098,12 @@ export interface QuizQuestion {
    * means no cap is displayed.
    */
   maxWords?: number;
+  /**
+   * Ids of `QuizData.stimuli` entries shown alongside this question.
+   * Empty/missing = no stimuli. The shared-pointer array is the grouping:
+   * consecutive questions carrying the same id form a stimulus set.
+   */
+  stimulusIds?: string[];
 }
 
 /**
@@ -3088,6 +3125,8 @@ export interface QuizData {
   id: string;
   title: string;
   questions: QuizQuestion[];
+  /** Stimuli attachable to questions via `QuizQuestion.stimulusIds`. */
+  stimuli?: QuizStimulus[];
   createdAt: number;
   updatedAt: number;
 }
@@ -3130,6 +3169,12 @@ export interface QuizMetadata {
   folderId?: string | null;
   /** Synchronized-quiz linkage; see `QuizMetadataSyncLinkage`. */
   sync?: QuizMetadataSyncLinkage;
+  /**
+   * Lowercased question-text blob (capped) written on save so library search
+   * can match question content without a Drive load. Absent on quizzes not
+   * re-saved since the field was introduced — search falls back to title.
+   */
+  searchText?: string;
   /** Behavior settings authored in the editor; synced to PLC members. */
   behavior?: QuizBehaviorSettings;
   /**
@@ -3233,6 +3278,8 @@ export interface QuizPublicQuestion {
   maxWords?: number;
   /** short/essay only: max points the teacher can award. */
   points?: number;
+  /** Ids into `QuizSession.stimuli` shown alongside this question. */
+  stimulusIds?: string[];
 }
 
 export interface QuizLeaderboardEntry {
@@ -3274,6 +3321,13 @@ export interface QuizSession {
    * full QuizData loaded from Drive, not from this field.
    */
   publicQuestions: QuizPublicQuestion[];
+  /**
+   * Stimuli referenced by at least one public question, projected from the
+   * quiz at session-create time with authoring labels stripped. `playLimit`
+   * is kept — students enforce it client-side. Absent on pre-feature
+   * sessions and on quizzes with no attached stimuli.
+   */
+  stimuli?: QuizStimulus[];
 
   /**
    * True once at least one Schoology LTI student has launched this session and
@@ -3643,6 +3697,19 @@ export interface QuizResponse {
    */
   preSyncVersion?: number;
   /**
+   * Completed-play counters for play-limited stimuli, keyed
+   * `a{attemptIndex}:{stimulusId}` so each retake starts fresh without a
+   * reset write. Client-side enforcement only (a hostile client can skip
+   * counting; the limit is a pacing tool, not a security boundary).
+   */
+  stimulusPlays?: Record<string, number>;
+  /**
+   * Load-failure counters per stimulus id, written by the student client
+   * when a stimulus fails to load (after its scoped retry). Read by the
+   * teacher monitor roster to flag students who can't see a stimulus.
+   */
+  stimulusErrors?: Record<string, number>;
+  /**
    * True when a teacher has manually unlocked an auto-submitted or
    * attempt-limit-locked response so the student can resume. The hooks
    * preserve `answers` on the next rejoin and skip the "Warning N of 3"
@@ -3665,6 +3732,14 @@ export interface QuizResponse {
    * this map; their correctness is recomputed on the fly by `gradeAnswer`.
    */
   grading?: { [questionId: string]: WrittenAnswerGrade };
+  /**
+   * Server-stamped time the student raised their hand from the live quiz UI,
+   * or null when lowered (by the student or cleared by the teacher). Absent on
+   * responses written before the feature existed — treat as null. Deliberately
+   * NOT mirrored into `lastWriteAt` so a raised hand can't defer idle
+   * auto-submit.
+   */
+  handRaisedAt?: import('firebase/firestore').Timestamp | null;
 }
 
 /**
@@ -3883,6 +3958,16 @@ export interface QuizConfig {
    * Pre-selects the picker on re-launch.
    */
   lastRosterIdsByQuizId?: Record<string, string[]>;
+  /** Live monitor roster toolbar: show per-student score pills (off = projector-safe default). */
+  monitorShowScores?: boolean;
+  /** Live monitor roster toolbar: show tab-switch warning badges. */
+  monitorShowTabWarnings?: boolean;
+  /** Live monitor roster toolbar: tint rows by proficiency band. */
+  monitorShowProficiency?: boolean;
+  /** Live monitor roster sort order. */
+  monitorSortBy?: 'first' | 'last' | 'status' | 'score';
+  /** Live monitor roster filter. */
+  monitorFilterBy?: 'all' | 'hi' | 'mid' | 'low' | 'tabs';
 }
 
 // --- QUIZ ASSIGNMENT TYPES ---
@@ -4163,6 +4248,8 @@ export interface SyncedQuizGroup {
   version: number;
   title: string;
   questions: QuizQuestion[];
+  /** Stimuli referenced by `questions[].stimulusIds`. Absent on legacy groups. */
+  stimuli?: QuizStimulus[];
   /** Behavior settings authored in the editor; synced to PLC members. */
   behavior?: QuizBehaviorSettings;
   /**
@@ -4196,6 +4283,8 @@ export interface SharedQuizAssignment {
   /** Inlined quiz data so the importer can copy it into their own library. */
   title: string;
   questions: QuizQuestion[];
+  /** Stimuli referenced by `questions[].stimulusIds`. Absent on legacy shares. */
+  stimuli?: QuizStimulus[];
   createdAt: number;
   updatedAt: number;
   assignmentSettings: QuizAssignmentSettings;
@@ -4282,6 +4371,8 @@ export interface SyncedVideoActivityGroup {
 export interface PlcQuizVersionContent {
   title: string;
   questions: QuizQuestion[];
+  /** Present when the snapshotted quiz carried stimuli. */
+  stimuli?: QuizStimulus[];
   behavior?: QuizBehaviorSettings;
 }
 
@@ -4377,7 +4468,7 @@ export type VideoActivityQuestionType = 'MC' | 'FIB' | 'MA';
  */
 export type VideoActivityQuestion = Omit<
   QuizQuestion,
-  'type' | 'matchingDistractors'
+  'type' | 'matchingDistractors' | 'stimulusIds'
 > & {
   type: VideoActivityQuestionType;
   /** Seconds into the video when this question should trigger. */

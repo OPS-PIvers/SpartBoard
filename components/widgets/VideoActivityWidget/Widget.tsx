@@ -868,12 +868,6 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             );
           }
         }}
-        initialLibraryViewMode={config.libraryViewMode}
-        onLibraryViewModeChange={(mode) => {
-          updateWidget(widget.id, {
-            config: { ...config, libraryViewMode: mode } as VideoActivityConfig,
-          });
-        }}
         onShareWithPlc={(meta) => {
           if (plcs.length === 0) {
             addToast(

@@ -1347,7 +1347,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
              'id', 'version', 'title', 'questions',
              'participants', 'plcId', 'createdAt',
-             'updatedAt', 'updatedBy', 'behavior'
+             'updatedAt', 'updatedBy', 'behavior', 'stimuli'
            ])
         && request.resource.data.id == groupId
         && request.resource.data.version is int
@@ -1359,7 +1359,8 @@ service cloud.firestore {
         // Validate plcId type when present so a malformed link/cast can't write
         // a non-string value that downstream PLC reads would mishandle.
         && (!('plcId' in request.resource.data) || request.resource.data.plcId is string)
-        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map);
+        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map)
+        && (!('stimuli' in request.resource.data) || request.resource.data.stimuli is list);
 
       // Content updates: caller must be a participant; participants + id are
       // client-immutable; version must increase by exactly 1 (concurrent loser
@@ -1369,7 +1370,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
              'id', 'version', 'title', 'questions',
              'participants', 'plcId', 'createdAt',
-             'updatedAt', 'updatedBy', 'behavior'
+             'updatedAt', 'updatedBy', 'behavior', 'stimuli'
            ])
         && request.resource.data.id == resource.data.id
         && request.resource.data.participants == resource.data.participants
@@ -1378,7 +1379,8 @@ service cloud.firestore {
         // plcId is the link to the owning PLC and must stay immutable post-create
         // — handle the case where either side is missing the field with a default.
         && request.resource.data.get('plcId', null) == resource.data.get('plcId', null)
-        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map);
+        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map)
+        && (!('stimuli' in request.resource.data) || request.resource.data.stimuli is list);
 
       // No client delete. An orphaned (empty-participants) group stays so an old
       // share URL still resolves the bootstrap snapshot rather than 404.
@@ -3102,7 +3104,24 @@ service cloud.firestore {
            // (e.g. `somethingElse: 'hack'`) would land in `addedKeys` and
            // bypass the whitelist entirely.
            request.resource.data.diff(resource.data)
-             .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt']) &&
+             .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors']) &&
+           // Stimulus telemetry maps (per-attempt play counters + load-failure
+           // counters). Truthfulness is client-enforced pacing/diagnostics, not
+           // a security boundary — but size is: the teacher monitor reads every
+           // response doc in the session, so cap the key count to stop a student
+           // inflating their own doc toward the 1 MB limit with junk keys.
+           // Plays are keyed `a{attempt}:{stimulusId}`, errors by stimulus id.
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stimulusPlays']) ||
+            (request.resource.data.stimulusPlays is map &&
+             request.resource.data.stimulusPlays.keys().size() <= 200)) &&
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stimulusErrors']) ||
+            (request.resource.data.stimulusErrors is map &&
+             request.resource.data.stimulusErrors.keys().size() <= 100)) &&
+           // `handRaisedAt` must be server-stamped when raising, or null when
+           // the student lowers their own hand — never a client timestamp.
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['handRaisedAt']) ||
+            request.resource.data.handRaisedAt == request.time ||
+            request.resource.data.handRaisedAt == null) &&
            // `lastWriteAt` is the idle-auto-submit cutoff field. Must
            // be server-stamped (`serverTimestamp()` from the SDK, which
            // resolves to `request.time` at rule evaluation), NOT a
@@ -3455,11 +3474,23 @@ service cloud.firestore {
                    (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
 
       match /entries/{entryId} {
-        // Students can submit entries (create)
-        allow create: if request.auth != null;
+        // Students can submit entries (create). Parent session must exist and
+        // be active, and the payload must match the client's exact write
+        // shape ({name, joinedAt}) — the teacher's listener queries
+        // orderBy('joinedAt'), so a doc missing that field is invisible to it
+        // and would accumulate forever; an unbounded name string would bloat
+        // the teacher's Drive queue export.
+        allow create: if request.auth != null &&
+          exists(/databases/$(database)/documents/nextup_sessions/$(sessionId)) &&
+          get(/databases/$(database)/documents/nextup_sessions/$(sessionId)).data.get('isActive', false) == true &&
+          request.resource.data.keys().hasOnly(['name', 'joinedAt']) &&
+          request.resource.data.name is string &&
+          request.resource.data.name.size() > 0 &&
+          request.resource.data.name.size() <= 100 &&
+          request.resource.data.joinedAt is int;
         // Only teacher and admin can read/delete entries (buffer processing)
         // Path-based ownership check ensures query safety for the teacher's listener
-        allow read, delete: if request.auth != null && 
+        allow read, delete: if request.auth != null &&
                             (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
       }
     }
