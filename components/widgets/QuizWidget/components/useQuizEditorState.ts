@@ -1,5 +1,10 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { QuizData, QuizQuestion, QuizQuestionType } from '@/types';
+import {
+  QuizData,
+  QuizQuestion,
+  QuizQuestionType,
+  QuizStimulus,
+} from '@/types';
 import {
   GeneratedQuestion,
   buildPromptWithFileContext,
@@ -46,6 +51,16 @@ export interface QuizEditorController {
   addQuestion: () => void;
   deleteQuestion: (id: string) => void;
   reorderQuestions: (next: QuizQuestion[]) => void;
+  // Stimuli
+  stimuli: QuizStimulus[];
+  addStimulus: (stimulus: QuizStimulus) => void;
+  updateStimulus: (id: string, updates: Partial<QuizStimulus>) => void;
+  /** Removes the entry AND strips its id from every question. */
+  deleteStimulus: (id: string) => void;
+  /** Attach/detach one stimulus on one question. */
+  toggleStimulusOnQuestion: (stimulusId: string, questionId: string) => void;
+  /** Attach the stimulus to every question (or detach from all). */
+  setStimulusOnAllQuestions: (stimulusId: string, attached: boolean) => void;
   // AI generation
   showAiPrompt: boolean;
   setShowAiPrompt: (next: boolean) => void;
@@ -71,6 +86,7 @@ export interface QuizEditorController {
   // Snapshot for dirty check
   originalTitle: string;
   originalQuestions: QuizQuestion[];
+  originalStimuli: QuizStimulus[];
 }
 
 export function useQuizEditorState({
@@ -85,9 +101,14 @@ export function useQuizEditorState({
   // dirty-check `useMemo` in the consumer (`QuizEditorModal`). The only
   // legitimate source of change is a new `quiz` identity.
   const originalTitle = useMemo(() => quiz?.title ?? '', [quiz]);
+  const originalStimuli = useMemo(
+    () => (quiz?.stimuli ?? []).map((s) => ({ ...s })),
+    [quiz]
+  );
 
   const [title, setTitle] = useState<string>(originalTitle);
   const [questions, setQuestions] = useState<QuizQuestion[]>(originalQuestions);
+  const [stimuli, setStimuli] = useState<QuizStimulus[]>(originalStimuli);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -111,6 +132,7 @@ export function useQuizEditorState({
     setPrevQuiz(quiz);
     setTitle(originalTitle);
     setQuestions(originalQuestions);
+    setStimuli(originalStimuli);
     setError(null);
     setSaving(false);
     setSelectedId(originalQuestions[0]?.id ?? null);
@@ -212,6 +234,74 @@ export function useQuizEditorState({
   const reorderQuestions = useCallback((next: QuizQuestion[]) => {
     setQuestions(next);
   }, []);
+
+  // ─── Stimuli ───────────────────────────────────────────────────────────────
+
+  const addStimulus = useCallback((stimulus: QuizStimulus) => {
+    setStimuli((prev) => [...prev, stimulus]);
+  }, []);
+
+  const updateStimulus = useCallback(
+    (id: string, updates: Partial<QuizStimulus>) => {
+      setStimuli((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
+      );
+    },
+    []
+  );
+
+  const deleteStimulus = useCallback((id: string) => {
+    setStimuli((prev) => prev.filter((s) => s.id !== id));
+    // Strip dangling pointers in the same gesture so no question ever
+    // references a deleted entry.
+    setQuestions((qs) =>
+      qs.map((q) => {
+        if (!q.stimulusIds?.includes(id)) return q;
+        const kept = q.stimulusIds.filter((sid) => sid !== id);
+        return { ...q, stimulusIds: kept.length > 0 ? kept : undefined };
+      })
+    );
+  }, []);
+
+  const toggleStimulusOnQuestion = useCallback(
+    (stimulusId: string, questionId: string) => {
+      setQuestions((prev) =>
+        prev.map((q) => {
+          if (q.id !== questionId) return q;
+          const current = q.stimulusIds ?? [];
+          const attached = current.includes(stimulusId);
+          const nextIds = attached
+            ? current.filter((sid) => sid !== stimulusId)
+            : [...current, stimulusId];
+          return {
+            ...q,
+            stimulusIds: nextIds.length > 0 ? nextIds : undefined,
+          };
+        })
+      );
+    },
+    []
+  );
+
+  const setStimulusOnAllQuestions = useCallback(
+    (stimulusId: string, attached: boolean) => {
+      setQuestions((prev) =>
+        prev.map((q) => {
+          const current = q.stimulusIds ?? [];
+          const has = current.includes(stimulusId);
+          if (attached === has) return q;
+          const nextIds = attached
+            ? [...current, stimulusId]
+            : current.filter((sid) => sid !== stimulusId);
+          return {
+            ...q,
+            stimulusIds: nextIds.length > 0 ? nextIds : undefined,
+          };
+        })
+      );
+    },
+    []
+  );
 
   const setAiFile = useCallback(
     (content: string | null, name: string | null) => {
@@ -327,6 +417,12 @@ export function useQuizEditorState({
     addQuestion,
     deleteQuestion,
     reorderQuestions,
+    stimuli,
+    addStimulus,
+    updateStimulus,
+    deleteStimulus,
+    toggleStimulusOnQuestion,
+    setStimulusOnAllQuestions,
     showAiPrompt,
     setShowAiPrompt,
     aiPrompt,
@@ -348,5 +444,6 @@ export function useQuizEditorState({
     setSaving,
     originalTitle,
     originalQuestions,
+    originalStimuli,
   };
 }

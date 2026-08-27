@@ -17,6 +17,8 @@ import {
 import { QuizData, QuizQuestion } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { resolveStimuli } from '@/utils/quizStimuli';
+import { StimulusRenderer } from '@/components/quiz/QuizStimulusView';
 
 /** Unbiased Fisher-Yates in-place shuffle (returns new array) */
 function fisherYatesShuffle<T>(arr: T[]): T[] {
@@ -200,6 +202,19 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
               {question.text}
             </p>
           </div>
+
+          {(question.stimulusIds?.length ?? 0) > 0 && (
+            <div className="space-y-3">
+              {resolveStimuli(question.stimulusIds, quiz.stimuli).map((s) => (
+                <StimulusRenderer
+                  key={s.id}
+                  stimulus={s}
+                  light
+                  enforcePlayLimit={false}
+                />
+              ))}
+            </div>
+          )}
 
           <div className="pt-4 border-t border-brand-blue-primary/5">
             {/* Answer area by type */}

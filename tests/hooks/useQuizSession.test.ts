@@ -422,6 +422,24 @@ describe('toPublicQuestion', () => {
     );
   });
 
+  it('copies stimulusIds when present and omits the key when absent', () => {
+    const base: QuizQuestion = {
+      id: 'q-stim',
+      timeLimit: 0,
+      text: 'With stimulus',
+      type: 'FIB',
+      correctAnswer: 'x',
+      incorrectAnswers: [],
+    };
+    expect(toPublicQuestion(base)).not.toHaveProperty('stimulusIds');
+    expect(toPublicQuestion({ ...base, stimulusIds: [] })).not.toHaveProperty(
+      'stimulusIds'
+    );
+    const pub = toPublicQuestion({ ...base, stimulusIds: ['s1', 's2'] });
+    expect(pub.stimulusIds).toEqual(['s1', 's2']);
+    expect(pub).not.toHaveProperty('correctAnswer');
+  });
+
   it('splits Matching into left prompts and shuffled right values without leaking pairs', () => {
     const q: QuizQuestion = {
       id: 'q2',

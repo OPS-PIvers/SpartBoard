@@ -321,6 +321,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
           title: pickedQuiz.title,
           driveFileId: pickedQuiz.driveFileId,
           questions: data.questions,
+          ...(data.stimuli ? { stimuli: data.stimuli } : {}),
         },
         {
           sessionMode: behavior.sessionMode,

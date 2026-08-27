@@ -23,6 +23,18 @@ vi.mock('@/context/useAuth', () => ({
   })),
 }));
 
+// The stimulus attach section pulls dialog + Drive hooks that need providers.
+vi.mock('@/context/useDialog', () => ({
+  useDialog: vi.fn(() => ({
+    showAlert: vi.fn(),
+    showConfirm: vi.fn().mockResolvedValue(false),
+    showPrompt: vi.fn(),
+  })),
+}));
+vi.mock('@/hooks/useGoogleDrive', () => ({
+  useGoogleDrive: vi.fn(() => ({ driveService: null, userDomain: undefined })),
+}));
+
 // Minimal EditorWorkspace mock: renders both panes and exposes isDirty via a
 // data attribute for assertions.
 vi.mock('@/components/common/EditorWorkspace', () => ({

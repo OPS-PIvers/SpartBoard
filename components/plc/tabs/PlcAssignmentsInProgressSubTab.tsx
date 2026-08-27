@@ -189,6 +189,9 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
           // Deep-clone so the saved copy doesn't share question objects with
           // the canonical doc (or the assignment payload built below).
           questions: structuredClone(canonical.questions),
+          ...(canonical.stimuli && canonical.stimuli.length > 0
+            ? { stimuli: structuredClone(canonical.stimuli) }
+            : {}),
           createdAt: now,
           updatedAt: now,
         };
@@ -213,6 +216,9 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
             title: savedMeta.title,
             driveFileId: savedMeta.driveFileId,
             questions: canonical.questions,
+            ...(canonical.stimuli && canonical.stimuli.length > 0
+              ? { stimuli: canonical.stimuli }
+              : {}),
           },
           {
             sessionMode: target.sessionMode,

@@ -264,6 +264,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         const result = await publishSyncedQuiz(existingSync.groupId, {
           title: updatedQuiz.title,
           questions: updatedQuiz.questions,
+          ...(updatedQuiz.stimuli && updatedQuiz.stimuli.length > 0
+            ? { stimuli: updatedQuiz.stimuli }
+            : {}),
           expectedVersion: existingSync.lastSyncedVersion,
           uid: userId,
           ...(effectiveBehavior !== undefined
@@ -332,6 +335,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         id: quizMeta.id,
         title: canonical.title,
         questions: canonical.questions,
+        ...(canonical.stimuli && canonical.stimuli.length > 0
+          ? { stimuli: canonical.stimuli }
+          : {}),
         createdAt: quizMeta.createdAt,
         updatedAt: now,
       };
@@ -555,10 +561,15 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       const drive = getDriveService();
       const sourceData = await drive.loadQuiz(sourceMeta.driveFileId);
       const now = Date.now();
+      // Stimuli deep-copy keeps the SAME ids and Drive file references —
+      // the duplicate points at the same files (PLC decision Q16-adjacent).
       const fresh: QuizData = {
         id: crypto.randomUUID(),
         title: suggestDuplicateTitle(sourceData.title || sourceMeta.title),
         questions: sourceData.questions,
+        ...(sourceData.stimuli && sourceData.stimuli.length > 0
+          ? { stimuli: sourceData.stimuli.map((s) => ({ ...s })) }
+          : {}),
         createdAt: now,
         updatedAt: now,
       };
@@ -634,6 +645,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         id: crypto.randomUUID(),
         title: shared.title,
         questions: shared.questions,
+        ...(shared.stimuli && shared.stimuli.length > 0
+          ? { stimuli: shared.stimuli }
+          : {}),
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };

@@ -1347,7 +1347,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
              'id', 'version', 'title', 'questions',
              'participants', 'plcId', 'createdAt',
-             'updatedAt', 'updatedBy', 'behavior'
+             'updatedAt', 'updatedBy', 'behavior', 'stimuli'
            ])
         && request.resource.data.id == groupId
         && request.resource.data.version is int
@@ -1359,7 +1359,8 @@ service cloud.firestore {
         // Validate plcId type when present so a malformed link/cast can't write
         // a non-string value that downstream PLC reads would mishandle.
         && (!('plcId' in request.resource.data) || request.resource.data.plcId is string)
-        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map);
+        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map)
+        && (!('stimuli' in request.resource.data) || request.resource.data.stimuli is list);
 
       // Content updates: caller must be a participant; participants + id are
       // client-immutable; version must increase by exactly 1 (concurrent loser
@@ -1369,7 +1370,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
              'id', 'version', 'title', 'questions',
              'participants', 'plcId', 'createdAt',
-             'updatedAt', 'updatedBy', 'behavior'
+             'updatedAt', 'updatedBy', 'behavior', 'stimuli'
            ])
         && request.resource.data.id == resource.data.id
         && request.resource.data.participants == resource.data.participants
@@ -1378,7 +1379,8 @@ service cloud.firestore {
         // plcId is the link to the owning PLC and must stay immutable post-create
         // — handle the case where either side is missing the field with a default.
         && request.resource.data.get('plcId', null) == resource.data.get('plcId', null)
-        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map);
+        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map)
+        && (!('stimuli' in request.resource.data) || request.resource.data.stimuli is list);
 
       // No client delete. An orphaned (empty-participants) group stays so an old
       // share URL still resolves the bootstrap snapshot rather than 404.
@@ -3102,7 +3104,14 @@ service cloud.firestore {
            // (e.g. `somethingElse: 'hack'`) would land in `addedKeys` and
            // bypass the whitelist entirely.
            request.resource.data.diff(resource.data)
-             .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt']) &&
+             .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors']) &&
+           // Stimulus telemetry maps (per-attempt play counters + load-failure
+           // counters). Client-enforced pacing/diagnostics, not a security
+           // boundary — only the shape is pinned.
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stimulusPlays']) ||
+            request.resource.data.stimulusPlays is map) &&
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stimulusErrors']) ||
+            request.resource.data.stimulusErrors is map) &&
            // `handRaisedAt` must be server-stamped when raising, or null when
            // the student lowers their own hand — never a client timestamp.
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['handRaisedAt']) ||

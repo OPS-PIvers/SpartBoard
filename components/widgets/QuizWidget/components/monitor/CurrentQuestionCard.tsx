@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ArrowRight, Loader2, Play } from 'lucide-react';
 import { QuizSession, QuizQuestion } from '@/types';
+import { resolveStimuli } from '@/utils/quizStimuli';
+import { CollapsibleStimuli } from '@/components/quiz/QuizStimulusView';
 
 interface CurrentQuestionCardProps {
   session: QuizSession;
@@ -165,6 +167,14 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
       >
         {currentQ.text}
       </p>
+      {/* Collapsed by default; expandable so the teacher can project the
+          stimulus alongside the question. */}
+      {(currentQ.stimulusIds?.length ?? 0) > 0 && (
+        <CollapsibleStimuli
+          stimuli={resolveStimuli(currentQ.stimulusIds, session.stimuli)}
+          light
+        />
+      )}
       {session.revealedAnswers?.[currentQ.id] && (
         <p
           className="text-brand-gray-dark"

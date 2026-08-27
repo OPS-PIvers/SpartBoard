@@ -569,6 +569,7 @@ const LtiDeepLinkFlow: React.FC = () => {
             title: selectedQuiz.title,
             driveFileId: selectedQuiz.driveFileId,
             questions: quizData.questions,
+            ...(quizData.stimuli ? { stimuli: quizData.stimuli } : {}),
           },
           {
             className: 'Schoology',

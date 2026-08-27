@@ -51,9 +51,11 @@ import type {
   QuizResponseAnswer,
   QuizScoreVisibility,
   QuizSession,
+  QuizStimulus,
   ResultsProtection,
   SharedQuizAssignment,
 } from '@/types';
+import { projectSessionStimuli } from '@/utils/quizStimuli';
 import type { SessionTargets } from '@/utils/resolveAssignmentTargets';
 import {
   QUIZ_SESSIONS_COLLECTION,
@@ -146,6 +148,8 @@ export interface AssignmentQuizRef {
   title: string;
   driveFileId: string;
   questions: QuizQuestion[];
+  /** Stimuli referenced by `questions[].stimulusIds`; projected onto the session doc. */
+  stimuli?: QuizStimulus[];
 }
 
 export interface UseQuizAssignmentsResult {
@@ -722,6 +726,7 @@ export const useQuizAssignments = (
 
       const mode = settings.sessionMode;
       const opts = settings.sessionOptions;
+      const sessionStimuli = projectSessionStimuli(quiz);
       const sessionStatus: QuizSession['status'] =
         initialStatus === 'paused'
           ? 'paused'
@@ -745,6 +750,9 @@ export const useQuizAssignments = (
         code,
         totalQuestions: quiz.questions.length,
         publicQuestions: quiz.questions.map(toPublicQuestion),
+        // Stimuli referenced by at least one question, labels stripped.
+        // Omitted entirely for stimulus-free quizzes.
+        ...(sessionStimuli.length > 0 ? { stimuli: sessionStimuli } : {}),
         // Phase 1 toggles
         tabWarningsEnabled: opts.tabWarningsEnabled ?? true,
         blockCopyPaste: opts.blockCopyPaste ?? false,
@@ -1413,6 +1421,9 @@ export const useQuizAssignments = (
           uid: userId,
           title: quizData.title,
           questions: quizData.questions,
+          ...(quizData.stimuli && quizData.stimuli.length > 0
+            ? { stimuli: quizData.stimuli }
+            : {}),
           // Plumb the PLC id through so downstream notification routing
           // can scope stale-content alerts to the right inbox. Not
           // consumed today; the field is reserved for future use.
@@ -1432,6 +1443,9 @@ export const useQuizAssignments = (
       const payload: Omit<SharedQuizAssignment, 'id'> = {
         title: quizData.title,
         questions: quizData.questions,
+        ...(quizData.stimuli && quizData.stimuli.length > 0
+          ? { stimuli: quizData.stimuli }
+          : {}),
         createdAt: quizData.createdAt,
         updatedAt: quizData.updatedAt,
         assignmentSettings: {
@@ -1495,6 +1509,7 @@ export const useQuizAssignments = (
 
       let initialQuestions = shared.questions;
       let initialTitle = shared.title;
+      let initialStimuli = shared.stimuli;
       let canonicalVersion: number | undefined = undefined;
       if (effectiveMode === 'sync' && shared.syncGroupId) {
         // Fail the sync import outright if the canonical doc is
@@ -1509,6 +1524,7 @@ export const useQuizAssignments = (
         const canonical = await pullSyncedQuizContent(shared.syncGroupId);
         initialTitle = canonical.title;
         initialQuestions = canonical.questions;
+        initialStimuli = canonical.stimuli;
         canonicalVersion = canonical.version;
       }
 
@@ -1517,6 +1533,9 @@ export const useQuizAssignments = (
         id: crypto.randomUUID(),
         title: initialTitle,
         questions: initialQuestions,
+        ...(initialStimuli && initialStimuli.length > 0
+          ? { stimuli: initialStimuli }
+          : {}),
         createdAt: now,
         updatedAt: now,
       };
@@ -1664,6 +1683,7 @@ export const useQuizAssignments = (
             title: newQuiz.title,
             driveFileId: savedMeta.driveFileId,
             questions: newQuiz.questions,
+            ...(newQuiz.stimuli ? { stimuli: newQuiz.stimuli } : {}),
           },
           importedSettings,
           {
@@ -1774,6 +1794,7 @@ export const useQuizAssignments = (
       // create time (toPublicQuestion) so the student-side rendering path
       // doesn't have to special-case post-sync state.
       const publicQuestions = canonical.questions.map(toPublicQuestion);
+      const canonicalStimuli = projectSessionStimuli(canonical);
 
       // Tag any pre-existing responses with the OLD `syncedVersion` so
       // the results UI can render "Answered before v{N+1} update" chips.
@@ -1840,6 +1861,10 @@ export const useQuizAssignments = (
       firstBatch.update(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), {
         publicQuestions,
         totalQuestions: canonical.questions.length,
+        // Keep the session's stimuli in lockstep with the rebuilt
+        // publicQuestions; deleteField clears stale entries when the
+        // canonical edit removed the last stimulus.
+        stimuli: canonicalStimuli.length > 0 ? canonicalStimuli : deleteField(),
       });
       // 2 writes already used (assignment + session); fill the rest.
       const firstChunkSize = Math.min(

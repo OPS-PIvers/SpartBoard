@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { AlertTriangle, Hand, Lock, MoreVertical, Unlock } from 'lucide-react';
+import {
+  AlertTriangle,
+  Hand,
+  ImageOff,
+  Lock,
+  MoreVertical,
+  Unlock,
+} from 'lucide-react';
 import { QuizSession, QuizConfig } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { MonitorStudent } from './useMonitorData';
@@ -402,6 +409,16 @@ export const RosterList: React.FC<RosterListProps> = ({
                 >
                   Q{s.onQuestion}
                 </span>
+              )}
+              {Object.keys(r.stimulusErrors ?? {}).length > 0 && (
+                <ImageOff
+                  className="text-amber-600"
+                  aria-label="Stimulus failed to load for this student"
+                  style={{
+                    width: 'min(12px, 4cqmin)',
+                    height: 'min(12px, 4cqmin)',
+                  }}
+                />
               )}
               {showTabs && s.tabWarnings > 0 && (
                 <span

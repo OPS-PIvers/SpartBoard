@@ -28,6 +28,7 @@ import {
   RefreshCw,
   Lock,
   GraduationCap,
+  Paperclip,
   Send,
 } from 'lucide-react';
 import { QuizResponse, QuizData, QuizQuestion, QuizConfig } from '@/types';
@@ -1954,6 +1955,16 @@ const QuestionsScreen: React.FC<{
               >
                 Q{i + 1}
               </p>
+              {(q.stimulusIds?.length ?? 0) > 0 && (
+                <Paperclip
+                  className="text-brand-gray-primary shrink-0"
+                  aria-label="Question has attached stimuli"
+                  style={{
+                    width: 'min(12px, 4cqmin)',
+                    height: 'min(12px, 4cqmin)',
+                  }}
+                />
+              )}
               {isWritten ? (
                 <SessionBadge tone="warn" label="Manual" />
               ) : (

@@ -25,6 +25,7 @@ import {
   MatchingAnswerEditor,
   OrderingAnswerEditor,
 } from './MatchingOrderingEditor';
+import { QuestionStimulusSection } from './StimulusManagerPanel';
 import type { QuizEditorController } from './useQuizEditorState';
 
 interface PaneProps {
@@ -316,7 +317,8 @@ const QuestionRow = React.memo(function QuestionRow({
 const quizDetailPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.state.questions === next.state.questions &&
   prev.state.selectedQuestion === next.state.selectedQuestion &&
-  prev.state.selectedIndex === next.state.selectedIndex;
+  prev.state.selectedIndex === next.state.selectedIndex &&
+  prev.state.stimuli === next.state.stimuli;
 
 export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   state,
@@ -618,6 +620,10 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             </div>
           </div>
         )}
+
+        {/* Per-question stimulus attach — second entry point alongside the
+            quiz-level Stimuli tab; both edit the same array. */}
+        <QuestionStimulusSection state={state} questionId={q.id} />
       </div>
     </div>
   );

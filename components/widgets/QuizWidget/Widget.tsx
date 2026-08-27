@@ -1376,6 +1376,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 title: meta.title,
                 driveFileId: meta.driveFileId,
                 questions: data.questions,
+                ...(data.stimuli ? { stimuli: data.stimuli } : {}),
               },
               {
                 sessionMode: mode,
@@ -1526,6 +1527,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               title: meta.title,
               driveFileId: meta.driveFileId,
               questions: data.questions,
+              ...(data.stimuli ? { stimuli: data.stimuli } : {}),
             },
             {
               sessionMode: 'teacher',
