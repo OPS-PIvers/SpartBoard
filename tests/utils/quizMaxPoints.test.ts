@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { quizMaxPoints } from '@/utils/quizMaxPoints';
+import { quizMaxPoints, dedupeQuestionsById } from '@/utils/quizMaxPoints';
 import type { QuizQuestion } from '@/types';
 
 /**
@@ -59,5 +59,23 @@ describe('quizMaxPoints', () => {
     } as unknown as QuizQuestion;
     // [dup, dup, unique] → only dup(5) + unique(3) = 8
     expect(quizMaxPoints([dup, dup, unique])).toBe(8);
+  });
+});
+
+describe('dedupeQuestionsById', () => {
+  it('keeps the first occurrence and drops later duplicates by id', () => {
+    const first = q();
+    const dup = { ...first, points: 99 };
+    const unique = q();
+    expect(dedupeQuestionsById([first, dup, unique])).toEqual([first, unique]);
+  });
+
+  it('returns an equivalent array when there are no duplicates', () => {
+    const list = [q(), q(), q()];
+    expect(dedupeQuestionsById(list)).toEqual(list);
+  });
+
+  it('returns an empty array for an empty input', () => {
+    expect(dedupeQuestionsById([])).toEqual([]);
   });
 });

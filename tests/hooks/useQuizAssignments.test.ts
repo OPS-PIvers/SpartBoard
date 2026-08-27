@@ -1178,6 +1178,53 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     expect(batchCommit).toHaveBeenCalledTimes(1);
   });
 
+  it('does not duplicate a question shown to students when the canonical questions contain a duplicate id (dedup guard)', async () => {
+    // Same dedup-fence bug class as createAssignment: a Drive-sync/arrayUnion
+    // race can hand the canonical `questions` array a duplicate id, which
+    // must not resurface as a duplicated question after a re-sync.
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    const dupQuestion = {
+      id: 'q-dup',
+      text: 'Same question',
+      type: 'MC' as const,
+      correctAnswer: 'a',
+      incorrectAnswers: ['b', 'c', 'd'],
+      timeLimit: 30,
+    };
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'Updated Title',
+      questions: [dupQuestion, { ...dupQuestion }],
+      version: 4,
+    });
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        teacherUid: TEACHER_UID,
+        quizTitle: 'Old Title',
+        sync: { groupId: 'group-1', syncedVersion: 3 },
+      }),
+    });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected batch.update on session doc');
+    const sessionPatch = sessionCall[1] as {
+      totalQuestions: number;
+      publicQuestions: { id: string }[];
+    };
+    expect(sessionPatch.totalQuestions).toBe(1);
+    expect(sessionPatch.publicQuestions).toHaveLength(1);
+  });
+
   it('queries only responses with preSyncVersion == 0 (server-side skip of already-tagged rows)', async () => {
     const { pullSyncedQuizContent } =
       await import('@/hooks/useSyncedQuizGroups');
@@ -1680,6 +1727,52 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
       });
     });
     expect(findSessionSet()).toMatchObject({ blockCopyPaste: false });
+  });
+
+  it('does not duplicate a question shown to students when quiz.questions contains a duplicate id (dedup guard)', async () => {
+    // Drive-sync duplication or arrayUnion races can write the same question
+    // id twice into `quiz.questions` (see quizMaxPoints.test.ts). Without a
+    // dedup guard here, the duplicate is shown to the student TWICE and
+    // totalQuestions over-counts it, unlike every other question-consuming
+    // path in this codebase (quizMaxPoints, buildQuizClassroomGradeEntries,
+    // the publish-score path below) which already dedupes by id.
+    const dupQuestion = {
+      id: 'q-dup',
+      type: 'MC' as const,
+      text: 'Same question',
+      correctAnswer: 'a',
+      incorrectAnswers: ['b'],
+      timeLimit: 30,
+    };
+    const dupQuiz = {
+      id: 'quiz-dup',
+      title: 'Dup Quiz',
+      driveFileId: 'drive-dup',
+      questions: [
+        dupQuestion,
+        { ...dupQuestion },
+        {
+          id: 'q-unique',
+          type: 'MC' as const,
+          text: 'Other question',
+          correctAnswer: 'c',
+          incorrectAnswers: ['d'],
+          timeLimit: 30,
+        },
+      ],
+    };
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(dupQuiz, {
+        sessionMode: 'teacher',
+        sessionOptions: {},
+      });
+    });
+    const sessionSet = findSessionSet();
+    expect(sessionSet.totalQuestions).toBe(2);
+    expect(
+      (sessionSet.publicQuestions as { id: string }[]).map((q) => q.id)
+    ).toEqual(['q-dup', 'q-unique']);
   });
 
   it('writes an index entry to the PLC subcollection when settings.plc is set', async () => {

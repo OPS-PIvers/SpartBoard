@@ -56,6 +56,7 @@ import type {
   SharedQuizAssignment,
 } from '@/types';
 import { projectSessionStimuli } from '@/utils/quizStimuli';
+import { dedupeQuestionsById } from '@/utils/quizMaxPoints';
 import type { SessionTargets } from '@/utils/resolveAssignmentTargets';
 import {
   QUIZ_SESSIONS_COLLECTION,
@@ -726,7 +727,12 @@ export const useQuizAssignments = (
 
       const mode = settings.sessionMode;
       const opts = settings.sessionOptions;
-      const sessionStimuli = projectSessionStimuli(quiz);
+      // Dedupe once so totalQuestions and publicQuestions can't drift apart.
+      const sessionQuestions = dedupeQuestionsById(quiz.questions);
+      const sessionStimuli = projectSessionStimuli({
+        questions: sessionQuestions,
+        stimuli: quiz.stimuli,
+      });
       const sessionStatus: QuizSession['status'] =
         initialStatus === 'paused'
           ? 'paused'
@@ -748,8 +754,8 @@ export const useQuizAssignments = (
         startedAt: mode === 'student' ? now : null,
         endedAt: null,
         code,
-        totalQuestions: quiz.questions.length,
-        publicQuestions: quiz.questions.map(toPublicQuestion),
+        totalQuestions: sessionQuestions.length,
+        publicQuestions: sessionQuestions.map(toPublicQuestion),
         // Stimuli referenced by at least one question, labels stripped.
         // Omitted entirely for stimulus-free quizzes.
         ...(sessionStimuli.length > 0 ? { stimuli: sessionStimuli } : {}),
@@ -1793,8 +1799,13 @@ export const useQuizAssignments = (
       // content. This MUST match the shuffle/strip logic used at session
       // create time (toPublicQuestion) so the student-side rendering path
       // doesn't have to special-case post-sync state.
-      const publicQuestions = canonical.questions.map(toPublicQuestion);
-      const canonicalStimuli = projectSessionStimuli(canonical);
+      // Dedupe once so totalQuestions and publicQuestions can't drift apart.
+      const canonicalQuestions = dedupeQuestionsById(canonical.questions);
+      const publicQuestions = canonicalQuestions.map(toPublicQuestion);
+      const canonicalStimuli = projectSessionStimuli({
+        questions: canonicalQuestions,
+        stimuli: canonical.stimuli,
+      });
 
       // Tag any pre-existing responses with the OLD `syncedVersion` so
       // the results UI can render "Answered before v{N+1} update" chips.
@@ -1860,7 +1871,7 @@ export const useQuizAssignments = (
       });
       firstBatch.update(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), {
         publicQuestions,
-        totalQuestions: canonical.questions.length,
+        totalQuestions: canonicalQuestions.length,
         // Keep the session's stimuli in lockstep with the rebuilt
         // publicQuestions; deleteField clears stale entries when the
         // canonical edit removed the last stimulus.

@@ -33,3 +33,22 @@ export function quizMaxPoints(questions: QuizQuestion[]): number {
   }
   return total || 100;
 }
+
+/**
+ * Drop duplicate question ids, keeping the first occurrence. The same
+ * Drive-sync/arrayUnion race documented above can hand a raw `questions`
+ * array to session-creation code (not just point-summing code); callers that
+ * derive BOTH a question count and a question list (e.g. `totalQuestions` +
+ * `publicQuestions`) must dedupe once up front so the two can never drift out
+ * of sync with each other.
+ */
+export function dedupeQuestionsById(questions: QuizQuestion[]): QuizQuestion[] {
+  const seen = new Set<string>();
+  const out: QuizQuestion[] = [];
+  for (const q of questions) {
+    if (seen.has(q.id)) continue;
+    seen.add(q.id);
+    out.push(q);
+  }
+  return out;
+}
