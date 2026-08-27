@@ -46,13 +46,6 @@ _2026-06-01: Full collection audit. All collection names from frontend (componen
 
 _2026-05-27: Audited all collection() and collectionGroup() calls in components/, context/, hooks/, utils/, and functions/src/. Cross-referenced 40+ collection names against match blocks in firestore.rules (3066 lines). New code added since 2026-05-18: Spotify OAuth (functions/src/spotifyOAuth.ts), synced quiz/video-activity groups (functions/src/syncedQuizGroups.ts, syncedVideoActivityGroups.ts), shared_notebooks (context/DashboardContext.tsx, hooks/useNotebookSharing.ts). Verified: `shared_notebooks` has a match block (referenced in the 2026-05-23 audit note); `spotify_tokens` (if stored) would need a rule — but review of spotifyOAuth.ts shows it stores tokens in Firebase Auth custom claims, not Firestore; `synced_quiz_groups` and `synced_video_activity_groups` are stored under subcollections of existing organizations path already covered by the broad `/organizations/{orgId}/{document=**}` rule. Default-deny catch-all still present at end of rules. Zero new unprotected collections. Existing two open items unchanged._
 
-### MEDIUM `nextup_sessions/{sessionId}/entries` create is completely unvalidated
-
-- **Detected:** 2026-08-24
-- **File:** `firestore.rules:3441-3448`; call sites `components/student/NextUpStudentApp.tsx:97-107`, `components/widgets/NextUp/Widget.tsx:133-175`
-- **Detail:** The rule is a bare `allow create: if request.auth != null;` — no parent `exists()` check, no doc-id binding to the writer's uid, no field whitelist, no size cap, no active-session gate. `NextUpStudentApp` signs in **anonymously** (`signInAnonymously`, `:41`) and `addDoc`s `{name, joinedAt}`. Any holder of the share link (`/nextup?id={teacherUid}_{widgetId}`) — or any authenticated user who obtains that id — can spray unbounded arbitrary-shape docs into a teacher's queue, including after the teacher deactivates it (`isActive` and the same-day expiry check are enforced **client-side only**, `NextUpStudentApp.tsx:73`). Two consequences verified against the teacher widget: (a) the teacher's listener is `query(entriesRef, orderBy('joinedAt','asc'), limit(5))`, so a doc *omitting* `joinedAt` is invisible to the query and therefore never reached by the `deleteDoc` cleanup — junk accumulates permanently; (b) a doc *with* `joinedAt` and a ~1MB `name` string is read as `data.name` and serialized into the teacher's Google Drive JSON file. Every sibling student-write surface validates: `activity_wall_sessions/*/submissions` requires `exists(parent)` + a 5000-char content cap (`:3836-3850`), `poll_sessions/*/votes` requires a uid-keyed doc id + `active` gate + `hasOnly(['optionIndex','votedAt'])` (`:3905-3911`), quiz/VA responses are heavily constrained. `nextup_sessions` is the only student-write path with zero validation, and it has **no coverage in `tests/rules/`** (zero matches for "nextup").
-- **Fix:** Mirror the `poll_sessions/votes` pattern — require `exists(/databases/$(database)/documents/nextup_sessions/$(sessionId))`, gate on the parent's `isActive == true`, and add `request.resource.data.keys().hasOnly(['name','joinedAt']) && request.resource.data.name is string && request.resource.data.name.size() <= 100 && request.resource.data.joinedAt is int`. Add a `tests/rules/nextupEntries.test.ts` alongside the other session-write suites.
-
 ### LOW `sessions/{userId}/students` create has no schema or size validation
 
 - **Detected:** 2026-08-24
@@ -127,6 +120,14 @@ _2026-05-27: Audited all collection() and collectionGroup() calls in components/
 ---
 
 ## Completed
+
+### MEDIUM `nextup_sessions/{sessionId}/entries` create is completely unvalidated
+
+- **Detected:** 2026-08-24
+- **Resolved:** 2026-08-27 — resolved outside journal workflow, via the nightly debugger routine's Build & Tooling run, PR [#2580](https://github.com/OPS-PIvers/SpartBoard/pull/2580).
+- **File:** `firestore.rules:3441-3448`; call sites `components/student/NextUpStudentApp.tsx:97-107`, `components/widgets/NextUp/Widget.tsx:133-175`
+- **Detail (original):** The rule was a bare `allow create: if request.auth != null;` — no parent `exists()` check, no field whitelist, no size cap, no active-session gate. `NextUpStudentApp` signs in anonymously and `addDoc`s `{name, joinedAt}`. Any holder of the share link (or any authenticated user who obtains it) could spray unbounded arbitrary-shape docs into a teacher's queue, including after deactivation (client-side-only gate). A doc omitting `joinedAt` was invisible to the teacher's `orderBy('joinedAt')` listener and never cleaned up; a doc with an oversized `name` string was serialized straight into the teacher's Drive export.
+- **Resolution:** Added the `poll_sessions/votes`-style guard: `exists()` on the parent `nextup_sessions/{sessionId}` doc, gated on `isActive == true`, plus `hasOnly(['name','joinedAt'])`, `name is string` non-empty ≤100 chars, and `joinedAt is int`. Verified against the real client write path (exact `{name, joinedAt}` shape) and against `Settings.tsx`'s `setDoc(..., {isActive: true})` session-creation flow, so the gate does not break the legitimate join path. Covered by new `tests/rules/nextupEntries.test.ts` (12 tests against the real Firestore emulator).
 
 ### MEDIUM `pollVotes` subcollection write is unrestricted for all authenticated users
 
