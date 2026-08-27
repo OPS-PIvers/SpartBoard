@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { getAudioCtx as getSharedAudioCtx } from '@/utils/timeToolAudio';
 import { getAudioCtx as getStarterPackAudioCtx } from '@/components/widgets/StarterPack/audioUtils';
@@ -9,7 +7,9 @@ import { getDiceAudioCtx } from '@/components/widgets/DiceWidget/utils/audio';
 // Regression guard: each widget audio module used to build its own AudioContext instead of sharing one.
 describe('widget audio context sharing', () => {
   beforeEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
     if (!(window as any).AudioContext) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
       (window as any).AudioContext = class MockAudioContext {
         state = 'suspended';
       };
