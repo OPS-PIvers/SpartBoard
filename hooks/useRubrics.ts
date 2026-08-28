@@ -80,10 +80,10 @@ export const useRubrics = (userId: string | undefined): UseRubricsResult => {
   const saveRubric = useCallback(
     async (rubric: Rubric): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
-      await setDoc(
-        doc(db, 'users', userId, RUBRICS_COLLECTION, rubric.id),
-        rubric
-      );
+      await setDoc(doc(db, 'users', userId, RUBRICS_COLLECTION, rubric.id), {
+        ...rubric,
+        updatedAt: Date.now(),
+      });
     },
     [userId]
   );

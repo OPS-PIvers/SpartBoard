@@ -84,8 +84,10 @@ describe('useRubrics', () => {
 
     expect(setDocMock).toHaveBeenCalledWith(
       expect.objectContaining({ path: `users/${UID}/rubrics/${rubric.id}` }),
-      rubric
+      expect.objectContaining({ ...rubric, updatedAt: expect.any(Number) })
     );
+    const written = setDocMock.mock.calls[0][1] as Rubric;
+    expect(written.updatedAt).toBeGreaterThan(rubric.updatedAt);
   });
 
   it('deleteRubric removes the doc by id', async () => {
