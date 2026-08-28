@@ -11,13 +11,6 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const globalStyle = useGlobalStyle();
   const [time, setTime] = useState(new Date());
 
-  useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => {
-      clearInterval(timer);
-    };
-  }, []);
-
   const {
     format24 = true,
     showSeconds = true,
@@ -26,6 +19,26 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     clockStyle = 'modern',
     glow = false,
   } = widget.config as ClockConfig;
+
+  // With seconds hidden, nothing on screen changes between minute boundaries,
+  // so ticking every second is wasted work on an always-on classroom display.
+  // Align to the next minute boundary, then tick once a minute.
+  useEffect(() => {
+    if (showSeconds) {
+      const timer = setInterval(() => setTime(new Date()), 1000);
+      return () => clearInterval(timer);
+    }
+    const msUntilNextMinute = 60_000 - (Date.now() % 60_000);
+    let interval: ReturnType<typeof setInterval> | undefined;
+    const timeout = setTimeout(() => {
+      setTime(new Date());
+      interval = setInterval(() => setTime(new Date()), 60_000);
+    }, msUntilNextMinute);
+    return () => {
+      clearTimeout(timeout);
+      if (interval) clearInterval(interval);
+    };
+  }, [showSeconds]);
 
   const hours = time.getHours();
   const displayHours = format24
